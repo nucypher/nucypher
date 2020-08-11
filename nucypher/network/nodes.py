@@ -16,7 +16,6 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
 import contextlib
-import inspect
 import time
 from collections import defaultdict
 from collections import deque
@@ -25,23 +24,34 @@ from queue import Queue
 from typing import Set, Tuple, Union
 
 import maya
-import pytest
 import requests
-from cryptography.exceptions import InvalidSignature
+from bytestring_splitter import (
+    BytestringSplitter,
+    BytestringSplittingError,
+    PartiallyKwargifiedBytes,
+    VariableLengthBytestring
+)
+from constant_sorrow import constant_or_bytes
+from constant_sorrow.constants import (
+    CERTIFICATE_NOT_SAVED,
+    FLEET_STATES_MATCH,
+    NEVER_SEEN,
+    NOT_SIGNED,
+    NO_KNOWN_NODES,
+    NO_STORAGE_AVAILIBLE,
+    UNKNOWN_FLEET_STATE,
+    UNKNOWN_VERSION,
+    RELAX
+)
 from cryptography.x509 import Certificate
 from eth_utils import to_checksum_address
 from requests.exceptions import SSLError
 from twisted.internet import reactor, task
 from twisted.internet.defer import Deferred
 from twisted.logger import Logger
-from typing import Set, Tuple, Union
+from umbral.signing import Signature
 
 import nucypher
-from bytestring_splitter import BytestringSplitter, BytestringSplittingError, PartiallyKwargifiedBytes, \
-    VariableLengthBytestring
-from constant_sorrow import constant_or_bytes
-from constant_sorrow.constants import (CERTIFICATE_NOT_SAVED, FLEET_STATES_MATCH, NEVER_SEEN, NOT_SIGNED,
-                                       NO_KNOWN_NODES, NO_STORAGE_AVAILIBLE, UNKNOWN_FLEET_STATE, UNKNOWN_VERSION, RELAX)
 from nucypher.acumen.nicknames import nickname_from_seed
 from nucypher.acumen.perception import FleetSensor, icon_from_checksum
 from nucypher.blockchain.economics import EconomicsFactory
@@ -59,9 +69,7 @@ from nucypher.network.exceptions import NodeSeemsToBeDown
 from nucypher.network.middleware import RestMiddleware
 from nucypher.network.protocols import SuspiciousActivity
 from nucypher.network.server import TLSHostingPower
-from umbral.signing import Signature
 from nucypher.utilities.logging import Logger
-
 
 
 class NodeSprout(PartiallyKwargifiedBytes):
@@ -501,29 +509,19 @@ class Learner:
     def _crash_gracefully(self, failure=None):
         """
         A facility for crashing more gracefully in the event that an exception
-        is unhandled in a different thread, especially inside a loop like the acumen loop, Alice's publication loop, or Bob's retrieval loop..
+        is unhandled in a different thread, especially inside a loop like the acumen loop,
+        Alice's publication loop, or Bob's retrieval loop.
         """
-
         self._crashed = failure
-
-        # TODO: Maybe patch this in tests too?
-        from tests.conftest import global_mutable_where_everybody
-        gmwe = global_mutable_where_everybody
-
         failure.raiseException()
         # TODO: We don't actually have checksum_address at this level - maybe only Characters can crash gracefully :-)  1711
         self.log.critical("{} crashed with {}".format(self.checksum_address, failure))
-
-
-        pytest.fail()
         reactor.stop()
 
     def select_teacher_nodes(self):
         nodes_we_know_about = self.known_nodes.shuffled()
-
         if not nodes_we_know_about:
             raise self.NotEnoughTeachers("Need some nodes to start learning from.")
-
         self.teacher_nodes.extend(nodes_we_know_about)
 
     def cycle_teacher_node(self):
