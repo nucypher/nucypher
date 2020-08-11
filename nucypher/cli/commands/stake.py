@@ -320,13 +320,13 @@ def config(general_config, config_file, config_options):
 @stake.command('list')
 @group_staker_options
 @option_config_file
-@click.option('--all', help="List all stakes, including unlocked", is_flag=True)
+@click.option('--show-all', help="List all stakes, including unlocked and inactive", is_flag=True)
 @group_general_config
-def list_stakes(general_config, staker_options, config_file, all):
+def list_stakes(general_config, staker_options, config_file, show_all):
     """List active stakes for current stakeholder."""
     emitter = setup_emitter(general_config)
     STAKEHOLDER = staker_options.create_character(emitter, config_file)
-    paint_all_stakes(emitter=emitter, stakeholder=STAKEHOLDER, paint_unlocked=all)
+    paint_all_stakes(emitter=emitter, stakeholder=STAKEHOLDER, paint_unlocked=show_all)
 
 
 @stake.command()

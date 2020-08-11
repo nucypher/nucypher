@@ -26,7 +26,7 @@ from nucypher.characters.control.emitters import StdoutEmitter
 from nucypher.cli.literature import POST_STAKING_ADVICE
 from nucypher.cli.painting.transactions import paint_receipt_summary
 
-STAKE_TABLE_COLUMNS = ('Idx', 'Value', 'Remaining', 'Enactment', 'Termination')
+STAKE_TABLE_COLUMNS = ('Idx', 'Value', 'Remaining', 'Enactment', 'Termination', 'Status')
 STAKER_TABLE_COLUMNS = ('Status', 'Restaking', 'Winding Down', 'Unclaimed Fees', 'Min fee rate')
 
 

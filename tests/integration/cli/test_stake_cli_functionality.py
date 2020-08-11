@@ -14,13 +14,15 @@
  You should have received a copy of the GNU Affero General Public License
  along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
+import re
 
 import pytest
 from web3 import Web3
 
 from nucypher.blockchain.eth.actors import Staker, StakeHolder
 from nucypher.blockchain.eth.constants import MAX_UINT16, NULL_ADDRESS
-from nucypher.blockchain.eth.token import NU
+from nucypher.blockchain.eth.token import NU, Stake
+from nucypher.blockchain.eth.utils import datetime_at_period
 from nucypher.cli.actions.select import select_client_account_for_staking
 from nucypher.cli.commands.stake import stake, StakeHolderConfigOptions, StakerOptions, TransactingStakerOptions
 from nucypher.cli.literature import (
@@ -34,40 +36,87 @@ from nucypher.cli.literature import (
     INSUFFICIENT_BALANCE_TO_CREATE, ONLY_DISPLAYING_MERGEABLE_STAKES_NOTE, CONFIRM_MERGE, SUCCESSFUL_STAKES_MERGE
 )
 from nucypher.config.constants import TEMPORARY_DOMAIN
-from nucypher.types import SubStakeInfo
+from nucypher.types import SubStakeInfo, StakerInfo
 from tests.constants import MOCK_PROVIDER_URI, YES, INSECURE_DEVELOPMENT_PASSWORD, NO
 
 
 @pytest.fixture()
-def surrogate_staker(mock_testerchain, test_registry, mock_staking_agent):
-    address = mock_testerchain.etherbase_account
-    staker = Staker(is_me=True, checksum_address=address, registry=test_registry)
+def surrogate_stakers(mock_testerchain, test_registry, mock_staking_agent):
+    address_1 = mock_testerchain.etherbase_account
+    address_2 = mock_testerchain.unassigned_accounts[0]
+
     mock_staking_agent.get_all_stakes.return_value = []
 
-    return staker
+    def get_missing_commitments(checksum_address):
+        if checksum_address == address_2:
+            return 0
+        else:
+            return 1
+    mock_staking_agent.get_missing_commitments.side_effect = get_missing_commitments
+
+    return address_1, address_2
 
 
 @pytest.fixture()
-def surrogate_stakes(mock_staking_agent, token_economics, surrogate_staker):
-    nu = 2 * token_economics.minimum_allowed_locked + 1
+def surrogate_stakes(mock_staking_agent, token_economics, surrogate_stakers):
+    value = 2 * token_economics.minimum_allowed_locked + 1
     current_period = 10
     duration = token_economics.minimum_locked_periods + 1
     final_period = current_period + duration
-    stakes = [SubStakeInfo(current_period - 1, final_period - 1, nu),
-              SubStakeInfo(current_period - 1, final_period, nu),
-              SubStakeInfo(current_period + 1, final_period, nu)]
+    stakes_1 = [SubStakeInfo(current_period - 1, final_period - 1, value),
+                SubStakeInfo(current_period - 1, final_period, value),
+                SubStakeInfo(current_period + 1, final_period, value),
+                SubStakeInfo(current_period - 2, current_period, value // 2),
+                SubStakeInfo(current_period - 2, current_period + 1, value // 2),
+                SubStakeInfo(current_period - 2, current_period - 1, value),
+                SubStakeInfo(current_period - 2, current_period - 2, value)]
+    stakes_2 = [SubStakeInfo(current_period - 2, final_period + 2, value)]
 
     mock_staking_agent.get_current_period.return_value = current_period
 
     def get_all_stakes(staker_address):
-        return stakes if staker_address == surrogate_staker.checksum_address else []
+        if staker_address == surrogate_stakers[0]:
+            return stakes_1
+        elif staker_address == surrogate_stakers[1]:
+            return stakes_2
+        else:
+            return []
     mock_staking_agent.get_all_stakes.side_effect = get_all_stakes
 
     def get_substake_info(staker_address, stake_index):
-        return stakes[stake_index] if staker_address == surrogate_staker.checksum_address else []
+        if staker_address == surrogate_stakers[0]:
+            return stakes_1[stake_index]
+        elif staker_address == surrogate_stakers[1]:
+            return stakes_2[stake_index]
+        else:
+            return []
     mock_staking_agent.get_substake_info.side_effect = get_substake_info
 
-    return stakes
+    # only for calculating sub-stake status
+    def get_staker_info(staker_address):
+        if staker_address == surrogate_stakers[0]:
+            return StakerInfo(value=0,
+                              current_committed_period=current_period-1,
+                              next_committed_period=current_period,
+                              last_committed_period=0,
+                              lock_restake_until_period=0,
+                              completed_work=0,
+                              worker_start_period=0,
+                              worker=NULL_ADDRESS,
+                              flags=bytes(0))
+        else:
+            return StakerInfo(value=0,
+                              current_committed_period=0,
+                              next_committed_period=0,
+                              last_committed_period=0,
+                              lock_restake_until_period=0,
+                              completed_work=0,
+                              worker_start_period=0,
+                              worker=NULL_ADDRESS,
+                              flags=bytes(0))
+    mock_staking_agent.get_staker_info.side_effect = get_staker_info
+
+    return stakes_1, stakes_2
 
 
 @pytest.mark.usefixtures("test_registry_source_manager", "patch_stakeholder_configuration")
@@ -121,7 +170,7 @@ def test_stakeholder_configuration(test_emitter, test_registry, mock_testerchain
 
 
 @pytest.mark.usefixtures("test_registry_source_manager", "patch_stakeholder_configuration")
-def test_no_token_reward(click_runner, surrogate_staker, mock_staking_agent):
+def test_no_token_reward(click_runner, surrogate_stakers, mock_staking_agent):
     # No tokens at all
     mock_staking_agent.calculate_staking_reward.return_value = 0
 
@@ -130,20 +179,20 @@ def test_no_token_reward(click_runner, surrogate_staker, mock_staking_agent):
                        '--staking-reward',
                        '--provider', MOCK_PROVIDER_URI,
                        '--network', TEMPORARY_DOMAIN,
-                       '--staking-address', surrogate_staker.checksum_address)
+                       '--staking-address', surrogate_stakers[0])
 
     user_input = INSECURE_DEVELOPMENT_PASSWORD
     result = click_runner.invoke(stake, collection_args, input=user_input, catch_exceptions=False)
     assert result.exit_code == 1
     assert NO_TOKENS_TO_WITHDRAW in result.output
 
-    mock_staking_agent.calculate_staking_reward.assert_called_once_with(staker_address=surrogate_staker.checksum_address)
+    mock_staking_agent.calculate_staking_reward.assert_called_once_with(staker_address=surrogate_stakers[0])
     mock_staking_agent.collect_staking_reward.assert_not_called()
     mock_staking_agent.assert_no_transactions()
 
 
 @pytest.mark.usefixtures("test_registry_source_manager", "patch_stakeholder_configuration")
-def test_collecting_token_reward(click_runner, surrogate_staker, mock_staking_agent, mocker):
+def test_collecting_token_reward(click_runner, surrogate_stakers, mock_staking_agent, mocker):
     mock_mintable_periods = mocker.spy(Staker, 'mintable_periods')
 
     # Collect some reward
@@ -157,22 +206,22 @@ def test_collecting_token_reward(click_runner, surrogate_staker, mock_staking_ag
                        '--staking-reward',
                        '--provider', MOCK_PROVIDER_URI,
                        '--network', TEMPORARY_DOMAIN,
-                       '--staking-address', surrogate_staker.checksum_address)
+                       '--staking-address', surrogate_stakers[0])
 
     user_input = INSECURE_DEVELOPMENT_PASSWORD
     result = click_runner.invoke(stake, collection_args, input=user_input, catch_exceptions=False)
     assert result.exit_code == 0
     assert COLLECTING_TOKEN_REWARD.format(reward_amount=reward) in result.output
 
-    mock_staking_agent.calculate_staking_reward.assert_called_once_with(staker_address=surrogate_staker.checksum_address)
-    mock_staking_agent.collect_staking_reward.assert_called_once_with(staker_address=surrogate_staker.checksum_address)
-    mock_staking_agent.non_withdrawable_stake.assert_called_once_with(staker_address=surrogate_staker.checksum_address)
+    mock_staking_agent.calculate_staking_reward.assert_called_once_with(staker_address=surrogate_stakers[0])
+    mock_staking_agent.collect_staking_reward.assert_called_once_with(staker_address=surrogate_stakers[0])
+    mock_staking_agent.non_withdrawable_stake.assert_called_once_with(staker_address=surrogate_stakers[0])
     mock_mintable_periods.assert_not_called()
     mock_staking_agent.assert_only_transactions([mock_staking_agent.collect_staking_reward])
 
 
 @pytest.mark.usefixtures("test_registry_source_manager", "patch_stakeholder_configuration")
-def test_collecting_whole_reward_with_warning(click_runner, surrogate_staker, mock_staking_agent, mocker):
+def test_collecting_whole_reward_with_warning(click_runner, surrogate_stakers, mock_staking_agent, mocker):
     mock_mintable_periods = mocker.spy(Staker, 'mintable_periods')
 
     # Collect last portion of NU with warning about periods to mint
@@ -188,7 +237,7 @@ def test_collecting_whole_reward_with_warning(click_runner, surrogate_staker, mo
                        '--staking-reward',
                        '--provider', MOCK_PROVIDER_URI,
                        '--network', TEMPORARY_DOMAIN,
-                       '--staking-address', surrogate_staker.checksum_address)
+                       '--staking-address', surrogate_stakers[0])
 
     user_input = '\n'.join((INSECURE_DEVELOPMENT_PASSWORD, YES))
     result = click_runner.invoke(stake, collection_args, input=user_input, catch_exceptions=False)
@@ -196,18 +245,18 @@ def test_collecting_whole_reward_with_warning(click_runner, surrogate_staker, mo
     assert COLLECTING_TOKEN_REWARD.format(reward_amount=reward) in result.output
     assert CONFIRM_COLLECTING_WITHOUT_MINTING in result.output
 
-    mock_staking_agent.calculate_staking_reward.assert_called_once_with(staker_address=surrogate_staker.checksum_address)
-    mock_staking_agent.collect_staking_reward.assert_called_once_with(staker_address=surrogate_staker.checksum_address)
-    mock_staking_agent.non_withdrawable_stake.assert_called_once_with(staker_address=surrogate_staker.checksum_address)
+    mock_staking_agent.calculate_staking_reward.assert_called_once_with(staker_address=surrogate_stakers[0])
+    mock_staking_agent.collect_staking_reward.assert_called_once_with(staker_address=surrogate_stakers[0])
+    mock_staking_agent.non_withdrawable_stake.assert_called_once_with(staker_address=surrogate_stakers[0])
     mock_staking_agent.get_current_period.assert_called()
-    mock_staking_agent.get_current_committed_period.assert_called_once_with(staker_address=surrogate_staker.checksum_address)
-    mock_staking_agent.get_next_committed_period.assert_called_once_with(staker_address=surrogate_staker.checksum_address)
+    mock_staking_agent.get_current_committed_period.assert_called_once_with(staker_address=surrogate_stakers[0])
+    mock_staking_agent.get_next_committed_period.assert_called_once_with(staker_address=surrogate_stakers[0])
     mock_mintable_periods.assert_called_once()
     mock_staking_agent.assert_only_transactions([mock_staking_agent.collect_staking_reward])
 
 
 @pytest.mark.usefixtures("test_registry_source_manager", "patch_stakeholder_configuration")
-def test_collecting_whole_reward_without_warning(click_runner, surrogate_staker, mock_staking_agent, mocker):
+def test_collecting_whole_reward_without_warning(click_runner, surrogate_stakers, mock_staking_agent, mocker):
     mock_mintable_periods = mocker.spy(Staker, 'mintable_periods')
 
     # Collect last portion of NU without warning
@@ -222,7 +271,7 @@ def test_collecting_whole_reward_without_warning(click_runner, surrogate_staker,
                        '--staking-reward',
                        '--provider', MOCK_PROVIDER_URI,
                        '--network', TEMPORARY_DOMAIN,
-                       '--staking-address', surrogate_staker.checksum_address)
+                       '--staking-address', surrogate_stakers[0])
 
     user_input = INSECURE_DEVELOPMENT_PASSWORD
     result = click_runner.invoke(stake, collection_args, input=user_input, catch_exceptions=False)
@@ -230,18 +279,18 @@ def test_collecting_whole_reward_without_warning(click_runner, surrogate_staker,
     assert COLLECTING_TOKEN_REWARD.format(reward_amount=reward) in result.output
     assert CONFIRM_COLLECTING_WITHOUT_MINTING not in result.output
 
-    mock_staking_agent.calculate_staking_reward.assert_called_once_with(staker_address=surrogate_staker.checksum_address)
-    mock_staking_agent.collect_staking_reward.assert_called_once_with(staker_address=surrogate_staker.checksum_address)
-    mock_staking_agent.non_withdrawable_stake.assert_called_once_with(staker_address=surrogate_staker.checksum_address)
+    mock_staking_agent.calculate_staking_reward.assert_called_once_with(staker_address=surrogate_stakers[0])
+    mock_staking_agent.collect_staking_reward.assert_called_once_with(staker_address=surrogate_stakers[0])
+    mock_staking_agent.non_withdrawable_stake.assert_called_once_with(staker_address=surrogate_stakers[0])
     mock_staking_agent.get_current_period.assert_called()
-    mock_staking_agent.get_current_committed_period.assert_called_once_with(staker_address=surrogate_staker.checksum_address)
-    mock_staking_agent.get_next_committed_period.assert_called_once_with(staker_address=surrogate_staker.checksum_address)
+    mock_staking_agent.get_current_committed_period.assert_called_once_with(staker_address=surrogate_stakers[0])
+    mock_staking_agent.get_next_committed_period.assert_called_once_with(staker_address=surrogate_stakers[0])
     mock_mintable_periods.assert_called_once()
     mock_staking_agent.assert_only_transactions([mock_staking_agent.collect_staking_reward])
 
 
 @pytest.mark.usefixtures("test_registry_source_manager", "patch_stakeholder_configuration")
-def test_no_policy_fee(click_runner, surrogate_staker, mock_policy_manager_agent):
+def test_no_policy_fee(click_runner, surrogate_stakers, mock_policy_manager_agent):
     mock_policy_manager_agent.get_fee_amount.return_value = 0
 
     collection_args = ('collect-reward',
@@ -249,20 +298,20 @@ def test_no_policy_fee(click_runner, surrogate_staker, mock_policy_manager_agent
                        '--no-staking-reward',
                        '--provider', MOCK_PROVIDER_URI,
                        '--network', TEMPORARY_DOMAIN,
-                       '--staking-address', surrogate_staker.checksum_address)
+                       '--staking-address', surrogate_stakers[0])
 
     user_input = INSECURE_DEVELOPMENT_PASSWORD
     result = click_runner.invoke(stake, collection_args, input=user_input, catch_exceptions=False)
     assert result.exit_code == 1
     assert NO_FEE_TO_WITHDRAW in result.output
 
-    mock_policy_manager_agent.get_fee_amount.assert_called_once_with(staker_address=surrogate_staker.checksum_address)
+    mock_policy_manager_agent.get_fee_amount.assert_called_once_with(staker_address=surrogate_stakers[0])
     mock_policy_manager_agent.collect_policy_fee.assert_not_called()
     mock_policy_manager_agent.assert_no_transactions()
 
 
 @pytest.mark.usefixtures("test_registry_source_manager", "patch_stakeholder_configuration")
-def test_collecting_fee(click_runner, surrogate_staker, mock_policy_manager_agent):
+def test_collecting_fee(click_runner, surrogate_stakers, mock_policy_manager_agent):
     fee_amount_eth = 11
     mock_policy_manager_agent.get_fee_amount.return_value = Web3.toWei(fee_amount_eth, 'ether')
 
@@ -271,20 +320,20 @@ def test_collecting_fee(click_runner, surrogate_staker, mock_policy_manager_agen
                        '--no-staking-reward',
                        '--provider', MOCK_PROVIDER_URI,
                        '--network', TEMPORARY_DOMAIN,
-                       '--staking-address', surrogate_staker.checksum_address)
+                       '--staking-address', surrogate_stakers[0])
 
     user_input = INSECURE_DEVELOPMENT_PASSWORD
     result = click_runner.invoke(stake, collection_args, input=user_input, catch_exceptions=False)
     assert result.exit_code == 0
     assert COLLECTING_ETH_FEE.format(fee_amount=fee_amount_eth) in result.output
 
-    mock_policy_manager_agent.get_fee_amount.assert_called_once_with(staker_address=surrogate_staker.checksum_address)
+    mock_policy_manager_agent.get_fee_amount.assert_called_once_with(staker_address=surrogate_stakers[0])
     mock_policy_manager_agent.collect_policy_fee.assert_called_once()
     mock_policy_manager_agent.assert_only_transactions([mock_policy_manager_agent.collect_policy_fee])
 
 
 @pytest.mark.usefixtures("test_registry_source_manager", "patch_stakeholder_configuration")
-def test_nothing_to_mint(click_runner, surrogate_staker, mock_staking_agent, mocker):
+def test_nothing_to_mint(click_runner, surrogate_stakers, mock_staking_agent, mocker):
     mock_mintable_periods = mocker.spy(Staker, 'mintable_periods')
     mock_staking_agent.get_current_committed_period.return_value = 0
     mock_staking_agent.get_next_committed_period.return_value = 0
@@ -292,7 +341,7 @@ def test_nothing_to_mint(click_runner, surrogate_staker, mock_staking_agent, moc
     mint_command = ('mint',
                        '--provider', MOCK_PROVIDER_URI,
                        '--network', TEMPORARY_DOMAIN,
-                       '--staking-address', surrogate_staker.checksum_address)
+                       '--staking-address', surrogate_stakers[0])
 
     user_input = INSECURE_DEVELOPMENT_PASSWORD
     result = click_runner.invoke(stake, mint_command, input=user_input, catch_exceptions=False)
@@ -301,14 +350,14 @@ def test_nothing_to_mint(click_runner, surrogate_staker, mock_staking_agent, moc
 
     mock_staking_agent.non_withdrawable_stake.assert_not_called()
     mock_staking_agent.get_current_period.assert_called()
-    mock_staking_agent.get_current_committed_period.assert_called_once_with(staker_address=surrogate_staker.checksum_address)
-    mock_staking_agent.get_next_committed_period.assert_called_once_with(staker_address=surrogate_staker.checksum_address)
+    mock_staking_agent.get_current_committed_period.assert_called_once_with(staker_address=surrogate_stakers[0])
+    mock_staking_agent.get_next_committed_period.assert_called_once_with(staker_address=surrogate_stakers[0])
     mock_mintable_periods.assert_called_once()
     mock_staking_agent.assert_no_transactions()
 
 
 @pytest.mark.usefixtures("test_registry_source_manager", "patch_stakeholder_configuration")
-def test_mint_with_warning(click_runner, surrogate_staker, mock_staking_agent, mocker):
+def test_mint_with_warning(click_runner, surrogate_stakers, mock_staking_agent, mocker):
     mock_mintable_periods = mocker.spy(Staker, 'mintable_periods')
     mock_staking_agent.get_current_period.return_value = 10
     mock_staking_agent.get_current_committed_period.return_value = 9
@@ -318,7 +367,7 @@ def test_mint_with_warning(click_runner, surrogate_staker, mock_staking_agent, m
     mint_command = ('mint',
                        '--provider', MOCK_PROVIDER_URI,
                        '--network', TEMPORARY_DOMAIN,
-                       '--staking-address', surrogate_staker.checksum_address)
+                       '--staking-address', surrogate_stakers[0])
 
     user_input = '\n'.join((INSECURE_DEVELOPMENT_PASSWORD, YES))
     result = click_runner.invoke(stake, mint_command, input=user_input, catch_exceptions=False)
@@ -326,16 +375,16 @@ def test_mint_with_warning(click_runner, surrogate_staker, mock_staking_agent, m
     assert STILL_LOCKED_TOKENS in result.output
     assert CONFIRM_MINTING.format(mintable_periods=2) in result.output
 
-    mock_staking_agent.non_withdrawable_stake.assert_called_once_with(staker_address=surrogate_staker.checksum_address)
+    mock_staking_agent.non_withdrawable_stake.assert_called_once_with(staker_address=surrogate_stakers[0])
     mock_staking_agent.get_current_period.assert_called()
-    mock_staking_agent.get_current_committed_period.assert_called_once_with(staker_address=surrogate_staker.checksum_address)
-    mock_staking_agent.get_next_committed_period.assert_called_once_with(staker_address=surrogate_staker.checksum_address)
+    mock_staking_agent.get_current_committed_period.assert_called_once_with(staker_address=surrogate_stakers[0])
+    mock_staking_agent.get_next_committed_period.assert_called_once_with(staker_address=surrogate_stakers[0])
     mock_mintable_periods.assert_called_once()
     mock_staking_agent.assert_only_transactions([mock_staking_agent.mint])
 
 
 @pytest.mark.usefixtures("test_registry_source_manager", "patch_stakeholder_configuration")
-def test_mint_without_warning(click_runner, surrogate_staker, mock_staking_agent, mocker):
+def test_mint_without_warning(click_runner, surrogate_stakers, mock_staking_agent, mocker):
     mock_mintable_periods = mocker.spy(Staker, 'mintable_periods')
     mock_staking_agent.get_current_period.return_value = 10
     mock_staking_agent.get_current_committed_period.return_value = 0
@@ -345,7 +394,7 @@ def test_mint_without_warning(click_runner, surrogate_staker, mock_staking_agent
     mint_command = ('mint',
                        '--provider', MOCK_PROVIDER_URI,
                        '--network', TEMPORARY_DOMAIN,
-                       '--staking-address', surrogate_staker.checksum_address)
+                       '--staking-address', surrogate_stakers[0])
 
     user_input = '\n'.join((INSECURE_DEVELOPMENT_PASSWORD, YES))
     result = click_runner.invoke(stake, mint_command, input=user_input, catch_exceptions=False)
@@ -353,10 +402,10 @@ def test_mint_without_warning(click_runner, surrogate_staker, mock_staking_agent
     assert STILL_LOCKED_TOKENS not in result.output
     assert CONFIRM_MINTING.format(mintable_periods=1) in result.output
 
-    mock_staking_agent.non_withdrawable_stake.assert_called_once_with(staker_address=surrogate_staker.checksum_address)
+    mock_staking_agent.non_withdrawable_stake.assert_called_once_with(staker_address=surrogate_stakers[0])
     mock_staking_agent.get_current_period.assert_called()
-    mock_staking_agent.get_current_committed_period.assert_called_once_with(staker_address=surrogate_staker.checksum_address)
-    mock_staking_agent.get_next_committed_period.assert_called_once_with(staker_address=surrogate_staker.checksum_address)
+    mock_staking_agent.get_current_committed_period.assert_called_once_with(staker_address=surrogate_stakers[0])
+    mock_staking_agent.get_next_committed_period.assert_called_once_with(staker_address=surrogate_stakers[0])
     mock_mintable_periods.assert_called_once()
     mock_staking_agent.assert_only_transactions([mock_staking_agent.mint])
 
@@ -364,7 +413,7 @@ def test_mint_without_warning(click_runner, surrogate_staker, mock_staking_agent
 @pytest.mark.usefixtures("test_registry_source_manager", "patch_stakeholder_configuration")
 def test_prolong_interactive(click_runner,
                              mocker,
-                             surrogate_staker,
+                             surrogate_stakers,
                              surrogate_stakes,
                              mock_staking_agent,
                              token_economics,
@@ -374,7 +423,7 @@ def test_prolong_interactive(click_runner,
     selected_index = 0
     sub_stake_index = 1
     lock_periods = 10
-    final_period = surrogate_stakes[sub_stake_index][1]
+    final_period = surrogate_stakes[selected_index][sub_stake_index][1]
 
     command = ('prolong',
                 '--provider', MOCK_PROVIDER_URI,
@@ -395,32 +444,33 @@ def test_prolong_interactive(click_runner,
     mock_staking_agent.get_all_stakes.assert_called()
     mock_staking_agent.get_current_period.assert_called()
     mock_refresh_stakes.assert_called()
-    mock_staking_agent.prolong_stake.assert_called_once_with(staker_address=surrogate_staker.checksum_address,
+    mock_staking_agent.prolong_stake.assert_called_once_with(staker_address=surrogate_stakers[0],
                                                              stake_index=sub_stake_index,
                                                              periods=lock_periods)
     mock_staking_agent.assert_only_transactions([mock_staking_agent.prolong_stake])
-    mock_staking_agent.get_substake_info.assert_called_once_with(staker_address=surrogate_staker.checksum_address,
+    mock_staking_agent.get_substake_info.assert_called_once_with(staker_address=surrogate_stakers[0],
                                                                  stake_index=sub_stake_index)
 
 
 @pytest.mark.usefixtures("test_registry_source_manager", "patch_stakeholder_configuration")
 def test_prolong_non_interactive(click_runner,
                                  mocker,
-                                 surrogate_staker,
+                                 surrogate_stakers,
                                  surrogate_stakes,
                                  mock_staking_agent,
                                  token_economics,
                                  mock_testerchain):
     mock_refresh_stakes = mocker.spy(Staker, 'refresh_stakes')
 
+    selected_index = 0
     sub_stake_index = 1
     lock_periods = 10
-    final_period = surrogate_stakes[sub_stake_index][1]
+    final_period = surrogate_stakes[selected_index][sub_stake_index][1]
 
     command = ('prolong',
                 '--provider', MOCK_PROVIDER_URI,
                 '--network', TEMPORARY_DOMAIN,
-                '--staking-address', surrogate_staker.checksum_address,
+                '--staking-address', surrogate_stakers[0],
                 '--index', sub_stake_index,
                 '--lock-periods', lock_periods,
                 '--force')
@@ -436,18 +486,18 @@ def test_prolong_non_interactive(click_runner,
     mock_staking_agent.get_all_stakes.assert_called()
     mock_staking_agent.get_current_period.assert_called()
     mock_refresh_stakes.assert_called()
-    mock_staking_agent.prolong_stake.assert_called_once_with(staker_address=surrogate_staker.checksum_address,
+    mock_staking_agent.prolong_stake.assert_called_once_with(staker_address=surrogate_stakers[0],
                                                              stake_index=sub_stake_index,
                                                              periods=lock_periods)
     mock_staking_agent.assert_only_transactions([mock_staking_agent.prolong_stake])
-    mock_staking_agent.get_substake_info.assert_called_once_with(staker_address=surrogate_staker.checksum_address,
+    mock_staking_agent.get_substake_info.assert_called_once_with(staker_address=surrogate_stakers[0],
                                                                  stake_index=sub_stake_index)
 
 
 @pytest.mark.usefixtures("test_registry_source_manager", "patch_stakeholder_configuration")
 def test_divide_interactive(click_runner,
                             mocker,
-                            surrogate_staker,
+                            surrogate_stakers,
                             surrogate_stakes,
                             mock_staking_agent,
                             token_economics,
@@ -455,7 +505,7 @@ def test_divide_interactive(click_runner,
     mock_refresh_stakes = mocker.spy(Staker, 'refresh_stakes')
 
     selected_index = 0
-    sub_stake_index = len(surrogate_stakes) - 1
+    sub_stake_index = 1
     lock_periods = 10
     min_allowed_locked = token_economics.minimum_allowed_locked
     target_value = min_allowed_locked
@@ -483,36 +533,36 @@ def test_divide_interactive(click_runner,
     mock_staking_agent.get_all_stakes.assert_called()
     mock_staking_agent.get_current_period.assert_called()
     mock_refresh_stakes.assert_called()
-    mock_staking_agent.divide_stake.assert_called_once_with(staker_address=surrogate_staker.checksum_address,
+    mock_staking_agent.divide_stake.assert_called_once_with(staker_address=surrogate_stakers[0],
                                                             stake_index=sub_stake_index,
                                                             target_value=target_value,
                                                             periods=lock_periods)
     mock_staking_agent.assert_only_transactions([mock_staking_agent.divide_stake])
-    mock_staking_agent.get_substake_info.assert_called_once_with(staker_address=surrogate_staker.checksum_address,
+    mock_staking_agent.get_substake_info.assert_called_once_with(staker_address=surrogate_stakers[0],
                                                                  stake_index=sub_stake_index)
 
 
 @pytest.mark.usefixtures("test_registry_source_manager", "patch_stakeholder_configuration")
 def test_divide_non_interactive(click_runner,
                                 mocker,
-                                surrogate_staker,
+                                surrogate_stakers,
                                 surrogate_stakes,
                                 mock_staking_agent,
                                 token_economics,
                                 mock_testerchain):
     mock_refresh_stakes = mocker.spy(Staker, 'refresh_stakes')
 
-    sub_stake_index = len(surrogate_stakes) - 1
+    sub_stake_index = 1
     lock_periods = 10
     min_allowed_locked = token_economics.minimum_allowed_locked
     target_value = min_allowed_locked
 
-    mock_staking_agent.get_worker_from_staker.return_value = surrogate_staker.checksum_address
+    mock_staking_agent.get_worker_from_staker.return_value = surrogate_stakers[0]
 
     command = ('divide',
                '--provider', MOCK_PROVIDER_URI,
                '--network', TEMPORARY_DOMAIN,
-               '--staking-address', surrogate_staker.checksum_address,
+               '--staking-address', surrogate_stakers[0],
                '--index', sub_stake_index,
                '--lock-periods', lock_periods,
                '--value', NU.from_nunits(target_value).to_tokens(),
@@ -530,19 +580,19 @@ def test_divide_non_interactive(click_runner,
     mock_staking_agent.get_all_stakes.assert_called()
     mock_staking_agent.get_current_period.assert_called()
     mock_refresh_stakes.assert_called()
-    mock_staking_agent.divide_stake.assert_called_once_with(staker_address=surrogate_staker.checksum_address,
+    mock_staking_agent.divide_stake.assert_called_once_with(staker_address=surrogate_stakers[0],
                                                             stake_index=sub_stake_index,
                                                             target_value=target_value,
                                                             periods=lock_periods)
     mock_staking_agent.assert_only_transactions([mock_staking_agent.divide_stake])
-    mock_staking_agent.get_substake_info.assert_called_once_with(staker_address=surrogate_staker.checksum_address,
+    mock_staking_agent.get_substake_info.assert_called_once_with(staker_address=surrogate_stakers[0],
                                                                  stake_index=sub_stake_index)
 
 
 @pytest.mark.usefixtures("test_registry_source_manager", "patch_stakeholder_configuration")
 def test_increase_interactive(click_runner,
                               mocker,
-                              surrogate_staker,
+                              surrogate_stakers,
                               surrogate_stakes,
                               mock_token_agent,
                               mock_staking_agent,
@@ -551,7 +601,7 @@ def test_increase_interactive(click_runner,
     mock_refresh_stakes = mocker.spy(Staker, 'refresh_stakes')
 
     selected_index = 0
-    sub_stake_index = len(surrogate_stakes) - 1
+    sub_stake_index = 1
     additional_value = NU.from_nunits(token_economics.minimum_allowed_locked // 10)
 
     mock_token_agent.get_balance.return_value = 0
@@ -596,13 +646,13 @@ def test_increase_interactive(click_runner,
     mock_staking_agent.get_all_stakes.assert_called()
     mock_staking_agent.get_current_period.assert_called()
     mock_refresh_stakes.assert_called()
-    mock_staking_agent.deposit_and_increase.assert_called_once_with(staker_address=surrogate_staker.checksum_address,
+    mock_staking_agent.deposit_and_increase.assert_called_once_with(staker_address=surrogate_stakers[0],
                                                                     stake_index=sub_stake_index,
                                                                     amount=additional_value.to_nunits())
     mock_staking_agent.assert_only_transactions([mock_staking_agent.deposit_and_increase])
-    mock_staking_agent.get_substake_info.assert_called_once_with(staker_address=surrogate_staker.checksum_address,
+    mock_staking_agent.get_substake_info.assert_called_once_with(staker_address=surrogate_stakers[0],
                                                                  stake_index=sub_stake_index)
-    mock_token_agent.increase_allowance.assert_called_once_with(sender_address=surrogate_staker.checksum_address,
+    mock_token_agent.increase_allowance.assert_called_once_with(sender_address=surrogate_stakers[0],
                                                                 spender_address=mock_staking_agent.contract.address,
                                                                 increase=additional_value.to_nunits())
     mock_token_agent.assert_only_transactions([mock_token_agent.increase_allowance])
@@ -611,7 +661,7 @@ def test_increase_interactive(click_runner,
 @pytest.mark.usefixtures("test_registry_source_manager", "patch_stakeholder_configuration")
 def test_increase_non_interactive(click_runner,
                                   mocker,
-                                  surrogate_staker,
+                                  surrogate_stakers,
                                   surrogate_stakes,
                                   mock_token_agent,
                                   mock_staking_agent,
@@ -619,7 +669,7 @@ def test_increase_non_interactive(click_runner,
                                   mock_testerchain):
     mock_refresh_stakes = mocker.spy(Staker, 'refresh_stakes')
 
-    sub_stake_index = len(surrogate_stakes) - 1
+    sub_stake_index = 1
     additional_value = NU.from_nunits(token_economics.minimum_allowed_locked // 10)
 
     locked_tokens = token_economics.minimum_allowed_locked * 5
@@ -629,7 +679,7 @@ def test_increase_non_interactive(click_runner,
     command = ('increase',
                '--provider', MOCK_PROVIDER_URI,
                '--network', TEMPORARY_DOMAIN,
-               '--staking-address', surrogate_staker.checksum_address,
+               '--staking-address', surrogate_stakers[0],
                '--index', sub_stake_index,
                '--value', additional_value.to_tokens(),
                '--force')
@@ -647,13 +697,13 @@ def test_increase_non_interactive(click_runner,
     mock_staking_agent.get_all_stakes.assert_called()
     mock_staking_agent.get_current_period.assert_called()
     mock_refresh_stakes.assert_called()
-    mock_staking_agent.deposit_and_increase.assert_called_once_with(staker_address=surrogate_staker.checksum_address,
+    mock_staking_agent.deposit_and_increase.assert_called_once_with(staker_address=surrogate_stakers[0],
                                                                     stake_index=sub_stake_index,
                                                                     amount=additional_value.to_nunits())
     mock_staking_agent.assert_only_transactions([mock_staking_agent.deposit_and_increase])
-    mock_staking_agent.get_substake_info.assert_called_once_with(staker_address=surrogate_staker.checksum_address,
+    mock_staking_agent.get_substake_info.assert_called_once_with(staker_address=surrogate_stakers[0],
                                                                  stake_index=sub_stake_index)
-    mock_token_agent.increase_allowance.assert_called_once_with(sender_address=surrogate_staker.checksum_address,
+    mock_token_agent.increase_allowance.assert_called_once_with(sender_address=surrogate_stakers[0],
                                                                 spender_address=mock_staking_agent.contract.address,
                                                                 increase=additional_value.to_nunits())
     mock_token_agent.assert_only_transactions([mock_token_agent.increase_allowance])
@@ -662,7 +712,7 @@ def test_increase_non_interactive(click_runner,
 @pytest.mark.usefixtures("test_registry_source_manager", "patch_stakeholder_configuration")
 def test_increase_lock_interactive(click_runner,
                                    mocker,
-                                   surrogate_staker,
+                                   surrogate_stakers,
                                    surrogate_stakes,
                                    mock_staking_agent,
                                    token_economics,
@@ -717,24 +767,25 @@ def test_increase_lock_interactive(click_runner,
     mock_staking_agent.get_all_stakes.assert_called()
     mock_staking_agent.get_current_period.assert_called()
     mock_refresh_stakes.assert_called()
-    mock_staking_agent.lock_and_increase.assert_called_once_with(staker_address=surrogate_staker.checksum_address,
+    mock_staking_agent.lock_and_increase.assert_called_once_with(staker_address=surrogate_stakers[selected_index],
                                                                  stake_index=sub_stake_index,
                                                                  amount=additional_value.to_nunits())
     mock_staking_agent.assert_only_transactions([mock_staking_agent.lock_and_increase])
-    mock_staking_agent.get_substake_info.assert_called_once_with(staker_address=surrogate_staker.checksum_address,
+    mock_staking_agent.get_substake_info.assert_called_once_with(staker_address=surrogate_stakers[selected_index],
                                                                  stake_index=sub_stake_index)
 
 
 @pytest.mark.usefixtures("test_registry_source_manager", "patch_stakeholder_configuration")
 def test_increase_lock_non_interactive(click_runner,
                                        mocker,
-                                       surrogate_staker,
+                                       surrogate_stakers,
                                        surrogate_stakes,
                                        mock_staking_agent,
                                        token_economics,
                                        mock_testerchain):
     mock_refresh_stakes = mocker.spy(Staker, 'refresh_stakes')
 
+    selected_index = 0
     sub_stake_index = len(surrogate_stakes) - 1
     additional_value = NU.from_nunits(token_economics.minimum_allowed_locked // 10)
 
@@ -745,7 +796,7 @@ def test_increase_lock_non_interactive(click_runner,
     command = ('increase',
                '--provider', MOCK_PROVIDER_URI,
                '--network', TEMPORARY_DOMAIN,
-               '--staking-address', surrogate_staker.checksum_address,
+               '--staking-address', surrogate_stakers[selected_index],
                '--index', sub_stake_index,
                '--value', additional_value.to_tokens(),
                '--only-lock',
@@ -764,18 +815,18 @@ def test_increase_lock_non_interactive(click_runner,
     mock_staking_agent.get_all_stakes.assert_called()
     mock_staking_agent.get_current_period.assert_called()
     mock_refresh_stakes.assert_called()
-    mock_staking_agent.lock_and_increase.assert_called_once_with(staker_address=surrogate_staker.checksum_address,
+    mock_staking_agent.lock_and_increase.assert_called_once_with(staker_address=surrogate_stakers[selected_index],
                                                                  stake_index=sub_stake_index,
                                                                  amount=additional_value.to_nunits())
     mock_staking_agent.assert_only_transactions([mock_staking_agent.lock_and_increase])
-    mock_staking_agent.get_substake_info.assert_called_once_with(staker_address=surrogate_staker.checksum_address,
+    mock_staking_agent.get_substake_info.assert_called_once_with(staker_address=surrogate_stakers[selected_index],
                                                                  stake_index=sub_stake_index)
 
 
 @pytest.mark.usefixtures("test_registry_source_manager", "patch_stakeholder_configuration")
 def test_create_interactive(click_runner,
                             mocker,
-                            surrogate_staker,
+                            surrogate_stakers,
                             surrogate_stakes,
                             mock_token_agent,
                             mock_staking_agent,
@@ -832,7 +883,7 @@ def test_create_interactive(click_runner,
     assert PROMPT_STAKE_CREATE_LOCK_PERIODS.format(min_locktime=min_locktime, max_locktime=max_locktime) in result.output
     assert CONFIRM_STAGED_STAKE.format(nunits=str(value.to_nunits()),
                                        tokens=value,
-                                       staker_address=surrogate_staker.checksum_address,
+                                       staker_address=surrogate_stakers[selected_index],
                                        lock_periods=lock_periods) in result.output
     assert CONFIRM_BROADCAST_CREATE_STAKE in result.output
     assert PROMPT_DEPOSIT_OR_LOCK in result.output
@@ -844,7 +895,7 @@ def test_create_interactive(click_runner,
     mock_refresh_stakes.assert_called()
     mock_token_agent.approve_and_call.assert_called_once_with(amount=value.to_nunits(),
                                                               target_address=mock_staking_agent.contract_address,
-                                                              sender_address=surrogate_staker.checksum_address,
+                                                              sender_address=surrogate_stakers[selected_index],
                                                               call_data=Web3.toBytes(lock_periods))
     mock_token_agent.assert_only_transactions([mock_token_agent.approve_and_call])
     mock_staking_agent.assert_no_transactions()
@@ -853,13 +904,15 @@ def test_create_interactive(click_runner,
 @pytest.mark.usefixtures("test_registry_source_manager", "patch_stakeholder_configuration")
 def test_create_non_interactive(click_runner,
                                 mocker,
-                                surrogate_staker,
+                                surrogate_stakers,
                                 surrogate_stakes,
                                 mock_token_agent,
                                 mock_staking_agent,
                                 token_economics,
                                 mock_testerchain):
     mock_refresh_stakes = mocker.spy(Staker, 'refresh_stakes')
+
+    selected_index = 0
 
     lock_periods = token_economics.minimum_locked_periods
     value = NU.from_nunits(token_economics.minimum_allowed_locked * 2)
@@ -871,7 +924,7 @@ def test_create_non_interactive(click_runner,
     command = ('create',
                '--provider', MOCK_PROVIDER_URI,
                '--network', TEMPORARY_DOMAIN,
-               '--staking-address', surrogate_staker.checksum_address,
+               '--staking-address', surrogate_stakers[selected_index],
                '--lock-periods', lock_periods,
                '--value', value.to_tokens(),
                '--force')
@@ -888,7 +941,7 @@ def test_create_non_interactive(click_runner,
     assert PROMPT_STAKE_CREATE_LOCK_PERIODS.format(min_locktime=min_locktime, max_locktime=max_locktime) not in result.output
     assert CONFIRM_STAGED_STAKE.format(nunits=str(value.to_nunits()),
                                        tokens=value,
-                                       staker_address=surrogate_staker.checksum_address,
+                                       staker_address=surrogate_stakers[selected_index],
                                        lock_periods=lock_periods) not in result.output
     assert CONFIRM_BROADCAST_CREATE_STAKE in result.output
     assert PROMPT_DEPOSIT_OR_LOCK not in result.output
@@ -900,7 +953,7 @@ def test_create_non_interactive(click_runner,
     mock_refresh_stakes.assert_called()
     mock_token_agent.approve_and_call.assert_called_once_with(amount=value.to_nunits(),
                                                               target_address=mock_staking_agent.contract_address,
-                                                              sender_address=surrogate_staker.checksum_address,
+                                                              sender_address=surrogate_stakers[selected_index],
                                                               call_data=Web3.toBytes(lock_periods))
     mock_token_agent.assert_only_transactions([mock_token_agent.approve_and_call])
     mock_staking_agent.assert_no_transactions()
@@ -909,7 +962,7 @@ def test_create_non_interactive(click_runner,
 @pytest.mark.usefixtures("test_registry_source_manager", "patch_stakeholder_configuration")
 def test_create_lock_interactive(click_runner,
                                  mocker,
-                                 surrogate_staker,
+                                 surrogate_stakers,
                                  surrogate_stakes,
                                  mock_staking_agent,
                                  token_economics,
@@ -965,7 +1018,7 @@ def test_create_lock_interactive(click_runner,
     assert PROMPT_STAKE_CREATE_LOCK_PERIODS.format(min_locktime=min_locktime, max_locktime=max_locktime) in result.output
     assert CONFIRM_STAGED_STAKE.format(nunits=str(value.to_nunits()),
                                        tokens=value,
-                                       staker_address=surrogate_staker.checksum_address,
+                                       staker_address=surrogate_stakers[selected_index],
                                        lock_periods=lock_periods) in result.output
     assert CONFIRM_BROADCAST_CREATE_STAKE in result.output
     assert PROMPT_DEPOSIT_OR_LOCK in result.output
@@ -977,19 +1030,21 @@ def test_create_lock_interactive(click_runner,
     mock_refresh_stakes.assert_called()
     mock_staking_agent.lock_and_create.assert_called_once_with(amount=value.to_nunits(),
                                                                lock_periods=lock_periods,
-                                                               staker_address=surrogate_staker.checksum_address)
+                                                               staker_address=surrogate_stakers[selected_index])
     mock_staking_agent.assert_only_transactions([mock_staking_agent.lock_and_create])
 
 
 @pytest.mark.usefixtures("test_registry_source_manager", "patch_stakeholder_configuration")
 def test_create_lock_non_interactive(click_runner,
                                      mocker,
-                                     surrogate_staker,
+                                     surrogate_stakers,
                                      surrogate_stakes,
                                      mock_staking_agent,
                                      token_economics,
                                      mock_testerchain):
     mock_refresh_stakes = mocker.spy(Staker, 'refresh_stakes')
+
+    selected_index = 0
 
     lock_periods = token_economics.minimum_locked_periods
     value = NU.from_nunits(token_economics.minimum_allowed_locked * 11)
@@ -1001,7 +1056,7 @@ def test_create_lock_non_interactive(click_runner,
     command = ('create',
                '--provider', MOCK_PROVIDER_URI,
                '--network', TEMPORARY_DOMAIN,
-               '--staking-address', surrogate_staker.checksum_address,
+               '--staking-address', surrogate_stakers[selected_index],
                '--lock-periods', lock_periods,
                '--value', value.to_tokens(),
                '--only-lock',
@@ -1020,7 +1075,7 @@ def test_create_lock_non_interactive(click_runner,
     assert PROMPT_STAKE_CREATE_LOCK_PERIODS.format(min_locktime=min_locktime, max_locktime=max_locktime) not in result.output
     assert CONFIRM_STAGED_STAKE.format(nunits=str(value.to_nunits()),
                                        tokens=value,
-                                       staker_address=surrogate_staker.checksum_address,
+                                       staker_address=surrogate_stakers[selected_index],
                                        lock_periods=lock_periods) not in result.output
     assert CONFIRM_BROADCAST_CREATE_STAKE in result.output
     assert PROMPT_DEPOSIT_OR_LOCK not in result.output
@@ -1032,14 +1087,14 @@ def test_create_lock_non_interactive(click_runner,
     mock_refresh_stakes.assert_called()
     mock_staking_agent.lock_and_create.assert_called_once_with(amount=value.to_nunits(),
                                                                lock_periods=lock_periods,
-                                                               staker_address=surrogate_staker.checksum_address)
+                                                               staker_address=surrogate_stakers[selected_index])
     mock_staking_agent.assert_only_transactions([mock_staking_agent.lock_and_create])
 
 
 @pytest.mark.usefixtures("test_registry_source_manager", "patch_stakeholder_configuration")
 def test_merge_interactive(click_runner,
                            mocker,
-                           surrogate_staker,
+                           surrogate_stakers,
                            surrogate_stakes,
                            mock_staking_agent,
                            token_economics,
@@ -1063,7 +1118,7 @@ def test_merge_interactive(click_runner,
     result = click_runner.invoke(stake, command, input=user_input, catch_exceptions=False)
     assert result.exit_code == 0
 
-    final_period = surrogate_stakes[sub_stake_index_1].last_period
+    final_period = surrogate_stakes[selected_index][sub_stake_index_1].last_period
     assert ONLY_DISPLAYING_MERGEABLE_STAKES_NOTE.format(final_period=final_period) in result.output
     assert CONFIRM_MERGE.format(stake_index_1=sub_stake_index_1, stake_index_2=sub_stake_index_2) in result.output
     assert SUCCESSFUL_STAKES_MERGE in result.output
@@ -1071,7 +1126,7 @@ def test_merge_interactive(click_runner,
     mock_staking_agent.get_all_stakes.assert_called()
     mock_staking_agent.get_current_period.assert_called()
     mock_refresh_stakes.assert_called()
-    mock_staking_agent.merge_stakes.assert_called_once_with(staker_address=surrogate_staker.checksum_address,
+    mock_staking_agent.merge_stakes.assert_called_once_with(staker_address=surrogate_stakers[selected_index],
                                                             stake_index_1=sub_stake_index_1,
                                                             stake_index_2=sub_stake_index_2)
     mock_staking_agent.assert_only_transactions([mock_staking_agent.merge_stakes])
@@ -1080,20 +1135,21 @@ def test_merge_interactive(click_runner,
 @pytest.mark.usefixtures("test_registry_source_manager", "patch_stakeholder_configuration")
 def test_merge_partially_interactive(click_runner,
                                      mocker,
-                                     surrogate_staker,
+                                     surrogate_stakers,
                                      surrogate_stakes,
                                      mock_staking_agent,
                                      token_economics,
                                      mock_testerchain):
     mock_refresh_stakes = mocker.spy(Staker, 'refresh_stakes')
 
+    selected_index = 0
     sub_stake_index_1 = 1
     sub_stake_index_2 = 2
 
     base_command = ('merge',
                     '--provider', MOCK_PROVIDER_URI,
                     '--network', TEMPORARY_DOMAIN,
-                    '--staking-address', surrogate_staker.checksum_address)
+                    '--staking-address', surrogate_stakers[selected_index])
     user_input = '\n'.join((str(sub_stake_index_2),
                             YES,
                             INSECURE_DEVELOPMENT_PASSWORD))
@@ -1102,7 +1158,7 @@ def test_merge_partially_interactive(click_runner,
     result = click_runner.invoke(stake, command, input=user_input, catch_exceptions=False)
     assert result.exit_code == 0
 
-    final_period = surrogate_stakes[sub_stake_index_1].last_period
+    final_period = surrogate_stakes[selected_index][sub_stake_index_1].last_period
     assert ONLY_DISPLAYING_MERGEABLE_STAKES_NOTE.format(final_period=final_period) in result.output
     assert CONFIRM_MERGE.format(stake_index_1=sub_stake_index_1, stake_index_2=sub_stake_index_2) in result.output
     assert SUCCESSFUL_STAKES_MERGE in result.output
@@ -1111,7 +1167,7 @@ def test_merge_partially_interactive(click_runner,
     result = click_runner.invoke(stake, command, input=user_input, catch_exceptions=False)
     assert result.exit_code == 0
 
-    final_period = surrogate_stakes[sub_stake_index_1].last_period
+    final_period = surrogate_stakes[selected_index][sub_stake_index_1].last_period
     assert ONLY_DISPLAYING_MERGEABLE_STAKES_NOTE.format(final_period=final_period) in result.output
     assert CONFIRM_MERGE.format(stake_index_1=sub_stake_index_1, stake_index_2=sub_stake_index_2) in result.output
     assert SUCCESSFUL_STAKES_MERGE in result.output
@@ -1119,7 +1175,7 @@ def test_merge_partially_interactive(click_runner,
     mock_staking_agent.get_all_stakes.assert_called()
     mock_staking_agent.get_current_period.assert_called()
     mock_refresh_stakes.assert_called()
-    mock_staking_agent.merge_stakes.assert_called_with(staker_address=surrogate_staker.checksum_address,
+    mock_staking_agent.merge_stakes.assert_called_with(staker_address=surrogate_stakers[selected_index],
                                                        stake_index_1=sub_stake_index_1,
                                                        stake_index_2=sub_stake_index_2)
     mock_staking_agent.assert_only_transactions([mock_staking_agent.merge_stakes])
@@ -1128,13 +1184,14 @@ def test_merge_partially_interactive(click_runner,
 @pytest.mark.usefixtures("test_registry_source_manager", "patch_stakeholder_configuration")
 def test_merge_non_interactive(click_runner,
                                mocker,
-                               surrogate_staker,
+                               surrogate_stakers,
                                surrogate_stakes,
                                mock_staking_agent,
                                token_economics,
                                mock_testerchain):
     mock_refresh_stakes = mocker.spy(Staker, 'refresh_stakes')
 
+    selected_index = 0
     sub_stake_index_1 = 1
     sub_stake_index_2 = 2
 
@@ -1145,7 +1202,7 @@ def test_merge_non_interactive(click_runner,
     command = ('merge',
                '--provider', MOCK_PROVIDER_URI,
                '--network', TEMPORARY_DOMAIN,
-               '--staking-address', surrogate_staker.checksum_address,
+               '--staking-address', surrogate_stakers[selected_index],
                '--index-1', sub_stake_index_1,
                '--index-2', sub_stake_index_2,
                '--force')
@@ -1154,7 +1211,7 @@ def test_merge_non_interactive(click_runner,
     result = click_runner.invoke(stake, command, input=user_input, catch_exceptions=False)
     assert result.exit_code == 0
 
-    final_period = surrogate_stakes[sub_stake_index_1].last_period
+    final_period = surrogate_stakes[selected_index][sub_stake_index_1].last_period
     assert ONLY_DISPLAYING_MERGEABLE_STAKES_NOTE.format(final_period=final_period) not in result.output
     assert CONFIRM_MERGE.format(stake_index_1=sub_stake_index_1, stake_index_2=sub_stake_index_2) not in result.output
     assert SUCCESSFUL_STAKES_MERGE in result.output
@@ -1162,7 +1219,100 @@ def test_merge_non_interactive(click_runner,
     mock_staking_agent.get_all_stakes.assert_called()
     mock_staking_agent.get_current_period.assert_called()
     mock_refresh_stakes.assert_called()
-    mock_staking_agent.merge_stakes.assert_called_once_with(staker_address=surrogate_staker.checksum_address,
+    mock_staking_agent.merge_stakes.assert_called_once_with(staker_address=surrogate_stakers[selected_index],
                                                             stake_index_1=sub_stake_index_1,
                                                             stake_index_2=sub_stake_index_2)
     mock_staking_agent.assert_only_transactions([mock_staking_agent.merge_stakes])
+
+
+@pytest.mark.usefixtures("test_registry_source_manager", "patch_stakeholder_configuration")
+def test_stake_list_active(click_runner, surrogate_stakers, surrogate_stakes, token_economics):
+
+    command = ('list',
+               '--provider', MOCK_PROVIDER_URI,
+               '--network', TEMPORARY_DOMAIN,)
+
+    user_input = None
+    result = click_runner.invoke(stake, command, input=user_input, catch_exceptions=False)
+    assert result.exit_code == 0
+
+    assert re.search("Status\\s+Missing 1 commitments", result.output, re.MULTILINE)
+    assert re.search("Status\\s+Committed #1", result.output, re.MULTILINE)
+
+    statuses = [Stake.Status.DIVISIBLE,
+                Stake.Status.DIVISIBLE,
+                Stake.Status.DIVISIBLE,
+                Stake.Status.LOCKED,
+                Stake.Status.EDITABLE,
+                Stake.Status.UNLOCKED,
+                Stake.Status.INACTIVE]
+
+    current_period = 10
+    for stakes in surrogate_stakes:
+        for index, sub_stake in enumerate(stakes):
+            value = NU.from_nunits(sub_stake.locked_value)
+            remaining = sub_stake.last_period - current_period + 1
+            start_datetime = datetime_at_period(period=sub_stake.first_period,
+                                                seconds_per_period=token_economics.seconds_per_period,
+                                                start_of_period=True)
+            unlock_datetime = datetime_at_period(period=sub_stake.last_period + 1,
+                                                 seconds_per_period=token_economics.seconds_per_period,
+                                                 start_of_period=True)
+            enactment = start_datetime.local_datetime().strftime("%b %d %Y")
+            termination = unlock_datetime.local_datetime().strftime("%b %d %Y")
+            search = f"{index}\\s+│\\s+" \
+                     f"{value}\\s+│\\s+" \
+                     f"{remaining}\\s+│\\s+" \
+                     f"{enactment}\\s+│\\s+" \
+                     f"{termination}\\s+│\\s+" \
+                     f"{statuses[index].name}"
+            # locked sub-stakes
+            if index < 5:
+                assert re.search(search, result.output, re.MULTILINE)
+            # unlocked sub-stakes
+            else:
+                assert not re.search(search, result.output, re.MULTILINE)
+
+
+@pytest.mark.usefixtures("test_registry_source_manager", "patch_stakeholder_configuration")
+def test_stake_list_all(click_runner, surrogate_stakers, surrogate_stakes, token_economics):
+
+    command = ('list',
+               '--show-all',
+               '--provider', MOCK_PROVIDER_URI,
+               '--network', TEMPORARY_DOMAIN,)
+
+    user_input = None
+    result = click_runner.invoke(stake, command, input=user_input, catch_exceptions=False)
+    assert result.exit_code == 0
+
+    assert re.search("Status\\s+Missing 1 commitments", result.output, re.MULTILINE)
+    assert re.search("Status\\s+Committed #1", result.output, re.MULTILINE)
+
+    statuses = [Stake.Status.DIVISIBLE,
+                Stake.Status.DIVISIBLE,
+                Stake.Status.DIVISIBLE,
+                Stake.Status.LOCKED,
+                Stake.Status.EDITABLE,
+                Stake.Status.UNLOCKED,
+                Stake.Status.INACTIVE]
+
+    current_period = 10
+    for stakes in surrogate_stakes:
+        for index, sub_stake in enumerate(stakes):
+            value = NU.from_nunits(sub_stake.locked_value)
+            remaining = sub_stake.last_period - current_period + 1
+            start_datetime = datetime_at_period(period=sub_stake.first_period,
+                                                seconds_per_period=token_economics.seconds_per_period,
+                                                start_of_period=True)
+            unlock_datetime = datetime_at_period(period=sub_stake.last_period + 1,
+                                                 seconds_per_period=token_economics.seconds_per_period,
+                                                 start_of_period=True)
+            enactment = start_datetime.local_datetime().strftime("%b %d %Y")
+            termination = unlock_datetime.local_datetime().strftime("%b %d %Y")
+            assert re.search(f"{index}\\s+│\\s+"
+                             f"{value}\\s+│\\s+"
+                             f"{remaining}\\s+│\\s+"
+                             f"{enactment}\\s+│\\s+"
+                             f"{termination}\\s+│\\s+"
+                             f"{statuses[index].name}", result.output, re.MULTILINE)
