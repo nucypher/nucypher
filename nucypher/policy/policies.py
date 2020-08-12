@@ -419,7 +419,7 @@ class Policy(ABC):
         target_sample_quantity = self.n - len(selected_ursulas)
         if target_sample_quantity > 0:
             sampled_ursulas = self.sample_essential(quantity=target_sample_quantity,
-                                                    handpicked_ursulas=handpicked_ursulas)
+                                                    handpicked_ursulas=selected_ursulas)
             selected_ursulas.update(sampled_ursulas)
 
         return selected_ursulas
