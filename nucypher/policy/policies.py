@@ -305,15 +305,30 @@ class Policy(ABC):
         self.alice.block_until_number_of_known_nodes_is(8, timeout=2, learn_on_this_thread=True)
 
         publication_deferreds = list()
-        for node in self.bob.matching_nodes_among(self.alice.known_nodes):
 
-            publication_deferreds.append(deferToThreadPool(reactor, self.alice.publication_threadpool,
-                                               network_middleware.put_treasure_map_on_node,
-                                               node=node,
-                                               map_id=treasure_map_id,
-                                               map_payload=bytes(self.treasure_map)
-                                               ))
+        # d = ensureDeferred(self.get_publication_threadpool())
+
+        for node in self.bob.matching_nodes_among(self.alice.known_nodes):
+            d = deferToThreadPool(reactor, threadpool,
+                              network_middleware.put_treasure_map_on_node,
+                              node=node,
+                              map_id=treasure_map_id,
+                              map_payload=bytes(self.treasure_map)
+                              )
+            def llama(result):
+                return result
+            d.addCallback(llama)
+            publication_deferreds.append(d)
+            # d.callback(47)
         self.publishing_mutex = PolicyPayloadMutex(publication_deferreds, percent_to_complete_before_release=10)
+        def _finish(all_responses):  # TODO: This degree of management is too much to expect of the called function.
+
+            self.alice._policy_queue.put(all_responses)  # TODO: Do something more interesting with the responses?
+            threadpool.stop()
+
+        # TODO: errback that stops the threadpool.
+        self.publishing_mutex.addCallback(_finish)
+
         # return self.publishing_mutex  # I dunno.. return this?  Why not just use the composed version?
 
     def inject_alice_publication_threadpool_into(self, f, *args, **kwargs):
