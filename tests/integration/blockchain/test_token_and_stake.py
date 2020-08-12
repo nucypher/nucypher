@@ -17,7 +17,8 @@
 import pytest
 
 from nucypher.blockchain.eth.constants import NULL_ADDRESS
-from nucypher.blockchain.eth.token import NU, Stake, validate_divide, validate_prolong, validate_increase
+from nucypher.blockchain.eth.token import NU, Stake, validate_divide, validate_prolong, validate_increase, \
+    validate_merge
 from nucypher.types import StakerInfo
 
 
@@ -211,12 +212,12 @@ def test_stake_validation(mock_testerchain, token_economics, mock_staking_agent)
     current_period = 10
     mock_staking_agent.get_current_period.return_value = 10
 
-    def make_sub_stake(value, first_locked_period, final_locked_period):
+    def make_sub_stake(value, first_locked_period, final_locked_period, index=0):
         return Stake(checksum_address=address,
                      first_locked_period=first_locked_period,
                      final_locked_period=final_locked_period,
                      value=value,
-                     index=0,
+                     index=index,
                      staking_agent=mock_staking_agent,
                      economics=token_economics)
 
@@ -271,3 +272,34 @@ def test_stake_validation(mock_testerchain, token_economics, mock_staking_agent)
     with pytest.raises(Stake.StakingError):
         validate_increase(stake=stake, amount=NU.from_nunits(token_economics.maximum_allowed_locked - int(nu) + 1))
     validate_increase(stake=stake, amount=NU.from_nunits(token_economics.maximum_allowed_locked - int(nu)))
+
+    # Validate merge method
+    stake_1 = make_sub_stake(first_locked_period=current_period - 1,
+                             final_locked_period=current_period,
+                             value=nu,
+                             index=0)
+    stake_2 = make_sub_stake(first_locked_period=current_period - 1,
+                             final_locked_period=current_period,
+                             value=nu,
+                             index=1)
+    with pytest.raises(Stake.StakingError):
+        validate_merge(stake_1=stake_1, stake_2=stake_2)
+
+    stake_1 = make_sub_stake(first_locked_period=current_period - 1,
+                             final_locked_period=current_period + 1,
+                             value=nu,
+                             index=2)
+    stake_2 = make_sub_stake(first_locked_period=current_period - 1,
+                             final_locked_period=current_period + 2,
+                             value=nu,
+                             index=3)
+    with pytest.raises(Stake.StakingError):
+        validate_merge(stake_1=stake_1, stake_2=stake_2)
+    with pytest.raises(Stake.StakingError):
+        validate_merge(stake_1=stake_1, stake_2=stake_1)
+
+    stake_2 = make_sub_stake(first_locked_period=current_period - 3,
+                             final_locked_period=current_period + 1,
+                             value=nu,
+                             index=4)
+    validate_merge(stake_1=stake_1, stake_2=stake_2)

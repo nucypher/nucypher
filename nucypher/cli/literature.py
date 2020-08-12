@@ -80,6 +80,12 @@ CONFIRM_LARGE_STAKE_VALUE = "Wow, {value} - That's a lot of NU - Are you sure th
 
 CONFIRM_LARGE_STAKE_DURATION = "Woah, {lock_periods} is a long time - Are you sure this is correct?"
 
+PROMPT_STAKE_CREATE_VALUE = "Enter stake value in NU ({lower_limit} - {upper_limit})"
+
+PROMPT_STAKE_CREATE_LOCK_PERIODS = "Enter stake duration ({min_locktime} - {max_locktime})"
+
+PROMPT_DEPOSIT_OR_LOCK = "Transfer tokens from the staker address? Otherwise, unlocked tokens in the escrow will be used"
+
 CONFIRM_BROADCAST_CREATE_STAKE = "Publish staged stake to the blockchain?"
 
 CONFIRM_INCREASING_STAKE = "Confirm increase stake (index: {stake_index}) by {value}?"
@@ -223,11 +229,13 @@ SUCCESSFUL_SET_MIN_POLICY_RATE = "\nMinimum fee rate {min_rate} successfully set
 
 
 #
-# Divide and Prolong
+# Divide, Prolong and Merge
 #
 
 
 ONLY_DISPLAYING_DIVISIBLE_STAKES_NOTE = "NOTE: Showing divisible stakes only"
+
+ONLY_DISPLAYING_MERGEABLE_STAKES_NOTE = "NOTE: Showing stakes with {final_period} final period only"
 
 CONFIRM_BROADCAST_STAKE_DIVIDE = "Publish stake division to the blockchain?"
 
@@ -242,6 +250,10 @@ PROMPT_PROLONG_VALUE = "Enter number of periods to extend ({minimum}-{maximum})"
 CONFIRM_PROLONG = "Publish stake extension of {lock_periods} period(s) to the blockchain?"
 
 SUCCESSFUL_STAKE_PROLONG = 'Successfully Prolonged Stake'
+
+CONFIRM_MERGE = "Publish merging of {stake_index_1} and {stake_index_2} stakes?"
+
+SUCCESSFUL_STAKES_MERGE = 'Successfully Merged Stakes'
 
 #
 # Rewards

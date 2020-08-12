@@ -122,14 +122,17 @@ def test_staker_prolongs_stake(staker, token_economics):
     origin_stake = staker.stakes[stake_index]
 
     # Can't use additional periods and expiration together
+    new_expiration = datetime_at_period(period=origin_stake.final_locked_period + 3,
+                                        seconds_per_period=token_economics.seconds_per_period,
+                                        start_of_period=True)
     with pytest.raises(ValueError):
-        staker.prolong_stake(stake=origin_stake, additional_periods=2, expiration=maya.now())
+        staker.prolong_stake(stake=origin_stake, additional_periods=3, expiration=new_expiration)
 
-    staker.prolong_stake(stake=origin_stake, additional_periods=2)
+    staker.prolong_stake(stake=origin_stake, additional_periods=3)
 
     stake = staker.stakes[stake_index]
     assert stake.first_locked_period == origin_stake.first_locked_period
-    assert stake.final_locked_period == origin_stake.final_locked_period + 2
+    assert stake.final_locked_period == origin_stake.final_locked_period + 3
     assert stake.value == origin_stake.value
 
     # Provided stake must be part of current stakes
@@ -194,6 +197,32 @@ def test_staker_increases_stake(staker, token_economics):
     assert stake.first_locked_period == origin_stake.first_locked_period
     assert stake.final_locked_period == origin_stake.final_locked_period
     assert stake.value == origin_stake.value + balance
+
+
+@pytest.mark.slow()
+def test_staker_merges_stakes(agency, staker, token_economics):
+    stake_index_1 = 0
+    stake_index_2 = 3
+    origin_stake_1 = staker.stakes[stake_index_1]
+    origin_stake_2 = staker.stakes[stake_index_2]
+    assert origin_stake_2.final_locked_period == origin_stake_1.final_locked_period
+
+    staker.merge_stakes(stake_1=origin_stake_1, stake_2=origin_stake_2)
+
+    stake = staker.stakes[stake_index_1]
+    assert stake.final_locked_period == origin_stake_1.final_locked_period
+    assert stake.value == origin_stake_1.value + origin_stake_2.value
+
+    # Provided stakes must be part of current stakes
+    with pytest.raises(ValueError):
+        staker.merge_stakes(stake_1=origin_stake_1, stake_2=stake)
+    with pytest.raises(ValueError):
+        staker.merge_stakes(stake_1=stake, stake_2=origin_stake_2)
+    stake.index = len(staker.stakes)
+    with pytest.raises(ValueError):
+        staker.merge_stakes(stake_1=stake, stake_2=staker.stakes[1])
+    with pytest.raises(ValueError):
+        staker.merge_stakes(stake_1=staker.stakes[1], stake_2=stake)
 
 
 def test_staker_manages_restaking(testerchain, test_registry, staker):

@@ -281,3 +281,89 @@ def test_select_divisible_stake(test_emitter,
     assert ONLY_DISPLAYING_DIVISIBLE_STAKES_NOTE in captured.out
     assert_stake_table_painted(output=captured.out)
     assert mock_stdin.empty()
+
+
+@pytest.mark.parametrize('sub_stakes_functions', [
+    [not_editable_sub_stakes],
+    [inactive_sub_stakes, not_editable_sub_stakes],
+    [unlocked_sub_stakes, not_editable_sub_stakes],
+    [divisible_sub_stakes, not_editable_sub_stakes],
+    [non_divisible_sub_stakes, not_editable_sub_stakes],
+    [inactive_sub_stakes, non_divisible_sub_stakes, unlocked_sub_stakes, divisible_sub_stakes, not_editable_sub_stakes]
+])
+def test_select_using_filter_function(test_emitter,
+                                      stakeholder,
+                                      mock_staking_agent,
+                                      mock_testerchain,
+                                      mock_stdin,  # used to assert user hasn't been prompted
+                                      capsys,
+                                      current_period,
+                                      token_economics,
+                                      sub_stakes_functions):
+    # Setup
+    mock_stakes = make_sub_stakes(current_period, token_economics, sub_stakes_functions)
+
+    mock_staking_agent.get_all_stakes.return_value = mock_stakes
+    staker = mock_testerchain.unassigned_accounts[0]
+    stakeholder.set_staker(staker)
+
+    selection = len(mock_stakes) - 1
+    expected_stake = Stake.from_stake_info(stake_info=mock_stakes[selection],
+                                           staking_agent=mock_staking_agent,   # stakinator
+                                           index=selection,
+                                           checksum_address=stakeholder.checksum_address,
+                                           economics=token_economics)
+
+    # SUCCESS: Display all editable-only stakes with specified final period
+    mock_stdin.line(str(selection))
+    selected_stake = select_stake(emitter=test_emitter,
+                                  staker=stakeholder,
+                                  stakes_status=Stake.Status.LOCKED,
+                                  filter_function=lambda stake: stake.final_locked_period == current_period)
+
+    assert isinstance(selected_stake, Stake)
+    assert selected_stake == expected_stake
+
+    # Examine the output
+    captured = capsys.readouterr()
+    assert NO_STAKES_FOUND not in captured.out
+    assert_stake_table_painted(output=captured.out)
+    assert mock_stdin.empty()
+
+
+@pytest.mark.parametrize('sub_stakes_functions', [
+    [inactive_sub_stakes],
+    [unlocked_sub_stakes],
+    [divisible_sub_stakes],
+    [non_divisible_sub_stakes],
+    [inactive_sub_stakes, non_divisible_sub_stakes, unlocked_sub_stakes, divisible_sub_stakes]
+])
+def test_no_stakes_with_filter_function(test_emitter,
+                                        stakeholder,
+                                        mock_staking_agent,
+                                        mock_testerchain,
+                                        mock_stdin,  # used to assert user hasn't been prompted
+                                        capsys,
+                                        current_period,
+                                        token_economics,
+                                        sub_stakes_functions):
+    # Setup
+    mock_stakes = make_sub_stakes(current_period, token_economics, sub_stakes_functions)
+
+    mock_staking_agent.get_all_stakes.return_value = mock_stakes
+    staker = mock_testerchain.unassigned_accounts[0]
+    stakeholder.set_staker(staker)
+
+    # FAILURE: no stakes with specified final period
+    with pytest.raises(click.Abort):
+        select_stake(emitter=test_emitter,
+                     staker=stakeholder,
+                     stakes_status=Stake.Status.LOCKED,
+                     filter_function=lambda stake: stake.final_locked_period == current_period)
+
+    # Divisible warning was displayed, but having
+    # no divisible stakes causes an expected failure
+    captured = capsys.readouterr()
+    assert NO_STAKES_FOUND in captured.out
+    assert_stake_table_not_painted(output=captured.out)
+    assert mock_stdin.empty()

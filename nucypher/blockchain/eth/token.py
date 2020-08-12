@@ -493,9 +493,24 @@ def validate_prolong(stake: Stake, additional_periods: int) -> None:
                                  f'Selected stake expired {stake.unlock_datetime}.')
     new_duration = stake.periods_remaining + additional_periods - 1
     if new_duration < stake.economics.minimum_locked_periods:
-        raise stake.StakingError(f'Sub-stake duration of {new_duration} periods after prolongation'
+        raise stake.StakingError(f'Sub-stake duration of {new_duration} periods after prolongation '
                                  f'is shorter than minimum allowed duration '
                                  f'of {stake.economics.minimum_locked_periods} periods.')
+
+
+def validate_merge(stake_1: Stake, stake_2: Stake) -> None:
+    if stake_1.index == stake_2.index:
+        raise Stake.StakingError(f'Stakes must be different. '
+                                 f'Selected stakes have the same index {stake_1.index}.')
+
+    if stake_1.final_locked_period != stake_2.final_locked_period:
+        raise Stake.StakingError(f'Both stakes must have the same unlock date. '
+                                 f'Selected stakes expired {stake_1.unlock_datetime} and {stake_2.unlock_datetime}.')
+
+    status = stake_1.status()
+    if not status.is_child(Stake.Status.EDITABLE):
+        raise Stake.StakingError(f'Cannot merge a non-editable stakes. '
+                                 f'Selected stakes expired {stake_1.unlock_datetime}.')
 
 
 def validate_increase(stake: Stake, amount: NU) -> None:

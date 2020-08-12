@@ -47,11 +47,13 @@ from nucypher.cli.literature import (
 from nucypher.cli.painting.staking import paint_stakes
 from nucypher.config.constants import DEFAULT_CONFIG_ROOT, NUCYPHER_ENVVAR_WORKER_ADDRESS
 from nucypher.config.node import CharacterConfiguration
+from typing import Callable
 
 
 def select_stake(staker: Staker,
                  emitter: StdoutEmitter,
-                 stakes_status: Stake.Status = Stake.Status.EDITABLE
+                 stakes_status: Stake.Status = Stake.Status.EDITABLE,
+                 filter_function: Callable[[Stake], bool] = None
                  ) -> Stake:
     """Interactively select a stake or abort if there are no eligible stakes."""
 
@@ -59,7 +61,7 @@ def select_stake(staker: Staker,
         emitter.echo(ONLY_DISPLAYING_DIVISIBLE_STAKES_NOTE, color='yellow')
 
     # Filter stakes by status
-    stakes = staker.sorted_stakes(parent_status=stakes_status)
+    stakes = staker.sorted_stakes(parent_status=stakes_status, filter_function=filter_function)
     if not stakes:
         emitter.echo(NO_STAKES_FOUND, color='red')
         raise click.Abort

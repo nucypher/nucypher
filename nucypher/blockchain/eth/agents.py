@@ -520,6 +520,12 @@ class StakingEscrowAgent(EthereumContractAgent):
         receipt = self.blockchain.send_transaction(contract_function=contract_function, sender_address=staker_address)
         return receipt
 
+    @contract_api(TRANSACTION)
+    def merge_stakes(self, staker_address: ChecksumAddress, stake_index_1: int, stake_index_2: int) -> TxReceipt:
+        contract_function: ContractFunction = self.contract.functions.mergeStake(stake_index_1, stake_index_2)
+        receipt = self.blockchain.send_transaction(contract_function=contract_function, sender_address=staker_address)
+        return receipt
+
     @contract_api(CONTRACT_CALL)
     def get_current_committed_period(self, staker_address: ChecksumAddress) -> Period:
         staker_info: StakerInfo = self.get_staker_info(staker_address)

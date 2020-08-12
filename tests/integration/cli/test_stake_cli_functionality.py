@@ -28,12 +28,14 @@ from nucypher.cli.literature import (
     NO_FEE_TO_WITHDRAW, COLLECTING_ETH_FEE, NO_MINTABLE_PERIODS, STILL_LOCKED_TOKENS, CONFIRM_MINTING,
     PROMPT_PROLONG_VALUE, CONFIRM_PROLONG, SUCCESSFUL_STAKE_PROLONG, PERIOD_ADVANCED_WARNING, PROMPT_STAKE_DIVIDE_VALUE,
     PROMPT_STAKE_EXTEND_VALUE, CONFIRM_BROADCAST_STAKE_DIVIDE, SUCCESSFUL_STAKE_DIVIDE, SUCCESSFUL_STAKE_INCREASE,
-    PROMPT_STAKE_INCREASE_VALUE, CONFIRM_INCREASING_STAKE, MAXIMUM_STAKE_REACHED,
-    INSUFFICIENT_BALANCE_TO_INCREASE
+    PROMPT_STAKE_INCREASE_VALUE, CONFIRM_INCREASING_STAKE, PROMPT_DEPOSIT_OR_LOCK, PROMPT_STAKE_CREATE_VALUE,
+    PROMPT_STAKE_CREATE_LOCK_PERIODS, CONFIRM_LARGE_STAKE_VALUE, CONFIRM_LARGE_STAKE_DURATION, CONFIRM_STAGED_STAKE,
+    CONFIRM_BROADCAST_CREATE_STAKE, INSUFFICIENT_BALANCE_TO_INCREASE, MAXIMUM_STAKE_REACHED,
+    INSUFFICIENT_BALANCE_TO_CREATE, ONLY_DISPLAYING_MERGEABLE_STAKES_NOTE, CONFIRM_MERGE, SUCCESSFUL_STAKES_MERGE
 )
 from nucypher.config.constants import TEMPORARY_DOMAIN
 from nucypher.types import SubStakeInfo
-from tests.constants import MOCK_PROVIDER_URI, YES, INSECURE_DEVELOPMENT_PASSWORD
+from tests.constants import MOCK_PROVIDER_URI, YES, INSECURE_DEVELOPMENT_PASSWORD, NO
 
 
 @pytest.fixture()
@@ -51,8 +53,8 @@ def surrogate_stakes(mock_staking_agent, token_economics, surrogate_staker):
     current_period = 10
     duration = token_economics.minimum_locked_periods + 1
     final_period = current_period + duration
-    # TODO: Add non divisible, non editable and inactive sub-stakes
     stakes = [SubStakeInfo(current_period - 1, final_period - 1, nu),
+              SubStakeInfo(current_period - 1, final_period, nu),
               SubStakeInfo(current_period + 1, final_period, nu)]
 
     mock_staking_agent.get_current_period.return_value = current_period
@@ -560,6 +562,7 @@ def test_increase_interactive(click_runner,
 
     user_input = '\n'.join((str(selected_index),
                             str(sub_stake_index),
+                            YES,
                             str(additional_value.to_tokens()),
                             YES,
                             INSECURE_DEVELOPMENT_PASSWORD))
@@ -588,6 +591,7 @@ def test_increase_interactive(click_runner,
     assert PROMPT_STAKE_INCREASE_VALUE.format(upper_limit=upper_limit) in result.output
     assert CONFIRM_INCREASING_STAKE.format(stake_index=sub_stake_index, value=additional_value) in result.output
     assert SUCCESSFUL_STAKE_INCREASE in result.output
+    assert PROMPT_DEPOSIT_OR_LOCK in result.output
 
     mock_staking_agent.get_all_stakes.assert_called()
     mock_staking_agent.get_current_period.assert_called()
@@ -638,6 +642,7 @@ def test_increase_non_interactive(click_runner,
     assert PROMPT_STAKE_INCREASE_VALUE.format(upper_limit=upper_limit) not in result.output
     assert CONFIRM_INCREASING_STAKE.format(stake_index=sub_stake_index, value=additional_value) not in result.output
     assert SUCCESSFUL_STAKE_INCREASE in result.output
+    assert PROMPT_DEPOSIT_OR_LOCK not in result.output
 
     mock_staking_agent.get_all_stakes.assert_called()
     mock_staking_agent.get_current_period.assert_called()
@@ -652,3 +657,512 @@ def test_increase_non_interactive(click_runner,
                                                                 spender_address=mock_staking_agent.contract.address,
                                                                 increase=additional_value.to_nunits())
     mock_token_agent.assert_only_transactions([mock_token_agent.increase_allowance])
+
+
+@pytest.mark.usefixtures("test_registry_source_manager", "patch_stakeholder_configuration")
+def test_increase_lock_interactive(click_runner,
+                                   mocker,
+                                   surrogate_staker,
+                                   surrogate_stakes,
+                                   mock_staking_agent,
+                                   token_economics,
+                                   mock_testerchain):
+    mock_refresh_stakes = mocker.spy(Staker, 'refresh_stakes')
+
+    selected_index = 0
+    sub_stake_index = len(surrogate_stakes) - 1
+    additional_value = NU.from_nunits(token_economics.minimum_allowed_locked // 10)
+
+    mock_staking_agent.calculate_staking_reward.return_value = 0
+
+    command = ('increase',
+               '--provider', MOCK_PROVIDER_URI,
+               '--network', TEMPORARY_DOMAIN)
+
+    user_input = '\n'.join((str(selected_index),
+                            str(sub_stake_index),
+                            NO,
+                            str(additional_value.to_tokens()),
+                            YES,
+                            INSECURE_DEVELOPMENT_PASSWORD))
+
+    result = click_runner.invoke(stake, command, input=user_input, catch_exceptions=False)
+    assert result.exit_code == 1
+    assert INSUFFICIENT_BALANCE_TO_INCREASE in result.output
+    assert MAXIMUM_STAKE_REACHED not in result.output
+    assert SUCCESSFUL_STAKE_INCREASE not in result.output
+
+    mock_staking_agent.get_locked_tokens.return_value = token_economics.maximum_allowed_locked
+    unlocked_tokens = token_economics.maximum_allowed_locked
+    mock_staking_agent.calculate_staking_reward.return_value = unlocked_tokens
+
+    result = click_runner.invoke(stake, command, input=user_input, catch_exceptions=False)
+    assert result.exit_code == 1
+    assert INSUFFICIENT_BALANCE_TO_INCREASE not in result.output
+    assert MAXIMUM_STAKE_REACHED in result.output
+    assert SUCCESSFUL_STAKE_INCREASE not in result.output
+
+    locked_tokens = token_economics.maximum_allowed_locked // 3
+    mock_staking_agent.get_locked_tokens.return_value = locked_tokens
+
+    result = click_runner.invoke(stake, command, input=user_input, catch_exceptions=False)
+    assert result.exit_code == 0
+
+    upper_limit = NU.from_nunits(token_economics.maximum_allowed_locked - locked_tokens)
+    assert PROMPT_STAKE_INCREASE_VALUE.format(upper_limit=upper_limit) in result.output
+    assert CONFIRM_INCREASING_STAKE.format(stake_index=sub_stake_index, value=additional_value) in result.output
+    assert SUCCESSFUL_STAKE_INCREASE in result.output
+    assert PROMPT_DEPOSIT_OR_LOCK in result.output
+
+    mock_staking_agent.get_all_stakes.assert_called()
+    mock_staking_agent.get_current_period.assert_called()
+    mock_refresh_stakes.assert_called()
+    mock_staking_agent.lock_and_increase.assert_called_once_with(staker_address=surrogate_staker.checksum_address,
+                                                                 stake_index=sub_stake_index,
+                                                                 amount=additional_value.to_nunits())
+    mock_staking_agent.assert_only_transactions([mock_staking_agent.lock_and_increase])
+    mock_staking_agent.get_substake_info.assert_called_once_with(staker_address=surrogate_staker.checksum_address,
+                                                                 stake_index=sub_stake_index)
+
+
+@pytest.mark.usefixtures("test_registry_source_manager", "patch_stakeholder_configuration")
+def test_increase_lock_non_interactive(click_runner,
+                                       mocker,
+                                       surrogate_staker,
+                                       surrogate_stakes,
+                                       mock_staking_agent,
+                                       token_economics,
+                                       mock_testerchain):
+    mock_refresh_stakes = mocker.spy(Staker, 'refresh_stakes')
+
+    sub_stake_index = len(surrogate_stakes) - 1
+    additional_value = NU.from_nunits(token_economics.minimum_allowed_locked // 10)
+
+    mock_staking_agent.get_locked_tokens.return_value = token_economics.minimum_allowed_locked * 2
+    unlocked_tokens = token_economics.minimum_allowed_locked * 5
+    mock_staking_agent.calculate_staking_reward.return_value = unlocked_tokens
+
+    command = ('increase',
+               '--provider', MOCK_PROVIDER_URI,
+               '--network', TEMPORARY_DOMAIN,
+               '--staking-address', surrogate_staker.checksum_address,
+               '--index', sub_stake_index,
+               '--value', additional_value.to_tokens(),
+               '--only-lock',
+               '--force')
+
+    user_input = INSECURE_DEVELOPMENT_PASSWORD
+    result = click_runner.invoke(stake, command, input=user_input, catch_exceptions=False)
+    assert result.exit_code == 0
+
+    upper_limit = NU.from_nunits(unlocked_tokens)
+    assert PROMPT_STAKE_INCREASE_VALUE.format(upper_limit=upper_limit) not in result.output
+    assert CONFIRM_INCREASING_STAKE.format(stake_index=sub_stake_index, value=additional_value) not in result.output
+    assert SUCCESSFUL_STAKE_INCREASE in result.output
+    assert PROMPT_DEPOSIT_OR_LOCK not in result.output
+
+    mock_staking_agent.get_all_stakes.assert_called()
+    mock_staking_agent.get_current_period.assert_called()
+    mock_refresh_stakes.assert_called()
+    mock_staking_agent.lock_and_increase.assert_called_once_with(staker_address=surrogate_staker.checksum_address,
+                                                                 stake_index=sub_stake_index,
+                                                                 amount=additional_value.to_nunits())
+    mock_staking_agent.assert_only_transactions([mock_staking_agent.lock_and_increase])
+    mock_staking_agent.get_substake_info.assert_called_once_with(staker_address=surrogate_staker.checksum_address,
+                                                                 stake_index=sub_stake_index)
+
+
+@pytest.mark.usefixtures("test_registry_source_manager", "patch_stakeholder_configuration")
+def test_create_interactive(click_runner,
+                            mocker,
+                            surrogate_staker,
+                            surrogate_stakes,
+                            mock_token_agent,
+                            mock_staking_agent,
+                            token_economics,
+                            mock_testerchain):
+    mock_refresh_stakes = mocker.spy(Staker, 'refresh_stakes')
+
+    selected_index = 0
+    lock_periods = 366
+    value = NU.from_nunits(token_economics.minimum_allowed_locked * 11)
+
+    mock_token_agent.get_balance.return_value = token_economics.minimum_allowed_locked - 1
+
+    command = ('create',
+               '--provider', MOCK_PROVIDER_URI,
+               '--network', TEMPORARY_DOMAIN)
+
+    user_input = '\n'.join((str(selected_index),
+                            YES,
+                            str(value.to_tokens()),
+                            str(lock_periods),
+                            YES,
+                            YES,
+                            YES,
+                            YES,
+                            INSECURE_DEVELOPMENT_PASSWORD))
+
+    result = click_runner.invoke(stake, command, input=user_input, catch_exceptions=False)
+    assert result.exit_code == 1
+    assert INSUFFICIENT_BALANCE_TO_CREATE in result.output
+    assert MAXIMUM_STAKE_REACHED not in result.output
+    assert SUCCESSFUL_STAKE_INCREASE not in result.output
+
+    mock_staking_agent.get_locked_tokens.return_value = token_economics.maximum_allowed_locked
+    balance = token_economics.minimum_allowed_locked * 12
+    mock_token_agent.get_balance.return_value = balance
+
+    result = click_runner.invoke(stake, command, input=user_input, catch_exceptions=False)
+    assert result.exit_code == 1
+    assert INSUFFICIENT_BALANCE_TO_CREATE not in result.output
+    assert MAXIMUM_STAKE_REACHED in result.output
+    assert SUCCESSFUL_STAKE_INCREASE not in result.output
+
+    mock_staking_agent.get_locked_tokens.return_value = token_economics.maximum_allowed_locked // 2
+    result = click_runner.invoke(stake, command, input=user_input, catch_exceptions=False)
+    assert result.exit_code == 0
+
+    upper_limit = NU.from_nunits(balance)
+    lower_limit = NU.from_nunits(token_economics.minimum_allowed_locked)
+    min_locktime = token_economics.minimum_locked_periods
+    max_locktime = MAX_UINT16 - 10  # MAX_UINT16 - current period
+
+    assert PROMPT_STAKE_CREATE_VALUE.format(lower_limit=lower_limit, upper_limit=upper_limit) in result.output
+    assert PROMPT_STAKE_CREATE_LOCK_PERIODS.format(min_locktime=min_locktime, max_locktime=max_locktime) in result.output
+    assert CONFIRM_STAGED_STAKE.format(nunits=str(value.to_nunits()),
+                                       tokens=value,
+                                       staker_address=surrogate_staker.checksum_address,
+                                       lock_periods=lock_periods) in result.output
+    assert CONFIRM_BROADCAST_CREATE_STAKE in result.output
+    assert PROMPT_DEPOSIT_OR_LOCK in result.output
+    assert CONFIRM_LARGE_STAKE_VALUE.format(value=value) in result.output
+    assert CONFIRM_LARGE_STAKE_DURATION.format(lock_periods=lock_periods) in result.output
+
+    mock_staking_agent.get_all_stakes.assert_called()
+    mock_staking_agent.get_current_period.assert_called()
+    mock_refresh_stakes.assert_called()
+    mock_token_agent.approve_and_call.assert_called_once_with(amount=value.to_nunits(),
+                                                              target_address=mock_staking_agent.contract_address,
+                                                              sender_address=surrogate_staker.checksum_address,
+                                                              call_data=Web3.toBytes(lock_periods))
+    mock_token_agent.assert_only_transactions([mock_token_agent.approve_and_call])
+    mock_staking_agent.assert_no_transactions()
+
+
+@pytest.mark.usefixtures("test_registry_source_manager", "patch_stakeholder_configuration")
+def test_create_non_interactive(click_runner,
+                                mocker,
+                                surrogate_staker,
+                                surrogate_stakes,
+                                mock_token_agent,
+                                mock_staking_agent,
+                                token_economics,
+                                mock_testerchain):
+    mock_refresh_stakes = mocker.spy(Staker, 'refresh_stakes')
+
+    lock_periods = token_economics.minimum_locked_periods
+    value = NU.from_nunits(token_economics.minimum_allowed_locked * 2)
+
+    locked_tokens = token_economics.minimum_allowed_locked * 5
+    mock_staking_agent.get_locked_tokens.return_value = locked_tokens
+    mock_token_agent.get_balance.return_value = token_economics.maximum_allowed_locked
+
+    command = ('create',
+               '--provider', MOCK_PROVIDER_URI,
+               '--network', TEMPORARY_DOMAIN,
+               '--staking-address', surrogate_staker.checksum_address,
+               '--lock-periods', lock_periods,
+               '--value', value.to_tokens(),
+               '--force')
+
+    user_input = '\n'.join((YES, INSECURE_DEVELOPMENT_PASSWORD))
+    result = click_runner.invoke(stake, command, input=user_input, catch_exceptions=False)
+    assert result.exit_code == 0
+
+    upper_limit = NU.from_nunits(token_economics.maximum_allowed_locked - locked_tokens)
+    lower_limit = NU.from_nunits(token_economics.minimum_allowed_locked)
+    min_locktime = token_economics.minimum_locked_periods
+    max_locktime = MAX_UINT16 - 10  # MAX_UINT16 - current period
+    assert PROMPT_STAKE_CREATE_VALUE.format(lower_limit=lower_limit, upper_limit=upper_limit) not in result.output
+    assert PROMPT_STAKE_CREATE_LOCK_PERIODS.format(min_locktime=min_locktime, max_locktime=max_locktime) not in result.output
+    assert CONFIRM_STAGED_STAKE.format(nunits=str(value.to_nunits()),
+                                       tokens=value,
+                                       staker_address=surrogate_staker.checksum_address,
+                                       lock_periods=lock_periods) not in result.output
+    assert CONFIRM_BROADCAST_CREATE_STAKE in result.output
+    assert PROMPT_DEPOSIT_OR_LOCK not in result.output
+    assert CONFIRM_LARGE_STAKE_VALUE.format(value=value) not in result.output
+    assert CONFIRM_LARGE_STAKE_DURATION.format(lock_periods=lock_periods) not in result.output
+
+    mock_staking_agent.get_all_stakes.assert_called()
+    mock_staking_agent.get_current_period.assert_called()
+    mock_refresh_stakes.assert_called()
+    mock_token_agent.approve_and_call.assert_called_once_with(amount=value.to_nunits(),
+                                                              target_address=mock_staking_agent.contract_address,
+                                                              sender_address=surrogate_staker.checksum_address,
+                                                              call_data=Web3.toBytes(lock_periods))
+    mock_token_agent.assert_only_transactions([mock_token_agent.approve_and_call])
+    mock_staking_agent.assert_no_transactions()
+
+
+@pytest.mark.usefixtures("test_registry_source_manager", "patch_stakeholder_configuration")
+def test_create_lock_interactive(click_runner,
+                                 mocker,
+                                 surrogate_staker,
+                                 surrogate_stakes,
+                                 mock_staking_agent,
+                                 token_economics,
+                                 mock_testerchain):
+    mock_refresh_stakes = mocker.spy(Staker, 'refresh_stakes')
+
+    selected_index = 0
+    lock_periods = 366
+    value = NU.from_nunits(token_economics.minimum_allowed_locked * 2)
+
+    mock_staking_agent.calculate_staking_reward.return_value = token_economics.minimum_allowed_locked - 1
+
+    command = ('create',
+               '--provider', MOCK_PROVIDER_URI,
+               '--network', TEMPORARY_DOMAIN)
+
+    user_input = '\n'.join((str(selected_index),
+                            NO,
+                            str(value.to_tokens()),
+                            str(lock_periods),
+                            YES,
+                            YES,
+                            YES,
+                            INSECURE_DEVELOPMENT_PASSWORD))
+
+    result = click_runner.invoke(stake, command, input=user_input, catch_exceptions=False)
+    assert result.exit_code == 1
+    assert INSUFFICIENT_BALANCE_TO_CREATE in result.output
+    assert MAXIMUM_STAKE_REACHED not in result.output
+    assert SUCCESSFUL_STAKE_INCREASE not in result.output
+
+    mock_staking_agent.get_locked_tokens.return_value = token_economics.maximum_allowed_locked
+    mock_staking_agent.calculate_staking_reward.return_value = token_economics.maximum_allowed_locked
+
+    result = click_runner.invoke(stake, command, input=user_input, catch_exceptions=False)
+    assert result.exit_code == 1
+    assert INSUFFICIENT_BALANCE_TO_CREATE not in result.output
+    assert MAXIMUM_STAKE_REACHED in result.output
+    assert SUCCESSFUL_STAKE_INCREASE not in result.output
+
+    locked_tokens = token_economics.maximum_allowed_locked // 3
+    mock_staking_agent.get_locked_tokens.return_value = locked_tokens
+
+    result = click_runner.invoke(stake, command, input=user_input, catch_exceptions=False)
+    assert result.exit_code == 0
+
+    upper_limit = NU.from_nunits(token_economics.maximum_allowed_locked - locked_tokens)
+    lower_limit = NU.from_nunits(token_economics.minimum_allowed_locked)
+    min_locktime = token_economics.minimum_locked_periods
+    max_locktime = MAX_UINT16 - 10  # MAX_UINT16 - current period
+
+    assert PROMPT_STAKE_CREATE_VALUE.format(lower_limit=lower_limit, upper_limit=upper_limit) in result.output
+    assert PROMPT_STAKE_CREATE_LOCK_PERIODS.format(min_locktime=min_locktime, max_locktime=max_locktime) in result.output
+    assert CONFIRM_STAGED_STAKE.format(nunits=str(value.to_nunits()),
+                                       tokens=value,
+                                       staker_address=surrogate_staker.checksum_address,
+                                       lock_periods=lock_periods) in result.output
+    assert CONFIRM_BROADCAST_CREATE_STAKE in result.output
+    assert PROMPT_DEPOSIT_OR_LOCK in result.output
+    assert CONFIRM_LARGE_STAKE_VALUE.format(value=value) not in result.output
+    assert CONFIRM_LARGE_STAKE_DURATION.format(lock_periods=lock_periods) in result.output
+
+    mock_staking_agent.get_all_stakes.assert_called()
+    mock_staking_agent.get_current_period.assert_called()
+    mock_refresh_stakes.assert_called()
+    mock_staking_agent.lock_and_create.assert_called_once_with(amount=value.to_nunits(),
+                                                               lock_periods=lock_periods,
+                                                               staker_address=surrogate_staker.checksum_address)
+    mock_staking_agent.assert_only_transactions([mock_staking_agent.lock_and_create])
+
+
+@pytest.mark.usefixtures("test_registry_source_manager", "patch_stakeholder_configuration")
+def test_create_lock_non_interactive(click_runner,
+                                     mocker,
+                                     surrogate_staker,
+                                     surrogate_stakes,
+                                     mock_staking_agent,
+                                     token_economics,
+                                     mock_testerchain):
+    mock_refresh_stakes = mocker.spy(Staker, 'refresh_stakes')
+
+    lock_periods = token_economics.minimum_locked_periods
+    value = NU.from_nunits(token_economics.minimum_allowed_locked * 11)
+
+    mock_staking_agent.get_locked_tokens.return_value = token_economics.minimum_allowed_locked * 5
+    unlocked_tokens = token_economics.maximum_allowed_locked // 2
+    mock_staking_agent.calculate_staking_reward.return_value = unlocked_tokens
+
+    command = ('create',
+               '--provider', MOCK_PROVIDER_URI,
+               '--network', TEMPORARY_DOMAIN,
+               '--staking-address', surrogate_staker.checksum_address,
+               '--lock-periods', lock_periods,
+               '--value', value.to_tokens(),
+               '--only-lock',
+               '--force')
+
+    user_input = '\n'.join((YES, YES, INSECURE_DEVELOPMENT_PASSWORD))
+    result = click_runner.invoke(stake, command, input=user_input, catch_exceptions=False)
+    assert result.exit_code == 0
+
+    upper_limit = NU.from_nunits(unlocked_tokens)
+    lower_limit = NU.from_nunits(token_economics.minimum_allowed_locked)
+    min_locktime = token_economics.minimum_locked_periods
+    max_locktime = MAX_UINT16 - 10  # MAX_UINT16 - current period
+
+    assert PROMPT_STAKE_CREATE_VALUE.format(lower_limit=lower_limit, upper_limit=upper_limit) not in result.output
+    assert PROMPT_STAKE_CREATE_LOCK_PERIODS.format(min_locktime=min_locktime, max_locktime=max_locktime) not in result.output
+    assert CONFIRM_STAGED_STAKE.format(nunits=str(value.to_nunits()),
+                                       tokens=value,
+                                       staker_address=surrogate_staker.checksum_address,
+                                       lock_periods=lock_periods) not in result.output
+    assert CONFIRM_BROADCAST_CREATE_STAKE in result.output
+    assert PROMPT_DEPOSIT_OR_LOCK not in result.output
+    assert CONFIRM_LARGE_STAKE_VALUE.format(value=value) not in result.output
+    assert CONFIRM_LARGE_STAKE_DURATION.format(lock_periods=lock_periods) not in result.output
+
+    mock_staking_agent.get_all_stakes.assert_called()
+    mock_staking_agent.get_current_period.assert_called()
+    mock_refresh_stakes.assert_called()
+    mock_staking_agent.lock_and_create.assert_called_once_with(amount=value.to_nunits(),
+                                                               lock_periods=lock_periods,
+                                                               staker_address=surrogate_staker.checksum_address)
+    mock_staking_agent.assert_only_transactions([mock_staking_agent.lock_and_create])
+
+
+@pytest.mark.usefixtures("test_registry_source_manager", "patch_stakeholder_configuration")
+def test_merge_interactive(click_runner,
+                           mocker,
+                           surrogate_staker,
+                           surrogate_stakes,
+                           mock_staking_agent,
+                           token_economics,
+                           mock_testerchain):
+    mock_refresh_stakes = mocker.spy(Staker, 'refresh_stakes')
+
+    selected_index = 0
+    sub_stake_index_1 = 1
+    sub_stake_index_2 = 2
+
+    command = ('merge',
+               '--provider', MOCK_PROVIDER_URI,
+               '--network', TEMPORARY_DOMAIN)
+
+    user_input = '\n'.join((str(selected_index),
+                            str(sub_stake_index_1),
+                            str(sub_stake_index_2),
+                            YES,
+                            INSECURE_DEVELOPMENT_PASSWORD))
+
+    result = click_runner.invoke(stake, command, input=user_input, catch_exceptions=False)
+    assert result.exit_code == 0
+
+    final_period = surrogate_stakes[sub_stake_index_1].last_period
+    assert ONLY_DISPLAYING_MERGEABLE_STAKES_NOTE.format(final_period=final_period) in result.output
+    assert CONFIRM_MERGE.format(stake_index_1=sub_stake_index_1, stake_index_2=sub_stake_index_2) in result.output
+    assert SUCCESSFUL_STAKES_MERGE in result.output
+
+    mock_staking_agent.get_all_stakes.assert_called()
+    mock_staking_agent.get_current_period.assert_called()
+    mock_refresh_stakes.assert_called()
+    mock_staking_agent.merge_stakes.assert_called_once_with(staker_address=surrogate_staker.checksum_address,
+                                                            stake_index_1=sub_stake_index_1,
+                                                            stake_index_2=sub_stake_index_2)
+    mock_staking_agent.assert_only_transactions([mock_staking_agent.merge_stakes])
+
+
+@pytest.mark.usefixtures("test_registry_source_manager", "patch_stakeholder_configuration")
+def test_merge_partially_interactive(click_runner,
+                                     mocker,
+                                     surrogate_staker,
+                                     surrogate_stakes,
+                                     mock_staking_agent,
+                                     token_economics,
+                                     mock_testerchain):
+    mock_refresh_stakes = mocker.spy(Staker, 'refresh_stakes')
+
+    sub_stake_index_1 = 1
+    sub_stake_index_2 = 2
+
+    base_command = ('merge',
+                    '--provider', MOCK_PROVIDER_URI,
+                    '--network', TEMPORARY_DOMAIN,
+                    '--staking-address', surrogate_staker.checksum_address)
+    user_input = '\n'.join((str(sub_stake_index_2),
+                            YES,
+                            INSECURE_DEVELOPMENT_PASSWORD))
+
+    command = base_command + ('--index-1', sub_stake_index_1)
+    result = click_runner.invoke(stake, command, input=user_input, catch_exceptions=False)
+    assert result.exit_code == 0
+
+    final_period = surrogate_stakes[sub_stake_index_1].last_period
+    assert ONLY_DISPLAYING_MERGEABLE_STAKES_NOTE.format(final_period=final_period) in result.output
+    assert CONFIRM_MERGE.format(stake_index_1=sub_stake_index_1, stake_index_2=sub_stake_index_2) in result.output
+    assert SUCCESSFUL_STAKES_MERGE in result.output
+
+    command = base_command + ('--index-2', sub_stake_index_1)
+    result = click_runner.invoke(stake, command, input=user_input, catch_exceptions=False)
+    assert result.exit_code == 0
+
+    final_period = surrogate_stakes[sub_stake_index_1].last_period
+    assert ONLY_DISPLAYING_MERGEABLE_STAKES_NOTE.format(final_period=final_period) in result.output
+    assert CONFIRM_MERGE.format(stake_index_1=sub_stake_index_1, stake_index_2=sub_stake_index_2) in result.output
+    assert SUCCESSFUL_STAKES_MERGE in result.output
+
+    mock_staking_agent.get_all_stakes.assert_called()
+    mock_staking_agent.get_current_period.assert_called()
+    mock_refresh_stakes.assert_called()
+    mock_staking_agent.merge_stakes.assert_called_with(staker_address=surrogate_staker.checksum_address,
+                                                       stake_index_1=sub_stake_index_1,
+                                                       stake_index_2=sub_stake_index_2)
+    mock_staking_agent.assert_only_transactions([mock_staking_agent.merge_stakes])
+
+
+@pytest.mark.usefixtures("test_registry_source_manager", "patch_stakeholder_configuration")
+def test_merge_non_interactive(click_runner,
+                               mocker,
+                               surrogate_staker,
+                               surrogate_stakes,
+                               mock_staking_agent,
+                               token_economics,
+                               mock_testerchain):
+    mock_refresh_stakes = mocker.spy(Staker, 'refresh_stakes')
+
+    sub_stake_index_1 = 1
+    sub_stake_index_2 = 2
+
+    mock_staking_agent.get_locked_tokens.return_value = token_economics.minimum_allowed_locked * 2
+    unlocked_tokens = token_economics.minimum_allowed_locked * 5
+    mock_staking_agent.calculate_staking_reward.return_value = unlocked_tokens
+
+    command = ('merge',
+               '--provider', MOCK_PROVIDER_URI,
+               '--network', TEMPORARY_DOMAIN,
+               '--staking-address', surrogate_staker.checksum_address,
+               '--index-1', sub_stake_index_1,
+               '--index-2', sub_stake_index_2,
+               '--force')
+
+    user_input = INSECURE_DEVELOPMENT_PASSWORD
+    result = click_runner.invoke(stake, command, input=user_input, catch_exceptions=False)
+    assert result.exit_code == 0
+
+    final_period = surrogate_stakes[sub_stake_index_1].last_period
+    assert ONLY_DISPLAYING_MERGEABLE_STAKES_NOTE.format(final_period=final_period) not in result.output
+    assert CONFIRM_MERGE.format(stake_index_1=sub_stake_index_1, stake_index_2=sub_stake_index_2) not in result.output
+    assert SUCCESSFUL_STAKES_MERGE in result.output
+
+    mock_staking_agent.get_all_stakes.assert_called()
+    mock_staking_agent.get_current_period.assert_called()
+    mock_refresh_stakes.assert_called()
+    mock_staking_agent.merge_stakes.assert_called_once_with(staker_address=surrogate_staker.checksum_address,
+                                                            stake_index_1=sub_stake_index_1,
+                                                            stake_index_2=sub_stake_index_2)
+    mock_staking_agent.assert_only_transactions([mock_staking_agent.merge_stakes])
