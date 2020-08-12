@@ -14,7 +14,7 @@ GNU Affero General Public License for more details.
 You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
-
+import math
 import random
 from collections import OrderedDict, deque
 from queue import Queue
@@ -22,7 +22,7 @@ from typing import Generator, Set, List, Callable
 
 import maya
 from twisted.internet import reactor
-from twisted.internet.defer import DeferredList
+from twisted.internet.defer import DeferredList, ensureDeferred
 from twisted.internet.threads import deferToThread, deferToThreadPool
 
 from abc import ABC, abstractmethod
@@ -171,15 +171,16 @@ class PolicyPayloadMutex(DeferredList):
     def __init__(self, deferredList, percent_to_complete_before_release=5, *args, **kwargs):
         self.percent_to_complete_before_release = percent_to_complete_before_release
         self._policy_locking_queue = Queue()
-
+        self._block_until_this_many_are_complete = math.ceil(len(deferredList) * self.percent_to_complete_before_release / 100)
+        self.released = False
         super().__init__(deferredList, *args, **kwargs)
-        self._block_until_this_many_are_complete = int(len(deferredList) * self.percent_to_complete_before_release / 100)
 
     def _cbDeferred(self, *args, **kwargs):
         result = super()._cbDeferred(*args, **kwargs)
 
-        if self.finishedCount == self._block_until_this_many_are_complete:
+        if not self.released and self.finishedCount >= self._block_until_this_many_are_complete:
             self._policy_locking_queue.put(None)  # TODO: It'd be rad to return a list of nodes here who were contacted, but it's non-trivial.
+            self.released = True
         return result
 
     def block_for_a_little_while(self):
