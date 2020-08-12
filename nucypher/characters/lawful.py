@@ -20,19 +20,18 @@ import random
 from base64 import b64encode, b64decode
 from base64 import b64decode, b64encode
 from collections import OrderedDict
+from queue import Queue
 from random import shuffle
 
 import maya
 import time
 
+from twisted.internet.threads import deferToThread
 from twisted.python.threadpool import ThreadPool
-
-from bytestring_splitter import BytestringKwargifier, BytestringSplittingError
-from bytestring_splitter import BytestringSplitter, VariableLengthBytestring
 from bytestring_splitter import BytestringKwargifier, BytestringSplitter, BytestringSplittingError, \
     VariableLengthBytestring
 from constant_sorrow import constants
-from constant_sorrow.constants import INCLUDED_IN_BYTESTRING, PUBLIC_ONLY, STRANGER_ALICE, UNKNOWN_VERSION
+from constant_sorrow.constants import INCLUDED_IN_BYTESTRING, PUBLIC_ONLY, STRANGER_ALICE, UNKNOWN_VERSION, READY
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives.asymmetric.ec import EllipticCurve
 from cryptography.hazmat.primitives.serialization import Encoding
@@ -80,8 +79,6 @@ from nucypher.datastore.keypairs import HostingKeypair
 from nucypher.datastore.models import PolicyArrangement
 from nucypher.network.exceptions import NodeSeemsToBeDown
 from nucypher.network.middleware import RestMiddleware
-from nucypher.network.nodes import NodeSprout
-from nucypher.network.nodes import Teacher
 from nucypher.network.nodes import NodeSprout, Teacher
 from nucypher.network.protocols import InterfaceInfo, parse_node_uri
 from nucypher.network.server import ProxyRESTServer, TLSHostingPower, make_rest_app
@@ -131,8 +128,10 @@ class Alice(Character, BlockchainPolicyAuthor):
             self.m = m
             self.n = n
 
-            self.publication_threadpool = ThreadPool(maxthreads=120, name="Alice Policy Publication")  # In the future, this value is perhaps best set to something like 3-4 times the optimal "high n", whatever we determine that to be.
-            self.publication_threadpool.start()
+            self._policy_queue = Queue()
+            self._policy_queue.put(READY)
+            # self.publication_threadpool = ThreadPool(maxthreads=120, name="Alice Policy Publication")  # In the future, this value is perhaps best set to something like 3-4 times the optimal "high n", whatever we determine that to be.
+            # self.publication_threadpool.start()
         else:
             self.m = STRANGER_ALICE
             self.n = STRANGER_ALICE
@@ -447,7 +446,7 @@ class Alice(Character, BlockchainPolicyAuthor):
     def disenchant(self):
         self.log.debug(f"disenchanting {self}")
         super().disenchant()
-        self.publication_threadpool.stop()
+        # self.publication_threadpool.stop()
 
 
 class Bob(Character):
