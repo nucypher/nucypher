@@ -287,7 +287,7 @@ class Policy(ABC):
         """
         return keccak_digest(bytes(self.alice.stamp) + bytes(self.bob.stamp) + self.label)
 
-    def publish_treasure_map(self, network_middleware: RestMiddleware, blockchain_signer: Callable = None) -> PolicyPayloadMutex:
+    def publish_treasure_map(self, threadpool, network_middleware: RestMiddleware, blockchain_signer: Callable = None) -> PolicyPayloadMutex:
         self.treasure_map.prepare_for_publication(self.bob.public_keys(DecryptingPower),
                                                   self.bob.public_keys(SigningPower),
                                                   self.alice.stamp,
@@ -315,6 +315,14 @@ class Policy(ABC):
                                                ))
         self.publishing_mutex = PolicyPayloadMutex(publication_deferreds, percent_to_complete_before_release=10)
         # return self.publishing_mutex  # I dunno.. return this?  Why not just use the composed version?
+
+    def inject_alice_publication_threadpool_into(self, f, *args, **kwargs):
+        d = ensureDeferred(self.alice.get_publication_threadpool(policy_id=self.id.hex()[0:10]))
+        d.addCallback(f, *args, **kwargs)
+        def huh(result):
+            assert False
+        d.addErrback(huh)
+        # return d.callback()
 
     def credential(self, with_treasure_map=True):
         """
@@ -392,7 +400,8 @@ class Policy(ABC):
             self.alice.add_active_policy(self)
 
             if publish_treasure_map is True:
-                return self.publish_treasure_map(network_middleware=network_middleware)
+                publication_result = self.inject_alice_publication_threadpool_into(self.publish_treasure_map, network_middleware=network_middleware)
+                # return self.publish_treasure_map(network_middleware=network_middleware)
 
     def propose_arrangement(self, network_middleware, ursula, arrangement) -> bool:
         negotiation_response = network_middleware.propose_arrangement(arrangement=arrangement)
