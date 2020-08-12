@@ -167,6 +167,19 @@ class Alice(Character, BlockchainPolicyAuthor):
         self.active_policies = dict()
         self.revocation_kits = dict()
 
+    async def get_publication_threadpool(self, policy_id):
+        """
+        Wait until any previous publication is complete, then produce and return a threadpool to use for the next one.
+
+        TODO: Someday, instead of a simple Queue for backpressure, make this use something like tubs and consume async defs from middleware.
+        """
+        # In the future, this value is perhaps best set to something like 3-4 times the optimal "high n", whatever we determine that to be.
+
+        _ready_or_list_of_publication_responses = self._policy_queue.get()  # TODO: timeout?
+        tp = ThreadPool(maxthreads=120, name=f"Alice Policy Publication for {policy_id}")
+        tp.start()
+        return tp
+
     def add_active_policy(self, active_policy):
         """
         Adds a Policy object that is active on the NuCypher network to Alice's
