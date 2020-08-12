@@ -413,8 +413,7 @@ class Policy(ABC):
         raise NotImplementedError
 
     def sample(self, handpicked_ursulas: Optional[Set[Ursula]] = None) -> Set[Ursula]:
-        handpicked_ursulas = handpicked_ursulas or set()
-        selected_ursulas = set(handpicked_ursulas)
+        selected_ursulas = set(handpicked_ursulas) if handpicked_ursulas else set()
 
         # Calculate the target sample quantity
         target_sample_quantity = self.n - len(selected_ursulas)
