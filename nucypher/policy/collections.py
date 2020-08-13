@@ -303,7 +303,7 @@ class WorkOrder:
             self.cfrag = cfrag  # TODO: we need to store them in case of Ursula misbehavior
             self.cfrag_signature = cfrag_signature
 
-        def get_specification(self, ursula_pubkey, alice_address, blockhash, ursula_identity_evidence=b''):
+        def get_specification(self, ursula_pubkey, alice_address, blockhash, ursula_identity_evidence=b''):  # TODO: Why does ursula_identity_evidence has a default? for federated, perhaps?
             task_specification = (bytes(self.capsule),
                                   bytes(ursula_pubkey),
                                   bytes(ursula_identity_evidence),
@@ -324,13 +324,13 @@ class WorkOrder:
                 remainder_splitter = BytestringSplitter((CapsuleFrag, VariableLengthBytestring), Signature)
                 cfrag, reencryption_signature = remainder_splitter(remainder)
                 return cls(capsule=capsule, signature=signature,
-                           cfrag=cfrag, reencryption_signature=reencryption_signature)
+                           cfrag=cfrag, cfrag_signature=reencryption_signature)
             else:
                 return cls(capsule=capsule, signature=signature)
 
-        def attach_work_result(self, cfrag, reencryption_signature):
+        def attach_work_result(self, cfrag, cfrag_signature):
             self.cfrag = cfrag
-            self.cfrag_signature = reencryption_signature
+            self.cfrag_signature = cfrag_signature
 
     def __init__(self,
                  bob: Bob,
