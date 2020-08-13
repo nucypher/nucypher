@@ -1221,7 +1221,7 @@ class Ursula(Teacher, Character, Worker):
 
         version = self.TEACHER_VERSION.to_bytes(2, "big")
         interface_info = VariableLengthBytestring(bytes(self.rest_interface))
-        decentralized_identity_evidence = VariableLengthBytestring(self.decentralized_identity_evidence)
+        decentralized_identity_evidence = VariableLengthBytestring(self.decentralized_identity_evidence)  # TODO: Change to fixed length
 
         certificate = self.rest_server_certificate()
         cert_vbytes = VariableLengthBytestring(certificate.public_bytes(Encoding.PEM))
