@@ -398,8 +398,8 @@ class WorkOrder:
             tasks[capsule] = task
 
         # TODO: What's the goal of the receipt? Should it include only the capsules?
-        capsules_digest = keccak_digest(*[bytes(capsule) for capsule in tasks])
-        receipt_bytes = cls.HEADER + bytes(ursula.stamp) + capsules_digest
+        capsules = b''.join(map(bytes, tasks.keys()))
+        receipt_bytes = cls.HEADER + bytes(ursula.stamp) + capsules
         receipt_signature = bob.stamp(receipt_bytes)
 
         return cls(bob=bob, arrangement_id=arrangement_id, tasks=tasks,
@@ -431,8 +431,8 @@ class WorkOrder:
                 raise InvalidSignature()
 
         # Check receipt
-        capsules_digest = keccak_digest(*[bytes(capsule) for capsule in tasks])
-        receipt_bytes = cls.HEADER + bytes(ursula.stamp) + capsules_digest
+        capsules = b''.join(map(bytes, tasks.keys()))
+        receipt_bytes = cls.HEADER + bytes(ursula.stamp) + capsules
         if not signature.verify(receipt_bytes, bob_verifying_key):
             raise InvalidSignature()
 
