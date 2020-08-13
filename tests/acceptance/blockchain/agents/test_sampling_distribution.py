@@ -16,11 +16,13 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
 from collections import Counter
+from itertools import permutations
+import random
 
 import pytest
 
 from nucypher.blockchain.economics import BaseEconomics
-from nucypher.blockchain.eth.agents import StakingEscrowAgent
+from nucypher.blockchain.eth.agents import StakingEscrowAgent, WeightedSampler
 from nucypher.blockchain.eth.constants import NULL_ADDRESS, STAKING_ESCROW_CONTRACT_NAME
 
 
@@ -115,7 +117,8 @@ def test_sampling_distribution(testerchain, token, deploy_contract, token_econom
     sampled, failed = 0, 0
     while sampled < SAMPLES:
         try:
-            addresses = set(staking_agent.sample(quantity=quantity, additional_ursulas=1, duration=1))
+            reservoir = staking_agent.get_stakers_reservoir(duration=1)
+            addresses = set(reservoir.draw(quantity))
             addresses.discard(NULL_ADDRESS)
         except staking_agent.NotEnoughStakers:
             failed += 1
@@ -134,3 +137,42 @@ def test_sampling_distribution(testerchain, token, deploy_contract, token_econom
         assert abs_error < ERROR_TOLERANCE
 
     # TODO: Test something wrt to % of failed
+
+
+def probability_reference_no_replacement(weights, idxs):
+    """
+    The probability of drawing elements with (distinct) indices ``idxs`` (in given order),
+    given ``weights``. No replacement.
+    """
+    assert len(set(idxs)) == len(idxs)
+    all_weights = sum(weights)
+    p = 1
+    for idx in idxs:
+        p *= weights[idx] / all_weights
+        all_weights -= weights[idx]
+    return p
+
+
+@pytest.mark.parametrize('sample_size', [1, 2, 3])
+def test_weighted_sampler(sample_size):
+    weights = [1, 9, 100, 2, 18, 70]
+    elements = list(range(len(weights)))
+    rng = random.SystemRandom()
+    counter = Counter()
+
+    weighted_elements = {element: weight for element, weight in zip(elements, weights)}
+
+    samples = 100000
+    sampler = WeightedSampler(weighted_elements)
+    for i in range(samples):
+        sample_set = sampler.sample_no_replacement(rng, sample_size)
+        counter.update({tuple(sample_set): 1})
+
+    for idxs in permutations(elements, sample_size):
+        test_prob = counter[idxs] / samples
+        ref_prob = probability_reference_no_replacement(weights, idxs)
+
+        # A rough estimate to check probabilities.
+        # A little too forgiving for samples with smaller probabilities,
+        # but can go up to 0.5 on occasion.
+        assert abs(test_prob - ref_prob) * samples**0.5 < 1

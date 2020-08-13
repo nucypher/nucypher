@@ -15,6 +15,7 @@ You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
+import time
 import random
 from collections import OrderedDict, deque
 
@@ -22,7 +23,7 @@ import maya
 from abc import ABC, abstractmethod
 from bytestring_splitter import BytestringSplitter, VariableLengthBytestring
 from constant_sorrow.constants import NOT_SIGNED, UNKNOWN_KFRAG
-from typing import Generator, List, Set
+from typing import Generator, List, Set, Optional
 from umbral.keys import UmbralPublicKey
 from umbral.kfrags import KFrag
 
@@ -205,9 +206,6 @@ class Policy(ABC):
         self.treasure_map = TreasureMap(m=m)
         self.expiration = expiration
 
-        # Keep track of this stuff
-        self.selection_buffer = 1
-
         self._accepted_arrangements = set()    # type: Set[Arrangement]
         self._rejected_arrangements = set()    # type: Set[Arrangement]
         self._spare_candidates = set()         # type: Set[Ursula]
@@ -384,7 +382,7 @@ class Policy(ABC):
 
     def make_arrangements(self,
                           network_middleware: RestMiddleware,
-                          handpicked_ursulas: Set[Ursula] = None,
+                          handpicked_ursulas: Optional[Set[Ursula]] = None,
                           *args, **kwargs,
                           ) -> None:
 
@@ -411,17 +409,17 @@ class Policy(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def sample_essential(self, quantity: int, handpicked_ursulas: Set[Ursula] = None) -> Set[Ursula]:
+    def sample_essential(self, quantity: int, handpicked_ursulas: Set[Ursula]) -> Set[Ursula]:
         raise NotImplementedError
 
-    def sample(self, handpicked_ursulas: Set[Ursula] = None) -> Set[Ursula]:
+    def sample(self, handpicked_ursulas: Optional[Set[Ursula]] = None) -> Set[Ursula]:
         selected_ursulas = set(handpicked_ursulas) if handpicked_ursulas else set()
 
         # Calculate the target sample quantity
         target_sample_quantity = self.n - len(selected_ursulas)
         if target_sample_quantity > 0:
             sampled_ursulas = self.sample_essential(quantity=target_sample_quantity,
-                                                    handpicked_ursulas=handpicked_ursulas)
+                                                    handpicked_ursulas=selected_ursulas)
             selected_ursulas.update(sampled_ursulas)
 
         return selected_ursulas
@@ -478,11 +476,11 @@ class FederatedPolicy(Policy):
                     "Pass them here as handpicked_ursulas.".format(self.n)
             raise self.MoreKFragsThanArrangements(error)  # TODO: NotEnoughUrsulas where in the exception tree is this?
 
-    def sample_essential(self, quantity: int, handpicked_ursulas: Set[Ursula] = None) -> Set[Ursula]:
+    def sample_essential(self, quantity: int, handpicked_ursulas: Set[Ursula]) -> Set[Ursula]:
         known_nodes = self.alice.known_nodes
         if handpicked_ursulas:
             # Prevent re-sampling of handpicked ursulas.
-            known_nodes = set(known_nodes) - set(handpicked_ursulas)
+            known_nodes = set(known_nodes) - handpicked_ursulas
         sampled_ursulas = set(random.sample(k=quantity, population=list(known_nodes)))
         return sampled_ursulas
 
@@ -532,7 +530,6 @@ class BlockchainPolicy(Policy):
 
         super().__init__(alice=alice, expiration=expiration, *args, **kwargs)
 
-        self.selection_buffer = 1.5
         self.validate_fee_value()
 
     def validate_fee_value(self) -> None:
@@ -576,58 +573,69 @@ class BlockchainPolicy(Policy):
         params = dict(rate=rate, value=value)
         return params
 
-    def __find_ursulas(self,
-                       ether_addresses: List[str],
-                       target_quantity: int,
-                       timeout: int = 10) -> set:  # TODO #843: Make timeout configurable
+    def sample_essential(self,
+                         quantity: int,
+                         handpicked_ursulas: Set[Ursula],
+                         learner_timeout: int = 1,
+                         timeout: int = 10) -> Set[Ursula]: # TODO #843: Make timeout configurable
 
-        start_time = maya.now()                            # marker for timeout calculation
+        selected_ursulas = set(handpicked_ursulas)
+        quantity_remaining = quantity
 
-        found_ursulas, unknown_addresses = set(), deque()
-        while len(found_ursulas) < target_quantity:        # until there are enough Ursulas
+        # Need to sample some stakers
 
-            delta = maya.now() - start_time                # check for a timeout
-            if delta.total_seconds() >= timeout:
-                missing_nodes = ', '.join(a for a in unknown_addresses)
-                raise RuntimeError("Timed out after {} seconds; Cannot find {}.".format(timeout, missing_nodes))
-
-            # Select an ether_address: Prefer the selection pool, then unknowns queue
-            if ether_addresses:
-                ether_address = ether_addresses.pop()
-            else:
-                ether_address = unknown_addresses.popleft()
-
-            try:
-                # Check if this is a known node.
-                selected_ursula = self.alice.known_nodes[ether_address]
-
-            except KeyError:
-                # Unknown Node
-                self.alice.learn_about_specific_nodes({ether_address})  # enter address in learning loop
-                unknown_addresses.append(ether_address)
-                continue
-
-            else:
-                # Known Node
-                found_ursulas.add(selected_ursula)  # We already knew, or just learned about this ursula
-
-        return found_ursulas
-
-    def sample_essential(self, quantity: int, handpicked_ursulas: Set[Ursula] = None) -> Set[Ursula]:
-        # TODO: Prevent re-sampling of handpicked ursulas.
-        selected_addresses = set()
-        try:
-            sampled_addresses = self.alice.recruit(quantity=quantity,
-                                                   duration=self.duration_periods,
-                                                   additional_ursulas=self.selection_buffer)
-        except StakingEscrowAgent.NotEnoughStakers as e:
-            error = f"Cannot create policy with {quantity} arrangements: {e}"
+        handpicked_addresses = [ursula.checksum_address for ursula in handpicked_ursulas]
+        reservoir = self.alice.get_stakers_reservoir(duration=self.duration_periods,
+                                                     without=handpicked_addresses)
+        if len(reservoir) < quantity_remaining:
+            error = f"Cannot create policy with {quantity} arrangements"
             raise self.NotEnoughBlockchainUrsulas(error)
 
-        # Capture the selection and search the network for those Ursulas
-        selected_addresses.update(sampled_addresses)
-        found_ursulas = self.__find_ursulas(sampled_addresses, quantity)
-        return found_ursulas
+        to_check = set(reservoir.draw(quantity_remaining))
+
+        # Sample stakers in a loop and feed them to the learner to check
+        # until we have enough in `selected_ursulas`.
+
+        start_time = maya.now()
+        new_to_check = to_check
+
+        while True:
+
+            # Check if the sampled addresses are already known.
+            # If we're lucky, we won't have to wait for the learner iteration to finish.
+            known = {x for x in to_check if x in self.alice.known_nodes}
+            to_check = to_check - known
+
+            known = random.sample(known, min(len(known), quantity_remaining)) # we only need so many
+            selected_ursulas.update([self.alice.known_nodes[address] for address in known])
+            quantity_remaining -= len(known)
+
+            if quantity_remaining == 0:
+                break
+            else:
+                new_to_check = reservoir.draw_at_most(quantity_remaining)
+                to_check.update(new_to_check)
+
+            # Feed newly sampled stakers to the learner
+            self.alice.learn_about_specific_nodes(new_to_check)
+
+            # TODO: would be nice to wait for the learner to finish an iteration here,
+            # because if it hasn't, we really have nothing to do.
+            time.sleep(learner_timeout)
+
+            delta = maya.now() - start_time
+            if delta.total_seconds() >= timeout:
+                still_checking = ', '.join(to_check)
+                raise RuntimeError(f"Timed out after {timeout} seconds; "
+                                   f"need {quantity_remaining} more, still checking {still_checking}.")
+
+        found_ursulas = list(selected_ursulas)
+
+        # Randomize the output to avoid the largest stakers always being the first in the list
+        system_random = random.SystemRandom()
+        system_random.shuffle(found_ursulas) # inplace
+
+        return set(found_ursulas)
 
     def publish_to_blockchain(self) -> dict:
 

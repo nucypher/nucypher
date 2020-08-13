@@ -152,19 +152,19 @@ def test_sample_stakers(agency):
     stakers_population = staking_agent.get_staker_population()
 
     with pytest.raises(StakingEscrowAgent.NotEnoughStakers):
-        staking_agent.sample(quantity=stakers_population + 1, duration=1)  # One more than we have deployed
+        staking_agent.get_stakers_reservoir(duration=1).draw(stakers_population + 1)  # One more than we have deployed
 
-    stakers = staking_agent.sample(quantity=3, duration=5)
+    stakers = staking_agent.get_stakers_reservoir(duration=5).draw(3)
     assert len(stakers) == 3       # Three...
     assert len(set(stakers)) == 3  # ...unique addresses
 
     # Same but with pagination
-    stakers = staking_agent.sample(quantity=3, duration=5, pagination_size=1)
+    stakers = staking_agent.get_stakers_reservoir(duration=5, pagination_size=1).draw(3)
     assert len(stakers) == 3
     assert len(set(stakers)) == 3
     light = staking_agent.blockchain.is_light
     staking_agent.blockchain.is_light = not light
-    stakers = staking_agent.sample(quantity=3, duration=5)
+    stakers = staking_agent.get_stakers_reservoir(duration=5).draw(3)
     assert len(stakers) == 3
     assert len(set(stakers)) == 3
     staking_agent.blockchain.is_light = light
@@ -292,13 +292,13 @@ def test_lock_restaking(agency, testerchain, test_registry):
     staking_agent = ContractAgency.get_agent(StakingEscrowAgent, registry=test_registry)
     current_period = staking_agent.get_current_period()
     terminal_period = current_period + 2
-    
+
     assert staking_agent.is_restaking(staker_account)
     assert not staking_agent.is_restaking_locked(staker_account)
     receipt = staking_agent.lock_restaking(staker_account, release_period=terminal_period)
     assert receipt['status'] == 1, "Transaction Rejected"
     assert staking_agent.is_restaking_locked(staker_account)
-    
+
     testerchain.time_travel(periods=2)  # Wait for re-staking lock to be released.
     assert not staking_agent.is_restaking_locked(staker_account)
 

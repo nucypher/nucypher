@@ -34,7 +34,7 @@ from eth_utils import to_checksum_address
 from requests.exceptions import SSLError
 from twisted.internet import defer, reactor, task
 from twisted.internet.threads import deferToThread
-from typing import Set, Tuple, Union
+from typing import Set, Tuple, Union, Iterable
 from umbral.signing import Signature
 
 import nucypher
@@ -603,9 +603,10 @@ class Learner:
         # TODO: Allow the user to set eagerness?  1712
         self.learn_from_teacher_node(eager=False)
 
-    def learn_about_specific_nodes(self, addresses: Set):
-        self._node_ids_to_learn_about_immediately.update(addresses)  # hmmmm
-        self.learn_about_nodes_now()
+    def learn_about_specific_nodes(self, addresses: Iterable):
+        if len(addresses) > 0:
+            self._node_ids_to_learn_about_immediately.update(addresses)  # hmmmm
+            self.learn_about_nodes_now()
 
     # TODO: Dehydrate these next two methods.  NRN
 
