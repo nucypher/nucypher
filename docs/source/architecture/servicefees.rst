@@ -43,6 +43,16 @@ Note that the minimum and maximum fee rate are an upper and lower bound to const
 
 The fee range must be adhered to in identical fashion by all NuCypher stakers, regardless of their stake size or capacity. The fee range applies to all sharing policies, irrespective of the volume of re-encryption requests or other distinguishing attributes besides policy duration and the number of assigned Ursulas (``n``). It also applies equally to all periods in the future, until the moment that the global fee range’s parameters are adjusted or the range is removed, via official governance channels (see below). If a parameter update of this sort occurs, sharing policies that were previously established, but have not yet expired, should not have the per-period fee rate retroactively modified.
 
+Governance & pricing paper
+---------------------------------------
+
+In order to successfully execute the PolicyManager contract, the global fee range must be adhered to by the Ursula (and Alice). Failing this, the contract will throw up an error and it will not be possible to commence a commercial engagement or pay/receive fees. Attempts to circumvent NuCypher’s smart contracts are likely to be futile (except perhaps with limited, existing, trust-heavy relationships), given the requirement of coordinated modification and redeployment by network users and a critical mass of other stakers.
+
+Given its high enforceability, the presence of an inflexible fee range dictating the bounds of every transaction is arguably the most critical component of the NuCypher protocol’s economic design and parametrization, particularly over the long-term and with respect to the sustainability of the network. From a governance perspective, it is also amongst the most malleable. If a quorum of stakers wish to set prices outside the range, then they have the right to lobby and propose a widening of the global fee range, its removal altogether, or some other design modification (e.g. narrowing the range). They may do so via the NuCypher DAO – the owner of all NuCypher smart contracts, and controlled by stakers in proportion to their stake size. See <LINK> for guidance on the NuCypher DAO and official NuCypher governance processes.
+
+The **Pricing Protocol & Economics paper** serves as a key resource and reference for community debate, proposals for modification and DAO-driven upgrades and redeployments in the future. The paper discusses the merits and risks of quasi-universal pricing and the enforcement of an upper and lower bound on all offered price points. It includes a price point analysis from a demand-side, service-side and theoretical standpoint to produce the constraints in absolute terms (i.e. in GWEI) that the network will launch with.
+
+
 Setting a discretionary fee rate
 --------------------------------
 
