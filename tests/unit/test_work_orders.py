@@ -14,27 +14,31 @@ GNU Affero General Public License for more details.
 You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
+import os
 
 import pytest
 from bytestring_splitter import VariableLengthBytestring
+from eth_utils import to_canonical_address
 from umbral.keys import UmbralPrivateKey
 from umbral.signing import Signer
 
+from nucypher.blockchain.eth.constants import ETH_HASH_BYTE_LENGTH, LENGTH_ECDSA_SIGNATURE_WITH_RECOVERY
 from nucypher.crypto.signing import SignatureStamp
 from nucypher.policy.collections import WorkOrder
 
 
-def test_pre_task_serialization(mock_ursula_reencrypts, mocker):
+def test_pre_task(mock_ursula_reencrypts, mocker, get_random_checksum_address):
+    identity_evidence = os.urandom(LENGTH_ECDSA_SIGNATURE_WITH_RECOVERY)
     ursula_privkey = UmbralPrivateKey.gen_key()
     ursula_stamp = SignatureStamp(verifying_key=ursula_privkey.pubkey,
                                   signer=Signer(ursula_privkey))
-    ursula = mocker.Mock(stamp=ursula_stamp, decentralized_identity_evidence=b'')
+    ursula = mocker.Mock(stamp=ursula_stamp, decentralized_identity_evidence=identity_evidence)
 
     evidence = mock_ursula_reencrypts(ursula)
     capsule = evidence.task.capsule
     capsule_bytes = capsule.to_bytes()
 
-    signature = ursula_stamp(capsule_bytes)  # FIXME
+    signature = ursula_stamp(capsule_bytes)
 
     task = WorkOrder.PRETask(capsule=capsule, signature=signature)
     assert capsule == task.capsule
@@ -66,3 +70,15 @@ def test_pre_task_serialization(mock_ursula_reencrypts, mocker):
     assert signature == deserialized_task.signature
     assert bytes(cfrag) == bytes(deserialized_task.cfrag)  # We compare bytes as there's no CapsuleFrag.__eq__
     assert cfrag_signature == deserialized_task.cfrag_signature
+
+    # Task specification
+    alice_address = to_canonical_address(get_random_checksum_address())
+    blockhash = os.urandom(ETH_HASH_BYTE_LENGTH)
+
+    specification = task.get_specification(bytes(ursula_stamp), alice_address, blockhash, identity_evidence)
+
+    expected_specification = bytes(capsule) + bytes(ursula_stamp) + identity_evidence + alice_address + blockhash
+    assert expected_specification == specification
+
+    with pytest.raises(ValueError, match=f"blockhash must be of length {ETH_HASH_BYTE_LENGTH}"):
+        task.get_specification(bytes(ursula_stamp), alice_address, os.urandom(42), identity_evidence)

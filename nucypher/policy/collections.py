@@ -32,6 +32,7 @@ from umbral.curvebn import CurveBN
 from umbral.keys import UmbralPublicKey
 from umbral.pre import Capsule
 
+from nucypher.blockchain.eth.constants import ETH_ADDRESS_BYTE_LENGTH, ETH_HASH_BYTE_LENGTH
 from nucypher.characters.lawful import Bob, Character
 from nucypher.crypto.api import encrypt_and_sign, keccak_digest
 from nucypher.crypto.constants import KECCAK_DIGEST_LENGTH, PUBLIC_ADDRESS_LENGTH
@@ -302,10 +303,26 @@ class WorkOrder:
             self.cfrag = cfrag  # TODO: we need to store them in case of Ursula misbehavior
             self.cfrag_signature = cfrag_signature
 
-        def get_specification(self, ursula_pubkey, alice_address, blockhash, ursula_identity_evidence=b''):  # TODO: Why does ursula_identity_evidence has a default? for federated, perhaps?
+        def get_specification(self, ursula_pubkey, alice_address, blockhash, ursula_identity_evidence=b''):
+            ursula_pubkey = bytes(ursula_pubkey)
+            ursula_identity_evidence = bytes(ursula_identity_evidence)
+            alice_address = bytes(alice_address)
+            blockhash = bytes(blockhash)
+
+            expected_lengths = (
+                (ursula_pubkey, 'ursula_pubkey', UmbralPublicKey.expected_bytes_length()),
+                (alice_address, 'alice_address', ETH_ADDRESS_BYTE_LENGTH),
+                (blockhash, 'blockhash', ETH_HASH_BYTE_LENGTH),
+                # TODO: Why does ursula_identity_evidence has a default value of b''? for federated, perhaps?
+            )
+
+            for parameter, name, expected_length in expected_lengths:
+                if len(parameter) != expected_length:
+                    raise ValueError(f"{name} must be of length {expected_length}, but it's {len(parameter)}")
+
             task_specification = (bytes(self.capsule),
-                                  bytes(ursula_pubkey),
-                                  bytes(ursula_identity_evidence),
+                                  ursula_pubkey,
+                                  ursula_identity_evidence,
                                   alice_address,
                                   blockhash)
             return b''.join(task_specification)
@@ -366,8 +383,8 @@ class WorkOrder:
         ursula.mature()
         alice_address = canonical_address_from_umbral_key(alice_verifying)
 
-        # TODO: Bob's input to prove freshness for this work order
-        blockhash = b'\x00' * 32
+        # TODO: Bob's input to prove freshness for this work order - #259
+        blockhash = b'\0' * ETH_HASH_BYTE_LENGTH
 
         ursula_identity_evidence = b''
         if ursula._stamp_has_valid_signature_by_worker():
