@@ -329,11 +329,13 @@ class WorkOrder:
             self.cfrag = cfrag
             self.cfrag_signature = cfrag_signature
 
+    HEADER = b"wo:"
+
     def __init__(self,
                  bob: Bob,
                  arrangement_id,
                  alice_address: bytes,
-                 tasks: List,
+                 tasks: dict,
                  receipt_signature,
                  ursula=None,
                  blockhash=None
@@ -379,7 +381,8 @@ class WorkOrder:
             tasks[capsule] = task
 
         # TODO: What's the goal of the receipt? Should it include only the capsules?
-        receipt_bytes = b"wo:" + bytes(ursula.stamp) + keccak_digest(*[bytes(task.capsule) for task in tasks.values()])
+        capsules_digest = keccak_digest(*[bytes(capsule) for capsule in tasks])
+        receipt_bytes = cls.HEADER + bytes(ursula.stamp) + capsules_digest
         receipt_signature = bob.stamp(receipt_bytes)
 
         return cls(bob=bob, arrangement_id=arrangement_id, tasks=tasks,
@@ -390,17 +393,17 @@ class WorkOrder:
     @classmethod
     def from_rest_payload(cls, arrangement_id, rest_payload, ursula, alice_address):
 
-        payload_splitter = BytestringSplitter(Signature) + key_splitter + BytestringSplitter(32)
+        payload_splitter = BytestringSplitter(Signature) + key_splitter + BytestringSplitter(ETH_HASH_BYTE_LENGTH)
 
         signature, bob_verifying_key, blockhash, remainder = payload_splitter(rest_payload, return_remainder=True)
-        tasks = [cls.PRETask(*args) for args in cls.PRETask.input_splitter.repeat(remainder)]
-        # TODO: check freshness of blockhash?
+        tasks = {capsule: cls.PRETask(capsule, sig) for capsule, sig in cls.PRETask.input_splitter.repeat(remainder)}
+        # TODO: check freshness of blockhash? #259
 
         ursula_identity_evidence = b''
         if ursula._stamp_has_valid_signature_by_worker():
             ursula_identity_evidence = ursula.decentralized_identity_evidence
 
-        for task in tasks:
+        for task in tasks.values():
             # Each task signature has to match the original specification
             specification = task.get_specification(ursula.stamp,
                                                    alice_address,
@@ -411,7 +414,8 @@ class WorkOrder:
                 raise InvalidSignature()
 
         # Check receipt
-        receipt_bytes = b"wo:" + bytes(ursula.stamp) + keccak_digest(*[bytes(task.capsule) for task in tasks])
+        capsules_digest = keccak_digest(*[bytes(capsule) for capsule in tasks])
+        receipt_bytes = cls.HEADER + bytes(ursula.stamp) + capsules_digest
         if not signature.verify(receipt_bytes, bob_verifying_key):
             raise InvalidSignature()
 
@@ -426,8 +430,7 @@ class WorkOrder:
 
     def payload(self):
         """
-        Creates a serialized workorder called either by Bob requesting a reencryption or by Ursula
-        re-encrypting
+        Creates a serialized WorkOrder. Called by Bob requesting reencryption tasks
         """
         tasks_bytes = b''.join(bytes(item) for item in self.tasks.values())
         return bytes(self.receipt_signature) + self.bob.stamp + self.blockhash + tasks_bytes
@@ -435,8 +438,7 @@ class WorkOrder:
     def complete(self, cfrags_and_signatures):
         good_cfrags = []
         if not len(self) == len(cfrags_and_signatures):
-            raise ValueError("Ursula gave back the wrong number of cfrags.  "
-                             "She's up to something.")
+            raise ValueError("Ursula gave back the wrong number of cfrags. She's up to something.")
 
         ursula_verifying_key = self.ursula.stamp.as_umbral_pubkey()
 
