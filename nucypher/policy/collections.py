@@ -21,14 +21,12 @@ from collections import OrderedDict
 
 import binascii
 import maya
-import msgpack
 from bytestring_splitter import BytestringSplitter, BytestringSplittingError, VariableLengthBytestring
 from constant_sorrow.constants import CFRAG_NOT_RETAINED, NO_DECRYPTION_PERFORMED
 from cryptography.hazmat.backends.openssl import backend
 from cryptography.hazmat.primitives import hashes
 from eth_utils import to_canonical_address, to_checksum_address
 from typing import List, Optional, Tuple
-from umbral.cfrags import CapsuleFrag
 from umbral.config import default_params
 from umbral.curvebn import CurveBN
 from umbral.keys import UmbralPublicKey
@@ -39,7 +37,7 @@ from nucypher.crypto.api import encrypt_and_sign, keccak_digest
 from nucypher.crypto.constants import KECCAK_DIGEST_LENGTH, PUBLIC_ADDRESS_LENGTH
 from nucypher.crypto.kits import UmbralMessageKit
 from nucypher.crypto.signing import InvalidSignature, Signature, signature_splitter
-from nucypher.crypto.splitters import capsule_splitter, key_splitter
+from nucypher.crypto.splitters import capsule_splitter, cfrag_splitter, key_splitter
 from nucypher.crypto.utils import (canonical_address_from_umbral_key,
                                    get_coordinates_as_bytes,
                                    get_signature_recovery_value)
@@ -295,7 +293,8 @@ class WorkOrder:
 
     class PRETask:
 
-        splitter = capsule_splitter + signature_splitter # splitter for task without cfrag and signature TODO: should we formalize this?
+        input_splitter = capsule_splitter + signature_splitter  # splitter for task without cfrag and signature
+        output_splitter = cfrag_splitter + signature_splitter
 
         def __init__(self, capsule, signature, cfrag=None, cfrag_signature=None):
             self.capsule = capsule
@@ -319,12 +318,10 @@ class WorkOrder:
 
         @classmethod
         def from_bytes(cls, data: bytes):
-            capsule, signature, remainder = cls.splitter(data, return_remainder=True)
+            capsule, signature, remainder = cls.input_splitter(data, return_remainder=True)
             if remainder:
-                remainder_splitter = BytestringSplitter((CapsuleFrag, VariableLengthBytestring), Signature)
-                cfrag, reencryption_signature = remainder_splitter(remainder)
-                return cls(capsule=capsule, signature=signature,
-                           cfrag=cfrag, cfrag_signature=reencryption_signature)
+                cfrag, reencryption_signature = cls.output_splitter(remainder)
+                return cls(capsule=capsule, signature=signature, cfrag=cfrag, cfrag_signature=reencryption_signature)
             else:
                 return cls(capsule=capsule, signature=signature)
 
@@ -396,7 +393,7 @@ class WorkOrder:
         payload_splitter = BytestringSplitter(Signature) + key_splitter + BytestringSplitter(32)
 
         signature, bob_verifying_key, blockhash, remainder = payload_splitter(rest_payload, return_remainder=True)
-        tasks = [cls.PRETask(*args) for args in cls.PRETask.splitter.repeat(remainder)]
+        tasks = [cls.PRETask(*args) for args in cls.PRETask.input_splitter.repeat(remainder)]
         # TODO: check freshness of blockhash?
 
         ursula_identity_evidence = b''
