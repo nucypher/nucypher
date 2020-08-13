@@ -1225,7 +1225,7 @@ class Teacher:
             # Failure
             if not addresses_match:
                 message = "Wallet address swapped out.  It appears that someone is trying to defraud this node."
-            if not verifying_keys_match:
+            elif not verifying_keys_match:
                 message = "Verifying key swapped out.  It appears that someone is impersonating this node."
             else:
                 message = "Wrong cryptographic material for this node - something fishy going on."
