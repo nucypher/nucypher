@@ -18,7 +18,7 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 import pytest
 
 from nucypher.blockchain.eth.interfaces import BaseContractRegistry
-from nucypher.blockchain.eth.registry import LocalContractRegistry
+from nucypher.blockchain.eth.registry import LocalContractRegistry, InMemoryContractRegistry
 
 
 def test_contract_registry(tempfile_path):
@@ -35,6 +35,8 @@ def test_contract_registry(tempfile_path):
     test_registry = LocalContractRegistry(filepath=tempfile_path)
 
     assert test_registry.read() == list()
+    registry_id = test_registry.id
+    assert test_registry.id == registry_id
 
     # Test contract enrollment and dump_chain
     test_name = 'TestContract'
@@ -46,6 +48,10 @@ def test_contract_registry(tempfile_path):
                          contract_address=test_addr,
                          contract_abi=test_abi,
                          contract_version=test_version)
+
+    assert test_registry.id != registry_id
+    registry_id = test_registry.id
+    assert test_registry.id == registry_id
 
     # Search by name...
     contract_records = test_registry.search(contract_name=test_name)
@@ -75,7 +81,13 @@ def test_contract_registry(tempfile_path):
     # Corrupt the registry with a duplicate address
     current_dataset.append([test_name, test_addr, test_abi])
     test_registry.write(current_dataset)
+    assert test_registry.id != registry_id
 
     # Check that searching for an unknown contract raises
     with pytest.raises(BaseContractRegistry.InvalidRegistry):
         test_registry.search(contract_address=test_addr)
+
+    # Check id of new registry with the same content
+    new_registry = InMemoryContractRegistry()  # TODO finish this
+    new_registry.write(test_registry.read())
+    assert new_registry.id == test_registry.id
