@@ -138,7 +138,7 @@ def test_alice_verifies_ursula_just_in_time(fleet_of_highperf_mocked_ursulas,
     _POLICY_PRESERVER.append(policy)
 
 
-@pytest_twisted.inlineCallbacks
+# @pytest_twisted.inlineCallbacks   # TODO: Why does this, in concert with yield policy.publishing_mutex.when_complete, hang?
 def test_mass_treasure_map_placement(fleet_of_highperf_mocked_ursulas,
                                      highperf_mocked_alice,
                                      highperf_mocked_bob):
@@ -193,7 +193,9 @@ def test_mass_treasure_map_placement(fleet_of_highperf_mocked_ursulas,
 
         # PART III: Having made proper assertions about the publication call and the first block, we allow the rest to
         # happen in the background and then ensure that each phase was timely.
-        yield policy.publishing_mutex.when_complete  # This will block until the distribution is complete.
+
+        # This will block until the distribution is complete.
+        policy.publishing_mutex.block_until_complete()
         complete_distribution_time = datetime.now() - started
 
         # We have the same number of successful responses as nodes we expected to have the map.
