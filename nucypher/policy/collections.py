@@ -367,10 +367,11 @@ class WorkOrder:
         self.completed = False
 
     def __repr__(self):
-        return "WorkOrder for hrac {hrac}: (capsules: {capsule_reprs}) for Ursula: {node}".format(
+        return "WorkOrder for hrac {hrac}: (capsules: {capsule_reprs}) for {node}".format(
             hrac=self.arrangement_id.hex()[:6],
-            capsule_reprs=[t.capsule for t in self.tasks.values()],
-            node=binascii.hexlify(bytes(self.ursula.stamp))[:6])
+            capsule_reprs=self.tasks.keys(),
+            node=self.ursula
+        )
 
     def __eq__(self, other):
         return self.receipt_signature == other.receipt_signature
