@@ -236,7 +236,7 @@ class NodeEngagementMutex:
             assert False  # TODO: What happens if this is a 300 or 400 level response?
 
         if len(self.completed) == self._block_until_this_many_are_complete:
-            print(f"++++++++++++++BLOCKED FOR A LITTLE WHILE, completed {len(self.completed)} nodes")
+            self.log.debug(f"Blocked for a little while, completed {len(self.completed)} nodes")
             self._partial_queue.put(self.completed)
             self.released = True
         self._consider_finalizing()
@@ -245,7 +245,7 @@ class NodeEngagementMutex:
     def _handle_error(self, failure, node):
         self.failed[node] = failure  # TODO: Add a failfast mode?
         self._consider_finalizing()
-        print(f"{datetime.datetime.now()}: !!!!!!!!FAILED {node}")
+        self.log.warn(f"{node} failed: {failure}")
 
     def total_disposed(self):
         return len(self.completed) + len(self.failed)

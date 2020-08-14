@@ -208,7 +208,6 @@ def test_mass_treasure_map_placement(fleet_of_highperf_mocked_ursulas,
 
         partial_blocking_duration = little_while_ended_at - started
         # Before Treasure Island (1741), this process took about 3 minutes.
-        print(f"Partial distribution time: {partial_blocking_duration}, complete in {complete_distribution_time}")
         assert partial_blocking_duration.total_seconds() < 3
         assert complete_distribution_time.total_seconds() < 8
         # On CI, we expect these times to be even less.  (Around 1 and 3.5 seconds, respectively)
