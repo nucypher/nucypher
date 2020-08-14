@@ -1012,7 +1012,6 @@ def highperf_mocked_alice(fleet_of_highperf_mocked_ursulas):
     yield alice
     # TODO: Where does this really, truly belong?
     alice._learning_task.stop()
-    alice.publication_threadpool.stop()
 
 
 @pytest.fixture(scope="module")

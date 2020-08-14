@@ -469,8 +469,7 @@ class Policy(ABC):
             self.alice.add_active_policy(self)
 
             if publish_treasure_map is True:
-                publication_result = self.inject_alice_publication_threadpool_into(self.publish_treasure_map, network_middleware=network_middleware)
-                # return self.publish_treasure_map(network_middleware=network_middleware)
+                return self.publish_treasure_map(network_middleware=network_middleware)  # TODO: blockchain_signer?
 
     def propose_arrangement(self, network_middleware, ursula, arrangement) -> bool:
         negotiation_response = network_middleware.propose_arrangement(arrangement=arrangement)
