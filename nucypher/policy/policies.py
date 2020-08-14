@@ -168,6 +168,10 @@ class BlockchainArrangement(Arrangement):
 class NodeEngagementMutex:
     """
     TODO: Does this belong on middleware?
+
+    TODO: There are a couple of ways this can break.  If one fo the jobs hangs, the whole thing will hang.  Also,
+       if there are fewer successfully completed than percent_to_complete_before_release, the partial queue will never
+       release.
     """
     log = Logger("Policy")
 
@@ -208,13 +212,13 @@ class NodeEngagementMutex:
         """
         https://www.youtube.com/watch?v=OkSLswPSq2o
         """
-        _ = self._partial_queue.get()  # Interesting opportuntiy to pass some data, like the list of contacted nodes above.
-        self.log.debug(f"{len(self.completed)} nodes were contacted while blocking for a little while.")
-        return
+        if len(self.completed) < self._block_until_this_many_are_complete:
+            _ = self._partial_queue.get()  # Interesting opportuntiy to pass some data, like the list of contacted nodes above.
+            self.log.debug(f"{len(self.completed)} nodes were contacted while blocking for a little while.")
 
     def block_until_complete(self):
-        _ = self._completion_queue.get()  # Interesting opportuntiy to pass some data, like the list of contacted nodes above.
-        return
+        if self.total_disposed() < len(self.nodes):
+            _ = self._completion_queue.get()  # Interesting opportuntiy to pass some data, like the list of contacted nodes above.
 
     def _handle_success(self, response, node):
         if response.status_code == 202:
