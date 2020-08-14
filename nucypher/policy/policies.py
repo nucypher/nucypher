@@ -190,7 +190,8 @@ class NodeEngagementMutex:
         self.failed = {}
 
         self.percent_to_complete_before_release = percent_to_complete_before_release
-        self._policy_locking_queue = Queue()
+        self._partial_queue = Queue()
+        self._completion_queue = Queue()
         self._block_until_this_many_are_complete = math.ceil(
             len(nodes) * self.percent_to_complete_before_release / 100)
         self.released = False
@@ -207,8 +208,12 @@ class NodeEngagementMutex:
         """
         https://www.youtube.com/watch?v=OkSLswPSq2o
         """
-        _ = self._policy_locking_queue.get()  # Interesting opportuntiy to pass some data, like the list of contacted nodes above.
+        _ = self._partial_queue.get()  # Interesting opportuntiy to pass some data, like the list of contacted nodes above.
         self.log.debug(f"{len(self.completed)} nodes were contacted while blocking for a little while.")
+        return
+
+    def block_until_complete(self):
+        _ = self._completion_queue.get()  # Interesting opportuntiy to pass some data, like the list of contacted nodes above.
         return
 
     def _handle_success(self, response, node):
@@ -219,7 +224,7 @@ class NodeEngagementMutex:
 
         if len(self.completed) == self._block_until_this_many_are_complete:
             print(f"++++++++++++++BLOCKED FOR A LITTLE WHILE, completed {len(self.completed)} nodes")
-            self._policy_locking_queue.put(self.completed)
+            self._partial_queue.put(self.completed)
             self.released = True
         self._consider_finalizing()
         return response
@@ -234,6 +239,7 @@ class NodeEngagementMutex:
 
     def _consider_finalizing(self):
         if self.total_disposed() >= len(self.nodes):
+            self._completion_queue.put(self.completed)
             self.when_complete.callback(self.completed)
             self._threadpool.stop()
 
