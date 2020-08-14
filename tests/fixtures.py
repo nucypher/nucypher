@@ -243,7 +243,8 @@ def enacted_federated_policy(idle_federated_policy, federated_ursulas):
     idle_federated_policy.make_arrangements(network_middleware, handpicked_ursulas=federated_ursulas)
 
     # REST call happens here, as does population of TreasureMap.
-    responses = idle_federated_policy.enact(network_middleware)
+    idle_federated_policy.enact(network_middleware)
+    idle_federated_policy.publishing_mutex.block_for_a_little_while()
 
     return idle_federated_policy
 
