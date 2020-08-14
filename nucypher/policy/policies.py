@@ -346,7 +346,16 @@ class Policy(ABC):
         """
         return keccak_digest(bytes(self.alice.stamp) + bytes(self.bob.stamp) + self.label)
 
-    def publish_treasure_map(self, threadpool, network_middleware: RestMiddleware, blockchain_signer: Callable = None) -> PolicyPayloadMutex:
+    async def put_treasure_map_on_node(self, node, network_middleware):
+        treasure_map_id = self.treasure_map.public_id()
+        response = network_middleware.put_treasure_map_on_node(
+            node=node,
+            map_id=treasure_map_id,
+            map_payload=bytes(self.treasure_map))
+        return response
+
+    def publish_treasure_map(self, network_middleware: RestMiddleware,
+                             blockchain_signer: Callable = None) -> NodeEngagementMutex:
         self.treasure_map.prepare_for_publication(self.bob.public_keys(DecryptingPower),
                                                   self.bob.public_keys(SigningPower),
                                                   self.alice.stamp,
