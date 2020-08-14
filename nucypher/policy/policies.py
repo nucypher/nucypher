@@ -759,7 +759,7 @@ class BlockchainPolicy(Policy):
                                        duration_periods=self.duration_periods,
                                        *args, **kwargs)
 
-    def enact(self, network_middleware, publish_to_blockchain=True, publish_treasure_map=True) -> PolicyPayloadMutex:
+    def enact(self, network_middleware, publish_to_blockchain=True, publish_treasure_map=True) -> NodeEngagementMutex:
         """
         Assign kfrags to ursulas_on_network, and distribute them via REST,
         populating enacted_arrangements
@@ -781,6 +781,6 @@ class BlockchainPolicy(Policy):
             # Sign the map.
             transacting_power = self.alice._crypto_power.power_ups(TransactingPower)
             publisher = self.publish_treasure_map(network_middleware=network_middleware,
-                                      blockchain_signer=transacting_power.sign_message)
+                                                  blockchain_signer=transacting_power.sign_message)
             # publisher.block_for_a_little_while()
         return publisher
