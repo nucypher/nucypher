@@ -332,7 +332,7 @@ class Alice(Character, BlockchainPolicyAuthor):
         # TODO: Make it optional to publish to blockchain?  Or is this presumptive based on the `Policy` type?
         policy.enact(network_middleware=self.network_middleware, publish_treasure_map=publish_treasure_map)
 
-        if block_for_a_little_while:
+        if publish_treasure_map and block_for_a_little_while:
             policy.publishing_mutex.block_for_a_little_while()
         return policy  # Now with TreasureMap affixed!
 
