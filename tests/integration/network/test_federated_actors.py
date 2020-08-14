@@ -37,7 +37,6 @@ def test_alice_sets_treasure_map(enacted_federated_policy, federated_ursulas):
     """
     Having enacted all the policies of a PolicyGroup, Alice creates a TreasureMap and ...... TODO
     """
-    enacted_federated_policy.publish_treasure_map(network_middleware=MockRestMiddleware())
     treasure_map_index = bytes.fromhex(enacted_federated_policy.treasure_map.public_id())
     found = 0
     for node in enacted_federated_policy.bob.matching_nodes_among(enacted_federated_policy.alice.known_nodes):
@@ -54,9 +53,10 @@ def test_treasure_map_stored_by_ursula_is_the_correct_one_for_bob(federated_alic
     """
     The TreasureMap given by Alice to Ursula is the correct one for Bob; he can decrypt and read it.
     """
-
+    enacted_federated_policy.publishing_mutex.block_until_complete()
     treasure_map_index = bytes.fromhex(enacted_federated_policy.treasure_map.public_id())
-    treasure_map_as_set_on_network = list(federated_ursulas)[0].treasure_maps[treasure_map_index]
+    treasure_map_as_set_on_network = federated_bob.matching_nodes_among(federated_ursulas)[0].treasure_maps[treasure_map_index]
+
 
     hrac_by_bob = federated_bob.construct_policy_hrac(federated_alice.stamp, enacted_federated_policy.label)
     assert enacted_federated_policy.hrac() == hrac_by_bob
