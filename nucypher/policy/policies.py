@@ -172,6 +172,8 @@ class NodeEngagementMutex:
     TODO: There are a couple of ways this can break.  If one fo the jobs hangs, the whole thing will hang.  Also,
        if there are fewer successfully completed than percent_to_complete_before_release, the partial queue will never
        release.
+
+    TODO: Make registry per... I guess Policy?  It's weird to be able to accidentally enact again.
     """
     log = Logger("Policy")
 
@@ -193,6 +195,9 @@ class NodeEngagementMutex:
         self.completed = {}
         self.failed = {}
 
+        self._started = False
+        self._finished = False
+
         self.percent_to_complete_before_release = percent_to_complete_before_release
         self._partial_queue = Queue()
         self._completion_queue = Queue()
@@ -202,11 +207,15 @@ class NodeEngagementMutex:
         self.when_complete = Deferred()  # TODO: Allow cancelling via KB Interrupt or some other way?
 
         if note is None:
-            tp_name=f"{f} to {len(nodes)} nodes"
+            self._repr = f"{f} to {len(nodes)} nodes"
         else:
-            tp_name = f"{note}: {f} to {len(nodes)} nodes"
+            self._repr = f"{note}: {f} to {len(nodes)} nodes"
 
-        self._threadpool = ThreadPool(minthreads=threadpool_size, maxthreads=threadpool_size, name=tp_name)
+        self._threadpool = ThreadPool(minthreads=threadpool_size, maxthreads=threadpool_size, name=self._repr)
+        self.log.info(f"NEM spinning up {self._threadpool}")
+
+    def __repr__(self):
+        return self._repr
 
     def block_for_a_little_while(self):
         """
@@ -242,10 +251,17 @@ class NodeEngagementMutex:
         return len(self.completed) + len(self.failed)
 
     def _consider_finalizing(self):
-        if self.total_disposed() >= len(self.nodes):
-            self._completion_queue.put(self.completed)
-            self.when_complete.callback(self.completed)
-            self._threadpool.stop()
+        if not self._finished:
+            if self.total_disposed() == len(self.nodes):
+                self._finished = True
+                self._completion_queue.put(self.completed)
+                self.when_complete.callback(self.completed)
+                try:
+                    reactor.callFromThread(self._threadpool.stop)
+                except RuntimeError as e:
+                    raise
+        else:
+            raise RuntimeError("Already finished.")
 
     def _engage_node(self, node):
         maybe_coro = self.f(node, network_middleware=self.network_middleware, *self.args, **self.kwargs)
@@ -256,6 +272,9 @@ class NodeEngagementMutex:
         return d
 
     def start(self):
+        if self._started:
+            raise RuntimeError("Already started.")
+        self._started = True
         for node in self.nodes:
              self._threadpool.callInThread(self._engage_node, node)
         self._threadpool.start()
