@@ -1504,13 +1504,12 @@ class Ursula(Teacher, Character, Worker):
         # Prepare a bytestring for concatenating re-encrypted
         # capsule data for each work order task.
         cfrag_byte_stream = bytes()
-        for task in work_order.tasks:
+        for capsule, task in work_order.tasks.items():
             # Ursula signs on top of Bob's signature of each task.
             # Now both are committed to the same task.  See #259.
             reencryption_metadata = bytes(self.stamp(bytes(task.signature)))
 
             # Ursula sets Alice's verifying key for capsule correctness verification.
-            capsule = task.capsule
             capsule.set_correctness_keys(verifying=alice_verifying_key)
 
             # Then re-encrypts the fragment.
