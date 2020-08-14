@@ -287,6 +287,7 @@ class Alice(Character, BlockchainPolicyAuthor):
               discover_on_this_thread: bool = True,
               timeout: int = None,
               publish_treasure_map: bool = True,
+              block_for_a_little_while: bool = True,
               **policy_params):
 
         timeout = timeout or self.timeout
@@ -330,6 +331,9 @@ class Alice(Character, BlockchainPolicyAuthor):
 
         # TODO: Make it optional to publish to blockchain?  Or is this presumptive based on the `Policy` type?
         policy.enact(network_middleware=self.network_middleware, publish_treasure_map=publish_treasure_map)
+
+        if block_for_a_little_while:
+            policy.publishing_mutex.block_for_a_little_while()
         return policy  # Now with TreasureMap affixed!
 
     def get_policy_encrypting_key_from_label(self, label: bytes) -> UmbralPublicKey:
