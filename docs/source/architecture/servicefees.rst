@@ -6,9 +6,9 @@ Service Fees (Pricing)
 Minimum fee rate
 ----------------
 
-At network launch, stakers will choose a minimum fee rate, on a *per sharing policy* and *per 24h period* basis, that their worker machine (Ursula) will accept at the point of engagement with a network user (Alice). If Alice’s offer and deposit (contained alongside the sharing policy’s parameters in an ``Arrangement`` object), for a specified policy duration, computes as equal to or greater than the minimum fee rate, the sharing policy will be automatically accepted and the access control service will commence. Ursula will service the sharing policy by being online and answering access requests, at that unchanging fee rate, until the specified expiration date or until an early revocation instigated by Alice.
+When they join the network, stakers choose a minimum fee rate, on a *per sharing policy* and *per 24h period* basis, that their worker machine (Ursula) will accept at the point of engagement with a network user (Alice). If Alice’s offered rate and commensurate deposit (contained alongside the sharing policy’s parameters in an ``Arrangement`` object), for a specified policy duration, computes as equal to or greater than the minimum fee rate, the sharing policy will be accepted and the access control service will commence. Ursula will service the sharing policy by being online and answering access requests, at that unchanging fee rate, until the specified expiration date or an early revocation instigated by Alice.
 
-The minimum fee rate is also calculated *per Ursula*. If Alice wishes to employ multiple Ursulas to service a single sharing policy (``n`` > 1), a common configuration, then they must pay each staker the same fee rate. Although Alices may attempt price optimization strategies to find the cheapest group of Ursula, they will nevertheless have to pay the highest rate from the set of minimum fee rates from the stakers with which they end up engaging.
+The minimum fee rate is also calculated *per Ursula*. If Alice wishes to employ multiple Ursulas to service a single sharing policy (``n`` > 1), a common configuration, then they must pay each staker associated with that policy the same fee rate. Although Alices may attempt price optimization strategies to find the cheapest group of Ursulas, they will nevertheless have to pay the highest rate from the set of minimum fee rates from the stakers with which they end up engaging.
 
 Alices are required to escrow a deposit covering the cost of the entire duration of the policy, but fees are paid out to stakers once per period, after their Ursula confirms activity. Therefore the minimum sum of fees a staker will receive each period is the product of their specified minimum fee rate and the number of active sharing policies their Ursula has been assigned.
 
@@ -16,7 +16,7 @@ Alices are required to escrow a deposit covering the cost of the entire duration
 Global fee range
 ----------------
 
-The global fee range is a means of establishing quasi-universal pricing for the NuCypher service. It is enforced via the function ``feeRateRange`` (in ``PolicyManager.sol``), which specifies constraints expressed in GWEI per sharing policy and per 24h period. The minimum fee rate rate chosen by stakers must fall within the global fee range. The network will launch with the following parameters:
+The global fee range is a means of establishing quasi-universal pricing for the NuCypher service. It is enforced via the function ``feeRateRange`` in ``PolicyManager.sol``, which specifies constraints, expressed in GWEI, per sharing policy and per 24h period. The minimum fee rate rate chosen by stakers must fall within the global fee range. The network will launch with the following parameters:
 
 **Minimum fee rate**
 
@@ -36,17 +36,18 @@ XXX GWEI (~$X.XX x10^-X) *per period*
 
 XX,XXX GWEI ($X.XXXX) *per year*
 
-1 GWEI = 10^-9 ETH
-USD conversion utilizes the ETHUSD 100-day rolling average of 1 ETH = $222 (08.08.20)
+*1 GWEI = 10^-9 ETH*
+
+*USD conversion utilizes the ETHUSD 100-day rolling average of 1 ETH = $222 (08.08.20)*
 
 Note that the minimum and maximum fee rate are an upper and lower bound to constrain the fee rate a staker may offer. The default fee rate is the rate that will be displayed and offered to Alices if the staker chooses not to configure this parameter themselves.
 
-The fee range must be adhered to in identical fashion by all NuCypher stakers, regardless of their stake size or capacity. The fee range applies to all sharing policies, irrespective of the volume of re-encryption requests or other distinguishing attributes besides policy duration and the number of assigned Ursulas (``n``). It also applies equally to all periods in the future, until the moment that the global fee range’s parameters are adjusted or the range is removed, via official governance channels (see below). If a parameter update of this sort occurs, sharing policies that were previously established, but have not yet expired, should not have the per-period fee rate retroactively modified.
+The fee range must be adhered to in identical fashion by all NuCypher stakers, regardless of their stake size or capacity. The fee range applies to all sharing policies, irrespective of the volume of re-encryption requests or other distinguishing attributes. It also applies equally to all periods in the future, until the moment that the global fee range’s parameters are adjusted or the range is removed, via official governance processes (see below). If an update of this sort occurs, sharing policies that were previously established, but have not yet expired, should not have the per-period fee rate retroactively modified.
 
 Governance & pricing paper
 ---------------------------------------
 
-In order to successfully execute the PolicyManager contract, the global fee range must be adhered to by the Ursula (and Alice). Failing this, the contract will throw up an error and it will not be possible to commence a commercial engagement or pay/receive fees. Attempts to circumvent NuCypher’s smart contracts are likely to be futile (except perhaps with limited, existing, trust-heavy relationships), given the requirement of coordinated modification and redeployment by network users and a critical mass of other stakers.
+In order to successfully execute the ``PolicyManager.sol`` contract, the global fee range must be adhered to by the Ursula (and Alice). Failing this, the contract will throw up an error and it will not be possible to commence a commercial engagement or pay/receive fees. Attempts to circumvent NuCypher’s smart contracts are likely to be futile (except perhaps with limited, existing, trust-heavy relationships), given the requirement of coordinated modification and redeployment by network users and a critical mass of other stakers.
 
 Given its high enforceability, the presence of an inflexible fee range dictating the bounds of every transaction is arguably the most critical component of the NuCypher protocol’s economic design and parametrization, particularly over the long-term and with respect to the sustainability of the network. From a governance perspective, it is also amongst the most malleable. If a quorum of stakers wish to set prices outside the range, then they have the right to lobby and propose a widening of the global fee range, its removal altogether, or some other design modification (e.g. narrowing the range). They may do so via the NuCypher DAO – the owner of all NuCypher smart contracts, and controlled by stakers in proportion to their stake size. See <LINK> for guidance on the NuCypher DAO and official NuCypher governance processes.
 
@@ -73,6 +74,6 @@ The cost of operating a typical Ursula, at network genesis, is estimated to be b
 Note on staker sustainability
 -----------------------------
 
-Although the maximum fee rate parameter constrains the income from fees in one plane, it is a component of a strategy to maximize long-term network revenue through predictable, affordable and congruent pricing. Operational costs will almost certainly exceed fee income in the near-term, but the subsidy mechanism is designed to steadily support service-providers for the first 5 to 8 years – see *Demand uncertainty & fragility* section of the Staking & Economic Protocol paper for more detail. This stable source of income provides an extended window for the NuCypher community to trial various fee range parameters until a balance is struck between the extremes of 1) unaffordability for early customers leading to low demand, and 2) unsustainability for service-providers leading to low participation.
+Although the maximum fee rate parameter constrains the income from fees in one plane, it is a component of a strategy to maximize long-term network revenue through predictable, affordable and congruent pricing. Operational costs will almost certainly exceed fee income in the near-term, but the subsidy mechanism is designed to steadily support service-providers for the first 5 to 8 years – see the *Demand uncertainty & fragility* section of the Staking & Economic Protocol paper for more detail. This stable source of income provides an extended window for the NuCypher community to trial various fee range parameters until a balance is struck between the extremes of 1) unaffordability for early customers leading to low demand, and 2) unsustainability for service-providers leading to low participation.
 
 See the *Price point derivation* section, in particular the *Reconciling demand-side and service-side constraints* sub-section, of the Pricing Protocol & Economics paper for a deeper analysis of this trade-off.
