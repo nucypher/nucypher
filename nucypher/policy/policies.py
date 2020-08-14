@@ -14,24 +14,22 @@ GNU Affero General Public License for more details.
 You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
+import datetime
 import math
 import random
+from abc import ABC, abstractmethod
 from collections import OrderedDict, deque
 from queue import Queue
-from typing import Generator, Set, List, Callable
+from typing import Callable
+from typing import Generator, List, Set
 
 import maya
 from twisted.internet import reactor
-from twisted.internet.defer import DeferredList, ensureDeferred
-from twisted.internet.threads import deferToThread, deferToThreadPool
+from twisted.internet.defer import ensureDeferred, Deferred
+from twisted.python.threadpool import ThreadPool
 
-from abc import ABC, abstractmethod
 from bytestring_splitter import BytestringSplitter, VariableLengthBytestring
 from constant_sorrow.constants import NOT_SIGNED, UNKNOWN_KFRAG
-from typing import Generator, List, Set
-from umbral.keys import UmbralPublicKey
-from umbral.kfrags import KFrag
-
 from nucypher.blockchain.eth.actors import BlockchainPolicyAuthor
 from nucypher.blockchain.eth.agents import PolicyManagerAgent, StakingEscrowAgent
 from nucypher.characters.lawful import Alice, Ursula
@@ -43,6 +41,8 @@ from nucypher.crypto.utils import construct_policy_id
 from nucypher.network.exceptions import NodeSeemsToBeDown
 from nucypher.network.middleware import RestMiddleware
 from nucypher.utilities.logging import Logger
+from umbral.keys import UmbralPublicKey
+from umbral.kfrags import KFrag
 
 
 class Arrangement:
@@ -165,31 +165,90 @@ class BlockchainArrangement(Arrangement):
         return bytes(self.publish_transaction) + partial_payload
 
 
-class PolicyPayloadMutex(DeferredList):
+class NodeEngagementMutex:
+    """
+    TODO: Does this belong on middleware?
+    """
     log = Logger("Policy")
 
-    def __init__(self, deferredList, percent_to_complete_before_release=5, *args, **kwargs):
+    def __init__(self,
+                 f,    # TODO: typing.Protocol
+                 nodes,
+                 network_middleware,
+                 percent_to_complete_before_release=5,
+                 note=None,
+                 threadpool_size=120,
+                 *args,
+                 **kwargs):
+        self.f = f
+        self.nodes = nodes
+        self.network_middleware = network_middleware
+        self.args = args
+        self.kwargs = kwargs
+
+        self.completed = {}
+        self.failed = {}
+
         self.percent_to_complete_before_release = percent_to_complete_before_release
         self._policy_locking_queue = Queue()
-        self._block_until_this_many_are_complete = math.ceil(len(deferredList) * self.percent_to_complete_before_release / 100)
+        self._block_until_this_many_are_complete = math.ceil(
+            len(nodes) * self.percent_to_complete_before_release / 100)
         self.released = False
-        super().__init__(deferredList, *args, **kwargs)
+        self.when_complete = Deferred()  # TODO: Allow cancelling via KB Interrupt or some other way?
 
-    def _cbDeferred(self, *args, **kwargs):
-        result = super()._cbDeferred(*args, **kwargs)
+        if note is None:
+            tp_name=f"{f} to {len(nodes)} nodes"
+        else:
+            tp_name = f"{note}: {f} to {len(nodes)} nodes"
 
-        if not self.released and self.finishedCount >= self._block_until_this_many_are_complete:
-            self._policy_locking_queue.put(None)  # TODO: It'd be rad to return a list of nodes here who were contacted, but it's non-trivial.
-            self.released = True
-        return result
+        self._threadpool = ThreadPool(minthreads=threadpool_size, maxthreads=threadpool_size, name=tp_name)
 
     def block_for_a_little_while(self):
         """
         https://www.youtube.com/watch?v=OkSLswPSq2o
         """
         _ = self._policy_locking_queue.get()  # Interesting opportuntiy to pass some data, like the list of contacted nodes above.
-        self.log.debug(f"{self.finishedCount} nodes were contacted while blocking for a little while.")
+        self.log.debug(f"{len(self.completed)} nodes were contacted while blocking for a little while.")
         return
+
+    def _handle_success(self, response, node):
+        if response.status_code == 202:
+            self.completed[node] = response
+        else:
+            assert False  # TODO: What happens if this is a 300 or 400 level response?
+
+        if len(self.completed) == self._block_until_this_many_are_complete:
+            print(f"++++++++++++++BLOCKED FOR A LITTLE WHILE, completed {len(self.completed)} nodes")
+            self._policy_locking_queue.put(self.completed)
+            self.released = True
+        self._consider_finalizing()
+        return response
+
+    def _handle_error(self, failure, node):
+        self.failed[node] = failure  # TODO: Add a failfast mode?
+        self._consider_finalizing()
+        print(f"{datetime.datetime.now()}: !!!!!!!!FAILED {node}")
+
+    def total_disposed(self):
+        return len(self.completed) + len(self.failed)
+
+    def _consider_finalizing(self):
+        if self.total_disposed() >= len(self.nodes):
+            self.when_complete.callback(self.completed)
+            self._threadpool.stop()
+
+    def _engage_node(self, node):
+        maybe_coro = self.f(node, network_middleware=self.network_middleware, *self.args, **self.kwargs)
+
+        d = ensureDeferred(maybe_coro)
+        d.addCallback(self._handle_success, node)
+        d.addErrback(self._handle_error, node)
+        return d
+
+    def start(self):
+        for node in self.nodes:
+             self._threadpool.callInThread(self._engage_node, node)
+        self._threadpool.start()
 
 
 class Policy(ABC):
