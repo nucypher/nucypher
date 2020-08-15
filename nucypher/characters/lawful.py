@@ -605,22 +605,18 @@ class Bob(Character):
         from nucypher.policy.collections import WorkOrder  # Prevent circular import
 
         if treasure_map:
-            map_id = treasure_map.public_id()
             treasure_map_to_use = treasure_map
         else:
             try:
                 treasure_map_to_use = self.treasure_maps[map_id]
             except KeyError:
-                raise KeyError(
-                    "Bob doesn't have the TreasureMap {}; can't generate work orders.".format(map_id))
+                raise KeyError(f"Bob doesn't have the TreasureMap {map_id}; can't generate work orders.")
 
         incomplete_work_orders = OrderedDict()
         complete_work_orders = OrderedDict()
 
         if not treasure_map_to_use:
-            raise ValueError(
-                "Bob doesn't have a TreasureMap to match any of these capsules: {}".format(
-                    capsules))
+            raise ValueError(f"Bob doesn't have a TreasureMap to match any of these capsules: {capsules}")
 
         random_walk = list(treasure_map_to_use)
         shuffle(random_walk)  # Mutates list in-place
@@ -653,15 +649,14 @@ class Bob(Character):
                 break
 
         if incomplete_work_orders == OrderedDict():
-            self.log.warn(
-                "No new WorkOrders created.  Try calling this with different parameters.")  # TODO: Clearer instructions.  NRN
+            self.log.warn("No new WorkOrders created. Try calling this with different parameters.")  # TODO: Clearer instructions.  NRN
 
         return incomplete_work_orders, complete_work_orders
 
     def get_reencrypted_cfrags(self, work_order, retain_cfrags=False):
         if work_order.completed:
-            raise TypeError(
-                "This WorkOrder is already complete; if you want Ursula to perform additional service, make a new WorkOrder.")
+            raise TypeError("This WorkOrder is already complete; "
+                            "if you want Ursula to perform additional service, make a new WorkOrder.")
 
         cfrags_and_signatures = self.network_middleware.reencrypt(work_order)
         cfrags = work_order.complete(cfrags_and_signatures)
@@ -751,7 +746,7 @@ class Bob(Character):
                 alice_verifying_key=alice_verifying_key,
                 *capsules_to_activate)
 
-            self.log.info(f"Found {len(complete_work_orders)} for this Capsule ({capsule}).")
+            self.log.info(f"Found {len(complete_work_orders)} complete work orders for this Capsule ({capsule}).")
 
             if complete_work_orders:
                 if use_precedent_work_orders:
@@ -1221,7 +1216,7 @@ class Ursula(Teacher, Character, Worker):
 
         version = self.TEACHER_VERSION.to_bytes(2, "big")
         interface_info = VariableLengthBytestring(bytes(self.rest_interface))
-        decentralized_identity_evidence = VariableLengthBytestring(self.decentralized_identity_evidence)
+        decentralized_identity_evidence = VariableLengthBytestring(self.decentralized_identity_evidence)  # TODO: Change to fixed length
 
         certificate = self.rest_server_certificate()
         cert_vbytes = VariableLengthBytestring(certificate.public_bytes(Encoding.PEM))
@@ -1509,13 +1504,12 @@ class Ursula(Teacher, Character, Worker):
         # Prepare a bytestring for concatenating re-encrypted
         # capsule data for each work order task.
         cfrag_byte_stream = bytes()
-        for task in work_order.tasks:
+        for capsule, task in work_order.tasks.items():
             # Ursula signs on top of Bob's signature of each task.
             # Now both are committed to the same task.  See #259.
             reencryption_metadata = bytes(self.stamp(bytes(task.signature)))
 
             # Ursula sets Alice's verifying key for capsule correctness verification.
-            capsule = task.capsule
             capsule.set_correctness_keys(verifying=alice_verifying_key)
 
             # Then re-encrypts the fragment.

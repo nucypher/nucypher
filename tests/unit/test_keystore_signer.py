@@ -28,6 +28,7 @@ from eth_utils import to_checksum_address
 from hexbytes import HexBytes
 from pathlib import Path
 
+from nucypher.blockchain.eth.constants import LENGTH_ECDSA_SIGNATURE_WITH_RECOVERY
 from nucypher.blockchain.eth.signers import KeystoreSigner, Signer
 from tests.constants import INSECURE_DEVELOPMENT_PASSWORD
 
@@ -209,7 +210,7 @@ def test_sign_message(mocker, good_signer, mock_account, mock_key):
     # sign message
     message = b'A million tiny bubbles exploding'
     signature = good_signer.sign_message(account=mock_account.address, message=message)
-    assert len(signature) == 65
+    assert len(signature) == LENGTH_ECDSA_SIGNATURE_WITH_RECOVERY
 
 
 def test_sign_transaction(good_signer, mock_account):

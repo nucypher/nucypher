@@ -283,7 +283,7 @@ def test_evaluate_cfrag(testerchain,
 
     # Can't evaluate staker using broken signatures
     wrong_args = list(args)
-    wrong_args[2] = evidence.task.cfrag_signature[1:]
+    wrong_args[2] = bytes(evidence.task.cfrag_signature)[1:]
     with pytest.raises(TransactionFailed):
         tx = adjudicator.functions.evaluateCFrag(*wrong_args).transact()
         testerchain.wait_for_receipt(tx)
