@@ -250,16 +250,18 @@ class NodeEngagementMutex:
     def total_disposed(self):
         return len(self.completed) + len(self.failed)
 
+    def _finalize(self):
+        self._threadpool.stop()
+        self._finished = True
+        self._completion_queue.put(self.completed)
+        self.when_complete.callback(self.completed)
+        self.log.info(f"{self} finished.")
+
     def _consider_finalizing(self):
         if not self._finished:
             if self.total_disposed() == len(self.nodes):
-                self._finished = True
-                self._completion_queue.put(self.completed)
-                self.when_complete.callback(self.completed)
-                try:
-                    reactor.callFromThread(self._threadpool.stop)
-                except RuntimeError as e:
-                    raise
+                # TODO: Consider whether this can possibly hang.
+                reactor.callInThread(self._finalize)
         else:
             raise RuntimeError("Already finished.")
 
@@ -275,6 +277,7 @@ class NodeEngagementMutex:
         if self._started:
             raise RuntimeError("Already started.")
         self._started = True
+        self.log.info(f"NEM Starting {self._threadpool}")
         for node in self.nodes:
              self._threadpool.callInThread(self._engage_node, node)
         self._threadpool.start()
@@ -400,10 +403,6 @@ class Policy(ABC):
         treasure_map_id = self.treasure_map.public_id()
 
         self.alice.block_until_number_of_known_nodes_is(8, timeout=2, learn_on_this_thread=True)
-
-        publication_deferreds = list()
-
-        # d = ensureDeferred(self.get_publication_threadpool())
 
         target_nodes = self.bob.matching_nodes_among(self.alice.known_nodes)
         self.publishing_mutex = NodeEngagementMutex(f=self.put_treasure_map_on_node,

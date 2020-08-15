@@ -285,8 +285,6 @@ class Learner:
         #     # It's possible that this is wrong, but it's better than nothing:
         #     test_name = os.environ["PYTEST_CURRENT_TEST"].split("::")[1]
         test_name = os.environ["PYTEST_CURRENT_TEST"]
-        if test_name == 'test_ursula_and_local_keystore_signer_integration':
-            assert True
         global_mutable_where_everybody[test_name].append(self)
         self._FOR_TEST = test_name
         ########################
