@@ -27,6 +27,7 @@ from nucypher.blockchain.eth.agents import AdjudicatorAgent, ContractAgency, Nuc
     StakingEscrowAgent
 from nucypher.blockchain.eth.constants import NULL_ADDRESS
 from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
+from nucypher.blockchain.eth.registry import BaseContractRegistry
 from nucypher.blockchain.eth.token import NU
 from nucypher.blockchain.eth.utils import prettify_eth_amount
 from nucypher.network.nicknames import nickname_from_seed
@@ -141,7 +142,8 @@ def paint_locked_tokens_status(emitter, agent, periods) -> None:
                      f"Min: {NU.from_nunits(bucket_min)} - Max: {NU.from_nunits(bucket_max)}")
 
 
-def paint_stakers(emitter, stakers: List[str], staking_agent: StakingEscrowAgent) -> None:
+def paint_stakers(emitter, stakers: List[str], registry: BaseContractRegistry) -> None:
+    staking_agent = ContractAgency.get_agent(StakingEscrowAgent, registry=registry)
     current_period = staking_agent.get_current_period()
     emitter.echo(f"\nCurrent period: {current_period}")
     emitter.echo("\n| Stakers |\n")
@@ -149,7 +151,7 @@ def paint_stakers(emitter, stakers: List[str], staking_agent: StakingEscrowAgent
     emitter.echo('=' * (42 + 2 + 53))
 
     for staker_address in stakers:
-        staker = Staker(is_me=False, checksum_address=staker_address, registry=staking_agent.registry)
+        staker = Staker(is_me=False, checksum_address=staker_address, registry=registry)
         nickname, pairs = nickname_from_seed(staker_address)
         symbols = f"{pairs[0][1]}  {pairs[1][1]}"
         emitter.echo(f"{staker_address}  {'Nickname:':10} {nickname} {symbols}")
