@@ -18,7 +18,7 @@
 import json
 from collections import namedtuple
 from pathlib import Path
-from typing import Iterable, Tuple, Union, List, Dict
+from typing import Iterable, Tuple, Union, List, Dict, NamedTuple
 
 from eth_typing import ChecksumAddress, HexStr
 from eth_utils import to_canonical_address
@@ -28,7 +28,10 @@ from web3.contract import ContractFunction
 from nucypher.blockchain.eth.constants import DAO_INSTANCES_NAMES
 from nucypher.blockchain.eth.networks import NetworksInventory
 
-Action = Tuple[ChecksumAddress, Union[ContractFunction, HexStr, bytes]]
+
+class Action(NamedTuple):
+    target: ChecksumAddress
+    data: Union[ContractFunction, HexStr, bytes]
 
 
 class CallScriptCodec:

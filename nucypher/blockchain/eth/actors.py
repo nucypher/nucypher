@@ -49,7 +49,7 @@ from nucypher.blockchain.eth.agents import (
     VotingAggregatorAgent,
     WorkLockAgent,
 )
-from nucypher.blockchain.eth.aragon import CallScriptCodec, DAORegistry
+from nucypher.blockchain.eth.aragon import CallScriptCodec, DAORegistry, Action
 from nucypher.blockchain.eth.constants import (
     NULL_ADDRESS,
     COUNCIL_MANAGER,
@@ -2206,16 +2206,13 @@ class SecurityCouncilManager(DaoActor):  # TODO: Find a different name for this.
 
         burn_calls = [self.token_manager._burn(holder_address=member, amount=1) for member in members_out]
         mint_calls = [self.token_manager._mint(receiver_address=member, amount=1) for member in members_in]
-
         calls = burn_calls + mint_calls
 
-        actions = [(self.token_manager.contract.address, call) for call in calls]
-
+        actions = [Action(target=self.token_manager.contract.address, data=call) for call in calls]
         token_manager_callscript = CallScriptCodec.encode_actions(actions=actions)
 
-        forwarding_to_voting = (self.voting.contract.address,
-                                self.voting._forward(callscript=token_manager_callscript))
-
+        forwarding_to_voting = Action(target=self.voting.contract.address,
+                                      data=self.voting._forward(callscript=token_manager_callscript))
         voting_callscript = CallScriptCodec.encode_actions(actions=[forwarding_to_voting])
 
         receipt = self.voting_aggregator.forward(callscript=voting_callscript, sender_address=self.checksum_address)
