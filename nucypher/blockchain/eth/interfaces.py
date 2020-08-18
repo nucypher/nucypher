@@ -423,11 +423,13 @@ class BlockchainInterface:
         else:
             self._provider = provider
 
-    def __transaction_failed(self,
-                             exception: Exception,
-                             transaction_dict: dict,
-                             contract_function: Union[ContractFunction, ContractConstructor]
-                             ) -> None:
+    @classmethod
+    def _handle_failed_transaction(cls,
+                                   exception: Exception,
+                                   transaction_dict: dict,
+                                   contract_function: Union[ContractFunction, ContractConstructor],
+                                   logger: Logger = None
+                                   ) -> None:
         """
         Re-raising error handler and context manager for transaction broadcast or
         build failure events at the interface layer. This method is a last line of defense
@@ -446,14 +448,17 @@ class BlockchainInterface:
             raise exception
 
         else:
-            if int(code) != self.TransactionFailed.IPC_CODE:
+            if int(code) != cls.TransactionFailed.IPC_CODE:
                 # Only handle client-specific exceptions
                 # https://www.jsonrpc.org/specification Section 5.1
                 raise exception
-            self.log.critical(message)                     # simple context
-            transaction_failed = self.TransactionFailed(message=message,  # rich error (best case)
-                                                        contract_function=contract_function,
-                                                        transaction_dict=transaction_dict)
+
+            if logger:
+                logger.critical(message)  # simple context
+
+            transaction_failed = cls.TransactionFailed(message=message,  # rich error (best case)
+                                                       contract_function=contract_function,
+                                                       transaction_dict=transaction_dict)
             raise transaction_failed from exception
 
     def __log_transaction(self, transaction_dict: dict, contract_function: ContractFunction):
@@ -515,7 +520,10 @@ class BlockchainInterface:
         except (TestTransactionFailed, ValidationError, ValueError) as error:
             # Note: Geth raises ValueError in the same condition that pyevm raises ValidationError here.
             # Treat this condition as "Transaction Failed" during gas estimation.
-            raise self.__transaction_failed(exception=error, transaction_dict=payload, contract_function=contract_function)
+            raise self._handle_failed_transaction(exception=error,
+                                                  transaction_dict=payload,
+                                                  contract_function=contract_function,
+                                                  logger=self.log)
         return transaction_dict
 
     def sign_and_broadcast_transaction(self,
