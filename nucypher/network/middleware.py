@@ -20,13 +20,13 @@ import requests
 import socket
 import ssl
 import time
-from bytestring_splitter import BytestringSplitter, VariableLengthBytestring
+from bytestring_splitter import VariableLengthBytestring
 from constant_sorrow.constants import CERTIFICATE_NOT_SAVED, EXEMPT_FROM_VERIFICATION
 from cryptography import x509
 from cryptography.hazmat.backends import default_backend
-from umbral.cfrags import CapsuleFrag
-from umbral.signing import Signature
 
+from nucypher.crypto.signing import signature_splitter
+from nucypher.crypto.splitters import cfrag_splitter
 from nucypher.utilities.logging import Logger
 
 EXEMPT_FROM_VERIFICATION.bool_value(False)
@@ -209,7 +209,7 @@ class RestMiddleware:
 
     def reencrypt(self, work_order):
         ursula_rest_response = self.send_work_order_payload_to_ursula(work_order)
-        splitter = BytestringSplitter((CapsuleFrag, VariableLengthBytestring), Signature)
+        splitter = cfrag_splitter + signature_splitter
         cfrags_and_signatures = splitter.repeat(ursula_rest_response.content)
         return cfrags_and_signatures
 

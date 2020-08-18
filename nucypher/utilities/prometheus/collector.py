@@ -29,7 +29,7 @@ from nucypher.blockchain.eth.agents import ContractAgency, PolicyManagerAgent, S
 from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
 from nucypher.blockchain.eth.registry import BaseContractRegistry
 from nucypher.datastore.datastore import RecordNotFound
-from nucypher.datastore.models import Workorder
+from nucypher.datastore.models import Workorder, PolicyArrangement
 
 from prometheus_client.metrics import MetricWrapperBase
 from prometheus_client.registry import CollectorRegistry

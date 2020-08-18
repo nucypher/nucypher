@@ -126,17 +126,24 @@ class BlockchainInterface:
 
         @property
         def default(self) -> str:
-            message = f'{self.name} from {self.payload["from"][:6]} - {self.base_message}'
+            sender = self.payload["from"]
+            message = f'{self.name} from {sender[:6]}... \n' \
+                      f'Sender balance: {self.get_balance()} ETH \n' \
+                      f'Reason: {self.base_message} \n' \
+                      f'Transaction: {self.payload}'
             return message
+
+        def get_balance(self):
+            blockchain = BlockchainInterfaceFactory.get_interface()
+            balance = blockchain.client.get_balance(account=self.payload['from'])
+            return balance
 
         @property
         def insufficient_eth(self) -> str:
             gas = (self.payload.get('gas', 1) * self.payload['gasPrice'])  # FIXME: If gas is not included...
             cost = gas + self.payload.get('value', 0)
-            blockchain = BlockchainInterfaceFactory.get_interface()
-            balance = blockchain.client.get_balance(account=self.payload['from'])
             message = f'{self.payload} from {self.payload["from"][:8]} - {self.base_message}.' \
-                      f'Calculated cost is {cost} but sender only has {balance}.'
+                      f'Calculated cost is {cost} but sender only has {self.get_balance()}.'
             return message
 
     def __init__(self,
@@ -149,9 +156,6 @@ class BlockchainInterface:
                  gas_strategy: Union[str, Callable] = DEFAULT_GAS_STRATEGY):
 
         """
-        A blockchain "network interface"; the circumflex wraps entirely around the bounds of
-        contract operations including compilation, deployment, and execution.
-
         TODO: #1502 - Move to API docs.
 
          Filesystem          Configuration           Node              Client                  EVM

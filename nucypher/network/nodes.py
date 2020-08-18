@@ -16,32 +16,30 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
 import contextlib
-import inspect
 import time
-from collections import defaultdict
-from collections import deque
+from collections import defaultdict, deque
 from contextlib import suppress
 from queue import Queue
+from typing import Iterable
 from typing import Set, Tuple, Union
 
 import maya
 import pytest
 import requests
-from cryptography.exceptions import InvalidSignature
 from cryptography.x509 import Certificate
 from eth_utils import to_checksum_address
 from requests.exceptions import SSLError
 from twisted.internet import reactor, task
 from twisted.internet.defer import Deferred
 from twisted.logger import Logger
-from typing import Set, Tuple, Union
 
 import nucypher
 from bytestring_splitter import BytestringSplitter, BytestringSplittingError, PartiallyKwargifiedBytes, \
     VariableLengthBytestring
 from constant_sorrow import constant_or_bytes
 from constant_sorrow.constants import (CERTIFICATE_NOT_SAVED, FLEET_STATES_MATCH, NEVER_SEEN, NOT_SIGNED,
-                                       NO_KNOWN_NODES, NO_STORAGE_AVAILIBLE, UNKNOWN_FLEET_STATE, UNKNOWN_VERSION, RELAX)
+                                       NO_KNOWN_NODES, NO_STORAGE_AVAILIBLE, UNKNOWN_FLEET_STATE, UNKNOWN_VERSION,
+                                       RELAX)
 from nucypher.acumen.nicknames import nickname_from_seed
 from nucypher.acumen.perception import FleetSensor, icon_from_checksum
 from nucypher.blockchain.economics import EconomicsFactory
@@ -59,9 +57,8 @@ from nucypher.network.exceptions import NodeSeemsToBeDown
 from nucypher.network.middleware import RestMiddleware
 from nucypher.network.protocols import SuspiciousActivity
 from nucypher.network.server import TLSHostingPower
-from umbral.signing import Signature
 from nucypher.utilities.logging import Logger
-
+from umbral.signing import Signature
 
 
 class NodeSprout(PartiallyKwargifiedBytes):
@@ -463,7 +460,8 @@ class Learner:
         else:
             self.log.info("Starting Learning Loop.")
 
-            learner_deferred = self._learning_task.start(interval=self._SHORT_LEARNING_DELAY, now=now)  # TODO: now=now?  This block is always False, no?
+            learner_deferred = self._learning_task.start(interval=self._SHORT_LEARNING_DELAY,
+                                                         now=now)  # TODO: now=now?  This block is always False, no?
             learner_deferred.addErrback(self.handle_learning_errors)
 
             self.learning_deferred = learner_deferred
@@ -511,7 +509,6 @@ class Learner:
         failure.raiseException()
         # TODO: We don't actually have checksum_address at this level - maybe only Characters can crash gracefully :-)  1711
         self.log.critical("{} crashed with {}".format(self.checksum_address, failure))
-
 
         pytest.fail()
         reactor.stop()
@@ -599,9 +596,10 @@ class Learner:
         reactor.callInThread(self._learning_deferred.callback, None)
         return self._learning_deferred
 
-    def learn_about_specific_nodes(self, addresses: Set):
-        self._node_ids_to_learn_about_immediately.update(addresses)  # hmmmm
-        self.learn_about_nodes_now()
+    def learn_about_specific_nodes(self, addresses: Iterable):
+        if len(addresses) > 0:
+            self._node_ids_to_learn_about_immediately.update(addresses)  # hmmmm
+            self.learn_about_nodes_now()
 
     # TODO: Dehydrate these next two methods.  NRN
 
@@ -860,8 +858,10 @@ class Learner:
         try:
             self.verify_from(current_teacher, node_payload, signature=signature)
         except Learner.InvalidSignature:  # TODO: Ensure wev've got the right InvalidSignature exception here
-            self.suspicious_activities_witnessed['vladimirs'].append(('Node payload improperly signed', node_payload, signature))
-            self.log.warn(f"Invalid signature ({signature}) received from teacher {current_teacher} for payload {node_payload}")
+            self.suspicious_activities_witnessed['vladimirs'].append(
+                ('Node payload improperly signed', node_payload, signature))
+            self.log.warn(
+                f"Invalid signature ({signature}) received from teacher {current_teacher} for payload {node_payload}")
 
         # End edge case handling.
         payload = FleetSensor.snapshot_splitter(node_payload, return_remainder=True)
@@ -1248,7 +1248,7 @@ class Teacher:
             # Failure
             if not addresses_match:
                 message = "Wallet address swapped out.  It appears that someone is trying to defraud this node."
-            if not verifying_keys_match:
+            elif not verifying_keys_match:
                 message = "Verifying key swapped out.  It appears that someone is impersonating this node."
             else:
                 message = "Wrong cryptographic material for this node - something fishy going on."

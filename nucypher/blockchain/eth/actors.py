@@ -42,7 +42,8 @@ from nucypher.blockchain.eth.agents import (
     PolicyManagerAgent,
     PreallocationEscrowAgent,
     StakingEscrowAgent,
-    WorkLockAgent
+    WorkLockAgent,
+    StakersReservoir,
 )
 from nucypher.blockchain.eth.constants import NULL_ADDRESS
 from nucypher.blockchain.eth.decorators import (
@@ -66,7 +67,7 @@ from nucypher.blockchain.eth.multisig import Authorization, Proposal
 from nucypher.blockchain.eth.registry import BaseContractRegistry, IndividualAllocationRegistry
 from nucypher.blockchain.eth.signers import KeystoreSigner, Signer, Web3Signer
 from nucypher.blockchain.eth.token import NU, Stake, StakeList, WorkTracker, validate_prolong, validate_increase, \
-    validate_divide
+    validate_divide, validate_merge
 from nucypher.blockchain.eth.utils import (
     calculate_period_duration,
     datetime_at_period,
@@ -81,6 +82,7 @@ from nucypher.config.constants import DEFAULT_CONFIG_ROOT
 from nucypher.crypto.powers import TransactingPower
 from nucypher.types import NuNits, Period
 from nucypher.utilities.logging import Logger
+from typing import Callable
 
 
 class BaseActor:
@@ -876,19 +878,38 @@ class Staker(NucypherTokenActor):
         """The total number of staked tokens, i.e., tokens locked in the current period."""
         return self.locked_tokens(periods=0)
 
-    def stakes_filtered_by_status(self, parent_status: Stake.Status) -> Iterable[Stake]:
-        """Returns stakes for this staker which have specified or child status."""
+    def filtered_stakes(self,
+                        parent_status: Stake.Status = None,
+                        filter_function: Callable[[Stake], bool] = None
+                        ) -> Iterable[Stake]:
+        """Returns stakes for this staker which filtered by status or by a provided function."""
+        if not parent_status and not filter_function:
+            raise ValueError("Pass parent status or filter function or both.")
 
         # Read once from chain and reuse these values
         staker_info = self.staking_agent.get_staker_info(self.checksum_address)  # TODO related to #1514
         current_period = self.staking_agent.get_current_period()                 # TODO #1514 this is online only.
 
-        stakes = (stake for stake in self.stakes if stake.status(staker_info, current_period).is_child(parent_status))
+        stakes = list()
+        for stake in self.stakes:
+            if parent_status and not stake.status(staker_info, current_period).is_child(parent_status):
+                continue
+            if filter_function and not filter_function(stake):
+                continue
+            stakes.append(stake)
+
         return stakes
 
-    def sorted_stakes(self, parent_status: Stake.Status = None) -> List[Stake]:
+    def sorted_stakes(self,
+                      parent_status: Stake.Status = None,
+                      filter_function: Callable[[Stake], bool] = None
+                      ) -> List[Stake]:
         """Returns a list of filtered stakes sorted by account wallet index."""
-        filtered_stakes = self.stakes_filtered_by_status(parent_status) if parent_status is not None else self.stakes
+        if parent_status is not None or filter_function is not None:
+            filtered_stakes = self.filtered_stakes(parent_status, filter_function)
+        else:
+            filtered_stakes = self.stakes
+
         stakes = sorted(filtered_stakes, key=lambda s: s.address_index_ordering_key)
         return stakes
 
@@ -938,7 +959,8 @@ class Staker(NucypherTokenActor):
                          amount: NU = None,
                          lock_periods: int = None,
                          expiration: maya.MayaDT = None,
-                         entire_balance: bool = False
+                         entire_balance: bool = False,
+                         only_lock: bool = False
                          ) -> TxReceipt:
 
         """Create a new stake."""
@@ -956,7 +978,7 @@ class Staker(NucypherTokenActor):
         elif not entire_balance and not amount:
             raise ValueError("Specify an amount or entire balance, got neither")
 
-        token_balance = self.token_balance
+        token_balance = self.token_balance if not only_lock else self.calculate_staking_reward()
         if entire_balance:
             amount = token_balance
         if not token_balance >= amount:
@@ -971,7 +993,10 @@ class Staker(NucypherTokenActor):
                                            lock_periods=lock_periods)
 
         # Create stake on-chain
-        receipt = self._deposit(amount=new_stake.value.to_nunits(), lock_periods=new_stake.duration)
+        if not only_lock:
+            receipt = self._deposit(amount=new_stake.value.to_nunits(), lock_periods=new_stake.duration)
+        else:
+            receipt = self._lock_and_create(amount=new_stake.value.to_nunits(), lock_periods=new_stake.duration)
 
         # Log and return receipt
         self.log.info(f"{self.checksum_address} initialized new stake: {amount} tokens for {lock_periods} periods")
@@ -1025,7 +1050,8 @@ class Staker(NucypherTokenActor):
     def increase_stake(self,
                        stake: Stake,
                        amount: NU = None,
-                       entire_balance: bool = False
+                       entire_balance: bool = False,
+                       only_lock: bool = False
                        ) -> TxReceipt:
         """Add tokens to existing stake."""
         self._ensure_stake_exists(stake)
@@ -1035,7 +1061,7 @@ class Staker(NucypherTokenActor):
             raise ValueError(f"Pass either an amount or entire balance; "
                              f"got {'both' if entire_balance else 'neither'}")
 
-        token_balance = self.token_balance
+        token_balance = self.token_balance if not only_lock else self.calculate_staking_reward()
         if entire_balance:
             amount = token_balance
         if not token_balance >= amount:
@@ -1047,7 +1073,10 @@ class Staker(NucypherTokenActor):
         validate_increase(stake=stake, amount=amount)
 
         # Write to blockchain
-        receipt = self._deposit_and_increase(stake_index=stake.index, amount=int(amount))
+        if not only_lock:
+            receipt = self._deposit_and_increase(stake_index=stake.index, amount=int(amount))
+        else:
+            receipt = self._lock_and_increase(stake_index=stake.index, amount=int(amount))
 
         # Update staking cache element
         self.refresh_stakes()
@@ -1057,7 +1086,8 @@ class Staker(NucypherTokenActor):
     def prolong_stake(self,
                       stake: Stake,
                       additional_periods: int = None,
-                      expiration: maya.MayaDT = None) -> TxReceipt:
+                      expiration: maya.MayaDT = None
+                      ) -> TxReceipt:
         self._ensure_stake_exists(stake)
 
         if not (bool(additional_periods) ^ bool(expiration)):
@@ -1077,6 +1107,25 @@ class Staker(NucypherTokenActor):
         validate_prolong(stake=stake, additional_periods=additional_periods)
 
         receipt = self._prolong_stake(stake_index=stake.index, lock_periods=additional_periods)
+
+        # Update staking cache element
+        self.refresh_stakes()
+        return receipt
+
+    @only_me
+    def merge_stakes(self,
+                     stake_1: Stake,
+                     stake_2: Stake
+                     ) -> TxReceipt:
+        self._ensure_stake_exists(stake_1)
+        self._ensure_stake_exists(stake_2)
+
+        # Read on-chain stake and validate
+        stake_1.sync()
+        stake_2.sync()
+        validate_merge(stake_1=stake_1, stake_2=stake_2)
+
+        receipt = self._merge_stakes(stake_index_1=stake_1.index, stake_index_2=stake_2.index)
 
         # Update staking cache element
         self.refresh_stakes()
@@ -1104,6 +1153,17 @@ class Staker(NucypherTokenActor):
                                                         call_data=Web3.toBytes(lock_periods))
         return receipt
 
+    def _lock_and_create(self, amount: int, lock_periods: int) -> TxReceipt:
+        """Public facing method for token locking without depositing."""
+        # TODO #1497 #1358
+        # if self.is_contract:
+        #     receipt = self.preallocation_escrow_agent...
+        # else:
+        receipt = self.staking_agent.lock_and_create(amount=amount,
+                                                     staker_address=self.checksum_address,
+                                                     lock_periods=lock_periods)
+        return receipt
+
     def _divide_stake(self, stake_index: int, additional_periods: int, target_value: int) -> TxReceipt:
         """Public facing method for stake dividing."""
         # TODO #1497 #1358
@@ -1128,6 +1188,28 @@ class Staker(NucypherTokenActor):
         receipt = self.staking_agent.deposit_and_increase(staker_address=self.checksum_address,
                                                           stake_index=stake_index,
                                                           amount=amount)
+        return receipt
+
+    def _lock_and_increase(self, stake_index: int, amount: int) -> TxReceipt:
+        """Public facing method for increasing stake."""
+        # TODO #1497 #1358
+        # if self.is_contract:
+        #     receipt = self.preallocation_escrow_agent...
+        # else:
+        receipt = self.staking_agent.lock_and_increase(staker_address=self.checksum_address,
+                                                       stake_index=stake_index,
+                                                       amount=amount)
+        return receipt
+
+    def _merge_stakes(self, stake_index_1: int, stake_index_2: int) -> TxReceipt:
+        """Public facing method for stakes merging."""
+        # TODO #1497 #1358
+        # if self.is_contract:
+        #     receipt = self.preallocation_escrow_agent.prolong_stake(stake_index=stake_index, lock_periods=lock_periods)
+        # else:
+        receipt = self.staking_agent.merge_stakes(stake_index_1=stake_index_1,
+                                                  stake_index_2=stake_index_2,
+                                                  staker_address=self.checksum_address)
         return receipt
 
     @property
@@ -1266,9 +1348,9 @@ class Staker(NucypherTokenActor):
             receipt = self.staking_agent.mint(staker_address=self.checksum_address)
         return receipt
 
-    def calculate_staking_reward(self) -> int:
+    def calculate_staking_reward(self) -> NU:
         staking_reward = self.staking_agent.calculate_staking_reward(staker_address=self.checksum_address)
-        return staking_reward
+        return NU.from_nunits(staking_reward)
 
     def calculate_policy_fee(self) -> int:
         policy_fee = self.policy_agent.get_fee_amount(staker_address=self.checksum_address)
@@ -1296,8 +1378,8 @@ class Staker(NucypherTokenActor):
         """Withdraw tokens rewarded for staking"""
         if self.is_contract:
             reward_amount = self.calculate_staking_reward()
-            self.log.debug(f"Withdrawing staking reward ({NU.from_nunits(reward_amount)}) to {self.checksum_address}")
-            receipt = self.preallocation_escrow_agent.withdraw_as_staker(value=reward_amount)
+            self.log.debug(f"Withdrawing staking reward ({reward_amount}) to {self.checksum_address}")
+            receipt = self.preallocation_escrow_agent.withdraw_as_staker(value=reward_amount.to_nunits())
         else:
             receipt = self.staking_agent.collect_staking_reward(staker_address=self.checksum_address)
         return receipt
@@ -1590,16 +1672,11 @@ class BlockchainPolicyAuthor(NucypherTokenActor):
         payload = {**blockchain_payload, **policy_end_time}
         return payload
 
-    def recruit(self, quantity: int, **options) -> List[str]:
+    def get_stakers_reservoir(self, **options) -> StakersReservoir:
         """
-        Uses sampling logic to gather stakers from the blockchain and
-        caches the resulting node ethereum addresses.
-
-        :param quantity: Number of ursulas to sample from the blockchain.
-
+        Get a sampler object containing the currently registered stakers.
         """
-        staker_addresses = self.staking_agent.sample(quantity=quantity, **options)
-        return staker_addresses
+        return self.staking_agent.get_stakers_reservoir(**options)
 
     def create_policy(self, *args, **kwargs):
         """

@@ -16,12 +16,12 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
 import json
+import os
 import random
 import tempfile
 from unittest import mock
 
 import maya
-import os
 
 from nucypher.blockchain.eth.actors import Staker
 from nucypher.blockchain.eth.agents import ContractAgency, StakingEscrowAgent
@@ -34,7 +34,7 @@ from nucypher.config.constants import TEMPORARY_DOMAIN
 from nucypher.utilities.logging import Logger
 
 from tests.constants import FAKE_PASSWORD_CONFIRMED, FEE_RATE_RANGE, INSECURE_DEVELOPMENT_PASSWORD, MOCK_IP_ADDRESS, \
-    TEST_PROVIDER_URI
+    TEST_PROVIDER_URI, YES_ENTER
 from tests.utils.middleware import MockRestMiddleware
 from tests.utils.ursula import MOCK_KNOWN_URSULAS_CACHE, MOCK_URSULA_STARTING_PORT, select_test_port
 
@@ -95,7 +95,7 @@ def test_stake_init(click_runner,
                   '--force')
 
     # TODO: This test is writing to the default system directory and ignoring updates to the passed filepath
-    user_input = f'0\n' + f'{INSECURE_DEVELOPMENT_PASSWORD}\n' + f'Y\n'
+    user_input = f'0\n' + f'{INSECURE_DEVELOPMENT_PASSWORD}\n' + YES_ENTER
     result = click_runner.invoke(nucypher_cli, stake_args, input=user_input, catch_exceptions=False)
     assert result.exit_code == 0
 
@@ -207,35 +207,82 @@ def test_stake_increase(click_runner,
                         testerchain,
                         agency_local_registry,
                         manual_staker):
-        staking_agent = ContractAgency.get_agent(StakingEscrowAgent, registry=agency_local_registry)
-        stakes = list(staking_agent.get_all_stakes(staker_address=manual_staker))
-        stakes_length = len(stakes)
-        assert stakes_length > 0
+    staking_agent = ContractAgency.get_agent(StakingEscrowAgent, registry=agency_local_registry)
+    stakes = list(staking_agent.get_all_stakes(staker_address=manual_staker))
+    stakes_length = len(stakes)
+    assert stakes_length > 0
 
-        selection = 0
-        new_value = NU.from_nunits(token_economics.minimum_allowed_locked // 10)
-        origin_stake = stakes[selection]
+    selection = 0
+    new_value = NU.from_nunits(token_economics.minimum_allowed_locked // 10)
+    origin_stake = stakes[selection]
 
-        stake_args = ('stake', 'increase',
-                      '--config-file', stakeholder_configuration_file_location,
-                      '--staking-address', manual_staker,
-                      '--value', new_value.to_tokens(),
-                      '--index', selection,
-                      '--force')
+    stake_args = ('stake', 'increase',
+                  '--config-file', stakeholder_configuration_file_location,
+                  '--staking-address', manual_staker,
+                  '--value', new_value.to_tokens(),
+                  '--index', selection,
+                  '--force')
 
-        user_input = f'{INSECURE_DEVELOPMENT_PASSWORD}\n'
-        result = click_runner.invoke(nucypher_cli, stake_args, input=user_input, catch_exceptions=False)
-        assert result.exit_code == 0
+    user_input = f'{INSECURE_DEVELOPMENT_PASSWORD}\n'
+    result = click_runner.invoke(nucypher_cli, stake_args, input=user_input, catch_exceptions=False)
+    assert result.exit_code == 0
 
-        # Verify the stake is on-chain
-        # Test integration with Agency
-        stakes = list(staking_agent.get_all_stakes(staker_address=manual_staker))
-        assert len(stakes) == stakes_length
+    # Verify the stake is on-chain
+    # Test integration with Agency
+    stakes = list(staking_agent.get_all_stakes(staker_address=manual_staker))
+    assert len(stakes) == stakes_length
 
-        # Test integration with NU
-        _start_period, end_period, value = stakes[selection]
-        assert NU(int(value), 'NuNit') == origin_stake.locked_value + new_value
-        assert end_period == origin_stake.last_period
+    # Test integration with NU
+    _start_period, end_period, value = stakes[selection]
+    assert NU(int(value), 'NuNit') == origin_stake.locked_value + new_value
+    assert end_period == origin_stake.last_period
+
+
+def test_merge_stakes(click_runner,
+                      stakeholder_configuration_file_location,
+                      token_economics,
+                      testerchain,
+                      agency_local_registry,
+                      manual_staker,
+                      stake_value):
+    # Prepare new stake
+    stake_args = ('stake', 'create',
+                  '--config-file', stakeholder_configuration_file_location,
+                  '--staking-address', manual_staker,
+                  '--value', stake_value.to_tokens(),
+                  '--lock-periods', token_economics.minimum_locked_periods + 1,
+                  '--force')
+    user_input = f'0\n' + f'{INSECURE_DEVELOPMENT_PASSWORD}\n' + YES_ENTER
+    result = click_runner.invoke(nucypher_cli, stake_args, input=user_input, catch_exceptions=False)
+    assert result.exit_code == 0
+
+    staking_agent = ContractAgency.get_agent(StakingEscrowAgent, registry=agency_local_registry)
+    stakes = list(staking_agent.get_all_stakes(staker_address=manual_staker))
+    stakes_length = len(stakes)
+    assert stakes_length > 0
+
+    selection_1 = 0
+    selection_2 = 2
+    origin_stake_1 = stakes[selection_1]
+    origin_stake_2 = stakes[selection_2]
+    assert origin_stake_1.last_period == origin_stake_2.last_period
+
+    stake_args = ('stake', 'merge',
+                  '--config-file', stakeholder_configuration_file_location,
+                  '--staking-address', manual_staker,
+                  '--index-1', selection_1,
+                  '--index-2', selection_2,
+                  '--force')
+
+    user_input = f'{INSECURE_DEVELOPMENT_PASSWORD}\n'
+    result = click_runner.invoke(nucypher_cli, stake_args, input=user_input, catch_exceptions=False)
+    assert result.exit_code == 0
+
+    # Verify the tx is on-chain
+    stakes = list(staking_agent.get_all_stakes(staker_address=manual_staker))
+    assert len(stakes) == stakes_length
+    assert stakes[selection_1].locked_value == origin_stake_1.locked_value + origin_stake_2.locked_value
+    assert stakes[selection_2].last_period == 1
 
 
 def test_stake_bond_worker(click_runner,
@@ -625,6 +672,7 @@ def test_stake_unbond_worker(click_runner,
                              manual_worker,
                              agency_local_registry,
                              stakeholder_configuration_file_location):
+    testerchain.time_travel(periods=1)
 
     staker = Staker(is_me=True,
                     checksum_address=manual_staker,

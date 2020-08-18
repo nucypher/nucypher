@@ -19,10 +19,7 @@ import binascii
 
 import json
 from collections import OrderedDict
-
-import binascii
 import maya
-import msgpack
 from bytestring_splitter import BytestringSplitter, VariableLengthBytestring, BytestringSplittingError, \
     BytestringKwargifier
 from constant_sorrow.constants import CFRAG_NOT_RETAINED, NO_DECRYPTION_PERFORMED, NOT_SIGNED
@@ -34,12 +31,12 @@ from cryptography.hazmat.backends.openssl import backend
 from cryptography.hazmat.primitives import hashes
 from eth_utils import to_canonical_address, to_checksum_address
 from typing import List, Optional, Tuple
-from umbral.cfrags import CapsuleFrag
 from umbral.config import default_params
 from umbral.curvebn import CurveBN
 from umbral.keys import UmbralPublicKey
 from umbral.pre import Capsule
 
+from nucypher.blockchain.eth.constants import ETH_ADDRESS_BYTE_LENGTH, ETH_HASH_BYTE_LENGTH
 from nucypher.characters.lawful import Bob, Character
 from nucypher.crypto.api import keccak_digest, encrypt_and_sign, verify_eip_191
 from nucypher.crypto.constants import PUBLIC_ADDRESS_LENGTH, KECCAK_DIGEST_LENGTH
@@ -47,7 +44,7 @@ from nucypher.crypto.api import encrypt_and_sign, keccak_digest
 from nucypher.crypto.constants import KECCAK_DIGEST_LENGTH, PUBLIC_ADDRESS_LENGTH
 from nucypher.crypto.kits import UmbralMessageKit
 from nucypher.crypto.signing import InvalidSignature, Signature, signature_splitter
-from nucypher.crypto.splitters import capsule_splitter, key_splitter
+from nucypher.crypto.splitters import capsule_splitter, cfrag_splitter, key_splitter
 from nucypher.crypto.utils import (canonical_address_from_umbral_key,
                                    get_coordinates_as_bytes,
                                    get_signature_recovery_value)
@@ -350,6 +347,10 @@ class PolicyCredential:
 
 class WorkOrder:
     class PRETask:
+
+        input_splitter = capsule_splitter + signature_splitter  # splitter for task without cfrag and signature
+        output_splitter = cfrag_splitter + signature_splitter
+
         def __init__(self, capsule, signature, cfrag=None, cfrag_signature=None):
             self.capsule = capsule
             self.signature = signature
@@ -357,9 +358,25 @@ class WorkOrder:
             self.cfrag_signature = cfrag_signature
 
         def get_specification(self, ursula_pubkey, alice_address, blockhash, ursula_identity_evidence=b''):
+            ursula_pubkey = bytes(ursula_pubkey)
+            ursula_identity_evidence = bytes(ursula_identity_evidence)
+            alice_address = bytes(alice_address)
+            blockhash = bytes(blockhash)
+
+            expected_lengths = (
+                (ursula_pubkey, 'ursula_pubkey', UmbralPublicKey.expected_bytes_length()),
+                (alice_address, 'alice_address', ETH_ADDRESS_BYTE_LENGTH),
+                (blockhash, 'blockhash', ETH_HASH_BYTE_LENGTH),
+                # TODO: Why does ursula_identity_evidence has a default value of b''? for federated, perhaps?
+            )
+
+            for parameter, name, expected_length in expected_lengths:
+                if len(parameter) != expected_length:
+                    raise ValueError(f"{name} must be of length {expected_length}, but it's {len(parameter)}")
+
             task_specification = (bytes(self.capsule),
-                                  bytes(ursula_pubkey),
-                                  bytes(ursula_identity_evidence),
+                                  ursula_pubkey,
+                                  ursula_identity_evidence,
                                   alice_address,
                                   blockhash)
             return b''.join(task_specification)
@@ -367,30 +384,29 @@ class WorkOrder:
         def __bytes__(self):
             data = bytes(self.capsule) + bytes(self.signature)
             if self.cfrag and self.cfrag_signature:
-                data += bytes(self.cfrag) + bytes(self.cfrag_signature)
+                data += VariableLengthBytestring(self.cfrag) + bytes(self.cfrag_signature)
             return data
 
         @classmethod
         def from_bytes(cls, data: bytes):
-            item_splitter = capsule_splitter + signature_splitter
-            capsule, signature, remainder = item_splitter(data, return_remainder=True)
+            capsule, signature, remainder = cls.input_splitter(data, return_remainder=True)
             if remainder:
-                remainder_splitter = BytestringSplitter((CapsuleFrag, VariableLengthBytestring), Signature)
-                cfrag, reencryption_signature = remainder_splitter(remainder)
-                return cls(capsule=capsule, signature=signature,
-                           cfrag=cfrag, reencryption_signature=reencryption_signature)
+                cfrag, reencryption_signature = cls.output_splitter(remainder)
+                return cls(capsule=capsule, signature=signature, cfrag=cfrag, cfrag_signature=reencryption_signature)
             else:
                 return cls(capsule=capsule, signature=signature)
 
-        def attach_work_result(self, cfrag, reencryption_signature):
+        def attach_work_result(self, cfrag, cfrag_signature):
             self.cfrag = cfrag
-            self.cfrag_signature = reencryption_signature
+            self.cfrag_signature = cfrag_signature
+
+    HEADER = b"wo:"
 
     def __init__(self,
                  bob: Bob,
                  arrangement_id,
                  alice_address: bytes,
-                 tasks: List,
+                 tasks: dict,
                  receipt_signature,
                  ursula=None,
                  blockhash=None
@@ -405,10 +421,11 @@ class WorkOrder:
         self.completed = False
 
     def __repr__(self):
-        return "WorkOrder for hrac {hrac}: (capsules: {capsule_reprs}) for Ursula: {node}".format(
+        return "WorkOrder for hrac {hrac}: (capsules: {capsule_reprs}) for {node}".format(
             hrac=self.arrangement_id.hex()[:6],
-            capsule_reprs=[t.capsule for t in self.tasks.values()],
-            node=binascii.hexlify(bytes(self.ursula.stamp))[:6])
+            capsule_reprs=self.tasks.keys(),
+            node=self.ursula
+        )
 
     def __eq__(self, other):
         return self.receipt_signature == other.receipt_signature
@@ -421,8 +438,8 @@ class WorkOrder:
         ursula.mature()
         alice_address = canonical_address_from_umbral_key(alice_verifying)
 
-        # TODO: Bob's input to prove freshness for this work order
-        blockhash = b'\x00' * 32
+        # TODO: Bob's input to prove freshness for this work order - #259
+        blockhash = b'\0' * ETH_HASH_BYTE_LENGTH
 
         ursula_identity_evidence = b''
         if ursula._stamp_has_valid_signature_by_worker():
@@ -436,7 +453,8 @@ class WorkOrder:
             tasks[capsule] = task
 
         # TODO: What's the goal of the receipt? Should it include only the capsules?
-        receipt_bytes = b"wo:" + bytes(ursula.stamp) + keccak_digest(*[bytes(task.capsule) for task in tasks.values()])
+        capsules = b''.join(map(bytes, tasks.keys()))
+        receipt_bytes = cls.HEADER + bytes(ursula.stamp) + capsules
         receipt_signature = bob.stamp(receipt_bytes)
 
         return cls(bob=bob, arrangement_id=arrangement_id, tasks=tasks,
@@ -447,22 +465,17 @@ class WorkOrder:
     @classmethod
     def from_rest_payload(cls, arrangement_id, rest_payload, ursula, alice_address):
 
-        payload_splitter = BytestringSplitter(Signature) + key_splitter
-        payload_elements = payload_splitter(rest_payload, msgpack_remainder=True)
+        payload_splitter = BytestringSplitter(Signature) + key_splitter + BytestringSplitter(ETH_HASH_BYTE_LENGTH)
 
-        signature, bob_verifying_key, (tasks_bytes, blockhash) = payload_elements
-
-        # TODO: check freshness of blockhash?
+        signature, bob_verifying_key, blockhash, remainder = payload_splitter(rest_payload, return_remainder=True)
+        tasks = {capsule: cls.PRETask(capsule, sig) for capsule, sig in cls.PRETask.input_splitter.repeat(remainder)}
+        # TODO: check freshness of blockhash? #259
 
         ursula_identity_evidence = b''
         if ursula._stamp_has_valid_signature_by_worker():
             ursula_identity_evidence = ursula.decentralized_identity_evidence
 
-        tasks = []
-        for task_bytes in tasks_bytes:
-            task = cls.PRETask.from_bytes(task_bytes)
-            tasks.append(task)
-
+        for task in tasks.values():
             # Each task signature has to match the original specification
             specification = task.get_specification(ursula.stamp,
                                                    alice_address,
@@ -473,7 +486,8 @@ class WorkOrder:
                 raise InvalidSignature()
 
         # Check receipt
-        receipt_bytes = b"wo:" + bytes(ursula.stamp) + keccak_digest(*[bytes(task.capsule) for task in tasks])
+        capsules = b''.join(map(bytes, tasks.keys()))
+        receipt_bytes = cls.HEADER + bytes(ursula.stamp) + capsules
         if not signature.verify(receipt_bytes, bob_verifying_key):
             raise InvalidSignature()
 
@@ -487,15 +501,16 @@ class WorkOrder:
                    receipt_signature=signature)
 
     def payload(self):
-        tasks_bytes = [bytes(item) for item in self.tasks.values()]
-        payload_elements = msgpack.dumps((tasks_bytes, self.blockhash))
-        return bytes(self.receipt_signature) + self.bob.stamp + payload_elements
+        """
+        Creates a serialized WorkOrder. Called by Bob requesting reencryption tasks
+        """
+        tasks_bytes = b''.join(bytes(item) for item in self.tasks.values())
+        return bytes(self.receipt_signature) + self.bob.stamp + self.blockhash + tasks_bytes
 
     def complete(self, cfrags_and_signatures):
         good_cfrags = []
         if not len(self) == len(cfrags_and_signatures):
-            raise ValueError("Ursula gave back the wrong number of cfrags.  "
-                             "She's up to something.")
+            raise ValueError("Ursula gave back the wrong number of cfrags. She's up to something.")
 
         ursula_verifying_key = self.ursula.stamp.as_umbral_pubkey()
 
