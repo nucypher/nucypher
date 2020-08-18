@@ -16,6 +16,7 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
 import contextlib
+import datetime
 import time
 from collections import defaultdict, deque
 from contextlib import suppress
@@ -482,14 +483,12 @@ class Learner:
         self._crashed = failure
 
         # TODO: Maybe patch this in tests too?
-        from tests.conftest import global_mutable_where_everybody
-        gmwe = global_mutable_where_everybody
+        # from tests.conftest import global_mutable_where_everybody
+        # gmwe = global_mutable_where_everybody
 
         failure.raiseException()
         # TODO: We don't actually have checksum_address at this level - maybe only Characters can crash gracefully :-)  1711
         self.log.critical("{} crashed with {}".format(self.checksum_address, failure))
-
-        pytest.fail()
         reactor.stop()
 
     def select_teacher_nodes(self):
@@ -539,15 +538,6 @@ class Learner:
 
         learner is for debugging and logging only.
         """
-        self.log.info("WAAAAAAMP")
-
-        import datetime
-
-        self.log.debug(f"+++++++++++{self} deferring learning cycle at {datetime.datetime.now()}")
-
-        # while self._learning_deferred is not None:
-        #     print(f"^^^^^^^^^{self} waiting at {datetime.datetime.now()}")
-        #     time.sleep(.1)
 
         # TODO: Allow the user to set eagerness?  1712
         # TODO: Also, if we do allow eager, don't even defer; block right here.
