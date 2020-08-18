@@ -12,7 +12,13 @@ The minimum fee rate applies to each individual worker machine managing a given 
 
 If Alice wishes to employ multiple Ursulas to service a single sharing policy (``n`` > 1), a common configuration, then they must pay each staker associated with that policy the same exact fee rate. This rate will be the highest from the set of *minimum* fee rates specified by the stakers with which they engage. Alices may attempt price optimization strategies to find the cheapest group of Ursulas.
 
-When issuing a sharing policy, Alices are required to escrow a deposit covering the cost of the entire duration of the policy. The deposit is paid out in tranches to stakers once per period, in the period after their Ursula makes a commitment (formerly referred to as *confirm activity*). Therefore, the minimum sum of fees a staker can receive each period is the product of their specified minimum fee rate and the number of active sharing policies their Ursula has been assigned.
+When issuing a sharing policy, Alices are required to escrow a deposit covering the cost of the entire duration of the policy. This deposit is split and paid out in tranches to stakers once per period. 
+
+The precise payment flow follows a repeated three-period cycle; in the first period the Ursula *makes a commitment* to the second period. Then, the Ursula services the policy during the second period (and makes a commitment to the third period). In the third period, they receive the fee tranche for their work during the second period, and continue servicing the policy, etc. This cycle continues until all the policies that Ursula is responsible for have expired.
+
+The minimum sum of fees a staker can receive period-to-period is the product of their specified minimum fee rate and the number of active sharing policies their Ursula has been assigned. 
+
+Note that *making a commitment* was formerly referred to as *confirming activity*.
 
 
 Global fee range
@@ -47,7 +53,7 @@ XX,XXX GWEI ($X.XXXX) *per year*
 Note that the minimum and maximum fee rate are a lower and upper bound to constrain the fee rate a staker may offer. The default fee rate is the rate that will be displayed and offered to Alices if the staker chooses not to configure this parameter themselves, or chooses a rate outside the boundaries of the global fee range. The default rate will also be used if the range's boundaries are updated, a staker's specified rate *now* falls outside the range, and they fail to change it.
 
 The fee range must be adhered to in identical fashion by all NuCypher stakers, regardless of their stake size or capacity. The fee range applies to all sharing policies, irrespective of the volume of re-encryption requests or other distinguishing attributes. It also applies equally to all periods in the future, until the moment that the global fee range’s parameters are adjusted or the range is removed, via official governance processes (see below). If an update of this sort occurs, sharing policies that were previously established, but have not yet expired, should not have the per-period fee rate retroactively modified.
-
+Note that the global fee range is only applicable to stakers and Ursulas. Alices are free to pay as high a rate as they like.
 Governance & pricing paper
 ---------------------------------------
 
