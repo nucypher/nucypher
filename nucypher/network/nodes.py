@@ -24,7 +24,6 @@ from typing import Iterable
 from typing import Set, Tuple, Union
 
 import maya
-import pytest
 import requests
 from cryptography.x509 import Certificate
 from eth_utils import to_checksum_address
@@ -250,40 +249,20 @@ class Learner:
 
         self.teacher_nodes = deque()
         self._current_teacher_node = None  # type: Teacher
-        # self._learning_task = task.LoopingCall(self.keep_learning_about_nodes)
+        self._learning_task = task.LoopingCall(self.keep_learning_about_nodes)
 
         # Some debugging shit.  TODO: Maybe move this to a test patch?
         # Very slow, but provides useful info when trying to track down a stray Character.
         # Seems mostly useful for Bob or federated Ursulas, but perhaps useful for other Characters as well.
 
-        import inspect, os
-        frames = inspect.stack(3)
-        self._learning_task = task.LoopingCall(self.keep_learning_about_nodes, learner=self, frames=frames)
-        self._init_frames = frames
-        from tests.conftest import global_mutable_where_everybody
-
-        # Below is the variant where we iterate through frames.  If there's a race condition within a test itself, this will be more reliable.
-        # for frame in frames:
-        #     try:
-        #         test_name = frame.frame.f_locals['request'].module
-        #         break
-        #     except KeyError:
-        #         try:
-        #             if frame.function.startswith("test"):
-        #                 where = frame[0]
-        #                 test_name = where
-        #                 break
-        #             else:
-        #                 continue
-        #         except AttributeError:
-        #             continue
-        # else:
-        #     # Didn't find which test from which this object came.  Hmph.
-        #     # It's possible that this is wrong, but it's better than nothing:
-        #     test_name = os.environ["PYTEST_CURRENT_TEST"].split("::")[1]
-        test_name = os.environ["PYTEST_CURRENT_TEST"]
-        global_mutable_where_everybody[test_name].append(self)
-        self._FOR_TEST = test_name
+        # import inspect, os
+        # frames = inspect.stack(3)
+        # self._learning_task = task.LoopingCall(self.keep_learning_about_nodes, learner=self, frames=frames)
+        # self._init_frames = frames
+        # from tests.conftest import global_mutable_where_everybody
+        # test_name = os.environ["PYTEST_CURRENT_TEST"]
+        # global_mutable_where_everybody[test_name].append(self)
+        # self._FOR_TEST = test_name
         ########################
 
         self._learning_round = 0  # type: int
