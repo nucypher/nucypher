@@ -100,7 +100,7 @@ class EthereumContractAgent:
                  transaction_gas: Optional[Wei] = None):
 
         self.log = Logger(self.__class__.__name__)
-        self.registry_repr = str(registry)
+        self.registry_str = str(registry)
 
         self.blockchain = BlockchainInterfaceFactory.get_or_create_interface(provider_uri=provider_uri)
 
@@ -122,12 +122,12 @@ class EthereumContractAgent:
         self.log.info("Initialized new {} for {} with {} and {}".format(self.__class__.__name__,
                                                                         self.contract.address,
                                                                         self.blockchain.provider_uri,
-                                                                        self.registry_repr))
+                                                                        self.registry_str))
 
     def __repr__(self) -> str:
         class_name = self.__class__.__name__
         r = "{}(registry={}, contract={})"
-        return r.format(class_name, self.registry_repr, self.contract_name)
+        return r.format(class_name, self.registry_str, self.contract_name)
 
     def __eq__(self, other: Any) -> bool:
         return bool(self.contract.address == other.contract.address)

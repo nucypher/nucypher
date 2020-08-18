@@ -82,7 +82,7 @@ def paint_stakes(emitter: StdoutEmitter,
         snippet_with_line = network_snippet + '═'*(line_width-len(network_snippet)+1)
         emitter.echo(snippet_with_line, bold=True)
     emitter.echo(f"Staker {staker.checksum_address} ════", bold=True, color='red' if missing else 'green')
-    worker = staker.worker_address if staker.worker_address != NULL_ADDRESS else 'NO_WORKER_BONDED'
+    worker = staker.worker_address if staker.worker_address != NULL_ADDRESS else 'not bonded'
     emitter.echo(f"Worker {worker} ════", color='red' if staker.worker_address == NULL_ADDRESS else None)
     emitter.echo(tabulate.tabulate(zip(STAKER_TABLE_COLUMNS, staker_data), floatfmt="fancy_grid"))
 

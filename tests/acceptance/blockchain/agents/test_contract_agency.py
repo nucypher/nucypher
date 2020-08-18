@@ -26,10 +26,10 @@ def test_get_agent_with_different_registries(token_economics, agency, test_regis
     # Get agents using same registry instance
     staking_agent_1 = ContractAgency.get_agent(StakingEscrowAgent, registry=test_registry)
     staking_agent_2 = ContractAgency.get_agent(StakingEscrowAgent, registry=test_registry)
-    assert staking_agent_2.registry_repr == staking_agent_1.registry_repr == str(test_registry)
+    assert staking_agent_2.registry_str == staking_agent_1.registry_str == str(test_registry)
     assert staking_agent_2 is staking_agent_1
 
     # Same content but different classes of registries
     staking_agent_2 = ContractAgency.get_agent(StakingEscrowAgent, registry=agency_local_registry)
-    assert staking_agent_2.registry_repr == str(test_registry)
+    assert staking_agent_2.registry_str == str(test_registry)
     assert staking_agent_2 is staking_agent_1

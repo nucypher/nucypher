@@ -1278,7 +1278,7 @@ def test_stake_list_active(click_runner, surrogate_stakers, surrogate_stakes, to
 def test_stake_list_all(click_runner, surrogate_stakers, surrogate_stakes, token_economics):
 
     command = ('list',
-               '--show-all',
+               '--all',
                '--provider', MOCK_PROVIDER_URI,
                '--network', TEMPORARY_DOMAIN,)
 

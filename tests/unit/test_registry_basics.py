@@ -88,6 +88,6 @@ def test_contract_registry(tempfile_path):
         test_registry.search(contract_address=test_addr)
 
     # Check id of new registry with the same content
-    new_registry = InMemoryContractRegistry()  # TODO finish this
+    new_registry = InMemoryContractRegistry()
     new_registry.write(test_registry.read())
     assert new_registry.id == test_registry.id

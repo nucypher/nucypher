@@ -320,7 +320,7 @@ def config(general_config, config_file, config_options):
 @stake.command('list')
 @group_staker_options
 @option_config_file
-@click.option('--show-all', help="List all stakes, including unlocked and inactive", is_flag=True)
+@click.option('--all', 'show_all', help="List all stakes, including unlocked and inactive", is_flag=True)
 @group_general_config
 def list_stakes(general_config, staker_options, config_file, show_all):
     """List active stakes for current stakeholder."""
