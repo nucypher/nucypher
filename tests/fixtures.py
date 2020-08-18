@@ -16,7 +16,6 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
 import contextlib
-import inspect
 import json
 import os
 import random
@@ -359,9 +358,6 @@ def blockchain_alice(alice_blockchain_test_config, testerchain):
 @pytest.fixture(scope="module")
 def federated_bob(bob_federated_test_config):
     bob = bob_federated_test_config.produce()
-    # Since Bob is sometimes "left hanging" at the end of tests, this is an invaluable piece of information for debugging problems like #2150.
-    frames = inspect.stack(3)
-    bob._FOR_TEST = frames[1].frame.f_locals['request'].module
     yield bob
     bob.disenchant()
 
@@ -403,12 +399,6 @@ def lonely_ursula_maker(ursula_federated_test_config):
         def __call__(self, *args, **kwargs):
             ursulas = self._partial(*args, **kwargs)
             self._made.extend(ursulas)
-            frames = inspect.stack(3)
-            for ursula in ursulas:
-                try:
-                    ursula._FOR_TEST = frames[1].frame.f_code.co_name
-                except KeyError as e:
-                    raise
             return ursulas
 
         def clean(self):

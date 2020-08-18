@@ -17,8 +17,6 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 
 
 import contextlib
-import inspect
-
 import socket
 import tempfile
 
