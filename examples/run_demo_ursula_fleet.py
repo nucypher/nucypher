@@ -17,15 +17,15 @@ from functools import partial
 
 from twisted.internet import reactor
 
-from constant_sorrow.constants import TEMPORARY_DOMAIN
 from nucypher.characters.lawful import Ursula
+from nucypher.config.constants import APP_DIR
 
 FLEET_POPULATION = 12
 DEMO_NODE_STARTING_PORT = 11500
 
 ursula_maker = partial(Ursula, rest_host='127.0.0.1',
                        federated_only=True,
-                       domains=[TEMPORARY_DOMAIN]
+                       domains=[":TEMPORARY_DOMAIN:"]
                        )
 
 
@@ -36,10 +36,7 @@ def spin_up_federated_ursulas(quantity: int = FLEET_POPULATION):
 
     ursulas = []
 
-    sage = ursula_maker(
-        rest_port=ports[0],
-        db_filepath="sage.db",
-    )
+    sage = ursula_maker(rest_port=ports[0], db_filepath=f"{APP_DIR.user_cache_dir}/sage.db")
 
     ursulas.append(sage)
     for index, port in enumerate(ports[1:]):
@@ -47,7 +44,7 @@ def spin_up_federated_ursulas(quantity: int = FLEET_POPULATION):
             rest_port=port,
             seed_nodes=[sage.seed_node_metadata()],
             start_learning_now=True,
-            db_filepath=f"{port}.db",
+            db_filepath=f"{APP_DIR.user_cache_dir}/{port}.db",
         )
         ursulas.append(u)
     for u in ursulas:
