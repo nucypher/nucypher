@@ -466,11 +466,11 @@ class BlockchainInterface:
         self.log.debug(f"[TX-{transaction_name}] | {payload_pprint}")
 
     @validate_checksum_address
-    def build_transaction(self,
-                          sender_address: str,
-                          payload: dict = None,
-                          transaction_gas_limit: int = None,
-                          ) -> dict:
+    def build_payload(self,
+                      sender_address: str,
+                      payload: dict = None,
+                      transaction_gas_limit: int = None,
+                      ) -> dict:
 
         base_payload = {'chainId': int(self.client.chain_id),
                         'nonce': self.client.w3.eth.getTransactionCount(sender_address, 'pending'),
@@ -493,9 +493,9 @@ class BlockchainInterface:
                                    payload: dict = None,
                                    transaction_gas_limit: int = None,
                                    ) -> dict:
-        payload = self.build_transaction(sender_address=sender_address,
-                                         payload=payload,
-                                         transaction_gas_limit=transaction_gas_limit)
+        payload = self.build_payload(sender_address=sender_address,
+                                     payload=payload,
+                                     transaction_gas_limit=transaction_gas_limit)
         self.__log_transaction(transaction_dict=payload, contract_function=contract_function)
         try:
             transaction_dict = contract_function.buildTransaction(payload)  # Gas estimation occurs here

@@ -128,7 +128,7 @@ class FelixConfigOptions:
             checksum_address=self.checksum_address,
             registry_filepath=self.registry_filepath,
             provider_uri=self.provider_uri,
-            signer=self.signer_uri,
+            signer_uri=self.signer_uri,
             provider_process=self.eth_node,
             poa=self.poa)
 
