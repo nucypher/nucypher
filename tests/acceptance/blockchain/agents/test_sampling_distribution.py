@@ -157,7 +157,10 @@ def probability_reference_no_replacement(weights, idxs):
 def test_weighted_sampler(sample_size):
     weights = [1, 9, 100, 2, 18, 70]
     elements = list(range(len(weights)))
-    rng = random.SystemRandom()
+
+    # Use a fixed seed to avoid flakyness of the test
+    rng = random.Random(123)
+
     counter = Counter()
 
     weighted_elements = {element: weight for element, weight in zip(elements, weights)}
