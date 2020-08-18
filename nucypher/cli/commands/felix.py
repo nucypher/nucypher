@@ -52,7 +52,7 @@ from nucypher.cli.options import (
     option_poa,
     option_provider_uri,
     option_registry_filepath,
-    option_teacher_uri,
+    option_teacher_uri, option_signer_uri,
 )
 from nucypher.cli.painting.help import paint_new_installation_help
 from nucypher.cli.types import NETWORK_PORT
@@ -71,6 +71,7 @@ class FelixConfigOptions:
                  dev,
                  network,
                  provider_uri,
+                 signer_uri,
                  host,
                  db_filepath,
                  checksum_address,
@@ -85,6 +86,7 @@ class FelixConfigOptions:
 
         self.eth_node = eth_node
         self.provider_uri = provider_uri
+        self.signer_uri = signer_uri
         self.domains = {network} if network else None
         self.dev = dev
         self.host = host
@@ -104,6 +106,7 @@ class FelixConfigOptions:
                 registry_filepath=self.registry_filepath,
                 provider_process=self.eth_node,
                 provider_uri=self.provider_uri,
+                signer=self.signer_uri,
                 rest_host=self.host,
                 rest_port=self.port,
                 db_filepath=self.db_filepath,
@@ -111,7 +114,8 @@ class FelixConfigOptions:
         except FileNotFoundError:
             return handle_missing_configuration_file(
                 character_config_class=FelixConfiguration,
-                config_file=config_file)
+                config_file=config_file
+            )
 
     def generate_config(self, config_root, discovery_port):
         return FelixConfiguration.generate(
@@ -124,6 +128,7 @@ class FelixConfigOptions:
             checksum_address=self.checksum_address,
             registry_filepath=self.registry_filepath,
             provider_uri=self.provider_uri,
+            signer_uri=self.signer_uri,
             provider_process=self.eth_node,
             poa=self.poa)
 
@@ -134,6 +139,7 @@ group_config_options = group_options(
     dev=option_dev,
     network=option_network(),
     provider_uri=option_provider_uri(),
+    signer_uri=option_signer_uri,
     host=click.option('--host', help="The host to run Felix HTTP services on", type=click.STRING, default='127.0.0.1'),
     db_filepath=option_db_filepath,
     checksum_address=option_checksum_address,

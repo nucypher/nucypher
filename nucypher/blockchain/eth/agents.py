@@ -1510,8 +1510,8 @@ class MultiSigAgent(EthereumContractAgent):
         if self.is_owner(new_owner_address):
             raise self.RequirementError(f"{new_owner_address} is already an owner of the MultiSig.")
         transaction_function: ContractFunction = self.contract.functions.addOwner(new_owner_address)
-        transaction: TxParams = self.blockchain.build_transaction(contract_function=transaction_function,
-                                                                  sender_address=self.contract_address)
+        transaction: TxParams = self.blockchain.build_contract_transaction(contract_function=transaction_function,
+                                                                           sender_address=self.contract_address)
         return transaction
 
     @contract_api(TRANSACTION)
@@ -1522,8 +1522,8 @@ class MultiSigAgent(EthereumContractAgent):
             raise self.RequirementError(f"{owner_address} is not owner of the MultiSig.")
 
         transaction_function: ContractFunction = self.contract.functions.removeOwner(owner_address)
-        transaction: TxParams = self.blockchain.build_transaction(contract_function=transaction_function,
-                                                                  sender_address=self.contract_address)
+        transaction: TxParams = self.blockchain.build_contract_transaction(contract_function=transaction_function,
+                                                                           sender_address=self.contract_address)
         return transaction
 
     @contract_api(TRANSACTION)
@@ -1532,8 +1532,8 @@ class MultiSigAgent(EthereumContractAgent):
             raise self.RequirementError(f"New threshold {threshold} does not satisfy "
                                         f"0 < threshold ≤ number of owners = {self.number_of_owners}")
         transaction_function: ContractFunction = self.contract.functions.changeRequirement(threshold)
-        transaction: TxParams = self.blockchain.build_transaction(contract_function=transaction_function,
-                                                                  sender_address=self.contract_address)
+        transaction: TxParams = self.blockchain.build_contract_transaction(contract_function=transaction_function,
+                                                                           sender_address=self.contract_address)
         return transaction
 
     @contract_api(CONTRACT_CALL)

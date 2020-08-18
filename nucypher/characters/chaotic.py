@@ -112,7 +112,10 @@ class Felix(Character, NucypherTokenActor):
         self.db_engine = create_engine(f'sqlite:///{self.db_filepath}', convert_unicode=True)
 
         # Blockchain
-        transacting_power = TransactingPower(password=client_password, account=self.checksum_address, cache=True)
+        transacting_power = TransactingPower(password=client_password,
+                                             account=self.checksum_address,
+                                             signer=self.signer,
+                                             cache=True)
         self._crypto_power.consume_power_up(transacting_power)
 
         self.token_agent = ContractAgency.get_agent(NucypherTokenAgent, registry=registry)
@@ -340,14 +343,16 @@ class Felix(Character, NucypherTokenActor):
                            'from': self.checksum_address,
                            'value': ether,
                            'gasPrice': self.blockchain.client.gas_price}
-            ether_txhash = self.blockchain.client.send_transaction(transaction)
 
-            self.log.info(f"Disbursement #{self.__disbursement} OK | NU {txhash.hex()[-6:]} | ETH {ether_txhash.hex()[:-6]} "
+            transaction_dict = self.blockchain.build_payload(sender_address=self.checksum_address,
+                                                             payload=transaction,
+                                                             transaction_gas_limit=22000)
+            _receipt = self.blockchain.sign_and_broadcast_transaction(transaction_dict=transaction_dict, transaction_name='transfer')
+            self.log.info(f"Disbursement #{self.__disbursement} OK | NU {txhash.hex()[-6:]}"
                           f"({str(NU(disbursement, 'NuNit'))} + {self.ETHER_AIRDROP_AMOUNT} wei) -> {recipient_address}")
-
         else:
             self.log.info(
-                f"Disbursement #{self.__disbursement} OK | {txhash.hex()[-6:]} |"
+                f"Disbursement #{self.__disbursement} OK"
                 f"({str(NU(disbursement, 'NuNit'))} -> {recipient_address}")
 
         return txhash
