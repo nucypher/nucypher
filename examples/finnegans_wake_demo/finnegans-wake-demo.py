@@ -101,11 +101,13 @@ policy = ALICE.grant(BOB,
                      expiration=policy_end_datetime)
 
 assert policy.public_key == policy_pubkey
+policy.publishing_mutex.block_until_complete()
 
 # Alice puts her public key somewhere for Bob to find later...
 alices_pubkey_bytes_saved_for_posterity = bytes(ALICE.stamp)
 
 # ...and then disappears from the internet.
+ALICE.disenchant()
 del ALICE
 
 #####################
@@ -167,3 +169,5 @@ for counter, plaintext in enumerate(finnegans_wake):
     # We show that indeed this is the passage originally encrypted by Enrico.
     assert plaintext == delivered_cleartexts[0]
     print("Retrieved: {}".format(delivered_cleartexts[0]))
+
+BOB.disenchant()
