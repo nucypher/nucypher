@@ -273,7 +273,17 @@ class EthereumClient:
 
     @property
     def gas_price(self) -> Wei:
+        """
+        Returns client's gas price. Underneath, it uses the eth_gasPrice JSON-RPC method
+        """
         return self.w3.eth.gasPrice
+
+    def generate_gas_price(self, transaction=None) -> Wei:
+        """
+        Obtains a gas price via the current gas strategy, if any; otherwise, it resorts to the client's gas price.
+        This method mirrors the behavior of web3._utils.transactions when building transactions.
+        """
+        return self.w3.eth.generateGasPrice(transaction) or self.gas_price
 
     @property
     def block_number(self) -> BlockNumber:

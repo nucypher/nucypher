@@ -16,13 +16,18 @@
 """
 
 import datetime
+from unittest.mock import PropertyMock
+
 import pytest
 from web3 import HTTPProvider, IPCProvider, WebsocketProvider
 
 from nucypher.blockchain.eth.clients import (EthereumClient, GanacheClient, GethClient, InfuraClient, PUBLIC_CHAINS,
                                              ParityClient)
 from nucypher.blockchain.eth.interfaces import BlockchainInterface
+from tests.mock.interfaces import MockEthereumClient
 
+DEFAULT_GAS_PRICE = 42
+GAS_PRICE_FROM_STRATEGY = 1234
 
 #
 # Mock Providers
@@ -330,3 +335,14 @@ def test_ganache_web3_client():
     assert interface.client.platform is None
     assert interface.client.backend == 'ethereum-js'
     assert interface.client.is_local
+
+
+def test_gas_prices(mocker, mock_ethereum_client):
+    web3_mock = mock_ethereum_client.w3
+
+    web3_mock.eth.generateGasPrice = mocker.Mock(side_effect=[None, GAS_PRICE_FROM_STRATEGY])
+    type(web3_mock.eth).gasPrice = PropertyMock(return_value=DEFAULT_GAS_PRICE)  # See docs of PropertyMock
+
+    assert mock_ethereum_client.gas_price == DEFAULT_GAS_PRICE
+    assert mock_ethereum_client.generate_gas_price("there's no gas strategy") == DEFAULT_GAS_PRICE
+    assert mock_ethereum_client.generate_gas_price("2nd time is the charm") == GAS_PRICE_FROM_STRATEGY
