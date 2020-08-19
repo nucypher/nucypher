@@ -10,7 +10,7 @@ When they join the network, stakers specify a minimum fee rate, on a *per sharin
 
 The minimum fee rate applies to each individual worker machine managing a given sharing policy. In other words, the rate is also *per Ursula*. 
 
-If Alice wishes to employ multiple Ursulas to service a single sharing policy (``n`` > 1), a common configuration, then they must pay each staker associated with that policy the same exact fee rate. This rate will be the highest from the set of *minimum* fee rates specified by the stakers with which they engage. Alices may attempt price optimization strategies to find the cheapest group of Ursulas.
+If Alice wishes to employ multiple Ursulas to service a single sharing policy (``n`` > 1), a common configuration, then they must pay each staker associated with that policy the same fee rate. This rate will be the highest from the set of *minimum* fee rates specified by the stakers with which they engage. Alices may attempt price optimization strategies to find the cheapest group of Ursulas.
 
 When issuing a sharing policy, Alices are required to escrow a deposit covering the cost of the entire duration of the policy. This deposit is split and paid out in tranches to stakers once per period. 
 
@@ -48,7 +48,7 @@ XX,XXX GWEI ($X.XXXX) *per year*
 
 *1 GWEI = 10^-9 ETH*
 
-*USD conversion utilizes the ETHUSD 100-day rolling average of 1 ETH = $222 (08.08.20)*
+*USD conversion utilizes the ETHUSD 100-day rolling average.*
 
 Note that the minimum and maximum fee rate are a lower and upper bound to constrain the fee rate a staker may offer. The default fee rate is the rate that will be displayed and offered to Alices if the staker chooses not to configure this parameter themselves, or chooses a rate outside the boundaries of the global fee range. The default rate will also be used if the range's boundaries are updated, a staker's specified rate *now* falls outside the range, and they fail to change it.
 
@@ -57,7 +57,7 @@ Note that the global fee range is only applicable to stakers and Ursulas. Alices
 Governance & pricing paper
 ---------------------------------------
 
-In order to successfully execute the ``PolicyManager.sol`` contract, the global fee range must be adhered to by the Ursula (and Alice). Failing this, the contract will throw up an error and it will not be possible to commence a commercial engagement or pay/receive fees. Attempts to circumvent NuCypher’s smart contracts are likely to be futile (except perhaps with limited, existing, trust-heavy relationships), given the requirement of coordinated modification and redeployment by network users and a critical mass of other stakers.
+In order to successfully interact with the ``PolicyManager.sol`` contract, the global fee range must be adhered to by the Ursula (and Alice). Failing this, the contract will throw up an error and it will not be possible to commence a commercial engagement or pay/receive fees. Attempts to circumvent NuCypher’s smart contracts are likely to be futile given the requirement of coordinated modification and redeployment by network users and a critical mass of other stakers.
 
 Given its high enforceability, the presence of an inflexible fee range dictating the bounds of every transaction is arguably the most critical component of the NuCypher protocol’s economic design and parametrization, particularly over the long-term and with respect to the sustainability of the network. From a governance perspective, it is also amongst the most malleable. If a quorum of stakers wish to set prices outside the range, then they have the right to lobby and propose a widening of the global fee range, its removal altogether, or some other design modification (e.g. narrowing the range). They may do so via the NuCypher DAO – the owner of all NuCypher smart contracts -  by submitting a proposal which is validated by stakers weighted in proportion to their stake size. See <LINK> for guidance on the NuCypher DAO and official NuCypher governance processes.
 
