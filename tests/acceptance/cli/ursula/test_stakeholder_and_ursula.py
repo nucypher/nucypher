@@ -25,6 +25,7 @@ import maya
 
 from nucypher.blockchain.eth.actors import Staker
 from nucypher.blockchain.eth.agents import ContractAgency, StakingEscrowAgent
+from nucypher.blockchain.eth.constants import NULL_ADDRESS
 from nucypher.blockchain.eth.token import NU, Stake
 from nucypher.characters.lawful import Enrico, Ursula
 from nucypher.cli.literature import SUCCESSFUL_MINTING
@@ -696,7 +697,7 @@ def test_stake_unbond_worker(click_runner,
                     checksum_address=manual_staker,
                     registry=agency_local_registry)
 
-    assert not staker.worker_address
+    assert staker.worker_address == NULL_ADDRESS
 
 
 def test_set_min_rate(click_runner,

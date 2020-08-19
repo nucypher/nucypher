@@ -19,14 +19,14 @@ from typing import List
 import tabulate
 from web3.main import Web3
 
-from nucypher.blockchain.eth.constants import STAKING_ESCROW_CONTRACT_NAME
+from nucypher.blockchain.eth.constants import STAKING_ESCROW_CONTRACT_NAME, NULL_ADDRESS
 from nucypher.blockchain.eth.token import NU, Stake
 from nucypher.blockchain.eth.utils import datetime_at_period, prettify_eth_amount
 from nucypher.characters.control.emitters import StdoutEmitter
 from nucypher.cli.literature import POST_STAKING_ADVICE
 from nucypher.cli.painting.transactions import paint_receipt_summary
 
-STAKE_TABLE_COLUMNS = ('Idx', 'Value', 'Remaining', 'Enactment', 'Termination')
+STAKE_TABLE_COLUMNS = ('Idx', 'Value', 'Remaining', 'Enactment', 'Termination', 'Status')
 STAKER_TABLE_COLUMNS = ('Status', 'Restaking', 'Winding Down', 'Unclaimed Fees', 'Min fee rate')
 
 
@@ -82,7 +82,8 @@ def paint_stakes(emitter: StdoutEmitter,
         snippet_with_line = network_snippet + '═'*(line_width-len(network_snippet)+1)
         emitter.echo(snippet_with_line, bold=True)
     emitter.echo(f"Staker {staker.checksum_address} ════", bold=True, color='red' if missing else 'green')
-    emitter.echo(f"Worker {staker.worker_address} ════")
+    worker = staker.worker_address if staker.worker_address != NULL_ADDRESS else 'not bonded'
+    emitter.echo(f"Worker {worker} ════", color='red' if staker.worker_address == NULL_ADDRESS else None)
     emitter.echo(tabulate.tabulate(zip(STAKER_TABLE_COLUMNS, staker_data), floatfmt="fancy_grid"))
 
     rows = list()

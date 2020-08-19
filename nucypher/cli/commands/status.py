@@ -97,9 +97,8 @@ def stakers(general_config, registry_options, staking_address):
     """Show relevant information about stakers."""
     emitter, registry, blockchain = registry_options.setup(general_config=general_config)
     staking_agent = ContractAgency.get_agent(StakingEscrowAgent, registry=registry)
-    policy_agent = ContractAgency.get_agent(PolicyManagerAgent, registry=registry)
     stakers_list = [staking_address] if staking_address else staking_agent.get_stakers()
-    paint_stakers(emitter=emitter, stakers=stakers_list, staking_agent=staking_agent, policy_agent=policy_agent)
+    paint_stakers(emitter=emitter, stakers=stakers_list, registry=registry)
 
 
 @status.command(name='locked-tokens')
