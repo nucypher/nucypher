@@ -44,7 +44,7 @@ def spin_up_federated_ursulas(quantity: int = FLEET_POPULATION):
             rest_port=port,
             seed_nodes=[sage.seed_node_metadata()],
             start_learning_now=True,
-            db_filepath=f"{APP_DIR.user_cache_dir}/{port}.db",
+            db_filepath=f"{Path(APP_DIR.user_cache_dir) / str(port)}.db",
         )
         ursulas.append(u)
     for u in ursulas:
