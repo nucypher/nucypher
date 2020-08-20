@@ -106,7 +106,7 @@ NO_STAKING_ACCOUNTS = "No staking accounts found."
 
 SELECT_STAKING_ACCOUNT_INDEX = "Select index of staking account"
 
-NO_ACTIVE_STAKES = "There are no active stakes\n"
+NO_ACTIVE_STAKES = "No active stakes found\n"
 
 NO_STAKES_AT_ALL = "No Stakes found"
 
@@ -272,9 +272,9 @@ COLLECTING_ETH_FEE = 'Collecting {fee_amount} ETH from policy fees...'
 
 COLLECTING_PREALLOCATION_REWARD = 'Collecting {unlocked_tokens} from PreallocationEscrow contract {staking_address}...'
 
-NO_TOKENS_TO_WITHDRAW = "No tokens that can be withdrawn."
+NO_TOKENS_TO_WITHDRAW = "No tokens can be withdrawn."
 
-NO_FEE_TO_WITHDRAW = "No policy fee that can be withdrawn."
+NO_FEE_TO_WITHDRAW = "No policy fee can be withdrawn."
 
 #
 # Configuration
@@ -345,7 +345,7 @@ DECRYPTING_CHARACTER_KEYRING = 'Decrypting {name} keyring...'
 
 CONFIRM_URSULA_IPV4_ADDRESS = "Is this the public-facing IPv4 address ({rest_host}) you want to use for Ursula?"
 
-COLLECT_URSULA_IPV4_ADDRESS = "Please enter Ursula's public-facing IPv4 address here:"
+COLLECT_URSULA_IPV4_ADDRESS = "Enter Ursula's public-facing IPv4 address:"
 
 
 #
@@ -358,9 +358,9 @@ UNREADABLE_SEEDNODE_ADVISORY = "Failed to connect to teacher: {uri}"
 
 FORCE_DETECT_URSULA_IP_WARNING = "WARNING: --force is set, using auto-detected IP '{rest_host}'"
 
-NO_DOMAIN_PEERS = "WARNING - No Peers Available for domains: {domains}"
+NO_DOMAIN_PEERS = "WARNING: No Peers Available for domains: {domains}"
 
-SEEDNODE_NOT_STAKING_WARNING = "Teacher: {uri} is not actively staking, skipping"
+SEEDNODE_NOT_STAKING_WARNING = "Teacher ({uri}) is not actively staking, skipping"
 
 
 #
@@ -423,7 +423,7 @@ CONFIRM_BEGIN_UPGRADE = "Confirm deploy new version of {contract_name} and retar
 
 SUCCESSFUL_RETARGET = "Successfully re-targeted {contract_name} proxy to {target_address}"
 
-SUCCESSFUL_RETARGET_TX_BUILT = "Transaction to retarget {contract_name} proxy to {target_address} was built:"
+SUCCESSFUL_RETARGET_TX_BUILT = "Successfully built transaction to retarget {contract_name} proxy to {target_address}:"
 
 CONFIRM_BUILD_RETARGET_TRANSACTION = """
 Confirm building a re-target transaction for {contract_name}'s proxy to {target_address}?
@@ -510,7 +510,7 @@ Accept WorkLock terms and node operator obligation?"""  # TODO: Show a special m
 
 BIDDING_WINDOW_CLOSED = "❌ You can't escrow, the escrow period is closed."
 
-CANCELLATION_WINDOW_CLOSED = "❌ You can't cancel your escrow. The cancellation period is closed."
+CANCELLATION_WINDOW_CLOSED = "❌ You can't cancel your escrow, the cancellation period is closed."
 
 SUCCESSFUL_BID_CANCELLATION = "✅ Escrow canceled\n"
 
@@ -523,12 +523,12 @@ CONFIRM_REQUEST_WORKLOCK_COMPENSATION = """
 Before requesting the NU allocation for {bidder_address},
 you will need to be refunded your unspent escrow amount.
  
-Would you like to proceed?
+Proceed with request?
 """
 
 REQUESTING_WORKLOCK_COMPENSATION = "Requesting refund of unspent escrow amount..."
 
-CLAIMING_NOT_AVAILABLE = "❌ You can't request a NU allocation yet. Allocations are not currently available."
+CLAIMING_NOT_AVAILABLE = "❌ You can't request a NU allocation yet, allocations are not currently available."
 
 CLAIM_ALREADY_PLACED = "⚠️ An allocation was already assigned to {bidder_address}"
 

@@ -221,7 +221,7 @@ Alternately, you can install the development dependencies with pip:
 
 .. code-block:: bash
 
-    $ pip3 install -e .[development]
+    $ pip3 install -e .[dev]
     $ ./scripts/installation/install_solc.sh
 
 

@@ -16,7 +16,7 @@ if [ $REQSHASH == $TESTHASH ]; then
 
 else
     echo "- requirements.txt contains inconsistencies ...."
-    echo "- you may want to run `pipenv sync --dev` and then ./scripts/installation/rebuild_pipenv.sh ...."
+    echo "- you may want to run `pipenv sync --dev` and then ./scripts/circle/rebuild_pipenv.sh ...."
     echo "- which will rebuild your *requirements.txt files ...."
     diff requirements.txt circlereqs.txt
     exit 2
@@ -34,7 +34,7 @@ if [ $REQSHASH == $TESTHASH ]; then
 
 else
     echo "- dev-requirements.txt contains inconsistencies ...."
-    echo "- you may want to run `pipenv sync --dev` and then ./scripts/installation/rebuild_pipenv.sh ...."
+    echo "- you may want to run `pipenv sync --dev` and then ./scripts/circle/rebuild_pipenv.sh ...."
     echo "- which will rebuild your *requirements.txt files ...."
     diff dev-requirements.txt dev-circlereqs.txt
     exit 2
