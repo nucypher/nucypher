@@ -14,6 +14,7 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 import os
 from contextlib import suppress
 from functools import partial
+from pathlib import Path
 
 from twisted.internet import reactor
 
@@ -36,7 +37,7 @@ def spin_up_federated_ursulas(quantity: int = FLEET_POPULATION):
 
     ursulas = []
 
-    sage = ursula_maker(rest_port=ports[0], db_filepath=f"{APP_DIR.user_cache_dir}/sage.db")
+    sage = ursula_maker(rest_port=ports[0], db_filepath=f"{Path(APP_DIR.user_cache_dir) / 'sage.db'}")
 
     ursulas.append(sage)
     for index, port in enumerate(ports[1:]):
@@ -44,7 +45,7 @@ def spin_up_federated_ursulas(quantity: int = FLEET_POPULATION):
             rest_port=port,
             seed_nodes=[sage.seed_node_metadata()],
             start_learning_now=True,
-            db_filepath=f"{APP_DIR.user_cache_dir}/{port}.db",
+            db_filepath=f"{Path(APP_DIR.user_cache_dir) / port}.db",
         )
         ursulas.append(u)
     for u in ursulas:
