@@ -36,7 +36,7 @@ def spin_up_federated_ursulas(quantity: int = FLEET_POPULATION):
 
     ursulas = []
 
-    sage = ursula_maker(rest_port=ports[0], db_filepath=f"{APP_DIR.user_cache_dir}/sage.db")
+    sage = ursula_maker(rest_port=ports[0], db_filepath=f"{Path(APP_DIR.user_cache_dir) / 'sage.db'}")
 
     ursulas.append(sage)
     for index, port in enumerate(ports[1:]):
