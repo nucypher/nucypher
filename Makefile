@@ -31,7 +31,7 @@ build-docs:
 	$(MAKE) -C docs html
 
 validate-docs: build-docs
-    # Required dependencies from docs-requirements.txt
+    # Requires dependencies from docs-requirements.txt
 	python newsfragments/validate_files.py
 	towncrier --draft
 
