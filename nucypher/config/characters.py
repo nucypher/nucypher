@@ -266,7 +266,9 @@ class StakeHolderConfiguration(CharacterConfiguration):
                        domain=self.domain,
                        # TODO: Move empty collection casting to base
                        checksum_addresses=self.checksum_addresses or list(),
-                       signer_uri=self.signer_uri)
+                       signer_uri=self.signer_uri,
+                       worker_data=self.worker_data
+                       )
 
         if self.registry_filepath:
             payload.update(dict(registry_filepath=self.registry_filepath))
