@@ -591,11 +591,11 @@ class Bob(Character):
             from nucypher.policy.collections import DecentralizedTreasureMap as _MapClass
 
         start = maya.now()
+        self.block_until_number_of_known_nodes_is(8, timeout=2, learn_on_this_thread=True) # 8 and 2 are arbitrary.  Come at me.
         while True:
             if (start - maya.now()).seconds > timeout:
                 raise _MapClass.NowhereToBeFound(f"Asked {len(self.known_nodes)} nodes, but none had map {map_id} ")
 
-            self.block_until_number_of_known_nodes_is(8, timeout=2, learn_on_this_thread=True)
             nodes_with_map = self.matching_nodes_among(self.known_nodes)
             random.shuffle(nodes_with_map)
 
