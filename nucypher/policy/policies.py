@@ -221,7 +221,7 @@ class NodeEngagementMutex:
     def __repr__(self):
         return self._repr
 
-    def block_for_a_little_while(self):
+    def block_until_success_is_reasonably_likely(self):
         """
         https://www.youtube.com/watch?v=OkSLswPSq2o
         """

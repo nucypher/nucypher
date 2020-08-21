@@ -181,7 +181,7 @@ def test_mass_treasure_map_placement(fleet_of_highperf_mocked_ursulas,
         # defer.setDebugging(True)
 
         # PART II: We block for a little while to ensure that the distribution is going well.
-        policy.publishing_mutex.block_for_a_little_while()
+        policy.publishing_mutex.block_until_success_is_reasonably_likely()
         nodes_that_have_the_map_when_we_unblock = len(policy.publishing_mutex.completed)
         little_while_ended_at = datetime.now()
 
