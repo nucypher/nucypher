@@ -1040,7 +1040,7 @@ class ParallelRunner:
 
         self._deferred_list = []
         for i, worker in enumerate(self._workers):
-            self._deferred_list.append(threads.deferToThread(partial(worker_wrapper2, worker, self, i)))
+            self._deferred_list.append(threads.deferToThread(partial(worker_wrapper, worker, self, i)))
 
         successes, failures = self._queue.get()
         return list(successes.values()), list(failures.values())
