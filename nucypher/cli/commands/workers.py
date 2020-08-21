@@ -27,7 +27,7 @@ def filter_staker_addresses(stakers, stakes):
 
     staker_addresses = set()
     for staker in stakers:
-        for stake in staker.active_stakes:
+        for stake in staker.stakes:
             if stakes:
                 if not stake.staker_address in stakes:
                     continue
@@ -88,7 +88,6 @@ def destroy(general_config, staker_options, config_file, cloudprovider, stakes):
     STAKEHOLDER = staker_options.create_character(emitter, config_file)
     config_file = config_file or StakeHolderConfiguration.default_filepath()
     deployer = CloudDeployers.get_deployer(cloudprovider)(emitter, STAKEHOLDER, config_file)
-    emitter.echo(str(stakes))
     deployer.destroy_resources(stakes=stakes)
 
 
@@ -99,7 +98,7 @@ def destroy(general_config, staker_options, config_file, cloudprovider, stakes):
 @click.option('--stakes', help="one or more stakers to whom we should limit worker destruction", multiple=True)
 @group_general_config
 def status(general_config, staker_options, config_file, cloudprovider, stakes):
-    """Cleans up all previously created resources for the given netork for the cloud providern"""
+    """Displays worker status and updates worker data in stakeholder config"""
 
     emitter = setup_emitter(general_config)
 
