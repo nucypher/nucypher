@@ -15,6 +15,7 @@ You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
+from base64 import b64decode
 import json
 from collections import OrderedDict
 from typing import Optional, Tuple
