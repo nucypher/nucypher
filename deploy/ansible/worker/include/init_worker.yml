@@ -56,11 +56,16 @@
         owner: nucypher
       when: WORKER_ACCT_KEYSTORE_PATH is undefined and not account_file.stat.exists
 
+    - name: "echo nucypher_container_geth_datadir"
+      debug:
+        verbosity: 0
+        var: nucypher_container_geth_datadir
+
     # create a local geth account if one doesn't exist
     - name: "create new account and capture the address"
       become: yes
       shell:
-        cmd: 'docker run -v /home/nucypher/geth:/root ethereum/client-go:latest account new --password /root/password.txt --datadir {{geth_container_datadir}} | grep "Public address of the key:" | cut -d":" -f2- | xargs'
+        cmd: 'docker run -v /home/nucypher/geth:/root ethereum/client-go:latest account new --password /root/password.txt --datadir {{geth_container_geth_datadir}} | grep "Public address of the key:" | cut -d":" -f2- | xargs'
       register: new_geth_account_checksum
       when: not account_file.stat.exists
 
@@ -94,16 +99,8 @@
     - name: "echo worker address"
       debug:
         verbosity: 0
-        msg: "{{ active_account.stdout }}"
+        msg: "{{inventory_hostname}}:worker address:{{ active_account.stdout }}"
 
     - name: store worker address
       set_fact:
         worker_address: "{{active_account.stdout}}"
-
-    - name: "Confirm worker funds"
-      pause:
-        prompt: |
-          "Confirm ether funding for worker: https://{{etherscan_domain}}/address/{{hostvars[item]['worker_address']}}"
-          ------------------------------------------------------------------------------------------------------------------
-      with_items:
-      - "{{ ansible_play_batch }}"

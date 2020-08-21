@@ -15,8 +15,9 @@
     - name: "pull {{ nucypher_image | default('nucypher/nucypher:latest') }}"
       become: yes
       docker_image:
-        name: nucypher/nucypher
+        name: "{{ nucypher_image | default('nucypher/nucypher:latest') }}"
         source: pull
+        force_source: yes
 
     - name: "check if /home/nucypher/nucypher/ursula.json exists"
       become: yes
@@ -26,7 +27,6 @@
       register: ursula_check
 
     - name: Find my public ip
-      when: ursula_check.stat.exists == False
       uri:
         url: http://ifconfig.me/ip
         return_content: yes
@@ -36,6 +36,6 @@
       become: yes
       become_user: nucypher
       when: ursula_check.stat.exists == False
-      command: "docker run -v /home/nucypher:/root/.local/share/ -e NUCYPHER_KEYRING_PASSWORD -it {{ nucypher_image | default('nucypher/nucypher:latest') }}  nucypher ursula init --provider /root/.local/share/geth/.ethereum/goerli/geth.ipc --poa --worker-address {{active_account.stdout}} --rest-host {{ip_response.content}} --network {{network_name}} {{nucypher_ursula_init_options | default('')}}"
+      command: "docker run -v /home/nucypher:/root/.local/share/ -e NUCYPHER_KEYRING_PASSWORD -it {{ nucypher_image | default('nucypher/nucypher:latest') }}  nucypher ursula init --provider {{ blockchain_provider }} --worker-address {{active_account.stdout}} --rest-host {{ip_response.content}} --network {{network_name}} {{nucypher_ursula_init_options | default('')}}"
       environment:
         NUCYPHER_KEYRING_PASSWORD: "{{NUCYPHER_KEYRING_PASSWORD}}"

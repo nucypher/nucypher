@@ -1,0 +1,28 @@
+all:
+  children:
+    nucypher:
+      children:
+        {{deployer.network}}:
+          children:
+            nodes:
+              vars:
+                {% for attr in deployer._provider_deploy_attrs %}
+                {{attr.key}}: {{attr.value}}{% endfor %}
+                network_name: "{{deployer.network}}"
+                geth_options: "--{{deployer.chain_name}}"
+                geth_dir: '/home/nucypher/geth/.ethereum/{{deployer.chain_name}}/'
+                geth_container_geth_datadir: "/root/.ethereum/{{deployer.chain_name}}"
+                nucypher_container_geth_datadir: "/root/.local/share/geth/.ethereum/{{deployer.chain_name}}"
+                etherscan_domain: {{deployer.chain_name}}.etherscan.io
+                ansible_python_interpreter: /usr/bin/python3
+                ansible_connection: ssh
+                NUCYPHER_KEYRING_PASSWORD: {{deployer.config['keyringpassword']}}
+                NUCYPHER_WORKER_ETH_PASSWORD: {{deployer.config['ethpassword']}}
+                CHAIN_ID: {{deployer.chain_id}}
+                nucypher_image: {{deployer.config['nucypher_image']}}
+                blockchain_provider: {{deployer.config['blockchain_provider']}}
+                DECENTRALIZED: {{deployer.nodes_are_decentralized}}
+                {% if deployer.config.get('seed_network') %}SEED_NODE_URI: {{deployer.config['seed_node']}}{% endif %}
+                {% if deployer.config.get('sentry_dsn')%}SENTRY_DSN: {{deployer.config['sentry_dsn']}}{% endif %}
+              hosts:{% for node in nodes %}
+                {{node.publicaddress}}:{% endfor %}

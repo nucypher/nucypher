@@ -1,4 +1,4 @@
-- name: "Sync/Run Geth"
+- name: "Sync/Run Geth if we are running a Decentralized node"
   hosts: "{{ play_hosts }}"
   remote_user: "{{default_user}}"
   gather_facts: no
@@ -25,7 +25,7 @@
       register: geth_sync_status
       when: geth_running.stat.exists == False and restarting_geth is undefined
 
-    - name: 'check if geth is finished syncing...'
+    - name: 'checking every few seconds if geth is finished syncing... (this will continue even if you kill this process)'
       become: yes
       until: job_result.finished
       retries: 10000

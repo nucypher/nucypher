@@ -4,6 +4,14 @@
   gather_facts: no
   tasks:
 
+    - name: Keep disk space clean by pruning unneeded docker debris
+      become: yes
+      docker_prune:
+        containers: yes
+        images: yes
+        networks: yes
+        builder_cache: yes
+
     - name: "pull {{ nucypher_image | default('nucypher/nucypher:latest') }}"
       become: yes
       docker_image:
@@ -11,19 +19,7 @@
         source: pull
         force_source: yes
 
-    - name: Stop Ursula
-      become: yes
-      become_user: nucypher
-      docker_container:
-        name: ursula
-        state: stopped
-
-    - set_fact: restarting_geth=True
-    - name: Stop Geth
-      become: yes
-      docker_container:
-        name: geth
-        state: stopped
-
+- import_playbook: stop_containers.yml
 - import_playbook: run_geth.yml
+  when: DECENTRALIZED is not undefined and DECENTRALIZED
 - import_playbook: run_ursula.yml

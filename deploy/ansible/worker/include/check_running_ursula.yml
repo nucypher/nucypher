@@ -19,13 +19,14 @@
     - name: Print Result
       debug:
         msg:
-          - "{{status_data.json.nickname}}"
-          - "nucypher version:      {{status_data.json.version}}"
-          - "staker address:        {{status_data.json.staker_address}}"
-          - "worker address:        {{status_data.json.worker_address}}"
-          - "rest url:              https://{{status_data.json.rest_url}}"
-          - "missing commitments:   {{status_data.json.missing_commitments}}"
-          - "last committed period: {{status_data.json.last_committed_period}}"
-          - "balances:"
-          - "   ETH:                {{status_data.json.balances.eth}}"
-          - "   NU:                 {{status_data.json.balances.nu}}"
+          "{{status_data.json.nickname}}\n
+          nucypher version:      {{status_data.json.version}}\n
+          staker address:        {{status_data.json.staker_address}}\n
+          worker address:        {{status_data.json.worker_address}}\n
+          rest url:              https://{{status_data.json.rest_url}}\n
+          missing commitments:   {{status_data.json.missing_commitments}}\n
+          last committed period: {{status_data.json.last_committed_period}}\n
+          balances:\n
+            ETH:                {{status_data.json.balances.eth}}\n
+            NU:                 {{status_data.json.balances.nu}}\n
+          {{inventory_hostname}}:worker address:{{status_data.json.worker_address}}\n"
