@@ -17,7 +17,10 @@
 
 import click
 
-from nucypher.utilities.clouddeploy import CloudDeployers
+try:
+    from nucypher.utilities.clouddeploy import CloudDeployers
+except ImportError:
+    CloudDeployers = None
 from nucypher.cli.utils import setup_emitter
 from nucypher.config.characters import StakeHolderConfiguration
 from nucypher.cli.commands.stake import group_staker_options, option_config_file, group_general_config
@@ -55,6 +58,9 @@ def create(general_config, staker_options, config_file, cloudprovider, cloud_pro
 
     emitter = setup_emitter(general_config)
 
+    if not CloudDeployers:
+        emitter.echo("You need to have ansible installed to use `nucypher workers *` commands.  (pip install ansible)")
+
     STAKEHOLDER = staker_options.create_character(emitter, config_file)
 
     stakers = STAKEHOLDER.get_stakers()
@@ -84,6 +90,8 @@ def destroy(general_config, staker_options, config_file, cloudprovider, stakes):
     """Cleans up all previously created resources for the given netork for the cloud providern"""
 
     emitter = setup_emitter(general_config)
+    if not CloudDeployers:
+        emitter.echo("You need to have ansible installed to use `nucypher workers *` commands.  (pip install ansible)")
 
     STAKEHOLDER = staker_options.create_character(emitter, config_file)
     config_file = config_file or StakeHolderConfiguration.default_filepath()
@@ -101,6 +109,8 @@ def status(general_config, staker_options, config_file, cloudprovider, stakes):
     """Displays worker status and updates worker data in stakeholder config"""
 
     emitter = setup_emitter(general_config)
+    if not CloudDeployers:
+        emitter.echo("You need to have ansible installed to use `nucypher workers *` commands.  (pip install ansible)")
 
     STAKEHOLDER = staker_options.create_character(emitter, config_file)
     config_file = config_file or StakeHolderConfiguration.default_filepath()
