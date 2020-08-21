@@ -414,15 +414,6 @@ class Policy(ABC):
 
         self.publishing_mutex.start()
 
-
-    def inject_alice_publication_threadpool_into(self, f, *args, **kwargs):
-        d = ensureDeferred(self.alice.get_publication_threadpool(policy_id=self.id.hex()[0:10]))
-        d.addCallback(f, *args, **kwargs)
-        def huh(result):
-            assert False
-        d.addErrback(huh)
-        # return d.callback()
-
     def credential(self, with_treasure_map=True):
         """
         Creates a PolicyCredential for portable access to the policy via
@@ -821,5 +812,4 @@ class BlockchainPolicy(Policy):
             transacting_power = self.alice._crypto_power.power_ups(TransactingPower)
             publisher = self.publish_treasure_map(network_middleware=network_middleware,
                                                   blockchain_signer=transacting_power.sign_message)
-            # publisher.block_for_a_little_while()
         return publisher
