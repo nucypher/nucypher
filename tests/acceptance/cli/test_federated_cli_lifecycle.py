@@ -32,7 +32,3 @@ def test_federated_cli_lifecycle(click_runner,
                                    federated_ursulas,
                                    custom_filepath,
                                    custom_filepath_2)
-
-    # for port in _ports_to_remove:
-    #     del MOCK_KNOWN_URSULAS_CACHE[port]
-    # MOCK_KNOWN_URSULAS_CACHE
