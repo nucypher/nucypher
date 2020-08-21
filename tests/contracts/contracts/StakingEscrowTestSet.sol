@@ -257,13 +257,20 @@ contract Intermediary {
 */
 contract WorkLockForStakingEscrowMock {
 
+    NuCypherToken public immutable token;
     StakingEscrow public immutable escrow;
 
-    constructor(StakingEscrow _escrow) {
+    constructor(NuCypherToken _token, StakingEscrow _escrow) {
+        token = _token;
         escrow = _escrow;
     }
 
     function setWorkMeasurement(address _staker, bool _measureWork) external returns (uint256) {
         return escrow.setWorkMeasurement(_staker, _measureWork);
+    }
+
+    function depositFromWorkLock(address _staker, uint256 _value, uint16 _periods) external {
+        token.approve(address(escrow), _value);
+        escrow.depositFromWorkLock(_staker, _value, _periods);
     }
 }

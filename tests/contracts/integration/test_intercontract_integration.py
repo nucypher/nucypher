@@ -482,6 +482,10 @@ def test_worklock_phases(testerchain,
     testerchain.wait_for_receipt(tx)
     assert worklock.functions.workInfo(staker2).call()[2]
 
+    _wind_down, re_stake, _measure_work, _snapshots = escrow.functions.getFlags(staker2).call()
+    assert re_stake
+    assert escrow.functions.isReStakeLocked(staker2).call()
+
     assert token.functions.balanceOf(staker2).call() == 0
     assert escrow.functions.getLockedTokens(staker2, 0).call() == 0
     assert escrow.functions.getLockedTokens(staker2, 1).call() == staker2_tokens
@@ -502,6 +506,7 @@ def test_worklock_phases(testerchain,
     wind_down, _re_stake, _measure_work, _snapshots = escrow.functions.getFlags(staker2).call()
     assert wind_down
 
+    assert not escrow.functions.isReStakeLocked(staker1).call()
     tx = worklock.functions.claim().transact({'from': staker1, 'gas_price': 0})
     testerchain.wait_for_receipt(tx)
     assert worklock.functions.workInfo(staker1).call()[2]
@@ -509,6 +514,10 @@ def test_worklock_phases(testerchain,
     pytest.staker1_tokens += staker1_claims
     assert escrow.functions.getLockedTokens(staker1, 1).call() == pytest.staker1_tokens
     pytest.escrow_supply += staker1_claims
+
+    _wind_down, re_stake, _measure_work, _snapshots = escrow.functions.getFlags(staker1).call()
+    assert re_stake
+    assert escrow.functions.isReStakeLocked(staker1).call()
 
     # Staker prolongs lock duration
     tx = escrow.functions.prolongStake(0, 3).transact({'from': staker2, 'gas_price': 0})
@@ -631,8 +640,6 @@ def test_staking(testerchain,
     testerchain.wait_for_receipt(tx)
     tx = escrow.functions.bondWorker(staker1).transact({'from': staker1})
     testerchain.wait_for_receipt(tx)
-    tx = escrow.functions.setReStake(False).transact({'from': staker1})
-    testerchain.wait_for_receipt(tx)
     tx = escrow.functions.setWindDown(True).transact({'from': staker1})
     testerchain.wait_for_receipt(tx)
     wind_down, _re_stake, _measure_work, _snapshots = escrow.functions.getFlags(staker1).call()
@@ -734,14 +741,6 @@ def test_policy(testerchain,
     testerchain.wait_for_receipt(tx)
     tx = escrow.functions.commitToNextPeriod().transact({'from': staker3})
     testerchain.wait_for_receipt(tx)
-
-    # Turn on re-stake for staker1
-    _wind_down, re_stake, _measure_work, _snapshots = escrow.functions.getFlags(staker1).call()
-    assert not re_stake
-    tx = escrow.functions.setReStake(True).transact({'from': staker1})
-    testerchain.wait_for_receipt(tx)
-    _wind_down, re_stake, _measure_work, _snapshots = escrow.functions.getFlags(staker1).call()
-    assert re_stake
 
     testerchain.time_travel(hours=1)
     tx = escrow.functions.commitToNextPeriod().transact({'from': staker1})
@@ -855,14 +854,6 @@ def test_policy(testerchain,
     testerchain.wait_for_receipt(tx)
     tx = escrow.functions.commitToNextPeriod().transact({'from': staker3})
     testerchain.wait_for_receipt(tx)
-
-    # Turn off re-stake for staker1
-    _wind_down, re_stake, _measure_work, _snapshots = escrow.functions.getFlags(staker1).call()
-    assert re_stake
-    tx = escrow.functions.setReStake(False).transact({'from': staker1})
-    testerchain.wait_for_receipt(tx)
-    _wind_down, re_stake, _measure_work, _snapshots = escrow.functions.getFlags(staker1).call()
-    assert not re_stake
 
     testerchain.time_travel(hours=1)
     tx = escrow.functions.commitToNextPeriod().transact({'from': staker1})
@@ -1190,54 +1181,6 @@ def test_upgrading_adjudicator(testerchain,
     # Execute transactions
     execute_multisig_transaction(testerchain, multisig, [contracts_owners[1], contracts_owners[2]], tx)
     assert adjudicator_v1 == adjudicator.functions.target().call()
-
-
-def test_another_slashing(testerchain,
-                          token_economics,
-                          token,
-                          escrow,
-                          adjudicator,
-                          preallocation_escrow_1,
-                          mock_ursula_reencrypts,
-                          mocker):
-    creator, staker1, staker2, staker3, staker4, alice1, alice2, *contracts_owners =\
-        testerchain.client.accounts
-    ursula1_with_stamp = mock_ursula(testerchain, staker1, mocker=mocker)
-
-    # Slash two sub stakes
-    current_period = escrow.functions.getCurrentPeriod().call()
-    algorithm_sha256, base_penalty, *coefficients = token_economics.slashing_deployment_parameters
-    penalty_history_coefficient, percentage_penalty_coefficient, reward_coefficient = coefficients
-    total_previous_lock = escrow.functions.lockedPerPeriod(current_period - 1).call()
-
-    tokens_amount = escrow.functions.getAllTokens(staker1).call()
-    unlocked_amount = tokens_amount - escrow.functions.getLockedTokens(staker1, 0).call()
-    tx = escrow.functions.withdraw(unlocked_amount).transact({'from': staker1})
-    testerchain.wait_for_receipt(tx)
-    previous_lock = escrow.functions.getLockedTokensInPast(staker1, 1).call()
-    lock = escrow.functions.getLockedTokens(staker1, 0).call()
-    next_lock = escrow.functions.getLockedTokens(staker1, 1).call()
-    total_lock = escrow.functions.lockedPerPeriod(current_period).call()
-    alice2_balance = token.functions.balanceOf(alice2).call()
-    data_hash, slashing_args = generate_args_for_slashing(mock_ursula_reencrypts, ursula1_with_stamp)
-    assert not adjudicator.functions.evaluatedCFrags(data_hash).call()
-    tx = adjudicator.functions.evaluateCFrag(*slashing_args).transact({'from': alice2})
-    testerchain.wait_for_receipt(tx)
-    assert adjudicator.functions.evaluatedCFrags(data_hash).call()
-    data_hash, slashing_args = generate_args_for_slashing(mock_ursula_reencrypts, ursula1_with_stamp)
-    assert not adjudicator.functions.evaluatedCFrags(data_hash).call()
-    tx = adjudicator.functions.evaluateCFrag(*slashing_args).transact({'from': alice2})
-    testerchain.wait_for_receipt(tx)
-    assert adjudicator.functions.evaluatedCFrags(data_hash).call()
-    penalty = (2 * base_penalty + 3 * penalty_history_coefficient)
-    assert lock - penalty == escrow.functions.getAllTokens(staker1).call()
-    assert previous_lock == escrow.functions.getLockedTokensInPast(staker1, 1).call()
-    assert lock - penalty == escrow.functions.getLockedTokens(staker1, 0).call()
-    assert next_lock - (penalty - (lock - next_lock)) == escrow.functions.getLockedTokens(staker1, 1).call()
-    assert total_previous_lock == escrow.functions.lockedPerPeriod(current_period - 1).call()
-    assert total_lock - penalty == escrow.functions.lockedPerPeriod(current_period).call()
-    assert 0 == escrow.functions.lockedPerPeriod(current_period + 1).call()
-    assert alice2_balance + penalty / reward_coefficient == token.functions.balanceOf(alice2).call()
 
 
 def test_withdraw(testerchain,

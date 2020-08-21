@@ -47,7 +47,7 @@ contract StakingEscrowForWorkLockMock {
         return stakerInfo[_staker].completedWork;
     }
 
-    function deposit(address _staker, uint256 _value, uint16 _periods) external {
+    function depositFromWorkLock(address _staker, uint256 _value, uint16 _periods) external {
         stakerInfo[_staker].value = _value;
         stakerInfo[_staker].periods = _periods;
         token.transferFrom(msg.sender, address(this), _value);

@@ -23,6 +23,7 @@ from web3.contract import Contract
 
 MAX_SUB_STAKES = 30
 MAX_UINT16 = 65535
+LOCK_RE_STAKE_UNTIL_PERIOD_FIELD = 4
 
 
 def test_staking(testerchain, token, escrow_contract):
@@ -1532,3 +1533,228 @@ def test_batch_deposit(testerchain, token, escrow_contract, deploy_contract):
     assert event_args['value'] == value3
     assert event_args['firstPeriod'] == current_period + 1
     assert event_args['periods'] == duration3
+
+
+@pytest.mark.slow
+def test_staking_from_worklock(testerchain, token, escrow_contract, token_economics, deploy_contract):
+    """
+    Tests for staking method: depositFromWorkLock
+    """
+
+    maximum_allowed_locked = 1500
+    escrow = escrow_contract(maximum_allowed_locked, disable_reward=True)
+    creator, staker1, staker2, staker3, staker4 = testerchain.client.accounts[0:5]
+    deposit_log = escrow.events.Deposited.createFilter(fromBlock='latest')
+    lock_log = escrow.events.Locked.createFilter(fromBlock='latest')
+    re_stake_log = escrow.events.ReStakeSet.createFilter(fromBlock='latest')
+    re_stake_lock_log = escrow.events.ReStakeLocked.createFilter(fromBlock='latest')
+
+    # Deploy WorkLock mock
+    worklock, _ = deploy_contract('WorkLockForStakingEscrowMock', token.address, escrow.address)
+    tx = escrow.functions.setWorkLock(worklock.address).transact()
+    testerchain.wait_for_receipt(tx)
+
+    # Give WorkLock and Staker some coins
+    tx = token.functions.transfer(staker1, maximum_allowed_locked).transact({'from': creator})
+    testerchain.wait_for_receipt(tx)
+    tx = token.functions.transfer(worklock.address, maximum_allowed_locked).transact({'from': creator})
+    testerchain.wait_for_receipt(tx)
+
+    # Can't use method not from WorkLock
+    value = token_economics.minimum_allowed_locked
+    duration = token_economics.minimum_locked_periods
+    with pytest.raises((TransactionFailed, ValueError)):
+        tx = escrow.functions.depositFromWorkLock(staker1, value, duration).transact({'from': staker1})
+        testerchain.wait_for_receipt(tx)
+    assert token.functions.balanceOf(escrow.address).call() == 0
+    _wind_down, re_stake, _measure_work, _snapshots = escrow.functions.getFlags(staker1).call()
+    assert re_stake
+    assert not escrow.functions.isReStakeLocked(staker1).call()
+    staker_info = escrow.functions.stakerInfo(staker1).call()
+    assert staker_info[LOCK_RE_STAKE_UNTIL_PERIOD_FIELD] == 0
+
+    # Deposit tokens from WorkLock
+    current_period = escrow.functions.getCurrentPeriod().call()
+    tx = worklock.functions.depositFromWorkLock(staker1, value, duration).transact()
+    testerchain.wait_for_receipt(tx)
+    assert token.functions.balanceOf(escrow.address).call() == value
+    assert escrow.functions.getLockedTokens(staker1, 0).call() == 0
+    assert escrow.functions.getLockedTokens(staker1, 1).call() == value
+    assert escrow.functions.getLockedTokens(staker1, duration).call() == value
+    assert escrow.functions.getLockedTokens(staker1, duration + 1).call() == 0
+    _wind_down, re_stake, _measure_work, _snapshots = escrow.functions.getFlags(staker1).call()
+    assert re_stake
+    assert escrow.functions.isReStakeLocked(staker1).call()
+    staker_info = escrow.functions.stakerInfo(staker1).call()
+    assert staker_info[LOCK_RE_STAKE_UNTIL_PERIOD_FIELD] == current_period + duration
+
+    # Check that all events are emitted
+    events = deposit_log.get_all_entries()
+    assert len(events) == 1
+    event_args = events[-1]['args']
+    assert event_args['staker'] == staker1
+    assert event_args['value'] == value
+    assert event_args['periods'] == duration
+
+    events = lock_log.get_all_entries()
+    assert len(events) == 1
+    event_args = events[-1]['args']
+    assert event_args['staker'] == staker1
+    assert event_args['value'] == value
+    assert event_args['firstPeriod'] == current_period + 1
+    assert event_args['periods'] == duration
+
+    events = re_stake_log.get_all_entries()
+    assert len(events) == 0
+    events = re_stake_lock_log.get_all_entries()
+    assert len(events) == 1
+    event_args = events[-1]['args']
+    assert event_args['staker'] == staker1
+    assert event_args['lockUntilPeriod'] == current_period + duration
+
+    # Staker disables `reStake` parameter before depositing tokens
+    duration += 1
+    value += 1
+    tx = escrow.functions.setReStake(False).transact({'from': staker2})
+    testerchain.wait_for_receipt(tx)
+    _wind_down, re_stake, _measure_work, _snapshots = escrow.functions.getFlags(staker2).call()
+    assert not re_stake
+    events = re_stake_log.get_all_entries()
+    assert len(events) == 1
+
+    tx = worklock.functions.depositFromWorkLock(staker2, value, duration).transact()
+    testerchain.wait_for_receipt(tx)
+    assert escrow.functions.getLockedTokens(staker2, 0).call() == 0
+    assert escrow.functions.getLockedTokens(staker2, 1).call() == value
+    assert escrow.functions.getLockedTokens(staker2, duration).call() == value
+    assert escrow.functions.getLockedTokens(staker2, duration + 1).call() == 0
+    _wind_down, re_stake, _measure_work, _snapshots = escrow.functions.getFlags(staker2).call()
+    assert re_stake
+    assert escrow.functions.isReStakeLocked(staker2).call()
+    staker_info = escrow.functions.stakerInfo(staker2).call()
+    assert staker_info[LOCK_RE_STAKE_UNTIL_PERIOD_FIELD] == current_period + duration
+
+    events = deposit_log.get_all_entries()
+    assert len(events) == 2
+    event_args = events[-1]['args']
+    assert event_args['staker'] == staker2
+    assert event_args['value'] == value
+    assert event_args['periods'] == duration
+
+    events = lock_log.get_all_entries()
+    assert len(events) == 2
+    event_args = events[-1]['args']
+    assert event_args['staker'] == staker2
+    assert event_args['value'] == value
+    assert event_args['firstPeriod'] == current_period + 1
+    assert event_args['periods'] == duration
+
+    events = re_stake_log.get_all_entries()
+    assert len(events) == 2
+    event_args = events[-1]['args']
+    assert event_args['staker'] == staker2
+    assert event_args['reStake']
+
+    events = re_stake_lock_log.get_all_entries()
+    assert len(events) == 2
+    event_args = events[-1]['args']
+    assert event_args['staker'] == staker2
+    assert event_args['lockUntilPeriod'] == current_period + duration
+
+    # Staker locks `reStake` parameter before depositing tokens for short period
+    duration += 1
+    value += 1
+    tx = escrow.functions.setReStake(False).transact({'from': staker3})
+    testerchain.wait_for_receipt(tx)
+    tx = escrow.functions.lockReStake(current_period + duration - 1).transact({'from': staker3})
+    testerchain.wait_for_receipt(tx)
+    staker_info = escrow.functions.stakerInfo(staker3).call()
+    assert staker_info[LOCK_RE_STAKE_UNTIL_PERIOD_FIELD] == current_period + duration - 1
+
+    events = re_stake_log.get_all_entries()
+    assert len(events) == 3
+    events = re_stake_lock_log.get_all_entries()
+    assert len(events) == 3
+
+    tx = worklock.functions.depositFromWorkLock(staker3, value, duration).transact()
+    testerchain.wait_for_receipt(tx)
+    assert escrow.functions.getLockedTokens(staker3, 0).call() == 0
+    assert escrow.functions.getLockedTokens(staker3, 1).call() == value
+    assert escrow.functions.getLockedTokens(staker3, duration).call() == value
+    assert escrow.functions.getLockedTokens(staker3, duration + 1).call() == 0
+    _wind_down, re_stake, _measure_work, _snapshots = escrow.functions.getFlags(staker3).call()
+    assert re_stake
+    assert escrow.functions.isReStakeLocked(staker3).call()
+    staker_info = escrow.functions.stakerInfo(staker3).call()
+    assert staker_info[LOCK_RE_STAKE_UNTIL_PERIOD_FIELD] == current_period + duration
+
+    events = deposit_log.get_all_entries()
+    assert len(events) == 3
+    event_args = events[-1]['args']
+    assert event_args['staker'] == staker3
+    assert event_args['value'] == value
+    assert event_args['periods'] == duration
+
+    events = lock_log.get_all_entries()
+    assert len(events) == 3
+    event_args = events[-1]['args']
+    assert event_args['staker'] == staker3
+    assert event_args['value'] == value
+    assert event_args['firstPeriod'] == current_period + 1
+    assert event_args['periods'] == duration
+
+    events = re_stake_log.get_all_entries()
+    assert len(events) == 4
+    event_args = events[-1]['args']
+    assert event_args['staker'] == staker3
+    assert event_args['reStake']
+
+    events = re_stake_lock_log.get_all_entries()
+    assert len(events) == 4
+    event_args = events[-1]['args']
+    assert event_args['staker'] == staker3
+    assert event_args['lockUntilPeriod'] == current_period + duration
+
+    # Staker locks `reStake` parameter before depositing tokens for long duration
+    duration += 1
+    value += 1
+    tx = escrow.functions.lockReStake(current_period + duration + 1).transact({'from': staker4})
+    testerchain.wait_for_receipt(tx)
+    staker_info = escrow.functions.stakerInfo(staker4).call()
+    assert staker_info[LOCK_RE_STAKE_UNTIL_PERIOD_FIELD] == current_period + duration + 1
+
+    events = re_stake_lock_log.get_all_entries()
+    assert len(events) == 5
+
+    tx = worklock.functions.depositFromWorkLock(staker4, value, duration).transact()
+    testerchain.wait_for_receipt(tx)
+    assert escrow.functions.getLockedTokens(staker4, 0).call() == 0
+    assert escrow.functions.getLockedTokens(staker4, 1).call() == value
+    assert escrow.functions.getLockedTokens(staker4, duration).call() == value
+    assert escrow.functions.getLockedTokens(staker4, duration + 1).call() == 0
+    _wind_down, re_stake, _measure_work, _snapshots = escrow.functions.getFlags(staker4).call()
+    assert re_stake
+    assert escrow.functions.isReStakeLocked(staker4).call()
+    staker_info = escrow.functions.stakerInfo(staker4).call()
+    assert staker_info[LOCK_RE_STAKE_UNTIL_PERIOD_FIELD] == current_period + duration + 1
+
+    events = deposit_log.get_all_entries()
+    assert len(events) == 4
+    event_args = events[-1]['args']
+    assert event_args['staker'] == staker4
+    assert event_args['value'] == value
+    assert event_args['periods'] == duration
+
+    events = lock_log.get_all_entries()
+    assert len(events) == 4
+    event_args = events[-1]['args']
+    assert event_args['staker'] == staker4
+    assert event_args['value'] == value
+    assert event_args['firstPeriod'] == current_period + 1
+    assert event_args['periods'] == duration
+
+    events = re_stake_log.get_all_entries()
+    assert len(events) == 4
+
+    events = re_stake_lock_log.get_all_entries()
+    assert len(events) == 5

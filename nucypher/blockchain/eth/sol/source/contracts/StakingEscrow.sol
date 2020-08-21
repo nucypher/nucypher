@@ -41,7 +41,7 @@ interface WorkLockInterface {
 /**
 * @notice Contract holds and locks stakers tokens.
 * Each staker that locks their tokens will receive some compensation
-* @dev |v5.2.2|
+* @dev |v5.3.1|
 */
 contract StakingEscrow is Issuer, IERC900History {
 
@@ -527,6 +527,36 @@ contract StakingEscrow is Issuer, IERC900History {
             _lockReStakeUntilPeriod > getCurrentPeriod());
         stakerInfo[msg.sender].lockReStakeUntilPeriod = _lockReStakeUntilPeriod;
         emit ReStakeLocked(msg.sender, _lockReStakeUntilPeriod);
+    }
+
+    /**
+    * @notice Deposit tokens and lock `reStake` parameter from WorkLock contract
+    * @param _staker Staker address
+    * @param _value Amount of tokens to deposit
+    * @param _periods Amount of periods during which tokens will be locked
+    * and number of period after which `reStake` can be changed
+    */
+    function depositFromWorkLock(
+        address _staker,
+        uint256 _value,
+        uint16 _periods
+    )
+        external
+    {
+        require(msg.sender == address(workLock));
+        deposit(_staker, msg.sender, MAX_SUB_STAKES, _value, _periods);
+        StakerInfo storage info = stakerInfo[_staker];
+        // reset bit when `reStake` is already disabled
+        if (info.flags.bitSet(RE_STAKE_DISABLED_INDEX) == true) {
+            info.flags = info.flags.toggleBit(RE_STAKE_DISABLED_INDEX);
+            emit ReStakeSet(_staker, true);
+        }
+        // lock `reStake` parameter if it's not locked or locked for too short duration
+        uint16 lockReStakeUntilPeriod = getCurrentPeriod().add16(_periods);
+        if (lockReStakeUntilPeriod > info.lockReStakeUntilPeriod) {
+            info.lockReStakeUntilPeriod = lockReStakeUntilPeriod;
+            emit ReStakeLocked(_staker, lockReStakeUntilPeriod);
+        }
     }
 
     /**
