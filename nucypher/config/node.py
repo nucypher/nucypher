@@ -120,7 +120,7 @@ class CharacterConfiguration(BaseConfiguration):
                  registry_filepath: str = None,
 
                  # Deployed Workers
-                 workers: dict = None):
+                 worker_data: dict = None):
 
         self.log = Logger(self.__class__.__name__)
         UNINITIALIZED_CONFIGURATION.bool_value(False)
@@ -169,7 +169,7 @@ class CharacterConfiguration(BaseConfiguration):
         self.config_root = UNINITIALIZED_CONFIGURATION
 
         # Deployed Workers
-        self.worker_data = workers
+        self.worker_data = worker_data
 
         #
         # Federated vs. Blockchain arguments consistency

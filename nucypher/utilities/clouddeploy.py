@@ -325,9 +325,9 @@ class BaseCloudNodeConfigurator:
     def update_stakeholder_config(self):
         data = {}
         data = json.loads(open(self.config['stakeholder_config_file'], 'r').read())
-        existing_worker_data = data.get('workers', {})
+        existing_worker_data = data.get('worker_data', {})
         existing_worker_data.update(self.config['instances'])
-        data['workers'] = existing_worker_data
+        data['worker_data'] = existing_worker_data
         with open(self.config['stakeholder_config_file'], 'w') as outfile:
             json.dump(data, outfile, indent=4)
 
