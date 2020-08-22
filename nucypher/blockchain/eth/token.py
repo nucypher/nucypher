@@ -360,7 +360,8 @@ class Stake:
                     value=str(self.value),
                     remaining=self.periods_remaining,
                     enactment=start_datetime,
-                    last_period=end_datetime)
+                    last_period=end_datetime,
+                    status=self.status().name)
         return data
 
     #

@@ -31,14 +31,14 @@ build-docs:
 	$(MAKE) -C docs html
 
 validate-docs: build-docs
-    # Required dependencies from docs/requirements.txt
+    # Requires dependencies from docs-requirements.txt
 	python newsfragments/validate_files.py
 	towncrier --draft
 
 docs: build-docs validate-docs
 	readlink -f docs/build/html/index.html
 
-mac-docs: build-docs
+mac-docs: build-docs validate-docs
 	open docs/build/html/index.html
 
 release: clean

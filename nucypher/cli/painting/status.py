@@ -22,10 +22,12 @@ import maya
 from typing import List
 from web3.main import Web3
 
+from nucypher.blockchain.eth.actors import Staker
 from nucypher.blockchain.eth.agents import AdjudicatorAgent, ContractAgency, NucypherTokenAgent, PolicyManagerAgent, \
     StakingEscrowAgent
 from nucypher.blockchain.eth.constants import NULL_ADDRESS
 from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
+from nucypher.blockchain.eth.registry import BaseContractRegistry
 from nucypher.blockchain.eth.token import NU
 from nucypher.blockchain.eth.utils import prettify_eth_amount
 from nucypher.acumen.nicknames import nickname_from_seed
@@ -140,33 +142,38 @@ def paint_locked_tokens_status(emitter, agent, periods) -> None:
                      f"Min: {NU.from_nunits(bucket_min)} - Max: {NU.from_nunits(bucket_max)}")
 
 
-def paint_stakers(emitter, stakers: List[str], staking_agent, policy_agent) -> None:
+def paint_stakers(emitter, stakers: List[str], registry: BaseContractRegistry) -> None:
+    staking_agent = ContractAgency.get_agent(StakingEscrowAgent, registry=registry)
     current_period = staking_agent.get_current_period()
     emitter.echo(f"\nCurrent period: {current_period}")
     emitter.echo("\n| Stakers |\n")
     emitter.echo(f"{'Checksum address':42}  Staker information")
     emitter.echo('=' * (42 + 2 + 53))
 
-    for staker in stakers:
-        nickname, pairs = nickname_from_seed(staker)
+    for staker_address in stakers:
+        staker = Staker(is_me=False, checksum_address=staker_address, registry=registry)
+        nickname, pairs = nickname_from_seed(staker_address)
         symbols = f"{pairs[0][1]}  {pairs[1][1]}"
-        emitter.echo(f"{staker}  {'Nickname:':10} {nickname} {symbols}")
-        tab = " " * len(staker)
+        emitter.echo(f"{staker_address}  {'Nickname:':10} {nickname} {symbols}")
+        tab = " " * len(staker_address)
 
-        owned_tokens = staking_agent.owned_tokens(staker)
-        last_committed_period = staking_agent.get_last_committed_period(staker)
-        worker = staking_agent.get_worker_from_staker(staker)
-        is_restaking = staking_agent.is_restaking(staker)
-        is_winding_down = staking_agent.is_winding_down(staker)
+        owned_tokens = staker.owned_tokens()
+        last_committed_period = staker.last_committed_period
+        worker = staker.worker_address
+        is_restaking = staker.is_restaking
+        is_winding_down = staker.is_winding_down
 
         missing_commitments = current_period - last_committed_period
-        owned_in_nu = round(NU.from_nunits(owned_tokens), 2)
-        locked_tokens = round(NU.from_nunits(staking_agent.get_locked_tokens(staker)), 2)
+        owned_in_nu = round(owned_tokens, 2)
+        current_locked_tokens = round(staker.locked_tokens(periods=0), 2)
+        next_locked_tokens = round(staker.locked_tokens(periods=1), 2)
 
-        emitter.echo(f"{tab}  {'Owned:':10} {owned_in_nu}  (Staked: {locked_tokens})")
+        emitter.echo(f"{tab}  {'Owned:':10} {owned_in_nu}")
+        emitter.echo(f"{tab}  Staked in current period: {current_locked_tokens}")
+        emitter.echo(f"{tab}  Staked in next period: {next_locked_tokens}")
         if is_restaking:
-            if staking_agent.is_restaking_locked(staker):
-                unlock_period = staking_agent.get_restake_unlock_period(staker)
+            if staker.restaking_lock_enabled:
+                unlock_period = staker.restake_unlock_period
                 emitter.echo(f"{tab}  {'Re-staking:':10} Yes  (Locked until period: {unlock_period})")
             else:
                 emitter.echo(f"{tab}  {'Re-staking:':10} Yes  (Unlocked)")
@@ -191,8 +198,8 @@ def paint_stakers(emitter, stakers: List[str], staking_agent, policy_agent) -> N
         else:
             emitter.echo(f"{worker}")
 
-        fees = prettify_eth_amount(policy_agent.get_fee_amount(staker))
+        fees = prettify_eth_amount(staker.calculate_policy_fee())
         emitter.echo(f"{tab}  Unclaimed fees: {fees}")
 
-        min_rate = prettify_eth_amount(policy_agent.get_min_fee_rate(staker))
+        min_rate = prettify_eth_amount(staker.min_fee_rate)
         emitter.echo(f"{tab}  Min fee rate: {min_rate}")

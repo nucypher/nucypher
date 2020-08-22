@@ -147,7 +147,7 @@ class CharacterConfiguration(BaseConfiguration):
         self.is_light = light
         self.provider_uri = provider_uri or NO_BLOCKCHAIN_CONNECTION
         self.provider_process = provider_process or NO_BLOCKCHAIN_CONNECTION
-        self.signer_uri = signer_uri or NO_BLOCKCHAIN_CONNECTION
+        self.signer_uri = signer_uri or None
 
         # Learner
         self.federated_only = federated_only

@@ -180,15 +180,24 @@ Building Documentation
 Documentation for ``nucypher`` is hosted on `Read The Docs`_, and is automatically built without intervention by following the release procedure.
 However, you may want to build the documentation html locally for development.
 
-To build the project dependencies locally:
+To build the project dependencies locally on Linux:
 
 .. code:: bash
 
     (nucypher)$ make docs
 
+or on MacOS:
 
-If the build is successful, the resulting html output can be found in ``nucypher/docs/build/html``;
-Opening ``nucypher/docs/build/html/index.html`` in a web browser is a reasonable next step.
+.. code:: bash
+
+    (nucypher)$ make mac-docs
+
+If the build is successful, the resulting local documentation homepage, ``nucypher/docs/build/html/index.html``, will
+be automatically opened in the web browser.
+
+.. note::
+
+    If you would rather not have the homepage automatically opened, then run ``make build-docs`` instead.
 
 
 Building Docker

@@ -225,6 +225,7 @@ class BaseContractRegistry(ABC):
     def __init__(self, source=NO_REGISTRY_SOURCE, *args, **kwargs):
         self.__source = source
         self.log = Logger("registry")
+        self._id = None
 
     def __eq__(self, other) -> bool:
         if self is other:
@@ -238,11 +239,11 @@ class BaseContractRegistry(ABC):
     @property
     def id(self) -> str:
         """Returns a hexstr of the registry contents."""
-        blake = hashlib.blake2b()
-        blake.update(self.__class__.__name__.encode())
-        blake.update(json.dumps(self.read()).encode())
-        digest = blake.digest().hex()
-        return digest
+        if not self._id:
+            blake = hashlib.blake2b()
+            blake.update(json.dumps(self.read()).encode())
+            self._id = blake.digest().hex()
+        return self._id
 
     @abstractmethod
     def _destroy(self) -> None:
@@ -413,6 +414,8 @@ class LocalContractRegistry(BaseContractRegistry):
             registry_file.write(json.dumps(registry_data))
             registry_file.truncate()
 
+        self._id = None
+
     def _destroy(self) -> None:
         os.remove(self.filepath)
 
@@ -468,6 +471,7 @@ class InMemoryContractRegistry(BaseContractRegistry):
 
     def write(self, registry_data: list) -> None:
         self.__registry_data = json.dumps(registry_data)
+        self._id = None
 
     def read(self) -> list:
         try:
@@ -593,6 +597,7 @@ class InMemoryAllocationRegistry(AllocationRegistry):
 
     def write(self, registry_data: dict) -> None:
         self.__registry_data = json.dumps(registry_data)
+        self._id = None
 
     def read(self) -> dict:
         try:

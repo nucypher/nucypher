@@ -233,6 +233,7 @@ class FelixConfiguration(CharacterConfiguration):
          rest_host=self.rest_host,
          rest_port=self.rest_port,
          db_filepath=self.db_filepath,
+         signer_uri=self.signer_uri
         )
         return {**super().static_payload(), **payload}
 

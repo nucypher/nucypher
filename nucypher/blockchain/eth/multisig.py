@@ -81,7 +81,6 @@ class Proposal:
         if self.data:
             if not contract:
                 agent = ContractAgency.get_agent(MultiSigAgent, registry=registry)
-                registry = agent.registry
                 blockchain = agent.blockchain
 
                 name, version, address, abi = registry.search(contract_address=self.target_address)

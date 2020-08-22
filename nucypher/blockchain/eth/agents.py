@@ -100,13 +100,13 @@ class EthereumContractAgent:
                  transaction_gas: Optional[Wei] = None):
 
         self.log = Logger(self.__class__.__name__)
-        self.registry = registry
+        self.registry_str = str(registry)
 
         self.blockchain = BlockchainInterfaceFactory.get_or_create_interface(provider_uri=provider_uri)
 
         if not contract:  # Fetch the contract
             contract = self.blockchain.get_contract_by_name(
-                registry=self.registry,
+                registry=registry,
                 contract_name=self.contract_name,
                 proxy_name=self._proxy_name,
                 use_proxy_address=self._forward_address
@@ -122,12 +122,12 @@ class EthereumContractAgent:
         self.log.info("Initialized new {} for {} with {} and {}".format(self.__class__.__name__,
                                                                         self.contract.address,
                                                                         self.blockchain.provider_uri,
-                                                                        self.registry))
+                                                                        self.registry_str))
 
     def __repr__(self) -> str:
         class_name = self.__class__.__name__
         r = "{}(registry={}, contract={})"
-        return r.format(class_name, self.registry, self.contract_name)
+        return r.format(class_name, self.registry_str, self.contract_name)
 
     def __eq__(self, other: Any) -> bool:
         return bool(self.contract.address == other.contract.address)
@@ -945,6 +945,9 @@ class PreallocationEscrowAgent(EthereumContractAgent):
         self.__read_principal()
         self.__read_interface(registry)
 
+        self.token_agent: NucypherTokenAgent = ContractAgency.get_agent(NucypherTokenAgent, registry)
+        self.staking_agent: StakingEscrowAgent = ContractAgency.get_agent(StakingEscrowAgent, registry)
+
         super().__init__(contract=self.principal_contract, registry=registry, *args, **kwargs)
 
     def __read_interface(self, registry: BaseContractRegistry) -> None:
@@ -1003,18 +1006,15 @@ class PreallocationEscrowAgent(EthereumContractAgent):
     @property  # type: ignore
     @contract_api(CONTRACT_ATTRIBUTE)
     def available_balance(self) -> int:
-        token_agent: NucypherTokenAgent = ContractAgency.get_agent(NucypherTokenAgent, self.registry)
-        staking_agent: StakingEscrowAgent = ContractAgency.get_agent(StakingEscrowAgent, self.registry)
-
-        overall_balance = token_agent.get_balance(self.principal_contract.address)
-        seconds_per_period = staking_agent.contract.functions.secondsPerPeriod().call()
-        current_period = staking_agent.get_current_period()
+        overall_balance = self.token_agent.get_balance(self.principal_contract.address)
+        seconds_per_period = self.staking_agent.contract.functions.secondsPerPeriod().call()
+        current_period = self.staking_agent.get_current_period()
         end_lock_period = epoch_to_period(self.end_timestamp, seconds_per_period=seconds_per_period)
 
         available_balance = overall_balance
         if current_period <= end_lock_period:
-            staked_tokens = staking_agent.get_locked_tokens(staker_address=self.principal_contract.address,
-                                                            periods=end_lock_period - current_period)
+            staked_tokens = self.staking_agent.get_locked_tokens(staker_address=self.principal_contract.address,
+                                                                 periods=end_lock_period - current_period)
             if self.unvested_tokens > staked_tokens:
                 # The staked amount is deducted from the locked amount
                 available_balance -= self.unvested_tokens - staked_tokens
@@ -1510,8 +1510,8 @@ class MultiSigAgent(EthereumContractAgent):
         if self.is_owner(new_owner_address):
             raise self.RequirementError(f"{new_owner_address} is already an owner of the MultiSig.")
         transaction_function: ContractFunction = self.contract.functions.addOwner(new_owner_address)
-        transaction: TxParams = self.blockchain.build_transaction(contract_function=transaction_function,
-                                                                  sender_address=self.contract_address)
+        transaction: TxParams = self.blockchain.build_contract_transaction(contract_function=transaction_function,
+                                                                           sender_address=self.contract_address)
         return transaction
 
     @contract_api(TRANSACTION)
@@ -1522,8 +1522,8 @@ class MultiSigAgent(EthereumContractAgent):
             raise self.RequirementError(f"{owner_address} is not owner of the MultiSig.")
 
         transaction_function: ContractFunction = self.contract.functions.removeOwner(owner_address)
-        transaction: TxParams = self.blockchain.build_transaction(contract_function=transaction_function,
-                                                                  sender_address=self.contract_address)
+        transaction: TxParams = self.blockchain.build_contract_transaction(contract_function=transaction_function,
+                                                                           sender_address=self.contract_address)
         return transaction
 
     @contract_api(TRANSACTION)
@@ -1532,8 +1532,8 @@ class MultiSigAgent(EthereumContractAgent):
             raise self.RequirementError(f"New threshold {threshold} does not satisfy "
                                         f"0 < threshold ≤ number of owners = {self.number_of_owners}")
         transaction_function: ContractFunction = self.contract.functions.changeRequirement(threshold)
-        transaction: TxParams = self.blockchain.build_transaction(contract_function=transaction_function,
-                                                                  sender_address=self.contract_address)
+        transaction: TxParams = self.blockchain.build_contract_transaction(contract_function=transaction_function,
+                                                                           sender_address=self.contract_address)
         return transaction
 
     @contract_api(CONTRACT_CALL)

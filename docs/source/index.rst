@@ -154,6 +154,7 @@ Whitepapers
    architecture/upgradeable_proxy_contracts
    architecture/sub_stakes
    architecture/slashing
+   architecture/service_fees
 
 .. toctree::
    :maxdepth: 1

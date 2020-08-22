@@ -20,6 +20,10 @@ import json
 import os
 import sys
 import time
+
+from web3.types import TxReceipt
+
+from constant_sorrow.constants import FULL, NO_WORKER_BONDED, WORKER_NOT_RUNNING
 from decimal import Decimal
 from web3.types import TxReceipt
 import traceback
@@ -815,7 +819,7 @@ class Staker(NucypherTokenActor):
         self.log = Logger("staker")
 
         self.is_me = is_me
-        self.__worker_address = None
+        self._worker_address = None
 
         # Blockchain
         self.policy_agent = ContractAgency.get_agent(PolicyManagerAgent, registry=self.registry)
@@ -1249,6 +1253,11 @@ class Staker(NucypherTokenActor):
         status = self.staking_agent.is_restaking_locked(staker_address=self.checksum_address)
         return status
 
+    @property
+    def restake_unlock_period(self) -> int:
+        period = self.staking_agent.get_restake_unlock_period(staker_address=self.checksum_address)
+        return period
+
     def disable_restaking(self) -> TxReceipt:
         receipt = self._set_restaking(value=False)
         return receipt
@@ -1279,6 +1288,11 @@ class Staker(NucypherTokenActor):
         staked_amount: NuNits = self.staking_agent.non_withdrawable_stake(staker_address=self.checksum_address)
         return NU.from_nunits(staked_amount)
 
+    @property
+    def last_committed_period(self) -> int:
+        period = self.staking_agent.get_last_committed_period(staker_address=self.checksum_address)
+        return period
+
     def mintable_periods(self) -> int:
         """
         Returns number of periods that can be rewarded in the current period. Value in range [0, 2]
@@ -1308,21 +1322,17 @@ class Staker(NucypherTokenActor):
         else:
             receipt = self.staking_agent.bond_worker(staker_address=self.checksum_address,
                                                      worker_address=worker_address)
-        self.__worker_address = worker_address
+        self._worker_address = worker_address
         return receipt
 
     @property
     def worker_address(self) -> str:
-        if self.__worker_address:
+        if not self._worker_address:
             # TODO: This is broken for StakeHolder with different stakers - See #1358
-            return self.__worker_address
-        else:
             worker_address = self.staking_agent.get_worker_from_staker(staker_address=self.checksum_address)
-            self.__worker_address = worker_address
+            self._worker_address = worker_address
 
-        if self.__worker_address == NULL_ADDRESS:
-            return NO_WORKER_BONDED.bool_value(False)
-        return self.__worker_address
+        return self._worker_address
 
     @only_me
     @save_receipt
@@ -1331,7 +1341,7 @@ class Staker(NucypherTokenActor):
             receipt = self.preallocation_escrow_agent.release_worker()
         else:
             receipt = self.staking_agent.release_worker(staker_address=self.checksum_address)
-        self.__worker_address = NULL_ADDRESS
+        self._worker_address = NULL_ADDRESS
         return receipt
 
     #
@@ -1843,6 +1853,7 @@ class StakeHolder(Staker):
             self.preallocation_escrow_agent = None
 
         self.checksum_address = staking_address
+        self._worker_address = None
         self.stakes = StakeList(registry=self.registry, checksum_address=staking_address)
         self.refresh_stakes()
 
