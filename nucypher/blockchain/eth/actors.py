@@ -20,10 +20,6 @@ import json
 import os
 import sys
 import time
-
-from web3.types import TxReceipt
-
-from constant_sorrow.constants import FULL, NO_WORKER_BONDED, WORKER_NOT_RUNNING
 from decimal import Decimal
 from web3.types import TxReceipt
 import traceback
@@ -35,7 +31,7 @@ from typing import Dict, Iterable, List, Optional, Tuple
 from web3 import Web3
 from web3.exceptions import ValidationError
 
-from constant_sorrow.constants import FULL, NO_WORKER_BONDED, WORKER_NOT_RUNNING
+from constant_sorrow.constants import FULL, WORKER_NOT_RUNNING
 from nucypher.acumen.nicknames import nickname_from_seed
 from nucypher.blockchain.economics import BaseEconomics, EconomicsFactory, StandardTokenEconomics
 from nucypher.blockchain.eth.agents import (
@@ -918,47 +914,6 @@ class Staker(NucypherTokenActor):
         return stakes
 
     @only_me
-    def divide_stake(self,
-                     stake_index: int,
-                     target_value: NU,
-                     additional_periods: int = None,
-                     expiration: maya.MayaDT = None) -> tuple:
-
-        # Calculate duration in periods
-        if additional_periods and expiration:
-            raise ValueError("Pass the number of lock periods or an expiration MayaDT; not both.")
-
-        # Update staking cache element
-        stakes = self.stakes
-
-        # Select stake to divide from local cache
-        try:
-            current_stake = stakes[stake_index]
-        except KeyError:
-            if len(stakes):
-                message = f"Cannot divide stake - No stake exists with index {stake_index}."
-            else:
-                message = "Cannot divide stake - There are no active stakes."
-            raise Stake.StakingError(message)
-
-        # Calculate stake duration in periods
-        if expiration:
-            additional_periods = datetime_to_period(datetime=expiration,
-                                                    seconds_per_period=self.economics.seconds_per_period) - current_stake.final_locked_period
-            if additional_periods <= 0:
-                raise Stake.StakingError(f"New expiration {expiration} must be at least 1 period from the "
-                                         f"current stake's end period ({current_stake.final_locked_period}).")
-
-        # Do it already!
-        modified_stake, new_stake = current_stake.divide(target_value=target_value,
-                                                         additional_periods=additional_periods)
-
-        # Update staking cache element
-        self.stakes.refresh()
-
-        return modified_stake, new_stake
-
-    @only_me
     def initialize_stake(self,
                          amount: NU = None,
                          lock_periods: int = None,
@@ -1527,7 +1482,7 @@ class Worker(NucypherTokenActor):
 
         timeout = timeout or self.BONDING_TIMEOUT
         poll_rate = poll_rate or self.BONDING_POLL_RATE
-        staking_agent = ContractAgency.get_agent(StakingEscrowAgent, registry=self.registry)  # TODO: use the agent on self
+        staking_agent = ContractAgency.get_agent(StakingEscrowAgent, registry=self.registry)
         client = staking_agent.blockchain.client
         start = maya.now()
 
