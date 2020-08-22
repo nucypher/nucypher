@@ -591,10 +591,10 @@ class Bob(Character):
             from nucypher.policy.collections import DecentralizedTreasureMap as _MapClass
 
         start = maya.now()
-        self.block_until_number_of_known_nodes_is(8, timeout=2, learn_on_this_thread=True) # 8 and 2 are arbitrary.  Come at me.
+
+        # Spend no more than half the timeout finding the nodes.  8 nodes is arbitrary.  Come at me.
+        self.block_until_number_of_known_nodes_is(8, timeout=timeout/2, learn_on_this_thread=True)
         while True:
-            if (start - maya.now()).seconds > timeout:
-                raise _MapClass.NowhereToBeFound(f"Asked {len(self.known_nodes)} nodes, but none had map {map_id} ")
 
             nodes_with_map = self.matching_nodes_among(self.known_nodes)
             random.shuffle(nodes_with_map)
@@ -619,6 +619,9 @@ class Bob(Character):
                     continue  # TODO: Actually, handle error case here.  NRN
             else:
                 self.learn_from_teacher_node()
+
+            if (start - maya.now()).seconds > timeout:
+                raise _MapClass.NowhereToBeFound(f"Asked {len(self.known_nodes)} nodes, but none had map {map_id} ")
 
     def work_orders_for_capsules(self,
                                  *capsules,
