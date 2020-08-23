@@ -73,7 +73,7 @@ from nucypher.cli.literature import (
     SUCCESSFUL_SAVE_DEPLOY_RECEIPTS,
     SUCCESSFUL_SAVE_MULTISIG_TX_PROPOSAL,
     SUCCESSFUL_UPGRADE,
-    UNKNOWN_CONTRACT_NAME
+    UNKNOWN_CONTRACT_NAME, PROMPT_FOR_RELEASE_PERIOD
 )
 from nucypher.cli.options import (
     group_options,
@@ -509,14 +509,18 @@ def contracts(general_config, actor_options, mode, activate, gas, ignore_deploye
 @group_general_config
 @group_actor_options
 @click.option('--allocation-infile', help="Input path for token allocation JSON file", type=EXISTING_READABLE_FILE)
+@click.option('--release-period', help="Period number when re-stake lock will be released", type=click.INT)
 @option_gas
-def allocations(general_config, actor_options, allocation_infile, gas):
+def allocations(general_config, actor_options, allocation_infile, gas, release_period):
     """Deposit stake allocations in batches"""
     emitter = general_config.emitter
     ADMINISTRATOR, _, deployer_interface, local_registry = actor_options.create_actor(emitter)
     if not allocation_infile:
         allocation_infile = click.prompt(PROMPT_FOR_ALLOCATION_DATA_FILEPATH)
+    if release_period is None:
+        release_period = click.prompt(PROMPT_FOR_RELEASE_PERIOD)
     receipts = ADMINISTRATOR.batch_deposits(allocation_data_filepath=allocation_infile,
+                                            release_period=release_period,
                                             emitter=emitter,
                                             gas_limit=gas,
                                             interactive=not actor_options.force)

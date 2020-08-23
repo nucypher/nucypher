@@ -214,6 +214,8 @@ def test_batch_deposits(click_runner,
                         agency_local_registry,
                         mock_allocation_infile,
                         token_economics):
+    staking_agent = ContractAgency.get_agent(StakingEscrowAgent, registry=agency_local_registry)
+    current_period = staking_agent.get_current_period()
 
     #
     # Main
@@ -222,6 +224,7 @@ def test_batch_deposits(click_runner,
     deploy_command = ('allocations',
                       '--registry-infile', agency_local_registry.filepath,
                       '--allocation-infile', mock_allocation_infile,
+                      '--release-period', current_period + 10,
                       '--provider', TEST_PROVIDER_URI)
 
     account_index = '0\n'

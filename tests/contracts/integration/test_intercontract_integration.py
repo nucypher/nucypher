@@ -295,10 +295,10 @@ def preallocation_escrow_2(testerchain, token, staking_interface, staking_interf
 
 
 
-@pytest.mark.usefixtures('multisig')
-def test_batch_deposit(testerchain, token_economics, token, escrow):
-    creator = testerchain.w3.eth.accounts[0]
-    staker1, staker2, staker3, staker4 = testerchain.client.accounts[1:5]
+def test_batch_deposit(testerchain, token_economics, token, escrow, multisig):
+    creator, staker1, staker2, staker3, staker4, _alice1, _alice2, *contracts_owners =\
+        testerchain.client.accounts
+    contracts_owners = sorted(contracts_owners)
 
     # Travel to the start of the next period to prevent problems with unexpected overflow first period
     testerchain.time_travel(hours=1)
@@ -317,10 +317,25 @@ def test_batch_deposit(testerchain, token_economics, token, escrow):
     pytest.staker1_tokens = token_economics.minimum_allowed_locked
     staker1_tokens = pytest.staker1_tokens
     duration = token_economics.minimum_locked_periods
-    tx = token.functions.approve(escrow.address, 2 * staker1_tokens).transact({'from': creator})
+    current_period = escrow.functions.getCurrentPeriod().call()
+
+    # Only owner can use batch deposit
+    tx = token.functions.approve(escrow.address, staker1_tokens).transact({'from': creator})
     testerchain.wait_for_receipt(tx)
-    tx = escrow.functions.batchDeposit([staker1], [1], [staker1_tokens], [duration]).transact({'from': creator})
+    with pytest.raises((TransactionFailed, ValueError)):
+        tx = escrow.functions.batchDeposit(
+            [staker1], [1], [staker1_tokens], [duration], current_period + 1).transact({'from': creator})
+        testerchain.wait_for_receipt(tx)
+
+    tx = token.functions.transfer(multisig.address, staker1_tokens).transact({'from': creator})
     testerchain.wait_for_receipt(tx)
+    tx = token.functions.approve(escrow.address, staker1_tokens) \
+        .buildTransaction({'from': multisig.address, 'gasPrice': 0})
+    execute_multisig_transaction(testerchain, multisig, [contracts_owners[0], contracts_owners[1]], tx)
+    tx = escrow.functions.batchDeposit([staker1], [1], [staker1_tokens], [duration], current_period + 1)\
+        .buildTransaction({'from': multisig.address, 'gasPrice': 0})
+    execute_multisig_transaction(testerchain, multisig, [contracts_owners[0], contracts_owners[1]], tx)
+
     pytest.escrow_supply = token_economics.minimum_allowed_locked
     assert token.functions.balanceOf(escrow.address).call() == pytest.escrow_supply
     assert escrow.functions.getAllTokens(staker1).call() == staker1_tokens
@@ -329,10 +344,13 @@ def test_batch_deposit(testerchain, token_economics, token, escrow):
     assert escrow.functions.getLockedTokens(staker1, duration).call() == staker1_tokens
     assert escrow.functions.getLockedTokens(staker1, duration + 1).call() == 0
 
+    _wind_down, re_stake, _measure_work, _snapshots = escrow.functions.getFlags(staker1).call()
+    assert re_stake
+    assert escrow.functions.isReStakeLocked(staker1).call()
+
     # Can't deposit tokens again for the same staker
     with pytest.raises((TransactionFailed, ValueError)):
-        tx = escrow.functions.batchDeposit([staker1], [1], [staker1_tokens], [duration]).transact({'from': creator})
-        testerchain.wait_for_receipt(tx)
+        execute_multisig_transaction(testerchain, multisig, [contracts_owners[0], contracts_owners[1]], tx)
 
     tx = token.functions.approve(escrow.address, 0).transact({'from': creator})
     testerchain.wait_for_receipt(tx)
