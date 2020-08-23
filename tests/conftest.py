@@ -14,6 +14,7 @@ GNU Affero General Public License for more details.
 You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
+import argparse
 from collections import defaultdict
 
 import pytest
@@ -99,6 +100,15 @@ def pytest_addoption(parser):
                      action="store_true",
                      default=False,
                      help="run tests even if they are marked as nightly")
+
+    class SetLearnerDebugMode((argparse.Action)):
+        def __call__(self, *args, **kwargs):
+            from nucypher.network.nodes import Learner
+            Learner._DEBUG_MODE = True
+    parser.addoption("--track-character-lifecycles",
+                     action=SetLearnerDebugMode,
+                     default=False,
+                     help="Track characters in a global... mutable... where everybody...")
 
 
 def pytest_configure(config):

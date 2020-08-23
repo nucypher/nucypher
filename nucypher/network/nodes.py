@@ -172,6 +172,8 @@ class Learner:
     really_unknown_version_message = "Unable to glean address from node that perhaps purported to be version {}.  We're only version {}."
     fleet_state_icon = ""
 
+    _DEBUG_MODE = False
+
     class NotEnoughNodes(RuntimeError):
         pass
 
@@ -252,19 +254,19 @@ class Learner:
         self._current_teacher_node = None  # type: Teacher
         self._learning_task = task.LoopingCall(self.keep_learning_about_nodes)
 
-        # Some debugging shit.  TODO: Maybe move this to a test patch?
-        # Very slow, but provides useful info when trying to track down a stray Character.
-        # Seems mostly useful for Bob or federated Ursulas, but perhaps useful for other Characters as well.
+        if self._DEBUG_MODE:
+            # Very slow, but provides useful info when trying to track down a stray Character.
+            # Seems mostly useful for Bob or federated Ursulas, but perhaps useful for other Characters as well.
 
-        # import inspect, os
-        # frames = inspect.stack(3)
-        # self._learning_task = task.LoopingCall(self.keep_learning_about_nodes, learner=self, frames=frames)
-        # self._init_frames = frames
-        # from tests.conftest import global_mutable_where_everybody
-        # test_name = os.environ["PYTEST_CURRENT_TEST"]
-        # global_mutable_where_everybody[test_name].append(self)
-        # self._FOR_TEST = test_name
-        ########################
+            import inspect, os
+            frames = inspect.stack(3)
+            self._learning_task = task.LoopingCall(self.keep_learning_about_nodes, learner=self, frames=frames)
+            self._init_frames = frames
+            from tests.conftest import global_mutable_where_everybody
+            test_name = os.environ["PYTEST_CURRENT_TEST"]
+            global_mutable_where_everybody[test_name].append(self)
+            self._FOR_TEST = test_name
+            ########################
 
         self._learning_round = 0  # type: int
         self._rounds_without_new_nodes = 0  # type: int

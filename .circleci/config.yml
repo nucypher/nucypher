@@ -519,7 +519,7 @@ jobs:
       - run:
           name: Integration Test Suite
           command: |
-            pytest $(circleci tests glob "tests/integration/**/test_*.py" | circleci tests split --split-by=timings)
+            pytest --track-character-lifecycles $(circleci tests glob "tests/integration/**/test_*.py" | circleci tests split --split-by=timings)
       - capture_test_results
 
   unit:
@@ -596,7 +596,7 @@ jobs:
       - run:
           name: Character Tests
           command: |
-            pytest $(circleci tests glob "tests/acceptance/characters/**/test_*.py" "tests/learning/**/test_*.py" | circleci tests split --split-by=timings)
+            pytest --track-character-lifecycles $(circleci tests glob "tests/acceptance/characters/**/test_*.py" "tests/learning/**/test_*.py" | circleci tests split --split-by=timings)
       - capture_test_results
 
   cli:
@@ -607,7 +607,7 @@ jobs:
       - run:
           name: Nucypher CLI Tests
           command: |
-            pytest $(circleci tests glob "tests/acceptance/cli/**/test_*.py" | circleci tests split --split-by=timings)
+            pytest --track-character-lifecycles $(circleci tests glob "tests/acceptance/cli/**/test_*.py" | circleci tests split --split-by=timings)
       - capture_test_results
 
   tests_ok:
