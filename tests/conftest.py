@@ -154,31 +154,35 @@ global_mutable_where_everybody = defaultdict(list)
 
 @pytest.fixture(scope='module', autouse=True)
 def check_character_state_after_test(request):
-    # TODO: Maybe patch here instead of the debug nonsense?
+    from nucypher.network.nodes import Learner
     yield
-    gmwe = global_mutable_where_everybody
-    module_name = request.module.__name__
 
-    test_learners = global_mutable_where_everybody.get(module_name, [])
-    # Those match the module name exactly; maybe there are some that we got by frame.
-    for maybe_frame, learners in global_mutable_where_everybody.items():
-        if f"{module_name}.py" in maybe_frame:
-            test_learners.extend(learners)
+    if Learner._DEBUG_MODE:
+        gmwe = global_mutable_where_everybody
+        module_name = request.module.__name__
 
-    crashed = [learner for learner in test_learners if learner._crashed]
+        test_learners = global_mutable_where_everybody.get(module_name, [])
+        # Those match the module name exactly; maybe there are some that we got by frame.
+        for maybe_frame, learners in global_mutable_where_everybody.items():
+            if f"{module_name}.py" in maybe_frame:
+                test_learners.extend(learners)
 
-    if any(crashed):
-        failure_message = ""
-        for learner in crashed:
-            failure_message += learner._crashed.getBriefTraceback()
-        pytest.fail(f"Some learners crashed:{failure_message}")
+        crashed = [learner for learner in test_learners if learner._crashed]
 
-    still_running = [learner for learner in test_learners if learner._learning_task.running]
+        if any(crashed):
+            failure_message = ""
+            for learner in crashed:
+                failure_message += learner._crashed.getBriefTraceback()
+            pytest.fail(f"Some learners crashed:{failure_message}")
 
-    if any(still_running):
-        for learner in still_running:
-            try:  # TODO: Deal with stop vs disenchant.  Currently stop is only for Ursula.
-                learner.stop()
-            except AttributeError:
-                learner.disenchant()
-        pytest.fail(f"Learners remaining: {still_running} ")
+        still_running = [learner for learner in test_learners if learner._learning_task.running]
+
+        if any(still_running):
+            offending_tests = set()
+            for learner in still_running:
+                offending_tests.add(learner._FOR_TEST)
+                try:  # TODO: Deal with stop vs disenchant.  Currently stop is only for Ursula.
+                    learner.stop()
+                except AttributeError:
+                    learner.disenchant()
+            pytest.fail(f"Learners remaining: {still_running}.  Offending tests: {offending_tests} ")
