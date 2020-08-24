@@ -83,8 +83,8 @@ Optionally, to run the full, slow, verbose test suite run:
 Setup Commit & Push Hooks
 --------------------------
 
-Pre-commit and pre-push are used for quality control by preventing a commit that will fail
-if passed along to CI servers or by making small formatting changes directly to source code files.
+`Pre-commit <https://pre-commit.com/>`_ and pre-push are used for quality control to identify and prevent the inclusion of problematic code changes. They may prevent a commit that will fail
+if passed along to CI servers or make small formatting changes directly to source code files.
 
 If it's not already installed in your virtual environment, install pre-commit:
 
