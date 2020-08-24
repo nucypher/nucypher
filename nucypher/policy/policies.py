@@ -506,10 +506,12 @@ class Policy(ABC):
     def make_arrangements(self,
                           network_middleware: RestMiddleware,
                           handpicked_ursulas: Optional[Set[Ursula]] = None,
+                          discover_on_this_thread: bool = True,
                           *args, **kwargs,
                           ) -> None:
 
-        sampled_ursulas = self.sample(handpicked_ursulas=handpicked_ursulas)
+        sampled_ursulas = self.sample(handpicked_ursulas=handpicked_ursulas,
+                                      discover_on_this_thread=discover_on_this_thread)
 
         if len(sampled_ursulas) < self.n:
             raise self.MoreKFragsThanArrangements(
@@ -532,17 +534,21 @@ class Policy(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def sample_essential(self, quantity: int, handpicked_ursulas: Set[Ursula]) -> Set[Ursula]:
+    def sample_essential(self, *args, **kwargs) -> Set[Ursula]:
         raise NotImplementedError
 
-    def sample(self, handpicked_ursulas: Optional[Set[Ursula]] = None) -> Set[Ursula]:
+    def sample(self,
+               handpicked_ursulas: Optional[Set[Ursula]] = None,
+               discover_on_this_thread: bool = False,
+               ) -> Set[Ursula]:
         selected_ursulas = set(handpicked_ursulas) if handpicked_ursulas else set()
 
         # Calculate the target sample quantity
         target_sample_quantity = self.n - len(selected_ursulas)
         if target_sample_quantity > 0:
             sampled_ursulas = self.sample_essential(quantity=target_sample_quantity,
-                                                    handpicked_ursulas=selected_ursulas)
+                                                    handpicked_ursulas=selected_ursulas,
+                                                    discover_on_this_thread=discover_on_this_thread)
             selected_ursulas.update(sampled_ursulas)
 
         return selected_ursulas
@@ -599,7 +605,11 @@ class FederatedPolicy(Policy):
                     "Pass them here as handpicked_ursulas.".format(self.n)
             raise self.MoreKFragsThanArrangements(error)  # TODO: NotEnoughUrsulas where in the exception tree is this?
 
-    def sample_essential(self, quantity: int, handpicked_ursulas: Set[Ursula]) -> Set[Ursula]:
+    def sample_essential(self,
+                         quantity: int,
+                         handpicked_ursulas: Set[Ursula],
+                         discover_on_this_thread: bool = True) -> Set[Ursula]:
+        self.alice.block_until_number_of_known_nodes_is(quantity, learn_on_this_thread=discover_on_this_thread)
         known_nodes = self.alice.known_nodes
         if handpicked_ursulas:
             # Prevent re-sampling of handpicked ursulas.
@@ -701,7 +711,8 @@ class BlockchainPolicy(Policy):
                          quantity: int,
                          handpicked_ursulas: Set[Ursula],
                          learner_timeout: int = 1,
-                         timeout: int = 10) -> Set[Ursula]: # TODO #843: Make timeout configurable
+                         timeout: int = 10,
+                         discover_on_this_thread: bool = False) -> Set[Ursula]: # TODO #843: Make timeout configurable
 
         selected_ursulas = set(handpicked_ursulas)
         quantity_remaining = quantity
@@ -740,18 +751,13 @@ class BlockchainPolicy(Policy):
                 new_to_check = reservoir.draw_at_most(quantity_remaining)
                 to_check.update(new_to_check)
 
-            # Feed newly sampled stakers to the learner
-            self.alice.learn_about_specific_nodes(new_to_check)
-
-            # TODO: would be nice to wait for the learner to finish an iteration here,
-            # because if it hasn't, we really have nothing to do.
-            time.sleep(learner_timeout)
-
             delta = maya.now() - start_time
             if delta.total_seconds() >= timeout:
                 still_checking = ', '.join(to_check)
                 raise RuntimeError(f"Timed out after {timeout} seconds; "
                                    f"need {quantity_remaining} more, still checking {still_checking}.")
+
+            self.alice.block_until_specific_nodes_are_known(to_check, learn_on_this_thread=discover_on_this_thread)
 
         found_ursulas = list(selected_ursulas)
 

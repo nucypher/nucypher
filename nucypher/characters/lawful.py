@@ -309,7 +309,8 @@ class Alice(Character, BlockchainPolicyAuthor):
 
         self.log.debug(f"Making arrangements for {policy} ... ")
         policy.make_arrangements(network_middleware=self.network_middleware,
-                                 handpicked_ursulas=handpicked_ursulas)
+                                 handpicked_ursulas=handpicked_ursulas,
+                                 discover_on_this_thread=discover_on_this_thread)
 
         # REST call happens here, as does population of TreasureMap.
         self.log.debug(f"Enacting {policy} ... ")
