@@ -632,6 +632,8 @@ class Learner:
         #     # if self._learning_task.running:
         #     #     self._learning_task()
 
+        addresses = set(addresses)
+
         while True:
             if self._crashed:
                 return self._crashed
