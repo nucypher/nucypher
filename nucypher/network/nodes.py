@@ -525,7 +525,7 @@ class Learner:
     def learn_about_nodes_now(self, force=False):
         if self._learning_task.running:
             self._learning_task.reset()
-            self._learning_task()
+            # self._learning_task()
         elif not force:
             self.log.warn(
                 "Learning loop isn't started; can't learn about nodes now.  You can override this with force=True.")
