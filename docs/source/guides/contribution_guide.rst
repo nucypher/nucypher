@@ -80,6 +80,36 @@ Optionally, to run the full, slow, verbose test suite run:
 
   (nucypher)$ pytest
 
+Setup Commit & Push Hooks
+--------------------------
+
+Pre-commit and pre-push are used for quality control by preventing a commit that will fail
+if passed along to CI servers or by making small formatting changes directly to source code files.
+
+If it's not already installed in your virtual environment, install pre-commit:
+
+.. code:: bash
+
+  (nucypher)$ pip install pre-commit
+
+To enable pre-commit checks:
+
+.. code:: bash
+
+  (nucypher)$ pre-commit install
+
+To enable pre-push checks:
+
+.. code:: bash
+
+  (nucypher)$ pre-commit install -t pre-push
+
+For convenience, here is a one-liner to enable both:
+
+.. code:: bash
+
+  (nucypher)$ pre-commit install && pre-commit install -t pre-push
+
 
 Making a Commit
 ---------------
