@@ -16,11 +16,31 @@
 """
 
 import json
-
 from io import StringIO
 from typing import Union
 
 import nucypher
+
+
+def get_fields(interface, method_name):
+    spec = getattr(interface, method_name)._schema
+    input_fields = [k for k, f in spec.load_fields.items() if f.required]
+    optional_fields = [k for k, f in spec.load_fields.items() if not f.required]
+    required_output_fileds = list(spec.dump_fields.keys())
+
+    return (
+        input_fields,
+        optional_fields,
+        required_output_fileds
+    )
+
+
+def validate_json_rpc_response_data(response, method_name, interface):
+    required_output_fields = get_fields(interface, method_name)[-1]
+    assert 'jsonrpc' in response.data
+    for output_field in required_output_fields:
+        assert output_field in response.content
+    return True
 
 
 class TestRPCResponse:
