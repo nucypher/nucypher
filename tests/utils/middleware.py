@@ -28,6 +28,10 @@ from nucypher.network.middleware import NucypherMiddlewareClient, RestMiddleware
 from tests.utils.ursula import MOCK_KNOWN_URSULAS_CACHE
 
 
+class BadTestUrsulas(RuntimeError):
+    crash_right_now = True
+
+
 class _TestMiddlewareClient(NucypherMiddlewareClient):
     timeout = None
 
@@ -56,7 +60,7 @@ class _TestMiddlewareClient(NucypherMiddlewareClient):
         try:
             return mkuc[port]
         except KeyError:
-             raise RuntimeError(
+             raise BadTestUrsulas(
                 "Can't find an Ursula with port {} - did you spin up the right test ursulas?".format(port))
 
     def parse_node_or_host_and_port(self, node=None, host=None, port=None):
