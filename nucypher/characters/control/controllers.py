@@ -148,8 +148,11 @@ class CLIController(CharacterControlServer):
         return response
 
     def _perform_action(self, *args, **kwargs) -> dict:
-        response_data = super()._perform_action(*args, **kwargs)
-        self.stop_character()
+        try:
+            response_data = super()._perform_action(*args, **kwargs)
+        finally:
+            self.log.debug(f"Finished action '{kwargs['action']}', stopping {self.interface.character}")
+            self.stop_character()
         return response_data
 
 
