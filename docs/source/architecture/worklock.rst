@@ -37,20 +37,25 @@ Participants that fail to successfully run a NuCypher network node for six month
 WorkLock contract.
 
 
-Hypothetical Escrow Scenarios
-------------------------------
+Hypothetical WorkLock Scenarios
+-------------------------------
 
-.. note::
+.. important::
 
-    To reduce complexity, calculations are performed in a step-wise manner which may lead to minor rounding differences
-    in the determined values.
+    These examples use **hypothetical** values that allow for easier illustration and calculations. The specified
+    WorkLock properties in the examples are **not** intended to be reflective of what actual values will be.
 
-For each scenario, assume the following hypothetical WorkLock properties:
+For each scenario, assume the following **hypothetical WorkLock properties**:
 
  #. WorkLock holds 280,000,000 NU and the minimum escrow is 15 ETH.
  #. The minimum amount of NU required to stake is 15,000 NU and the maximum stake size is 4,000,000 NU.
  #. The total number of participants is 1000 (including you) with a total of 50,000 ETH escrowed (including your escrow).
  #. For our purposes, a `whale` escrow is an escrow that causes the calculated stake size to be larger than the maximum stake size (4,000,000 NU).
+
+.. note::
+
+    To reduce complexity, calculations are performed in a step-wise manner which may lead to minor rounding differences
+    in the determined values.
 
 
 Scenario 1: Resulting stake size does not exceed maximum stake size (no whale escrows)
