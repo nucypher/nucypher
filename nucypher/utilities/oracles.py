@@ -44,6 +44,9 @@ class Oracle(ABC):
 
         self._raw_data = response.json()
 
+    def __repr__(self):
+        return f"{self.name} ({self.api_url})"
+
 
 class EthereumGasPriceOracle(Oracle):
     """Base class for Ethereum gas price oracles"""
@@ -68,9 +71,6 @@ class EthereumGasPriceOracle(Oracle):
             gas_price = oracle.get_gas_price()
             return gas_price
         return oracle_based_gas_price_strategy
-
-    def __repr__(self):
-        return f"{self.name} ({self.api_url})"
 
 
 class EtherchainGasPriceOracle(EthereumGasPriceOracle):
@@ -106,7 +106,7 @@ def oracle_fallback_gas_price_strategy(web3: Web3, transaction_params: TxParams 
         try:
             gas_strategy = gas_price_oracle_class.construct_gas_strategy()
             gas_price = gas_strategy(web3, transaction_params)
-        except EtherchainGasPriceOracle.OracleError:
+        except Oracle.OracleError:
             continue
         else:
             return gas_price

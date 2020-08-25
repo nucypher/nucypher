@@ -78,6 +78,10 @@ def test_probe_oracle(mocker):
 
 def test_etherchain():
     oracle = EtherchainGasPriceOracle()
+
+    assert set(oracle._speed_names).issubset(etherchain_json.keys())
+    assert oracle._default_speed in etherchain_json.keys()
+
     with patch.object(oracle, '_probe_oracle'):
         oracle._raw_data = etherchain_json
         assert oracle.get_gas_price('safeLow') == Web3.toWei(99.0, 'gwei')
@@ -96,6 +100,10 @@ def test_etherchain():
 
 def test_upvest():
     oracle = UpvestGasPriceOracle()
+
+    assert set(oracle._speed_names).issubset(upvest_json['estimates'].keys())
+    assert oracle._default_speed in upvest_json['estimates'].keys()
+
     with patch.object(oracle, '_probe_oracle'):
         oracle._raw_data = upvest_json
         assert oracle.get_gas_price('slow') == Web3.toWei(87.19, 'gwei')
