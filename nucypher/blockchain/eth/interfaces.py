@@ -285,7 +285,7 @@ class BlockchainInterface:
         else:
             gas_strategy = self.gas_strategy
         self.client.set_gas_strategy(gas_strategy=gas_strategy)
-        gwei_gas_price = Web3.fromWei(self.client.generate_gas_price(), 'gwei')
+        gwei_gas_price = Web3.fromWei(self.client.gas_price_for_transaction(), 'gwei')
         self.log.debug(f"Currently, our gas strategy returns a gas price of {gwei_gas_price} gwei")
 
         self.client.add_middleware(middleware.time_based_cache_middleware)

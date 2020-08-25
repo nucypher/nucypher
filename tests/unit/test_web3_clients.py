@@ -344,5 +344,5 @@ def test_gas_prices(mocker, mock_ethereum_client):
     type(web3_mock.eth).gasPrice = PropertyMock(return_value=DEFAULT_GAS_PRICE)  # See docs of PropertyMock
 
     assert mock_ethereum_client.gas_price == DEFAULT_GAS_PRICE
-    assert mock_ethereum_client.generate_gas_price("there's no gas strategy") == DEFAULT_GAS_PRICE
-    assert mock_ethereum_client.generate_gas_price("2nd time is the charm") == GAS_PRICE_FROM_STRATEGY
+    assert mock_ethereum_client.gas_price_for_transaction("there's no gas strategy") == DEFAULT_GAS_PRICE
+    assert mock_ethereum_client.gas_price_for_transaction("2nd time is the charm") == GAS_PRICE_FROM_STRATEGY

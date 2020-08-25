@@ -281,7 +281,7 @@ class EthereumClient:
         """
         return self.w3.eth.gasPrice
 
-    def generate_gas_price(self, transaction=None) -> Wei:
+    def gas_price_for_transaction(self, transaction=None) -> Wei:
         """
         Obtains a gas price via the current gas strategy, if any; otherwise, it resorts to the client's gas price.
         This method mirrors the behavior of web3._utils.transactions when building transactions.
