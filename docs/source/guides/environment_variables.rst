@@ -38,8 +38,3 @@ Ursula (Worker)
     IP address of Ursula.
 * `NUCYPHER_WORKER_ETH_PASSWORD`
     Password for Ethereum account used by Ursula (Worker).
-
-
-
-
-

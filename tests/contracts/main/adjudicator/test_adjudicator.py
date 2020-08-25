@@ -30,7 +30,6 @@ ALGORITHM_KECCAK256 = 0
 ALGORITHM_SHA256 = 1
 
 
-@pytest.mark.slow
 def test_evaluate_cfrag(testerchain,
                         escrow,
                         adjudicator,
@@ -379,7 +378,6 @@ def test_evaluate_cfrag(testerchain,
     assert new_staker == event_args['staker']
 
 
-@pytest.mark.slow
 def test_upgrading(testerchain, deploy_contract):
     creator = testerchain.client.accounts[0]
 

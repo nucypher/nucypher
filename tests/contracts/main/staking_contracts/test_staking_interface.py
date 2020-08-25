@@ -43,7 +43,6 @@ def staking_contract_interface(testerchain, staking_interface, staking_contract)
         ContractFactoryClass=Contract)
 
 
-@pytest.mark.slow
 def test_nonexistent_method(testerchain, policy_manager, staking_contract):
     """
     Test that interface executes only predefined methods
@@ -62,7 +61,6 @@ def test_nonexistent_method(testerchain, policy_manager, staking_contract):
         testerchain.wait_for_receipt(tx)
 
 
-@pytest.mark.slow
 def test_staker(testerchain, token, escrow, staking_contract, staking_contract_interface, staking_interface):
     """
     Test staker functions in the staking interface
@@ -300,7 +298,6 @@ def test_staker(testerchain, token, escrow, staking_contract, staking_contract_i
     assert event_args['windDown']
 
 
-@pytest.mark.slow
 def test_policy(testerchain, policy_manager, staking_contract, staking_contract_interface):
     """
     Test policy manager functions in the staking interface
@@ -358,7 +355,6 @@ def test_policy(testerchain, policy_manager, staking_contract, staking_contract_
     assert 222 == event_args['value']
 
 
-@pytest.mark.slow
 def test_worklock(testerchain, worklock, staking_contract, staking_contract_interface, staking_interface):
     """
     Test worklock functions in the staking interface
@@ -464,7 +460,6 @@ def test_worklock(testerchain, worklock, staking_contract, staking_contract_inte
     assert event_args['refundETH'] == refund
 
 
-@pytest.mark.slow
 def test_interface_without_worklock(testerchain, deploy_contract, token, escrow, policy_manager, worklock):
     creator = testerchain.client.accounts[0]
     owner = testerchain.client.accounts[1]

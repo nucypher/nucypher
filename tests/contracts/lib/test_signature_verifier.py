@@ -41,7 +41,6 @@ def signature_verifier(testerchain, deploy_contract):
     return contract
 
 
-@pytest.mark.slow
 def test_recover(testerchain, signature_verifier):
     message = os.urandom(100)
 
@@ -87,7 +86,6 @@ def test_recover(testerchain, signature_verifier):
         signature_verifier.functions.recover(message_hash, recoverable_signature).call()
 
 
-@pytest.mark.slow
 def test_address(testerchain, signature_verifier):
     # Generate Umbral key and extract "address" from the public key
     umbral_privkey = UmbralPrivateKey.gen_key()
@@ -101,7 +99,6 @@ def test_address(testerchain, signature_verifier):
     assert signer_address == to_normalized_address(result_address)
 
 
-@pytest.mark.slow
 def test_hash(testerchain, signature_verifier):
     message = os.urandom(100)
 
@@ -114,7 +111,6 @@ def test_hash(testerchain, signature_verifier):
     assert message_hash == signature_verifier.functions.hash(message, ALGORITHM_SHA256).call()
 
 
-@pytest.mark.slow
 def test_verify(testerchain, signature_verifier):
     message = os.urandom(100)
 
@@ -146,7 +142,6 @@ def test_verify(testerchain, signature_verifier):
                                                    ALGORITHM_SHA256).call()
 
 
-@pytest.mark.slow
 def test_verify_eip191(testerchain, signature_verifier):
     message = os.urandom(100)
 

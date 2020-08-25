@@ -294,7 +294,7 @@ def preallocation_escrow_2(testerchain, token, staking_interface, staking_interf
     return contract
 
 
-@pytest.mark.slow
+
 @pytest.mark.usefixtures('multisig')
 def test_batch_deposit(testerchain, token_economics, token, escrow):
     creator = testerchain.w3.eth.accounts[0]
@@ -338,7 +338,6 @@ def test_batch_deposit(testerchain, token_economics, token, escrow):
     testerchain.wait_for_receipt(tx)
 
 
-@pytest.mark.slow
 def test_worklock_phases(testerchain,
                          token_economics,
                          token,
@@ -530,7 +529,6 @@ def test_worklock_phases(testerchain,
         testerchain.wait_for_receipt(tx)
 
 
-@pytest.mark.slow
 def test_staking(testerchain,
                  token_economics,
                  token,
@@ -654,7 +652,6 @@ def test_staking(testerchain,
     assert escrow.functions.getLockedTokens(staker1, 11).call() == 0
 
 
-@pytest.mark.slow
 def test_policy(testerchain,
                 token_economics,
                 token,
@@ -909,7 +906,6 @@ def test_policy(testerchain,
     assert alice2_balance < testerchain.client.get_balance(alice2)
 
 
-@pytest.mark.slow
 def test_upgrading_and_rollback(testerchain,
                                 token_economics,
                                 token,
@@ -1027,7 +1023,6 @@ def test_upgrading_and_rollback(testerchain,
     assert staking_interface_v2.address == staking_interface_router.functions.target().call()
 
 
-@pytest.mark.slow
 def test_slashing(testerchain,
                   token_economics,
                   token,
@@ -1137,7 +1132,6 @@ def test_slashing(testerchain,
     assert alice1_balance + base_penalty / reward_coefficient == token.functions.balanceOf(alice1).call()
 
 
-@pytest.mark.slow
 def test_upgrading_adjudicator(testerchain,
                                token_economics,
                                escrow,
@@ -1198,7 +1192,6 @@ def test_upgrading_adjudicator(testerchain,
     assert adjudicator_v1 == adjudicator.functions.target().call()
 
 
-@pytest.mark.slow
 def test_another_slashing(testerchain,
                           token_economics,
                           token,
@@ -1247,7 +1240,6 @@ def test_another_slashing(testerchain,
     assert alice2_balance + penalty / reward_coefficient == token.functions.balanceOf(alice2).call()
 
 
-@pytest.mark.slow
 def test_withdraw(testerchain,
                   token_economics,
                   token,
@@ -1330,7 +1322,6 @@ def test_withdraw(testerchain,
     assert staker4_balance < token.functions.balanceOf(staker4).call()
 
 
-@pytest.mark.slow
 def test_refund(testerchain, escrow, worklock, preallocation_escrow_1):
     staker1, staker2, staker3, staker4 = testerchain.client.accounts[1:5]
     deposited_eth_2 = to_wei(1, 'ether')

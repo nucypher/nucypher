@@ -29,7 +29,6 @@ from tests.constants import INSECURE_DEVELOPMENT_PASSWORD
 from tests.utils.middleware import MockRestMiddleware
 
 
-@pytest.mark.slow()
 def test_all_blockchain_ursulas_know_about_all_other_ursulas(blockchain_ursulas, agency):
     """
     Once launched, all Ursulas know about - and can help locate - all other Ursulas in the network.
@@ -44,7 +43,6 @@ def test_all_blockchain_ursulas_know_about_all_other_ursulas(blockchain_ursulas,
                     format(propagating_ursula, nickname_from_seed(address))
 
 
-@pytest.mark.slow()
 def test_blockchain_alice_finds_ursula_via_rest(blockchain_alice, blockchain_ursulas):
     # Imagine alice knows of nobody.
     blockchain_alice._Learner__known_nodes = FleetStateTracker()

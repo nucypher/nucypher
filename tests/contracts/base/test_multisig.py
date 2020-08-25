@@ -32,7 +32,6 @@ def sign_hash(testerchain, account: str, data_hash: bytes) -> dict:
     return signed_data
 
 
-@pytest.mark.slow
 def test_execute(testerchain, deploy_contract):
     w3 = testerchain.w3
     accounts = sorted(w3.eth.accounts)
@@ -233,7 +232,6 @@ def execute_transaction(testerchain, multisig, accounts, tx):
     testerchain.wait_for_receipt(tx)
 
 
-@pytest.mark.slow
 def test_owners_management(testerchain, deploy_contract):
     w3 = testerchain.w3
     accounts = sorted(w3.eth.accounts)

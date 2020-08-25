@@ -22,7 +22,6 @@ import pytest
 from nucypher.blockchain.eth.deployers import PreallocationEscrowDeployer
 
 
-@pytest.mark.slow()
 def test_deploy_and_allocate(agency, token_economics, test_registry):
     token_agent, staking_agent, policy_agent = agency
     testerchain = policy_agent.blockchain

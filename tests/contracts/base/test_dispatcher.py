@@ -23,7 +23,6 @@ from web3.exceptions import BadFunctionCallOutput
 from nucypher.blockchain.eth.constants import NULL_ADDRESS
 
 
-@pytest.mark.slow
 def test_dispatcher(testerchain, deploy_contract):
     creator = testerchain.client.accounts[0]
     account = testerchain.client.accounts[1]
@@ -442,7 +441,6 @@ def test_dispatcher(testerchain, deploy_contract):
     assert event_args == events[11]['args']
 
 
-@pytest.mark.slow
 def test_selfdestruct(testerchain, deploy_contract):
     creator = testerchain.client.accounts[0]
     account = testerchain.client.accounts[1]
@@ -563,7 +561,6 @@ def test_selfdestruct(testerchain, deploy_contract):
     assert 34 == contract_instance.functions.functionValue().call()
 
 
-@pytest.mark.slow
 def test_receive_fallback(testerchain, deploy_contract):
     # Deploy first contract
     no_fallback_lib, _ = deploy_contract('NoFallback')

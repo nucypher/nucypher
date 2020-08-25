@@ -25,7 +25,6 @@ MAX_SUB_STAKES = 30
 MAX_UINT16 = 65535
 
 
-@pytest.mark.slow
 def test_staking(testerchain, token, escrow_contract):
     """
     Tests for staking methods: deposit, lock and stake division
@@ -546,7 +545,6 @@ def test_staking(testerchain, token, escrow_contract):
     assert 200 == escrow.functions.getLockedTokens(staker2, MAX_UINT16 - current_period).call()
 
 
-@pytest.mark.slow
 def test_increase_lock(testerchain, token, escrow_contract, token_economics):
     minimum_allowed_locked = token_economics.minimum_allowed_locked
     maximum_allowed_locked = 1500
@@ -802,7 +800,6 @@ def test_increase_lock(testerchain, token, escrow_contract, token_economics):
     assert event_args['value'] == stake - next_stake - 1
 
 
-@pytest.mark.slow
 def test_merge(testerchain, token, escrow_contract, token_economics):
     minimum_allowed_locked = token_economics.minimum_allowed_locked
     maximum_allowed_locked = 1500
@@ -1045,7 +1042,6 @@ def test_merge(testerchain, token, escrow_contract, token_economics):
     assert event_args['lastPeriod'] == current_period + duration_2
 
 
-@pytest.mark.slow
 def test_max_sub_stakes(testerchain, token, escrow_contract):
     escrow = escrow_contract(10000, disable_reward=True)
     creator = testerchain.client.accounts[0]
@@ -1112,7 +1108,6 @@ def test_max_sub_stakes(testerchain, token, escrow_contract):
         testerchain.wait_for_receipt(tx)
 
 
-@pytest.mark.slow
 def test_allowable_locked_tokens(testerchain, token_economics, token, escrow_contract, deploy_contract):
     maximum_allowed = 2000
     minimum_allowed = token_economics.minimum_allowed_locked
@@ -1260,7 +1255,6 @@ def test_allowable_locked_tokens(testerchain, token_economics, token, escrow_con
     testerchain.wait_for_receipt(tx)
 
 
-@pytest.mark.slow
 def test_batch_deposit(testerchain, token, escrow_contract, deploy_contract):
     escrow = escrow_contract(1500, disable_reward=True)
     policy_manager_interface = testerchain.get_contract_factory('PolicyManagerForStakingEscrowMock')

@@ -23,7 +23,6 @@ from nucypher.blockchain.eth.agents import MultiSigAgent
 from nucypher.blockchain.eth.deployers import MultiSigDeployer
 
 
-@pytest.mark.slow()
 def test_trustee_proposes_multisig_management_operations(testerchain, test_registry):
     origin = testerchain.etherbase_account
     multisig_deployer = MultiSigDeployer(deployer_address=origin, registry=test_registry)
