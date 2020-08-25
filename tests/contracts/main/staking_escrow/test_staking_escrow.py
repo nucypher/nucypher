@@ -1620,7 +1620,6 @@ def test_batch_deposit(testerchain, token, escrow_contract, deploy_contract):
     assert event_args['lockUntilPeriod'] == current_period + 3
 
 
-@pytest.mark.slow
 def test_staking_from_worklock(testerchain, token, escrow_contract, token_economics, deploy_contract):
     """
     Tests for staking method: depositFromWorkLock
