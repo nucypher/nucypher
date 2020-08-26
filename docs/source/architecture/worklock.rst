@@ -7,20 +7,22 @@ WorkLock
 Overview
 --------
 
-`WorkLock` is a novel, permissionless network node setup mechanism, developed at NuCypher, which requires participants
-to temporarily stake ETH and operate NuCypher network threshold cryptography nodes in order to be allocated NU, the native
+`WorkLock` is a novel, permissionless decentralized network bootstrapping mechanism developed at NuCypher which requires
+participants to temporarily escrow ETH and operate NuCypher nodes in order to be allocated NU tokens, the native
 token of the NuCypher network that enables node operation.
 
-The NuCypher team designed the WorkLock to onboard threshold cryptography nodes to the live NuCypher network using a process that selects participants
-who are most likely to strengthen the network by committing to staking and running nodes.
+WorkLock is designed onboard threshold cryptography nodes to the live NuCypher network using a process that selects
+participants who are most likely to strengthen the network by committing to staking and running active nodes.
 
-The WorkLock begins with an escrow period, during which anyone seeking to operate a NuCypher network threshold cryptography node can send
+The WorkLock begins with a contribution period, during which anyone seeking to operate a nucypher node can send
 ETH to the WorkLock contract to be temporarily escrowed on-chain.
-At any time during the escrow period, WorkLock participants can cancel their participation to forgo NU and recoup their escrowed ETH immediately.
-Once the escrow period closes, the WorkLock contract does not accept more ETH, but it will still accept
-cancellations during an additional time window.
-At the end of this cancellation period, the allocation period opens and stake-locked NU are allocated to participants in non-transferable stakes designed for
-the limited purpose of running threshold cryptography nodes on the live NuCypher network.
+At any time during the contribution period, WorkLock participants can cancel their participation to forgo NU and recoup
+their escrowed ETH immediately.
+
+Once the contribution period closes, the WorkLock contract does not accept more ETH, but will still accept cancellations
+during an additional time window (the "cancellation window").  At the end of this cancellation period,
+the token allocation period begins and stake-locked NU are allocated to participants in the form of non-transferable stakes.
+These stakes are designed for the limited and explicit purpose of running threshold cryptography nodes on the live NuCypher network.
 Stake-locked NU will be allocated at network launch according to the following principles:
 
  - All of the NU held by WorkLock will be allocated to network nodes in non-transferable stakes designed to enable node operation.
