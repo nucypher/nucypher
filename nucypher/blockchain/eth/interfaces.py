@@ -266,8 +266,8 @@ class BlockchainInterface:
         return gas_strategy
 
     def attach_middleware(self):
+        chain_id = int(self.client.chain_id)
         if self.poa is None:  # If POA is not set explicitly, try to autodetect from chain id
-            chain_id = int(self.client.chain_id)
             self.poa = chain_id in POA_CHAINS
 
         self.log.debug(f'Ethereum chain: {self.client.chain_name} (chain_id={chain_id}, poa={self.poa})')
