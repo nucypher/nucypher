@@ -31,7 +31,7 @@ from nucypher.config.constants import (
     TEMPORARY_DOMAIN
 )
 from tests.constants import MOCK_IP_ADDRESS, TEST_PROVIDER_URI
-from tests.utils.ursula import MOCK_URSULA_STARTING_PORT
+from tests.utils.ursula import MOCK_URSULA_STARTING_PORT, select_test_port
 
 
 @pytest.fixture(scope='module')
@@ -59,13 +59,15 @@ def test_ursula_init_with_local_keystore_signer(click_runner,
     # Good signer...
     pre_config_signer = KeystoreSigner.from_signer_uri(uri=mock_signer_uri)
 
+    deploy_port = select_test_port()
+
     init_args = ('ursula', 'init',
                  '--network', TEMPORARY_DOMAIN,
                  '--worker-address', worker_account.address,
                  '--config-root', custom_filepath,
                  '--provider', TEST_PROVIDER_URI,
                  '--rest-host', MOCK_IP_ADDRESS,
-                 '--rest-port', MOCK_URSULA_STARTING_PORT,
+                 '--rest-port', deploy_port,
 
                  # The bit we are testing here
                  '--signer', mock_signer_uri)

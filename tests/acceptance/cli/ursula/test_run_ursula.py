@@ -14,14 +14,12 @@ GNU Affero General Public License for more details.
 You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
-
-
+import os
+import time
 from unittest import mock
 
-import os
 import pytest
 import pytest_twisted as pt
-import time
 from twisted.internet import threads
 
 from nucypher import utilities
@@ -39,7 +37,7 @@ from tests.constants import (
     TEST_PROVIDER_URI,
     YES_ENTER
 )
-from tests.utils.ursula import MOCK_URSULA_STARTING_PORT, start_pytest_ursula_services
+from tests.utils.ursula import MOCK_URSULA_STARTING_PORT, start_pytest_ursula_services, select_test_port
 
 
 @mock.patch('glob.glob', return_value=list())
@@ -51,7 +49,6 @@ def test_missing_configuration_file(default_filepath_mock, click_runner):
 
 
 def test_ursula_rest_host_determination(click_runner, mocker):
-
     # Patch the get_external_ip call
     mocker.patch.object(utilities.networking, 'get_external_ip_from_centralized_source', return_value=MOCK_IP_ADDRESS)
     mocker.patch.object(UrsulaConfiguration, 'to_configuration_file', return_value=None)
@@ -77,13 +74,14 @@ def test_ursula_rest_host_determination(click_runner, mocker):
 
 @pt.inlineCallbacks
 def test_run_lone_federated_default_development_ursula(click_runner):
-    args = ('ursula', 'run',                            # Stat Ursula Command
-            '--debug',                                  # Display log output; Do not attach console
-            '--federated-only',                         # Operating Mode
-            '--rest-port', MOCK_URSULA_STARTING_PORT,   # Network Port
-            '--dev',                                    # Run in development mode (ephemeral node)
-            '--dry-run',                                # Disable twisted reactor in subprocess
-            '--lonely'                                  # Do not load seednodes
+    deploy_port = select_test_port()
+    args = ('ursula', 'run',  # Stat Ursula Command
+            '--debug',  # Display log output; Do not attach console
+            '--federated-only',  # Operating Mode
+            '--rest-port', deploy_port,  # Network Port
+            '--dev',  # Run in development mode (ephemeral node)
+            '--dry-run',  # Disable twisted reactor in subprocess
+            '--lonely'  # Do not load seednodes
             )
 
     result = yield threads.deferToThread(click_runner.invoke,
@@ -94,58 +92,54 @@ def test_run_lone_federated_default_development_ursula(click_runner):
     time.sleep(Learner._SHORT_LEARNING_DELAY)
     assert result.exit_code == 0
     assert "Running" in result.output
-    assert "127.0.0.1:{}".format(MOCK_URSULA_STARTING_PORT) in result.output
+    assert "127.0.0.1:{}".format(deploy_port) in result.output
 
     reserved_ports = (UrsulaConfiguration.DEFAULT_REST_PORT, UrsulaConfiguration.DEFAULT_DEVELOPMENT_REST_PORT)
-    assert MOCK_URSULA_STARTING_PORT not in reserved_ports
+    assert deploy_port not in reserved_ports
 
 
 @pt.inlineCallbacks
 def test_federated_ursula_learns_via_cli(click_runner, federated_ursulas):
-
     # Establish a running Teacher Ursula
 
     teacher = list(federated_ursulas)[0]
     teacher_uri = teacher.seed_node_metadata(as_teacher_uri=True)
 
-    # Some Ursula is running somewhere
-    def run_teacher():
-        start_pytest_ursula_services(ursula=teacher)
-        return teacher_uri
+    deploy_port = select_test_port()
 
-    def run_ursula(teacher_uri):
-
+    def run_ursula():
+        i = start_pytest_ursula_services(ursula=teacher)
         args = ('ursula', 'run',
-                '--debug',                                  # Display log output; Do not attach console
-                '--federated-only',                         # Operating Mode
-                '--rest-port', MOCK_URSULA_STARTING_PORT,   # Network Port
+                '--debug',  # Display log output; Do not attach console
+                '--federated-only',  # Operating Mode
+                '--rest-port', deploy_port,  # Network Port
                 '--teacher', teacher_uri,
-                '--dev',                                    # Run in development mode (ephemeral node)
-                '--dry-run'                                 # Disable twisted reactor
+                '--dev',  # Run in development mode (ephemeral node)
+                '--dry-run'  # Disable twisted reactor
                 )
 
-        result = yield threads.deferToThread(click_runner.invoke,
-                                             nucypher_cli, args,
-                                             catch_exceptions=False,
-                                             input=INSECURE_DEVELOPMENT_PASSWORD + '\n')
-
-        assert result.exit_code == 0
-        assert "Running Ursula" in result.output
-        assert "127.0.0.1:{}".format(MOCK_URSULA_STARTING_PORT+101) in result.output
-
-        reserved_ports = (UrsulaConfiguration.DEFAULT_REST_PORT, UrsulaConfiguration.DEFAULT_DEVELOPMENT_REST_PORT)
-        assert MOCK_URSULA_STARTING_PORT not in reserved_ports
-
-        # Check that CLI Ursula reports that it remembers the teacher and saves the TLS certificate
-        assert teacher.checksum_address in result.output
-        assert f"Saved TLS certificate for {teacher.nickname}" in result.output
-        assert f"Remembering {teacher.nickname}" in result.output
+        return threads.deferToThread(click_runner.invoke,
+                                     nucypher_cli, args,
+                                     catch_exceptions=False,
+                                     input=INSECURE_DEVELOPMENT_PASSWORD + '\n')
 
     # Run the Callbacks
-    d = threads.deferToThread(run_teacher)
-    d.addCallback(run_ursula)
-
+    d = run_ursula()
     yield d
+
+    result = d.result
+
+    assert result.exit_code == 0
+    assert "Starting Ursula" in result.output
+    assert f"127.0.0.1:{deploy_port}" in result.output
+
+    reserved_ports = (UrsulaConfiguration.DEFAULT_REST_PORT, UrsulaConfiguration.DEFAULT_DEVELOPMENT_REST_PORT)
+    assert deploy_port not in reserved_ports
+
+    # Check that CLI Ursula reports that it remembers the teacher and saves the TLS certificate
+    assert teacher.checksum_address in result.output
+    assert f"Saved TLS certificate for {teacher.nickname}" in result.output
+
 
 @pytest.mark.skip("Let's put this on ice until we get 2099 and Treasure Island working together.")
 @pt.inlineCallbacks
@@ -154,7 +148,6 @@ def test_persistent_node_storage_integration(click_runner,
                                              testerchain,
                                              blockchain_ursulas,
                                              agency_local_registry):
-
     alice, ursula, another_ursula, felix, staker, *all_yall = testerchain.unassigned_accounts
     filename = UrsulaConfiguration.generate_filename()
     another_ursula_configuration_file_location = os.path.join(custom_filepath, filename)
