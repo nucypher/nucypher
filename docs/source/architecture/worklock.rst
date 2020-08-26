@@ -7,21 +7,21 @@ WorkLock
 Overview
 --------
 
-`WorkLock` is a novel, permissionless decentralized network bootstrapping mechanism developed at NuCypher which requires
-participants to temporarily escrow ETH and operate NuCypher nodes in order to be allocated NU tokens, the native
+`WorkLock` is a novel, permissionless decentralized network node setup mechanism, developed at NuCypher, which requires
+participants to temporarily escrow ETH and operate NuCypher nodes in order to be allocated NU, the native
 token of the NuCypher network that enables node operation.
 
 WorkLock is designed to onboard threshold cryptography nodes to the live NuCypher network using a process that selects
 participants who are most likely to strengthen and sustain the network by committing to staking and running active nodes.
 
-The WorkLock begins with a contribution period, during which anyone seeking to operate a NuCypher node can send
+The WorkLock begins with an escrow period, during which anyone seeking to operate a NuCypher node can send
 ETH to the WorkLock contract to be temporarily escrowed on-chain.
-At any time during the contribution period, WorkLock participants can cancel their participation to forgo NU and recoup
+At any time during the escrow period, WorkLock participants can cancel their participation to forgo NU and recoup
 their escrowed ETH immediately.
 
-Once the contribution period closes, the WorkLock contract does not accept more ETH, but will still accept cancellations
+Once the escrow period closes, the WorkLock contract does not accept more ETH, but will still accept cancellations
 during an additional time window (the "cancellation window").  At the end of this cancellation period,
-the token allocation period begins and stake-locked NU are allocated to participants in the form of non-transferable stakes.
+the allocation period begins and stake-locked NU are allocated to participants in the form of non-transferable stakes.
 These stakes are designed for the limited and explicit purpose of running threshold cryptography nodes on the live NuCypher network.
 Stake-locked NU will be allocated at network launch according to the following principles:
 

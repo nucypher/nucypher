@@ -350,10 +350,10 @@ Q: What types of Ethereum web3 node providers do you support?
 Q: Is there a difference between delegating staking and running a node yourself?
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Delegating stake and work to a 3rd party is a good option for those who are not confident with the technicals
+Delegating stake and/or work to a 3rd party is a good option for those who are not confident with the technicals
 of staking and running a node and/or are concerned about gas costs relative to stake size (e.g. small stakers).
 
-If you are very comfortable with technical requirements of staking or wish to implement a sophisticated staking configuration
+If you are comfortable with technical requirements of staking or wish to implement a sophisticated staking configuration
 (e.g. restake toggles,  stake extensions, sub stakes , adding stake, etc.) it may not be the right option.
 
 
