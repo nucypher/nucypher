@@ -75,9 +75,9 @@ More detailed information:
 
 ### Economics
 
-[*"NuCypher - Mining & Staking Economics"*](https://github.com/nucypher/mining-paper/blob/master/mining-paper.pdf)
+[*"NuCypher - Staking Protocol & Economics"*](https://github.com/nucypher/whitepaper/blob/master/economics/staking_protocol/NuCypher_Staking_Protocol_Economics.pdf)
 
-*by Michael Egorov, MacLane Wilkison - NuCypher*
+*by Michael Egorov, MacLane Wilkison, Arjun Hassard - NuCypher*
 
 
 ### Cryptography
