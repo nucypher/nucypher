@@ -15,13 +15,10 @@ You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
-
-import click
 import lmdb
 import os
 import pytest
 from contextlib import contextmanager
-from eth_account import Account
 from eth_account.account import Account
 from functools import partial
 
@@ -86,9 +83,11 @@ class TestLMDBEnv:
     def path(self):
         return self.db_path
 
+
 @pytest.fixture(autouse=True)
 def JIT_lmdb_env(monkeypatch):
     monkeypatch.setattr("lmdb.open", TestLMDBEnv)
+
 
 @pytest.fixture(autouse=True)
 def reduced_memory_page_lmdb(monkeypatch):
