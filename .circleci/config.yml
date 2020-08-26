@@ -596,7 +596,7 @@ jobs:
       - run:
           name: Character Tests
           command: |
-            pytest --track-character-lifecycles $(circleci tests glob "tests/acceptance/characters/**/test_*.py" "tests/learning/**/test_*.py" | circleci tests split --split-by=timings)
+            pytest $(circleci tests glob "tests/acceptance/characters/**/test_*.py" "tests/learning/**/test_*.py" | circleci tests split --split-by=timings)
       - capture_test_results
 
   cli:
@@ -607,7 +607,7 @@ jobs:
       - run:
           name: Nucypher CLI Tests
           command: |
-            pytest --track-character-lifecycles $(circleci tests glob "tests/acceptance/cli/**/test_*.py" | circleci tests split --split-by=timings)
+            pytest $(circleci tests glob "tests/acceptance/cli/**/test_*.py" | circleci tests split --split-by=timings)
       - capture_test_results
 
   tests_ok:
