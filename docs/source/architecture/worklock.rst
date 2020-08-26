@@ -11,8 +11,8 @@ Overview
 participants to temporarily escrow ETH and operate NuCypher nodes in order to be allocated NU tokens, the native
 token of the NuCypher network that enables node operation.
 
-WorkLock is designed onboard threshold cryptography nodes to the live NuCypher network using a process that selects
-participants who are most likely to strengthen the network by committing to staking and running active nodes.
+WorkLock is designed to onboard threshold cryptography nodes to the live NuCypher network using a process that selects
+participants who are most likely to strengthen and sustain the network by committing to staking and running active nodes.
 
 The WorkLock begins with a contribution period, during which anyone seeking to operate a NuCypher node can send
 ETH to the WorkLock contract to be temporarily escrowed on-chain.
