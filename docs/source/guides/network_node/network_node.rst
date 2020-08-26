@@ -11,8 +11,8 @@ performs cryptographic work on the network on behalf of the Staker.
 Due to the complexity of running a node on the network, there are a variety of ways to participate depending on your
 comfort level:
 
-* Delegate custody of NU and work to `CoinList <https://coinlist.co/nucypher-worklock>`_.
-* Retain custody of NU but delegate work to a `Node-as-a-Service provider <https://github.com/nucypher/validator-profiles>`_.
+* Delegate custody of NU and work to a third-party custodian.
+* Delegate work via a staking pool or `Node-as-a-Service provider <https://github.com/nucypher/validator-profiles>`_.
 * Run your own node:
 
     .. toctree::
