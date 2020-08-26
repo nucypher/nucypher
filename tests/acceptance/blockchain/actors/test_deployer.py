@@ -21,6 +21,7 @@ import random
 import pytest
 
 from nucypher.blockchain.eth.actors import ContractAdministrator
+from nucypher.blockchain.eth.agents import StakingEscrowAgent, ContractAgency
 from nucypher.blockchain.eth.sol.compile import SolidityCompiler
 from nucypher.characters.control.emitters import StdoutEmitter
 from nucypher.crypto.powers import TransactingPower
@@ -76,7 +77,9 @@ def test_rapid_deployment(token_economics, test_registry, tmpdir, get_random_che
     with open(filepath, 'w') as f:
         json.dump(allocation_data, f)
 
-    administrator.batch_deposits(allocation_data_filepath=str(filepath), interactive=False)
+    staking_agent = ContractAgency.get_agent(StakingEscrowAgent, registry=test_registry)
+    current_period = staking_agent.get_current_period()
+    administrator.batch_deposits(allocation_data_filepath=str(filepath), interactive=False, release_period=current_period+10)
 
     minimum, default, maximum = 10, 20, 30
     administrator.set_fee_rate_range(minimum, default, maximum)

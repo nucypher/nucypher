@@ -88,7 +88,7 @@ def test_upgrading(testerchain, token, token_economics, deploy_contract):
     tx = contract.functions.setPolicyManager(policy_manager.address).transact()
     testerchain.wait_for_receipt(tx)
     worklock, _ = deploy_contract(
-        'WorkLockForStakingEscrowMock', contract.address
+        'WorkLockForStakingEscrowMock', token.address, contract.address
     )
     tx = contract.functions.setWorkLock(worklock.address).transact()
     testerchain.wait_for_receipt(tx)
@@ -810,7 +810,7 @@ def test_measure_work(testerchain, token, escrow_contract, deploy_contract):
     testerchain.wait_for_receipt(tx)
 
     # Deploy WorkLock mock
-    worklock, _ = deploy_contract('WorkLockForStakingEscrowMock', escrow.address)
+    worklock, _ = deploy_contract('WorkLockForStakingEscrowMock', token.address, escrow.address)
     tx = escrow.functions.setWorkLock(worklock.address).transact()
     testerchain.wait_for_receipt(tx)
 

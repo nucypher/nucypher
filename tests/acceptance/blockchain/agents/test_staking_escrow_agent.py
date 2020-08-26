@@ -447,6 +447,7 @@ def test_batch_deposit(testerchain,
 
     amount = token_economics.minimum_allowed_locked
     lock_periods = token_economics.minimum_locked_periods
+    current_period = staking_agent.get_current_period()
 
     stakers = [get_random_checksum_address() for _ in range(4)]
 
@@ -472,13 +473,19 @@ def test_batch_deposit(testerchain,
     not_enough_gas = 800_000
     with pytest.raises((TransactionFailed, ValueError)):
         staking_agent.batch_deposit(*batch_parameters,
+                                    release_period=current_period + 2,
                                     sender_address=testerchain.etherbase_account,
                                     dry_run=True,
                                     gas_limit=not_enough_gas)
 
-    staking_agent.batch_deposit(*batch_parameters, sender_address=testerchain.etherbase_account, dry_run=True)
+    staking_agent.batch_deposit(*batch_parameters,
+                                release_period=current_period + 2,
+                                sender_address=testerchain.etherbase_account,
+                                dry_run=True)
 
-    staking_agent.batch_deposit(*batch_parameters, sender_address=testerchain.etherbase_account)
+    staking_agent.batch_deposit(*batch_parameters,
+                                release_period=current_period + 2,
+                                sender_address=testerchain.etherbase_account)
 
     for staker in stakers:
         assert staking_agent.owned_tokens(staker_address=staker) == amount * N
@@ -488,3 +495,4 @@ def test_batch_deposit(testerchain,
             first_period, last_period, locked_value = substake
             assert last_period == first_period + lock_periods - 1
             assert locked_value == amount
+        assert staking_agent.is_restaking_locked(staker_address=staker)
