@@ -281,6 +281,7 @@ def enacted_blockchain_policy(idle_blockchain_policy, blockchain_ursulas):
         network_middleware, handpicked_ursulas=list(blockchain_ursulas))
 
     idle_blockchain_policy.enact(network_middleware)  # REST call happens here, as does population of TreasureMap.
+    idle_blockchain_policy.publishing_mutex.block_until_complete()
     return idle_blockchain_policy
 
 
