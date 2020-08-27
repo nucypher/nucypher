@@ -44,6 +44,9 @@ global_mutable_where_everybody = defaultdict(list)
 ##########################################
 
 
+from nucypher.network.nodes import Learner
+Learner._DEBUG_MODE = True
+
 @pytest.fixture(autouse=True, scope='session')
 def __very_pretty_and_insecure_scrypt_do_not_use():
     """
@@ -101,14 +104,15 @@ def pytest_addoption(parser):
                      default=False,
                      help="run tests even if they are marked as nightly")
 
-    class SetLearnerDebugMode((argparse.Action)):
-        def __call__(self, *args, **kwargs):
-            from nucypher.network.nodes import Learner
-            Learner._DEBUG_MODE = True
-    parser.addoption("--track-character-lifecycles",
-                     action=SetLearnerDebugMode,
-                     default=False,
-                     help="Track characters in a global... mutable... where everybody...")
+    # class SetLearnerDebugMode((argparse.Action)):
+    #     def __call__(self, *args, **kwargs):
+    #         from nucypher.network.nodes import Learner
+    #         Learner._DEBUG_MODE = True
+
+    # parser.addoption("--track-character-lifecycles",
+    #                  action=SetLearnerDebugMode,
+    #                  default=False,
+    #                  help="Track characters in a global... mutable... where everybody...")
 
 
 def pytest_configure(config):
@@ -150,13 +154,12 @@ def pytest_collection_modifyitems(config, items):
     GlobalLoggerSettings.start_json_file_logging()
 
 
-global_mutable_where_everybody = defaultdict(list)
+# global_mutable_where_everybody = defaultdict(list)
 
 @pytest.fixture(scope='module', autouse=True)
 def check_character_state_after_test(request):
     from nucypher.network.nodes import Learner
     yield
-
     if Learner._DEBUG_MODE:
         gmwe = global_mutable_where_everybody
         module_name = request.module.__name__
@@ -186,3 +189,7 @@ def check_character_state_after_test(request):
                 except AttributeError:
                     learner.disenchant()
             pytest.fail(f"Learners remaining: {still_running}.  Offending tests: {offending_tests} ")
+
+        still_tracking  = [learner for learner in test_learners if hasattr(learner, 'work_tracker') and learner.work_tracker._tracking_task.running]
+        for tracker in still_tracking:
+            tracker.work_tracker.stop()
