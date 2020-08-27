@@ -75,18 +75,7 @@ def test_bob_can_retreive_the_treasure_map_and_decrypt_it(enacted_federated_poli
     # Of course, in the real world, Bob has sufficient information to reconstitute a PolicyGroup, gleaned, we presume,
     # through a side-channel with Alice.
 
-    # If Bob doesn't know about any Ursulas, he can't find the TreasureMap via the REST swarm:
-    with pytest.raises(bob.NotEnoughNodes):
-        treasure_map_from_wire = bob.get_treasure_map(enacted_federated_policy.alice.stamp,
-                                                      enacted_federated_policy.label)
-
-    # Bob finds out about one Ursula (in the real world, a seed node)
-    bob.remember_node(list(federated_ursulas)[0])
-
-    # ...and then learns about the rest of the network.
-    bob.learn_from_teacher_node(eager=True)
-
-    # Now he'll have better success finding that map.
+    # Bob will automatically load seednodes when getting the map.
     treasure_map_from_wire = bob.get_treasure_map(enacted_federated_policy.alice.stamp,
                                                   enacted_federated_policy.label)
 

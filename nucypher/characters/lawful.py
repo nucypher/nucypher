@@ -553,7 +553,12 @@ class Bob(Character):
         if not self.known_nodes and not self._learning_task.running:
             # Quick sanity check - if we don't know of *any* Ursulas, and we have no
             # plans to learn about any more, than this function will surely fail.
-            raise self.NotEnoughTeachers
+            if not self.done_seeding:
+                self.learn_from_teacher_node()
+
+            # If we still don't know of any nodes, we gotta bail.
+            if not self.known_nodes:
+                raise self.NotEnoughTeachers("Can't retrieve without knowing about any nodes at all.  Pass a teacher or seed node.")
 
         treasure_map = self.get_treasure_map_from_known_ursulas(self.network_middleware,
                                                                 map_id)
@@ -812,6 +817,10 @@ class Bob(Character):
                 if not work_order_is_useful:
                     # None of the Capsules for this particular WorkOrder need to be activated.  Move on to the next one.
                     continue
+
+                # OK, so we're going to need to do some network activity for this retrieval.  Let's make sure we've seeded.
+                if not self.done_seeding:
+                    self.learn_from_teacher_node()
 
                 # We don't have enough CFrags yet.  Let's get another one from a WorkOrder.
                 try:

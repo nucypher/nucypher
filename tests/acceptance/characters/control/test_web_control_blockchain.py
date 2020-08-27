@@ -199,6 +199,7 @@ def test_bob_character_control_join_policy(bob_web_controller_test_client, enact
 
 
 def test_bob_web_character_control_retrieve(bob_web_controller_test_client, retrieve_control_request):
+
     method_name, params = retrieve_control_request
     endpoint = f'/{method_name}'
 

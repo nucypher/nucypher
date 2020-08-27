@@ -368,6 +368,7 @@ def blockchain_bob(bob_blockchain_test_config, testerchain):
     yield bob
     bob.disenchant()
 
+
 @pytest.fixture(scope="module")
 def federated_ursulas(ursula_federated_test_config):
     if MOCK_KNOWN_URSULAS_CACHE:

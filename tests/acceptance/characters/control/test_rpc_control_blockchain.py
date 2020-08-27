@@ -50,6 +50,11 @@ def test_enrico_rpc_character_control_encrypt_message(enrico_rpc_controller_test
 def test_bob_rpc_character_control_retrieve_with_tmap(
         enacted_blockchain_policy, blockchain_bob, blockchain_alice,
         bob_rpc_controller, retrieve_control_request):
+
+    # So that this test can run even independently.
+    if not blockchain_bob.done_seeding:
+        blockchain_bob.learn_from_teacher_node()
+
     tmap_64 = b64encode(bytes(enacted_blockchain_policy.treasure_map)).decode()
     method_name, params = retrieve_control_request
     params['treasure_map'] = tmap_64
