@@ -9,7 +9,7 @@ Overview
 
 `WorkLock` is a novel, permissionless decentralized network node setup mechanism, developed at NuCypher, which requires
 participants to temporarily escrow ETH and operate NuCypher nodes in order to be allocated NU, the native
-token of the NuCypher network that enables node operation.
+cryptocurrency of the NuCypher network that enables node operation.
 
 WorkLock is designed to onboard threshold cryptography nodes to the live NuCypher network using a process that selects
 participants who are most likely to strengthen and sustain the network by committing to staking and running active nodes.
