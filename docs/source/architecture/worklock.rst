@@ -47,10 +47,10 @@ Hypothetical WorkLock Scenarios
 
 For each scenario, assume the following **hypothetical WorkLock properties**:
 
- #. WorkLock holds 280,000,000 NU and the minimum escrow is 15 ETH.
- #. The minimum amount of NU required to stake is 15,000 NU and the maximum stake size is 4,000,000 NU.
+ #. WorkLock holds 225,000,000 NU and the minimum escrow is 8 ETH.
+ #. The minimum amount of NU required to stake is 15,000 NU and the maximum stake size is 30,000,000 NU.
  #. The total number of participants is 1000 (including you) with a total of 50,000 ETH escrowed (including your escrow).
- #. For our purposes, a `whale` escrow is an escrow that causes the calculated stake size to be larger than the maximum stake size (4,000,000 NU).
+ #. For our purposes, a `whale` escrow is an escrow that causes the calculated stake size to be larger than the maximum stake size (30,000,000 NU).
 
 .. note::
 
@@ -61,7 +61,7 @@ For each scenario, assume the following **hypothetical WorkLock properties**:
 Scenario 1: Resulting stake size does not exceed maximum stake size (no whale escrows)
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-**You submit an escrow of 22 ETH i.e. 15 ETH minimum + 7 bonus ETH.**
+**You submit an escrow of 29 ETH i.e. 8 ETH minimum + 21 bonus ETH.**
 
 *How many NU would be allocated to your network node?*
 
@@ -70,33 +70,33 @@ Scenario 1: Resulting stake size does not exceed maximum stake size (no whale es
 
         .. math::
 
-            280,000,000 NU - (15,000 NU \times 1000 \,participants) = 265,000,000 NU
+            225,000,000 NU - (15,000 NU \times 1000 \,participants) = 210,000,000 NU
 
  - Bonus ETH supply (i.e. total ETH not including minimum escrows) is
 
         .. math::
 
-            50,000 ETH - (15 ETH \times 1000 \,participants) = 35,000 ETH
+            50,000 ETH - (8 ETH \times 1000 \,participants) = 42,000 ETH
 
  - Your bonus portion of the bonus ETH supply is
 
         .. math::
 
-            \frac{7 ETH}{35,000 ETH} = 0.02\%
+            \frac{21 ETH}{42,000 ETH} = 0.05\%
 
  - Your allocation of the remaining NU is
 
         .. math::
 
-            0.02\% \times 265,000,000 NU= 53,000 NU
+            0.05\% \times 210,000,000 NU = 105,000 NU
 
 
-**Total NU received = 15,000 NU + 53,000 NU = 68,000 NU**
+**Total NU received = 15,000 NU + 105,000 NU = 120,000 NU**
 
 Scenario 2: Resulting stake size exceeds maximum stake size (1 whale escrow)
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-**You submit an escrow of 715 ETH i.e. 15 ETH minimum + 700 bonus ETH.**
+**You submit an escrow of 6,308 ETH i.e. 8 ETH minimum + 6,300 bonus ETH.**
 
 *How many NU would be allocated to your network node?*
 
@@ -105,29 +105,29 @@ Scenario 2: Resulting stake size exceeds maximum stake size (1 whale escrow)
 
         .. math::
 
-            280,000,000 NU - (15,000 NU \times 1000 \,participants) = 265,000,000 NU
+            225,000,000 NU - (15,000 NU \times 1000 \,participants) = 210,000,000 NU
 
  - Bonus ETH supply (i.e. total ETH not including minimum escrows) is
 
         .. math::
 
-            50,000 ETH - (15 ETH \times 1000 \,participants) = 35,000 ETH
+            50,000 ETH - (8 ETH \times 1000 \,participants) = 42,000 ETH
 
  - Your bonus allocation of the bonus ETH supply is
 
         .. math::
 
-            \frac{700 ETH}{35,000 ETH} = 2\%
+            \frac{6,300 ETH}{42,000 ETH} = 15\%
 
  - Your allocation of the remaining NU is
 
         .. math::
 
-            2\% \times 265,000,000 NU= 5,300,000 NU
+            15\% \times 210,000,000 NU = 31,500,000 NU
 
 
-However, the total amount of NU to be allocated is 15,000 NU + 5,300,000 NU = 5,315,000 NU which is greater than
-the maximum stake amount (4,000,000 NU). Therefore, the amount of NU allocated to you needs to be reduced,
+However, the total amount of NU to be allocated is 15,000 NU + 31,500,000 NU = 31,515,000 NU which is greater than
+the maximum stake amount (30,000,000 NU). Therefore, the amount of NU allocated to you needs to be reduced,
 and some of your bonus ETH refunded.
 
  - Typically the calculation for the NU allocated from the bonus portion is
@@ -144,52 +144,52 @@ and some of your bonus ETH refunded.
 
             \text{stake size} = \frac{\text{(your bonus ETH - x)}}{\text{(bonus ETH supply - x)}} \times \text{remaining NU}
 
- - Since you will be allocated a 15,000 NU minimum, and the maximum stake size is 4,000,000 NU, the most you can be allocated from the remaining NU is
+ - Since you will be allocated a 15,000 NU minimum, and the maximum stake size is 30,000,000 NU, the most you can be allocated from the remaining NU is
 
         .. math::
 
-            4,000,000 NU - 15,000 NU = 3,985,000 NU
+            30,000,000 NU - 15,000 NU = 29,985,000 NU
 
  - Therefore using values in the equation above yields
 
         .. math::
 
-            3,985,000 NU = \frac{700 ETH - x ETH}{35,000 ETH - x ETH} \times 265,000,000 NU
+            29,985,000 NU = \frac{6,300 ETH - x ETH}{42,000 ETH - x ETH} \times 210,000,000 NU
 
  - Reorganizing the equation
 
         .. math::
 
-            x &= \frac{700 ETH \times 265,000,000 NU - 35,000 ETH \times 3,985,000 NU}{265,000,000 NU - 3,985,000 NU} \\
-              &\approx 176.33 ETH
+            x &= \frac{6,300 ETH \times 210,000,000 NU - 42,000 ETH \times 29,985,000 NU}{210,000,000 NU - 29,985,000 NU} \\
+              &\approx 353.47 ETH
 
  - Therefore, your final bonus escrow is
 
         .. math::
 
-            700 ETH - 176.33 ETH \approx 523.67 ETH
+            6,300 ETH - 353.47 ETH \approx 5,946.53 ETH
 
  - Your portion of the bonus ETH supply is
 
         .. math::
 
-            \frac{523.67}{(35,000 ETH - 176.33 ETH)} \approx 1.504\%
+            \frac{5,946.53}{(42,000 ETH - 353.47 ETH)} \approx 14.279\%
 
  - Your allocation of the remaining NU is
 
         .. math::
 
-            1.504\% \times 265,000,000 NU \approx 3,985,006.46 NU
+            14.279\% \times 210,000,000 NU \approx 29,985,900 NU
 
-**Total NU allocated ~ 15,000 NU + 3,985,006.46 NU (rounding) ~ 4,000,000 NU, and refunded ETH ~ 176.33 ETH**
+**Total NU allocated ~ 15,000 NU + 29,985,900 NU (rounding) ~ 30,000,000 NU, and refunded ETH ~ 353.47 ETH**
 
 
 Scenario 3: Resulting stake size exceeds maximum stake size (2 whale escrows)
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-**Someone else submitted an escrow of 715 ETH (15 ETH + 700 bonus ETH); we'll call them `whale_1`.**
+**Someone else submitted an escrow of 6,108 ETH i.e. 8 ETH + 6,100 bonus ETH; we'll call them "whale_1".**
 
-**You submit an escrow of 785 ETH i.e. 15 ETH minimum + 770 bonus ETH; you are `whale_2`.**
+**You submit an escrow of 6,308 ETH i.e. 8 ETH minimum + 6,300 bonus ETH; you are "whale_2".**
 
 *How many NU would be allocated to your network node?*
 
@@ -198,28 +198,28 @@ Scenario 3: Resulting stake size exceeds maximum stake size (2 whale escrows)
 
         .. math::
 
-            280,000,000 NU - (15,000 NU \times 1000 \,participants) = 265,000,000 NU
+            225,000,000 NU - (15,000 NU \times 1000 \,participants) = 210,000,000 NU
 
  - Bonus ETH supply (i.e. total ETH not including minimum escrows) is
 
         .. math::
 
-            50,000 ETH - (15 ETH \times 1000 \,participants) = 35,000 ETH
+            50,000 ETH - (8 ETH \times 1000 \,participants) = 42,000 ETH
 
  - Your portion of the bonus ETH supply is
 
         .. math::
 
-            \frac{770 ETH}{35,000 ETH} = 2.2\%
+            \frac{6,300 ETH}{42,000 ETH} = 15\%
 
  - Your allocation of the remaining NU is
 
         .. math::
 
-            2.2\% \times 265,000,000 NU= 5,830,000 NU
+            15\% \times 210,000,000 NU= 31,500,000 NU
 
-However, the total amount of NU to be allocated to receive is 15,000 NU + 5,830,000 NU = 5,845,000 NU which is greater than
-the maximum stake amount (4,000,000 NU).
+However, the total amount of NU to be allocated to receive is 15,000 NU + 31,500,000 NU = 31,515,000 NU which is greater than
+the maximum stake amount (30,000,000 NU).
 
  -  From the previous scenario, the equation for the bonus part of the calculation is as follows, where `x` is the refunded ETH
 
@@ -230,28 +230,28 @@ the maximum stake amount (4,000,000 NU).
  - Additionally, there is more than one whale escrow, which would also cause the bonus ETH supply to reduce as well
  - Instead the following `whale resolution` algorithm is employed:
 
-    #. Select the smallest whale bonus ETH escrow; in this case 700 ETH from `whale_1` < 770 ETH from `whale_2`
-    #. Equalize the bonus ETH whale escrows for all other whales (in this case, just `whale_2` i.e. just you) to be the smallest whale bonus escrow i.e. 700 ETH in this case
-    #. Since your bonus ETH escrow is > 700 ETH, you will be refunded
+    #. Select the smallest whale bonus ETH escrow; in this case 6,100 ETH from `whale_1` < 6,300 ETH from `whale_2`
+    #. Equalize the bonus ETH whale escrows for all other whales (in this case, just `whale_2` i.e. just you) to be the smallest whale bonus escrow i.e. 6,100 ETH in this case
+    #. Since your bonus ETH escrow is > 6,100 ETH, you will be refunded
 
         .. math::
 
-            770 ETH - 700 ETH = 70 ETH
+            6,300 ETH - 6,100 ETH = 200 ETH
 
     #. This reduces the resulting bonus ETH supply which will now be
 
         .. math::
 
-            35,000 ETH - 70 ETH = 34,930 ETH
+            42,000 ETH - 200 ETH = 41,800 ETH
 
     #. We now need to calculate the bonus ETH refunds based on the updated bonus ETH supply, and the maximum stake size.
-    #. Remember that everyone is allocated a 15,000 NU minimum, and the maximum stake size is 4,000,000 NU, so the most that can be allocated to you from the remaining NU is
+    #. Remember that everyone is allocated a 15,000 NU minimum, and the maximum stake size is 30,000,000 NU, so the most that can be allocated to you from the remaining NU is
 
         .. math::
 
-            4,000,000 NU - 15,000 NU = 3,985,000 NU
+            30,000,000 NU - 15,000 NU = 29,985,000 NU
 
-    #. Since we have multiple participants, our equation is the following , where `n` is the number of whale escrows
+    #. Since we have multiple whales, our equation is the following , where `n` is the number of whale escrows
 
         .. math::
 
@@ -261,42 +261,42 @@ the maximum stake amount (4,000,000 NU).
 
         .. math::
 
-            x &= \frac{(700 ETH \times 265,000,000 NU - 34,930 ETH \times 3,985,000 NU)}{(265,000,000 NU - 2 \times 3,985,000 NU)} \\
-              &\approx 180.15 ETH
+            x &= \frac{(6,100 ETH \times 210,000,000 NU - 41,800 ETH \times 29,985,000 NU)}{(210,000,000 NU - 2 \times 29,985,000 NU)} \\
+              &\approx 184.14 ETH
 
-        - hence each whale gets refunded ~ 180.15 ETH
+        - hence each whale gets refunded ~ 184.14 ETH
 
     #. Therefore,
 
-        - `whale_1` is refunded ~ 180.15 ETH
-        - `whale_2` (i.e. you) is refunded ~ 180.15 ETH + 70 ETH (from Step 3) = 250.15 ETH
+        - `whale_1` is refunded ~ 184.14 ETH
+        - `whale_2` (i.e. you) is refunded ~ 184.14 ETH + 200 ETH (from Step 3) ~ 384.14 ETH
 
     #. Based on the refunds
 
         - The bonus escrows for the whales will now be equalized:
 
-            - `whale_1` bonus = 700 ETH - 180.15 ETH = 519.85 ETH
-            - `whale_2` bonus = 770 ETH - 250.15 ETH = 519.85 ETH
+            - `whale_1` bonus ~ 6,100 ETH - 184.14 ETH ~ 5,915.86 ETH
+            - `whale_2` bonus ~ 6,300 ETH - 384.14 ETH ~ 5,915.86 ETH
 
         - The updated bonus ETH supply will be
 
             .. math::
 
-                35,000 ETH - (180.15 ETH + 250.15 ETH) = 34,569.70 ETH
+                42,000 ETH - (184.14 ETH + 384.14 ETH) \approx 41,431.72 ETH
 
     #. Each whale's portion of the bonus ETH supply is therefore
 
             .. math::
 
-                \frac{519.85 ETH}{34,569.70 ETH} \approx 1.504\%
+                \frac{5,915.86 ETH}{41,431.72 ETH} \approx 14.279\%
 
     #. And each whale's allocation of the remaining NU is
 
             .. math::
 
-                1.504\% \times 265,000,000 NU = 3,985,600 NU
+                14.279\% \times 210,000,000 NU \approx 29,985,900 NU
 
-**Total NU allocated ~ 15,000 NU + 3,985,600 NU (rounding) ~ 4,000,000 NU, and refunded ETH ~ 176.33 ETH**
+**Total NU allocated ~ 15,000 NU + 29,985,900 NU (rounding) ~ 30,000,000 NU, and refunded ETH ~ 384.14 ETH**
 
 
 .. note::
