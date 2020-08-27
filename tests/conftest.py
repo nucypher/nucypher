@@ -45,7 +45,7 @@ global_mutable_where_everybody = defaultdict(list)
 
 
 from nucypher.network.nodes import Learner
-Learner._DEBUG_MODE = True
+Learner._DEBUG_MODE = False
 
 @pytest.fixture(autouse=True, scope='session')
 def __very_pretty_and_insecure_scrypt_do_not_use():
