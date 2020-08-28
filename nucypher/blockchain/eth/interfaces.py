@@ -57,7 +57,7 @@ from nucypher.blockchain.eth.sol.compile import SolidityCompiler
 from nucypher.blockchain.eth.utils import get_transaction_name, prettify_eth_amount
 from nucypher.characters.control.emitters import JSONRPCStdoutEmitter, StdoutEmitter
 from nucypher.utilities.logging import GlobalLoggerSettings, Logger
-from nucypher.utilities.oracles import oracle_fallback_gas_price_strategy
+from nucypher.utilities.datafeeds import datafeed_fallback_gas_price_strategy
 
 Web3Providers = Union[IPCProvider, WebsocketProvider, HTTPProvider, EthereumTester]
 
@@ -281,7 +281,7 @@ class BlockchainInterface:
         # Bundled web3 strategies are too expensive for Infura (it takes ~1 minute to get a price),
         # so we use external gas price oracles, instead (see #2139)
         if isinstance(self.client, InfuraClient):
-            gas_strategy = oracle_fallback_gas_price_strategy
+            gas_strategy = datafeed_fallback_gas_price_strategy
         else:
             gas_strategy = self.gas_strategy
         self.client.set_gas_strategy(gas_strategy=gas_strategy)

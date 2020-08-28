@@ -23,24 +23,24 @@ from web3.gas_strategies.rpc import rpc_gas_price_strategy
 from web3.types import Wei, TxParams
 
 
-class Oracle(ABC):
+class Datafeed(ABC):
 
-    class OracleError(RuntimeError):
-        """Base class for Oracle-related exceptions"""
+    class DatafeedError(RuntimeError):
+        """Base class for exceptions concerning Datafeeds"""
 
     name = NotImplemented
     api_url = NotImplemented  # TODO: Deal with API keys
 
-    def _probe_oracle(self):
+    def _probe_feed(self):
         try:
             response = requests.get(self.api_url)
         except requests.exceptions.ConnectionError as e:
-            error = f"Failed to probe oracle at {self.api_url}: {str(e)}"
-            raise self.OracleError(error)
+            error = f"Failed to probe feed at {self.api_url}: {str(e)}"
+            raise self.DatafeedError(error)
 
         if response.status_code != 200:
-            error = f"Failed to probe oracle at {self.api_url} with status code {response.status_code}"
-            raise self.OracleError(error)
+            error = f"Failed to probe feed at {self.api_url} with status code {response.status_code}"
+            raise self.DatafeedError(error)
 
         self._raw_data = response.json()
 
@@ -48,8 +48,8 @@ class Oracle(ABC):
         return f"{self.name} ({self.api_url})"
 
 
-class EthereumGasPriceOracle(Oracle):
-    """Base class for Ethereum gas price oracles"""
+class EthereumGasPriceDatafeed(Datafeed):
+    """Base class for Ethereum gas price data feeds"""
 
     _speed_names = NotImplemented
     _default_speed = NotImplemented
@@ -66,47 +66,47 @@ class EthereumGasPriceOracle(Oracle):
 
     @classmethod
     def construct_gas_strategy(cls):
-        def oracle_based_gas_price_strategy(web3: Web3, transaction_params: TxParams = None) -> Wei:
-            oracle = cls()
-            gas_price = oracle.get_gas_price()
+        def gas_price_strategy(web3: Web3, transaction_params: TxParams = None) -> Wei:
+            feed = cls()
+            gas_price = feed.get_gas_price()
             return gas_price
-        return oracle_based_gas_price_strategy
+        return gas_price_strategy
 
 
-class EtherchainGasPriceOracle(EthereumGasPriceOracle):
-    """Gas price oracle from Etherchain"""
+class EtherchainGasPriceDatafeed(EthereumGasPriceDatafeed):
+    """Gas price datafeed from Etherchain"""
 
-    name = "Etherchain oracle"
+    name = "Etherchain datafeed"
     api_url = "https://www.etherchain.org/api/gasPriceOracle"
     _speed_names = ('safeLow', 'standard', 'fast', 'fastest')
     _default_speed = 'fast'
 
     def _parse_gas_prices(self):
-        self._probe_oracle()
+        self._probe_feed()
         self.gas_prices = {k: int(Web3.toWei(v, 'gwei')) for k, v in self._raw_data.items()}
 
 
-class UpvestGasPriceOracle(EthereumGasPriceOracle):
-    """Gas price oracle from Upvest"""
+class UpvestGasPriceDatafeed(EthereumGasPriceDatafeed):
+    """Gas price datafeed from Upvest"""
 
-    name = "Upvest oracle"
+    name = "Upvest datafeed"
     api_url = "https://fees.upvest.co/estimate_eth_fees"
     _speed_names = ('slow', 'medium', 'fast', 'fastest')
     _default_speed = 'fastest'
 
     def _parse_gas_prices(self):
-        self._probe_oracle()
+        self._probe_feed()
         self.gas_prices = {k: int(Web3.toWei(v, 'gwei')) for k, v in self._raw_data['estimates'].items()}
 
 
-def oracle_fallback_gas_price_strategy(web3: Web3, transaction_params: TxParams = None) -> Wei:
-    oracles = (EtherchainGasPriceOracle, UpvestGasPriceOracle)
+def datafeed_fallback_gas_price_strategy(web3: Web3, transaction_params: TxParams = None) -> Wei:
+    feeds = (EtherchainGasPriceDatafeed, UpvestGasPriceDatafeed)
 
-    for gas_price_oracle_class in oracles:
+    for gas_price_feed_class in feeds:
         try:
-            gas_strategy = gas_price_oracle_class.construct_gas_strategy()
+            gas_strategy = gas_price_feed_class.construct_gas_strategy()
             gas_price = gas_strategy(web3, transaction_params)
-        except Oracle.OracleError:
+        except Datafeed.DatafeedError:
             continue
         else:
             return gas_price
@@ -116,5 +116,5 @@ def oracle_fallback_gas_price_strategy(web3: Web3, transaction_params: TxParams 
 
 
 
-# TODO: We can implement here other oracles, like the ETH/USD (e.g., https://api.coinmarketcap.com/v1/ticker/ethereum/)
+# TODO: We can implement here other datafeeds, like the ETH/USD (e.g., https://api.coinmarketcap.com/v1/ticker/ethereum/)
 # suggested in a comment in nucypher.blockchain.eth.interfaces.BlockchainInterface#sign_and_broadcast_transaction
