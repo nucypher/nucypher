@@ -94,6 +94,7 @@ BOB = Bob(known_nodes=[ursula],
           learn_on_same_thread=True)
 
 ALICE.start_learning_loop(now=True)
+ALICE.block_until_number_of_known_nodes_is(8, timeout=30, learn_on_this_thread=True)  # In case the fleet isn't fully spun up yet, as sometimes happens on CI.
 
 policy = ALICE.grant(BOB,
                      label,
