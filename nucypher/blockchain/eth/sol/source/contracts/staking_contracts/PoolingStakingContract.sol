@@ -1,4 +1,4 @@
-pragma solidity ^0.6.1;
+pragma solidity ^0.7.0;
 
 
 import "zeppelin/ownership/Ownable.sol";
@@ -11,6 +11,8 @@ import "contracts/staking_contracts/AbstractStakingContract.sol";
 **/
 contract PoolingStakingContract is AbstractStakingContract, Ownable {
     using SafeMath for uint256;
+    using Address for address payable;
+    using SafeERC20 for NuCypherToken;
 
     event TokensDeposited(address indexed sender, uint256 value, uint256 depositedTokens);
     event TokensWithdrawn(address indexed sender, uint256 value, uint256 depositedTokens);
@@ -44,7 +46,7 @@ contract PoolingStakingContract is AbstractStakingContract, Ownable {
         StakingInterfaceRouter _router,
         uint256 _ownerFraction
     )
-        public AbstractStakingContract(_router)
+        AbstractStakingContract(_router)
     {
         escrow = _router.target().escrow();
         ownerFraction = _ownerFraction;

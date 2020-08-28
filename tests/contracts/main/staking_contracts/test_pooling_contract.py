@@ -48,7 +48,6 @@ def pooling_contract_interface(testerchain, staking_interface, pooling_contract)
         ContractFactoryClass=Contract)
 
 
-@pytest.mark.slow
 def test_staking(testerchain, token_economics, token, escrow, pooling_contract, pooling_contract_interface):
     creator = testerchain.client.accounts[0]
     owner = testerchain.client.accounts[1]
@@ -304,7 +303,6 @@ def test_staking(testerchain, token_economics, token, escrow, pooling_contract, 
     assert pooling_contract.functions.getAvailableReward().call() <= 10
 
 
-@pytest.mark.slow
 def test_fee(testerchain, token_economics, token, policy_manager, pooling_contract, pooling_contract_interface):
     creator = testerchain.client.accounts[0]
     owner = testerchain.client.accounts[1]
@@ -341,11 +339,11 @@ def test_fee(testerchain, token_economics, token, policy_manager, pooling_contra
 
     # Only owner can withdraw fees from the policy manager
     with pytest.raises((TransactionFailed, ValueError)):
-        tx = pooling_contract_interface.functions.withdrawPolicyReward().transact({'from': delegators[0]})
+        tx = pooling_contract_interface.functions.withdrawPolicyFee().transact({'from': delegators[0]})
         testerchain.wait_for_receipt(tx)
 
     balance = testerchain.client.get_balance(owner)
-    tx = pooling_contract_interface.functions.withdrawPolicyReward().transact({'from': owner})
+    tx = pooling_contract_interface.functions.withdrawPolicyFee().transact({'from': owner})
     testerchain.wait_for_receipt(tx)
     assert testerchain.client.get_balance(pooling_contract.address) == value
     assert testerchain.client.get_balance(owner) == balance
@@ -408,7 +406,6 @@ def test_fee(testerchain, token_economics, token, policy_manager, pooling_contra
         testerchain.wait_for_receipt(tx)
 
 
-@pytest.mark.slow
 def test_reentrancy(testerchain, pooling_contract, token, deploy_contract):
     creator = testerchain.client.accounts[0]
     owner = testerchain.client.accounts[1]
