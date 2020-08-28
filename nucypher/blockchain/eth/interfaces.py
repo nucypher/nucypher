@@ -40,7 +40,7 @@ from web3.exceptions import TimeExhausted, ValidationError
 from web3.gas_strategies import time_based
 from web3.middleware import geth_poa_middleware
 
-from nucypher.blockchain.eth.clients import EthereumClient, POA_CHAINS
+from nucypher.blockchain.eth.clients import EthereumClient, POA_CHAINS, InfuraClient
 from nucypher.blockchain.eth.decorators import validate_checksum_address
 from nucypher.blockchain.eth.providers import (
     _get_auto_provider,
@@ -57,6 +57,7 @@ from nucypher.blockchain.eth.sol.compile import SolidityCompiler
 from nucypher.blockchain.eth.utils import get_transaction_name, prettify_eth_amount
 from nucypher.characters.control.emitters import JSONRPCStdoutEmitter, StdoutEmitter
 from nucypher.utilities.logging import GlobalLoggerSettings, Logger
+from nucypher.utilities.datafeeds import datafeed_fallback_gas_price_strategy
 
 Web3Providers = Union[IPCProvider, WebsocketProvider, HTTPProvider, EthereumTester]
 
@@ -73,7 +74,7 @@ class BlockchainInterface:
 
     TIMEOUT = 600  # seconds  # TODO: Correlate with the gas strategy - #2070
 
-    DEFAULT_GAS_STRATEGY = 'medium'
+    DEFAULT_GAS_STRATEGY = 'fast'
     GAS_STRATEGIES = {'glacial': time_based.glacial_gas_price_strategy,     # 24h
                       'slow': time_based.slow_gas_price_strategy,           # 1h
                       'medium': time_based.medium_gas_price_strategy,       # 5m
@@ -253,32 +254,43 @@ class BlockchainInterface:
         return self.client.is_connected
 
     @classmethod
-    def get_gas_strategy(cls, gas_strategy: Union[str, Callable]) -> Callable:
+    def get_gas_strategy(cls, gas_strategy: Union[str, Callable] = None) -> Callable:
         try:
             gas_strategy = cls.GAS_STRATEGIES[gas_strategy]
         except KeyError:
-            if gas_strategy and not callable(gas_strategy):
-                raise ValueError(f"{gas_strategy} must be callable to be a valid gas strategy.")
+            if gas_strategy:
+                if not callable(gas_strategy):
+                    raise ValueError(f"{gas_strategy} must be callable to be a valid gas strategy.")
             else:
                 gas_strategy = cls.GAS_STRATEGIES[cls.DEFAULT_GAS_STRATEGY]
         return gas_strategy
 
     def attach_middleware(self):
+        chain_id = int(self.client.chain_id)
         if self.poa is None:  # If POA is not set explicitly, try to autodetect from chain id
-            chain_id = int(self.client.chain_id)
             self.poa = chain_id in POA_CHAINS
-            self.log.debug(f'Autodetecting POA chain ({self.client.chain_name})')
+
+        self.log.debug(f'Ethereum chain: {self.client.chain_name} (chain_id={chain_id}, poa={self.poa})')
 
         # For use with Proof-Of-Authority test-blockchains
         if self.poa is True:
             self.log.debug('Injecting POA middleware at layer 0')
             self.client.inject_middleware(geth_poa_middleware, layer=0)
 
-        # Gas Price Strategy
-        self.client.w3.eth.setGasPriceStrategy(self.gas_strategy)
-        self.client.w3.middleware_onion.add(middleware.time_based_cache_middleware)
-        self.client.w3.middleware_onion.add(middleware.latest_block_based_cache_middleware)
-        self.client.w3.middleware_onion.add(middleware.simple_cache_middleware)
+        # Gas Price Strategy:
+        # Bundled web3 strategies are too expensive for Infura (it takes ~1 minute to get a price),
+        # so we use external gas price oracles, instead (see #2139)
+        if isinstance(self.client, InfuraClient):
+            gas_strategy = datafeed_fallback_gas_price_strategy
+        else:
+            gas_strategy = self.gas_strategy
+        self.client.set_gas_strategy(gas_strategy=gas_strategy)
+        gwei_gas_price = Web3.fromWei(self.client.gas_price_for_transaction(), 'gwei')
+        self.log.debug(f"Currently, our gas strategy returns a gas price of {gwei_gas_price} gwei")
+
+        self.client.add_middleware(middleware.time_based_cache_middleware)
+        self.client.add_middleware(middleware.latest_block_based_cache_middleware)
+        self.client.add_middleware(middleware.simple_cache_middleware)
 
     def connect(self):
 
@@ -474,8 +486,7 @@ class BlockchainInterface:
 
         base_payload = {'chainId': int(self.client.chain_id),
                         'nonce': self.client.w3.eth.getTransactionCount(sender_address, 'pending'),
-                        'from': sender_address,
-                        'gasPrice': self.client.gas_price}
+                        'from': sender_address}
 
         # Aggregate
         if not payload:
@@ -530,17 +541,22 @@ class BlockchainInterface:
 
         # TODO: Show the USD Price:  https://api.coinmarketcap.com/v1/ticker/ethereum/
         price = transaction_dict['gasPrice']
+        price_gwei = Web3.fromWei(price, 'gwei')
         cost_wei = price * transaction_dict['gas']
-        cost = Web3.fromWei(cost_wei, 'gwei')
+        cost = Web3.fromWei(cost_wei, 'ether')
+
         if self.transacting_power.is_device:
-            emitter.message(f'Confirm transaction {transaction_name} on hardware wallet... ({cost} gwei @ {price})', color='yellow')
+            emitter.message(f'Confirm transaction {transaction_name} on hardware wallet... '
+                            f'({cost} ETH @ {price_gwei} gwei)',
+                            color='yellow')
         signed_raw_transaction = self.transacting_power.sign_transaction(transaction_dict)
 
         #
         # Broadcast
         #
 
-        emitter.message(f'Broadcasting {transaction_name} Transaction ({cost} gwei @ {price})...', color='yellow')
+        emitter.message(f'Broadcasting {transaction_name} Transaction ({cost} ETH @ {price_gwei} gwei)...',
+                        color='yellow')
         try:
             txhash = self.client.send_raw_transaction(signed_raw_transaction)  # <--- BROADCAST
         except (TestTransactionFailed, ValueError) as error:

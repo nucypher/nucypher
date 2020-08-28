@@ -16,7 +16,7 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
 import pytest
-from unittest.mock import PropertyMock, patch
+from unittest.mock import patch
 
 from nucypher.blockchain.eth.actors import Trustee
 from nucypher.blockchain.eth.agents import MultiSigAgent
@@ -39,11 +39,8 @@ def test_trustee_proposes_multisig_management_operations(testerchain, test_regis
     trustee = Trustee(checksum_address=trustee_address, registry=test_registry)
 
     # Propose changing threshold
-
-    # FIXME: I had to mock the gas_price property of EthereumTesterClient because I'm unable to set a free gas strategy
-    with patch('nucypher.blockchain.eth.clients.EthereumTesterClient.gas_price',
-               new_callable=PropertyMock) as mock_ethtester:
-        mock_ethtester.return_value = 0
+    free_payload = {'nonce': 0, 'from': multisig_agent.contract_address, 'gasPrice': 0}
+    with patch.object(testerchain, 'build_payload', return_value=free_payload):
         proposal = trustee.propose_changing_threshold(new_threshold=1)
 
     assert proposal.trustee_address == trustee_address
@@ -57,9 +54,7 @@ def test_trustee_proposes_multisig_management_operations(testerchain, test_regis
     # Propose adding new owner
 
     new_owner = testerchain.unassigned_accounts[4]
-    with patch('nucypher.blockchain.eth.clients.EthereumTesterClient.gas_price',
-               new_callable=PropertyMock) as mock_ethtester:
-        mock_ethtester.return_value = 0
+    with patch.object(testerchain, 'build_payload', return_value=free_payload):
         proposal = trustee.propose_adding_owner(new_owner_address=new_owner, evidence=None)
 
     assert proposal.trustee_address == trustee_address
@@ -73,9 +68,7 @@ def test_trustee_proposes_multisig_management_operations(testerchain, test_regis
     # Propose removing owner
 
     evicted_owner = testerchain.unassigned_accounts[1]
-    with patch('nucypher.blockchain.eth.clients.EthereumTesterClient.gas_price',
-               new_callable=PropertyMock) as mock_ethtester:
-        mock_ethtester.return_value = 0
+    with patch.object(testerchain, 'build_payload', return_value=free_payload):
         proposal = trustee.propose_removing_owner(evicted_owner)
 
     assert proposal.trustee_address == trustee_address

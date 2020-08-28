@@ -36,7 +36,7 @@ from geth.chain import (
     is_ropsten_chain
 )
 from geth.process import BaseGethProcess
-from typing import Union
+from typing import Union, Optional
 from web3 import Web3
 from web3.contract import Contract
 from web3.types import Wei, TxReceipt
@@ -250,10 +250,13 @@ class EthereumClient:
         return self.w3.eth.getBalance(account)
 
     def inject_middleware(self, middleware, **kwargs):
-        return self.w3.middleware_onion.inject(middleware, **kwargs)
+        self.w3.middleware_onion.inject(middleware, **kwargs)
 
     def add_middleware(self, middleware):
-        return self.w3.middleware_onion.add(middleware)
+        self.w3.middleware_onion.add(middleware)
+
+    def set_gas_strategy(self, gas_strategy):
+        self.w3.eth.setGasPriceStrategy(gas_strategy)
 
     @property
     def chain_id(self) -> int:
@@ -273,7 +276,17 @@ class EthereumClient:
 
     @property
     def gas_price(self) -> Wei:
+        """
+        Returns client's gas price. Underneath, it uses the eth_gasPrice JSON-RPC method
+        """
         return self.w3.eth.gasPrice
+
+    def gas_price_for_transaction(self, transaction=None) -> Wei:
+        """
+        Obtains a gas price via the current gas strategy, if any; otherwise, it resorts to the client's gas price.
+        This method mirrors the behavior of web3._utils.transactions when building transactions.
+        """
+        return self.w3.eth.generateGasPrice(transaction) or self.gas_price
 
     @property
     def block_number(self) -> BlockNumber:

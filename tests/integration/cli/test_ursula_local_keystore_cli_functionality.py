@@ -30,7 +30,7 @@ from nucypher.config.constants import (
     NUCYPHER_ENVVAR_WORKER_ETH_PASSWORD,
     TEMPORARY_DOMAIN
 )
-from tests.constants import MOCK_IP_ADDRESS, TEST_PROVIDER_URI
+from tests.constants import MOCK_IP_ADDRESS
 from tests.utils.ursula import MOCK_URSULA_STARTING_PORT
 
 
@@ -63,7 +63,7 @@ def test_ursula_init_with_local_keystore_signer(click_runner,
                  '--network', TEMPORARY_DOMAIN,
                  '--worker-address', worker_account.address,
                  '--config-root', custom_filepath,
-                 '--provider', TEST_PROVIDER_URI,
+                 '--provider', mock_testerchain.provider_uri,
                  '--rest-host', MOCK_IP_ADDRESS,
                  '--rest-port', MOCK_URSULA_STARTING_PORT,
 
