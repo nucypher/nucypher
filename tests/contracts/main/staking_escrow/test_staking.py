@@ -105,12 +105,16 @@ def test_minting(testerchain, token, escrow_contract, token_economics):
     assert 0 == escrow.functions.findIndexOfPastDowntime(staker2, 0).call()
     assert 1 == escrow.functions.findIndexOfPastDowntime(staker2, current_period + 1).call()
     # Check parameters in call of the policy manager mock
-    assert 2 == policy_manager.functions.getPeriodsLength(staker1).call()
-    assert 2 == policy_manager.functions.getPeriodsLength(staker2).call()
-    assert current_period - 1 == policy_manager.functions.getPeriod(staker1, 0).call()
-    assert current_period - 1 == policy_manager.functions.getPeriod(staker2, 0).call()
-    assert current_period + 1 == policy_manager.functions.getPeriod(staker1, 1).call()
-    assert current_period + 1 == policy_manager.functions.getPeriod(staker2, 1).call()
+    assert policy_manager.functions.getPeriodsLength(staker1).call() == 4
+    assert policy_manager.functions.getPeriodsLength(staker2).call() == 4
+    assert policy_manager.functions.getPeriod(staker1, 0).call() == current_period - 1
+    assert policy_manager.functions.getPeriod(staker2, 0).call() == current_period - 1
+    assert policy_manager.functions.getPeriod(staker1, 1).call() == 0
+    assert policy_manager.functions.getPeriod(staker2, 1).call() == 0
+    assert policy_manager.functions.getPeriod(staker1, 2).call() == 0
+    assert policy_manager.functions.getPeriod(staker2, 2).call() == 0
+    assert policy_manager.functions.getPeriod(staker1, 3).call() == current_period + 1
+    assert policy_manager.functions.getPeriod(staker2, 3).call() == current_period + 1
     # Check downtime parameters
     assert 1 == escrow.functions.getPastDowntimeLength(staker1).call()
     downtime = escrow.functions.getPastDowntime(staker1, 0).call()
@@ -141,13 +145,15 @@ def test_minting(testerchain, token, escrow_contract, token_economics):
     testerchain.wait_for_receipt(tx)
     current_period = escrow.functions.getCurrentPeriod().call()
     assert 1 == escrow.functions.getPastDowntimeLength(staker1).call()
-    assert 3 == policy_manager.functions.getPeriodsLength(staker1).call()
-    assert current_period + 1 == policy_manager.functions.getPeriod(staker1, 2).call()
+    assert policy_manager.functions.getPeriodsLength(staker1).call() == 7
+    assert policy_manager.functions.getPeriod(staker1, 4).call() == 0
+    assert policy_manager.functions.getPeriod(staker1, 5).call() == 0
+    assert policy_manager.functions.getPeriod(staker1, 6).call() == current_period + 1
 
     # Checks that no error from repeated method call
     tx = escrow.functions.commitToNextPeriod().transact({'from': staker1})
     testerchain.wait_for_receipt(tx)
-    assert 3 == policy_manager.functions.getPeriodsLength(staker1).call()
+    assert policy_manager.functions.getPeriodsLength(staker1).call() == 7
 
     # Staker and Staker(2) mint tokens for last periods
     # And only Staker make a commitment to next period
@@ -155,13 +161,18 @@ def test_minting(testerchain, token, escrow_contract, token_economics):
     tx = escrow.functions.commitToNextPeriod().transact({'from': staker1})
     testerchain.wait_for_receipt(tx)
     current_period = escrow.functions.getCurrentPeriod().call()
-    assert 5 == policy_manager.functions.getPeriodsLength(staker1).call()
-    assert current_period + 1 == policy_manager.functions.getPeriod(staker1, 4).call()
+    assert policy_manager.functions.getPeriodsLength(staker1).call() == 10
+    assert policy_manager.functions.getPeriod(staker1, 7).call() == current_period - 1
+    assert policy_manager.functions.getPeriod(staker1, 8).call() == 0
+    assert policy_manager.functions.getPeriod(staker1, 9).call() == current_period + 1
 
     tx = escrow.functions.mint().transact({'from': staker2})
     testerchain.wait_for_receipt(tx)
+    assert policy_manager.functions.getPeriodsLength(staker2).call() == 7
+    assert policy_manager.functions.getPeriod(staker2, 4).call() == 0
+    assert policy_manager.functions.getPeriod(staker2, 5).call() == current_period - 1
+    assert policy_manager.functions.getPeriod(staker2, 6).call() == 0
 
-    current_period = escrow.functions.getCurrentPeriod().call()
     # Check result of minting
     total_locked = staker1_stake + staker2_stake
     ursula1_reward = calculate_reward(500, total_locked, 1) + calculate_reward(500, total_locked, 2)
@@ -185,13 +196,6 @@ def test_minting(testerchain, token, escrow_contract, token_economics):
     assert ursula2_reward == event_args['value']
     assert escrow.functions.getCurrentPeriod().call() - 1 == event_args['period']
 
-    # Check parameters in call of the policy manager mock
-    assert 5 == policy_manager.functions.getPeriodsLength(staker1).call()
-    assert 3 == policy_manager.functions.getPeriodsLength(staker2).call()
-    current_period = escrow.functions.getCurrentPeriod().call() - 1
-    assert current_period == policy_manager.functions.getPeriod(staker1, 3).call()
-    assert current_period == policy_manager.functions.getPeriod(staker2, 2).call()
-
     # Staker tries to mint again and doesn't receive a reward
     # There are no more committed periods that are ready to mint
     staker1_stake += ursula1_reward
@@ -201,6 +205,7 @@ def test_minting(testerchain, token, escrow_contract, token_economics):
     assert staker1_stake == escrow.functions.getAllTokens(staker1).call()
     events = staking_log.get_all_entries()
     assert 2 == len(events)
+    assert policy_manager.functions.getPeriodsLength(staker1).call() == 10
 
     # Staker can't make a commitment to next period because stake is unlocked in current period
     testerchain.time_travel(hours=1)
@@ -219,6 +224,11 @@ def test_minting(testerchain, token, escrow_contract, token_economics):
     downtime = escrow.functions.getPastDowntime(staker2, 1).call()
     assert current_period - 1 == downtime[0]
     assert current_period == downtime[1]
+
+    assert policy_manager.functions.getPeriodsLength(staker2).call() == 10
+    assert policy_manager.functions.getPeriod(staker2, 7).call() == 0
+    assert policy_manager.functions.getPeriod(staker2, 8).call() == 0
+    assert policy_manager.functions.getPeriod(staker2, 9).call() == current_period + 1
 
     # Staker mints tokens
     testerchain.time_travel(hours=1)
@@ -239,10 +249,12 @@ def test_minting(testerchain, token, escrow_contract, token_economics):
     assert ursula1_reward == event_args['value']
     assert current_period == event_args['period']
 
-    assert 7 == policy_manager.functions.getPeriodsLength(staker1).call()
-    assert 4 == policy_manager.functions.getPeriodsLength(staker2).call()
-    assert current_period - 1 == policy_manager.functions.getPeriod(staker1, 5).call()
-    assert current_period == policy_manager.functions.getPeriod(staker1, 6).call()
+    current_period = escrow.functions.getCurrentPeriod().call()
+    assert policy_manager.functions.getPeriodsLength(staker2).call() == 10
+    assert policy_manager.functions.getPeriodsLength(staker1).call() == 13
+    assert policy_manager.functions.getPeriod(staker1, 10).call() == current_period - 2
+    assert policy_manager.functions.getPeriod(staker1, 11).call() == current_period - 1
+    assert policy_manager.functions.getPeriod(staker1, 12).call() == 0
 
     # Staker(2) mints tokens
     testerchain.time_travel(hours=1)
@@ -261,10 +273,12 @@ def test_minting(testerchain, token, escrow_contract, token_economics):
     assert ursula2_reward == event_args['value']
     assert escrow.functions.getCurrentPeriod().call() - 1 == event_args['period']
 
-    current_period = escrow.functions.getCurrentPeriod().call() - 1
-    assert 7 == policy_manager.functions.getPeriodsLength(staker1).call()
-    assert 5 == policy_manager.functions.getPeriodsLength(staker2).call()
-    assert current_period == policy_manager.functions.getPeriod(staker2, 3).call()
+    current_period = escrow.functions.getCurrentPeriod().call()
+    assert policy_manager.functions.getPeriodsLength(staker1).call() == 13
+    assert policy_manager.functions.getPeriodsLength(staker2).call() == 13
+    assert policy_manager.functions.getPeriod(staker2, 10).call() == 0
+    assert policy_manager.functions.getPeriod(staker2, 11).call() == current_period - 1
+    assert policy_manager.functions.getPeriod(staker2, 12).call() == 0
 
     # Staker(2) can't make a commitment because stake is unlocked
     with pytest.raises((TransactionFailed, ValueError)):
@@ -281,6 +295,8 @@ def test_minting(testerchain, token, escrow_contract, token_economics):
     with pytest.raises((TransactionFailed, ValueError)):
         tx = escrow.functions.commitToNextPeriod().transact({'from': staker1})
         testerchain.wait_for_receipt(tx)
+
+    assert policy_manager.functions.getPeriodsLength(staker1).call() == 13
 
     # Staker(2) deposits and locks more tokens
     tx = escrow.functions.deposit(staker2, 250, 4).transact({'from': staker2})
@@ -317,8 +333,10 @@ def test_minting(testerchain, token, escrow_contract, token_economics):
     assert current_period == downtime[1]
     staker2_stake += ursula2_reward
 
-    assert 8 == policy_manager.functions.getPeriodsLength(staker2).call()
-    assert current_period - 4 == policy_manager.functions.getPeriod(staker2, 6).call()
+    assert policy_manager.functions.getPeriodsLength(staker2).call() == 19
+    assert policy_manager.functions.getPeriod(staker2, 16).call() == 0
+    assert policy_manager.functions.getPeriod(staker2, 17).call() == current_period - 4
+    assert policy_manager.functions.getPeriod(staker2, 18).call() == current_period + 1
 
     events = staking_log.get_all_entries()
     assert 5 == len(events)
@@ -332,9 +350,14 @@ def test_minting(testerchain, token, escrow_contract, token_economics):
     tx = escrow.functions.commitToNextPeriod().transact({'from': staker2})
     testerchain.wait_for_receipt(tx)
     assert 4 == escrow.functions.getPastDowntimeLength(staker2).call()
-    testerchain.time_travel(hours=1)
+    testerchain.time_travel(hours=2)
+    current_period = escrow.functions.getCurrentPeriod().call()
     tx = escrow.functions.commitToNextPeriod().transact({'from': staker2})
     testerchain.wait_for_receipt(tx)
+    assert policy_manager.functions.getPeriodsLength(staker2).call() == 25
+    assert policy_manager.functions.getPeriod(staker2, 22).call() == current_period - 2
+    assert policy_manager.functions.getPeriod(staker2, 23).call() == current_period - 1
+    assert policy_manager.functions.getPeriod(staker2, 24).call() == current_period + 1
 
     # Staker(2) withdraws all
     testerchain.time_travel(hours=2)
@@ -401,16 +424,18 @@ def test_minting(testerchain, token, escrow_contract, token_economics):
     # Check searching downtime index
     current_period = escrow.functions.getCurrentPeriod().call()
     assert 0 == escrow.functions.findIndexOfPastDowntime(staker2, 0).call()
-    assert 0 == escrow.functions.findIndexOfPastDowntime(staker2, current_period - 14).call()
-    assert 1 == escrow.functions.findIndexOfPastDowntime(staker2, current_period - 13).call()
-    assert 1 == escrow.functions.findIndexOfPastDowntime(staker2, current_period - 11).call()
+    assert 0 == escrow.functions.findIndexOfPastDowntime(staker2, current_period - 15).call()
+    assert 1 == escrow.functions.findIndexOfPastDowntime(staker2, current_period - 14).call()
+    assert 1 == escrow.functions.findIndexOfPastDowntime(staker2, current_period - 12).call()
+    assert 2 == escrow.functions.findIndexOfPastDowntime(staker2, current_period - 11).call()
     assert 2 == escrow.functions.findIndexOfPastDowntime(staker2, current_period - 10).call()
-    assert 2 == escrow.functions.findIndexOfPastDowntime(staker2, current_period - 9).call()
-    assert 3 == escrow.functions.findIndexOfPastDowntime(staker2, current_period - 8).call()
-    assert 3 == escrow.functions.findIndexOfPastDowntime(staker2, current_period - 4).call()
-    assert 4 == escrow.functions.findIndexOfPastDowntime(staker2, current_period - 3).call()
-    assert 4 == escrow.functions.findIndexOfPastDowntime(staker2, current_period).call()
-    assert 4 == escrow.functions.findIndexOfPastDowntime(staker2, current_period + 100).call()
+    assert 3 == escrow.functions.findIndexOfPastDowntime(staker2, current_period - 9).call()
+    assert 3 == escrow.functions.findIndexOfPastDowntime(staker2, current_period - 5).call()
+    assert 4 == escrow.functions.findIndexOfPastDowntime(staker2, current_period - 4).call()
+    assert 4 == escrow.functions.findIndexOfPastDowntime(staker2, current_period - 2).call()
+    assert 5 == escrow.functions.findIndexOfPastDowntime(staker2, current_period - 1).call()
+    assert 5 == escrow.functions.findIndexOfPastDowntime(staker2, current_period).call()
+    assert 5 == escrow.functions.findIndexOfPastDowntime(staker2, current_period + 100).call()
 
 
 def test_slashing(testerchain, token, escrow_contract, token_economics, deploy_contract):

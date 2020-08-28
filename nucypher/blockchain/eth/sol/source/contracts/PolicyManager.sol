@@ -16,7 +16,7 @@ import "contracts/proxy/Upgradeable.sol";
 
 /**
 * @notice Contract holds policy data and locks accrued policy fees
-* @dev |v6.1.2|
+* @dev |v6.1.3|
 */
 contract PolicyManager is Upgradeable {
     using SafeERC20 for NuCypherToken;
@@ -291,50 +291,66 @@ contract PolicyManager is Upgradeable {
     }
 
     /**
-    * @notice Set default `feeDelta` value for specified period
-    * @dev This method increases gas cost for node in trade of decreasing cost for policy sponsor
+    * @notice Call from StakingEscrow to update node info once per period.
+    * Set default `feeDelta` value for specified period and update node fee
     * @param _node Node address
-    * @param _period Period to set
+    * @param _processedPeriod1 Processed period
+    * @param _processedPeriod2 Processed period
+    * @param _periodToSetDefault Period to set
     */
-    function setDefaultFeeDelta(address _node, uint16 _period) external onlyEscrowContract {
+    function ping(
+        address _node,
+        uint16 _processedPeriod1,
+        uint16 _processedPeriod2,
+        uint16 _periodToSetDefault
+    )
+        external onlyEscrowContract
+    {
         NodeInfo storage node = nodes[_node];
-        if (node.feeDelta[_period] == 0) {
-            node.feeDelta[_period] = DEFAULT_FEE_DELTA;
+        if (_processedPeriod1 != 0) {
+            updateFee(_node, node, _processedPeriod1);
+        }
+        if (_processedPeriod2 != 0) {
+            updateFee(_node, node, _processedPeriod2);
+        }
+        // This code increases gas cost for node in trade of decreasing cost for policy sponsor
+        if (_periodToSetDefault != 0 && node.feeDelta[_periodToSetDefault] == 0) {
+            node.feeDelta[_periodToSetDefault] = DEFAULT_FEE_DELTA;
         }
     }
 
     /**
     * @notice Update node fee
     * @param _node Node address
+    * @param _info Node info structure
     * @param _period Processed period
     */
-    function updateFee(address _node, uint16 _period) external onlyEscrowContract {
-        NodeInfo storage node = nodes[_node];
-        if (node.previousFeePeriod == 0 || _period <= node.previousFeePeriod) {
+    function updateFee(address _node, NodeInfo storage _info, uint16 _period) internal {
+        if (_info.previousFeePeriod == 0 || _period <= _info.previousFeePeriod) {
             return;
         }
-        for (uint16 i = node.previousFeePeriod + 1; i <= _period; i++) {
-            int256 delta = node.feeDelta[i];
+        for (uint16 i = _info.previousFeePeriod + 1; i <= _period; i++) {
+            int256 delta = _info.feeDelta[i];
             if (delta == DEFAULT_FEE_DELTA) {
                 // gas refund
-                node.feeDelta[i] = 0;
+                _info.feeDelta[i] = 0;
                 continue;
             }
 
             // broken state
-            if (delta < 0 && uint256(-delta) > node.feeRate) {
-                node.feeDelta[i] += int256(node.feeRate);
-                node.feeRate = 0;
+            if (delta < 0 && uint256(-delta) > _info.feeRate) {
+                _info.feeDelta[i] += int256(_info.feeRate);
+                _info.feeRate = 0;
                 emit NodeBrokenState(_node, _period);
             // good state
             } else {
-                node.feeRate = node.feeRate.addSigned(delta);
+                _info.feeRate = _info.feeRate.addSigned(delta);
                 // gas refund
-                node.feeDelta[i] = 0;
+                _info.feeDelta[i] = 0;
             }
         }
-        node.previousFeePeriod = _period;
-        node.fee += uint128(node.feeRate);
+        _info.previousFeePeriod = _period;
+        _info.fee += uint128(_info.feeRate);
     }
 
     /**

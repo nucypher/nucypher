@@ -181,12 +181,15 @@ contract PolicyManagerForStakingEscrowMock {
         nodes[_node].push(_period);
     }
 
-    function updateFee(address _node, uint16 _period) external {
-        nodes[_node].push(_period);
-    }
-
-    function setDefaultFeeDelta(address _node, uint16 _period) external {
-        nodes[_node].push(_period);
+    function ping(
+        address _node,
+        uint16 _processedPeriod1,
+        uint16 _processedPeriod2,
+        uint16 _periodToSetDefault
+    ) external {
+        nodes[_node].push(_processedPeriod1);
+        nodes[_node].push(_processedPeriod2);
+        nodes[_node].push(_periodToSetDefault);
     }
 
     function getPeriodsLength(address _node) public view returns (uint256) {
