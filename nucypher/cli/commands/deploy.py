@@ -27,7 +27,6 @@ from nucypher.blockchain.eth.actors import ContractAdministrator, Trustee
 from nucypher.blockchain.eth.agents import ContractAgency, MultiSigAgent, NucypherTokenAgent
 from nucypher.blockchain.eth.constants import STAKING_ESCROW_CONTRACT_NAME
 from nucypher.blockchain.eth.interfaces import BlockchainInterface
-from nucypher.blockchain.eth.networks import NetworksInventory
 from nucypher.blockchain.eth.registry import (
     BaseContractRegistry,
     GithubRegistrySource,
@@ -82,6 +81,7 @@ from nucypher.cli.options import (
     option_etherscan,
     option_force,
     option_hw_wallet,
+    option_network,
     option_poa,
     option_provider_uri,
     option_signer_uri
@@ -110,7 +110,6 @@ option_registry_outfile = click.option('--registry-outfile', help="Output path f
 option_target_address = click.option('--target-address', help="Address of the target contract", type=EIP55_CHECKSUM_ADDRESS)
 option_gas = click.option('--gas', help="Operate with a specified gas per-transaction limit", type=click.IntRange(min=1))
 option_gas_strategy = click.option('--gas-strategy', help="Operate with a specified gas price strategy", type=click.STRING)  # TODO: GAS_STRATEGY_CHOICES
-option_network = click.option('--network', help="Name of NuCypher network", type=click.Choice(NetworksInventory.NETWORKS))
 option_ignore_deployed = click.option('--ignore-deployed', help="Ignore already deployed contracts if exist.", is_flag=True)
 option_ignore_solidity_version = click.option('--ignore-solidity-check', help="Ignore solidity version compatibility check", is_flag=True)
 
@@ -253,7 +252,7 @@ def deploy():
 @group_general_config
 @option_config_root
 @option_registry_outfile
-@option_network
+@option_network()
 @option_force
 def download_registry(general_config, config_root, registry_outfile, network, force):
     """Download the latest registry."""

@@ -22,10 +22,12 @@ import functools
 import os
 
 from nucypher.blockchain.eth.constants import NUCYPHER_CONTRACT_NAMES
+from nucypher.blockchain.eth.networks import NetworksInventory
 from nucypher.cli.types import (
     EIP55_CHECKSUM_ADDRESS,
     EXISTING_READABLE_FILE,
     NETWORK_PORT,
+    NuCypherNetworkName,
     WEI
 )
 from nucypher.utilities.logging import Logger
@@ -96,11 +98,13 @@ def option_message_kit(required: bool = False):
         required=required)
 
 
-def option_network(required: bool = False, default=os.environ.get("NUCYPHER_NETWORK")):
+def option_network(required: bool = False,
+                   default=os.environ.get("NUCYPHER_NETWORK", NetworksInventory.DEFAULT),
+                   validate: bool = False):
     return click.option(
         '--network',
-        help="Nucypher Network/Domain Name",
-        type=click.STRING,
+        help="NuCypher Network/Domain Name",
+        type=NuCypherNetworkName(validate=validate),
         required=required,
         default=default)
 

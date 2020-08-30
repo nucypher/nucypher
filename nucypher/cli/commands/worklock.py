@@ -143,7 +143,7 @@ group_worklock_options = group_options(
     participant_address=option_bidder_address,
     signer_uri=option_signer_uri,
     provider_uri=option_provider_uri(required=True, default=os.environ.get(NUCYPHER_ENVVAR_PROVIDER_URI)),
-    network=option_network(required=True),
+    network=option_network(required=True, validate=True),
     registry_filepath=option_registry_filepath,
 )
 

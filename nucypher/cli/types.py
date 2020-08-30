@@ -84,8 +84,22 @@ class DecimalRange(DecimalType):
         return rv
 
 
-# NuCypher
-NETWORK_DOMAIN = click.Choice(choices=NetworksInventory.NETWORKS)
+class NuCypherNetworkName(click.ParamType):
+    name = 'nucypher_network_name'
+
+    def __init__(self, validate: bool = True):
+        self.validate = bool(validate)
+
+    def convert(self, value, param, ctx):
+        if self.validate:
+            network = str(value).lower()
+            if network not in NetworksInventory.NETWORKS:
+                self.fail(f"'{value}' is not a NuCypher Network. Valid options are: {list(NetworksInventory.NETWORKS)}")
+            else:
+                return network
+        else:
+            return value
+
 
 # Ethereum
 EIP55_CHECKSUM_ADDRESS = ChecksumAddress()
