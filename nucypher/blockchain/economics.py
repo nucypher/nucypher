@@ -78,13 +78,15 @@ class BaseEconomics:
     _default_reward_coefficient = 2
 
     # Worklock
-    _default_worklock_supply: int = NotImplemented
-    _default_bidding_start_date: int = NotImplemented
-    _default_bidding_end_date: int = NotImplemented
-    _default_cancellation_end_date: int = NotImplemented
-    _default_worklock_boosting_refund_rate: int = NotImplemented
-    _default_worklock_commitment_duration: int = NotImplemented
-    _default_worklock_min_allowed_bid: int = NotImplemented
+    from maya import MayaDT
+    from web3 import Web3
+    _default_worklock_supply: int = NU(225_000_000, 'NU').to_nunits()
+    _default_bidding_start_date: int = MayaDT.from_iso8601('2020-09-01T00:00:00.0Z').epoch
+    _default_bidding_end_date: int = MayaDT.from_iso8601('2020-09-28T23:59:59.0Z').epoch
+    _default_cancellation_end_date: int = MayaDT.from_iso8601('2020-09-30T23:59:59.0Z').epoch
+    _default_worklock_boosting_refund_rate: int = 800
+    _default_worklock_commitment_duration: int = 180
+    _default_worklock_min_allowed_bid: int = Web3.toWei(5, "ether")
 
     def __init__(self,
 
