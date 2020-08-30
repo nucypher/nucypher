@@ -20,7 +20,7 @@ All ``nucypher worklock`` commands share a similar structure:
 
 .. code::
 
-    (nucypher)$ nucypher worklock <COMMAND> [OPTIONS] --network <NETWORK> --provider <YOUR PROVIDER URI>
+    (nucypher)$ nucypher worklock <COMMAND> [OPTIONS] --provider <YOUR PROVIDER URI>
 
 
 Replace ``<YOUR PROVIDER URI>`` with a valid node web3 node provider string, for example:
@@ -29,6 +29,9 @@ Replace ``<YOUR PROVIDER URI>`` with a valid node web3 node provider string, for
     - ``https://<host>`` - HTTP(S)-based JSON-RPC server
     - ``wss://<host>:8080`` - Websocket(Secure)-based JSON-RPC server
 
+If you're using a network different than NuCypher ``mainnet`` (like for example our ``ibex`` testnet),
+you can include the ``--network <NETWORK>`` option to any WorkLock command.
+
 Show current WorkLock information
 ---------------------------------
 
@@ -36,7 +39,7 @@ You can obtain information about the current state of WorkLock by running:
 
 .. code::
 
-    (nucypher)$ nucypher worklock status --network <NETWORK> --provider <YOUR PROVIDER URI>
+    (nucypher)$ nucypher worklock status --provider <YOUR PROVIDER URI>
 
 
 The following is an example output of the ``status`` command (hypothetical values):
@@ -49,8 +52,6 @@ The following is an example output of the ``status`` command (hypothetical value
     | |/\| | / _ \ | '__|| |/ /| |     / _ \  / __|| |/ /
     \  /\  /| (_) || |   |   < | |____| (_) || (__ |   <
      \/  \/  \___/ |_|   |_|\_\\_____/ \___/  \___||_|\_\
-
-    ══ <NETWORK> ══
 
     Reading Latest Chaindata...
 
@@ -130,7 +131,7 @@ If you want to see specific information about your current escrow, you can speci
 
 .. code::
 
-    (nucypher)$ nucypher worklock status --participant-address <YOUR PARTICIPANT ADDRESS> --network <NETWORK> --provider <YOUR PROVIDER URI>
+    (nucypher)$ nucypher worklock status --participant-address <YOUR PARTICIPANT ADDRESS> --provider <YOUR PROVIDER URI>
 
 The following output is an example of what is included when ``--participant-address`` is used
 
@@ -196,7 +197,7 @@ You can place an escrow to WorkLock by running:
 
 .. code::
 
-    (nucypher)$ nucypher worklock escrow --network <NETWORK> --provider <YOUR PROVIDER URI>
+    (nucypher)$ nucypher worklock escrow --provider <YOUR PROVIDER URI>
 
 
 Recall that there's a minimum escrow amount needed to participate in WorkLock.
@@ -209,7 +210,7 @@ You can cancel an escrow to WorkLock by running:
 
 .. code::
 
-    (nucypher)$ nucypher worklock cancel-escrow --network <NETWORK> --provider <YOUR PROVIDER URI>
+    (nucypher)$ nucypher worklock cancel-escrow --provider <YOUR PROVIDER URI>
 
 
 Claim your stake
@@ -219,14 +220,14 @@ Once the allocation window is open, you can claim your NU as a stake in NuCypher
 
 .. code::
 
-    (nucypher)$ nucypher worklock claim --network <NETWORK> --provider <YOUR PROVIDER URI>
+    (nucypher)$ nucypher worklock claim --provider <YOUR PROVIDER URI>
 
 
 Once allocated, you can check that the stake was created successfully by running:
 
 .. code::
 
-    (nucypher)$ nucypher status stakers --staking-address <YOUR PARTICIPANT ADDRESS> --network {network} --provider <YOUR PROVIDER URI>
+    (nucypher)$ nucypher status stakers --staking-address <YOUR PARTICIPANT ADDRESS> --provider <YOUR PROVIDER URI>
     
 
 Check remaining work
@@ -236,7 +237,7 @@ If you have a stake created from WorkLock, you can check how much work is pendin
 
 .. code::
 
-    (nucypher)$ nucypher worklock remaining-work --network <NETWORK> --provider <YOUR PROVIDER URI>
+    (nucypher)$ nucypher worklock remaining-work --provider <YOUR PROVIDER URI>
 
 
 Refund locked ETH
@@ -246,4 +247,4 @@ If you've committed some work, you are able to refund proportional part of ETH y
 
 .. code::
 
-    (nucypher)$ nucypher worklock refund --network <NETWORK> --provider <YOUR PROVIDER URI>
+    (nucypher)$ nucypher worklock refund --provider <YOUR PROVIDER URI>
