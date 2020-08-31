@@ -22,7 +22,7 @@ class NetworksInventory:  # TODO: See #1564
     IBEX = 'ibex'
 
     UNKNOWN = 'unknown'  # TODO: Is there a better way to signal an unknown network?
-    DEFAULT = UNKNOWN  # TODO: This assumes we DON'T have a default. Is that OK?  - #1496
+    DEFAULT = MAINNET
 
     __to_ethereum_chain_id = {
         MAINNET: 1,  # Ethereum Mainnet
