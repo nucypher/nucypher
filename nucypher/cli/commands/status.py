@@ -25,6 +25,7 @@ from nucypher.blockchain.eth.constants import (
     POLICY_MANAGER_CONTRACT_NAME,
     STAKING_ESCROW_CONTRACT_NAME
 )
+from nucypher.blockchain.eth.networks import NetworksInventory
 from nucypher.blockchain.eth.utils import datetime_at_period
 from nucypher.cli.config import group_general_config
 from nucypher.cli.options import (
@@ -70,7 +71,7 @@ group_registry_options = group_options(
     poa=option_poa,
     light=option_light,
     registry_filepath=option_registry_filepath,
-    network=option_network(),
+    network=option_network(default=NetworksInventory.DEFAULT, validate=True),  # TODO: See 2214
     provider_uri=option_provider_uri(default=os.environ.get(NUCYPHER_ENVVAR_PROVIDER_URI)),
 )
 

@@ -69,7 +69,6 @@ def test_ursula_and_local_keystore_signer_integration(click_runner,
     ursula_config_path = config_root_path / UrsulaConfiguration.generate_filename()
     stakeholder_config_path = config_root_path / StakeHolderConfiguration.generate_filename()
     worker_account, password, mock_keystore_path = mock_funded_account_password_keystore
-    mock_signer_uri = f'keystore:{mock_keystore_path}'
 
     #
     # Stakeholder Steps
