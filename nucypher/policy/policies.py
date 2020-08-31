@@ -414,8 +414,7 @@ class Policy(ABC):
         target_nodes = self.bob.matching_nodes_among(self.alice.known_nodes)
         self.publishing_mutex = NodeEngagementMutex(f=self.put_treasure_map_on_node,
                                                     nodes=target_nodes,
-                                                    network_middleware=network_middleware,
-                                                    percent_to_complete_before_release=10)
+                                                    network_middleware=network_middleware)
 
         self.publishing_mutex.start()
 
