@@ -28,9 +28,9 @@ def test_decentralized_cli_lifecycle(click_runner,
                                      custom_filepath_2,
                                      agency_local_registry):
     yield run_entire_cli_lifecycle(click_runner,
-                                   testerchain,
                                    random_policy_label,
                                    blockchain_ursulas,
                                    custom_filepath,
                                    custom_filepath_2,
-                                   agency_local_registry.filepath)
+                                   agency_local_registry.filepath,
+                                   testerchain=testerchain)
