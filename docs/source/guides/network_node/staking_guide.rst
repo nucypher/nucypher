@@ -77,6 +77,8 @@ All staking-related operations done by Staker are performed through the ``nucyph
 +----------------------+-------------------------------------------------------------------------------+
 |  ``winddown``        | Manage winding down of stakes                                                 |
 +----------------------+-------------------------------------------------------------------------------+
+|  ``snapshots``       | Manage taking snapshots                                                       |
++----------------------+-------------------------------------------------------------------------------+
 |  ``mint``            | Mint last portion of reward                                                   |
 +----------------------+-------------------------------------------------------------------------------+
 |  ``merge``           | Merge two stakes into one                                                     |
@@ -383,6 +385,23 @@ Wind down is *disabled* by default. To start winding down an existing stake:
 .. code:: bash
 
     (nucypher)$ nucypher stake winddown --hw-wallet
+
+
+Snapshots
+*********
+
+Taking snapshots is *enabled* by default. This option gives ability to be involved in DAO. To stop taking snapshots:
+
+.. code:: bash
+
+    (nucypher)$ nucypher stake snapshots --disable
+	
+To enable snapshots again:
+
+.. code:: bash
+
+    (nucypher)$ nucypher stake snapshots --enable
+
 
 
 Divide
