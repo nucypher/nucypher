@@ -24,6 +24,7 @@ from web3 import Web3
 
 from nucypher.blockchain.eth.actors import Bidder
 from nucypher.blockchain.eth.agents import ContractAgency, WorkLockAgent
+from nucypher.blockchain.eth.networks import NetworksInventory
 from nucypher.blockchain.eth.signers import Signer, ClefSigner
 from nucypher.blockchain.eth.token import NU
 from nucypher.blockchain.eth.utils import prettify_eth_amount
@@ -143,7 +144,7 @@ group_worklock_options = group_options(
     participant_address=option_bidder_address,
     signer_uri=option_signer_uri,
     provider_uri=option_provider_uri(required=True, default=os.environ.get(NUCYPHER_ENVVAR_PROVIDER_URI)),
-    network=option_network(required=True, validate=True),
+    network=option_network(default=NetworksInventory.DEFAULT, validate=True),  # TODO: See 2214
     registry_filepath=option_registry_filepath,
 )
 

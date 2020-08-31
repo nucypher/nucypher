@@ -27,6 +27,7 @@ from nucypher.blockchain.eth.actors import ContractAdministrator, Trustee
 from nucypher.blockchain.eth.agents import ContractAgency, MultiSigAgent, NucypherTokenAgent
 from nucypher.blockchain.eth.constants import STAKING_ESCROW_CONTRACT_NAME
 from nucypher.blockchain.eth.interfaces import BlockchainInterface
+from nucypher.blockchain.eth.networks import NetworksInventory
 from nucypher.blockchain.eth.registry import (
     BaseContractRegistry,
     GithubRegistrySource,
@@ -252,7 +253,7 @@ def deploy():
 @group_general_config
 @option_config_root
 @option_registry_outfile
-@option_network()
+@option_network(default=NetworksInventory.DEFAULT, validate=True)  # TODO: See 2214
 @option_force
 def download_registry(general_config, config_root, registry_outfile, network, force):
     """Download the latest registry."""

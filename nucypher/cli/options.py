@@ -99,7 +99,7 @@ def option_message_kit(required: bool = False):
 
 
 def option_network(required: bool = False,
-                   default=os.environ.get("NUCYPHER_NETWORK", NetworksInventory.DEFAULT),
+                   default: str = None,  # TODO: NetworksInventory.DEFAULT is not a good default for the moment -- 2214
                    validate: bool = False):
     return click.option(
         '--network',
