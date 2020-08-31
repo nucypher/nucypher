@@ -244,13 +244,14 @@ class NodeEngagementMutex:
             self.completed[node] = response
         else:
             assert False  # TODO: What happens if this is a 300 or 400 level response?  (A 500 response will propagate as an error and be handled in the errback chain.)
-        if not self.nodes_contacted_during_partial_block:
+        if self.nodes_contacted_during_partial_block:
+            self._consider_finalizing()
+        else:
             if len(self.completed) >= self._block_until_this_many_are_complete:
                 contacted = tuple(self.completed.keys())
                 self.nodes_contacted_during_partial_block = contacted
                 self.log.debug(f"Blocked for a little while, completed {contacted} nodes")
                 self._partial_queue.put(contacted)
-        self._consider_finalizing()
         return response
 
     def _handle_error(self, failure, node):
