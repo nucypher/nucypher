@@ -190,7 +190,7 @@ def test_mass_treasure_map_placement(fleet_of_highperf_mocked_ursulas,
 
         # The number of nodes having the map is approximately the number you'd expect from full utilization of Alice's publication threadpool.
         # TODO: This line fails sometimes because the loop goes too fast.
-        # assert nodes_that_have_the_map_when_we_unblock == pytest.approx(policy.publishing_mutex._threadpool.max, .6)
+        assert nodes_that_have_the_map_when_we_unblock == pytest.approx(policy.publishing_mutex._threadpool.max, .6)
 
         # Temporarily: *some* nodes have it.
         assert nodes_that_have_the_map_when_we_unblock

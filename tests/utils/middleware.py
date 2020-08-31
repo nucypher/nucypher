@@ -15,6 +15,7 @@ You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 import time
+import random
 
 import requests
 import socket
@@ -133,9 +134,9 @@ class SluggishLargeFleetMiddleware(MockRestMiddlewareForLargeFleetTests):
     Similar to above, but with added delay to simulate network latency.
     """
     def put_treasure_map_on_node(self, node, *args, **kwargs):
-        time.sleep(.1)
+        time.sleep(random.randrange(5, 15) / 100)
         result = super().put_treasure_map_on_node(node=node, *args, **kwargs)
-        time.sleep(.1)
+        time.sleep(random.randrange(5, 15) / 100)
         return result
 
 
