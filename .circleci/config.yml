@@ -415,6 +415,15 @@ commands:
           name: "Create directory for test reports"
           command: mkdir reports
 
+  run_test_suite:
+    description: "Runs a group of tests, specified by name and contained in a file"
+    steps:
+      - run:
+          name: Running Test Suite
+          command: |
+            cat test-names.tmp | tr '\n' ' ' > test-names.txt
+            pytest -c .circleci/pytest.ini `cat test-names.txt`
+
   prepare_dev_docker:
     description: "access pre-build docker image"
     steps:
@@ -437,14 +446,12 @@ commands:
     steps:
       - store_test_results:
           path: reports
-      - run:
-          name: Prepare test logs for storage as artifacts
-          command: |
-            mkdir -p ~/test-logs/
-            mv ~/.cache/nucypher/log/nucypher.log ~/test-logs/nucypher-container-$CIRCLE_NODE_INDEX.log
-          when: always
       - store_artifacts:
-          path: ~/test-logs/
+          path: ~/.cache/nucypher/log/nucypher.log
+          destination: logs
+      - store_artifacts:
+          path: test-names.txt
+          destination: tests
       - codecov
 
   build_and_save_test_docker:
@@ -517,9 +524,10 @@ jobs:
     steps:
       - prepare_environment
       - run:
-          name: Integration Test Suite
+          name: Preparing Integration Test Suite
           command: |
-            pytest -c .circleci/pytest.ini $(circleci tests glob "tests/integration/**/test_*.py" | circleci tests split --split-by=timings)
+            circleci tests glob "tests/integration/**/test_*.py" | circleci tests split --split-by=timings | tee test-names.tmp
+      - run_test_suite
       - capture_test_results
 
   unit:
@@ -528,9 +536,10 @@ jobs:
     steps:
       - prepare_environment
       - run:
-          name: Unit Test Suite
+          name: Preparing Unit Test Suite
           command: |
-            pytest -c .circleci/pytest.ini $(circleci tests glob "tests/unit/**/test_*.py" | circleci tests split --split-by=timings)
+            circleci tests glob "tests/unit/**/test_*.py" | circleci tests split --split-by=timings | tee test-names.tmp
+      - run_test_suite
       - capture_test_results
 
   agents:
@@ -539,9 +548,10 @@ jobs:
     steps:
       - prepare_environment
       - run:
-          name: Blockchain Agent Tests
+          name: Preparing Blockchain Agent Tests
           command: |
-            pytest -c .circleci/pytest.ini $(circleci tests glob "tests/acceptance/blockchain/agents/**/test_*.py" | circleci tests split --split-by=timings)
+            circleci tests glob "tests/acceptance/blockchain/agents/**/test_*.py" | circleci tests split --split-by=timings | tee test-names.tmp
+      - run_test_suite
       - capture_test_results
 
   actors:
@@ -550,9 +560,10 @@ jobs:
     steps:
       - prepare_environment
       - run:
-          name: Blockchain Actor Tests
+          name: Preparing Blockchain Actor Tests
           command: |
-            pytest -c .circleci/pytest.ini $(circleci tests glob "tests/acceptance/blockchain/actors/**/test_*.py" | circleci tests split --split-by=timings)
+            circleci tests glob "tests/acceptance/blockchain/actors/**/test_*.py" | circleci tests split --split-by=timings | tee test-names.tmp
+      - run_test_suite
       - capture_test_results
 
   deployers:
@@ -561,9 +572,10 @@ jobs:
     steps:
       - prepare_environment
       - run:
-          name: Contract Deployer Tests
+          name: Preparing Contract Deployer Tests
           command: |
-            pytest -c .circleci/pytest.ini $(circleci tests glob "tests/acceptance/blockchain/deployers/test_*.py" | circleci tests split --split-by=timings)
+            circleci tests glob "tests/acceptance/blockchain/deployers/test_*.py" | circleci tests split --split-by=timings | tee test-names.tmp
+      - run_test_suite
       - capture_test_results
 
   contracts:
@@ -572,9 +584,10 @@ jobs:
     steps:
       - prepare_environment
       - run:
-          name: Ethereum Contract Unit Tests
+          name: Preparing Ethereum Contract Unit Tests
           command: |
-            pytest -c .circleci/pytest.ini $(circleci tests glob "tests/contracts/**/test_*.py" | circleci tests split --split-by=timings)
+            circleci tests glob "tests/contracts/**/test_*.py" | circleci tests split --split-by=timings | tee test-names.tmp
+      - run_test_suite
       - capture_test_results
 
   interfaces:
@@ -583,9 +596,10 @@ jobs:
     steps:
       - prepare_environment
       - run:
-          name: Tests for Blockhain interfaces, Crypto functions, Node Configuration and Datastore
+          name: Preparing Tests for Blockhain interfaces, Crypto functions, Node Configuration and Datastore
           command: |
-            pytest -c .circleci/pytest.ini $(circleci tests glob "tests/acceptance/blockchain/interfaces" "tests/acceptance/blockchain/clients")
+            circleci tests glob "tests/acceptance/blockchain/interfaces" "tests/acceptance/blockchain/clients" | tee test-names.tmp
+      - run_test_suite
       - capture_test_results
 
   characters:
@@ -594,9 +608,10 @@ jobs:
     steps:
       - prepare_environment
       - run:
-          name: Character Tests
+          name: Preparing Character Tests
           command: |
-            pytest -c .circleci/pytest.ini $(circleci tests glob "tests/acceptance/characters/**/test_*.py" "tests/learning/**/test_*.py" | circleci tests split --split-by=timings)
+            circleci tests glob "tests/acceptance/characters/**/test_*.py" "tests/learning/**/test_*.py" | circleci tests split --split-by=timings | tee test-names.tmp
+      - run_test_suite
       - capture_test_results
 
   cli:
@@ -605,9 +620,10 @@ jobs:
     steps:
       - prepare_environment
       - run:
-          name: Nucypher CLI Tests
+          name: Preparing Nucypher CLI Tests
           command: |
-            pytest -c .circleci/pytest.ini $(circleci tests glob "tests/acceptance/cli/**/test_*.py" | circleci tests split --split-by=timings)
+            circleci tests glob "tests/acceptance/cli/**/test_*.py" | circleci tests split --split-by=timings | tee test-names.tmp
+      - run_test_suite
       - capture_test_results
 
   tests_ok:
@@ -810,11 +826,6 @@ jobs:
             pytest -c .circleci/pytest.ini --run-nightly --no-cov tests/acceptance/blockchain/agents/test_sampling_distribution.py
       - store_test_results:
           path: reports
-      - run:
-          name: Prepare test logs for storage as artifacts
-          command: |
-            mkdir -p ~/test-logs/
-            mv ~/.cache/nucypher/log/nucypher.log ~/test-logs/nucypher-container-$CIRCLE_NODE_INDEX.log
-          when: always
       - store_artifacts:
-          path: ~/test-logs/
+          path: ~/.cache/nucypher/log/nucypher.log
+          destination: logs
