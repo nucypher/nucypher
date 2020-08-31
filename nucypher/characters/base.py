@@ -189,7 +189,7 @@ class Character(Learner):
                              *args, **kwargs)
 
         #
-        # Stranger-Char acter
+        # Stranger-Character
         #
 
         else:  # Feel like a stranger
@@ -516,7 +516,7 @@ class Character(Learner):
                 except NoSigningPower:
                     self._checksum_address = NO_BLOCKCHAIN_CONNECTION
                 if checksum_address:
-                    # We'll take a checksum address, as long as it matches their singing key
+                    # We'll take a checksum address, as long as it matches their signing key
                     if not checksum_address == self.checksum_address:
                         error = "Federated-only Characters derive their address from their Signing key; got {} instead."
                         raise self.SuspiciousActivity(error.format(checksum_address))
