@@ -207,7 +207,7 @@ class NodeEngagementMutex:
         self._completion_queue = Queue()
         self._block_until_this_many_are_complete = math.ceil(
             len(nodes) * self.percent_to_complete_before_release / 100)
-        self.released = False
+        self.partial_blocking_complete = False
         self.when_complete = Deferred()  # TODO: Allow cancelling via KB Interrupt or some other way?
 
         if note is None:
@@ -226,8 +226,11 @@ class NodeEngagementMutex:
         https://www.youtube.com/watch?v=OkSLswPSq2o
         """
         if len(self.completed) < self._block_until_this_many_are_complete:
-            _ = self._partial_queue.get()  # Interesting opportuntiy to pass some data, like the list of contacted nodes above.
+            completed_for_reasonable_likelihood_of_success = self._partial_queue.get()  # Interesting opportuntiy to pass some data, like the list of contacted nodes above.
             self.log.debug(f"{len(self.completed)} nodes were contacted while blocking for a little while.")
+            return completed_for_reasonable_likelihood_of_success
+        else:
+            return self.completed
 
     def block_until_complete(self):
         if self.total_disposed() < len(self.nodes):
@@ -240,12 +243,12 @@ class NodeEngagementMutex:
         if response.status_code == 202:
             self.completed[node] = response
         else:
-            assert False  # TODO: What happens if this is a 300 or 400 level response?
-
-        if len(self.completed) == self._block_until_this_many_are_complete:
-            self.log.debug(f"Blocked for a little while, completed {len(self.completed)} nodes")
-            self._partial_queue.put(self.completed)
-            self.released = True
+            assert False  # TODO: What happens if this is a 300 or 400 level response?  (A 500 response will propagate as an error and be handled in the errback chain.)
+        if not self.partial_blocking_complete:
+            if len(self.completed) >= self._block_until_this_many_are_complete:
+                self.partial_blocking_complete = True
+                self.log.debug(f"Blocked for a little while, completed {len(self.completed)} nodes")
+                self._partial_queue.put(self.completed)
         self._consider_finalizing()
         return response
 

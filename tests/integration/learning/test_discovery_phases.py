@@ -181,19 +181,15 @@ def test_mass_treasure_map_placement(fleet_of_highperf_mocked_ursulas,
         # defer.setDebugging(True)
 
         # PART II: We block for a little while to ensure that the distribution is going well.
-        policy.publishing_mutex.block_until_success_is_reasonably_likely()
-        nodes_that_have_the_map_when_we_unblock = len(policy.publishing_mutex.completed)
+        nodes_that_have_the_map_when_we_unblock = policy.publishing_mutex.block_until_success_is_reasonably_likely()
         little_while_ended_at = datetime.now()
 
         # The number of nodes having the map is at least the minimum to have unblocked.
-        assert nodes_that_have_the_map_when_we_unblock >= policy.publishing_mutex._block_until_this_many_are_complete
+        assert len(nodes_that_have_the_map_when_we_unblock) >= policy.publishing_mutex._block_until_this_many_are_complete
 
         # The number of nodes having the map is approximately the number you'd expect from full utilization of Alice's publication threadpool.
         # TODO: This line fails sometimes because the loop goes too fast.
-        assert nodes_that_have_the_map_when_we_unblock == pytest.approx(policy.publishing_mutex._threadpool.max, .6)
-
-        # Temporarily: *some* nodes have it.
-        assert nodes_that_have_the_map_when_we_unblock
+        assert len(nodes_that_have_the_map_when_we_unblock) == pytest.approx(policy.publishing_mutex._threadpool.max, .6)
 
         # PART III: Having made proper assertions about the publication call and the first block, we allow the rest to
         # happen in the background and then ensure that each phase was timely.
