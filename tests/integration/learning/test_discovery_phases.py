@@ -199,13 +199,12 @@ def test_mass_treasure_map_placement(fleet_of_highperf_mocked_ursulas,
         complete_distribution_time = datetime.now() - started
         partial_blocking_duration = little_while_ended_at - started
         # Before Treasure Island (1741), this process took about 3 minutes.
-        if partial_blocking_duration.total_seconds() > 3:
+        if partial_blocking_duration.total_seconds() > 10:
             pytest.fail(
                 f"Took too long ({partial_blocking_duration}) to contact {len(policy.publishing_mutex.nodes_contacted_during_partial_block)} nodes ({complete_distribution_time} total.)")
 
         # TODO: Assert that no nodes outside those expected received the map.
-        assert complete_distribution_time.total_seconds() < 8
-        # On CI, we expect these times to be even less.  (Around 1 and 3.5 seconds, respectively)
+        assert complete_distribution_time.total_seconds() < 20
         # But with debuggers and other processes running on laptops, we give a little leeway.
 
         # We have the same number of successful responses as nodes we expected to have the map.
