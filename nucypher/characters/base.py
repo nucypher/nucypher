@@ -209,8 +209,6 @@ class Character(Learner):
             _transacting_power = self._crypto_power.power_ups(TransactingPower)
         except NoTransactingPower:
             self._checksum_address = checksum_address
-            if checksum_address is None:
-                assert True  # Hmm, so this Character has no checksum address at all.  Is that what we want?
         else:
             self._set_checksum_address(checksum_address)
 
