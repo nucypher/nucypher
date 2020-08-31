@@ -18,7 +18,7 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 
 import pytest
 
-from nucypher.blockchain.economics import EconomicsFactory
+from nucypher.blockchain.economics import EconomicsFactory, BaseEconomics
 from nucypher.blockchain.eth.agents import WorkLockAgent
 from nucypher.blockchain.eth.constants import WORKLOCK_CONTRACT_NAME
 from nucypher.blockchain.eth.deployers import WorklockDeployer
@@ -49,7 +49,7 @@ def test_worklock_deployment(worklock_deployer,
 
     # Ensure nucypher APIs implementing economics are usable without a worklock deployment.
     economics = EconomicsFactory.retrieve_from_blockchain(registry=test_registry)
-    assert economics.bidding_start_date == NotImplemented
+    assert economics.bidding_start_date == BaseEconomics._default_bidding_start_date
 
     # Deploy
     assert worklock_deployer.contract_name == WORKLOCK_CONTRACT_NAME
@@ -57,7 +57,7 @@ def test_worklock_deployment(worklock_deployer,
 
     # Verify economics are updated
     economics = EconomicsFactory.retrieve_from_blockchain(registry=test_registry)
-    assert economics.bidding_start_date != NotImplemented
+    assert economics.bidding_start_date != BaseEconomics._default_bidding_start_date
 
     # deployment steps must match expected number of steps
     steps = worklock_deployer.deployment_steps
