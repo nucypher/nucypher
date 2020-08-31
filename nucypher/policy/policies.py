@@ -207,7 +207,7 @@ class NodeEngagementMutex:
         self._completion_queue = Queue()
         self._block_until_this_many_are_complete = math.ceil(
             len(nodes) * self.percent_to_complete_before_release / 100)
-        self.partial_blocking_complete = False
+        self.nodes_contacted_during_partial_block = False
         self.when_complete = Deferred()  # TODO: Allow cancelling via KB Interrupt or some other way?
 
         if note is None:
@@ -244,11 +244,12 @@ class NodeEngagementMutex:
             self.completed[node] = response
         else:
             assert False  # TODO: What happens if this is a 300 or 400 level response?  (A 500 response will propagate as an error and be handled in the errback chain.)
-        if not self.partial_blocking_complete:
+        if not self.nodes_contacted_during_partial_block:
             if len(self.completed) >= self._block_until_this_many_are_complete:
-                self.partial_blocking_complete = True
-                self.log.debug(f"Blocked for a little while, completed {len(self.completed)} nodes")
-                self._partial_queue.put(self.completed)
+                contacted = tuple(self.completed.keys())
+                self.nodes_contacted_during_partial_block = contacted
+                self.log.debug(f"Blocked for a little while, completed {contacted} nodes")
+                self._partial_queue.put(contacted)
         self._consider_finalizing()
         return response
 

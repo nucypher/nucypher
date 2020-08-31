@@ -197,18 +197,19 @@ def test_mass_treasure_map_placement(fleet_of_highperf_mocked_ursulas,
         # This will block until the distribution is complete.
         policy.publishing_mutex.block_until_complete()
         complete_distribution_time = datetime.now() - started
+        partial_blocking_duration = little_while_ended_at - started
+        # Before Treasure Island (1741), this process took about 3 minutes.
+        if partial_blocking_duration.total_seconds() > 3:
+            pytest.fail(
+                f"Took too long ({partial_blocking_duration}) to contact {len(policy.publishing_mutex.nodes_contacted_during_partial_block)} nodes ({complete_distribution_time} total.)")
+
+        # TODO: Assert that no nodes outside those expected received the map.
+        assert complete_distribution_time.total_seconds() < 8
+        # On CI, we expect these times to be even less.  (Around 1 and 3.5 seconds, respectively)
+        # But with debuggers and other processes running on laptops, we give a little leeway.
 
         # We have the same number of successful responses as nodes we expected to have the map.
         assert len(policy.publishing_mutex.completed) == len(nodes_we_expect_to_have_the_map)
         nodes_that_got_the_map = sum(
             policy.treasure_map.public_id() in u.treasure_maps for u in nodes_we_expect_to_have_the_map)
         assert nodes_that_got_the_map == len(nodes_we_expect_to_have_the_map)
-
-        # TODO: Assert that no nodes outside those expected received the map.
-
-        partial_blocking_duration = little_while_ended_at - started
-        # Before Treasure Island (1741), this process took about 3 minutes.
-        assert partial_blocking_duration.total_seconds() < 3
-        assert complete_distribution_time.total_seconds() < 8
-        # On CI, we expect these times to be even less.  (Around 1 and 3.5 seconds, respectively)
-        # But with debuggers and other processes running on laptops, we give a little leeway.
