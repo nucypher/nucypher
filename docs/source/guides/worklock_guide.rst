@@ -190,10 +190,10 @@ where,
         Pending amount of work required before all of the participant's escrowed ETH will be refunded
 
 
-Place an escrow
----------------
+Place an escrow (or increase existing one)
+------------------------------------------
 
-You can place an escrow to WorkLock by running:
+You can place an escrow to WorkLock (or if you already have one, increase the amount) by running:
 
 .. code::
 
