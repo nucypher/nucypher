@@ -28,6 +28,7 @@ from nucypher.blockchain.eth.registry import InMemoryContractRegistry
 from nucypher.blockchain.eth.sol.compile import SolidityCompiler, SourceDirs
 from nucypher.crypto.powers import TransactingPower
 from tests.constants import INSECURE_DEVELOPMENT_PASSWORD
+from tests.utils.blockchain import free_gas_price_strategy
 
 USER = "nucypher"
 REPO = "nucypher"
@@ -93,8 +94,7 @@ def deploy_earliest_contract(blockchain_interface: BlockchainDeployerInterface,
         pass  # Skip errors related to initialization
 
 
-@pytest.mark.slow
-def test_upgradeability(temp_dir_path, token_economics):
+def test_upgradeability(temp_dir_path):
     # Prepare remote source for compilation
     download_github_dir(GITHUB_SOURCE_LINK, temp_dir_path)
     solidity_compiler = SolidityCompiler(source_dirs=[SourceDirs(SolidityCompiler.default_contract_dir()),
@@ -103,7 +103,9 @@ def test_upgradeability(temp_dir_path, token_economics):
     # Prepare the blockchain
     provider_uri = 'tester://pyevm/2'
     try:
-        blockchain_interface = BlockchainDeployerInterface(provider_uri=provider_uri, compiler=solidity_compiler)
+        blockchain_interface = BlockchainDeployerInterface(provider_uri=provider_uri,
+                                                           compiler=solidity_compiler,
+                                                           gas_strategy=free_gas_price_strategy)
         blockchain_interface.connect()
         origin = blockchain_interface.client.accounts[0]
         BlockchainInterfaceFactory.register_interface(interface=blockchain_interface)

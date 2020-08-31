@@ -47,7 +47,7 @@ def policy_meta(testerchain, agency, token_economics, blockchain_ursulas):
     return MockPolicyMetadata(_policy_id, testerchain.alice_account, staker_addresses)
 
 
-@pytest.mark.slow()
+
 @pytest.mark.usefixtures('blockchain_ursulas')
 def test_create_policy(testerchain, agency, token_economics, mock_transacting_power_activation):
     token_agent, staking_agent, policy_agent = agency
@@ -68,7 +68,7 @@ def test_create_policy(testerchain, agency, token_economics, mock_transacting_po
     assert receipt['logs'][0]['address'] == agent.contract_address
 
 
-@pytest.mark.slow()
+
 @pytest.mark.usefixtures('blockchain_ursulas')
 def test_fetch_policy_arrangements(agency, policy_meta):
     token_agent, staking_agent, policy_agent = agency
@@ -81,7 +81,7 @@ def test_fetch_policy_arrangements(agency, policy_meta):
     assert list(record[0] for record in arrangements) == policy_meta.addresses
 
 
-@pytest.mark.slow()
+
 @pytest.mark.usefixtures('blockchain_ursulas')
 def test_revoke_arrangement(agency, policy_meta):
     token_agent, staking_agent, policy_agent = agency
@@ -94,7 +94,7 @@ def test_revoke_arrangement(agency, policy_meta):
     assert receipt['logs'][0]['address'] == agent.contract_address
 
 
-@pytest.mark.slow()
+
 @pytest.mark.usefixtures('blockchain_ursulas')
 def test_revoke_policy(agency, policy_meta):
     token_agent, staking_agent, policy_agent = agency
@@ -135,7 +135,6 @@ def test_collect_refund(testerchain, agency, policy_meta):
     assert receipt['logs'][0]['address'] == agent.contract_address
 
 
-@pytest.mark.slow()
 def test_set_min_fee_rate(testerchain, test_registry, agency, policy_meta):
     policy_agent = ContractAgency.get_agent(PolicyManagerAgent, registry=test_registry)  # type: PolicyManagerAgent
     minimum, default, maximum = FEE_RATE_RANGE
@@ -150,7 +149,7 @@ def test_set_min_fee_rate(testerchain, test_registry, agency, policy_meta):
     assert policy_agent.get_min_fee_rate(staker) == minimum + 1
 
 
-@pytest.mark.slow()
+
 @pytest.mark.usefixtures('blockchain_ursulas')
 def test_collect_policy_fee(testerchain, agency, policy_meta, token_economics, mock_transacting_power_activation):
     token_agent, staking_agent, policy_agent = agency

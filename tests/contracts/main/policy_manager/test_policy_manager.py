@@ -39,7 +39,6 @@ MIN_FEE_RATE_FIELD = 3
 POLICY_ID_LENGTH = 16
 
 
-@pytest.mark.slow
 def test_create_revoke(testerchain, escrow, policy_manager):
     creator, policy_sponsor, bad_node, node1, node2, node3, policy_owner, *everyone_else = testerchain.client.accounts
 
@@ -519,7 +518,6 @@ def test_create_revoke(testerchain, escrow, policy_manager):
     testerchain.wait_for_receipt(tx)
 
 
-@pytest.mark.slow
 def test_upgrading(testerchain, deploy_contract):
     creator = testerchain.client.accounts[0]
 
@@ -614,7 +612,6 @@ def test_upgrading(testerchain, deploy_contract):
     assert creator == event_args['sender']
 
 
-@pytest.mark.slow
 def test_handling_wrong_state(testerchain, deploy_contract):
     creator, node1, node2, *everyone_else = testerchain.client.accounts
 

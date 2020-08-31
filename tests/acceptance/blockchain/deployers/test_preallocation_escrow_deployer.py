@@ -26,7 +26,6 @@ preallocation_escrow_contracts = list()
 NUMBER_OF_PREALLOCATIONS = 50
 
 
-@pytest.mark.slow()
 def test_staking_interface_deployer(testerchain, deployment_progress, test_registry):
 
     #
@@ -62,7 +61,6 @@ def test_staking_interface_deployer(testerchain, deployment_progress, test_regis
         assert staking_interface_receipts[step]['status'] == 1
 
 
-@pytest.mark.slow()
 def test_deploy_multiple_preallocations(testerchain, test_registry):
 
     deployer_account = testerchain.etherbase_account
@@ -89,7 +87,6 @@ def test_deploy_multiple_preallocations(testerchain, test_registry):
     assert len(preallocation_escrow_contracts) == NUMBER_OF_PREALLOCATIONS
 
 
-@pytest.mark.slow()
 def test_upgrade_staking_interface(testerchain, test_registry):
 
     router = testerchain.get_contract_by_name(registry=test_registry,

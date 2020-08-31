@@ -22,7 +22,6 @@ import maya
 import os
 import pytest
 import tempfile
-from twisted.logger import Logger
 from web3 import Web3
 
 from nucypher.blockchain.eth.actors import Staker

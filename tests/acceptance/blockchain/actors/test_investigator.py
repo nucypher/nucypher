@@ -38,7 +38,6 @@ def mock_ursula(testerchain, account, mocker):
     return ursula
 
 
-@pytest.mark.slow()
 def test_investigator_requests_slashing(testerchain,
                                         test_registry,
                                         agency,

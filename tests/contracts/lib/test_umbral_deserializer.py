@@ -55,7 +55,6 @@ def fragments():
     return capsule, cfrag
 
 
-@pytest.mark.slow
 def test_capsule(testerchain, deserializer, fragments):
     # Wrong number of bytes to deserialize capsule
     with pytest.raises((TransactionFailed, ValueError)):
@@ -77,7 +76,6 @@ def test_capsule(testerchain, deserializer, fragments):
     assert capsule.bn_sig.to_bytes() == bytes(result[4])
 
 
-@pytest.mark.slow
 def test_proof(testerchain, deserializer, fragments):
     # Wrong number of bytes to deserialize proof
     with pytest.raises((TransactionFailed, ValueError)):
@@ -109,7 +107,6 @@ def test_proof(testerchain, deserializer, fragments):
     assert bytes(proof.metadata) == result[10]
 
 
-@pytest.mark.slow
 def test_cfrag(testerchain, deserializer, fragments):
     # Wrong number of bytes to deserialize cfrag
     with pytest.raises((TransactionFailed, ValueError)):

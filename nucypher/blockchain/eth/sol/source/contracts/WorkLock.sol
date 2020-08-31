@@ -503,7 +503,7 @@ contract WorkLock is Ownable {
 
         info.claimed = true;
         token.approve(address(escrow), claimedTokens);
-        escrow.deposit(msg.sender, claimedTokens, stakingPeriods);
+        escrow.depositFromWorkLock(msg.sender, claimedTokens, stakingPeriods);
         info.completedWork = escrow.setWorkMeasurement(msg.sender, true);
         emit Claimed(msg.sender, claimedTokens);
     }

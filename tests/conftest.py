@@ -95,10 +95,6 @@ pytest_plugins = [
 
 
 def pytest_addoption(parser):
-    parser.addoption("--runslow",
-                     action="store_true",
-                     default=False,
-                     help="run tests even if they are marked as slow")
     parser.addoption("--run-nightly",
                      action="store_true",
                      default=False,
@@ -117,7 +113,6 @@ def pytest_addoption(parser):
 
 def pytest_configure(config):
     message = "{0}: mark test as {0} to run (skipped by default, use '{1}' to include these tests)"
-    config.addinivalue_line("markers", message.format("slow", "--runslow"))
     config.addinivalue_line("markers", message.format("nightly", "--run-nightly"))
 
 
@@ -128,7 +123,6 @@ def pytest_collection_modifyitems(config, items):
     #
 
     option_markers = {
-        "--runslow": "slow",
         "--run-nightly": "nightly"
     }
 

@@ -99,10 +99,10 @@ Whitepapers
 
 **Economics**
 
-    https://github.com/nucypher/mining-paper/blob/master/mining-paper.pdf
+    https://github.com/nucypher/whitepaper/blob/master/economics/staking_protocol/NuCypher_Staking_Protocol_Economics.pdf
 
-    *"NuCypher - Mining & Staking Economics"*
-    *by Michael Egorov, MacLane Wilkison - NuCypher*
+    *"NuCypher Network: Staking Protocol & Economics"*
+    *by Michael Egorov, MacLane Wilkison, Arjun Hassard - NuCypher*
 
 
     https://github.com/nucypher/mining-paper/blob/master/2_phase_minting_schedule/twophase_subsidy_model.pdf

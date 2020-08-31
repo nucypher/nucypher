@@ -15,9 +15,8 @@
  along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
-import collections
 import json
-import os
+from pathlib import Path
 
 import pytest
 import shutil
@@ -26,7 +25,6 @@ from eth_account import Account
 from eth_account._utils.transactions import Transaction
 from eth_utils import to_checksum_address
 from hexbytes import HexBytes
-from pathlib import Path
 
 from nucypher.blockchain.eth.constants import LENGTH_ECDSA_SIGNATURE_WITH_RECOVERY
 from nucypher.blockchain.eth.signers import KeystoreSigner, Signer

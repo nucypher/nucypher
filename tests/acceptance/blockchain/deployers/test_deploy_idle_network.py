@@ -28,7 +28,6 @@ from tests.utils.blockchain import token_airdrop
 from tests.constants import DEVELOPMENT_TOKEN_AIRDROP_AMOUNT, INSECURE_DEVELOPMENT_PASSWORD
 
 
-@pytest.mark.slow()
 def test_deploy_idle_network(testerchain, deployment_progress, test_registry):
     origin, *everybody_else = testerchain.client.accounts
 
@@ -106,7 +105,6 @@ def test_deploy_idle_network(testerchain, deployment_progress, test_registry):
     assert adjudicator_agent.contract_address == adjudicator_deployer.contract_address
 
 
-@pytest.mark.slow()
 def test_stake_in_idle_network(testerchain, token_economics, test_registry):
 
     # Let's fund a staker first
@@ -131,7 +129,6 @@ def test_stake_in_idle_network(testerchain, token_economics, test_registry):
         staker.staking_agent.commit_to_next_period(worker_address=account)
 
 
-@pytest.mark.slow()
 def test_activate_network(testerchain, token_economics, test_registry):
     staking_escrow_deployer = StakingEscrowDeployer(registry=test_registry,
                                                     deployer_address=testerchain.etherbase_account)

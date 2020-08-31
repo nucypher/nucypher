@@ -108,7 +108,6 @@ class UrsulaConfigOptions:
                                            message=f"--registry-filepath cannot be used in federated mode.")
 
         eth_node = NO_BLOCKCHAIN_CONNECTION
-        provider_uri = provider_uri
         if geth:
             eth_node = get_geth_provider_process()
             provider_uri = eth_node.provider_uri(scheme='file')

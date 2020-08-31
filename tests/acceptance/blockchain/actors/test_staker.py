@@ -29,7 +29,6 @@ from tests.constants import FEE_RATE_RANGE, INSECURE_DEVELOPMENT_PASSWORD, DEVEL
 from tests.utils.blockchain import token_airdrop
 
 
-@pytest.mark.slow()
 def test_staker_locking_tokens(testerchain, agency, staker, token_economics, mock_transacting_power_activation):
     token_agent, staking_agent, policy_agent = agency
 
@@ -54,7 +53,6 @@ def test_staker_locking_tokens(testerchain, agency, staker, token_economics, moc
     assert token_economics.minimum_allowed_locked == locked_tokens
 
 
-@pytest.mark.slow()
 @pytest.mark.usefixtures("agency")
 def test_staker_divides_stake(staker, token_economics):
     stake_value = NU(token_economics.minimum_allowed_locked*5, 'NuNit')
@@ -118,7 +116,6 @@ def test_staker_divides_stake(staker, token_economics):
     assert expected_yet_another_stake.value == staker.stakes[stake_index + 3].value, 'Third stake values are invalid'
 
 
-@pytest.mark.slow()
 @pytest.mark.usefixtures("agency")
 def test_staker_prolongs_stake(staker, token_economics):
     stake_index = 0
@@ -163,7 +160,6 @@ def test_staker_prolongs_stake(staker, token_economics):
     assert stake.value == origin_stake.value
 
 
-@pytest.mark.slow()
 @pytest.mark.usefixtures("agency")
 def test_staker_increases_stake(staker, token_economics):
     stake_index = 0
@@ -202,7 +198,6 @@ def test_staker_increases_stake(staker, token_economics):
     assert stake.value == origin_stake.value + balance
 
 
-@pytest.mark.slow()
 def test_staker_merges_stakes(agency, staker, token_economics):
     stake_index_1 = 0
     stake_index_2 = 3
@@ -254,7 +249,6 @@ def test_staker_manages_restaking(testerchain, test_registry, staker):
     assert not staker.restaking_lock_enabled
 
 
-@pytest.mark.slow()
 def test_staker_collects_staking_reward(testerchain,
                                         test_registry,
                                         staker,

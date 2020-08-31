@@ -77,6 +77,7 @@ class TesterBlockchain(BlockchainDeployerInterface):
 
     GAS_STRATEGIES = {**BlockchainDeployerInterface.GAS_STRATEGIES,
                       'free': free_gas_price_strategy}
+    DEFAULT_GAS_STRATEGY = 'free'
 
     _PROVIDER_URI = 'tester://pyevm'
     _compiler = SolidityCompiler(source_dirs=[(SolidityCompiler.default_contract_dir(), {TEST_CONTRACTS_DIR})])

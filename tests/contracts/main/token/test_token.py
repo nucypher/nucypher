@@ -20,7 +20,6 @@ import pytest
 from eth_tester.exceptions import TransactionFailed
 
 
-@pytest.mark.slow()
 def test_create_token(testerchain, token_economics, deploy_contract):
     """
     These are tests for standard tokens taken from Consensys github:
@@ -69,7 +68,6 @@ def test_create_token(testerchain, token_economics, deploy_contract):
     assert 10 == token.functions.balanceOf(token.address).call()
 
 
-@pytest.mark.slow()
 def test_approve_and_call(testerchain, token_economics, deploy_contract):
     creator = testerchain.client.accounts[0]
     account1 = testerchain.client.accounts[1]

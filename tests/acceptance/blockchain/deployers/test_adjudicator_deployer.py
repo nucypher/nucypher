@@ -25,7 +25,6 @@ from nucypher.blockchain.eth.deployers import (
 )
 
 
-@pytest.mark.slow()
 def test_adjudicator_deployer(testerchain,
                               token_economics,
                               deployment_progress,

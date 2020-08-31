@@ -32,7 +32,7 @@ from nucypher.crypto.powers import TransactingPower
 # Prevents TesterBlockchain to be picked up by py.test as a test class
 from tests.fixtures import _make_testerchain
 from tests.mock.interfaces import MockBlockchain
-from tests.utils.blockchain import TesterBlockchain as _TesterBlockchain
+from tests.utils.blockchain import TesterBlockchain as _TesterBlockchain, free_gas_price_strategy
 from tests.constants import (DEVELOPMENT_ETH_AIRDROP_AMOUNT, INSECURE_DEVELOPMENT_PASSWORD,
                                    NUMBER_OF_ETH_TEST_ACCOUNTS, NUMBER_OF_STAKERS_IN_BLOCKCHAIN_TESTS,
                                    NUMBER_OF_URSULAS_IN_BLOCKCHAIN_TESTS)
@@ -105,7 +105,9 @@ def test_multiversion_contract():
                                                       SourceDirs(root_dir, {v1_dir})])
 
     # Prepare chain
-    blockchain_interface = BlockchainDeployerInterface(provider_uri='tester://pyevm/2', compiler=solidity_compiler)
+    blockchain_interface = BlockchainDeployerInterface(provider_uri='tester://pyevm/2',
+                                                       compiler=solidity_compiler,
+                                                       gas_strategy=free_gas_price_strategy)
     blockchain_interface.connect()
     origin = blockchain_interface.client.accounts[0]
     blockchain_interface.transacting_power = TransactingPower(password=INSECURE_DEVELOPMENT_PASSWORD, account=origin)

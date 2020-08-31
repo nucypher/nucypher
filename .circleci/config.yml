@@ -519,7 +519,7 @@ jobs:
       - run:
           name: Integration Test Suite
           command: |
-            pytest $(circleci tests glob "tests/integration/**/test_*.py" | circleci tests split --split-by=timings)
+            pytest -c .circleci/pytest.ini $(circleci tests glob "tests/integration/**/test_*.py" | circleci tests split --split-by=timings)
       - capture_test_results
 
   unit:
@@ -530,7 +530,7 @@ jobs:
       - run:
           name: Unit Test Suite
           command: |
-            pytest $(circleci tests glob "tests/unit/**/test_*.py" | circleci tests split --split-by=timings)
+            pytest -c .circleci/pytest.ini $(circleci tests glob "tests/unit/**/test_*.py" | circleci tests split --split-by=timings)
       - capture_test_results
 
   agents:
@@ -541,7 +541,7 @@ jobs:
       - run:
           name: Blockchain Agent Tests
           command: |
-            pytest $(circleci tests glob "tests/acceptance/blockchain/agents/**/test_*.py" | circleci tests split --split-by=timings)
+            pytest -c .circleci/pytest.ini $(circleci tests glob "tests/acceptance/blockchain/agents/**/test_*.py" | circleci tests split --split-by=timings)
       - capture_test_results
 
   actors:
@@ -552,7 +552,7 @@ jobs:
       - run:
           name: Blockchain Actor Tests
           command: |
-            pytest $(circleci tests glob "tests/acceptance/blockchain/actors/**/test_*.py" | circleci tests split --split-by=timings)
+            pytest -c .circleci/pytest.ini $(circleci tests glob "tests/acceptance/blockchain/actors/**/test_*.py" | circleci tests split --split-by=timings)
       - capture_test_results
 
   deployers:
@@ -563,7 +563,7 @@ jobs:
       - run:
           name: Contract Deployer Tests
           command: |
-            pytest $(circleci tests glob "tests/acceptance/blockchain/deployers/test_*.py" | circleci tests split --split-by=timings)
+            pytest -c .circleci/pytest.ini $(circleci tests glob "tests/acceptance/blockchain/deployers/test_*.py" | circleci tests split --split-by=timings)
       - capture_test_results
 
   contracts:
@@ -574,7 +574,7 @@ jobs:
       - run:
           name: Ethereum Contract Unit Tests
           command: |
-            pytest $(circleci tests glob "tests/contracts/**/test_*.py" | circleci tests split --split-by=timings)
+            pytest -c .circleci/pytest.ini $(circleci tests glob "tests/contracts/**/test_*.py" | circleci tests split --split-by=timings)
       - capture_test_results
 
   interfaces:
@@ -585,7 +585,7 @@ jobs:
       - run:
           name: Tests for Blockhain interfaces, Crypto functions, Node Configuration and Datastore
           command: |
-            pytest $(circleci tests glob "tests/acceptance/blockchain/interfaces" "tests/acceptance/blockchain/clients")
+            pytest -c .circleci/pytest.ini $(circleci tests glob "tests/acceptance/blockchain/interfaces" "tests/acceptance/blockchain/clients")
       - capture_test_results
 
   characters:
@@ -596,7 +596,7 @@ jobs:
       - run:
           name: Character Tests
           command: |
-            pytest $(circleci tests glob "tests/acceptance/characters/**/test_*.py" "tests/learning/**/test_*.py" | circleci tests split --split-by=timings)
+            pytest -c .circleci/pytest.ini $(circleci tests glob "tests/acceptance/characters/**/test_*.py" "tests/learning/**/test_*.py" | circleci tests split --split-by=timings)
       - capture_test_results
 
   cli:
@@ -607,7 +607,7 @@ jobs:
       - run:
           name: Nucypher CLI Tests
           command: |
-            pytest $(circleci tests glob "tests/acceptance/cli/**/test_*.py" | circleci tests split --split-by=timings)
+            pytest -c .circleci/pytest.ini $(circleci tests glob "tests/acceptance/cli/**/test_*.py" | circleci tests split --split-by=timings)
       - capture_test_results
 
   tests_ok:
@@ -807,7 +807,7 @@ jobs:
       - run:
           name: Statistical tests (e.g., sampling)
           command: |
-            pytest --run-nightly --no-cov tests/acceptance/blockchain/agents/test_sampling_distribution.py
+            pytest -c .circleci/pytest.ini --run-nightly --no-cov tests/acceptance/blockchain/agents/test_sampling_distribution.py
       - store_test_results:
           path: reports
       - run:

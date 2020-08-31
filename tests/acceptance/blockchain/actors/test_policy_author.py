@@ -19,7 +19,6 @@ import pytest
 from nucypher.blockchain.eth.actors import BlockchainPolicyAuthor
 
 
-@pytest.mark.slow()
 @pytest.fixture(scope='module')
 def author(testerchain, agency, test_registry):
     _origin, ursula, alice, *everybody_else = testerchain.client.accounts
@@ -27,7 +26,6 @@ def author(testerchain, agency, test_registry):
     return author
 
 
-@pytest.mark.slow()
 def test_create_policy_author(testerchain, agency, test_registry):
     _origin, ursula, alice, *everybody_else = testerchain.client.accounts
     policy_author = BlockchainPolicyAuthor(checksum_address=alice, registry=test_registry)

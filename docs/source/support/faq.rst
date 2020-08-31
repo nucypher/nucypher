@@ -345,3 +345,22 @@ Q: What types of Ethereum web3 node providers do you support?
 * IPC Socket-based JSON-RPC server e.g. ``ipc:///home/<username>/.ethereum/geth.ipc``
 * HTTP(S)-based JSON-RPC server e.g. ``http://<host>``, ``https://<host>``
 * Websocket(Secure)-based JSON-RPC server e.g. ``ws://<host>:8080``, ``wss://<host>:8080``
+
+
+Q: Is there a difference between delegating staking and running a node yourself?
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Delegating stake and/or work to a 3rd party is a good option for those who are not confident with the technicals
+of staking and running a node and/or are concerned about gas costs relative to stake size (e.g. small stakers).
+
+If you are comfortable with technical requirements of staking or wish to implement a sophisticated staking configuration
+(e.g. restake toggles,  stake extensions, sub-stakes , adding stake, etc.) it may not be the right option.
+
+
+Q: Can I manage my own stake settings when participating in WorkLock through CoinList?
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+You do not have the ability to change staking configs with CoinList.
+There is one setting only – 6 month duration, restake on, winddown on – for all CoinList participants.
+
+See NuCypher coinlist for more details: `CoinList <https://coinlist.co/asset/nucypher>`_

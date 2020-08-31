@@ -480,6 +480,7 @@ class StakingEscrowAgent(EthereumContractAgent):
                       number_of_substakes: List[int],
                       amounts: List[NuNits],
                       lock_periods: List[PeriodDelta],
+                      release_period: Period,
                       sender_address: ChecksumAddress,
                       dry_run: bool = False,
                       gas_limit: Optional[Wei] = None
@@ -489,7 +490,8 @@ class StakingEscrowAgent(EthereumContractAgent):
         if gas_limit and gas_limit < min_gas_batch_deposit:
             raise ValueError(f"{gas_limit} is not enough gas for any batch deposit")
 
-        contract_function: ContractFunction = self.contract.functions.batchDeposit(stakers, number_of_substakes, amounts, lock_periods)
+        contract_function: ContractFunction = self.contract.functions.batchDeposit(
+            stakers, number_of_substakes, amounts, lock_periods, release_period)
         if dry_run:
             payload: TxParams = {'from': sender_address}
             if gas_limit:

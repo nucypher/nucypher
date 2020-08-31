@@ -23,7 +23,6 @@ from web3.exceptions import BadFunctionCallOutput
 from nucypher.blockchain.eth.constants import NULL_ADDRESS
 
 
-@pytest.mark.slow
 def test_upgrading(testerchain, token, deploy_contract, escrow):
     creator = testerchain.client.accounts[0]
     owner = testerchain.client.accounts[1]
@@ -91,7 +90,6 @@ def test_upgrading(testerchain, token, deploy_contract, escrow):
     testerchain.wait_for_receipt(tx)
 
 
-@pytest.mark.slow
 def test_interface_selfdestruct(testerchain, token, deploy_contract, escrow):
     creator = testerchain.client.accounts[0]
     account = testerchain.client.accounts[1]

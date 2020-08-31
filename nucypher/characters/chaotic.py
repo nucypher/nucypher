@@ -347,7 +347,7 @@ class Felix(Character, NucypherTokenActor):
             transaction = {'to': recipient_address,
                            'from': self.checksum_address,
                            'value': ether,
-                           'gasPrice': self.blockchain.client.gas_price}
+                           'gasPrice': self.blockchain.client.gas_price_for_transaction()}
 
             transaction_dict = self.blockchain.build_payload(sender_address=self.checksum_address,
                                                              payload=transaction,

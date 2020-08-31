@@ -41,7 +41,7 @@ interface WorkLockInterface {
 /**
 * @notice Contract holds and locks stakers tokens.
 * Each staker that locks their tokens will receive some compensation
-* @dev |v5.2.2|
+* @dev |v5.3.1|
 */
 contract StakingEscrow is Issuer, IERC900History {
 
@@ -530,6 +530,52 @@ contract StakingEscrow is Issuer, IERC900History {
     }
 
     /**
+    * @notice Enable `reStake` and lock this parameter even if parameter is locked
+    * @param _staker Staker address
+    * @param _info Staker structure
+    * @param _lockReStakeUntilPeriod Can't change `reStake` value until this period
+    */
+    function forceLockReStake(
+        address _staker,
+        StakerInfo storage _info,
+        uint16 _lockReStakeUntilPeriod
+    )
+        internal
+    {
+        // reset bit when `reStake` is already disabled
+        if (_info.flags.bitSet(RE_STAKE_DISABLED_INDEX) == true) {
+            _info.flags = _info.flags.toggleBit(RE_STAKE_DISABLED_INDEX);
+            emit ReStakeSet(_staker, true);
+        }
+        // lock `reStake` parameter if it's not locked or locked for too short duration
+        if (_lockReStakeUntilPeriod > _info.lockReStakeUntilPeriod) {
+            _info.lockReStakeUntilPeriod = _lockReStakeUntilPeriod;
+            emit ReStakeLocked(_staker, _lockReStakeUntilPeriod);
+        }
+    }
+
+    /**
+    * @notice Deposit tokens and lock `reStake` parameter from WorkLock contract
+    * @param _staker Staker address
+    * @param _value Amount of tokens to deposit
+    * @param _periods Amount of periods during which tokens will be locked
+    * and number of period after which `reStake` can be changed
+    */
+    function depositFromWorkLock(
+        address _staker,
+        uint256 _value,
+        uint16 _periods
+    )
+        external
+    {
+        require(msg.sender == address(workLock));
+        deposit(_staker, msg.sender, MAX_SUB_STAKES, _value, _periods);
+        StakerInfo storage info = stakerInfo[_staker];
+        uint16 lockReStakeUntilPeriod = getCurrentPeriod().add16(_periods).add16(1);
+        forceLockReStake(_staker, info, lockReStakeUntilPeriod);
+    }
+
+    /**
     * @notice Set `windDown` parameter.
     * If true then stake's duration will be decreasing in each period with `commitToNextPeriod()`
     * @param _windDown Value for parameter
@@ -615,14 +661,18 @@ contract StakingEscrow is Issuer, IERC900History {
     * @param _numberOfSubStakes Number of sub-stakes which belong to staker in _values and _periods arrays
     * @param _values Amount of tokens to deposit for each staker
     * @param _periods Amount of periods during which tokens will be locked for each staker
+    * @param _lockReStakeUntilPeriod Can't change `reStake` value until this period. Zero value will disable locking
     */
     function batchDeposit(
         address[] calldata _stakers,
         uint256[] calldata _numberOfSubStakes,
         uint256[] calldata _values,
-        uint16[] calldata _periods
+        uint16[] calldata _periods,
+        uint16 _lockReStakeUntilPeriod
     )
-        external
+        // `onlyOwner` modifier is for prevent malicious using of `forceLockReStake`
+        // remove `onlyOwner` if `forceLockReStake` will be removed
+        external onlyOwner
     {
         uint256 subStakesLength = _values.length;
         require(_stakers.length != 0 &&
@@ -658,6 +708,10 @@ contract StakingEscrow is Issuer, IERC900History {
             }
             require(info.value <= maxAllowableLockedTokens);
             info.history.addSnapshot(info.value);
+
+            if (_lockReStakeUntilPeriod >= nextPeriod) {
+                forceLockReStake(staker, info, _lockReStakeUntilPeriod);
+            }
         }
         require(j == subStakesLength);
         uint256 lastGlobalBalance = uint256(balanceHistory.lastValue());

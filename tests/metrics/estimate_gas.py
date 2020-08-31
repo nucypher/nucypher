@@ -186,7 +186,7 @@ def estimate_gas(analyzer: AnalyzeGas = None) -> None:
     print(tabulate.tabulate(rows, headers=headers, tablefmt="simple"), end="\n\n")
 
     # Accounts
-    origin, staker1, staker2, staker3, alice1, alice2, *everyone_else = testerchain.client.accounts
+    origin, staker1, staker2, staker3, staker4, alice1, alice2, *everyone_else = testerchain.client.accounts
 
     ursula_with_stamp = mock_ursula(testerchain, staker1)
 
@@ -236,12 +236,14 @@ def estimate_gas(analyzer: AnalyzeGas = None) -> None:
     #
     # Batch deposit tokens
     #
+    current_period = staking_agent.get_current_period()
     transact(token_functions.approve(staking_agent.contract_address, MIN_ALLOWED_LOCKED * 10), {'from': origin})
     transact_and_log("Batch deposit tokens for 5 owners x 2 sub-stakes",
                      staker_functions.batchDeposit(everyone_else[0:5],
                                                    [2] * 5,
                                                    [MIN_ALLOWED_LOCKED] * 10,
-                                                   [MIN_LOCKED_PERIODS] * 10),
+                                                   [MIN_LOCKED_PERIODS] * 10,
+                                                   current_period + 5),
                      {'from': origin})
 
     transact(token_functions.approve(staking_agent.contract_address, MIN_ALLOWED_LOCKED * 24), {'from': origin})
@@ -249,7 +251,8 @@ def estimate_gas(analyzer: AnalyzeGas = None) -> None:
                      staker_functions.batchDeposit([everyone_else[6]],
                                                    [24],
                                                    [MIN_ALLOWED_LOCKED] * 24,
-                                                   [MIN_LOCKED_PERIODS] * 24),
+                                                   [MIN_LOCKED_PERIODS] * 24,
+                                                   current_period + 5),
                      {'from': origin})
 
     transact(token_functions.approve(staking_agent.contract_address, MIN_ALLOWED_LOCKED * 24 * 5), {'from': origin})
@@ -257,7 +260,8 @@ def estimate_gas(analyzer: AnalyzeGas = None) -> None:
                      staker_functions.batchDeposit(everyone_else[7:12],
                                                    [24]*5,
                                                    [MIN_ALLOWED_LOCKED] * (24 * 5),
-                                                   [MIN_LOCKED_PERIODS] * (24 * 5)),
+                                                   [MIN_LOCKED_PERIODS] * (24 * 5),
+                                                   current_period + 5),
                      {'from': origin})
 
     #
@@ -576,6 +580,37 @@ def estimate_gas(analyzer: AnalyzeGas = None) -> None:
 
     transact_and_log("Prolong stake", staker_functions.prolongStake(0, 20), {'from': staker1})
     transact_and_log("Merge sub-stakes", staker_functions.mergeStake(2, 3), {'from': staker1})
+
+    # Large number of sub-stakes
+    number_of_sub_stakes = 24
+    transact(token_functions.approve(staking_agent.contract_address, MIN_ALLOWED_LOCKED * number_of_sub_stakes),
+             {'from': origin})
+    transact(staker_functions.batchDeposit([staker4],
+                                           [number_of_sub_stakes],
+                                           [MIN_ALLOWED_LOCKED] * number_of_sub_stakes,
+                                           [MIN_LOCKED_PERIODS] * number_of_sub_stakes,
+                                           current_period + 100),
+             {'from': origin})
+    transact(staker_functions.bondWorker(staker4), {'from': staker4})
+    transact(staker_functions.setWindDown(True), {'from': staker4})
+
+    # Used to remove spending for first call in a day for mint and commitToNextPeriod
+    transact(staker_functions.commitToNextPeriod(), {'from': staker1})
+
+    transact_and_log(f"Make a commitment ({number_of_sub_stakes} sub-stakes)",
+                     staker_functions.commitToNextPeriod(),
+                     {'from': staker4})
+
+    testerchain.time_travel(periods=1)
+    transact(staker_functions.commitToNextPeriod(), {'from': staker4})
+    testerchain.time_travel(periods=1)
+
+    # Used to remove spending for first call in a day for mint and commitToNextPeriod
+    transact(staker_functions.commitToNextPeriod(), {'from': staker1})
+
+    transact_and_log(f"Make a commitment + mint + re-stake ({number_of_sub_stakes} sub-stakes)",
+                     staker_functions.commitToNextPeriod(),
+                     {'from': staker4})
 
     print("********* All Done! *********")
 

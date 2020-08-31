@@ -26,7 +26,7 @@ from tests.constants import INSECURE_DEVELOPMENT_PASSWORD
 from tests.utils.ursula import make_decentralized_ursulas, start_pytest_ursula_services
 
 
-@pytest.mark.slow()
+
 @pytest_twisted.inlineCallbacks
 def test_worker_auto_commitments(mocker,
                                  testerchain,
