@@ -14,8 +14,7 @@ GNU Affero General Public License for more details.
 You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
-
-
+from nucypher.config.constants import TEMPORARY_DOMAIN
 from nucypher.exceptions import DevelopmentInstallationRequired
 
 from copy import copy
@@ -74,7 +73,7 @@ class Vladimir(Ursula):
         vladimir = cls(is_me=True,
                        crypto_power=crypto_power,
                        db_filepath=cls.db_filepath,
-                       domains=[':TEMPORARY_DOMAIN:'],
+                       domains=[TEMPORARY_DOMAIN],
                        block_until_ready=False,
                        start_working_now=False,
                        rest_host=target_ursula.rest_interface.host,
