@@ -21,13 +21,11 @@ from tests.acceptance.cli.lifecycle import run_entire_cli_lifecycle
 
 @pt.inlineCallbacks
 def test_federated_cli_lifecycle(click_runner,
-                                 testerchain,
                                  random_policy_label,
                                  federated_ursulas,
                                  custom_filepath,
                                  custom_filepath_2):
     yield run_entire_cli_lifecycle(click_runner,
-                                   testerchain,
                                    random_policy_label,
                                    federated_ursulas,
                                    custom_filepath,

@@ -88,12 +88,12 @@ class MockSideChannel:
 
 
 def run_entire_cli_lifecycle(click_runner,
-                             testerchain,
                              random_policy_label,
                              ursulas,
                              custom_filepath,
                              custom_filepath_2,
-                             registry_filepath=None):
+                             registry_filepath=None,
+                             testerchain=None):
     """
     This is an end to end integration test that runs each cli call
     in it's own process using only CLI character control entry points,
