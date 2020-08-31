@@ -32,7 +32,7 @@ from nucypher.cli.literature import (
     CONFIRM_STAGED_STAKE,
     RESTAKING_AGREEMENT,
     RESTAKING_LOCK_AGREEMENT,
-    WINDING_DOWN_AGREEMENT
+    WINDING_DOWN_AGREEMENT, SNAPSHOTS_DISABLING_AGREEMENT, CONFIRM_DISABLE_SNAPSHOTS
 )
 from nucypher.config.node import CharacterConfiguration
 
@@ -72,6 +72,13 @@ def confirm_enable_winding_down(emitter: StdoutEmitter, staking_address: str) ->
     """Interactively confirm enabling of winding down with user agreements."""
     emitter.message(WINDING_DOWN_AGREEMENT)
     click.confirm(CONFIRM_ENABLE_WINDING_DOWN.format(staking_address=staking_address), abort=True)
+    return True
+
+
+def confirm_disable_snapshots(emitter: StdoutEmitter, staking_address: str) -> bool:
+    """Interactively confirm disabling of taking snapshots with user agreements."""
+    emitter.message(SNAPSHOTS_DISABLING_AGREEMENT)
+    click.confirm(CONFIRM_DISABLE_SNAPSHOTS.format(staking_address=staking_address), abort=True)
     return True
 
 

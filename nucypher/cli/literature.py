@@ -192,6 +192,22 @@ SUCCESSFUL_DISABLE_RESTAKING = 'Successfully disabled re-staking for {staking_ad
 
 
 #
+# Snapshots
+#
+SNAPSHOTS_DISABLING_AGREEMENT = """
+By disabling the taking snapshots for {staking_address}, specified address will be excluded in all future DAO validations
+until snapshots will be enabled again.
+"""
+
+CONFIRM_ENABLE_SNAPSHOTS = "Confirm enable automatic taking snapshots for staker {staking_address}?"
+
+SUCCESSFUL_ENABLE_SNAPSHOTS = 'Successfully enabled taking snapshots for {staking_address}'
+
+CONFIRM_DISABLE_SNAPSHOTS = "Confirm disable taking snapshots for staker {staking_address}?"
+
+SUCCESSFUL_DISABLE_SNAPSHOTS = 'Successfully disabled taking snapshots for {staking_address}'
+
+#
 # Bonding
 #
 

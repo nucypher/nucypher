@@ -162,6 +162,7 @@ def paint_stakers(emitter, stakers: List[str], registry: BaseContractRegistry) -
         worker = staker.worker_address
         is_restaking = staker.is_restaking
         is_winding_down = staker.is_winding_down
+        is_taking_snapshots = staker.is_taking_snapshots
 
         missing_commitments = current_period - last_committed_period
         owned_in_nu = round(owned_tokens, 2)
@@ -180,6 +181,7 @@ def paint_stakers(emitter, stakers: List[str], registry: BaseContractRegistry) -
         else:
             emitter.echo(f"{tab}  {'Re-staking:':10} No")
         emitter.echo(f"{tab}  {'Winding down:':10} {'Yes' if is_winding_down else 'No'}")
+        emitter.echo(f"{tab}  {'Snapshots:':10} {'Yes' if is_taking_snapshots else 'No'}")
         emitter.echo(f"{tab}  {'Activity:':10} ", nl=False)
         if missing_commitments == -1:
             emitter.echo(f"Next period committed (#{last_committed_period})", color='green')

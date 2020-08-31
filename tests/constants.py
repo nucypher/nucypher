@@ -98,7 +98,7 @@ MOCK_ALLOCATION_REGISTRY_FILEPATH = BASE_TEMP_DIR / f'{BASE_TEMP_PREFIX}test-all
 
 MOCK_INDIVIDUAL_ALLOCATION_FILEPATH = BASE_TEMP_DIR / f'{BASE_TEMP_PREFIX}test-individual-allocation-{datetime.now().strftime(DATETIME_FORMAT)}.json'
 
-MOCK_CUSTOM_INSTALLATION_PATH_2 = '/tmp/nucypher-tmp-test-custom-2-{}'.format(time.time())
+MOCK_CUSTOM_INSTALLATION_PATH_2 = BASE_TEMP_DIR / f'{BASE_TEMP_PREFIX}test-custom-2-{datetime.now().strftime(DATETIME_FORMAT)}'
 
 MOCK_REGISTRY_FILEPATH = BASE_TEMP_DIR / f'{BASE_TEMP_PREFIX}mock-registry-{datetime.now().strftime(DATETIME_FORMAT)}.json'
 

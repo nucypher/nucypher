@@ -1243,6 +1243,28 @@ class Staker(NucypherTokenActor):
         receipt = self._set_winding_down(value=False)
         return receipt
 
+    @property
+    def is_taking_snapshots(self) -> bool:
+        winding_down = self.staking_agent.is_taking_snapshots(staker_address=self.checksum_address)
+        return winding_down
+
+    @only_me
+    @save_receipt
+    def _set_snapshots(self, value: bool) -> TxReceipt:
+        # if self.is_contract:
+        #     receipt = self.preallocation_escrow_agent.set_snapshots(activate=value)
+        # else:
+        receipt = self.staking_agent.set_snapshots(staker_address=self.checksum_address, activate=value)
+        return receipt
+
+    def enable_snapshots(self) -> TxReceipt:
+        receipt = self._set_snapshots(value=True)
+        return receipt
+
+    def disable_snapshots(self) -> TxReceipt:
+        receipt = self._set_snapshots(value=False)
+        return receipt
+
     def non_withdrawable_stake(self) -> NU:
         staked_amount: NuNits = self.staking_agent.non_withdrawable_stake(staker_address=self.checksum_address)
         return NU.from_nunits(staked_amount)
