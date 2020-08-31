@@ -9,6 +9,12 @@ Overview
 
 :ref:`worklock-architecture` is the distribution mechanism for the NuCypher token.
 
+.. topic:: Important
+
+    The Ethereum address for the WorkLock contract is
+    `0xe9778E69a961e64d3cdBB34CF6778281d34667c2 <https://etherscan.io/address/0xe9778e69a961e64d3cdbb34cf6778281d34667c2>`.
+    Please make sure that you interact with this contract address and no other.
+
 
 WorkLock CLI
 ------------
@@ -200,7 +206,7 @@ You can place an escrow to WorkLock (or if you already have one, increase the am
     (nucypher)$ nucypher worklock escrow --provider <YOUR PROVIDER URI>
 
 
-Recall that there's a minimum escrow amount needed to participate in WorkLock.
+Recall that there's a minimum escrow amount of 5 ETH needed to participate in WorkLock.
 
 
 Cancel an escrow
