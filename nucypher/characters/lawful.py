@@ -17,43 +17,33 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 import contextlib
 import json
 import random
-from base64 import b64encode, b64decode
+import time
 from base64 import b64decode, b64encode
 from collections import OrderedDict
+from datetime import datetime
+from functools import partial
+from json.decoder import JSONDecodeError
 from queue import Queue
 from random import shuffle
+from typing import Dict, Iterable, List, Set, Tuple, Union
 
 import maya
-import time
-
-from twisted.internet.threads import deferToThread
-from twisted.python.threadpool import ThreadPool
-from bytestring_splitter import BytestringKwargifier, BytestringSplitter, BytestringSplittingError, \
-    VariableLengthBytestring
-from constant_sorrow import constants
-from constant_sorrow.constants import INCLUDED_IN_BYTESTRING, PUBLIC_ONLY, STRANGER_ALICE, UNKNOWN_VERSION, READY
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives.asymmetric.ec import EllipticCurve
 from cryptography.hazmat.primitives.serialization import Encoding
 from cryptography.x509 import Certificate, NameOID, load_pem_x509_certificate
-from datetime import datetime
 from eth_utils import to_checksum_address
 from flask import Response, request
-from functools import partial
-from json.decoder import JSONDecodeError
 from twisted.internet import reactor, stdio, threads
 from twisted.internet.task import LoopingCall
-from typing import Dict, Iterable, List, Set, Tuple, Union
-
-from nucypher.acumen.nicknames import nickname_from_seed
-from nucypher.acumen.perception import FleetSensor
-from umbral import pre
-from umbral.keys import UmbralPublicKey
-from umbral.kfrags import KFrag
-from umbral.pre import UmbralCorrectnessError
-from umbral.signing import Signature
 
 import nucypher
+from bytestring_splitter import BytestringKwargifier, BytestringSplitter, BytestringSplittingError, \
+    VariableLengthBytestring
+from constant_sorrow import constants
+from constant_sorrow.constants import INCLUDED_IN_BYTESTRING, PUBLIC_ONLY, STRANGER_ALICE, UNKNOWN_VERSION, READY
+from nucypher.acumen.nicknames import nickname_from_seed
+from nucypher.acumen.perception import FleetSensor
 from nucypher.blockchain.eth.actors import BlockchainPolicyAuthor, Worker
 from nucypher.blockchain.eth.agents import ContractAgency, StakingEscrowAgent
 from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
@@ -84,6 +74,11 @@ from nucypher.network.protocols import InterfaceInfo, parse_node_uri
 from nucypher.network.server import ProxyRESTServer, TLSHostingPower, make_rest_app
 from nucypher.network.trackers import AvailabilityTracker
 from nucypher.utilities.logging import Logger
+from umbral import pre
+from umbral.keys import UmbralPublicKey
+from umbral.kfrags import KFrag
+from umbral.pre import UmbralCorrectnessError
+from umbral.signing import Signature
 
 
 class Alice(Character, BlockchainPolicyAuthor):
