@@ -39,10 +39,10 @@ def filter_staker_addresses(stakers, stakes):
 
 
 @click.group()
-def workers():
+def cloudworkers():
     """Manage stakes and other staker-related operations."""
 
-@workers.command('create')
+@cloudworkers.command('create')
 @group_staker_options
 @option_config_file
 @click.option('--cloudprovider', help="currently aws", default='aws')
@@ -51,7 +51,7 @@ def workers():
 @click.option('--nucypher-image', help="The docker image containing the nucypher code to run on the remote nodes.", default=None)
 @click.option('--seed-network', help="Do you want the 1st node to be --lonely and act as a seed node for this network", default=False, is_flag=True)
 @click.option('--sentry-dsn', help="a sentry dsn for these workers (https://sentry.io/)", default=None)
-@click.option('--stakes', help="one or more stakers to whom we should limit worker creation", multiple=True)
+@click.option('--include-stakeholder', 'stakes', help="limit worker to specified stakeholder addresses", multiple=True)
 @group_general_config
 def create(general_config, staker_options, config_file, cloudprovider, cloud_profile, remote_provider, nucypher_image, seed_network, sentry_dsn, stakes):
     """Creates workers for all stakes owned by the user for the given network."""
@@ -59,7 +59,7 @@ def create(general_config, staker_options, config_file, cloudprovider, cloud_pro
     emitter = setup_emitter(general_config)
 
     if not CloudDeployers:
-        emitter.echo("You need to have ansible installed to use `nucypher workers *` commands.  (pip install ansible)")
+        emitter.echo("Ansible is required to use `nucypher cloudworkers *` commands.  (Please run 'pip install ansible'.)")
 
     STAKEHOLDER = staker_options.create_character(emitter, config_file)
 
@@ -80,18 +80,18 @@ def create(general_config, staker_options, config_file, cloudprovider, cloud_pro
         deployer.deploy_nucypher_on_existing_nodes(staker_addresses)
 
 
-@workers.command('destroy')
+@cloudworkers.command('destroy')
 @group_staker_options
 @option_config_file
-@click.option('--cloudprovider', help="aws or do (or digitalocean)", default='aws')
-@click.option('--stakes', help="one or more stakers to whom we should limit worker destruction", multiple=True)
+@click.option('--cloudprovider', help="aws or digitalocean", default='aws')
+@click.option('--include-stakeholder', 'stakes', help="one or more stakeholder addresses to whom we should limit worker destruction", multiple=True)
 @group_general_config
 def destroy(general_config, staker_options, config_file, cloudprovider, stakes):
     """Cleans up all previously created resources for the given netork for the cloud providern"""
 
     emitter = setup_emitter(general_config)
     if not CloudDeployers:
-        emitter.echo("You need to have ansible installed to use `nucypher workers *` commands.  (pip install ansible)")
+        emitter.echo("Ansible is required to use `nucypher cloudworkers *` commands.  (Please run 'pip install ansible'.)")
 
     STAKEHOLDER = staker_options.create_character(emitter, config_file)
     config_file = config_file or StakeHolderConfiguration.default_filepath()
@@ -99,18 +99,18 @@ def destroy(general_config, staker_options, config_file, cloudprovider, stakes):
     deployer.destroy_resources(stakes=stakes)
 
 
-@workers.command('status')
+@cloudworkers.command('status')
 @group_staker_options
 @option_config_file
-@click.option('--cloudprovider', help="aws or do (or digitalocean)", default='aws')
-@click.option('--stakes', help="one or more stakers to whom we should limit worker destruction", multiple=True)
+@click.option('--cloudprovider', help="aws or digitalocean", default='aws')
+@click.option('--include-stakeholder', 'stakes', help="only show nodes for included stakeholder addresses", multiple=True)
 @group_general_config
 def status(general_config, staker_options, config_file, cloudprovider, stakes):
     """Displays worker status and updates worker data in stakeholder config"""
 
     emitter = setup_emitter(general_config)
     if not CloudDeployers:
-        emitter.echo("You need to have ansible installed to use `nucypher workers *` commands.  (pip install ansible)")
+        emitter.echo("Ansible is required to use `nucypher cloudworkers *` commands.  (Please run 'pip install ansible'.)")
 
     STAKEHOLDER = staker_options.create_character(emitter, config_file)
     config_file = config_file or StakeHolderConfiguration.default_filepath()
