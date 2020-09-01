@@ -199,7 +199,7 @@ where,
 .. note::
 
     --signer is not required if you are running a local ethereum node or your --provider is the
-    same entity as your singer.   If you are using a remote hosted etheruem node, you will need to run a local
+    same entity as your signer.   If you are using a remote hosted ethereum node, you will need to run a local
     signer like clef.
 
 
