@@ -196,6 +196,13 @@ where,
         Pending amount of work required before all of the participant's escrowed ETH will be refunded
 
 
+.. note::
+
+    ``--signer`` is not required if you are running a local ethereum node or your ``--provider`` is the
+    same entity as your signer.   If you are using a remote hosted ethereum node, you will need to run a local
+    signer like clef. See :ref:`using-eth-node`.
+
+
 Place an escrow (or increase existing one)
 ------------------------------------------
 
@@ -203,7 +210,7 @@ You can place an escrow to WorkLock (or if you already have one, increase the am
 
 .. code::
 
-    (nucypher)$ nucypher worklock escrow --provider <YOUR PROVIDER URI>
+    (nucypher)$ nucypher worklock escrow --provider <YOUR PROVIDER URI> --signer <SIGNER_URI>
 
 
 Recall that there's a minimum escrow amount of 5 ETH needed to participate in WorkLock.
@@ -216,7 +223,7 @@ You can cancel an escrow to WorkLock by running:
 
 .. code::
 
-    (nucypher)$ nucypher worklock cancel-escrow --provider <YOUR PROVIDER URI>
+    (nucypher)$ nucypher worklock cancel-escrow --provider <YOUR PROVIDER URI> --signer <SIGNER_URI>
 
 
 Claim your stake
@@ -226,7 +233,7 @@ Once the allocation window is open, you can claim your NU as a stake in NuCypher
 
 .. code::
 
-    (nucypher)$ nucypher worklock claim --provider <YOUR PROVIDER URI>
+    (nucypher)$ nucypher worklock claim --provider <YOUR PROVIDER URI> --signer <SIGNER_URI>
 
 
 Once allocated, you can check that the stake was created successfully by running:
@@ -253,4 +260,4 @@ If you've committed some work, you are able to refund proportional part of ETH y
 
 .. code::
 
-    (nucypher)$ nucypher worklock refund --provider <YOUR PROVIDER URI>
+    (nucypher)$ nucypher worklock refund --provider <YOUR PROVIDER URI> --signer <SIGNER_URI>
