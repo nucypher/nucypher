@@ -31,10 +31,7 @@ contract CasiPooling is InitializableStakingContract, Ownable {
         uint256 depositedTokens;
         uint256 withdrawnReward;
         uint256 withdrawnETH;
-    }
-
-    struct Participant {
-        uint256 share;
+        uint256 paidETH;
     }
 
     StakingEscrow public escrow;
@@ -42,13 +39,13 @@ contract CasiPooling is InitializableStakingContract, Ownable {
     uint256 public totalDepositedTokens;
     uint256 public totalWithdrawnReward;
     uint256 public totalWithdrawnETH;
+    uint256 public totalTransactionsCost;
 
     uint256 public ownerFraction;
     uint256 public ownerWithdrawnReward;
     uint256 public ownerWithdrawnETH;
 
     mapping(address => Delegator) public delegators;
-    mapping(address => Participant) public participants;
     bool depositIsEnabled = true;
 
     /**
@@ -64,22 +61,29 @@ contract CasiPooling is InitializableStakingContract, Ownable {
         ownerFraction = _ownerFraction;
     }
 
-    /**
-     * @notice set initial token shares for casi winners
-     * @param _participantAddresses ETH accounts of casi participants
-     * @param _participantShares amount of NU tukens for each participant
+        /**
+     * @notice Owner sets transaction cost spent by worker node
      */
-    function setParticipantsShares(
-        address[] calldata _participantAddresses,
-        uint256[] calldata _participantShares
-    ) external onlyOwner {
-        require(
-            _participantAddresses.length == _participantShares.length,
-            "Arrays length are not equal"
-        );
-        for (uint256 i = 0; i < _participantAddresses.length; i++) {
-            participants[_participantAddresses[i]].share = _participantShares[i];
-        }
+    function setTotalTransactionsCost(uint256 _value) external onlyOwner {
+        totalTransactionsCost += _value;
+    }
+
+    /**
+     * @notice returns amount in wei to pay for txn spends for given delegator
+     */
+    function calculateTxnCostToPay(address _delegator)
+        external
+        returns (uint256)
+    {
+        Delegator storage delegator = delegators[_delegator];
+        uint256 depositedNU = delegator.depositedTokens;
+        uint256 paidETH = delegator.paidETH;
+
+        uint256 delegatorWeiShare = totalTransactionsCost
+            .mul(depositedNU)
+            .div(totalDepositedTokens.add(ownerFraction));
+
+        return paidETH >= delegatorWeiShare ? 0 : delegatorWeiShare - paidETH;
     }
 
     /**
@@ -206,6 +210,7 @@ contract CasiPooling is InitializableStakingContract, Ownable {
         uint256 availableReward = getAvailableReward(msg.sender);
 
         Delegator storage delegator = delegators[msg.sender];
+        require(calculateTxnCostToPay(msg.sender) == 0, "You should compensate tnx costs first");
         require(
             _value <= availableReward + delegator.depositedTokens,
             "Requested amount of tokens exceeded allowed portion"
