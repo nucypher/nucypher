@@ -21,7 +21,6 @@ from urllib.parse import urlparse
 
 from hexbytes.main import HexBytes
 
-from blockchain.eth.signers.software import Web3Signer
 from nucypher.utilities.logging import Logger
 
 
@@ -58,6 +57,7 @@ class Signer(ABC):
             # This block can be considered the "pass-through"
             # for providers to be used as external signers.
             try:
+                from nucypher.blockchain.eth.signers.software import Web3Signer
                 signer = Web3Signer.from_signer_uri(uri=uri)
             except cls.InvalidSignerURI:
                 message = f'{uri} is not a valid signer URI.  Available schemes: {", ".join(cls.SIGNERS)}'
