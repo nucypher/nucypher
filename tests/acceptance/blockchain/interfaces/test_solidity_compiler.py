@@ -14,14 +14,12 @@ GNU Affero General Public License for more details.
 You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
-from os.path import abspath, dirname
-
 import os
+from os.path import abspath, dirname
 
 from nucypher.blockchain.eth.deployers import NucypherTokenDeployer
 from nucypher.blockchain.eth.sol.compile import SolidityCompiler, SourceDirs
 from tests.constants import TEST_CONTRACTS_DIR
-from tests.utils.blockchain import TesterBlockchain
 
 
 def test_nucypher_contract_compiled(testerchain, test_registry):

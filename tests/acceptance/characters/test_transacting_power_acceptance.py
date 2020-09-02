@@ -18,7 +18,7 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 from eth_account._utils.transactions import Transaction
 from eth_utils import to_checksum_address
 
-from nucypher.blockchain.eth.signers import Web3Signer
+from nucypher.blockchain.eth.signers.software import Web3Signer
 from nucypher.characters.lawful import Character
 from nucypher.crypto.api import verify_eip_191
 from nucypher.crypto.powers import (TransactingPower)
