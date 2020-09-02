@@ -1,7 +1,7 @@
 {
     "_meta": {
         "hash": {
-            "sha256": "a822aed446fc81dfe97a8d083069c90a5877f1b7331c149ad8a46378647e63a0"
+            "sha256": "5c1b48599986f92d23e498a74bf56901ea17cf7e62f222f920860913ec8a48f0"
         },
         "pipfile-spec": 6,
         "requires": {
@@ -206,6 +206,12 @@
             ],
             "version": "==15.1.0"
         },
+        "construct": {
+            "hashes": [
+                "sha256:97ba13edcd98546f10f7555af41c8ce7ae9d8221525ec4062c03f9adbf940661"
+            ],
+            "version": "==2.10.56"
+        },
         "cryptography": {
             "hashes": [
                 "sha256:10c9775a3f31610cf6b694d1fe598f2183441de81cedcf1814451ae53d71b13a",
@@ -247,6 +253,13 @@
                 "sha256:e875efd8c57c85c2d02b238239878db59ff1971f5a823457fcc69e493bf6ebfa"
             ],
             "version": "==0.7.6"
+        },
+        "ecdsa": {
+            "hashes": [
+                "sha256:494c6a853e9ed2e9be33d160b41d47afc50a6629b993d2b9c5ad7bb226add892",
+                "sha256:ca359c971594dceebf334f3d623dae43163ab161c7d09f28cae70a86df26eb7a"
+            ],
+            "version": "==0.16.0"
         },
         "eth-abi": {
             "hashes": [
@@ -409,6 +422,12 @@
             ],
             "version": "==3.2.0"
         },
+        "libusb1": {
+            "hashes": [
+                "sha256:240f65ac70ba3fab77749ec84a412e4e89624804cb80d6c9d394eef5af8878d6"
+            ],
+            "version": "==1.8"
+        },
         "lmdb": {
             "hashes": [
                 "sha256:1335510ecfaf2f509eff1211c886d6fcaac14065f1bc969ec02629f1ff3c1791",
@@ -475,6 +494,13 @@
             ],
             "index": "pypi",
             "version": "==0.6.1"
+        },
+        "mnemonic": {
+            "hashes": [
+                "sha256:4e37eb02b2cbd56a0079cabe58a6da93e60e3e4d6e757a586d9f23d96abea931",
+                "sha256:a8d78c5100acfa7df9bab6b9db7390831b0e54490934b718ff9efd68f0d731a6"
+            ],
+            "version": "==0.19"
         },
         "msgpack": {
             "hashes": [
@@ -912,6 +938,14 @@
                 "sha256:08fdd5ef7c96480ad11c12d472de21acd32359996f69a5259299b540feba4560"
             ],
             "version": "==0.10.0"
+        },
+        "trezor": {
+            "hashes": [
+                "sha256:5bd226b829e5f6ad6c7263f5303f58b54e07b0f21263c4b8ba57981881071264",
+                "sha256:b05d3042aaf12b77a86d603fa0e2b48120055c08ce6e9c85df3c2384d51194f1"
+            ],
+            "index": "pypi",
+            "version": "==0.12.2"
         },
         "trie": {
             "hashes": [
