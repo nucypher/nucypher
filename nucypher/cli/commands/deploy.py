@@ -16,12 +16,14 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
 import json
+import os
+from typing import Tuple
 
 import click
-import os
 from constant_sorrow import constants
 from constant_sorrow.constants import FULL
-from typing import Tuple
+from nucypher.blockchain.eth.signers.base import Signer
+from nucypher.blockchain.eth.signers.software import ClefSigner
 
 from nucypher.blockchain.eth.actors import ContractAdministrator, Trustee
 from nucypher.blockchain.eth.agents import ContractAgency, MultiSigAgent, NucypherTokenAgent
@@ -34,7 +36,6 @@ from nucypher.blockchain.eth.registry import (
     InMemoryContractRegistry,
     RegistrySourceManager
 )
-from nucypher.blockchain.eth.signers import Signer, ClefSigner
 from nucypher.blockchain.eth.token import NU
 from nucypher.characters.control.emitters import StdoutEmitter
 from nucypher.cli.actions.auth import get_client_password

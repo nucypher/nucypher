@@ -21,7 +21,7 @@ from nucypher.blockchain.eth.actors import Executive, Trustee
 from nucypher.blockchain.eth.agents import ContractAgency, MultiSigAgent, NucypherTokenAgent
 from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
 from nucypher.blockchain.eth.multisig import Authorization, Proposal
-from nucypher.blockchain.eth.signers import ClefSigner
+from nucypher.blockchain.eth.signers.software import ClefSigner
 from nucypher.cli.actions.auth import get_client_password
 from nucypher.cli.processes import get_geth_provider_process
 from nucypher.cli.actions.select import select_client_account

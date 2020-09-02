@@ -88,9 +88,9 @@ def unknown_address():
     return address
 
 
+@pytest.mark.skip('Need reimagination')
 def test_blank_keystore_uri():
-    with pytest.raises(Signer.InvalidSignerURI, match=
-        'Blank signer URI - No keystore path provided') as error:
+    with pytest.raises(Signer.InvalidSignerURI, match='Blank signer URI - No keystore path provided') as error:
         Signer.from_signer_uri(uri='keystore://')  # it's blank!
 
 

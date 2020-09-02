@@ -28,7 +28,7 @@ from nucypher.blockchain.eth.actors import StakeHolder, Staker, Wallet
 from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
 from nucypher.blockchain.eth.networks import NetworksInventory
 from nucypher.blockchain.eth.registry import InMemoryContractRegistry, IndividualAllocationRegistry
-from nucypher.blockchain.eth.signers import Signer
+from nucypher.blockchain.eth.signers.base import Signer
 from nucypher.blockchain.eth.token import NU, Stake
 from nucypher.characters.control.emitters import StdoutEmitter
 from nucypher.cli.literature import (
