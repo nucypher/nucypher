@@ -591,6 +591,7 @@ class TrezorSigner(Signer):
         # Format data
         if trezor_transaction.get('data'):
             trezor_transaction['data'] = Web3.toBytes(HexBytes(trezor_transaction['data']))
+            transaction_dict['data'] = Web3.toBytes(HexBytes(transaction_dict['data']))
 
         # Lookup HD path & Sign Transaction
         n = self.get_address_path(checksum_address=checksum_address)
