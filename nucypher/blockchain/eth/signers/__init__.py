@@ -23,7 +23,7 @@ from nucypher.blockchain.eth.signers.hardware import TrezorSigner
 SIGNERS = {
     ClefSigner.URI_SCHEME: ClefSigner,
     KeystoreSigner.URI_SCHEME: KeystoreSigner,
-    TrezorSigner.URI_SCHEME: TrezorSigner,
+    TrezorSigner.URI_SCHEME: TrezorSigner
 }
 
 Signer.SIGNERS = SIGNERS
