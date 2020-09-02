@@ -34,6 +34,8 @@ from eth_account.signers.local import LocalAccount
 from eth_utils import is_address, to_checksum_address
 from eth_utils import to_canonical_address, to_int, apply_formatters_to_dict, apply_key_map
 from hexbytes import HexBytes
+from trezorlib import ethereum
+from trezorlib.client import get_default_client
 from trezorlib.tools import parse_path, Address
 from web3 import IPCProvider, Web3
 
@@ -472,15 +474,15 @@ class TrezorSigner(Signer):
     """
 
     URI_SCHEME = 'trezor'
-    ADDRESS_CACHE_SIZE = 10
-    ETH_CHAIN_ROOT = 0
+    ADDRESS_CACHE_SIZE = 3
+    ETH_CHAIN_ROOT = 60
 
     class NoDeviceDetected(RuntimeError):
         pass
 
     def __init__(self):
         try:
-            self.client = trezorlib.client.get_default_client()
+            self.client = get_default_client()
         except TransportException:
             raise self.NoDeviceDetected("Could not find a TREZOR device to connect to. Have you unlocked it?")
 
@@ -511,7 +513,7 @@ class TrezorSigner(Signer):
         if index is not None and checksum_address:
             raise ValueError("Expected index or checksum address; Got both.")
         elif index is not None:
-            hd_path = parse_path(f"{self.ETH_CHAIN_ROOT}/{index}")
+            hd_path = parse_path(f"44'/{self.ETH_CHAIN_ROOT}'/0'/0/{index}")  # TODO: cleanup
         else:
             try:
                 hd_path = self.__addresses[checksum_address]
@@ -525,6 +527,7 @@ class TrezorSigner(Signer):
             address = self.get_address(hd_path=hd_path, show_display=False)
             self.__addresses[address] = hd_path
 
+    @property
     def accounts(self) -> List[str]:
         return list(self.__addresses.keys())
 
@@ -552,7 +555,7 @@ class TrezorSigner(Signer):
             if index is None:
                 raise ValueError("No index or HD path supplied.")  # TODO: better error handling here
             hd_path = self.get_address_path(index=index)
-        address = trezorlib.ethereum.get_address(client=self.client, n=hd_path, show_display=show_display)
+        address = ethereum.get_address(client=self.client, n=hd_path, show_display=show_display)
         return address
 
     @__handle_device_call
@@ -572,16 +575,22 @@ class TrezorSigner(Signer):
 
     @__handle_device_call
     def sign_transaction(self,
-                         checksum_address: str,
-                         unsigned_transaction: dict,
+                         transaction_dict: dict,
                          rlp_encoded: bool = True,
                          ) -> Tuple[bytes]:
 
+        # Read the sender inside the transaction request
+        checksum_address = transaction_dict.pop('from')
+
         # Handle Web3.py -> Trezor native transaction formatting
         # https://web3py.readthedocs.io/en/latest/web3.eth.html#web3.eth.Eth.sendRawTransaction
-        assert_valid_fields(unsigned_transaction)
+        assert_valid_fields(transaction_dict)
         trezor_transaction_keys = {'gas': 'gas_limit', 'gasPrice': 'gas_price', 'chainId': 'chain_id'}
-        trezor_transaction = dict(apply_key_map(trezor_transaction_keys, unsigned_transaction))
+        trezor_transaction = dict(apply_key_map(trezor_transaction_keys, transaction_dict))
+
+        # Format data
+        if trezor_transaction.get('data'):
+            trezor_transaction['data'] = Web3.toBytes(HexBytes(trezor_transaction['data']))
 
         # Lookup HD path & Sign Transaction
         n = self.get_address_path(checksum_address=checksum_address)
@@ -593,14 +602,14 @@ class TrezorSigner(Signer):
         # v = (v + 2) * (chain_id + 35)
         # https://github.com/ethereum/eips/issues/155
         # https://github.com/trezor/trezor-core/pull/311
-        del unsigned_transaction['chainId']   # see above
+        del transaction_dict['chainId']   # see above
 
         # Create RLP serializable Transaction
-        unsigned_transaction['to'] = to_canonical_address(checksum_address)
+        transaction_dict['to'] = to_canonical_address(checksum_address)
         signed_transaction = Transaction(v=to_int(v),
                                          r=to_int(r),
                                          s=to_int(s),
-                                         **unsigned_transaction)
+                                         **transaction_dict)
         if rlp_encoded:
             signed_transaction = rlp.encode(signed_transaction)
 
