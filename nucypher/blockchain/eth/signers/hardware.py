@@ -126,13 +126,12 @@ class TrezorSigner(Signer):
     #
 
     def __handle_device_call(device_func):
-        try:
-            import usb1
-        except ImportError:
-            raise ImportError('libusb is not installed or available.')
-
         @wraps(device_func)
         def wrapped_call(trezor, *args, **kwargs):
+            try:
+                import usb1
+            except ImportError:
+                raise ImportError('libusb is not installed or available.')
             try:
                 result = device_func(trezor, *args, **kwargs)
             except usb1.USBErrorNoDevice:
