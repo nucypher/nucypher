@@ -182,7 +182,7 @@ class NodeEngagementMutex:
     log = Logger("Policy")
 
     def __init__(self,
-                 f,    # TODO: typing.Protocol
+                 callable_to_engage,  # TODO: typing.Protocol
                  nodes,
                  network_middleware,
                  percent_to_complete_before_release=5,
@@ -190,7 +190,7 @@ class NodeEngagementMutex:
                  threadpool_size=120,
                  *args,
                  **kwargs):
-        self.f = f
+        self.f = callable_to_engage
         self.nodes = nodes
         self.network_middleware = network_middleware
         self.args = args
@@ -211,9 +211,9 @@ class NodeEngagementMutex:
         self.when_complete = Deferred()  # TODO: Allow cancelling via KB Interrupt or some other way?
 
         if note is None:
-            self._repr = f"{f} to {len(nodes)} nodes"
+            self._repr = f"{callable_to_engage} to {len(nodes)} nodes"
         else:
-            self._repr = f"{note}: {f} to {len(nodes)} nodes"
+            self._repr = f"{note}: {callable_to_engage} to {len(nodes)} nodes"
 
         self._threadpool = ThreadPool(minthreads=threadpool_size, maxthreads=threadpool_size, name=self._repr)
         self.log.info(f"NEM spinning up {self._threadpool}")
@@ -412,7 +412,7 @@ class Policy(ABC):
         self.alice.block_until_number_of_known_nodes_is(8, timeout=2, learn_on_this_thread=True)
 
         target_nodes = self.bob.matching_nodes_among(self.alice.known_nodes)
-        self.publishing_mutex = NodeEngagementMutex(f=self.put_treasure_map_on_node,
+        self.publishing_mutex = NodeEngagementMutex(callable_to_engage=self.put_treasure_map_on_node,
                                                     nodes=target_nodes,
                                                     network_middleware=network_middleware)
 

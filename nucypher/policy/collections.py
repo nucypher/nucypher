@@ -235,7 +235,7 @@ class TreasureMap:
         try:
             return self.public_id() == other.public_id()
         except AttributeError:
-            raise TypeError(f"Can't compare f{other} to a TreasureMap (it needs to implement public_id() )")
+            raise TypeError(f"Can't compare {other} to a TreasureMap (it needs to implement public_id() )")
 
     def __iter__(self):
         return iter(self.destinations.items())

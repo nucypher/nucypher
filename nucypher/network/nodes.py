@@ -293,7 +293,7 @@ class Learner:
 
         if self.learning_domains:
             one_and_only_learning_domain = tuple(self.learning_domains)[
-                0]  # TODO: Are we done with multiple domains?  2144
+                0]  # TODO: Are we done with multiple domains?  2144, 1580
             canonical_sage_uris = self.network_middleware.TEACHER_NODES.get(one_and_only_learning_domain, ())
 
             for uri in canonical_sage_uris:

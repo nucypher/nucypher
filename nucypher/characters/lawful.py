@@ -884,7 +884,7 @@ class Bob(Character):
 
         # Sanity check - do we even have enough nodes?
         if len(nodes) < no_less_than:
-            raise ValueError(f"Can't select {no_less_than} from {len(nodes)} (Fleet state: {nodes.FleetState}")
+            raise ValueError(f"Can't select {no_less_than} from {len(nodes)} (Fleet state: {nodes.FleetState})")
 
         search_boundary = 2
         target_nodes = []
@@ -1645,7 +1645,7 @@ class Enrico(Character):
     def __init__(self, policy_encrypting_key=None, controller: bool = True, *args, **kwargs):
         self._policy_pubkey = policy_encrypting_key
 
-        # Encrico never uses the blockchain, hence federated_only)
+        # Enrico never uses the blockchain, hence federated_only)
         kwargs['federated_only'] = True
         kwargs['known_node_class'] = None
         super().__init__(*args, **kwargs)
