@@ -40,8 +40,6 @@ from nucypher.blockchain.eth.signers.base import Signer
 
 class Web3Signer(Signer):
 
-    URI_SCHEME = 'web3'  # TODO: Consider some kind of 'passthough' flag to accept all valid webs provider schemes
-
     def __init__(self, client):
         super().__init__()
         self.__client = client
