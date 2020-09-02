@@ -18,6 +18,7 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 
 import json
 import stat
+from collections import namedtuple
 from json import JSONDecodeError
 from typing import Dict
 from urllib.parse import urlparse
@@ -34,9 +35,6 @@ from eth_account.signers.local import LocalAccount
 from eth_utils import is_address, to_checksum_address
 from eth_utils import to_canonical_address, to_int, apply_formatters_to_dict, apply_key_map
 from hexbytes import HexBytes
-from trezorlib import ethereum
-from trezorlib.client import get_default_client
-from trezorlib.tools import parse_path, Address
 from web3 import IPCProvider, Web3
 
 from nucypher.blockchain.eth.constants import NULL_ADDRESS
@@ -44,6 +42,9 @@ from nucypher.utilities.logging import Logger
 
 try:
     import trezorlib
+    from trezorlib import ethereum
+    from trezorlib.client import get_default_client
+    from trezorlib.tools import parse_path, Address, H_
     from trezorlib.transport import TransportException
     import usb1
 except ImportError:
@@ -82,7 +83,11 @@ class Signer(ABC):
     def from_signer_uri(cls, uri: str) -> 'Signer':
         parsed = urlparse(uri)
         scheme = parsed.scheme
-        signer_class = cls.SIGNERS.get(scheme, Web3Signer)  # Fallback to web3 provider URI for signing
+        try:
+            signer_class = cls.SIGNERS[scheme]
+        except KeyError:
+            message = f'{uri} is not a valid signer URI.  Available schemes: {", ".join(cls.SIGNERS)}'
+            raise cls.InvalidSignerURI(message)
         signer = signer_class.from_signer_uri(uri=uri)
         return signer
 
@@ -474,10 +479,25 @@ class TrezorSigner(Signer):
     """
 
     URI_SCHEME = 'trezor'
-    ADDRESS_CACHE_SIZE = 3
-    ETH_CHAIN_ROOT = 60
 
-    class NoDeviceDetected(RuntimeError):
+    # We intentionally keep the address index off the path so that the
+    # subclass interfaces can handle which address index to use.
+    __BIP_44 = 44
+    __ETH_COIN_TYPE = 60
+
+    CHAIN_ID = 0  # mainnet
+    DEFAULT_ACCOUNT = 0
+    DEFAULT_ACCOUNT_INDEX = 0
+
+    DERIVATION_ROOT = f"{__BIP_44}'/{__ETH_COIN_TYPE}'/{DEFAULT_ACCOUNT}'/{CHAIN_ID}"
+    ADDRESS_CACHE_SIZE = 3
+
+    Signature = namedtuple('Signature', ['signature', 'address'])
+
+    class DeviceError(Exception):
+        pass
+
+    class NoDeviceDetected(DeviceError):
         pass
 
     def __init__(self):
@@ -485,7 +505,6 @@ class TrezorSigner(Signer):
             self.client = get_default_client()
         except TransportException:
             raise self.NoDeviceDetected("Could not find a TREZOR device to connect to. Have you unlocked it?")
-
         self._device_id = self.client.get_device_id()
         self.__addresses = dict()
         self.__load_addresses()
@@ -513,7 +532,7 @@ class TrezorSigner(Signer):
         if index is not None and checksum_address:
             raise ValueError("Expected index or checksum address; Got both.")
         elif index is not None:
-            hd_path = parse_path(f"44'/{self.ETH_CHAIN_ROOT}'/0'/0/{index}")  # TODO: cleanup
+            hd_path = parse_path(f"{self.DERIVATION_ROOT}/{index}")
         else:
             try:
                 hd_path = self.__addresses[checksum_address]
@@ -576,7 +595,7 @@ class TrezorSigner(Signer):
     @__handle_device_call
     def sign_transaction(self,
                          transaction_dict: dict,
-                         rlp_encoded: bool = True,
+                         rlp_encoded: bool = True
                          ) -> Tuple[bytes]:
 
         # Read the sender inside the transaction request
@@ -586,18 +605,17 @@ class TrezorSigner(Signer):
         # https://web3py.readthedocs.io/en/latest/web3.eth.html#web3.eth.Eth.sendRawTransaction
         assert_valid_fields(transaction_dict)
         trezor_transaction_keys = {'gas': 'gas_limit', 'gasPrice': 'gas_price', 'chainId': 'chain_id'}
-        trezor_transaction = dict(apply_key_map(trezor_transaction_keys, transaction_dict))
+        transaction_dict = dict(apply_key_map(trezor_transaction_keys, transaction_dict))
 
         # Format data
-        if trezor_transaction.get('data'):
-            trezor_transaction['data'] = Web3.toBytes(HexBytes(trezor_transaction['data']))
+        if transaction_dict.get('data'):
             transaction_dict['data'] = Web3.toBytes(HexBytes(transaction_dict['data']))
 
         # Lookup HD path & Sign Transaction
         n = self.get_address_path(checksum_address=checksum_address)
 
         # Sign TX
-        v, r, s = trezorlib.ethereum.sign_tx(client=self.client, n=n, **trezor_transaction)
+        v, r, s = trezorlib.ethereum.sign_tx(client=self.client, n=n, **transaction_dict)
 
         # If `chain_id` is included, an EIP-155 transaction signature will be applied:
         # v = (v + 2) * (chain_id + 35)
@@ -613,5 +631,4 @@ class TrezorSigner(Signer):
                                          **transaction_dict)
         if rlp_encoded:
             signed_transaction = rlp.encode(signed_transaction)
-
         return signed_transaction
