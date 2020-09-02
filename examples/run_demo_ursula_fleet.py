@@ -19,14 +19,14 @@ from pathlib import Path
 from twisted.internet import reactor
 
 from nucypher.characters.lawful import Ursula
-from nucypher.config.constants import APP_DIR
+from nucypher.config.constants import APP_DIR, TEMPORARY_DOMAIN
 
 FLEET_POPULATION = 12
 DEMO_NODE_STARTING_PORT = 11500
 
 ursula_maker = partial(Ursula, rest_host='127.0.0.1',
                        federated_only=True,
-                       domains=[":TEMPORARY_DOMAIN:"]
+                       domains=[TEMPORARY_DOMAIN],
                        )
 
 
