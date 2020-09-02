@@ -9,10 +9,10 @@ Overview
 
 :ref:`worklock-architecture` is the distribution mechanism for the NuCypher token.
 
-.. topic:: Important
+.. important::
 
     The Ethereum address for the WorkLock contract is
-    `0xe9778E69a961e64d3cdBB34CF6778281d34667c2 <https://etherscan.io/address/0xe9778e69a961e64d3cdbb34cf6778281d34667c2>`.
+    `0xe9778E69a961e64d3cdBB34CF6778281d34667c2 <https://etherscan.io/address/0xe9778e69a961e64d3cdbb34cf6778281d34667c2>`_.
     Please make sure that you interact with this contract address and no other.
 
 
