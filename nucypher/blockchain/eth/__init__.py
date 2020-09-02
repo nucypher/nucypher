@@ -16,11 +16,12 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 from pathlib import Path
 
-from nucypher.blockchain.eth.signers import Signer, ClefSigner, KeystoreSigner
+from nucypher.blockchain.eth.signers import Signer, ClefSigner, KeystoreSigner, TrezorSigner
 
 SIGNERS = {
     ClefSigner.URI_SCHEME: ClefSigner,
     KeystoreSigner.URI_SCHEME: KeystoreSigner,
+    TrezorSigner.URI_SCHEME: TrezorSigner,
 }
 
 Signer.SIGNERS = SIGNERS
