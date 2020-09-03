@@ -71,8 +71,8 @@ will also be logged to the geth-running console on startup.
 
 .. important::
 
-    While the example provided uses Ethereum mainnet, these steps can be followed for the Goerli Testnet with
-    updated `geth` (``~/.ethereum/goerli/geth.ipc``) and `seed` URI (``https://gemini.nucypher.network:9151``).
+    While the example provided uses Ethereum mainnet, these steps can be followed for the Rinkeby Testnet with
+    updated `geth` (``~/.ethereum/rinkeby/geth.ipc``) and `seed` URI (``https://ibex.nucypher.network:9151``).
 
 
 Nucypher also supports alternative web3 node providers such as:

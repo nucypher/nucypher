@@ -176,7 +176,7 @@ where:
     * ``<NETWORK_NAME>`` is the name of the NuCypher network domain where the staker will participate.
 
 
-.. note:: If you are using NuCypher's testnet, this name is ``gemini``.
+.. note:: If you are using NuCypher's testnet, this name is ``ibex``.
 
 
 Initialize a new stake
