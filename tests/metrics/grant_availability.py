@@ -102,7 +102,7 @@ def collect(alice: Alice,
     """Collects grant success and failure rates."""
     policies, i, success, fail = dict(), 0, 0, 0
     while True:
-        print(f'Attempt {i+1} of {iterations}')
+        print(f"Attempt {i+1} of {iterations if iterations is not None else 'infinite'}")
         start = maya.now()
         try:
             policy = metric_grant(alice=alice, handpicked_ursulas=handpicked_ursulas)
