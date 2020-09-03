@@ -244,7 +244,7 @@ the maximum stake amount (30,000,000 NU).
 
         .. math::
 
-            45,000 ETH - 200 ETH = 44,640 ETH
+            45,000 ETH - 360 ETH = 44,640 ETH
 
     #. We now need to calculate the bonus ETH refunds based on the updated bonus ETH supply, and the maximum stake size.
     #. Remember that everyone is allocated a 15,000 NU minimum, and the maximum stake size is 30,000,000 NU, so the most that can be allocated to you from the remaining NU is
@@ -277,7 +277,7 @@ the maximum stake amount (30,000,000 NU).
 
         - The bonus escrows for the whales will now be equalized:
 
-            - `whale_1` bonus ~ 6,390 ETH - 22.36 ETH ~ 6,367.54 ETH
+            - `whale_1` bonus ~ 6,390 ETH - 22.46 ETH ~ 6,367.54 ETH
             - `whale_2` bonus ~ 6,750 ETH - 382.46 ETH ~ 6,367.54 ETH
 
         - The updated bonus ETH supply will be
