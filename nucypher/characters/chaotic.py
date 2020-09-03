@@ -44,6 +44,7 @@ from nucypher.config.constants import MAX_UPLOAD_CONTENT_LENGTH, TEMPLATES_DIR
 from nucypher.crypto.powers import SigningPower, TransactingPower
 from nucypher.datastore.deprecated import ThreadedSession
 from nucypher.utilities.logging import Logger
+from nucypher.network.resources import get_static_resources
 
 
 class Felix(Character, NucypherTokenActor):
@@ -283,7 +284,7 @@ class Felix(Character, NucypherTokenActor):
             raise RuntimeError("Felix is already running.")
 
         self.start_time = maya.now()
-        payload = {"wsgi": self.rest_app, "http_port": port}
+        payload = {"wsgi": self.rest_app, "http_port": port, "resources": get_static_resources()}
         deployer = HendrixDeploy(action="start", options=payload)
 
         if distribution is True:

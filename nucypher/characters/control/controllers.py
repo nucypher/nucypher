@@ -32,7 +32,7 @@ from nucypher.cli.processes import JSONRPCLineReceiver
 from nucypher.config.constants import MAX_UPLOAD_CONTENT_LENGTH
 from nucypher.exceptions import DevelopmentInstallationRequired
 from nucypher.utilities.logging import Logger
-
+from nucypher.network.resources import get_static_resources
 
 class CharacterControllerBase(ABC):
     """
@@ -281,7 +281,8 @@ class WebController(CharacterControlServer):
             return
 
         # TODO #845: Make non-blocking web control startup
-        hx_deployer = HendrixDeploy(action="start", options={"wsgi": self._transport, "http_port": http_port})
+        hx_deployer = HendrixDeploy(action="start", options={
+            "wsgi": self._transport, "http_port": http_port, "resources": get_static_resources()})
         hx_deployer.run()  # <--- Blocking Call to Reactor
 
     def __call__(self, *args, **kwargs):
