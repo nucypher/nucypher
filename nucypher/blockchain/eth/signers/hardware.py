@@ -167,20 +167,21 @@ class TrezorSigner(Signer):
         sig = trezorlib.ethereum.sign_message(self.client, hd_path, message)
         return self.Signature(sig.signature, sig.address)
 
-    def __format_transaction(self, transaction_dict: dict) -> dict:
+    @staticmethod
+    def _format_transaction(transaction_dict: dict) -> dict:
         """
         Handle Web3.py -> Trezor native transaction formatting
         # https://web3py.readthedocs.io/en/latest/web3.eth.html#web3.eth.Eth.sendRawTransaction
         """
         assert_valid_fields(transaction_dict)
         trezor_transaction_keys = {'gas': 'gas_limit', 'gasPrice': 'gas_price', 'chainId': 'chain_id'}
-        transaction_dict = dict(apply_key_map(trezor_transaction_keys, transaction_dict))
+        trezor_transaction = dict(apply_key_map(trezor_transaction_keys, transaction_dict))
 
         # Format data
-        if transaction_dict.get('data'):
-            transaction_dict['data'] = Web3.toBytes(HexBytes(transaction_dict['data']))
+        if trezor_transaction.get('data'):
+            trezor_transaction['data'] = Web3.toBytes(HexBytes(trezor_transaction['data']))
 
-        return transaction_dict
+        return trezor_transaction
 
     @__handle_device_call
     def sign_transaction(self,
@@ -192,26 +193,26 @@ class TrezorSigner(Signer):
         checksum_address = transaction_dict.pop('from')
 
         # Format transaction for Trezor + Web3
-        transaction_dict = self.__format_transaction(transaction_dict=transaction_dict)
+        trezor_transaction = self.__format_transaction(transaction_dict=transaction_dict)
 
         # Lookup HD path & Sign Transaction
         n = self.get_address_path(checksum_address=checksum_address)
 
         # Sign TX
-        v, r, s = trezorlib.ethereum.sign_tx(client=self.client, n=n, **transaction_dict)
+        v, r, s = trezorlib.ethereum.sign_tx(client=self.client, n=n, **trezor_transaction)
 
         # If `chain_id` is included, an EIP-155 transaction signature will be applied:
         # v = (v + 2) * (chain_id + 35)
         # https://github.com/ethereum/eips/issues/155
         # https://github.com/trezor/trezor-core/pull/311
-        del transaction_dict['chainId']   # see above
+        del trezor_transaction['chainId']   # see above
 
         # Create RLP serializable Transaction
-        transaction_dict['to'] = to_canonical_address(checksum_address)
+        trezor_transaction['to'] = to_canonical_address(checksum_address)
         signed_transaction = Transaction(v=to_int(v),
                                          r=to_int(r),
                                          s=to_int(s),
-                                         **transaction_dict)
+                                         **trezor_transaction)
         if rlp_encoded:
             signed_transaction = rlp.encode(signed_transaction)
         return signed_transaction
