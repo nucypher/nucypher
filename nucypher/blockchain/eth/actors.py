@@ -1245,12 +1245,13 @@ class Staker(NucypherTokenActor):
 
     @property
     def is_taking_snapshots(self) -> bool:
-        winding_down = self.staking_agent.is_taking_snapshots(staker_address=self.checksum_address)
-        return winding_down
+        taking_snapshots = self.staking_agent.is_taking_snapshots(staker_address=self.checksum_address)
+        return taking_snapshots
 
     @only_me
     @save_receipt
     def _set_snapshots(self, value: bool) -> TxReceipt:
+        # TODO #1497 #1358
         # if self.is_contract:
         #     receipt = self.preallocation_escrow_agent.set_snapshots(activate=value)
         # else:

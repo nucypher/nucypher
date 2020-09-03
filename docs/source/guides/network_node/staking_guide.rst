@@ -390,7 +390,7 @@ Wind down is *disabled* by default. To start winding down an existing stake:
 Snapshots
 *********
 
-Taking snapshots is *enabled* by default. This option gives ability to be involved in DAO. To stop taking snapshots:
+Taking snapshots is *enabled* by default. Snapshots must be enabled to participate in the DAO. To stop taking snapshots:
 
 .. code:: bash
 
