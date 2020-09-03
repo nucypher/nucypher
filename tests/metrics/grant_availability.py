@@ -82,7 +82,7 @@ def make_random_bob():
 
 
 def metric_grant(alice, handpicked_ursulas: Optional[Set[Ursula]] = None) -> Policy:
-    """Perform a granting operation for metreics collection."""
+    """Perform a granting operation for metrics collection."""
     label = f'{LABEL_PREFIX}{LABEL_SUFFIXER()}'.encode()
     policy_end_datetime = maya.now() + DURATION
     policy = alice.grant(m=M, n=N,
@@ -156,7 +156,7 @@ def make_alice(known_nodes: Optional[Set[Ursula]] = None):
 
 
 def setup():
-    """Prepares the filesystem and logger for grsnt metrics collection"""
+    """Prepares the filesystem and logger for grant metrics collection"""
     shutil.rmtree(TEMP_ALICE_DIR, ignore_errors=True)
     GlobalLoggerSettings.start_console_logging()
     GlobalLoggerSettings.set_log_level('info')
