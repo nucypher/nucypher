@@ -48,7 +48,7 @@ Ensure that the worker's ethereum account has ETH for transaction gas.
 
 .. note::
 
-    For Testnet, this account can be funded with Görli testnet ETH via https://goerli-faucet.slock.it/.
+    For testnet, this account can be funded with Rinkeby testnet ETH via https://faucet.rinkeby.io/.
 
 
 3. Ensure Worker account is bonded to Staker
@@ -95,7 +95,7 @@ Replace ``<YOUR PROVIDER URI>`` with a valid node web3 node provider string, for
 
 ``<NETWORK_NAME>`` is the name of the NuCypher network domain where the node will run.
 
-.. note:: If you are using NuCypher's testnet, this name is ``gemini``.
+.. note:: If you are using NuCypher's testnet, this name is ``ibex``.
 
 Create a password when prompted
 

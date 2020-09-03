@@ -19,7 +19,7 @@ General
 Q: What is the network name for NuCypher's testnet?
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-The network name for testnet is ``gemini``.
+The network name for testnet is ``ibex``.
 
 Q: How long is a period?
 ~~~~~~~~~~~~~~~~~~~~~~~~
@@ -249,7 +249,7 @@ or `systemd <https://docs.nucypher.com/en/latest/guides/installation_guide.html#
 Q: When installing on Docker, what do I input for <NETWORK NAME>?
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-The network name for testnet is ``gemini``.
+The network name for testnet is ``ibex``.
 
 Q: How can I check for currently available staking rewards?
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~

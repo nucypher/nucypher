@@ -258,7 +258,7 @@ Signing with Local Keystore
 
 Local keystore signing utilizes `eth-account <https://github.com/ethereum/eth-account>`_ to sign ethereum transactions
 using local ethereum keystore files. By default on Linux, the keystore directory path is ``~/.ethereum/keystore``
-(on MacOS for Goerli testnet, ``/Users/<username>/Library/Ethereum/goerli/keystore``).
+(on MacOS for Rinkeby testnet, ``/Users/<username>/Library/Ethereum/rinkeby/keystore``).
 
 
 Usage
