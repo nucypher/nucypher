@@ -167,6 +167,21 @@ class TrezorSigner(Signer):
         sig = trezorlib.ethereum.sign_message(self.client, hd_path, message)
         return self.Signature(sig.signature, sig.address)
 
+    def __format_transaction(self, transaction_dict: dict) -> dict:
+        """
+        Handle Web3.py -> Trezor native transaction formatting
+        # https://web3py.readthedocs.io/en/latest/web3.eth.html#web3.eth.Eth.sendRawTransaction
+        """
+        assert_valid_fields(transaction_dict)
+        trezor_transaction_keys = {'gas': 'gas_limit', 'gasPrice': 'gas_price', 'chainId': 'chain_id'}
+        transaction_dict = dict(apply_key_map(trezor_transaction_keys, transaction_dict))
+
+        # Format data
+        if transaction_dict.get('data'):
+            transaction_dict['data'] = Web3.toBytes(HexBytes(transaction_dict['data']))
+
+        return transaction_dict
+
     @__handle_device_call
     def sign_transaction(self,
                          transaction_dict: dict,
@@ -176,15 +191,8 @@ class TrezorSigner(Signer):
         # Read the sender inside the transaction request
         checksum_address = transaction_dict.pop('from')
 
-        # Handle Web3.py -> Trezor native transaction formatting
-        # https://web3py.readthedocs.io/en/latest/web3.eth.html#web3.eth.Eth.sendRawTransaction
-        assert_valid_fields(transaction_dict)
-        trezor_transaction_keys = {'gas': 'gas_limit', 'gasPrice': 'gas_price', 'chainId': 'chain_id'}
-        transaction_dict = dict(apply_key_map(trezor_transaction_keys, transaction_dict))
-
-        # Format data
-        if transaction_dict.get('data'):
-            transaction_dict['data'] = Web3.toBytes(HexBytes(transaction_dict['data']))
+        # Format transaction for Trezor + Web3
+        transaction_dict = self.__format_transaction(transaction_dict=transaction_dict)
 
         # Lookup HD path & Sign Transaction
         n = self.get_address_path(checksum_address=checksum_address)
