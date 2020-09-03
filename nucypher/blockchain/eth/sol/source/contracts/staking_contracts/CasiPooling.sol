@@ -41,6 +41,8 @@ contract CasiPooling is InitializableStakingContract, Ownable {
     uint256 public totalWithdrawnETH;
     uint256 public totalTransactionsCost;
 
+    address payable public workerAccount;
+
     uint256 public ownerFraction;
     uint256 public ownerWithdrawnReward;
     uint256 public ownerWithdrawnETH;
@@ -51,17 +53,19 @@ contract CasiPooling is InitializableStakingContract, Ownable {
     /**
      * @notice tipo constructor
      */
-    function initialize(uint256 _ownerFraction, StakingInterfaceRouter _router)
-        public
-        initializer
-    {
+    function initialize(
+        uint256 _ownerFraction,
+        StakingInterfaceRouter _router,
+        address payable _workerAccount
+    ) public initializer {
         InitializableStakingContract.initialize(_router);
         // Ownable.initialize();
         escrow = _router.target().escrow();
         ownerFraction = _ownerFraction;
+        workerAccount = _workerAccount;
     }
 
-        /**
+    /**
      * @notice Owner sets transaction cost spent by worker node
      */
     function setTotalTransactionsCost(uint256 _value) external onlyOwner {
@@ -84,6 +88,17 @@ contract CasiPooling is InitializableStakingContract, Ownable {
             .div(totalDepositedTokens.add(ownerFraction));
 
         return paidETH >= delegatorWeiShare ? 0 : delegatorWeiShare - paidETH;
+    }
+
+    /**
+     * @notice Function allow every delegatory to repay txn cost spent by worker noed
+     */
+    function payForTxnCosts(uint256 _value) public payable {
+        require(this.calculateTxnCostToPay(msg.sender) == _value);
+        Delegator storage delegator = delegators[msg.sender];
+        require(delegator.depositedTokens != 0);
+        delegator.paidETH += msg.value;
+        workerAccount.sendValue(msg.value);
     }
 
     /**
@@ -210,7 +225,10 @@ contract CasiPooling is InitializableStakingContract, Ownable {
         uint256 availableReward = getAvailableReward(msg.sender);
 
         Delegator storage delegator = delegators[msg.sender];
-        require(calculateTxnCostToPay(msg.sender) == 0, "You should compensate tnx costs first");
+        require(
+            this.calculateTxnCostToPay(msg.sender) == 0,
+            "You should compensate tnx costs first"
+        );
         require(
             _value <= availableReward + delegator.depositedTokens,
             "Requested amount of tokens exceeded allowed portion"
@@ -321,7 +339,7 @@ contract CasiPooling is InitializableStakingContract, Ownable {
     /**
      * @notice Calling fallback function is allowed only for the owner
      **/
-    function isFallbackAllowed() public view override returns (bool) {
+    function isFallbackAllowed() public override view returns (bool) {
         return msg.sender == owner();
     }
 }
