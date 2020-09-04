@@ -318,7 +318,7 @@ class KeystoreSigner(Signer):
     def from_signer_uri(cls, uri: str) -> 'Signer':
         """Return a keystore signer from URI string i.e. keystore:///my/path/keystore """
         decoded_uri = urlparse(uri)
-        if decoded_uri.scheme != cls.URI_SCHEME or decoded_uri.netloc:
+        if decoded_uri.scheme != cls.URI_SCHEME or not decoded_uri.netloc:
             raise cls.InvalidSignerURI(uri)
         return cls(path=decoded_uri.path)
 

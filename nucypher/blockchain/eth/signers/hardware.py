@@ -15,6 +15,7 @@
  along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
+
 from collections import namedtuple
 from typing import List, Tuple, Union
 from urllib.parse import urlparse
@@ -44,12 +45,12 @@ from nucypher.blockchain.eth.decorators import validate_checksum_address
 
 
 def handle_trezor_call(device_func):
+    """
+    Decorator for calls to trezorlib that require physical device interactions.
+    """
     @wraps(device_func)
     def wrapped(trezor, *args, **kwargs):
-        try:
-            import usb1
-        except ImportError:
-            raise ImportError('libusb is not installed or available.')
+        import usb1  # may not be installed on all systems including CI
         try:
             result = device_func(trezor, *args, **kwargs)
         except usb1.USBErrorNoDevice:
@@ -64,61 +65,46 @@ def handle_trezor_call(device_func):
 
 
 class TrezorSigner(Signer):
-    """
-    An implementation of a Trezor device for staking on the NuCypher network.
-    """
+    """A trezor message and transaction signing client."""
 
     URI_SCHEME = 'trezor'
 
-    # We intentionally keep the address index off the path so that the
-    # subclass interfaces can handle which address index to use.
+    # Key Derivation Paths
+
     __BIP_44 = 44
     __ETH_COIN_TYPE = 60
 
-    CHAIN_ID = 0  # mainnet
+    CHAIN_ID = 0  # 0 is mainnet
     DEFAULT_ACCOUNT = 0
     DEFAULT_ACCOUNT_INDEX = 0
-
     DERIVATION_ROOT = f"{__BIP_44}'/{__ETH_COIN_TYPE}'/{DEFAULT_ACCOUNT}'/{CHAIN_ID}"
-    ADDRESS_CACHE_SIZE = 3
+    ADDRESS_CACHE_SIZE = 10  # default number of accounts to derive and internally track
 
-    Signature = namedtuple('Signature', ['signature', 'address'])
+    # Types
+
+    SignedMessage = namedtuple('SignedMessage', ['signature', 'signer'])
 
     class DeviceError(Exception):
-        pass
+        """Base exception for trezor signing API"""
 
     class NoDeviceDetected(DeviceError):
-        pass
+        """Raised when an operation requires a device but none are available"""
 
     def __init__(self):
         try:
-            self.client = get_default_client()
+            self.__client = get_default_client()
         except TransportException:
             raise self.NoDeviceDetected("Could not find a TREZOR device to connect to. Have you unlocked it?")
-        self._device_id = self.client.get_device_id()
-        self.__addresses = dict()
+        self._device_id = self.__client.get_device_id()
+        self.__addresses = dict()  # track derived addresses
         self.__load_addresses()
 
-    @classmethod
-    def from_signer_uri(cls, uri: str) -> 'TrezorSigner':
-        """Return a trezor signer from URI string i.e. trezor:///my/trezor/path """
-        decoded_uri = urlparse(uri)
-        if decoded_uri.scheme != cls.URI_SCHEME or decoded_uri.netloc:
-            raise cls.InvalidSignerURI(uri)
-        return cls()
+    #
+    # Internal
+    #
 
-    def is_device(self, account: str) -> bool:
-        return True
-
-    @validate_checksum_address
-    def unlock_account(self, account: str, password: str, duration: int = None) -> bool:
-        return True
-
-    @validate_checksum_address
-    def lock_account(self, account: str) -> bool:
-        return True
-
-    def get_address_path(self, index: int = None, checksum_address: str = None) -> List[int]:
+    def __get_address_path(self, index: int = None, checksum_address: str = None) -> List[H_]:
+        """Resolves a checksum address into an HD path and returns it."""
         if index is not None and checksum_address:
             raise ValueError("Expected index or checksum address; Got both.")
         elif index is not None:
@@ -130,49 +116,30 @@ class TrezorSigner(Signer):
                 raise RuntimeError(f"{checksum_address} was not loaded into the device address cache.")
         return hd_path
 
-    def __load_addresses(self):
-        for index in range(self.ADDRESS_CACHE_SIZE):
-            hd_path = self.get_address_path(index=index)
-            address = self.get_address(hd_path=hd_path, show_display=False)
-            self.__addresses[address] = hd_path
-
-    @property
-    def accounts(self) -> List[str]:
-        return list(self.__addresses.keys())
-
-    #
-    # Device Calls
-    #
-
-
     @handle_trezor_call
-    def get_address(self, index: int = None, hd_path: Address = None, show_display: bool = True) -> str:
+    def __get_address(self, index: int = None, hd_path: Address = None, show_display: bool = True) -> str:
+        """Resolves a trezorlib HD path into a checksum address and returns it."""
         if not hd_path:
             if index is None:
                 raise ValueError("No index or HD path supplied.")  # TODO: better error handling here
-            hd_path = self.get_address_path(index=index)
-        address = ethereum.get_address(client=self.client, n=hd_path, show_display=show_display)
+            hd_path = self.__get_address_path(index=index)
+        address = ethereum.__get_address(client=self.__client, n=hd_path, show_display=show_display)
         return address
 
-    @handle_trezor_call
-    def sign_message(self, message: bytes, checksum_address: str):
+    def __load_addresses(self) -> None:
         """
-        Signs a message via the TREZOR ethereum sign_message API and returns
-        the signature and the address used to sign it. This method requires
-        interaction between the TREZOR and the user.
-
-        If an address_index is provided, it will use the address at that
-        index to sign the message. If no index is provided, the address at
-        the 0th index is used by default.
+        Derive trezor addresses up to ADDRESS_CACHE_SIZE relative to
+        the calculated base path and internally cache them.
         """
-        hd_path = self.get_address_path(checksum_address=checksum_address)
-        sig = trezorlib.ethereum.sign_message(self.client, hd_path, message)
-        return self.Signature(sig.signature, sig.address)
+        for index in range(self.ADDRESS_CACHE_SIZE):
+            hd_path = self.__get_address_path(index=index)
+            address = self.__get_address(hd_path=hd_path, show_display=False)
+            self.__addresses[address] = hd_path
 
     @staticmethod
     def _format_transaction(transaction_dict: dict) -> dict:
         """
-        Handle Web3.py -> Trezor native transaction formatting
+        Handle Web3.py -> Trezor native transaction field formatting
         # https://web3py.readthedocs.io/en/latest/web3.eth.html#web3.eth.Eth.sendRawTransaction
         """
         assert_valid_fields(transaction_dict)
@@ -180,41 +147,101 @@ class TrezorSigner(Signer):
         trezor_transaction = dict(apply_key_map(trezor_transaction_keys, transaction_dict))
         return trezor_transaction
 
+    @handle_trezor_call
     def __sign_transaction(self, n: List[int], trezor_transaction: dict) -> Tuple[bytes, bytes, bytes]:
-        v, r, s = trezorlib.ethereum.sign_tx(client=self.client, n=n, **trezor_transaction)
+        """Internal wrapper for trezorlib transaction signing calls"""
+        v, r, s = trezorlib.ethereum.sign_tx(client=self.__client, n=n, **trezor_transaction)
         return v, r, s
 
+    #
+    # Trezor Signer API
+    #
+
+    @classmethod
+    def from_signer_uri(cls, uri: str) -> 'TrezorSigner':
+        """Return a trezor signer from URI string i.e. trezor:///my/trezor/path """
+        decoded_uri = urlparse(uri)
+        if decoded_uri.scheme != cls.URI_SCHEME or decoded_uri.netloc:
+            raise cls.InvalidSignerURI(uri)
+        return cls()
+
+    def is_device(self, account: str) -> bool:
+        """Trezor is always a device."""
+        return True
+
+    @validate_checksum_address
+    def unlock_account(self, account: str, password: str, duration: int = None) -> bool:
+        """Defer account unlocking to the trezor, do not indicate application level unlocking logic."""
+        return True
+
+    @validate_checksum_address
+    def lock_account(self, account: str) -> bool:
+        """Defer account locking to the trezor, do not indicate application level unlocking logic."""
+        return True
+
+    @property
+    def accounts(self) -> List[str]:
+        """Returns a list of cached trezor checksum addresses from initial derivation."""
+        return list(self.__addresses.keys())
+
     @handle_trezor_call
+    def sign_message(self, message: bytes, checksum_address: str) -> SignedMessage:
+        """
+        Signs a message via the TREZOR ethereum sign_message API and returns
+        a named tuple containing the signature and the address used to sign it.
+        This method requires interaction between the TREZOR and the user.
+        """
+        hd_path = self.__get_address_path(checksum_address=checksum_address)
+        signed_message = trezorlib.ethereum.sign_message(self.__client, hd_path, message)
+        return self.SignedMessage(signed_message.signature, signed_message.address)
+
     def sign_transaction(self,
                          transaction_dict: dict,
                          rlp_encoded: bool = True
                          ) -> Union[HexBytes, Transaction]:
+        """
+        Sign a transaction with a trezor hardware wallet.
+
+        This method handles transaction validation, field formatting, signing,
+        and outgoing serialization.  Accepts a standard transaction dictionary as input,
+        and produces an RLP encoded raw signed transaction by default.
+
+        Internally the standard transaction dictionary is reformatted for trezor API consumption
+        via calls `trezorlib.client.ethereum.sign_tx`.
+
+        WARNING: This function returns a raw signed transaction which can be
+        broadcast by anyone with a connection to the ethereum network.
+
+        ***Treat pre-signed raw transactions produced by this function like money.***
+
+        """
 
         # Read the sender inside the transaction request
         checksum_address = transaction_dict.pop('from')
 
-        # Format contract data (trezor and web3)
+        # Format contract data field for both trezor and eth_account
         if transaction_dict.get('data') is not None:  # empty string is valid
             transaction_dict['data'] = Web3.toBytes(HexBytes(transaction_dict['data']))
 
-        # Format transaction keys for Trezor, Lookup HD path, and Sign Transaction
+        # Format transaction fields for Trezor, Lookup HD path, and Sign Transaction
+        # If `chain_id` is included, an EIP-155 transaction signature will be applied
+        # https://github.com/trezor/trezor-core/pull/311
         trezor_transaction = self._format_transaction(transaction_dict=transaction_dict)
-        n = self.get_address_path(checksum_address=checksum_address)
+        n = self.__get_address_path(checksum_address=checksum_address)
         v, r, s = self.__sign_transaction(n=n, trezor_transaction=trezor_transaction)
 
-        # If `chain_id` is included, an EIP-155 transaction signature will be applied:
+        # Format the transaction for eth_account Transaction consumption
         # v = (v + 2) * (chain_id + 35)
         # https://github.com/ethereum/eips/issues/155
-        # https://github.com/trezor/trezor-core/pull/311
         del transaction_dict['chainId']   # see above
 
-        # Format ethereum address for rlp
+        # Format ethereum address for eth_account and rlp
         transaction_dict['to'] = to_canonical_address(checksum_address)
 
         # Create RLP serializable Transaction
-        signed_transaction = Transaction(v=to_int(v),
-                                         r=to_int(r),
-                                         s=to_int(s),
+        signed_transaction = Transaction(v=to_int(v),  # int
+                                         r=to_int(r),  # bytes -> int
+                                         s=to_int(s),  # bytes -> int
                                          **transaction_dict)
 
         # Optionally encode as RLP for broadcasting
