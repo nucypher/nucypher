@@ -16,7 +16,7 @@
 """
 
 from collections import namedtuple
-from typing import List, Tuple
+from typing import List, Tuple, Union
 from urllib.parse import urlparse
 
 import rlp
@@ -42,6 +42,25 @@ from functools import wraps
 
 from nucypher.blockchain.eth.decorators import validate_checksum_address
 
+
+def handle_trezor_call(device_func):
+    @wraps(device_func)
+    def wrapped(trezor, *args, **kwargs):
+        try:
+            import usb1
+        except ImportError:
+            raise ImportError('libusb is not installed or available.')
+        try:
+            result = device_func(trezor, *args, **kwargs)
+        except usb1.USBErrorNoDevice:
+            error = "The client cannot communicate to the TREZOR USB device. Was it disconnected?"
+            raise trezor.NoDeviceDetected(error)
+        except usb1.USBErrorBusy:
+            raise trezor.DeviceError("The TREZOR USB device is busy.")
+        else:
+            return result
+
+    return wrapped
 
 
 class TrezorSigner(Signer):
@@ -125,25 +144,8 @@ class TrezorSigner(Signer):
     # Device Calls
     #
 
-    def __handle_device_call(device_func):
-        @wraps(device_func)
-        def wrapped_call(trezor, *args, **kwargs):
-            try:
-                import usb1
-            except ImportError:
-                raise ImportError('libusb is not installed or available.')
-            try:
-                result = device_func(trezor, *args, **kwargs)
-            except usb1.USBErrorNoDevice:
-                error = "The client cannot communicate to the TREZOR USB device. Was it disconnected?"
-                raise trezor.NoDeviceDetected(error)
-            except usb1.USBErrorBusy:
-                raise trezor.DeviceError("The TREZOR USB device is busy.")
-            else:
-                return result
-        return wrapped_call
 
-    @__handle_device_call
+    @handle_trezor_call
     def get_address(self, index: int = None, hd_path: Address = None, show_display: bool = True) -> str:
         if not hd_path:
             if index is None:
@@ -152,7 +154,7 @@ class TrezorSigner(Signer):
         address = ethereum.get_address(client=self.client, n=hd_path, show_display=show_display)
         return address
 
-    @__handle_device_call
+    @handle_trezor_call
     def sign_message(self, message: bytes, checksum_address: str):
         """
         Signs a message via the TREZOR ethereum sign_message API and returns
@@ -182,17 +184,17 @@ class TrezorSigner(Signer):
         v, r, s = trezorlib.ethereum.sign_tx(client=self.client, n=n, **trezor_transaction)
         return v, r, s
 
-    @__handle_device_call
+    @handle_trezor_call
     def sign_transaction(self,
                          transaction_dict: dict,
                          rlp_encoded: bool = True
-                         ) -> Tuple[bytes]:
+                         ) -> Union[HexBytes, Transaction]:
 
         # Read the sender inside the transaction request
         checksum_address = transaction_dict.pop('from')
 
         # Format contract data (trezor and web3)
-        if transaction_dict.get('data'):
+        if transaction_dict.get('data') is not None:  # empty string is valid
             transaction_dict['data'] = Web3.toBytes(HexBytes(transaction_dict['data']))
 
         # Format transaction keys for Trezor, Lookup HD path, and Sign Transaction
@@ -217,6 +219,6 @@ class TrezorSigner(Signer):
 
         # Optionally encode as RLP for broadcasting
         if rlp_encoded:
-            signed_transaction = rlp.encode(signed_transaction)
+            signed_transaction = HexBytes(rlp.encode(signed_transaction))
 
         return signed_transaction
