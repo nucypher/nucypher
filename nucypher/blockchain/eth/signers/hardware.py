@@ -160,9 +160,8 @@ class TrezorSigner(Signer):
     @classmethod
     def from_signer_uri(cls, uri: str) -> 'TrezorSigner':
         """Return a trezor signer from URI string i.e. trezor:///my/trezor/path """
-        decoded_uri = urlparse(uri)
-        if decoded_uri.scheme != cls.URI_SCHEME or decoded_uri.netloc:
-            raise cls.InvalidSignerURI(uri)
+        if uri != cls.URI_SCHEME:
+            raise cls.InvalidSignerURI(f'{uri} is not a valid trezor URI scheme')
         return cls()
 
     def is_device(self, account: str) -> bool:

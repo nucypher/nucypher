@@ -257,7 +257,11 @@ class KeystoreSigner(Signer):
             else:
                 raise self.InvalidSignerURI(f'Invalid keystore file or directory "{path}"')
         except FileNotFoundError:
-            raise self.InvalidSignerURI(f'No such keystore file or directory "{path}"')
+            if not path:
+                message = 'Blank signer URI - No keystore path provided'
+            else:
+                message = f'No such keystore file or directory "{path}"'
+            raise self.InvalidSignerURI(message)
         except OSError as exc:
             raise self.InvalidSignerURI(f'Error accessing keystore file or directory "{path}": {exc}')
         for path in paths:
@@ -318,7 +322,7 @@ class KeystoreSigner(Signer):
     def from_signer_uri(cls, uri: str) -> 'Signer':
         """Return a keystore signer from URI string i.e. keystore:///my/path/keystore """
         decoded_uri = urlparse(uri)
-        if decoded_uri.scheme != cls.URI_SCHEME or not decoded_uri.netloc:
+        if decoded_uri.scheme != cls.URI_SCHEME or decoded_uri.netloc:
             raise cls.InvalidSignerURI(uri)
         return cls(path=decoded_uri.path)
 

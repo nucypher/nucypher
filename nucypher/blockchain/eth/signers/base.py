@@ -50,7 +50,7 @@ class Signer(ABC):
     @classmethod
     def from_signer_uri(cls, uri: str) -> 'Signer':
         parsed = urlparse(uri)
-        scheme = parsed.scheme
+        scheme = parsed.scheme if parsed.scheme else parsed.path
         try:
             signer_class = cls.SIGNERS[scheme]
         except KeyError:

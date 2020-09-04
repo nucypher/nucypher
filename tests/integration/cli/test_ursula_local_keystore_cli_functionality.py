@@ -54,7 +54,7 @@ def test_ursula_init_with_local_keystore_signer(click_runner,
     custom_filepath = tmp_path
     custom_config_filepath = tmp_path / UrsulaConfiguration.generate_filename()
     worker_account, password, mock_keystore_path = mock_account_password_keystore
-    mock_signer_uri = f'keystore:{mock_keystore_path}'
+    mock_signer_uri = f'keystore://{mock_keystore_path}'
 
     # Good signer...
     pre_config_signer = KeystoreSigner.from_signer_uri(uri=mock_signer_uri)
