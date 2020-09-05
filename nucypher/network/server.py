@@ -339,7 +339,7 @@ def make_rest_app(
     def receive_treasure_map(treasure_map_id):
         # TODO: Any of the codepaths that trigger 4xx Responses here are also SuspiciousActivity.
         if not this_node.federated_only:
-            from nucypher.policy.collections import DecentralizedTreasureMap as _MapClass
+            from nucypher.policy.collections import SignedTreasureMap as _MapClass
         else:
             from nucypher.policy.collections import TreasureMap as _MapClass
 

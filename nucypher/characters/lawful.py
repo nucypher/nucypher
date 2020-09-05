@@ -589,7 +589,7 @@ class Bob(Character):
         if self.federated_only:
             from nucypher.policy.collections import TreasureMap as _MapClass
         else:
-            from nucypher.policy.collections import DecentralizedTreasureMap as _MapClass
+            from nucypher.policy.collections import SignedTreasureMap as _MapClass
 
         start = maya.now()
 
@@ -725,7 +725,7 @@ class Bob(Character):
             if self.federated_only:
                 from nucypher.policy.collections import TreasureMap as _MapClass
             else:
-                from nucypher.policy.collections import DecentralizedTreasureMap as _MapClass
+                from nucypher.policy.collections import SignedTreasureMap as _MapClass
 
             # TODO: This LBYL is ugly and fraught with danger.  NRN
             if isinstance(treasure_map, bytes):

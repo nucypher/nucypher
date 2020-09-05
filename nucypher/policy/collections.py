@@ -247,7 +247,7 @@ class TreasureMap:
         return f"{self.__class__.__name__}:{self.public_id()[:6]}"
 
 
-class DecentralizedTreasureMap(TreasureMap):
+class SignedTreasureMap(TreasureMap):
 
     def __init__(self, blockchain_signature=NOT_SIGNED, *args, **kwargs):
         self._blockchain_signature = blockchain_signature
@@ -330,7 +330,7 @@ class PolicyCredential:
             if federated:  # I know know.  TODO: WTF.  466 and just... you know... whatever.
                 _MapClass = TreasureMap
             else:
-                _MapClass = DecentralizedTreasureMap
+                _MapClass = SignedTreasureMap
 
             treasure_map = _MapClass.from_bytes(
                 bytes().fromhex(cred_json['treasure_map']))

@@ -22,7 +22,7 @@ import pytest
 from nucypher.characters.control.interfaces import AliceInterface
 from nucypher.characters.control.interfaces import BobInterface, EnricoInterface
 from nucypher.crypto.powers import DecryptingPower, SigningPower
-from nucypher.policy.collections import DecentralizedTreasureMap
+from nucypher.policy.collections import SignedTreasureMap
 from tests.utils.controllers import get_fields, validate_json_rpc_response_data
 
 
@@ -64,7 +64,7 @@ def test_bob_rpc_character_control_retrieve_with_tmap(
 
     # Make a wrong (empty) treasure map
 
-    wrong_tmap = DecentralizedTreasureMap(m=0)
+    wrong_tmap = SignedTreasureMap(m=0)
     wrong_tmap.prepare_for_publication(
         blockchain_bob.public_keys(DecryptingPower),
         blockchain_bob.public_keys(SigningPower),
@@ -74,7 +74,7 @@ def test_bob_rpc_character_control_retrieve_with_tmap(
     tmap_bytes = bytes(wrong_tmap)
     tmap_64 = b64encode(tmap_bytes).decode()
     request_data['params']['treasure_map'] = tmap_64
-    with pytest.raises(DecentralizedTreasureMap.IsDisorienting):
+    with pytest.raises(SignedTreasureMap.IsDisorienting):
         bob_rpc_controller.send(request_data)
 
 
