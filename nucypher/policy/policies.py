@@ -402,13 +402,6 @@ class Policy(ABC):
         if blockchain_signer is not None:
             self.treasure_map.include_blockchain_signature(blockchain_signer)
 
-        if not self.alice.known_nodes:
-            # TODO: Optionally, block.  This is increasingly important.
-            raise RuntimeError("Alice hasn't learned of any nodes.  Thus, she can't push the TreasureMap.")
-
-        self.log.debug(f"Pushing {self.treasure_map} to all known nodes from {self.alice}")
-        treasure_map_id = self.treasure_map.public_id()
-
         self.alice.block_until_number_of_known_nodes_is(8, timeout=2, learn_on_this_thread=True)
 
         target_nodes = self.bob.matching_nodes_among(self.alice.known_nodes)
@@ -633,7 +626,7 @@ class BlockchainPolicy(Policy):
     A collection of n BlockchainArrangements representing a single Policy
     """
     _arrangement_class = BlockchainArrangement
-    from nucypher.policy.collections import DecentralizedTreasureMap as _treasure_map_class  # TODO: Circular Import
+    from nucypher.policy.collections import SignedTreasureMap as _treasure_map_class  # TODO: Circular Import
 
     class NoSuchPolicy(Exception):
         pass
