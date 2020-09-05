@@ -484,7 +484,7 @@ class Learner:
 
         self._crashed = failure
 
-        # TODO: Maybe patch this in tests too?
+        # When using Learner._DEBUG_MODE in tests, it may be helpful to uncomment this to be able to introspect.
         # from tests.conftest import global_mutable_where_everybody
         # gmwe = global_mutable_where_everybody
 
