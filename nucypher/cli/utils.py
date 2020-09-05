@@ -22,7 +22,6 @@ import click
 import os
 import shutil
 from constant_sorrow.constants import NO_CONTROL_PROTOCOL
-from nacl.exceptions import CryptoError
 
 from nucypher.blockchain.eth.interfaces import (
     BlockchainDeployerInterface,
@@ -33,7 +32,6 @@ from nucypher.blockchain.eth.registry import BaseContractRegistry, InMemoryContr
 from nucypher.characters.base import Character
 from nucypher.characters.control.emitters import StdoutEmitter
 from nucypher.cli.actions.auth import get_nucypher_password, unlock_nucypher_keyring
-from nucypher.utilities.seednodes import load_seednodes
 from nucypher.cli.literature import (
     CONNECTING_TO_BLOCKCHAIN,
     ETHERSCAN_FLAG_DISABLED_WARNING,
@@ -57,8 +55,7 @@ def make_cli_character(character_config,
                        emitter,
                        unlock_keyring: bool = True,
                        teacher_uri: str = None,
-                       min_stake: int = 0,
-                       load_preferred_teachers: bool = True,
+                       min_stake: int = 0,  # We not using this anymore?  Where is it hooked up?
                        **config_args) -> Character:
 
     #
@@ -75,14 +72,6 @@ def make_cli_character(character_config,
     # Handle Teachers
     # TODO: Is this still relevant?  Is it better to DRY this up by doing it later?
     sage_nodes = list()
-    # if load_preferred_teachers:
-    #     teacher_nodes = load_seednodes(emitter,
-    #                                    teacher_uris=[teacher_uri] if teacher_uri else None,
-    #                                    min_stake=min_stake,
-    #                                    federated_only=character_config.federated_only,
-    #                                    network_domains=character_config.domains,
-    #                                    network_middleware=character_config.network_middleware,
-    #                                    registry=character_config.registry)
 
     #
     # Character Init

@@ -293,7 +293,6 @@ class AliceCharacterOptions:
                                        teacher_uri=self.teacher_uri,
                                        min_stake=self.min_stake,
                                        client_password=client_password,
-                                       load_preferred_teachers=load_seednodes,
                                        start_learning_now=load_seednodes,
                                        lonely=self.config_options.lonely)
 

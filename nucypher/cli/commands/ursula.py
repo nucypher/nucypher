@@ -284,7 +284,6 @@ class UrsulaCharacterOptions:
                                         unlock_keyring=not self.config_options.dev,
                                         lonely=self.config_options.lonely,
                                         client_password=client_password,
-                                        # load_preferred_teachers=load_seednodes and not self.lonely,
                                         start_learning_now=load_seednodes)
             return ursula_config, URSULA
 
