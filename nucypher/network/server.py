@@ -171,8 +171,7 @@ def make_rest_app(
             signature = this_node.stamp(payload)
             return Response(bytes(signature) + payload, headers=headers)
 
-        sprouts = _node_class.batch_from_bytes(request.data,
-                                             registry=this_node.registry)
+        sprouts = _node_class.batch_from_bytes(request.data)
 
         for node in sprouts:
             this_node.remember_node(node)

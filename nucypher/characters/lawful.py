@@ -1423,7 +1423,6 @@ class Ursula(Teacher, Character, Worker):
 
         # Load the host as a potential seed node
         potential_seed_node = cls.from_rest_url(
-            registry=registry,
             host=real_host,
             port=port,
             network_middleware=network_middleware,
@@ -1466,7 +1465,6 @@ class Ursula(Teacher, Character, Worker):
     def from_bytes(cls,
                    ursula_as_bytes: bytes,
                    version: int = INCLUDED_IN_BYTESTRING,
-                   registry: BaseContractRegistry = None,  # TODO: Why is this here?  It's not being used.
                    fail_fast=False,
                    ) -> 'Ursula':
 
@@ -1533,7 +1531,6 @@ class Ursula(Teacher, Character, Worker):
     @classmethod
     def batch_from_bytes(cls,
                          ursulas_as_bytes: Iterable[bytes],
-                         registry: BaseContractRegistry = None,
                          fail_fast: bool = False,
                          ) -> List['Ursula']:
 
@@ -1546,8 +1543,7 @@ class Ursula(Teacher, Character, Worker):
         for version, node_bytes in versions_and_node_bytes:
             try:
                 sprout = cls.from_bytes(node_bytes,
-                                        version=version,
-                                        registry=registry)
+                                        version=version)
                 if sprout is UNKNOWN_VERSION:
                     continue
             except BytestringSplittingError:
