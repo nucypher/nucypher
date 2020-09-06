@@ -9,6 +9,12 @@ Overview
 
 :ref:`worklock-architecture` is the distribution mechanism for the NuCypher token.
 
+.. important::
+
+    The Ethereum address for the WorkLock contract is
+    `0xe9778E69a961e64d3cdBB34CF6778281d34667c2 <https://etherscan.io/address/0xe9778e69a961e64d3cdbb34cf6778281d34667c2>`_.
+    Please make sure that you interact with this contract address and no other.
+
 
 WorkLock CLI
 ------------
@@ -46,31 +52,26 @@ The following is an example output of the ``status`` command (hypothetical value
 
 .. code::
 
-     _    _               _     _                   _
-    | |  | |             | |   | |                 | |
-    | |  | |  ___   _ __ | | __| |      ___    ___ | | __
-    | |/\| | / _ \ | '__|| |/ /| |     / _ \  / __|| |/ /
-    \  /\  /| (_) || |   |   < | |____| (_) || (__ |   <
-     \/  \/  \___/ |_|   |_|\_\\_____/ \___/  \___||_|\_\
-
     Reading Latest Chaindata...
+
+    WorkLock (0xe9778E69a961e64d3cdBB34CF6778281d34667c2)
 
     Time
     ══════════════════════════════════════════════════════
 
-    Escrow (Closed)
+    Escrow Period (Open)
     ------------------------------------------------------
-    Allocations Available . Yes
-    Start Date ............ 2020-03-25 00:00:00+00:00
-    End Date .............. 2020-03-31 23:59:59+00:00
-    Duration .............. 6 days, 23:59:59
-    Time Remaining ........ Closed
+    Allocations Available . No
+    Start Date ............ 2020-09-01 00:00:00+00:00
+    End Date .............. 2020-09-28 23:59:59+00:00
+    Duration .............. 27 days, 23:59:59
+    Time Remaining ........ 26 days, 15:43:43
 
-    Cancellation (Open)
+    Cancellation Period (Open)
     ------------------------------------------------------
-    End Date .............. 2020-04-01 23:59:59+00:00
-    Duration .............. 7 days, 23:59:59
-    Time Remaining ........ 1 day, 2:47:32
+    End Date .............. 2020-09-30 23:59:59+00:00
+    Duration .............. 29 days, 23:59:59
+    Time Remaining ........ 28 days, 15:43:43
 
 
     Economics
@@ -78,27 +79,27 @@ The following is an example output of the ``status`` command (hypothetical value
 
     Participation
     ------------------------------------------------------
-    Lot Size .............. 280000000 NU
-    Min. Allowed Escrow ... 15 ETH
-    Participants .......... 1000
-    ETH Supply ............ 50000 ETH
-    ETH Pool .............. 50000 ETH
+    Lot Size .............. 225000000 NU
+    Min. Allowed Escrow ... 5 ETH
+    Participants .......... 71
+    ETH Supply ............ 620.65 ETH
+    ETH Pool .............. 620.65 ETH
 
     Base (minimum escrow)
     ------------------------------------------------------
-    Base Deposit Rate ..... 1000 NU per base ETH
+    Base Deposit Rate ..... 3000 NU per base ETH
 
     Bonus (surplus over minimum escrow)
     ------------------------------------------------------
-    Bonus ETH Supply ...... 35000 ETH
-    Bonus Lot Size ........ 265000000 NU
-    Bonus Deposit Rate .... 7571.43 NU per bonus ETH
-
+    Bonus ETH Supply ...... 265.65 ETH
+    Bonus Lot Size ........ 223935000 NU
+    Bonus Deposit Rate .... 842970 NU per bonus ETH
+    
     Refunds
     ------------------------------------------------------
-    Refund Rate Multiple .. 4.00
-    Bonus Refund Rate ..... 1892.86 units of work to unlock 1 bonus ETH
-    Base Refund Rate ...... 250.0 units of work to unlock 1 base ETH
+    Refund Rate Multiple .. 8.00
+    Bonus Refund Rate ..... 105371.25 units of work to unlock 1 bonus ETH
+    Base Refund Rate ...... 375.0 units of work to unlock 1 base ETH
 
         * NOTE: bonus ETH is refunded before base ETH
 
@@ -190,17 +191,24 @@ where,
         Pending amount of work required before all of the participant's escrowed ETH will be refunded
 
 
-Place an escrow
----------------
+.. note::
 
-You can place an escrow to WorkLock by running:
+    ``--signer`` is not required if you are running a local ethereum node or your ``--provider`` is the
+    same entity as your signer.   If you are using a remote hosted ethereum node, you will need to run a local
+    signer like clef. See :ref:`using-eth-node`.
+
+
+Place an escrow (or increase existing one)
+------------------------------------------
+
+You can place an escrow to WorkLock (or if you already have one, increase the amount) by running:
 
 .. code::
 
-    (nucypher)$ nucypher worklock escrow --provider <YOUR PROVIDER URI>
+    (nucypher)$ nucypher worklock escrow --provider <YOUR PROVIDER URI> --signer <SIGNER_URI>
 
 
-Recall that there's a minimum escrow amount needed to participate in WorkLock.
+Recall that there's a minimum escrow amount of 5 ETH needed to participate in WorkLock.
 
 
 Cancel an escrow
@@ -210,7 +218,7 @@ You can cancel an escrow to WorkLock by running:
 
 .. code::
 
-    (nucypher)$ nucypher worklock cancel-escrow --provider <YOUR PROVIDER URI>
+    (nucypher)$ nucypher worklock cancel-escrow --provider <YOUR PROVIDER URI> --signer <SIGNER_URI>
 
 
 Claim your stake
@@ -220,7 +228,7 @@ Once the allocation window is open, you can claim your NU as a stake in NuCypher
 
 .. code::
 
-    (nucypher)$ nucypher worklock claim --provider <YOUR PROVIDER URI>
+    (nucypher)$ nucypher worklock claim --provider <YOUR PROVIDER URI> --signer <SIGNER_URI>
 
 
 Once allocated, you can check that the stake was created successfully by running:
@@ -247,4 +255,4 @@ If you've committed some work, you are able to refund proportional part of ETH y
 
 .. code::
 
-    (nucypher)$ nucypher worklock refund --provider <YOUR PROVIDER URI>
+    (nucypher)$ nucypher worklock refund --provider <YOUR PROVIDER URI> --signer <SIGNER_URI>

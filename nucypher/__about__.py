@@ -31,7 +31,7 @@ __url__ = "https://github.com/nucypher/nucypher"
 
 __summary__ = 'A proxy re-encryption network to empower privacy in decentralized systems.'
 
-__version__ = "2.1.0-beta.12"
+__version__ = "3.0.0-beta.0"
 
 __author__ = "NuCypher"
 

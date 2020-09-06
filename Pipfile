@@ -12,7 +12,7 @@ umbral = "==0.1.3a2"
 constant-sorrow = ">=0.1.0a9"
 bytestring-splitter = ">=1.3.0"
 hendrix = ">=3.2.5"
-lmdb = "*"
+lmdb = "<=0.99"
 # Cryptography
 pyopenssl = "*"
 cryptography = ">=2.3"
@@ -55,7 +55,7 @@ bandit = "*"
 mypy = "*"
 coverage = "*"
 # Develop & Deploy
-py-solc-x = "*"
+ py-solc-x = "==0.10.1"
 
 [scripts]
 install-solc = "python3 scripts/installation/install_solc.py"
