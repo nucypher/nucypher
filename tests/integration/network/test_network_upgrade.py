@@ -27,7 +27,7 @@ from nucypher.datastore.models import PolicyArrangement
 from tests.utils.ursula import make_federated_ursulas
 
 
-def test_alice_enacts_policies_in_policy_group_via_rest(enacted_federated_policy):
+def test_alice_enacts_policies_in_policy_group_via_rest(enacted_federated_policy, reduced_memory_page_lmdb):
     """
     Now that Alice has made a PolicyGroup, she can enact its policies, using Ursula's Public Key to encrypt each offer
     and transmitting them via REST.

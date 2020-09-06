@@ -84,7 +84,7 @@ class Datastore:
 
     # LMDB has a `map_size` arg that caps the total size of the database.
     # We can set this arbitrarily high (1TB) to prevent any run-time crashes.
-    LMDB_MAP_SIZE = 10_000_000
+    LMDB_MAP_SIZE = 1_000_000_000_000
 
     def __init__(self, db_path: str) -> None:
         """
