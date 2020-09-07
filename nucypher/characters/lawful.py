@@ -898,6 +898,7 @@ class Bob(Character):
                 try:
                     # TODO: This is almost certainly happening in a test.  If it does happen in production, it's a bit of a problem.  Need to fix #2124 to mitigate.
                     target_nodes = list(nodes._nodes.values())[0:6]
+                    return target_nodes
                 except IndexError:
                     raise self.NotEnoughNodes("There aren't enough nodes on the network to enact this policy.  Unless this is day one of the network and nodes are still getting spun up, something is bonkers.")
 

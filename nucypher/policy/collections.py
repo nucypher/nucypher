@@ -15,32 +15,23 @@ You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
-import binascii
-
 import json
 from collections import OrderedDict
+from typing import Optional, Tuple
+
 import maya
-from bytestring_splitter import BytestringSplitter, VariableLengthBytestring, BytestringSplittingError, \
-    BytestringKwargifier
-from constant_sorrow.constants import CFRAG_NOT_RETAINED, NO_DECRYPTION_PERFORMED, NOT_SIGNED
-from constant_sorrow.constants import CFRAG_NOT_RETAINED
-from constant_sorrow.constants import NO_DECRYPTION_PERFORMED
-from bytestring_splitter import BytestringSplitter, BytestringSplittingError, VariableLengthBytestring
-from constant_sorrow.constants import CFRAG_NOT_RETAINED, NO_DECRYPTION_PERFORMED
 from cryptography.hazmat.backends.openssl import backend
 from cryptography.hazmat.primitives import hashes
 from eth_utils import to_canonical_address, to_checksum_address
-from typing import List, Optional, Tuple
-from umbral.config import default_params
-from umbral.curvebn import CurveBN
-from umbral.keys import UmbralPublicKey
-from umbral.pre import Capsule
 
+from bytestring_splitter import BytestringKwargifier
+from bytestring_splitter import BytestringSplitter, BytestringSplittingError, VariableLengthBytestring
+from constant_sorrow.constants import CFRAG_NOT_RETAINED, NO_DECRYPTION_PERFORMED
+from constant_sorrow.constants import NOT_SIGNED
 from nucypher.blockchain.eth.constants import ETH_ADDRESS_BYTE_LENGTH, ETH_HASH_BYTE_LENGTH
 from nucypher.characters.lawful import Bob, Character
-from nucypher.crypto.api import keccak_digest, encrypt_and_sign, verify_eip_191
-from nucypher.crypto.constants import PUBLIC_ADDRESS_LENGTH, KECCAK_DIGEST_LENGTH
 from nucypher.crypto.api import encrypt_and_sign, keccak_digest
+from nucypher.crypto.api import verify_eip_191
 from nucypher.crypto.constants import KECCAK_DIGEST_LENGTH, PUBLIC_ADDRESS_LENGTH
 from nucypher.crypto.kits import UmbralMessageKit
 from nucypher.crypto.signing import InvalidSignature, Signature, signature_splitter
@@ -49,6 +40,10 @@ from nucypher.crypto.utils import (canonical_address_from_umbral_key,
                                    get_coordinates_as_bytes,
                                    get_signature_recovery_value)
 from nucypher.network.middleware import RestMiddleware
+from umbral.config import default_params
+from umbral.curvebn import CurveBN
+from umbral.keys import UmbralPublicKey
+from umbral.pre import Capsule
 
 
 class TreasureMap:
@@ -273,7 +268,8 @@ class SignedTreasureMap(TreasureMap):
 
     def __bytes__(self):
         if self._blockchain_signature is NOT_SIGNED:
-            raise self.InvalidSignature("Can't cast a DecentralizedTreasureMap to bytes until it has a blockchain signature (otherwise, is it really a 'DecentralizedTreasureMap'?")
+            raise self.InvalidSignature(
+                "Can't cast a DecentralizedTreasureMap to bytes until it has a blockchain signature (otherwise, is it really a 'DecentralizedTreasureMap'?")
         return self._blockchain_signature + super().__bytes__()
 
 

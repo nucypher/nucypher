@@ -441,11 +441,8 @@ class Learner:
             return self.learning_deferred
         else:
             self.log.info("Starting Learning Loop.")
-
-            learner_deferred = self._learning_task.start(interval=self._SHORT_LEARNING_DELAY,
-                                                         now=now)  # TODO: now=now?  This block is always False, no?
+            learner_deferred = self._learning_task.start(interval=self._SHORT_LEARNING_DELAY, now=False)
             learner_deferred.addErrback(self.handle_learning_errors)
-
             self.learning_deferred = learner_deferred
             return self.learning_deferred
 
