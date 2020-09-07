@@ -338,9 +338,7 @@ class Learner:
 
         self.done_seeding = True
 
-        if read_storage is True:
-            nodes_restored_from_storage = self.read_nodes_from_storage()
-
+        nodes_restored_from_storage = self.read_nodes_from_storage() if read_storage else []
         discovered.extend(nodes_restored_from_storage)
 
         if discovered and record_fleet_state:
