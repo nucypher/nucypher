@@ -32,9 +32,11 @@ contract CasiPooling is InitializableStakingContract, Ownable {
         uint256 withdrawnReward;
         uint256 withdrawnETH;
         uint256 paidETH;
+        uint256 depositedETHWorklock;
     }
 
     StakingEscrow public escrow;
+    WorkLock public worklock;
 
     uint256 public totalDepositedTokens;
     uint256 public totalWithdrawnReward;
@@ -56,20 +58,21 @@ contract CasiPooling is InitializableStakingContract, Ownable {
     function initialize(
         uint256 _ownerFraction,
         StakingInterfaceRouter _router,
-        address payable _workerAccount
+        // address payable _workerAccount
     ) public initializer {
         InitializableStakingContract.initialize(_router);
         // Ownable.initialize();
         escrow = _router.target().escrow();
+        worklock = _router.target().workLock();
         ownerFraction = _ownerFraction;
-        workerAccount = _workerAccount;
+        // workerAccount = _workerAccount;
     }
 
     /**
      * @notice Owner sets transaction cost spent by worker node
      */
-    function setTotalTransactionsCost(uint256 _value) external onlyOwner {
-        totalTransactionsCost += _value;
+    function addTotalTransactionsCost(uint256 _value) external onlyOwner {
+        totalTransactionsCost.add(_value);
     }
 
     /**
@@ -83,9 +86,9 @@ contract CasiPooling is InitializableStakingContract, Ownable {
         uint256 depositedNU = delegator.depositedTokens;
         uint256 paidETH = delegator.paidETH;
 
-        uint256 delegatorWeiShare = totalTransactionsCost
-            .mul(depositedNU)
-            .div(totalDepositedTokens.add(ownerFraction));
+        uint256 delegatorWeiShare = totalTransactionsCost.mul(depositedNU).div(
+            totalDepositedTokens.add(ownerFraction)
+        );
 
         return paidETH >= delegatorWeiShare ? 0 : delegatorWeiShare - paidETH;
     }
@@ -98,7 +101,11 @@ contract CasiPooling is InitializableStakingContract, Ownable {
         Delegator storage delegator = delegators[msg.sender];
         require(delegator.depositedTokens != 0);
         delegator.paidETH += msg.value;
-        workerAccount.sendValue(msg.value);
+        // workerAccount.sendValue(msg.value);
+    }
+
+    function bid() external onlyOwner {
+        worklock.bid();
     }
 
     /**
@@ -129,6 +136,14 @@ contract CasiPooling is InitializableStakingContract, Ownable {
         delegator.depositedTokens += _value;
         token.safeTransferFrom(msg.sender, address(this), _value);
         emit TokensDeposited(msg.sender, _value, delegator.depositedTokens);
+    }
+
+    /**
+     * @notice deposit eth to this contract to participate in worklock
+     */
+    function depositETH(uint256 _value) external {
+        Delegator storage delegator = delegators[msg.sender];
+        delegator.depositedETHWorklock += _value;
     }
 
     /**
