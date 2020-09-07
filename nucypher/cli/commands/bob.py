@@ -17,7 +17,7 @@
 import base64
 
 import click
-import ipfshttpclient
+
 
 from nucypher.characters.control.emitters import StdoutEmitter
 from nucypher.characters.control.interfaces import BobInterface
@@ -321,6 +321,7 @@ def retrieve(general_config,
         raise click.BadArgumentUsage(f'{required_fields} are required flags to retrieve')
 
     if ipfs:
+        import ipfshttpclient
         # TODO: #2108
         emitter.message(f"Connecting to IPFS Gateway {ipfs}")
         ipfs_client = ipfshttpclient.connect(ipfs)
