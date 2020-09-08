@@ -17,6 +17,9 @@
 
 import pytest
 
+from nucypher.characters.control.interfaces import BobInterface
+from tests.utils.controllers import validate_json_rpc_response_data
+
 
 def test_alice_rpc_character_control_create_policy(alice_rpc_test_client, create_policy_control_request):
     alice_rpc_test_client.__class__.MESSAGE_ID = 0
@@ -91,4 +94,6 @@ def test_bob_rpc_character_control_retrieve(bob_rpc_controller, retrieve_control
     method_name, params = retrieve_control_request
     request_data = {'method': method_name, 'params': params}
     response = bob_rpc_controller.send(request_data)
-    assert 'jsonrpc' in response.data
+    assert validate_json_rpc_response_data(response=response,
+                                           method_name=method_name,
+                                           interface=BobInterface)

@@ -15,17 +15,16 @@
  along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
+import datetime
 import json
+import os
+import shutil
 from base64 import b64decode
 from collections import namedtuple
 from json import JSONDecodeError
 
-import datetime
 import maya
-import os
 import pytest
-import pytest_twisted as pt
-import shutil
 from twisted.internet import threads
 from web3 import Web3
 
@@ -35,13 +34,11 @@ from nucypher.config.constants import NUCYPHER_ENVVAR_KEYRING_PASSWORD, TEMPORAR
 from nucypher.crypto.kits import UmbralMessageKit
 from nucypher.utilities.logging import GlobalLoggerSettings
 from tests.constants import INSECURE_DEVELOPMENT_PASSWORD, TEST_PROVIDER_URI
-from tests.utils.ursula import start_pytest_ursula_services
 
 PLAINTEXT = "I'm bereaved, not a sap!"
 
 
 class MockSideChannel:
-
     PolicyAndLabel = namedtuple('PolicyAndLabel', ['encrypting_key', 'label'])
     BobPublicKeys = namedtuple('BobPublicKeys', ['bob_encrypting_key', 'bob_verifying_key'])
 
@@ -90,46 +87,13 @@ class MockSideChannel:
         return policy
 
 
-@pt.inlineCallbacks
-def test_federated_cli_lifecycle(click_runner,
-                                 testerchain,
-                                 random_policy_label,
-                                 federated_ursulas,
-                                 custom_filepath,
-                                 custom_filepath_2):
-    yield _cli_lifecycle(click_runner,
-                         testerchain,
-                         random_policy_label,
-                         federated_ursulas,
-                         custom_filepath,
-                         custom_filepath_2)
-
-
-@pt.inlineCallbacks
-def test_decentralized_cli_lifecycle(click_runner,
-                                     testerchain,
-                                     random_policy_label,
-                                     blockchain_ursulas,
-                                     custom_filepath,
-                                     custom_filepath_2,
-                                     agency_local_registry):
-
-    yield _cli_lifecycle(click_runner,
-                         testerchain,
-                         random_policy_label,
-                         blockchain_ursulas,
-                         custom_filepath,
-                         custom_filepath_2,
-                         agency_local_registry.filepath)
-
-
-def _cli_lifecycle(click_runner,
-                   testerchain,
-                   random_policy_label,
-                   ursulas,
-                   custom_filepath,
-                   custom_filepath_2,
-                   registry_filepath=None):
+def run_entire_cli_lifecycle(click_runner,
+                             random_policy_label,
+                             ursulas,
+                             custom_filepath,
+                             custom_filepath_2,
+                             registry_filepath=None,
+                             testerchain=None):
     """
     This is an end to end integration test that runs each cli call
     in it's own process using only CLI character control entry points,
@@ -157,7 +121,7 @@ def _cli_lifecycle(click_runner,
                        '--network', TEMPORARY_DOMAIN,
                        '--config-root', alice_config_root)
     if federated:
-        alice_init_args += ('--federated-only', )
+        alice_init_args += ('--federated-only',)
     else:
         alice_init_args += ('--provider', TEST_PROVIDER_URI,
                             '--pay-with', testerchain.alice_account,
@@ -200,7 +164,7 @@ def _cli_lifecycle(click_runner,
                      '--network', TEMPORARY_DOMAIN,
                      '--config-root', bob_config_root)
     if federated:
-        bob_init_args += ('--federated-only', )
+        bob_init_args += ('--federated-only',)
     else:
         bob_init_args += ('--provider', TEST_PROVIDER_URI,
                           '--registry-filepath', str(registry_filepath),
@@ -213,6 +177,8 @@ def _cli_lifecycle(click_runner,
     bob_configuration_file_location = os.path.join(bob_config_root, BobConfiguration.generate_filename())
     bob_view_args = ('bob', 'public-keys',
                      '--json-ipc',
+                     '--mock-networking',  # TODO: It's absurd for this public-keys command to connect at all.  1710
+                     '--lonely',  # TODO: This needs to be implied by `public-keys`.
                      '--config-file', bob_configuration_file_location)
 
     bob_view_result = click_runner.invoke(nucypher_cli, bob_view_args, catch_exceptions=False, env=envvars)
@@ -226,7 +192,7 @@ def _cli_lifecycle(click_runner,
     side_channel.save_bob_public_keys(bob_public_keys)
 
     """
-    Scene 3: Alice derives a policy keypair, and saves it's public key to a sidechannel.
+    Scene 3: Alice derives a policy keypair, and saves its public key to a sidechannel.
     """
 
     random_label = random_policy_label.decode()  # Unicode string
@@ -251,6 +217,7 @@ def _cli_lifecycle(click_runner,
     """
     Scene 4: Enrico encrypts some data for some policy public key and saves it to a side channel.
     """
+
     def enrico_encrypts():
 
         # Fetch!
@@ -265,7 +232,7 @@ def _cli_lifecycle(click_runner,
         encrypt_result = click_runner.invoke(nucypher_cli, enrico_args, catch_exceptions=False, env=envvars)
         assert encrypt_result.exit_code == 0
         encrypt_result = json.loads(encrypt_result.output)
-        encrypted_message = encrypt_result['result']['message_kit']    # type: str
+        encrypted_message = encrypt_result['result']['message_kit']  # type: str
 
         side_channel.save_message_kit(message_kit=encrypted_message)
         return encrypt_result
@@ -291,7 +258,8 @@ def _cli_lifecycle(click_runner,
         if federated:
             decrypt_args += ('--federated-only',)
 
-        decrypt_response_fail = click_runner.invoke(nucypher_cli, decrypt_args[0:7], catch_exceptions=False, env=envvars)
+        decrypt_response_fail = click_runner.invoke(nucypher_cli, decrypt_args[0:7], catch_exceptions=False,
+                                                    env=envvars)
         assert decrypt_response_fail.exit_code == 2
 
         decrypt_response = click_runner.invoke(nucypher_cli, decrypt_args, catch_exceptions=False, env=envvars)
@@ -317,7 +285,7 @@ def _cli_lifecycle(click_runner,
 
     # Some Ursula is running somewhere
     def _run_teacher(_encrypt_result):
-        start_pytest_ursula_services(ursula=teacher)
+        # start_pytest_ursula_services(ursula=teacher)
         return teacher_uri
 
     def _grant(teacher_uri):
@@ -346,6 +314,7 @@ def _cli_lifecycle(click_runner,
             grant_args += ('--provider', TEST_PROVIDER_URI,
                            '--rate', Web3.toWei(9, 'gwei'))
 
+        # TODO: Stop.
         grant_result = click_runner.invoke(nucypher_cli, grant_args, catch_exceptions=False, env=envvars)
         assert grant_result.exit_code == 0
 
@@ -395,9 +364,9 @@ def _cli_lifecycle(click_runner,
 
     # Run the Callbacks
     d = threads.deferToThread(enrico_encrypts)  # scene 4
-    d.addCallback(_alice_decrypts)              # scene 5 (uncertainty)
-    d.addCallback(_run_teacher)                 # scene 6 (preamble)
-    d.addCallback(_grant)                       # scene 7
-    d.addCallback(_bob_retrieves)               # scene 8
+    d.addCallback(_alice_decrypts)  # scene 5 (uncertainty)
+    d.addCallback(_run_teacher)  # scene 6 (preamble)
+    d.addCallback(_grant)  # scene 7
+    d.addCallback(_bob_retrieves)  # scene 8
 
     return d

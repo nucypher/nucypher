@@ -15,25 +15,20 @@ You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
-
 import contextlib
 import json
-import random
-
-import maya
 import os
-import pytest
+import random
 import shutil
 import tempfile
-from click.testing import CliRunner
 from datetime import datetime, timedelta
-from eth_utils import to_checksum_address
-from io import StringIO
+from functools import partial
 from typing import Tuple
-from umbral import pre
-from umbral.curvebn import CurveBN
-from umbral.keys import UmbralPrivateKey
-from umbral.signing import Signer
+
+import maya
+import pytest
+from click.testing import CliRunner
+from eth_utils import to_checksum_address
 from web3 import Web3
 
 from nucypher.blockchain.economics import BaseEconomics, StandardTokenEconomics
@@ -108,10 +103,16 @@ from tests.utils.config import (
 )
 from tests.utils.middleware import MockRestMiddleware, MockRestMiddlewareForLargeFleetTests
 from tests.utils.policy import generate_random_label
-from tests.utils.ursula import MOCK_URSULA_STARTING_PORT, make_decentralized_ursulas, make_federated_ursulas
+from tests.utils.ursula import MOCK_URSULA_STARTING_PORT, make_decentralized_ursulas, make_federated_ursulas, \
+    MOCK_KNOWN_URSULAS_CACHE
+from umbral import pre
+from umbral.curvebn import CurveBN
+from umbral.keys import UmbralPrivateKey
+from umbral.signing import Signer
 
 test_logger = Logger("test-logger")
 
+# defer.setDebugging(True)
 
 #
 # Temporary
@@ -186,6 +187,8 @@ def ursula_decentralized_test_config(test_registry):
                                             rest_port=MOCK_URSULA_STARTING_PORT)
     yield config
     config.cleanup()
+    for k in list(MOCK_KNOWN_URSULAS_CACHE.keys()):
+        del MOCK_KNOWN_URSULAS_CACHE[k]
 
 
 @pytest.fixture(scope="module")
@@ -200,12 +203,12 @@ def alice_blockchain_test_config(blockchain_ursulas, testerchain, test_registry)
 
 
 @pytest.fixture(scope="module")
-def bob_blockchain_test_config(blockchain_ursulas, testerchain, test_registry):
+def bob_blockchain_test_config(testerchain, test_registry):
     config = make_bob_test_configuration(federated=False,
                                          provider_uri=TEST_PROVIDER_URI,
                                          test_registry=test_registry,
                                          checksum_address=testerchain.bob_account,
-                                         known_nodes=blockchain_ursulas)
+                                         )
     yield config
     config.cleanup()
 
@@ -239,7 +242,8 @@ def enacted_federated_policy(idle_federated_policy, federated_ursulas):
     idle_federated_policy.make_arrangements(network_middleware, handpicked_ursulas=federated_ursulas)
 
     # REST call happens here, as does population of TreasureMap.
-    responses = idle_federated_policy.enact(network_middleware)
+    idle_federated_policy.enact(network_middleware)
+    idle_federated_policy.publishing_mutex.block_until_complete()
 
     return idle_federated_policy
 
@@ -252,7 +256,7 @@ def idle_blockchain_policy(testerchain, blockchain_alice, blockchain_bob, token_
     random_label = generate_random_label()
     days = token_economics.minimum_locked_periods // 2
     now = testerchain.w3.eth.getBlock(block_identifier='latest').timestamp
-    expiration = maya.MayaDT(now).add(days=days-1)
+    expiration = maya.MayaDT(now).add(days=days - 1)
     n = 3
     m = 2
     policy = blockchain_alice.create_policy(blockchain_bob,
@@ -277,6 +281,7 @@ def enacted_blockchain_policy(idle_blockchain_policy, blockchain_ursulas):
         network_middleware, handpicked_ursulas=list(blockchain_ursulas))
 
     idle_blockchain_policy.enact(network_middleware)  # REST call happens here, as does population of TreasureMap.
+    idle_blockchain_policy.publishing_mutex.block_until_complete()
     return idle_blockchain_policy
 
 
@@ -339,33 +344,74 @@ def random_policy_label():
 
 @pytest.fixture(scope="module")
 def federated_alice(alice_federated_test_config):
-    _alice = alice_federated_test_config.produce()
-    return _alice
+    alice = alice_federated_test_config.produce()
+    yield alice
+    alice.disenchant()
 
 
 @pytest.fixture(scope="module")
 def blockchain_alice(alice_blockchain_test_config, testerchain):
-    _alice = alice_blockchain_test_config.produce()
-    return _alice
+    alice = alice_blockchain_test_config.produce()
+    yield alice
+    alice.disenchant()
 
 
 @pytest.fixture(scope="module")
 def federated_bob(bob_federated_test_config):
-    _bob = bob_federated_test_config.produce()
-    return _bob
+    bob = bob_federated_test_config.produce()
+    yield bob
+    bob.disenchant()
 
 
 @pytest.fixture(scope="module")
 def blockchain_bob(bob_blockchain_test_config, testerchain):
-    _bob = bob_blockchain_test_config.produce()
-    return _bob
+    bob = bob_blockchain_test_config.produce()
+    yield bob
+    bob.disenchant()
 
 
 @pytest.fixture(scope="module")
 def federated_ursulas(ursula_federated_test_config):
+    if MOCK_KNOWN_URSULAS_CACHE:
+        raise RuntimeError("Ursulas cache was unclear at fixture loading time.  Did you use one of the ursula maker functions without cleaning up?")
     _ursulas = make_federated_ursulas(ursula_config=ursula_federated_test_config,
                                       quantity=NUMBER_OF_URSULAS_IN_DEVELOPMENT_NETWORK)
+    # Since we mutate this list in some tests, it's not enough to remember and remove the Ursulas; we have to remember them by port.
+    # The same is true of blockchain_ursulas below.
+    _ports_to_remove = [ursula.rest_interface.port for ursula in _ursulas]
     yield _ursulas
+
+    for port in _ports_to_remove:
+        test_logger.debug(f"Removing {port} ({MOCK_KNOWN_URSULAS_CACHE[port]}).")
+        del MOCK_KNOWN_URSULAS_CACHE[port]
+
+    for u in _ursulas:
+        u.stop()
+
+
+@pytest.fixture(scope="function")
+def lonely_ursula_maker(ursula_federated_test_config):
+    class _PartialUrsulaMaker:
+        _partial = partial(make_federated_ursulas,
+                         ursula_config=ursula_federated_test_config,
+                         know_each_other=False,
+                         )
+        _made = []
+
+        def __call__(self, *args, **kwargs):
+            ursulas = self._partial(*args, **kwargs)
+            self._made.extend(ursulas)
+            return ursulas
+
+        def clean(self):
+            for ursula in self._made:
+                ursula.stop()
+            for ursula in self._made:
+                del MOCK_KNOWN_URSULAS_CACHE[ursula.rest_interface.port]
+    _maker = _PartialUrsulaMaker()
+    yield _maker
+    _maker.clean()
+
 
 
 #
@@ -373,7 +419,6 @@ def federated_ursulas(ursula_federated_test_config):
 #
 
 def make_token_economics(blockchain):
-
     # Get current blocktime
     now = blockchain.w3.eth.getBlock(block_identifier='latest').timestamp
 
@@ -389,7 +434,7 @@ def make_token_economics(blockchain):
     economics = StandardTokenEconomics(
         worklock_boosting_refund_rate=200,
         worklock_commitment_duration=60,  # periods
-        worklock_supply=10*BaseEconomics._default_maximum_allowed_locked,
+        worklock_supply=10 * BaseEconomics._default_maximum_allowed_locked,
         bidding_start_date=bidding_start_date,
         bidding_end_date=bidding_end_date,
         cancellation_end_date=cancellation_end_date,
@@ -629,6 +674,8 @@ def stakers(testerchain, agency, token_economics, test_registry):
 
 @pytest.fixture(scope="module")
 def blockchain_ursulas(testerchain, stakers, ursula_decentralized_test_config):
+    if MOCK_KNOWN_URSULAS_CACHE:
+        raise RuntimeError("Ursulas cache was unclear at fixture loading time.  Did you use one of the ursula maker functions without cleaning up?")
     _ursulas = make_decentralized_ursulas(ursula_config=ursula_decentralized_test_config,
                                           stakers_addresses=testerchain.stakers_accounts,
                                           workers_addresses=testerchain.ursulas_accounts,
@@ -642,7 +689,11 @@ def blockchain_ursulas(testerchain, stakers, ursula_decentralized_test_config):
         for ursula_to_learn_about in _ursulas:
             ursula_to_teach.remember_node(ursula_to_learn_about)
 
+    _ports_to_remove = [ursula.rest_interface.port for ursula in _ursulas]
     yield _ursulas
+
+    for port in _ports_to_remove:
+        del MOCK_KNOWN_URSULAS_CACHE[port]
 
 
 @pytest.fixture(scope="module")
@@ -837,7 +888,8 @@ def manual_staker(testerchain, agency):
     address = '0xaaa23A5c74aBA6ca5E7c09337d5317A7C4563075'
     if address not in testerchain.client.accounts:
         staker_private_key = '13378db1c2af06933000504838afc2d52efa383206454deefb1836f8f4cd86f8'
-        address = testerchain.provider.ethereum_tester.add_account(staker_private_key, password=INSECURE_DEVELOPMENT_PASSWORD)
+        address = testerchain.provider.ethereum_tester.add_account(staker_private_key,
+                                                                   password=INSECURE_DEVELOPMENT_PASSWORD)
 
     tx = {'to': address,
           'from': testerchain.etherbase_account,
@@ -917,6 +969,7 @@ def mock_transacting_power_activation(testerchain):
 
 @pytest.fixture(scope="module")
 def fleet_of_highperf_mocked_ursulas(ursula_federated_test_config, request):
+    # good_serials = _determine_good_serials(10000, 50000)
     try:
         quantity = request.param
     except AttributeError:
@@ -927,10 +980,14 @@ def fleet_of_highperf_mocked_ursulas(ursula_federated_test_config, request):
                 _ursulas = make_federated_ursulas(ursula_config=ursula_federated_test_config,
                                                   quantity=quantity, know_each_other=False)
                 all_ursulas = {u.checksum_address: u for u in _ursulas}
+
                 for ursula in _ursulas:
                     ursula.known_nodes._nodes = all_ursulas
                     ursula.known_nodes.checksum = b"This is a fleet state checksum..".hex()
-    return _ursulas
+    yield _ursulas
+
+    for ursula in _ursulas:
+        del MOCK_KNOWN_URSULAS_CACHE[ursula.rest_interface.port]
 
 
 @pytest.fixture(scope="module")
@@ -945,7 +1002,9 @@ def highperf_mocked_alice(fleet_of_highperf_mocked_ursulas):
 
     with mock_cert_storage, mock_verify_node, mock_record_fleet_state, mock_message_verification, mock_keep_learning:
         alice = config.produce(known_nodes=list(fleet_of_highperf_mocked_ursulas)[:1])
-    return alice
+    yield alice
+    # TODO: Where does this really, truly belong?
+    alice._learning_task.stop()
 
 
 @pytest.fixture(scope="module")
@@ -958,9 +1017,12 @@ def highperf_mocked_bob(fleet_of_highperf_mocked_ursulas):
                               save_metadata=False,
                               reload_metadata=False)
 
-    with mock_cert_storage, mock_verify_node, mock_record_fleet_state:
+    with mock_cert_storage, mock_verify_node, mock_record_fleet_state, mock_keep_learning:
         bob = config.produce(known_nodes=list(fleet_of_highperf_mocked_ursulas)[:1])
+    yield bob
+    bob._learning_task.stop()
     return bob
+
 
 #
 # CLI

@@ -141,6 +141,7 @@ policy = alicia.grant(bob=doctor_strange,
                       m=m,
                       n=n,
                       expiration=policy_end_datetime)
+policy.publishing_mutex.block_until_complete()
 print("Done!")
 
 # For the demo, we need a way to share with Bob some additional info

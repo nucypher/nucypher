@@ -17,7 +17,6 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 
 
 import click
-import ipfshttpclient
 from umbral.keys import UmbralPublicKey
 
 from nucypher.characters.control.interfaces import EnricoInterface
@@ -78,6 +77,7 @@ def encrypt(general_config, policy_encrypting_key, message, file, ipfs):
     # Handle Ciphertext
     # TODO: This might be crossing the bridge of being application code
     if ipfs:
+        import ipfshttpclient
         emitter.message(f"Connecting to IPFS Gateway {ipfs}")
         ipfs_client = ipfshttpclient.connect(ipfs)
         cid = ipfs_client.add_str(response['message_kit'])

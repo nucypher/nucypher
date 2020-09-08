@@ -317,6 +317,8 @@ def test_ursula_init(click_runner,
                      manual_worker,
                      testerchain):
 
+    deploy_port = select_test_port()
+
     init_args = ('ursula', 'init',
                  '--network', TEMPORARY_DOMAIN,
                  '--worker-address', manual_worker,
@@ -324,7 +326,7 @@ def test_ursula_init(click_runner,
                  '--provider', TEST_PROVIDER_URI,
                  '--registry-filepath', agency_local_registry.filepath,
                  '--rest-host', MOCK_IP_ADDRESS,
-                 '--rest-port', MOCK_URSULA_STARTING_PORT)
+                 '--rest-port', deploy_port)
 
     result = click_runner.invoke(nucypher_cli,
                                  init_args,

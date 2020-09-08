@@ -36,6 +36,7 @@ class NucypherMiddlewareClient:
     library = requests
     timeout = 1.2
 
+
     def __init__(self, registry=None, *args, **kwargs):
         self.registry = registry
 
@@ -144,6 +145,10 @@ class RestMiddleware:
 
     _client_class = NucypherMiddlewareClient
 
+    TEACHER_NODES = {
+        'ibex': ('https://ibex.nucypher.network:9151',),
+    }
+
     class UnexpectedResponse(Exception):
         def __init__(self, message, status, *args, **kwargs):
             super().__init__(message, *args, **kwargs)
@@ -187,7 +192,7 @@ class RestMiddleware:
                                                          backend=default_backend())
             return certificate
 
-    def consider_arrangement(self, arrangement):
+    def propose_arrangement(self, arrangement):
         node = arrangement.ursula
         response = self.client.post(node_or_sprout=node,
                                     path="consider_arrangement",

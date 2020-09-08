@@ -19,31 +19,63 @@ from base64 import b64encode
 
 import pytest
 
-from nucypher.characters.control.interfaces import AliceInterface, BobInterface, EnricoInterface
+from nucypher.characters.control.interfaces import AliceInterface
+from nucypher.characters.control.interfaces import BobInterface, EnricoInterface
 from nucypher.crypto.powers import DecryptingPower, SigningPower
-from nucypher.policy.collections import TreasureMap
+from nucypher.policy.collections import SignedTreasureMap
+from tests.utils.controllers import get_fields, validate_json_rpc_response_data
 
 
-def get_fields(interface, method_name):
+def test_bob_rpc_character_control_join_policy(bob_rpc_controller, join_control_request, enacted_blockchain_policy):
+    # Simulate passing in a teacher-uri
+    enacted_blockchain_policy.bob.remember_node(list(enacted_blockchain_policy.accepted_ursulas)[0])
 
-    spec = getattr(interface, method_name)._schema
-    input_fields = [k for k, f in spec.load_fields.items() if f.required]
-    optional_fields = [k for k, f in spec.load_fields.items() if not f.required]
-    required_output_fileds = list(spec.dump_fields.keys())
-
-    return (
-        input_fields,
-        optional_fields,
-        required_output_fileds
-    )
+    method_name, params = join_control_request
+    request_data = {'method': method_name, 'params': params}
+    response = bob_rpc_controller.send(request_data)
+    assert validate_json_rpc_response_data(response=response,
+                                           method_name=method_name,
+                                           interface=BobInterface)
 
 
-def validate_json_rpc_response_data(response, method_name, interface):
-    required_output_fields = get_fields(interface, method_name)[-1]
-    assert 'jsonrpc' in response.data
-    for output_field in required_output_fields:
-        assert output_field in response.content
-    return True
+def test_enrico_rpc_character_control_encrypt_message(enrico_rpc_controller_test_client, encrypt_control_request):
+    method_name, params = encrypt_control_request
+    request_data = {'method': method_name, 'params': params}
+    response = enrico_rpc_controller_test_client.send(request_data)
+    assert validate_json_rpc_response_data(response=response,
+                                           method_name=method_name,
+                                           interface=EnricoInterface)
+
+
+def test_bob_rpc_character_control_retrieve_with_tmap(
+        enacted_blockchain_policy, blockchain_bob, blockchain_alice,
+        bob_rpc_controller, retrieve_control_request):
+
+    # So that this test can run even independently.
+    if not blockchain_bob.done_seeding:
+        blockchain_bob.learn_from_teacher_node()
+
+    tmap_64 = b64encode(bytes(enacted_blockchain_policy.treasure_map)).decode()
+    method_name, params = retrieve_control_request
+    params['treasure_map'] = tmap_64
+    request_data = {'method': method_name, 'params': params}
+    response = bob_rpc_controller.send(request_data)
+    assert response.data['result']['cleartexts'][0] == 'Welcome to flippering number 1.'
+
+    # Make a wrong (empty) treasure map
+
+    wrong_tmap = SignedTreasureMap(m=0)
+    wrong_tmap.prepare_for_publication(
+        blockchain_bob.public_keys(DecryptingPower),
+        blockchain_bob.public_keys(SigningPower),
+        blockchain_alice.stamp,
+        b'Wrong!')
+    wrong_tmap._blockchain_signature = b"this is not a signature, but we don't need one for this test....."  # ...because it only matters when Ursula looks at it.
+    tmap_bytes = bytes(wrong_tmap)
+    tmap_64 = b64encode(tmap_bytes).decode()
+    request_data['params']['treasure_map'] = tmap_64
+    with pytest.raises(SignedTreasureMap.IsDisorienting):
+        bob_rpc_controller.send(request_data)
 
 
 def test_alice_rpc_character_control_create_policy(alice_rpc_test_client, create_policy_control_request):
@@ -82,6 +114,7 @@ def test_alice_rpc_character_control_create_policy(alice_rpc_test_client, create
         assert rpc_response.success is True
         assert rpc_response.id == response_id
 
+
 def test_alice_rpc_character_control_bad_input(alice_rpc_test_client, create_policy_control_request):
     alice_rpc_test_client.__class__.MESSAGE_ID = 0
 
@@ -90,6 +123,7 @@ def test_alice_rpc_character_control_bad_input(alice_rpc_test_client, create_pol
 
     response = alice_rpc_test_client.send(request={'bogus': 'input'}, malformed=True)
     assert response.error_code == -32600
+
 
 def test_alice_rpc_character_control_derive_policy_encrypting_key(alice_rpc_test_client):
     method_name = 'derive_policy_encrypting_key'
@@ -108,58 +142,3 @@ def test_alice_rpc_character_control_grant(alice_rpc_test_client, grant_control_
     assert validate_json_rpc_response_data(response=response,
                                            method_name=method_name,
                                            interface=AliceInterface)
-
-
-def test_bob_rpc_character_control_join_policy(bob_rpc_controller, join_control_request, enacted_federated_policy):
-
-    # Simulate passing in a teacher-uri
-    enacted_federated_policy.bob.remember_node(list(enacted_federated_policy.accepted_ursulas)[0])
-
-    method_name, params = join_control_request
-    request_data = {'method': method_name, 'params': params}
-    response = bob_rpc_controller.send(request_data)
-    assert validate_json_rpc_response_data(response=response,
-                                           method_name=method_name,
-                                           interface=BobInterface)
-
-
-def test_enrico_rpc_character_control_encrypt_message(enrico_rpc_controller_test_client, encrypt_control_request):
-    method_name, params = encrypt_control_request
-    request_data = {'method': method_name, 'params': params}
-    response = enrico_rpc_controller_test_client.send(request_data)
-    assert validate_json_rpc_response_data(response=response,
-                                           method_name=method_name,
-                                           interface=EnricoInterface)
-
-
-def test_bob_rpc_character_control_retrieve(bob_rpc_controller, retrieve_control_request):
-    method_name, params = retrieve_control_request
-    request_data = {'method': method_name, 'params': params}
-    response = bob_rpc_controller.send(request_data)
-    assert validate_json_rpc_response_data(response=response,
-                                           method_name=method_name,
-                                           interface=BobInterface)
-
-
-def test_bob_rpc_character_control_retrieve_with_tmap(
-        enacted_blockchain_policy, blockchain_bob, blockchain_alice,
-        bob_rpc_controller, retrieve_control_request):
-    tmap_64 = b64encode(bytes(enacted_blockchain_policy.treasure_map)).decode()
-    method_name, params = retrieve_control_request
-    params['treasure_map'] = tmap_64
-    request_data = {'method': method_name, 'params': params}
-    response = bob_rpc_controller.send(request_data)
-    assert response.data['result']['cleartexts'][0] == 'Welcome to flippering number 1.'
-
-    # Make a wrong (empty) treasure map
-
-    wrong_tmap = TreasureMap(m=0)
-    wrong_tmap.prepare_for_publication(
-            blockchain_bob.public_keys(DecryptingPower),
-            blockchain_bob.public_keys(SigningPower),
-            blockchain_alice.stamp,
-            b'Wrong!')
-    tmap_64 = b64encode(bytes(wrong_tmap)).decode()
-    request_data['params']['treasure_map'] = tmap_64
-    with pytest.raises(TreasureMap.IsDisorienting):
-        bob_rpc_controller.send(request_data)

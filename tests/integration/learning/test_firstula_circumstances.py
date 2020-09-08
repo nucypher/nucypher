@@ -23,34 +23,27 @@ from nucypher.network.middleware import RestMiddleware
 from tests.utils.ursula import make_federated_ursulas
 
 
-def test_proper_seed_node_instantiation(ursula_federated_test_config):
-    lonely_ursula_maker = partial(make_federated_ursulas,
-                                  ursula_config=ursula_federated_test_config,
-                                  quantity=1,
-                                  know_each_other=False)
-
-    firstula = lonely_ursula_maker().pop()
+def test_proper_seed_node_instantiation(lonely_ursula_maker):
+    _lonely_ursula_maker = partial(lonely_ursula_maker, quantity=1)
+    firstula = _lonely_ursula_maker().pop()
     firstula_as_seed_node = firstula.seed_node_metadata()
-    any_other_ursula = lonely_ursula_maker(seed_nodes=[firstula_as_seed_node]).pop()
+    any_other_ursula = _lonely_ursula_maker(seed_nodes=[firstula_as_seed_node], domains=["useless domain"]).pop()
 
     assert not any_other_ursula.known_nodes
+    # print(f"**********************Starting {any_other_ursula} loop")
     any_other_ursula.start_learning_loop(now=True)
     assert firstula in any_other_ursula.known_nodes
 
 
 @pt.inlineCallbacks
-def test_get_cert_from_running_seed_node(ursula_federated_test_config):
-    lonely_ursula_maker = partial(make_federated_ursulas,
-                                  ursula_config=ursula_federated_test_config,
-                                  quantity=1,
-                                  know_each_other=False)
+def test_get_cert_from_running_seed_node(lonely_ursula_maker):
 
     firstula = lonely_ursula_maker().pop()
     node_deployer = firstula.get_deployer()
 
     node_deployer.addServices()
     node_deployer.catalogServers(node_deployer.hendrix)
-    node_deployer.start()
+    node_deployer.start()   # If this port happens not to be open, we'll get an error here.  THis might be one of the few sane places to reintroduce a check.
 
     certificate_as_deployed = node_deployer.cert.to_cryptography()
 
@@ -59,15 +52,7 @@ def test_get_cert_from_running_seed_node(ursula_federated_test_config):
                                            network_middleware=RestMiddleware()).pop()
     assert not any_other_ursula.known_nodes
 
-    def start_lonely_learning_loop():
-        any_other_ursula.log.info(
-            "Known nodes when starting learning loop were: {}".format(any_other_ursula.known_nodes))
-        any_other_ursula.start_learning_loop()
-        result = any_other_ursula.block_until_specific_nodes_are_known(set([firstula.checksum_address]),
-                                                                       timeout=2)
-        assert result
-
-    yield deferToThread(start_lonely_learning_loop)
+    yield deferToThread(any_other_ursula.load_seednodes)
     assert firstula in any_other_ursula.known_nodes
 
     firstula_as_learned = any_other_ursula.known_nodes[firstula.checksum_address]

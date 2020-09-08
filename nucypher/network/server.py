@@ -171,53 +171,12 @@ def make_rest_app(
             signature = this_node.stamp(payload)
             return Response(bytes(signature) + payload, headers=headers)
 
-        sprouts = _node_class.batch_from_bytes(request.data,
-                                             registry=this_node.registry)
+        sprouts = _node_class.batch_from_bytes(request.data)
 
-        # TODO: This logic is basically repeated in learn_from_teacher_node and remember_node.
-        # Let's find a better way.  #555
         for node in sprouts:
-            @crosstown_traffic()
-            def learn_about_announced_nodes():
-                if node in this_node.known_nodes:
-                    if node.timestamp <= this_node.known_nodes[node.checksum_address].timestamp:
-                        return
+            this_node.remember_node(node)
 
-                node.mature()
-
-                try:
-                    node.verify_node(this_node.network_middleware.client,
-                                     registry=this_node.registry)
-
-                # Suspicion
-                except node.SuspiciousActivity as e:
-                    # 355
-                    # TODO: Include data about caller?
-                    # TODO: Account for possibility that stamp, rather than interface, was bad.
-                    # TODO: Maybe also record the bytes representation separately to disk?
-                    message = f"Suspicious Activity about {node}: {str(e)}.  Announced via REST."
-                    log.warn(message)
-                    this_node.suspicious_activities_witnessed['vladimirs'].append(node)
-                except NodeSeemsToBeDown as e:
-                    # This is a rather odd situation - this node *just* contacted us and asked to be verified.  Where'd it go?  Maybe a NAT problem?
-                    log.info(f"Node announced itself to us just now, but seems to be down: {node}.  Response was {e}.")
-                    log.debug(f"Phantom node certificate: {node.certificate}")
-                # Async Sentinel
-                except Exception as e:
-                    log.critical(f"This exception really needs to be handled differently: {e}")
-                    raise
-
-                # Believable
-                else:
-                    log.info("Learned about previously unknown node: {}".format(node))
-                    this_node.remember_node(node)
-                    # TODO: Record new fleet state
-
-                # Cleanup
-                finally:
-                    forgetful_node_storage.forget()
-
-        # TODO: What's the right status code here?  202?  Different if we already knew about the node?
+        # TODO: What's the right status code here?  202?  Different if we already knew about the node(s)?
         return all_known_nodes()
 
     @rest_app.route('/consider_arrangement', methods=['POST'])
@@ -377,27 +336,48 @@ def make_rest_app(
 
     @rest_app.route('/treasure_map/<treasure_map_id>', methods=['POST'])
     def receive_treasure_map(treasure_map_id):
-        from nucypher.policy.collections import TreasureMap
+        # TODO: Any of the codepaths that trigger 4xx Responses here are also SuspiciousActivity.
+        if not this_node.federated_only:
+            from nucypher.policy.collections import SignedTreasureMap as _MapClass
+        else:
+            from nucypher.policy.collections import TreasureMap as _MapClass
 
         try:
-            treasure_map = TreasureMap.from_bytes(bytes_representation=request.data, verify=True)
-        except TreasureMap.InvalidSignature:
-            do_store = False
+            treasure_map = _MapClass.from_bytes(bytes_representation=request.data, verify=True)
+        except _MapClass.InvalidSignature:
+            log.info("Bad TreasureMap HRAC Signature; not storing {}".format(treasure_map_id))
+            return Response("This TreasureMap's HRAC is not properly signed.", status=401)
+
+        treasure_map_index = bytes.fromhex(treasure_map_id)
+
+        # First let's see if we already have this map.
+
+        try:
+            previously_saved_map = this_node.treasure_maps[treasure_map_index]
+        except KeyError:
+            pass # We don't have the map.  We'll validate and perhaps save it.
         else:
-            # TODO: If we include the policy ID in this check, does that prevent map spam?  1736
-            do_store = treasure_map.public_id() == treasure_map_id
+            if previously_saved_map == treasure_map:
+                return Response("Already have this map.", status=303)
+                # Otherwise, if it's a different map with the same ID, we move on to validation.
+
+        if treasure_map.public_id() == treasure_map_id:
+            do_store = True
+        else:
+            return Response("Can't save a TreasureMap with this ID from you.", status=409)
+
+        if do_store and not this_node.federated_only:
+            alice_checksum_address = this_node.policy_agent.contract.functions.getPolicyOwner(
+                treasure_map._hrac[:16]).call()
+            do_store = treasure_map.verify_blockchain_signature(checksum_address=alice_checksum_address)
 
         if do_store:
             log.info("{} storing TreasureMap {}".format(this_node, treasure_map_id))
-
-            # TODO 341 - what if we already have this TreasureMap?
-            treasure_map_index = bytes.fromhex(treasure_map_id)
             this_node.treasure_maps[treasure_map_index] = treasure_map
             return Response(bytes(treasure_map), status=202)
         else:
-            # TODO: Make this a proper 500 or whatever.  #341
             log.info("Bad TreasureMap ID; not storing {}".format(treasure_map_id))
-            assert False
+            return Response("This TreasureMap doesn't match a paid Policy.", status=402)
 
     @rest_app.route('/status/', methods=['GET'])
     def status():

@@ -29,6 +29,8 @@ from constant_sorrow.constants import (
 from eth_utils.address import is_checksum_address
 from tempfile import TemporaryDirectory
 from typing import Callable, List, Set, Union
+
+from nucypher.characters.lawful import Ursula
 from umbral.signing import Signature
 
 from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
@@ -60,6 +62,9 @@ class CharacterConfiguration(BaseConfiguration):
     DEFAULT_DOMAIN = NetworksInventory.DEFAULT
     DEFAULT_NETWORK_MIDDLEWARE = RestMiddleware
     TEMP_CONFIGURATION_DIR_PREFIX = 'tmp-nucypher'
+
+    # When we begin to support other threshold schemes, this will be one of the concepts that makes us want a factory.  #571
+    known_node_class = Ursula
 
     # Gas
     DEFAULT_GAS_STRATEGY = 'fast'
@@ -93,6 +98,7 @@ class CharacterConfiguration(BaseConfiguration):
                  domains: Set[str] = None,  # TODO: Mapping between learning domains and "registry" domains - #1580
                  interface_signature: Signature = None,
                  network_middleware: RestMiddleware = None,
+                 lonely: bool = False,
 
                  # Node Storage
                  known_nodes: set = None,
@@ -152,6 +158,7 @@ class CharacterConfiguration(BaseConfiguration):
         self.save_metadata = save_metadata
         self.reload_metadata = reload_metadata
         self.known_nodes = known_nodes or set()  # handpicked
+        self.lonely = lonely
 
         # Configuration
         self.__dev_mode = dev_mode
@@ -400,6 +407,7 @@ class CharacterConfiguration(BaseConfiguration):
             start_learning_now=self.start_learning_now,
             save_metadata=self.save_metadata,
             node_storage=self.node_storage.payload(),
+            lonely=self.lonely,
         )
 
         # Optional values (mode)

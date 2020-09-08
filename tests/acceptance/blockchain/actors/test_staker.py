@@ -21,6 +21,7 @@ from eth_tester.exceptions import TransactionFailed
 from nucypher.blockchain.eth.agents import ContractAgency, StakingEscrowAgent
 from nucypher.blockchain.eth.token import NU, Stake
 from nucypher.blockchain.eth.utils import datetime_at_period
+from nucypher.crypto.powers import TransactingPower
 from tests.constants import FEE_RATE_RANGE, INSECURE_DEVELOPMENT_PASSWORD, DEVELOPMENT_TOKEN_AIRDROP_AMOUNT
 from tests.utils.blockchain import token_airdrop
 from tests.utils.ursula import make_decentralized_ursulas
@@ -33,7 +34,8 @@ def test_staker_locking_tokens(testerchain, agency, staker, token_economics, moc
 
     assert NU(token_economics.minimum_allowed_locked, 'NuNit') < staker.token_balance, "Insufficient staker balance"
 
-    staker.initialize_stake(amount=NU(token_economics.minimum_allowed_locked, 'NuNit'),  # Lock the minimum amount of tokens
+    staker.initialize_stake(amount=NU(token_economics.minimum_allowed_locked, 'NuNit'),
+                            # Lock the minimum amount of tokens
                             lock_periods=token_economics.minimum_locked_periods)
 
     # Verify that the escrow is "approved" to receive tokens
@@ -52,8 +54,8 @@ def test_staker_locking_tokens(testerchain, agency, staker, token_economics, moc
 
 @pytest.mark.usefixtures("agency")
 def test_staker_divides_stake(staker, token_economics):
-    stake_value = NU(token_economics.minimum_allowed_locked*5, 'NuNit')
-    new_stake_value = NU(token_economics.minimum_allowed_locked*2, 'NuNit')
+    stake_value = NU(token_economics.minimum_allowed_locked * 5, 'NuNit')
+    new_stake_value = NU(token_economics.minimum_allowed_locked * 2, 'NuNit')
 
     stake_index = 0
     staker.initialize_stake(amount=stake_value, lock_periods=int(token_economics.minimum_locked_periods))
@@ -108,8 +110,10 @@ def test_staker_divides_stake(staker, token_economics):
                                        economics=token_economics)
 
     assert 4 == len(staker.stakes), 'A new stake was not added after two stake divisions'
-    assert expected_old_stake == staker.stakes[stake_index + 1].to_stake_info(), 'Old stake values are invalid after two stake divisions'
-    assert expected_new_stake == staker.stakes[stake_index + 2].to_stake_info(), 'New stake values are invalid after two stake divisions'
+    assert expected_old_stake == staker.stakes[
+        stake_index + 1].to_stake_info(), 'Old stake values are invalid after two stake divisions'
+    assert expected_new_stake == staker.stakes[
+        stake_index + 2].to_stake_info(), 'New stake values are invalid after two stake divisions'
     assert expected_yet_another_stake.value == staker.stakes[stake_index + 3].value, 'Third stake values are invalid'
 
 
@@ -221,7 +225,6 @@ def test_staker_merges_stakes(agency, staker, token_economics):
 
 
 def test_staker_manages_restaking(testerchain, test_registry, staker):
-
     # Enable Restaking
     receipt = staker.enable_restaking()
     assert receipt['status'] == 1
@@ -237,7 +240,7 @@ def test_staker_manages_restaking(testerchain, test_registry, staker):
     assert staker.restaking_lock_enabled
 
     with pytest.raises((TransactionFailed, ValueError)):
-      staker.disable_restaking()
+        staker.disable_restaking()
 
     # Wait until terminal period
     testerchain.time_travel(periods=2)
@@ -264,8 +267,10 @@ def test_staker_collects_staking_reward(testerchain,
 
     mock_transacting_power_activation(account=staker.checksum_address, password=INSECURE_DEVELOPMENT_PASSWORD)
 
-    staker.initialize_stake(amount=NU(token_economics.minimum_allowed_locked, 'NuNit'),  # Lock the minimum amount of tokens
-                            lock_periods=int(token_economics.minimum_locked_periods))    # ... for the fewest number of periods
+    staker.initialize_stake(amount=NU(token_economics.minimum_allowed_locked, 'NuNit'),
+                            # Lock the minimum amount of tokens
+                            lock_periods=int(
+                                token_economics.minimum_locked_periods))  # ... for the fewest number of periods
 
     # Get an unused address for a new worker
     worker_address = testerchain.unassigned_accounts[-1]
@@ -280,7 +285,8 @@ def test_staker_collects_staking_reward(testerchain,
 
     # ...mint few tokens...
     for _ in range(2):
-        ursula.transacting_power.activate(password=INSECURE_DEVELOPMENT_PASSWORD)
+        transacting_power = ursula._crypto_power.power_ups(TransactingPower)
+        transacting_power.activate(password=INSECURE_DEVELOPMENT_PASSWORD)
         ursula.commit_to_next_period()
         testerchain.time_travel(periods=1)
 
@@ -322,6 +328,10 @@ def test_staker_manages_winding_down(testerchain,
                                         commit_to_next_period=False,
                                         registry=test_registry).pop()
 
+    # Unlock
+    transacting_power = ursula._crypto_power.power_ups(TransactingPower)
+    transacting_power.activate(password=INSECURE_DEVELOPMENT_PASSWORD)
+
     # Enable winding down
     testerchain.time_travel(periods=1)
     base_duration = token_economics.minimum_locked_periods + 4
@@ -345,7 +355,6 @@ def test_staker_manages_winding_down(testerchain,
 
 
 def test_set_min_fee_rate(testerchain, test_registry, staker):
-
     # Check before set
     _minimum, default, maximum = FEE_RATE_RANGE
     assert staker.min_fee_rate == default

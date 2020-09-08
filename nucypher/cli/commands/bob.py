@@ -17,7 +17,7 @@
 import base64
 
 import click
-import ipfshttpclient
+
 
 from nucypher.characters.control.emitters import StdoutEmitter
 from nucypher.characters.control.interfaces import BobInterface
@@ -47,7 +47,8 @@ from nucypher.cli.options import (
     option_provider_uri,
     option_registry_filepath,
     option_signer_uri,
-    option_teacher_uri
+    option_teacher_uri,
+    option_lonely
 )
 from nucypher.cli.painting.help import paint_new_installation_help
 from nucypher.cli.utils import make_cli_character, setup_emitter
@@ -71,7 +72,9 @@ class BobConfigOptions:
                  middleware: RestMiddleware,
                  federated_only: bool,
                  gas_strategy: str,
-                 signer_uri: str):
+                 signer_uri: str,
+                 lonely: bool
+                 ):
 
         self.provider_uri = provider_uri
         self.signer_uri = signer_uri
@@ -83,6 +86,7 @@ class BobConfigOptions:
         self.dev = dev
         self.middleware = middleware
         self.federated_only = federated_only
+        self.lonely = lonely
 
     def create_config(self, emitter: StdoutEmitter, config_file: str) -> BobConfiguration:
         if self.dev:
@@ -95,7 +99,9 @@ class BobConfigOptions:
                 signer_uri=self.signer_uri,
                 federated_only=True,
                 checksum_address=self.checksum_address,
-                network_middleware=self.middleware)
+                network_middleware=self.middleware,
+                lonely=self.lonely
+            )
         else:
             try:
                 return BobConfiguration.from_configuration_file(
@@ -108,7 +114,9 @@ class BobConfigOptions:
                     signer_uri=self.signer_uri,
                     gas_strategy=self.gas_strategy,
                     registry_filepath=self.registry_filepath,
-                    network_middleware=self.middleware)
+                    network_middleware=self.middleware,
+                    lonely=self.lonely
+                )
             except FileNotFoundError:
                 handle_missing_configuration_file(character_config_class=BobConfiguration,
                                                   config_file=config_file)
@@ -131,6 +139,7 @@ class BobConfigOptions:
             provider_uri=self.provider_uri,
             signer_uri=self.signer_uri,
             gas_strategy=self.gas_strategy,
+            lonely=self.lonely
         )
 
     def get_updates(self) -> dict:
@@ -140,7 +149,8 @@ class BobConfigOptions:
                        registry_filepath=self.registry_filepath,
                        provider_uri=self.provider_uri,
                        signer_uri=self.signer_uri,
-                       gas_strategy=self.gas_strategy
+                       gas_strategy=self.gas_strategy,
+                       lonely=self.lonely
                        )
         # Depends on defaults being set on Configuration classes, filtrates None values
         updates = {k: v for k, v in payload.items() if v is not None}
@@ -158,7 +168,8 @@ group_config_options = group_options(
     discovery_port=option_discovery_port(),
     dev=option_dev,
     middleware=option_middleware,
-    federated_only=option_federated_only
+    federated_only=option_federated_only,
+    lonely=option_lonely,
 )
 
 
@@ -310,6 +321,7 @@ def retrieve(general_config,
         raise click.BadArgumentUsage(f'{required_fields} are required flags to retrieve')
 
     if ipfs:
+        import ipfshttpclient
         # TODO: #2108
         emitter.message(f"Connecting to IPFS Gateway {ipfs}")
         ipfs_client = ipfshttpclient.connect(ipfs)

@@ -14,37 +14,36 @@ GNU Affero General Public License for more details.
 You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
-
+import contextlib
 import json
+import random
+import time
 from base64 import b64decode, b64encode
 from collections import OrderedDict
+from datetime import datetime
+from functools import partial
+from json.decoder import JSONDecodeError
+from queue import Queue
 from random import shuffle
+from typing import Dict, Iterable, List, Set, Tuple, Union
 
 import maya
-import time
-from bytestring_splitter import BytestringKwargifier, BytestringSplitter, BytestringSplittingError, \
-    VariableLengthBytestring
-from constant_sorrow import constants
-from constant_sorrow.constants import INCLUDED_IN_BYTESTRING, PUBLIC_ONLY, STRANGER_ALICE
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives.asymmetric.ec import EllipticCurve
 from cryptography.hazmat.primitives.serialization import Encoding
 from cryptography.x509 import Certificate, NameOID, load_pem_x509_certificate
-from datetime import datetime
 from eth_utils import to_checksum_address
 from flask import Response, request
-from functools import partial
-from json.decoder import JSONDecodeError
 from twisted.internet import reactor, stdio, threads
 from twisted.internet.task import LoopingCall
-from typing import Dict, Iterable, List, Set, Tuple, Union
-from umbral import pre
-from umbral.keys import UmbralPublicKey
-from umbral.kfrags import KFrag
-from umbral.pre import UmbralCorrectnessError
-from umbral.signing import Signature
 
 import nucypher
+from bytestring_splitter import BytestringKwargifier, BytestringSplitter, BytestringSplittingError, \
+    VariableLengthBytestring
+from constant_sorrow import constants
+from constant_sorrow.constants import INCLUDED_IN_BYTESTRING, PUBLIC_ONLY, STRANGER_ALICE, UNKNOWN_VERSION, READY
+from nucypher.acumen.nicknames import nickname_from_seed
+from nucypher.acumen.perception import FleetSensor
 from nucypher.blockchain.eth.actors import BlockchainPolicyAuthor, Worker
 from nucypher.blockchain.eth.agents import ContractAgency, StakingEscrowAgent
 from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
@@ -70,12 +69,16 @@ from nucypher.datastore.keypairs import HostingKeypair
 from nucypher.datastore.models import PolicyArrangement
 from nucypher.network.exceptions import NodeSeemsToBeDown
 from nucypher.network.middleware import RestMiddleware
-from nucypher.network.nicknames import nickname_from_seed
 from nucypher.network.nodes import NodeSprout, Teacher
 from nucypher.network.protocols import InterfaceInfo, parse_node_uri
 from nucypher.network.server import ProxyRESTServer, TLSHostingPower, make_rest_app
 from nucypher.network.trackers import AvailabilityTracker
 from nucypher.utilities.logging import Logger
+from umbral import pre
+from umbral.keys import UmbralPublicKey
+from umbral.kfrags import KFrag
+from umbral.pre import UmbralCorrectnessError
+from umbral.signing import Signature
 
 
 class Alice(Character, BlockchainPolicyAuthor):
@@ -88,7 +91,7 @@ class Alice(Character, BlockchainPolicyAuthor):
                  # Mode
                  is_me: bool = True,
                  federated_only: bool = False,
-                 signer = None,
+                 signer=None,
 
                  # Ownership
                  checksum_address: str = None,
@@ -119,6 +122,9 @@ class Alice(Character, BlockchainPolicyAuthor):
         if is_me:
             self.m = m
             self.n = n
+
+            self._policy_queue = Queue()
+            self._policy_queue.put(READY)
         else:
             self.m = STRANGER_ALICE
             self.n = STRANGER_ALICE
@@ -191,7 +197,7 @@ class Alice(Character, BlockchainPolicyAuthor):
 
     def create_policy(self, bob: "Bob", label: bytes, **policy_params):
         """
-        Create a Policy to share uri with bob.
+        Create a Policy so that Bob has access to all resources under label.
         Generates KFrags and attaches them.
         """
 
@@ -261,6 +267,7 @@ class Alice(Character, BlockchainPolicyAuthor):
               discover_on_this_thread: bool = True,
               timeout: int = None,
               publish_treasure_map: bool = True,
+              block_until_success_is_reasonably_likely: bool = True,
               **policy_params):
 
         timeout = timeout or self.timeout
@@ -297,11 +304,17 @@ class Alice(Character, BlockchainPolicyAuthor):
 
         self.log.debug(f"Making arrangements for {policy} ... ")
         policy.make_arrangements(network_middleware=self.network_middleware,
-                                 handpicked_ursulas=handpicked_ursulas)
+                                 handpicked_ursulas=handpicked_ursulas,
+                                 discover_on_this_thread=discover_on_this_thread)
 
         # REST call happens here, as does population of TreasureMap.
         self.log.debug(f"Enacting {policy} ... ")
-        policy.enact(network_middleware=self.network_middleware, publish=publish_treasure_map)
+
+        # TODO: Make it optional to publish to blockchain?  Or is this presumptive based on the `Policy` type?
+        policy.enact(network_middleware=self.network_middleware, publish_treasure_map=publish_treasure_map)
+
+        if publish_treasure_map and block_until_success_is_reasonably_likely:
+            policy.publishing_mutex.block_until_success_is_reasonably_likely()
         return policy  # Now with TreasureMap affixed!
 
     def get_policy_encrypting_key_from_label(self, label: bytes) -> UmbralPublicKey:
@@ -535,7 +548,12 @@ class Bob(Character):
         if not self.known_nodes and not self._learning_task.running:
             # Quick sanity check - if we don't know of *any* Ursulas, and we have no
             # plans to learn about any more, than this function will surely fail.
-            raise self.NotEnoughTeachers
+            if not self.done_seeding:
+                self.learn_from_teacher_node()
+
+            # If we still don't know of any nodes, we gotta bail.
+            if not self.known_nodes:
+                raise self.NotEnoughTeachers("Can't retrieve without knowing about any nodes at all.  Pass a teacher or seed node.")
 
         treasure_map = self.get_treasure_map_from_known_ursulas(self.network_middleware,
                                                                 map_id)
@@ -563,36 +581,48 @@ class Bob(Character):
         map_id = keccak_digest(bytes(verifying_key) + hrac).hex()
         return hrac, map_id
 
-    def get_treasure_map_from_known_ursulas(self, network_middleware, map_id):
+    def get_treasure_map_from_known_ursulas(self, network_middleware, map_id, timeout=3):
         """
         Iterate through the nodes we know, asking for the TreasureMap.
         Return the first one who has it.
         """
-        from nucypher.policy.collections import TreasureMap
-        for node in self.known_nodes.shuffled():
-            try:
-                response = network_middleware.get_treasure_map_from_node(node=node, map_id=map_id)
-            except NodeSeemsToBeDown:
-                continue
-            except network_middleware.NotFound:
-                self.log.info(f"Node {node} claimed not to have TreasureMap {map_id}")
-                continue
-
-            if response.status_code == 200 and response.content:
-                try:
-                    treasure_map = TreasureMap.from_bytes(response.content)
-                except InvalidSignature:
-                    # TODO: What if a node gives a bunk TreasureMap?  NRN
-                    raise
-                break
-            else:
-                continue  # TODO: Actually, handle error case here.  NRN
+        if self.federated_only:
+            from nucypher.policy.collections import TreasureMap as _MapClass
         else:
-            # TODO: Work out what to do in this scenario -
-            #       if Bob can't get the TreasureMap, he needs to rest on the learning mutex or something.  NRN
-            raise TreasureMap.NowhereToBeFound(f"Asked {len(self.known_nodes)} nodes, but none had map {map_id} ")
+            from nucypher.policy.collections import SignedTreasureMap as _MapClass
 
-        return treasure_map
+        start = maya.now()
+
+        # Spend no more than half the timeout finding the nodes.  8 nodes is arbitrary.  Come at me.
+        self.block_until_number_of_known_nodes_is(8, timeout=timeout/2, learn_on_this_thread=True)
+        while True:
+
+            nodes_with_map = self.matching_nodes_among(self.known_nodes)
+            random.shuffle(nodes_with_map)
+
+            for node in nodes_with_map:
+                try:
+                    response = network_middleware.get_treasure_map_from_node(node=node, map_id=map_id)
+                except (*NodeSeemsToBeDown, self.NotEnoughNodes):
+                    continue
+                except network_middleware.NotFound:
+                    self.log.info(f"Node {node} claimed not to have TreasureMap {map_id}")
+                    continue
+
+                if response.status_code == 200 and response.content:
+                    try:
+                        treasure_map = _MapClass.from_bytes(response.content)
+                        return treasure_map
+                    except InvalidSignature:
+                        # TODO: What if a node gives a bunk TreasureMap?  NRN
+                        raise
+                else:
+                    continue  # TODO: Actually, handle error case here.  NRN
+            else:
+                self.learn_from_teacher_node()
+
+            if (start - maya.now()).seconds > timeout:
+                raise _MapClass.NowhereToBeFound(f"Asked {len(self.known_nodes)} nodes, but none had map {map_id} ")
 
     def work_orders_for_capsules(self,
                                  *capsules,
@@ -692,16 +722,18 @@ class Bob(Character):
             alice = Alice.from_public_keys(verifying_key=alice_verifying_key)
             compass = self.make_compass_for_alice(alice)
 
-            from nucypher.policy.collections import TreasureMap
+            if self.federated_only:
+                from nucypher.policy.collections import TreasureMap as _MapClass
+            else:
+                from nucypher.policy.collections import SignedTreasureMap as _MapClass
 
             # TODO: This LBYL is ugly and fraught with danger.  NRN
             if isinstance(treasure_map, bytes):
-                treasure_map = TreasureMap.from_bytes(treasure_map)
+                treasure_map = _MapClass.from_bytes(treasure_map)
 
             if isinstance(treasure_map, str):
                 tmap_bytes = treasure_map.encode()
-                treasure_map = TreasureMap.from_bytes(b64decode(tmap_bytes))
-
+                treasure_map = _MapClass.from_bytes(b64decode(tmap_bytes))
             treasure_map.orient(compass)
             _unknown_ursulas, _known_ursulas, m = self.follow_treasure_map(treasure_map=treasure_map, block=True)
         else:
@@ -746,7 +778,7 @@ class Bob(Character):
                 alice_verifying_key=alice_verifying_key,
                 *capsules_to_activate)
 
-            self.log.info(f"Found {len(complete_work_orders)} complete work orders for this Capsule ({capsule}).")
+            self.log.debug(f"Found {len(complete_work_orders)} complete WorkOrders for this Capsule ({capsule}).")
 
             if complete_work_orders:
                 if use_precedent_work_orders:
@@ -780,6 +812,10 @@ class Bob(Character):
                 if not work_order_is_useful:
                     # None of the Capsules for this particular WorkOrder need to be activated.  Move on to the next one.
                     continue
+
+                # OK, so we're going to need to do some network activity for this retrieval.  Let's make sure we've seeded.
+                if not self.done_seeding:
+                    self.learn_from_teacher_node()
 
                 # We don't have enough CFrags yet.  Let's get another one from a WorkOrder.
                 try:
@@ -835,6 +871,42 @@ class Bob(Character):
 
         return cleartexts
 
+    def matching_nodes_among(self,
+                             nodes: FleetSensor,
+                             no_less_than=7):  # Somewhat arbitrary floor here.
+        # Look for nodes whose checksum address has the second character of Bob's encrypting key in the first
+        # few characters.
+        # Think of it as a cheap knockoff hamming distance.
+        # The good news is that Bob can construct the list easily.
+        # And - famous last words incoming - there's no cognizable attack surface.
+        # Sure, Bob can mine encrypting keypairs until he gets the set of target Ursulas on which Alice can
+        # store a TreasureMap.  And then... ???... profit?
+
+        # Sanity check - do we even have enough nodes?
+        if len(nodes) < no_less_than:
+            raise ValueError(f"Can't select {no_less_than} from {len(nodes)} (Fleet state: {nodes.FleetState})")
+
+        search_boundary = 2
+        target_nodes = []
+        target_hex_match = self.public_keys(DecryptingPower).hex()[1]
+        while len(target_nodes) < no_less_than:
+            target_nodes = []
+            search_boundary += 2
+
+            if search_boundary > 42:  # We've searched the entire string and can't match any.  TODO: Portable learning is a nice idea here.
+                # Not enough matching nodes.  Fine, we'll just publish to the first few.
+                try:
+                    # TODO: This is almost certainly happening in a test.  If it does happen in production, it's a bit of a problem.  Need to fix #2124 to mitigate.
+                    target_nodes = list(nodes._nodes.values())[0:6]
+                    return target_nodes
+                except IndexError:
+                    raise self.NotEnoughNodes("There aren't enough nodes on the network to enact this policy.  Unless this is day one of the network and nodes are still getting spun up, something is bonkers.")
+
+            # TODO: 1995 all throughout here (we might not (need to) know the checksum address yet; canonical will do.)
+            # This might be a performance issue above a few thousand nodes.
+            target_nodes = [node for node in nodes if target_hex_match in node.checksum_address[2:search_boundary]]
+        return target_nodes
+
     def make_web_controller(drone_bob, crash_on_error: bool = False):
 
         app_name = bytes(drone_bob.stamp).hex()[:6]
@@ -879,7 +951,6 @@ class Bob(Character):
 
 
 class Ursula(Teacher, Character, Worker):
-
     banner = URSULA_BANNER
     _alice_class = Alice
 
@@ -917,7 +988,8 @@ class Ursula(Teacher, Character, Worker):
                  decentralized_identity_evidence: bytes = constants.NOT_SIGNED,
                  checksum_address: str = None,
                  worker_address: str = None,  # TODO: deprecate, and rename to "checksum_address"
-                 block_until_ready: bool = True,  # TODO: Must be true in order to set staker address - Allow for manual staker addr to be passed too!
+                 block_until_ready: bool = True,
+                 # TODO: Must be true in order to set staker address - Allow for manual staker addr to be passed too!
                  work_tracker: WorkTracker = None,
                  start_working_now: bool = True,
                  client_password: str = None,
@@ -949,8 +1021,9 @@ class Ursula(Teacher, Character, Worker):
         Character.__init__(self,
                            is_me=is_me,
                            checksum_address=checksum_address,
-                           start_learning_now=False,  # Handled later in this function to avoid race condition
-                           federated_only=self._federated_only_instances,  # TODO: 'Ursula' object has no attribute '_federated_only_instances' if an is_me Ursula is not inited prior to this moment  NRN
+                           start_learning_now=start_learning_now,
+                           federated_only=self._federated_only_instances,
+                           # TODO: 'Ursula' object has no attribute '_federated_only_instances' if an is_me Ursula is not inited prior to this moment  NRN
                            crypto_power=crypto_power,
                            abort_on_learning_error=abort_on_learning_error,
                            known_nodes=known_nodes,
@@ -959,9 +1032,8 @@ class Ursula(Teacher, Character, Worker):
                            **character_kwargs)
 
         if is_me:
-
             # In-Memory TreasureMap tracking
-            self._stored_treasure_maps = dict()
+            self._stored_treasure_maps = dict()  # TODO: Something more persistent (See PR #2132)
 
             # Learner
             self._start_learning_now = start_learning_now
@@ -982,25 +1054,35 @@ class Ursula(Teacher, Character, Worker):
         if is_me and not federated_only:  # TODO: #429
 
             # Prepare a TransactingPower from worker node's transacting keys
-            self.transacting_power = TransactingPower(account=worker_address,
-                                                      password=client_password,
-                                                      signer=self.signer,
-                                                      cache=True)
-            self._crypto_power.consume_power_up(self.transacting_power)
+            _transacting_power = TransactingPower(account=worker_address,
+                                                  password=client_password,
+                                                  signer=self.signer,
+                                                  cache=True)
+
+            self.transacting_power = _transacting_power
+            self._crypto_power.consume_power_up(_transacting_power)
+            self._set_checksum_address(checksum_address)
 
             # Use this power to substantiate the stamp
             self.substantiate_stamp()
-            self.log.debug(f"Created decentralized identity evidence: {self.decentralized_identity_evidence[:10].hex()}")
+            self.log.debug(
+                f"Created decentralized identity evidence: {self.decentralized_identity_evidence[:10].hex()}")
             decentralized_identity_evidence = self.decentralized_identity_evidence
 
-            Worker.__init__(self,
-                            is_me=is_me,
-                            registry=self.registry,
-                            checksum_address=checksum_address,
-                            worker_address=worker_address,
-                            work_tracker=work_tracker,
-                            start_working_now=start_working_now,
-                            block_until_ready=block_until_ready)
+            try:
+                Worker.__init__(self,
+                                is_me=is_me,
+                                registry=self.registry,
+                                checksum_address=checksum_address,
+                                worker_address=worker_address,
+                                work_tracker=work_tracker,
+                                start_working_now=start_working_now,
+                                block_until_ready=block_until_ready)
+            except (Exception, self.WorkerError):  # FIXME
+                # TODO: Do not announce self to "other nodes" until this init is finished.
+                # It's not possible to finish constructing this node.
+                self.stop(halt_reactor=False)
+                raise
 
         if not crypto_power or (TLSHostingPower not in crypto_power):
 
@@ -1123,10 +1205,11 @@ class Ursula(Teacher, Character, Worker):
             if emitter:
                 emitter.message(f"✓ Database pruning", color='green')
 
-        if learning:
-            self.start_learning_loop(now=self._start_learning_now)
-            if emitter:
-                emitter.message(f"✓ Node Discovery ({','.join(self.learning_domains)})", color='green')
+        # TODO: block until specific nodes are known here?
+        # if learning:  # TODO: Include learning startup here with the rest of the services?
+        #     self.start_learning_loop(now=self._start_learning_now)
+        #     if emitter:
+        #         emitter.message(f"✓ Node Discovery ({','.join(self.learning_domains)})", color='green')
 
         if self._availability_check and availability:
             self._availability_tracker.start(now=False)  # wait...
@@ -1177,17 +1260,22 @@ class Ursula(Teacher, Character, Worker):
                 raise  # Crash :-(
 
         elif start_reactor:  # ... without hendrix
-            reactor.run()    # <--- Blocking Call (Reactor)
+            reactor.run()  # <--- Blocking Call (Reactor)
 
     def stop(self, halt_reactor: bool = False) -> None:
-        """Stop services"""
-        self._availability_tracker.stop()
-        if self._learning_task.running:
+        """
+        Stop services for partially or fully initialized characters.
+        # CAUTION #
+        """
+        self.log.debug(f"---------Stopping {self}")
+        # Handles the shutdown of a partially initialized character.
+        with contextlib.suppress(AttributeError):  # TODO: Is this acceptable here, what are alternatives?
+            self._availability_tracker.stop()
             self.stop_learning_loop()
-        if not self.federated_only:
-            self.work_tracker.stop()
-        if self._arrangement_pruning_task.running:
-            self._arrangement_pruning_task.stop()
+            if not self.federated_only:
+                self.work_tracker.stop()
+            if self._arrangement_pruning_task.running:
+                self._arrangement_pruning_task.stop()
         if halt_reactor:
             reactor.stop()
 
@@ -1245,7 +1333,6 @@ class Ursula(Teacher, Character, Worker):
                       host: str,
                       port: int,
                       certificate_filepath,
-                      federated_only: bool,
                       *args, **kwargs
                       ):
         response_data = network_middleware.client.node_information(host, port,
@@ -1289,7 +1376,7 @@ class Ursula(Teacher, Character, Worker):
                                                        network_middleware=network_middleware,
                                                        registry=registry)
 
-            except NodeSeemsToBeDown:
+            except NodeSeemsToBeDown as e:
                 log = Logger(cls.__name__)
                 log.warn(
                     "Can't connect to seed node (attempt {}).  Will retry in {} seconds.".format(attempt, interval))
@@ -1323,7 +1410,12 @@ class Ursula(Teacher, Character, Worker):
         host, port, checksum_address = parse_node_uri(seed_uri)
 
         # Fetch the hosts TLS certificate and read the common name
-        certificate = network_middleware.get_certificate(host=host, port=port)
+        try:
+            certificate = network_middleware.get_certificate(host=host, port=port)
+        except NodeSeemsToBeDown as e:
+            e.args += (f"While trying to load seednode {seed_uri}",)
+            e.crash_right_now = True
+            raise
         real_host = certificate.subject.get_attributes_for_oid(NameOID.COMMON_NAME)[0].value
 
         # Create a temporary certificate storage area
@@ -1332,12 +1424,10 @@ class Ursula(Teacher, Character, Worker):
 
         # Load the host as a potential seed node
         potential_seed_node = cls.from_rest_url(
-            registry=registry,
             host=real_host,
             port=port,
             network_middleware=network_middleware,
             certificate_filepath=temp_certificate_filepath,
-            federated_only=federated_only,
             *args,
             **kwargs
         )
@@ -1376,7 +1466,7 @@ class Ursula(Teacher, Character, Worker):
     def from_bytes(cls,
                    ursula_as_bytes: bytes,
                    version: int = INCLUDED_IN_BYTESTRING,
-                   registry: BaseContractRegistry = None,
+                   fail_fast=False,
                    ) -> 'Ursula':
 
         if version is INCLUDED_IN_BYTESTRING:
@@ -1398,11 +1488,21 @@ class Ursula(Teacher, Character, Worker):
                 message = cls.unknown_version_message.format(display_name, version, cls.LEARNER_VERSION)
             except BytestringSplittingError:
                 message = cls.really_unknown_version_message.format(version, cls.LEARNER_VERSION)
-            raise cls.IsFromTheFuture(message)
-
-        # Version stuff checked out.  Moving on.
-        node_sprout = cls.internal_splitter(payload, partial=True)
-        return node_sprout
+                if fail_fast:
+                    raise cls.IsFromTheFuture(message)
+                else:
+                    cls.log.warn(message)
+                    return UNKNOWN_VERSION
+            else:
+                if fail_fast:
+                    raise cls.IsFromTheFuture(message)
+                else:
+                    cls.log.warn(message)
+                    return UNKNOWN_VERSION
+        else:
+            # Version stuff checked out.  Moving on.
+            node_sprout = cls.internal_splitter(payload, partial=True)
+            return node_sprout
 
     @classmethod
     def from_processed_bytes(cls, **processed_objects):
@@ -1432,7 +1532,6 @@ class Ursula(Teacher, Character, Worker):
     @classmethod
     def batch_from_bytes(cls,
                          ursulas_as_bytes: Iterable[bytes],
-                         registry: BaseContractRegistry = None,
                          fail_fast: bool = False,
                          ) -> List['Ursula']:
 
@@ -1445,13 +1544,22 @@ class Ursula(Teacher, Character, Worker):
         for version, node_bytes in versions_and_node_bytes:
             try:
                 sprout = cls.from_bytes(node_bytes,
-                                        version=version,
-                                        registry=registry)
+                                        version=version)
+                if sprout is UNKNOWN_VERSION:
+                    continue
+            except BytestringSplittingError:
+                message = cls.really_unknown_version_message.format(version, cls.LEARNER_VERSION)
+                if fail_fast:
+                    raise cls.IsFromTheFuture(message)
+                else:
+                    cls.log.warn(message)
+                    continue
             except Ursula.IsFromTheFuture as e:
                 if fail_fast:
                     raise
                 else:
                     cls.log.warn(e.args[0])
+                    continue
             else:
                 sprouts.append(sprout)
         return sprouts
@@ -1534,9 +1642,9 @@ class Enrico(Character):
     def __init__(self, policy_encrypting_key=None, controller: bool = True, *args, **kwargs):
         self._policy_pubkey = policy_encrypting_key
 
-        # Encrico never uses the blockchain, hence federated_only)
+        # Enrico never uses the blockchain, hence federated_only)
         kwargs['federated_only'] = True
-        kwargs['known_node_class'] = Ursula
+        kwargs['known_node_class'] = None
         super().__init__(*args, **kwargs)
 
         if controller:
@@ -1569,6 +1677,11 @@ class Enrico(Character):
         if not self._policy_pubkey:
             raise TypeError("This Enrico doesn't know which policy encrypting key he used.  Oh well.")
         return self._policy_pubkey
+
+    def _set_known_node_class(self, *args, **kwargs):
+        """
+        Enrico doesn't init nodes, so it doesn't care what class they are.
+        """
 
     def make_web_controller(drone_enrico, crash_on_error: bool = False):
 

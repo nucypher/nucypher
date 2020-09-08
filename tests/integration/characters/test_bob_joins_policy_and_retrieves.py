@@ -74,8 +74,8 @@ def test_bob_joins_policy_and_retrieves(federated_alice,
               known_nodes=a_couple_of_ursulas,
               )
 
-    # Bob only knows a couple of Ursulas initially
-    assert len(bob.known_nodes) == 2
+    # Bob has only connected to - at most - 2 nodes.
+    assert sum(node.verified_node for node in bob.known_nodes) <= 2
 
     # Alice creates a policy granting access to Bob
     # Just for fun, let's assume she distributes KFrags among Ursulas unknown to Bob
@@ -93,10 +93,24 @@ def test_bob_joins_policy_and_retrieves(federated_alice,
     assert bob == policy.bob
     assert label == policy.label
 
-    # Now, Bob joins the policy
-    bob.join_policy(label=label,
-                    alice_verifying_key=federated_alice.stamp,
-                    block=True)
+    try:
+        # Now, Bob joins the policy
+        bob.join_policy(label=label,
+                        alice_verifying_key=federated_alice.stamp,
+                        block=True)
+    except policy.treasure_map.NowhereToBeFound:
+        maps = []
+        for ursula in federated_ursulas:
+            for map in ursula.treasure_maps.values():
+                maps.append(map)
+        if policy.treasure_map in maps:
+            # This is a nice place to put a breakpoint to examine Bob's failure to join a policy.
+            bob.join_policy(label=label,
+                            alice_verifying_key=federated_alice.stamp,
+                            block=True)
+            pytest.fail(f"Bob didn't find map {policy.treasure_map} even though it was available.  Come on, Bob.")
+        else:
+            pytest.fail(f"It seems that Alice didn't publish {policy.treasure_map}.  Come on, Alice.")
 
     # In the end, Bob should know all the Ursulas
     assert len(bob.known_nodes) == len(federated_ursulas)
@@ -156,6 +170,8 @@ def test_bob_joins_policy_and_retrieves(federated_alice,
                                    alice_verifying_key=alices_verifying_key,
                                    label=policy.label,
                                    )
+
+    bob.disenchant()
 
 
 def test_treasure_map_serialization(enacted_federated_policy, federated_bob):

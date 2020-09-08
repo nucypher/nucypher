@@ -27,6 +27,7 @@ from nucypher.blockchain.eth.actors import Staker
 from nucypher.blockchain.eth.interfaces import BlockchainInterface
 from nucypher.characters.lawful import Ursula
 from nucypher.config.characters import UrsulaConfiguration
+from nucypher.crypto.powers import TransactingPower
 from tests.constants import (
     MOCK_URSULA_DB_FILEPATH,
     NUMBER_OF_URSULAS_IN_DEVELOPMENT_NETWORK
@@ -46,7 +47,7 @@ def select_test_port() -> int:
         open_socket.bind(('localhost', 0))
         port = open_socket.getsockname()[1]
 
-        if port == UrsulaConfiguration.DEFAULT_REST_PORT:
+        if port == UrsulaConfiguration.DEFAULT_REST_PORT or port > 64000:
             return select_test_port()
 
         open_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
@@ -64,6 +65,7 @@ def make_federated_ursulas(ursula_config: UrsulaConfiguration,
         starting_port = max(MOCK_KNOWN_URSULAS_CACHE.keys()) + 1
 
     federated_ursulas = set()
+
     for port in range(starting_port, starting_port+quantity):
 
         ursula = ursula_config.produce(rest_port=port + 100,
@@ -73,7 +75,6 @@ def make_federated_ursulas(ursula_config: UrsulaConfiguration,
         federated_ursulas.add(ursula)
 
         # Store this Ursula in our global testing cache.
-
         port = ursula.rest_interface.port
         MOCK_KNOWN_URSULAS_CACHE[port] = ursula
 
@@ -107,7 +108,10 @@ def make_decentralized_ursulas(ursula_config: UrsulaConfiguration,
                                        rest_port=port + 100,
                                        **ursula_overrides)
         if commit_to_next_period:
-            ursula.transacting_power.activate()
+            # TODO: Is _crypto_power trying to be public?  Or is there a way to expose *something* public about TransactingPower?
+            # Do we need to revisit the concept of "public material"?  Or does this rightly belong as a method?
+            tx_power = ursula._crypto_power.power_ups(TransactingPower)
+            tx_power.activate()
             ursula.commit_to_next_period()
 
         ursulas.append(ursula)
@@ -160,4 +164,4 @@ def start_pytest_ursula_services(ursula: Ursula) -> Certificate:
 
 
 MOCK_KNOWN_URSULAS_CACHE = dict()
-MOCK_URSULA_STARTING_PORT = select_test_port()
+MOCK_URSULA_STARTING_PORT = 51000  # select_test_port()

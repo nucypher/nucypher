@@ -14,6 +14,8 @@ GNU Affero General Public License for more details.
 You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
+import argparse
+from collections import defaultdict
 
 import pytest
 
@@ -36,8 +38,14 @@ TEACHER_NODES = dict()
 # Prevent halting the reactor via health checks during tests
 AvailabilityTracker._halt_reactor = lambda *a, **kw: True
 
+# Global test character cache
+global_mutable_where_everybody = defaultdict(list)
+
 ##########################################
 
+
+from nucypher.network.nodes import Learner
+Learner._DEBUG_MODE = False
 
 @pytest.fixture(autouse=True, scope='session')
 def __very_pretty_and_insecure_scrypt_do_not_use():
@@ -92,6 +100,16 @@ def pytest_addoption(parser):
                      default=False,
                      help="run tests even if they are marked as nightly")
 
+    # class SetLearnerDebugMode((argparse.Action)):
+    #     def __call__(self, *args, **kwargs):
+    #         from nucypher.network.nodes import Learner
+    #         Learner._DEBUG_MODE = True
+
+    # parser.addoption("--track-character-lifecycles",
+    #                  action=SetLearnerDebugMode,
+    #                  default=False,
+    #                  help="Track characters in a global... mutable... where everybody...")
+
 
 def pytest_configure(config):
     message = "{0}: mark test as {0} to run (skipped by default, use '{1}' to include these tests)"
@@ -128,3 +146,44 @@ def pytest_collection_modifyitems(config, items):
     GlobalLoggerSettings.set_log_level(log_level_name)
     GlobalLoggerSettings.start_text_file_logging()
     GlobalLoggerSettings.start_json_file_logging()
+
+
+# global_mutable_where_everybody = defaultdict(list)
+
+@pytest.fixture(scope='module', autouse=True)
+def check_character_state_after_test(request):
+    from nucypher.network.nodes import Learner
+    yield
+    if Learner._DEBUG_MODE:
+        gmwe = global_mutable_where_everybody
+        module_name = request.module.__name__
+
+        test_learners = global_mutable_where_everybody.get(module_name, [])
+        # Those match the module name exactly; maybe there are some that we got by frame.
+        for maybe_frame, learners in global_mutable_where_everybody.items():
+            if f"{module_name}.py" in maybe_frame:
+                test_learners.extend(learners)
+
+        crashed = [learner for learner in test_learners if learner._crashed]
+
+        if any(crashed):
+            failure_message = ""
+            for learner in crashed:
+                failure_message += learner._crashed.getBriefTraceback()
+            pytest.fail(f"Some learners crashed:{failure_message}")
+
+        still_running = [learner for learner in test_learners if learner._learning_task.running]
+
+        if any(still_running):
+            offending_tests = set()
+            for learner in still_running:
+                offending_tests.add(learner._FOR_TEST)
+                try:  # TODO: Deal with stop vs disenchant.  Currently stop is only for Ursula.
+                    learner.stop()
+                except AttributeError:
+                    learner.disenchant()
+            pytest.fail(f"Learners remaining: {still_running}.  Offending tests: {offending_tests} ")
+
+        still_tracking  = [learner for learner in test_learners if hasattr(learner, 'work_tracker') and learner.work_tracker._tracking_task.running]
+        for tracker in still_tracking:
+            tracker.work_tracker.stop()

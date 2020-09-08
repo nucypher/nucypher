@@ -29,6 +29,7 @@ from cryptography.x509 import Certificate, NameOID
 from eth_utils import is_checksum_address
 from typing import Any, Callable, Set, Tuple, Union
 
+from nucypher.acumen.nicknames import nickname_from_seed
 from nucypher.blockchain.eth.decorators import validate_checksum_address
 from nucypher.blockchain.eth.registry import BaseContractRegistry
 from nucypher.config.constants import DEFAULT_CONFIG_ROOT
@@ -135,7 +136,8 @@ class NodeStorage(ABC):
             public_pem_bytes = certificate.public_bytes(self.TLS_CERTIFICATE_ENCODING)
             certificate_file.write(public_pem_bytes)
 
-        self.log.debug(f"Saved TLS certificate for {checksum_address}: {certificate_filepath}")
+        nickname, pairs = nickname_from_seed(checksum_address)
+        self.log.debug(f"Saved TLS certificate for {nickname} {checksum_address}: {certificate_filepath}")
 
         return certificate_filepath
 

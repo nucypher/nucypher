@@ -54,9 +54,9 @@ class MockPolicy(Policy):
                                           hrac=self.hrac(),
                                           expiration=expiration)
 
-            self.consider_arrangement(network_middleware=network_middleware,
-                                      ursula=ursula,
-                                      arrangement=arrangement)
+            self.propose_arrangement(network_middleware=network_middleware,
+                                     ursula=ursula,
+                                     arrangement=arrangement)
 
 # TODO: Remove. Seems unused
 class MockPolicyCreation:

@@ -29,7 +29,7 @@ from tests.constants import (
     FAKE_PASSWORD_CONFIRMED, INSECURE_DEVELOPMENT_PASSWORD,
     MOCK_CUSTOM_INSTALLATION_PATH,
     MOCK_IP_ADDRESS, YES_ENTER)
-from tests.utils.ursula import MOCK_URSULA_STARTING_PORT
+from tests.utils.ursula import MOCK_URSULA_STARTING_PORT, select_test_port
 
 
 def test_initialize_ursula_defaults(click_runner, mocker):
@@ -55,13 +55,14 @@ def test_initialize_ursula_defaults(click_runner, mocker):
 
 def test_initialize_custom_configuration_root(custom_filepath, click_runner):
 
+    deploy_port = select_test_port()
     # Use a custom local filepath for configuration
     init_args = ('ursula', 'init',
                  '--network', TEMPORARY_DOMAIN,
                  '--federated-only',
                  '--config-root', custom_filepath,
                  '--rest-host', MOCK_IP_ADDRESS,
-                 '--rest-port', MOCK_URSULA_STARTING_PORT)
+                 '--rest-port', deploy_port)
     result = click_runner.invoke(nucypher_cli, init_args, input=FAKE_PASSWORD_CONFIRMED, catch_exceptions=False)
     assert result.exit_code == 0
 
@@ -139,6 +140,7 @@ def test_run_federated_ursula_from_config_file(custom_filepath, click_runner):
     run_args = ('ursula', 'run',
                 '--dry-run',
                 '--interactive',
+                '--lonely',
                 '--config-file', custom_config_filepath)
 
     result = click_runner.invoke(nucypher_cli, run_args,
@@ -148,7 +150,7 @@ def test_run_federated_ursula_from_config_file(custom_filepath, click_runner):
     # CLI Output
     assert result.exit_code == 0
     assert 'Federated' in result.output, 'WARNING: Federated ursula is not running in federated mode'
-    assert 'Connecting' in result.output
+    # assert 'Connecting' in result.output
     assert 'Running' in result.output
     assert "'help' or '?'" in result.output
 

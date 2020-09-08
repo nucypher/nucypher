@@ -15,26 +15,24 @@ You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
-import json
-import traceback
-
-import click
 import csv
-import maya
+import json
 import os
 import sys
 import time
-
-from web3.types import TxReceipt
-
-from constant_sorrow.constants import FULL, WORKER_NOT_RUNNING
 from decimal import Decimal
+from web3.types import TxReceipt
+import traceback
+import click
+import maya
 from eth_tester.exceptions import TransactionFailed as TestTransactionFailed
 from eth_utils import to_canonical_address, to_checksum_address
 from typing import Dict, Iterable, List, Optional, Tuple
 from web3 import Web3
 from web3.exceptions import ValidationError
 
+from constant_sorrow.constants import FULL, WORKER_NOT_RUNNING
+from nucypher.acumen.nicknames import nickname_from_seed
 from nucypher.blockchain.economics import BaseEconomics, EconomicsFactory, StandardTokenEconomics
 from nucypher.blockchain.eth.agents import (
     AdjudicatorAgent,
@@ -82,7 +80,6 @@ from nucypher.cli.painting.deployment import paint_contract_deployment, paint_in
 from nucypher.cli.painting.transactions import paint_receipt_summary
 from nucypher.config.constants import DEFAULT_CONFIG_ROOT
 from nucypher.crypto.powers import TransactingPower
-from nucypher.network.nicknames import nickname_from_seed
 from nucypher.types import NuNits, Period
 from nucypher.utilities.logging import Logger
 from typing import Callable
@@ -527,7 +524,6 @@ class ContractAdministrator(NucypherTokenActor):
 
 
 class Allocator:
-
     class AllocationInputError(Exception):
         """Raised when the allocation data file doesn't have the correct format"""
 
@@ -638,7 +634,7 @@ class Allocator:
                                                                  dry_run=True,
                                                                  gas_limit=gas_limit)
             except (TestTransactionFailed, ValidationError, ValueError):  # TODO: 1950
-                self.log.debug(f"Batch of {len(test_batch)} is too big. Let's stick to {len(test_batch)-1} then")
+                self.log.debug(f"Batch of {len(test_batch)} is too big. Let's stick to {len(test_batch) - 1} then")
                 break
             else:
                 self.log.debug(f"Batch of {len(test_batch)} stakers fits in single TX ({estimated_gas} gas). "
@@ -693,7 +689,8 @@ class Trustee(MultiSigActor):
                  *args, **kwargs):
         super().__init__(checksum_address=checksum_address, *args, **kwargs)
         self.authorizations = dict()
-        self.executive_addresses = tuple(self.multisig_agent.owners)  # TODO: Investigate unresolved reference to .owners (linter)
+        self.executive_addresses = tuple(
+            self.multisig_agent.owners)  # TODO: Investigate unresolved reference to .owners (linter)
         if client_password:  # TODO: Consider an is_transacting parameter
             self.transacting_power = TransactingPower(password=client_password,
                                                       account=checksum_address)
@@ -738,7 +735,8 @@ class Trustee(MultiSigActor):
         # TODO: check for inconsistencies (nonce, etc.)
 
         r, s, v = self._combine_authorizations()
-        receipt = self.multisig_agent.execute(sender_address=self.checksum_address,   # TODO: Investigate unresolved reference to .execute
+        receipt = self.multisig_agent.execute(sender_address=self.checksum_address,
+                                              # TODO: Investigate unresolved reference to .execute
                                               v=v, r=r, s=s,
                                               destination=proposal.target_address,
                                               value=proposal.value,
@@ -1061,7 +1059,8 @@ class Staker(NucypherTokenActor):
 
         # Calculate stake duration in periods
         if expiration:
-            additional_periods = datetime_to_period(datetime=expiration, seconds_per_period=self.economics.seconds_per_period) - stake.final_locked_period
+            additional_periods = datetime_to_period(datetime=expiration,
+                                                    seconds_per_period=self.economics.seconds_per_period) - stake.final_locked_period
             if additional_periods <= 0:
                 raise ValueError(f"New expiration {expiration} must be at least 1 period from the "
                                  f"current stake's end period ({stake.final_locked_period}).")
@@ -1436,6 +1435,7 @@ class Worker(NucypherTokenActor):
 
     class UnbondedWorker(WorkerError):
         """Raised when the Worker is not bonded to a Staker in the StakingEscrow contract."""
+        crash_right_now = True
 
     def __init__(self,
                  is_me: bool,
@@ -1450,7 +1450,6 @@ class Worker(NucypherTokenActor):
 
         self.is_me = is_me
 
-        self._checksum_address = None  # Stake Address
         self.__worker_address = worker_address
 
         # Agency
@@ -1469,10 +1468,12 @@ class Worker(NucypherTokenActor):
         if is_me:
             if block_until_ready:
                 self.block_until_ready()
-            self.stakes = StakeList(registry=self.registry, checksum_address=self.checksum_address)
-            self.stakes.refresh()
 
-            self.work_tracker = work_tracker or WorkTracker(worker=self)
+            if start_working_now:
+                self.stakes = StakeList(registry=self.registry, checksum_address=self.checksum_address)
+                self.stakes.refresh()
+                self.work_tracker = work_tracker or WorkTracker(worker=self)
+                self.work_tracker.start(act_now=start_working_now)
 
     def block_until_ready(self, poll_rate: int = None, timeout: int = None):
         """
@@ -1522,9 +1523,11 @@ class Worker(NucypherTokenActor):
                 delta = now - start
                 if delta.total_seconds() >= timeout:
                     if staking_address == NULL_ADDRESS:
-                        raise self.UnbondedWorker(f"Worker {self.__worker_address} not bonded after waiting {timeout} seconds.")
+                        raise self.UnbondedWorker(
+                            f"Worker {self.__worker_address} not bonded after waiting {timeout} seconds.")
                     elif not ether_balance:
-                        raise RuntimeError(f"Worker {self.__worker_address} has no ether after waiting {timeout} seconds.")
+                        raise RuntimeError(
+                            f"Worker {self.__worker_address} has no ether after waiting {timeout} seconds.")
 
             # Increment
             time.sleep(poll_rate)
@@ -1681,6 +1684,7 @@ class Wallet:
     """
     Account management abstraction on top of blockchain providers and external signers
     """
+
     class UnknownAccount(KeyError):
         pass
 
@@ -1751,7 +1755,6 @@ class Wallet:
 
 
 class StakeHolder(Staker):
-
     banner = STAKEHOLDER_BANNER
 
     #
@@ -1973,7 +1976,8 @@ class Bidder(NucypherTokenActor):
     def _get_max_bonus_bid_from_max_stake(self) -> int:
         """Returns maximum allowed bid calculated from maximum allowed locked tokens"""
         max_bonus_tokens = self.economics.maximum_allowed_locked - self.economics.minimum_allowed_locked
-        bonus_eth_supply = sum(self._all_bonus_bidders.values()) if self._all_bonus_bidders else self.worklock_agent.get_bonus_eth_supply()
+        bonus_eth_supply = sum(
+            self._all_bonus_bidders.values()) if self._all_bonus_bidders else self.worklock_agent.get_bonus_eth_supply()
         bonus_worklock_supply = self.worklock_agent.get_bonus_lot_value()
         max_bonus_bid = max_bonus_tokens * bonus_eth_supply // bonus_worklock_supply
         return max_bonus_bid
@@ -2020,7 +2024,7 @@ class Bidder(NucypherTokenActor):
 
         a = min_whale_bonus_bid * bonus_worklock_supply - max_bonus_tokens * bonus_eth_supply
         b = bonus_worklock_supply - max_bonus_tokens * len(whales)
-        refund = -(-a//b)  # div ceil
+        refund = -(-a // b)  # div ceil
         min_whale_bonus_bid -= refund
         whales = dict.fromkeys(whales.keys(), min_whale_bonus_bid)
         self._all_bonus_bidders.update(whales)

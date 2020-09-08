@@ -557,7 +557,7 @@ class WorkTracker:
             self._tracking_task.stop()
             self.log.info(f"STOPPED WORK TRACKING")
 
-    def start(self, act_now: bool = False, requirement_func: Callable = None, force: bool = False) -> None:
+    def start(self, act_now: bool = True, requirement_func: Callable = None, force: bool = False) -> None:
         """
         High-level stake tracking initialization, this function aims
         to be safely called at any time - For example, it is okay to call

@@ -36,7 +36,7 @@ from tests.constants import (
     MOCK_IP_ADDRESS,
     TEST_PROVIDER_URI
 )
-from tests.utils.ursula import MOCK_URSULA_STARTING_PORT
+from tests.utils.ursula import MOCK_URSULA_STARTING_PORT, select_test_port
 
 
 @pytest.fixture(scope='module')
@@ -107,13 +107,15 @@ def test_ursula_and_local_keystore_signer_integration(click_runner,
     pre_config_signer = KeystoreSigner.from_signer_uri(uri=mock_signer_uri)
     assert worker_account.address in pre_config_signer.accounts
 
+    deploy_port = select_test_port()
+
     init_args = ('ursula', 'init',
                  '--network', TEMPORARY_DOMAIN,
                  '--worker-address', worker_account.address,
                  '--config-root', config_root_path,
                  '--provider', TEST_PROVIDER_URI,
                  '--rest-host', MOCK_IP_ADDRESS,
-                 '--rest-port', MOCK_URSULA_STARTING_PORT,
+                 '--rest-port', deploy_port,
 
                  # The bit we are testing for here
                  '--signer', mock_signer_uri)
@@ -146,15 +148,18 @@ def test_ursula_and_local_keystore_signer_integration(click_runner,
     ursula = ursula_config.produce(client_password=password,
                                    block_until_ready=False)
 
-    # Verify the keystore path is still preserved
-    assert isinstance(ursula.signer, KeystoreSigner)
-    assert isinstance(ursula.signer.path, str), "Use str"
-    assert ursula.signer.path == str(mock_keystore_path)
+    try:
+        # Verify the keystore path is still preserved
+        assert isinstance(ursula.signer, KeystoreSigner)
+        assert isinstance(ursula.signer.path, str), "Use str"
+        assert ursula.signer.path == str(mock_keystore_path)
 
-    # Show that we can produce the exact same signer as pre-config...
-    assert pre_config_signer.path == ursula.signer.path
+        # Show that we can produce the exact same signer as pre-config...
+        assert pre_config_signer.path == ursula.signer.path
 
-    # ...and that transactions are signed by the keytore signer
-    receipt = ursula.commit_to_next_period()
-    transaction_data = testerchain.client.w3.eth.getTransaction(receipt['transactionHash'])
-    assert transaction_data['from'] == worker_account.address
+        # ...and that transactions are signed by the keytore signer
+        receipt = ursula.commit_to_next_period()
+        transaction_data = testerchain.client.w3.eth.getTransaction(receipt['transactionHash'])
+        assert transaction_data['from'] == worker_account.address
+    finally:
+        ursula.stop()

@@ -167,6 +167,7 @@ Whitepapers
    api/nucypher.network
    api/nucypher.datastore
    api/nucypher.crypto
+   api/nucypher.acumen
 
 .. toctree::
    :maxdepth: 1

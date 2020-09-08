@@ -14,8 +14,7 @@ GNU Affero General Public License for more details.
 You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
-
-
+from nucypher.config.constants import TEMPORARY_DOMAIN
 from nucypher.exceptions import DevelopmentInstallationRequired
 
 from copy import copy
@@ -41,6 +40,10 @@ class Vladimir(Ursula):
     fraud_key = 'a75d701cc4199f7646909d15f22e2e0ef6094b3e2aa47a188f35f47e8932a7b9'
     db_filepath = ':memory:'
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._checksum_address = self.fraud_address
+
     @classmethod
     def from_target_ursula(cls,
                            target_ursula: Ursula,
@@ -61,15 +64,18 @@ class Vladimir(Ursula):
         crypto_power = CryptoPower(power_ups=target_ursula._default_crypto_powerups)
 
         if claim_signing_key:
-            crypto_power.consume_power_up(SigningPower(pubkey=target_ursula.stamp.as_umbral_pubkey()))
+            crypto_power.consume_power_up(SigningPower(public_key=target_ursula.stamp.as_umbral_pubkey()))
 
         if attach_transacting_key:
-            cls.attach_transacting_key(blockchain=target_ursula.blockchain)
+            cls.attach_transacting_key(blockchain=target_ursula.policy_agent.blockchain)
 
 
         vladimir = cls(is_me=True,
                        crypto_power=crypto_power,
                        db_filepath=cls.db_filepath,
+                       domains=[TEMPORARY_DOMAIN],
+                       block_until_ready=False,
+                       start_working_now=False,
                        rest_host=target_ursula.rest_interface.host,
                        rest_port=target_ursula.rest_interface.port,
                        certificate=target_ursula.rest_server_certificate(),
@@ -81,7 +87,6 @@ class Vladimir(Ursula):
                        interface_signature=target_ursula._interface_signature,
                        #########
                        )
-
         return vladimir
 
     @classmethod
@@ -99,6 +104,22 @@ class Vladimir(Ursula):
             else:
                 raise
         return True
+
+    def publish_fraudulent_treasure_map(self, legit_treasure_map, target_node):
+        """
+        If I see a TreasureMap being published, I can substitute my own payload and hope
+        that Ursula will store it for me for free.
+        """
+        old_message_kit = legit_treasure_map.message_kit
+        new_message_kit, _signature = self.encrypt_for(self, b"I want to store this message for free.")
+        legit_treasure_map.message_kit = new_message_kit
+        # I'll copy Alice's key so that Ursula thinks that the HRAC has been properly signed.
+        legit_treasure_map.message_kit.sender_verifying_key = old_message_kit.sender_verifying_key
+        legit_treasure_map._set_payload()
+
+        response = self.network_middleware.put_treasure_map_on_node(node=target_node,
+                                                                    map_id=legit_treasure_map.public_id(),
+                                                                    map_payload=bytes(legit_treasure_map))
 
 
 class Amonia(Alice):
@@ -174,3 +195,4 @@ class Amonia(Alice):
                    publish_wrong_payee_address_to_blockchain):
             with patch("nucypher.policy.policies.Policy.enact", self.enact_without_tabulating_responses):
                 return super().grant(handpicked_ursulas=ursulas_to_trick_into_working_for_free, *args, **kwargs)
+

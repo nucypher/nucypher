@@ -1,23 +1,22 @@
 """
- This file is part of nucypher.
+This file is part of nucypher.
 
- nucypher is free software: you can redistribute it and/or modify
- it under the terms of the GNU Affero General Public License as published by
- the Free Software Foundation, either version 3 of the License, or
- (at your option) any later version.
+nucypher is free software: you can redistribute it and/or modify
+it under the terms of the GNU Affero General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
 
- nucypher is distributed in the hope that it will be useful,
- but WITHOUT ANY WARRANTY; without even the implied warranty of
- MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- GNU Affero General Public License for more details.
+nucypher is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU Affero General Public License for more details.
 
- You should have received a copy of the GNU Affero General Public License
- along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
+You should have received a copy of the GNU Affero General Public License
+along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
 import pytest
 
-from nucypher.characters.lawful import Ursula
 from nucypher.crypto.api import keccak_digest
 from tests.utils.middleware import MockRestMiddleware
 
@@ -38,7 +37,6 @@ def test_alice_sets_treasure_map(enacted_federated_policy, federated_ursulas):
     """
     Having enacted all the policies of a PolicyGroup, Alice creates a TreasureMap and ...... TODO
     """
-    enacted_federated_policy.publish_treasure_map(network_middleware=MockRestMiddleware())
     treasure_map_index = bytes.fromhex(enacted_federated_policy.treasure_map.public_id())
     found = 0
     for node in enacted_federated_policy.bob.matching_nodes_among(enacted_federated_policy.alice.known_nodes):
@@ -48,14 +46,17 @@ def test_alice_sets_treasure_map(enacted_federated_policy, federated_ursulas):
     assert found
 
 
-def test_treasure_map_stored_by_ursula_is_the_correct_one_for_bob(federated_alice, federated_bob, federated_ursulas,
+def test_treasure_map_stored_by_ursula_is_the_correct_one_for_bob(federated_alice,
+                                                                  federated_bob,
+                                                                  federated_ursulas,
                                                                   enacted_federated_policy):
     """
     The TreasureMap given by Alice to Ursula is the correct one for Bob; he can decrypt and read it.
     """
-
+    enacted_federated_policy.publishing_mutex.block_until_complete()
     treasure_map_index = bytes.fromhex(enacted_federated_policy.treasure_map.public_id())
     treasure_map_as_set_on_network = federated_bob.matching_nodes_among(federated_ursulas)[0].treasure_maps[treasure_map_index]
+
 
     hrac_by_bob = federated_bob.construct_policy_hrac(federated_alice.stamp, enacted_federated_policy.label)
     assert enacted_federated_policy.hrac() == hrac_by_bob
@@ -70,26 +71,11 @@ def test_bob_can_retreive_the_treasure_map_and_decrypt_it(enacted_federated_poli
     that Bob can retrieve it with only the information about which he is privy pursuant to the PolicyGroup.
     """
     bob = enacted_federated_policy.bob
-    _previous_domains = bob.learning_domains
-    bob.learning_domains = []  # Bob has no knowledge of the network.
 
     # Of course, in the real world, Bob has sufficient information to reconstitute a PolicyGroup, gleaned, we presume,
     # through a side-channel with Alice.
 
-    # If Bob doesn't know about any Ursulas, he can't find the TreasureMap via the REST swarm:
-    with pytest.raises(bob.NotEnoughTeachers):
-        treasure_map_from_wire = bob.get_treasure_map(enacted_federated_policy.alice.stamp,
-                                                      enacted_federated_policy.label)
-
-
-    # Bob finds out about one Ursula (in the real world, a seed node, hardcoded based on his learning domain)
-    bob.done_seeding = False
-    bob.learning_domains = _previous_domains
-
-    # ...and then learns about the rest of the network.
-    bob.learn_from_teacher_node(eager=True)
-
-    # Now he'll have better success finding that map.
+    # Bob will automatically load seednodes when getting the map.
     treasure_map_from_wire = bob.get_treasure_map(enacted_federated_policy.alice.stamp,
                                                   enacted_federated_policy.label)
 
@@ -101,30 +87,4 @@ def test_treasure_map_is_legit(enacted_federated_policy):
     Sure, the TreasureMap can get to Bob, but we also need to know that each Ursula in the TreasureMap is on the network.
     """
     for ursula_address, _node_id in enacted_federated_policy.treasure_map:
-        if ursula_address not in enacted_federated_policy.bob.known_nodes.addresses():
-            pytest.fail(f"Bob didn't know about {ursula_address}")
-
-
-def test_alice_does_not_update_with_old_ursula_info(federated_alice, federated_ursulas):
-    ursula = list(federated_ursulas)[0]
-    old_metadata = bytes(ursula)
-
-    # Alice has remembered Ursula.
-    assert federated_alice.known_nodes[ursula.checksum_address] == ursula
-
-    # But now, Ursula wants to sign and date her interface info again.  This causes a new timestamp.
-    ursula._sign_and_date_interface_info()
-
-    # Indeed, her metadata is not the same now.
-    assert bytes(ursula) != old_metadata
-
-    old_ursula = Ursula.from_bytes(old_metadata)
-
-    # Once Alice learns about Ursula's updated info...
-    federated_alice.remember_node(ursula)
-
-    # ...she can't learn about old ursula anymore.
-    federated_alice.remember_node(old_ursula)
-
-    new_metadata = bytes(federated_alice.known_nodes[ursula.checksum_address])
-    assert new_metadata != old_metadata
+        assert ursula_address in enacted_federated_policy.bob.known_nodes.addresses()

@@ -121,6 +121,7 @@ def test_bob_can_follow_treasure_map_even_if_he_only_knows_of_one_node(enacted_f
 
     # ...and he now has no more unknown_nodes.
     assert len(bob.known_nodes) == len(treasure_map)
+    bob.disenchant()
 
 
 def test_bob_can_issue_a_work_order_to_a_specific_ursula(enacted_federated_policy, federated_bob,

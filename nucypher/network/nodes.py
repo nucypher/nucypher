@@ -16,217 +16,49 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
 import contextlib
-from collections import OrderedDict, defaultdict, deque, namedtuple
-from contextlib import suppress
-from typing import Set, Tuple, Union, Iterable
-
-import binascii
-import maya
-import random
-import requests
+import datetime
 import time
-from bytestring_splitter import (
-    BytestringSplitter,
-    BytestringSplittingError,
-    PartiallyKwargifiedBytes,
-    VariableLengthBytestring
-)
-from constant_sorrow import constant_or_bytes
-from constant_sorrow.constants import (
-    CERTIFICATE_NOT_SAVED,
-    FLEET_STATES_MATCH,
-    NEVER_SEEN,
-    NOT_SIGNED,
-    NO_KNOWN_NODES,
-    NO_STORAGE_AVAILIBLE,
-    UNKNOWN_FLEET_STATE
-)
+from collections import defaultdict, deque
+from contextlib import suppress
+from queue import Queue
+from typing import Iterable
+from typing import Set, Tuple, Union
+
+import maya
+import requests
 from cryptography.x509 import Certificate
 from eth_utils import to_checksum_address
 from requests.exceptions import SSLError
-from twisted.internet import defer, reactor, task
-from twisted.internet.threads import deferToThread
-from umbral.signing import Signature
+from twisted.internet import reactor, task
+from twisted.internet.defer import Deferred
+from twisted.logger import Logger
 
 import nucypher
+from bytestring_splitter import BytestringSplitter, BytestringSplittingError, PartiallyKwargifiedBytes, \
+    VariableLengthBytestring
+from constant_sorrow import constant_or_bytes
+from constant_sorrow.constants import (CERTIFICATE_NOT_SAVED, FLEET_STATES_MATCH, NEVER_SEEN, NOT_SIGNED,
+                                       NO_KNOWN_NODES, NO_STORAGE_AVAILIBLE, UNKNOWN_FLEET_STATE, UNKNOWN_VERSION,
+                                       RELAX)
+from nucypher.acumen.nicknames import nickname_from_seed
+from nucypher.acumen.perception import FleetSensor, icon_from_checksum
 from nucypher.blockchain.economics import EconomicsFactory
 from nucypher.blockchain.eth.agents import ContractAgency, StakingEscrowAgent
 from nucypher.blockchain.eth.constants import NULL_ADDRESS
 from nucypher.blockchain.eth.registry import BaseContractRegistry
 from nucypher.config.constants import SeednodeMetadata
 from nucypher.config.storages import ForgetfulNodeStorage
-from nucypher.crypto.api import keccak_digest, recover_address_eip_191, verify_eip_191
+from nucypher.crypto.api import recover_address_eip_191, verify_eip_191
 from nucypher.crypto.kits import UmbralMessageKit
 from nucypher.crypto.powers import DecryptingPower, NoSigningPower, SigningPower, TransactingPower
 from nucypher.crypto.signing import signature_splitter
 from nucypher.network import LEARNING_LOOP_VERSION
 from nucypher.network.exceptions import NodeSeemsToBeDown
 from nucypher.network.middleware import RestMiddleware
-from nucypher.network.nicknames import nickname_from_seed
 from nucypher.network.protocols import SuspiciousActivity
 from nucypher.network.server import TLSHostingPower
 from nucypher.utilities.logging import Logger
-
-
-def icon_from_checksum(checksum,
-                       nickname_metadata,
-                       number_of_nodes="Unknown number of "):
-    if checksum is NO_KNOWN_NODES:
-        return "NO FLEET STATE AVAILABLE"
-    icon_template = """
-    <div class="nucypher-nickname-icon" style="border-color:{color};">
-    <div class="small">{number_of_nodes} nodes</div>
-    <div class="symbols">
-        <span class="single-symbol" style="color: {color}">{symbol}&#xFE0E;</span>
-    </div>
-    <br/>
-    <span class="small-address">{fleet_state_checksum}</span>
-    </div>
-    """.replace("  ", "").replace('\n', "")
-    return icon_template.format(
-        number_of_nodes=number_of_nodes,
-        color=nickname_metadata[0][0]['hex'],
-        symbol=nickname_metadata[0][1],
-        fleet_state_checksum=checksum[0:8]
-    )
-
-
-class FleetStateTracker:
-    """
-    A representation of a fleet of NuCypher nodes.
-    """
-    _checksum = NO_KNOWN_NODES.bool_value(False)
-    _nickname = NO_KNOWN_NODES
-    _nickname_metadata = NO_KNOWN_NODES
-    _tracking = False
-    most_recent_node_change = NO_KNOWN_NODES
-    snapshot_splitter = BytestringSplitter(32, 4)
-    log = Logger("Learning")
-    FleetState = namedtuple("FleetState", ("nickname", "metadata", "icon", "nodes", "updated"))
-
-    def __init__(self):
-        self.additional_nodes_to_track = []
-        self.updated = maya.now()
-        self._nodes = OrderedDict()
-        self.states = OrderedDict()
-
-    def __setitem__(self, key, value):
-        self._nodes[key] = value
-
-        if self._tracking:
-            self.log.info("Updating fleet state after saving node {}".format(value))
-            self.record_fleet_state()
-
-    def __getitem__(self, item):
-        return self._nodes[item]
-
-    def __bool__(self):
-        return bool(self._nodes)
-
-    def __contains__(self, item):
-        return item in self._nodes.keys() or item in self._nodes.values()
-
-    def __iter__(self):
-        yield from self._nodes.values()
-
-    def __len__(self):
-        return len(self._nodes)
-
-    def __eq__(self, other):
-        return self._nodes == other._nodes
-
-    def __repr__(self):
-        return self._nodes.__repr__()
-
-    @property
-    def checksum(self):
-        return self._checksum
-
-    @checksum.setter
-    def checksum(self, checksum_value):
-        self._checksum = checksum_value
-        self._nickname, self._nickname_metadata = nickname_from_seed(checksum_value, number_of_pairs=1)
-
-    @property
-    def nickname(self):
-        return self._nickname
-
-    @property
-    def nickname_metadata(self):
-        return self._nickname_metadata
-
-    @property
-    def icon(self) -> str:
-        if self.nickname_metadata is NO_KNOWN_NODES:
-            return str(NO_KNOWN_NODES)
-        return self.nickname_metadata[0][1]
-
-    def addresses(self):
-        return self._nodes.keys()
-
-    def icon_html(self):
-        return icon_from_checksum(checksum=self.checksum,
-                                  number_of_nodes=str(len(self)),
-                                  nickname_metadata=self.nickname_metadata)
-
-    def snapshot(self):
-        fleet_state_checksum_bytes = binascii.unhexlify(self.checksum)
-        fleet_state_updated_bytes = self.updated.epoch.to_bytes(4, byteorder="big")
-        return fleet_state_checksum_bytes + fleet_state_updated_bytes
-
-    def record_fleet_state(self, additional_nodes_to_track=None):
-        if additional_nodes_to_track:
-            self.additional_nodes_to_track.extend(additional_nodes_to_track)
-        if not self._nodes:
-            # No news here.
-            return
-        sorted_nodes = self.sorted()
-
-        sorted_nodes_joined = b"".join(bytes(n) for n in sorted_nodes)
-        checksum = keccak_digest(sorted_nodes_joined).hex()
-        if checksum not in self.states:
-            self.checksum = keccak_digest(b"".join(bytes(n) for n in self.sorted())).hex()
-            self.updated = maya.now()
-            # For now we store the sorted node list.  Someday we probably spin this out into
-            # its own class, FleetState, and use it as the basis for partial updates.
-            new_state = self.FleetState(nickname=self.nickname,
-                                        metadata=self.nickname_metadata,
-                                        nodes=sorted_nodes,
-                                        icon=self.icon,
-                                        updated=self.updated)
-            self.states[checksum] = new_state
-            return checksum, new_state
-
-    def start_tracking_state(self, additional_nodes_to_track=None):
-        if additional_nodes_to_track is None:
-            additional_nodes_to_track = list()
-        self.additional_nodes_to_track.extend(additional_nodes_to_track)
-        self._tracking = True
-        self.update_fleet_state()
-
-    def sorted(self):
-        nodes_to_consider = list(self._nodes.values()) + self.additional_nodes_to_track
-        return sorted(nodes_to_consider, key=lambda n: n.checksum_address)
-
-    def shuffled(self):
-        nodes_we_know_about = list(self._nodes.values())
-        random.shuffle(nodes_we_know_about)
-        return nodes_we_know_about
-
-    def abridged_states_dict(self):
-        abridged_states = {}
-        for k, v in self.states.items():
-            abridged_states[k] = self.abridged_state_details(v)
-        return abridged_states
-
-    @staticmethod
-    def abridged_state_details(state):
-        return {"nickname": state.nickname,
-                "symbol": state.metadata[0][1],
-                "color_hex": state.metadata[0][0]['hex'],
-                "color_name": state.metadata[0][0]['color'],
-                "updated": state.updated.rfc2822(),
-                }
+from umbral.signing import Signature
 
 
 class NodeSprout(PartiallyKwargifiedBytes):
@@ -237,16 +69,24 @@ class NodeSprout(PartiallyKwargifiedBytes):
 
     def __init__(self, node_metadata):
         super().__init__(node_metadata)
-        self.checksum_address = to_checksum_address(self.public_address)
-        self.nickname = nickname_from_seed(self.checksum_address)[0]
-        self.timestamp = maya.MayaDT(self.timestamp)  # Weird for this to be in init. maybe this belongs in the splitter also.
-        self._hash = int.from_bytes(self.public_address, byteorder="big")  # stop-propagation logic (ie, only propagate verified, staked nodes) keeps this unique and BFT.
-        self._repr = f"({self.__class__.__name__})⇀{self.nickname}↽ ({self.checksum_address})"
+        self._checksum_address = None
+        self._nickname = None
+        self._hash = None
+        self.timestamp = maya.MayaDT(
+            self.timestamp)  # Weird for this to be in init. maybe this belongs in the splitter also.
+        self._repr = None
+        self._is_finishing = False
+        self._finishing_mutex = Queue()
 
     def __hash__(self):
+        if not self._hash:
+            self._hash = int.from_bytes(self.public_address,
+                                        byteorder="big")  # stop-propagation logic (ie, only propagate verified, staked nodes) keeps this unique and BFT.
         return self._hash
 
     def __repr__(self):
+        if not self._repr:
+            self._repr = f"({self.__class__.__name__})⇀{self.nickname}↽ ({self.checksum_address})"
         return self._repr
 
     def __bytes__(self):
@@ -262,16 +102,47 @@ class NodeSprout(PartiallyKwargifiedBytes):
     def stamp(self) -> bytes:
         return self.processed_objects['verifying_key'][0]
 
+    @property
+    def checksum_address(self):
+        if not self._checksum_address:
+            self._checksum_address = to_checksum_address(self.public_address)
+        return self._checksum_address
+
+    @property
+    def nickname(self):
+        if not self._nickname:
+            self._nickname = nickname_from_seed(self.checksum_address)[0]
+        return self._nickname
+
     def mature(self):
+        if self._is_finishing:
+            return self._finishing_mutex.get()
+
+        self._is_finishing = True  # Prevent reentrance.
+        _finishing_mutex = self._finishing_mutex
+
         mature_node = self.finish()
+        self.__class__ = mature_node.__class__
+        self.__dict__ = mature_node.__dict__
 
         # As long as we're doing egregious workarounds, here's another one.  # TODO: 1481
         filepath = mature_node._cert_store_function(certificate=mature_node.certificate)
         mature_node.certificate_filepath = filepath
 
-        self.__class__ = mature_node.__class__
-        self.__dict__ = mature_node.__dict__
+        _finishing_mutex.put(self)
         return self  # To reduce the awkwardity of renaming; this is always the weird part of polymorphism for me.
+
+
+class DiscoveryCanceller:
+
+    def __init__(self):
+        self.stop_now = False
+
+    def __call__(self, learning_deferred):
+        if self.stop_now:
+            assert False
+        self.stop_now = True
+        # learning_deferred.callback(RELAX)
 
 
 class Learner:
@@ -294,18 +165,20 @@ class Learner:
     LEARNER_VERSION = LEARNING_LOOP_VERSION
     node_splitter = BytestringSplitter(VariableLengthBytestring)
     version_splitter = BytestringSplitter((int, 2, {"byteorder": "big"}))
-    tracker_class = FleetStateTracker
+    tracker_class = FleetSensor
 
     invalid_metadata_message = "{} has invalid metadata.  The node's stake may have ended, or it is transitioning to a new interface. Ignoring."
     unknown_version_message = "{} purported to be of version {}, but we're only version {}.  Is there a new version of NuCypher?"
     really_unknown_version_message = "Unable to glean address from node that perhaps purported to be version {}.  We're only version {}."
     fleet_state_icon = ""
 
+    _DEBUG_MODE = False
+
     class NotEnoughNodes(RuntimeError):
         pass
 
     class NotEnoughTeachers(NotEnoughNodes):
-        pass
+        crash_right_now = True
 
     class UnresponsiveTeacher(ConnectionError):
         pass
@@ -335,6 +208,7 @@ class Learner:
 
         self.log = Logger("learning-loop")  # type: Logger
 
+        self.learning_deferred = Deferred()
         self.learning_domains = domains
         if not self.federated_only:
             default_middleware = self.__DEFAULT_MIDDLEWARE_CLASS(registry=self.registry)
@@ -353,6 +227,8 @@ class Learner:
 
         self.lonely = lonely
         self.done_seeding = False
+        self._learning_deferred = None
+        self._discovery_canceller = DiscoveryCanceller()
 
         if not node_storage:
             # Fallback storage backend
@@ -363,7 +239,8 @@ class Learner:
 
         from nucypher.characters.lawful import Ursula
         self.node_class = node_class or Ursula
-        self.node_class.set_cert_storage_function(node_storage.store_node_certificate)  #  TODO: Fix this temporary workaround for on-disk cert storage.  #1481
+        self.node_class.set_cert_storage_function(
+            node_storage.store_node_certificate)  # TODO: Fix this temporary workaround for on-disk cert storage.  #1481
 
         known_nodes = known_nodes or tuple()
         self.unresponsive_startup_nodes = list()  # TODO: Buckets - Attempt to use these again later  #567
@@ -376,27 +253,65 @@ class Learner:
         self.teacher_nodes = deque()
         self._current_teacher_node = None  # type: Teacher
         self._learning_task = task.LoopingCall(self.keep_learning_about_nodes)
+
+        if self._DEBUG_MODE:
+            # Very slow, but provides useful info when trying to track down a stray Character.
+            # Seems mostly useful for Bob or federated Ursulas, but perhaps useful for other Characters as well.
+
+            import inspect, os
+            frames = inspect.stack(3)
+            self._learning_task = task.LoopingCall(self.keep_learning_about_nodes, learner=self, frames=frames)
+            self._init_frames = frames
+            from tests.conftest import global_mutable_where_everybody
+            test_name = os.environ["PYTEST_CURRENT_TEST"]
+            global_mutable_where_everybody[test_name].append(self)
+            self._FOR_TEST = test_name
+            ########################
+
         self._learning_round = 0  # type: int
         self._rounds_without_new_nodes = 0  # type: int
         self._seed_nodes = seed_nodes or []
         self.unresponsive_seed_nodes = set()
 
-        if self.start_learning_now:
+        if self.start_learning_now and not self.lonely:
             self.start_learning_loop(now=self.learn_on_same_thread)
 
     @property
     def known_nodes(self):
         return self.__known_nodes
 
-    def load_seednodes(self, read_storage: bool = True, retry_attempts: int = 3):
+    def load_seednodes(self, read_storage: bool = True, record_fleet_state=False):
         """
         Engage known nodes from storages and pre-fetch hardcoded seednode certificates for node learning.
+
+        TODO: Dehydrate this with nucypher.utilities.seednodes.load_seednodes
         """
         if self.done_seeding:
-            self.log.debug("Already done seeding; won't try again.")
-            return
+            raise RuntimeError("Already finished seeding.  Why try again?  Is this a thread safety problem?")
 
-        from nucypher.characters.lawful import Ursula
+        discovered = []
+
+        if self.learning_domains:
+            one_and_only_learning_domain = tuple(self.learning_domains)[
+                0]  # TODO: Are we done with multiple domains?  2144, 1580
+            canonical_sage_uris = self.network_middleware.TEACHER_NODES.get(one_and_only_learning_domain, ())
+
+            for uri in canonical_sage_uris:
+                try:
+                    maybe_sage_node = self.node_class.from_teacher_uri(teacher_uri=uri,
+                                                                       min_stake=0,  # TODO: Where to get this?
+                                                                       federated_only=self.federated_only,
+                                                                       network_middleware=self.network_middleware,
+                                                                       registry=self.registry)
+                except NodeSeemsToBeDown:
+                    self.unresponsive_seed_nodes.add(uri)
+                else:
+                    if maybe_sage_node is UNKNOWN_VERSION:
+                        continue
+                    else:
+                        new_node = self.remember_node(maybe_sage_node, record_fleet_state=False)
+                        discovered.append(new_node)
+
         for seednode_metadata in self._seed_nodes:
 
             self.log.debug(
@@ -404,14 +319,17 @@ class Learner:
                                                 seednode_metadata.rest_host,
                                                 seednode_metadata.rest_port))
 
-            seed_node = Ursula.from_seednode_metadata(seednode_metadata=seednode_metadata,
-                                                      network_middleware=self.network_middleware,
-                                                      federated_only=self.federated_only)  # TODO: 466
+            seed_node = self.node_class.from_seednode_metadata(seednode_metadata=seednode_metadata,
+                                                               network_middleware=self.network_middleware,
+                                                               )
             if seed_node is False:
                 self.unresponsive_seed_nodes.add(seednode_metadata)
+            elif seed_node is UNKNOWN_VERSION:
+                continue  # TODO: Bucket this?  We already emitted a warning.
             else:
                 self.unresponsive_seed_nodes.discard(seednode_metadata)
-                self.remember_node(seed_node)
+                new_node = self.remember_node(seed_node, record_fleet_state=False)
+                discovered.append(new_node)
 
         if not self.unresponsive_seed_nodes:
             self.log.info("Finished learning about all seednodes.")
@@ -419,16 +337,25 @@ class Learner:
         self.done_seeding = True
 
         if read_storage is True:
-            self.read_nodes_from_storage()
+            nodes_restored_from_storage = self.read_nodes_from_storage()
 
-        if not self.known_nodes:
-            self.log.warn("No seednodes were available after {} attempts".format(retry_attempts))
-            # TODO: Need some actual logic here for situation with no seed nodes (ie, maybe try again much later)  567
+        discovered.extend(nodes_restored_from_storage)
+
+        if discovered and record_fleet_state:
+            self.known_nodes.record_fleet_state()
+
+        return discovered
 
     def read_nodes_from_storage(self) -> None:
         stored_nodes = self.node_storage.all(federated_only=self.federated_only)  # TODO: #466
+
+        restored_from_disk = []
+
         for node in stored_nodes:
-            self.remember_node(node)
+            restored_node = self.remember_node(node, record_fleet_state=False)  # TODO: Validity status 1866
+            restored_from_disk.append(restored_node)
+
+        return restored_from_disk
 
     def remember_node(self,
                       node,
@@ -485,7 +412,8 @@ class Learner:
 
             except node.NotStaking:
                 # TODO: Bucket this node as inactive, and potentially safe to forget.  567
-                self.log.info(f'Staker:Worker {node.checksum_address}:{node.worker_address} is not actively staking, skipping.')
+                self.log.info(
+                    f'Staker:Worker {node.checksum_address}:{node.worker_address} is not actively staking, skipping.')
                 return False
 
             # TODO: What about InvalidNode?  (for that matter, any SuspiciousActivity)  1714, 567 too really
@@ -506,32 +434,16 @@ class Learner:
             return False
         elif now:
             self.log.info("Starting Learning Loop NOW.")
-
-            if self.lonely:
-                self.done_seeding = True
-                self.read_nodes_from_storage()
-
-            else:
-                self.load_seednodes()
-
             self.learn_from_teacher_node()
+
             self.learning_deferred = self._learning_task.start(interval=self._SHORT_LEARNING_DELAY)
             self.learning_deferred.addErrback(self.handle_learning_errors)
             return self.learning_deferred
         else:
             self.log.info("Starting Learning Loop.")
-
-            learning_deferreds = list()
-            if not self.lonely:
-                seeder_deferred = deferToThread(self.load_seednodes)
-                seeder_deferred.addErrback(self.handle_learning_errors)
-                learning_deferreds.append(seeder_deferred)
-
-            learner_deferred = self._learning_task.start(interval=self._SHORT_LEARNING_DELAY, now=now)
+            learner_deferred = self._learning_task.start(interval=self._SHORT_LEARNING_DELAY, now=False)
             learner_deferred.addErrback(self.handle_learning_errors)
-            learning_deferreds.append(learner_deferred)
-
-            self.learning_deferred = defer.DeferredList(learning_deferreds)
+            self.learning_deferred = learner_deferred
             return self.learning_deferred
 
     def stop_learning_loop(self, reason=None):
@@ -541,11 +453,21 @@ class Learner:
         if self._learning_task.running:
             self._learning_task.stop()
 
-    def handle_learning_errors(self, *args, **kwargs):
-        failure = args[0]
-        if self._abort_on_learning_error:
-            self.log.critical("Unhandled error during node learning.  Attempting graceful crash.")
+        if self._learning_deferred is RELAX:
+            assert False
+
+        if self._learning_deferred is not None:
+            # self._learning_deferred.cancel()  # TODO: The problem here is that this might already be called.
+            self._discovery_canceller(self._learning_deferred)
+
+        # self.learning_deferred.cancel()  # TODO: The problem here is that there's no way to get a canceller into the LoopingCall.
+
+    def handle_learning_errors(self, failure, *args, **kwargs):
+        _exception = failure.value
+        crash_right_now = getattr(_exception, "crash_right_now", False)
+        if self._abort_on_learning_error or crash_right_now:
             reactor.callFromThread(self._crash_gracefully, failure=failure)
+            self.log.critical("Unhandled error during node learning.  Attempting graceful crash.")
         else:
             self.log.warn(f"Unhandled error during node learning: {failure.getTraceback()}")
             if not self._learning_task.running:
@@ -554,12 +476,19 @@ class Learner:
     def _crash_gracefully(self, failure=None):
         """
         A facility for crashing more gracefully in the event that an exception
-        is unhandled in a different thread, especially inside a loop like the learning loop.
+        is unhandled in a different thread, especially inside a loop like the acumen loop, Alice's publication loop, or Bob's retrieval loop..
         """
+
         self._crashed = failure
+
+        # When using Learner._DEBUG_MODE in tests, it may be helpful to uncomment this to be able to introspect.
+        # from tests.conftest import global_mutable_where_everybody
+        # gmwe = global_mutable_where_everybody
+
         failure.raiseException()
         # TODO: We don't actually have checksum_address at this level - maybe only Characters can crash gracefully :-)  1711
         self.log.critical("{} crashed with {}".format(self.checksum_address, failure))
+        reactor.stop()
 
     def select_teacher_nodes(self):
         nodes_we_know_about = self.known_nodes.shuffled()
@@ -570,12 +499,6 @@ class Learner:
         self.teacher_nodes.extend(nodes_we_know_about)
 
     def cycle_teacher_node(self):
-        # To ensure that all the best teachers are available, first let's make sure
-        # that we have connected to all the seed nodes.
-        if self.unresponsive_seed_nodes and not self.lonely:
-            self.log.info("Still have unresponsive seed nodes; trying again to connect.")
-            self.load_seednodes()  # Ideally, this is async and singular.
-
         if not self.teacher_nodes:
             self.select_teacher_nodes()
         try:
@@ -599,20 +522,47 @@ class Learner:
     def learn_about_nodes_now(self, force=False):
         if self._learning_task.running:
             self._learning_task.reset()
-            self._learning_task()
+            # self._learning_task()
         elif not force:
             self.log.warn(
                 "Learning loop isn't started; can't learn about nodes now.  You can override this with force=True.")
         elif force:
+            # TODO: What if this has been stopped?
             self.log.info("Learning loop wasn't started; forcing start now.")
             self._learning_task.start(self._SHORT_LEARNING_DELAY, now=True)
 
-    def keep_learning_about_nodes(self):
+    def keep_learning_about_nodes(self, learner=None, frames=None):
         """
         Continually learn about new nodes.
+
+        learner is for debugging and logging only.
         """
+
         # TODO: Allow the user to set eagerness?  1712
-        self.learn_from_teacher_node(eager=False)
+        # TODO: Also, if we do allow eager, don't even defer; block right here.
+
+        self._learning_deferred = Deferred(canceller=self._discovery_canceller)  # TODO: No longer relevant.
+
+        def _discover_or_abort(_first_result):
+            self.log.debug(f"========={self} learning at {datetime.datetime.now()}")
+            result = self.learn_from_teacher_node(eager=False, canceller=self._discovery_canceller)
+            self.log.debug(f"///////////{self} finished learning at {datetime.datetime.now()}")
+            return result
+
+        self._learning_deferred.addCallback(_discover_or_abort)
+        self._learning_deferred.addErrback(self.handle_learning_errors)
+
+        # def clear_learning_deferred(result_of_last_learning_cycle):
+        #     # TODO: This is an interesting opportunity to add throttling and / or check against a canonical fleet state.  #1712  #1000
+        #     print(f"Clearing {self} at {datetime.datetime.now()}")
+        #     self._learning_deferred = None
+        #
+        # self._learning_deferred.addCallback(clear_learning_deferred)
+
+        # Instead of None, we might want to pass something useful about the context.
+        # Alternately, it might be nice for learn_from_teacher_node to (some or all of the time) return a Deferred.
+        reactor.callInThread(self._learning_deferred.callback, None)
+        return self._learning_deferred
 
     def learn_about_specific_nodes(self, addresses: Iterable):
         if len(addresses) > 0:
@@ -628,6 +578,10 @@ class Learner:
                                              eager: bool = False):
         start = maya.now()
         starting_round = self._learning_round
+
+        # if not learn_on_this_thread and self._learning_task.running:
+        #     # Get a head start by firing the looping call now.  If it's very fast, maybe we'll have enough nodes on the first iteration.
+        #     self._learning_task()
 
         while True:
             rounds_undertaken = self._learning_round - starting_round
@@ -649,10 +603,13 @@ class Learner:
             round_finish = maya.now()
             elapsed = (round_finish - start).seconds
             if elapsed > timeout:
+                if len(self.known_nodes) >= number_of_nodes_to_know:  # Last chance!
+                    continue
                 if not self._learning_task.running:
                     raise RuntimeError("Learning loop is not running.  Start it with start_learning().")
                 elif not reactor.running and not learn_on_this_thread:
-                    raise RuntimeError(f"The reactor isn't running, but you're trying to use it for discovery.  You need to start the Reactor in order to use {self} this way.")
+                    raise RuntimeError(
+                        f"The reactor isn't running, but you're trying to use it for discovery.  You need to start the Reactor in order to use {self} this way.")
                 else:
                     raise self.NotEnoughNodes("After {} seconds and {} rounds, didn't find {} nodes".format(
                         timeout, rounds_undertaken, number_of_nodes_to_know))
@@ -667,6 +624,13 @@ class Learner:
         start = maya.now()
         starting_round = self._learning_round
 
+        # if not learn_on_this_thread:
+        #     # Get a head start by firing the looping call now.  If it's very fast, maybe we'll have enough nodes on the first iteration.
+        #     # if self._learning_task.running:
+        #     #     self._learning_task()
+
+        addresses = set(addresses)
+
         while True:
             if self._crashed:
                 return self._crashed
@@ -676,10 +640,11 @@ class Learner:
                     self.log.info("Learned about all nodes after {} rounds.".format(rounds_undertaken))
                 return True
 
-            if not self._learning_task.running:
-                self.log.warn("Blocking to learn about nodes, but learning loop isn't running.")
             if learn_on_this_thread:
                 self.learn_from_teacher_node(eager=True)
+            elif not self._learning_task.running:
+                raise RuntimeError(
+                    "Tried to block while discovering nodes on another thread, but the learning task isn't running.")
 
             if (maya.now() - start).seconds > timeout:
 
@@ -687,8 +652,6 @@ class Learner:
 
                 if len(still_unknown) <= allow_missing:
                     return False
-                elif not self._learning_task.running:
-                    raise self.NotEnoughTeachers("The learning loop is not running.  Start it with start_learning().")
                 else:
                     raise self.NotEnoughTeachers(
                         "After {} seconds and {} rounds, didn't find these {} nodes: {}".format(
@@ -772,17 +735,29 @@ class Learner:
         else:
             raise self.InvalidSignature("No signature provided -- signature presumed invalid.")
 
-    def learn_from_teacher_node(self, eager=False):
+    def learn_from_teacher_node(self, eager=False, canceller=None):
         """
         Sends a request to node_url to find out about known nodes.
+
+        TODO: Does this (and related methods) belong on FleetSensor for portability?
+
+        TODO: A lot of other code can be simplified if this is converted to async def.  That's a project, though.
         """
+        remembered = []
+
+        if not self.done_seeding:
+            try:
+                remembered_seednodes = self.load_seednodes(record_fleet_state=False)
+            except Exception as e:
+                # Even if we aren't aborting on learning errors, we want this to crash the process pronto.
+                e.crash_right_now = True
+                raise
+            else:
+                remembered.extend(remembered_seednodes)
+
         self._learning_round += 1
 
-        try:
-            current_teacher = self.current_teacher_node()
-        except self.NotEnoughTeachers as e:
-            self.log.warn("Can't learn right now: {}".format(e.args[0]))
-            return
+        current_teacher = self.current_teacher_node()  # Will raise if there's no available teacher.
 
         if Teacher in self.__class__.__bases__:
             announce_nodes = [self]
@@ -794,12 +769,21 @@ class Learner:
         #
         # Request
         #
+        if canceller and canceller.stop_now:
+            return RELAX
 
         try:
             response = self.network_middleware.get_nodes_via_rest(node=current_teacher,
                                                                   nodes_i_need=self._node_ids_to_learn_about_immediately,
                                                                   announce_nodes=announce_nodes,
                                                                   fleet_checksum=self.known_nodes.checksum)
+        except RuntimeError as e:
+            if canceller and canceller.stop_now:
+                # Race condition that seems limited to tests.
+                # TODO: Sort this out.
+                return RELAX
+            else:
+                raise
         except NodeSeemsToBeDown as e:
             unresponsive_nodes.add(current_teacher)
             self.log.info("Bad Response from teacher: {}:{}.".format(current_teacher, e))
@@ -834,26 +818,26 @@ class Learner:
                 f"{current_teacher} is serving {teacher_domains}, but we are learning {learner_domains}")
             return  # This node is not serving any of our domains.
 
-
         #
         # Deserialize
         #
         try:
             signature, node_payload = signature_splitter(response.content, return_remainder=True)
-        except BytestringSplittingError as e:
+        except BytestringSplittingError:
             self.log.warn("No signature prepended to Teacher {} payload: {}".format(current_teacher, response.content))
             return
 
         try:
             self.verify_from(current_teacher, node_payload, signature=signature)
-        except current_teacher.InvalidSignature:
-            self.suspicious_activities_witnessed['vladimirs'].append(('Node payload improperly signed', node_payload, signature))
-            self.log.warn(f"Invalid signature ({signature}) received from teacher {current_teacher} for payload {node_payload}")
+        except Learner.InvalidSignature:  # TODO: Ensure wev've got the right InvalidSignature exception here
+            self.suspicious_activities_witnessed['vladimirs'].append(
+                ('Node payload improperly signed', node_payload, signature))
+            self.log.warn(
+                f"Invalid signature ({signature}) received from teacher {current_teacher} for payload {node_payload}")
 
         # End edge case handling.
-        fleet_state_checksum_bytes, fleet_state_updated_bytes, node_payload = FleetStateTracker.snapshot_splitter(
-            node_payload,
-            return_remainder=True)
+        payload = FleetSensor.snapshot_splitter(node_payload, return_remainder=True)
+        fleet_state_checksum_bytes, fleet_state_updated_bytes, node_payload = payload
 
         current_teacher.last_seen = maya.now()
         # TODO: This is weird - let's get a stranger FleetState going.  NRN
@@ -871,7 +855,7 @@ class Learner:
         # somewhere more performant, like mature() or verify_node().
 
         sprouts = self.node_class.batch_from_bytes(node_payload)
-        remembered = []
+
         for sprout in sprouts:
             fail_fast = True  # TODO  NRN
             try:
@@ -890,6 +874,7 @@ class Learner:
                 self.log.info(f"Verification Failed - "
                               f"Cannot establish connection to {sprout}.")
 
+            # TODO: This whole section is weird; sprouts down have any of these things.
             except sprout.StampNotSigned:
                 self.log.warn(f'Verification Failed - '
                               f'{sprout} stamp is unsigned.')
@@ -907,14 +892,14 @@ class Learner:
                 self.log.warn(f'Verification Failed - '
                               f'{sprout} is not bonded to a Staker.')
 
-            except sprout.Invalidsprout:
-                self.log.warn(sprout.invalid_metadata_message.format(sprout))
+            # TODO: Handle invalid sprouts
+            # except sprout.Invalidsprout:
+            #     self.log.warn(sprout.invalid_metadata_message.format(sprout))
 
             except sprout.SuspiciousActivity:
                 message = f"Suspicious Activity: Discovered sprout with bad signature: {sprout}." \
                           f"Propagated by: {current_teacher}"
                 self.log.warn(message)
-
 
         # Is cycling happening in the right order?
         current_teacher.update_snapshot(checksum=checksum,
@@ -922,7 +907,6 @@ class Learner:
                                         number_of_known_nodes=len(sprouts))
 
         ###################
-
 
         learning_round_log_message = "Learning round {}.  Teacher: {} knew about {} nodes, {} were new."
         self.log.info(learning_round_log_message.format(self._learning_round,

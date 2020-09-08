@@ -94,6 +94,7 @@ BOB = Bob(known_nodes=[ursula],
           learn_on_same_thread=True)
 
 ALICE.start_learning_loop(now=True)
+ALICE.block_until_number_of_known_nodes_is(8, timeout=30, learn_on_this_thread=True)  # In case the fleet isn't fully spun up yet, as sometimes happens on CI.
 
 policy = ALICE.grant(BOB,
                      label,
@@ -101,11 +102,13 @@ policy = ALICE.grant(BOB,
                      expiration=policy_end_datetime)
 
 assert policy.public_key == policy_pubkey
+policy.publishing_mutex.block_until_complete()
 
 # Alice puts her public key somewhere for Bob to find later...
 alices_pubkey_bytes_saved_for_posterity = bytes(ALICE.stamp)
 
 # ...and then disappears from the internet.
+ALICE.disenchant()
 del ALICE
 
 #####################
@@ -167,3 +170,5 @@ for counter, plaintext in enumerate(finnegans_wake):
     # We show that indeed this is the passage originally encrypted by Enrico.
     assert plaintext == delivered_cleartexts[0]
     print("Retrieved: {}".format(delivered_cleartexts[0]))
+
+BOB.disenchant()

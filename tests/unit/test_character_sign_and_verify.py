@@ -27,8 +27,6 @@ from nucypher.crypto.powers import (CryptoPower, NoSigningPower, SigningPower)
 """
 Chapter 1: SIGNING
 """
-
-
 def test_actor_without_signing_power_cannot_sign():
     """
     We can create a Character with no real CryptoPower to speak of.
@@ -108,6 +106,7 @@ def test_anybody_can_verify():
 
     cleartext = somebody.verify_from(hearsay_alice, message, signature, decrypt=False)
     assert cleartext is constants.NO_DECRYPTION_PERFORMED
+    alice.disenchant()
 
 
 """

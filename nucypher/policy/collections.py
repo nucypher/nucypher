@@ -15,26 +15,23 @@ You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
-
 import json
 from collections import OrderedDict
+from typing import Optional, Tuple
 
-import binascii
 import maya
-from bytestring_splitter import BytestringSplitter, BytestringSplittingError, VariableLengthBytestring
-from constant_sorrow.constants import CFRAG_NOT_RETAINED, NO_DECRYPTION_PERFORMED
 from cryptography.hazmat.backends.openssl import backend
 from cryptography.hazmat.primitives import hashes
 from eth_utils import to_canonical_address, to_checksum_address
-from typing import List, Optional, Tuple
-from umbral.config import default_params
-from umbral.curvebn import CurveBN
-from umbral.keys import UmbralPublicKey
-from umbral.pre import Capsule
 
+from bytestring_splitter import BytestringKwargifier
+from bytestring_splitter import BytestringSplitter, BytestringSplittingError, VariableLengthBytestring
+from constant_sorrow.constants import CFRAG_NOT_RETAINED, NO_DECRYPTION_PERFORMED
+from constant_sorrow.constants import NOT_SIGNED
 from nucypher.blockchain.eth.constants import ETH_ADDRESS_BYTE_LENGTH, ETH_HASH_BYTE_LENGTH
 from nucypher.characters.lawful import Bob, Character
 from nucypher.crypto.api import encrypt_and_sign, keccak_digest
+from nucypher.crypto.api import verify_eip_191
 from nucypher.crypto.constants import KECCAK_DIGEST_LENGTH, PUBLIC_ADDRESS_LENGTH
 from nucypher.crypto.kits import UmbralMessageKit
 from nucypher.crypto.signing import InvalidSignature, Signature, signature_splitter
@@ -43,16 +40,14 @@ from nucypher.crypto.utils import (canonical_address_from_umbral_key,
                                    get_coordinates_as_bytes,
                                    get_signature_recovery_value)
 from nucypher.network.middleware import RestMiddleware
+from umbral.config import default_params
+from umbral.curvebn import CurveBN
+from umbral.keys import UmbralPublicKey
+from umbral.pre import Capsule
 
 
 class TreasureMap:
-    from nucypher.policy.policies import Arrangement
-    ID_LENGTH = Arrangement.ID_LENGTH  # TODO: Unify with Policy / Arrangement - or is this ok?
-
-    splitter = BytestringSplitter(Signature,
-                                  (bytes, KECCAK_DIGEST_LENGTH),  # hrac
-                                  (UmbralMessageKit, VariableLengthBytestring)
-                                  )
+    ID_LENGTH = 32
 
     class NowhereToBeFound(RestMiddleware.NotFound):
         """
@@ -67,7 +62,8 @@ class TreasureMap:
 
     node_id_splitter = BytestringSplitter((to_checksum_address, int(PUBLIC_ADDRESS_LENGTH)), ID_LENGTH)
 
-    from nucypher.crypto.signing import InvalidSignature  # Raised when the public signature (typically intended for Ursula) is not valid.
+    from nucypher.crypto.signing import \
+        InvalidSignature  # Raised when the public signature (typically intended for Ursula) is not valid.
 
     def __init__(self,
                  m: int = None,
@@ -86,10 +82,26 @@ class TreasureMap:
             self._m = NO_DECRYPTION_PERFORMED
             self._destinations = NO_DECRYPTION_PERFORMED
 
+        self._id = None
+
         self.message_kit = message_kit
         self._public_signature = public_signature
         self._hrac = hrac
         self._payload = None
+
+        if message_kit is not None:
+            self.message_kit = message_kit
+            self._set_id()
+        else:
+            self.message_kit = None
+
+    @classmethod
+    def splitter(cls):
+        return BytestringKwargifier(cls,
+                                    public_signature=Signature,
+                                    hrac=(bytes, KECCAK_DIGEST_LENGTH),
+                                    message_kit=(UmbralMessageKit, VariableLengthBytestring)
+                                    )
 
     def prepare_for_publication(self,
                                 bob_encrypting_key,
@@ -119,6 +131,10 @@ class TreasureMap:
         self._hrac = keccak_digest(bytes(alice_stamp) + bytes(bob_verifying_key) + label)
         self._public_signature = alice_stamp(bytes(alice_stamp) + self._hrac)
         self._set_payload()
+        self._set_id()
+
+    def _set_id(self):
+        self._id = keccak_digest(bytes(self._verifying_key) + bytes(self._hrac)).hex()
 
     def _set_payload(self):
         self._payload = self._public_signature + self._hrac + bytes(
@@ -158,7 +174,7 @@ class TreasureMap:
     def add_arrangement(self, arrangement):
         if self.destinations == NO_DECRYPTION_PERFORMED:
             raise TypeError("This TreasureMap is encrypted.  You can't add another node without decrypting it.")
-        self.destinations[arrangement.ursula.checksum_address] = arrangement.id
+        self.destinations[arrangement.ursula.checksum_address] = arrangement.id  # TODO: 1995
 
     def public_id(self) -> str:
         """
@@ -166,19 +182,12 @@ class TreasureMap:
         Ursula will refuse to propagate this if it she can't prove the payload is signed by Alice's public key,
         which is included in it,
         """
-        # TODO: No reason to keccak this over and over again.  Turn into set-once property pattern.
-        _id = keccak_digest(bytes(self._verifying_key) + bytes(self._hrac)).hex()
-        return _id
+        return self._id
 
     @classmethod
     def from_bytes(cls, bytes_representation, verify=True):
-        signature, hrac, tmap_message_kit = cls.splitter(bytes_representation)
-
-        treasure_map = cls(
-            message_kit=tmap_message_kit,
-            public_signature=signature,
-            hrac=hrac,
-        )
+        splitter = cls.splitter()
+        treasure_map = splitter(bytes_representation)
 
         if verify:
             treasure_map.public_verify()
@@ -214,10 +223,14 @@ class TreasureMap:
 
     def check_for_sufficient_destinations(self):
         if len(self._destinations) < self._m or self._m == 0:
-            raise self.IsDisorienting(f"TreasureMap lists only {len(self._destinations)} destination, but requires interaction with {self._m} nodes.")
+            raise self.IsDisorienting(
+                f"TreasureMap lists only {len(self._destinations)} destination, but requires interaction with {self._m} nodes.")
 
     def __eq__(self, other):
-        return bytes(self) == bytes(other)
+        try:
+            return self.public_id() == other.public_id()
+        except AttributeError:
+            raise TypeError(f"Can't compare {other} to a TreasureMap (it needs to implement public_id() )")
 
     def __iter__(self):
         return iter(self.destinations.items())
@@ -227,6 +240,37 @@ class TreasureMap:
 
     def __repr__(self):
         return f"{self.__class__.__name__}:{self.public_id()[:6]}"
+
+
+class SignedTreasureMap(TreasureMap):
+
+    def __init__(self, blockchain_signature=NOT_SIGNED, *args, **kwargs):
+        self._blockchain_signature = blockchain_signature
+        return super().__init__(*args, **kwargs)
+
+    @classmethod
+    def splitter(cls):
+        return BytestringKwargifier(cls,
+                                    blockchain_signature=65,
+                                    public_signature=Signature,
+                                    hrac=(bytes, KECCAK_DIGEST_LENGTH),
+                                    message_kit=(UmbralMessageKit, VariableLengthBytestring)
+                                    )
+
+    def include_blockchain_signature(self, blockchain_signer):
+        self._blockchain_signature = blockchain_signer(super().__bytes__())
+
+    def verify_blockchain_signature(self, checksum_address):
+        self._set_payload()
+        return verify_eip_191(message=self._payload,
+                              signature=self._blockchain_signature,
+                              address=checksum_address)
+
+    def __bytes__(self):
+        if self._blockchain_signature is NOT_SIGNED:
+            raise self.InvalidSignature(
+                "Can't cast a DecentralizedTreasureMap to bytes until it has a blockchain signature (otherwise, is it really a 'DecentralizedTreasureMap'?")
+        return self._blockchain_signature + super().__bytes__()
 
 
 class PolicyCredential:
@@ -260,25 +304,32 @@ class PolicyCredential:
         return json.dumps(cred_dict)
 
     @classmethod
-    def from_json(cls, data: str):
+    def from_json(cls, data: str, federated=False):
         """
         Deserializes the PolicyCredential from JSON.
         """
+        from nucypher.characters.lawful import Ursula
+
         cred_json = json.loads(data)
 
         alice_verifying_key = UmbralPublicKey.from_bytes(
-                                    cred_json['alice_verifying_key'],
-                                    decoder=bytes().fromhex)
+            cred_json['alice_verifying_key'],
+            decoder=bytes().fromhex)
         label = bytes().fromhex(cred_json['label'])
         expiration = maya.MayaDT.from_iso8601(cred_json['expiration'])
         policy_pubkey = UmbralPublicKey.from_bytes(
-                            cred_json['policy_pubkey'],
-                            decoder=bytes().fromhex)
+            cred_json['policy_pubkey'],
+            decoder=bytes().fromhex)
         treasure_map = None
 
         if 'treasure_map' in cred_json:
-            treasure_map = TreasureMap.from_bytes(
-                                bytes().fromhex(cred_json['treasure_map']))
+            if federated:  # I know know.  TODO: WTF.  466 and just... you know... whatever.
+                _MapClass = TreasureMap
+            else:
+                _MapClass = SignedTreasureMap
+
+            treasure_map = _MapClass.from_bytes(
+                bytes().fromhex(cred_json['treasure_map']))
 
         return cls(alice_verifying_key, label, expiration, policy_pubkey,
                    treasure_map)
@@ -291,7 +342,6 @@ class PolicyCredential:
 
 
 class WorkOrder:
-
     class PRETask:
 
         input_splitter = capsule_splitter + signature_splitter  # splitter for task without cfrag and signature
@@ -545,8 +595,8 @@ class Revocation:
     revocation_splitter = BytestringSplitter((bytes, 7), (bytes, 32), Signature)
 
     def __init__(self, arrangement_id: bytes,
-                       signer: 'SignatureStamp' = None,
-                       signature: Signature = None):
+                 signer: 'SignatureStamp' = None,
+                 signature: Signature = None):
 
         self.prefix = b'REVOKE-'
         self.arrangement_id = arrangement_id

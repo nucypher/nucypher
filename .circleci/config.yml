@@ -1,6 +1,4 @@
 version: 2.1
-orbs:
-  codecov: codecov/codecov@1.0.5
 workflows:
   version: 2
   test_build_deploy:
@@ -434,13 +432,6 @@ commands:
           name: "load docker"
           command: docker load < ~/docker-dev/dev-docker-build.tar
 
-  codecov:
-    description: "Upload Coverage Report To codecov.io"
-    steps:
-      - codecov/upload:
-          flags: all
-          file: reports/coverage.xml
-
   capture_test_results:
     description: "Store and Upload test results; Follow-up step for tests"
     steps:
@@ -452,7 +443,6 @@ commands:
       - store_artifacts:
           path: test-names.txt
           destination: tests
-      - codecov
 
   build_and_save_test_docker:
     description: "Build dev docker image for running tests against docker"

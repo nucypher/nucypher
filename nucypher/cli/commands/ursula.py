@@ -58,7 +58,8 @@ from nucypher.cli.options import (
     option_provider_uri,
     option_registry_filepath,
     option_signer_uri,
-    option_teacher_uri
+    option_teacher_uri,
+    option_lonely
 )
 from nucypher.cli.painting.help import paint_new_installation_help
 from nucypher.cli.painting.transactions import paint_receipt_summary
@@ -94,7 +95,9 @@ class UrsulaConfigOptions:
                  light,
                  gas_strategy,
                  signer_uri,
-                 availability_check):
+                 availability_check,
+                 lonely: bool
+                 ):
 
         if federated_only:
             if geth:
@@ -124,6 +127,7 @@ class UrsulaConfigOptions:
         self.light = light
         self.gas_strategy = gas_strategy
         self.availability_check = availability_check
+        self.lonely = lonely
 
     def create_config(self, emitter, config_file):
         if self.dev:
@@ -245,7 +249,8 @@ group_config_options = group_options(
     poa=option_poa,
     light=option_light,
     dev=option_dev,
-    availability_check=click.option('--availability-check/--disable-availability-check', help="Enable or disable self-health checks while running", is_flag=True, default=None)
+    availability_check=click.option('--availability-check/--disable-availability-check', help="Enable or disable self-health checks while running", is_flag=True, default=None),
+    lonely=option_lonely,
 )
 
 
@@ -253,9 +258,8 @@ class UrsulaCharacterOptions:
 
     __option_name__ = 'character_options'
 
-    def __init__(self, config_options: UrsulaConfigOptions, lonely, teacher_uri, min_stake):
+    def __init__(self, config_options: UrsulaConfigOptions, teacher_uri, min_stake):
         self.config_options = config_options
-        self.lonely = lonely
         self.teacher_uri = teacher_uri
         self.min_stake = min_stake
 
@@ -278,9 +282,8 @@ class UrsulaCharacterOptions:
                                         min_stake=self.min_stake,
                                         teacher_uri=self.teacher_uri,
                                         unlock_keyring=not self.config_options.dev,
-                                        lonely=self.lonely,
+                                        lonely=self.config_options.lonely,
                                         client_password=client_password,
-                                        load_preferred_teachers=load_seednodes and not self.lonely,
                                         start_learning_now=load_seednodes)
             return ursula_config, URSULA
 
@@ -293,7 +296,6 @@ class UrsulaCharacterOptions:
 group_character_options = group_options(
     UrsulaCharacterOptions,
     config_options=group_config_options,
-    lonely=click.option('--lonely', help="Do not connect to seednodes", is_flag=True),
     teacher_uri=option_teacher_uri,
     min_stake=option_min_stake
 )
@@ -388,10 +390,15 @@ def run(general_config, character_options, config_file, interactive, dry_run, me
                                                     metrics_prefix=metrics_prefix,
                                                     listen_address=metrics_listen_address)
 
-    return URSULA.run(emitter=emitter,
-                      start_reactor=not dry_run,
-                      interactive=interactive,
-                      prometheus_config=prometheus_config)
+    # TODO should we just not call run at all for "dry_run"
+    try:
+        URSULA.run(emitter=emitter,
+                   start_reactor=not dry_run,
+                   interactive=interactive,
+                   prometheus_config=prometheus_config)
+    finally:
+        if dry_run:
+            URSULA.stop()
 
 
 @ursula.command(name='save-metadata')

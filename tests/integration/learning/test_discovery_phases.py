@@ -14,19 +14,21 @@ GNU Affero General Public License for more details.
 You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
-
+import time
+from datetime import datetime
+from unittest.mock import patch
 
 import maya
 import pytest
-import time
-from flask import Response
-from umbral.keys import UmbralPublicKey
-from unittest.mock import patch
+import pytest_twisted
+from twisted.internet import defer
+from twisted.internet.defer import ensureDeferred
+from twisted.internet.threads import deferToThread
 
 from nucypher.characters.lawful import Ursula
-from tests.utils.ursula import MOCK_KNOWN_URSULAS_CACHE
-from umbral.keys import UmbralPublicKey
 from nucypher.datastore.base import RecordField
+from nucypher.network.nodes import Teacher
+from nucypher.policy.collections import TreasureMap
 from tests.mock.performance_mocks import (
     NotAPublicKey,
     NotARestApp,
@@ -41,6 +43,10 @@ from tests.mock.performance_mocks import (
     mock_stamp_call,
     mock_verify_node
 )
+from tests.utils.middleware import SluggishLargeFleetMiddleware
+from tests.utils.ursula import MOCK_KNOWN_URSULAS_CACHE
+from umbral.keys import UmbralPublicKey
+from flask import Response
 
 """
 Node Discovery happens in phases.  The first step is for a network actor to learn about the mere existence of a Node.
@@ -51,7 +57,7 @@ This toolchain is not built for that scenario at this time, although it is not a
 
 After this, our "Learning Loop" does four other things in sequence which are not part of the offering of node discovery tooling alone:
 
-* Instantiation of an actual Node object (currently, an Ursula object) from node metadata.
+* Instantiation of an actual Node object (currently, an Ursula object) from node metadata.  TODO
 * Validation of the node's metadata (non-interactive; shows that the Node's public material is indeed signed by the wallet holder of its Staker).
 * Verification of the Node itself (interactive; shows that the REST server operating at the Node's interface matches the node's metadata).
 * Verification of the Stake (reads the blockchain; shows that the Node is sponsored by a Staker with sufficient Stake to support a Policy).
@@ -66,11 +72,13 @@ def test_alice_can_learn_about_a_whole_bunch_of_ursulas(highperf_mocked_alice):
     # TODO: Consider changing this - #1449
     assert VerificationTracker.node_verifications == 1
 
+    _teacher = highperf_mocked_alice.current_teacher_node()
+    actual_ursula = MOCK_KNOWN_URSULAS_CACHE[_teacher.rest_interface.port]
+
     # A quick setup so that the bytes casting of Ursulas (on what in the real world will be the remote node)
     # doesn't take up all the time.
-    _teacher = highperf_mocked_alice.current_teacher_node()
-    _teacher_known_nodes_bytestring = _teacher.bytestring_of_known_nodes()
-    _teacher.bytestring_of_known_nodes = lambda *args, **kwargs: _teacher_known_nodes_bytestring # TODO: Formalize this?  #1537
+    _teacher_known_nodes_bytestring = actual_ursula.bytestring_of_known_nodes()
+    actual_ursula.bytestring_of_known_nodes = lambda *args, **kwargs: _teacher_known_nodes_bytestring  # TODO: Formalize this?  #1537
 
     with mock_cert_storage, mock_cert_loading, mock_verify_node, mock_message_verification, mock_metadata_validation:
         with mock_pubkey_from_bytes(), mock_stamp_call, mock_signature_bytes:
@@ -86,7 +94,9 @@ def test_alice_can_learn_about_a_whole_bunch_of_ursulas(highperf_mocked_alice):
     VerificationTracker.node_verifications = 0  # Cleanup
 
 
-@pytest.mark.parametrize('fleet_of_highperf_mocked_ursulas', [100], indirect=True)
+_POLICY_PRESERVER = []
+
+
 def test_alice_verifies_ursula_just_in_time(fleet_of_highperf_mocked_ursulas,
                                             highperf_mocked_alice,
                                             highperf_mocked_bob):
@@ -125,3 +135,80 @@ def test_alice_verifies_ursula_just_in_time(fleet_of_highperf_mocked_ursulas,
     # TODO: Make some assertions about policy.
     total_verified = sum(node.verified_node for node in highperf_mocked_alice.known_nodes)
     assert total_verified == 30
+    _POLICY_PRESERVER.append(policy)
+
+
+# @pytest_twisted.inlineCallbacks   # TODO: Why does this, in concert with yield policy.publishing_mutex.when_complete, hang?
+def test_mass_treasure_map_placement(fleet_of_highperf_mocked_ursulas,
+                                     highperf_mocked_alice,
+                                     highperf_mocked_bob):
+    """
+    Large-scale map placement with a middleware that simulates network latency.
+
+    In three parts.
+    """
+    # The nodes who match the map distribution criteria.
+    nodes_we_expect_to_have_the_map = highperf_mocked_bob.matching_nodes_among(fleet_of_highperf_mocked_ursulas)
+
+    Teacher.verify_node = lambda *args, **kwargs: None
+
+    # # # Loop through and instantiate actual rest apps so as not to pollute the time measurement (doesn't happen in real world).
+    for node in nodes_we_expect_to_have_the_map:
+        # Causes rest app to be made (happens JIT in other testS)
+        highperf_mocked_alice.network_middleware.client.parse_node_or_host_and_port(node)
+
+        def _partial_rest_app(node):
+            def faster_receive_map(treasure_map_id, *args, **kwargs):
+                node.treasure_maps[treasure_map_id] = True
+                return Response(bytes(b"Sure, we stored it."), status=202)
+            return faster_receive_map
+        node.rest_app._actual_rest_app.view_functions._view_functions_registry['receive_treasure_map'] = _partial_rest_app(node)
+
+    highperf_mocked_alice.network_middleware = SluggishLargeFleetMiddleware()
+
+    policy = _POLICY_PRESERVER.pop()
+
+    with patch('umbral.keys.UmbralPublicKey.__eq__', lambda *args, **kwargs: True), mock_metadata_validation:
+
+        started = datetime.now()
+
+        # PART I: The function returns sychronously and quickly.
+
+        # defer.setDebugging(False)  # Debugging messes up the timing here; comment this line out if you actually need it.
+
+        policy.publish_treasure_map(network_middleware=highperf_mocked_alice.network_middleware)  # returns quickly.
+
+        # defer.setDebugging(True)
+
+        # PART II: We block for a little while to ensure that the distribution is going well.
+        nodes_that_have_the_map_when_we_unblock = policy.publishing_mutex.block_until_success_is_reasonably_likely()
+        little_while_ended_at = datetime.now()
+
+        # The number of nodes having the map is at least the minimum to have unblocked.
+        assert len(nodes_that_have_the_map_when_we_unblock) >= policy.publishing_mutex._block_until_this_many_are_complete
+
+        # The number of nodes having the map is approximately the number you'd expect from full utilization of Alice's publication threadpool.
+        # TODO: This line fails sometimes because the loop goes too fast.
+        assert len(nodes_that_have_the_map_when_we_unblock) == pytest.approx(policy.publishing_mutex._block_until_this_many_are_complete, .2)
+
+        # PART III: Having made proper assertions about the publication call and the first block, we allow the rest to
+        # happen in the background and then ensure that each phase was timely.
+
+        # This will block until the distribution is complete.
+        policy.publishing_mutex.block_until_complete()
+        complete_distribution_time = datetime.now() - started
+        partial_blocking_duration = little_while_ended_at - started
+        # Before Treasure Island (1741), this process took about 3 minutes.
+        if partial_blocking_duration.total_seconds() > 10:
+            pytest.fail(
+                f"Took too long ({partial_blocking_duration}) to contact {len(policy.publishing_mutex.nodes_contacted_during_partial_block)} nodes ({complete_distribution_time} total.)")
+
+        # TODO: Assert that no nodes outside those expected received the map.
+        assert complete_distribution_time.total_seconds() < 20
+        # But with debuggers and other processes running on laptops, we give a little leeway.
+
+        # We have the same number of successful responses as nodes we expected to have the map.
+        assert len(policy.publishing_mutex.completed) == len(nodes_we_expect_to_have_the_map)
+        nodes_that_got_the_map = sum(
+            policy.treasure_map.public_id() in u.treasure_maps for u in nodes_we_expect_to_have_the_map)
+        assert nodes_that_got_the_map == len(nodes_we_expect_to_have_the_map)

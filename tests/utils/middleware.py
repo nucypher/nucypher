@@ -14,7 +14,8 @@ GNU Affero General Public License for more details.
 You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
-
+import time
+import random
 
 import requests
 import socket
@@ -23,8 +24,13 @@ from constant_sorrow.constants import CERTIFICATE_NOT_SAVED
 from flask import Response
 
 from nucypher.characters.lawful import Ursula
+from nucypher.config.constants import TEMPORARY_DOMAIN
 from nucypher.network.middleware import NucypherMiddlewareClient, RestMiddleware
 from tests.utils.ursula import MOCK_KNOWN_URSULAS_CACHE
+
+
+class BadTestUrsulas(RuntimeError):
+    crash_right_now = True
 
 
 class _TestMiddlewareClient(NucypherMiddlewareClient):
@@ -51,13 +57,14 @@ class _TestMiddlewareClient(NucypherMiddlewareClient):
         return mock_client
 
     def _get_ursula_by_port(self, port):
+        mkuc = MOCK_KNOWN_URSULAS_CACHE
         try:
-            return MOCK_KNOWN_URSULAS_CACHE[port]
+            return mkuc[port]
         except KeyError:
-            raise RuntimeError(
+             raise BadTestUrsulas(
                 "Can't find an Ursula with port {} - did you spin up the right test ursulas?".format(port))
 
-    def parse_node_or_host_and_port(self, node, host, port):
+    def parse_node_or_host_and_port(self, node=None, host=None, port=None):
         if node:
             if any((host, port)):
                 raise ValueError("Don't pass host and port if you are passing the node.")
@@ -89,6 +96,16 @@ class MockRestMiddleware(RestMiddleware):
     class NotEnoughMockUrsulas(Ursula.NotEnoughUrsulas):
         pass
 
+    class TEACHER_NODES:
+
+        @classmethod
+        def get(_cls, item, _default):
+            if item is TEMPORARY_DOMAIN:
+                nodes = tuple(u.rest_url() for u in MOCK_KNOWN_URSULAS_CACHE.values())[0:2]
+            else:
+                nodes = tuple()
+            return nodes
+
     def get_certificate(self, host, port, timeout=3, retry_attempts: int = 3, retry_rate: int = 2,
                         current_attempt: int = 0):
         ursula = self.client._get_ursula_by_port(port)
@@ -110,6 +127,17 @@ class MockRestMiddlewareForLargeFleetTests(MockRestMiddleware):
         r = Response(bytes(signature) + known_nodes_bytestring)
         r.content = r.data
         return r
+
+
+class SluggishLargeFleetMiddleware(MockRestMiddlewareForLargeFleetTests):
+    """
+    Similar to above, but with added delay to simulate network latency.
+    """
+    def put_treasure_map_on_node(self, node, *args, **kwargs):
+        time.sleep(random.randrange(5, 15) / 100)
+        result = super().put_treasure_map_on_node(node=node, *args, **kwargs)
+        time.sleep(random.randrange(5, 15) / 100)
+        return result
 
 
 class _MiddlewareClientWithConnectionProblems(_TestMiddlewareClient):

@@ -52,7 +52,8 @@ from nucypher.cli.options import (
     option_provider_uri,
     option_registry_filepath,
     option_signer_uri,
-    option_teacher_uri
+    option_teacher_uri,
+    option_lonely
 )
 from nucypher.cli.painting.help import paint_new_installation_help
 from nucypher.cli.processes import get_geth_provider_process
@@ -89,7 +90,8 @@ class AliceConfigOptions:
                  registry_filepath: str,
                  middleware: RestMiddleware,
                  gas_strategy: str,
-                 signer_uri: str
+                 signer_uri: str,
+                 lonely: bool,
                  ):
 
         if federated_only and geth:
@@ -115,6 +117,7 @@ class AliceConfigOptions:
         self.discovery_port = discovery_port
         self.registry_filepath = registry_filepath
         self.middleware = middleware
+        self.lonely = lonely
 
     def create_config(self, emitter, config_file):
 
@@ -135,7 +138,9 @@ class AliceConfigOptions:
                 provider_uri=self.provider_uri,
                 signer_uri=self.signer_uri,
                 gas_strategy=self.gas_strategy,
-                federated_only=True)
+                federated_only=True,
+                lonely=self.lonely
+            )
 
         else:
             try:
@@ -151,7 +156,9 @@ class AliceConfigOptions:
                     filepath=config_file,
                     rest_port=self.discovery_port,
                     checksum_address=self.pay_with,
-                    registry_filepath=self.registry_filepath)
+                    registry_filepath=self.registry_filepath,
+                    lonely=self.lonely
+                )
             except FileNotFoundError:
                 return handle_missing_configuration_file(
                     character_config_class=AliceConfiguration,
@@ -172,6 +179,7 @@ group_config_options = group_options(
     pay_with=option_pay_with,
     registry_filepath=option_registry_filepath,
     middleware=option_middleware,
+    lonely=option_lonely,
 )
 
 
@@ -285,8 +293,8 @@ class AliceCharacterOptions:
                                        teacher_uri=self.teacher_uri,
                                        min_stake=self.min_stake,
                                        client_password=client_password,
-                                       load_preferred_teachers=load_seednodes,
-                                       start_learning_now=load_seednodes)
+                                       start_learning_now=load_seednodes,
+                                       lonely=self.config_options.lonely)
 
             return ALICE
         except NucypherKeyring.AuthenticationFailed as e:

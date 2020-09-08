@@ -27,7 +27,7 @@ from nucypher.datastore.models import PolicyArrangement
 from tests.utils.ursula import make_federated_ursulas
 
 
-def test_alice_enacts_policies_in_policy_group_via_rest(enacted_federated_policy):
+def test_alice_enacts_policies_in_policy_group_via_rest(enacted_federated_policy, reduced_memory_page_lmdb):
     """
     Now that Alice has made a PolicyGroup, she can enact its policies, using Ursula's Public Key to encrypt each offer
     and transmitting them via REST.
@@ -40,8 +40,8 @@ def test_alice_enacts_policies_in_policy_group_via_rest(enacted_federated_policy
 
 
 @pytest_twisted.inlineCallbacks
-def test_federated_nodes_connect_via_tls_and_verify(ursula_federated_test_config):
-    node = make_federated_ursulas(ursula_config=ursula_federated_test_config, quantity=1).pop()
+def test_federated_nodes_connect_via_tls_and_verify(lonely_ursula_maker):
+    node = lonely_ursula_maker(quantity=1).pop()
     node_deployer = node.get_deployer()
 
     node_deployer.addServices()

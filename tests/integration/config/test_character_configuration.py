@@ -54,7 +54,7 @@ all_configurations = tuple(configurations + blockchain_only_configurations)
 @pytest.mark.parametrize("character,configuration", characters_and_configurations)
 def test_federated_development_character_configurations(character, configuration):
 
-    config = configuration(dev_mode=True, federated_only=True, domains={TEMPORARY_DOMAIN})
+    config = configuration(dev_mode=True, federated_only=True, lonely=True, domains={TEMPORARY_DOMAIN})
     assert config.is_me is True
     assert config.dev_mode is True
     assert config.keyring == NO_KEYRING_ATTACHED
@@ -91,6 +91,10 @@ def test_federated_development_character_configurations(character, configuration
         another_character = config()
         assert another_character not in _characters
         _characters.append(another_character)
+
+    if character is Alice:
+        for alice in _characters:
+            alice.disenchant()
 
 
 @pytest.mark.parametrize('configuration_class', all_configurations)
@@ -172,6 +176,9 @@ def test_ursula_development_configuration(federated_only=True):
         ursula = config()
         assert ursula not in ursulas
         ursulas.append(ursula)
+
+    for ursula in ursulas:
+        ursula.stop()
 
 
 @pytest.mark.skip("See #2016")

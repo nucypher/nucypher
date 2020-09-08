@@ -14,16 +14,14 @@ GNU Affero General Public License for more details.
 You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
+import pytest
 
 from tests.utils.middleware import MockRestMiddleware
 from tests.utils.ursula import make_federated_ursulas
 
 
-def test_new_federated_ursula_announces_herself(ursula_federated_test_config):
-    ursula_in_a_house, ursula_with_a_mouse = make_federated_ursulas(ursula_config=ursula_federated_test_config,
-                                                                    quantity=2,
-                                                                    know_each_other=False,
-                                                                    network_middleware=MockRestMiddleware())
+def test_new_federated_ursula_announces_herself(lonely_ursula_maker):
+    ursula_in_a_house, ursula_with_a_mouse = lonely_ursula_maker(quantity=2, domains=["useless_domain"])
 
     # Neither Ursula knows about the other.
     assert ursula_in_a_house.known_nodes == ursula_with_a_mouse.known_nodes
