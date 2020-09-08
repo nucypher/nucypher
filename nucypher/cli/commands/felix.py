@@ -87,7 +87,7 @@ class FelixConfigOptions:
         self.eth_node = eth_node
         self.provider_uri = provider_uri
         self.signer_uri = signer_uri
-        self.domains = {network} if network else None
+        self.domain = network
         self.dev = dev
         self.host = host
         self.db_filepath = db_filepath
@@ -102,7 +102,7 @@ class FelixConfigOptions:
             return FelixConfiguration.from_configuration_file(
                 emitter=emitter,
                 filepath=config_file,
-                domains=self.domains,
+                domain=self.domain,
                 registry_filepath=self.registry_filepath,
                 provider_process=self.eth_node,
                 provider_uri=self.provider_uri,
@@ -124,7 +124,7 @@ class FelixConfigOptions:
             rest_host=self.host,
             rest_port=discovery_port,
             db_filepath=self.db_filepath,
-            domains=self.domains,
+            domain=self.domain,
             checksum_address=self.checksum_address,
             registry_filepath=self.registry_filepath,
             provider_uri=self.provider_uri,
@@ -173,7 +173,7 @@ class FelixCharacterOptions:
                                                   envvar=NUCYPHER_ENVVAR_WORKER_ETH_PASSWORD)
 
             # Produce Felix
-            FELIX = felix_config.produce(domains=self.config_options.domains, client_password=client_password)
+            FELIX = felix_config.produce(domain=self.config_options.domain, client_password=client_password)
             FELIX.make_web_app()  # attach web application, but dont start service
 
             return FELIX

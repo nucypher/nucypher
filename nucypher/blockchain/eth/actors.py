@@ -104,7 +104,7 @@ class BaseActor:
         pass
 
     @validate_checksum_address
-    def __init__(self, registry: BaseContractRegistry, domains=None, checksum_address: ChecksumAddress = None):
+    def __init__(self, registry: BaseContractRegistry, domain: str = None, checksum_address: ChecksumAddress = None):
 
         # TODO: Consider this pattern - None for address?.  #1507
         # Note: If the base class implements multiple inheritance and already has a checksum address...
@@ -117,8 +117,8 @@ class BaseActor:
             self.checksum_address = checksum_address  # type: ChecksumAddress
 
         self.registry = registry
-        if domains:  # StakeHolder config inherits from character config, which has 'domains' - #1580
-            self.network = list(domains)[0]
+        if domain:  # StakeHolder config inherits from character config, which has 'domains' - See #1580
+            self.network = domain
 
         self._saved_receipts = list()  # track receipts of transmitted transactions
 
@@ -2191,7 +2191,7 @@ class DaoActor(BaseActor):
                  signer: Signer = None,
                  client_password: str = None,
                  transacting: bool = True):
-        super().__init__(registry=registry, domains=[network], checksum_address=checksum_address)  # TODO: See #1580
+        super().__init__(registry=registry, domain=network, checksum_address=checksum_address)
         self.dao_registry = DAORegistry(network=network)
         if transacting:  # TODO: This logic is repeated in Bidder and possible others.
             self.transacting_power = TransactingPower(signer=signer,

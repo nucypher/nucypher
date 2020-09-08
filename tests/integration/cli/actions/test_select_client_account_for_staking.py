@@ -37,7 +37,7 @@ def test_select_client_account_for_staking_cli_action(test_emitter,
     selected_index = 0
     selected_account = mock_testerchain.client.accounts[selected_index]
 
-    stakeholder = StakeHolder(registry=test_registry, domains={TEMPORARY_DOMAIN})
+    stakeholder = StakeHolder(registry=test_registry, domain=TEMPORARY_DOMAIN)
 
     client_account, staking_address = select_client_account_for_staking(emitter=test_emitter,
                                                                         stakeholder=stakeholder,

@@ -262,7 +262,7 @@ class StakeHolderConfiguration(CharacterConfiguration):
         payload = dict(provider_uri=self.provider_uri,
                        poa=self.poa,
                        light=self.is_light,
-                       domains=list(self.domains),
+                       domain=self.domain,
                        # TODO: Move empty collection casting to base
                        checksum_addresses=self.checksum_addresses or list(),
                        signer_uri=self.signer_uri)

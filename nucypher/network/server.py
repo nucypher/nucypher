@@ -80,7 +80,7 @@ class ProxyRESTServer:
 def make_rest_app(
         db_filepath: str,
         this_node,
-        serving_domains,
+        serving_domain,
         log=Logger("http-application-layer")
         ) -> Tuple:
 
@@ -398,7 +398,7 @@ def make_rest_app(
                 content = status_template.render(this_node=this_node,
                                                  known_nodes=this_node.known_nodes,
                                                  previous_states=previous_states,
-                                                 domains=serving_domains,
+                                                 domain=serving_domain,
                                                  version=nucypher.__version__,
                                                  checksum_address=this_node.checksum_address)
             except Exception as e:
