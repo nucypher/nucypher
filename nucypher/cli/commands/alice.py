@@ -106,7 +106,7 @@ class AliceConfigOptions:
             provider_uri = eth_node.provider_uri(scheme='file')
 
         self.dev = dev
-        self.domains = {network} if network else None
+        self.domain = network
         self.provider_uri = provider_uri
         self.signer_uri = signer_uri
         self.gas_strategy = gas_strategy
@@ -133,7 +133,7 @@ class AliceConfigOptions:
                 emitter=emitter,
                 dev_mode=True,
                 network_middleware=self.middleware,
-                domains={TEMPORARY_DOMAIN},
+                domain=TEMPORARY_DOMAIN,
                 provider_process=self.eth_node,
                 provider_uri=self.provider_uri,
                 signer_uri=self.signer_uri,
@@ -148,7 +148,7 @@ class AliceConfigOptions:
                     emitter=emitter,
                     dev_mode=False,
                     network_middleware=self.middleware,
-                    domains=self.domains,
+                    domain=self.domain,
                     provider_process=self.eth_node,
                     provider_uri=self.provider_uri,
                     signer_uri=self.signer_uri,
@@ -218,7 +218,7 @@ class AliceFullConfigOptions:
             password=get_nucypher_password(confirm=True),
             config_root=config_root,
             checksum_address=pay_with,
-            domains=opts.domains,
+            domain=opts.domain,
             federated_only=opts.federated_only,
             provider_uri=opts.provider_uri,
             signer_uri=opts.signer_uri,
@@ -233,7 +233,7 @@ class AliceFullConfigOptions:
     def get_updates(self) -> dict:
         opts = self.config_options
         payload = dict(checksum_address=opts.pay_with,
-                       domains=opts.domains,
+                       domain=opts.domain,
                        federated_only=opts.federated_only,
                        provider_uri=opts.provider_uri,
                        signer_uri=opts.signer_uri,

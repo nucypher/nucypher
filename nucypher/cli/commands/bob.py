@@ -79,7 +79,7 @@ class BobConfigOptions:
         self.provider_uri = provider_uri
         self.signer_uri = signer_uri
         self.gas_strategy = gas_strategy
-        self.domains = {network} if network else None
+        self.domain = network
         self.registry_filepath = registry_filepath
         self.checksum_address = checksum_address
         self.discovery_port = discovery_port
@@ -93,7 +93,7 @@ class BobConfigOptions:
             return BobConfiguration(
                 emitter=emitter,
                 dev_mode=True,
-                domains={TEMPORARY_DOMAIN},
+                domain=TEMPORARY_DOMAIN,
                 provider_uri=self.provider_uri,
                 gas_strategy=self.gas_strategy,  # TODO: Fix type hint
                 signer_uri=self.signer_uri,
@@ -107,7 +107,7 @@ class BobConfigOptions:
                 return BobConfiguration.from_configuration_file(
                     emitter=emitter,
                     filepath=config_file,
-                    domains=self.domains,
+                    domain=self.domain,
                     checksum_address=self.checksum_address,
                     rest_port=self.discovery_port,
                     provider_uri=self.provider_uri,
@@ -133,7 +133,7 @@ class BobConfigOptions:
             password=get_nucypher_password(confirm=True),
             config_root=config_root,
             checksum_address=checksum_address,
-            domains=self.domains,
+            domain=self.domain,
             federated_only=self.federated_only,
             registry_filepath=self.registry_filepath,
             provider_uri=self.provider_uri,
@@ -144,7 +144,7 @@ class BobConfigOptions:
 
     def get_updates(self) -> dict:
         payload = dict(checksum_address=self.checksum_address,
-                       domains=self.domains,
+                       domain=self.domain,
                        federated_only=self.federated_only,
                        registry_filepath=self.registry_filepath,
                        provider_uri=self.provider_uri,
