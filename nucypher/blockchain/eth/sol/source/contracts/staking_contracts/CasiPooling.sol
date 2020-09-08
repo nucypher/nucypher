@@ -5,6 +5,7 @@ pragma solidity ^0.7.0;
 import "zeppelin/ownership/Ownable.sol";
 import "zeppelin/math/SafeMath.sol";
 import "contracts/staking_contracts/AbstractStakingContract.sol";
+// import "contracts/staking_contracts/StakingInterface.sol";
 
 /**
  * @notice Contract acts as delegate for sub-stakers and owner
@@ -39,11 +40,14 @@ contract CasiPooling is InitializableStakingContract, Ownable {
     WorkLock public worklock;
 
     uint256 public totalDepositedTokens;
+    uint256 public worklockClaimedTokens;
+
     uint256 public totalWithdrawnReward;
     uint256 public totalWithdrawnETH;
     uint256 public totalTransactionsCost;
+    uint256 public totalWorklockETHreceived;
 
-    address payable public workerAccount;
+    // address payable public workerAccount;
 
     uint256 public ownerFraction;
     uint256 public ownerWithdrawnReward;
@@ -57,7 +61,7 @@ contract CasiPooling is InitializableStakingContract, Ownable {
      */
     function initialize(
         uint256 _ownerFraction,
-        StakingInterfaceRouter _router,
+        StakingInterfaceRouter _router
         // address payable _workerAccount
     ) public initializer {
         InitializableStakingContract.initialize(_router);
@@ -104,9 +108,9 @@ contract CasiPooling is InitializableStakingContract, Ownable {
         // workerAccount.sendValue(msg.value);
     }
 
-    function bid() external onlyOwner {
-        worklock.bid();
-    }
+    // function bid() external onlyOwner {
+    //     worklock.bid();
+    // }
 
     /**
      * @notice Enabled deposit
@@ -139,11 +143,19 @@ contract CasiPooling is InitializableStakingContract, Ownable {
     }
 
     /**
-     * @notice deposit eth to this contract to participate in worklock
+     * @notice delagetor can transfer ETH to directly worklock
      */
-    function depositETH(uint256 _value) external {
+    function depositETH() external payable {
         Delegator storage delegator = delegators[msg.sender];
-        delegator.depositedETHWorklock += _value;
+        delegator.depositedETHWorklock = delegator.depositedETHWorklock.add(msg.value);
+        totalWorklockETHreceived = totalWorklockETHreceived.add(msg.value);
+        worklock.bid{value: msg.value}();
+    }
+
+    function claimTokens() public {
+        uint256 claimedTokens = worklock.claim();
+        worklockClaimedTokens = worklockClaimedTokens.add(claimedTokens);
+        totalDepositedTokens = totalDepositedTokens.add(claimedTokens);
     }
 
     /**
