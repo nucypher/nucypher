@@ -979,7 +979,7 @@ class Ursula(Teacher, Character, Worker):
                  # Ursula
                  rest_host: str,
                  rest_port: int,
-                 domains: Set = None,  # For now, serving and learning domains will be the same.
+                 domain: str = None,  # For now, serving and learning domain will be the same.
                  certificate: Certificate = None,
                  certificate_filepath: str = None,
                  db_filepath: str = None,
@@ -1014,10 +1014,10 @@ class Ursula(Teacher, Character, Worker):
         # Character
         #
 
-        if domains is None:
+        if domain is None:
             # TODO: Move defaults to configuration, Off character.
             from nucypher.config.node import CharacterConfiguration
-            domains = {CharacterConfiguration.DEFAULT_DOMAIN}
+            domain = CharacterConfiguration.DEFAULT_DOMAIN
 
         if is_me:
             # If we're federated only, we assume that all other nodes in our domain are as well.
@@ -1032,7 +1032,7 @@ class Ursula(Teacher, Character, Worker):
                            crypto_power=crypto_power,
                            abort_on_learning_error=abort_on_learning_error,
                            known_nodes=known_nodes,
-                           domains=domains,
+                           domain=domain,
                            known_node_class=Ursula,
                            **character_kwargs)
 
@@ -1104,7 +1104,7 @@ class Ursula(Teacher, Character, Worker):
                 rest_app, datastore = make_rest_app(
                     this_node=self,
                     db_filepath=db_filepath,
-                    serving_domains=domains,
+                    serving_domain=domain,
                 )
 
                 # TLSHostingPower (Ephemeral Powers and Private Keys)
@@ -1148,7 +1148,7 @@ class Ursula(Teacher, Character, Worker):
         certificate_filepath = self._crypto_power.power_ups(TLSHostingPower).keypair.certificate_filepath
         certificate = self._crypto_power.power_ups(TLSHostingPower).keypair.certificate
         Teacher.__init__(self,
-                         domains=domains,
+                         domain=domain,
                          certificate=certificate,
                          certificate_filepath=certificate_filepath,
                          interface_signature=interface_signature,
@@ -1214,7 +1214,7 @@ class Ursula(Teacher, Character, Worker):
         # if learning:  # TODO: Include learning startup here with the rest of the services?
         #     self.start_learning_loop(now=self._start_learning_now)
         #     if emitter:
-        #         emitter.message(f"✓ Node Discovery ({','.join(self.learning_domains)})", color='green')
+        #         emitter.message(f"✓ Node Discovery ({','.join(self.learning_domain)})", color='green')
 
         if self._availability_check and availability:
             self._availability_tracker.start(now=False)  # wait...
@@ -1328,10 +1328,9 @@ class Ursula(Teacher, Character, Worker):
         certificate = self.rest_server_certificate()
         cert_vbytes = VariableLengthBytestring(certificate.public_bytes(Encoding.PEM))
 
-        domains = {domain.encode('utf-8') for domain in self.serving_domains}
         as_bytes = bytes().join((version,
                                  self.canonical_public_address,
-                                 bytes(VariableLengthBytestring.bundle(domains)),
+                                 bytes(VariableLengthBytestring(self.serving_domain.encode('utf-8'))),
                                  self.timestamp_bytes(),
                                  bytes(self._interface_signature),
                                  bytes(decentralized_identity_evidence),
@@ -1469,7 +1468,7 @@ class Ursula(Teacher, Character, Worker):
             _receiver=cls.from_processed_bytes,
             _partial_receiver=NodeSprout,
             public_address=PUBLIC_ADDRESS_LENGTH,
-            domains=VariableLengthBytestring,  # TODO:  Multiple domains?  NRN
+            domain=VariableLengthBytestring,
             timestamp=(int, 4, {'byteorder': 'big'}),
             interface_signature=Signature,
             decentralized_identity_evidence=VariableLengthBytestring,
@@ -1535,15 +1534,14 @@ class Ursula(Teacher, Character, Worker):
         rest_port = interface_info.port
         checksum_address = to_checksum_address(processed_objects.pop('public_address'))
 
-        domains_vbytes = VariableLengthBytestring.dispense(processed_objects.pop('domains'))
-        domains = set(d.decode('utf-8') for d in domains_vbytes)
+        domain = processed_objects.pop('domain').decode('utf-8')
 
         timestamp = maya.MayaDT(processed_objects.pop('timestamp'))
 
         ursula = cls.from_public_keys(rest_host=rest_host,
                                       rest_port=rest_port,
                                       checksum_address=checksum_address,
-                                      domains=domains,
+                                      domain=domain,
                                       timestamp=timestamp,
                                       **processed_objects)
         return ursula

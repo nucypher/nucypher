@@ -95,7 +95,7 @@ class CharacterConfiguration(BaseConfiguration):
 
                  # Network
                  controller_port: int = None,
-                 domains: Set[str] = None,  # TODO: Mapping between learning domains and "registry" domains - #1580
+                 domain: str = DEFAULT_DOMAIN,
                  interface_signature: Signature = None,
                  network_middleware: RestMiddleware = None,
                  lonely: bool = False,
@@ -151,7 +151,7 @@ class CharacterConfiguration(BaseConfiguration):
 
         # Learner
         self.federated_only = federated_only
-        self.domains = domains or {self.DEFAULT_DOMAIN}
+        self.domain = domain
         self.learn_on_same_thread = learn_on_same_thread
         self.abort_on_learning_error = abort_on_learning_error
         self.start_learning_now = start_learning_now
@@ -216,7 +216,7 @@ class CharacterConfiguration(BaseConfiguration):
                 # TODO: These two code blocks are untested.
                 if not self.registry_filepath:  # TODO: Registry URI  (goerli://speedynet.json) :-)
                     self.log.info(f"Fetching latest registry from source.")
-                    self.registry = InMemoryContractRegistry.from_latest_publication(network=list(self.domains)[0])  # TODO: #1580
+                    self.registry = InMemoryContractRegistry.from_latest_publication(network=self.domain)
                 else:
                     self.registry = LocalContractRegistry(filepath=self.registry_filepath)
                     self.log.info(f"Using local registry ({self.registry}).")
@@ -352,10 +352,10 @@ class CharacterConfiguration(BaseConfiguration):
         payload = cls._read_configuration_file(filepath=filepath)
         node_storage = cls.load_node_storage(storage_payload=payload['node_storage'],
                                              federated_only=payload['federated_only'])
-        domains = set(payload['domains'])
+        domain = payload['domain']
 
         # Assemble
-        payload.update(dict(node_storage=node_storage, domains=domains))
+        payload.update(dict(node_storage=node_storage, domain=domain))
         # Filter out None values from **overrides to detect, well, overrides...
         # Acts as a shim for optional CLI flags.
         overrides = {k: v for k, v in overrides.items() if v is not None}
@@ -401,7 +401,7 @@ class CharacterConfiguration(BaseConfiguration):
             keyring_root=self.keyring_root,
 
             # Behavior
-            domains=list(self.domains),  # From Set
+            domain=self.domain,
             learn_on_same_thread=self.learn_on_same_thread,
             abort_on_learning_error=self.abort_on_learning_error,
             start_learning_now=self.start_learning_now,

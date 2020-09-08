@@ -81,7 +81,7 @@ class ProxyRESTServer:
 def make_rest_app(
         db_filepath: str,
         this_node,
-        serving_domains: Set[str],
+        serving_domain,
         log: Logger=Logger("http-application-layer")
         ) -> Tuple[Flask, Datastore]:
     """
@@ -98,14 +98,14 @@ def make_rest_app(
 
     log.info("Starting datastore {}".format(db_filepath))
     datastore = Datastore(db_filepath)
-    rest_app = _make_rest_app(weakref.proxy(datastore), weakref.proxy(this_node), serving_domains, log)
+    rest_app = _make_rest_app(weakref.proxy(datastore), weakref.proxy(this_node), serving_domain, log)
 
     return rest_app, datastore
 
 
-def _make_rest_app(datastore: Datastore, this_node, serving_domains: Set[str], log: Logger) -> Tuple[Flask, Datastore]:
+def _make_rest_app(datastore: Datastore, this_node, serving_domain: str, log: Logger) -> Tuple[Flask, Datastore]:
 
-    forgetful_node_storage = ForgetfulNodeStorage(federated_only=this_node.federated_only)
+    forgetful_node_storage = ForgetfulNodeStorage(federated_only=this_node.federated_only)  # FIXME: Seems unused
 
     from nucypher.characters.lawful import Alice, Ursula
     _alice_class = Alice
@@ -414,7 +414,7 @@ def _make_rest_app(datastore: Datastore, this_node, serving_domains: Set[str], l
                 content = status_template.render(this_node=this_node,
                                                  known_nodes=this_node.known_nodes,
                                                  previous_states=previous_states,
-                                                 domains=serving_domains,
+                                                 domain=serving_domain,
                                                  version=nucypher.__version__,
                                                  checksum_address=this_node.checksum_address)
             except Exception as e:

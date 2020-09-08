@@ -133,7 +133,7 @@ class StakeHolderConfigOptions:
                 poa=self.poa,
                 light=self.light,
                 sync=False,
-                domains={self.network} if self.network else None,  # TODO: #1580
+                domain=self.network,
                 registry_filepath=self.registry_filepath)
 
         except FileNotFoundError:
@@ -162,7 +162,7 @@ class StakeHolderConfigOptions:
             light=self.light,
             sync=False,
             registry_filepath=self.registry_filepath,
-            domains={self.network}  # TODO: #1580
+            domain=self.network
         )
 
     def get_updates(self) -> dict:
@@ -171,7 +171,7 @@ class StakeHolderConfigOptions:
                        poa=self.poa,
                        light=self.light,
                        registry_filepath=self.registry_filepath,
-                       domains={self.network} if self.network else None)  # TODO: #1580
+                       domain=self.network)
         # Depends on defaults being set on Configuration classes, filtrates None values
         updates = {k: v for k, v in payload.items() if v is not None}
         return updates
@@ -232,7 +232,7 @@ class TransactingStakerOptions:
         is_preallocation_staker = (self.beneficiary_address and opts.staking_address) or self.allocation_filepath
 
         if is_preallocation_staker:
-            network = opts.config_options.network or list(stakeholder_config.domains)[0]  # TODO: 1580 - ugly network/domains mapping
+            network = opts.config_options.network or stakeholder_config.domain
             if self.allocation_filepath:
                 if self.beneficiary_address or opts.staking_address:
                     message = "--allocation-filepath is incompatible with --beneficiary-address and --staking-address."

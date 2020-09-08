@@ -58,7 +58,7 @@ class Character(Learner):
     from nucypher.network.protocols import SuspiciousActivity  # Ship this exception with every Character.
 
     def __init__(self,
-                 domains: Set = None,
+                 domain: str = None,
                  known_node_class: object = None,
                  is_me: bool = True,
                  federated_only: bool = False,
@@ -171,8 +171,7 @@ class Character(Learner):
             #
             self.provider_uri = provider_uri
             if not self.federated_only:
-                self.registry = registry or InMemoryContractRegistry.from_latest_publication(
-                    network=list(domains)[0])  # TODO: #1580
+                self.registry = registry or InMemoryContractRegistry.from_latest_publication(network=domain)  # See #1580
             else:
                 self.registry = NO_BLOCKCHAIN_CONNECTION.bool_value(False)
 
@@ -183,7 +182,7 @@ class Character(Learner):
             # Learner
             #
             Learner.__init__(self,
-                             domains=domains,
+                             domain=domain,
                              network_middleware=self.network_middleware,
                              node_class=known_node_class,
                              *args, **kwargs)

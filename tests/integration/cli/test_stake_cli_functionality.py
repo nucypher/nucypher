@@ -134,7 +134,7 @@ def test_stakeholder_configuration(test_emitter, test_registry, mock_testerchain
     selected_index = 0
     selected_account = mock_testerchain.client.accounts[selected_index]
     expected_stakeholder = StakeHolder(registry=test_registry,
-                                       domains={TEMPORARY_DOMAIN},
+                                       domain=TEMPORARY_DOMAIN,
                                        initial_address=selected_account)
     expected_stakeholder.refresh_stakes()
 

@@ -1011,7 +1011,7 @@ def fleet_of_highperf_mocked_ursulas(ursula_federated_test_config, request):
 @pytest.fixture(scope="module")
 def highperf_mocked_alice(fleet_of_highperf_mocked_ursulas):
     config = AliceConfiguration(dev_mode=True,
-                                domains={TEMPORARY_DOMAIN},
+                                domain=TEMPORARY_DOMAIN,
                                 network_middleware=MockRestMiddlewareForLargeFleetTests(),
                                 federated_only=True,
                                 abort_on_learning_error=True,
@@ -1028,7 +1028,7 @@ def highperf_mocked_alice(fleet_of_highperf_mocked_ursulas):
 @pytest.fixture(scope="module")
 def highperf_mocked_bob(fleet_of_highperf_mocked_ursulas):
     config = BobConfiguration(dev_mode=True,
-                              domains={TEMPORARY_DOMAIN},
+                              domain=TEMPORARY_DOMAIN,
                               network_middleware=MockRestMiddlewareForLargeFleetTests(),
                               federated_only=True,
                               abort_on_learning_error=True,
