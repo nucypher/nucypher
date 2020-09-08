@@ -30,9 +30,7 @@ DEMO_NODE_STARTING_PORT = 11500
 
 ursula_maker = partial(Ursula, rest_host='127.0.0.1',
                        federated_only=True,
-                       domains=[TEMPORARY_DOMAIN],
-                       )
-
+                       domain=TEMPORARY_DOMAIN)
 
 def spin_up_federated_ursulas(quantity: int = FLEET_POPULATION):
     # Ports

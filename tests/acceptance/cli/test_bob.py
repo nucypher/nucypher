@@ -100,7 +100,7 @@ def test_bob_view_with_preexisting_configuration(click_runner, custom_filepath):
     result = click_runner.invoke(nucypher_cli, view_args, input=FAKE_PASSWORD_CONFIRMED)
     assert result.exit_code == 0, result.exception
     assert "checksum_address" in result.output
-    assert "domains" in result.output
+    assert "domain" in result.output
     assert TEMPORARY_DOMAIN in result.output
     assert str(custom_filepath) in result.output
 

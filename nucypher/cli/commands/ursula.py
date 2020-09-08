@@ -120,7 +120,7 @@ class UrsulaConfigOptions:
         self.rest_host = rest_host
         self.rest_port = rest_port  # FIXME: not used in generate()
         self.db_filepath = db_filepath
-        self.domains = {network} if network else None  # TODO: #1580
+        self.domain = network
         self.registry_filepath = registry_filepath
         self.dev = dev
         self.poa = poa
@@ -134,7 +134,7 @@ class UrsulaConfigOptions:
             return UrsulaConfiguration(
                 emitter=emitter,
                 dev_mode=True,
-                domains={TEMPORARY_DOMAIN},
+                domain=TEMPORARY_DOMAIN,
                 poa=self.poa,
                 light=self.light,
                 registry_filepath=self.registry_filepath,
@@ -154,7 +154,7 @@ class UrsulaConfigOptions:
                 return UrsulaConfiguration.from_configuration_file(
                     emitter=emitter,
                     filepath=config_file,
-                    domains=self.domains,
+                    domain=self.domain,
                     registry_filepath=self.registry_filepath,
                     provider_process=self.eth_node,
                     provider_uri=self.provider_uri,
@@ -202,7 +202,7 @@ class UrsulaConfigOptions:
                                             rest_host=rest_host,
                                             rest_port=self.rest_port,
                                             db_filepath=self.db_filepath,
-                                            domains=self.domains,
+                                            domain=self.domain,
                                             federated_only=self.federated_only,
                                             worker_address=worker_address,
                                             registry_filepath=self.registry_filepath,
@@ -218,7 +218,7 @@ class UrsulaConfigOptions:
         payload = dict(rest_host=self.rest_host,
                        rest_port=self.rest_port,
                        db_filepath=self.db_filepath,
-                       domains=self.domains,
+                       domain=self.domain,
                        federated_only=self.federated_only,
                        checksum_address=self.worker_address,
                        registry_filepath=self.registry_filepath,
@@ -319,8 +319,8 @@ def init(general_config, config_options, force, config_root):
     _pre_launch_warnings(emitter, dev=None, force=force)
     if not config_root:
         config_root = general_config.config_root
-    if not config_options.federated_only and not config_options.domains:  # TODO: Again, weird network/domains mapping. See UrsulaConfigOptions' constructor. #1580
-        config_options.domains = {select_network(emitter)}
+    if not config_options.federated_only and not config_options.domain:
+        config_options.domain = select_network(emitter)
     ursula_config = config_options.generate_config(emitter, config_root, force)
     paint_new_installation_help(emitter, new_configuration=ursula_config)
 
