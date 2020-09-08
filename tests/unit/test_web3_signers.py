@@ -40,9 +40,9 @@ TRANSACTION_DICT = {
 
 
 @pytest.fixture(scope='module')
-def mock_account(mock_key):
-    test_key = Account.create(extra_entropy='M*A*S*H* DIWOKNECNECENOE#@!')
-    account = Account.from_key(private_key=mock_key.privateKey)
+def mock_account():
+    key = Account.create(extra_entropy='M*A*S*H* DIWOKNECNECENOE#@!')
+    account = Account.from_key(private_key=key.privateKey)
     return account
 
 

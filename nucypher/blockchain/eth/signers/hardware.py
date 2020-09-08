@@ -18,30 +18,23 @@
 
 from collections import namedtuple
 from typing import List, Tuple, Union
-from urllib.parse import urlparse
 
 import rlp
+import trezorlib
 from eth_account._utils.transactions import assert_valid_fields, Transaction
 from eth_utils.address import to_canonical_address
 from eth_utils.applicators import apply_key_map
 from eth_utils.conversions import to_int
+from functools import wraps
 from hexbytes import HexBytes
+from trezorlib import ethereum
+from trezorlib.client import get_default_client
+from trezorlib.tools import parse_path, Address, H_
+from trezorlib.transport import TransportException
 from web3 import Web3
 
-from nucypher.blockchain.eth.signers.base import Signer
-
-try:
-    import trezorlib
-    from trezorlib import ethereum
-    from trezorlib.client import get_default_client
-    from trezorlib.tools import parse_path, Address, H_
-    from trezorlib.transport import TransportException
-except ImportError:
-    raise RuntimeError("The nucypher package wasn't installed with the 'trezor' extra.")
-
-from functools import wraps
-
 from nucypher.blockchain.eth.decorators import validate_checksum_address
+from nucypher.blockchain.eth.signers.base import Signer
 
 
 def handle_trezor_call(device_func):
@@ -50,7 +43,7 @@ def handle_trezor_call(device_func):
     """
     @wraps(device_func)
     def wrapped(trezor, *args, **kwargs):
-        import usb1  # may not be installed on all systems including CI
+        import usb1  # may not be installable on some systems (consider CI)
         try:
             result = device_func(trezor, *args, **kwargs)
         except usb1.USBErrorNoDevice:
