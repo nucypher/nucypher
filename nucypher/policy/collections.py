@@ -24,15 +24,18 @@ from cryptography.hazmat.backends.openssl import backend
 from cryptography.hazmat.primitives import hashes
 from eth_utils import to_canonical_address, to_checksum_address
 
-from bytestring_splitter import BytestringKwargifier
-from bytestring_splitter import BytestringSplitter, BytestringSplittingError, VariableLengthBytestring
+from bytestring_splitter import (
+    BytestringKwargifier,
+    BytestringSplitter,
+    BytestringSplittingError,
+    VariableLengthBytestring
+)
 from constant_sorrow.constants import CFRAG_NOT_RETAINED, NO_DECRYPTION_PERFORMED
 from constant_sorrow.constants import NOT_SIGNED
 from nucypher.blockchain.eth.constants import ETH_ADDRESS_BYTE_LENGTH, ETH_HASH_BYTE_LENGTH
 from nucypher.characters.lawful import Bob, Character
-from nucypher.crypto.api import encrypt_and_sign, keccak_digest
-from nucypher.crypto.api import verify_eip_191
-from nucypher.crypto.constants import KECCAK_DIGEST_LENGTH, PUBLIC_ADDRESS_LENGTH
+from nucypher.crypto.api import encrypt_and_sign, keccak_digest, verify_eip_191
+from nucypher.crypto.constants import KECCAK_DIGEST_LENGTH
 from nucypher.crypto.kits import UmbralMessageKit
 from nucypher.crypto.signing import InvalidSignature, Signature, signature_splitter
 from nucypher.crypto.splitters import capsule_splitter, cfrag_splitter, key_splitter
@@ -60,7 +63,7 @@ class TreasureMap:
         leaves Bob disoriented.
         """
 
-    node_id_splitter = BytestringSplitter((to_checksum_address, int(PUBLIC_ADDRESS_LENGTH)), ID_LENGTH)
+    node_id_splitter = BytestringSplitter((to_checksum_address, ETH_ADDRESS_BYTE_LENGTH), ID_LENGTH)
 
     from nucypher.crypto.signing import \
         InvalidSignature  # Raised when the public signature (typically intended for Ursula) is not valid.

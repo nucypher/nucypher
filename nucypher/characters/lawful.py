@@ -46,6 +46,7 @@ from nucypher.acumen.nicknames import nickname_from_seed
 from nucypher.acumen.perception import FleetSensor
 from nucypher.blockchain.eth.actors import BlockchainPolicyAuthor, Worker
 from nucypher.blockchain.eth.agents import ContractAgency, StakingEscrowAgent
+from nucypher.blockchain.eth.constants import LENGTH_ECDSA_SIGNATURE_WITH_RECOVERY, ETH_ADDRESS_BYTE_LENGTH
 from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
 from nucypher.blockchain.eth.registry import BaseContractRegistry
 from nucypher.blockchain.eth.signers import Web3Signer
@@ -60,7 +61,7 @@ from nucypher.characters.control.interfaces import AliceInterface, BobInterface,
 from nucypher.cli.processes import UrsulaCommandProtocol
 from nucypher.config.storages import ForgetfulNodeStorage, NodeStorage
 from nucypher.crypto.api import encrypt_and_sign, keccak_digest
-from nucypher.crypto.constants import PUBLIC_ADDRESS_LENGTH, PUBLIC_KEY_LENGTH
+from nucypher.crypto.constants import PUBLIC_KEY_LENGTH
 from nucypher.crypto.kits import UmbralMessageKit
 from nucypher.crypto.powers import DecryptingPower, DelegatingPower, PowerUpError, SigningPower, TransactingPower
 from nucypher.crypto.signing import InvalidSignature
@@ -1304,7 +1305,6 @@ class Ursula(Teacher, Character, Worker):
 
         version = self.TEACHER_VERSION.to_bytes(2, "big")
         interface_info = VariableLengthBytestring(bytes(self.rest_interface))
-        decentralized_identity_evidence = VariableLengthBytestring(self.decentralized_identity_evidence)  # TODO: Change to fixed length
 
         certificate = self.rest_server_certificate()
         cert_vbytes = VariableLengthBytestring(certificate.public_bytes(Encoding.PEM))
@@ -1314,7 +1314,7 @@ class Ursula(Teacher, Character, Worker):
                                  bytes(VariableLengthBytestring(self.serving_domain.encode('utf-8'))),
                                  self.timestamp_bytes(),
                                  bytes(self._interface_signature),
-                                 bytes(decentralized_identity_evidence),
+                                 bytes(self.decentralized_identity_evidence),
                                  bytes(self.public_keys(SigningPower)),
                                  bytes(self.public_keys(DecryptingPower)),
                                  bytes(cert_vbytes),
@@ -1448,11 +1448,11 @@ class Ursula(Teacher, Character, Worker):
         splitter = BytestringKwargifier(
             _receiver=cls.from_processed_bytes,
             _partial_receiver=NodeSprout,
-            public_address=PUBLIC_ADDRESS_LENGTH,
+            public_address=ETH_ADDRESS_BYTE_LENGTH,
             domain=VariableLengthBytestring,
             timestamp=(int, 4, {'byteorder': 'big'}),
             interface_signature=Signature,
-            decentralized_identity_evidence=VariableLengthBytestring,
+            decentralized_identity_evidence=LENGTH_ECDSA_SIGNATURE_WITH_RECOVERY,
             verifying_key=(UmbralPublicKey, PUBLIC_KEY_LENGTH),
             encrypting_key=(UmbralPublicKey, PUBLIC_KEY_LENGTH),
             certificate=(load_pem_x509_certificate, VariableLengthBytestring, {"backend": default_backend()}),
@@ -1480,7 +1480,7 @@ class Ursula(Teacher, Character, Worker):
             # TODO: #154 - Some auto-updater logic?
 
             try:
-                canonical_address, _ = BytestringSplitter(PUBLIC_ADDRESS_LENGTH)(payload, return_remainder=True)
+                canonical_address, _ = BytestringSplitter(ETH_ADDRESS_BYTE_LENGTH)(payload, return_remainder=True)
                 checksum_address = to_checksum_address(canonical_address)
                 nickname, _ = nickname_from_seed(checksum_address)
                 display_name = cls._display_name_template.format(cls.__name__, nickname, checksum_address)
