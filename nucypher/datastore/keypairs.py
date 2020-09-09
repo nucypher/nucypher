@@ -15,7 +15,7 @@ You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 import base64
-
+import os
 import sha3
 from OpenSSL.SSL import TLSv1_2_METHOD
 from OpenSSL.crypto import X509
@@ -33,6 +33,7 @@ from nucypher.crypto import api as API
 from nucypher.crypto.api import generate_teacher_certificate
 from nucypher.crypto.kits import MessageKit
 from nucypher.crypto.signing import SignatureStamp, StrangerStamp
+from nucypher.network.resources import get_static_resources
 
 
 class Keypair(object):
@@ -199,4 +200,6 @@ class HostingKeypair(Keypair):
                                 options={
                                     "wsgi": rest_app,
                                     "https_port": port,
-                                    "max_upload_bytes": MAX_UPLOAD_CONTENT_LENGTH})
+                                    "max_upload_bytes": MAX_UPLOAD_CONTENT_LENGTH,
+                                    'resources': get_static_resources(),
+                                })
