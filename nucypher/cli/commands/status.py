@@ -25,8 +25,9 @@ from nucypher.blockchain.eth.constants import (
     POLICY_MANAGER_CONTRACT_NAME,
     STAKING_ESCROW_CONTRACT_NAME
 )
+from nucypher.blockchain.eth.events import ContractEventsThrottler
 from nucypher.blockchain.eth.networks import NetworksInventory
-from nucypher.blockchain.eth.utils import datetime_at_period
+from nucypher.blockchain.eth.utils import datetime_at_period, estimate_block_number_for_period
 from nucypher.cli.config import group_general_config
 from nucypher.cli.options import (
     group_options,
@@ -134,21 +135,16 @@ def events(general_config, registry_options, contract_name, from_block, to_block
         contract_names = [contract_name]
 
     if from_block is None:
-        # Sketch of logic for getting the approximate block height of current period start,
-        # so by default, this command only shows events of the current period
+        # by default, this command only shows events of the current period
         last_block = blockchain.client.block_number
         staking_agent = ContractAgency.get_agent(StakingEscrowAgent, registry=registry)
         current_period = staking_agent.get_current_period()
-        current_period_start = datetime_at_period(period=current_period,
-                                                  seconds_per_period=staking_agent.staking_parameters()[0],
-                                                  start_of_period=True)
-        seconds_from_midnight = int((maya.now() - current_period_start).total_seconds())
-        blocks_from_midnight = seconds_from_midnight // AVERAGE_BLOCK_TIME_IN_SECONDS
-
-        from_block = last_block - blocks_from_midnight
+        from_block = estimate_block_number_for_period(period=current_period,
+                                                      seconds_per_period=staking_agent.staking_parameters()[0],
+                                                      latest_block=last_block)
 
     if to_block is None:
-        to_block = 'latest'
+        to_block = blockchain.client.block_number  # get 'latest' block number
 
     # TODO: additional input validation for block numbers
     emitter.echo(f"Showing events from block {from_block} to {to_block}")
@@ -159,8 +155,8 @@ def events(general_config, registry_options, contract_name, from_block, to_block
         names = agent.events.names if not event_name else [event_name]
         for name in names:
             emitter.echo(f"{name}:", bold=True, color='yellow')
-            event_method = agent.events[name]
-            for event_record in event_method(from_block=from_block, to_block=to_block):
+            events_throttler = ContractEventsThrottler(agent=agent, event_name=name, from_block=from_block, to_block=to_block)
+            for event_record in events_throttler:
                 emitter.echo(f"  - {event_record}")
 
 
