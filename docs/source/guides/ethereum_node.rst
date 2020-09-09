@@ -130,7 +130,7 @@ Signing with Clef
 
 Clef enables applications to connect to an ethereum node and send locally signed
 transactions to be broadcasted. More
-information about Clef can be found `here <https://geth.ethereum.org/docs/getting-started>`_. Clef can
+information about Clef can be found `here <https://geth.ethereum.org/docs/clef/tutorial>`_. Clef can
 use hardware wallets (Ledger and Trezor) over USB, or geth formatted private keys by specifying the keystore
 directory path.
 
