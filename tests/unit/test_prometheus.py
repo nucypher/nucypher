@@ -21,7 +21,9 @@ import json
 import sys
 import time
 import unittest
+from unittest.mock import Mock
 
+import pytest
 from prometheus_client import (
     CollectorRegistry,
     Counter,
@@ -34,6 +36,7 @@ from prometheus_client import (
 )
 from prometheus_client.core import GaugeHistogramMetricFamily, Timestamp
 
+from nucypher.utilities.prometheus.collector import BaseMetricsCollector, MetricsCollector
 from nucypher.utilities.prometheus.metrics import JSONMetricsResource
 from nucypher.utilities.prometheus.metrics import PrometheusMetricsConfig
 
@@ -64,6 +67,31 @@ def test_prometheus_metrics_config():
                                                 start_now=True)
     assert prometheus_config.collection_interval == collection_interval
     assert prometheus_config.start_now
+
+
+def test_base_metrics_collector():
+    class TestBastMetricsCollector(BaseMetricsCollector):
+        def __init__(self):
+            self.collect_internal_run = False
+            super().__init__()
+
+        def initialize(self, metrics_prefix: str, registry: CollectorRegistry) -> None:
+            self.metrics = {'testmetric': 'gauge'}
+
+        def _collect_internal(self):
+            self.collect_internal_run = True
+
+    collector = TestBastMetricsCollector()
+
+    # try to collect before initialization
+    with pytest.raises(MetricsCollector.CollectorNotInitialized):
+        collector.collect()
+
+    # initialize and then try to collect
+    registry = Mock()
+    collector.initialize('None', registry)
+    collector.collect()
+    assert collector.collect_internal_run
 
 
 class TestGenerateJSON(unittest.TestCase):
