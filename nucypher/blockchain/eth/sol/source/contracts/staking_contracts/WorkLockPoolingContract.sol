@@ -8,9 +8,10 @@ import "contracts/staking_contracts/AbstractStakingContract.sol";
 // import "contracts/staking_contracts/StakingInterface.sol";
 
 /**
+ * @author @vzotova and @roma_k
  * @notice Contract acts as delegate for sub-stakers and owner
  **/
-contract CasiPooling is InitializableStakingContract, Ownable {
+contract WorkLockPoolingContract is InitializableStakingContract, Ownable {
     using SafeMath for uint256;
     using Address for address payable;
     using SafeERC20 for NuCypherToken;
