@@ -203,7 +203,8 @@ class Learner:
                  node_storage=None,
                  save_metadata: bool = False,
                  abort_on_learning_error: bool = False,
-                 lonely: bool = False
+                 lonely: bool = False,
+                 verify_node_bonding: bool = True,
                  ) -> None:
 
         self.log = Logger("learning-loop")  # type: Logger
@@ -224,6 +225,7 @@ class Learner:
         self._node_ids_to_learn_about_immediately = set()
 
         self.__known_nodes = self.tracker_class()
+        self._verify_node_bonding = verify_node_bonding
 
         self.lonely = lonely
         self.done_seeding = False
@@ -397,10 +399,15 @@ class Learner:
             # this will update the filepath from the temp location to this one.
             node.certificate_filepath = certificate_filepath
 
+            # Use this to control whether or not this node performs
+            # blockchain calls to determine if stranger nodes are bonded.
+            # Note: self.registry is composed on blockchainy character subclasses.
+            registry = self.registry if self._verify_node_bonding else None  # TODO: Federated mode?
+
             try:
                 node.verify_node(force=force_verification_recheck,
                                  network_middleware_client=self.network_middleware.client,
-                                 registry=self.registry)  # composed on character subclass, determines operating mode
+                                 registry=registry)  # composed on character subclass, determines operating mode
             except SSLError:
                 # TODO: Bucket this node as having bad TLS info - maybe it's an update that hasn't fully propagated?  567
                 return False
