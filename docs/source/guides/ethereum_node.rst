@@ -130,7 +130,7 @@ Signing with Clef
 
 Clef enables applications to connect to an ethereum node and send locally signed
 transactions to be broadcasted. More
-information about Clef can be found `here <https://github.com/ethereum/go-ethereum/tree/master/cmd/clef>`_. Clef can
+information about Clef can be found `here <https://geth.ethereum.org/docs/clef/tutorial>`_. Clef can
 use hardware wallets (Ledger and Trezor) over USB, or geth formatted private keys by specifying the keystore
 directory path.
 
@@ -138,11 +138,14 @@ directory path.
 Clef Setup
 ++++++++++
 
-We'll quickly walk through setup steps below, but additional in-depth documentation on Clef can
-be found in the `source repository <https://github.com/ethereum/go-ethereum/tree/master/cmd/clef>`_.
+Clef is typically installed alongside geth.
 
-Clef is typically installed alongside geth.  If you already have geth installed on your system you
-may already have Clef installed.  To check for an existing installation run:
+.. important::
+
+    Geth version 1.9.0 or higher is required.
+
+If you already have geth installed on your system you may already have Clef installed.  To check for an
+existing installation run:
 
 .. code:: bash
 
