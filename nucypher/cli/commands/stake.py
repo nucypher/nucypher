@@ -33,7 +33,7 @@ from nucypher.cli.actions.confirm import (
     confirm_enable_restaking_lock,
     confirm_enable_winding_down,
     confirm_large_stake,
-    confirm_staged_stake
+    confirm_staged_stake, confirm_disable_snapshots
 )
 from nucypher.cli.actions.select import select_client_account_for_staking, select_stake
 from nucypher.cli.utils import setup_emitter
@@ -70,7 +70,8 @@ from nucypher.cli.literature import (
     CONFIRM_COLLECTING_WITHOUT_MINTING, NO_TOKENS_TO_WITHDRAW, NO_FEE_TO_WITHDRAW, CONFIRM_INCREASING_STAKE,
     PROMPT_STAKE_INCREASE_VALUE, SUCCESSFUL_STAKE_INCREASE, INSUFFICIENT_BALANCE_TO_INCREASE, MAXIMUM_STAKE_REACHED,
     INSUFFICIENT_BALANCE_TO_CREATE, PROMPT_STAKE_CREATE_VALUE, PROMPT_DEPOSIT_OR_LOCK, PROMPT_STAKE_CREATE_LOCK_PERIODS,
-    ONLY_DISPLAYING_MERGEABLE_STAKES_NOTE, CONFIRM_MERGE, SUCCESSFUL_STAKES_MERGE
+    ONLY_DISPLAYING_MERGEABLE_STAKES_NOTE, CONFIRM_MERGE, SUCCESSFUL_STAKES_MERGE, CONFIRM_DISABLE_SNAPSHOTS,
+    SUCCESSFUL_ENABLE_SNAPSHOTS, SUCCESSFUL_DISABLE_SNAPSHOTS, CONFIRM_ENABLE_SNAPSHOTS
 )
 from nucypher.cli.options import (
     group_options,
@@ -728,6 +729,52 @@ def winddown(general_config, transacting_staker_options, config_file, enable, fo
 
         receipt = STAKEHOLDER.disable_winding_down()
         emitter.echo(SUCCESSFUL_DISABLE_WIND_DOWN.format(staking_address=staking_address), color='green', verbosity=1)
+
+    paint_receipt_summary(receipt=receipt, emitter=emitter, chain_name=blockchain.client.chain_name)
+
+
+@stake.command()
+@group_transacting_staker_options
+@option_config_file
+@click.option('--enable/--disable', help="Used to enable and disable taking snapshots", is_flag=True, default=True)
+@option_force
+@group_general_config
+def snapshots(general_config, transacting_staker_options, config_file, enable, force):
+    """Manage snapshots with --enable or --disable."""
+
+    # Setup
+    emitter = setup_emitter(general_config)
+    STAKEHOLDER = transacting_staker_options.create_character(emitter, config_file)
+    blockchain = transacting_staker_options.get_blockchain()
+
+    client_account, staking_address = select_client_account_for_staking(
+        emitter=emitter,
+        stakeholder=STAKEHOLDER,
+        staking_address=transacting_staker_options.staker_options.staking_address,
+        individual_allocation=STAKEHOLDER.individual_allocation,
+        force=force)
+
+    # Inner Exclusive Switch
+    if enable:
+        if not force:
+            click.confirm(CONFIRM_ENABLE_SNAPSHOTS.format(staking_address=staking_address), abort=True)
+
+        # Authenticate and Execute
+        password = transacting_staker_options.get_password(blockchain, client_account)
+        STAKEHOLDER.assimilate(password=password)
+
+        receipt = STAKEHOLDER.enable_snapshots()
+        emitter.echo(SUCCESSFUL_ENABLE_SNAPSHOTS.format(staking_address=staking_address), color='green', verbosity=1)
+    else:
+        if not force:
+            confirm_disable_snapshots(emitter, staking_address=staking_address)
+
+        # Authenticate and Execute
+        password = transacting_staker_options.get_password(blockchain, client_account)
+        STAKEHOLDER.assimilate(password=password)
+
+        receipt = STAKEHOLDER.disable_snapshots()
+        emitter.echo(SUCCESSFUL_DISABLE_SNAPSHOTS.format(staking_address=staking_address), color='green', verbosity=1)
 
     paint_receipt_summary(receipt=receipt, emitter=emitter, chain_name=blockchain.client.chain_name)
 

@@ -354,6 +354,24 @@ def test_staker_manages_winding_down(testerchain,
     assert staker.locked_tokens(base_duration) == 0
 
 
+def test_staker_manages_snapshots(testerchain,
+                                  test_registry,
+                                  staker,
+                                  token_economics,
+                                  ursula_decentralized_test_config):
+    # Disable taking snapshots
+    testerchain.time_travel(periods=1)
+    assert staker.is_taking_snapshots
+    receipt = staker.disable_snapshots()
+    assert receipt['status'] == 1
+    assert not staker.is_taking_snapshots
+
+    # Enable taking snapshots
+    receipt = staker.enable_snapshots()
+    assert receipt['status'] == 1
+    assert staker.is_taking_snapshots
+
+
 def test_set_min_fee_rate(testerchain, test_registry, staker):
     # Check before set
     _minimum, default, maximum = FEE_RATE_RANGE

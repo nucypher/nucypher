@@ -27,7 +27,7 @@ from nucypher.cli.literature import POST_STAKING_ADVICE
 from nucypher.cli.painting.transactions import paint_receipt_summary
 
 STAKE_TABLE_COLUMNS = ('Idx', 'Value', 'Remaining', 'Enactment', 'Termination', 'Status')
-STAKER_TABLE_COLUMNS = ('Status', 'Restaking', 'Winding Down', 'Unclaimed Fees', 'Min fee rate')
+STAKER_TABLE_COLUMNS = ('Status', 'Restaking', 'Winding Down', 'Snapshots', 'Unclaimed Fees', 'Min fee rate')
 
 
 def paint_all_stakes(emitter: StdoutEmitter,
@@ -73,6 +73,7 @@ def paint_stakes(emitter: StdoutEmitter,
     staker_data = [missing_info,
                    f'{"Yes" if staker.is_restaking else "No"} ({"Locked" if staker.restaking_lock_enabled else "Unlocked"})',
                    "Yes" if bool(staker.is_winding_down) else "No",
+                   "Yes" if bool(staker.is_taking_snapshots) else "No",
                    pretty_fees,
                    min_fee_rate]
 
