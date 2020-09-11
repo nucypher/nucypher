@@ -76,12 +76,12 @@ class TestLMDBEnv:
     @contextmanager
     def begin(self, *args, **kwargs):
         try:
-            self.thread_lock.acquire()
-            with self.open() as lmdb_env:
-                with lmdb_env.begin(*args, **kwargs) as lmdb_tx:
-                    yield lmdb_tx
+            with self.thread_lock:
+                with self.open() as lmdb_env:
+                    with lmdb_env.begin(*args, **kwargs) as lmdb_tx:
+                        yield lmdb_tx
         finally:
-            self.thread_lock.release()
+            pass
 
     def path(self):
         return self.db_path
