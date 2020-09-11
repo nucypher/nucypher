@@ -1463,7 +1463,7 @@ class Ursula(Teacher, Character, Worker):
         return potential_seed_node
 
     @classmethod
-    def internal_splitter(cls, splittable, partial=False):
+    def payload_splitter(cls, splittable, partial=False):
         splitter = BytestringKwargifier(
             _receiver=cls.from_processed_bytes,
             _partial_receiver=NodeSprout,
@@ -1481,6 +1481,10 @@ class Ursula(Teacher, Character, Worker):
         return result
 
     @classmethod
+    def is_compatible_version(cls, version: int) -> bool:
+        return cls.LOWEST_COMPATIBLE_VERSION <= version <= cls.LEARNER_VERSION
+
+    @classmethod
     def from_bytes(cls,
                    ursula_as_bytes: bytes,
                    version: int = INCLUDED_IN_BYTESTRING,
@@ -1492,8 +1496,9 @@ class Ursula(Teacher, Character, Worker):
         else:
             payload = ursula_as_bytes
 
-        # Check version and raise IsFromTheFuture if this node is... you guessed it...
-        if version > cls.LEARNER_VERSION:
+        # Check version is compatible and prepare to handle potential failures otherwise
+        if not cls.is_compatible_version(version):
+            version_exception_class = cls.IsFromTheFuture if version > cls.LEARNER_VERSION else cls.AreYouFromThePast
 
             # Try to handle failure, even during failure, graceful degradation
             # TODO: #154 - Some auto-updater logic?
@@ -1504,22 +1509,19 @@ class Ursula(Teacher, Character, Worker):
                 nickname, _ = nickname_from_seed(checksum_address)
                 display_name = cls._display_name_template.format(cls.__name__, nickname, checksum_address)
                 message = cls.unknown_version_message.format(display_name, version, cls.LEARNER_VERSION)
+                if version > cls.LEARNER_VERSION:
+                    message += " Is there a new version of NuCypher?"
             except BytestringSplittingError:
                 message = cls.really_unknown_version_message.format(version, cls.LEARNER_VERSION)
-                if fail_fast:
-                    raise cls.IsFromTheFuture(message)
-                else:
-                    cls.log.warn(message)
-                    return UNKNOWN_VERSION
+
+            if fail_fast:
+                raise version_exception_class(message)
             else:
-                if fail_fast:
-                    raise cls.IsFromTheFuture(message)
-                else:
-                    cls.log.warn(message)
-                    return UNKNOWN_VERSION
+                cls.log.warn(message)
+                return UNKNOWN_VERSION
         else:
             # Version stuff checked out.  Moving on.
-            node_sprout = cls.internal_splitter(payload, partial=True)
+            node_sprout = cls.payload_splitter(payload, partial=True)
             return node_sprout
 
     @classmethod

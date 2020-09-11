@@ -51,17 +51,16 @@ def test_emit_warning_upon_new_version(lonely_ursula_maker, caplog):
     # First we'll get a warning, because we're loading a seednode with a version from the future.
     learner.load_seednodes()
     assert len(warnings) == 1
-    assert warnings[0]['log_format'] == learner.unknown_version_message.format(seed_node,
-                                                                               seed_node.TEACHER_VERSION,
-                                                                               learner.LEARNER_VERSION)
+    expected_message = learner.unknown_version_message.format(seed_node,
+                                                              seed_node.TEACHER_VERSION,
+                                                              learner.LEARNER_VERSION)
+    assert expected_message in warnings[0]['log_format']
 
     # We don't use the above seednode as a teacher, but when our teacher tries to tell us about it, we get another of the same warning.
     learner.learn_from_teacher_node()
 
     assert len(warnings) == 2
-    assert warnings[1]['log_format'] == learner.unknown_version_message.format(seed_node,
-                                                                               seed_node.TEACHER_VERSION,
-                                                                               learner.LEARNER_VERSION)
+    assert expected_message in warnings[1]['log_format']
 
     # Now let's go a little further: make the version totally unrecognizable.
 
@@ -86,9 +85,10 @@ def test_emit_warning_upon_new_version(lonely_ursula_maker, caplog):
     accidental_node_repr = Character._display_name_template.format("Ursula", accidental_nickname, accidental_checksum)
 
     assert len(warnings) == 3
-    assert warnings[2]['log_format'] == learner.unknown_version_message.format(accidental_node_repr,
-                                                                               future_version,
-                                                                               learner.LEARNER_VERSION)
+    expected_message = learner.unknown_version_message.format(accidental_node_repr,
+                                                              future_version,
+                                                              learner.LEARNER_VERSION)
+    assert expected_message in warnings[2]['log_format']
 
     # This time, however, there's not enough garbage to assume there's a checksum address...
     random_bytes = os.urandom(2)
