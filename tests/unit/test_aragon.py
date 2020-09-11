@@ -130,10 +130,11 @@ def create_mock_dao_registry():
     return _create_mock_dao_registry
 
 
-def test_dao_registry(tmp_path, create_mock_dao_registry, get_random_checksum_address):
+def test_dao_registry(tmp_path, create_mock_dao_registry, get_random_checksum_address, mocker):
     NetworksInventory.validate_network_name = lambda _: None
-    DAORegistry._BASE_FILEPATH = tmp_path
     network = "bananas"
+    mocker.patch("nucypher.blockchain.eth.aragon.DAORegistry.get_filepath",
+                 return_value=tmp_path / network / DAORegistry._REGISTRY_FILENAME)
 
     # Let's create some mock registry data
     registry_data = dict()

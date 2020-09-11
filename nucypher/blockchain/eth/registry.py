@@ -27,6 +27,7 @@ from abc import ABC, abstractmethod
 from constant_sorrow.constants import REGISTRY_COMMITTED
 from typing import Dict, Iterator, List, Tuple, Type, Union
 
+from nucypher.blockchain.eth import CONTRACT_REGISTRY_BASE
 from nucypher.blockchain.eth.constants import PREALLOCATION_ESCROW_CONTRACT_NAME
 from nucypher.blockchain.eth.networks import NetworksInventory
 from nucypher.config.constants import DEFAULT_CONFIG_ROOT
@@ -97,14 +98,12 @@ class GithubRegistrySource(CanonicalRegistrySource):
 
 
 class EmbeddedRegistrySource(CanonicalRegistrySource):
-    _HERE = os.path.abspath(os.path.dirname(__file__))
-    _REGISTRY_DIR = os.path.join(_HERE, "contract_registry")
 
     name = "Embedded Registry Source"
     is_primary = False
 
     def get_publication_endpoint(self) -> str:
-        filepath = str(os.path.join(self._REGISTRY_DIR, self.network, self.registry_name))
+        filepath = str(CONTRACT_REGISTRY_BASE / self.network / self.registry_name)
         return filepath
 
     def fetch_latest_publication(self) -> Union[str, bytes]:

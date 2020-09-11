@@ -17,7 +17,6 @@
 
 import json
 from collections import namedtuple
-from pathlib import Path
 from typing import Iterable, Tuple, Union, List, Dict, NamedTuple
 
 from eth_typing import ChecksumAddress, HexStr
@@ -25,6 +24,7 @@ from eth_utils import to_canonical_address
 from web3 import Web3
 from web3.contract import ContractFunction
 
+from nucypher.blockchain.eth import BASE_DIRECTORY, CONTRACT_REGISTRY_BASE
 from nucypher.blockchain.eth.constants import DAO_INSTANCES_NAMES
 from nucypher.blockchain.eth.networks import NetworksInventory
 
@@ -72,11 +72,10 @@ class CallScriptCodec:
 
 
 class Artifact:
-    _HERE = Path(__file__).parent
-    _ARTIFACTS_DIR = _HERE / "aragon_artifacts"
+    ARTIFACTS_DIRECTORY = BASE_DIRECTORY / "aragon_artifacts"
 
     def __init__(self, name: str):
-        artifact_filepath = self._ARTIFACTS_DIR / f"{name}.json"
+        artifact_filepath = self.ARTIFACTS_DIRECTORY / f"{name}.json"
         with open(artifact_filepath, 'r') as artifact_file:
             self.raw_data = json.load(artifact_file)
 
@@ -86,8 +85,7 @@ class Artifact:
 
 
 class DAORegistry:
-    _HERE = Path(__file__).parent
-    _BASE_FILEPATH = _HERE / "contract_registry"
+
     _REGISTRY_FILENAME = "dao_registry.json"
 
     Instance = namedtuple('Instance', ['name', 'app_name', 'address'])
@@ -97,9 +95,7 @@ class DAORegistry:
 
     def __init__(self, network: str):
         self.network = network
-        NetworksInventory.validate_network_name(network)
-
-        self.filepath = self._BASE_FILEPATH / network / self._REGISTRY_FILENAME
+        self.filepath = self.get_filepath(network)
         with open(self.filepath, 'r') as registry_file:
             raw_dao_elements = dict(json.load(registry_file))
 
@@ -107,6 +103,12 @@ class DAORegistry:
         for instance_name, instance_data in raw_dao_elements.items():
             self.__validate_instance_name(instance_name)
             self.instances[instance_name] = self.Instance(name=instance_name, **instance_data)
+
+    @classmethod
+    def get_filepath(cls, network: str):
+        NetworksInventory.validate_network_name(network)
+        filepath = CONTRACT_REGISTRY_BASE / network / cls._REGISTRY_FILENAME
+        return filepath
 
     @staticmethod
     def __validate_instance_name(instance_name: str):
