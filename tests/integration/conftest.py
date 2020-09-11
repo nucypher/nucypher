@@ -18,6 +18,7 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 import lmdb
 import os
 import pytest
+import threading
 from contextlib import contextmanager
 from eth_account.account import Account
 from functools import partial
@@ -70,15 +71,17 @@ class TestLMDBEnv:
     def __init__(self, *args, **kwargs):
         self.db_path = args[0]
         self.open = partial(self.LMDB_OPEN_FUNC, *args, **kwargs)
+        self.thread_lock = threading.Lock()
 
     @contextmanager
     def begin(self, *args, **kwargs):
         try:
+            self.thread_lock.acquire()
             with self.open() as lmdb_env:
                 with lmdb_env.begin(*args, **kwargs) as lmdb_tx:
                     yield lmdb_tx
         finally:
-            pass
+            self.thread_lock.release()
 
     def path(self):
         return self.db_path
