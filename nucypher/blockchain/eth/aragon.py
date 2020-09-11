@@ -30,11 +30,18 @@ from nucypher.blockchain.eth.networks import NetworksInventory
 
 
 class Action(NamedTuple):
+    """
+    An action is the conjunction of a smart contract address and a call to one of its methods
+    """
     target: ChecksumAddress
     data: Union[ContractFunction, HexStr, bytes]
 
 
 class CallScriptCodec:
+    """
+    Utility class to facilitate encoding 'actions' (i.e, calls to smart contracts)
+    as per the CallScript format used by Aragon contracts.
+    """
 
     CALLSCRIPT_ID = Web3.toBytes(hexstr='0x00000001')
 
@@ -72,6 +79,9 @@ class CallScriptCodec:
 
 
 class Artifact:
+    """
+    A helper class to extract data from Aragon's Artifacts, which contain metadata about Aragon's apps.
+    """
     ARTIFACTS_DIRECTORY = BASE_DIRECTORY / "aragon_artifacts"
 
     def __init__(self, name: str):
@@ -85,13 +95,18 @@ class Artifact:
 
 
 class DAORegistry:
+    """
+    A simple registry to store the addresses and types of NuCypher DAO instances.
+    An instance is a particular specimen of an Aragon App.
+    An Aragon App may have several instances in the NuCypher DAO (e.g., there are two instances of the Voting app)
+    """
 
     _REGISTRY_FILENAME = "dao_registry.json"
 
     Instance = namedtuple('Instance', ['name', 'app_name', 'address'])
 
     class InstanceNotInRegistry(RuntimeError):
-        pass
+        """Raised when a instance is not found in the NuCypher DAO registry"""
 
     def __init__(self, network: str):
         self.network = network
@@ -120,7 +135,7 @@ class DAORegistry:
         try:
             instance = self.instances[instance_name]
         except KeyError:
-            raise self.InstanceNotInRegistry(f"{instance_name} is not a recognized instance of NuCypherDAO.")
+            raise self.InstanceNotInRegistry(f"{instance_name} is not found in the NuCypherDAO registry.")
         else:
             return instance
 
@@ -137,4 +152,4 @@ class DAORegistry:
             if instance.address == address:
                 return instance_name
         else:
-            raise ValueError(f"No instance was found in NuCypherDAO with address {address}")
+            raise self.InstanceNotInRegistry(f"No instance found in the NuCypherDAO registry with address {address}")

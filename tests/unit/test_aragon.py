@@ -154,7 +154,8 @@ def test_dao_registry(tmp_path, create_mock_dao_registry, get_random_checksum_ad
         _ = dao_registry.get_address_of(instance_name="🍌")
 
     unknown_address = get_random_checksum_address()
-    with pytest.raises(ValueError, match=f"No instance was found in NuCypherDAO with address {unknown_address}"):
+    with pytest.raises(DAORegistry.InstanceNotInRegistry,
+                       match=f"No instance found in the NuCypherDAO registry with address {unknown_address}"):
         _ = dao_registry.get_instance_name_by_address(unknown_address)
 
     # Finding an unknown DAO instance in the registry file should raise an exception
