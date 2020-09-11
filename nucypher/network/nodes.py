@@ -163,13 +163,13 @@ class Learner:
     __DEFAULT_MIDDLEWARE_CLASS = RestMiddleware
 
     LEARNER_VERSION = LEARNING_LOOP_VERSION
+    LOWEST_COMPATIBLE_VERSION = 2   # Disallow versions lower than this
+
     node_splitter = BytestringSplitter(VariableLengthBytestring)
     version_splitter = BytestringSplitter((int, 2, {"byteorder": "big"}))
     tracker_class = FleetSensor
 
     invalid_metadata_message = "{} has invalid metadata.  The node's stake may have ended, or it is transitioning to a new interface. Ignoring."
-    unknown_version_message = "{} purported to be of version {}, but we're only version {}.  Is there a new version of NuCypher?"
-    really_unknown_version_message = "Unable to glean address from node that perhaps purported to be version {}.  We're only version {}."
     fleet_state_icon = ""
 
     _DEBUG_MODE = False
@@ -986,8 +986,18 @@ class Teacher:
     class WrongMode(TypeError):
         """Raised when a Character tries to use another Character as decentralized when the latter is federated_only."""
 
-    class IsFromTheFuture(TypeError):
+    class UnexpectedVersion(TypeError):
+        """Raised when deserializing a Character from a unexpected and incompatible version."""
+
+    class IsFromTheFuture(UnexpectedVersion):
         """Raised when deserializing a Character from a future version."""
+
+    class AreYouFromThePast(UnexpectedVersion):
+        """Raised when deserializing a Character from a previous, now unsupported version."""
+
+    unknown_version_message = "{} purported to be of version {}, but we're version {}."
+    really_unknown_version_message = "Unable to glean address from node that purported to be version {}. " \
+                                     "We're version {}."
 
     @classmethod
     def set_cert_storage_function(cls, node_storage_function):
@@ -1210,7 +1220,7 @@ class Teacher:
 
         version, node_bytes = self.version_splitter(response_data, return_remainder=True)
 
-        sprout = self.internal_splitter(node_bytes, partial=True)
+        sprout = self.payload_splitter(node_bytes, partial=True)
 
         verifying_keys_match = sprout.verifying_key == self.public_keys(SigningPower)
         encrypting_keys_match = sprout.encrypting_key == self.public_keys(DecryptingPower)
