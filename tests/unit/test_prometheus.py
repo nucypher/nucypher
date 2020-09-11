@@ -44,27 +44,37 @@ TEST_PREFIX = 'test_prefix'
 
 
 def test_prometheus_metrics_config():
-    listen_address = '111.111.111.111'
     port = 2020
+
+    # no port
+    with pytest.raises(ValueError):
+        PrometheusMetricsConfig(port=None, metrics_prefix=TEST_PREFIX)
+
+    # no prefix
+    with pytest.raises(ValueError):
+        PrometheusMetricsConfig(port=port, metrics_prefix=None)
+
     prometheus_config = PrometheusMetricsConfig(port=port,
-                                                metrics_prefix=TEST_PREFIX,
-                                                listen_address=listen_address)
+                                                metrics_prefix=TEST_PREFIX)
 
     assert prometheus_config.port == 2020
     assert prometheus_config.metrics_prefix == TEST_PREFIX
-    assert prometheus_config.listen_address == listen_address
+    assert prometheus_config.listen_address == ''
 
     # defaults
     assert prometheus_config.collection_interval == 10
     assert not prometheus_config.start_now
+    assert prometheus_config.listen_address == ''
 
     # non-defaults
     collection_interval = 5
+    listen_address = '111.111.111.111'
     prometheus_config = PrometheusMetricsConfig(port=port,
                                                 metrics_prefix=TEST_PREFIX,
                                                 listen_address=listen_address,
                                                 collection_interval=collection_interval,
                                                 start_now=True)
+    assert prometheus_config.listen_address == listen_address
     assert prometheus_config.collection_interval == collection_interval
     assert prometheus_config.start_now
 

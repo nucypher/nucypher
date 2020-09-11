@@ -20,6 +20,7 @@ from unittest import mock
 
 import pytest
 import pytest_twisted as pt
+from click import BadOptionUsage
 from twisted.internet import threads
 
 from nucypher import utilities
@@ -70,6 +71,26 @@ def test_ursula_rest_host_determination(click_runner, mocker):
     result = click_runner.invoke(nucypher_cli, args, catch_exceptions=True, input=FAKE_PASSWORD_CONFIRMED)
     assert result.exit_code == 1
     assert isinstance(result.exception, UnknownIPAddress)
+
+
+@pt.inlineCallbacks
+def test_ursula_run_with_prometheus_but_no_metrics_port(click_runner):
+    args = ('ursula', 'run',  # Stat Ursula Command
+            '--debug',  # Display log output; Do not attach console
+            '--federated-only',  # Operating Mode
+            '--dev',  # Run in development mode (ephemeral node)
+            '--dry-run',  # Disable twisted reactor in subprocess
+            '--lonely',  # Do not load seednodes
+            '--prometheus'  # Specify collection of prometheus metrics
+            )
+
+    result = yield threads.deferToThread(click_runner.invoke,
+                                         nucypher_cli, args,
+                                         catch_exceptions=False)
+
+    assert result.exit_code != 0
+    expected_error = f"Error: --metrics-port is required when using --prometheus"
+    assert expected_error in result.output
 
 
 @pt.inlineCallbacks
