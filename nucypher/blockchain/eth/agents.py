@@ -99,7 +99,7 @@ class EthereumContractAgent:
         """
 
     def __init__(self,
-                 registry: BaseContractRegistry = None,
+                 registry: BaseContractRegistry = None,  # TODO: Consider make it non-optional again. See comment in InstanceAgent.
                  provider_uri: Optional[str] = None,
                  contract: Optional[Contract] = None,
                  transaction_gas: Optional[Wei] = None):
@@ -1572,6 +1572,8 @@ class MultiSigAgent(EthereumContractAgent):
 class InstanceAgent(EthereumContractAgent):
     """Base class for agents that interact with contracts instantiated by address"""
 
+    # TODO: Consider combine InstanceAgent and EthereumContractAgent
+    # see https://github.com/nucypher/nucypher/pull/2119#discussion_r472146989
     def __init__(self, address: str, abi: List[Dict] = None, provider_uri: str = None):
         blockchain = BlockchainInterfaceFactory.get_or_create_interface(provider_uri=provider_uri)
         if abi:
@@ -1619,7 +1621,8 @@ class VotingAgent(ForwarderAgent):
         elif cast_vote is not None and execute_if_decided is not None:
             return self.contract.functions.newVote(callscript, metadata, cast_vote, execute_if_decided)
         else:
-            raise ValueError
+            raise ValueError("'cast_vote' and 'execute_if_decided' parameters need to be used in conjunction: "
+                             "either use them both or don't use them.")
 
     @contract_api(TRANSACTION)
     def new_vote(self,
