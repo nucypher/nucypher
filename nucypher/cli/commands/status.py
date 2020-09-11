@@ -25,7 +25,7 @@ from nucypher.blockchain.eth.constants import (
     POLICY_MANAGER_CONTRACT_NAME,
     STAKING_ESCROW_CONTRACT_NAME
 )
-from nucypher.blockchain.eth.events import ContractEventsThrottler
+from nucypher.blockchain.eth.events import ContractAgentEventsThrottler
 from nucypher.blockchain.eth.networks import NetworksInventory
 from nucypher.blockchain.eth.utils import datetime_at_period, estimate_block_number_for_period
 from nucypher.cli.config import group_general_config
@@ -155,7 +155,10 @@ def events(general_config, registry_options, contract_name, from_block, to_block
         names = agent.events.names if not event_name else [event_name]
         for name in names:
             emitter.echo(f"{name}:", bold=True, color='yellow')
-            events_throttler = ContractEventsThrottler(agent=agent, event_name=name, from_block=from_block, to_block=to_block)
+            events_throttler = ContractAgentEventsThrottler(agent=agent,
+                                                            event_name=name,
+                                                            from_block=from_block,
+                                                            to_block=to_block)
             for event_record in events_throttler:
                 emitter.echo(f"  - {event_record}")
 

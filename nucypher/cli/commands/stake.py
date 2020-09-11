@@ -20,7 +20,7 @@ import click
 from web3 import Web3
 
 from nucypher.blockchain.eth.constants import MAX_UINT16
-from nucypher.blockchain.eth.events import EventRecord
+from nucypher.blockchain.eth.events import EventRecord, ContractAgentEventsThrottler
 from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
 from nucypher.blockchain.eth.registry import IndividualAllocationRegistry
 from nucypher.blockchain.eth.signers import ClefSigner

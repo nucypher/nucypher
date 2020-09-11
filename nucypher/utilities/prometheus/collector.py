@@ -14,7 +14,7 @@
  You should have received a copy of the GNU Affero General Public License
  along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
-from nucypher.blockchain.eth.events import ContractEventsThrottler
+from nucypher.blockchain.eth.events import ContractAgentEventsThrottler
 from nucypher.blockchain.eth.utils import estimate_block_number_for_period
 
 try:
@@ -342,11 +342,11 @@ class CommitmentMadeEventMetricsCollector(EventMetricsCollector):
                 seconds_per_period=self.contract_agent.staking_parameters()[0],
                 latest_block=latest_block)
 
-            events_throttler = ContractEventsThrottler(agent=self.contract_agent,
-                                                       event_name=self.event_name,
-                                                       from_block=block_number_for_previous_period,
-                                                       to_block=latest_block,
-                                                       **arg_filters)
+            events_throttler = ContractAgentEventsThrottler(agent=self.contract_agent,
+                                                            event_name=self.event_name,
+                                                            from_block=block_number_for_previous_period,
+                                                            to_block=latest_block,
+                                                            **arg_filters)
             for event_record in events_throttler:
                 self._event_occurred(event_record.raw_event)
 
