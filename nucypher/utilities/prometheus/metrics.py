@@ -57,9 +57,15 @@ class PrometheusMetricsConfig:
     def __init__(self,
                  port: int,
                  metrics_prefix: str,
-                 listen_address: str,
+                 listen_address: str = '',  # default to localhost ip
                  collection_interval: int = 10,
                  start_now: bool = False):
+
+        if not port:
+            raise ValueError('port must be provided')
+        if not metrics_prefix:
+            raise ValueError('metrics prefix must be provided')
+
         self.port = port
         self.metrics_prefix = metrics_prefix
         self.listen_address = listen_address
