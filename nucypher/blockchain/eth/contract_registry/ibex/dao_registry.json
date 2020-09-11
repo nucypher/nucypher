@@ -11,11 +11,11 @@
         "app_name": "Voting",
         "address": "0xAfA0278A030798586374c832159931437A32B03B"
     },
-    "CouncilVoting": {
+    "EmergencyVoting": {
         "app_name": "Voting",
         "address": "0xb8cAC0B10E8f2C242f86b0C0019bEa4C4f82cff2"
     },
-    "CouncilManager": {
+    "EmergencyManager": {
         "app_name": "TokenManager",
         "address": "0xcea8918cB9D4ebA9fDb1Ae1359a8ccEbBD4dA135"
     }

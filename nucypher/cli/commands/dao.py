@@ -20,7 +20,7 @@ import os
 import click
 
 from nucypher.blockchain.eth import Signer, ClefSigner
-from nucypher.blockchain.eth.actors import SecurityCouncilManager, BaseActor
+from nucypher.blockchain.eth.actors import EmergencyResponseManager, BaseActor
 from nucypher.cli.actions.auth import get_client_password
 from nucypher.cli.actions.select import select_client_account
 from nucypher.cli.config import group_general_config, GroupGeneralConfig
@@ -84,12 +84,12 @@ class DaoOptions:  # TODO: This class is essentially the same that WorkLock opti
         if transacting and not is_clef and not hw_wallet:
             client_password = get_client_password(checksum_address=self.participant_address)
         signer = Signer.from_signer_uri(self.signer_uri) if self.signer_uri else None
-        actor = SecurityCouncilManager(checksum_address=self.participant_address,
-                                       network=self.network,
-                                       registry=registry,
-                                       client_password=client_password,
-                                       signer=signer,
-                                       transacting=transacting)
+        actor = EmergencyResponseManager(checksum_address=self.participant_address,
+                                         network=self.network,
+                                         registry=registry,
+                                         client_password=client_password,
+                                         signer=signer,
+                                         transacting=transacting)
         return actor
 
     def create_participant(self, registry, hw_wallet: bool = False):
@@ -132,18 +132,17 @@ def propose(general_config: GroupGeneralConfig, dao_options: DaoOptions, hw_wall
     #  - Activate network
     #  - Transfer ownership of contract
     #  - Change global fee range in PolicyManager
-    #  - Change composition of SecurityCouncil
-    #  - Change Standard/Council voting settings (% approval, % support)
+    #  - Change composition of Emergency Response Team
+    #  - Change Standard/Emergency voting settings (% approval, % support)
 
     emitter, registry, blockchain = dao_options.setup(general_config=general_config)
     _participant_address = dao_options.get_participant_address(emitter, registry, show_staking=True)
 
-    # TODO: Let's go with only SecurityCouncilManager for the moment, while we figure out the TODO above
-    manager: SecurityCouncilManager = dao_options.create_participant(registry=registry, hw_wallet=hw_wallet)
+    manager: EmergencyResponseManager = dao_options.create_participant(registry=registry, hw_wallet=hw_wallet)
     with open(parameters) as json_file:
         parameters = json.load(json_file)
 
-    manager.rotate_council_members(**parameters)
+    manager.rotate_emergency_response_team(**parameters)
 
 
 @dao.command()

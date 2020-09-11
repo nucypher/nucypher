@@ -52,7 +52,7 @@ from nucypher.blockchain.eth.agents import (
 from nucypher.blockchain.eth.aragon import CallScriptCodec, DAORegistry, Action
 from nucypher.blockchain.eth.constants import (
     NULL_ADDRESS,
-    COUNCIL_MANAGER,
+    EMERGENCY_MANAGER,
     STANDARD_AGGREGATOR,
     STANDARD_VOTING
 )
@@ -2185,18 +2185,18 @@ class DaoActor(BaseActor):
             self.transacting_power.activate()
 
 
-class SecurityCouncilManager(DaoActor):  # TODO: Find a different name for this. "Security Council" sounds silly
+class EmergencyResponseManager(DaoActor):
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
 
-        self.token_manager = TokenManagerAgent(address=self.dao_registry.get_address_of(COUNCIL_MANAGER))
+        self.token_manager = TokenManagerAgent(address=self.dao_registry.get_address_of(EMERGENCY_MANAGER))
         self.voting = VotingAgent(address=self.dao_registry.get_address_of(STANDARD_VOTING))
         self.voting_aggregator = VotingAggregatorAgent(self.dao_registry.get_address_of(STANDARD_AGGREGATOR))
 
-    def rotate_council_members(self,
-                               members_out: Iterable[ChecksumAddress],
-                               members_in: Iterable[ChecksumAddress]):
+    def rotate_emergency_response_team(self,
+                                       members_out: Iterable[ChecksumAddress],
+                                       members_in: Iterable[ChecksumAddress]):
 
         members_out_set = set(members_out)
         if not members_out_set.isdisjoint(members_in):
