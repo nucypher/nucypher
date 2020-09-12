@@ -14,24 +14,28 @@
  You should have received a copy of the GNU Affero General Public License
  along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
-
+import asyncio
 import datetime
-import maya
 import os
+import time
+from functools import partial
+
+import maya
 import pytest
 import pytest_twisted
 import requests
-from bytestring_splitter import BytestringSplittingError
-from functools import partial
 from twisted.internet import threads
+from twisted.internet.defer import Deferred
+from websockets.protocol import WebSocketCommonProtocol
 
-from nucypher.policy.collections import TreasureMap
+from bytestring_splitter import BytestringSplittingError
 from nucypher.policy.policies import Policy
 from tests.utils.middleware import EvilMiddleWare, NodeIsDownMiddleware
 from tests.utils.ursula import make_federated_ursulas
 
 
-def test_alice_can_grant_even_when_the_first_nodes_she_tries_are_down(federated_alice, federated_bob, federated_ursulas):
+def test_alice_can_grant_even_when_the_first_nodes_she_tries_are_down(federated_alice, federated_bob,
+                                                                      federated_ursulas):
     m, n = 2, 3
     policy_end_datetime = maya.now() + datetime.timedelta(days=5)
     label = b"this_is_the_path_to_which_access_is_being_granted"
@@ -167,3 +171,43 @@ def test_hendrix_handles_content_length_validation(ursula_federated_test_config)
 
     yield threads.deferToThread(check_node_rejects_large_posts, node)
     yield threads.deferToThread(check_node_accepts_normal_posts, node)
+
+
+def test_backpressure_on_web3_activity():
+    asyncio_event_loop = asyncio.events.get_event_loop()
+
+    async def spinner(*args, **kwargs):
+        for _i in range(100):  # In case everything else hangs, we'll bail after 100 iterations.
+            time.sleep(.001)
+        asyncio_event_loop.stop()
+
+    wscp = WebSocketCommonProtocol()
+    wscp.transfer_data_task = spinner()
+
+    problems = []
+
+    def _handle_failure(failure):
+        problems.append(failure.getErrorMessage())
+        asyncio_event_loop.stop()
+
+    def llama(result):
+        assert result  # Not much of interest that we can really assert here.
+
+    def wrap_websocket_call_to_simulate_conditions_in_the_codebase(coro_callable):
+        recv_coro = coro_callable()
+        _future = asyncio.ensure_future(recv_coro)
+        d = Deferred.fromFuture(_future)
+        d.addCallback(llama)
+        d.addErrback(_handle_failure)
+        return d
+
+    # Not a problem.
+    d1 = wrap_websocket_call_to_simulate_conditions_in_the_codebase(wscp.recv)
+
+    # ...but since it hasn't returned when we call this one, we'll get an error, which will be added to `problems`
+    d2 = wrap_websocket_call_to_simulate_conditions_in_the_codebase(wscp.recv)
+
+    asyncio_event_loop.run_forever()
+
+    assert len(problems) == 1
+    assert problems[0] == 'cannot call recv while another coroutine is already waiting for the next message'
