@@ -31,10 +31,15 @@ contract WorkLockPoolingContract is InitializableStakingContract, Ownable {
 
     struct Delegator {
         uint256 depositedTokens;
+
         uint256 withdrawnReward;
         uint256 withdrawnETH;
+
         uint256 paidETH;
-        uint256 depositedETHWorklock;
+
+        uint256 depositedETHWorkLock;
+        uint256 refundedETHWorkLock;
+        bool claimedWorkLockTokens;
     }
 
     StakingEscrow public escrow;
@@ -45,8 +50,12 @@ contract WorkLockPoolingContract is InitializableStakingContract, Ownable {
 
     uint256 public totalWithdrawnReward;
     uint256 public totalWithdrawnETH;
+
     uint256 public totalTransactionsCost;
-    uint256 public totalWorklockETHreceived;
+
+    uint256 public totalWorklockETHReceived;
+    uint256 public totalWorklockETHRefunded;
+    uint256 public totalWorklockETHWithdrawn;
 
     // address payable public workerAccount;
 
@@ -77,23 +86,20 @@ contract WorkLockPoolingContract is InitializableStakingContract, Ownable {
      * @notice Owner sets transaction cost spent by worker node
      */
     function addTotalTransactionsCost(uint256 _value) external onlyOwner {
-        totalTransactionsCost.add(_value);
+        totalTransactionsCost = totalTransactionsCost.add(_value);
     }
 
     /**
      * @notice returns amount in wei to pay for txn spends for given delegator
      */
     function calculateTxnCostToPay(address _delegator)
-        external
-        returns (uint256)
+        public view returns (uint256)
     {
         Delegator storage delegator = delegators[_delegator];
         uint256 depositedNU = delegator.depositedTokens;
         uint256 paidETH = delegator.paidETH;
 
-        uint256 delegatorWeiShare = totalTransactionsCost.mul(depositedNU).div(
-            totalDepositedTokens.add(ownerFraction)
-        );
+        uint256 delegatorWeiShare = totalTransactionsCost.mul(depositedNU).div(totalDepositedTokens);
 
         return paidETH >= delegatorWeiShare ? 0 : delegatorWeiShare - paidETH;
     }
@@ -101,8 +107,8 @@ contract WorkLockPoolingContract is InitializableStakingContract, Ownable {
     /**
      * @notice Function allow every delegatory to repay txn cost spent by worker noed
      */
-    function payForTxnCosts(uint256 _value) public payable {
-        require(this.calculateTxnCostToPay(msg.sender) == _value);
+    function payForTxnCosts() public payable {
+//        require(calculateTxnCostToPay(msg.sender) == _value);
         Delegator storage delegator = delegators[msg.sender];
         require(delegator.depositedTokens != 0);
         delegator.paidETH += msg.value;
@@ -146,17 +152,48 @@ contract WorkLockPoolingContract is InitializableStakingContract, Ownable {
     /**
      * @notice delagetor can transfer ETH to directly worklock
      */
-    function depositETH() external payable {
+    function escrowETH() external payable {
         Delegator storage delegator = delegators[msg.sender];
-        delegator.depositedETHWorklock = delegator.depositedETHWorklock.add(msg.value);
-        totalWorklockETHreceived = totalWorklockETHreceived.add(msg.value);
+        delegator.depositedETHWorkLock = delegator.depositedETHWorkLock.add(msg.value);
+        totalWorklockETHReceived = totalWorklockETHReceived.add(msg.value);
         worklock.bid{value: msg.value}();
     }
 
-    function claimTokens() public {
-        uint256 claimedTokens = worklock.claim();
-        worklockClaimedTokens = worklockClaimedTokens.add(claimedTokens);
-        totalDepositedTokens = totalDepositedTokens.add(claimedTokens);
+    /**
+     * @dev Hide method from StakingInterface
+     */
+    function bid(uint256 _value) public payable {}
+
+    /**
+     * @dev Hide method from StakingInterface
+     */
+    function withdrawCompensation() public {}
+
+    /**
+     * @dev Hide method from StakingInterface
+     */
+    function cancelBid() public {}
+
+    // TODO docs
+    function claimTokens() external {
+        worklockClaimedTokens = worklock.claim();
+        totalDepositedTokens = totalDepositedTokens.add(worklockClaimedTokens);
+    }
+
+    // TODO docs
+    function claimTokens(Delegator storage _delegator) internal {
+        if (worklockClaimedTokens == 0 ||
+            _delegator.depositedETHWorkLock == 0 ||
+            _delegator.claimedWorkLockTokens)
+        {
+            return;
+        }
+
+        uint256 claimedTokens = _delegator.depositedETHWorkLock.mul(worklockClaimedTokens)
+            .div(totalWorklockETHReceived);
+
+        _delegator.depositedTokens += claimedTokens;
+        _delegator.claimedWorkLockTokens = true;
     }
 
     /**
@@ -250,11 +287,13 @@ contract WorkLockPoolingContract is InitializableStakingContract, Ownable {
         uint256 balance = token.balanceOf(address(this));
         require(_value <= balance, "Not enough tokens in the contract");
 
+        Delegator storage delegator = delegators[msg.sender];
+        claimTokens(delegator);
+
         uint256 availableReward = getAvailableReward(msg.sender);
 
-        Delegator storage delegator = delegators[msg.sender];
         require(
-            this.calculateTxnCostToPay(msg.sender) == 0,
+            calculateTxnCostToPay(msg.sender) == 0,
             "You should compensate tnx costs first"
         );
         require(
@@ -304,7 +343,7 @@ contract WorkLockPoolingContract is InitializableStakingContract, Ownable {
     function getAvailableOwnerETH() public view returns (uint256) {
         // TODO boilerplate code
         uint256 balance = address(this).balance;
-        balance = balance.add(totalWithdrawnETH);
+        balance = balance.add(totalWithdrawnETH).add(totalWorklockETHRefunded).sub(totalWorklockETHWithdrawn);
         uint256 maxAllowableETH = balance.mul(ownerFraction).div(
             totalDepositedTokens.add(ownerFraction)
         );
@@ -323,7 +362,7 @@ contract WorkLockPoolingContract is InitializableStakingContract, Ownable {
         Delegator storage delegator = delegators[_delegator];
         // TODO boilerplate code
         uint256 balance = address(this).balance;
-        balance = balance.add(totalWithdrawnETH);
+        balance = balance.add(totalWithdrawnETH).add(totalWorklockETHRefunded).sub(totalWorklockETHWithdrawn);
         uint256 maxAllowableETH = balance.mul(delegator.depositedTokens).div(
             totalDepositedTokens.add(ownerFraction)
         );
@@ -353,10 +392,11 @@ contract WorkLockPoolingContract is InitializableStakingContract, Ownable {
      * @notice Withdraw available amount of ETH to delegator
      */
     function withdrawETH() public override {
+        Delegator storage delegator = delegators[msg.sender];
+        claimTokens(delegator);
+
         uint256 availableETH = getAvailableETH(msg.sender);
         require(availableETH > 0, "There is no available ETH to withdraw");
-
-        Delegator storage delegator = delegators[msg.sender];
         delegator.withdrawnETH = delegator.withdrawnETH.add(availableETH);
 
         totalWithdrawnETH = totalWithdrawnETH.add(availableETH);
@@ -364,9 +404,52 @@ contract WorkLockPoolingContract is InitializableStakingContract, Ownable {
         emit ETHWithdrawn(msg.sender, availableETH);
     }
 
+    // TODO docs
+    function withdrawETHFromWorkLock() external {
+        uint256 balance = address(this).balance;
+        if (worklock.compensation(address(this)) > 0) {
+            workLock.withdrawCompensation();
+        }
+        workLock.refund();
+        totalWorklockETHRefunded += address(this).balance - balance;
+    }
+
+    /**
+     * @notice Get available refund for delegator
+     */
+    function getAvailableRefund(address _delegator) public view returns (uint256) {
+        Delegator storage delegator = delegators[_delegator];
+        uint256 maxAllowableETH = totalWorklockETHRefunded.mul(delegator.depositedETHWorkLock)
+            .div(totalWorklockETHReceived);
+
+        uint256 availableETH = maxAllowableETH.sub(delegator.refundedETHWorkLock);
+        uint256 balance = totalWorklockETHRefunded.sub(totalWorklockETHWithdrawn);
+
+        if (availableETH > balance) {
+            availableETH = balance;
+        }
+        return availableETH;
+    }
+
+    /**
+     * @notice Withdraw available amount of ETH to delegator
+     */
+    function withdrawRefund() external {
+        Delegator storage delegator = delegators[msg.sender];
+        claimTokens(delegator);
+
+        uint256 availableETH = getAvailableRefund(msg.sender);
+        require(availableETH > 0, "There is no available ETH to withdraw");
+        delegator.refundedETHWorkLock = delegator.refundedETHWorkLock.add(availableETH);
+
+        totalWorklockETHWithdrawn = totalWorklockETHWithdrawn.add(availableETH);
+        msg.sender.sendValue(availableETH);
+        // TODO event
+    }
+
     /**
      * @notice Calling fallback function is allowed only for the owner
-     **/
+     */
     function isFallbackAllowed() public override view returns (bool) {
         return msg.sender == owner();
     }
