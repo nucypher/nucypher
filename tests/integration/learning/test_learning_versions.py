@@ -15,7 +15,12 @@
  along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
+import pytest
+
+from constant_sorrow.constants import UNKNOWN_VERSION
+
 from nucypher.characters.lawful import Ursula
+from nucypher.network.nodes import Teacher
 
 ursulas_v1 = (
     '0001e57bfe9f44b819898f47bf37e5af72a0783e114100000016000000123a74656d706f726172792d646f6d61696e3a5f593d2c83aaa6a200696737d89ad9f746b867c6a04510be21f56225cbe7528f1c48326bd2b70a0dfd5c632cd274d7b6371c76ca886fe98dbd0686ebdf20e90fda6ae9f300000041b5fcdf6998f1f41532e933aa3f507222ca3bf44a54c3d355c6f2538909984b234ce7218ae72239156b39d318d2f0e8735c4d5fe236278e60913305ec362af94b1b032569686b730892f78b06bd8fe8af83307ae6db27d4fd81eaf7cceb70ff15612f02d8486449e324133937c1f9118688cf464855bee69c1e36c36228186c0b9f48f0000002cd2d2d2d2d2d424547494e2043455254494649434154452d2d2d2d2d0a4d4949423554434341577167417749424167495551475559566c4c46726434503035616c79463576746957522f6d6377436759494b6f5a497a6a3045417751770a535445534d424147413155454177774a4d5449334c6a41754d4334784d544d774d5159445651524244436f77654555314e324a4752546c474e4452694f4445350a4f446b34526a5133516b597a4e305531515559334d6d45774e7a677a5a5445784e4445774868634e4d6a41774f5441354d6a417a4e6a41775768634e4d6a45770a4f5441354d6a417a4e6a4177576a424a4d524977454159445651514444416b784d6a63754d4334774c6a45784d7a417842674e564245454d4b6a4234525455330a596b5a464f5559304e4749344d546b344f5468474e446443526a4d3352545642526a6379595441334f444e6c4d5445304d5442324d42414742797147534d34390a41674547425375424241416941324941424c73686a696177584a597237314f656143746b54467144416a72466b73644c4f454b7842795079316d6e56675a2b520a3173526d6f4d377a3743524b4b4f7856444f762b4b447355555a55324b6539497579737870675549537365556242707a674542556d6e6a775a4551554d5244760a35416f4c622b6e59326131657743717572364d544d424577447759445652305242416777426f6345667741414154414b42676771686b6a4f5051514442414e700a4144426d416a45416a4f4c58516a65322b5a754a474845514d3468734370324f69737632537954342b4145466c47622f716c636d7537386c6c356e564737774e0a5969797736696b5a416a4541674e7a67315063514b577838554d4d78674f456378364c4d4c73356b47617176657653537050436d336a47696e445a2b725131340a3777584136536e6576327a630a2d2d2d2d2d454e442043455254494649434154452d2d2d2d2d0a0000000e3132372e302e302e313a0000c79c',
@@ -34,10 +39,25 @@ versioned_ursulas = {
 }
 
 
-def test_deserialize_ursulas():
-    fossilized_ursula = bytes.fromhex(ursulas_v1[0])
+def test_deserialize_ursulas_version_1():
+    """
+    DON'T 'FIX' THIS TEST IF FAILING, UNLESS YOU KNOW WHAT YOU'RE DOING.
+    The goal of this test is to show incompatibility of current Discovery Loop version wrt to version 1.
+    See issue #1869 "Test with a hard-coded, versioned node metadata bytestring"
+    https://github.com/nucypher/nucypher/issues/1869
+    """
 
-    version, _ = Ursula.version_splitter(fossilized_ursula, return_remainder=True)
-    assert version == 1
+    expected_version = 1
+    ursulas_matrix = versioned_ursulas[expected_version]
+    for fossilized_ursula in ursulas_matrix:
+        fossilized_ursula = bytes.fromhex(fossilized_ursula)
 
-    resurrected_ursula = Ursula.from_bytes(fossilized_ursula, fail_fast=True)
+        version, _ = Ursula.version_splitter(fossilized_ursula, return_remainder=True)
+        assert version == expected_version
+        assert version != Ursula.LEARNER_VERSION
+
+        with pytest.raises(Teacher.AreYouFromThePast, match=f"purported to be of version 1, "
+                                                            f"but we're version {Ursula.LEARNER_VERSION}"):
+            _resurrected_ursula = Ursula.from_bytes(fossilized_ursula, fail_fast=True)
+
+        assert UNKNOWN_VERSION == Ursula.from_bytes(fossilized_ursula, fail_fast=False)
