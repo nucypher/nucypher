@@ -28,9 +28,9 @@ from umbral.keys import UmbralPublicKey
 
 from nucypher.characters.lawful import Bob, Enrico, Ursula
 from nucypher.config.constants import TEMPORARY_DOMAIN
+from nucypher.crypto.keypairs import DecryptingKeypair, SigningKeypair
 from nucypher.crypto.kits import UmbralMessageKit
 from nucypher.crypto.powers import DecryptingPower, SigningPower
-from nucypher.datastore.keypairs import DecryptingKeypair, SigningKeypair
 from nucypher.network.middleware import RestMiddleware
 from nucypher.utilities.logging import GlobalLoggerSettings
 

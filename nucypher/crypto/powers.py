@@ -25,8 +25,8 @@ from umbral.keys import UmbralKeyingMaterial, UmbralPrivateKey, UmbralPublicKey
 from nucypher.blockchain.eth.decorators import validate_checksum_address
 from nucypher.blockchain.eth.interfaces import BlockchainInterface, BlockchainInterfaceFactory
 from nucypher.blockchain.eth.signers import Signer, Web3Signer
-from nucypher.datastore import keypairs
-from nucypher.datastore.keypairs import DecryptingKeypair, SigningKeypair
+from nucypher.crypto import keypairs
+from nucypher.crypto.keypairs import DecryptingKeypair, SigningKeypair
 
 
 class PowerUpError(TypeError):
