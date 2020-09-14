@@ -58,7 +58,7 @@ def test_federated_development_character_configurations(character, configuration
     assert config.is_me is True
     assert config.dev_mode is True
     assert config.keyring == NO_KEYRING_ATTACHED
-    assert config.provider_uri == None
+    assert config.provider_uri is None
 
     # Production
     thing_one = config()
