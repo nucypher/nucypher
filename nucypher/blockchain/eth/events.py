@@ -14,9 +14,12 @@ GNU Affero General Public License for more details.
 You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
+import os
+
 from web3.contract import Contract
 
 from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
+from nucypher.config.constants import NUCYPHER_EVENTS_THROTTLE_MAX_BLOCKS
 
 
 class EventRecord:
@@ -83,12 +86,15 @@ class ContractEventsThrottler:
     """
     Enables Contract events to be retrieved in batches.
     """
+    # default to 1000 - smallest default heard about so far (alchemy)
+    DEFAULT_MAX_BLOCKS_PER_CALL = int(os.environ.get(NUCYPHER_EVENTS_THROTTLE_MAX_BLOCKS, 1000))
+
     def __init__(self,
                  agent: 'EthereumContractAgent',
                  event_name: str,
                  from_block: int,
                  to_block: int = None,  # defaults to latest block
-                 max_events_per_call: int = 1000,  # smallest default heard about so far (alchemy)
+                 max_blocks_per_call: int = DEFAULT_MAX_BLOCKS_PER_CALL,
                  **argument_filters):
         if not agent:
             raise ValueError(f"Contract agent must be provided")
@@ -102,16 +108,16 @@ class ContractEventsThrottler:
         if to_block <= from_block:
             raise ValueError(f"Invalid block range provided ({from_block} - {to_block})")
 
-        self.max_events_per_call = max_events_per_call
+        self.max_blocks_per_call = max_blocks_per_call
         self.argument_filters = argument_filters
 
     def __iter__(self):
         current_from_block = self.from_block
-        current_to_block = min(self.from_block + self.max_events_per_call, self.to_block)
+        current_to_block = min(self.from_block + self.max_blocks_per_call, self.to_block)
         while current_from_block < current_to_block:
             for event_record in self.event_filter(from_block=current_from_block,
                                                   to_block=current_to_block,
                                                   **self.argument_filters):
                 yield event_record
             current_from_block = current_to_block
-            current_to_block = min(current_from_block + self.max_events_per_call, self.to_block)
+            current_to_block = min(current_from_block + self.max_blocks_per_call, self.to_block)
