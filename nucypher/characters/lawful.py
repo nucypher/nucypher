@@ -1333,7 +1333,7 @@ class Ursula(Teacher, Character, Worker):
                                  bytes(VariableLengthBytestring(self.serving_domain.encode('utf-8'))),
                                  self.timestamp_bytes(),
                                  bytes(self._interface_signature),
-                                 bytes(self.decentralized_identity_evidence),
+                                 bytes(VariableLengthBytestring(self.decentralized_identity_evidence)),  # FIXME: Fixed length doesn't work with federated
                                  bytes(self.public_keys(SigningPower)),
                                  bytes(self.public_keys(DecryptingPower)),
                                  bytes(cert_vbytes),
@@ -1471,7 +1471,7 @@ class Ursula(Teacher, Character, Worker):
             domain=VariableLengthBytestring,
             timestamp=(int, 4, {'byteorder': 'big'}),
             interface_signature=Signature,
-            decentralized_identity_evidence=LENGTH_ECDSA_SIGNATURE_WITH_RECOVERY,
+            decentralized_identity_evidence=VariableLengthBytestring,  # FIXME: Fixed length doesn't work with federated. It was LENGTH_ECDSA_SIGNATURE_WITH_RECOVERY,
             verifying_key=(UmbralPublicKey, PUBLIC_KEY_LENGTH),
             encrypting_key=(UmbralPublicKey, PUBLIC_KEY_LENGTH),
             certificate=(load_pem_x509_certificate, VariableLengthBytestring, {"backend": default_backend()}),
