@@ -67,11 +67,11 @@ from nucypher.cli.processes import UrsulaCommandProtocol
 from nucypher.config.storages import ForgetfulNodeStorage, NodeStorage
 from nucypher.crypto.api import encrypt_and_sign, keccak_digest
 from nucypher.crypto.constants import PUBLIC_KEY_LENGTH
+from nucypher.crypto.keypairs import HostingKeypair
 from nucypher.crypto.kits import UmbralMessageKit
 from nucypher.crypto.powers import DecryptingPower, DelegatingPower, PowerUpError, SigningPower, TransactingPower
 from nucypher.crypto.signing import InvalidSignature
 from nucypher.datastore.datastore import DatastoreTransactionError, RecordNotFound
-from nucypher.datastore.keypairs import HostingKeypair
 from nucypher.datastore.models import PolicyArrangement
 from nucypher.network.exceptions import NodeSeemsToBeDown
 from nucypher.network.middleware import RestMiddleware

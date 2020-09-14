@@ -20,7 +20,7 @@ import sha3
 from constant_sorrow.constants import PUBLIC_ONLY
 from umbral.keys import UmbralPrivateKey
 
-from nucypher.datastore import keypairs
+from nucypher.crypto import keypairs
 
 
 def test_gen_keypair_if_needed():
