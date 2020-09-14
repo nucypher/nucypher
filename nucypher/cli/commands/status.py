@@ -15,18 +15,17 @@
  along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
-import click
-import maya
 import os
+
+import click
 
 from nucypher.blockchain.eth.agents import ContractAgency, PolicyManagerAgent, StakingEscrowAgent
 from nucypher.blockchain.eth.constants import (
-    AVERAGE_BLOCK_TIME_IN_SECONDS,
     POLICY_MANAGER_CONTRACT_NAME,
     STAKING_ESCROW_CONTRACT_NAME
 )
 from nucypher.blockchain.eth.networks import NetworksInventory
-from nucypher.blockchain.eth.utils import datetime_at_period
+from nucypher.blockchain.eth.utils import estimate_block_number_for_period
 from nucypher.cli.config import group_general_config
 from nucypher.cli.options import (
     group_options,
@@ -134,19 +133,13 @@ def events(general_config, registry_options, contract_name, from_block, to_block
         contract_names = [contract_name]
 
     if from_block is None:
-        # Sketch of logic for getting the approximate block height of current period start,
-        # so by default, this command only shows events of the current period
+        # by default, this command only shows events of the current period
         last_block = blockchain.client.block_number
         staking_agent = ContractAgency.get_agent(StakingEscrowAgent, registry=registry)
         current_period = staking_agent.get_current_period()
-        current_period_start = datetime_at_period(period=current_period,
-                                                  seconds_per_period=staking_agent.staking_parameters()[0],
-                                                  start_of_period=True)
-        seconds_from_midnight = int((maya.now() - current_period_start).total_seconds())
-        blocks_from_midnight = seconds_from_midnight // AVERAGE_BLOCK_TIME_IN_SECONDS
-
-        from_block = last_block - blocks_from_midnight
-
+        from_block = estimate_block_number_for_period(period=current_period,
+                                                      seconds_per_period=staking_agent.staking_parameters()[0],
+                                                      latest_block=last_block)
     if to_block is None:
         to_block = 'latest'
 
