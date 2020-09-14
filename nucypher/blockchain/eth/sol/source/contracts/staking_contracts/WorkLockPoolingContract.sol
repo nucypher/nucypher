@@ -8,8 +8,8 @@ import "contracts/staking_contracts/AbstractStakingContract.sol";
 // import "contracts/staking_contracts/StakingInterface.sol";
 
 /**
- * @author @vzotova and @roma_k
  * @notice Contract acts as delegate for sub-stakers and owner
+ * @author @vzotova and @roma_k
  **/
 contract WorkLockPoolingContract is InitializableStakingContract, Ownable {
     using SafeMath for uint256;
@@ -43,7 +43,7 @@ contract WorkLockPoolingContract is InitializableStakingContract, Ownable {
     }
 
     StakingEscrow public escrow;
-    WorkLock public worklock;
+    WorkLock public workLock;
 
     uint256 public totalDepositedTokens;
     uint256 public worklockClaimedTokens;
@@ -77,7 +77,7 @@ contract WorkLockPoolingContract is InitializableStakingContract, Ownable {
         InitializableStakingContract.initialize(_router);
         // Ownable.initialize();
         escrow = _router.target().escrow();
-        worklock = _router.target().workLock();
+        workLock = _router.target().workLock();
         ownerFraction = _ownerFraction;
         // workerAccount = _workerAccount;
     }
@@ -116,7 +116,7 @@ contract WorkLockPoolingContract is InitializableStakingContract, Ownable {
     }
 
     // function bid() external onlyOwner {
-    //     worklock.bid();
+    //     workLock.bid();
     // }
 
     /**
@@ -150,13 +150,13 @@ contract WorkLockPoolingContract is InitializableStakingContract, Ownable {
     }
 
     /**
-     * @notice delagetor can transfer ETH to directly worklock
+     * @notice delagetor can transfer ETH to directly workLock
      */
     function escrowETH() external payable {
         Delegator storage delegator = delegators[msg.sender];
         delegator.depositedETHWorkLock = delegator.depositedETHWorkLock.add(msg.value);
         totalWorklockETHReceived = totalWorklockETHReceived.add(msg.value);
-        worklock.bid{value: msg.value}();
+        workLock.bid{value: msg.value}();
     }
 
     /**
@@ -176,7 +176,7 @@ contract WorkLockPoolingContract is InitializableStakingContract, Ownable {
 
     // TODO docs
     function claimTokens() external {
-        worklockClaimedTokens = worklock.claim();
+        worklockClaimedTokens = workLock.claim();
         totalDepositedTokens = totalDepositedTokens.add(worklockClaimedTokens);
     }
 
@@ -407,7 +407,7 @@ contract WorkLockPoolingContract is InitializableStakingContract, Ownable {
     // TODO docs
     function withdrawETHFromWorkLock() external {
         uint256 balance = address(this).balance;
-        if (worklock.compensation(address(this)) > 0) {
+        if (workLock.compensation(address(this)) > 0) {
             workLock.withdrawCompensation();
         }
         workLock.refund();
