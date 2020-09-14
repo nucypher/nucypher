@@ -235,7 +235,7 @@ mock_metadata_validation = patch("nucypher.network.nodes.Teacher.validate_metada
 
 @contextmanager
 def mock_secret_source(*args, **kwargs):
-    with patch("nucypher.datastore.keypairs.Keypair._private_key_source", new=lambda *args, **kwargs: NotAPrivateKey()):
+    with patch("nucypher.crypto.keypairs.Keypair._private_key_source", new=lambda *args, **kwargs: NotAPrivateKey()):
         yield
     NotAPublicKey.reset()
 

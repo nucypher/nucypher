@@ -21,9 +21,11 @@ import pytest
 import tempfile
 from datetime import datetime
 
-from nucypher.datastore import datastore, keypairs
+from nucypher.crypto import keypairs
+from nucypher.datastore import datastore
 from nucypher.datastore.base import DatastoreRecord, RecordField
 from nucypher.datastore.models import PolicyArrangement, Workorder
+
 
 class TestRecord(DatastoreRecord):
     _test = RecordField(bytes)
@@ -152,6 +154,7 @@ def test_datastore_describe():
     with storage.describe(TestRecord, 'new_id') as new_test_record:
         assert new_test_record.test == b'now it exists :)'
 
+
 def test_datastore_query_by():
     temp_path = tempfile.mkdtemp()
     storage = datastore.Datastore(temp_path)
@@ -250,6 +253,7 @@ def test_datastore_query_by():
     with pytest.raises(datastore.RecordNotFound):
         with storage.query_by(NoRecord, writeable=True) as records:
             assert len(records) == 'this never gets executed'
+            
 
 def test_datastore_record_read():
     db_env = lmdb.open(tempfile.mkdtemp())
