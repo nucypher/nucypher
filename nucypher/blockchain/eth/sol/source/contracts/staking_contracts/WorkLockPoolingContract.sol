@@ -45,6 +45,7 @@ contract WorkLockPoolingContract is InitializableStakingContract, Ownable {
 
     StakingEscrow public escrow;
     WorkLock public workLock;
+    address workerOwner;
 
     uint256 public totalDepositedTokens;
     uint256 public worklockClaimedTokens;
@@ -56,7 +57,7 @@ contract WorkLockPoolingContract is InitializableStakingContract, Ownable {
     uint256 public totalWorklockETHRefunded;
     uint256 public totalWorklockETHWithdrawn;
 
-    uint256 public ownerFraction;
+    uint256 public workerFraction;
     uint256 public ownerWithdrawnReward;
     uint256 public ownerWithdrawnETH;
 
@@ -67,14 +68,17 @@ contract WorkLockPoolingContract is InitializableStakingContract, Ownable {
      * @notice Initialize function for using with OpenZeppelin proxy
      */
     function initialize(
-        uint256 _ownerFraction,
-        StakingInterfaceRouter _router
+        uint256 _workerFraction,
+        StakingInterfaceRouter _router,
+        address _workerOwner
     ) public initializer {
+        require(_workerOwner != address(0));
         InitializableStakingContract.initialize(_router);
         // Ownable.initialize();
         escrow = _router.target().escrow();
         workLock = _router.target().workLock();
-        ownerFraction = _ownerFraction;
+        workerFraction = _workerFraction;
+        workerOwner = _workerOwner;
     }
 
     /**
@@ -181,15 +185,15 @@ contract WorkLockPoolingContract is InitializableStakingContract, Ownable {
     }
 
     /**
-     * @notice Get available reward in tokens for pool owner
+     * @notice Get available reward in tokens for worker node owner
      */
-    function getAvailableOwnerReward() public view returns (uint256) {
+    function getAvailableWorkerReward() public view returns (uint256) {
         uint256 reward = getCumulativeReward();
 
         uint256 maxAllowableReward;
         if (totalDepositedTokens != 0) {
-            maxAllowableReward = reward.mul(ownerFraction).div(
-                totalDepositedTokens.add(ownerFraction)
+            maxAllowableReward = reward.mul(workerFraction).div(
+                totalDepositedTokens.add(workerFraction)
             );
         } else {
             maxAllowableReward = reward;
@@ -213,7 +217,7 @@ contract WorkLockPoolingContract is InitializableStakingContract, Ownable {
         uint256 reward = getCumulativeReward();
         Delegator storage delegator = delegators[_delegator];
         uint256 maxAllowableReward = reward.mul(delegator.depositedTokens).div(
-            totalDepositedTokens.add(ownerFraction)
+            totalDepositedTokens.add(workerFraction)
         );
 
         return
@@ -223,11 +227,12 @@ contract WorkLockPoolingContract is InitializableStakingContract, Ownable {
     }
 
     /**
-     * @notice Withdraw reward in tokens to owner
+     * @notice Withdraw reward in tokens to worker node owner
      */
-    function withdrawOwnerReward() public onlyOwner {
+    function withdrawWorkerReward() external {
+        require(msg.sender == workerOwner);
         uint256 balance = token.balanceOf(address(this));
-        uint256 availableReward = getAvailableOwnerReward();
+        uint256 availableReward = getAvailableWorkerReward();
 
         if (availableReward > balance) {
             availableReward = balance;
@@ -295,14 +300,14 @@ contract WorkLockPoolingContract is InitializableStakingContract, Ownable {
     }
 
     /**
-     * @notice Get available ether for owner
+     * @notice Get available ether for worker node owner
      */
-    function getAvailableOwnerETH() public view returns (uint256) {
+    function getAvailableWorkerETH() public view returns (uint256) {
         // TODO boilerplate code
         uint256 balance = address(this).balance;
         balance = balance.add(totalWithdrawnETH).add(totalWorklockETHRefunded).sub(totalWorklockETHWithdrawn);
-        uint256 maxAllowableETH = balance.mul(ownerFraction).div(
-            totalDepositedTokens.add(ownerFraction)
+        uint256 maxAllowableETH = balance.mul(workerFraction).div(
+            totalDepositedTokens.add(workerFraction)
         );
 
         uint256 availableETH = maxAllowableETH.sub(ownerWithdrawnETH);
@@ -321,7 +326,7 @@ contract WorkLockPoolingContract is InitializableStakingContract, Ownable {
         uint256 balance = address(this).balance;
         balance = balance.add(totalWithdrawnETH).add(totalWorklockETHRefunded).sub(totalWorklockETHWithdrawn);
         uint256 maxAllowableETH = balance.mul(delegator.depositedTokens).div(
-            totalDepositedTokens.add(ownerFraction)
+            totalDepositedTokens.add(workerFraction)
         );
 
         uint256 availableETH = maxAllowableETH.sub(delegator.withdrawnETH);
@@ -332,10 +337,11 @@ contract WorkLockPoolingContract is InitializableStakingContract, Ownable {
     }
 
     /**
-     * @notice Withdraw available amount of ETH to delegator
+     * @notice Withdraw available amount of ETH to worker node owner
      */
-    function withdrawOwnerETH() public onlyOwner {
-        uint256 availableETH = getAvailableOwnerETH();
+    function withdrawWorkerETH() external {
+        require(msg.sender == workerOwner);
+        uint256 availableETH = getAvailableWorkerETH();
         require(availableETH > 0, "There is no available ETH to withdraw");
 
         ownerWithdrawnETH = ownerWithdrawnETH.add(availableETH);
