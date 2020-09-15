@@ -67,16 +67,16 @@ class TestLMDBEnv:
     __test__ = False    # Prohibit pytest from collecting this
 
     LMDB_OPEN_FUNC = lmdb.open
+    THREAD_LOCK = threading.Lock()
 
     def __init__(self, *args, **kwargs):
         self.db_path = args[0]
         self.open = partial(self.LMDB_OPEN_FUNC, *args, **kwargs)
-        self.thread_lock = threading.Lock()
 
     @contextmanager
     def begin(self, *args, **kwargs):
         try:
-            with self.thread_lock:
+            with self.THREAD_LOCK:
                 with self.open() as lmdb_env:
                     with lmdb_env.begin(*args, **kwargs) as lmdb_tx:
                         yield lmdb_tx
