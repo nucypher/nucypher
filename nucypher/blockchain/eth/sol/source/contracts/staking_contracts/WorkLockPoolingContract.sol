@@ -5,7 +5,6 @@ pragma solidity ^0.7.0;
 import "zeppelin/ownership/Ownable.sol";
 import "zeppelin/math/SafeMath.sol";
 import "contracts/staking_contracts/AbstractStakingContract.sol";
-// import "contracts/staking_contracts/StakingInterface.sol";
 
 /**
  * @notice Contract acts as delegate for sub-stakers and owner
@@ -28,6 +27,8 @@ contract WorkLockPoolingContract is InitializableStakingContract, Ownable {
     );
     event ETHWithdrawn(address indexed sender, uint256 value);
     event DepositSet(address indexed sender, bool value);
+    event Claimed(address indexed sender, uint256 claimedTokens);
+    event Refund(address indexed sender, uint256 refundETH);
 
     struct Delegator {
         uint256 depositedTokens;
@@ -51,13 +52,9 @@ contract WorkLockPoolingContract is InitializableStakingContract, Ownable {
     uint256 public totalWithdrawnReward;
     uint256 public totalWithdrawnETH;
 
-    uint256 public totalTransactionsCost;
-
     uint256 public totalWorklockETHReceived;
     uint256 public totalWorklockETHRefunded;
     uint256 public totalWorklockETHWithdrawn;
-
-    // address payable public workerAccount;
 
     uint256 public ownerFraction;
     uint256 public ownerWithdrawnReward;
@@ -67,57 +64,18 @@ contract WorkLockPoolingContract is InitializableStakingContract, Ownable {
     bool depositIsEnabled = true;
 
     /**
-     * @notice tipo constructor
+     * @notice Initialize function for using with OpenZeppelin proxy
      */
     function initialize(
         uint256 _ownerFraction,
         StakingInterfaceRouter _router
-        // address payable _workerAccount
     ) public initializer {
         InitializableStakingContract.initialize(_router);
         // Ownable.initialize();
         escrow = _router.target().escrow();
         workLock = _router.target().workLock();
         ownerFraction = _ownerFraction;
-        // workerAccount = _workerAccount;
     }
-
-    /**
-     * @notice Owner sets transaction cost spent by worker node
-     */
-    function addTotalTransactionsCost(uint256 _value) external onlyOwner {
-        totalTransactionsCost = totalTransactionsCost.add(_value);
-    }
-
-    /**
-     * @notice returns amount in wei to pay for txn spends for given delegator
-     */
-    function calculateTxnCostToPay(address _delegator)
-        public view returns (uint256)
-    {
-        Delegator storage delegator = delegators[_delegator];
-        uint256 depositedNU = delegator.depositedTokens;
-        uint256 paidETH = delegator.paidETH;
-
-        uint256 delegatorWeiShare = totalTransactionsCost.mul(depositedNU).div(totalDepositedTokens);
-
-        return paidETH >= delegatorWeiShare ? 0 : delegatorWeiShare - paidETH;
-    }
-
-    /**
-     * @notice Function allow every delegatory to repay txn cost spent by worker noed
-     */
-    function payForTxnCosts() public payable {
-//        require(calculateTxnCostToPay(msg.sender) == _value);
-        Delegator storage delegator = delegators[msg.sender];
-        require(delegator.depositedTokens != 0);
-        delegator.paidETH += msg.value;
-        // workerAccount.sendValue(msg.value);
-    }
-
-    // function bid() external onlyOwner {
-    //     workLock.bid();
-    // }
 
     /**
      * @notice Enabled deposit
@@ -174,13 +132,18 @@ contract WorkLockPoolingContract is InitializableStakingContract, Ownable {
      */
     function cancelBid() public {}
 
-    // TODO docs
-    function claimTokens() external {
+    /**
+     * @notice Claim tokens in WorkLock and save number of claimed tokens
+     */
+    function claim() public {
         worklockClaimedTokens = workLock.claim();
         totalDepositedTokens = totalDepositedTokens.add(worklockClaimedTokens);
+        emit Claimed(msg.sender, worklockClaimedTokens);
     }
 
-    // TODO docs
+    /**
+     * @notice Calculate and save number of claimed tokens for specified delegator
+     */
     function claimTokens(Delegator storage _delegator) internal {
         if (worklockClaimedTokens == 0 ||
             _delegator.depositedETHWorkLock == 0 ||
@@ -194,6 +157,7 @@ contract WorkLockPoolingContract is InitializableStakingContract, Ownable {
 
         _delegator.depositedTokens += claimedTokens;
         _delegator.claimedWorkLockTokens = true;
+        emit Claimed(msg.sender, claimedTokens);
     }
 
     /**
@@ -293,10 +257,6 @@ contract WorkLockPoolingContract is InitializableStakingContract, Ownable {
         uint256 availableReward = getAvailableReward(msg.sender);
 
         require(
-            calculateTxnCostToPay(msg.sender) == 0,
-            "You should compensate tnx costs first"
-        );
-        require(
             _value <= availableReward + delegator.depositedTokens,
             "Requested amount of tokens exceeded allowed portion"
         );
@@ -327,10 +287,7 @@ contract WorkLockPoolingContract is InitializableStakingContract, Ownable {
             totalWithdrawnETH -= (delegator.withdrawnETH - newWithdrawnETH);
             delegator.depositedTokens = newDepositedTokens;
             delegator.withdrawnReward = newWithdrawnReward;
-            delegator.withdrawnETH = delegator
-                .withdrawnETH
-                .mul(newDepositedTokens)
-                .div(delegator.depositedTokens);
+            delegator.withdrawnETH = newWithdrawnETH;
         }
 
         token.safeTransfer(msg.sender, _value);
@@ -404,14 +361,18 @@ contract WorkLockPoolingContract is InitializableStakingContract, Ownable {
         emit ETHWithdrawn(msg.sender, availableETH);
     }
 
-    // TODO docs
-    function withdrawETHFromWorkLock() external {
+    /**
+     * @notice Withdraw compensation and refund from WorkLock and save these numbers
+     */
+    function refund() public {
         uint256 balance = address(this).balance;
         if (workLock.compensation(address(this)) > 0) {
             workLock.withdrawCompensation();
         }
         workLock.refund();
-        totalWorklockETHRefunded += address(this).balance - balance;
+        uint256 refundETH = address(this).balance - balance;
+        totalWorklockETHRefunded += refundETH;
+        emit Refund(msg.sender, refundETH);
     }
 
     /**
@@ -435,16 +396,15 @@ contract WorkLockPoolingContract is InitializableStakingContract, Ownable {
      * @notice Withdraw available amount of ETH to delegator
      */
     function withdrawRefund() external {
-        Delegator storage delegator = delegators[msg.sender];
-        claimTokens(delegator);
-
         uint256 availableETH = getAvailableRefund(msg.sender);
         require(availableETH > 0, "There is no available ETH to withdraw");
+
+        Delegator storage delegator = delegators[msg.sender];
         delegator.refundedETHWorkLock = delegator.refundedETHWorkLock.add(availableETH);
 
         totalWorklockETHWithdrawn = totalWorklockETHWithdrawn.add(availableETH);
         msg.sender.sendValue(availableETH);
-        // TODO event
+        emit Refund(msg.sender, availableETH);
     }
 
     /**
