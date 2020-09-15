@@ -17,14 +17,11 @@
 
 from base64 import b64decode, b64encode
 
-from bytestring_splitter import BytestringSplitter, VariableLengthBytestring
 from marshmallow import fields
 
 from nucypher.characters.control.specifications.exceptions import InvalidInputData, InvalidNativeDataTypes
 from nucypher.characters.control.specifications.fields.base import BaseField
-from nucypher.crypto.constants import HRAC_LENGTH
-from nucypher.crypto.kits import UmbralMessageKit
-from nucypher.crypto.signing import Signature
+from nucypher.config.splitters import BYTESTRING_REGISTRY
 
 
 class TreasureMap(BaseField, fields.Field):
@@ -33,6 +30,8 @@ class TreasureMap(BaseField, fields.Field):
         return b64encode(bytes(value)).decode()
 
     def _deserialize(self, value, attr, data, **kwargs):
+        if isinstance(value, bytes):
+            return value
         try:
             return b64decode(value)
         except InvalidNativeDataTypes as e:
@@ -40,12 +39,20 @@ class TreasureMap(BaseField, fields.Field):
 
     def _validate(self, value):
 
-        splitter = BytestringSplitter(Signature,
-                                  (bytes, HRAC_LENGTH),  # hrac
-                                  (UmbralMessageKit, VariableLengthBytestring)
-                                  )  # TODO: USe the one from TMap
+        from nucypher.policy.collections import TreasureMap
+        if not isinstance(value, bytes):
+            value = b64decode(value)
         try:
-            signature, hrac, tmap_message_kit = splitter(value)
+            metadata = TreasureMap.splitter().get_metadata(value)
+
+            if not TreasureMap.splitter().validate_checksum(value):
+                if metadata['checksum'] in BYTESTRING_REGISTRY:
+                    raise InvalidInputData(f"Input data seems to be the bytes for a {BYTESTRING_REGISTRY[metadata['checksum']].__name__} and not a TreasureMap")
+                raise InvalidInputData(f"Could not validate supplied TreasureMap bytes against known any supported bytestring formats")
+
+            if metadata['version'] > TreasureMap.version:
+                raise InvalidInputData("Version incompatibility.  Please update your NuCypher Software")
             return True
+
         except InvalidNativeDataTypes as e:
             raise InvalidInputData(f"Could not parse {self.name}: {e}")

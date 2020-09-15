@@ -18,10 +18,10 @@
 from base64 import b64decode, b64encode
 
 from marshmallow import fields
-
 from nucypher.characters.control.specifications.exceptions import InvalidInputData, InvalidNativeDataTypes
 from nucypher.characters.control.specifications.fields.base import BaseField
 from nucypher.crypto.kits import UmbralMessageKit as UmbralMessageKitClass
+from nucypher.config.splitters import BYTESTRING_REGISTRY
 
 
 class UmbralMessageKit(BaseField, fields.Field):
@@ -38,7 +38,20 @@ class UmbralMessageKit(BaseField, fields.Field):
             raise InvalidInputData(f"Could not parse {self.name}: {e}")
 
     def _validate(self, value):
+
+
+        if not isinstance(value, bytes):
+            value = b64decode(value)
         try:
-            UmbralMessageKitClass.from_bytes(value)
+            metadata = UmbralMessageKitClass.splitter().get_metadata(value)
+            if not UmbralMessageKitClass.splitter().validate_checksum(value):
+                if metadata['checksum'] in BYTESTRING_REGISTRY:
+                    raise InvalidInputData(f"Input data seems to be the bytes for a {BYTESTRING_REGISTRY[metadata['checksum']].__name__} and not a MessageKit")
+                raise InvalidInputData(f"Could not validate supplied MessageKit bytes against known any supported bytestring formats")
+
+            if metadata['version'] > UmbralMessageKitClass.version:
+                raise InvalidInputData("Version incompatibility.  Please update your NuCypher Software")
+            return True
+
         except InvalidNativeDataTypes as e:
             raise InvalidInputData(f"Could not parse {self.name}: {e}")

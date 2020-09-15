@@ -39,6 +39,7 @@ from umbral.kfrags import KFrag
 from nucypher.blockchain.eth.actors import BlockchainPolicyAuthor
 from nucypher.blockchain.eth.agents import PolicyManagerAgent, StakingEscrowAgent
 from nucypher.characters.lawful import Alice, Ursula
+from nucypher.config.splitters import NucypherBSSKwargifier
 from nucypher.crypto.api import keccak_digest, secure_random
 from nucypher.crypto.constants import HRAC_LENGTH, PUBLIC_KEY_LENGTH
 from nucypher.crypto.kits import RevocationKit
@@ -51,23 +52,31 @@ from umbral.keys import UmbralPublicKey
 from umbral.kfrags import KFrag
 
 
+
 class Arrangement:
     """
     A Policy must be implemented by arrangements with n Ursulas.  This class tracks the status of that implementation.
     """
     federated = True
     ID_LENGTH = 32
+    version = 1
 
-    splitter = BytestringSplitter((UmbralPublicKey, PUBLIC_KEY_LENGTH),  # alice.stamp
-                                  (bytes, ID_LENGTH),  # arrangement_ID
-                                  (bytes, VariableLengthBytestring))  # expiration
+    @classmethod
+    def splitter(cls, *args, **kwargs):
+        return NucypherBSSKwargifier(cls,
+            alice_stamp=(UmbralPublicKey, PUBLIC_KEY_LENGTH),  # alice.stamp
+            arrangement_id=(bytes, cls.ID_LENGTH),  # arrangement_ID
+            expiration_bytes=(bytes, VariableLengthBytestring)
+        )
 
     def __init__(self,
-                 alice: Alice,
-                 expiration: maya.MayaDT,
+                 alice: Alice = None,
+                 expiration: maya.MayaDT = None,
                  ursula: Ursula = None,
                  arrangement_id: bytes = None,
-                 kfrag: KFrag = UNKNOWN_KFRAG
+                 kfrag: KFrag = UNKNOWN_KFRAG,
+                 alice_stamp: UmbralPublicKey = None,
+                 expiration_bytes: bytes = None,
                  ) -> None:
         """
         :param value: Funds which will pay for the timeframe  of this Arrangement (not the actual re-encryptions);
@@ -82,6 +91,13 @@ class Arrangement:
             self.id = arrangement_id
         else:
             self.id = secure_random(self.ID_LENGTH)
+
+        if expiration_bytes:
+            expiration = maya.MayaDT.from_iso8601(iso8601_string=expiration_bytes.decode())
+
+        if alice_stamp:
+            alice = Alice.from_public_keys(verifying_key=alice_stamp)
+
         self.expiration = expiration
         self.alice = alice
         self.status = None
@@ -94,14 +110,15 @@ class Arrangement:
         self.ursula = ursula
 
     def __bytes__(self):
-        return bytes(self.alice.stamp) + self.id + bytes(VariableLengthBytestring(self.expiration.iso8601().encode()))
+        return self.splitter().render(
+            bytes(self.alice.stamp) + self.id + bytes(VariableLengthBytestring(self.expiration.iso8601().encode())),
+            version=self.version
+        )
 
     @classmethod
     def from_bytes(cls, arrangement_as_bytes):
-        alice_verifying_key, arrangement_id, expiration_bytes = cls.splitter(arrangement_as_bytes)
-        expiration = maya.MayaDT.from_iso8601(iso8601_string=expiration_bytes.decode())
-        alice = Alice.from_public_keys(verifying_key=alice_verifying_key)
-        return cls(alice=alice, arrangement_id=arrangement_id, expiration=expiration)
+        return cls.splitter()(arrangement_as_bytes)
+
 
     def encrypt_payload_for_ursula(self):
         """Craft an offer to send to Ursula."""

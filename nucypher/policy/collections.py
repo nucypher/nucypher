@@ -33,6 +33,7 @@ from bytestring_splitter import (
 from constant_sorrow.constants import CFRAG_NOT_RETAINED, NO_DECRYPTION_PERFORMED
 from constant_sorrow.constants import NOT_SIGNED
 from nucypher.blockchain.eth.constants import ETH_ADDRESS_BYTE_LENGTH, ETH_HASH_BYTE_LENGTH
+from nucypher.config.splitters import NucypherBSSKwargifier
 from nucypher.characters.lawful import Bob, Character
 from nucypher.crypto.api import encrypt_and_sign, keccak_digest, verify_eip_191
 from nucypher.crypto.constants import HRAC_LENGTH
@@ -51,6 +52,7 @@ from umbral.pre import Capsule
 
 class TreasureMap:
     ID_LENGTH = 32
+    version = 1
 
     class NowhereToBeFound(RestMiddleware.NotFound):
         """
@@ -100,7 +102,7 @@ class TreasureMap:
 
     @classmethod
     def splitter(cls):
-        return BytestringKwargifier(cls,
+        return NucypherBSSKwargifier(cls,
                                     public_signature=Signature,
                                     hrac=(bytes, HRAC_LENGTH),
                                     message_kit=(UmbralMessageKit, VariableLengthBytestring)
@@ -142,11 +144,12 @@ class TreasureMap:
         self._payload = self._public_signature + self._hrac + bytes(
             VariableLengthBytestring(self.message_kit.to_bytes()))
 
-    def __bytes__(self):
+    def __bytes__(self, prepend=None):
         if self._payload is None:
             self._set_payload()
+        prepend = prepend or b''
 
-        return self._payload
+        return self.splitter().render(prepend + self._payload, version=self.version)
 
     @property
     def _verifying_key(self):
@@ -252,7 +255,7 @@ class SignedTreasureMap(TreasureMap):
 
     @classmethod
     def splitter(cls):
-        return BytestringKwargifier(cls,
+        return NucypherBSSKwargifier(cls,
                                     blockchain_signature=65,
                                     public_signature=Signature,
                                     hrac=(bytes, HRAC_LENGTH),

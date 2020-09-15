@@ -16,7 +16,8 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
 
-from bytestring_splitter import BytestringKwargifier, VariableLengthBytestring
+from bytestring_splitter import VariableLengthBytestring
+from nucypher.config.splitters import NucypherBSSKwargifier
 from constant_sorrow.constants import NOT_SIGNED, UNKNOWN_SENDER
 
 from nucypher.crypto.splitters import capsule_splitter, key_splitter
@@ -43,9 +44,12 @@ class CryptoKit:
 
 
 class MessageKit(CryptoKit):
+
     """
     All the components needed to transmit and verify an encrypted message.
     """
+
+    version = 1
 
     def __init__(self,
                  capsule,
@@ -68,21 +72,23 @@ class MessageKit(CryptoKit):
             as_bytes += bytes(self.sender_verifying_key)
 
         as_bytes += VariableLengthBytestring(self.ciphertext)
-        return as_bytes
+        return self.splitter().render(as_bytes, version=self.version)
 
     @classmethod
     def splitter(cls, *args, **kwargs):
-        return BytestringKwargifier(cls,
+        return NucypherBSSKwargifier(cls,
                                     capsule=capsule_splitter,
                                     sender_verifying_key=key_splitter,
-                                    ciphertext=VariableLengthBytestring)
+                                    ciphertext=VariableLengthBytestring,
+                                    )
 
     @property
     def signature(self):
         return self._signature
 
     def __bytes__(self):
-        return bytes(self.capsule) + VariableLengthBytestring(self.ciphertext)
+        return self.splitter().render(
+            bytes(self.capsule) + VariableLengthBytestring(self.ciphertext), version=self.version)
 
 
 class PolicyMessageKit(MessageKit):

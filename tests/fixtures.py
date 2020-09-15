@@ -101,6 +101,12 @@ from tests.mock.performance_mocks import (
     mock_secret_source,
     mock_verify_node
 )
+
+from tests.mock.products import (
+    mock_treasuremap, mock_messagekit, mock_decentralized_treasuremap,
+    mock_arrangement
+)
+
 from tests.utils.blockchain import TesterBlockchain, token_airdrop
 from tests.utils.config import (
     make_alice_test_configuration,
@@ -111,6 +117,7 @@ from tests.utils.middleware import MockRestMiddleware, MockRestMiddlewareForLarg
 from tests.utils.policy import generate_random_label
 from tests.utils.ursula import MOCK_URSULA_STARTING_PORT, make_decentralized_ursulas, make_federated_ursulas, \
     MOCK_KNOWN_URSULAS_CACHE
+
 
 
 test_logger = Logger("test-logger")

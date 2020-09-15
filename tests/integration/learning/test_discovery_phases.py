@@ -53,7 +53,7 @@ Node Discovery happens in phases.  The first step is for a network actor to lear
 This is a straightforward step which we currently do with our own logic, but which may someday be replaced by something
 like libp2p, depending on the course of development of those sorts of tools.  The introduction of hamming distance
 in particular is useful when wanting to learn about a small number (~500) of nodes among a much larger (25,000+) swarm.
-This toolchain is not built for that scenario at this time, although it is not a stated nongoal. 
+This toolchain is not built for that scenario at this time, although it is not a stated nongoal.
 
 After this, our "Learning Loop" does four other things in sequence which are not part of the offering of node discovery tooling alone:
 

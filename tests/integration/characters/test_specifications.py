@@ -68,7 +68,7 @@ def test_various_field_validations_by_way_of_alice_grant(federated_bob):
         GrantPolicy().load(data)
 
 
-def test_treasuremap_validation(enacted_federated_policy):
+def test_treasuremap_validation(mock_treasuremap):
     """Tell people exactly what's wrong with their treasuremaps"""
 
     class TreasureMapsOnly(BaseSchema):
@@ -88,16 +88,16 @@ def test_treasuremap_validation(enacted_federated_policy):
         TreasureMapsOnly().load({'tmap': "VGhpcyBpcyB0b3RhbGx5IG5vdCBhIHRyZWFzdXJlbWFwLg=="})
 
     assert "Could not parse tmap" in str(e)
-    assert "Can't split a message with more bytes than the original splittable" in str(e)
+    assert "Could not validate supplied TreasureMap bytes" in str(e)
 
     # a valid treasuremap for once...
-    tmap_bytes = bytes(enacted_federated_policy.treasure_map)
+    tmap_bytes = bytes(mock_treasuremap)
     tmap_b64 = b64encode(tmap_bytes)
     result = TreasureMapsOnly().load({'tmap': tmap_b64.decode()})
     assert isinstance(result['tmap'], bytes)
 
 
-def test_messagekit_validation(capsule_side_channel):
+def test_messagekit_validation(mock_messagekit):
     """Ensure that our users know exactly what's wrong with their message kit input"""
 
     class MessageKitsOnly(BaseSchema):
@@ -112,15 +112,15 @@ def test_messagekit_validation(capsule_side_channel):
     assert "Could not parse mkit" in str(e)
     assert "Incorrect padding" in str(e)
 
-    # valid base64 but invalid treasuremap
+    # valid base64 but invalid messagekit
     with pytest.raises(SpecificationError) as e:
         MessageKitsOnly().load({'mkit': "V3da"})
 
     assert "Could not parse mkit" in str(e)
-    assert "Can't split a message with more bytes than the original splittable." in str(e)
+    assert "Could not validate supplied MessageKit bytes" in str(e)
 
     # test a valid messagekit
-    valid_kit = capsule_side_channel.messages[0][0]
+    valid_kit = mock_messagekit
     kit_bytes = bytes(valid_kit)
     kit_b64 = b64encode(kit_bytes)
     result = MessageKitsOnly().load({'mkit': kit_b64.decode()})
@@ -149,3 +149,26 @@ def test_key_validation(federated_bob):
 
     result = BobKeyInputRequirer().load(dict(bobkey=bytes(federated_bob.public_keys(DecryptingPower)).hex()))
     assert isinstance(result['bobkey'], bytes)
+
+
+def test_mixed_up_bytestring_validation(mock_messagekit, mock_treasuremap):
+    """
+    Tests that we get a helpful error message when passing the wrong data
+    """
+
+    class MessageKitsOnly(BaseSchema):
+
+        mkit = fields.UmbralMessageKit()
+
+    with pytest.raises(SpecificationError) as e:
+        MessageKitsOnly().load({'mkit': b64encode(bytes(mock_treasuremap)).decode()})
+    assert "Input data seems to be the bytes for a MockTreasureMap and not a MessageKit" in str(e)
+
+
+    class TreasureMapsOnly(BaseSchema):
+
+        tmap = fields.TreasureMap()
+
+    with pytest.raises(SpecificationError) as e:
+        TreasureMapsOnly().load({'tmap': b64encode(bytes(mock_messagekit)).decode()})
+    assert "Input data seems to be the bytes for a PolicyMessageKit and not a TreasureMap" in str(e)
