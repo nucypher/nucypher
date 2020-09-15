@@ -100,6 +100,14 @@ contract WorkLockPoolingContract is InitializableStakingContract, Ownable {
     }
 
     /**
+     * @notice Calculate worker's fraction depending on deposited tokens
+     */
+    // TODO finish this
+    function getWorkerFraction() public view returns (uint256) {
+        return workerFraction;
+    }
+
+    /**
      * @notice Transfer tokens as delegator
      * @param _value Amount of tokens to transfer
      */
@@ -194,7 +202,8 @@ contract WorkLockPoolingContract is InitializableStakingContract, Ownable {
 
         uint256 maxAllowableReward;
         if (totalDepositedTokens != 0) {
-            maxAllowableReward = reward.mul(workerFraction).div(BASIS_FRACTION);
+            uint256 fraction = getWorkerFraction();
+            maxAllowableReward = reward.mul(fraction).div(BASIS_FRACTION);
         } else {
             maxAllowableReward = reward;
         }
@@ -216,7 +225,8 @@ contract WorkLockPoolingContract is InitializableStakingContract, Ownable {
 
         uint256 reward = getCumulativeReward();
         Delegator storage delegator = delegators[_delegator];
-        uint256 maxAllowableReward = reward.mul(delegator.depositedTokens).mul(BASIS_FRACTION - workerFraction).div(
+        uint256 fraction = getWorkerFraction();
+        uint256 maxAllowableReward = reward.mul(delegator.depositedTokens).mul(BASIS_FRACTION - fraction).div(
             totalDepositedTokens.mul(BASIS_FRACTION)
         );
 
@@ -307,7 +317,8 @@ contract WorkLockPoolingContract is InitializableStakingContract, Ownable {
         uint256 balance = address(this).balance;
         // ETH balance + already withdrawn - (refunded - refundWithdrawn)
         balance = balance.add(totalWithdrawnETH).add(totalWorklockETHWithdrawn).sub(totalWorklockETHRefunded);
-        uint256 maxAllowableETH = balance.mul(workerFraction).div(BASIS_FRACTION);
+        uint256 fraction = getWorkerFraction();
+        uint256 maxAllowableETH = balance.mul(fraction).div(BASIS_FRACTION);
 
         uint256 availableETH = maxAllowableETH.sub(workerWithdrawnETH);
         if (availableETH > balance) {
@@ -325,7 +336,8 @@ contract WorkLockPoolingContract is InitializableStakingContract, Ownable {
         uint256 balance = address(this).balance;
         // ETH balance + already withdrawn - (refunded - refundWithdrawn)
         balance = balance.add(totalWithdrawnETH).add(totalWorklockETHWithdrawn).sub(totalWorklockETHRefunded);
-        uint256 maxAllowableETH = balance.mul(delegator.depositedTokens).mul(BASIS_FRACTION - workerFraction).div(
+        uint256 fraction = getWorkerFraction();
+        uint256 maxAllowableETH = balance.mul(delegator.depositedTokens).mul(BASIS_FRACTION - fraction).div(
             totalDepositedTokens.mul(BASIS_FRACTION)
         );
 
