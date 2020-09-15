@@ -24,9 +24,10 @@ import requests
 import shutil
 import tempfile
 from abc import ABC, abstractmethod
-from constant_sorrow.constants import NO_REGISTRY_SOURCE, REGISTRY_COMMITTED
+from constant_sorrow.constants import REGISTRY_COMMITTED
 from typing import Dict, Iterator, List, Tuple, Type, Union
 
+from nucypher.blockchain.eth import CONTRACT_REGISTRY_BASE
 from nucypher.blockchain.eth.constants import PREALLOCATION_ESCROW_CONTRACT_NAME
 from nucypher.blockchain.eth.networks import NetworksInventory
 from nucypher.config.constants import DEFAULT_CONFIG_ROOT
@@ -97,14 +98,12 @@ class GithubRegistrySource(CanonicalRegistrySource):
 
 
 class EmbeddedRegistrySource(CanonicalRegistrySource):
-    _HERE = os.path.abspath(os.path.dirname(__file__))
-    _REGISTRY_DIR = os.path.join(_HERE, "contract_registry")
 
     name = "Embedded Registry Source"
     is_primary = False
 
     def get_publication_endpoint(self) -> str:
-        filepath = str(os.path.join(self._REGISTRY_DIR, self.network, self.registry_name))
+        filepath = str(CONTRACT_REGISTRY_BASE / self.network / self.registry_name)
         return filepath
 
     def fetch_latest_publication(self) -> Union[str, bytes]:
@@ -202,8 +201,6 @@ class BaseContractRegistry(ABC):
     REGISTRY_NAME = 'contract_registry.json'  # TODO: #1511 Save registry with ID-time-based filename
     DEVELOPMENT_REGISTRY_NAME = 'dev_contract_registry.json'
 
-    NO_REGISTRY_SOURCE.bool_value(False)
-
     class RegistryError(Exception):
         pass
 
@@ -222,7 +219,7 @@ class BaseContractRegistry(ABC):
     class CantOverwriteRegistry(RegistryError):
         pass
 
-    def __init__(self, source=NO_REGISTRY_SOURCE, *args, **kwargs):
+    def __init__(self, source=None, *args, **kwargs):
         self.__source = source
         self.log = Logger("registry")
         self._id = None
@@ -286,13 +283,13 @@ class BaseContractRegistry(ABC):
 
     @property
     def enrolled_addresses(self) -> Iterator:
-        entries = iter(record[1] for record in self.read())
+        entries = iter(record[2] for record in self.read())
         return entries
 
     def enroll(self, contract_name, contract_address, contract_abi, contract_version) -> None:
         """
-        Enrolls a contract to the chain registry by writing the name, address,
-        and abi information to the filesystem as JSON.
+        Enrolls a contract to the chain registry by writing the name, version,
+        address, and abi information to the filesystem as JSON.
 
         Note: Unless you are developing NuCypher, you most likely won't ever
         need to use this.
@@ -324,15 +321,10 @@ class BaseContractRegistry(ABC):
 
         try:
             for contract in registry_data:
-                if len(contract) == 3:
-                    name, address, abi = contract
-                    version = None
-                else:
-                    name, version, address, abi = contract
-                if contract_name == name and \
-                        (contract_version is None or version == contract_version) or \
-                        contract_address == address:
-                    contracts.append((name, version, address, abi))
+                name, version, address, abi = contract
+                if contract_address == address or \
+                        contract_name == name and (contract_version is None or version == contract_version):
+                    contracts.append(contract)
         except ValueError:
             message = "Missing or corrupted registry data"
             self.log.critical(message)

@@ -31,6 +31,7 @@ from constant_sorrow.constants import (
 )
 from eth_tester import EthereumTester
 from eth_tester.exceptions import TransactionFailed as TestTransactionFailed
+from eth_typing import ChecksumAddress
 from eth_utils import to_checksum_address
 from typing import Callable, NamedTuple, Tuple, Union
 from urllib.parse import urlparse
@@ -39,6 +40,7 @@ from web3.contract import Contract, ContractConstructor, ContractFunction
 from web3.exceptions import TimeExhausted, ValidationError
 from web3.gas_strategies import time_based
 from web3.middleware import geth_poa_middleware
+from web3.types import TxReceipt
 
 from nucypher.blockchain.eth.clients import EthereumClient, POA_CHAINS, InfuraClient
 from nucypher.blockchain.eth.decorators import validate_checksum_address
@@ -421,11 +423,13 @@ class BlockchainInterface:
         else:
             self._provider = provider
 
-    def __transaction_failed(self,
-                             exception: Exception,
-                             transaction_dict: dict,
-                             contract_function: Union[ContractFunction, ContractConstructor]
-                             ) -> None:
+    @classmethod
+    def _handle_failed_transaction(cls,
+                                   exception: Exception,
+                                   transaction_dict: dict,
+                                   contract_function: Union[ContractFunction, ContractConstructor],
+                                   logger: Logger = None
+                                   ) -> None:
         """
         Re-raising error handler and context manager for transaction broadcast or
         build failure events at the interface layer. This method is a last line of defense
@@ -444,14 +448,17 @@ class BlockchainInterface:
             raise exception
 
         else:
-            if int(code) != self.TransactionFailed.IPC_CODE:
+            if int(code) != cls.TransactionFailed.IPC_CODE:
                 # Only handle client-specific exceptions
                 # https://www.jsonrpc.org/specification Section 5.1
                 raise exception
-            self.log.critical(message)                     # simple context
-            transaction_failed = self.TransactionFailed(message=message,  # rich error (best case)
-                                                        contract_function=contract_function,
-                                                        transaction_dict=transaction_dict)
+
+            if logger:
+                logger.critical(message)  # simple context
+
+            transaction_failed = cls.TransactionFailed(message=message,  # rich error (best case)
+                                                       contract_function=contract_function,
+                                                       transaction_dict=transaction_dict)
             raise transaction_failed from exception
 
     def __log_transaction(self, transaction_dict: dict, contract_function: ContractFunction):
@@ -513,7 +520,10 @@ class BlockchainInterface:
         except (TestTransactionFailed, ValidationError, ValueError) as error:
             # Note: Geth raises ValueError in the same condition that pyevm raises ValidationError here.
             # Treat this condition as "Transaction Failed" during gas estimation.
-            raise self.__transaction_failed(exception=error, transaction_dict=payload, contract_function=contract_function)
+            raise self._handle_failed_transaction(exception=error,
+                                                  transaction_dict=payload,
+                                                  contract_function=contract_function,
+                                                  logger=self.log)
         return transaction_dict
 
     def sign_and_broadcast_transaction(self,
@@ -778,7 +788,7 @@ class BlockchainDeployerInterface(BlockchainInterface):
                         confirmations: int = 0,
                         contract_version: str = 'latest',
                         **constructor_kwargs
-                        ) -> Tuple[VersionedContract, dict]:
+                        ) -> Tuple[VersionedContract, TxReceipt]:
         """
         Retrieve compiled interface data from the cache and
         return an instantiated deployed contract
@@ -867,14 +877,31 @@ class BlockchainDeployerInterface(BlockchainInterface):
                 current_version = version
         return current_version, current_data
 
-    def get_contract_factory(self, contract_name: str, version: str = 'latest') -> VersionedContract:
+    def __get_contract_interface(self,
+                                 contract_name: str,
+                                 version: str = 'latest',
+                                 address: ChecksumAddress = None) -> VersionedContract:
         """Retrieve compiled interface data from the cache and return web3 contract"""
         version, interface = self.find_raw_contract_data(contract_name, version)
         contract = self.client.w3.eth.contract(abi=interface['abi'],
                                                bytecode=interface['bin'],
                                                version=version,
+                                               address=address,
                                                ContractFactoryClass=self._contract_factory)
         return contract
+
+    def get_contract_instance(self,
+                              address: ChecksumAddress,
+                              contract_name: str,
+                              version: str = 'latest') -> VersionedContract:
+        """Retrieve compiled contract data from the cache and return web3 contract instantiated for some address"""
+        contract_instance = self.__get_contract_interface(address=address, contract_name=contract_name, version=version)
+        return contract_instance
+
+    def get_contract_factory(self, contract_name: str, version: str = 'latest') -> VersionedContract:
+        """Retrieve compiled contract data from the cache and return web3 contract factory"""
+        contract_factory = self.__get_contract_interface(contract_name=contract_name, version=version)
+        return contract_factory
 
     def _wrap_contract(self,
                        wrapper_contract: VersionedContract,

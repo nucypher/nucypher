@@ -26,6 +26,7 @@ import traceback
 import click
 import maya
 from eth_tester.exceptions import TransactionFailed as TestTransactionFailed
+from eth_typing import ChecksumAddress
 from eth_utils import to_canonical_address, to_checksum_address
 from typing import Dict, Iterable, List, Optional, Tuple
 from web3 import Web3
@@ -41,11 +42,20 @@ from nucypher.blockchain.eth.agents import (
     NucypherTokenAgent,
     PolicyManagerAgent,
     PreallocationEscrowAgent,
-    StakingEscrowAgent,
-    WorkLockAgent,
     StakersReservoir,
+    StakingEscrowAgent,
+    TokenManagerAgent,
+    VotingAgent,
+    VotingAggregatorAgent,
+    WorkLockAgent,
 )
-from nucypher.blockchain.eth.constants import NULL_ADDRESS
+from nucypher.blockchain.eth.aragon import CallScriptCodec, DAORegistry, Action
+from nucypher.blockchain.eth.constants import (
+    NULL_ADDRESS,
+    EMERGENCY_MANAGER,
+    STANDARD_AGGREGATOR,
+    STANDARD_VOTING
+)
 from nucypher.blockchain.eth.decorators import (
     only_me,
     save_receipt,
@@ -62,7 +72,7 @@ from nucypher.blockchain.eth.deployers import (
     StakingInterfaceRouterDeployer,
     WorklockDeployer
 )
-from nucypher.blockchain.eth.interfaces import BlockchainDeployerInterface, BlockchainInterfaceFactory
+from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
 from nucypher.blockchain.eth.multisig import Authorization, Proposal
 from nucypher.blockchain.eth.registry import BaseContractRegistry, IndividualAllocationRegistry
 from nucypher.blockchain.eth.signers import KeystoreSigner, Signer, Web3Signer
@@ -94,17 +104,17 @@ class BaseActor:
         pass
 
     @validate_checksum_address
-    def __init__(self, registry: BaseContractRegistry, domains=None, checksum_address: str = None):
+    def __init__(self, registry: BaseContractRegistry, domains=None, checksum_address: ChecksumAddress = None):
 
         # TODO: Consider this pattern - None for address?.  #1507
         # Note: If the base class implements multiple inheritance and already has a checksum address...
         try:
-            parent_address = self.checksum_address  # type: str
+            parent_address = self.checksum_address  # type: ChecksumAddress
             if checksum_address is not None:
                 if parent_address != checksum_address:
                     raise ValueError("Can't have two different addresses.")
         except AttributeError:
-            self.checksum_address = checksum_address  # type: str
+            self.checksum_address = checksum_address  # type: ChecksumAddress
 
         self.registry = registry
         if domains:  # StakeHolder config inherits from character config, which has 'domains' - #1580
@@ -154,12 +164,6 @@ class ContractAdministrator(NucypherTokenActor):
     """
     The administrator of network contracts.
     """
-
-    __interface_class = BlockchainDeployerInterface
-
-    #
-    # Deployer Registry
-    #
 
     # Note: Deployer classes are sorted by deployment dependency order.
 
@@ -2160,3 +2164,59 @@ class Bidder(NucypherTokenActor):
     def available_claim(self) -> int:
         tokens = self.worklock_agent.eth_to_tokens(self.get_deposited_eth)
         return tokens
+
+
+class DaoActor(BaseActor):
+    """Base class for actors that interact with the NuCypher DAO"""
+
+    def __init__(self,
+                 network: str,
+                 checksum_address: ChecksumAddress,
+                 registry=None,
+                 signer: Signer = None,
+                 client_password: str = None,
+                 transacting: bool = True):
+        super().__init__(registry=registry, domains=[network], checksum_address=checksum_address)  # TODO: See #1580
+        self.dao_registry = DAORegistry(network=network)
+        if transacting:  # TODO: This logic is repeated in Bidder and possible others.
+            self.transacting_power = TransactingPower(signer=signer,
+                                                      password=client_password,
+                                                      account=checksum_address)
+            self.transacting_power.activate()
+
+
+class EmergencyResponseManager(DaoActor):
+
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+
+        self.token_manager = TokenManagerAgent(address=self.dao_registry.get_address_of(EMERGENCY_MANAGER))
+        self.voting = VotingAgent(address=self.dao_registry.get_address_of(STANDARD_VOTING))
+        self.voting_aggregator = VotingAggregatorAgent(self.dao_registry.get_address_of(STANDARD_AGGREGATOR))
+
+    def rotate_emergency_response_team(self,
+                                       members_out: Iterable[ChecksumAddress],
+                                       members_in: Iterable[ChecksumAddress]):
+
+        members_out_set = set(members_out)
+        if not members_out_set.isdisjoint(members_in):
+            raise ValueError(f"{members_out_set.intersection(members_in)} can't be both new and exiting members")
+
+        # TODO: Additional checks? e.g., members_out have tokens, members_in don't, etc.
+
+        burn_calls = [self.token_manager._burn(holder_address=member, amount=1) for member in members_out]
+        mint_calls = [self.token_manager._mint(receiver_address=member, amount=1) for member in members_in]
+        calls = burn_calls + mint_calls
+
+        actions = [Action(target=self.token_manager.contract.address, data=call) for call in calls]
+        token_manager_callscript = CallScriptCodec.encode_actions(actions=actions)
+
+        forwarding_to_voting = Action(target=self.voting.contract.address,
+                                      data=self.voting._forward(callscript=token_manager_callscript))
+        voting_callscript = CallScriptCodec.encode_actions(actions=[forwarding_to_voting])
+
+        receipt = self.voting_aggregator.forward(callscript=voting_callscript, sender_address=self.checksum_address)
+        return receipt
+
+# TODO:
+# - Tests for DAO stuff requires mocking the DAO. We need stuff like MockTokenManager, MockVoting, etc

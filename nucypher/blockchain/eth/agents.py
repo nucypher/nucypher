@@ -34,10 +34,12 @@ from typing import Dict, Iterable, List, Tuple, Type, Union, Any, Optional, cast
 from web3.contract import Contract, ContractFunction
 from web3.types import Wei, Timestamp, TxReceipt, TxParams, Nonce
 
+from nucypher.blockchain.eth.aragon import Artifact
 from nucypher.blockchain.eth.constants import (
     ADJUDICATOR_CONTRACT_NAME,
     DISPATCHER_CONTRACT_NAME,
     ETH_ADDRESS_BYTE_LENGTH,
+    FORWARDER_INTERFACE_NAME,
     MULTISIG_CONTRACT_NAME,
     NUCYPHER_TOKEN_CONTRACT_NAME,
     NULL_ADDRESS,
@@ -46,6 +48,9 @@ from nucypher.blockchain.eth.constants import (
     STAKING_ESCROW_CONTRACT_NAME,
     STAKING_INTERFACE_CONTRACT_NAME,
     STAKING_INTERFACE_ROUTER_CONTRACT_NAME,
+    TOKEN_MANAGER_CONTRACT_NAME,
+    VOTING_CONTRACT_NAME,
+    VOTING_AGGREGATOR_CONTRACT_NAME,
     WORKLOCK_CONTRACT_NAME
 )
 from nucypher.blockchain.eth.decorators import contract_api, validate_checksum_address
@@ -94,7 +99,7 @@ class EthereumContractAgent:
         """
 
     def __init__(self,
-                 registry: BaseContractRegistry,
+                 registry: BaseContractRegistry = None,  # TODO: Consider make it non-optional again. See comment in InstanceAgent.
                  provider_uri: Optional[str] = None,
                  contract: Optional[Contract] = None,
                  transaction_gas: Optional[Wei] = None):
@@ -118,7 +123,6 @@ class EthereumContractAgent:
             transaction_gas = EthereumContractAgent.DEFAULT_TRANSACTION_GAS_LIMITS['default']
         self.transaction_gas = transaction_gas
 
-        super().__init__()
         self.log.info("Initialized new {} for {} with {} and {}".format(self.__class__.__name__,
                                                                         self.contract.address,
                                                                         self.blockchain.provider_uri,
@@ -1563,6 +1567,106 @@ class MultiSigAgent(EthereumContractAgent):
         contract_function: ContractFunction = self.contract.functions.execute(v, r, s, destination, value, data)
         receipt: TxReceipt = self.blockchain.send_transaction(contract_function=contract_function, sender_address=sender_address)
         return receipt
+
+
+class InstanceAgent(EthereumContractAgent):
+    """Base class for agents that interact with contracts instantiated by address"""
+
+    # TODO: Consider combine InstanceAgent and EthereumContractAgent
+    # see https://github.com/nucypher/nucypher/pull/2119#discussion_r472146989
+    def __init__(self, address: str, abi: List[Dict] = None, provider_uri: str = None):
+        blockchain = BlockchainInterfaceFactory.get_or_create_interface(provider_uri=provider_uri)
+        if abi:
+            contract = blockchain.client.w3.eth.contract(abi=abi, address=address)
+        else:  # FIXME: This only works if the blockchain is a deployer interface (i.e. has the solidity compiler)
+            contract = blockchain.get_contract_instance(contract_name=self.contract_name, address=address)
+        super().__init__(contract=contract, provider_uri=provider_uri)
+
+
+class AragonAgent(InstanceAgent):
+    """Base agent for Aragon contracts that uses ABIs from artifact.json files"""
+
+    def __init__(self, address: str, provider_uri: str = None):
+        self.artifact = Artifact(name=self.contract_name)
+        super().__init__(abi=self.artifact.abi, address=address, provider_uri=provider_uri)
+
+
+class ForwarderAgent(AragonAgent):
+    """Agent for Aragon apps that implement the Forwarder interface"""
+
+    contract_name = FORWARDER_INTERFACE_NAME
+
+    def _forward(self, callscript: bytes) -> ContractFunction:  # TODO: Generalize this approach
+        return self.contract.functions.forward(callscript)
+
+    @contract_api(TRANSACTION)
+    def forward(self, callscript: bytes, sender_address: ChecksumAddress) -> TxReceipt:
+        receipt = self.blockchain.send_transaction(contract_function=self._forward(callscript),
+                                                   sender_address=sender_address)
+        return TxReceipt(receipt)
+
+
+class VotingAgent(ForwarderAgent):
+    """Agent to interact with Aragon's Voting apps"""
+
+    contract_name = VOTING_CONTRACT_NAME
+
+    def _new_vote(self,
+                  callscript: bytes,
+                  metadata: str,
+                  cast_vote: bool = None,
+                  execute_if_decided: bool = None) -> ContractFunction:
+        if cast_vote is None and execute_if_decided is None:
+            return self.contract.functions.newVote(callscript, metadata)
+        elif cast_vote is not None and execute_if_decided is not None:
+            return self.contract.functions.newVote(callscript, metadata, cast_vote, execute_if_decided)
+        else:
+            raise ValueError("'cast_vote' and 'execute_if_decided' parameters need to be used in conjunction: "
+                             "either use them both or don't use them.")
+
+    @contract_api(TRANSACTION)
+    def new_vote(self,
+                 callscript: bytes,
+                 metadata: str,
+                 sender_address: ChecksumAddress,
+                 cast_vote: bool = None,
+                 execute_if_decided: bool = None) -> TxReceipt:
+        contract_function = self._new_vote(callscript, metadata, cast_vote, execute_if_decided)
+        receipt = self.blockchain.send_transaction(contract_function=contract_function, sender_address=sender_address)
+        return TxReceipt(receipt)
+
+    @contract_api(TRANSACTION)
+    def vote(self, vote_id: int, support_proposal: bool, execute_if_decided: bool, sender_address: ChecksumAddress):
+        contract_function = self.contract.functions.vote(vote_id, support_proposal, execute_if_decided)
+        receipt = self.blockchain.send_transaction(contract_function=contract_function, sender_address=sender_address)
+        return TxReceipt(receipt)
+
+
+class VotingAggregatorAgent(ForwarderAgent):
+    """Agent to interact with Aragon's Voting Aggregator app"""
+
+    contract_name = VOTING_AGGREGATOR_CONTRACT_NAME
+
+
+class TokenManagerAgent(ForwarderAgent):
+
+    contract_name = TOKEN_MANAGER_CONTRACT_NAME
+
+    def _mint(self, receiver_address: ChecksumAddress, amount: int) -> ContractFunction:
+        function_call = self.contract.functions.mint(receiver_address, amount)
+        return function_call
+
+    def _issue(self, amount: int) -> ContractFunction:
+        function_call = self.contract.functions.issue(amount)
+        return function_call
+
+    def _assign(self, receiver_address: ChecksumAddress, amount: int) -> ContractFunction:
+        function_call = self.contract.functions.assign(receiver_address, amount)
+        return function_call
+
+    def _burn(self, holder_address: ChecksumAddress, amount: int) -> ContractFunction:
+        function_call = self.contract.functions.burn(holder_address, amount)
+        return function_call
 
 
 class ContractAgency:

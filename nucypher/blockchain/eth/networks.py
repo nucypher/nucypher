@@ -31,9 +31,17 @@ class NetworksInventory:  # TODO: See #1564
 
     NETWORKS = tuple(__to_ethereum_chain_id.keys())
 
+    class UnrecognizedNetwork(RuntimeError):
+        pass
+
     @classmethod
     def get_ethereum_chain_id(cls, network):  # TODO: Use this (where?) to make sure we're in the right chain
         try:
             return cls.__to_ethereum_chain_id[network]
         except KeyError:
             return 1337  # TODO: what about chain id when testing?
+
+    @classmethod
+    def validate_network_name(cls, network_name: str):
+        if network_name not in cls.NETWORKS:
+            raise cls.UnrecognizedNetwork(f"{network_name} is not a recognized network of NuCypher")

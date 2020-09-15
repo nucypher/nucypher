@@ -14,6 +14,7 @@ GNU Affero General Public License for more details.
 You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
+from pathlib import Path
 
 from nucypher.blockchain.eth.signers import Signer, ClefSigner, KeystoreSigner
 
@@ -23,3 +24,6 @@ SIGNERS = {
 }
 
 Signer.SIGNERS = SIGNERS
+
+BASE_DIRECTORY = Path(__file__).parent
+CONTRACT_REGISTRY_BASE = BASE_DIRECTORY / "contract_registry"

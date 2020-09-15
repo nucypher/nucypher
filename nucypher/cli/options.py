@@ -52,6 +52,8 @@ option_lonely = click.option('--lonely', help="Do not connect to seednodes", is_
 option_m = click.option('--m', help="M-Threshold KFrags", type=click.INT)
 option_min_stake = click.option('--min-stake', help="The minimum stake the teacher must have to be a teacher", type=click.INT, default=0)
 option_n = click.option('--n', help="N-Total KFrags", type=click.INT)
+option_parameters = click.option('--parameters', help="Filepath to a JSON file containing additional parameters", type=EXISTING_READABLE_FILE)
+option_participant_address = click.option('--participant-address', help="Participant's checksum address.", type=EIP55_CHECKSUM_ADDRESS)
 option_poa = click.option('--poa/--disable-poa', help="Inject POA middleware", is_flag=True, default=None)
 option_registry_filepath = click.option('--registry-filepath', help="Custom contract registry filepath", type=EXISTING_READABLE_FILE)
 option_signer_uri = click.option('--signer', 'signer_uri', '-S', default=None, type=str)

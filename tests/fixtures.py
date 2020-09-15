@@ -23,13 +23,19 @@ import shutil
 import tempfile
 from datetime import datetime, timedelta
 from functools import partial
-from typing import Tuple
 
 import maya
 import pytest
 from click.testing import CliRunner
 from eth_utils import to_checksum_address
+from typing import Tuple, Callable
+from umbral import pre
+from umbral.curvebn import CurveBN
+from umbral.keys import UmbralPrivateKey
+from umbral.signing import Signer
 from web3 import Web3
+from web3.contract import Contract
+from web3.types import TxReceipt
 
 from nucypher.blockchain.economics import BaseEconomics, StandardTokenEconomics
 from nucypher.blockchain.eth.actors import StakeHolder, Staker
@@ -105,10 +111,7 @@ from tests.utils.middleware import MockRestMiddleware, MockRestMiddlewareForLarg
 from tests.utils.policy import generate_random_label
 from tests.utils.ursula import MOCK_URSULA_STARTING_PORT, make_decentralized_ursulas, make_federated_ursulas, \
     MOCK_KNOWN_URSULAS_CACHE
-from umbral import pre
-from umbral.curvebn import CurveBN
-from umbral.keys import UmbralPrivateKey
-from umbral.signing import Signer
+
 
 test_logger = Logger("test-logger")
 
@@ -935,7 +938,7 @@ def log_in_and_out_of_test(request):
 
 
 @pytest.fixture(scope="module")
-def deploy_contract(testerchain, test_registry):
+def deploy_contract(testerchain, test_registry) -> Callable[..., Tuple[Contract, TxReceipt]]:
     def wrapped(contract_name, *args, **kwargs):
         return testerchain.deploy_contract(testerchain.etherbase_account,
                                            test_registry,

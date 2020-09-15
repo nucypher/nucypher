@@ -1,0 +1,997 @@
+{
+	"environments": {
+		"default": {
+			"appName": "voting-aggregator.open.aragonpm.eth",
+			"network": "rpc"
+		},
+		"mainnet": {
+			"appName": "voting-aggregator.hatch.aragonpm.eth",
+			"network": "mainnet",
+			"registry": "0x314159265dd8dbb310642f98f50c066173c1259b",
+			"wsRPC": "wss://mainnet.eth.aragon.network/ws"
+		},
+		"rinkeby": {
+			"appName": "voting-aggregator.hatch.aragonpm.eth",
+			"network": "rinkeby",
+			"registry": "0x98Df287B6C145399Aaa709692c8D308357bC085D",
+			"wsRPC": "wss://rinkeby.eth.aragon.network/ws"
+		},
+		"ropsten": {
+			"appName": "voting-aggregator.hatch.aragonpm.eth",
+			"network": "ropsten",
+			"registry": "0x6afe2cacee211ea9179992f89dc61ff25c61e923",
+			"wsRPC": "wss://rinkeby.eth.aragon.network/ws"
+		},
+		"staging": {
+			"appName": "voting-aggregator.hatch.aragonpm.eth",
+			"network": "rinkeby",
+			"registry": "0xfe03625ea880a8cba336f9b5ad6e15b0a3b5a939",
+			"wsRPC": "wss://rinkeby.eth.aragon.network/ws"
+		}
+	},
+	"roles": [
+		{
+			"name": "Add new power sources",
+			"id": "ADD_POWER_SOURCE_ROLE",
+			"params": [
+				"Source address",
+				"Source weight"
+			],
+			"bytes": "0x10f7c4af0b190fdd7eb73fa36b0e280d48dc6b8d355f89769b4f1a50a61d1929"
+		},
+		{
+			"name": "Manage power sources",
+			"id": "MANAGE_POWER_SOURCE_ROLE ",
+			"params": [
+				"Enabling source"
+			],
+			"bytes": "0x370fdfba88fd741013243a8d4533cc2c330aa913e33f1c6195ed42ce4863c092"
+		},
+		{
+			"name": "Manage power source weights",
+			"id": "MANAGE_WEIGHTS_ROLE",
+			"params": [
+				"New weight",
+				"Old weight"
+			],
+			"bytes": "0xa36fcade8375289791865312a33263fdc82d07e097c13524c9d6436c0de396ff"
+		}
+	],
+	"path": "contracts/VotingAggregator.sol",
+	"appName": "voting-aggregator.hatch.aragonpm.eth",
+	"env": {
+		"appName": "voting-aggregator.hatch.aragonpm.eth",
+		"network": "mainnet",
+		"registry": "0x314159265dd8dbb310642f98f50c066173c1259b",
+		"wsRPC": "wss://mainnet.eth.aragon.network/ws"
+	},
+	"appId": "0x818d8ea9df3dca764232c22548318a98f82f388b760b4b5abe80a4b40f9b2076",
+	"abi": [
+		{
+			"constant": true,
+			"inputs": [],
+			"name": "name",
+			"outputs": [
+				{
+					"name": "",
+					"type": "string"
+				}
+			],
+			"payable": false,
+			"stateMutability": "view",
+			"type": "function"
+		},
+		{
+			"constant": true,
+			"inputs": [],
+			"name": "hasInitialized",
+			"outputs": [
+				{
+					"name": "",
+					"type": "bool"
+				}
+			],
+			"payable": false,
+			"stateMutability": "view",
+			"type": "function"
+		},
+		{
+			"constant": false,
+			"inputs": [
+				{
+					"name": "",
+					"type": "address"
+				},
+				{
+					"name": "",
+					"type": "uint256"
+				}
+			],
+			"name": "approve",
+			"outputs": [
+				{
+					"name": "",
+					"type": "bool"
+				}
+			],
+			"payable": false,
+			"stateMutability": "nonpayable",
+			"type": "function"
+		},
+		{
+			"constant": false,
+			"inputs": [
+				{
+					"name": "",
+					"type": "address"
+				},
+				{
+					"name": "",
+					"type": "address"
+				},
+				{
+					"name": "",
+					"type": "uint256"
+				}
+			],
+			"name": "transferFrom",
+			"outputs": [
+				{
+					"name": "",
+					"type": "bool"
+				}
+			],
+			"payable": false,
+			"stateMutability": "nonpayable",
+			"type": "function"
+		},
+		{
+			"constant": true,
+			"inputs": [
+				{
+					"name": "_script",
+					"type": "bytes"
+				}
+			],
+			"name": "getEVMScriptExecutor",
+			"outputs": [
+				{
+					"name": "",
+					"type": "address"
+				}
+			],
+			"payable": false,
+			"stateMutability": "view",
+			"type": "function"
+		},
+		{
+			"constant": true,
+			"inputs": [],
+			"name": "decimals",
+			"outputs": [
+				{
+					"name": "",
+					"type": "uint8"
+				}
+			],
+			"payable": false,
+			"stateMutability": "view",
+			"type": "function"
+		},
+		{
+			"constant": true,
+			"inputs": [],
+			"name": "getRecoveryVault",
+			"outputs": [
+				{
+					"name": "",
+					"type": "address"
+				}
+			],
+			"payable": false,
+			"stateMutability": "view",
+			"type": "function"
+		},
+		{
+			"constant": true,
+			"inputs": [],
+			"name": "MANAGE_POWER_SOURCE_ROLE",
+			"outputs": [
+				{
+					"name": "",
+					"type": "bytes32"
+				}
+			],
+			"payable": false,
+			"stateMutability": "view",
+			"type": "function"
+		},
+		{
+			"constant": true,
+			"inputs": [],
+			"name": "MANAGE_WEIGHTS_ROLE",
+			"outputs": [
+				{
+					"name": "",
+					"type": "bytes32"
+				}
+			],
+			"payable": false,
+			"stateMutability": "view",
+			"type": "function"
+		},
+		{
+			"constant": true,
+			"inputs": [],
+			"name": "ADD_POWER_SOURCE_ROLE",
+			"outputs": [
+				{
+					"name": "",
+					"type": "bytes32"
+				}
+			],
+			"payable": false,
+			"stateMutability": "view",
+			"type": "function"
+		},
+		{
+			"constant": true,
+			"inputs": [
+				{
+					"name": "token",
+					"type": "address"
+				}
+			],
+			"name": "allowRecoverability",
+			"outputs": [
+				{
+					"name": "",
+					"type": "bool"
+				}
+			],
+			"payable": false,
+			"stateMutability": "view",
+			"type": "function"
+		},
+		{
+			"constant": true,
+			"inputs": [],
+			"name": "appId",
+			"outputs": [
+				{
+					"name": "",
+					"type": "bytes32"
+				}
+			],
+			"payable": false,
+			"stateMutability": "view",
+			"type": "function"
+		},
+		{
+			"constant": true,
+			"inputs": [],
+			"name": "getInitializationBlock",
+			"outputs": [
+				{
+					"name": "",
+					"type": "uint256"
+				}
+			],
+			"payable": false,
+			"stateMutability": "view",
+			"type": "function"
+		},
+		{
+			"constant": true,
+			"inputs": [],
+			"name": "symbol",
+			"outputs": [
+				{
+					"name": "",
+					"type": "string"
+				}
+			],
+			"payable": false,
+			"stateMutability": "view",
+			"type": "function"
+		},
+		{
+			"constant": false,
+			"inputs": [
+				{
+					"name": "_token",
+					"type": "address"
+				}
+			],
+			"name": "transferToVault",
+			"outputs": [],
+			"payable": false,
+			"stateMutability": "nonpayable",
+			"type": "function"
+		},
+		{
+			"constant": true,
+			"inputs": [
+				{
+					"name": "",
+					"type": "uint256"
+				}
+			],
+			"name": "powerSources",
+			"outputs": [
+				{
+					"name": "",
+					"type": "address"
+				}
+			],
+			"payable": false,
+			"stateMutability": "view",
+			"type": "function"
+		},
+		{
+			"constant": true,
+			"inputs": [
+				{
+					"name": "_sender",
+					"type": "address"
+				},
+				{
+					"name": "_role",
+					"type": "bytes32"
+				},
+				{
+					"name": "_params",
+					"type": "uint256[]"
+				}
+			],
+			"name": "canPerform",
+			"outputs": [
+				{
+					"name": "",
+					"type": "bool"
+				}
+			],
+			"payable": false,
+			"stateMutability": "view",
+			"type": "function"
+		},
+		{
+			"constant": true,
+			"inputs": [],
+			"name": "getEVMScriptRegistry",
+			"outputs": [
+				{
+					"name": "",
+					"type": "address"
+				}
+			],
+			"payable": false,
+			"stateMutability": "view",
+			"type": "function"
+		},
+		{
+			"constant": false,
+			"inputs": [
+				{
+					"name": "",
+					"type": "address"
+				},
+				{
+					"name": "",
+					"type": "uint256"
+				}
+			],
+			"name": "transfer",
+			"outputs": [
+				{
+					"name": "",
+					"type": "bool"
+				}
+			],
+			"payable": false,
+			"stateMutability": "nonpayable",
+			"type": "function"
+		},
+		{
+			"constant": true,
+			"inputs": [],
+			"name": "kernel",
+			"outputs": [
+				{
+					"name": "",
+					"type": "address"
+				}
+			],
+			"payable": false,
+			"stateMutability": "view",
+			"type": "function"
+		},
+		{
+			"constant": true,
+			"inputs": [
+				{
+					"name": "",
+					"type": "address"
+				},
+				{
+					"name": "",
+					"type": "address"
+				}
+			],
+			"name": "allowance",
+			"outputs": [
+				{
+					"name": "",
+					"type": "uint256"
+				}
+			],
+			"payable": false,
+			"stateMutability": "view",
+			"type": "function"
+		},
+		{
+			"constant": true,
+			"inputs": [],
+			"name": "isPetrified",
+			"outputs": [
+				{
+					"name": "",
+					"type": "bool"
+				}
+			],
+			"payable": false,
+			"stateMutability": "view",
+			"type": "function"
+		},
+		{
+			"anonymous": false,
+			"inputs": [
+				{
+					"indexed": true,
+					"name": "sourceAddress",
+					"type": "address"
+				},
+				{
+					"indexed": false,
+					"name": "sourceType",
+					"type": "uint8"
+				},
+				{
+					"indexed": false,
+					"name": "weight",
+					"type": "uint256"
+				}
+			],
+			"name": "AddPowerSource",
+			"type": "event"
+		},
+		{
+			"anonymous": false,
+			"inputs": [
+				{
+					"indexed": true,
+					"name": "sourceAddress",
+					"type": "address"
+				},
+				{
+					"indexed": false,
+					"name": "newWeight",
+					"type": "uint256"
+				}
+			],
+			"name": "ChangePowerSourceWeight",
+			"type": "event"
+		},
+		{
+			"anonymous": false,
+			"inputs": [
+				{
+					"indexed": true,
+					"name": "sourceAddress",
+					"type": "address"
+				}
+			],
+			"name": "DisablePowerSource",
+			"type": "event"
+		},
+		{
+			"anonymous": false,
+			"inputs": [
+				{
+					"indexed": true,
+					"name": "sourceAddress",
+					"type": "address"
+				}
+			],
+			"name": "EnablePowerSource",
+			"type": "event"
+		},
+		{
+			"anonymous": false,
+			"inputs": [
+				{
+					"indexed": true,
+					"name": "executor",
+					"type": "address"
+				},
+				{
+					"indexed": false,
+					"name": "script",
+					"type": "bytes"
+				},
+				{
+					"indexed": false,
+					"name": "input",
+					"type": "bytes"
+				},
+				{
+					"indexed": false,
+					"name": "returnData",
+					"type": "bytes"
+				}
+			],
+			"name": "ScriptResult",
+			"type": "event"
+		},
+		{
+			"anonymous": false,
+			"inputs": [
+				{
+					"indexed": true,
+					"name": "vault",
+					"type": "address"
+				},
+				{
+					"indexed": true,
+					"name": "token",
+					"type": "address"
+				},
+				{
+					"indexed": false,
+					"name": "amount",
+					"type": "uint256"
+				}
+			],
+			"name": "RecoverToVault",
+			"type": "event"
+		},
+		{
+			"anonymous": false,
+			"inputs": [
+				{
+					"indexed": true,
+					"name": "from",
+					"type": "address"
+				},
+				{
+					"indexed": true,
+					"name": "to",
+					"type": "address"
+				},
+				{
+					"indexed": false,
+					"name": "value",
+					"type": "uint256"
+				}
+			],
+			"name": "Transfer",
+			"type": "event"
+		},
+		{
+			"anonymous": false,
+			"inputs": [
+				{
+					"indexed": true,
+					"name": "owner",
+					"type": "address"
+				},
+				{
+					"indexed": true,
+					"name": "spender",
+					"type": "address"
+				},
+				{
+					"indexed": false,
+					"name": "value",
+					"type": "uint256"
+				}
+			],
+			"name": "Approval",
+			"type": "event"
+		},
+		{
+			"constant": false,
+			"inputs": [
+				{
+					"name": "_name",
+					"type": "string"
+				},
+				{
+					"name": "_symbol",
+					"type": "string"
+				},
+				{
+					"name": "_decimals",
+					"type": "uint8"
+				}
+			],
+			"name": "initialize",
+			"outputs": [],
+			"payable": false,
+			"stateMutability": "nonpayable",
+			"type": "function"
+		},
+		{
+			"constant": false,
+			"inputs": [
+				{
+					"name": "_sourceAddr",
+					"type": "address"
+				},
+				{
+					"name": "_sourceType",
+					"type": "uint8"
+				},
+				{
+					"name": "_weight",
+					"type": "uint256"
+				}
+			],
+			"name": "addPowerSource",
+			"outputs": [],
+			"payable": false,
+			"stateMutability": "nonpayable",
+			"type": "function"
+		},
+		{
+			"constant": false,
+			"inputs": [
+				{
+					"name": "_sourceAddr",
+					"type": "address"
+				},
+				{
+					"name": "_weight",
+					"type": "uint256"
+				}
+			],
+			"name": "changeSourceWeight",
+			"outputs": [],
+			"payable": false,
+			"stateMutability": "nonpayable",
+			"type": "function"
+		},
+		{
+			"constant": false,
+			"inputs": [
+				{
+					"name": "_sourceAddr",
+					"type": "address"
+				}
+			],
+			"name": "disableSource",
+			"outputs": [],
+			"payable": false,
+			"stateMutability": "nonpayable",
+			"type": "function"
+		},
+		{
+			"constant": false,
+			"inputs": [
+				{
+					"name": "_sourceAddr",
+					"type": "address"
+				}
+			],
+			"name": "enableSource",
+			"outputs": [],
+			"payable": false,
+			"stateMutability": "nonpayable",
+			"type": "function"
+		},
+		{
+			"constant": true,
+			"inputs": [
+				{
+					"name": "_owner",
+					"type": "address"
+				}
+			],
+			"name": "balanceOf",
+			"outputs": [
+				{
+					"name": "",
+					"type": "uint256"
+				}
+			],
+			"payable": false,
+			"stateMutability": "view",
+			"type": "function"
+		},
+		{
+			"constant": true,
+			"inputs": [],
+			"name": "totalSupply",
+			"outputs": [
+				{
+					"name": "",
+					"type": "uint256"
+				}
+			],
+			"payable": false,
+			"stateMutability": "view",
+			"type": "function"
+		},
+		{
+			"constant": true,
+			"inputs": [
+				{
+					"name": "_owner",
+					"type": "address"
+				},
+				{
+					"name": "_blockNumber",
+					"type": "uint256"
+				}
+			],
+			"name": "balanceOfAt",
+			"outputs": [
+				{
+					"name": "",
+					"type": "uint256"
+				}
+			],
+			"payable": false,
+			"stateMutability": "view",
+			"type": "function"
+		},
+		{
+			"constant": true,
+			"inputs": [
+				{
+					"name": "_blockNumber",
+					"type": "uint256"
+				}
+			],
+			"name": "totalSupplyAt",
+			"outputs": [
+				{
+					"name": "",
+					"type": "uint256"
+				}
+			],
+			"payable": false,
+			"stateMutability": "view",
+			"type": "function"
+		},
+		{
+			"constant": true,
+			"inputs": [],
+			"name": "isForwarder",
+			"outputs": [
+				{
+					"name": "",
+					"type": "bool"
+				}
+			],
+			"payable": false,
+			"stateMutability": "pure",
+			"type": "function"
+		},
+		{
+			"constant": false,
+			"inputs": [
+				{
+					"name": "_evmScript",
+					"type": "bytes"
+				}
+			],
+			"name": "forward",
+			"outputs": [],
+			"payable": false,
+			"stateMutability": "nonpayable",
+			"type": "function"
+		},
+		{
+			"constant": true,
+			"inputs": [
+				{
+					"name": "_sender",
+					"type": "address"
+				},
+				{
+					"name": "",
+					"type": "bytes"
+				}
+			],
+			"name": "canForward",
+			"outputs": [
+				{
+					"name": "",
+					"type": "bool"
+				}
+			],
+			"payable": false,
+			"stateMutability": "view",
+			"type": "function"
+		},
+		{
+			"constant": true,
+			"inputs": [
+				{
+					"name": "_sourceAddr",
+					"type": "address"
+				}
+			],
+			"name": "getPowerSourceDetails",
+			"outputs": [
+				{
+					"name": "sourceType",
+					"type": "uint8"
+				},
+				{
+					"name": "enabled",
+					"type": "bool"
+				},
+				{
+					"name": "weight",
+					"type": "uint256"
+				}
+			],
+			"payable": false,
+			"stateMutability": "view",
+			"type": "function"
+		},
+		{
+			"constant": true,
+			"inputs": [],
+			"name": "getPowerSourcesLength",
+			"outputs": [
+				{
+					"name": "",
+					"type": "uint256"
+				}
+			],
+			"payable": false,
+			"stateMutability": "view",
+			"type": "function"
+		}
+	],
+	"deployment": {
+		"contractName": "VotingAggregator",
+		"compiledAt": "2020-01-24T18:09:27.766Z",
+		"compiler": {
+			"name": "solc",
+			"version": "0.4.24+commit.e67f0147.Emscripten.clang",
+			"optimizer": {
+				"enabled": true,
+				"runs": 10000
+			}
+		},
+		"flattenedCode": "./code.sol",
+		"transactionHash": "0xb964e1f7693d98583da365176ddc80d46f3d21035d1d9ae534f1982420a3cf72"
+	},
+	"functions": [
+		{
+			"sig": "initialize(string,string,uint8)",
+			"roles": [],
+			"notice": "Create a new voting power aggregator",
+			"abi": {
+				"constant": false,
+				"inputs": [
+					{
+						"name": "_name",
+						"type": "string"
+					},
+					{
+						"name": "_symbol",
+						"type": "string"
+					},
+					{
+						"name": "_decimals",
+						"type": "uint8"
+					}
+				],
+				"name": "initialize",
+				"outputs": [],
+				"payable": false,
+				"stateMutability": "nonpayable",
+				"type": "function"
+			}
+		},
+		{
+			"sig": "addPowerSource(address,address,uint256)",
+			"roles": [
+				"ADD_POWER_SOURCE_ROLE"
+			],
+			"notice": "Add a new power source (`_sourceAddr`) with `_weight` weight"
+		},
+		{
+			"sig": "changeSourceWeight(address,uint256)",
+			"roles": [
+				"MANAGE_WEIGHTS_ROLE"
+			],
+			"notice": "Change weight of power source at `_sourceAddr` to `_weight`",
+			"abi": {
+				"constant": false,
+				"inputs": [
+					{
+						"name": "_sourceAddr",
+						"type": "address"
+					},
+					{
+						"name": "_weight",
+						"type": "uint256"
+					}
+				],
+				"name": "changeSourceWeight",
+				"outputs": [],
+				"payable": false,
+				"stateMutability": "nonpayable",
+				"type": "function"
+			}
+		},
+		{
+			"sig": "disableSource(address)",
+			"roles": [
+				"MANAGE_POWER_SOURCE_ROLE"
+			],
+			"notice": "Disable power source at `_sourceAddr`",
+			"abi": {
+				"constant": false,
+				"inputs": [
+					{
+						"name": "_sourceAddr",
+						"type": "address"
+					}
+				],
+				"name": "disableSource",
+				"outputs": [],
+				"payable": false,
+				"stateMutability": "nonpayable",
+				"type": "function"
+			}
+		},
+		{
+			"sig": "enableSource(address)",
+			"roles": [
+				"MANAGE_POWER_SOURCE_ROLE"
+			],
+			"notice": "Enable power source at `_sourceAddr`",
+			"abi": {
+				"constant": false,
+				"inputs": [
+					{
+						"name": "_sourceAddr",
+						"type": "address"
+					}
+				],
+				"name": "enableSource",
+				"outputs": [],
+				"payable": false,
+				"stateMutability": "nonpayable",
+				"type": "function"
+			}
+		},
+		{
+			"sig": "forward(bytes)",
+			"roles": [],
+			"notice": "Execute desired action if you have voting power",
+			"abi": {
+				"constant": false,
+				"inputs": [
+					{
+						"name": "_evmScript",
+						"type": "bytes"
+					}
+				],
+				"name": "forward",
+				"outputs": [],
+				"payable": false,
+				"stateMutability": "nonpayable",
+				"type": "function"
+			}
+		}
+	],
+	"deprecatedFunctions": {}
+}

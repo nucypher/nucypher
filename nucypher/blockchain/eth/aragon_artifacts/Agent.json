@@ -1,0 +1,1358 @@
+{
+	"environments": {
+		"default": {
+			"registry": "0x5f6f7e8cc7346a11ca2def8f827b7a0b612c56a1",
+			"appName": "agent.aragonpm.eth",
+			"network": "rpc"
+		},
+		"mainnet": {
+			"registry": "0x00000000000C2E074eC69A0dFb2997BA6C7d2e1e",
+			"appName": "agent.aragonpm.eth",
+			"network": "mainnet"
+		},
+		"rinkeby": {
+			"registry": "0x98Df287B6C145399Aaa709692c8D308357bC085D",
+			"appName": "agent.aragonpm.eth",
+			"network": "rinkeby"
+		},
+		"ropsten": {
+			"registry": "0x6afe2cacee211ea9179992f89dc61ff25c61e923",
+			"appName": "agent.aragonpm.eth",
+			"network": "ropsten"
+		},
+		"staging": {
+			"registry": "0xfe03625ea880a8cba336f9b5ad6e15b0a3b5a939",
+			"appName": "agent.aragonpm.eth",
+			"network": "rinkeby"
+		}
+	},
+	"roles": [
+		{
+			"name": "Transfer Agent's tokens",
+			"id": "TRANSFER_ROLE",
+			"params": [
+				"Token address",
+				"Receiver address",
+				"Token amount"
+			],
+			"bytes": "0x8502233096d909befbda0999bb8ea2f3a6be3c138b9fbf003752a4c8bce86f6c"
+		},
+		{
+			"name": "Execute actions",
+			"id": "EXECUTE_ROLE",
+			"params": [
+				"Target address",
+				"ETH value",
+				"Signature"
+			],
+			"bytes": "0xcebf517aa4440d1d125e0355aae64401211d0848a23c02cc5d29a14822580ba4"
+		},
+		{
+			"name": "Execute safe actions",
+			"id": "SAFE_EXECUTE_ROLE",
+			"params": [
+				"Target address",
+				"Signature"
+			],
+			"bytes": "0x0a1ad7b87f5846153c6d5a1f761d71c7d0cfd122384f56066cd33239b7933694"
+		},
+		{
+			"name": "Add protected tokens",
+			"id": "ADD_PROTECTED_TOKEN_ROLE",
+			"params": [
+				"Token"
+			],
+			"bytes": "0x6eb2a499556bfa2872f5aa15812b956cc4a71b4d64eb3553f7073c7e41415aaa"
+		},
+		{
+			"name": "Remove protected tokens",
+			"id": "REMOVE_PROTECTED_TOKEN_ROLE",
+			"params": [
+				"Token"
+			],
+			"bytes": "0x71eee93d500f6f065e38b27d242a756466a00a52a1dbcd6b4260f01a8640402a"
+		},
+		{
+			"name": "Add presigned hashes",
+			"id": "ADD_PRESIGNED_HASH_ROLE",
+			"params": [
+				"Hash"
+			],
+			"bytes": "0x0b29780bb523a130b3b01f231ef49ed2fa2781645591a0b0a44ca98f15a5994c"
+		},
+		{
+			"name": "Set designated signer",
+			"id": "DESIGNATE_SIGNER_ROLE",
+			"params": [
+				"Designated signer address"
+			],
+			"bytes": "0x23ce341656c3f14df6692eebd4757791e33662b7dcf9970c8308303da5472b7c"
+		},
+		{
+			"name": "Run EVM Script",
+			"id": "RUN_SCRIPT_ROLE",
+			"params": [
+				"EVM Script"
+			],
+			"bytes": "0xb421f7ad7646747f3051c50c0b8e2377839296cd4973e27f63821d73e390338f"
+		}
+	],
+	"path": "contracts/Agent.sol",
+	"appName": "agent.aragonpm.eth",
+	"env": {
+		"registry": "0x00000000000C2E074eC69A0dFb2997BA6C7d2e1e",
+		"appName": "agent.aragonpm.eth",
+		"network": "mainnet"
+	},
+	"appId": "0x9ac98dc5f995bf0211ed589ef022719d1487e5cb2bab505676f0d084c07cf89a",
+	"abi": [
+		{
+			"constant": true,
+			"inputs": [],
+			"name": "ADD_PROTECTED_TOKEN_ROLE",
+			"outputs": [
+				{
+					"name": "",
+					"type": "bytes32"
+				}
+			],
+			"payable": false,
+			"stateMutability": "view",
+			"type": "function"
+		},
+		{
+			"constant": true,
+			"inputs": [],
+			"name": "hasInitialized",
+			"outputs": [
+				{
+					"name": "",
+					"type": "bool"
+				}
+			],
+			"payable": false,
+			"stateMutability": "view",
+			"type": "function"
+		},
+		{
+			"constant": true,
+			"inputs": [],
+			"name": "ERC1271_INTERFACE_ID",
+			"outputs": [
+				{
+					"name": "",
+					"type": "bytes4"
+				}
+			],
+			"payable": false,
+			"stateMutability": "view",
+			"type": "function"
+		},
+		{
+			"constant": true,
+			"inputs": [],
+			"name": "ERC1271_RETURN_INVALID_SIGNATURE",
+			"outputs": [
+				{
+					"name": "",
+					"type": "bytes4"
+				}
+			],
+			"payable": false,
+			"stateMutability": "view",
+			"type": "function"
+		},
+		{
+			"constant": true,
+			"inputs": [],
+			"name": "TRANSFER_ROLE",
+			"outputs": [
+				{
+					"name": "",
+					"type": "bytes32"
+				}
+			],
+			"payable": false,
+			"stateMutability": "view",
+			"type": "function"
+		},
+		{
+			"constant": true,
+			"inputs": [
+				{
+					"name": "_script",
+					"type": "bytes"
+				}
+			],
+			"name": "getEVMScriptExecutor",
+			"outputs": [
+				{
+					"name": "",
+					"type": "address"
+				}
+			],
+			"payable": false,
+			"stateMutability": "view",
+			"type": "function"
+		},
+		{
+			"constant": true,
+			"inputs": [],
+			"name": "getRecoveryVault",
+			"outputs": [
+				{
+					"name": "",
+					"type": "address"
+				}
+			],
+			"payable": false,
+			"stateMutability": "view",
+			"type": "function"
+		},
+		{
+			"constant": true,
+			"inputs": [],
+			"name": "RUN_SCRIPT_ROLE",
+			"outputs": [
+				{
+					"name": "",
+					"type": "bytes32"
+				}
+			],
+			"payable": false,
+			"stateMutability": "view",
+			"type": "function"
+		},
+		{
+			"constant": true,
+			"inputs": [],
+			"name": "SAFE_EXECUTE_ROLE",
+			"outputs": [
+				{
+					"name": "",
+					"type": "bytes32"
+				}
+			],
+			"payable": false,
+			"stateMutability": "view",
+			"type": "function"
+		},
+		{
+			"constant": true,
+			"inputs": [],
+			"name": "REMOVE_PROTECTED_TOKEN_ROLE",
+			"outputs": [
+				{
+					"name": "",
+					"type": "bytes32"
+				}
+			],
+			"payable": false,
+			"stateMutability": "view",
+			"type": "function"
+		},
+		{
+			"constant": false,
+			"inputs": [
+				{
+					"name": "_token",
+					"type": "address"
+				},
+				{
+					"name": "_value",
+					"type": "uint256"
+				}
+			],
+			"name": "deposit",
+			"outputs": [],
+			"payable": true,
+			"stateMutability": "payable",
+			"type": "function"
+		},
+		{
+			"constant": true,
+			"inputs": [],
+			"name": "isDepositable",
+			"outputs": [
+				{
+					"name": "",
+					"type": "bool"
+				}
+			],
+			"payable": false,
+			"stateMutability": "view",
+			"type": "function"
+		},
+		{
+			"constant": true,
+			"inputs": [],
+			"name": "DESIGNATE_SIGNER_ROLE",
+			"outputs": [
+				{
+					"name": "",
+					"type": "bytes32"
+				}
+			],
+			"payable": false,
+			"stateMutability": "view",
+			"type": "function"
+		},
+		{
+			"constant": true,
+			"inputs": [],
+			"name": "EXECUTE_ROLE",
+			"outputs": [
+				{
+					"name": "",
+					"type": "bytes32"
+				}
+			],
+			"payable": false,
+			"stateMutability": "view",
+			"type": "function"
+		},
+		{
+			"constant": true,
+			"inputs": [
+				{
+					"name": "",
+					"type": "address"
+				}
+			],
+			"name": "allowRecoverability",
+			"outputs": [
+				{
+					"name": "",
+					"type": "bool"
+				}
+			],
+			"payable": false,
+			"stateMutability": "view",
+			"type": "function"
+		},
+		{
+			"constant": true,
+			"inputs": [],
+			"name": "appId",
+			"outputs": [
+				{
+					"name": "",
+					"type": "bytes32"
+				}
+			],
+			"payable": false,
+			"stateMutability": "view",
+			"type": "function"
+		},
+		{
+			"constant": false,
+			"inputs": [],
+			"name": "initialize",
+			"outputs": [],
+			"payable": false,
+			"stateMutability": "nonpayable",
+			"type": "function"
+		},
+		{
+			"constant": true,
+			"inputs": [
+				{
+					"name": "",
+					"type": "uint256"
+				}
+			],
+			"name": "protectedTokens",
+			"outputs": [
+				{
+					"name": "",
+					"type": "address"
+				}
+			],
+			"payable": false,
+			"stateMutability": "view",
+			"type": "function"
+		},
+		{
+			"constant": true,
+			"inputs": [],
+			"name": "getInitializationBlock",
+			"outputs": [
+				{
+					"name": "",
+					"type": "uint256"
+				}
+			],
+			"payable": false,
+			"stateMutability": "view",
+			"type": "function"
+		},
+		{
+			"constant": true,
+			"inputs": [],
+			"name": "ERC1271_RETURN_VALID_SIGNATURE",
+			"outputs": [
+				{
+					"name": "",
+					"type": "bytes4"
+				}
+			],
+			"payable": false,
+			"stateMutability": "view",
+			"type": "function"
+		},
+		{
+			"constant": false,
+			"inputs": [
+				{
+					"name": "_token",
+					"type": "address"
+				}
+			],
+			"name": "transferToVault",
+			"outputs": [],
+			"payable": false,
+			"stateMutability": "nonpayable",
+			"type": "function"
+		},
+		{
+			"constant": true,
+			"inputs": [
+				{
+					"name": "_sender",
+					"type": "address"
+				},
+				{
+					"name": "_role",
+					"type": "bytes32"
+				},
+				{
+					"name": "_params",
+					"type": "uint256[]"
+				}
+			],
+			"name": "canPerform",
+			"outputs": [
+				{
+					"name": "",
+					"type": "bool"
+				}
+			],
+			"payable": false,
+			"stateMutability": "view",
+			"type": "function"
+		},
+		{
+			"constant": true,
+			"inputs": [],
+			"name": "getEVMScriptRegistry",
+			"outputs": [
+				{
+					"name": "",
+					"type": "address"
+				}
+			],
+			"payable": false,
+			"stateMutability": "view",
+			"type": "function"
+		},
+		{
+			"constant": true,
+			"inputs": [],
+			"name": "designatedSigner",
+			"outputs": [
+				{
+					"name": "",
+					"type": "address"
+				}
+			],
+			"payable": false,
+			"stateMutability": "view",
+			"type": "function"
+		},
+		{
+			"constant": true,
+			"inputs": [],
+			"name": "PROTECTED_TOKENS_CAP",
+			"outputs": [
+				{
+					"name": "",
+					"type": "uint256"
+				}
+			],
+			"payable": false,
+			"stateMutability": "view",
+			"type": "function"
+		},
+		{
+			"constant": true,
+			"inputs": [],
+			"name": "ADD_PRESIGNED_HASH_ROLE",
+			"outputs": [
+				{
+					"name": "",
+					"type": "bytes32"
+				}
+			],
+			"payable": false,
+			"stateMutability": "view",
+			"type": "function"
+		},
+		{
+			"constant": true,
+			"inputs": [
+				{
+					"name": "",
+					"type": "bytes32"
+				}
+			],
+			"name": "isPresigned",
+			"outputs": [
+				{
+					"name": "",
+					"type": "bool"
+				}
+			],
+			"payable": false,
+			"stateMutability": "view",
+			"type": "function"
+		},
+		{
+			"constant": false,
+			"inputs": [
+				{
+					"name": "_token",
+					"type": "address"
+				},
+				{
+					"name": "_to",
+					"type": "address"
+				},
+				{
+					"name": "_value",
+					"type": "uint256"
+				}
+			],
+			"name": "transfer",
+			"outputs": [],
+			"payable": false,
+			"stateMutability": "nonpayable",
+			"type": "function"
+		},
+		{
+			"constant": true,
+			"inputs": [],
+			"name": "kernel",
+			"outputs": [
+				{
+					"name": "",
+					"type": "address"
+				}
+			],
+			"payable": false,
+			"stateMutability": "view",
+			"type": "function"
+		},
+		{
+			"constant": true,
+			"inputs": [],
+			"name": "isPetrified",
+			"outputs": [
+				{
+					"name": "",
+					"type": "bool"
+				}
+			],
+			"payable": false,
+			"stateMutability": "view",
+			"type": "function"
+		},
+		{
+			"constant": true,
+			"inputs": [
+				{
+					"name": "_token",
+					"type": "address"
+				}
+			],
+			"name": "balance",
+			"outputs": [
+				{
+					"name": "",
+					"type": "uint256"
+				}
+			],
+			"payable": false,
+			"stateMutability": "view",
+			"type": "function"
+		},
+		{
+			"payable": true,
+			"stateMutability": "payable",
+			"type": "fallback"
+		},
+		{
+			"anonymous": false,
+			"inputs": [
+				{
+					"indexed": true,
+					"name": "sender",
+					"type": "address"
+				},
+				{
+					"indexed": true,
+					"name": "target",
+					"type": "address"
+				},
+				{
+					"indexed": false,
+					"name": "data",
+					"type": "bytes"
+				}
+			],
+			"name": "SafeExecute",
+			"type": "event"
+		},
+		{
+			"anonymous": false,
+			"inputs": [
+				{
+					"indexed": true,
+					"name": "sender",
+					"type": "address"
+				},
+				{
+					"indexed": true,
+					"name": "target",
+					"type": "address"
+				},
+				{
+					"indexed": false,
+					"name": "ethValue",
+					"type": "uint256"
+				},
+				{
+					"indexed": false,
+					"name": "data",
+					"type": "bytes"
+				}
+			],
+			"name": "Execute",
+			"type": "event"
+		},
+		{
+			"anonymous": false,
+			"inputs": [
+				{
+					"indexed": true,
+					"name": "token",
+					"type": "address"
+				}
+			],
+			"name": "AddProtectedToken",
+			"type": "event"
+		},
+		{
+			"anonymous": false,
+			"inputs": [
+				{
+					"indexed": true,
+					"name": "token",
+					"type": "address"
+				}
+			],
+			"name": "RemoveProtectedToken",
+			"type": "event"
+		},
+		{
+			"anonymous": false,
+			"inputs": [
+				{
+					"indexed": true,
+					"name": "sender",
+					"type": "address"
+				},
+				{
+					"indexed": true,
+					"name": "hash",
+					"type": "bytes32"
+				}
+			],
+			"name": "PresignHash",
+			"type": "event"
+		},
+		{
+			"anonymous": false,
+			"inputs": [
+				{
+					"indexed": true,
+					"name": "sender",
+					"type": "address"
+				},
+				{
+					"indexed": true,
+					"name": "oldSigner",
+					"type": "address"
+				},
+				{
+					"indexed": true,
+					"name": "newSigner",
+					"type": "address"
+				}
+			],
+			"name": "SetDesignatedSigner",
+			"type": "event"
+		},
+		{
+			"anonymous": false,
+			"inputs": [
+				{
+					"indexed": true,
+					"name": "token",
+					"type": "address"
+				},
+				{
+					"indexed": true,
+					"name": "operator",
+					"type": "address"
+				},
+				{
+					"indexed": true,
+					"name": "from",
+					"type": "address"
+				},
+				{
+					"indexed": false,
+					"name": "tokenId",
+					"type": "uint256"
+				},
+				{
+					"indexed": false,
+					"name": "data",
+					"type": "bytes"
+				}
+			],
+			"name": "ReceiveERC721",
+			"type": "event"
+		},
+		{
+			"anonymous": false,
+			"inputs": [
+				{
+					"indexed": true,
+					"name": "token",
+					"type": "address"
+				},
+				{
+					"indexed": true,
+					"name": "to",
+					"type": "address"
+				},
+				{
+					"indexed": false,
+					"name": "amount",
+					"type": "uint256"
+				}
+			],
+			"name": "VaultTransfer",
+			"type": "event"
+		},
+		{
+			"anonymous": false,
+			"inputs": [
+				{
+					"indexed": true,
+					"name": "token",
+					"type": "address"
+				},
+				{
+					"indexed": true,
+					"name": "sender",
+					"type": "address"
+				},
+				{
+					"indexed": false,
+					"name": "amount",
+					"type": "uint256"
+				}
+			],
+			"name": "VaultDeposit",
+			"type": "event"
+		},
+		{
+			"anonymous": false,
+			"inputs": [
+				{
+					"indexed": true,
+					"name": "executor",
+					"type": "address"
+				},
+				{
+					"indexed": false,
+					"name": "script",
+					"type": "bytes"
+				},
+				{
+					"indexed": false,
+					"name": "input",
+					"type": "bytes"
+				},
+				{
+					"indexed": false,
+					"name": "returnData",
+					"type": "bytes"
+				}
+			],
+			"name": "ScriptResult",
+			"type": "event"
+		},
+		{
+			"anonymous": false,
+			"inputs": [
+				{
+					"indexed": true,
+					"name": "vault",
+					"type": "address"
+				},
+				{
+					"indexed": true,
+					"name": "token",
+					"type": "address"
+				},
+				{
+					"indexed": false,
+					"name": "amount",
+					"type": "uint256"
+				}
+			],
+			"name": "RecoverToVault",
+			"type": "event"
+		},
+		{
+			"constant": false,
+			"inputs": [
+				{
+					"name": "_target",
+					"type": "address"
+				},
+				{
+					"name": "_ethValue",
+					"type": "uint256"
+				},
+				{
+					"name": "_data",
+					"type": "bytes"
+				}
+			],
+			"name": "execute",
+			"outputs": [],
+			"payable": false,
+			"stateMutability": "nonpayable",
+			"type": "function"
+		},
+		{
+			"constant": false,
+			"inputs": [
+				{
+					"name": "_target",
+					"type": "address"
+				},
+				{
+					"name": "_data",
+					"type": "bytes"
+				}
+			],
+			"name": "safeExecute",
+			"outputs": [],
+			"payable": false,
+			"stateMutability": "nonpayable",
+			"type": "function"
+		},
+		{
+			"constant": false,
+			"inputs": [
+				{
+					"name": "_token",
+					"type": "address"
+				}
+			],
+			"name": "addProtectedToken",
+			"outputs": [],
+			"payable": false,
+			"stateMutability": "nonpayable",
+			"type": "function"
+		},
+		{
+			"constant": false,
+			"inputs": [
+				{
+					"name": "_token",
+					"type": "address"
+				}
+			],
+			"name": "removeProtectedToken",
+			"outputs": [],
+			"payable": false,
+			"stateMutability": "nonpayable",
+			"type": "function"
+		},
+		{
+			"constant": false,
+			"inputs": [
+				{
+					"name": "_hash",
+					"type": "bytes32"
+				}
+			],
+			"name": "presignHash",
+			"outputs": [],
+			"payable": false,
+			"stateMutability": "nonpayable",
+			"type": "function"
+		},
+		{
+			"constant": false,
+			"inputs": [
+				{
+					"name": "_designatedSigner",
+					"type": "address"
+				}
+			],
+			"name": "setDesignatedSigner",
+			"outputs": [],
+			"payable": false,
+			"stateMutability": "nonpayable",
+			"type": "function"
+		},
+		{
+			"constant": false,
+			"inputs": [
+				{
+					"name": "_operator",
+					"type": "address"
+				},
+				{
+					"name": "_from",
+					"type": "address"
+				},
+				{
+					"name": "_tokenId",
+					"type": "uint256"
+				},
+				{
+					"name": "_data",
+					"type": "bytes"
+				}
+			],
+			"name": "onERC721Received",
+			"outputs": [
+				{
+					"name": "",
+					"type": "bytes4"
+				}
+			],
+			"payable": false,
+			"stateMutability": "nonpayable",
+			"type": "function"
+		},
+		{
+			"constant": true,
+			"inputs": [],
+			"name": "isForwarder",
+			"outputs": [
+				{
+					"name": "",
+					"type": "bool"
+				}
+			],
+			"payable": false,
+			"stateMutability": "pure",
+			"type": "function"
+		},
+		{
+			"constant": true,
+			"inputs": [
+				{
+					"name": "_interfaceId",
+					"type": "bytes4"
+				}
+			],
+			"name": "supportsInterface",
+			"outputs": [
+				{
+					"name": "",
+					"type": "bool"
+				}
+			],
+			"payable": false,
+			"stateMutability": "pure",
+			"type": "function"
+		},
+		{
+			"constant": false,
+			"inputs": [
+				{
+					"name": "_evmScript",
+					"type": "bytes"
+				}
+			],
+			"name": "forward",
+			"outputs": [],
+			"payable": false,
+			"stateMutability": "nonpayable",
+			"type": "function"
+		},
+		{
+			"constant": true,
+			"inputs": [
+				{
+					"name": "_sender",
+					"type": "address"
+				},
+				{
+					"name": "_evmScript",
+					"type": "bytes"
+				}
+			],
+			"name": "canForward",
+			"outputs": [
+				{
+					"name": "",
+					"type": "bool"
+				}
+			],
+			"payable": false,
+			"stateMutability": "view",
+			"type": "function"
+		},
+		{
+			"constant": true,
+			"inputs": [
+				{
+					"name": "_hash",
+					"type": "bytes32"
+				},
+				{
+					"name": "_signature",
+					"type": "bytes"
+				}
+			],
+			"name": "isValidSignature",
+			"outputs": [
+				{
+					"name": "",
+					"type": "bytes4"
+				}
+			],
+			"payable": false,
+			"stateMutability": "view",
+			"type": "function"
+		},
+		{
+			"constant": true,
+			"inputs": [
+				{
+					"name": "_data",
+					"type": "bytes"
+				},
+				{
+					"name": "_signature",
+					"type": "bytes"
+				}
+			],
+			"name": "isValidSignature",
+			"outputs": [
+				{
+					"name": "",
+					"type": "bytes4"
+				}
+			],
+			"payable": false,
+			"stateMutability": "view",
+			"type": "function"
+		},
+		{
+			"constant": true,
+			"inputs": [],
+			"name": "getProtectedTokensLength",
+			"outputs": [
+				{
+					"name": "",
+					"type": "uint256"
+				}
+			],
+			"payable": false,
+			"stateMutability": "view",
+			"type": "function"
+		}
+	],
+	"functions": [
+		{
+			"sig": "execute(address,uint256,bytes)",
+			"roles": [
+				"EXECUTE_ROLE"
+			],
+			"notice": "Execute '`@radspec(_target, _data)`' on `_target``_ethValue == 0 ? '' : ' (Sending ' + @tokenAmount(0x0000000000000000000000000000000000000000, _ethValue) + ')'`",
+			"abi": {
+				"constant": false,
+				"inputs": [
+					{
+						"name": "_target",
+						"type": "address"
+					},
+					{
+						"name": "_ethValue",
+						"type": "uint256"
+					},
+					{
+						"name": "_data",
+						"type": "bytes"
+					}
+				],
+				"name": "execute",
+				"outputs": [],
+				"payable": false,
+				"stateMutability": "nonpayable",
+				"type": "function"
+			}
+		},
+		{
+			"sig": "safeExecute(address,bytes)",
+			"roles": [
+				"SAFE_EXECUTE_ROLE"
+			],
+			"notice": "Execute '`@radspec(_target, _data)`' on `_target`, ensuring that protected tokens can't be spent",
+			"abi": {
+				"constant": false,
+				"inputs": [
+					{
+						"name": "_target",
+						"type": "address"
+					},
+					{
+						"name": "_data",
+						"type": "bytes"
+					}
+				],
+				"name": "safeExecute",
+				"outputs": [],
+				"payable": false,
+				"stateMutability": "nonpayable",
+				"type": "function"
+			}
+		},
+		{
+			"sig": "addProtectedToken(address)",
+			"roles": [
+				"ADD_PROTECTED_TOKEN_ROLE"
+			],
+			"notice": "Add `_token.symbol(): string` to the list of protected tokens",
+			"abi": {
+				"constant": false,
+				"inputs": [
+					{
+						"name": "_token",
+						"type": "address"
+					}
+				],
+				"name": "addProtectedToken",
+				"outputs": [],
+				"payable": false,
+				"stateMutability": "nonpayable",
+				"type": "function"
+			}
+		},
+		{
+			"sig": "removeProtectedToken(address)",
+			"roles": [
+				"REMOVE_PROTECTED_TOKEN_ROLE"
+			],
+			"notice": "Remove `_token.symbol(): string` from the list of protected tokens",
+			"abi": {
+				"constant": false,
+				"inputs": [
+					{
+						"name": "_token",
+						"type": "address"
+					}
+				],
+				"name": "removeProtectedToken",
+				"outputs": [],
+				"payable": false,
+				"stateMutability": "nonpayable",
+				"type": "function"
+			}
+		},
+		{
+			"sig": "presignHash(bytes32)",
+			"roles": [
+				"ADD_PRESIGNED_HASH_ROLE"
+			],
+			"notice": "Pre-sign hash `_hash`",
+			"abi": {
+				"constant": false,
+				"inputs": [
+					{
+						"name": "_hash",
+						"type": "bytes32"
+					}
+				],
+				"name": "presignHash",
+				"outputs": [],
+				"payable": false,
+				"stateMutability": "nonpayable",
+				"type": "function"
+			}
+		},
+		{
+			"sig": "setDesignatedSigner(address)",
+			"roles": [
+				"DESIGNATE_SIGNER_ROLE"
+			],
+			"notice": "Set `_designatedSigner` as the designated signer of the app, which will be able to sign messages on behalf of the app",
+			"abi": {
+				"constant": false,
+				"inputs": [
+					{
+						"name": "_designatedSigner",
+						"type": "address"
+					}
+				],
+				"name": "setDesignatedSigner",
+				"outputs": [],
+				"payable": false,
+				"stateMutability": "nonpayable",
+				"type": "function"
+			}
+		},
+		{
+			"sig": "onERC721Received(address,address,uint256,bytes)",
+			"roles": [],
+			"notice": null,
+			"abi": {
+				"constant": false,
+				"inputs": [
+					{
+						"name": "_operator",
+						"type": "address"
+					},
+					{
+						"name": "_from",
+						"type": "address"
+					},
+					{
+						"name": "_tokenId",
+						"type": "uint256"
+					},
+					{
+						"name": "_data",
+						"type": "bytes"
+					}
+				],
+				"name": "onERC721Received",
+				"outputs": [
+					{
+						"name": "",
+						"type": "bytes4"
+					}
+				],
+				"payable": false,
+				"stateMutability": "nonpayable",
+				"type": "function"
+			}
+		},
+		{
+			"sig": "forward(bytes)",
+			"roles": [],
+			"notice": "Execute the script as the Agent app",
+			"abi": {
+				"constant": false,
+				"inputs": [
+					{
+						"name": "_evmScript",
+						"type": "bytes"
+					}
+				],
+				"name": "forward",
+				"outputs": [],
+				"payable": false,
+				"stateMutability": "nonpayable",
+				"type": "function"
+			}
+		}
+	],
+	"deprecatedFunctions": {
+		"5.0.0": [
+			{
+				"sig": "fallback",
+				"roles": [],
+				"notice": null
+			},
+			{
+				"sig": "initialize()",
+				"roles": [],
+				"notice": "Initialize Agent app",
+				"abi": {
+					"constant": false,
+					"inputs": [],
+					"name": "initialize",
+					"outputs": [],
+					"payable": false,
+					"stateMutability": "nonpayable",
+					"type": "function"
+				}
+			},
+			{
+				"sig": "deposit(address,uint256)",
+				"roles": [],
+				"notice": "Deposit `_value` `_token` to the Agent",
+				"abi": {
+					"constant": false,
+					"inputs": [
+						{
+							"name": "_token",
+							"type": "address"
+						},
+						{
+							"name": "_value",
+							"type": "uint256"
+						}
+					],
+					"name": "deposit",
+					"outputs": [],
+					"payable": true,
+					"stateMutability": "payable",
+					"type": "function"
+				}
+			},
+			{
+				"sig": "transfer(address,address,uint256)",
+				"roles": [
+					"TRANSFER_ROLE"
+				],
+				"notice": "Transfer `_value` `_token` from the Agent to `_to`",
+				"abi": {
+					"constant": false,
+					"inputs": [
+						{
+							"name": "_token",
+							"type": "address"
+						},
+						{
+							"name": "_to",
+							"type": "address"
+						},
+						{
+							"name": "_value",
+							"type": "uint256"
+						}
+					],
+					"name": "transfer",
+					"outputs": [],
+					"payable": false,
+					"stateMutability": "nonpayable",
+					"type": "function"
+				}
+			}
+		]
+	}
+}
