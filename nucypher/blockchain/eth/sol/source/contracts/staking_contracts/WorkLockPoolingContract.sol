@@ -43,6 +43,8 @@ contract WorkLockPoolingContract is InitializableStakingContract, Ownable {
         bool claimedWorkLockTokens;
     }
 
+    uint256 public constant BASIS_FRACTION = 10000;
+
     StakingEscrow public escrow;
     WorkLock public workLock;
     address workerOwner;
@@ -58,8 +60,8 @@ contract WorkLockPoolingContract is InitializableStakingContract, Ownable {
     uint256 public totalWorklockETHWithdrawn;
 
     uint256 public workerFraction;
-    uint256 public ownerWithdrawnReward;
-    uint256 public ownerWithdrawnETH;
+    uint256 public workerWithdrawnReward;
+    uint256 public workerWithdrawnETH;
 
     mapping(address => Delegator) public delegators;
     bool depositIsEnabled = true;
@@ -72,7 +74,7 @@ contract WorkLockPoolingContract is InitializableStakingContract, Ownable {
         StakingInterfaceRouter _router,
         address _workerOwner
     ) public initializer {
-        require(_workerOwner != address(0));
+        require(_workerOwner != address(0) && _workerFraction <= BASIS_FRACTION);
         InitializableStakingContract.initialize(_router);
         // Ownable.initialize();
         escrow = _router.target().escrow();
@@ -192,14 +194,12 @@ contract WorkLockPoolingContract is InitializableStakingContract, Ownable {
 
         uint256 maxAllowableReward;
         if (totalDepositedTokens != 0) {
-            maxAllowableReward = reward.mul(workerFraction).div(
-                totalDepositedTokens.add(workerFraction)
-            );
+            maxAllowableReward = reward.mul(workerFraction).div(BASIS_FRACTION);
         } else {
             maxAllowableReward = reward;
         }
 
-        return maxAllowableReward.sub(ownerWithdrawnReward);
+        return maxAllowableReward.sub(workerWithdrawnReward);
     }
 
     /**
@@ -216,8 +216,8 @@ contract WorkLockPoolingContract is InitializableStakingContract, Ownable {
 
         uint256 reward = getCumulativeReward();
         Delegator storage delegator = delegators[_delegator];
-        uint256 maxAllowableReward = reward.mul(delegator.depositedTokens).div(
-            totalDepositedTokens.add(workerFraction)
+        uint256 maxAllowableReward = reward.mul(delegator.depositedTokens).mul(BASIS_FRACTION - workerFraction).div(
+            totalDepositedTokens.mul(BASIS_FRACTION)
         );
 
         return
@@ -241,7 +241,7 @@ contract WorkLockPoolingContract is InitializableStakingContract, Ownable {
             availableReward > 0,
             "There is no available reward to withdraw"
         );
-        ownerWithdrawnReward = ownerWithdrawnReward.add(availableReward);
+        workerWithdrawnReward = workerWithdrawnReward.add(availableReward);
         totalWithdrawnReward = totalWithdrawnReward.add(availableReward);
 
         token.safeTransfer(msg.sender, availableReward);
@@ -305,12 +305,11 @@ contract WorkLockPoolingContract is InitializableStakingContract, Ownable {
     function getAvailableWorkerETH() public view returns (uint256) {
         // TODO boilerplate code
         uint256 balance = address(this).balance;
-        balance = balance.add(totalWithdrawnETH).add(totalWorklockETHRefunded).sub(totalWorklockETHWithdrawn);
-        uint256 maxAllowableETH = balance.mul(workerFraction).div(
-            totalDepositedTokens.add(workerFraction)
-        );
+        // ETH balance + already withdrawn - (refunded - refundWithdrawn)
+        balance = balance.add(totalWithdrawnETH).add(totalWorklockETHWithdrawn).sub(totalWorklockETHRefunded);
+        uint256 maxAllowableETH = balance.mul(workerFraction).div(BASIS_FRACTION);
 
-        uint256 availableETH = maxAllowableETH.sub(ownerWithdrawnETH);
+        uint256 availableETH = maxAllowableETH.sub(workerWithdrawnETH);
         if (availableETH > balance) {
             availableETH = balance;
         }
@@ -324,9 +323,10 @@ contract WorkLockPoolingContract is InitializableStakingContract, Ownable {
         Delegator storage delegator = delegators[_delegator];
         // TODO boilerplate code
         uint256 balance = address(this).balance;
-        balance = balance.add(totalWithdrawnETH).add(totalWorklockETHRefunded).sub(totalWorklockETHWithdrawn);
-        uint256 maxAllowableETH = balance.mul(delegator.depositedTokens).div(
-            totalDepositedTokens.add(workerFraction)
+        // ETH balance + already withdrawn - (refunded - refundWithdrawn)
+        balance = balance.add(totalWithdrawnETH).add(totalWorklockETHWithdrawn).sub(totalWorklockETHRefunded);
+        uint256 maxAllowableETH = balance.mul(delegator.depositedTokens).mul(BASIS_FRACTION - workerFraction).div(
+            totalDepositedTokens.mul(BASIS_FRACTION)
         );
 
         uint256 availableETH = maxAllowableETH.sub(delegator.withdrawnETH);
@@ -344,7 +344,7 @@ contract WorkLockPoolingContract is InitializableStakingContract, Ownable {
         uint256 availableETH = getAvailableWorkerETH();
         require(availableETH > 0, "There is no available ETH to withdraw");
 
-        ownerWithdrawnETH = ownerWithdrawnETH.add(availableETH);
+        workerWithdrawnETH = workerWithdrawnETH.add(availableETH);
         totalWithdrawnETH = totalWithdrawnETH.add(availableETH);
 
         msg.sender.sendValue(availableETH);
