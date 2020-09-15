@@ -20,7 +20,7 @@ import pytest
 import os
 from umbral import pre
 from umbral.signing import Signer
-from nucypher.policy.collections import TreasureMap, DecentralizedTreasureMap
+from nucypher.policy.collections import TreasureMap, SignedTreasureMap
 from nucypher.policy.policies import Arrangement
 from nucypher.crypto.kits import UmbralMessageKit
 from tests.mock.performance_mocks import NotAPrivateKey, NotAPublicKey
@@ -68,9 +68,9 @@ def mock_messagekit():
 
 
 @pytest.fixture(scope='module')
-def mock_decentralized_treasuremap():
+def mock_signed_treasuremap():
 
-    class MockDecentralizedTreasureMap(DecentralizedTreasureMap):
+    class MockSignedTreasureMap(SignedTreasureMap):
 
         def public_verify(self):
             return True
@@ -87,7 +87,7 @@ def mock_decentralized_treasuremap():
     alice_stamp = SignatureStamp(alicekey.public_key(), signer=Signer(alicekey))
     label = b'some-great-label'
 
-    instance = MockDecentralizedTreasureMap(m=1, blockchain_signature=os.urandom(65))
+    instance = MockSignedTreasureMap(m=1, blockchain_signature=os.urandom(65))
     instance.prepare_for_publication(
         bob_encrypting_key=NotAPublicKey(),
         bob_verifying_key=NotAPublicKey(),

@@ -82,8 +82,8 @@ def test_bytestring_registry(mock_treasuremap, mock_messagekit):
     assert BYTESTRING_REGISTRY[mkit_checksum] is mock_messagekit.__class__
 
 
-def test_decentralized_treasuremap_serialization(mock_decentralized_treasuremap):
-    mock_treasuremap = mock_decentralized_treasuremap
+def test_decentralized_treasuremap_serialization(mock_signed_treasuremap):
+    mock_treasuremap = mock_signed_treasuremap
 
     treasuremap = mock_treasuremap
     splitter = treasuremap.splitter()
@@ -98,8 +98,8 @@ def test_decentralized_treasuremap_serialization(mock_decentralized_treasuremap)
     assert metadata['checksum'] == splitter.generate_checksum()
 
 
-def test_decentralized_treasuremap_deserialization(mock_decentralized_treasuremap):
-    mock_treasuremap = mock_decentralized_treasuremap
+def test_decentralized_treasuremap_deserialization(mock_signed_treasuremap):
+    mock_treasuremap = mock_signed_treasuremap
 
     treasuremap_bytes = bytes(mock_treasuremap)
 
