@@ -185,13 +185,13 @@ def test_coexisting_configurations(click_runner,
 
     user_input = f'{INSECURE_DEVELOPMENT_PASSWORD}\n' * 2
 
-    Worker.BONDING_POLL_RATE = 1
-    Worker.BONDING_TIMEOUT = 1
+    Worker.READY_POLL_RATE = 1
+    Worker.READY_TIMEOUT = 1
     with pytest.raises(Teacher.UnbondedWorker):  # TODO: Why is this being checked here?
         # Worker init success, but not bonded.
         result = click_runner.invoke(nucypher_cli, run_args, input=user_input, catch_exceptions=False)
     assert result.exit_code == 0
-    Worker.BONDING_TIMEOUT = None
+    Worker.READY_TIMEOUT = None
 
     # All configuration files still exist.
     assert os.path.isfile(felix_file_location)
