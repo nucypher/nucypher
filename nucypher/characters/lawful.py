@@ -981,7 +981,7 @@ class Ursula(Teacher, Character, Worker):
                  is_me: bool = True,
                  interface_signature=None,
                  timestamp=None,
-                 availability_check: bool = True,
+                 availability_check: bool = False,
                  prune_datastore: bool = True,
 
                  # Blockchain
