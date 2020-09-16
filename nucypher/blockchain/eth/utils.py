@@ -15,13 +15,17 @@ You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
+from decimal import Decimal
+from typing import Union
+
 import maya
 from constant_sorrow.constants import UNKNOWN_DEVELOPMENT_CHAIN_ID
-from decimal import Decimal
+from eth_typing import BlockNumber
 from eth_utils import is_address, is_hex, to_checksum_address
-from typing import Union
 from web3 import Web3
 from web3.contract import ContractConstructor, ContractFunction
+
+from nucypher.blockchain.eth.constants import AVERAGE_BLOCK_TIME_IN_SECONDS
 
 
 def epoch_to_period(epoch: int, seconds_per_period: int) -> int:
@@ -64,6 +68,18 @@ def calculate_period_duration(future_time: maya.MayaDT, seconds_per_period: int,
     current_period = datetime_to_period(datetime=now, seconds_per_period=seconds_per_period)
     periods = future_period - current_period
     return periods
+
+
+def estimate_block_number_for_period(period: int, seconds_per_period: int,  latest_block: BlockNumber) -> BlockNumber:
+    """Logic for getting the approximate block height of the start of the specified period."""
+    period_start = datetime_at_period(period=period,
+                                      seconds_per_period=seconds_per_period,
+                                      start_of_period=True)
+    seconds_from_midnight = int((maya.now() - period_start).total_seconds())
+    blocks_from_midnight = seconds_from_midnight // AVERAGE_BLOCK_TIME_IN_SECONDS
+
+    block_number_for_period = latest_block - blocks_from_midnight
+    return block_number_for_period
 
 
 def etherscan_url(item, network: str, is_token=False) -> str:

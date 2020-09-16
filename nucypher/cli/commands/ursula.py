@@ -384,6 +384,11 @@ def run(general_config, character_options, config_file, interactive, dry_run, me
 
     prometheus_config: 'PrometheusMetricsConfig' = None
     if prometheus:
+        # ensure metrics port is provided
+        if not metrics_port:
+            raise click.BadOptionUsage(option_name='metrics-port',
+                                       message='--metrics-port is required when using --prometheus')
+
         # Locally scoped to prevent import without prometheus explicitly installed
         from nucypher.utilities.prometheus.metrics import PrometheusMetricsConfig
         prometheus_config = PrometheusMetricsConfig(port=metrics_port,

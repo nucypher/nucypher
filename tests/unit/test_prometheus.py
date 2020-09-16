@@ -21,7 +21,9 @@ import json
 import sys
 import time
 import unittest
+from unittest.mock import Mock
 
+import pytest
 from prometheus_client import (
     CollectorRegistry,
     Counter,
@@ -34,6 +36,7 @@ from prometheus_client import (
 )
 from prometheus_client.core import GaugeHistogramMetricFamily, Timestamp
 
+from nucypher.utilities.prometheus.collector import BaseMetricsCollector, MetricsCollector
 from nucypher.utilities.prometheus.metrics import JSONMetricsResource
 from nucypher.utilities.prometheus.metrics import PrometheusMetricsConfig
 
@@ -41,29 +44,64 @@ TEST_PREFIX = 'test_prefix'
 
 
 def test_prometheus_metrics_config():
-    listen_address = '111.111.111.111'
     port = 2020
+
+    # no port
+    with pytest.raises(ValueError):
+        PrometheusMetricsConfig(port=None, metrics_prefix=TEST_PREFIX)
+
+    # no prefix
+    with pytest.raises(ValueError):
+        PrometheusMetricsConfig(port=port, metrics_prefix=None)
+
     prometheus_config = PrometheusMetricsConfig(port=port,
-                                                metrics_prefix=TEST_PREFIX,
-                                                listen_address=listen_address)
+                                                metrics_prefix=TEST_PREFIX)
 
     assert prometheus_config.port == 2020
     assert prometheus_config.metrics_prefix == TEST_PREFIX
-    assert prometheus_config.listen_address == listen_address
+    assert prometheus_config.listen_address == ''
 
     # defaults
     assert prometheus_config.collection_interval == 10
     assert not prometheus_config.start_now
+    assert prometheus_config.listen_address == ''
 
     # non-defaults
     collection_interval = 5
+    listen_address = '111.111.111.111'
     prometheus_config = PrometheusMetricsConfig(port=port,
                                                 metrics_prefix=TEST_PREFIX,
                                                 listen_address=listen_address,
                                                 collection_interval=collection_interval,
                                                 start_now=True)
+    assert prometheus_config.listen_address == listen_address
     assert prometheus_config.collection_interval == collection_interval
     assert prometheus_config.start_now
+
+
+def test_base_metrics_collector():
+    class TestBastMetricsCollector(BaseMetricsCollector):
+        def __init__(self):
+            self.collect_internal_run = False
+            super().__init__()
+
+        def initialize(self, metrics_prefix: str, registry: CollectorRegistry) -> None:
+            self.metrics = {'testmetric': 'gauge'}
+
+        def _collect_internal(self):
+            self.collect_internal_run = True
+
+    collector = TestBastMetricsCollector()
+
+    # try to collect before initialization
+    with pytest.raises(MetricsCollector.CollectorNotInitialized):
+        collector.collect()
+
+    # initialize and then try to collect
+    registry = Mock()
+    collector.initialize('None', registry)
+    collector.collect()
+    assert collector.collect_internal_run
 
 
 class TestGenerateJSON(unittest.TestCase):

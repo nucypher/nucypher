@@ -14,6 +14,8 @@
  You should have received a copy of the GNU Affero General Public License
  along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
+from nucypher.blockchain.eth.events import ContractEventsThrottler
+from nucypher.blockchain.eth.utils import estimate_block_number_for_period
 
 try:
     from prometheus_client import Gauge, Enum, Counter, Info, Histogram, Summary
@@ -330,13 +332,23 @@ class CommitmentMadeEventMetricsCollector(EventMetricsCollector):
             # use local event filter for initial data
             last_committed_period = self.contract_agent.get_last_committed_period(staker_address=self.staker_address)
             arg_filters = {'staker': self.staker_address, 'period': last_committed_period}
-            # check from the beginning - difficult to determine block number for previous period
-            # however, 'staker' and 'period' filters should help reduce load
-            initial_event_filter = self.contract_agent.contract.events[self.event_name].createFilter(
-                fromBlock=0, argument_filters=arg_filters)
-            events = initial_event_filter.get_all_entries()
-            for event in events:
-                self._event_occurred(event)
+            latest_block = self.contract_agent.blockchain.client.block_number
+            previous_period = self.contract_agent.get_current_period() - 1  # just in case
+            # we estimate the block number for the previous period to start search from since either
+            # - commitment made during previous period for current period, OR
+            # - commitment made during current period for next period
+            block_number_for_previous_period = estimate_block_number_for_period(
+                period=previous_period,
+                seconds_per_period=self.contract_agent.staking_parameters()[0],
+                latest_block=latest_block)
+
+            events_throttler = ContractEventsThrottler(agent=self.contract_agent,
+                                                       event_name=self.event_name,
+                                                       from_block=block_number_for_previous_period,
+                                                       to_block=latest_block,
+                                                       **arg_filters)
+            for event_record in events_throttler:
+                self._event_occurred(event_record.raw_event)
 
 
 class ReStakeEventMetricsCollector(EventMetricsCollector):

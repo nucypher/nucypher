@@ -66,3 +66,7 @@ MAX_UPLOAD_CONTENT_LENGTH = 1024 * 50
 
 # Dev Mode
 TEMPORARY_DOMAIN = ":temporary-domain:"  # for use with `--dev` node runtimes
+
+
+# Event Blocks Throttling
+NUCYPHER_EVENTS_THROTTLE_MAX_BLOCKS = 'NUCYPHER_EVENTS_THROTTLE_MAX_BLOCKS'
