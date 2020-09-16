@@ -103,7 +103,7 @@ from tests.mock.performance_mocks import (
 )
 
 from tests.mock.products import (
-    mock_treasuremap, mock_messagekit, MockSignedmock_signed_treasuremapTreasureMap,
+    mock_treasuremap, mock_messagekit, mock_signed_treasuremap,
     mock_arrangement
 )
 
