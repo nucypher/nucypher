@@ -76,7 +76,7 @@ contract WorkLockPoolingContract is InitializableStakingContract, Ownable {
     ) public initializer {
         require(_workerOwner != address(0) && _workerFraction <= BASIS_FRACTION);
         InitializableStakingContract.initialize(_router);
-        // Ownable.initialize();
+        _transferOwnership(msg.sender);
         escrow = _router.target().escrow();
         workLock = _router.target().workLock();
         workerFraction = _workerFraction;
@@ -147,9 +147,14 @@ contract WorkLockPoolingContract is InitializableStakingContract, Ownable {
     function cancelBid() public {}
 
     /**
+     * @dev Hide method from StakingInterface
+     */
+    function claim() public {}
+
+    /**
      * @notice Claim tokens in WorkLock and save number of claimed tokens
      */
-    function claim() public {
+    function claimTokensFromWorkLock() public {
         worklockClaimedTokens = workLock.claim();
         totalDepositedTokens = totalDepositedTokens.add(worklockClaimedTokens);
         emit Claimed(msg.sender, worklockClaimedTokens);
@@ -158,7 +163,7 @@ contract WorkLockPoolingContract is InitializableStakingContract, Ownable {
     /**
      * @notice Calculate and save number of claimed tokens for specified delegator
      */
-    function claimTokens(Delegator storage _delegator) internal {
+    function calculateAndSaveTokensAmount(Delegator storage _delegator) internal {
         if (worklockClaimedTokens == 0 ||
             _delegator.depositedETHWorkLock == 0 ||
             _delegator.claimedWorkLockTokens)
@@ -166,12 +171,12 @@ contract WorkLockPoolingContract is InitializableStakingContract, Ownable {
             return;
         }
 
-        uint256 claimedTokens = _delegator.depositedETHWorkLock.mul(worklockClaimedTokens)
+        uint256 delegatorTokensShare = _delegator.depositedETHWorkLock.mul(worklockClaimedTokens)
             .div(totalWorklockETHReceived);
 
-        _delegator.depositedTokens += claimedTokens;
+        _delegator.depositedTokens += delegatorTokensShare;
         _delegator.claimedWorkLockTokens = true;
-        emit Claimed(msg.sender, claimedTokens);
+        emit Claimed(msg.sender, delegatorTokensShare);
     }
 
     /**
@@ -267,7 +272,7 @@ contract WorkLockPoolingContract is InitializableStakingContract, Ownable {
         require(_value <= balance, "Not enough tokens in the contract");
 
         Delegator storage delegator = delegators[msg.sender];
-        claimTokens(delegator);
+        calculateAndSaveTokensAmount(delegator);
 
         uint256 availableReward = getAvailableReward(msg.sender);
 
@@ -368,7 +373,7 @@ contract WorkLockPoolingContract is InitializableStakingContract, Ownable {
      */
     function withdrawETH() public override {
         Delegator storage delegator = delegators[msg.sender];
-        claimTokens(delegator);
+        calculateAndSaveTokensAmount(delegator);
 
         uint256 availableETH = getAvailableETH(msg.sender);
         require(availableETH > 0, "There is no available ETH to withdraw");
