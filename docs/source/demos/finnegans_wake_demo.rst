@@ -7,11 +7,6 @@ Finnegan's Wake Demo
 Overview
 --------
 
-.. important::
-
-    This demo requires connecting to a running network. By default the demo is hardcoded to connect to the :doc:`local demo fleet </demos/local_fleet_demo>`.
-
-
 This demo is an example of a NuCypher decentralized network allowing Alice to share
 data with Bob using proxy re-encryption. This enables the private sharing of data across public consensus networks,
 without revealing data keys to intermediary entities.
@@ -41,6 +36,16 @@ Install NuCypher
 
     Acquire the ``nucypher`` application code and install the dependencies.
     For a full installation guide see the :doc:`/guides/installation_guide`.
+
+
+Run a fleet of federated Ursulas
+--------------------------------
+    Run the local fleet of federated Ursulas in a separate terminal. This provides a network of 12 federated
+    Ursulas.
+
+.. code::
+
+    (nucypher)$ python examples/run_demo_ursula_fleet.py
 
 Download the Book Text
 ----------------------

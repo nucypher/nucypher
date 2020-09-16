@@ -7,6 +7,9 @@ Local Development Fleet Testing
 Overview
 --------
 
+To aid in application development, a network of federated Ursulas can be run locally. These Ursulas do not utilize
+blockchain functionality, but afford the same cryptographic capabilities of the public NuCypher network.
+
 .. note::
 
   Currently only "Federated Only" mode is supported for local fleets
