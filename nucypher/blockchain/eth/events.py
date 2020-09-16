@@ -120,4 +120,6 @@ class ContractEventsThrottler:
                                                   **self.argument_filters):
                 yield event_record
             current_from_block = current_to_block
+            # update the 'to block' to the lesser of either the next `max_blocks_per_call` blocks,
+            # or the remainder of blocks
             current_to_block = min(current_from_block + self.max_blocks_per_call, self.to_block)
