@@ -43,7 +43,7 @@ class UrsulaConfiguration(CharacterConfiguration):
     DEFAULT_DEVELOPMENT_REST_PORT = 10151
     __DEFAULT_TLS_CURVE = ec.SECP384R1
     DEFAULT_DB_NAME = '{}.db'.format(NAME)
-    DEFAULT_AVAILABILITY_CHECKS = True
+    DEFAULT_AVAILABILITY_CHECKS = False
     LOCAL_SIGNERS_ALLOWED = True
 
     def __init__(self,
