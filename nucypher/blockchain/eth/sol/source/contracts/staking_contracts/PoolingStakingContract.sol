@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+
 pragma solidity ^0.7.0;
 
 
@@ -255,7 +257,7 @@ contract PoolingStakingContract is AbstractStakingContract, Ownable {
     /**
     * @notice Calling fallback function is allowed only for the owner
     **/
-    function isFallbackAllowed() public override returns (bool) {
+    function isFallbackAllowed() public view override returns (bool) {
         return msg.sender == owner();
     }
 

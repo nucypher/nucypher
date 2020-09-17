@@ -77,9 +77,7 @@ def test_rapid_deployment(token_economics, test_registry, tmpdir, get_random_che
     with open(filepath, 'w') as f:
         json.dump(allocation_data, f)
 
-    staking_agent = ContractAgency.get_agent(StakingEscrowAgent, registry=test_registry)
-    current_period = staking_agent.get_current_period()
-    administrator.batch_deposits(allocation_data_filepath=str(filepath), interactive=False, release_period=current_period+10)
+    administrator.batch_deposits(allocation_data_filepath=str(filepath), interactive=False)
 
     minimum, default, maximum = 10, 20, 30
     administrator.set_fee_rate_range(minimum, default, maximum)

@@ -319,20 +319,12 @@ def test_batch_deposit(testerchain, token_economics, token, escrow, multisig):
     duration = token_economics.minimum_locked_periods
     current_period = escrow.functions.getCurrentPeriod().call()
 
-    # Only owner can use batch deposit
-    tx = token.functions.approve(escrow.address, staker1_tokens).transact({'from': creator})
-    testerchain.wait_for_receipt(tx)
-    with pytest.raises((TransactionFailed, ValueError)):
-        tx = escrow.functions.batchDeposit(
-            [staker1], [1], [staker1_tokens], [duration], current_period + 1).transact({'from': creator})
-        testerchain.wait_for_receipt(tx)
-
     tx = token.functions.transfer(multisig.address, staker1_tokens).transact({'from': creator})
     testerchain.wait_for_receipt(tx)
     tx = token.functions.approve(escrow.address, staker1_tokens) \
         .buildTransaction({'from': multisig.address, 'gasPrice': 0})
     execute_multisig_transaction(testerchain, multisig, [contracts_owners[0], contracts_owners[1]], tx)
-    tx = escrow.functions.batchDeposit([staker1], [1], [staker1_tokens], [duration], current_period + 1)\
+    tx = escrow.functions.batchDeposit([staker1], [1], [staker1_tokens], [duration])\
         .buildTransaction({'from': multisig.address, 'gasPrice': 0})
     execute_multisig_transaction(testerchain, multisig, [contracts_owners[0], contracts_owners[1]], tx)
 
@@ -343,10 +335,6 @@ def test_batch_deposit(testerchain, token_economics, token, escrow, multisig):
     assert escrow.functions.getLockedTokens(staker1, 1).call() == staker1_tokens
     assert escrow.functions.getLockedTokens(staker1, duration).call() == staker1_tokens
     assert escrow.functions.getLockedTokens(staker1, duration + 1).call() == 0
-
-    _wind_down, re_stake, _measure_work, _snapshots = escrow.functions.getFlags(staker1).call()
-    assert re_stake
-    assert escrow.functions.isReStakeLocked(staker1).call()
 
     # Can't deposit tokens again for the same staker
     with pytest.raises((TransactionFailed, ValueError)):
@@ -500,10 +488,6 @@ def test_worklock_phases(testerchain,
     testerchain.wait_for_receipt(tx)
     assert worklock.functions.workInfo(staker2).call()[2]
 
-    _wind_down, re_stake, _measure_work, _snapshots = escrow.functions.getFlags(staker2).call()
-    assert re_stake
-    assert escrow.functions.isReStakeLocked(staker2).call()
-
     assert token.functions.balanceOf(staker2).call() == 0
     assert escrow.functions.getLockedTokens(staker2, 0).call() == 0
     assert escrow.functions.getLockedTokens(staker2, 1).call() == staker2_tokens
@@ -532,10 +516,6 @@ def test_worklock_phases(testerchain,
     pytest.staker1_tokens += staker1_claims
     assert escrow.functions.getLockedTokens(staker1, 1).call() == pytest.staker1_tokens
     pytest.escrow_supply += staker1_claims
-
-    _wind_down, re_stake, _measure_work, _snapshots = escrow.functions.getFlags(staker1).call()
-    assert re_stake
-    assert escrow.functions.isReStakeLocked(staker1).call()
 
     # Staker prolongs lock duration
     tx = escrow.functions.prolongStake(0, 3).transact({'from': staker2, 'gas_price': 0})

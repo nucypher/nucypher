@@ -411,8 +411,6 @@ DISPLAY_SENDER_TOKEN_BALANCE_BEFORE_TRANSFER = "Deployer NU balance: {token_bala
 
 PROMPT_FOR_ALLOCATION_DATA_FILEPATH = "Enter allocations data filepath"
 
-PROMPT_FOR_RELEASE_PERIOD = "Enter period number when re-stake lock should be released"
-
 SUCCESSFUL_SAVE_BATCH_DEPOSIT_RECEIPTS = "Saved batch deposits receipts to {receipts_filepath}"
 
 SUCCESSFUL_SAVE_DEPLOY_RECEIPTS = "Saved deployment receipts to {receipts_filepath}"
