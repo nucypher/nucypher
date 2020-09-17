@@ -201,7 +201,7 @@ class ForgetfulNodeStorage(NodeStorage):
         # Certificates
         self.__certificates = dict()
         self.__temporary_certificates = list()
-        self._temp_certificates_dir = tempfile.mkdtemp(prefix='nucypher-temp-certs-', dir=parent_dir)
+        self._temp_certificates_dir = tempfile.mkdtemp(prefix=self.__base_prefix, dir=parent_dir)
 
     @property
     def source(self) -> str:
@@ -209,7 +209,7 @@ class ForgetfulNodeStorage(NodeStorage):
         return self._name
 
     def all(self, federated_only: bool, certificates_only: bool = False) -> set:
-        return set(self.__metadata.values() if not certificates_only else self.__certificates.values())
+        return set(self.__certificates.values() if certificates_only else self.__metadata.values())
 
     @validate_checksum_address
     def get(self,
@@ -448,11 +448,6 @@ class LocalFileBasedNodeStorage(NodeStorage):
         filepath = self.__generate_metadata_filepath(checksum_address=address, metadata_dir=filepath)
         self.__write_metadata(filepath=filepath, node=node)
         return filepath
-
-    def save_node(self, node, force) -> Tuple[str, str]:
-        certificate_filepath = self.store_node_certificate(certificate=node.certificate, force=force)
-        metadata_filepath = self.store_node_metadata(node=node)
-        return metadata_filepath, certificate_filepath
 
     @validate_checksum_address
     def remove(self, checksum_address: str, metadata: bool = True, certificate: bool = True) -> None:

@@ -32,6 +32,7 @@ ursula_maker = partial(Ursula, rest_host='127.0.0.1',
                        federated_only=True,
                        domain=TEMPORARY_DOMAIN)
 
+
 def spin_up_federated_ursulas(quantity: int = FLEET_POPULATION):
     # Ports
     starting_port = DEMO_NODE_STARTING_PORT
@@ -39,7 +40,7 @@ def spin_up_federated_ursulas(quantity: int = FLEET_POPULATION):
 
     ursulas = []
 
-    sage = ursula_maker(rest_port=ports[0], db_filepath=f"{Path(APP_DIR.user_cache_dir) / 'sage.db'}")
+    sage = ursula_maker(rest_port=ports[0], db_filepath=str(Path(APP_DIR.user_cache_dir) / 'sage.db'))
 
     ursulas.append(sage)
     for index, port in enumerate(ports[1:]):

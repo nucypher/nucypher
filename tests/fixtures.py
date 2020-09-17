@@ -396,9 +396,9 @@ def federated_ursulas(ursula_federated_test_config):
 def lonely_ursula_maker(ursula_federated_test_config):
     class _PartialUrsulaMaker:
         _partial = partial(make_federated_ursulas,
-                         ursula_config=ursula_federated_test_config,
-                         know_each_other=False,
-                         )
+                           ursula_config=ursula_federated_test_config,
+                           know_each_other=False,
+                           )
         _made = []
 
         def __call__(self, *args, **kwargs):
