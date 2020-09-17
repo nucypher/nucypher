@@ -473,18 +473,15 @@ def test_batch_deposit(testerchain,
     not_enough_gas = 800_000
     with pytest.raises((TransactionFailed, ValueError)):
         staking_agent.batch_deposit(*batch_parameters,
-                                    release_period=current_period + 2,
                                     sender_address=testerchain.etherbase_account,
                                     dry_run=True,
                                     gas_limit=not_enough_gas)
 
     staking_agent.batch_deposit(*batch_parameters,
-                                release_period=current_period + 2,
                                 sender_address=testerchain.etherbase_account,
                                 dry_run=True)
 
     staking_agent.batch_deposit(*batch_parameters,
-                                release_period=current_period + 2,
                                 sender_address=testerchain.etherbase_account)
 
     for staker in stakers:
@@ -495,4 +492,3 @@ def test_batch_deposit(testerchain,
             first_period, last_period, locked_value = substake
             assert last_period == first_period + lock_periods - 1
             assert locked_value == amount
-        assert staking_agent.is_restaking_locked(staker_address=staker)

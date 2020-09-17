@@ -408,7 +408,6 @@ class ContractAdministrator(NucypherTokenActor):
 
     def batch_deposits(self,
                        allocation_data_filepath: str,
-                       release_period: int,
                        interactive: bool = True,
                        emitter: StdoutEmitter = None,
                        gas_limit: int = None
@@ -433,7 +432,7 @@ class ContractAdministrator(NucypherTokenActor):
         if interactive and not emitter:
             raise ValueError("'emitter' is a required keyword argument when interactive is True.")
 
-        allocator = Allocator(allocation_data_filepath, self.registry, self.deployer_address, release_period)
+        allocator = Allocator(allocation_data_filepath, self.registry, self.deployer_address)
 
         # TODO: Check validity of input address (check TX)
 
@@ -533,7 +532,7 @@ class Allocator:
 
     OCCUPATION_RATIO = 0.9  # When there's no explicit gas limit, we'll try to use the block limit up to this ratio
 
-    def __init__(self, filepath: str, registry, deployer_address, release_period):
+    def __init__(self, filepath: str, registry, deployer_address):
 
         self.log = Logger("allocator")
         self.staking_agent = ContractAgency.get_agent(StakingEscrowAgent,
@@ -542,7 +541,6 @@ class Allocator:
         self.allocations = dict()
         self.deposited = set()
         self.economics = EconomicsFactory.get_economics(registry)
-        self.release_period = release_period
 
         self.__total_to_allocate = 0
         self.__process_allocation_data(str(filepath))
@@ -633,7 +631,6 @@ class Allocator:
             batch_parameters = self.staking_agent.construct_batch_deposit_parameters(deposits=test_batch)
             try:
                 estimated_gas = self.staking_agent.batch_deposit(*batch_parameters,
-                                                                 release_period=self.release_period,
                                                                  sender_address=sender_address,
                                                                  dry_run=True,
                                                                  gas_limit=gas_limit)
@@ -652,7 +649,6 @@ class Allocator:
 
         batch_parameters = self.staking_agent.construct_batch_deposit_parameters(deposits=last_good_batch)
         receipt = self.staking_agent.batch_deposit(*batch_parameters,
-                                                   release_period=self.release_period,
                                                    sender_address=sender_address,
                                                    gas_limit=gas_limit)
 

@@ -242,8 +242,7 @@ def estimate_gas(analyzer: AnalyzeGas = None) -> None:
                      staker_functions.batchDeposit(everyone_else[0:5],
                                                    [2] * 5,
                                                    [MIN_ALLOWED_LOCKED] * 10,
-                                                   [MIN_LOCKED_PERIODS] * 10,
-                                                   current_period + 5),
+                                                   [MIN_LOCKED_PERIODS] * 10),
                      {'from': origin})
 
     transact(token_functions.approve(staking_agent.contract_address, MIN_ALLOWED_LOCKED * 24), {'from': origin})
@@ -251,8 +250,7 @@ def estimate_gas(analyzer: AnalyzeGas = None) -> None:
                      staker_functions.batchDeposit([everyone_else[6]],
                                                    [24],
                                                    [MIN_ALLOWED_LOCKED] * 24,
-                                                   [MIN_LOCKED_PERIODS] * 24,
-                                                   current_period + 5),
+                                                   [MIN_LOCKED_PERIODS] * 24),
                      {'from': origin})
 
     transact(token_functions.approve(staking_agent.contract_address, MIN_ALLOWED_LOCKED * 24 * 5), {'from': origin})
@@ -260,8 +258,7 @@ def estimate_gas(analyzer: AnalyzeGas = None) -> None:
                      staker_functions.batchDeposit(everyone_else[7:12],
                                                    [24]*5,
                                                    [MIN_ALLOWED_LOCKED] * (24 * 5),
-                                                   [MIN_LOCKED_PERIODS] * (24 * 5),
-                                                   current_period + 5),
+                                                   [MIN_LOCKED_PERIODS] * (24 * 5)),
                      {'from': origin})
 
     #
@@ -588,8 +585,7 @@ def estimate_gas(analyzer: AnalyzeGas = None) -> None:
     transact(staker_functions.batchDeposit([staker4],
                                            [number_of_sub_stakes],
                                            [MIN_ALLOWED_LOCKED] * number_of_sub_stakes,
-                                           [MIN_LOCKED_PERIODS] * number_of_sub_stakes,
-                                           current_period + 100),
+                                           [MIN_LOCKED_PERIODS] * number_of_sub_stakes),
              {'from': origin})
     transact(staker_functions.bondWorker(staker4), {'from': staker4})
     transact(staker_functions.setWindDown(True), {'from': staker4})
