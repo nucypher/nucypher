@@ -16,6 +16,7 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
 import sqlite3
+from pathlib import Path
 
 import OpenSSL
 import binascii
@@ -528,8 +529,11 @@ class TemporaryFileBasedNodeStorage(LocalFileBasedNodeStorage):
     def __init__(self, *args, **kwargs):
         self.__temp_metadata_dir = None
         self.__temp_certificates_dir = None
+        self.__temp_root_dir = None
+        self.initialize()
         super().__init__(metadata_dir=self.__temp_metadata_dir,
                          certificates_dir=self.__temp_certificates_dir,
+                         storage_root=self.__temp_root_dir,
                          *args, **kwargs)
 
     # TODO: Pending fix for 1554.
@@ -539,19 +543,16 @@ class TemporaryFileBasedNodeStorage(LocalFileBasedNodeStorage):
     #         shutil.rmtree(self.__temp_certificates_dir, ignore_errors=True)
 
     def initialize(self) -> bool:
+        # Root
+        self.__temp_root_dir = tempfile.mkdtemp(prefix="nucypher-tmp-nodes-")
+        self.root_dir = self.__temp_root_dir
+
         # Metadata
-        self.__temp_metadata_dir = tempfile.mkdtemp(prefix="nucypher-tmp-nodes-")
+        self.__temp_metadata_dir = str(Path(self.__temp_root_dir) / "metadata")
         self.metadata_dir = self.__temp_metadata_dir
 
         # Certificates
-        self.__temp_certificates_dir = tempfile.mkdtemp(prefix="nucypher-tmp-certs-")
+        self.__temp_certificates_dir = str(Path(self.__temp_root_dir) / "certs")
         self.certificates_dir = self.__temp_certificates_dir
 
-        return bool(os.path.isdir(self.metadata_dir) and os.path.isdir(self.certificates_dir))
-
-
-#
-# Node Storage Registry
-#
-NODE_STORAGES = {storage_class._name: storage_class
-                 for storage_class in NodeStorage.__subclasses__()}
+        return all(map(os.path.isdir, (self.root_dir, self.metadata_dir, self.certificates_dir)))
