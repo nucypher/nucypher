@@ -200,7 +200,7 @@ def test_persistent_node_storage_integration(click_runner,
                 '--config-file', another_ursula_configuration_file_location,
                 '--teacher', teacher_uri)
 
-    Worker.BONDING_TIMEOUT = 1
+    Worker.READY_TIMEOUT = 1
     with pytest.raises(Teacher.UnbondedWorker):
         # Worker init success, but not bonded.
         result = yield threads.deferToThread(click_runner.invoke,

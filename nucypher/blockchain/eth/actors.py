@@ -1454,8 +1454,9 @@ class Worker(NucypherTokenActor):
     Ursula baseclass for blockchain operations, practically carrying a pickaxe.
     """
 
-    BONDING_TIMEOUT = None  # (None or 0) == indefinite
-    BONDING_POLL_RATE = 10
+    READY_TIMEOUT = None  # (None or 0) == indefinite
+    READY_POLL_RATE = 10
+    READY_CLI_FEEDBACK_RATE = 60  # provide feedback to CLI every 60s
 
     class WorkerError(NucypherTokenActor.ActorError):
         pass
@@ -1502,7 +1503,7 @@ class Worker(NucypherTokenActor):
                 self.work_tracker = work_tracker or WorkTracker(worker=self)
                 self.work_tracker.start(act_now=start_working_now)
 
-    def block_until_ready(self, poll_rate: int = None, timeout: int = None):
+    def block_until_ready(self, poll_rate: int = None, timeout: int = None, feedback_rate: int = None):
         """
         Polls the staking_agent and blocks until the staking address is not
         a null address for the given worker_address. Once the worker is bonded, it returns the staker address.
@@ -1510,14 +1511,16 @@ class Worker(NucypherTokenActor):
         if not self.__worker_address:
             raise RuntimeError("No worker address available")
 
-        timeout = timeout or self.BONDING_TIMEOUT
-        poll_rate = poll_rate or self.BONDING_POLL_RATE
+        timeout = timeout or self.READY_TIMEOUT
+        poll_rate = poll_rate or self.READY_POLL_RATE
+        feedback_rate = feedback_rate or self.READY_CLI_FEEDBACK_RATE
         staking_agent = ContractAgency.get_agent(StakingEscrowAgent, registry=self.registry)
         client = staking_agent.blockchain.client
         start = maya.now()
+        last_provided_feedback = start
 
         emitter = StdoutEmitter()  # TODO: Make injectable, or embed this logic into Ursula
-        emitter.message("Waiting for bonding and funding...", color='yellow')
+        emitter.message("Checking worker settings: waiting for bonding and funding ...", color='yellow')
 
         funded, bonded = False, False
         while True:
@@ -1529,12 +1532,12 @@ class Worker(NucypherTokenActor):
             # Bonding
             if (not bonded) and (staking_address != NULL_ADDRESS):
                 bonded = True
-                emitter.message(f"Worker is bonded to ({staking_address})!", color='green', bold=True)
+                emitter.message(f"    ✓ Worker is bonded to ({staking_address})!", color='green', bold=True)
 
             # Balance
             if ether_balance and (not funded):
                 funded, balance = True, Web3.fromWei(ether_balance, 'ether')
-                emitter.message(f"Worker is funded with {balance} ETH!", color='green', bold=True)
+                emitter.message(f"    ✓ Worker is funded with {balance} ETH!", color='green', bold=True)
 
             # Success and Escape
             if staking_address != NULL_ADDRESS and ether_balance:
@@ -1543,6 +1546,19 @@ class Worker(NucypherTokenActor):
                 # TODO: #1823 - Workaround for new nickname every restart
                 self.nickname, self.nickname_metadata = nickname_from_seed(self.checksum_address)
                 break
+
+            # Provide periodic feedback to the user
+            if not bonded or not funded:
+                now = maya.now()
+                delta = now - last_provided_feedback
+                if delta.total_seconds() >= feedback_rate:
+                    if not bonded and not funded:
+                        waiting_for = "bonding and funding"
+                    else:
+                        waiting_for = "bonding" if not bonded else "funding"
+                    emitter.message(f"    ⓘ Worker not fully started - still waiting for {waiting_for} ...",
+                                    color='yellow')
+                    last_provided_feedback = now
 
             # Crash on Timeout
             if timeout:
@@ -1554,10 +1570,12 @@ class Worker(NucypherTokenActor):
                             f"Worker {self.__worker_address} not bonded after waiting {timeout} seconds.")
                     elif not ether_balance:
                         raise RuntimeError(
-                            f"Worker {self.__worker_address} has no ether after waiting {timeout} seconds.")
+                            f"Worker {self.__worker_address} has no ETH after waiting {timeout} seconds.")
 
             # Increment
             time.sleep(poll_rate)
+
+        emitter.message("✓ Worker settings confirmed", color='green')
 
     @property
     def eth_balance(self) -> Decimal:
