@@ -45,6 +45,10 @@ class Web3Signer(Signer):
         self.__client = client
 
     @classmethod
+    def uri_scheme(cls) -> str:
+        return NotImplemented  # web3 signer uses a "passthrough" scheme
+
+    @classmethod
     def from_signer_uri(cls, uri: str) -> 'Web3Signer':
         from nucypher.blockchain.eth.interfaces import BlockchainInterface, BlockchainInterfaceFactory
         try:
@@ -102,8 +106,6 @@ class Web3Signer(Signer):
 
 class ClefSigner(Signer):
 
-    URI_SCHEME = 'clef'
-
     DEFAULT_IPC_PATH = '~/Library/Signer/clef.ipc' if sys.platform == 'darwin' else '~/.clef/clef.ipc'  #TODO: #1808
 
     SIGN_DATA_FOR_VALIDATOR = 'data/validator'   # a.k.a. EIP 191 version 0
@@ -120,6 +122,10 @@ class ClefSigner(Signer):
         self.w3 = Web3(provider=IPCProvider(ipc_path=ipc_path, timeout=timeout))  # TODO: Unify with clients or build error handling
         self.ipc_path = ipc_path
 
+    @classmethod
+    def uri_scheme(cls) -> str:
+        return 'clef'
+
     def __ipc_request(self, endpoint: str, *request_args):
         """Error handler for clef IPC requests  # TODO: Use web3 RequestHandler"""
         try:
@@ -133,14 +139,14 @@ class ClefSigner(Signer):
     @classmethod
     def is_valid_clef_uri(cls, uri: str) -> bool:  # TODO: Workaround for #1941
         uri_breakdown = urlparse(uri)
-        return uri_breakdown.scheme == cls.URI_SCHEME
+        return uri_breakdown.scheme == cls.uri_scheme()
 
     @classmethod
     def from_signer_uri(cls, uri: str) -> 'ClefSigner':
         uri_breakdown = urlparse(uri)
         if not uri_breakdown.path and not uri_breakdown.netloc:
             raise cls.InvalidSignerURI('Blank signer URI - No keystore path provided')
-        if uri_breakdown.scheme != cls.URI_SCHEME:
+        if uri_breakdown.scheme != cls.uri_scheme():
             raise cls.InvalidSignerURI(f"{uri} is not a valid clef signer URI.")
         signer = cls(ipc_path=uri_breakdown.path)
         return signer
@@ -223,7 +229,6 @@ class ClefSigner(Signer):
 class KeystoreSigner(Signer):
     """Local Web3 signer implementation supporting keystore files"""
 
-    URI_SCHEME = 'keystore'
     __keys: Dict[str, dict]
     __signers: Dict[str, LocalAccount]
 
@@ -245,6 +250,10 @@ class KeystoreSigner(Signer):
         if self.__keys:
             for account in self.__keys:
                 self.lock_account(account)
+
+    @classmethod
+    def uri_scheme(cls) -> str:
+        return 'keystore'
 
     def __read_keystore(self, path: str) -> None:
         """Read the keystore directory from the disk and populate accounts."""
@@ -322,7 +331,7 @@ class KeystoreSigner(Signer):
     def from_signer_uri(cls, uri: str) -> 'Signer':
         """Return a keystore signer from URI string i.e. keystore:///my/path/keystore """
         decoded_uri = urlparse(uri)
-        if decoded_uri.scheme != cls.URI_SCHEME or decoded_uri.netloc:
+        if decoded_uri.scheme != cls.uri_scheme() or decoded_uri.netloc:
             raise cls.InvalidSignerURI(uri)
         return cls(path=decoded_uri.path)
 

@@ -29,7 +29,6 @@ from nucypher.utilities.logging import Logger
 
 class Signer(ABC):
 
-    URI_SCHEME = NotImplemented
     SIGNERS = NotImplemented  # set dynamically in __init__.py
 
     SignedMessage = namedtuple('SignedMessage', ['signature', 'signer'])
@@ -51,6 +50,11 @@ class Signer(ABC):
         def __init__(self, account: str):
             self.message = f'Unknown account {account}.'
             super().__init__(self.message)
+
+    @classmethod
+    @abstractmethod
+    def uri_scheme(cls) -> str:
+        return NotImplemented
 
     @classmethod
     def from_signer_uri(cls, uri: str) -> 'Signer':

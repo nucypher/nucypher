@@ -57,8 +57,6 @@ def handle_trezor_call(device_func):
 class TrezorSigner(Signer):
     """A trezor message and transaction signing client."""
 
-    URI_SCHEME = 'trezor'
-
     # Key Derivation Paths
 
     __BIP_44 = 44
@@ -85,6 +83,10 @@ class TrezorSigner(Signer):
         self._device_id = self.__client.get_device_id()
         self.__addresses = dict()  # track derived addresses
         self.__load_addresses()
+
+    @classmethod
+    def uri_scheme(cls) -> str:
+        return 'trezor'
 
     #
     # Internal
@@ -147,7 +149,7 @@ class TrezorSigner(Signer):
     @classmethod
     def from_signer_uri(cls, uri: str) -> 'TrezorSigner':
         """Return a trezor signer from URI string i.e. trezor:///my/trezor/path """
-        if uri != cls.URI_SCHEME:
+        if uri != cls.uri_scheme():
             raise cls.InvalidSignerURI(f'{uri} is not a valid trezor URI scheme')
         return cls()
 
