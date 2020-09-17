@@ -15,10 +15,6 @@
  along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
-
-from collections import namedtuple
-from typing import List, Tuple, Union
-
 import rlp
 import trezorlib
 from eth_account._utils.transactions import assert_valid_fields, Transaction
@@ -31,6 +27,7 @@ from trezorlib import ethereum
 from trezorlib.client import get_default_client
 from trezorlib.tools import parse_path, Address, H_
 from trezorlib.transport import TransportException
+from typing import List, Tuple, Union
 from web3 import Web3
 
 from nucypher.blockchain.eth.decorators import validate_checksum_address
@@ -73,9 +70,6 @@ class TrezorSigner(Signer):
     DERIVATION_ROOT = f"{__BIP_44}'/{__ETH_COIN_TYPE}'/{DEFAULT_ACCOUNT}'/{CHAIN_ID}"
     ADDRESS_CACHE_SIZE = 10  # default number of accounts to derive and internally track
 
-    # Types
-
-    SignedMessage = namedtuple('SignedMessage', ['signature', 'signer'])
 
     class DeviceError(Exception):
         """Base exception for trezor signing API"""
@@ -177,7 +171,7 @@ class TrezorSigner(Signer):
         return list(self.__addresses.keys())
 
     @handle_trezor_call
-    def sign_message(self, message: bytes, checksum_address: str) -> SignedMessage:
+    def sign_message(self, message: bytes, checksum_address: str) -> Signer.SignedMessage:
         """
         Signs a message via the TREZOR ethereum sign_message API and returns
         a named tuple containing the signature and the address used to sign it.

@@ -15,6 +15,9 @@
  along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
+
+from collections import namedtuple
+
 from abc import ABC, abstractmethod
 from typing import List
 from urllib.parse import urlparse
@@ -28,6 +31,8 @@ class Signer(ABC):
 
     URI_SCHEME = NotImplemented
     SIGNERS = NotImplemented  # set dynamically in __init__.py
+
+    SignedMessage = namedtuple('SignedMessage', ['signature', 'signer'])
 
     log = Logger(__qualname__)
 
@@ -90,5 +95,5 @@ class Signer(ABC):
         return NotImplemented
 
     @abstractmethod
-    def sign_message(self, account: str, message: bytes, **kwargs) -> HexBytes:
+    def sign_message(self, account: str, message: bytes, **kwargs) -> SignedMessage:
         return NotImplemented
