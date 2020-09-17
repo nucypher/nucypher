@@ -107,6 +107,9 @@ class UrsulaInfoMetricsCollector(BaseMetricsCollector):
             "policies_held_gauge": Gauge(f'{metrics_prefix}_policies_held',
                                          'Policies held',
                                          registry=registry),
+           "availability_score_gauge": Gauge(f'{metrics_prefix}_availability_score',
+                                         'Availability score',
+                                         registry=registry),
         }
 
     def _collect_internal(self) -> None:
@@ -121,6 +124,7 @@ class UrsulaInfoMetricsCollector(BaseMetricsCollector):
 
         self.metrics["learning_status"].state('running' if self.ursula._learning_task.running else 'stopped')
         self.metrics["known_nodes_gauge"].set(len(self.ursula.known_nodes))
+        self.metrics["availability_score_gauge"].set(self.ursula._availability_tracker.score)
         try:
             with self.ursula.datastore.query_by(Workorder) as work_orders:
                 self.metrics["work_orders_gauge"].set(len(work_orders))
