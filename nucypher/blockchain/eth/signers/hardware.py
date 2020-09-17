@@ -208,29 +208,31 @@ class TrezorSigner(Signer):
 
         """
 
-        # Read the sender inside the transaction request
+        # Consume the sender inside the transaction request's 'from field.
         checksum_address = transaction_dict.pop('from')
 
-        # Format contract data field for both trezor and eth_account
+        # Format contract data field for both trezor and eth_account's Transaction
         if transaction_dict.get('data') is not None:  # empty string is valid
             transaction_dict['data'] = Web3.toBytes(HexBytes(transaction_dict['data']))
 
         # Format transaction fields for Trezor, Lookup HD path, and Sign Transaction
+        # Leave the chain ID in tact for the trezor signing request:
         # If `chain_id` is included, an EIP-155 transaction signature will be applied
         # https://github.com/trezor/trezor-core/pull/311
+        if 'chainId' not in transaction_dict:
+            raise self.SignerError('Invalid EIP-155 transaction - "chain_id" field is missing in trezor signing request.')
+
         trezor_transaction = self._format_transaction(transaction_dict=transaction_dict)
         n = self.__get_address_path(checksum_address=checksum_address)
         v, r, s = self.__sign_transaction(n=n, trezor_transaction=trezor_transaction)
 
         # Format the transaction for eth_account Transaction consumption
-        # v = (v + 2) * (chain_id + 35)
-        # https://github.com/ethereum/eips/issues/155
-        del transaction_dict['chainId']   # see above
+        # ChainID is longer needed since it is later derived with v = (v + 2) * (chain_id + 35)
+        # see https://github.com/ethereum/eips/issues/155
+        del transaction_dict['chainId']
+        transaction_dict['to'] = to_canonical_address(checksum_address)  # str -> bytes
 
-        # Format ethereum address for eth_account and rlp
-        transaction_dict['to'] = to_canonical_address(checksum_address)
-
-        # Create RLP serializable Transaction
+        # Create RLP serializable Transaction instance with eth_account
         signed_transaction = Transaction(v=to_int(v),  # int
                                          r=to_int(r),  # bytes -> int
                                          s=to_int(s),  # bytes -> int
