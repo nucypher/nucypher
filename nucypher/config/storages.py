@@ -40,8 +40,8 @@ from nucypher.utilities.logging import Logger
 class NodeStorage(ABC):
     _name = NotImplemented
     _TYPE_LABEL = 'storage_type'
-    NODE_SERIALIZER = binascii.hexlify
-    NODE_DESERIALIZER = binascii.unhexlify
+    ENCODER = binascii.hexlify
+    DECODER = binascii.unhexlify
     TLS_CERTIFICATE_ENCODING = Encoding.PEM
     TLS_CERTIFICATE_EXTENSION = '.{}'.format(TLS_CERTIFICATE_ENCODING.name.lower())
 
@@ -57,8 +57,8 @@ class NodeStorage(ABC):
     def __init__(self,
                  federated_only: bool,  # TODO# 466
                  character_class=None,
-                 serializer: Callable = NODE_SERIALIZER,
-                 deserializer: Callable = NODE_DESERIALIZER,
+                 encoder: Callable = None,
+                 decoder: Callable = None,
                  registry: BaseContractRegistry = None,
                  ) -> None:
 
@@ -66,8 +66,8 @@ class NodeStorage(ABC):
 
         self.log = Logger(self.__class__.__name__)
         self.registry = registry
-        self.serializer = serializer
-        self.deserializer = deserializer
+        self._encoder = encoder or self.ENCODER
+        self._decoder = decoder or self.DECODER
         self.federated_only = federated_only
         self.character_class = character_class or Ursula
 
@@ -296,6 +296,11 @@ class LocalFileBasedNodeStorage(NodeStorage):
     _name = 'local'
     __METADATA_FILENAME_TEMPLATE = '{}.node'
 
+    __identity_method = lambda self, x: x
+
+    ENCODER = __identity_method
+    DECODER = __identity_method
+
     class NoNodeMetadataFileFound(FileNotFoundError, NodeStorage.UnknownNode):
         pass
 
@@ -395,7 +400,7 @@ class LocalFileBasedNodeStorage(NodeStorage):
         try:
             with open(filepath, "rb") as seed_file:
                 seed_file.seek(0)
-                node_bytes = self.deserializer(seed_file.read())
+                node_bytes = self._decoder(seed_file.read())
                 node = Ursula.from_bytes(node_bytes)
         except FileNotFoundError:
             raise self.UnknownNode
@@ -404,7 +409,7 @@ class LocalFileBasedNodeStorage(NodeStorage):
     def __write_metadata(self, filepath: str, node):
         os.makedirs(os.path.dirname(filepath), exist_ok=True)
         with open(filepath, "wb") as f:
-            f.write(self.serializer(bytes(node)))
+            f.write(self._encoder(bytes(node)))
         self.log.info("Wrote new node metadata to filesystem {}".format(filepath))
         return filepath
 
