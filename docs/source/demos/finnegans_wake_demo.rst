@@ -52,7 +52,7 @@ Download the Book Text
     For your convenience we have provided a bash script to acquire the "Finnegan's Wake" text. However,
     feel free to use any text of your choice, as long you you edit the demo code accordingly.
 
-    To run the script:
+    To run the script from the ``examples/finnegans_wake_demo`` directory:
 
 .. code::
 
@@ -61,8 +61,8 @@ Download the Book Text
 Run the Demo
 ---------------
 
-    After acquiring a text file to re-encrypt, execute the demo by running:
+    After acquiring a text file to re-encrypt, execute the demo from the ``examples/finnegans_wake_demo`` by running:
 
 .. code::
 
-    (nucypher)$ python3 finnegans-wake-demo.py
+    (nucypher)$ python finnegans-wake-demo.py

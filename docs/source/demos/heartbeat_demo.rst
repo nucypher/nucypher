@@ -64,7 +64,7 @@ Run the Demo
 ------------
 
 Assuming you already have ``nucypher`` installed with the ``demos`` extra,
-running the Heartbeat demo only involves running a local fleet of federated Ursulas in the ``examples/`` directory,
+running the Heartbeat demo involves running a local fleet of federated Ursulas in the ``examples/`` directory,
 and executing the ``alicia.py`` and ``doctor.py`` scripts contained in the ``examples/heartbeat_demo`` directory.
 
 First, run the local fleet of federated Ursulas in a separate terminal:

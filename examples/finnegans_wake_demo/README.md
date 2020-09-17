@@ -13,7 +13,7 @@ without revealing private keys to intermediary entities.
 
 
 ### Run a fleet of federated Ursulas
-`python3 ../run_demo_ursula_fleet.py`
+`python ../run_demo_ursula_fleet.py`
 
 
 ### Download the Book!
@@ -21,4 +21,4 @@ without revealing private keys to intermediary entities.
 
 
 ### Run
-`python3 finnegans-wake-demo.py`
+`python finnegans-wake-demo.py`
