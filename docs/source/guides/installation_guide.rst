@@ -134,6 +134,11 @@ Pipenv Installation
 Docker Installation
 -------------------
 
+.. important::
+
+    Due to dependency requirements, the ``nucypher`` docker image can only be run on x86 architecture.
+
+
 #. Install `Docker <https://docs.docker.com/install/>`_
 #. (Optional) Follow these post install instructions: `https://docs.docker.com/install/linux/linux-postinstall/ <https://docs.docker.com/install/linux/linux-postinstall/>`_
 #. Get the latest nucypher image:
