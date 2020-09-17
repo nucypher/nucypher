@@ -257,7 +257,8 @@ Signing with Local Keystore
 
 .. important::
 
-    Can only be used for :ref:`Worker (Ursula) <ursula-config-guide>` operations.
+    For operational security, the Keystore signer is not recommended for :ref:`Staker operations <staking-guide>`.
+    An exception can be made for testnets, but Staker operations should be performed using a hardware wallet.
 
 Local keystore signing utilizes `eth-account <https://github.com/ethereum/eth-account>`_ to sign ethereum transactions
 using local ethereum keystore files. By default on Linux, the keystore directory path is ``~/.ethereum/keystore``
