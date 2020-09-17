@@ -61,7 +61,6 @@ contract WorkLockPoolingContract is InitializableStakingContract, Ownable {
 
     uint256 public workerFraction;
     uint256 public workerWithdrawnReward;
-    uint256 public workerWithdrawnETH;
 
     mapping(address => Delegator) public delegators;
     bool depositIsEnabled = true;
@@ -315,57 +314,20 @@ contract WorkLockPoolingContract is InitializableStakingContract, Ownable {
     }
 
     /**
-     * @notice Get available ether for worker node owner
-     */
-    function getAvailableWorkerETH() public view returns (uint256) {
-        // TODO boilerplate code
-        uint256 balance = address(this).balance;
-        // ETH balance + already withdrawn - (refunded - refundWithdrawn)
-        balance = balance.add(totalWithdrawnETH).add(totalWorklockETHWithdrawn).sub(totalWorklockETHRefunded);
-        uint256 fraction = getWorkerFraction();
-        uint256 maxAllowableETH = balance.mul(fraction).div(BASIS_FRACTION);
-
-        uint256 availableETH = maxAllowableETH.sub(workerWithdrawnETH);
-        if (availableETH > balance) {
-            availableETH = balance;
-        }
-        return availableETH;
-    }
-
-    /**
      * @notice Get available ether for delegator
      */
     function getAvailableETH(address _delegator) public view returns (uint256) {
         Delegator storage delegator = delegators[_delegator];
-        // TODO boilerplate code
         uint256 balance = address(this).balance;
         // ETH balance + already withdrawn - (refunded - refundWithdrawn)
         balance = balance.add(totalWithdrawnETH).add(totalWorklockETHWithdrawn).sub(totalWorklockETHRefunded);
-        uint256 fraction = getWorkerFraction();
-        uint256 maxAllowableETH = balance.mul(delegator.depositedTokens).mul(BASIS_FRACTION - fraction).div(
-            totalDepositedTokens.mul(BASIS_FRACTION)
-        );
+        uint256 maxAllowableETH = balance.mul(delegator.depositedTokens).div(totalDepositedTokens);
 
         uint256 availableETH = maxAllowableETH.sub(delegator.withdrawnETH);
         if (availableETH > balance) {
             availableETH = balance;
         }
         return availableETH;
-    }
-
-    /**
-     * @notice Withdraw available amount of ETH to worker node owner
-     */
-    function withdrawWorkerETH() external {
-        require(msg.sender == workerOwner);
-        uint256 availableETH = getAvailableWorkerETH();
-        require(availableETH > 0, "There is no available ETH to withdraw");
-
-        workerWithdrawnETH = workerWithdrawnETH.add(availableETH);
-        totalWithdrawnETH = totalWithdrawnETH.add(availableETH);
-
-        msg.sender.sendValue(availableETH);
-        emit ETHWithdrawn(msg.sender, availableETH);
     }
 
     /**
