@@ -21,7 +21,7 @@ import time
 from collections import defaultdict, deque
 from contextlib import suppress
 from queue import Queue
-from typing import Iterable
+from typing import Iterable, List
 from typing import Set, Tuple, Union
 
 import maya
@@ -344,7 +344,7 @@ class Learner:
 
         return discovered
 
-    def read_nodes_from_storage(self) -> None:
+    def read_nodes_from_storage(self) -> List:
         stored_nodes = self.node_storage.all(federated_only=self.federated_only)  # TODO: #466
 
         restored_from_disk = []
