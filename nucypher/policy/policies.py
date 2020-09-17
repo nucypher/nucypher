@@ -14,16 +14,18 @@ GNU Affero General Public License for more details.
 You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
+import datetime
 import math
 import time
 import random
 from abc import ABC, abstractmethod
 from collections import OrderedDict, deque
-from queue import Queue
+from queue import Queue, Empty
 from typing import Callable
 from typing import Generator, List, Set
 
 import maya
+from twisted._threads import AlreadyQuit
 from twisted.internet import reactor
 from twisted.internet.defer import ensureDeferred, Deferred
 from twisted.python.threadpool import ThreadPool
@@ -188,6 +190,7 @@ class NodeEngagementMutex:
                  percent_to_complete_before_release=5,
                  note=None,
                  threadpool_size=120,
+                 timeout=20,
                  *args,
                  **kwargs):
         self.f = callable_to_engage
@@ -201,6 +204,7 @@ class NodeEngagementMutex:
 
         self._started = False
         self._finished = False
+        self.timeout = timeout
 
         self.percent_to_complete_before_release = percent_to_complete_before_release
         self._partial_queue = Queue()
@@ -217,24 +221,45 @@ class NodeEngagementMutex:
 
         self._threadpool = ThreadPool(minthreads=threadpool_size, maxthreads=threadpool_size, name=self._repr)
         self.log.info(f"NEM spinning up {self._threadpool}")
+        self._threadpool.callInThread(self._bail_on_timeout)
 
     def __repr__(self):
         return self._repr
 
-    def block_until_success_is_reasonably_likely(self):
+    def _bail_on_timeout(self):
+        while True:
+            if self.when_complete.called:
+                return
+            duration = datetime.datetime.now() - self._started
+            if duration.seconds >= self.timeout:
+                try:
+                    self._threadpool.stop()
+                except AlreadyQuit:
+                    raise RuntimeError("Is there a race condition here?  If this line is being hit, it's a bug.")
+                raise RuntimeError(f"Timed out.  Nodes completed: {self.completed}")
+            time.sleep(.5)
+
+    def block_until_success_is_reasonably_likely(self, timeout=10):
         """
         https://www.youtube.com/watch?v=OkSLswPSq2o
         """
         if len(self.completed) < self._block_until_this_many_are_complete:
-            completed_for_reasonable_likelihood_of_success = self._partial_queue.get()  # Interesting opportuntiy to pass some data, like the list of contacted nodes above.
+            try:
+                completed_for_reasonable_likelihood_of_success = self._partial_queue.get(timeout=self.timeout) # TODO: Shorter timeout here?
+            except Empty:
+                raise RuntimeError(f"Timed out.  Nodes completed: {self.completed}")
             self.log.debug(f"{len(self.completed)} nodes were contacted while blocking for a little while.")
             return completed_for_reasonable_likelihood_of_success
         else:
             return self.completed
 
-    def block_until_complete(self):
+
+    def block_until_complete(self, timeout=20):
         if self.total_disposed() < len(self.nodes):
-            _ = self._completion_queue.get()  # Interesting opportuntiy to pass some data, like the list of contacted nodes above.
+            try:
+                _ = self._completion_queue.get(timeout=self.timeout)  # Interesting opportuntiy to pass some data, like the list of contacted nodes above.
+            except Empty:
+                raise RuntimeError(f"Timed out.  Nodes completed: {self.completed}")
         if not reactor.running and not self._threadpool.joined:
             # If the reactor isn't running, the user *must* call this, because this is where we stop.
             self._threadpool.stop()
@@ -286,7 +311,7 @@ class NodeEngagementMutex:
     def start(self):
         if self._started:
             raise RuntimeError("Already started.")
-        self._started = True
+        self._started = datetime.datetime.now()
         self.log.info(f"NEM Starting {self._threadpool}")
         for node in self.nodes:
              self._threadpool.callInThread(self._engage_node, node)
