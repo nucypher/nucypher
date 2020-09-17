@@ -29,7 +29,7 @@ from nucypher.utilities.logging import Logger
 
 class Signer(ABC):
 
-    SIGNERS = NotImplemented  # set dynamically in __init__.py
+    _SIGNERS = NotImplemented  # set dynamically in __init__.py
 
     SignedMessage = namedtuple('SignedMessage', ['signature', 'signer'])
 
@@ -61,7 +61,7 @@ class Signer(ABC):
         parsed = urlparse(uri)
         scheme = parsed.scheme if parsed.scheme else parsed.path
         try:
-            signer_class = cls.SIGNERS[scheme]
+            signer_class = cls._SIGNERS[scheme]
         except KeyError:
             # This block can be considered the "pass-through"
             # for providers to be used as external signers.
@@ -69,7 +69,7 @@ class Signer(ABC):
                 from nucypher.blockchain.eth.signers.software import Web3Signer
                 signer = Web3Signer.from_signer_uri(uri=uri)
             except cls.InvalidSignerURI:
-                message = f'{uri} is not a valid signer URI.  Available schemes: {", ".join(cls.SIGNERS)}'
+                message = f'{uri} is not a valid signer URI.  Available schemes: {", ".join(cls._SIGNERS)}'
                 raise cls.InvalidSignerURI(message)
             return signer
         signer = signer_class.from_signer_uri(uri=uri)
