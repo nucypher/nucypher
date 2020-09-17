@@ -171,15 +171,17 @@ class TrezorSigner(Signer):
         return list(self.__addresses.keys())
 
     @handle_trezor_call
-    def sign_message(self, message: bytes, checksum_address: str) -> Signer.SignedMessage:
+    def sign_message(self, message: bytes, checksum_address: str) -> HexBytes:
         """
         Signs a message via the TREZOR ethereum sign_message API and returns
         a named tuple containing the signature and the address used to sign it.
         This method requires interaction between the TREZOR and the user.
         """
-        hd_path = self.__get_address_path(checksum_address=checksum_address)
-        signed_message = trezorlib.ethereum.sign_message(self.__client, hd_path, message)
-        return self.SignedMessage(signed_message.signature, signed_message.address)
+        # TODO: #2262 Implement Trezor Message Signing
+        # hd_path = self.__get_address_path(checksum_address=checksum_address)
+        # signed_message = trezorlib.ethereum.sign_message(self.__client, hd_path, message)
+        # return self.SignedMessage(signed_message.signature, signed_message.address)
+        raise NotImplementedError   # TODO: #2261 return a Signer.SignedMessage instead
 
     def sign_transaction(self,
                          transaction_dict: dict,

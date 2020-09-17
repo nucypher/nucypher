@@ -93,7 +93,7 @@ class Web3Signer(Signer):
     @validate_checksum_address
     def sign_message(self, account: str, message: bytes, **kwargs) -> HexBytes:
         signature = self.__client.sign_message(account=account, message=message)
-        return HexBytes(signature)
+        return HexBytes(signature)   # TODO: #2261 return a Signer.SignedMessage instead
 
     def sign_transaction(self, transaction_dict: dict) -> HexBytes:
         signed_raw_transaction = self.__client.sign_transaction(transaction_dict=transaction_dict)
@@ -202,7 +202,7 @@ class ClefSigner(Signer):
             raise NotImplementedError
 
         signed_data = self.__ipc_request("account_signData", content_type, account, data)
-        return HexBytes(signed_data)
+        return HexBytes(signed_data)  # TODO: #2261 return a Signer.SignedMessage instead
 
     def sign_data_for_validator(self, account: str, message: bytes, validator_address: str):
         signature = self.sign_message(account=account,
@@ -391,4 +391,4 @@ class KeystoreSigner(Signer):
     def sign_message(self, account: str, message: bytes, **kwargs) -> HexBytes:
         signer = self.__get_signer(account=account)
         signature = signer.sign_message(signable_message=encode_defunct(primitive=message)).signature
-        return signature
+        return signature   # TODO: #2261 return a Signer.SignedMessage instead
