@@ -134,7 +134,7 @@ Pipenv Installation
 Docker Installation
 -------------------
 
-.. important::
+.. note::
 
     Due to dependency requirements, the ``nucypher`` docker image can only be run on x86 architecture.
 
