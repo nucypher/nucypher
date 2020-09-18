@@ -487,6 +487,8 @@ def test_worklock_phases(testerchain,
     tx = worklock.functions.claim().transact({'from': staker2, 'gas_price': 0})
     testerchain.wait_for_receipt(tx)
     assert worklock.functions.workInfo(staker2).call()[2]
+    wind_down, _re_stake, _measure_work, _snapshots = escrow.functions.getFlags(staker2).call()
+    assert wind_down
 
     assert token.functions.balanceOf(staker2).call() == 0
     assert escrow.functions.getLockedTokens(staker2, 0).call() == 0
@@ -516,6 +518,8 @@ def test_worklock_phases(testerchain,
     pytest.staker1_tokens += staker1_claims
     assert escrow.functions.getLockedTokens(staker1, 1).call() == pytest.staker1_tokens
     pytest.escrow_supply += staker1_claims
+    wind_down, _re_stake, _measure_work, _snapshots = escrow.functions.getFlags(staker1).call()
+    assert not wind_down
 
     # Staker prolongs lock duration
     tx = escrow.functions.prolongStake(0, 3).transact({'from': staker2, 'gas_price': 0})

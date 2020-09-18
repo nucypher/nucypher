@@ -41,7 +41,7 @@ interface WorkLockInterface {
 /**
 * @notice Contract holds and locks stakers tokens.
 * Each staker that locks their tokens will receive some compensation
-* @dev |v5.4.1|
+* @dev |v5.4.2|
 */
 contract StakingEscrow is Issuer, IERC900History {
 
@@ -543,6 +543,11 @@ contract StakingEscrow is Issuer, IERC900History {
         external
     {
         require(msg.sender == address(workLock));
+        StakerInfo storage info = stakerInfo[_staker];
+        if (!info.flags.bitSet(WIND_DOWN_INDEX) && info.subStakes.length == 0) {
+            info.flags = info.flags.toggleBit(WIND_DOWN_INDEX);
+            emit WindDownSet(_staker, true);
+        }
         deposit(_staker, msg.sender, MAX_SUB_STAKES, _value, _periods);
     }
 
@@ -557,12 +562,10 @@ contract StakingEscrow is Issuer, IERC900History {
             return;
         }
         info.flags = info.flags.toggleBit(WIND_DOWN_INDEX);
-
-        uint16 currentPeriod = getCurrentPeriod();
-        uint16 nextPeriod = currentPeriod + 1;
         emit WindDownSet(msg.sender, _windDown);
 
         // duration adjustment if next period is committed
+        uint16 nextPeriod = getCurrentPeriod() + 1;
         if (info.nextCommittedPeriod != nextPeriod) {
            return;
         }
