@@ -31,8 +31,6 @@ class Signer(ABC):
 
     _SIGNERS = NotImplemented  # set dynamically in __init__.py
 
-    SignedMessage = namedtuple('SignedMessage', ['signature', 'signer'])
-
     log = Logger(__qualname__)
 
     class SignerError(Exception):
@@ -99,5 +97,5 @@ class Signer(ABC):
         return NotImplemented
 
     @abstractmethod
-    def sign_message(self, account: str, message: bytes, **kwargs) -> SignedMessage:
+    def sign_message(self, account: str, message: bytes, **kwargs) -> HexBytes:
         return NotImplemented

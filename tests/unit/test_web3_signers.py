@@ -92,6 +92,15 @@ def test_trezor_signer_uri(mock_trezor):
     assert signer.DERIVATION_ROOT == "44'/60'/0'/0"
     assert len(signer.accounts) == 1
 
+    # TODO: #2269 Support "rich URIs" for trezors
+    # simple = 'trezor'
+    # prefix_only = 'trezor://'
+    # uri_with_device_id = "trezor://1209:53c1:01"
+    # uri_with_device_id_and_path = "trezor://1209:53c1:01/m/44'/60'/0'/0/0"
+    # uri_with_path = "trezor:///m/44'/60'/0'/0/0"
+    # uri_with_checksum_address = "trezor://0xdeadbeef"
+    # trezor_signer = TrezorSigner.from_signer_uri()
+
 
 def test_trezor_sign_transaction(mock_trezor, mock_account):
     trezor_signer = TrezorSigner()

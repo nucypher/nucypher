@@ -180,10 +180,9 @@ class TrezorSigner(Signer):
         This method requires interaction between the TREZOR and the user.
         """
         # TODO: #2262 Implement Trezor Message Signing
-        # hd_path = self.__get_address_path(checksum_address=checksum_address)
-        # signed_message = trezorlib.ethereum.sign_message(self.__client, hd_path, message)
-        # return self.SignedMessage(signed_message.signature, signed_message.address)
-        raise NotImplementedError   # TODO: #2261 return a Signer.SignedMessage instead
+        hd_path = self.__get_address_path(checksum_address=checksum_address)
+        signed_message = trezorlib.ethereum.sign_message(self.__client, hd_path, message)
+        return HexBytes(signed_message.signature)
 
     def sign_transaction(self,
                          transaction_dict: dict,
