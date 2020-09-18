@@ -14,13 +14,16 @@
  You should have received a copy of the GNU Affero General Public License
  along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
+
+
 import json
-import os
 
 import click
+import os
 
-from nucypher.blockchain.eth import Signer, ClefSigner
 from nucypher.blockchain.eth.actors import EmergencyResponseManager, BaseActor
+from nucypher.blockchain.eth.signers.base import Signer
+from nucypher.blockchain.eth.signers.software import ClefSigner
 from nucypher.cli.actions.auth import get_client_password
 from nucypher.cli.actions.select import select_client_account
 from nucypher.cli.config import group_general_config, GroupGeneralConfig
@@ -34,7 +37,6 @@ from nucypher.cli.options import (
     option_parameters, option_hw_wallet)
 from nucypher.cli.utils import setup_emitter, get_registry, connect_to_blockchain
 from nucypher.config.constants import NUCYPHER_ENVVAR_PROVIDER_URI
-
 
 option_parameters.required = True
 
@@ -80,11 +82,11 @@ class DaoOptions:  # TODO: This class is essentially the same that WorkLock opti
                              hw_wallet: bool = False) -> BaseActor:
 
         client_password = None
-        is_clef = ClefSigner.is_valid_clef_uri(self.signer_uri)
+        is_clef = ClefSigner.is_valid_clef_uri(self.signer_uri)  # TODO: why not allow the clef signer's validator act on this?
         if transacting and not is_clef and not hw_wallet:
             client_password = get_client_password(checksum_address=self.participant_address)
         signer = Signer.from_signer_uri(self.signer_uri) if self.signer_uri else None
-        actor = EmergencyResponseManager(checksum_address=self.participant_address,
+        actor = EmergencyResponseManager(checksum_address=self.participant_address,  # bomberos
                                          network=self.network,
                                          registry=registry,
                                          client_password=client_password,
