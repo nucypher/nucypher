@@ -20,8 +20,13 @@ from collections import UserList
 from enum import Enum
 
 import maya
-from constant_sorrow.constants import (EMPTY_STAKING_SLOT, NEW_STAKE, NOT_STAKING, NO_STAKING_RECEIPT,
-                                       UNKNOWN_WORKER_STATUS)
+from constant_sorrow.constants import (
+    EMPTY_STAKING_SLOT,
+    NEW_STAKE,
+    NOT_STAKING,
+    NO_STAKING_RECEIPT,
+    UNKNOWN_WORKER_STATUS
+)
 from eth_utils import currency, is_checksum_address
 from twisted.internet import reactor, task
 from typing import Callable, Dict, Union
@@ -528,6 +533,9 @@ class WorkTracker:
     CLOCK = reactor
     REFRESH_RATE = 60 * 15  # Fifteen minutes
 
+    class ProgrammingError(RuntimeError):
+        """Raised when the work tracker's requirement callable is incorrectly implemented."""
+
     def __init__(self,
                  worker,
                  refresh_rate: int = None,
@@ -568,6 +576,7 @@ class WorkTracker:
 
         # Add optional confirmation requirement callable
         self.__requirement = requirement_func
+        self.__check_work_requirement()  # eager test to help prevent programing error
 
         # Record the start time and period
         self.__start_time = maya.now()
@@ -603,9 +612,11 @@ class WorkTracker:
         try:
             r = self.__requirement()
             if not isinstance(r, bool):
-                raise ValueError(f"'requirement' must return a boolean.")
-        except TypeError:
-            raise ValueError(f"'requirement' must be a callable.")
+                raise WorkTracker.ProgrammingError(f"'requirement' function must return a boolean.")
+        except TypeError as e:
+            if not callable(self.__requirement):
+                raise WorkTracker.ProgrammingError(f"'requirement' must be a function or callable.") from e
+            raise
         return r
 
     def _do_work(self) -> None:
