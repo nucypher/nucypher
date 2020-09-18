@@ -43,7 +43,7 @@ contract WorkLockPoolingContract is InitializableStakingContract, Ownable {
         bool claimedWorkLockTokens;
     }
 
-    uint256 public constant BASIS_FRACTION = 10000;
+    uint256 public constant BASIS_FRACTION = 100;
 
     StakingEscrow public escrow;
     WorkLock public workLock;
@@ -68,7 +68,7 @@ contract WorkLockPoolingContract is InitializableStakingContract, Ownable {
     /**
      * @notice Initialize function for using with OpenZeppelin proxy
      * @param _workerFraction Share of token reward that worker node owner will get.
-     * Use value up to BASIS_FRACTION, where BASIS_FRACTION means 100% reward as commission
+     * Use value up to BASIS_FRACTION, if _workerFraction = BASIS_FRACTION -> means 100% reward as commission
      * @param _router StakingInterfaceRouter address
      * @param _workerOwner Owner of worker node, only this address can withdraw worker commission
      */
