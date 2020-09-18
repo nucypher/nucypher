@@ -14,16 +14,22 @@ GNU Affero General Public License for more details.
 You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
+
+
 from _pydecimal import Decimal
 from collections import UserList
 from enum import Enum
 
 import maya
 import time
-from constant_sorrow.constants import (EMPTY_STAKING_SLOT, NEW_STAKE, NOT_STAKING)
+from constant_sorrow.constants import (
+    EMPTY_STAKING_SLOT,
+    NEW_STAKE,
+    NOT_STAKING
+)
 from eth_utils import currency, is_checksum_address
 from twisted.internet import reactor, task
-from typing import Callable, Dict, Union
+from typing import Callable, Dict, Union, Tuple
 
 from nucypher.blockchain.eth.agents import ContractAgency, StakingEscrowAgent
 from nucypher.blockchain.eth.clients import EthereumClient
@@ -532,6 +538,9 @@ class WorkTracker:
     __DEFAULT_RETRY_ATTEMPTS = 3
     __DEFAULT_RETRY_RATE = 60  # seconds
 
+    class ProgrammingError(RuntimeError):
+        """Raised when the work tracker's requirement callable is incorrectly implemented."""
+
     def __init__(self,
                  worker,
                  refresh_rate: int = None,
@@ -579,6 +588,7 @@ class WorkTracker:
 
         # Add optional confirmation requirement callable
         self.__requirement = requirement_func
+        self.__check_work_requirement()  # eager test to help prevent programing error
 
         # Record the start time and period
         self.__start_time = maya.now()
@@ -618,9 +628,11 @@ class WorkTracker:
         try:
             r = self.__requirement()
             if not isinstance(r, bool):
-                raise ValueError(f"'requirement' must return a boolean.")
-        except TypeError:
-            raise ValueError(f"'requirement' must be a callable.")
+                raise WorkTracker.ProgrammingError(f"'requirement' function must return a boolean.")
+        except TypeError as e:
+            if not callable(self.__requirement):
+                raise WorkTracker.ProgrammingError(f"'requirement' must be a function or callable.") from e
+            raise
         return r
 
     def __make_commitment(self) -> bool:

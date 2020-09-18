@@ -14,21 +14,19 @@ GNU Affero General Public License for more details.
 You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
-import time
-from datetime import datetime
-from unittest.mock import patch
+
 
 import maya
 import pytest
-import pytest_twisted
-from twisted.internet import defer
-from twisted.internet.defer import ensureDeferred
-from twisted.internet.threads import deferToThread
+import time
+from datetime import datetime
+from flask import Response
+from umbral.keys import UmbralPublicKey
+from unittest.mock import patch
 
 from nucypher.characters.lawful import Ursula
 from nucypher.datastore.base import RecordField
 from nucypher.network.nodes import Teacher
-from nucypher.policy.collections import TreasureMap
 from tests.mock.performance_mocks import (
     NotAPublicKey,
     NotARestApp,
@@ -45,8 +43,6 @@ from tests.mock.performance_mocks import (
 )
 from tests.utils.middleware import SluggishLargeFleetMiddleware
 from tests.utils.ursula import MOCK_KNOWN_URSULAS_CACHE
-from umbral.keys import UmbralPublicKey
-from flask import Response
 
 """
 Node Discovery happens in phases.  The first step is for a network actor to learn about the mere existence of a Node.
@@ -188,8 +184,8 @@ def test_mass_treasure_map_placement(fleet_of_highperf_mocked_ursulas,
         assert len(nodes_that_have_the_map_when_we_unblock) >= policy.publishing_mutex._block_until_this_many_are_complete
 
         # The number of nodes having the map is approximately the number you'd expect from full utilization of Alice's publication threadpool.
-        # TODO: This line fails sometimes because the loop goes too fast.
-        # assert len(nodes_that_have_the_map_when_we_unblock) == pytest.approx(policy.publishing_mutex._block_until_this_many_are_complete, .2)
+        # TODO: This line fails sometimes because the loop goes too fast. (and too furious?)
+        assert len(nodes_that_have_the_map_when_we_unblock) == pytest.approx(policy.publishing_mutex._block_until_this_many_are_complete, .2)
 
         # PART III: Having made proper assertions about the publication call and the first block, we allow the rest to
         # happen in the background and then ensure that each phase was timely.
