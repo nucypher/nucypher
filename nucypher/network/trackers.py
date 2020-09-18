@@ -87,12 +87,12 @@ class AvailabilityTracker:
                       f'Please check your network and firewall configuration.'
                       f'Auto-shutdown will commence soon if the services do not become available.')
 
-    def shutdown_everything(self, reason=None, halt_reactor=False):
+    def shutdown_everything(self, reason: Union[Solitary, Lonely] = None, halt_reactor=False):
         self.log.warn(f'[NODE IS UNREACHABLE (SCORE {self.score})] Commencing auto-shutdown sequence...')
         self._ursula.stop(halt_reactor=False)
         try:
             if reason:
-                raise reason(reason.message)
+                raise reason
             raise self.Unreachable(f'{self._ursula} is unreachable (scored {self.score}).')
         finally:
             if halt_reactor:
@@ -107,8 +107,8 @@ class AvailabilityTracker:
 
         if args:
             failure = args[0]
-            cleaned_traceback = failure.getTraceback().replace('{', '').replace('}', '')  # FIXME: Amazing.
-            self.log.warn("Unhandled error during availability check: {}".format(cleaned_traceback))
+            traceback = failure.getTraceback()
+            self.log.warn("Unhandled error during availability check: {}".format(traceback))
             if crash_on_error:
                 failure.raiseException()
         else:
@@ -150,7 +150,7 @@ class AvailabilityTracker:
                 delta = now - self._start_time.epoch
                 if delta >= self.MAXIMUM_ALONE_TIME:
                     self.severe_warning()
-                    reason = self.Solitary if not self._ursula.known_nodes else self.Lonely
+                    reason = self.Solitary if not self._ursula.is_alone else self.Lonely
                     self.shutdown_everything(reason=reason)
             return
 
