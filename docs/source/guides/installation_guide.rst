@@ -4,11 +4,10 @@ Installation Guide
 Contents
 --------
 
-
-* `System Requirements and Dependencies <#system-requirements-and-dependencies>`_
-* `Standard Installation <#standard-installation>`_
-* `Docker Installation <#docker-installation>`_
-* `Development Installation <#development-installation>`_
+* `System Requirements and Dependencies`_
+* `Standard Installation`_
+* `Docker Installation`_
+* `Development Installation`_
 * `Running Ursula with Systemd <#systemd-service-installation>`_
 
 System Requirements and Dependencies
@@ -134,6 +133,11 @@ Pipenv Installation
 
 Docker Installation
 -------------------
+
+.. note::
+
+    Due to dependency requirements, the ``nucypher`` docker image can only be run on x86 architecture.
+
 
 #. Install `Docker <https://docs.docker.com/install/>`_
 #. (Optional) Follow these post install instructions: `https://docs.docker.com/install/linux/linux-postinstall/ <https://docs.docker.com/install/linux/linux-postinstall/>`_

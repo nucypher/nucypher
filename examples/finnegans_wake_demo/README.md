@@ -11,9 +11,14 @@ without revealing private keys to intermediary entities.
 5. Bob receives and reconstructs the Enrico from Policy public key and Enrico public key
 6. Bob retrieves the original message from Enrico and MessageKit
 
+
+### Run a fleet of federated Ursulas
+`python ../run_demo_ursula_fleet.py`
+
+
 ### Download the Book!
 `./download_finnegans_wake.sh` 
 
 
 ### Run
-`python3 finnegans-wake-demo.py`
+`python finnegans-wake-demo.py`

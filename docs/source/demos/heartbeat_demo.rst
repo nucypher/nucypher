@@ -7,11 +7,6 @@ Heartbeat Demo
 Overview
 --------
 
-.. important::
-
-    This demo requires connecting to a running network. By default the demo is hardcoded to connect to the :doc:`local demo fleet </demos/local_fleet_demo>`.
-
-
 Alicia has a Heart Monitor device that measures her heart rate and outputs this data in encrypted form.
 Since Alicia knows that she may want to share this data in the future, she uses NuCypher to create
 a *policy public key* for her Heart Monitor to use, so she can read and delegate access to the encrypted
@@ -68,13 +63,19 @@ For a full installation guide see the :doc:`/guides/installation_guide`.
 Run the Demo
 ------------
 
-Assuming you already have ``nucypher`` installed with the ``demos`` extra
-and a :doc:`local fleet of Ursulas </demos/local_fleet_demo>` alive,
-running the Heartbeat demo only involves executing the
-``alicia.py`` and ``doctor.py`` scripts, contained in the
-``examples/heartbeat_demo`` directory.
+Assuming you already have ``nucypher`` installed with the ``demos`` extra,
+running the Heartbeat demo involves running a local fleet of federated Ursulas in the ``examples/`` directory,
+and executing the ``alicia.py`` and ``doctor.py`` scripts contained in the ``examples/heartbeat_demo`` directory.
 
-First, run ``alicia.py``:
+First, run the local fleet of federated Ursulas in a separate terminal:
+
+.. code::
+
+    (nucypher)$ python examples/run_demo_ursula_fleet.py
+
+This provides a network of 12 local federated Ursulas.
+
+Next, from the ``examples/heartbeat_demo`` directory, run ``alicia.py``:
 
 .. code::
 
