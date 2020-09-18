@@ -279,6 +279,11 @@ class Learner:
             self.start_learning_loop(now=self.learn_on_same_thread)
 
     @property
+    def is_alone(self) -> bool:
+        """Returns True if ursula knows about zero nodes."""
+        return len(self.__known_nodes) > 0
+
+    @property
     def known_nodes(self):
         return self.__known_nodes
 
