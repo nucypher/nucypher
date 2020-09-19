@@ -68,7 +68,6 @@ class TrezorSigner(Signer):
     DERIVATION_ROOT = f"{__BIP_44}'/{__ETH_COIN_TYPE}'/{DEFAULT_ACCOUNT}'/{CHAIN_ID}"
     ADDRESS_CACHE_SIZE = 10  # default number of accounts to derive and internally track
 
-
     class DeviceError(Exception):
         """Base exception for trezor signing API"""
 
@@ -112,7 +111,7 @@ class TrezorSigner(Signer):
             if index is None:
                 raise ValueError("No index or HD path supplied.")  # TODO: better error handling here
             hd_path = self.__get_address_path(index=index)
-        address = ethereum.__get_address(client=self.__client, n=hd_path, show_display=show_display)
+        address = ethereum.get_address(client=self.__client, n=hd_path, show_display=show_display)
         return address
 
     def __load_addresses(self) -> None:
@@ -149,7 +148,7 @@ class TrezorSigner(Signer):
     @classmethod
     def from_signer_uri(cls, uri: str) -> 'TrezorSigner':
         """Return a trezor signer from URI string i.e. trezor:///my/trezor/path """
-        if uri != cls.uri_scheme():
+        if uri != cls.uri_scheme():  # TODO: #2269 Support "rich URIs" for trezors
             raise cls.InvalidSignerURI(f'{uri} is not a valid trezor URI scheme')
         return cls()
 
