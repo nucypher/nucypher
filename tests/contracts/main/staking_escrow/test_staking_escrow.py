@@ -1548,9 +1548,10 @@ def test_staking_from_worklock(testerchain, token, escrow_contract, token_econom
 
     maximum_allowed_locked = 1500
     escrow = escrow_contract(maximum_allowed_locked, disable_reward=True)
-    creator, staker1, staker2, staker3, staker4 = testerchain.client.accounts[0:5]
+    creator, staker1, staker2, staker3 = testerchain.client.accounts[0:4]
     deposit_log = escrow.events.Deposited.createFilter(fromBlock='latest')
     lock_log = escrow.events.Locked.createFilter(fromBlock='latest')
+    wind_down_log = escrow.events.WindDownSet.createFilter(fromBlock='latest')
 
     # Deploy WorkLock mock
     worklock, _ = deploy_contract('WorkLockForStakingEscrowMock', token.address, escrow.address)
@@ -1572,6 +1573,8 @@ def test_staking_from_worklock(testerchain, token, escrow_contract, token_econom
     assert token.functions.balanceOf(escrow.address).call() == 0
 
     # Deposit tokens from WorkLock
+    wind_down, _re_stake, _measure_work, _snapshots = escrow.functions.getFlags(staker1).call()
+    assert not wind_down
     current_period = escrow.functions.getCurrentPeriod().call()
     tx = worklock.functions.depositFromWorkLock(staker1, value, duration).transact()
     testerchain.wait_for_receipt(tx)
@@ -1580,6 +1583,8 @@ def test_staking_from_worklock(testerchain, token, escrow_contract, token_econom
     assert escrow.functions.getLockedTokens(staker1, 1).call() == value
     assert escrow.functions.getLockedTokens(staker1, duration).call() == value
     assert escrow.functions.getLockedTokens(staker1, duration + 1).call() == 0
+    wind_down, _re_stake, _measure_work, _snapshots = escrow.functions.getFlags(staker1).call()
+    assert wind_down
 
     # Check that all events are emitted
     events = deposit_log.get_all_entries()
@@ -1596,3 +1601,94 @@ def test_staking_from_worklock(testerchain, token, escrow_contract, token_econom
     assert event_args['value'] == value
     assert event_args['firstPeriod'] == current_period + 1
     assert event_args['periods'] == duration
+
+    events = wind_down_log.get_all_entries()
+    assert len(events) == 1
+    event_args = events[-1]['args']
+    assert event_args['staker'] == staker1
+    assert event_args['windDown']
+
+    # Deposit directly and then through WorkLock
+    tx = token.functions.transfer(staker2, maximum_allowed_locked).transact({'from': creator})
+    testerchain.wait_for_receipt(tx)
+    tx = token.functions.approve(escrow.address, maximum_allowed_locked).transact({'from': staker2})
+    testerchain.wait_for_receipt(tx)
+    tx = escrow.functions.deposit(staker2, value, duration).transact({'from': staker2})
+    testerchain.wait_for_receipt(tx)
+
+    wind_down, _re_stake, _measure_work, _snapshots = escrow.functions.getFlags(staker2).call()
+    assert not wind_down
+    current_period = escrow.functions.getCurrentPeriod().call()
+    tx = worklock.functions.depositFromWorkLock(staker2, value, duration).transact()
+    testerchain.wait_for_receipt(tx)
+    assert token.functions.balanceOf(escrow.address).call() == 3 * value
+    assert escrow.functions.getLockedTokens(staker2, 0).call() == 0
+    assert escrow.functions.getLockedTokens(staker2, 1).call() == 2 * value
+    assert escrow.functions.getLockedTokens(staker2, duration).call() == 2 * value
+    assert escrow.functions.getLockedTokens(staker2, duration + 1).call() == 0
+    wind_down, _re_stake, _measure_work, _snapshots = escrow.functions.getFlags(staker2).call()
+    assert not wind_down
+
+    # Check that all events are emitted
+    events = deposit_log.get_all_entries()
+    assert len(events) == 3
+    event_args = events[-1]['args']
+    assert event_args['staker'] == staker2
+    assert event_args['value'] == value
+    assert event_args['periods'] == duration
+
+    events = lock_log.get_all_entries()
+    assert len(events) == 3
+    event_args = events[-1]['args']
+    assert event_args['staker'] == staker2
+    assert event_args['value'] == value
+    assert event_args['firstPeriod'] == current_period + 1
+    assert event_args['periods'] == duration
+
+    events = wind_down_log.get_all_entries()
+    assert len(events) == 1
+
+    # Enable wind down before deposit from WorkLock
+    tx = token.functions.transfer(staker3, maximum_allowed_locked).transact({'from': creator})
+    testerchain.wait_for_receipt(tx)
+    tx = token.functions.approve(escrow.address, maximum_allowed_locked).transact({'from': staker3})
+    testerchain.wait_for_receipt(tx)
+    tx = escrow.functions.deposit(staker3, value, duration).transact({'from': staker2})
+    testerchain.wait_for_receipt(tx)
+
+    tx = escrow.functions.setWindDown(True).transact({'from': staker3})
+    testerchain.wait_for_receipt(tx)
+    wind_down, _re_stake, _measure_work, _snapshots = escrow.functions.getFlags(staker3).call()
+    assert wind_down
+    events = wind_down_log.get_all_entries()
+    assert len(events) == 2
+
+    current_period = escrow.functions.getCurrentPeriod().call()
+    tx = worklock.functions.depositFromWorkLock(staker3, value, duration).transact()
+    testerchain.wait_for_receipt(tx)
+    assert token.functions.balanceOf(escrow.address).call() == 5 * value
+    assert escrow.functions.getLockedTokens(staker3, 0).call() == 0
+    assert escrow.functions.getLockedTokens(staker3, 1).call() == 2 * value
+    assert escrow.functions.getLockedTokens(staker3, duration).call() == 2 * value
+    assert escrow.functions.getLockedTokens(staker3, duration + 1).call() == 0
+    wind_down, _re_stake, _measure_work, _snapshots = escrow.functions.getFlags(staker3).call()
+    assert wind_down
+
+    # Check that all events are emitted
+    events = deposit_log.get_all_entries()
+    assert len(events) == 5
+    event_args = events[-1]['args']
+    assert event_args['staker'] == staker3
+    assert event_args['value'] == value
+    assert event_args['periods'] == duration
+
+    events = lock_log.get_all_entries()
+    assert len(events) == 5
+    event_args = events[-1]['args']
+    assert event_args['staker'] == staker3
+    assert event_args['value'] == value
+    assert event_args['firstPeriod'] == current_period + 1
+    assert event_args['periods'] == duration
+
+    events = wind_down_log.get_all_entries()
+    assert len(events) == 2
