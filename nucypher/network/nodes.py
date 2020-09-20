@@ -348,8 +348,12 @@ class Learner:
         stored_nodes = self.node_storage.all(federated_only=self.federated_only)  # TODO: #466
 
         restored_from_disk = []
-
         for node in stored_nodes:
+            node_domain = node.domain.decode('utf-8')
+            if node_domain != self.learning_domain.encode():
+                self.log.warn(f"Restored {node} metadata from storage, but appears to be for domain '{node_domain}'; "
+                              f"we're learning about '{self.learning_domain}'. Let's ignore it.")
+                continue
             restored_node = self.remember_node(node, record_fleet_state=False)  # TODO: Validity status 1866
             restored_from_disk.append(restored_node)
 
