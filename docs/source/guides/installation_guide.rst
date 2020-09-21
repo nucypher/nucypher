@@ -10,6 +10,9 @@ Contents
 * `Development Installation`_
 * `Running Ursula with Systemd <#systemd-service-installation>`_
 
+
+.. _base-requirements:
+
 System Requirements and Dependencies
 ------------------------------------
 

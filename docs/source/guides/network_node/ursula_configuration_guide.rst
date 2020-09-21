@@ -17,6 +17,36 @@ The worker's ethereum account must remain unlocked to send automated work confir
 ether to pay for transaction gas; however, it is *not* necessary (and potentially risky) to hold NU tokens on a worker's
 account for any reason.
 
+
+Worker Requirements
+-------------------
+
+Aside from the :ref:`base requirements <base-requirements>` for installation of the ``nucypher`` library:
+
+* 4GB RAM (minimum)
+* 2 CPUs (minimum)
+* 256GB HDD
+* TCP Port 9151 opened for network communication
+* Access to a fully synced Ethereum web3 provider e.g. local node, infura, alchemy etc. (see :ref:`using-eth-node`) is
+  required to read and write to smart contracts
+
+In order to be a successful Ursula operator, you will need a machine (physical or virtual) which
+can be kept online and ready to perform cryptographic operations for the network. However, short
+temporary service disruptions such as upgrades are understandable. Common cloud setups used
+include `AWS T3.medium <https://aws.amazon.com/ec2/instance-types/t3/>`_ and
+`Digital Ocean 4GB Basic Droplet <https://www.digitalocean.com/pricing/>`_.
+
+.. important::s
+
+    If also running a local Ethereum node on the same machine,
+    `additional requirements <https://docs.ethhub.io/using-ethereum/running-an-ethereum-node/>`_ are needed.
+
+
+Configure and Run a Worker
+--------------------------
+
+It is assumed that you already have nucypher installed, have initiated a stake, and bonded a worker.
+
 Working Procedure:
 
 .. References are needed for links because of the numbers in the section names
@@ -27,14 +57,14 @@ Working Procedure:
 4) Create and fund worker's ethereum address (see :ref:`Fund Worker Account with ETH <fund-worker-account>`)
 5) Bond the Worker to a Staker (see :ref:`bond-worker`)
 6) Configure and run a Worker node (see :ref:`Configure and Run Ursula <configure-run-ursula>`)
-7) Ensure TCP port 9151 is externally accessible (see `Ursula / Worker Requirements`_)
+7) Ensure TCP port 9151 is externally accessible
 8) Keep Worker node online!
 
 
 .. _running-worker-eth-node:
 
-1. Running an Ethereum node for Ursula
-----------------------------------------
+1. Run an Ethereum node for Worker
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Worker (Ursula) transactions can be broadcasted using either a local or remote ethereum node. See :ref:`using-eth-node`
 for more information.
@@ -43,7 +73,7 @@ for more information.
 .. _fund-worker-account:
 
 2. Fund Worker Account with ETH
--------------------------------
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Ensure that the worker's ethereum account has ETH for transaction gas.
 
 .. note::
@@ -52,35 +82,17 @@ Ensure that the worker's ethereum account has ETH for transaction gas.
 
 
 3. Ensure Worker account is bonded to Staker
---------------------------------------------
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Ensure that the worker's ethereum account is bonded to the Staker. See :ref:`bond-worker`.
 
 
 .. _configure-run-ursula:
 
-4. Configure and Run Ursula
----------------------------
+4. Run Worker
+^^^^^^^^^^^^^
 
-Ursula / Worker Requirements
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-A fully synced ethereum node or "provider" is required for the worker to read and write to nucypher's smart contracts.
-
-In order to be a successful Ursula operator, you will need a machine (physical or virtual) which
-can be kept online consistently without interruption and is externally accessible via TCP port 9151.
-The well-behaved worker will accept work orders for re-encryption at-will, and be rewarded as a result.
-
-It is assumed that you already have nucypher installed, have initiated a stake, and bonded a worker.
-
-The installation procedure for the Ursula (Worker) node is exactly the same as for Staker.
-See the  `Installation Guide`_ and `Staking_Guide`_ for more details.
-
-.. _Installation Guide: installation_guide.html
-.. _Staking_Guide: staking_guide.html
-
-
-Running an Ursula via CLI (Interactive)
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Run Ursula via CLI (Interactive)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 .. code:: bash
 
@@ -150,8 +162,8 @@ To stop your node from the interactive console and return to the terminal sessio
 
 .. _run-ursula-with-docker:
 
-Running an Ursula with Docker
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Run Ursula with Docker
+~~~~~~~~~~~~~~~~~~~~~~
 
 Assuming geth is running locally, configure and run an Ursula using port and volume bindings:
 
@@ -169,8 +181,8 @@ Assuming geth is running locally, configure and run an Ursula using port and vol
 ``<YOUR STAKING ADDRESS>`` is the address you've staked from when following the :ref:`staking-guide`.
 
 
-5. Monitoring Ursula
---------------------
+5. Monitor Worker
+^^^^^^^^^^^^^^^^^
 
 Status Page
 ~~~~~~~~~~~
