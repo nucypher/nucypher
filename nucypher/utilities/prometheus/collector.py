@@ -107,9 +107,9 @@ class UrsulaInfoMetricsCollector(BaseMetricsCollector):
             "policies_held_gauge": Gauge(f'{metrics_prefix}_policies_held',
                                          'Policies held',
                                          registry=registry),
-           "availability_score_gauge": Gauge(f'{metrics_prefix}_availability_score',
-                                         'Availability score',
-                                         registry=registry),
+            "availability_score_gauge": Gauge(f'{metrics_prefix}_availability_score',
+                                                                      'Availability score',
+                                                                      registry=registry),
         }
 
     def _collect_internal(self) -> None:
