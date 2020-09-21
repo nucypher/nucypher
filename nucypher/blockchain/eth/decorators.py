@@ -117,13 +117,13 @@ def only_me(func: Callable) -> Callable:
     return wrapped
 
 
-def save_receipt(actor_method) -> Callable:
-    """Decorator to save the receipts of transmitted transactions from actor methods"""
+def save_receipt(actor_method) -> Callable:  # TODO: rename to "save_result"?
+    """Decorator to save the result of a function with a timestamp"""
     @functools.wraps(actor_method)
     def wrapped(self, *args, **kwargs) -> dict:
-        receipt = actor_method(self, *args, **kwargs)
-        self._saved_receipts.append((datetime.utcnow(), receipt))
-        return receipt
+        receipt_or_txhash = actor_method(self, *args, **kwargs)
+        self._saved_receipts.append((datetime.utcnow(), receipt_or_txhash))
+        return receipt_or_txhash
     return wrapped
 
 

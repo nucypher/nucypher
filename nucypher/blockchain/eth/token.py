@@ -637,7 +637,7 @@ class WorkTracker:
         self.log.info("Made a commitment to period {}".format(self.current_period))
         transacting_power = self.worker.transacting_power
         with transacting_power:
-            self.worker.commit_to_next_period()  # < --- blockchain WRITE
+            self.worker.commit_to_next_period(fire_and_forget=True)  # < --- blockchain WRITE | Do not wait for receipt
 
 
 class StakeList(UserList):
