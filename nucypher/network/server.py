@@ -158,6 +158,9 @@ def _make_rest_app(datastore: Datastore, this_node, serving_domain: str, log: Lo
         except NodeSeemsToBeDown:
             return Response({'error': 'Unreachable node'}, status=400)  # ... toasted
 
+        except InvalidNodeCertificate:
+            return Response({'error': 'Invalid TLS certificate - missing checksum address'}, status=400)  # ... invalid
+
         # Compare the results of the outer POST with the inner GET... yum
         if requesting_ursula_bytes == request.data:
             return Response(status=200)
