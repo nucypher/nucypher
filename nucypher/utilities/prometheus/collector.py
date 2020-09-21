@@ -124,7 +124,10 @@ class UrsulaInfoMetricsCollector(BaseMetricsCollector):
 
         self.metrics["learning_status"].state('running' if self.ursula._learning_task.running else 'stopped')
         self.metrics["known_nodes_gauge"].set(len(self.ursula.known_nodes))
-        self.metrics["availability_score_gauge"].set(self.ursula._availability_tracker.score)
+        if self.ursula._availability_check:
+            self.metrics["availability_score_gauge"].set(self.ursula._availability_tracker.score)
+        else:
+            self.metrics["availability_score_gauge"].set(-1)
         try:
             with self.ursula.datastore.query_by(Workorder) as work_orders:
                 self.metrics["work_orders_gauge"].set(len(work_orders))
