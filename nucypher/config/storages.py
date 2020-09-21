@@ -35,7 +35,7 @@ from nucypher.acumen.nicknames import nickname_from_seed
 from nucypher.blockchain.eth.decorators import validate_checksum_address
 from nucypher.blockchain.eth.registry import BaseContractRegistry
 from nucypher.config.constants import DEFAULT_CONFIG_ROOT
-from nucypher.crypto.api import read_certificate_pseudonym
+from nucypher.crypto.api import read_certificate_pseudonym, InvalidNodeCertificate
 from nucypher.utilities.logging import Logger
 
 
@@ -51,9 +51,6 @@ class NodeStorage(ABC):
 
     class UnknownNode(NodeStorageError):
         pass
-
-    class InvalidNodeCertificate(RuntimeError):
-        """Raised when a TLS certificate is not a valid Teacher certificate."""
 
     def __init__(self,
                  federated_only: bool,  # TODO# 466
@@ -115,13 +112,13 @@ class NodeStorage(ABC):
         try:
             pseudonym = certificate.subject.get_attributes_for_oid(NameOID.PSEUDONYM)[0]
         except IndexError:
-            raise self.InvalidNodeCertificate(f"Missing checksum address on certificate for host '{host}'. "
-                                              f"Does this certificate belong to an Ursula?")
+            raise InvalidNodeCertificate(f"Missing checksum address on certificate for host '{host}'. "
+                                         f"Does this certificate belong to an Ursula?")
         else:
             checksum_address = pseudonym.value
 
         if not is_checksum_address(checksum_address):
-            raise self.InvalidNodeCertificate("Invalid certificate wallet address encountered: {}".format(checksum_address))
+            raise InvalidNodeCertificate("Invalid certificate wallet address encountered: {}".format(checksum_address))
 
         # Validate
         # TODO: It's better for us to have checked this a while ago so that this situation is impossible.  #443
@@ -373,7 +370,7 @@ class LocalFileBasedNodeStorage(NodeStorage):
         return certificate_filepath
 
     @validate_checksum_address
-    def __read_tls_public_certificate(self, filepath: str = None, checksum_address: str = None) -> Certificate:
+    def __read_node_tls_certificate(self, filepath: str = None, checksum_address: str = None) -> Certificate:
         """Deserialize an X509 certificate from a filepath"""
         if not bool(filepath) ^ bool(checksum_address):
             raise ValueError("Either pass filepath or checksum_address; Not both.")
@@ -383,8 +380,12 @@ class LocalFileBasedNodeStorage(NodeStorage):
 
         try:
             with open(filepath, 'rb') as certificate_file:
-                cert = x509.load_pem_x509_certificate(certificate_file.read(), backend=default_backend())
-                return cert
+                certificate = x509.load_pem_x509_certificate(certificate_file.read(), backend=default_backend())
+                # Sanity check:
+                # Validate the checksum address inside the cert as a consistency check against
+                # nodes that may have been altered on the disk somehow.
+                read_certificate_pseudonym(certificate=certificate)
+                return certificate
         except FileNotFoundError:
             raise FileNotFoundError("No SSL certificate found at {}".format(filepath))
 
@@ -431,7 +432,7 @@ class LocalFileBasedNodeStorage(NodeStorage):
         known_certificates = set()
         if certificates_only:
             for filename in filenames:
-                certificate = self.__read_tls_public_certificate(os.path.join(self.certificates_dir, filename))
+                certificate = self.__read_node_tls_certificate(os.path.join(self.certificates_dir, filename))
                 known_certificates.add(certificate)
             return known_certificates
 
@@ -454,7 +455,7 @@ class LocalFileBasedNodeStorage(NodeStorage):
     @validate_checksum_address
     def get(self, checksum_address: str, federated_only: bool, certificate_only: bool = False):
         if certificate_only is True:
-            certificate = self.__read_tls_public_certificate(checksum_address=checksum_address)
+            certificate = self.__read_node_tls_certificate(checksum_address=checksum_address)
             return certificate
         metadata_path = self.__generate_metadata_filepath(checksum_address=checksum_address)
         node = self.__read_metadata(filepath=metadata_path)

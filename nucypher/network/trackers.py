@@ -22,6 +22,7 @@ from twisted.internet import reactor
 from twisted.internet.task import LoopingCall
 from typing import Union
 
+from crypto.api import InvalidNodeCertificate
 from nucypher.network.exceptions import NodeSeemsToBeDown
 from nucypher.network.middleware import RestMiddleware
 from nucypher.network.nodes import NodeSprout
@@ -217,7 +218,7 @@ class AvailabilityTracker:
         # TODO: Relocate?
         Unreachable = (*NodeSeemsToBeDown,
                        self._ursula.NotStaking,
-                       self._ursula.node_storage.InvalidNodeCertificate,
+                       InvalidNodeCertificate,
                        self._ursula.network_middleware.UnexpectedResponse)
 
         if not ursulas:
