@@ -397,7 +397,10 @@ class Learner:
             stranger_certificate = node.certificate
 
             # Store node's certificate - It has been seen.
-            certificate_filepath = self.node_storage.store_node_certificate(certificate=stranger_certificate)
+            try:
+                certificate_filepath = self.node_storage.store_node_certificate(certificate=stranger_certificate)
+            except InvalidNodeCertificate:
+                return False  # that was easy
 
             # In some cases (seed nodes or other temp stored certs),
             # this will update the filepath from the temp location to this one.
