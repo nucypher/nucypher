@@ -30,13 +30,16 @@ Aside from the :ref:`base requirements <base-requirements>` for installation of 
 * Access to a fully synced Ethereum web3 provider e.g. local node, infura, alchemy etc. (see :ref:`using-eth-node`) is
   required to read and write to smart contracts
 
+As a frame of reference, maintaining an Ursula is similar to the deployment and maintenance of a
+high-availability web service, with the addition of ethereum accounts management.
+
 In order to be a successful Ursula operator, you will need a machine (physical or virtual) which
 can be kept online and ready to perform cryptographic operations for the network. However, short
-temporary service disruptions such as upgrades are understandable. Common cloud setups used
-include `AWS T3.medium <https://aws.amazon.com/ec2/instance-types/t3/>`_ and
-`Digital Ocean 4GB Basic Droplet <https://www.digitalocean.com/pricing/>`_.
+temporary service disruptions such as upgrades are understandable. Cloud setups are acceptable – for example,
+`Digital Ocean 4GB Basic Droplet <https://www.digitalocean.com/pricing/>`_ satisfies the memory and processing
+power requirements listed above.
 
-.. important::s
+.. important::
 
     If also running a local Ethereum node on the same machine,
     `additional requirements <https://docs.ethhub.io/using-ethereum/running-an-ethereum-node/>`_ are needed.
@@ -45,7 +48,7 @@ include `AWS T3.medium <https://aws.amazon.com/ec2/instance-types/t3/>`_ and
 Configure and Run a Worker
 --------------------------
 
-It is assumed that you already have nucypher installed, have initiated a stake, and bonded a worker.
+This guide assumes that you already have nucypher installed, have initiated a stake, and bonded a worker.
 
 Working Procedure:
 
@@ -74,11 +77,14 @@ for more information.
 
 2. Fund Worker Account with ETH
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Ensure that the worker's ethereum account has ETH for transaction gas.
+Ensure that the worker's ethereum account has sufficient ETH to pay the gas for regular transactions, or
+it may forgo subsidies (inflationary rewards).
+
+**Reducing the gas costs burdened upon stakers/workers is an active and high-priority area of network development.**
 
 .. note::
 
-    For testnet, this account can be funded with Rinkeby testnet ETH via https://faucet.rinkeby.io/.
+    For testnet, the worker account can be funded with Rinkeby testnet ETH via https://faucet.rinkeby.io/.
 
 
 3. Ensure Worker account is bonded to Staker
