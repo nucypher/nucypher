@@ -159,8 +159,8 @@ def make_rest_app(
 
     @rest_app.route('/node_metadata', methods=["POST"])
     def node_metadata_exchange():
-        # If these nodes already have the same fleet state, no exchange is necessary.
 
+        # If these nodes already have the same fleet state, no exchange is necessary.
         learner_fleet_state = request.args.get('fleet')
         if learner_fleet_state == this_node.known_nodes.checksum:
             log.debug("Learner already knew fleet state {}; doing nothing.".format(learner_fleet_state))

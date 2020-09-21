@@ -376,7 +376,7 @@ class Learner:
             already_known_node = self.known_nodes[node.checksum_address]
             if not node.timestamp > already_known_node.timestamp:
                 self.log.debug("Skipping already known node {}".format(already_known_node))
-                # This node is already known.  We can safely return.
+                # This node eis already known.  We can safely return.
                 return False
 
         self.known_nodes[node.checksum_address] = node
