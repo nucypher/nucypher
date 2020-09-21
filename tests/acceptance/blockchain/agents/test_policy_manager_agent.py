@@ -116,7 +116,7 @@ def test_calculate_refund(testerchain, agency, policy_meta, mock_transacting_pow
     mock_transacting_power_activation(account=worker, password=INSECURE_DEVELOPMENT_PASSWORD)
 
     testerchain.time_travel(hours=9)
-    _receipt = staking_agent.commit_to_next_period(worker_address=worker)
+    staking_agent.commit_to_next_period(worker_address=worker)
 
     mock_transacting_power_activation(account=testerchain.alice_account, password=INSECURE_DEVELOPMENT_PASSWORD)
 
@@ -163,7 +163,7 @@ def test_collect_policy_fee(testerchain, agency, policy_meta, token_economics, m
     old_eth_balance = token_agent.blockchain.client.get_balance(staker)
 
     for _ in range(token_economics.minimum_locked_periods):
-        _receipt = staking_agent.commit_to_next_period(worker_address=worker)
+        staking_agent.commit_to_next_period(worker_address=worker)
         testerchain.time_travel(periods=1)
 
     mock_transacting_power_activation(account=staker, password=INSECURE_DEVELOPMENT_PASSWORD)

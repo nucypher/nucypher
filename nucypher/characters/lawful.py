@@ -1217,7 +1217,7 @@ class Ursula(Teacher, Character, Worker):
                 emitter.message(f"✓ Availability Checks", color='green')
 
         if worker and not self.federated_only:
-            self.work_tracker.start(act_now=True, requirement_func=self._availability_tracker.status)
+            self.work_tracker.start(act_now=True)  # requirement_func=self._availability_tracker.status)  # TODO: #2277
             if emitter:
                 emitter.message(f"✓ Work Tracking", color='green')
 

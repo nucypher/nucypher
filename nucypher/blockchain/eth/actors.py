@@ -1596,11 +1596,12 @@ class Worker(NucypherTokenActor):
         return period
 
     @only_me
-    @save_receipt
-    def commit_to_next_period(self) -> TxReceipt:
+    @save_receipt  # saves txhash instead of receipt if `fire_and_forget` is True
+    def commit_to_next_period(self, fire_and_forget: bool = True) -> TxReceipt:
         """For each period that the worker makes a commitment, the staker is rewarded"""
-        receipt = self.staking_agent.commit_to_next_period(worker_address=self.__worker_address)
-        return receipt
+        txhash_or_receipt = self.staking_agent.commit_to_next_period(worker_address=self.__worker_address,
+                                                                     fire_and_forget=fire_and_forget)
+        return txhash_or_receipt
 
     @property
     def missing_commitments(self) -> int:

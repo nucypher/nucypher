@@ -452,7 +452,7 @@ def commit_to_next_period(general_config, character_options, config_file):
 
     committed_period = URSULA.staking_agent.get_current_period() + 1
     click.echo(CONFIRMING_ACTIVITY_NOW.format(committed_period=committed_period), color='blue')
-    receipt = URSULA.commit_to_next_period()
+    receipt = URSULA.commit_to_next_period(fire_and_forget=False)
 
     economics = EconomicsFactory.get_economics(registry=URSULA.registry)
     date = datetime_at_period(period=committed_period, seconds_per_period=economics.seconds_per_period)

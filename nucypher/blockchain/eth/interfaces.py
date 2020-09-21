@@ -33,6 +33,7 @@ from eth_tester import EthereumTester
 from eth_tester.exceptions import TransactionFailed as TestTransactionFailed
 from eth_typing import ChecksumAddress
 from eth_utils import to_checksum_address
+from hexbytes.main import HexBytes
 from typing import Callable, NamedTuple, Tuple, Union
 from urllib.parse import urlparse
 from web3 import HTTPProvider, IPCProvider, Web3, WebsocketProvider, middleware
@@ -529,9 +530,18 @@ class BlockchainInterface:
     def sign_and_broadcast_transaction(self,
                                        transaction_dict,
                                        transaction_name: str = "",
-                                       confirmations: int = 0
-                                       ) -> dict:
+                                       confirmations: int = 0,
+                                       fire_and_forget: bool = False
+                                       ) -> Union[TxReceipt, HexBytes]:
+        """
+        Takes a transaction dictionary, signs it with the configured signer, then broadcasts the signed
+        transaction using the ethereum provider's eth_sendRawTransaction RPC endpoint.
+        Optionally blocks for receipt and confirmation with 'confirmations', and 'fire_and_forget' flags.
 
+        If 'fire and forget' is True this method returns the transaction hash only, without waiting for a receipt -
+        otherwise return the transaction receipt.
+
+        """
         #
         # Setup
         #
@@ -569,8 +579,11 @@ class BlockchainInterface:
                         color='yellow')
         try:
             txhash = self.client.send_raw_transaction(signed_raw_transaction)  # <--- BROADCAST
-        except (TestTransactionFailed, ValueError) as error:
-            raise  # TODO: Unify with Transaction failed handling
+        except (TestTransactionFailed, ValueError):
+            raise  # TODO: Unify with Transaction failed handling -- Entry point for _handle_failed_transaction
+        else:
+            if fire_and_forget:
+                return txhash
 
         #
         # Receipt
@@ -615,7 +628,8 @@ class BlockchainInterface:
                          sender_address: str,
                          payload: dict = None,
                          transaction_gas_limit: int = None,
-                         confirmations: int = 0
+                         confirmations: int = 0,
+                         fire_and_forget: bool = False
                          ) -> dict:
 
         transaction = self.build_contract_transaction(contract_function=contract_function,
@@ -629,10 +643,11 @@ class BlockchainInterface:
         except AttributeError:
             transaction_name = 'DEPLOY' if isinstance(contract_function, ContractConstructor) else 'UNKNOWN'
 
-        receipt = self.sign_and_broadcast_transaction(transaction_dict=transaction,
-                                                      transaction_name=transaction_name,
-                                                      confirmations=confirmations)
-        return receipt
+        txhash_or_receipt = self.sign_and_broadcast_transaction(transaction_dict=transaction,
+                                                                transaction_name=transaction_name,
+                                                                confirmations=confirmations,
+                                                                fire_and_forget=fire_and_forget)
+        return txhash_or_receipt
 
     def get_contract_by_name(self,
                              registry: BaseContractRegistry,

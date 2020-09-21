@@ -245,7 +245,8 @@ def test_refund(click_runner, testerchain, agency_local_registry, token_economic
 
     # Do some work
     for i in range(3):
-        receipt = worker.commit_to_next_period()
+        txhash = worker.commit_to_next_period()
+        testerchain.wait_for_receipt(txhash)
         assert receipt['status'] == 1
         testerchain.time_travel(periods=1)
 
