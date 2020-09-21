@@ -178,7 +178,8 @@ def test_commit_to_next_period(agency, testerchain, mock_transacting_power_activ
 
     mock_transacting_power_activation(account=worker_account, password=INSECURE_DEVELOPMENT_PASSWORD)
 
-    receipt = staking_agent.commit_to_next_period(worker_address=worker_account)
+    txhash = staking_agent.commit_to_next_period(worker_address=worker_account)
+    receipt = testerchain.wait_for_receipt(txhash)
     assert receipt['status'] == 1, "Transaction Rejected"
     assert receipt['logs'][0]['address'] == staking_agent.contract_address
 
@@ -305,7 +306,7 @@ def test_collect_staking_reward(agency, testerchain, mock_transacting_power_acti
     staker_account, worker_account, *other = testerchain.unassigned_accounts
 
     # Commit to next period
-    _receipt = staking_agent.commit_to_next_period(worker_address=worker_account)
+    staking_agent.commit_to_next_period(worker_address=worker_account)
     testerchain.time_travel(periods=2)
 
     mock_transacting_power_activation(account=staker_account, password=INSECURE_DEVELOPMENT_PASSWORD)

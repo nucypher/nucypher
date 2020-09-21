@@ -196,9 +196,9 @@ def test_collect_policy_fees(testerchain, agent, agency, token_economics, mock_t
                                           node_addresses=[agent.contract_address])
 
     mock_transacting_power_activation(account=worker, password=INSECURE_DEVELOPMENT_PASSWORD)
-    _receipt = staking_agent.commit_to_next_period(worker_address=worker)
+    staking_agent.commit_to_next_period(worker_address=worker)
     testerchain.time_travel(periods=2)
-    _receipt = staking_agent.commit_to_next_period(worker_address=worker)
+    staking_agent.commit_to_next_period(worker_address=worker)
 
     old_balance = testerchain.client.get_balance(account=agent.beneficiary)
 
