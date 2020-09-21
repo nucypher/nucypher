@@ -535,10 +535,10 @@ class BlockchainInterface:
                                        ) -> Union[TxReceipt, HexBytes]:
         """
         Takes a transaction dictionary, signs it with the configured signer, then broadcasts the signed
-        transaction the ethereum provider's eth_sendRawTransaction RPC endpoint.
+        transaction using the ethereum provider's eth_sendRawTransaction RPC endpoint.
         Optionally blocks for receipt and confirmation with 'confirmations', and 'fire_and_forget' flags.
 
-        If 'fire and forget' is True this method returns the transaction hash only -
+        If 'fire and forget' is True this method returns the transaction hash only, without waiting for a receipt -
         otherwise return the transaction receipt.
 
         """
