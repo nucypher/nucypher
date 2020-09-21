@@ -15,13 +15,17 @@ You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
+import os
 import pytest
 
 from nucypher.characters.lawful import Ursula
 from nucypher.config.storages import ForgetfulNodeStorage, NodeStorage, TemporaryFileBasedNodeStorage
+from nucypher.network.nodes import Learner
 
 from tests.constants import MOCK_URSULA_DB_FILEPATH
 from tests.utils.ursula import MOCK_URSULA_STARTING_PORT
+
+ADDITIONAL_NODES_TO_LEARN_ABOUT = 10
 
 
 class BaseTestNodeStorageBackends:
@@ -49,7 +53,7 @@ class BaseTestNodeStorageBackends:
 
         # Save more nodes
         all_known_nodes = set()
-        for port in range(MOCK_URSULA_STARTING_PORT, MOCK_URSULA_STARTING_PORT+100):
+        for port in range(MOCK_URSULA_STARTING_PORT, MOCK_URSULA_STARTING_PORT + ADDITIONAL_NODES_TO_LEARN_ABOUT):
             node = Ursula(rest_host='127.0.0.1', db_filepath=MOCK_URSULA_DB_FILEPATH, rest_port=port,
                           federated_only=True)
             node_storage.store_node_metadata(node=node)
@@ -58,7 +62,7 @@ class BaseTestNodeStorageBackends:
         # Read all nodes from storage
         all_stored_nodes = node_storage.all(federated_only=True)
         all_known_nodes.add(ursula)
-        assert len(all_known_nodes) == len(all_stored_nodes)
+        assert len(all_known_nodes) == len(all_stored_nodes) == 1 + ADDITIONAL_NODES_TO_LEARN_ABOUT
 
         known_checksums = sorted(n.checksum_address for n in all_known_nodes)
         stored_checksums = sorted(n.checksum_address for n in all_stored_nodes)
@@ -99,6 +103,7 @@ class BaseTestNodeStorageBackends:
 
     def test_read_and_write_to_storage(self, light_ursula):
         assert self._read_and_write_metadata(ursula=light_ursula, node_storage=self.storage_backend)
+        self.storage_backend.clear()
 
 
 class TestInMemoryNodeStorage(BaseTestNodeStorageBackends):
@@ -111,3 +116,32 @@ class TestTemporaryFileBasedNodeStorage(BaseTestNodeStorageBackends):
     storage_backend = TemporaryFileBasedNodeStorage(character_class=BaseTestNodeStorageBackends.character_class,
                                                     federated_only=BaseTestNodeStorageBackends.federated_only)
     storage_backend.initialize()
+
+    def test_invalid_metadata(self, light_ursula):
+        self._read_and_write_metadata(ursula=light_ursula, node_storage=self.storage_backend)
+        some_node, another_node, *other = os.listdir(self.storage_backend.metadata_dir)
+
+        # Let's break the metadata (but not the version)
+        metadata_path = os.path.join(self.storage_backend.metadata_dir, some_node)
+        with open(metadata_path, 'wb') as file:
+            file.write(Learner.LEARNER_VERSION.to_bytes(4, 'big') + b'invalid')
+
+        with pytest.raises(TemporaryFileBasedNodeStorage.InvalidNodeMetadata):
+            self.storage_backend.get(checksum_address=some_node[:-5],
+                                     federated_only=True,
+                                     certificate_only=False)
+
+        # Let's break the metadata, by putting a completely wrong version
+        metadata_path = os.path.join(self.storage_backend.metadata_dir, another_node)
+        with open(metadata_path, 'wb') as file:
+            file.write(b'meh')  # Versions are expected to be 4 bytes, but this is 3 bytes
+
+        with pytest.raises(TemporaryFileBasedNodeStorage.InvalidNodeMetadata):
+            self.storage_backend.get(checksum_address=another_node[:-5],
+                                     federated_only=True,
+                                     certificate_only=False)
+
+        # Since there are 2 broken metadata files, we should get 2 nodes less when reading all
+        restored_nodes = self.storage_backend.all(federated_only=True, certificates_only=False)
+        total_nodes = 1 + ADDITIONAL_NODES_TO_LEARN_ABOUT
+        assert total_nodes - 2 == len(restored_nodes)

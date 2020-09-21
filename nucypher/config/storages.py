@@ -15,7 +15,6 @@ You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
-import sqlite3
 from pathlib import Path
 
 import OpenSSL
@@ -23,6 +22,8 @@ import binascii
 import os
 import tempfile
 from abc import ABC, abstractmethod
+
+from bytestring_splitter import BytestringSplittingError
 from cryptography import x509
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives.serialization import Encoding
@@ -305,6 +306,9 @@ class LocalFileBasedNodeStorage(NodeStorage):
     class NoNodeMetadataFileFound(FileNotFoundError, NodeStorage.UnknownNode):
         pass
 
+    class InvalidNodeMetadata(NodeStorage.NodeStorageError):
+        """Node metadata is corrupt or not possible to parse"""
+
     def __init__(self,
                  config_root: str = None,
                  storage_root: str = None,
@@ -394,7 +398,7 @@ class LocalFileBasedNodeStorage(NodeStorage):
                                      self.__METADATA_FILENAME_TEMPLATE.format(checksum_address))
         return metadata_path
 
-    def __read_metadata(self, filepath: str, federated_only: bool):
+    def __read_metadata(self, filepath: str):
 
         from nucypher.characters.lawful import Ursula
 
@@ -402,9 +406,12 @@ class LocalFileBasedNodeStorage(NodeStorage):
             with open(filepath, "rb") as seed_file:
                 seed_file.seek(0)
                 node_bytes = self._decoder(seed_file.read())
-                node = Ursula.from_bytes(node_bytes)
+                node = Ursula.from_bytes(node_bytes, fail_fast=True)
         except FileNotFoundError:
-            raise self.UnknownNode
+            raise self.NoNodeMetadataFileFound
+        except (BytestringSplittingError, Ursula.UnexpectedVersion):
+            raise self.InvalidNodeMetadata
+
         return node
 
     def __write_metadata(self, filepath: str, node):
@@ -430,10 +437,18 @@ class LocalFileBasedNodeStorage(NodeStorage):
 
         else:
             known_nodes = set()
+            invalid_metadata = []
             for filename in filenames:
                 metadata_path = os.path.join(self.metadata_dir, filename)
-                node = self.__read_metadata(filepath=metadata_path, federated_only=federated_only)  # TODO: 466
-                known_nodes.add(node)
+                try:
+                    node = self.__read_metadata(filepath=metadata_path)
+                except self.NodeStorageError:
+                    invalid_metadata.append(filename)
+                else:
+                    known_nodes.add(node)
+
+            if invalid_metadata:
+                self.log.warn(f"Couldn't read metadata at {metadata_path} for the following files: {invalid_metadata}")
             return known_nodes
 
     @validate_checksum_address
@@ -442,7 +457,7 @@ class LocalFileBasedNodeStorage(NodeStorage):
             certificate = self.__read_tls_public_certificate(checksum_address=checksum_address)
             return certificate
         metadata_path = self.__generate_metadata_filepath(checksum_address=checksum_address)
-        node = self.__read_metadata(filepath=metadata_path, federated_only=federated_only)  # TODO: 466
+        node = self.__read_metadata(filepath=metadata_path)
         return node
 
     def store_node_certificate(self, certificate: Certificate, force: bool = True):
