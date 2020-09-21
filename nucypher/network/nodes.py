@@ -48,7 +48,7 @@ from nucypher.blockchain.eth.constants import NULL_ADDRESS
 from nucypher.blockchain.eth.registry import BaseContractRegistry
 from nucypher.config.constants import SeednodeMetadata
 from nucypher.config.storages import ForgetfulNodeStorage
-from nucypher.crypto.api import recover_address_eip_191, verify_eip_191
+from nucypher.crypto.api import recover_address_eip_191, verify_eip_191, InvalidNodeCertificate
 from nucypher.crypto.kits import UmbralMessageKit
 from nucypher.crypto.powers import DecryptingPower, NoSigningPower, SigningPower, TransactingPower
 from nucypher.crypto.signing import signature_splitter

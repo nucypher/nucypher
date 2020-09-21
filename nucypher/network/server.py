@@ -30,6 +30,7 @@ from umbral.kfrags import KFrag
 from web3.exceptions import TimeExhausted
 
 import nucypher
+from crypto.api import InvalidNodeCertificate
 from nucypher.config.constants import MAX_UPLOAD_CONTENT_LENGTH
 from nucypher.config.storages import ForgetfulNodeStorage
 from nucypher.crypto.keypairs import HostingKeypair
