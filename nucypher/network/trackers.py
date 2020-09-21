@@ -22,7 +22,7 @@ from twisted.internet import reactor
 from twisted.internet.task import LoopingCall
 from typing import Union
 
-from crypto.api import InvalidNodeCertificate
+from nucypher.crypto.api import InvalidNodeCertificate
 from nucypher.network.exceptions import NodeSeemsToBeDown
 from nucypher.network.middleware import RestMiddleware
 from nucypher.network.nodes import NodeSprout
