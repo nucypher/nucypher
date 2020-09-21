@@ -643,11 +643,11 @@ class BlockchainInterface:
         except AttributeError:
             transaction_name = 'DEPLOY' if isinstance(contract_function, ContractConstructor) else 'UNKNOWN'
 
-        receipt = self.sign_and_broadcast_transaction(transaction_dict=transaction,
-                                                      transaction_name=transaction_name,
-                                                      confirmations=confirmations,
-                                                      fire_and_forget=fire_and_forget)
-        return receipt
+        txhash_or_receipt = self.sign_and_broadcast_transaction(transaction_dict=transaction,
+                                                                transaction_name=transaction_name,
+                                                                confirmations=confirmations,
+                                                                fire_and_forget=fire_and_forget)
+        return txhash_or_receipt
 
     def get_contract_by_name(self,
                              registry: BaseContractRegistry,
