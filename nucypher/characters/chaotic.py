@@ -353,7 +353,7 @@ class Felix(Character, NucypherTokenActor):
             transaction_dict = self.blockchain.build_payload(sender_address=self.checksum_address,
                                                              payload=transaction,
                                                              transaction_gas_limit=22000)
-            _receipt = self.blockchain.sign_and_broadcast_transaction(transaction_dict=transaction_dict, transaction_name='transfer')
+            _receipt = self.blockchain.sign_and_broadcast_transaction(transaction_dict=transaction_dict, contract_function='transfer')
             self.log.info(f"Disbursement #{self.__disbursement} OK | NU {txhash.hex()[-6:]}"
                           f"({str(NU(disbursement, 'NuNit'))} + {self.ETHER_AIRDROP_AMOUNT} wei) -> {recipient_address}")
         else:

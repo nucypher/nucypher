@@ -30,6 +30,7 @@ from constant_sorrow.constants import (
     UNKNOWN_TX_STATUS
 )
 from eth_tester.exceptions import TransactionFailed as TestTransactionFailed
+from eth_tester.exceptions import TransactionFailed as Web3TransactionFailed
 from eth_typing import ChecksumAddress
 from eth_utils import to_checksum_address
 from hexbytes.main import HexBytes
@@ -105,14 +106,15 @@ class BlockchainInterface:
         INSUFFICIENT_ETH: 'insufficient funds for gas * price + value',
     }
 
-    class TransactionFailed(InterfaceError):
+    class TransactionFailed(InterfaceError, Web3TransactionFailed):
 
-        IPC_CODE = -32000  # (geth)
+        RPC_CODE = -32000  # (geth)
 
         def __init__(self,
                      message: str,
                      transaction_dict: dict,
                      contract_function: Union[ContractFunction, ContractConstructor, str],
+                     reason: Exception = None,
                      *args):
 
             self.base_message = message
@@ -123,7 +125,14 @@ class BlockchainInterface:
             self.failures = {
                 BlockchainInterface.REASONS[INSUFFICIENT_ETH]: self.insufficient_eth
             }
-            self.message = self.failures.get(self.base_message, self.default)
+            if reason:
+                try:
+                    self.message = f"{reason.__class__.__name__}({reason.args[0]})"
+                except IndexError:
+                    self.message = self.default
+            else:
+                self.message = self.failures.get(self.base_message, self.default)
+
             super().__init__(self.message, *args)
 
         @property
@@ -142,10 +151,14 @@ class BlockchainInterface:
 
         @property
         def insufficient_eth(self) -> str:
-            gas = (self.payload.get('gas', 1) * self.payload['gasPrice'])  # FIXME: If gas is not included...
+            try:
+                gas = (self.payload.get('gas', 1) * self.payload['gasPrice'])
+            except KeyError:
+                gas = 0
             cost = gas + self.payload.get('value', 0)
-            message = f'{self.payload} from {self.payload["from"][:8]} - {self.base_message}.' \
-                      f'Calculated cost is {cost} but sender only has {self.get_balance()}.'
+            message = f'{self.payload} from {self.payload["from"][:8]} - {self.base_message}.'
+            if cost > 0:
+                message += f'Calculated cost is at least {cost} but sender only has {self.get_balance()}.'
             return message
 
     def __init__(self,
@@ -427,7 +440,8 @@ class BlockchainInterface:
                                    contract_function: Union[ContractFunction, ContractConstructor],
                                    exception: Exception = TransactionFailed,
                                    message: str = None,
-                                   logger: Logger = None
+                                   logger: Logger = None,
+                                   rpc: bool = False
                                    ) -> None:
         """
         Re-raising error handler and context manager for contract transaction signing, broadcast or
@@ -435,30 +449,37 @@ class BlockchainInterface:
         against unhandled exceptions caused by transaction failures and must raise an exception.
         # TODO: #1504 - Additional Handling of validation failures (gas limits, invalid fields, etc.)
         """
-        if exception:
+        if rpc:
             try:
                 # Assume this error is formatted as an IPC response
                 code, message = exception.args[0].values()
-
             except (ValueError, IndexError, AttributeError) as e:
                 # TODO: #1504 - Try even harder to determine if this is insufficient funds causing the issue,
                 #               This may be best handled at the agent or actor layer for registry and token interactions.
                 # Worst case scenario - raise the exception held in context implicitly
                 raise exception from e
-
             else:
-                if int(code) != cls.TransactionFailed.IPC_CODE:
+                if int(code) != cls.TransactionFailed.RPC_CODE:
                     # Only handle client-specific exceptions
                     # https://www.jsonrpc.org/specification Section 5.1
                     raise exception
-                logger.critical(message)                     # simple context
+                logger.critical(message)                      # simple context
                 raise cls.TransactionFailed(message=message,  # rich error (best case)
                                             contract_function=contract_function,
                                             transaction_dict=transaction_dict)
         else:
-            raise cls.TransactionFailed(message=message,  # rich error (best case)
-                                        contract_function=contract_function,
-                                        transaction_dict=transaction_dict)
+            try:
+                error = exception.args[-1]  # in case of multiple errors, use the last one
+            except TypeError as e:  # not subscriptable
+                raise cls.TransactionFailed(message=message,
+                                            reason=e,
+                                            contract_function=contract_function,
+                                            transaction_dict=transaction_dict)
+            else:
+                raise cls.TransactionFailed(message=message,  # rich error (best case)
+                                            contract_function=contract_function,
+                                            transaction_dict=transaction_dict,
+                                            reason=error)
 
     def __log_transaction(self, transaction_dict: dict, contract_function: ContractFunction):
         """
@@ -528,7 +549,7 @@ class BlockchainInterface:
 
     def sign_and_broadcast_transaction(self,
                                        transaction_dict,
-                                       transaction_name: str = "",
+                                       contract_function = None,
                                        confirmations: int = 0,
                                        fire_and_forget: bool = False
                                        ) -> Union[TxReceipt, HexBytes]:
@@ -565,7 +586,7 @@ class BlockchainInterface:
         cost = Web3.fromWei(cost_wei, 'ether')
 
         if self.transacting_power.is_device:
-            emitter.message(f'Confirm transaction {transaction_name} on hardware wallet... '
+            emitter.message(f'Confirm transaction {contract_function} on hardware wallet... '
                             f'({cost} ETH @ {price_gwei} gwei)',
                             color='yellow')
         signed_raw_transaction = self.transacting_power.sign_transaction(transaction_dict)
@@ -574,7 +595,7 @@ class BlockchainInterface:
         # Broadcast
         #
 
-        emitter.message(f'Broadcasting {transaction_name} Transaction ({cost} ETH @ {price_gwei} gwei)...',
+        emitter.message(f'Broadcasting {contract_function} Transaction ({cost} ETH @ {price_gwei} gwei)...',
                         color='yellow')
         try:
             txhash = self.client.send_raw_transaction(signed_raw_transaction)  # <--- BROADCAST
@@ -594,7 +615,7 @@ class BlockchainInterface:
             # TODO: #1504 - Handle transaction timeout
             raise
         else:
-            self.log.debug(f"[RECEIPT-{transaction_name}] | txhash: {receipt['transactionHash'].hex()}")
+            self.log.debug(f"[RECEIPT-{contract_function}] | txhash: {receipt['transactionHash'].hex()}")
 
         #
         # Confirmations
@@ -606,8 +627,8 @@ class BlockchainInterface:
             failure = f"Transaction transmitted, but receipt returned status code 0. " \
                       f"Full receipt: \n {pprint.pformat(receipt, indent=2)}"
             raise self._handle_failed_transaction(transaction_dict=transaction_dict,
-                                                  message=failure,
-                                                  contract_function=transaction_name)
+                                                  contract_function=contract_function,
+                                                  message=failure)
 
         if transaction_status is UNKNOWN_TX_STATUS:
             self.log.info(f"Unknown transaction status for {txhash} (receipt did not contain a status field)")
@@ -648,7 +669,7 @@ class BlockchainInterface:
             transaction_name = 'DEPLOY' if isinstance(contract_function, ContractConstructor) else 'UNKNOWN'
 
         txhash_or_receipt = self.sign_and_broadcast_transaction(transaction_dict=transaction,
-                                                                transaction_name=transaction_name,
+                                                                contract_function=contract_function,  # for error handling
                                                                 confirmations=confirmations,
                                                                 fire_and_forget=fire_and_forget)
         return txhash_or_receipt
