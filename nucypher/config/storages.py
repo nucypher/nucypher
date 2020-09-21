@@ -288,11 +288,9 @@ class ForgetfulNodeStorage(NodeStorage):
             raise cls.NodeStorageError
         return cls(*args, **kwargs)
 
-    def initialize(self) -> bool:
-        """Returns True if initialization was successful"""
+    def initialize(self):
         self.__metadata = dict()
         self.__certificates = dict()
-        return not bool(self.__metadata or self.__certificates)
 
 
 class LocalFileBasedNodeStorage(NodeStorage):
@@ -526,7 +524,7 @@ class LocalFileBasedNodeStorage(NodeStorage):
 
         return cls(*args, **payload, **kwargs)
 
-    def initialize(self) -> bool:
+    def initialize(self):
         storage_dirs = (self.root_dir, self.metadata_dir, self.certificates_dir)
         for storage_dir in storage_dirs:
             try:
@@ -536,8 +534,6 @@ class LocalFileBasedNodeStorage(NodeStorage):
                 self.log.info(message)
             except FileNotFoundError:
                 raise self.NodeStorageError("There is no existing configuration at {}".format(self.root_dir))
-
-        return bool(all(map(os.path.isdir, (self.root_dir, self.metadata_dir, self.certificates_dir))))
 
 
 class TemporaryFileBasedNodeStorage(LocalFileBasedNodeStorage):
@@ -559,7 +555,7 @@ class TemporaryFileBasedNodeStorage(LocalFileBasedNodeStorage):
     #         shutil.rmtree(self.__temp_metadata_dir, ignore_errors=True)
     #         shutil.rmtree(self.__temp_certificates_dir, ignore_errors=True)
 
-    def initialize(self) -> bool:
+    def initialize(self):
         # Root
         self.__temp_root_dir = tempfile.mkdtemp(prefix="nucypher-tmp-nodes-")
         self.root_dir = self.__temp_root_dir
@@ -571,5 +567,3 @@ class TemporaryFileBasedNodeStorage(LocalFileBasedNodeStorage):
         # Certificates
         self.__temp_certificates_dir = str(Path(self.__temp_root_dir) / "certs")
         self.certificates_dir = self.__temp_certificates_dir
-
-        return all(map(os.path.isdir, (self.root_dir, self.metadata_dir, self.certificates_dir)))
