@@ -103,3 +103,25 @@ def test_state_is_recorded_after_learning(federated_ursulas, lonely_ursula_maker
 
     assert len(states[0].nodes) == 2  # The first fleet state is just us and the one about whom we learned, which is part of the fleet.
     assert len(states[1].nodes) == len(federated_ursulas) + 1  # When we ran learn_from_teacher_node, we also loaded the rest of the fleet.
+
+
+def test_teacher_records_new_fleet_state_upon_hearing_about_new_node(federated_ursulas, lonely_ursula_maker):
+    _lonely_ursula_maker = partial(lonely_ursula_maker, quantity=1)
+    lonely_learner = _lonely_ursula_maker().pop()
+
+    some_ursula_in_the_fleet = list(federated_ursulas)[0]
+    lonely_learner.remember_node(some_ursula_in_the_fleet)
+
+
+    teacher_states_before = list(some_ursula_in_the_fleet.known_nodes.states.values())
+    lonely_learner.learn_from_teacher_node()
+    teacher_states_after = list(some_ursula_in_the_fleet.known_nodes.states.values())
+
+    # We added one fleet state.
+    len(teacher_states_after) == len(teacher_states_before) + 1
+
+    # The current fleet state of the Teacher...
+    teacher_fleet_state_checksum = some_ursula_in_the_fleet.fleet_state_checksum
+
+    # ...is the same as the learner, because both have learned about everybody at this point.
+    teacher_fleet_state_checksum in lonely_learner.known_nodes.states
