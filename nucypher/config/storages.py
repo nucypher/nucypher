@@ -448,7 +448,7 @@ class LocalFileBasedNodeStorage(NodeStorage):
                     known_nodes.add(node)
 
             if invalid_metadata:
-                self.log.warn(f"Couldn't read metadata at {metadata_path} for the following files: {invalid_metadata}")
+                self.log.warn(f"Couldn't read metadata in {self.metadata_dir} for the following files: {invalid_metadata}")
             return known_nodes
 
     @validate_checksum_address
@@ -543,7 +543,6 @@ class TemporaryFileBasedNodeStorage(LocalFileBasedNodeStorage):
         self.__temp_metadata_dir = None
         self.__temp_certificates_dir = None
         self.__temp_root_dir = None
-        self.initialize()
         super().__init__(metadata_dir=self.__temp_metadata_dir,
                          certificates_dir=self.__temp_certificates_dir,
                          storage_root=self.__temp_root_dir,
