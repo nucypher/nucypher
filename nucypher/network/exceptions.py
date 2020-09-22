@@ -23,3 +23,39 @@ NodeSeemsToBeDown = (requests.exceptions.ConnectionError,
                      requests.exceptions.ConnectTimeout,
                      socket.gaierror,
                      ConnectionRefusedError)
+
+
+
+class TreasureMapReceptionException(BaseException):
+        status_code = NotImplemented
+        msg = NotImplemented
+        log_message = NotImplemented
+
+
+class TreasureMapReceptionExceptions:
+
+
+    class InvalidTreasureMapSignature(TreasureMapReceptionException):
+
+        status_code = 401
+        msg = "This TreasureMap's HRAC is not properly signed."
+        log_message = "Bad TreasureMap HRAC Signature; not storing {}"
+
+    class AlreadyHaveThisTreasureMap(TreasureMapReceptionException):
+
+        status_code = 303
+        msg = "Already have this map."
+        log_message = None
+
+    class TreasureMapAddressMismatch(TreasureMapReceptionException):
+
+        status_code = 409
+        msg = "Can't save a TreasureMap with this ID from you.", 409
+        log_message = None
+
+
+    class TreasureMapBadID(TreasureMapReceptionException):
+
+        status_code = 402
+        log_message = "Bad TreasureMap ID; not storing {}"
+        msg = "This TreasureMap doesn't match a paid Policy."

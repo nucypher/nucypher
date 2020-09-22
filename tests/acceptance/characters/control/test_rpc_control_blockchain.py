@@ -142,3 +142,21 @@ def test_alice_rpc_character_control_grant(alice_rpc_test_client, grant_control_
     assert validate_json_rpc_response_data(response=response,
                                            method_name=method_name,
                                            interface=AliceInterface)
+
+
+def test_ursula_stores_treasuremap(enacted_blockchain_policy, blockchain_bob, blockchain_ursulas):
+
+    if not blockchain_bob.done_seeding:
+        blockchain_bob.learn_from_teacher_node()
+
+    treasure_map_index = bytes.fromhex(enacted_blockchain_policy.treasure_map.public_id())
+
+    for node in blockchain_ursulas:
+        response, code = node.receive_treasure_map(enacted_blockchain_policy.treasure_map.public_id(), bytes(enacted_blockchain_policy.treasure_map))
+        print (response, code)
+    found = 0
+    for node in blockchain_ursulas:
+        treasure_map_as_set_on_network = node.treasure_maps[treasure_map_index]
+        assert treasure_map_as_set_on_network == enacted_blockchain_policy.treasure_map
+        found += 1
+    assert found

@@ -132,3 +132,18 @@ def test_alice_does_not_update_with_old_ursula_info(federated_alice, federated_u
 
     new_metadata = bytes(federated_alice.known_nodes[ursula.checksum_address])
     assert new_metadata != old_metadata
+
+def test_ursula_stores_federated_treasuremap(enacted_federated_policy, federated_ursulas):
+
+    # enacted_federated_policy.publish_treasure_map(network_middleware=MockRestMiddleware())
+    treasure_map_index = bytes.fromhex(enacted_federated_policy.treasure_map.public_id())
+
+    for node in enacted_federated_policy.bob.matching_nodes_among(enacted_federated_policy.alice.known_nodes):
+        node.receive_treasure_map(enacted_federated_policy.treasure_map.public_id(), bytes(enacted_federated_policy.treasure_map))
+
+    found = 0
+    for node in enacted_federated_policy.bob.matching_nodes_among(enacted_federated_policy.alice.known_nodes):
+        treasure_map_as_set_on_network = node.treasure_maps[treasure_map_index]
+        assert treasure_map_as_set_on_network == enacted_federated_policy.treasure_map
+        found += 1
+    assert found

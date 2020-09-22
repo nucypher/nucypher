@@ -42,7 +42,7 @@ from nucypher.crypto.utils import canonical_address_from_umbral_key
 from nucypher.datastore.datastore import Datastore, RecordNotFound, DatastoreTransactionError
 from nucypher.datastore.models import PolicyArrangement, TreasureMap, Workorder
 from nucypher.network import LEARNING_LOOP_VERSION
-from nucypher.network.exceptions import NodeSeemsToBeDown
+from nucypher.network.exceptions import NodeSeemsToBeDown, TreasureMapReceptionException
 from nucypher.network.protocols import InterfaceInfo
 from nucypher.utilities.logging import Logger
 
