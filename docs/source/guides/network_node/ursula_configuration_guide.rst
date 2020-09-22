@@ -55,7 +55,7 @@ power requirements listed above.
 Configure and Run a Worker
 --------------------------
 
-This guide assumes that you already have nucypher installed, have initiated a stake, and bonded a worker.
+This guide assumes that you already have ``nucypher`` installed, have initiated a stake, and bonded a worker.
 
 Working Procedure:
 
