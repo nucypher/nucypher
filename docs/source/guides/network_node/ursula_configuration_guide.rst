@@ -26,7 +26,7 @@ Aside from the :ref:`base requirements <base-requirements>` for installation of 
 * 4GB RAM (minimum)
 * 2 CPUs (minimum) - x86 architecture
 * HDD storage requirement grows with network size - information on each node requires ~2KB of storage
-* Static public IP address - NAT management where applicable
+* Public IP address - NAT management where applicable
 * TCP Port 9151 opened for network communication - firewall rules where applicable
 * Access to a fully synced Ethereum web3 provider e.g. local node, Infura, Alchemy etc. (see :ref:`using-eth-node`) is
   required to read and write to smart contracts
