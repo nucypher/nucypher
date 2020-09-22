@@ -21,22 +21,28 @@ account for any reason.
 Worker Requirements
 -------------------
 
+In order to be a successful Ursula operator, you will need a machine (physical or virtual) which is kept
+online. As a frame of reference, maintaining an Ursula is similar to the deployment and maintenance of a
+high-availability web service, with the addition of Ethereum accounts management. The worker must be tolerant
+of internet connectivity problems, and power outages via a redundant power supply. However, short temporary
+service disruptions such as upgrades are understandable.
+
 Aside from the :ref:`base requirements <base-requirements>` for installation of the ``nucypher`` library:
 
-* 4GB RAM (minimum)
-* 2 CPUs (minimum) - x86 architecture
-* HDD storage requirement grows with network size - information on each node requires ~2KB of storage
-* Public IP address - NAT management where applicable
+* Dedicated physical/virtual machine
+* Physical or SSH access
+* 2GB RAM (minimum)
+* x86 architecture
+* 20GB HDD free storage - backups are required since data loss results in a malfunctioning worker
+* Publicly available IP address - static where possible, NAT management where applicable
 * TCP Port 9151 opened for network communication - firewall rules where applicable
 * Access to a fully synced Ethereum web3 provider e.g. local node, Infura, Alchemy etc. (see :ref:`using-eth-node`) is
   required to read and write to smart contracts
 
-As a frame of reference, maintaining an Ursula is similar to the deployment and maintenance of a
-high-availability web service, with the addition of ethereum accounts management.
+..
+    TODO: separate section on backups and data (#2285)
 
-In order to be a successful Ursula operator, you will need a machine (physical or virtual) which
-can be kept online and ready to perform cryptographic operations for the network. However, short
-temporary service disruptions such as upgrades are understandable. Cloud setups are acceptable – for example,
+Workers can be run on cloud infrastructure – for example,
 `Digital Ocean 4GB Basic Droplet <https://www.digitalocean.com/pricing/>`_ satisfies the memory and processing
 power requirements listed above.
 
