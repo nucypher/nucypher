@@ -15,16 +15,21 @@ You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 import os
+import time
+
 from eth_tester import EthereumTester, PyEVMBackend
 from eth_tester.backends.mock.main import MockBackend
-from typing import Union
+from typing import Union, Callable
 from urllib.parse import urlparse
 from web3 import HTTPProvider, IPCProvider, WebsocketProvider
 from web3.exceptions import InfuraKeyNotFound
+from web3.providers import BaseProvider
 from web3.providers.eth_tester.main import EthereumTesterProvider
+from web3.types import RPCResponse, RPCError
 
 from nucypher.blockchain.eth.clients import NuCypherGethDevProcess
 from nucypher.exceptions import DevelopmentInstallationRequired
+from nucypher.utilities.logging import Logger
 
 
 class ProviderError(Exception):
@@ -41,11 +46,17 @@ def _get_IPC_provider(provider_uri):
 
 def _get_HTTP_provider(provider_uri):
     from nucypher.blockchain.eth.interfaces import BlockchainInterface
+    if 'alchemyapi.io' in provider_uri:
+        return AlchemyHTTPProvider(endpoint_uri=provider_uri, request_kwargs={'timeout': BlockchainInterface.TIMEOUT})
+
     return HTTPProvider(endpoint_uri=provider_uri, request_kwargs={'timeout': BlockchainInterface.TIMEOUT})
 
 
 def _get_websocket_provider(provider_uri):
     from nucypher.blockchain.eth.interfaces import BlockchainInterface
+    if 'alchemyapi.io' in provider_uri:
+        return AlchemyWebsocketProvider(endpoint_uri=provider_uri,
+                                        websocket_kwargs={'timeout': BlockchainInterface.TIMEOUT})
     return WebsocketProvider(endpoint_uri=provider_uri, websocket_kwargs={'timeout': BlockchainInterface.TIMEOUT})
 
 
@@ -140,3 +151,77 @@ def _get_test_geth_parity_provider(provider_uri):
 def _get_tester_ganache(provider_uri=None):
     endpoint_uri = provider_uri or 'http://localhost:7545'
     return HTTPProvider(endpoint_uri=endpoint_uri)
+
+
+def make_rpc_request_with_retry(provider: BaseProvider,
+                                should_retry: Callable[[RPCResponse], bool],
+                                logger: Logger = None,
+                                num_retries: int = 3,
+                                exponential_backoff: bool = True,
+                                *args,
+                                **kwargs) -> RPCResponse:
+    response = provider.make_request(*args, **kwargs)
+    if should_retry(response):
+        # make additional retries with exponential back-off
+        retries = 1
+        while True:
+            if exponential_backoff:
+                time.sleep(2 ** retries)  # exponential back-off
+
+            response = provider.make_request(*args, **kwargs)
+            if not should_retry(response):
+                if logger:
+                    logger.debug(f'Retried alchemy request completed after {retries} request')
+                break
+
+            if retries >= num_retries:
+                if logger:
+                    logger.warn(f'Alchemy request retried {num_retries} times but was not completed')
+                break
+
+            retries += 1
+
+    return response
+
+
+# Alchemy specific code
+def _alchemy_should_retry_request(response: RPCResponse) -> bool:
+    error = response.get('error')
+    if error:
+        # see see https://docs.alchemyapi.io/guides/rate-limits#test-rate-limits-retries
+        # either instance of RPCError or str
+        if isinstance(error, str) and 'retries' in error:
+            return True
+        else:  # RPCError TypeDict
+            if error.get('code') == 429 or 'retries' in error.get('message'):
+                return True
+
+    return False
+
+
+class AlchemyHTTPProvider(HTTPProvider):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.log = Logger(self.__class__.__name__)
+
+    def make_request(self, *args, **kwargs) -> RPCResponse:
+        response = make_rpc_request_with_retry(provider=super(),
+                                               should_retry=_alchemy_should_retry_request,
+                                               logger=self.log,
+                                               *args,
+                                               **kwargs)
+        return response
+
+
+class AlchemyWebsocketProvider(WebsocketProvider):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.log = Logger(self.__class__.__name__)
+
+    def make_request(self, *args, **kwargs) -> RPCResponse:
+        response = make_rpc_request_with_retry(provider=super(),
+                                               should_retry=_alchemy_should_retry_request,
+                                               logger=self.log,
+                                               *args,
+                                               **kwargs)
+        return response

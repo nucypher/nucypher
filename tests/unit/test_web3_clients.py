@@ -16,15 +16,17 @@
 """
 
 import datetime
-from unittest.mock import PropertyMock
+from unittest.mock import Mock, PropertyMock
 
+import maya
 import pytest
 from web3 import HTTPProvider, IPCProvider, WebsocketProvider
+from web3.types import RPCResponse, RPCError
 
 from nucypher.blockchain.eth.clients import (EthereumClient, GanacheClient, GethClient, InfuraClient, PUBLIC_CHAINS,
                                              ParityClient)
 from nucypher.blockchain.eth.interfaces import BlockchainInterface
-from tests.mock.interfaces import MockEthereumClient
+from nucypher.blockchain.eth.providers import make_rpc_request_with_retry, _alchemy_should_retry_request
 
 DEFAULT_GAS_PRICE = 42
 GAS_PRICE_FROM_STRATEGY = 1234
@@ -346,3 +348,66 @@ def test_gas_prices(mocker, mock_ethereum_client):
     assert mock_ethereum_client.gas_price == DEFAULT_GAS_PRICE
     assert mock_ethereum_client.gas_price_for_transaction("there's no gas strategy") == DEFAULT_GAS_PRICE
     assert mock_ethereum_client.gas_price_for_transaction("2nd time is the charm") == GAS_PRICE_FROM_STRATEGY
+
+
+def test_alchemy_rpc_request_with_retry():
+    retries = 4
+
+    # Retry Case - RPCResponse fails due to limits, and retry required
+    retry_responses = [
+        RPCResponse(error=RPCError(code=-32000,
+                                   message='Your app has exceeded its compute units per second capacity. If you have '
+                                           'retries enabled, you can safely ignore this message. If not, '
+                                           'check out https://docs.alchemyapi.io/guides/rate-limits')),
+        RPCResponse(error=RPCError(code=429, message='Too many concurrent requests')),
+        RPCResponse(error='Your app has exceeded its compute units per second capacity. If you have retries enabled, '
+                          'you can safely ignore this message. If not, '
+                          'check out https://docs.alchemyapi.io/guides/rate-limits')
+    ]
+    for test_response in retry_responses:
+        provider = Mock()
+        provider.make_request.return_value = test_response
+        retry_response = make_rpc_request_with_retry(provider,
+                                                     should_retry=_alchemy_should_retry_request,
+                                                     logger=None,
+                                                     num_retries=retries,
+                                                     exponential_backoff=False)  # disable exponential backoff
+        assert retry_response == test_response
+        assert provider.make_request.call_count == (retries + 1)   # one call, and then the number of retries
+
+
+def test_alchemy_rpc_request_success_with_no_retry():
+    # Success Case - retry not needed
+    provider = Mock()
+    successful_response = RPCResponse(id=0, result='0xa1c054')
+    provider.make_request.return_value = successful_response
+    retry_response = make_rpc_request_with_retry(provider,
+                                                 should_retry=_alchemy_should_retry_request,
+                                                 logger=None,
+                                                 num_retries=10,
+                                                 exponential_backoff=False)  # disable exponential backoff
+    assert retry_response == successful_response
+    assert provider.make_request.call_count == 1  # first request was successful, no need for retries
+
+
+# TODO - since this test does exponential backoff it takes >= 2^1 = 2s, should we only run on circleci?
+def test_alchemy_rpc_request_with_retry_exponential_backoff():
+    retries = 1
+    provider = Mock()
+
+    # Retry Case - RPCResponse fails due to limits, and retry required
+    test_response = RPCResponse(error=RPCError(code=429, message='Too many concurrent requests'))
+    provider.make_request.return_value = test_response
+    start = maya.now()
+    retry_response = make_rpc_request_with_retry(provider,
+                                                 should_retry=_alchemy_should_retry_request,
+                                                 logger=None,
+                                                 num_retries=retries,
+                                                 exponential_backoff=True)  # enable exponential backoff
+    end = maya.now()
+    assert retry_response == test_response
+    assert provider.make_request.call_count == (retries + 1)  # one call, and then the number of retries
+
+    # check exponential backoff
+    delta = end - start
+    assert delta.total_seconds() >= 2**retries
