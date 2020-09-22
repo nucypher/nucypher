@@ -32,11 +32,8 @@ contract WorkLockPoolingContract is InitializableStakingContract, Ownable {
 
     struct Delegator {
         uint256 depositedTokens;
-
         uint256 withdrawnReward;
         uint256 withdrawnETH;
-
-        uint256 paidETH;
 
         uint256 depositedETHWorkLock;
         uint256 refundedETHWorkLock;
@@ -215,7 +212,10 @@ contract WorkLockPoolingContract is InitializableStakingContract, Ownable {
             maxAllowableReward = reward;
         }
 
-        return maxAllowableReward.sub(workerWithdrawnReward);
+        if (maxAllowableReward > workerWithdrawnReward) {
+            return maxAllowableReward - workerWithdrawnReward;
+        }
+        return 0;
     }
 
     /**
@@ -266,7 +266,7 @@ contract WorkLockPoolingContract is InitializableStakingContract, Ownable {
     }
 
     /**
-     * @notice Withdraw amount of tokens to delegator
+     * @notice Withdraw reward to delegator
      * @param _value Amount of tokens to withdraw
      */
     function withdrawTokens(uint256 _value) public override {
@@ -278,42 +278,59 @@ contract WorkLockPoolingContract is InitializableStakingContract, Ownable {
 
         uint256 availableReward = getAvailableReward(msg.sender);
 
-        require(
-            _value <= availableReward + delegator.depositedTokens,
-            "Requested amount of tokens exceeded allowed portion"
-        );
-
-        if (_value <= availableReward) {
-            delegator.withdrawnReward += _value;
-            totalWithdrawnReward += _value;
-        } else {
-            delegator.withdrawnReward = delegator.withdrawnReward.add(
-                availableReward
-            );
-            totalWithdrawnReward = totalWithdrawnReward.add(availableReward);
-
-            uint256 depositToWithdraw = _value - availableReward;
-            uint256 newDepositedTokens = delegator.depositedTokens -
-                depositToWithdraw;
-            uint256 newWithdrawnReward = delegator
-                .withdrawnReward
-                .mul(newDepositedTokens)
-                .div(delegator.depositedTokens);
-            uint256 newWithdrawnETH = delegator
-                .withdrawnETH
-                .mul(newDepositedTokens)
-                .div(delegator.depositedTokens);
-            totalDepositedTokens -= depositToWithdraw;
-            totalWithdrawnReward -= (delegator.withdrawnReward -
-                newWithdrawnReward);
-            totalWithdrawnETH -= (delegator.withdrawnETH - newWithdrawnETH);
-            delegator.depositedTokens = newDepositedTokens;
-            delegator.withdrawnReward = newWithdrawnReward;
-            delegator.withdrawnETH = newWithdrawnETH;
-        }
+        require( _value <= availableReward, "Requested amount of tokens exceeded allowed portion");
+        delegator.withdrawnReward += _value;
+        totalWithdrawnReward += _value;
 
         token.safeTransfer(msg.sender, _value);
         emit TokensWithdrawn(msg.sender, _value, delegator.depositedTokens);
+    }
+
+    /**
+     * @notice Withdraw reward, deposit and fee to delegator
+     */
+    function withdrawAll() public {
+        uint256 balance = token.balanceOf(address(this));
+
+        Delegator storage delegator = delegators[msg.sender];
+        calculateAndSaveTokensAmount(delegator);
+
+        uint256 availableReward = getAvailableReward(msg.sender);
+        uint256 value = availableReward + delegator.depositedTokens;
+        require(value <= balance, "Not enough tokens in the contract");
+
+        // TODO remove double reading
+        uint256 availableWorkerReward = getAvailableWorkerReward();
+
+        // potentially could be less then due reward
+        uint256 availableETH = getAvailableETH(msg.sender);
+
+        // prevent losing reward for worker after calculations
+        uint256 workerReward = availableWorkerReward.mul(delegator.depositedTokens).div(totalDepositedTokens);
+        if (workerReward > 0) {
+            require(value + workerReward <= balance, "Not enough tokens in the contract");
+            token.safeTransfer(workerOwner, workerReward);
+            emit TokensWithdrawn(workerOwner, workerReward, 0);
+        }
+
+        uint256 withdrawnToDecrease = workerWithdrawnReward.mul(delegator.depositedTokens).div(totalDepositedTokens);
+
+        workerWithdrawnReward = workerWithdrawnReward.sub(withdrawnToDecrease);
+        totalWithdrawnReward = totalWithdrawnReward.sub(withdrawnToDecrease).sub(delegator.withdrawnReward);
+        totalDepositedTokens = totalDepositedTokens.sub(delegator.depositedTokens);
+
+        delegator.withdrawnReward = 0;
+        delegator.depositedTokens = 0;
+
+        token.safeTransfer(msg.sender, value);
+        emit TokensWithdrawn(msg.sender, value, 0);
+
+        totalWithdrawnETH = totalWithdrawnETH.sub(delegator.withdrawnETH);
+        delegator.withdrawnETH = 0;
+        if (availableETH > 0) {
+            msg.sender.sendValue(availableETH);
+            emit ETHWithdrawn(msg.sender, availableETH);
+        }
     }
 
     /**
