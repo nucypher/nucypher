@@ -99,14 +99,17 @@ class UrsulaInfoMetricsCollector(BaseMetricsCollector):
             "learning_status": Enum(f'{metrics_prefix}_node_discovery', 'Learning loop status',
                                     states=['starting', 'running', 'stopped'], registry=registry),
             "known_nodes_gauge": Gauge(f'{metrics_prefix}_known_nodes',
-                                       'Number of currently known nodes',
-                                       registry=registry),
+                                        'Number of currently known nodes',
+                                        registry=registry),
             "work_orders_gauge": Gauge(f'{metrics_prefix}_work_orders',
-                                       'Number of accepted work orders',
-                                       registry=registry),
+                                        'Number of accepted work orders',
+                                        registry=registry),
             "policies_held_gauge": Gauge(f'{metrics_prefix}_policies_held',
-                                         'Policies held',
-                                         registry=registry),
+                                        'Policies held',
+                                        registry=registry),
+            "availability_score_gauge": Gauge(f'{metrics_prefix}_availability_score',
+                                        'Availability score',
+                                        registry=registry),
         }
 
     def _collect_internal(self) -> None:
@@ -121,6 +124,10 @@ class UrsulaInfoMetricsCollector(BaseMetricsCollector):
 
         self.metrics["learning_status"].state('running' if self.ursula._learning_task.running else 'stopped')
         self.metrics["known_nodes_gauge"].set(len(self.ursula.known_nodes))
+        if self.ursula._availability_tracker and self.ursula._availability_tracker.running:
+            self.metrics["availability_score_gauge"].set(self.ursula._availability_tracker.score)
+        else:
+            self.metrics["availability_score_gauge"].set(-1)
         try:
             with self.ursula.datastore.query_by(Workorder) as work_orders:
                 self.metrics["work_orders_gauge"].set(len(work_orders))
