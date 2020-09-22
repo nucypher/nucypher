@@ -18,13 +18,14 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 import binascii
 import os
 import uuid
+import weakref
 from bytestring_splitter import BytestringSplitter
 from constant_sorrow import constants
 from constant_sorrow.constants import FLEET_STATES_MATCH, NO_BLOCKCHAIN_CONNECTION, NO_KNOWN_NODES
 from flask import Flask, Response, jsonify, request
 from hendrix.experience import crosstown_traffic
 from jinja2 import Template, TemplateError
-from typing import Tuple
+from typing import Tuple, Set
 from umbral.keys import UmbralPublicKey
 from umbral.kfrags import KFrag
 from web3.exceptions import TimeExhausted
@@ -36,7 +37,7 @@ from nucypher.crypto.kits import UmbralMessageKit
 from nucypher.crypto.powers import KeyPairBasedPower, PowerUpError
 from nucypher.crypto.signing import InvalidSignature
 from nucypher.crypto.utils import canonical_address_from_umbral_key
-from nucypher.datastore.datastore import RecordNotFound, DatastoreTransactionError
+from nucypher.datastore.datastore import Datastore, RecordNotFound, DatastoreTransactionError
 from nucypher.datastore.keypairs import HostingKeypair
 from nucypher.datastore.models import PolicyArrangement, Workorder
 from nucypher.network import LEARNING_LOOP_VERSION
@@ -80,16 +81,31 @@ class ProxyRESTServer:
 def make_rest_app(
         db_filepath: str,
         this_node,
-        serving_domains,
-        log=Logger("http-application-layer")
-        ) -> Tuple:
+        serving_domains: Set[str],
+        log: Logger=Logger("http-application-layer")
+        ) -> Tuple[Flask, Datastore]:
+    """
+    Creates a REST application and an associated ``Datastore`` object.
+    Note that the REST app **does not** hold a reference to the datastore;
+    it is your responsibility to ensure it lives for as long as the app does.
+    """
 
-    forgetful_node_storage = ForgetfulNodeStorage(federated_only=this_node.federated_only)
-
-    from nucypher.datastore import datastore
+    # A trampoline function for the real REST app,
+    # to ensure that a reference to the node and the datastore object is not held by the app closure.
+    # One would think that it's enough to only remove a reference to the node,
+    # but `rest_app` somehow holds a reference to itself, Uroboros-like,
+    # and will hold the datastore reference if it is created there.
 
     log.info("Starting datastore {}".format(db_filepath))
-    datastore = datastore.Datastore(db_filepath)
+    datastore = Datastore(db_filepath)
+    rest_app = _make_rest_app(weakref.proxy(datastore), weakref.proxy(this_node), serving_domains, log)
+
+    return rest_app, datastore
+
+
+def _make_rest_app(datastore: Datastore, this_node, serving_domains: Set[str], log: Logger) -> Tuple[Flask, Datastore]:
+
+    forgetful_node_storage = ForgetfulNodeStorage(federated_only=this_node.federated_only)
 
     from nucypher.characters.lawful import Alice, Ursula
     _alice_class = Alice
@@ -406,7 +422,7 @@ def make_rest_app(
                 raise TemplateError(str(e)) from e
             return Response(response=content, headers=headers)
 
-    return rest_app, datastore
+    return rest_app
 
 
 class TLSHostingPower(KeyPairBasedPower):
