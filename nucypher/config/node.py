@@ -436,8 +436,9 @@ class CharacterConfiguration(BaseConfiguration):
         """Exported dynamic configuration values for initializing Ursula"""
         payload = dict()
         if not self.federated_only:
-            payload.update(dict(registry=self.registry,
-                                signer=Signer.from_signer_uri(self.signer_uri)))
+            testnet = NetworksInventory.MAINNET not in self.domains  # TODO: use equality, not membership after blue oyster mushrooms
+            signer = Signer.from_signer_uri(self.signer_uri, testnet=testnet)
+            payload.update(dict(registry=self.registry, signer=signer))
 
         payload.update(dict(network_middleware=self.network_middleware or self.DEFAULT_NETWORK_MIDDLEWARE(),
                             known_nodes=self.known_nodes,

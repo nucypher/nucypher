@@ -104,7 +104,7 @@ def test_ursula_and_local_keystore_signer_integration(click_runner,
 
     # Good signer...
     mock_signer_uri = f'keystore:{mock_keystore_path}'
-    pre_config_signer = KeystoreSigner.from_signer_uri(uri=mock_signer_uri)
+    pre_config_signer = KeystoreSigner.from_signer_uri(uri=mock_signer_uri, testnet=True)
     assert worker_account.address in pre_config_signer.accounts
 
     deploy_port = select_test_port()

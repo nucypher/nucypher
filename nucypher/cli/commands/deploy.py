@@ -203,8 +203,10 @@ class ActorOptions:
             eth_password_is_needed = not self.hw_wallet and not deployer_interface.client.is_local and not is_clef
             if eth_password_is_needed:
                 password = get_client_password(checksum_address=deployer_address)
+
         # Produce Actor
-        signer = Signer.from_signer_uri(self.signer_uri) if self.signer_uri else None
+        testnet = deployer_interface.client.chain_name != NetworksInventory.MAINNET
+        signer = Signer.from_signer_uri(self.signer_uri, testnet=testnet) if self.signer_uri else None
         ADMINISTRATOR = ContractAdministrator(registry=local_registry,
                                               client_password=password,
                                               deployer_address=deployer_address,

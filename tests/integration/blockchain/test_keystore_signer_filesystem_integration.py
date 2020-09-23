@@ -88,25 +88,25 @@ def unknown_address():
 
 def test_invalid_keystore(tmp_path):
     with pytest.raises(Signer.InvalidSignerURI) as e:
-        Signer.from_signer_uri(uri=f'keystore:{tmp_path/"nonexistent"}')
+        Signer.from_signer_uri(uri=f'keystore:{tmp_path/"nonexistent"}', testnet=True)
 
     empty_path = tmp_path / 'empty_file'
     open(empty_path, 'x+t').close()
     with pytest.raises(KeystoreSigner.InvalidKeyfile, match=
         'Invalid JSON in keyfile at') as e:
-        Signer.from_signer_uri(uri=f'keystore:{empty_path}')
+        Signer.from_signer_uri(uri=f'keystore:{empty_path}', testnet=True)
 
     empty_json = tmp_path / 'empty_json'
     json.dump({}, open(empty_json, 'x+t'))
     with pytest.raises(KeystoreSigner.InvalidKeyfile, match=
         'Keyfile does not contain address field at') as e:
-        Signer.from_signer_uri(uri=f'keystore:{empty_json}')
+        Signer.from_signer_uri(uri=f'keystore:{empty_json}', testnet=True)
 
     bad_address = tmp_path / 'bad_address'
     json.dump({'address':''}, open(bad_address, 'x+t'))
     with pytest.raises(KeystoreSigner.InvalidKeyfile, match=
         'does not contain a valid ethereum address') as e:
-        Signer.from_signer_uri(uri=f'keystore:{bad_address}')
+        Signer.from_signer_uri(uri=f'keystore:{bad_address}', testnet=True)
 
 
 def test_signer_reads_keystore_from_disk(mock_account, mock_key, tmpdir):
@@ -127,7 +127,7 @@ def test_signer_reads_keystore_from_disk(mock_account, mock_key, tmpdir):
             fake_keyfile.write(json.dumps(MOCK_KEYFILE))
 
         mock_keystore_uri = f'keystore://{tmp_keystore}'
-        signer = Signer.from_signer_uri(uri=mock_keystore_uri)
+        signer = Signer.from_signer_uri(uri=mock_keystore_uri, testnet=True)
 
         assert signer.path == str(tmp_keystore)
         assert len(signer.accounts) == 1
@@ -143,7 +143,7 @@ def test_create_signer_from_keystore_directory(mock_account, mock_keystore):
     mock_keystore_uri = f'keystore:{mock_keystore_path}'
 
     # Return a "real" account address from the keyfile
-    signer = Signer.from_signer_uri(uri=mock_keystore_uri)  # type: KeystoreSigner
+    signer = Signer.from_signer_uri(uri=mock_keystore_uri, testnet=True)  # type: KeystoreSigner
     assert signer.path == str(mock_keystore_path)
     assert len(signer.accounts) == 1
     assert mock_account.address in signer.accounts
@@ -154,7 +154,7 @@ def test_create_signer_from_keystore_file(mock_account, mock_keystore):
     mock_keystore_uri = f'keystore:{mock_keystore_path}'
 
     # Return a "real" account address from the keyfile
-    signer = Signer.from_signer_uri(uri=mock_keystore_uri)  # type: KeystoreSigner
+    signer = Signer.from_signer_uri(uri=mock_keystore_uri, testnet=True)  # type: KeystoreSigner
     assert signer.path == str(mock_keystore_path)
     assert len(signer.accounts) == 1
     assert mock_account.address in signer.accounts

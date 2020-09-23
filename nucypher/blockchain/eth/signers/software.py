@@ -49,7 +49,7 @@ class Web3Signer(Signer):
         return NotImplemented  # web3 signer uses a "passthrough" scheme
 
     @classmethod
-    def from_signer_uri(cls, uri: str) -> 'Web3Signer':
+    def from_signer_uri(cls, uri: str, testnet: bool = False) -> 'Web3Signer':
         from nucypher.blockchain.eth.interfaces import BlockchainInterface, BlockchainInterfaceFactory
         try:
             blockchain = BlockchainInterfaceFactory.get_or_create_interface(provider_uri=uri)
@@ -117,10 +117,14 @@ class ClefSigner(Signer):
 
     TIMEOUT = 60  # Default timeout for Clef of 60 seconds
 
-    def __init__(self, ipc_path: str = DEFAULT_IPC_PATH, timeout: int = TIMEOUT):
+    def __init__(self,
+                 ipc_path: str = DEFAULT_IPC_PATH,
+                 timeout: int = TIMEOUT,
+                 testnet: bool = False):
         super().__init__()
         self.w3 = Web3(provider=IPCProvider(ipc_path=ipc_path, timeout=timeout))  # TODO: Unify with clients or build error handling
         self.ipc_path = ipc_path
+        self.testnet = testnet
 
     @classmethod
     def uri_scheme(cls) -> str:
@@ -142,13 +146,13 @@ class ClefSigner(Signer):
         return uri_breakdown.scheme == cls.uri_scheme()
 
     @classmethod
-    def from_signer_uri(cls, uri: str) -> 'ClefSigner':
+    def from_signer_uri(cls, uri: str, testnet: bool = False) -> 'ClefSigner':
         uri_breakdown = urlparse(uri)
         if not uri_breakdown.path and not uri_breakdown.netloc:
             raise cls.InvalidSignerURI('Blank signer URI - No keystore path provided')
         if uri_breakdown.scheme != cls.uri_scheme():
             raise cls.InvalidSignerURI(f"{uri} is not a valid clef signer URI.")
-        signer = cls(ipc_path=uri_breakdown.path)
+        signer = cls(ipc_path=uri_breakdown.path, testnet=testnet)
         return signer
 
     def is_connected(self) -> bool:
@@ -238,12 +242,13 @@ class KeystoreSigner(Signer):
         Keystore must be in the geth wallet format.
         """
 
-    def __init__(self, path: str):
+    def __init__(self, path: str, testnet: bool = False):
         super().__init__()
         self.__path = path
         self.__keys = dict()
         self.__signers = dict()
         self.__read_keystore(path=path)
+        self.testnet = testnet
 
     def __del__(self):
         # TODO: Might need a finally block or exception context handling
@@ -328,12 +333,12 @@ class KeystoreSigner(Signer):
         return self.__path
 
     @classmethod
-    def from_signer_uri(cls, uri: str) -> 'Signer':
+    def from_signer_uri(cls, uri: str, testnet: bool = False) -> 'Signer':
         """Return a keystore signer from URI string i.e. keystore:///my/path/keystore """
         decoded_uri = urlparse(uri)
         if decoded_uri.scheme != cls.uri_scheme() or decoded_uri.netloc:
             raise cls.InvalidSignerURI(uri)
-        return cls(path=decoded_uri.path)
+        return cls(path=decoded_uri.path, testnet=testnet)
 
     @validate_checksum_address
     def is_device(self, account: str) -> bool:

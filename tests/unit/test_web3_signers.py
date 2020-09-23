@@ -48,7 +48,7 @@ def mock_account():
 
 def test_blank_keystore_uri():
     with pytest.raises(Signer.InvalidSignerURI, match='Blank signer URI - No keystore path provided') as error:
-        Signer.from_signer_uri(uri='keystore://')  # it's blank!
+        Signer.from_signer_uri(uri='keystore://', testnet=True)  # it's blank!
 
 
 def test_trezor_transaction_format():
@@ -82,14 +82,14 @@ def mock_trezor(mocker, mock_account):
             return mock_account.address
 
     mocker.patch.object(signers.hardware, 'get_default_client', return_value=FakeTrezorClient())
-    mocker.patch.object(TrezorSigner, '_TrezorSigner__get_address', return_value=mock_account.address)
+    mocker.patch.object(TrezorSigner, '_TrezorSigner__derive_account', return_value=mock_account.address)
     mocker.patch.object(TrezorSigner, '_TrezorSigner__sign_transaction', return_value=FakeTrezorClient.faked_vrs)
 
 
 def test_trezor_signer_uri(mock_trezor):
-    signer = Signer.from_signer_uri(uri='trezor')
+    signer = Signer.from_signer_uri(uri='trezor', testnet=False)  # TODO: test derivation for testnet SLIP44
     assert isinstance(signer, TrezorSigner)
-    assert signer.DERIVATION_ROOT == "44'/60'/0'/0"
+    assert signer._DERIVATION_ROOT == "44'/60'/0'/0"
     assert len(signer.accounts) == 1
 
     # TODO: #2269 Support "rich URIs" for trezors

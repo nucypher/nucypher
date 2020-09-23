@@ -55,7 +55,7 @@ class Signer(ABC):
         return NotImplemented
 
     @classmethod
-    def from_signer_uri(cls, uri: str) -> 'Signer':
+    def from_signer_uri(cls, uri: str, testnet: bool = False) -> 'Signer':
         parsed = urlparse(uri)
         scheme = parsed.scheme if parsed.scheme else parsed.path
         try:
@@ -70,7 +70,7 @@ class Signer(ABC):
                 message = f'{uri} is not a valid signer URI.  Available schemes: {", ".join(cls._SIGNERS)}'
                 raise cls.InvalidSignerURI(message)
             return signer
-        signer = signer_class.from_signer_uri(uri=uri)
+        signer = signer_class.from_signer_uri(uri=uri, testnet=testnet)
         return signer
 
     @abstractmethod
