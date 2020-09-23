@@ -68,7 +68,6 @@ class TrezorSigner(Signer):
     _COIN_TYPE = None  # set in __init__
     _CHAIN_ID = 0
     _DEFAULT_ACCOUNT = 0
-    _DERIVATION_ROOT = f"{__BIP_44}'/{__ETH_COIN_TYPE}'/{_DEFAULT_ACCOUNT}'/{_CHAIN_ID}"
 
     # Cache
     DEFAULT_ACCOUNT_INDEX = 0
@@ -81,24 +80,27 @@ class TrezorSigner(Signer):
         """Raised when an operation requires a device but none are available"""
 
     def __init__(self, testnet: bool = False):
-
         self.__client = self._open()
         self._device_id = self.__client.get_device_id()
-
-        # SLIP44 testnet support for EIP-155 sigatures
-        # TODO: there is no way to change this back to mainnet
-        self.testnet = testnet
-        TrezorSigner._COIN_TYPE = self.__TESTNET_COIN_TYPE if self.testnet else self.__ETH_COIN_TYPE
-
+        self.testnet = testnet     # SLIP44 testnet support for EIP-155 sigatures
         self.__addresses = dict()  # track derived addresses
         self.__cache_addresses()
+
+    @property
+    def derivation_root(self) -> str:
+        # m/44'/60'/0'/0/x  Mainnet
+        # m/44'/1'/0'/0/x   Testnet
+        coin_type = self.__TESTNET_COIN_TYPE if self.testnet else self.__ETH_COIN_TYPE
+        path = f"{self.__BIP_44}'/{coin_type}'/{self._DEFAULT_ACCOUNT}'/{self._CHAIN_ID}"
+        return path
 
     @handle_trezor_call
     def _open(self) -> TrezorClient:
         try:
             client = get_default_client()
         except TransportException:
-            raise self.NoDeviceDetected("Could not find a TREZOR device to connect to. Have you unlocked it?")
+            raise self.NoDeviceDetected("Could not find a TREZOR device to connect to."
+                                        "Is it connected and unlocked?")
         return client
 
     @classmethod
@@ -114,7 +116,7 @@ class TrezorSigner(Signer):
         if index is not None and checksum_address:
             raise ValueError("Expected index or checksum address; Got both.")
         elif index is not None:
-            hd_path = parse_path(f"{self._DERIVATION_ROOT}/{index}")
+            hd_path = parse_path(f"{self.derivation_root}/{index}")
         else:
             try:
                 hd_path = self.__addresses[checksum_address]

@@ -87,10 +87,17 @@ def mock_trezor(mocker, mock_account):
 
 
 def test_trezor_signer_uri(mock_trezor):
-    signer = Signer.from_signer_uri(uri='trezor', testnet=False)  # TODO: test derivation for testnet SLIP44
+    signer = Signer.from_signer_uri(uri='trezor', testnet=False)
     assert isinstance(signer, TrezorSigner)
-    assert signer._DERIVATION_ROOT == "44'/60'/0'/0"
+    assert signer.derivation_root == "44'/60'/0'/0"
     assert len(signer.accounts) == 1
+    del signer
+
+    signer = Signer.from_signer_uri(uri='trezor', testnet=True)
+    assert isinstance(signer, TrezorSigner)
+    assert signer.derivation_root == "44'/1'/0'/0"
+    assert len(signer.accounts) == 1
+    del signer
 
     # TODO: #2269 Support "rich URIs" for trezors
     # simple = 'trezor'
