@@ -154,14 +154,14 @@ def _get_tester_ganache(provider_uri=None):
 
 
 def make_rpc_request_with_retry(provider: BaseProvider,
-                                should_retry: Callable[[RPCResponse], bool],
+                                is_retry_response: Callable[[RPCResponse], bool],
                                 logger: Logger = None,
                                 num_retries: int = 3,
                                 exponential_backoff: bool = True,
                                 *args,
                                 **kwargs) -> RPCResponse:
     response = provider.make_request(*args, **kwargs)
-    if should_retry(response):
+    if is_retry_response(response):
         # make additional retries with exponential back-off
         retries = 1
         while True:
@@ -169,7 +169,7 @@ def make_rpc_request_with_retry(provider: BaseProvider,
                 time.sleep(2 ** retries)  # exponential back-off
 
             response = provider.make_request(*args, **kwargs)
-            if not should_retry(response):
+            if not is_retry_response(response):
                 if logger:
                     logger.debug(f'Retried alchemy request completed after {retries} request')
                 break
@@ -185,7 +185,7 @@ def make_rpc_request_with_retry(provider: BaseProvider,
 
 
 # Alchemy specific code
-def _alchemy_should_retry_request(response: RPCResponse) -> bool:
+def _is_alchemy_retry_response(response: RPCResponse) -> bool:
     error = response.get('error')
     if error:
         # see see https://docs.alchemyapi.io/guides/rate-limits#test-rate-limits-retries
@@ -206,7 +206,7 @@ class AlchemyHTTPProvider(HTTPProvider):
 
     def make_request(self, *args, **kwargs) -> RPCResponse:
         response = make_rpc_request_with_retry(provider=super(),
-                                               should_retry=_alchemy_should_retry_request,
+                                               is_retry_response=_is_alchemy_retry_response,
                                                logger=self.log,
                                                *args,
                                                **kwargs)
@@ -220,7 +220,7 @@ class AlchemyWebsocketProvider(WebsocketProvider):
 
     def make_request(self, *args, **kwargs) -> RPCResponse:
         response = make_rpc_request_with_retry(provider=super(),
-                                               should_retry=_alchemy_should_retry_request,
+                                               is_retry_response=_is_alchemy_retry_response,
                                                logger=self.log,
                                                *args,
                                                **kwargs)

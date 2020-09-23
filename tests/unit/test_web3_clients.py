@@ -26,7 +26,7 @@ from web3.types import RPCResponse, RPCError
 from nucypher.blockchain.eth.clients import (EthereumClient, GanacheClient, GethClient, InfuraClient, PUBLIC_CHAINS,
                                              ParityClient)
 from nucypher.blockchain.eth.interfaces import BlockchainInterface
-from nucypher.blockchain.eth.providers import make_rpc_request_with_retry, _alchemy_should_retry_request
+from nucypher.blockchain.eth.providers import make_rpc_request_with_retry, _is_alchemy_retry_response
 
 DEFAULT_GAS_PRICE = 42
 GAS_PRICE_FROM_STRATEGY = 1234
@@ -368,7 +368,7 @@ def test_alchemy_rpc_request_with_retry():
         provider = Mock()
         provider.make_request.return_value = test_response
         retry_response = make_rpc_request_with_retry(provider,
-                                                     should_retry=_alchemy_should_retry_request,
+                                                     is_retry_response=_is_alchemy_retry_response,
                                                      logger=None,
                                                      num_retries=retries,
                                                      exponential_backoff=False)  # disable exponential backoff
@@ -382,7 +382,7 @@ def test_alchemy_rpc_request_success_with_no_retry():
     successful_response = RPCResponse(id=0, result='0xa1c054')
     provider.make_request.return_value = successful_response
     retry_response = make_rpc_request_with_retry(provider,
-                                                 should_retry=_alchemy_should_retry_request,
+                                                 is_retry_response=_is_alchemy_retry_response,
                                                  logger=None,
                                                  num_retries=10,
                                                  exponential_backoff=False)  # disable exponential backoff
@@ -400,7 +400,7 @@ def test_alchemy_rpc_request_with_retry_exponential_backoff():
     provider.make_request.return_value = test_response
     start = maya.now()
     retry_response = make_rpc_request_with_retry(provider,
-                                                 should_retry=_alchemy_should_retry_request,
+                                                 is_retry_response=_is_alchemy_retry_response,
                                                  logger=None,
                                                  num_retries=retries,
                                                  exponential_backoff=True)  # enable exponential backoff
