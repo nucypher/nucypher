@@ -41,7 +41,12 @@ import nucypher
 from bytestring_splitter import BytestringKwargifier, BytestringSplitter, BytestringSplittingError, \
     VariableLengthBytestring
 from constant_sorrow import constants
-from constant_sorrow.constants import INCLUDED_IN_BYTESTRING, PUBLIC_ONLY, STRANGER_ALICE, UNKNOWN_VERSION, READY
+from constant_sorrow.constants import (INCLUDED_IN_BYTESTRING,
+                                       PUBLIC_ONLY,
+                                       STRANGER_ALICE,
+                                       UNKNOWN_VERSION,
+                                       READY,
+                                       INVALIDATED)
 from nucypher.acumen.nicknames import nickname_from_seed
 from nucypher.acumen.perception import FleetSensor
 from nucypher.blockchain.eth.actors import BlockchainPolicyAuthor, Worker
@@ -1278,6 +1283,20 @@ class Ursula(Teacher, Character, Worker):
                 self._arrangement_pruning_task.stop()
         if halt_reactor:
             reactor.stop()
+
+    def _finalize(self):
+        """
+        Cleans up Ursula from objects that may eat up system resources.
+        Useful for testing purposes, where many Ursulas are created and destroyed,
+        and references to them may persist for too long.
+        This method is not needed if all references to the Ursula are released.
+
+        **Warning:** invalidates the Ursula.
+        """
+
+        # `rest_server` holds references to the datastore (directly and via `rest_app`).
+        # An open datastore hogs up file descriptors.
+        self.rest_server = INVALIDATED
 
     def rest_information(self):
         hosting_power = self._crypto_power.power_ups(TLSHostingPower)

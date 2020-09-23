@@ -180,6 +180,7 @@ def check_character_state_after_test(request):
                 offending_tests.add(learner._FOR_TEST)
                 try:  # TODO: Deal with stop vs disenchant.  Currently stop is only for Ursula.
                     learner.stop()
+                    learner._finalize()
                 except AttributeError:
                     learner.disenchant()
             pytest.fail(f"Learners remaining: {still_running}.  Offending tests: {offending_tests} ")

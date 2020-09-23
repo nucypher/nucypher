@@ -390,6 +390,11 @@ def federated_ursulas(ursula_federated_test_config):
 
     for u in _ursulas:
         u.stop()
+        u._finalize()
+
+    # Pytest will hold on to this object, need to clear it manually.
+    # See https://github.com/pytest-dev/pytest/issues/5642
+    _ursulas.clear()
 
 
 @pytest.fixture(scope="function")
@@ -411,6 +416,8 @@ def lonely_ursula_maker(ursula_federated_test_config):
                 ursula.stop()
             for ursula in self._made:
                 del MOCK_KNOWN_URSULAS_CACHE[ursula.rest_interface.port]
+            for ursula in self._made:
+                ursula._finalize()
     _maker = _PartialUrsulaMaker()
     yield _maker
     _maker.clean()
@@ -697,6 +704,14 @@ def blockchain_ursulas(testerchain, stakers, ursula_decentralized_test_config):
 
     for port in _ports_to_remove:
         del MOCK_KNOWN_URSULAS_CACHE[port]
+
+    for u in _ursulas:
+        u.stop()
+        u._finalize()
+
+    # Pytest will hold on to this object, need to clear it manually.
+    # See https://github.com/pytest-dev/pytest/issues/5642
+    _ursulas.clear()
 
 
 @pytest.fixture(scope="module")
