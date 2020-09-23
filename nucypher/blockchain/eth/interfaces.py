@@ -29,18 +29,18 @@ from constant_sorrow.constants import (
     READ_ONLY_INTERFACE,
     UNKNOWN_TX_STATUS
 )
-from eth_tester import EthereumTester
 from eth_tester.exceptions import TransactionFailed as TestTransactionFailed
 from eth_typing import ChecksumAddress
 from eth_utils import to_checksum_address
 from hexbytes.main import HexBytes
 from typing import Callable, NamedTuple, Tuple, Union
 from urllib.parse import urlparse
-from web3 import HTTPProvider, IPCProvider, Web3, WebsocketProvider, middleware
+from web3 import Web3, middleware
 from web3.contract import Contract, ContractConstructor, ContractFunction
 from web3.exceptions import TimeExhausted, ValidationError
 from web3.gas_strategies import time_based
 from web3.middleware import geth_poa_middleware
+from web3.providers import BaseProvider
 from web3.types import TxReceipt
 
 from nucypher.blockchain.eth.clients import EthereumClient, POA_CHAINS, InfuraClient
@@ -61,8 +61,6 @@ from nucypher.blockchain.eth.utils import get_transaction_name, prettify_eth_amo
 from nucypher.characters.control.emitters import JSONRPCStdoutEmitter, StdoutEmitter
 from nucypher.utilities.logging import GlobalLoggerSettings, Logger
 from nucypher.utilities.datafeeds import datafeed_fallback_gas_price_strategy
-
-Web3Providers = Union[IPCProvider, WebsocketProvider, HTTPProvider, EthereumTester]
 
 
 class VersionedContract(Contract):
@@ -156,7 +154,7 @@ class BlockchainInterface:
                  light: bool = False,
                  provider_process=NO_PROVIDER_PROCESS,
                  provider_uri: str = NO_BLOCKCHAIN_CONNECTION,
-                 provider: Web3Providers = NO_BLOCKCHAIN_CONNECTION,
+                 provider: BaseProvider = NO_BLOCKCHAIN_CONNECTION,
                  gas_strategy: Union[str, Callable] = DEFAULT_GAS_STRATEGY):
 
         """
@@ -370,11 +368,11 @@ class BlockchainInterface:
         return
 
     @property
-    def provider(self) -> Union[IPCProvider, WebsocketProvider, HTTPProvider]:
+    def provider(self) -> BaseProvider:
         return self._provider
 
     def _attach_provider(self,
-                         provider: Web3Providers = None,
+                         provider: BaseProvider = None,
                          provider_uri: str = None) -> None:
         """
         https://web3py.readthedocs.io/en/latest/providers.html#providers
