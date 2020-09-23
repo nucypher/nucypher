@@ -82,6 +82,7 @@ def mock_trezor(mocker, mock_account):
             return mock_account.address
 
     mocker.patch.object(signers.hardware, 'get_default_client', return_value=FakeTrezorClient())
+    mocker.patch.object(TrezorSigner, '_open')
     mocker.patch.object(TrezorSigner, '_TrezorSigner__derive_account', return_value=mock_account.address)
     mocker.patch.object(TrezorSigner, '_TrezorSigner__sign_transaction', return_value=FakeTrezorClient.faked_vrs)
 
