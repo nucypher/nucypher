@@ -105,8 +105,6 @@ def make_rest_app(
 
 def _make_rest_app(datastore: Datastore, this_node, serving_domain: str, log: Logger) -> Flask:
 
-    forgetful_node_storage = ForgetfulNodeStorage(federated_only=this_node.federated_only)  # FIXME: Seems unused
-
     from nucypher.characters.lawful import Alice, Ursula
     _alice_class = Alice
     _node_class = Ursula
