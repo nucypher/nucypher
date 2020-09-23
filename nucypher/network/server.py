@@ -103,7 +103,7 @@ def make_rest_app(
     return rest_app, datastore
 
 
-def _make_rest_app(datastore: Datastore, this_node, serving_domain: str, log: Logger) -> Tuple[Flask, Datastore]:
+def _make_rest_app(datastore: Datastore, this_node, serving_domain: str, log: Logger) -> Flask:
 
     forgetful_node_storage = ForgetfulNodeStorage(federated_only=this_node.federated_only)  # FIXME: Seems unused
 
