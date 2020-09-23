@@ -263,7 +263,7 @@ class SignedTreasureMap(TreasureMap):
                                     )
 
     def include_blockchain_signature(self, blockchain_signer):
-        self._blockchain_signature = blockchain_signer(super().__bytes__())
+        self._blockchain_signature = blockchain_signer(self._payload)
 
     def verify_blockchain_signature(self, checksum_address):
         self._set_payload()
