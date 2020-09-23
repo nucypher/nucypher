@@ -173,3 +173,20 @@ def test_blockchain_ursulas_reencrypt(blockchain_ursulas, blockchain_alice, bloc
                                          n=n,
                                          expiration=expiration,
                                          value=policy_value)
+
+
+def test_blockchain_ursula_stores_treasuremap(enacted_blockchain_policy, blockchain_bob, blockchain_ursulas):
+
+    if not blockchain_bob.done_seeding:
+        blockchain_bob.learn_from_teacher_node()
+
+    treasure_map_index = bytes.fromhex(enacted_blockchain_policy.treasure_map.public_id())
+
+    for node in blockchain_ursulas:
+        node.receive_treasure_map(enacted_blockchain_policy.treasure_map.public_id(), bytes(enacted_blockchain_policy.treasure_map))
+    found = 0
+    for node in blockchain_ursulas:
+        treasure_map_as_set_on_network = node.treasure_maps[treasure_map_index]
+        assert treasure_map_as_set_on_network == enacted_blockchain_policy.treasure_map
+        found += 1
+    assert found
