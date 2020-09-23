@@ -27,6 +27,7 @@ contract WorkLockPoolingContract is InitializableStakingContract, Ownable {
     );
     event ETHWithdrawn(address indexed sender, uint256 value);
     event DepositSet(address indexed sender, bool value);
+    event Bid(address indexed sender, uint256 depositedETH);
     event Claimed(address indexed sender, uint256 claimedTokens);
     event Refund(address indexed sender, uint256 refundETH);
 
@@ -115,40 +116,49 @@ contract WorkLockPoolingContract is InitializableStakingContract, Ownable {
         require(_value > 0, "Value must be not empty");
         totalDepositedTokens = totalDepositedTokens.add(_value);
         Delegator storage delegator = delegators[msg.sender];
-        delegator.depositedTokens += _value;
+        delegator.depositedTokens = delegator.depositedTokens.add(_value);
         token.safeTransferFrom(msg.sender, address(this), _value);
         emit TokensDeposited(msg.sender, _value, delegator.depositedTokens);
     }
 
     /**
-     * @notice delagetor can transfer ETH to directly workLock
+     * @notice Delegator can transfer ETH directly to workLock
      */
     function escrowETH() external payable {
         Delegator storage delegator = delegators[msg.sender];
         delegator.depositedETHWorkLock = delegator.depositedETHWorkLock.add(msg.value);
         totalWorkLockETHReceived = totalWorkLockETHReceived.add(msg.value);
         workLock.bid{value: msg.value}();
+        emit Bid(msg.sender, msg.value);
     }
 
     /**
      * @dev Hide method from StakingInterface
      */
-    function bid(uint256 _value) public payable {}
+    function bid(uint256) public payable {
+        revert();
+    }
 
     /**
      * @dev Hide method from StakingInterface
      */
-    function withdrawCompensation() public {}
+    function withdrawCompensation() public pure {
+        revert();
+    }
 
     /**
      * @dev Hide method from StakingInterface
      */
-    function cancelBid() public {}
+    function cancelBid() public pure {
+        revert();
+    }
 
     /**
      * @dev Hide method from StakingInterface
      */
-    function claim() public {}
+    function claim() public pure {
+        revert();
+    }
 
     /**
      * @notice Claim tokens in WorkLock and save number of claimed tokens
@@ -156,7 +166,15 @@ contract WorkLockPoolingContract is InitializableStakingContract, Ownable {
     function claimTokensFromWorkLock() public {
         workLockClaimedTokens = workLock.claim();
         totalDepositedTokens = totalDepositedTokens.add(workLockClaimedTokens);
-        emit Claimed(msg.sender, workLockClaimedTokens);
+        emit Claimed(address(this), workLockClaimedTokens);
+    }
+
+    /**
+     * @notice Calculate and save number of claimed tokens for specified delegator
+     */
+    function calculateAndSaveTokensAmount() external {
+        Delegator storage delegator = delegators[msg.sender];
+        calculateAndSaveTokensAmount(delegator);
     }
 
     /**
@@ -173,7 +191,7 @@ contract WorkLockPoolingContract is InitializableStakingContract, Ownable {
         uint256 delegatorTokensShare = _delegator.depositedETHWorkLock.mul(workLockClaimedTokens)
             .div(totalWorkLockETHReceived);
 
-        _delegator.depositedTokens += delegatorTokensShare;
+        _delegator.depositedTokens = _delegator.depositedTokens.add(delegatorTokensShare);
         _delegator.claimedWorkLockTokens = true;
         emit Claimed(msg.sender, delegatorTokensShare);
     }
@@ -184,7 +202,7 @@ contract WorkLockPoolingContract is InitializableStakingContract, Ownable {
     function getAvailableReward() public view returns (uint256) {
         uint256 stakedTokens = escrow.getAllTokens(address(this));
         uint256 freeTokens = token.balanceOf(address(this));
-        uint256 reward = stakedTokens + freeTokens - totalDepositedTokens;
+        uint256 reward = stakedTokens.add(freeTokens).sub(totalDepositedTokens);
         if (reward > freeTokens) {
             return freeTokens;
         }
@@ -279,8 +297,8 @@ contract WorkLockPoolingContract is InitializableStakingContract, Ownable {
         uint256 availableReward = getAvailableReward(msg.sender);
 
         require( _value <= availableReward, "Requested amount of tokens exceeded allowed portion");
-        delegator.withdrawnReward += _value;
-        totalWithdrawnReward += _value;
+        delegator.withdrawnReward = delegator.withdrawnReward.add(_value);
+        totalWithdrawnReward = totalWithdrawnReward.add(_value);
 
         token.safeTransfer(msg.sender, _value);
         emit TokensWithdrawn(msg.sender, _value, delegator.depositedTokens);
@@ -296,7 +314,7 @@ contract WorkLockPoolingContract is InitializableStakingContract, Ownable {
         calculateAndSaveTokensAmount(delegator);
 
         uint256 availableReward = getAvailableReward(msg.sender);
-        uint256 value = availableReward + delegator.depositedTokens;
+        uint256 value = availableReward.add(delegator.depositedTokens);
         require(value <= balance, "Not enough tokens in the contract");
 
         // TODO remove double reading
@@ -308,7 +326,7 @@ contract WorkLockPoolingContract is InitializableStakingContract, Ownable {
         // prevent losing reward for worker after calculations
         uint256 workerReward = availableWorkerReward.mul(delegator.depositedTokens).div(totalDepositedTokens);
         if (workerReward > 0) {
-            require(value + workerReward <= balance, "Not enough tokens in the contract");
+            require(value.add(workerReward) <= balance, "Not enough tokens in the contract");
             token.safeTransfer(workerOwner, workerReward);
             emit TokensWithdrawn(workerOwner, workerReward, 0);
         }
@@ -376,8 +394,8 @@ contract WorkLockPoolingContract is InitializableStakingContract, Ownable {
         }
         workLock.refund();
         uint256 refundETH = address(this).balance - balance;
-        totalWorkLockETHRefunded += refundETH;
-        emit Refund(msg.sender, refundETH);
+        totalWorkLockETHRefunded = totalWorkLockETHRefunded.add(refundETH);
+        emit Refund(address(this), refundETH);
     }
 
     /**

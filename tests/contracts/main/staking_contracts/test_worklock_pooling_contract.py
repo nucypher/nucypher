@@ -269,7 +269,6 @@ def test_staking(testerchain, token_economics, token, escrow, pooling_contract, 
         tx = pooling_contract.functions.withdrawWorkerReward().transact({'from': worker_owner})
         testerchain.wait_for_receipt(tx)
 
-    # TODO test same case with checking withdrawnETH
     # Each delegator can withdraw rest of reward and deposit
     previous_total_deposited_tokens = total_deposited_tokens
     withdrawn_worker_reward = worker_reward
@@ -523,3 +522,327 @@ def test_reentrancy(testerchain, pooling_contract, token, deploy_contract):
         tx = testerchain.client.send_transaction({'to': contract_address})
         testerchain.wait_for_receipt(tx)
     assert testerchain.w3.eth.getBalance(contract_address) == balance
+
+    # TODO same test for withdrawAll()
+
+
+def test_worklock_integration(testerchain,
+                              token_economics,
+                              token,
+                              escrow,
+                              worklock,
+                              pooling_contract,
+                              pooling_contract_interface):
+    creator = testerchain.client.accounts[0]
+    owner = testerchain.client.accounts[1]
+    worker_owner = testerchain.client.accounts[2]
+    delegators = testerchain.client.accounts[3:7]
+    bid_log = pooling_contract.events.Bid.createFilter(fromBlock='latest')
+    claim_log = pooling_contract.events.Claimed.createFilter(fromBlock='latest')
+    refund_log = pooling_contract.events.Refund.createFilter(fromBlock='latest')
+
+    # Give some ETH to delegators
+    value = Web3.toWei(1, 'ether')
+    for index, delegator in enumerate(delegators):
+        tx = testerchain.client.send_transaction(
+            {'from': testerchain.client.coinbase, 'to': delegator, 'value': value * (index + 1)})
+        testerchain.wait_for_receipt(tx)
+
+    # Direct call of bid method is forbidden
+    with pytest.raises((TransactionFailed, ValueError)):
+        tx = pooling_contract_interface.functions.bid(value).transact({'from': owner, 'value': value})
+        testerchain.wait_for_receipt(tx)
+
+    # Escrow ETH for worklock
+    assert testerchain.client.get_balance(worklock.address) == 0
+    assert pooling_contract.functions.totalWorkLockETHReceived().call() == 0
+    worklock_balance = 0
+    for index, delegator in enumerate(delegators):
+        assert pooling_contract.functions.delegators(delegator).call() == [0, 0, 0, 0, 0, False]
+        balance = value * (index + 1)
+        rest_balance = testerchain.client.get_balance(delegator) - balance
+        tx = pooling_contract.functions.escrowETH().transact({'from': delegator, 'value': balance})
+        testerchain.wait_for_receipt(tx)
+        assert testerchain.client.get_balance(delegator) == rest_balance
+        assert testerchain.client.get_balance(pooling_contract.address) == 0
+        worklock_balance += balance
+        assert testerchain.client.get_balance(worklock.address) == worklock_balance
+        assert pooling_contract.functions.delegators(delegator).call() == [0, 0, 0, balance, 0, False]
+        assert pooling_contract.functions.totalWorkLockETHReceived().call() == worklock_balance
+        assert worklock.functions.depositedETH().call() == balance
+
+        events = bid_log.get_all_entries()
+        assert len(events) == index + 1
+        event_args = events[-1]['args']
+        assert event_args['sender'] == delegator
+        assert event_args['depositedETH'] == balance
+
+    # Direct call of cancelBid method is forbidden
+    with pytest.raises((TransactionFailed, ValueError)):
+        tx = pooling_contract_interface.functions.cancelBid().transact({'from': owner})
+        testerchain.wait_for_receipt(tx)
+
+    # Direct call of withdrawCompensation method is forbidden
+    compensation = worklock_balance // 8
+    tx = worklock.functions.sendCompensation().transact({'value': compensation})
+    testerchain.wait_for_receipt(tx)
+    with pytest.raises((TransactionFailed, ValueError)):
+        tx = pooling_contract_interface.functions.withdrawCompensation().transact({'from': owner})
+        testerchain.wait_for_receipt(tx)
+    assert worklock.functions.compensationValue().call() == compensation
+
+    # Direct call of claim method is forbidden
+    claimed_tokens = 10 * token_economics.minimum_allowed_locked
+    tx = worklock.functions.setClaimedTokens(claimed_tokens).transact()
+    testerchain.wait_for_receipt(tx)
+    with pytest.raises((TransactionFailed, ValueError)):
+        tx = pooling_contract_interface.functions.claim().transact({'from': owner})
+        testerchain.wait_for_receipt(tx)
+
+    # But can use special method for that
+    assert worklock.functions.claimed().call() == 0
+    assert pooling_contract.functions.workLockClaimedTokens().call() == 0
+    tx = pooling_contract.functions.claimTokensFromWorkLock().transact({'from': delegators[0]})
+    testerchain.wait_for_receipt(tx)
+    assert worklock.functions.claimed().call() == claimed_tokens
+    assert pooling_contract.functions.workLockClaimedTokens().call() == claimed_tokens
+    assert pooling_contract.functions.totalDepositedTokens().call() == claimed_tokens
+    for delegator in delegators:
+        deposited_tokens = pooling_contract.functions.delegators(delegator).call()[0]
+        assert deposited_tokens == 0
+
+    events = claim_log.get_all_entries()
+    assert len(events) == 1
+    event_args = events[-1]['args']
+    assert event_args['sender'] == pooling_contract.address
+    assert event_args['claimedTokens'] == claimed_tokens
+
+    # Emulate claim, transfer tokens to StakingEscrow
+    tx = token.functions.approve(escrow.address, claimed_tokens).transact({'from': creator})
+    testerchain.wait_for_receipt(tx)
+    tx = escrow.functions.deposit(pooling_contract.address, claimed_tokens, 0).transact({'from': creator})
+    testerchain.wait_for_receipt(tx)
+
+    # Calculate share of claimed tokens
+    reward = 5 * token_economics.minimum_allowed_locked
+    tx = token.functions.transfer(pooling_contract.address, reward).transact({'from': creator})
+    testerchain.wait_for_receipt(tx)
+    fees = 10 * value
+    tx = testerchain.client.send_transaction(
+        {'from': testerchain.client.coinbase, 'to': pooling_contract.address, 'value': fees})
+    testerchain.wait_for_receipt(tx)
+    assert pooling_contract.functions.getAvailableReward().call() == reward
+    for delegator in delegators:
+        assert pooling_contract.functions.getAvailableReward(delegator).call() == 0
+        assert pooling_contract.functions.getAvailableETH(delegator).call() == 0
+
+    # Owner has no worklock bids
+    tx = pooling_contract.functions.calculateAndSaveTokensAmount().transact({'from': owner})
+    testerchain.wait_for_receipt(tx)
+    assert pooling_contract.functions.delegators(owner).call() == [0, 0, 0, 0, 0, False]
+
+    delegator = delegators[3]
+    tx = pooling_contract.functions.calculateAndSaveTokensAmount().transact({'from': delegator})
+    testerchain.wait_for_receipt(tx)
+
+    deposited_tokens, withdrawn_tokens, withdrawn_eth, worklock_eth, refunded, claimed = \
+        pooling_contract.functions.delegators(delegator).call()
+    assert deposited_tokens == claimed_tokens * 4 // 10
+    assert claimed
+    assert refunded == 0
+    assert withdrawn_tokens == 0
+    assert withdrawn_eth == 0
+    assert worklock_eth == worklock_balance * 4 // 10
+
+    assert pooling_contract.functions.getAvailableReward(delegator).call() == 9 * 4 * reward // 100  # 90% * reward * 4/10
+    assert pooling_contract.functions.getAvailableETH(delegator).call() == fees * 4 // 10
+    assert pooling_contract.functions.totalDepositedTokens().call() == claimed_tokens
+    assert pooling_contract.functions.workLockClaimedTokens().call() == claimed_tokens
+    assert pooling_contract.functions.totalWithdrawnReward().call() == 0
+
+    events = claim_log.get_all_entries()
+    assert len(events) == 2
+    event_args = events[-1]['args']
+    assert event_args['sender'] == delegator
+    assert event_args['claimedTokens'] == claimed_tokens * 4 // 10
+
+    # Second time won't work
+    tx = pooling_contract.functions.calculateAndSaveTokensAmount().transact({'from': delegator})
+    testerchain.wait_for_receipt(tx)
+    deposited_tokens = pooling_contract.functions.delegators(delegator).call()[0]
+    assert deposited_tokens == claimed_tokens * 4 // 10
+
+    # Check that calculateAndSaveTokensAmount called inside withdrawETH
+    delegator = delegators[2]
+    balance = testerchain.client.get_balance(delegator)
+    withdraw = fees * 3 // 10
+    tx = pooling_contract.functions.withdrawETH().transact({'from': delegator, 'gasPrice': 0})
+    testerchain.wait_for_receipt(tx)
+
+    deposited_tokens, withdrawn_tokens, withdrawn_eth, worklock_eth, refunded, claimed = \
+        pooling_contract.functions.delegators(delegator).call()
+    assert deposited_tokens == claimed_tokens * 3 // 10
+    assert claimed
+    assert refunded == 0
+    assert withdrawn_tokens == 0
+    assert withdrawn_eth == withdraw
+    assert worklock_eth == worklock_balance * 3 // 10
+    total_withdrawn_eth = withdraw
+
+    assert pooling_contract.functions.getAvailableETH(delegator).call() == 0
+    assert pooling_contract.functions.getAvailableReward(delegator).call() == 9 * 3 * reward // 100  # 90% * reward * 3/10
+    assert pooling_contract.functions.totalWithdrawnETH().call() == total_withdrawn_eth
+    assert pooling_contract.functions.totalWithdrawnReward().call() == 0
+    assert testerchain.client.get_balance(delegator) == balance + withdraw
+    assert testerchain.client.get_balance(pooling_contract.address) == fees - withdraw
+
+    events = claim_log.get_all_entries()
+    assert len(events) == 3
+    event_args = events[-1]['args']
+    assert event_args['sender'] == delegator
+    assert event_args['claimedTokens'] == claimed_tokens * 3 // 10
+
+    # Check that calculateAndSaveTokensAmount called inside withdrawTokens
+    delegator = delegators[1]
+    withdraw = 9 * 2 * reward // 100
+    tx = pooling_contract.functions.withdrawTokens(withdraw).transact({'from': delegator, 'gasPrice': 0})
+    testerchain.wait_for_receipt(tx)
+
+    deposited_tokens, withdrawn_tokens, withdrawn_eth, worklock_eth, refunded, claimed = \
+        pooling_contract.functions.delegators(delegator).call()
+    assert deposited_tokens == claimed_tokens * 2 // 10
+    assert claimed
+    assert refunded == 0
+    assert withdrawn_tokens == withdraw
+    assert withdrawn_eth == 0
+    assert worklock_eth == worklock_balance * 2 // 10
+    total_withdrawn_reward = withdraw
+
+    assert pooling_contract.functions.getAvailableETH(delegator).call() == fees * 2 // 10
+    assert pooling_contract.functions.getAvailableReward(delegator).call() == 0
+    assert pooling_contract.functions.totalWithdrawnETH().call() == total_withdrawn_eth
+    assert pooling_contract.functions.totalWithdrawnReward().call() == total_withdrawn_reward
+    assert token.functions.balanceOf(delegator).call() == withdraw
+    assert token.functions.balanceOf(pooling_contract.address).call() == reward - total_withdrawn_reward
+
+    events = claim_log.get_all_entries()
+    assert len(events) == 4
+    event_args = events[-1]['args']
+    assert event_args['sender'] == delegator
+    assert event_args['claimedTokens'] == claimed_tokens * 2 // 10
+
+    # Check that calculateAndSaveTokensAmount called inside withdrawAll
+    delegator = delegators[0]
+    balance = testerchain.client.get_balance(delegator)
+    tokens_amount = 9 * reward // 100 + claimed_tokens // 10
+    fees_amount = fees // 10
+    worker_reward = reward // 100
+    tx = pooling_contract.functions.withdrawAll().transact({'from': delegator, 'gasPrice': 0})
+    testerchain.wait_for_receipt(tx)
+
+    deposited_tokens, withdrawn_tokens, withdrawn_eth, worklock_eth, refunded, claimed = \
+        pooling_contract.functions.delegators(delegator).call()
+    assert deposited_tokens == 0
+    assert claimed
+    assert refunded == 0
+    assert withdrawn_tokens == 0
+    assert withdrawn_eth == 0
+    assert worklock_eth == worklock_balance // 10
+
+    assert pooling_contract.functions.getAvailableETH(delegator).call() == 0
+    assert pooling_contract.functions.getAvailableReward(delegator).call() == 0
+    assert pooling_contract.functions.totalWithdrawnETH().call() == total_withdrawn_eth
+    assert pooling_contract.functions.totalWithdrawnReward().call() == total_withdrawn_reward
+    assert token.functions.balanceOf(delegator).call() == tokens_amount
+    assert token.functions.balanceOf(pooling_contract.address).call() == reward - total_withdrawn_reward - tokens_amount - worker_reward
+    assert token.functions.balanceOf(worker_owner).call() == worker_reward
+    assert testerchain.client.get_balance(delegator) == balance + fees_amount
+    assert testerchain.client.get_balance(pooling_contract.address) == fees - total_withdrawn_eth - fees_amount
+
+    events = claim_log.get_all_entries()
+    assert len(events) == 5
+    event_args = events[-1]['args']
+    assert event_args['sender'] == delegator
+    assert event_args['claimedTokens'] == claimed_tokens // 10
+
+    # There is no refund to withdraw
+    with pytest.raises((TransactionFailed, ValueError)):
+        tx = pooling_contract.functions.withdrawRefund().transact({'from': delegators[0]})
+        testerchain.wait_for_receipt(tx)
+
+    # Check refund method
+    refund = worklock_balance // 8
+    tx = worklock.functions.sendRefund().transact({'value': refund})
+    testerchain.wait_for_receipt(tx)
+    assert pooling_contract.functions.totalWorkLockETHReceived().call() == worklock_balance
+    assert pooling_contract.functions.totalWorkLockETHRefunded().call() == 0
+    assert pooling_contract.functions.totalWorkLockETHWithdrawn().call() == 0
+    assert worklock.functions.compensationValue().call() == compensation
+    for delegator in delegators:
+        assert pooling_contract.functions.getAvailableRefund(delegator).call() == 0
+
+    pool_balance = testerchain.client.get_balance(pooling_contract.address)
+    tx = pooling_contract.functions.refund().transact({'from': worker_owner})
+    testerchain.wait_for_receipt(tx)
+    assert testerchain.client.get_balance(pooling_contract.address) == pool_balance + refund + compensation
+    assert pooling_contract.functions.totalWorkLockETHReceived().call() == worklock_balance
+    assert pooling_contract.functions.totalWorkLockETHRefunded().call() == refund + compensation
+    assert pooling_contract.functions.totalWorkLockETHWithdrawn().call() == 0
+    assert worklock.functions.compensationValue().call() == 0
+    assert worklock.functions.refundETH().call() == 0
+    assert pooling_contract.functions.totalWithdrawnETH().call() == total_withdrawn_eth
+
+    events = refund_log.get_all_entries()
+    assert len(events) == 1
+    event_args = events[-1]['args']
+    assert event_args['sender'] == pooling_contract.address
+    assert event_args['refundETH'] == refund + compensation
+
+    refund += compensation
+    for index, delegator in enumerate(delegators):
+        assert pooling_contract.functions.getAvailableRefund(delegator).call() == (index + 1) * refund // 10
+    assert pooling_contract.functions.getAvailableETH(delegators[0]).call() == 0
+    assert pooling_contract.functions.getAvailableETH(delegators[1]).call() == fees * 2 // 10
+    assert pooling_contract.functions.getAvailableETH(delegators[2]).call() == 0
+    assert pooling_contract.functions.getAvailableETH(delegators[3]).call() == fees * 4 // 10
+
+    total_withdrawn_refund = 0
+    for index, delegator in enumerate(delegators):
+        delegator_refund = (index + 1) * refund // 10
+        balance = testerchain.client.get_balance(delegator)
+        tx = pooling_contract.functions.withdrawRefund().transact({'from': delegator, 'gasPrice': 0})
+        testerchain.wait_for_receipt(tx)
+        assert pooling_contract.functions.getAvailableRefund(delegator).call() == 0
+        assert testerchain.client.get_balance(delegator) == balance + delegator_refund
+        assert pooling_contract.functions.totalWorkLockETHReceived().call() == worklock_balance
+        assert pooling_contract.functions.totalWorkLockETHRefunded().call() == refund
+        total_withdrawn_refund += delegator_refund
+        assert pooling_contract.functions.totalWorkLockETHWithdrawn().call() == total_withdrawn_refund
+        _deposited_tokens, _withdrawn_tokens, _withdrawn_eth, worklock_eth, refunded, claimed = \
+            pooling_contract.functions.delegators(delegator).call()
+        assert worklock_eth == (index + 1) * worklock_balance // 10
+        assert refunded == delegator_refund
+        assert claimed
+
+        events = refund_log.get_all_entries()
+        assert len(events) == 1 + (index + 1)
+        event_args = events[-1]['args']
+        assert event_args['sender'] == delegator
+        assert event_args['refundETH'] == delegator_refund
+
+    # There is no refund to withdraw
+    with pytest.raises((TransactionFailed, ValueError)):
+        tx = pooling_contract.functions.withdrawRefund().transact({'from': delegators[0]})
+        testerchain.wait_for_receipt(tx)
+
+    # Check that StakingInterface works too for refund method
+    tx = worklock.functions.sendRefund().transact({'value': refund})
+    testerchain.wait_for_receipt(tx)
+
+    pool_balance = testerchain.client.get_balance(pooling_contract.address)
+    tx = pooling_contract_interface.functions.refund().transact({'from': owner})
+    testerchain.wait_for_receipt(tx)
+    assert testerchain.client.get_balance(pooling_contract.address) == pool_balance + refund
+    assert pooling_contract.functions.totalWorkLockETHReceived().call() == worklock_balance
+    assert pooling_contract.functions.totalWorkLockETHRefunded().call() == 2 * refund
+    assert pooling_contract.functions.totalWorkLockETHWithdrawn().call() == refund
