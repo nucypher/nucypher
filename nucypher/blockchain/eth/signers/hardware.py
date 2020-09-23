@@ -251,13 +251,8 @@ class TrezorSigner(Signer):
         # Fire Trezor device signing request
         _v, _r, _s = self.__sign_transaction(n=hd_path, trezor_transaction=trezor_transaction)
 
-        # Post-signing sanity check for replay attack protection.
-        chain_id = transaction_dict.pop('chainId')
-        eip155_v = 1 + chain_id * 2 + 35
-        if _v != eip155_v:
-            raise self.SignerError(f'Invalid EIP-155 transaction signature - v({_v}) does not match calculation {eip155_v}')
-
         # Create RLP serializable Transaction instance with eth_account
+        transaction_dict.pop('chainId')  # chainId is not longer needed since it can later be derived from v
         transaction_dict['to'] = to_canonical_address(checksum_address)  # str -> bytes
         signed_transaction = Transaction(v=to_int(_v),                   # type: int
                                          r=to_int(_r),                   # bytes -> int
