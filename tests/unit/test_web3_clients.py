@@ -310,7 +310,7 @@ def test_detect_provider_type_ws():
 
 
 def test_infura_web3_client():
-    interface = InfuraTestClient(provider_uri='infura://1234567890987654321abcdef')
+    interface = InfuraTestClient(provider_uri='wss://:@goerli.infura.io/ws/v3/1234567890987654321abcdef')
     interface.connect()
 
     assert isinstance(interface.client, InfuraClient)

@@ -16,11 +16,14 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
 
-import click
 import os
 import pprint
-import requests
 import time
+from typing import Callable, NamedTuple, Tuple, Union
+from urllib.parse import urlparse
+
+import click
+import requests
 from constant_sorrow.constants import (
     INSUFFICIENT_ETH,
     NO_BLOCKCHAIN_CONNECTION,
@@ -33,8 +36,6 @@ from eth_tester.exceptions import TransactionFailed as TestTransactionFailed
 from eth_typing import ChecksumAddress
 from eth_utils import to_checksum_address
 from hexbytes.main import HexBytes
-from typing import Callable, NamedTuple, Tuple, Union
-from urllib.parse import urlparse
 from web3 import Web3, middleware
 from web3.contract import Contract, ContractConstructor, ContractFunction
 from web3.exceptions import TimeExhausted, ValidationError
@@ -48,7 +49,6 @@ from nucypher.blockchain.eth.decorators import validate_checksum_address
 from nucypher.blockchain.eth.providers import (
     _get_auto_provider,
     _get_HTTP_provider,
-    _get_infura_provider,
     _get_IPC_provider,
     _get_mock_test_provider,
     _get_pyevm_test_provider,
@@ -59,8 +59,8 @@ from nucypher.blockchain.eth.registry import BaseContractRegistry
 from nucypher.blockchain.eth.sol.compile import SolidityCompiler
 from nucypher.blockchain.eth.utils import get_transaction_name, prettify_eth_amount
 from nucypher.characters.control.emitters import JSONRPCStdoutEmitter, StdoutEmitter
-from nucypher.utilities.logging import GlobalLoggerSettings, Logger
 from nucypher.utilities.datafeeds import datafeed_fallback_gas_price_strategy
+from nucypher.utilities.logging import GlobalLoggerSettings, Logger
 
 
 class VersionedContract(Contract):
@@ -396,7 +396,6 @@ class BlockchainInterface:
             else:
                 providers = {
                     'auto': _get_auto_provider,
-                    'infura': _get_infura_provider,
                     'ipc': _get_IPC_provider,
                     'file': _get_IPC_provider,
                     'ws': _get_websocket_provider,
