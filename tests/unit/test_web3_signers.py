@@ -17,11 +17,12 @@
 
 
 import pytest
-from cytoolz.dicttoolz import assoc
 from eth_account import Account
 from eth_account._utils.transactions import Transaction
 from eth_account.account import Account
+from eth_utils.address import to_checksum_address
 from hexbytes import HexBytes
+from toolz.dicttoolz import assoc
 from trezorlib.messages import EthereumGetAddress
 
 from nucypher.blockchain.eth import signers
@@ -44,6 +45,11 @@ def mock_account():
     key = Account.create(extra_entropy='M*A*S*H* DIWOKNECNECENOE#@!')
     account = Account.from_key(private_key=key.privateKey)
     return account
+
+
+@pytest.fixture(scope='module')
+def simple_trezor_uri():
+    return TrezorSigner.uri_scheme()
 
 
 def test_blank_keystore_uri():
@@ -87,21 +93,34 @@ def mock_trezor(mocker, mock_account):
     mocker.patch.object(TrezorSigner, '_TrezorSigner__sign_transaction', return_value=FakeTrezorClient.faked_vrs)
 
 
-def test_trezor_signer_uri(mock_trezor):
-    signer = Signer.from_signer_uri(uri='trezor', testnet=False)
+def test_trezor_signer_creation_from_uri(mock_trezor, simple_trezor_uri):
+    signer = Signer.from_signer_uri(uri=simple_trezor_uri, testnet=False)
     assert isinstance(signer, TrezorSigner)
+    assert len(signer.accounts) == 1
+    del signer
+
+
+def test_trezor_signer_uri_slip44_paths(mock_trezor, simple_trezor_uri):
+
+    # default
+    signer = TrezorSigner.from_signer_uri(uri=simple_trezor_uri)
     assert signer.derivation_root == "44'/60'/0'/0"
+    del signer
+
+    # explicit mainnet
+    signer = TrezorSigner.from_signer_uri(uri=simple_trezor_uri, testnet=False)
+    assert signer.derivation_root == "44'/60'/0'/0"
+
+    # explicit testnet
+    signer = TrezorSigner.from_signer_uri(uri=simple_trezor_uri, testnet=True)
+    assert signer.derivation_root == "44'/1'/0'/0"  # SLIP44 testnet path
     assert len(signer.accounts) == 1
     del signer
 
-    signer = Signer.from_signer_uri(uri='trezor', testnet=True)
-    assert isinstance(signer, TrezorSigner)
-    assert signer.derivation_root == "44'/1'/0'/0"
-    assert len(signer.accounts) == 1
-    del signer
 
+# def test_trezor_signer_rich_uri(mock_trezor, simple_trezor_uri):
     # TODO: #2269 Support "rich URIs" for trezors
-    # simple = 'trezor'
+    # simple = simple_trezor_uri
     # prefix_only = 'trezor://'
     # uri_with_device_id = "trezor://1209:53c1:01"
     # uri_with_device_id_and_path = "trezor://1209:53c1:01/m/44'/60'/0'/0/0"
@@ -112,10 +131,17 @@ def test_trezor_signer_uri(mock_trezor):
 
 def test_trezor_sign_transaction(mock_trezor, mock_account):
     trezor_signer = TrezorSigner()
-    transaction_dict = assoc(TRANSACTION_DICT, 'from', value=mock_account.address)
+    transaction_dict = assoc(TRANSACTION_DICT, key='from', value=mock_account.address)
     signed_transaction = trezor_signer.sign_transaction(transaction_dict=transaction_dict)
     assert isinstance(signed_transaction, HexBytes)
 
-    # assert valid transaction
+    # assert valid deserializable transaction
     transaction = Transaction.from_bytes(signed_transaction)
-    assert transaction.to == transaction_dict['to']
+
+    # Confirm the integrity of the sender and recipient address
+    failure_message = 'WARNING: transaction "to" field was mutated'
+    sender_checksum_address = to_checksum_address(transaction.to)
+    assert sender_checksum_address != mock_account.address, failure_message
+    assert sender_checksum_address == TRANSACTION_DICT['to'], failure_message
+    assert sender_checksum_address == transaction_dict['to']  # positive
+    assert sender_checksum_address != mock_account.address    # negative

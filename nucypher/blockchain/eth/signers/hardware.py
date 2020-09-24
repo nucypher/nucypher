@@ -19,10 +19,11 @@
 import rlp
 from eth_account._utils.transactions import assert_valid_fields, Transaction
 from eth_utils.address import to_canonical_address
-from eth_utils.applicators import apply_key_map
+from eth_utils.applicators import apply_key_map, apply_formatters_to_dict
 from eth_utils.conversions import to_int
 from functools import wraps
 from hexbytes import HexBytes
+from toolz.dicttoolz import dissoc
 from trezorlib import ethereum
 from trezorlib.client import get_default_client, TrezorClient
 from trezorlib.tools import parse_path, Address, H_
@@ -32,6 +33,7 @@ from web3 import Web3
 
 from nucypher.blockchain.eth.decorators import validate_checksum_address
 from nucypher.blockchain.eth.signers.base import Signer
+from nucypher.characters.control.emitters import StdoutEmitter
 
 
 def handle_trezor_call(device_func):
@@ -139,15 +141,18 @@ class TrezorSigner(Signer):
         Derives trezor ethereum addresses up to ADDRESS_CACHE_SIZE relative to
         the calculated base path and internally caches them for later use.
         """
+        emitter = StdoutEmitter()
         for index in range(self.ADDRESS_CACHE_SIZE):
             hd_path = self.__get_address_path(index=index)
             address = self.__derive_account(hd_path=hd_path)
             self.__addresses[address] = hd_path
+            message = f"Derived {address} ({self.derivation_root}/{index})"
+            emitter.message(message)
 
     @staticmethod
     def _format_transaction(transaction_dict: dict) -> dict:
         """
-        Handle Web3.py -> Trezor native transaction field formatting
+        Handle Web3.py -> Trezor native transaction field formatting (non-mutative)
         # https://web3py.readthedocs.io/en/latest/web3.eth.html#web3.eth.Eth.sendRawTransaction
         """
         assert_valid_fields(transaction_dict)
@@ -210,7 +215,7 @@ class TrezorSigner(Signer):
         """
         Sign a transaction with a trezor hardware wallet.
 
-        This method handles transaction validation, field formatting, signing,
+        This non-mutative method handles transaction validation, field formatting, signing,
         and outgoing serialization.  Accepts a standard transaction dictionary as input,
         and produces an RLP encoded raw signed transaction by default.
 
@@ -224,13 +229,6 @@ class TrezorSigner(Signer):
 
         """
 
-        # Consume the sender inside the transaction request's 'from field.
-        checksum_address = transaction_dict.pop('from')
-
-        # Format contract data field for both trezor and eth_account's Transaction
-        if transaction_dict.get('data') is not None:  # empty string is valid
-            transaction_dict['data'] = Web3.toBytes(HexBytes(transaction_dict['data']))
-
         # Eager enforcement of EIP-155
         # https://github.com/ethereum/EIPs/blob/master/EIPS/eip-155.md
         #
@@ -239,6 +237,17 @@ class TrezorSigner(Signer):
         if 'chainId' not in transaction_dict:
             raise self.SignerError('Invalid EIP-155 transaction - "chain_id" field is missing in trezor signing request.')
 
+        # Consume the sender inside the transaction request's 'from field.
+        try:
+            sender_address = transaction_dict['from']
+        except KeyError:
+            raise self.SignerError("'from' field is missing from trezor signing request.")
+        transaction_dict = dissoc(transaction_dict, 'from')
+
+        # Format contract data field for both trezor and eth_account's Transaction
+        formatters = {'data': lambda data: Web3.toBytes(HexBytes(data))}
+        transaction_dict = dict(apply_formatters_to_dict(formatters, transaction_dict))
+
         # Format transaction fields for Trezor, Lookup HD path
         trezor_transaction = self._format_transaction(transaction_dict=transaction_dict)
 
@@ -246,21 +255,25 @@ class TrezorSigner(Signer):
         # in the transaction. Since Trezor firmware version 2.3.1 mismatched chain_id
         # and derivation path will fail to sign with 'forbidden key path'.
         # https://github.com/trezor/trezor-firmware/issues/1050#issuecomment-640718622
-        hd_path = self.__get_address_path(checksum_address=checksum_address)  # from cache
+        hd_path = self.__get_address_path(checksum_address=sender_address)  # from cache
 
-        # Fire Trezor device signing request
+        # Trezor signing request
         _v, _r, _s = self.__sign_transaction(n=hd_path, trezor_transaction=trezor_transaction)
 
         # Create RLP serializable Transaction instance with eth_account
-        transaction_dict.pop('chainId')  # chainId is not longer needed since it can later be derived from v
-        transaction_dict['to'] = to_canonical_address(checksum_address)  # str -> bytes
-        signed_transaction = Transaction(v=to_int(_v),                   # type: int
-                                         r=to_int(_r),                   # bytes -> int
-                                         s=to_int(_s),                   # bytes -> int
+        # chainId is not longer needed since it can later be derived from v
+        transaction_dict = dissoc(transaction_dict, 'chainId')
+
+        # 'to' may be blank if this transaction is contract creation
+        formatters = {'to': to_canonical_address}
+        transaction_dict = dict(apply_formatters_to_dict(formatters, transaction_dict))
+
+        signed_transaction = Transaction(v=to_int(_v),  # type: int
+                                         r=to_int(_r),  # bytes -> int
+                                         s=to_int(_s),  # bytes -> int
                                          **transaction_dict)
 
         # Optionally encode as RLP for broadcasting
         if rlp_encoded:
             signed_transaction = HexBytes(rlp.encode(signed_transaction))
-
         return signed_transaction
