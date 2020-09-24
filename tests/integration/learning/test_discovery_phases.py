@@ -117,7 +117,7 @@ def test_alice_verifies_ursula_just_in_time(fleet_of_highperf_mocked_ursulas,
         return ""
 
     def mock_receive_treasure_map(treasure_map_id):
-        return Response(bytes(), status=202)
+        return Response(bytes(), status=201)
 
     with NotARestApp.replace_route("receive_treasure_map", mock_receive_treasure_map):
         with NotARestApp.replace_route("set_policy", mock_set_policy):
@@ -157,10 +157,13 @@ def test_mass_treasure_map_placement(fleet_of_highperf_mocked_ursulas,
         # Causes rest app to be made (happens JIT in other testS)
         highperf_mocked_alice.network_middleware.client.parse_node_or_host_and_port(node)
 
+        # Setup a dict to "store" treasure maps to skip over the datastore
+        node.treasure_maps = dict()
+
         def _partial_rest_app(node):
             def faster_receive_map(treasure_map_id, *args, **kwargs):
                 node.treasure_maps[treasure_map_id] = True
-                return Response(bytes(b"Sure, we stored it."), status=202)
+                return Response(bytes(b"Sure, we stored it."), status=201)
             return faster_receive_map
         node.rest_app._actual_rest_app.view_functions._view_functions_registry['receive_treasure_map'] = _partial_rest_app(node)
 

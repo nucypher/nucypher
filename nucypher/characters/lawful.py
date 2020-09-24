@@ -462,11 +462,13 @@ class Bob(Character):
         def __init__(self, evidence: List):
             self.evidence = evidence
 
-    def __init__(self, controller: bool = True, *args, **kwargs) -> None:
+    def __init__(self, treasure_maps: Dict = dict(), controller: bool = True, *args, **kwargs) -> None:
         Character.__init__(self, known_node_class=Ursula, *args, **kwargs)
 
         if controller:
             self.make_cli_controller()
+
+        self.treasure_maps = treasure_maps
 
         from nucypher.policy.collections import WorkOrderHistory  # Need a bigger strategy to avoid circulars.
         self._completed_work_orders = WorkOrderHistory()

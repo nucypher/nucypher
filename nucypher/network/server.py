@@ -38,7 +38,6 @@ from nucypher.crypto.powers import KeyPairBasedPower, PowerUpError
 from nucypher.crypto.signing import InvalidSignature
 from nucypher.crypto.utils import canonical_address_from_umbral_key
 from nucypher.datastore.datastore import Datastore, RecordNotFound, DatastoreTransactionError
-from nucypher.datastore.keypairs import HostingKeypair
 from nucypher.datastore.models import PolicyArrangement, TreasureMap, Workorder
 from nucypher.network import LEARNING_LOOP_VERSION
 from nucypher.network.exceptions import NodeSeemsToBeDown
@@ -390,10 +389,11 @@ def _make_rest_app(datastore: Datastore, this_node, serving_domain: str, log: Lo
                 return Response("This TreasureMap doesn't match a paid Policy.", status=402)
 
         # Step 5: Finally, we store our treasure map!
+        log.info("{} storing TreasureMap {}".format(this_node, treasure_map_id))
         with datastore.describe(TreasureMap, treasure_map_id, writeable=True) as new_treasure_map:
             new_treasure_map.treasure_map = bytes(received_treasure_map)
-            log.info("{} storing TreasureMap {}".format(this_node, treasure_map_id))
-            return Response("Treasure map stored!", status=201)
+
+        return Response("Treasure map stored!", status=201)
 
     @rest_app.route('/status/', methods=['GET'])
     def status():

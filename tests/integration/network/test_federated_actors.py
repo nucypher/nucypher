@@ -18,6 +18,7 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 import pytest
 
 from nucypher.crypto.api import keccak_digest
+from nucypher.datastore.models import TreasureMap
 from tests.utils.middleware import MockRestMiddleware
 
 
@@ -37,11 +38,11 @@ def test_alice_sets_treasure_map(enacted_federated_policy, federated_ursulas):
     """
     Having enacted all the policies of a PolicyGroup, Alice creates a TreasureMap and ...... TODO
     """
-    treasure_map_index = bytes.fromhex(enacted_federated_policy.treasure_map.public_id())
+    treasure_map_id = enacted_federated_policy.treasure_map.public_id()
     found = 0
     for node in enacted_federated_policy.bob.matching_nodes_among(enacted_federated_policy.alice.known_nodes):
-        treasure_map_as_set_on_network = node.treasure_maps[treasure_map_index]
-        assert treasure_map_as_set_on_network == enacted_federated_policy.treasure_map
+        with node.datastore.describe(TreasureMap, treasure_map_id) as treasure_map_on_node:
+            assert treasure_map_on_node.treasure_map == bytes(enacted_federated_policy.treasure_map)
         found += 1
     assert found
 
@@ -54,15 +55,16 @@ def test_treasure_map_stored_by_ursula_is_the_correct_one_for_bob(federated_alic
     The TreasureMap given by Alice to Ursula is the correct one for Bob; he can decrypt and read it.
     """
     enacted_federated_policy.publishing_mutex.block_until_complete()
-    treasure_map_index = bytes.fromhex(enacted_federated_policy.treasure_map.public_id())
-    treasure_map_as_set_on_network = federated_bob.matching_nodes_among(federated_ursulas)[0].treasure_maps[treasure_map_index]
-
-
     hrac_by_bob = federated_bob.construct_policy_hrac(federated_alice.stamp, enacted_federated_policy.label)
     assert enacted_federated_policy.hrac() == hrac_by_bob
 
+    treasure_map_id = enacted_federated_policy.treasure_map.public_id()
+    the_ursula = federated_bob.matching_nodes_among(federated_ursulas)[0]
+
+    # Look in Ursula's datastore with the map id Bob constructs and check that it's there.
     hrac, map_id_by_bob = federated_bob.construct_hrac_and_map_id(federated_alice.stamp, enacted_federated_policy.label)
-    assert map_id_by_bob == treasure_map_as_set_on_network.public_id()
+    with the_ursula.datastore.describe(TreasureMap, map_id_by_bob) as treasure_map_on_node:
+        assert treasure_map_on_node.treasure_map == bytes(enacted_federated_policy.treasure_map)
 
 
 def test_bob_can_retreive_the_treasure_map_and_decrypt_it(enacted_federated_policy, federated_ursulas):

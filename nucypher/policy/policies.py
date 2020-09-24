@@ -239,7 +239,7 @@ class NodeEngagementMutex:
                 raise RuntimeError(f"Timed out.  Nodes completed: {self.completed}")
             time.sleep(.5)
 
-    def block_until_success_is_reasonably_likely(self, timeout=10):
+    def block_until_success_is_reasonably_likely(self):
         """
         https://www.youtube.com/watch?v=OkSLswPSq2o
         """
@@ -254,7 +254,7 @@ class NodeEngagementMutex:
             return self.completed
 
 
-    def block_until_complete(self, timeout=20):
+    def block_until_complete(self):
         if self.total_disposed() < len(self.nodes):
             try:
                 _ = self._completion_queue.get(timeout=self.timeout)  # Interesting opportuntiy to pass some data, like the list of contacted nodes above.
@@ -265,7 +265,7 @@ class NodeEngagementMutex:
             self._threadpool.stop()
 
     def _handle_success(self, response, node):
-        if response.status_code == 202:
+        if response.status_code == 201:
             self.completed[node] = response
         else:
             assert False  # TODO: What happens if this is a 300 or 400 level response?  (A 500 response will propagate as an error and be handled in the errback chain.)
