@@ -59,8 +59,8 @@ def create(general_config, staker_options, config_file, cloudprovider, cloud_pro
     emitter = setup_emitter(general_config)
 
     if not CloudDeployers:
-        emitter.echo("Ansible is required to use `nucypher cloudworkers *` commands.  (Please run 'pip install ansible'.)")
-
+        emitter.echo("Ansible is required to use `nucypher cloudworkers *` commands.  (Please run 'pip install ansible'.)", color="red")
+        return
     STAKEHOLDER = staker_options.create_character(emitter, config_file)
 
     stakers = STAKEHOLDER.get_stakers()
@@ -91,8 +91,8 @@ def destroy(general_config, staker_options, config_file, cloudprovider, stakes):
 
     emitter = setup_emitter(general_config)
     if not CloudDeployers:
-        emitter.echo("Ansible is required to use `nucypher cloudworkers *` commands.  (Please run 'pip install ansible'.)")
-
+        emitter.echo("Ansible is required to use `nucypher cloudworkers *` commands.  (Please run 'pip install ansible'.)", color="red")
+        return
     STAKEHOLDER = staker_options.create_character(emitter, config_file)
     config_file = config_file or StakeHolderConfiguration.default_filepath()
     deployer = CloudDeployers.get_deployer(cloudprovider)(emitter, STAKEHOLDER, config_file)
@@ -110,8 +110,8 @@ def status(general_config, staker_options, config_file, cloudprovider, stakes):
 
     emitter = setup_emitter(general_config)
     if not CloudDeployers:
-        emitter.echo("Ansible is required to use `nucypher cloudworkers *` commands.  (Please run 'pip install ansible'.)")
-
+        emitter.echo("Ansible is required to use `nucypher cloudworkers *` commands.  (Please run 'pip install ansible'.)", color="red")
+        return
     STAKEHOLDER = staker_options.create_character(emitter, config_file)
     config_file = config_file or StakeHolderConfiguration.default_filepath()
     deployer = CloudDeployers.get_deployer(cloudprovider)(emitter, STAKEHOLDER, config_file)
