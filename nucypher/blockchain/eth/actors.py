@@ -105,7 +105,10 @@ class BaseActor:
         pass
 
     @validate_checksum_address
-    def __init__(self, registry: BaseContractRegistry, domain: str = None, checksum_address: ChecksumAddress = None):
+    def __init__(self,
+                 registry: BaseContractRegistry,
+                 domain: Optional[str] = None,
+                 checksum_address: Optional[ChecksumAddress] = None):
 
         # TODO: Consider this pattern - None for address?.  #1507
         # Note: If the base class implements multiple inheritance and already has a checksum address...
