@@ -23,7 +23,7 @@ from nucypher.blockchain.eth.constants import MAX_UINT16
 from nucypher.blockchain.eth.events import EventRecord
 from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
 from nucypher.blockchain.eth.registry import IndividualAllocationRegistry
-from nucypher.blockchain.eth.signers import ClefSigner
+from nucypher.blockchain.eth.signers.software import ClefSigner
 from nucypher.blockchain.eth.token import NU, StakeList, Stake
 from nucypher.blockchain.eth.utils import datetime_at_period
 from nucypher.cli.actions.auth import get_client_password

@@ -120,7 +120,8 @@ class WorkLockOptions:
         is_clef = ClefSigner.is_valid_clef_uri(self.signer_uri)
         if transacting and not is_clef and not hw_wallet:
             client_password = get_client_password(checksum_address=self.bidder_address)
-        signer = Signer.from_signer_uri(self.signer_uri) if self.signer_uri else None
+        testnet = self.network != NetworksInventory.MAINNET
+        signer = Signer.from_signer_uri(self.signer_uri, testnet=testnet) if self.signer_uri else None
         bidder = Bidder(checksum_address=self.bidder_address,
                         registry=registry,
                         client_password=client_password,

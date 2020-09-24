@@ -23,7 +23,7 @@ from constant_sorrow.constants import NO_BLOCKCHAIN_CONNECTION
 
 from nucypher.cli.actions.configure import forget as forget_nodes
 from nucypher.blockchain.economics import EconomicsFactory
-from nucypher.blockchain.eth.signers import ClefSigner
+from nucypher.blockchain.eth.signers.software import ClefSigner
 from nucypher.blockchain.eth.utils import datetime_at_period
 from nucypher.cli.actions.auth import get_client_password, get_nucypher_password
 from nucypher.cli.actions.configure import (

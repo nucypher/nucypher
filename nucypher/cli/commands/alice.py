@@ -19,7 +19,7 @@ import click
 import os
 from constant_sorrow.constants import NO_BLOCKCHAIN_CONNECTION, NO_PASSWORD
 
-from nucypher.blockchain.eth.signers import ClefSigner
+from nucypher.blockchain.eth.signers.software import ClefSigner
 from nucypher.characters.control.emitters import StdoutEmitter
 from nucypher.characters.control.interfaces import AliceInterface
 from nucypher.cli.actions.auth import get_client_password, get_nucypher_password

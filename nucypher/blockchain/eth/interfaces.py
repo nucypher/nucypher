@@ -512,6 +512,7 @@ class BlockchainInterface:
                                    payload: dict = None,
                                    transaction_gas_limit: int = None,
                                    ) -> dict:
+
         payload = self.build_payload(sender_address=sender_address,
                                      payload=payload,
                                      transaction_gas_limit=transaction_gas_limit)

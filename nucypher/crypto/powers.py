@@ -24,7 +24,8 @@ from umbral.keys import UmbralKeyingMaterial, UmbralPrivateKey, UmbralPublicKey
 
 from nucypher.blockchain.eth.decorators import validate_checksum_address
 from nucypher.blockchain.eth.interfaces import BlockchainInterface, BlockchainInterfaceFactory
-from nucypher.blockchain.eth.signers import Signer, Web3Signer
+from nucypher.blockchain.eth.signers.software import Web3Signer
+from nucypher.blockchain.eth.signers.base import Signer
 from nucypher.datastore import keypairs
 from nucypher.datastore.keypairs import DecryptingKeypair, SigningKeypair
 

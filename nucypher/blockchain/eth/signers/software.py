@@ -1,114 +1,56 @@
 """
-This file is part of nucypher.
+ This file is part of nucypher.
 
-nucypher is free software: you can redistribute it and/or modify
-it under the terms of the GNU Affero General Public License as published by
-the Free Software Foundation, either version 3 of the License, or
-(at your option) any later version.
+ nucypher is free software: you can redistribute it and/or modify
+ it under the terms of the GNU Affero General Public License as published by
+ the Free Software Foundation, either version 3 of the License, or
+ (at your option) any later version.
 
-nucypher is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU Affero General Public License for more details.
+ nucypher is distributed in the hope that it will be useful,
+ but WITHOUT ANY WARRANTY; without even the implied warranty of
+ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ GNU Affero General Public License for more details.
 
-You should have received a copy of the GNU Affero General Public License
-along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
+ You should have received a copy of the GNU Affero General Public License
+ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
-import json
-import stat
-from json import JSONDecodeError
 
+import json
 import os
+import stat
 import sys
-from abc import ABC, abstractmethod
+from json.decoder import JSONDecodeError
+from typing import List, Dict, Tuple
+from urllib.parse import urlparse
+
 from cytoolz.dicttoolz import dissoc
-from eth_account import Account
+from eth_account.account import Account
 from eth_account.messages import encode_defunct
 from eth_account.signers.local import LocalAccount
-from eth_utils import apply_formatters_to_dict, is_address, to_checksum_address
-from hexbytes import HexBytes
-from typing import Dict, List, Tuple
-from urllib.parse import urlparse
-from web3 import IPCProvider, Web3
+from eth_utils.address import to_checksum_address, is_address
+from eth_utils.applicators import apply_formatters_to_dict
+from hexbytes.main import HexBytes
+from web3.main import Web3
+from web3.providers.ipc import IPCProvider
 
 from nucypher.blockchain.eth.constants import NULL_ADDRESS
 from nucypher.blockchain.eth.decorators import validate_checksum_address
-from nucypher.utilities.logging import Logger
-
-
-class Signer(ABC):
-
-    URI_SCHEME = NotImplemented
-    SIGNERS = NotImplemented  # set dynamically in __init__.py
-
-    log = Logger(__qualname__)
-
-    class SignerError(Exception):
-        """Base exception class for signer errors"""
-
-    class InvalidSignerURI(SignerError):
-        """Raised when an invalid signer URI is detected"""
-
-    class AccountLocked(SignerError):
-        def __init__(self, account: str):
-            self.message = f'{account} is locked.'
-            super().__init__(self.message)
-
-    class UnknownAccount(SignerError):
-        def __init__(self, account: str):
-            self.message = f'Unknown account {account}.'
-            super().__init__(self.message)
-
-    @classmethod
-    def from_signer_uri(cls, uri: str) -> 'Signer':
-        parsed = urlparse(uri)
-        if not parsed.path and not parsed.netloc:
-            raise cls.InvalidSignerURI('Blank signer URI - No keystore path provided')
-        scheme = parsed.scheme
-        signer_class = cls.SIGNERS.get(scheme, Web3Signer)  # Fallback to web3 provider URI for signing
-        signer = signer_class.from_signer_uri(uri=uri)
-        return signer
-
-    @abstractmethod
-    def is_device(self, account: str) -> bool:
-        """Some signing client support both software and hardware wallets,
-        this method is implemented as a boolean to tell the difference."""
-        return NotImplemented
-
-    @property
-    @abstractmethod
-    def accounts(self) -> List[str]:
-        return NotImplemented
-
-    @abstractmethod
-    def unlock_account(self, account: str, password: str, duration: int = None) -> bytes:
-        return NotImplemented
-
-    @abstractmethod
-    def lock_account(self, account: str) -> str:
-        return NotImplemented
-
-    @abstractmethod
-    def sign_transaction(self, transaction_dict: dict) -> HexBytes:
-        return NotImplemented
-
-    @abstractmethod
-    def sign_message(self, account: str, message: bytes, **kwargs) -> HexBytes:
-        return NotImplemented
+from nucypher.blockchain.eth.signers.base import Signer
 
 
 class Web3Signer(Signer):
-
-    URI_SCHEME = 'web3'  # TODO: Consider some kind of 'passthough' flag to accept all valid webs provider schemes
 
     def __init__(self, client):
         super().__init__()
         self.__client = client
 
     @classmethod
-    def from_signer_uri(cls, uri: str) -> 'Web3Signer':
-        from nucypher.blockchain.eth.interfaces import BlockchainInterface, BlockchainInterfaceFactory
+    def uri_scheme(cls) -> str:
+        return NotImplemented  # web3 signer uses a "passthrough" scheme
 
+    @classmethod
+    def from_signer_uri(cls, uri: str, testnet: bool = False) -> 'Web3Signer':
+        from nucypher.blockchain.eth.interfaces import BlockchainInterface, BlockchainInterfaceFactory
         try:
             blockchain = BlockchainInterfaceFactory.get_or_create_interface(provider_uri=uri)
         except BlockchainInterface.UnsupportedProvider:
@@ -164,8 +106,6 @@ class Web3Signer(Signer):
 
 class ClefSigner(Signer):
 
-    URI_SCHEME = 'clef'
-
     DEFAULT_IPC_PATH = '~/Library/Signer/clef.ipc' if sys.platform == 'darwin' else '~/.clef/clef.ipc'  #TODO: #1808
 
     SIGN_DATA_FOR_VALIDATOR = 'data/validator'   # a.k.a. EIP 191 version 0
@@ -177,10 +117,18 @@ class ClefSigner(Signer):
 
     TIMEOUT = 60  # Default timeout for Clef of 60 seconds
 
-    def __init__(self, ipc_path: str = DEFAULT_IPC_PATH, timeout: int = TIMEOUT):
+    def __init__(self,
+                 ipc_path: str = DEFAULT_IPC_PATH,
+                 timeout: int = TIMEOUT,
+                 testnet: bool = False):
         super().__init__()
         self.w3 = Web3(provider=IPCProvider(ipc_path=ipc_path, timeout=timeout))  # TODO: Unify with clients or build error handling
         self.ipc_path = ipc_path
+        self.testnet = testnet
+
+    @classmethod
+    def uri_scheme(cls) -> str:
+        return 'clef'
 
     def __ipc_request(self, endpoint: str, *request_args):
         """Error handler for clef IPC requests  # TODO: Use web3 RequestHandler"""
@@ -195,14 +143,16 @@ class ClefSigner(Signer):
     @classmethod
     def is_valid_clef_uri(cls, uri: str) -> bool:  # TODO: Workaround for #1941
         uri_breakdown = urlparse(uri)
-        return uri_breakdown.scheme == cls.URI_SCHEME
+        return uri_breakdown.scheme == cls.uri_scheme()
 
     @classmethod
-    def from_signer_uri(cls, uri: str) -> 'ClefSigner':
+    def from_signer_uri(cls, uri: str, testnet: bool = False) -> 'ClefSigner':
         uri_breakdown = urlparse(uri)
-        if uri_breakdown.scheme != cls.URI_SCHEME:
+        if not uri_breakdown.path and not uri_breakdown.netloc:
+            raise cls.InvalidSignerURI('Blank signer URI - No keystore path provided')
+        if uri_breakdown.scheme != cls.uri_scheme():
             raise cls.InvalidSignerURI(f"{uri} is not a valid clef signer URI.")
-        signer = cls(ipc_path=uri_breakdown.path)
+        signer = cls(ipc_path=uri_breakdown.path, testnet=testnet)
         return signer
 
     def is_connected(self) -> bool:
@@ -283,7 +233,6 @@ class ClefSigner(Signer):
 class KeystoreSigner(Signer):
     """Local Web3 signer implementation supporting keystore files"""
 
-    URI_SCHEME = 'keystore'
     __keys: Dict[str, dict]
     __signers: Dict[str, LocalAccount]
 
@@ -293,18 +242,23 @@ class KeystoreSigner(Signer):
         Keystore must be in the geth wallet format.
         """
 
-    def __init__(self, path: str):
+    def __init__(self, path: str, testnet: bool = False):
         super().__init__()
         self.__path = path
         self.__keys = dict()
         self.__signers = dict()
         self.__read_keystore(path=path)
+        self.testnet = testnet
 
     def __del__(self):
         # TODO: Might need a finally block or exception context handling
         if self.__keys:
             for account in self.__keys:
                 self.lock_account(account)
+
+    @classmethod
+    def uri_scheme(cls) -> str:
+        return 'keystore'
 
     def __read_keystore(self, path: str) -> None:
         """Read the keystore directory from the disk and populate accounts."""
@@ -317,7 +271,11 @@ class KeystoreSigner(Signer):
             else:
                 raise self.InvalidSignerURI(f'Invalid keystore file or directory "{path}"')
         except FileNotFoundError:
-            raise self.InvalidSignerURI(f'No such keystore file or directory "{path}"')
+            if not path:
+                message = 'Blank signer URI - No keystore path provided'
+            else:
+                message = f'No such keystore file or directory "{path}"'
+            raise self.InvalidSignerURI(message)
         except OSError as exc:
             raise self.InvalidSignerURI(f'Error accessing keystore file or directory "{path}": {exc}')
         for path in paths:
@@ -375,12 +333,12 @@ class KeystoreSigner(Signer):
         return self.__path
 
     @classmethod
-    def from_signer_uri(cls, uri: str) -> 'Signer':
+    def from_signer_uri(cls, uri: str, testnet: bool = False) -> 'Signer':
         """Return a keystore signer from URI string i.e. keystore:///my/path/keystore """
         decoded_uri = urlparse(uri)
-        if decoded_uri.scheme != cls.URI_SCHEME or decoded_uri.netloc:
+        if decoded_uri.scheme != cls.uri_scheme() or decoded_uri.netloc:
             raise cls.InvalidSignerURI(uri)
-        return cls(path=decoded_uri.path)
+        return cls(path=decoded_uri.path, testnet=testnet)
 
     @validate_checksum_address
     def is_device(self, account: str) -> bool:
@@ -447,4 +405,4 @@ class KeystoreSigner(Signer):
     def sign_message(self, account: str, message: bytes, **kwargs) -> HexBytes:
         signer = self.__get_signer(account=account)
         signature = signer.sign_message(signable_message=encode_defunct(primitive=message)).signature
-        return signature
+        return HexBytes(signature)

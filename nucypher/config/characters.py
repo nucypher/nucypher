@@ -25,6 +25,7 @@ from cryptography.hazmat.primitives.asymmetric.ec import EllipticCurve
 from cryptography.x509 import Certificate
 from tempfile import TemporaryDirectory
 
+from nucypher.blockchain.eth.networks import NetworksInventory
 from nucypher.blockchain.eth.actors import StakeHolder
 from nucypher.blockchain.eth.signers import Signer
 from nucypher.config.constants import DEFAULT_CONFIG_ROOT
@@ -273,7 +274,9 @@ class StakeHolderConfiguration(CharacterConfiguration):
 
     @property
     def dynamic_payload(self) -> dict:
-        payload = dict(registry=self.registry, signer=Signer.from_signer_uri(self.signer_uri))
+        testnet = NetworksInventory.MAINNET not in self.domains  # TODO: use equality instead of membership after blue oysters
+        signer = Signer.from_signer_uri(self.signer_uri, testnet=testnet)
+        payload = dict(registry=self.registry, signer=signer)
         return payload
 
     def __setup_node_storage(self, node_storage=None) -> None:

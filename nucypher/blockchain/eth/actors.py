@@ -75,7 +75,8 @@ from nucypher.blockchain.eth.deployers import (
 from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
 from nucypher.blockchain.eth.multisig import Authorization, Proposal
 from nucypher.blockchain.eth.registry import BaseContractRegistry, IndividualAllocationRegistry
-from nucypher.blockchain.eth.signers import KeystoreSigner, Signer, Web3Signer
+from nucypher.blockchain.eth.signers.software import KeystoreSigner, Web3Signer
+from nucypher.blockchain.eth.signers.base import Signer
 from nucypher.blockchain.eth.token import NU, Stake, StakeList, WorkTracker, validate_prolong, validate_increase, \
     validate_divide, validate_merge
 from nucypher.blockchain.eth.utils import (

@@ -28,7 +28,7 @@ from constant_sorrow.constants import (DO_NOT_SIGN, NO_BLOCKCHAIN_CONNECTION, NO
                                        SIGNATURE_IS_ON_CIPHERTEXT, SIGNATURE_TO_FOLLOW, STRANGER)
 from nucypher.acumen.nicknames import nickname_from_seed
 from nucypher.blockchain.eth.registry import BaseContractRegistry, InMemoryContractRegistry
-from nucypher.blockchain.eth.signers import Signer
+from nucypher.blockchain.eth.signers.base import Signer
 from nucypher.characters.control.controllers import CLIController, JSONRPCController
 from nucypher.config.keyring import NucypherKeyring
 from nucypher.crypto.api import encrypt_and_sign

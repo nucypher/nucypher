@@ -35,6 +35,8 @@ appdirs = "*"
 click = ">=7.0"
 colorama = "*"
 tabulate = "*"
+# Utility
+trezor = "*"
 
 # Felix
 flask_sqlalchemy = "*"

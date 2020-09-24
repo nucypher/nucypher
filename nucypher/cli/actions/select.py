@@ -28,7 +28,7 @@ from nucypher.blockchain.eth.actors import StakeHolder, Staker, Wallet
 from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
 from nucypher.blockchain.eth.networks import NetworksInventory
 from nucypher.blockchain.eth.registry import InMemoryContractRegistry, IndividualAllocationRegistry
-from nucypher.blockchain.eth.signers import Signer
+from nucypher.blockchain.eth.signers.base import Signer
 from nucypher.blockchain.eth.token import NU, Stake
 from nucypher.characters.control.emitters import StdoutEmitter
 from nucypher.cli.literature import (
@@ -113,7 +113,8 @@ def select_client_account(emitter,
                 BlockchainInterfaceFactory.initialize_interface(provider_uri=provider_uri, poa=poa, emitter=emitter)
 
         if signer_uri:
-            signer = Signer.from_signer_uri(signer_uri)
+            testnet = network != NetworksInventory.MAINNET
+            signer = Signer.from_signer_uri(signer_uri, testnet=testnet)
 
         wallet = Wallet(provider_uri=provider_uri, signer=signer)
 

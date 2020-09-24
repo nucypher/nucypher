@@ -15,6 +15,7 @@
  along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
+
 import json
 from pathlib import Path
 
@@ -23,8 +24,8 @@ import shutil
 from cytoolz.dicttoolz import assoc
 from eth_account import Account
 from eth_account._utils.transactions import Transaction
-from eth_utils import to_checksum_address
-from hexbytes import HexBytes
+from eth_utils.address import to_checksum_address
+from hexbytes.main import HexBytes
 
 from nucypher.blockchain.eth.constants import LENGTH_ECDSA_SIGNATURE_WITH_RECOVERY
 from nucypher.blockchain.eth.signers import KeystoreSigner, Signer
@@ -68,12 +69,10 @@ def mock_keystore(mock_account, tmp_path_factory):
 
 
 @pytest.fixture(scope='function')
-def good_signer(mocker, mock_account, mock_keystore):
+def good_signer(mock_account, mock_keystore):
 
     # Return a "real" account address from the keyfile
-    mock_keystore_path = mock_keystore
     mock_keystore_uri = f'keystore:{mock_keystore}'
-
     signer = Signer.from_signer_uri(uri=mock_keystore_uri)  # type: KeystoreSigner
 
     # unlock
@@ -87,34 +86,27 @@ def unknown_address():
     address = Account.create().address
     return address
 
-
-def test_blank_keystore_uri():
-    with pytest.raises(Signer.InvalidSignerURI, match=
-        'Blank signer URI - No keystore path provided') as error:
-        Signer.from_signer_uri(uri='keystore://')  # it's blank!
-
-
-def test_invalid_keystore(mocker, tmp_path):
+def test_invalid_keystore(tmp_path):
     with pytest.raises(Signer.InvalidSignerURI) as e:
-        Signer.from_signer_uri(uri=f'keystore:{tmp_path/"nonexistent"}')
+        Signer.from_signer_uri(uri=f'keystore:{tmp_path/"nonexistent"}', testnet=True)
 
     empty_path = tmp_path / 'empty_file'
     open(empty_path, 'x+t').close()
     with pytest.raises(KeystoreSigner.InvalidKeyfile, match=
         'Invalid JSON in keyfile at') as e:
-        Signer.from_signer_uri(uri=f'keystore:{empty_path}')
+        Signer.from_signer_uri(uri=f'keystore:{empty_path}', testnet=True)
 
     empty_json = tmp_path / 'empty_json'
     json.dump({}, open(empty_json, 'x+t'))
     with pytest.raises(KeystoreSigner.InvalidKeyfile, match=
         'Keyfile does not contain address field at') as e:
-        Signer.from_signer_uri(uri=f'keystore:{empty_json}')
+        Signer.from_signer_uri(uri=f'keystore:{empty_json}', testnet=True)
 
     bad_address = tmp_path / 'bad_address'
     json.dump({'address':''}, open(bad_address, 'x+t'))
     with pytest.raises(KeystoreSigner.InvalidKeyfile, match=
         'does not contain a valid ethereum address') as e:
-        Signer.from_signer_uri(uri=f'keystore:{bad_address}')
+        Signer.from_signer_uri(uri=f'keystore:{bad_address}', testnet=True)
 
 
 def test_signer_reads_keystore_from_disk(mock_account, mock_key, tmpdir):
@@ -135,7 +127,7 @@ def test_signer_reads_keystore_from_disk(mock_account, mock_key, tmpdir):
             fake_keyfile.write(json.dumps(MOCK_KEYFILE))
 
         mock_keystore_uri = f'keystore://{tmp_keystore}'
-        signer = Signer.from_signer_uri(uri=mock_keystore_uri)
+        signer = Signer.from_signer_uri(uri=mock_keystore_uri, testnet=True)
 
         assert signer.path == str(tmp_keystore)
         assert len(signer.accounts) == 1
@@ -146,29 +138,29 @@ def test_signer_reads_keystore_from_disk(mock_account, mock_key, tmpdir):
             shutil.rmtree(fake_ethereum, ignore_errors=True)
 
 
-def test_create_signer_from_directory(mocker, mock_account, mock_keystore):
+def test_create_signer_from_keystore_directory(mock_account, mock_keystore):
     mock_keystore_path = mock_keystore
     mock_keystore_uri = f'keystore:{mock_keystore_path}'
 
     # Return a "real" account address from the keyfile
-    signer = Signer.from_signer_uri(uri=mock_keystore_uri)  # type: KeystoreSigner
+    signer = Signer.from_signer_uri(uri=mock_keystore_uri, testnet=True)  # type: KeystoreSigner
     assert signer.path == str(mock_keystore_path)
     assert len(signer.accounts) == 1
     assert mock_account.address in signer.accounts
 
 
-def test_create_signer_from_file(mocker, mock_account, mock_keystore):
+def test_create_signer_from_keystore_file(mock_account, mock_keystore):
     mock_keystore_path = mock_keystore / MOCK_KEYFILE_NAME
     mock_keystore_uri = f'keystore:{mock_keystore_path}'
 
     # Return a "real" account address from the keyfile
-    signer = Signer.from_signer_uri(uri=mock_keystore_uri)  # type: KeystoreSigner
+    signer = Signer.from_signer_uri(uri=mock_keystore_uri, testnet=True)  # type: KeystoreSigner
     assert signer.path == str(mock_keystore_path)
     assert len(signer.accounts) == 1
     assert mock_account.address in signer.accounts
 
 
-def test_keystore_locking(mocker, mock_account, good_signer, unknown_address):
+def test_keystore_locking(mock_account, good_signer, unknown_address):
 
     #
     # Unlock
@@ -197,7 +189,7 @@ def test_list_keystore_accounts(good_signer, mock_account):
     assert len(tracked_accounts) == 1
 
 
-def test_sign_message(mocker, good_signer, mock_account, mock_key):
+def test_keystore_sign_message(mocker, good_signer, mock_account, mock_key):
 
     # unlock
     mock_decrypt = mocker.patch.object(Account, 'decrypt', autospec=True)
@@ -211,7 +203,7 @@ def test_sign_message(mocker, good_signer, mock_account, mock_key):
     assert len(signature) == LENGTH_ECDSA_SIGNATURE_WITH_RECOVERY
 
 
-def test_sign_transaction(good_signer, mock_account):
+def test_keystore_sign_transaction(good_signer, mock_account):
     transaction_dict = assoc(TRANSACTION_DICT, 'from', value=mock_account.address)
     signed_transaction = good_signer.sign_transaction(transaction_dict=transaction_dict)
     assert isinstance(signed_transaction, HexBytes)

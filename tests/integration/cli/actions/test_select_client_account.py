@@ -116,7 +116,7 @@ def test_select_client_account_valid_sources(mocker,
     selected_account = select_client_account(emitter=test_emitter, signer_uri=MOCK_SIGNER_URI)
     expected_account = mock_testerchain.client.accounts[selection]
     assert selected_account == expected_account
-    mock_signer.assert_called_once_with(uri=MOCK_SIGNER_URI)
+    mock_signer.assert_called_once_with(uri=MOCK_SIGNER_URI, testnet=True)
     assert mock_stdin.empty()
     captured = capsys.readouterr()
     assert GENERIC_SELECT_ACCOUNT in captured.out and f"Selected {selection}" in captured.out

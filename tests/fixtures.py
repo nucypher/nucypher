@@ -51,7 +51,7 @@ from nucypher.blockchain.eth.deployers import (
 )
 from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
 from nucypher.blockchain.eth.registry import InMemoryContractRegistry, LocalContractRegistry
-from nucypher.blockchain.eth.signers import Web3Signer
+from nucypher.blockchain.eth.signers.software import Web3Signer
 from nucypher.blockchain.eth.sol.compile import SolidityCompiler
 from nucypher.blockchain.eth.token import NU
 from nucypher.characters.control.emitters import StdoutEmitter
