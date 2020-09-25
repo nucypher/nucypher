@@ -155,6 +155,7 @@ class InfuraRetryRequestMiddleware(RetryRequestMiddleware):
                 error = result['error']
                 if not isinstance(error, str):
                     # RPCError TypeDict
+                    # TODO should we utilize infura's backoff_seconds value in response?
                     return error.get('code') == -32005 and 'rate exceeded' in error.get('message')
         # else
         #     exceptions already checked by superclass - no need to check here

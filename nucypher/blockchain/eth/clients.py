@@ -160,12 +160,13 @@ class EthereumClient:
         self.platform = platform
         self.backend = backend
         self.log = Logger(self.__class__.__name__)
-        self._add_middleware()
 
-    def _add_middleware(self):
+        self._add_default_middleware()
+
+    def _add_default_middleware(self):
         # default retry functionality
         self.log.debug('Adding RPC retry middleware to client')
-        self.w3.middleware_onion.add(RetryRequestMiddleware)
+        self.add_middleware(RetryRequestMiddleware)
 
     @classmethod
     def _get_variant(cls, w3):
@@ -550,10 +551,10 @@ class InfuraClient(EthereumClient):
     is_local = False
     TRANSACTION_POLLING_TIME = 2  # seconds
 
-    def _add_middleware(self):
+    def _add_default_middleware(self):
         # default retry functionality
         self.log.debug('Adding Infura RPC retry middleware to client')
-        self.w3.middleware_onion.add(InfuraRetryRequestMiddleware)
+        self.add_middleware(InfuraRetryRequestMiddleware)
 
     def unlock_account(self, *args, **kwargs) -> bool:
         return True
@@ -564,10 +565,10 @@ class InfuraClient(EthereumClient):
 
 class AlchemyClient(EthereumClient):
 
-    def _add_middleware(self):
+    def _add_default_middleware(self):
         # default retry functionality
         self.log.debug('Adding Alchemy RPC retry middleware to client')
-        self.w3.middleware_onion.add(AlchemyRetryRequestMiddleware)
+        self.add_middleware(AlchemyRetryRequestMiddleware)
 
 
 class EthereumTesterClient(EthereumClient):
