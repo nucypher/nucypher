@@ -123,3 +123,41 @@ class AlchemyRetryRequestMiddleware(RetryRequestMiddleware):
 
         # not a retry result
         return False
+
+
+class InfuraRetryRequestMiddleware(RetryRequestMiddleware):
+
+    def is_request_result_retry(self, result: Union[RPCResponse, Exception]) -> bool:
+        """
+        Check Infura request result for Infura-specific retry message.
+        """
+        # see https://infura.io/docs/ethereum/json-rpc/ratelimits
+        # {
+        #   "jsonrpc": "2.0",
+        #   "id": 1,
+        #   "error": {
+        #     "code": -32005,
+        #     "message": "project ID request rate exceeded",
+        #     "data": {
+        #       "see": "https://infura.io/docs/ethereum/jsonrpc/ratelimits",
+        #       "current_rps": 13.333,
+        #       "allowed_rps": 10.0,
+        #       "backoff_seconds": 30.0,
+        #     }
+        #   }
+        # }
+        if super().is_request_result_retry(result):
+            return True
+
+        if not isinstance(result, Exception):
+            # RPCResponse
+            if 'error' in result:
+                error = result['error']
+                if not isinstance(error, str):
+                    # RPCError TypeDict
+                    return error.get('code') == -32005 and 'rate exceeded' in error.get('message')
+        # else
+        #     exceptions already checked by superclass - no need to check here
+
+        # not a retry result
+        return False

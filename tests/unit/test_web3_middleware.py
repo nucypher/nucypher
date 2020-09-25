@@ -23,7 +23,8 @@ import pytest
 from requests import HTTPError, Response
 from web3.types import RPCResponse, RPCError, RPCEndpoint
 
-from nucypher.blockchain.middleware.retry import RetryRequestMiddleware, AlchemyRetryRequestMiddleware
+from nucypher.blockchain.middleware.retry import RetryRequestMiddleware, AlchemyRetryRequestMiddleware, \
+    InfuraRetryRequestMiddleware
 
 
 def test_is_request_result_retry():
@@ -118,19 +119,27 @@ def test_alchemy_request_with_retry():
     retries = 4
 
     # Retry Case - RPCResponse fails due to limits, and retry required
-    retry_responses = [
-        RPCResponse(error=RPCError(code=-32000,
+    test_responses = [
+        # failures
+        (RPCResponse(error=RPCError(code=-32000,
                                    message='Your app has exceeded its compute units per second capacity. If you have '
                                            'retries enabled, you can safely ignore this message. If not, '
                                            'check out https://docs.alchemyapi.io/guides/rate-limits')),
-        RPCResponse(error='Your app has exceeded its compute units per second capacity. If you have retries enabled, '
+         retries + 1),
+
+        (RPCResponse(error='Your app has exceeded its compute units per second capacity. If you have retries enabled, '
                           'you can safely ignore this message. If not, '
                           'check out https://docs.alchemyapi.io/guides/rate-limits'),
+         retries + 1),
 
-        # on their website, but never observed in the wild
-        RPCResponse(error=RPCError(code=429, message='Too many concurrent requests'))
+        (RPCResponse(error=RPCError(code=429, message='Too many concurrent requests')),
+         retries + 1), # on their website, but never observed in the wild
+
+        # successes
+        (RPCResponse(id=0, result='Geth/v1.9.20-stable-979fc968/linux-amd64/go1.15'),
+         1)
     ]
-    for test_response in retry_responses:
+    for test_response, num_calls in test_responses:
         make_request = Mock()
         make_request.return_value = test_response
         retry_middleware = AlchemyRetryRequestMiddleware(make_request=make_request,
@@ -141,4 +150,33 @@ def test_alchemy_request_with_retry():
         response = retry_middleware(method=RPCEndpoint('eth_blockNumber'), params=None)
 
         assert response == test_response
-        assert make_request.call_count == (retries + 1)   # initial call, and then the number of retries
+        assert make_request.call_count == num_calls   # initial call, and then the number of retries
+
+
+def test_infura_request_with_retry():
+    retries = 4
+
+    # Retry Case - RPCResponse fails due to limits, and retry required
+    test_responses = [
+        # failures
+        (RPCResponse(error=RPCError(code=-32005,
+                                    message='project ID request rate exceeded')),
+         retries + 1),
+
+        # successes
+        (RPCResponse(id=0, result='Geth/v1.9.20-stable-979fc968/linux-amd64/go1.15'),
+         1)
+    ]
+
+    for test_response, num_calls in test_responses:
+        make_request = Mock()
+        make_request.return_value = test_response
+        retry_middleware = InfuraRetryRequestMiddleware(make_request=make_request,
+                                                        w3=Mock(),
+                                                        retries=retries,
+                                                        exponential_backoff=False)
+
+        response = retry_middleware(method=RPCEndpoint('eth_blockNumber'), params=None)
+
+        assert response == test_response
+        assert make_request.call_count == num_calls

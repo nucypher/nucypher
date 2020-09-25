@@ -44,7 +44,8 @@ from web3._utils.threads import Timeout
 from web3.exceptions import TimeExhausted, TransactionNotFound
 
 from nucypher.blockchain.eth.constants import AVERAGE_BLOCK_TIME_IN_SECONDS
-from nucypher.blockchain.middleware.retry import RetryRequestMiddleware, AlchemyRetryRequestMiddleware
+from nucypher.blockchain.middleware.retry import RetryRequestMiddleware, AlchemyRetryRequestMiddleware, \
+    InfuraRetryRequestMiddleware
 from nucypher.config.constants import DEFAULT_CONFIG_ROOT, DEPLOY_DIR, USER_LOG_DIR
 from nucypher.utilities.logging import Logger
 
@@ -548,6 +549,11 @@ class GanacheClient(EthereumClient):
 class InfuraClient(EthereumClient):
     is_local = False
     TRANSACTION_POLLING_TIME = 2  # seconds
+
+    def _add_middleware(self):
+        # default retry functionality
+        self.log.debug('Adding Infura RPC retry middleware to client')
+        self.w3.middleware_onion.add(InfuraRetryRequestMiddleware)
 
     def unlock_account(self, *args, **kwargs) -> bool:
         return True
