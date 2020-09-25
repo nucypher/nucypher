@@ -19,7 +19,7 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 import os
 import pprint
 import time
-from typing import Callable, NamedTuple, Tuple, Union
+from typing import Callable, NamedTuple, Tuple, Union, Optional
 from urllib.parse import urlparse
 
 import click
@@ -372,7 +372,7 @@ class BlockchainInterface:
         return self._provider
 
     def _attach_provider(self,
-                         provider: BaseProvider = None,
+                         provider: Optional[BaseProvider] = None,
                          provider_uri: str = None) -> None:
         """
         https://web3py.readthedocs.io/en/latest/providers.html#providers
