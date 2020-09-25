@@ -18,7 +18,7 @@
 from functools import partial
 
 from nucypher.acumen.perception import FleetSensor
-from nucypher.config.storages import TemporaryFileBasedNodeStorage, LocalFileBasedNodeStorage
+from nucypher.config.storages import LocalFileBasedNodeStorage
 
 
 def test_learner_learns_about_domains_separately(lonely_ursula_maker, caplog):

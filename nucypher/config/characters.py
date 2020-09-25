@@ -274,7 +274,7 @@ class StakeHolderConfiguration(CharacterConfiguration):
 
     @property
     def dynamic_payload(self) -> dict:
-        testnet = NetworksInventory.MAINNET not in self.domains  # TODO: use equality instead of membership after blue oysters
+        testnet = self.domain != NetworksInventory.MAINNET
         signer = Signer.from_signer_uri(self.signer_uri, testnet=testnet)
         payload = dict(registry=self.registry, signer=signer)
         return payload
