@@ -347,7 +347,7 @@ def test_ursula_init(click_runner,
         config_data = json.loads(raw_config_data)
         assert config_data['provider_uri'] == TEST_PROVIDER_URI
         assert config_data['worker_address'] == manual_worker
-        assert TEMPORARY_DOMAIN in config_data['domains']
+        assert TEMPORARY_DOMAIN == config_data['domain']
 
 
 def test_ursula_run(click_runner,

@@ -15,13 +15,15 @@ You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
-import sqlite3
+from pathlib import Path
 
 import OpenSSL
 import binascii
 import os
 import tempfile
 from abc import ABC, abstractmethod
+
+from bytestring_splitter import BytestringSplittingError
 from cryptography import x509
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives.serialization import Encoding
@@ -33,15 +35,14 @@ from nucypher.acumen.nicknames import nickname_from_seed
 from nucypher.blockchain.eth.decorators import validate_checksum_address
 from nucypher.blockchain.eth.registry import BaseContractRegistry
 from nucypher.config.constants import DEFAULT_CONFIG_ROOT
-from nucypher.crypto.api import read_certificate_pseudonym
+from nucypher.crypto.api import read_certificate_pseudonym, InvalidNodeCertificate
 from nucypher.utilities.logging import Logger
 
 
 class NodeStorage(ABC):
     _name = NotImplemented
     _TYPE_LABEL = 'storage_type'
-    NODE_SERIALIZER = binascii.hexlify
-    NODE_DESERIALIZER = binascii.unhexlify
+
     TLS_CERTIFICATE_ENCODING = Encoding.PEM
     TLS_CERTIFICATE_EXTENSION = '.{}'.format(TLS_CERTIFICATE_ENCODING.name.lower())
 
@@ -51,14 +52,9 @@ class NodeStorage(ABC):
     class UnknownNode(NodeStorageError):
         pass
 
-    class InvalidNodeCertificate(RuntimeError):
-        """Raised when a TLS certificate is not a valid Teacher certificate."""
-
     def __init__(self,
                  federated_only: bool,  # TODO# 466
                  character_class=None,
-                 serializer: Callable = NODE_SERIALIZER,
-                 deserializer: Callable = NODE_DESERIALIZER,
                  registry: BaseContractRegistry = None,
                  ) -> None:
 
@@ -66,8 +62,6 @@ class NodeStorage(ABC):
 
         self.log = Logger(self.__class__.__name__)
         self.registry = registry
-        self.serializer = serializer
-        self.deserializer = deserializer
         self.federated_only = federated_only
         self.character_class = character_class or Ursula
 
@@ -88,6 +82,12 @@ class NodeStorage(ABC):
     def source(self) -> str:
         """Human readable source string"""
         return NotImplemented
+
+    def encode_node_bytes(self, node_bytes):
+        return binascii.hexlify(node_bytes)
+
+    def decode_node_bytes(self, encoded_node) -> bytes:
+        return binascii.unhexlify(encoded_node)
 
     def _read_common_name(self, certificate: Certificate):
         x509 = OpenSSL.crypto.X509.from_cryptography(certificate)
@@ -112,13 +112,13 @@ class NodeStorage(ABC):
         try:
             pseudonym = certificate.subject.get_attributes_for_oid(NameOID.PSEUDONYM)[0]
         except IndexError:
-            raise self.InvalidNodeCertificate(f"Missing checksum address on certificate for host '{host}'. "
-                                              f"Does this certificate belong to an Ursula?")
+            raise InvalidNodeCertificate(f"Missing checksum address on certificate for host '{host}'. "
+                                         f"Does this certificate belong to an Ursula?")
         else:
             checksum_address = pseudonym.value
 
         if not is_checksum_address(checksum_address):
-            raise self.InvalidNodeCertificate("Invalid certificate wallet address encountered: {}".format(checksum_address))
+            raise InvalidNodeCertificate("Invalid certificate wallet address encountered: {}".format(checksum_address))
 
         # Validate
         # TODO: It's better for us to have checked this a while ago so that this situation is impossible.  #443
@@ -201,7 +201,7 @@ class ForgetfulNodeStorage(NodeStorage):
         # Certificates
         self.__certificates = dict()
         self.__temporary_certificates = list()
-        self._temp_certificates_dir = tempfile.mkdtemp(prefix='nucypher-temp-certs-', dir=parent_dir)
+        self._temp_certificates_dir = tempfile.mkdtemp(prefix=self.__base_prefix, dir=parent_dir)
 
     @property
     def source(self) -> str:
@@ -209,7 +209,7 @@ class ForgetfulNodeStorage(NodeStorage):
         return self._name
 
     def all(self, federated_only: bool, certificates_only: bool = False) -> set:
-        return set(self.__metadata.values() if not certificates_only else self.__certificates.values())
+        return set(self.__certificates.values() if certificates_only else self.__metadata.values())
 
     @validate_checksum_address
     def get(self,
@@ -285,11 +285,9 @@ class ForgetfulNodeStorage(NodeStorage):
             raise cls.NodeStorageError
         return cls(*args, **kwargs)
 
-    def initialize(self) -> bool:
-        """Returns True if initialization was successful"""
+    def initialize(self):
         self.__metadata = dict()
         self.__certificates = dict()
-        return not bool(self.__metadata or self.__certificates)
 
 
 class LocalFileBasedNodeStorage(NodeStorage):
@@ -298,6 +296,9 @@ class LocalFileBasedNodeStorage(NodeStorage):
 
     class NoNodeMetadataFileFound(FileNotFoundError, NodeStorage.UnknownNode):
         pass
+
+    class InvalidNodeMetadata(NodeStorage.NodeStorageError):
+        """Node metadata is corrupt or not possible to parse"""
 
     def __init__(self,
                  config_root: str = None,
@@ -319,6 +320,12 @@ class LocalFileBasedNodeStorage(NodeStorage):
     def source(self) -> str:
         """Human readable source string"""
         return self.root_dir
+
+    def encode_node_bytes(self, node_bytes) -> bytes:
+        return node_bytes
+
+    def decode_node_bytes(self, encoded_node) -> bytes:
+        return encoded_node
 
     @staticmethod
     def _generate_storage_filepaths(config_root: str = None,
@@ -363,7 +370,7 @@ class LocalFileBasedNodeStorage(NodeStorage):
         return certificate_filepath
 
     @validate_checksum_address
-    def __read_tls_public_certificate(self, filepath: str = None, checksum_address: str = None) -> Certificate:
+    def __read_node_tls_certificate(self, filepath: str = None, checksum_address: str = None) -> Certificate:
         """Deserialize an X509 certificate from a filepath"""
         if not bool(filepath) ^ bool(checksum_address):
             raise ValueError("Either pass filepath or checksum_address; Not both.")
@@ -373,8 +380,12 @@ class LocalFileBasedNodeStorage(NodeStorage):
 
         try:
             with open(filepath, 'rb') as certificate_file:
-                cert = x509.load_pem_x509_certificate(certificate_file.read(), backend=default_backend())
-                return cert
+                certificate = x509.load_pem_x509_certificate(certificate_file.read(), backend=default_backend())
+                # Sanity check:
+                # Validate the checksum address inside the cert as a consistency check against
+                # nodes that may have been altered on the disk somehow.
+                read_certificate_pseudonym(certificate=certificate)
+                return certificate
         except FileNotFoundError:
             raise FileNotFoundError("No SSL certificate found at {}".format(filepath))
 
@@ -388,23 +399,26 @@ class LocalFileBasedNodeStorage(NodeStorage):
                                      self.__METADATA_FILENAME_TEMPLATE.format(checksum_address))
         return metadata_path
 
-    def __read_metadata(self, filepath: str, federated_only: bool):
+    def __read_metadata(self, filepath: str):
 
         from nucypher.characters.lawful import Ursula
 
         try:
             with open(filepath, "rb") as seed_file:
                 seed_file.seek(0)
-                node_bytes = self.deserializer(seed_file.read())
-                node = Ursula.from_bytes(node_bytes)
+                node_bytes = self.decode_node_bytes(seed_file.read())
+                node = Ursula.from_bytes(node_bytes, fail_fast=True)
         except FileNotFoundError:
-            raise self.UnknownNode
+            raise self.NoNodeMetadataFileFound
+        except (BytestringSplittingError, Ursula.UnexpectedVersion):
+            raise self.InvalidNodeMetadata
+
         return node
 
     def __write_metadata(self, filepath: str, node):
         os.makedirs(os.path.dirname(filepath), exist_ok=True)
         with open(filepath, "wb") as f:
-            f.write(self.serializer(bytes(node)))
+            f.write(self.encode_node_bytes(bytes(node)))
         self.log.info("Wrote new node metadata to filesystem {}".format(filepath))
         return filepath
 
@@ -418,25 +432,33 @@ class LocalFileBasedNodeStorage(NodeStorage):
         known_certificates = set()
         if certificates_only:
             for filename in filenames:
-                certificate = self.__read_tls_public_certificate(os.path.join(self.certificates_dir, filename))
+                certificate = self.__read_node_tls_certificate(os.path.join(self.certificates_dir, filename))
                 known_certificates.add(certificate)
             return known_certificates
 
         else:
             known_nodes = set()
+            invalid_metadata = []
             for filename in filenames:
                 metadata_path = os.path.join(self.metadata_dir, filename)
-                node = self.__read_metadata(filepath=metadata_path, federated_only=federated_only)  # TODO: 466
-                known_nodes.add(node)
+                try:
+                    node = self.__read_metadata(filepath=metadata_path)
+                except self.NodeStorageError:
+                    invalid_metadata.append(filename)
+                else:
+                    known_nodes.add(node)
+
+            if invalid_metadata:
+                self.log.warn(f"Couldn't read metadata in {self.metadata_dir} for the following files: {invalid_metadata}")
             return known_nodes
 
     @validate_checksum_address
     def get(self, checksum_address: str, federated_only: bool, certificate_only: bool = False):
         if certificate_only is True:
-            certificate = self.__read_tls_public_certificate(checksum_address=checksum_address)
+            certificate = self.__read_node_tls_certificate(checksum_address=checksum_address)
             return certificate
         metadata_path = self.__generate_metadata_filepath(checksum_address=checksum_address)
-        node = self.__read_metadata(filepath=metadata_path, federated_only=federated_only)  # TODO: 466
+        node = self.__read_metadata(filepath=metadata_path)
         return node
 
     def store_node_certificate(self, certificate: Certificate, force: bool = True):
@@ -448,11 +470,6 @@ class LocalFileBasedNodeStorage(NodeStorage):
         filepath = self.__generate_metadata_filepath(checksum_address=address, metadata_dir=filepath)
         self.__write_metadata(filepath=filepath, node=node)
         return filepath
-
-    def save_node(self, node, force) -> Tuple[str, str]:
-        certificate_filepath = self.store_node_certificate(certificate=node.certificate, force=force)
-        metadata_filepath = self.store_node_metadata(node=node)
-        return metadata_filepath, certificate_filepath
 
     @validate_checksum_address
     def remove(self, checksum_address: str, metadata: bool = True, certificate: bool = True) -> None:
@@ -508,7 +525,7 @@ class LocalFileBasedNodeStorage(NodeStorage):
 
         return cls(*args, **payload, **kwargs)
 
-    def initialize(self) -> bool:
+    def initialize(self):
         storage_dirs = (self.root_dir, self.metadata_dir, self.certificates_dir)
         for storage_dir in storage_dirs:
             try:
@@ -519,8 +536,6 @@ class LocalFileBasedNodeStorage(NodeStorage):
             except FileNotFoundError:
                 raise self.NodeStorageError("There is no existing configuration at {}".format(self.root_dir))
 
-        return bool(all(map(os.path.isdir, (self.root_dir, self.metadata_dir, self.certificates_dir))))
-
 
 class TemporaryFileBasedNodeStorage(LocalFileBasedNodeStorage):
     _name = 'tmp'
@@ -528,8 +543,10 @@ class TemporaryFileBasedNodeStorage(LocalFileBasedNodeStorage):
     def __init__(self, *args, **kwargs):
         self.__temp_metadata_dir = None
         self.__temp_certificates_dir = None
+        self.__temp_root_dir = None
         super().__init__(metadata_dir=self.__temp_metadata_dir,
                          certificates_dir=self.__temp_certificates_dir,
+                         storage_root=self.__temp_root_dir,
                          *args, **kwargs)
 
     # TODO: Pending fix for 1554.
@@ -538,20 +555,15 @@ class TemporaryFileBasedNodeStorage(LocalFileBasedNodeStorage):
     #         shutil.rmtree(self.__temp_metadata_dir, ignore_errors=True)
     #         shutil.rmtree(self.__temp_certificates_dir, ignore_errors=True)
 
-    def initialize(self) -> bool:
+    def initialize(self):
+        # Root
+        self.__temp_root_dir = tempfile.mkdtemp(prefix="nucypher-tmp-nodes-")
+        self.root_dir = self.__temp_root_dir
+
         # Metadata
-        self.__temp_metadata_dir = tempfile.mkdtemp(prefix="nucypher-tmp-nodes-")
+        self.__temp_metadata_dir = str(Path(self.__temp_root_dir) / "metadata")
         self.metadata_dir = self.__temp_metadata_dir
 
         # Certificates
-        self.__temp_certificates_dir = tempfile.mkdtemp(prefix="nucypher-tmp-certs-")
+        self.__temp_certificates_dir = str(Path(self.__temp_root_dir) / "certs")
         self.certificates_dir = self.__temp_certificates_dir
-
-        return bool(os.path.isdir(self.metadata_dir) and os.path.isdir(self.certificates_dir))
-
-
-#
-# Node Storage Registry
-#
-NODE_STORAGES = {storage_class._name: storage_class
-                 for storage_class in NodeStorage.__subclasses__()}

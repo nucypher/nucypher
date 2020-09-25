@@ -26,7 +26,7 @@ from tests.utils.ursula import MOCK_URSULA_STARTING_PORT
 
 TEST_CHARACTER_CONFIG_BASE_PARAMS = dict(
     dev_mode=True,
-    domains={TEMPORARY_DOMAIN},
+    domain=TEMPORARY_DOMAIN,
     start_learning_now=False,
     abort_on_learning_error=True,
     save_metadata=False,

@@ -14,4 +14,20 @@ GNU Affero General Public License for more details.
 You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
-LEARNING_LOOP_VERSION = 2  # TODO: Rename to DISCOVERY_LOOP_VERSION
+
+import pytest
+
+from nucypher.network.nodes import Learner
+
+
+@pytest.mark.skip
+def test_print_ursulas_bytes(blockchain_ursulas):
+    """
+    Helper test that can be manually executed to get version-specific ursulas' metadata,
+    which can be later used in tests/integration/learning/test_learning_versions.py
+    """
+
+    print(f"\nursulas_v{Learner.LEARNER_VERSION} = (")
+    for ursula in blockchain_ursulas:
+        print(f"    '{bytes(ursula).hex()}',")
+    print(")")

@@ -67,7 +67,7 @@ def test_bob_joins_policy_and_retrieves(federated_alice,
 
     # Bob becomes
     bob = Bob(federated_only=True,
-              domains={TEMPORARY_DOMAIN},
+              domain=TEMPORARY_DOMAIN,
               start_learning_now=True,
               network_middleware=MockRestMiddleware(),
               abort_on_learning_error=True,

@@ -73,7 +73,7 @@ class Vladimir(Ursula):
         vladimir = cls(is_me=True,
                        crypto_power=crypto_power,
                        db_filepath=cls.db_filepath,
-                       domains=[TEMPORARY_DOMAIN],
+                       domain=TEMPORARY_DOMAIN,
                        block_until_ready=False,
                        start_working_now=False,
                        rest_host=target_ursula.rest_interface.host,

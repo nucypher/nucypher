@@ -54,11 +54,11 @@ all_configurations = tuple(configurations + blockchain_only_configurations)
 @pytest.mark.parametrize("character,configuration", characters_and_configurations)
 def test_federated_development_character_configurations(character, configuration):
 
-    config = configuration(dev_mode=True, federated_only=True, lonely=True, domains={TEMPORARY_DOMAIN})
+    config = configuration(dev_mode=True, federated_only=True, lonely=True, domain=TEMPORARY_DOMAIN)
     assert config.is_me is True
     assert config.dev_mode is True
     assert config.keyring == NO_KEYRING_ATTACHED
-    assert config.provider_uri == None
+    assert config.provider_uri is None
 
     # Production
     thing_one = config()
@@ -76,9 +76,8 @@ def test_federated_development_character_configurations(character, configuration
     # Operating Mode
     assert thing_one.federated_only is True
 
-    # Domains
-    domains = thing_one.learning_domains
-    assert domains == [TEMPORARY_DOMAIN]
+    # Domain
+    assert TEMPORARY_DOMAIN == thing_one.learning_domain
 
     # Node Storage
     assert configuration.TEMP_CONFIGURATION_DIR_PREFIX in thing_one.keyring_root
@@ -97,6 +96,7 @@ def test_federated_development_character_configurations(character, configuration
             alice.disenchant()
 
 
+# TODO: This test is unnecessarily slow due to the blockchain configurations. Perhaps we should mock them -- See #2230
 @pytest.mark.parametrize('configuration_class', all_configurations)
 def test_default_character_configuration_preservation(configuration_class, testerchain, test_registry_source_manager):
 
@@ -115,9 +115,9 @@ def test_default_character_configuration_preservation(configuration_class, teste
 
     if configuration_class == StakeHolderConfiguration:
         # special case for defaults
-        character_config = StakeHolderConfiguration(provider_uri=testerchain.provider_uri, domains={network})
+        character_config = StakeHolderConfiguration(provider_uri=testerchain.provider_uri, domain=network)
     else:
-        character_config = configuration_class(checksum_address=fake_address, domains={network})
+        character_config = configuration_class(checksum_address=fake_address, domain=network)
 
     generated_filepath = character_config.generate_filepath()
     assert generated_filepath == expected_filepath

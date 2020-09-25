@@ -15,19 +15,6 @@
  along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
-"""
-This file is part of nucypher.
-nucypher is free software: you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation, either version 3 of the License, or
-(at your option) any later version.
-nucypher is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
-You should have received a copy of the GNU General Public License
-along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
-"""
 import os
 from contextlib import suppress
 from functools import partial
@@ -43,8 +30,7 @@ DEMO_NODE_STARTING_PORT = 11500
 
 ursula_maker = partial(Ursula, rest_host='127.0.0.1',
                        federated_only=True,
-                       domains=[TEMPORARY_DOMAIN],
-                       )
+                       domain=TEMPORARY_DOMAIN)
 
 
 def spin_up_federated_ursulas(quantity: int = FLEET_POPULATION):
@@ -54,7 +40,7 @@ def spin_up_federated_ursulas(quantity: int = FLEET_POPULATION):
 
     ursulas = []
 
-    sage = ursula_maker(rest_port=ports[0], db_filepath=f"{Path(APP_DIR.user_cache_dir) / 'sage.db'}")
+    sage = ursula_maker(rest_port=ports[0], db_filepath=str(Path(APP_DIR.user_cache_dir) / 'sage.db'))
 
     ursulas.append(sage)
     for index, port in enumerate(ports[1:]):

@@ -28,9 +28,9 @@ from umbral.keys import UmbralPublicKey
 
 from nucypher.characters.lawful import Bob, Enrico, Ursula
 from nucypher.config.constants import TEMPORARY_DOMAIN
+from nucypher.crypto.keypairs import DecryptingKeypair, SigningKeypair
 from nucypher.crypto.kits import UmbralMessageKit
 from nucypher.crypto.powers import DecryptingPower, SigningPower
-from nucypher.datastore.keypairs import DecryptingKeypair, SigningKeypair
 from nucypher.network.middleware import RestMiddleware
 from nucypher.utilities.logging import GlobalLoggerSettings
 
@@ -70,7 +70,7 @@ power_ups = [enc_power, sig_power]
 print("Creating the Doctor ...")
 
 doctor = Bob(
-    domains={TEMPORARY_DOMAIN},
+    domain=TEMPORARY_DOMAIN,
     federated_only=True,
     crypto_power_ups=power_ups,
     start_learning_now=True,

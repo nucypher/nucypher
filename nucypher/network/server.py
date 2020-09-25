@@ -23,7 +23,6 @@ from bytestring_splitter import BytestringSplitter
 from constant_sorrow import constants
 from constant_sorrow.constants import FLEET_STATES_MATCH, NO_BLOCKCHAIN_CONNECTION, NO_KNOWN_NODES
 from flask import Flask, Response, jsonify, request
-from hendrix.experience import crosstown_traffic
 from jinja2 import Template, TemplateError
 from typing import Tuple, Set
 from umbral.keys import UmbralPublicKey
@@ -31,14 +30,15 @@ from umbral.kfrags import KFrag
 from web3.exceptions import TimeExhausted
 
 import nucypher
+from nucypher.crypto.api import InvalidNodeCertificate
 from nucypher.config.constants import MAX_UPLOAD_CONTENT_LENGTH
 from nucypher.config.storages import ForgetfulNodeStorage
+from nucypher.crypto.keypairs import HostingKeypair
 from nucypher.crypto.kits import UmbralMessageKit
 from nucypher.crypto.powers import KeyPairBasedPower, PowerUpError
 from nucypher.crypto.signing import InvalidSignature
 from nucypher.crypto.utils import canonical_address_from_umbral_key
 from nucypher.datastore.datastore import Datastore, RecordNotFound, DatastoreTransactionError
-from nucypher.datastore.keypairs import HostingKeypair
 from nucypher.datastore.models import PolicyArrangement, Workorder
 from nucypher.network import LEARNING_LOOP_VERSION
 from nucypher.network.exceptions import NodeSeemsToBeDown
@@ -81,7 +81,7 @@ class ProxyRESTServer:
 def make_rest_app(
         db_filepath: str,
         this_node,
-        serving_domains: Set[str],
+        serving_domain,
         log: Logger=Logger("http-application-layer")
         ) -> Tuple[Flask, Datastore]:
     """
@@ -98,14 +98,14 @@ def make_rest_app(
 
     log.info("Starting datastore {}".format(db_filepath))
     datastore = Datastore(db_filepath)
-    rest_app = _make_rest_app(weakref.proxy(datastore), weakref.proxy(this_node), serving_domains, log)
+    rest_app = _make_rest_app(weakref.proxy(datastore), weakref.proxy(this_node), serving_domain, log)
 
     return rest_app, datastore
 
 
-def _make_rest_app(datastore: Datastore, this_node, serving_domains: Set[str], log: Logger) -> Tuple[Flask, Datastore]:
+def _make_rest_app(datastore: Datastore, this_node, serving_domain: str, log: Logger) -> Tuple[Flask, Datastore]:
 
-    forgetful_node_storage = ForgetfulNodeStorage(federated_only=this_node.federated_only)
+    forgetful_node_storage = ForgetfulNodeStorage(federated_only=this_node.federated_only)  # FIXME: Seems unused
 
     from nucypher.characters.lawful import Alice, Ursula
     _alice_class = Alice
@@ -157,6 +157,9 @@ def _make_rest_app(datastore: Datastore, this_node, serving_domains: Set[str], l
                                                                                            certificate_filepath=certificate_filepath)
         except NodeSeemsToBeDown:
             return Response({'error': 'Unreachable node'}, status=400)  # ... toasted
+
+        except InvalidNodeCertificate:
+            return Response({'error': 'Invalid TLS certificate - missing checksum address'}, status=400)  # ... invalid
 
         # Compare the results of the outer POST with the inner GET... yum
         if requesting_ursula_bytes == request.data:
@@ -414,7 +417,7 @@ def _make_rest_app(datastore: Datastore, this_node, serving_domains: Set[str], l
                 content = status_template.render(this_node=this_node,
                                                  known_nodes=this_node.known_nodes,
                                                  previous_states=previous_states,
-                                                 domains=serving_domains,
+                                                 domain=serving_domain,
                                                  version=nucypher.__version__,
                                                  checksum_address=this_node.checksum_address)
             except Exception as e:

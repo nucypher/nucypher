@@ -51,6 +51,7 @@ from nucypher.acumen.nicknames import nickname_from_seed
 from nucypher.acumen.perception import FleetSensor
 from nucypher.blockchain.eth.actors import BlockchainPolicyAuthor, Worker
 from nucypher.blockchain.eth.agents import ContractAgency, StakingEscrowAgent
+from nucypher.blockchain.eth.constants import LENGTH_ECDSA_SIGNATURE_WITH_RECOVERY, ETH_ADDRESS_BYTE_LENGTH
 from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
 from nucypher.blockchain.eth.registry import BaseContractRegistry
 from nucypher.blockchain.eth.signers.software import Web3Signer
@@ -65,12 +66,12 @@ from nucypher.characters.control.interfaces import AliceInterface, BobInterface,
 from nucypher.cli.processes import UrsulaCommandProtocol
 from nucypher.config.storages import ForgetfulNodeStorage, NodeStorage
 from nucypher.crypto.api import encrypt_and_sign, keccak_digest
-from nucypher.crypto.constants import PUBLIC_ADDRESS_LENGTH, PUBLIC_KEY_LENGTH
+from nucypher.crypto.constants import PUBLIC_KEY_LENGTH
+from nucypher.crypto.keypairs import HostingKeypair
 from nucypher.crypto.kits import UmbralMessageKit
 from nucypher.crypto.powers import DecryptingPower, DelegatingPower, PowerUpError, SigningPower, TransactingPower
 from nucypher.crypto.signing import InvalidSignature
 from nucypher.datastore.datastore import DatastoreTransactionError, RecordNotFound
-from nucypher.datastore.keypairs import HostingKeypair
 from nucypher.datastore.models import PolicyArrangement
 from nucypher.network.exceptions import NodeSeemsToBeDown
 from nucypher.network.middleware import RestMiddleware
@@ -979,7 +980,7 @@ class Ursula(Teacher, Character, Worker):
                  # Ursula
                  rest_host: str,
                  rest_port: int,
-                 domains: Set = None,  # For now, serving and learning domains will be the same.
+                 domain: str = None,  # For now, serving and learning domain will be the same.
                  certificate: Certificate = None,
                  certificate_filepath: str = None,
                  db_filepath: str = None,
@@ -1014,10 +1015,10 @@ class Ursula(Teacher, Character, Worker):
         # Character
         #
 
-        if domains is None:
+        if domain is None:
             # TODO: Move defaults to configuration, Off character.
             from nucypher.config.node import CharacterConfiguration
-            domains = {CharacterConfiguration.DEFAULT_DOMAIN}
+            domain = CharacterConfiguration.DEFAULT_DOMAIN
 
         if is_me:
             # If we're federated only, we assume that all other nodes in our domain are as well.
@@ -1032,7 +1033,7 @@ class Ursula(Teacher, Character, Worker):
                            crypto_power=crypto_power,
                            abort_on_learning_error=abort_on_learning_error,
                            known_nodes=known_nodes,
-                           domains=domains,
+                           domain=domain,
                            known_node_class=Ursula,
                            **character_kwargs)
 
@@ -1104,7 +1105,7 @@ class Ursula(Teacher, Character, Worker):
                 rest_app, datastore = make_rest_app(
                     this_node=self,
                     db_filepath=db_filepath,
-                    serving_domains=domains,
+                    serving_domain=domain,
                 )
 
                 # TLSHostingPower (Ephemeral Powers and Private Keys)
@@ -1148,7 +1149,7 @@ class Ursula(Teacher, Character, Worker):
         certificate_filepath = self._crypto_power.power_ups(TLSHostingPower).keypair.certificate_filepath
         certificate = self._crypto_power.power_ups(TLSHostingPower).keypair.certificate
         Teacher.__init__(self,
-                         domains=domains,
+                         domain=domain,
                          certificate=certificate,
                          certificate_filepath=certificate_filepath,
                          interface_signature=interface_signature,
@@ -1214,7 +1215,7 @@ class Ursula(Teacher, Character, Worker):
         # if learning:  # TODO: Include learning startup here with the rest of the services?
         #     self.start_learning_loop(now=self._start_learning_now)
         #     if emitter:
-        #         emitter.message(f"✓ Node Discovery ({','.join(self.learning_domains)})", color='green')
+        #         emitter.message(f"✓ Node Discovery ({','.join(self.learning_domain)})", color='green')
 
         if self._availability_check and availability:
             self._availability_tracker.start(now=False)  # wait...
@@ -1323,18 +1324,16 @@ class Ursula(Teacher, Character, Worker):
 
         version = self.TEACHER_VERSION.to_bytes(2, "big")
         interface_info = VariableLengthBytestring(bytes(self.rest_interface))
-        decentralized_identity_evidence = VariableLengthBytestring(self.decentralized_identity_evidence)  # TODO: Change to fixed length
 
         certificate = self.rest_server_certificate()
         cert_vbytes = VariableLengthBytestring(certificate.public_bytes(Encoding.PEM))
 
-        domains = {domain.encode('utf-8') for domain in self.serving_domains}
         as_bytes = bytes().join((version,
                                  self.canonical_public_address,
-                                 bytes(VariableLengthBytestring.bundle(domains)),
+                                 bytes(VariableLengthBytestring(self.serving_domain.encode('utf-8'))),
                                  self.timestamp_bytes(),
                                  bytes(self._interface_signature),
-                                 bytes(decentralized_identity_evidence),
+                                 bytes(VariableLengthBytestring(self.decentralized_identity_evidence)),  # FIXME: Fixed length doesn't work with federated
                                  bytes(self.public_keys(SigningPower)),
                                  bytes(self.public_keys(DecryptingPower)),
                                  bytes(cert_vbytes),
@@ -1464,15 +1463,15 @@ class Ursula(Teacher, Character, Worker):
         return potential_seed_node
 
     @classmethod
-    def internal_splitter(cls, splittable, partial=False):
+    def payload_splitter(cls, splittable, partial=False):
         splitter = BytestringKwargifier(
             _receiver=cls.from_processed_bytes,
             _partial_receiver=NodeSprout,
-            public_address=PUBLIC_ADDRESS_LENGTH,
-            domains=VariableLengthBytestring,  # TODO:  Multiple domains?  NRN
+            public_address=ETH_ADDRESS_BYTE_LENGTH,
+            domain=VariableLengthBytestring,
             timestamp=(int, 4, {'byteorder': 'big'}),
             interface_signature=Signature,
-            decentralized_identity_evidence=VariableLengthBytestring,
+            decentralized_identity_evidence=VariableLengthBytestring,  # FIXME: Fixed length doesn't work with federated. It was LENGTH_ECDSA_SIGNATURE_WITH_RECOVERY,
             verifying_key=(UmbralPublicKey, PUBLIC_KEY_LENGTH),
             encrypting_key=(UmbralPublicKey, PUBLIC_KEY_LENGTH),
             certificate=(load_pem_x509_certificate, VariableLengthBytestring, {"backend": default_backend()}),
@@ -1480,6 +1479,10 @@ class Ursula(Teacher, Character, Worker):
         )
         result = splitter(splittable, partial=partial)
         return result
+
+    @classmethod
+    def is_compatible_version(cls, version: int) -> bool:
+        return cls.LOWEST_COMPATIBLE_VERSION <= version <= cls.LEARNER_VERSION
 
     @classmethod
     def from_bytes(cls,
@@ -1493,34 +1496,32 @@ class Ursula(Teacher, Character, Worker):
         else:
             payload = ursula_as_bytes
 
-        # Check version and raise IsFromTheFuture if this node is... you guessed it...
-        if version > cls.LEARNER_VERSION:
+        # Check version is compatible and prepare to handle potential failures otherwise
+        if not cls.is_compatible_version(version):
+            version_exception_class = cls.IsFromTheFuture if version > cls.LEARNER_VERSION else cls.AreYouFromThePast
 
             # Try to handle failure, even during failure, graceful degradation
             # TODO: #154 - Some auto-updater logic?
 
             try:
-                canonical_address, _ = BytestringSplitter(PUBLIC_ADDRESS_LENGTH)(payload, return_remainder=True)
+                canonical_address, _ = BytestringSplitter(ETH_ADDRESS_BYTE_LENGTH)(payload, return_remainder=True)
                 checksum_address = to_checksum_address(canonical_address)
                 nickname, _ = nickname_from_seed(checksum_address)
                 display_name = cls._display_name_template.format(cls.__name__, nickname, checksum_address)
                 message = cls.unknown_version_message.format(display_name, version, cls.LEARNER_VERSION)
+                if version > cls.LEARNER_VERSION:
+                    message += " Is there a newer version of NuCypher?"
             except BytestringSplittingError:
                 message = cls.really_unknown_version_message.format(version, cls.LEARNER_VERSION)
-                if fail_fast:
-                    raise cls.IsFromTheFuture(message)
-                else:
-                    cls.log.warn(message)
-                    return UNKNOWN_VERSION
+
+            if fail_fast:
+                raise version_exception_class(message)
             else:
-                if fail_fast:
-                    raise cls.IsFromTheFuture(message)
-                else:
-                    cls.log.warn(message)
-                    return UNKNOWN_VERSION
+                cls.log.warn(message)
+                return UNKNOWN_VERSION
         else:
             # Version stuff checked out.  Moving on.
-            node_sprout = cls.internal_splitter(payload, partial=True)
+            node_sprout = cls.payload_splitter(payload, partial=True)
             return node_sprout
 
     @classmethod
@@ -1535,15 +1536,14 @@ class Ursula(Teacher, Character, Worker):
         rest_port = interface_info.port
         checksum_address = to_checksum_address(processed_objects.pop('public_address'))
 
-        domains_vbytes = VariableLengthBytestring.dispense(processed_objects.pop('domains'))
-        domains = set(d.decode('utf-8') for d in domains_vbytes)
+        domain = processed_objects.pop('domain').decode('utf-8')
 
         timestamp = maya.MayaDT(processed_objects.pop('timestamp'))
 
         ursula = cls.from_public_keys(rest_host=rest_host,
                                       rest_port=rest_port,
                                       checksum_address=checksum_address,
-                                      domains=domains,
+                                      domain=domain,
                                       timestamp=timestamp,
                                       **processed_objects)
         return ursula

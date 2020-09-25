@@ -19,10 +19,8 @@ from collections import namedtuple
 
 import click
 import functools
-import os
 
 from nucypher.blockchain.eth.constants import NUCYPHER_CONTRACT_NAMES
-from nucypher.blockchain.eth.networks import NetworksInventory
 from nucypher.cli.types import (
     EIP55_CHECKSUM_ADDRESS,
     EXISTING_READABLE_FILE,

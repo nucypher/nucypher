@@ -263,7 +263,7 @@ class StakeHolderConfiguration(CharacterConfiguration):
         payload = dict(provider_uri=self.provider_uri,
                        poa=self.poa,
                        light=self.is_light,
-                       domains=list(self.domains),
+                       domain=self.domain,
                        # TODO: Move empty collection casting to base
                        checksum_addresses=self.checksum_addresses or list(),
                        signer_uri=self.signer_uri)
@@ -274,7 +274,7 @@ class StakeHolderConfiguration(CharacterConfiguration):
 
     @property
     def dynamic_payload(self) -> dict:
-        testnet = NetworksInventory.MAINNET not in self.domains  # TODO: use equality instead of membership after blue oysters
+        testnet = self.domain != NetworksInventory.MAINNET
         signer = Signer.from_signer_uri(self.signer_uri, testnet=testnet)
         payload = dict(registry=self.registry, signer=signer)
         return payload

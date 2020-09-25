@@ -401,9 +401,9 @@ def federated_ursulas(ursula_federated_test_config):
 def lonely_ursula_maker(ursula_federated_test_config):
     class _PartialUrsulaMaker:
         _partial = partial(make_federated_ursulas,
-                         ursula_config=ursula_federated_test_config,
-                         know_each_other=False,
-                         )
+                           ursula_config=ursula_federated_test_config,
+                           know_each_other=False,
+                           )
         _made = []
 
         def __call__(self, *args, **kwargs):
@@ -1011,7 +1011,7 @@ def fleet_of_highperf_mocked_ursulas(ursula_federated_test_config, request):
 @pytest.fixture(scope="module")
 def highperf_mocked_alice(fleet_of_highperf_mocked_ursulas):
     config = AliceConfiguration(dev_mode=True,
-                                domains={TEMPORARY_DOMAIN},
+                                domain=TEMPORARY_DOMAIN,
                                 network_middleware=MockRestMiddlewareForLargeFleetTests(),
                                 federated_only=True,
                                 abort_on_learning_error=True,
@@ -1028,7 +1028,7 @@ def highperf_mocked_alice(fleet_of_highperf_mocked_ursulas):
 @pytest.fixture(scope="module")
 def highperf_mocked_bob(fleet_of_highperf_mocked_ursulas):
     config = BobConfiguration(dev_mode=True,
-                              domains={TEMPORARY_DOMAIN},
+                              domain=TEMPORARY_DOMAIN,
                               network_middleware=MockRestMiddlewareForLargeFleetTests(),
                               federated_only=True,
                               abort_on_learning_error=True,
