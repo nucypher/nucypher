@@ -14,16 +14,18 @@ GNU Affero General Public License for more details.
 You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
-from nucypher.config.constants import TEMPORARY_DOMAIN
-from nucypher.exceptions import DevelopmentInstallationRequired
 
 from copy import copy
-
-from eth_tester.exceptions import ValidationError
 from unittest.mock import patch
 
+from eth_tester.exceptions import ValidationError
+
 from nucypher.characters.lawful import Alice, Ursula
-from nucypher.crypto.powers import CryptoPower, SigningPower
+from nucypher.config.constants import TEMPORARY_DOMAIN
+from nucypher.crypto.api import encrypt_and_sign
+from nucypher.crypto.powers import CryptoPower, SigningPower, DecryptingPower, TransactingPower
+from nucypher.exceptions import DevelopmentInstallationRequired
+from nucypher.policy.collections import SignedTreasureMap
 
 try:
     from tests.utils.middleware import EvilMiddleWare
@@ -68,7 +70,6 @@ class Vladimir(Ursula):
 
         if attach_transacting_key:
             cls.attach_transacting_key(blockchain=target_ursula.policy_agent.blockchain)
-
 
         vladimir = cls(is_me=True,
                        crypto_power=crypto_power,
@@ -195,3 +196,53 @@ class Amonia(Alice):
                    publish_wrong_payee_address_to_blockchain):
             with patch("nucypher.policy.policies.Policy.enact", self.enact_without_tabulating_responses):
                 return super().grant(handpicked_ursulas=ursulas_to_trick_into_working_for_free, *args, **kwargs)
+
+    def use_ursula_as_an_involuntary_and_unbeknownst_cdn(self, policy, sucker_ursula):
+        """
+        Ursula is a sucker.
+
+        After I distract her, by paying for one Policy, maybe she'll store my copy of the Nicholas Cage remake of
+        The Wicker Man (I have neither the respect nor the inclination to trick her into storing the original 1973
+        version, which after all is a very decent film).
+
+        I'll make this work by fudging the HRAC a bit to create a new map ID which still appears to be connected
+        to the Policy for which I paid.
+        """
+        # Here's the proper map associated with the policy for which I paid.
+        map = policy.treasure_map
+
+        # I'll make a copy of it to modify for use in this attack.
+        like_a_map_but_awful = SignedTreasureMap.from_bytes(bytes(map))
+
+        # I'll split the film up into segments, because I know Ursula checks that the file size is under 50k.
+        for i in range(50):
+            # I'll include a small portion of this awful film in a new message kit.  We don't care about the signature for bob.
+            not_the_bees = b"Not the bees!" + int(i).to_bytes(length=4, byteorder="big")
+            like_a_map_but_awful.message_kit, _signature_for_bob_which_is_never_Used = encrypt_and_sign(
+                policy.bob.public_keys(DecryptingPower),
+                plaintext=not_the_bees,
+                signer=self.stamp,
+            )
+
+            #############################################################################################
+            # Now I'll mess with the hrac just a bit.  I can't touch the last 16 bytes, because these   #
+            # are checked against the blockchain.  But the first half is up for grabs.                  #
+            bad_hrac = map._hrac[:28] + int(i).to_bytes(length=4, byteorder="big")                      #
+            # Note: if the hrac is reduced in length to 16 bytes, I'll be unable to perform this attack.#
+            #############################################################################################
+
+            # I know Ursula checks the public signature because she thinks I'm Alice.  So I'll sign my bad hrac.
+            like_a_map_but_awful._public_signature = self.stamp(bytes(self.stamp) + bad_hrac)
+            like_a_map_but_awful._hrac = bad_hrac
+
+            # With the bad hrac and the segment of the film, I'm ready to make a phony payload and map ID.
+            like_a_map_but_awful._set_payload()
+            like_a_map_but_awful._set_id()
+
+            # I'll sign it again, so that it appears to match the policy for which I already paid.
+            transacting_power = self._crypto_power.power_ups(TransactingPower)
+            like_a_map_but_awful.include_blockchain_signature(blockchain_signer=transacting_power.sign_message)
+
+            # Sucker.
+            self.network_middleware.put_treasure_map_on_node(sucker_ursula, map_id=like_a_map_but_awful.public_id(),
+                                                             map_payload=bytes(like_a_map_but_awful))
