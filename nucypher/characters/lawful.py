@@ -1510,7 +1510,7 @@ class Ursula(Teacher, Character, Worker):
                 display_name = cls._display_name_template.format(cls.__name__, nickname, checksum_address)
                 message = cls.unknown_version_message.format(display_name, version, cls.LEARNER_VERSION)
                 if version > cls.LEARNER_VERSION:
-                    message += " Is there a new version of NuCypher?"
+                    message += " Is there a newer version of NuCypher?"
             except BytestringSplittingError:
                 message = cls.really_unknown_version_message.format(version, cls.LEARNER_VERSION)
 

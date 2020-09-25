@@ -230,7 +230,7 @@ def read_certificate_pseudonym(certificate: Certificate):
         raise InvalidNodeCertificate("Invalid teacher certificate encountered: No checksum address present as pseudonym.")
     checksum_address = pseudonym.value
     if not is_checksum_address(checksum_address):
-        raise InvalidNodeCertificate("Invalid certificate checksum_address encountered")
+        raise InvalidNodeCertificate("Invalid certificate checksum address encountered")
     return checksum_address
 
 

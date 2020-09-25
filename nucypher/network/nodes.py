@@ -827,7 +827,7 @@ class Learner:
 
         if self.learning_domain != current_teacher.serving_domain:
             self.log.debug(f"{current_teacher} is serving '{current_teacher.serving_domain}', "
-                           f"but we are learning '{self.learning_domain}'")
+                           f"ignore since we are learning about '{self.learning_domain}'")
             return  # This node is not serving our domain.
 
         #
