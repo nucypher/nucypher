@@ -12,6 +12,22 @@
         recurse: yes
         owner: nucypher
 
+    - name: Stop any running Ursulas
+      become: yes
+      become_user: nucypher
+      docker_container:
+        name: ursula
+        state: stopped
+        image: "{{ nucypher_image | default('nucypher/nucypher:latest') }}"
+
+    - name: Keep disk space clean by pruning unneeded docker debris
+      become: yes
+      docker_prune:
+        containers: yes
+        images: yes
+        networks: yes
+        builder_cache: yes
+
     - name: "pull {{ nucypher_image | default('nucypher/nucypher:latest') }}"
       become: yes
       docker_image:
@@ -25,6 +41,7 @@
       stat:
         path: /home/nucypher/nucypher/ursula.json
       register: ursula_check
+
 
     - name: Find my public ip
       uri:

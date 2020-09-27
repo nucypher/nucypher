@@ -70,7 +70,7 @@
     - name: "update Ursula worker config"
       become: yes
       become_user: nucypher
-      command: "docker run -v /home/nucypher:/root/.local/share/ -e NUCYPHER_KEYRING_PASSWORD -it {{ nucypher_image | default('nucypher/nucypher:latest') }}  nucypher ursula config --provider {{ blockchain_provider }} --worker-address {{active_account.stdout}} --rest-host {{ip_response.content}} --network {{network_name}} {{nucypher_ursula_init_options | default('')}}"
+      command: "docker run -v /home/nucypher:/root/.local/share/ -e NUCYPHER_KEYRING_PASSWORD -it {{ nucypher_image | default('nucypher/nucypher:latest') }}  nucypher ursula config --provider {{ blockchain_provider }} --worker-address {{active_account.stdout}} --rest-host {{ip_response.content}} --network {{network_name}} {{nucypher_ursula_init_options | default('')}} --config-file /root/.local/share/nucypher/ursula.json"
       environment:
         NUCYPHER_KEYRING_PASSWORD: "{{NUCYPHER_KEYRING_PASSWORD}}"
 
@@ -89,7 +89,7 @@
           max-file: "5"
         image: "{{ nucypher_image | default('nucypher/nucypher:latest') }}"
         restart_policy: "unless-stopped"
-        command: "nucypher ursula run {{nucypher_ursula_run_options | default('')}} {{signer_options}} --disable-availability-check --lonely"
+        command: "nucypher ursula run {{nucypher_ursula_run_options | default('')}} {{signer_options}} --lonely"
         volumes:
           - /home/nucypher:/root/.local/share/
         ports:
@@ -122,7 +122,7 @@
           max-file: "5"
         image: "{{ nucypher_image | default('nucypher/nucypher:latest') }}"
         restart_policy: "unless-stopped"
-        command: "nucypher ursula run {{nucypher_ursula_run_options | default('')}} {{signer_options}} --disable-availability-check"
+        command: "nucypher ursula run {{nucypher_ursula_run_options | default('')}} {{signer_options}} --disable-availability-check --teacher {{SEED_NODE_URI}}"
         volumes:
           - /home/nucypher:/root/.local/share/
         ports:

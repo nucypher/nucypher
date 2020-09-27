@@ -24,5 +24,6 @@ all:
                 DECENTRALIZED: {{deployer.nodes_are_decentralized}}
                 {% if deployer.config.get('seed_network') %}SEED_NODE_URI: {{deployer.config['seed_node']}}{% endif %}
                 {% if deployer.config.get('sentry_dsn')%}SENTRY_DSN: {{deployer.config['sentry_dsn']}}{% endif %}
+                WIPE: True
               hosts:{% for node in nodes %}
                 {{node.publicaddress}}:{% endfor %}

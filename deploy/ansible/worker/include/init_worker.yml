@@ -3,6 +3,13 @@
   remote_user: "{{default_user}}"
   gather_facts: no
   tasks:
+    - name: "remove existing config data"
+      become: yes
+      file:
+        path: /home/nucypher/nucypher/
+        state: absent
+      when: WIPE is not undefined and WIPE
+
     - name: "create geth directory"
       become: yes
       file:
