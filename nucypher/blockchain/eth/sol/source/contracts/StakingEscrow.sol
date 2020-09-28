@@ -556,7 +556,7 @@ contract StakingEscrow is Issuer, IERC900History {
     * If true then stake's duration will be decreasing in each period with `commitToNextPeriod()`
     * @param _windDown Value for parameter
     */
-    function setWindDown(bool _windDown) external onlyStaker {
+    function setWindDown(bool _windDown) external {
         StakerInfo storage info = stakerInfo[msg.sender];
         if (info.flags.bitSet(WIND_DOWN_INDEX) == _windDown) {
             return;
@@ -660,7 +660,7 @@ contract StakingEscrow is Issuer, IERC900History {
             uint256 endIndex = j + numberOfSubStakes;
             require(numberOfSubStakes > 0 && subStakesLength >= endIndex);
             StakerInfo storage info = stakerInfo[staker];
-            require(info.subStakes.length == 0);
+            require(info.subStakes.length == 0 && !info.flags.bitSet(SNAPSHOTS_DISABLED_INDEX));
             // A staker can't be a worker for another staker
             require(stakerFromWorker[staker] == address(0));
             stakers.push(staker);

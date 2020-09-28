@@ -70,7 +70,7 @@ contract BaseStakingInterface {
 /**
 * @notice Interface for accessing main contracts from a staking contract
 * @dev All methods must be stateless because this code will be executed by delegatecall call, use immutable fields.
-* @dev |v1.5.2|
+* @dev |v1.6.1|
 */
 contract StakingInterface is BaseStakingInterface {
 

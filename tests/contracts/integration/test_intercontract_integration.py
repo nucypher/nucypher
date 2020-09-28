@@ -426,6 +426,9 @@ def test_staking_before_initialization(testerchain,
         tx = escrow.functions.commitToNextPeriod().transact({'from': staker3})
         testerchain.wait_for_receipt(tx)
 
+    tx = escrow.functions.setWindDown(True).transact({'from': staker2})
+    testerchain.wait_for_receipt(tx)
+
 
 def test_worklock_phases(testerchain,
                          token_economics,
@@ -435,7 +438,6 @@ def test_worklock_phases(testerchain,
                          preallocation_escrow_interface_1,
                          worklock,
                          multisig):
-    creator = testerchain.w3.eth.accounts[0]
     creator, staker1, staker2, staker3, staker4, alice1, alice2, *contracts_owners =\
         testerchain.client.accounts
 
@@ -606,8 +608,6 @@ def test_worklock_phases(testerchain,
     pytest.escrow_supply += staker2_tokens
     assert escrow.functions.getAllTokens(staker2).call() == staker2_tokens
     assert escrow.functions.getCompletedWork(staker2).call() == 0
-    tx = escrow.functions.setWindDown(True).transact({'from': staker2})
-    testerchain.wait_for_receipt(tx)
     wind_down, _re_stake, _measure_work, _snapshots = escrow.functions.getFlags(staker2).call()
     assert wind_down
 
