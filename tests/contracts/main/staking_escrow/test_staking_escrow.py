@@ -1272,8 +1272,17 @@ def test_batch_deposit(testerchain, token, escrow_contract, deploy_contract):
     tx = token.functions.approve(escrow.address, 10000).transact({'from': creator})
     testerchain.wait_for_receipt(tx)
 
-    # Deposit tokens for 1 staker
+    # Can't deposit tokens if taking snapshots was disabled
     staker = testerchain.client.accounts[1]
+    tx = escrow.functions.setSnapshots(False).transact({'from': staker})
+    testerchain.wait_for_receipt(tx)
+    with pytest.raises((TransactionFailed, ValueError)):
+        tx = escrow.functions.batchDeposit([staker], [1], [1000], [10]).transact({'from': creator})
+        testerchain.wait_for_receipt(tx)
+
+    # Deposit tokens for 1 staker
+    tx = escrow.functions.setSnapshots(True).transact({'from': staker})
+    testerchain.wait_for_receipt(tx)
     tx = escrow.functions.batchDeposit([staker], [1], [1000], [10]).transact({'from': creator})
     testerchain.wait_for_receipt(tx)
     escrow_balance = 1000
@@ -1366,6 +1375,8 @@ def test_batch_deposit(testerchain, token, escrow_contract, deploy_contract):
     tx = token.functions.approve(escrow.address, 1500).transact({'from': staker})
     testerchain.wait_for_receipt(tx)
     stakers = testerchain.client.accounts[2:7]
+    tx = escrow.functions.setWindDown(True).transact({'from': stakers[0]})
+    testerchain.wait_for_receipt(tx)
     current_period = escrow.functions.getCurrentPeriod().call()
     tx = escrow.functions.batchDeposit(
         stakers, [1, 1, 1, 1, 1], [100, 200, 300, 400, 500], [50, 100, 150, 200, 250]
@@ -1571,6 +1582,13 @@ def test_staking_from_worklock(testerchain, token, escrow_contract, token_econom
         tx = escrow.functions.depositFromWorkLock(staker1, value, duration).transact({'from': staker1})
         testerchain.wait_for_receipt(tx)
     assert token.functions.balanceOf(escrow.address).call() == 0
+
+    # Can't claim before initialization
+    with pytest.raises((TransactionFailed, ValueError)):
+        tx = worklock.functions.depositFromWorkLock(staker1, value, duration).transact()
+        testerchain.wait_for_receipt(tx)
+    tx = escrow.functions.initialize(0, creator).transact({'from': creator})
+    testerchain.wait_for_receipt(tx)
 
     # Deposit tokens from WorkLock
     wind_down, _re_stake, _measure_work, _snapshots = escrow.functions.getFlags(staker1).call()

@@ -23,6 +23,7 @@ contract StakingEscrowForStakingContractMock {
     uint16 public lockReStakeUntilPeriod;
     address public worker;
     bool public windDown;
+    bool public snapshots;
 
     constructor(NuCypherToken _token) {
         token = _token;
@@ -99,6 +100,10 @@ contract StakingEscrowForStakingContractMock {
 
     function setWindDown(bool _windDown) external {
         windDown = _windDown;
+    }
+
+    function setSnapshots(bool _snapshotsEnabled) external {
+        snapshots = _snapshotsEnabled;
     }
 }
 

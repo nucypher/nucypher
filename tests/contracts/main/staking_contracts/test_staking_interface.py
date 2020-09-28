@@ -136,6 +136,9 @@ def test_staker(testerchain, token, escrow, staking_contract, staking_contract_i
     with pytest.raises((TransactionFailed, ValueError)):
         tx = staking_interface.functions.setWindDown(True).transact({'from': owner})
         testerchain.wait_for_receipt(tx)
+    with pytest.raises((TransactionFailed, ValueError)):
+        tx = staking_interface.functions.setSnapshots(False).transact({'from': owner})
+        testerchain.wait_for_receipt(tx)
 
     deposits_existing = staking_contract_interface.events.DepositedAndIncreased.createFilter(fromBlock='latest')
     locks_new = staking_contract_interface.events.LockedAndCreated.createFilter(fromBlock='latest')
@@ -148,6 +151,7 @@ def test_staker(testerchain, token, escrow, staking_contract, staking_contract_i
     worker_logs = staking_contract_interface.events.WorkerBonded.createFilter(fromBlock='latest')
     prolong_logs = staking_contract_interface.events.Prolonged.createFilter(fromBlock='latest')
     wind_down_logs = staking_contract_interface.events.WindDownSet.createFilter(fromBlock='latest')
+    snapshots_logs = staking_contract_interface.events.SnapshotSet.createFilter(fromBlock='latest')
     merge_logs = staking_contract_interface.events.Merged.createFilter(fromBlock='latest')
 
     # Use stakers methods through the preallocation escrow
@@ -215,6 +219,11 @@ def test_staker(testerchain, token, escrow, staking_contract, staking_contract_i
     tx = staking_contract_interface.functions.setWindDown(True).transact({'from': owner})
     testerchain.wait_for_receipt(tx)
     assert escrow.functions.windDown().call()
+
+    # Test snapshots
+    tx = staking_contract_interface.functions.setSnapshots(True).transact({'from': owner})
+    testerchain.wait_for_receipt(tx)
+    assert escrow.functions.snapshots().call()
 
     events = deposits_existing.get_all_entries()
     assert 1 == len(events)
@@ -296,6 +305,12 @@ def test_staker(testerchain, token, escrow, staking_contract, staking_contract_i
     event_args = events[0]['args']
     assert owner == event_args['sender']
     assert event_args['windDown']
+
+    events = snapshots_logs.get_all_entries()
+    assert 1 == len(events)
+    event_args = events[0]['args']
+    assert owner == event_args['sender']
+    assert event_args['snapshotsEnabled']
 
 
 def test_policy(testerchain, policy_manager, staking_contract, staking_contract_interface):

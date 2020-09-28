@@ -70,7 +70,7 @@ contract BaseStakingInterface {
 /**
 * @notice Interface for accessing main contracts from a staking contract
 * @dev All methods must be stateless because this code will be executed by delegatecall call, use immutable fields.
-* @dev |v1.5.2|
+* @dev |v1.6.1|
 */
 contract StakingInterface is BaseStakingInterface {
 
@@ -89,6 +89,7 @@ contract StakingInterface is BaseStakingInterface {
     event WorkerBonded(address indexed sender, address worker);
     event Prolonged(address indexed sender, uint256 index, uint16 periods);
     event WindDownSet(address indexed sender, bool windDown);
+    event SnapshotSet(address indexed sender, bool snapshotsEnabled);
     event Bid(address indexed sender, uint256 depositedETH);
     event Claimed(address indexed sender, uint256 claimedTokens);
     event Refund(address indexed sender, uint256 refundETH);
@@ -255,6 +256,15 @@ contract StakingInterface is BaseStakingInterface {
     function setWindDown(bool _windDown) public onlyDelegateCall {
         escrow.setWindDown(_windDown);
         emit WindDownSet(msg.sender, _windDown);
+    }
+
+    /**
+    * @notice Set `snapshots` parameter in the staking escrow
+    * @param _enableSnapshots Value for parameter
+    */
+    function setSnapshots(bool _enableSnapshots) public onlyDelegateCall {
+        escrow.setSnapshots(_enableSnapshots);
+        emit SnapshotSet(msg.sender, _enableSnapshots);
     }
 
     /**

@@ -903,13 +903,11 @@ def test_wind_down(testerchain, token, escrow_contract, token_economics):
     tx = escrow.functions.initialize(token_economics.reward_supply, creator).transact({'from': creator})
     testerchain.wait_for_receipt(tx)
 
-    # Only staker can set wind-down parameter
-    with pytest.raises((TransactionFailed, ValueError)):
-        tx = escrow.functions.setWindDown(False).transact({'from': staker})
-        testerchain.wait_for_receipt(tx)
-    with pytest.raises((TransactionFailed, ValueError)):
-        tx = escrow.functions.setWindDown(True).transact({'from': staker})
-        testerchain.wait_for_receipt(tx)
+    # Anybody can set wind-down parameter
+    tx = escrow.functions.setWindDown(True).transact({'from': staker})
+    testerchain.wait_for_receipt(tx)
+    tx = escrow.functions.setWindDown(False).transact({'from': staker})
+    testerchain.wait_for_receipt(tx)
 
     # Staker deposits some tokens and makes a commitment
     sub_stake = token_economics.minimum_allowed_locked
@@ -921,7 +919,7 @@ def test_wind_down(testerchain, token, escrow_contract, token_economics):
 
     def check_events(wind_down: bool, length: int):
         events = wind_down_log.get_all_entries()
-        assert len(events) == length
+        assert len(events) == length + 2
         event_args = events[-1]['args']
         assert staker == event_args['staker'] == staker
         assert event_args['windDown'] == wind_down
