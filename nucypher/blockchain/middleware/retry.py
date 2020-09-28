@@ -26,6 +26,9 @@ from nucypher.utilities.logging import Logger
 
 
 class RetryRequestMiddleware:
+    """
+    Automatically retries rpc requests whenever a 429 status code is returned.
+    """
     def __init__(self,
                  make_request: Callable[[RPCEndpoint, Any], RPCResponse],
                  w3: Web3,
@@ -91,6 +94,9 @@ class RetryRequestMiddleware:
 
 
 class AlchemyRetryRequestMiddleware(RetryRequestMiddleware):
+    """
+    Automatically retries rpc requests whenever a 429 status code or Alchemy-specific error message is returned.
+    """
 
     def is_request_result_retry(self, result: Union[RPCResponse, Exception]) -> bool:
         """
@@ -126,6 +132,9 @@ class AlchemyRetryRequestMiddleware(RetryRequestMiddleware):
 
 
 class InfuraRetryRequestMiddleware(RetryRequestMiddleware):
+    """
+    Automatically retries rpc requests whenever a 429 status code or Infura-specific error message is returned.
+    """
 
     def is_request_result_retry(self, result: Union[RPCResponse, Exception]) -> bool:
         """
