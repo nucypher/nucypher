@@ -344,15 +344,100 @@ def test_batch_deposit(testerchain, token_economics, token, escrow, multisig):
     testerchain.wait_for_receipt(tx)
 
 
+def test_staking_before_initialization(testerchain,
+                                       token_economics,
+                                       token,
+                                       escrow,
+                                       multisig,
+                                       preallocation_escrow_1,
+                                       preallocation_escrow_interface_1,
+                                       preallocation_escrow_2):
+    creator, staker1, staker2, staker3, staker4, _alice1, _alice2, *contracts_owners =\
+        testerchain.client.accounts
+    contracts_owners = sorted(contracts_owners)
+
+    # Give staker some coins
+    tx = token.functions.transfer(staker1, 10000).transact({'from': creator})
+    testerchain.wait_for_receipt(tx)
+    assert 10000 == token.functions.balanceOf(staker1).call()
+
+    # Set and lock re-stake parameter in first preallocation escrow
+    _wind_down, re_stake, _measure_work, _snapshots = escrow.functions.getFlags(preallocation_escrow_1.address).call()
+    assert re_stake
+    current_period = escrow.functions.getCurrentPeriod().call()
+    tx = preallocation_escrow_interface_1.functions.lockReStake(current_period + 25).transact({'from': staker3})
+    testerchain.wait_for_receipt(tx)
+    _wind_down, re_stake, _measure_work, _snapshots = escrow.functions.getFlags(preallocation_escrow_1.address).call()
+    assert re_stake
+    # Can't unlock re-stake parameter now
+    with pytest.raises((TransactionFailed, ValueError)):
+        tx = preallocation_escrow_interface_1.functions.setReStake(False).transact({'from': staker3})
+        testerchain.wait_for_receipt(tx)
+
+    # Deposit some tokens to the preallocation escrow and lock them
+    tx = token.functions.approve(preallocation_escrow_1.address, 10000).transact({'from': creator})
+    testerchain.wait_for_receipt(tx)
+    tx = preallocation_escrow_1.functions.initialDeposit(10000, 20 * 60 * 60).transact({'from': creator})
+    testerchain.wait_for_receipt(tx)
+
+    assert 10000 == token.functions.balanceOf(preallocation_escrow_1.address).call()
+    assert staker3 == preallocation_escrow_1.functions.owner().call()
+    assert 10000 >= preallocation_escrow_1.functions.getLockedTokens().call()
+    assert 9500 <= preallocation_escrow_1.functions.getLockedTokens().call()
+
+    assert token.functions.balanceOf(staker4).call() == 0
+    assert token.functions.balanceOf(preallocation_escrow_2.address).call() == pytest.staker4_tokens
+    assert preallocation_escrow_2.functions.owner().call() == staker4
+    assert preallocation_escrow_2.functions.getLockedTokens().call() == pytest.staker4_tokens
+
+    # Staker's withdrawal attempt won't succeed because nothing to withdraw
+    with pytest.raises((TransactionFailed, ValueError)):
+        tx = escrow.functions.withdraw(100).transact({'from': staker1})
+        testerchain.wait_for_receipt(tx)
+
+    # And can't lock because nothing to lock
+    with pytest.raises((TransactionFailed, ValueError)):
+        tx = escrow.functions.lockAndCreate(500, 2).transact({'from': staker1})
+        testerchain.wait_for_receipt(tx)
+
+    # Check that nothing is locked
+    assert 0 == escrow.functions.getLockedTokens(preallocation_escrow_1.address, 0).call()
+    assert 0 == escrow.functions.getLockedTokens(preallocation_escrow_2.address, 0).call()
+    assert 0 == escrow.functions.getLockedTokens(contracts_owners[0], 0).call()
+
+    # Staker can't deposit and lock too low value
+    with pytest.raises((TransactionFailed, ValueError)):
+        tx = escrow.functions.deposit(staker1, 1, 1).transact({'from': staker1})
+        testerchain.wait_for_receipt(tx)
+
+    # And can't deposit and lock too high value
+    with pytest.raises((TransactionFailed, ValueError)):
+        tx = escrow.functions.deposit(staker1, 2001, 1).transact({'from': staker1})
+        testerchain.wait_for_receipt(tx)
+
+    # Can't make a commitment before initialization
+    with pytest.raises((TransactionFailed, ValueError)):
+        tx = escrow.functions.commitToNextPeriod().transact({'from': staker1})
+        testerchain.wait_for_receipt(tx)
+    with pytest.raises((TransactionFailed, ValueError)):
+        tx = escrow.functions.commitToNextPeriod().transact({'from': staker2})
+        testerchain.wait_for_receipt(tx)
+    with pytest.raises((TransactionFailed, ValueError)):
+        tx = escrow.functions.commitToNextPeriod().transact({'from': staker3})
+        testerchain.wait_for_receipt(tx)
+
+
 def test_worklock_phases(testerchain,
                          token_economics,
                          token,
                          escrow,
                          preallocation_escrow_1,
                          preallocation_escrow_interface_1,
-                         worklock):
+                         worklock,
+                         multisig):
     creator = testerchain.w3.eth.accounts[0]
-    staker1, staker2, staker3, staker4 = testerchain.client.accounts[1:5]
+    creator, staker1, staker2, staker3, staker4, alice1, alice2, *contracts_owners =\
+        testerchain.client.accounts
 
     # Initialize worklock
     worklock_supply = 3 * token_economics.minimum_allowed_locked + token_economics.maximum_allowed_locked
@@ -482,6 +567,22 @@ def test_worklock_phases(testerchain,
     testerchain.wait_for_receipt(tx)
     assert worklock.functions.nextBidderToCheck().call() == 2
 
+    # Can't claim before initialization
+    with pytest.raises((TransactionFailed, ValueError)):
+        tx = worklock.functions.claim().transact({'from': staker2, 'gas_price': 0})
+        testerchain.wait_for_receipt(tx)
+
+    # Initialize escrow
+    tx = token.functions.transfer(multisig.address, token_economics.erc20_reward_supply).transact({'from': creator})
+    testerchain.wait_for_receipt(tx)
+    tx = token.functions.approve(escrow.address, token_economics.erc20_reward_supply) \
+        .buildTransaction({'from': multisig.address, 'gasPrice': 0})
+    execute_multisig_transaction(testerchain, multisig, [contracts_owners[0], contracts_owners[1]], tx)
+    tx = escrow.functions.initialize(token_economics.erc20_reward_supply, multisig.address) \
+        .buildTransaction({'from': multisig.address, 'gasPrice': 0})
+    execute_multisig_transaction(testerchain, multisig, [contracts_owners[0], contracts_owners[1]], tx)
+    pytest.escrow_supply += token_economics.erc20_reward_supply
+
     # Stakers claim tokens
     assert not worklock.functions.workInfo(staker2).call()[2]
     tx = worklock.functions.claim().transact({'from': staker2, 'gas_price': 0})
@@ -540,98 +641,16 @@ def test_worklock_phases(testerchain,
         testerchain.wait_for_receipt(tx)
 
 
-def test_staking(testerchain,
-                 token_economics,
-                 token,
-                 escrow,
-                 multisig,
-                 preallocation_escrow_1,
-                 preallocation_escrow_interface_1,
-                 preallocation_escrow_2):
+def test_staking_after_worklock(testerchain,
+                                token_economics,
+                                token,
+                                escrow,
+                                multisig,
+                                preallocation_escrow_1,
+                                preallocation_escrow_interface_1,
+                                preallocation_escrow_2):
     creator, staker1, staker2, staker3, staker4, _alice1, _alice2, *contracts_owners =\
         testerchain.client.accounts
-    contracts_owners = sorted(contracts_owners)
-
-    # Give staker some coins
-    tx = token.functions.transfer(staker1, 10000).transact({'from': creator})
-    testerchain.wait_for_receipt(tx)
-    assert 10000 == token.functions.balanceOf(staker1).call()
-
-    # Set and lock re-stake parameter in first preallocation escrow
-    _wind_down, re_stake, _measure_work, _snapshots = escrow.functions.getFlags(preallocation_escrow_1.address).call()
-    assert re_stake
-    current_period = escrow.functions.getCurrentPeriod().call()
-    tx = preallocation_escrow_interface_1.functions.lockReStake(current_period + 22).transact({'from': staker3})
-    testerchain.wait_for_receipt(tx)
-    _wind_down, re_stake, _measure_work, _snapshots = escrow.functions.getFlags(preallocation_escrow_1.address).call()
-    assert re_stake
-    # Can't unlock re-stake parameter now
-    with pytest.raises((TransactionFailed, ValueError)):
-        tx = preallocation_escrow_interface_1.functions.setReStake(False).transact({'from': staker3})
-        testerchain.wait_for_receipt(tx)
-
-    # Deposit some tokens to the preallocation escrow and lock them
-    tx = token.functions.approve(preallocation_escrow_1.address, 10000).transact({'from': creator})
-    testerchain.wait_for_receipt(tx)
-    tx = preallocation_escrow_1.functions.initialDeposit(10000, 20 * 60 * 60).transact({'from': creator})
-    testerchain.wait_for_receipt(tx)
-
-    assert 10000 == token.functions.balanceOf(preallocation_escrow_1.address).call()
-    assert staker3 == preallocation_escrow_1.functions.owner().call()
-    assert 10000 >= preallocation_escrow_1.functions.getLockedTokens().call()
-    assert 9500 <= preallocation_escrow_1.functions.getLockedTokens().call()
-
-    assert token.functions.balanceOf(staker4).call() == 0
-    assert token.functions.balanceOf(preallocation_escrow_2.address).call() == pytest.staker4_tokens
-    assert preallocation_escrow_2.functions.owner().call() == staker4
-    assert preallocation_escrow_2.functions.getLockedTokens().call() == pytest.staker4_tokens
-
-    # Staker's withdrawal attempt won't succeed because nothing to withdraw
-    with pytest.raises((TransactionFailed, ValueError)):
-        tx = escrow.functions.withdraw(100).transact({'from': staker1})
-        testerchain.wait_for_receipt(tx)
-
-    # And can't lock because nothing to lock
-    with pytest.raises((TransactionFailed, ValueError)):
-        tx = escrow.functions.lockAndCreate(500, 2).transact({'from': staker1})
-        testerchain.wait_for_receipt(tx)
-
-    # Check that nothing is locked
-    assert 0 == escrow.functions.getLockedTokens(preallocation_escrow_1.address, 0).call()
-    assert 0 == escrow.functions.getLockedTokens(preallocation_escrow_2.address, 0).call()
-    assert 0 == escrow.functions.getLockedTokens(contracts_owners[0], 0).call()
-
-    # Staker can't deposit and lock too low value
-    with pytest.raises((TransactionFailed, ValueError)):
-        tx = escrow.functions.deposit(staker1, 1, 1).transact({'from': staker1})
-        testerchain.wait_for_receipt(tx)
-
-    # And can't deposit and lock too high value
-    with pytest.raises((TransactionFailed, ValueError)):
-        tx = escrow.functions.deposit(staker1, 2001, 1).transact({'from': staker1})
-        testerchain.wait_for_receipt(tx)
-
-    # Can't make a commitment before initialization
-    with pytest.raises((TransactionFailed, ValueError)):
-        tx = escrow.functions.commitToNextPeriod().transact({'from': staker1})
-        testerchain.wait_for_receipt(tx)
-    with pytest.raises((TransactionFailed, ValueError)):
-        tx = escrow.functions.commitToNextPeriod().transact({'from': staker2})
-        testerchain.wait_for_receipt(tx)
-    with pytest.raises((TransactionFailed, ValueError)):
-        tx = escrow.functions.commitToNextPeriod().transact({'from': staker3})
-        testerchain.wait_for_receipt(tx)
-
-    # Initialize escrow
-    tx = token.functions.transfer(multisig.address, token_economics.erc20_reward_supply).transact({'from': creator})
-    testerchain.wait_for_receipt(tx)
-    tx = token.functions.approve(escrow.address, token_economics.erc20_reward_supply) \
-        .buildTransaction({'from': multisig.address, 'gasPrice': 0})
-    execute_multisig_transaction(testerchain, multisig, [contracts_owners[0], contracts_owners[1]], tx)
-    tx = escrow.functions.initialize(token_economics.erc20_reward_supply, multisig.address) \
-        .buildTransaction({'from': multisig.address, 'gasPrice': 0})
-    execute_multisig_transaction(testerchain, multisig, [contracts_owners[0], contracts_owners[1]], tx)
-    pytest.escrow_supply += token_economics.erc20_reward_supply
 
     # Grant access to transfer tokens
     tx = token.functions.approve(escrow.address, 10000).transact({'from': creator})

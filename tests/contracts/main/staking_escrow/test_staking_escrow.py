@@ -1572,6 +1572,13 @@ def test_staking_from_worklock(testerchain, token, escrow_contract, token_econom
         testerchain.wait_for_receipt(tx)
     assert token.functions.balanceOf(escrow.address).call() == 0
 
+    # Can't claim before initialization
+    with pytest.raises((TransactionFailed, ValueError)):
+        tx = worklock.functions.depositFromWorkLock(staker1, value, duration).transact()
+        testerchain.wait_for_receipt(tx)
+    tx = escrow.functions.initialize(0, creator).transact({'from': creator})
+    testerchain.wait_for_receipt(tx)
+
     # Deposit tokens from WorkLock
     wind_down, _re_stake, _measure_work, _snapshots = escrow.functions.getFlags(staker1).call()
     assert not wind_down
