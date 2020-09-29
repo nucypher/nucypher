@@ -338,7 +338,7 @@ def _make_rest_app(datastore: Datastore, this_node, serving_domain: str, log: Lo
         try:
             with datastore.describe(TreasureMap, treasure_map_id) as stored_treasure_map:
                 response = Response(stored_treasure_map.treasure_map, headers=headers)
-                log.info("{} providing TreasureMap {}".format(this_node.nickname, treasure_map_id))
+            log.info("{} providing TreasureMap {}".format(this_node.nickname, treasure_map_id))
         except RecordNotFound:
             log.info("{} doesn't have requested TreasureMap {}".format(this_node.stamp, treasure_map_id))
             response = Response("No Treasure Map with ID {}".format(treasure_map_id),
@@ -380,24 +380,33 @@ def _make_rest_app(datastore: Datastore, this_node, serving_domain: str, log: Lo
             pass
 
         # Step 4: If the node is decentralized, we check that the received
-        # treasure map is actually from Alice via the blockchain.
+        # treasure map is valid pursuant to an active policy.
         if not this_node.federated_only:
-            alice_checksum_address = this_node.policy_agent.contract.functions.getPolicyOwner(
-                received_treasure_map._hrac[:16]).call()
+            policy_data, alice_checksum_address = this_node.policy_agent.fetch_policy(received_treasure_map._hrac[:16])
+
+            # Check that this treasure map is from Alice per the Policy.
             if not received_treasure_map.verify_blockchain_signature(checksum_address=alice_checksum_address):
                 log.info("Bad TreasureMap ID; not storing {}".format(treasure_map_id))
                 return Response("This TreasureMap doesn't match a paid Policy.", status=402)
 
+            # Check that this treasure map is valid for the Policy datetime and that it's not disabled.
+            if datetime.today() < datetime.utcfromtimestamp(policy_data[5]) and not policy_data[0]:
+                log.info("Received TreasureMap for an expired/disabled policy; not storing {}".format(treasure_map_id))
+                return Response("This TreasureMap is for an expired/disabled policy.", status=402)
+
+            #TODO # Finally, check that we don't already store a treasure map for this Policy.
+
         # Step 5: Finally, we store our treasure map!
         log.info("{} storing TreasureMap {}".format(this_node, treasure_map_id))
+        
         with datastore.describe(TreasureMap, treasure_map_id, writeable=True) as new_treasure_map:
             new_treasure_map.treasure_map = bytes(received_treasure_map)
-
+            new_treasure_map.hrac = received_treasure_map._hrac
+            new_treasure_map.expiration = MayaDT.from_datetime(datetime.fromutctimestamp(policy_data[5]))
         return Response("Treasure map stored!", status=201)
 
     @rest_app.route('/status/', methods=['GET'])
     def status():
-
         if request.args.get('json'):
             payload = this_node.abridged_node_details()
             response = jsonify(payload)
