@@ -82,7 +82,7 @@ def test_upgrade(testerchain, test_registry, token_economics):
                                      economics=token_economics,
                                      deployer_address=testerchain.etherbase_account)
 
-    receipts = deployer.upgrade(ignore_deployed=True)
+    receipts = deployer.upgrade(ignore_deployed=True, confirmations=0)
     for title, receipt in receipts.items():
         assert receipt['status'] == 1
 
@@ -96,7 +96,7 @@ def test_rollback(testerchain, test_registry):
     current_target = staking_agent.contract.functions.target().call()
 
     # Let's do one more upgrade
-    receipts = deployer.upgrade(ignore_deployed=True)
+    receipts = deployer.upgrade(ignore_deployed=True, confirmations=0)
 
     for title, receipt in receipts.items():
         assert receipt['status'] == 1

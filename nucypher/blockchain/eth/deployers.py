@@ -273,6 +273,7 @@ class UpgradeableContractMixin:
 
     def retarget(self,
                  target_address: str,
+                 confirmations: int,
                  gas_limit: int = None,
                  just_build_transaction: bool = False):
         """
@@ -293,10 +294,12 @@ class UpgradeableContractMixin:
             return transaction
         else:
             receipt = proxy_deployer.retarget(new_target=target_address,
-                                              gas_limit=gas_limit)
+                                              gas_limit=gas_limit,
+                                              confirmations=confirmations)
             return receipt
 
     def upgrade(self,
+                confirmations: int,
                 gas_limit: int = None,
                 contract_version: str = "latest",
                 ignore_deployed: bool = False,
@@ -316,6 +319,7 @@ class UpgradeableContractMixin:
         # 3 - Deploy new version
         new_contract, deploy_receipt = self._deploy_essential(contract_version=contract_version,
                                                               gas_limit=gas_limit,
+                                                              confirmations=confirmations,
                                                               **overrides)
 
         # 4 - Wrap the escrow contract
@@ -324,7 +328,8 @@ class UpgradeableContractMixin:
 
         # 5 - Set the new Dispatcher target
         upgrade_receipt = proxy_deployer.retarget(new_target=new_contract.address,
-                                                  gas_limit=gas_limit)
+                                                  gas_limit=gas_limit,
+                                                  confirmations=confirmations)
 
         # 6 - Respond
         upgrade_transaction = {'deploy': deploy_receipt, 'retarget': upgrade_receipt}
@@ -439,12 +444,15 @@ class ProxyContractDeployer(BaseContractDeployer):
 
     def retarget(self,
                  new_target: str,
-                 gas_limit: int = None) -> dict:
+                 confirmations: int,
+                 gas_limit: int = None,
+                 ) -> dict:
         self._validate_retarget(new_target)
         upgrade_function = self._contract.functions.upgrade(new_target)
         upgrade_receipt = self.blockchain.send_transaction(contract_function=upgrade_function,
                                                            sender_address=self.deployer_address,
-                                                           transaction_gas_limit=gas_limit)
+                                                           transaction_gas_limit=gas_limit,
+                                                           confirmations=confirmations)
         return upgrade_receipt
 
     def build_retarget_transaction(self,

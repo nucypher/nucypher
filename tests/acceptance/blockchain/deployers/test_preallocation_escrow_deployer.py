@@ -103,7 +103,7 @@ def test_upgrade_staking_interface(testerchain, test_registry):
     staking_interface_deployer = StakingInterfaceDeployer(deployer_address=testerchain.etherbase_account,
                                                           registry=test_registry)
 
-    receipts = staking_interface_deployer.upgrade(ignore_deployed=True)
+    receipts = staking_interface_deployer.upgrade(ignore_deployed=True, confirmations=0)
 
     assert len(receipts) == 2
 

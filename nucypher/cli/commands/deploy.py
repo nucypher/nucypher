@@ -114,6 +114,7 @@ option_gas = click.option('--gas', help="Operate with a specified gas per-transa
 option_gas_strategy = click.option('--gas-strategy', help="Operate with a specified gas price strategy", type=click.STRING)  # TODO: GAS_STRATEGY_CHOICES
 option_ignore_deployed = click.option('--ignore-deployed', help="Ignore already deployed contracts if exist.", is_flag=True)
 option_ignore_solidity_version = click.option('--ignore-solidity-check', help="Ignore solidity version compatibility check", is_flag=True)
+option_confirmations = click.option('--confirmations', help="Number of block confirmations to wait between transactions", type=click.IntRange(min=0), default=3)
 
 
 class ActorOptions:
@@ -173,7 +174,7 @@ class ActorOptions:
         # Establish Registry
         #
         local_registry = establish_deployer_registry(emitter=emitter,
-                                                     use_existing_registry=bool(self.contract_name),
+                                                     use_existing_registry=bool(self.contract_name),  # TODO: Eh?
                                                      registry_infile=self.registry_infile,
                                                      registry_outfile=self.registry_outfile,
                                                      dev=self.dev)
@@ -371,7 +372,9 @@ def upgrade(general_config, actor_options, retarget, target_address, ignore_depl
     else:
         if not actor_options.force:
             click.confirm(CONFIRM_BEGIN_UPGRADE.format(contract_name=contract_name), abort=True)
-        receipts = ADMINISTRATOR.upgrade_contract(contract_name=contract_name, ignore_deployed=ignore_deployed)
+        receipts = ADMINISTRATOR.upgrade_contract(contract_name=contract_name,
+                                                  ignore_deployed=ignore_deployed,
+                                                  confirmations=confirmations)
         emitter.message(SUCCESSFUL_UPGRADE.format(contract_name=contract_name), color='green')
         for name, receipt in receipts.items():
             paint_receipt_summary(emitter=emitter, receipt=receipt)
@@ -396,7 +399,7 @@ def rollback(general_config, actor_options):
 @option_gas
 @option_ignore_deployed
 @option_parameters
-@click.option('--confirmations', help="Number of required block confirmations", type=click.IntRange(min=0))
+@option_confirmations
 @click.option('--mode',
               help="Deploy a contract following all steps ('full'), up to idle status ('idle'), "
                    "or just the bare contract ('bare'). Defaults to 'full'",

@@ -16,7 +16,9 @@
 """
 
 import os
+import pytest
 
+from nucypher.blockchain.eth.clients import EthereumClient
 from nucypher.blockchain.eth.agents import (AdjudicatorAgent, ContractAgency, PolicyManagerAgent, StakingEscrowAgent)
 from nucypher.blockchain.eth.constants import (ADJUDICATOR_CONTRACT_NAME, DISPATCHER_CONTRACT_NAME,
                                                NUCYPHER_TOKEN_CONTRACT_NAME, POLICY_MANAGER_CONTRACT_NAME,
@@ -30,6 +32,14 @@ ALTERNATE_REGISTRY_FILEPATH = '/tmp/nucypher-test-registry-alternate.json'
 ALTERNATE_REGISTRY_FILEPATH_2 = '/tmp/nucypher-test-registry-alternate-2.json'
 
 
+@pytest.fixture(autouse=True)
+def monkeypatch_confirmations(testerchain, monkeypatch):
+    def monkey_block_until_enough_confirmations(client, transaction_hash, timeout, confirmations):
+        receipt = testerchain.wait_for_receipt(txhash=transaction_hash)
+        return receipt
+    monkeypatch.setattr(EthereumClient, 'block_until_enough_confirmations', monkey_block_until_enough_confirmations)
+
+
 def test_nucypher_deploy_inspect_no_deployments(click_runner, testerchain, new_local_registry):
 
     status_command = ('inspect',
@@ -41,6 +51,7 @@ def test_nucypher_deploy_inspect_no_deployments(click_runner, testerchain, new_l
     assert 'not enrolled' in result.output
 
 
+@pytest.mark.skip('See Issue #2314')
 def test_set_range(click_runner, testerchain, agency_local_registry):
 
     minimum, default, maximum = 10, 20, 30
@@ -58,7 +69,7 @@ def test_set_range(click_runner, testerchain, agency_local_registry):
                                  status_command,
                                  input=user_input,
                                  catch_exceptions=False)
-    assert result.exit_code == 0
+    assert result.exit_code == 0, result.output
     assert f"range [{minimum}, {maximum}]" in result.output
     assert f"default value {default}" in result.output
 
@@ -173,7 +184,7 @@ def test_bare_contract_deployment_to_alternate_registry(click_runner, agency_loc
 # TODO: test to validate retargetting via multisig, specifically, building the transaction
 
 
-def test_manual_proxy_retargeting(testerchain, click_runner, token_economics):
+def test_manual_proxy_retargeting(monkeypatch, testerchain, click_runner, token_economics):
 
     # A local, alternate filepath registry exists
     assert os.path.exists(ALTERNATE_REGISTRY_FILEPATH)
@@ -197,7 +208,8 @@ def test_manual_proxy_retargeting(testerchain, click_runner, token_economics):
                '--contract-name', StakingEscrowDeployer.contract_name,
                '--target-address', untargeted_deployment.address,
                '--provider', TEST_PROVIDER_URI,
-               '--registry-infile', ALTERNATE_REGISTRY_FILEPATH)
+               '--registry-infile', ALTERNATE_REGISTRY_FILEPATH,
+               '--confirmations', 4)
 
     # Upgrade
     user_input = '0\n' + 'Y\n' + 'Y\n'

@@ -165,6 +165,7 @@ def test_multiversion_contract():
     assert contract.functions.VERSION().call() == 2
 
 
+# TODO: Move to integrations tests
 def test_block_confirmations(testerchain, test_registry, mocker):
     origin = testerchain.etherbase_account
 

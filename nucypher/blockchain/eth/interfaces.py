@@ -627,8 +627,12 @@ class BlockchainInterface:
                          payload: dict = None,
                          transaction_gas_limit: int = None,
                          confirmations: int = 0,
-                         fire_and_forget: bool = False
+                         fire_and_forget: bool = False  # do not wait for receipt.
                          ) -> dict:
+
+        # TODO: Are confirmations and fire_and_forget conflicting options?
+        # if fire_and_forget and confirmations > 0:
+        #     raise ValueError
 
         transaction = self.build_contract_transaction(contract_function=contract_function,
                                                       sender_address=sender_address,

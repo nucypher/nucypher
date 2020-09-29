@@ -187,7 +187,9 @@ def test_upgrade_contracts(click_runner, registry_filepath, testerchain):
     #
 
     cli_action = 'upgrade'
-    base_command = ('--registry-infile', registry_filepath, '--provider', TEST_PROVIDER_URI)
+    base_command = ('--registry-infile', registry_filepath,
+                    '--provider', TEST_PROVIDER_URI,
+                    '--confirmations', 1)
 
     #
     # Stage Upgrades

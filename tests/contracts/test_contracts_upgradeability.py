@@ -133,17 +133,17 @@ def test_upgradeability(temp_dir_path):
         staking_escrow_deployer = StakingEscrowDeployer(registry=registry, deployer_address=origin)
         deploy_earliest_contract(blockchain_interface, staking_escrow_deployer)
         if test_staking_escrow:
-            staking_escrow_deployer.upgrade(contract_version="latest")
+            staking_escrow_deployer.upgrade(contract_version="latest", confirmations=0)
 
         if test_policy_manager:
             policy_manager_deployer = PolicyManagerDeployer(registry=registry, deployer_address=origin)
             deploy_earliest_contract(blockchain_interface, policy_manager_deployer)
-            policy_manager_deployer.upgrade(contract_version="latest")
+            policy_manager_deployer.upgrade(contract_version="latest", confirmations=0)
 
         if test_adjudicator:
             adjudicator_deployer = AdjudicatorDeployer(registry=registry, deployer_address=origin)
             deploy_earliest_contract(blockchain_interface, adjudicator_deployer)
-            adjudicator_deployer.upgrade(contract_version="latest")
+            adjudicator_deployer.upgrade(contract_version="latest", confirmations=0)
 
     finally:
         # Unregister interface

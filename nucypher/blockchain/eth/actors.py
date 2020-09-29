@@ -322,11 +322,12 @@ class ContractAdministrator(NucypherTokenActor):
 
     def upgrade_contract(self,
                          contract_name: str,
-                         ignore_deployed: bool = False
+                         confirmations: int,
+                         ignore_deployed: bool = False,
                          ) -> dict:
         Deployer = self.__get_deployer(contract_name=contract_name)
         deployer = Deployer(registry=self.registry, deployer_address=self.deployer_address)
-        receipts = deployer.upgrade(ignore_deployed=ignore_deployed)
+        receipts = deployer.upgrade(ignore_deployed=ignore_deployed, confirmations=confirmations)
         return receipts
 
     def retarget_proxy(self,
