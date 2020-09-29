@@ -364,7 +364,8 @@ def upgrade(general_config, actor_options, retarget, target_address, ignore_depl
                                                                     target_address=target_address), abort=True)
         transaction = ADMINISTRATOR.retarget_proxy(contract_name=contract_name,
                                                    target_address=target_address,
-                                                   just_build_transaction=True)
+                                                   just_build_transaction=True,
+                                                   confirmations=confirmations)
 
         trustee_address = select_client_account(emitter=emitter,
                                                 prompt="Select trustee address",

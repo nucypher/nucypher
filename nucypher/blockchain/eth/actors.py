@@ -331,13 +331,16 @@ class ContractAdministrator(NucypherTokenActor):
         return receipts
 
     def retarget_proxy(self,
+                       confirmations: int,
                        contract_name: str,
                        target_address: str,
-                       just_build_transaction: bool = False):
+                       just_build_transaction: bool = False
+                       ):
         Deployer = self.__get_deployer(contract_name=contract_name)
         deployer = Deployer(registry=self.registry, deployer_address=self.deployer_address)
         result = deployer.retarget(target_address=target_address,
-                                   just_build_transaction=just_build_transaction)
+                                   just_build_transaction=just_build_transaction,
+                                   confirmations=confirmations)
         return result
 
     def rollback_contract(self, contract_name: str):
