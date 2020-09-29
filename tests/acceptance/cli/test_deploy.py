@@ -45,6 +45,7 @@ def test_echo_solidity_version(click_runner):
     assert str(SOLIDITY_COMPILER_VERSION) in result.output, 'Solidity version text was not produced.'
 
 
+@pytest.mark.skip("Retired test")
 def test_nucypher_deploy_contracts(click_runner,
                                    token_economics,
                                    registry_filepath,
