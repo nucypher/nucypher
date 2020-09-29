@@ -15,7 +15,7 @@
  along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 from abc import ABC, abstractmethod
-from typing import Optional
+from typing import Optional, Callable
 
 import requests
 from web3 import Web3
@@ -61,16 +61,38 @@ class EthereumGasPriceDatafeed(Datafeed):
     def get_gas_price(self, speed: Optional[str] = None) -> Wei:
         speed = speed or self._default_speed
         self._parse_gas_prices()
-        gas_price_wei = Wei(self.gas_prices[speed])
-        return gas_price_wei
+        try:
+            gas_price_wei = Wei(self.gas_prices[speed])
+        except KeyError:
+            raise self.DatafeedError  # TODO
+        else:
+            return gas_price_wei
 
     @classmethod
-    def construct_gas_strategy(cls):
+    def construct_gas_strategy(cls, speed: Optional[str] = None) -> Callable:
         def gas_price_strategy(web3: Web3, transaction_params: TxParams = None) -> Wei:
             feed = cls()
-            gas_price = feed.get_gas_price()
+            gas_price = feed.get_gas_price(speed=speed)
             return gas_price
         return gas_price_strategy
+
+    @classmethod
+    def get_strategy_from_string(cls, strategy_name: str) -> Callable:
+        """
+        Creates a data feed gas strategy from a string representing the strategy
+        :param strategy_name: A string of format "<datafeed_name>/<speed_name>"
+        :return: A web3 gas strategy that internally uses the specified datafeed and speed to compute gas prices
+        """
+        try:
+            datafeed, speed = strategy_name.split("/")
+            datafeed_class = cls._DATAFEEDS[datafeed]
+        except ValueError:
+            raise cls.DatafeedError  # TODO
+        except KeyError:
+            raise cls.DatafeedError  # TODO
+        else:
+            gas_strategy = datafeed_class.construct_gas_strategy(speed=speed)
+            return gas_strategy
 
 
 class EtherchainGasPriceDatafeed(EthereumGasPriceDatafeed):
