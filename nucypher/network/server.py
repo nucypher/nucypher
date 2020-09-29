@@ -386,6 +386,7 @@ def _make_rest_app(datastore: Datastore, this_node, serving_domains: Set[str], l
             alice_checksum_address = this_node.policy_agent.contract.functions.getPolicyOwner(
                 treasure_map._hrac[:16]).call()
             do_store = treasure_map.verify_blockchain_signature(checksum_address=alice_checksum_address)
+            treasure_map_index = treasure_map._hrac[:16]
 
         if do_store:
             log.info("{} storing TreasureMap {}".format(this_node, treasure_map_id))
