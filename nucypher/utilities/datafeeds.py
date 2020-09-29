@@ -54,9 +54,16 @@ class EthereumGasPriceDatafeed(Datafeed):
     _speed_names = NotImplemented
     _default_speed = NotImplemented
 
+    _DATAFEEDS = NotImplemented  # set dynamically in __init__.py
+
+    @property
+    @abstractmethod
+    def simple_name(self):
+        raise NotImplementedError
+
     @abstractmethod
     def _parse_gas_prices(self):
-        return NotImplementedError
+        raise NotImplementedError
 
     def get_gas_price(self, speed: Optional[str] = None) -> Wei:
         speed = speed or self._default_speed
@@ -103,6 +110,9 @@ class EtherchainGasPriceDatafeed(EthereumGasPriceDatafeed):
     _speed_names = ('safeLow', 'standard', 'fast', 'fastest')
     _default_speed = 'fast'
 
+    def simple_name(self):
+        return "etherchain"
+
     def _parse_gas_prices(self):
         self._probe_feed()
         self.gas_prices = {k: int(Web3.toWei(v, 'gwei')) for k, v in self._raw_data.items()}
@@ -115,6 +125,9 @@ class UpvestGasPriceDatafeed(EthereumGasPriceDatafeed):
     api_url = "https://fees.upvest.co/estimate_eth_fees"
     _speed_names = ('slow', 'medium', 'fast', 'fastest')
     _default_speed = 'fastest'
+
+    def simple_name(self):
+        return "upvest"
 
     def _parse_gas_prices(self):
         self._probe_feed()
