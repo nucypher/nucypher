@@ -19,6 +19,7 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 from collections import OrderedDict
 
 from constant_sorrow.constants import (BARE, CONTRACT_NOT_DEPLOYED, FULL, IDLE, NO_BENEFICIARY, NO_DEPLOYER_CONFIGURED)
+from eth_typing.evm import ChecksumAddress
 from typing import Dict, List, Tuple
 from web3 import Web3
 from web3.contract import Contract
@@ -189,6 +190,13 @@ class OwnableContractMixin:
 
     class ContractNotOwnable(RuntimeError):
         pass
+
+    @property
+    def owner(self) -> ChecksumAddress:
+        if self._upgradeable:
+            proxy_deployer = self.get_proxy_deployer()
+            owner_address = ChecksumAddress(proxy_deployer.contract.functions.owner().call())
+        return owner_address
 
     def transfer_ownership(self, new_owner: str, transaction_gas_limit: int = None) -> dict:
         if not self._ownable:

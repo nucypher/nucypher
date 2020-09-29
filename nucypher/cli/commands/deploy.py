@@ -16,14 +16,13 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
 import json
-import os
-from typing import Tuple
 
 import click
+import os
 from constant_sorrow import constants
 from constant_sorrow.constants import FULL
-from nucypher.blockchain.eth.signers.base import Signer
-from nucypher.blockchain.eth.signers.software import ClefSigner
+from eth_utils.address import to_checksum_address
+from typing import Tuple
 
 from nucypher.blockchain.eth.actors import ContractAdministrator, Trustee
 from nucypher.blockchain.eth.agents import ContractAgency, MultiSigAgent, NucypherTokenAgent
@@ -36,6 +35,8 @@ from nucypher.blockchain.eth.registry import (
     InMemoryContractRegistry,
     RegistrySourceManager
 )
+from nucypher.blockchain.eth.signers.base import Signer
+from nucypher.blockchain.eth.signers.software import ClefSigner
 from nucypher.blockchain.eth.token import NU
 from nucypher.characters.control.emitters import StdoutEmitter
 from nucypher.cli.actions.auth import get_client_password
@@ -74,7 +75,8 @@ from nucypher.cli.literature import (
     SUCCESSFUL_SAVE_DEPLOY_RECEIPTS,
     SUCCESSFUL_SAVE_MULTISIG_TX_PROPOSAL,
     SUCCESSFUL_UPGRADE,
-    UNKNOWN_CONTRACT_NAME
+    UNKNOWN_CONTRACT_NAME,
+    IDENTICAL_REGISTRY_WARNING
 )
 from nucypher.cli.options import (
     group_options,
@@ -227,7 +229,7 @@ group_actor_options = group_options(
     provider_uri=option_provider_uri(),
     gas_strategy=option_gas_strategy,
     signer_uri=option_signer_uri,
-    contract_name=option_contract_name,
+    contract_name=option_contract_name(required=True),
     poa=option_poa,
     force=option_force,
     hw_wallet=option_hw_wallet,
@@ -301,11 +303,11 @@ def inspect(general_config, provider_uri, config_root, registry_infile, deployer
                                   provider_uri=provider_uri,
                                   emitter=emitter,
                                   ignore_solidity_check=ignore_solidity_check)
-    local_registry = establish_deployer_registry(emitter=emitter,
-                                                 registry_infile=registry_infile,
-                                                 download_registry=not bool(registry_infile))
+    registry = establish_deployer_registry(emitter=emitter,
+                                           registry_infile=registry_infile,
+                                           download_registry=not bool(registry_infile))
     paint_deployer_contract_inspection(emitter=emitter,
-                                       registry=local_registry,
+                                       registry=registry,
                                        deployer_address=deployer_address)
 
 
@@ -314,20 +316,45 @@ def inspect(general_config, provider_uri, config_root, registry_infile, deployer
 @group_actor_options
 @option_target_address
 @option_ignore_deployed
+@option_confirmations
 @click.option('--retarget', '-d', help="Retarget a contract's proxy.", is_flag=True)
 @click.option('--multisig', help="Build raw transaction for upgrade via MultiSig ", is_flag=True)
-def upgrade(general_config, actor_options, retarget, target_address, ignore_deployed, multisig):
-    """
-    Upgrade NuCypher existing proxy contract deployments.
-    """
-    # Init
-    emitter = general_config.emitter
+def upgrade(general_config, actor_options, retarget, target_address, ignore_deployed, multisig, confirmations):
+    """Upgrade NuCypher existing proxy contract deployments."""
 
-    ADMINISTRATOR, _, _, registry = actor_options.create_actor(emitter, is_multisig=bool(multisig))  # FIXME: Workaround for building MultiSig TXs
+    # Setup
+    emitter = general_config.emitter
+    ADMINISTRATOR, deployer_address, blockchain, local_registry = actor_options.create_actor(emitter, is_multisig=bool(multisig))  # FIXME: Workaround for building MultiSig TXs | NRN
+
+    #
+    # Pre-flight
+    #
 
     contract_name = actor_options.contract_name
+
+    # Check deployer address is owner
+    agent = ContractAgency.get_agent_by_contract_name(contract_name=contract_name, registry=local_registry)
+    dispatcher = agent.get_proxy_contract()  # Implicit verification of updatability
+    dispatcher_owner = dispatcher.owner      # contract read
+    if deployer_address != dispatcher_owner:
+        DEPLOYER_IS_NOT_OWNER = f"Address {deployer_address} is not the owner of {contract_name}'s" \
+                                f" Dispatcher ({dispatcher.address}). Aborting."  # TODO:  Move to literature.py
+        emitter.echo(DEPLOYER_IS_NOT_OWNER)
+        raise click.Abort()
+
+    # Check registry ID has changed locally compared to remote source
+    github_registry = establish_deployer_registry(emitter=emitter, download_registry=True)
+    if github_registry.id == local_registry.id:
+        emitter.echo(IDENTICAL_REGISTRY_WARNING.format(github_registry=github_registry,
+                                                       local_registry=local_registry), color='red')
+        raise click.Abort()
+
     if not contract_name:
         raise click.BadArgumentUsage(message="--contract-name is required when using --upgrade")
+
+    #
+    # Business
+    #
 
     if multisig:
         if not target_address:
@@ -349,7 +376,7 @@ def upgrade(general_config, actor_options, retarget, target_address, ignore_depl
         if not actor_options.force:
             click.confirm(CONFIRM_SELECTED_ACCOUNT.format(address=trustee_address), abort=True)
 
-        trustee = Trustee(registry=registry, checksum_address=trustee_address)
+        trustee = Trustee(registry=local_registry, checksum_address=trustee_address)
         transaction_proposal = trustee.create_transaction_proposal(transaction)
 
         message = SUCCESSFUL_RETARGET_TX_BUILT.format(contract_name=contract_name, target_address=target_address)

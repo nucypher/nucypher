@@ -121,6 +121,7 @@ def establish_deployer_registry(emitter,
     filepath = registry_infile
     default_registry_filepath = os.path.join(DEFAULT_CONFIG_ROOT, BaseContractRegistry.REGISTRY_NAME)
     if registry_outfile:
+        # mutative usage of existing registry
         registry_infile = registry_infile or default_registry_filepath
         if use_existing_registry:
             try:
