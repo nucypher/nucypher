@@ -194,8 +194,12 @@ class OwnableContractMixin:
     @property
     def owner(self) -> ChecksumAddress:
         if self._upgradeable:
-            proxy_deployer = self.get_proxy_deployer()
-            owner_address = ChecksumAddress(proxy_deployer.contract.functions.owner().call())
+            # Get the address of the proxy
+            contract = self.get_proxy_deployer()
+        else:
+            # Get the address of the implementation
+            contract = self.blockchain.get_contract_by_name(contract_name=self.contract_name, registry=self.registry)
+        owner_address = ChecksumAddress(contract.contract.functions.owner().call())  # blockchain read
         return owner_address
 
     def transfer_ownership(self, new_owner: str, transaction_gas_limit: int = None) -> dict:
