@@ -152,10 +152,7 @@ def test_put_additional_treasure_map_on_network(blockchain_ursulas, blockchain_a
                                                   expiration=policy_end_datetime)
     sucker = blockchain_ursulas[0]
 
-    # Let's remember how many maps Ursula had stored before this attack started.
-    number_of_maps_initially_stored = len(sucker.treasure_maps)
-
     amonia.use_ursula_as_an_involuntary_and_unbeknownst_cdn(policy, sucker_ursula=blockchain_ursulas[0])
 
     # This assertion will fail if my attack succeeded.
-    assert len(sucker.treasure_maps) == number_of_maps_initially_stored
+    assert len(sucker.treasure_maps) <= 1
