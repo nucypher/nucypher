@@ -32,7 +32,6 @@ from web3.exceptions import TimeExhausted
 import nucypher
 from nucypher.crypto.api import InvalidNodeCertificate
 from nucypher.config.constants import MAX_UPLOAD_CONTENT_LENGTH
-from nucypher.config.storages import ForgetfulNodeStorage
 from nucypher.crypto.keypairs import HostingKeypair
 from nucypher.crypto.kits import UmbralMessageKit
 from nucypher.crypto.powers import KeyPairBasedPower, PowerUpError
@@ -103,9 +102,7 @@ def make_rest_app(
     return rest_app, datastore
 
 
-def _make_rest_app(datastore: Datastore, this_node, serving_domain: str, log: Logger) -> Tuple[Flask, Datastore]:
-
-    forgetful_node_storage = ForgetfulNodeStorage(federated_only=this_node.federated_only)  # FIXME: Seems unused
+def _make_rest_app(datastore: Datastore, this_node, serving_domain: str, log: Logger) -> Flask:
 
     from nucypher.characters.lawful import Alice, Ursula
     _alice_class = Alice
@@ -180,8 +177,8 @@ def _make_rest_app(datastore: Datastore, this_node, serving_domain: str, log: Lo
 
     @rest_app.route('/node_metadata', methods=["POST"])
     def node_metadata_exchange():
-        # If these nodes already have the same fleet state, no exchange is necessary.
 
+        # If these nodes already have the same fleet state, no exchange is necessary.
         learner_fleet_state = request.args.get('fleet')
         if learner_fleet_state == this_node.known_nodes.checksum:
             log.debug("Learner already knew fleet state {}; doing nothing.".format(learner_fleet_state))

@@ -1382,6 +1382,7 @@ class Teacher:
                    "last_seen": last_seen,
                    "fleet_state": node.fleet_state_checksum or 'unknown',
                    "fleet_state_icon": fleet_icon,
+                   "domain": node.learning_domain,
                    'version': nucypher.__version__}
         return payload
 

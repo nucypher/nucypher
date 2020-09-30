@@ -99,17 +99,17 @@ class UrsulaInfoMetricsCollector(BaseMetricsCollector):
             "learning_status": Enum(f'{metrics_prefix}_node_discovery', 'Learning loop status',
                                     states=['starting', 'running', 'stopped'], registry=registry),
             "known_nodes_gauge": Gauge(f'{metrics_prefix}_known_nodes',
-                                        'Number of currently known nodes',
-                                        registry=registry),
+                                       'Number of currently known nodes',
+                                       registry=registry),
             "work_orders_gauge": Gauge(f'{metrics_prefix}_work_orders',
-                                        'Number of accepted work orders',
-                                        registry=registry),
+                                       'Number of accepted work orders',
+                                       registry=registry),
             "policies_held_gauge": Gauge(f'{metrics_prefix}_policies_held',
-                                        'Policies held',
-                                        registry=registry),
+                                         'Policies held',
+                                         registry=registry),
             "availability_score_gauge": Gauge(f'{metrics_prefix}_availability_score',
-                                        'Availability score',
-                                        registry=registry),
+                                              'Availability score',
+                                              registry=registry),
         }
 
     def _collect_internal(self) -> None:
@@ -118,6 +118,8 @@ class UrsulaInfoMetricsCollector(BaseMetricsCollector):
                         'teacher_version': str(self.ursula.TEACHER_VERSION),
                         'host': str(self.ursula.rest_interface),
                         'domain': self.ursula.learning_domain,
+                        'nickname': self.ursula.nickname,
+                        'nickname_icon': self.ursula.nickname_icon,
                         'fleet_state': str(self.ursula.known_nodes.checksum),
                         'known_nodes': str(len(self.ursula.known_nodes))
                         }
