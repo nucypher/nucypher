@@ -225,7 +225,7 @@ group_actor_options = group_options(
     provider_uri=option_provider_uri(),
     gas_strategy=option_gas_strategy,
     signer_uri=option_signer_uri,
-    contract_name=option_contract_name(required=True),
+    contract_name=option_contract_name(required=False),  # TODO: Make this required see Issue #2314
     poa=option_poa,
     force=option_force,
     hw_wallet=option_hw_wallet,
@@ -391,7 +391,7 @@ def upgrade(general_config, actor_options, retarget, target_address, ignore_depl
             raise click.BadArgumentUsage(message="--target-address is required when using --retarget")
         if not actor_options.force:
             click.confirm(CONFIRM_RETARGET.format(contract_name=contract_name, target_address=target_address), abort=True)
-        receipt = ADMINISTRATOR.retarget_proxy(contract_name=contract_name,target_address=target_address)
+        receipt = ADMINISTRATOR.retarget_proxy(contract_name=contract_name,target_address=target_address, confirmations=0)
         message = SUCCESSFUL_RETARGET.format(contract_name=contract_name, target_address=target_address)
         emitter.message(message, color='green')
         paint_receipt_summary(emitter=emitter, receipt=receipt)

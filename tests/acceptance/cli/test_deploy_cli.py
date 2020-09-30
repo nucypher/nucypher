@@ -92,9 +92,9 @@ def test_upgrade_contracts(click_runner, test_registry_source_manager, test_regi
     cli_action = 'upgrade'
     base_command = ('--registry-infile', registry_filepath,
                     '--provider', TEST_PROVIDER_URI,
-                    '--confirmations', 30,
+                    '--confirmations', 1,
                     '--network', TEMPORARY_DOMAIN,
-                    '--force')  # skip some preflights
+                    '--force')  # skip registry preflight for tests
 
     #
     # Stage Upgrades
