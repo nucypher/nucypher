@@ -1052,10 +1052,10 @@ class Ursula(Teacher, Character, Worker):
             self._availability_check = availability_check
             self._availability_tracker = AvailabilityTracker(ursula=self)
 
-            # Arrangement Pruning
+            # Datastore Pruning
             self.__pruning_task = None
             self._prune_datastore = prune_datastore
-            self._arrangement_pruning_task = LoopingCall(f=self.__prune_arrangements)
+            self._datastore_pruning_task = LoopingCall(f=self.__prune_datastore)
 
         #
         # Ursula the Decentralized Worker (Self)
@@ -1170,9 +1170,9 @@ class Ursula(Teacher, Character, Worker):
             message = "Initialized Stranger {} | {}".format(self.__class__.__name__, self)
             self.log.debug(message)
 
-    def __prune_arrangements(self) -> None:
-        """Deletes all expired arrangements and kfrags in the datastore."""
-        now = maya.MayaDT.from_datetime(datetime.fromtimestamp(self._arrangement_pruning_task.clock.seconds()))
+    def __prune_datastore(self) -> None:
+        """Deletes all expired arrangements, kfrags, and treasure maps in the datastore."""
+        now = maya.MayaDT.from_datetime(datetime.fromtimestamp(self._datastore_pruning_task.clock.seconds()))
         try:
             with self.datastore.query_by(PolicyArrangement,
                                          filter_field='expiration',
@@ -1188,6 +1188,22 @@ class Ursula(Teacher, Character, Worker):
         else:
             if result > 0:
                 self.log.debug(f"Pruned {result} policy arrangements.")
+
+        try:
+            with self.datastore.query_by(DatastoreTreasureMap,
+                                         filter_field='expiration',
+                                         filter_func=lambda expiration: expiration <= now,
+                                         writeable=True) as expired_treasure_maps:
+                for treasure_map in expired_treasure_maps:
+                    treasure_map.delete()
+                result = len(expired_treasure_maps)
+        except RecordNotFound:
+            self.log.debug("No expired treasure maps found.")
+        except DatastoreTransactionError:
+            self.log.warn(f"Failed to prune expired treasure maps; DB session rolled back.")
+        else:
+            if result > 0:
+                self.log.debug(f"Pruned {result} treasure maps.")
 
     def run(self,
             emitter: StdoutEmitter = None,
@@ -1211,7 +1227,7 @@ class Ursula(Teacher, Character, Worker):
             emitter.message(f"Starting services...", color='yellow')
 
         if pruning:
-            self.__pruning_task = self._arrangement_pruning_task.start(interval=self._pruning_interval, now=True)
+            self.__pruning_task = self._datastore_pruning_task.start(interval=self._pruning_interval, now=True)
             if emitter:
                 emitter.message(f"✓ Database pruning", color='green')
 
@@ -1284,8 +1300,8 @@ class Ursula(Teacher, Character, Worker):
             self.stop_learning_loop()
             if not self.federated_only:
                 self.work_tracker.stop()
-            if self._arrangement_pruning_task.running:
-                self._arrangement_pruning_task.stop()
+            if self._datastore_pruning_task.running:
+                self._datastore_pruning_task.stop()
         if halt_reactor:
             reactor.stop()
 
