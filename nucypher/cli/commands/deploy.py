@@ -21,11 +21,10 @@ import click
 import os
 from constant_sorrow import constants
 from constant_sorrow.constants import FULL
-from eth_utils.address import to_checksum_address
 from typing import Tuple
 
 from nucypher.blockchain.eth.actors import ContractAdministrator, Trustee
-from nucypher.blockchain.eth.agents import ContractAgency, MultiSigAgent, NucypherTokenAgent
+from nucypher.blockchain.eth.agents import ContractAgency, MultiSigAgent
 from nucypher.blockchain.eth.constants import STAKING_ESCROW_CONTRACT_NAME
 from nucypher.blockchain.eth.interfaces import BlockchainInterface
 from nucypher.blockchain.eth.networks import NetworksInventory
@@ -37,7 +36,6 @@ from nucypher.blockchain.eth.registry import (
 )
 from nucypher.blockchain.eth.signers.base import Signer
 from nucypher.blockchain.eth.signers.software import ClefSigner
-from nucypher.blockchain.eth.token import NU
 from nucypher.characters.control.emitters import StdoutEmitter
 from nucypher.cli.actions.auth import get_client_password
 from nucypher.cli.actions.confirm import confirm_deployment
@@ -52,19 +50,14 @@ from nucypher.cli.literature import (
     CONFIRM_NETWORK_ACTIVATION,
     CONFIRM_RETARGET,
     CONFIRM_SELECTED_ACCOUNT,
-    CONFIRM_TOKEN_ALLOWANCE,
-    CONFIRM_TOKEN_TRANSFER,
     CONTRACT_DEPLOYMENT_SERIES_BEGIN_ADVISORY,
     CONTRACT_IS_NOT_OWNABLE,
     DEPLOYER_ADDRESS_ZERO_ETH,
     DEPLOYER_BALANCE,
-    DISPLAY_SENDER_TOKEN_BALANCE_BEFORE_TRANSFER,
     EXISTING_REGISTRY_FOR_DOMAIN,
     MINIMUM_POLICY_RATE_EXCEEDED_WARNING,
     PROMPT_FOR_ALLOCATION_DATA_FILEPATH,
     PROMPT_NEW_OWNER_ADDRESS,
-    PROMPT_RECIPIENT_CHECKSUM_ADDRESS,
-    PROMPT_TOKEN_VALUE,
     REGISTRY_NOT_AVAILABLE,
     SELECT_DEPLOYER_ACCOUNT,
     SUCCESSFUL_REGISTRY_CREATION,
@@ -76,7 +69,7 @@ from nucypher.cli.literature import (
     SUCCESSFUL_SAVE_MULTISIG_TX_PROPOSAL,
     SUCCESSFUL_UPGRADE,
     UNKNOWN_CONTRACT_NAME,
-    IDENTICAL_REGISTRY_WARNING
+    IDENTICAL_REGISTRY_WARNING, DEPLOYER_IS_NOT_OWNER
 )
 from nucypher.cli.options import (
     group_options,
@@ -106,7 +99,6 @@ from nucypher.cli.utils import (
     establish_deployer_registry,
     initialize_deployer_interface
 )
-from nucypher.types import NuNits
 
 option_deployer_address = click.option('--deployer-address', help="Deployer's checksum address", type=EIP55_CHECKSUM_ADDRESS)
 option_registry_infile = click.option('--registry-infile', help="Input path for contract registry file", type=EXISTING_READABLE_FILE)
@@ -138,7 +130,8 @@ class ActorOptions:
                  se_test_mode,
                  ignore_solidity_check,
                  gas_strategy: str,
-                 signer_uri: str
+                 signer_uri: str,
+                 network: str
                  ):
 
         self.provider_uri = provider_uri
@@ -156,6 +149,7 @@ class ActorOptions:
         self.poa = poa
         self.se_test_mode = se_test_mode
         self.ignore_solidity_check = ignore_solidity_check
+        self.network = network
 
     def create_actor(self,
                      emitter: StdoutEmitter,
@@ -175,11 +169,13 @@ class ActorOptions:
         #
         # Establish Registry
         #
+
         local_registry = establish_deployer_registry(emitter=emitter,
-                                                     use_existing_registry=bool(self.contract_name),  # TODO: Eh?
+                                                     use_existing_registry=bool(self.contract_name),  # TODO: Issue #2314
                                                      registry_infile=self.registry_infile,
                                                      registry_outfile=self.registry_outfile,
-                                                     dev=self.dev)
+                                                     dev=self.dev,
+                                                     network=self.network)
         #
         # Make Authenticated Deployment Actor
         #
@@ -240,7 +236,8 @@ group_actor_options = group_options(
     se_test_mode=click.option('--se-test-mode', help="Enable test mode for StakingEscrow in deployment.", is_flag=True),
     config_root=option_config_root,
     etherscan=option_etherscan,
-    ignore_solidity_check=option_ignore_solidity_version
+    ignore_solidity_check=option_ignore_solidity_version,
+    network=option_network(required=True, default=NetworksInventory.DEFAULT)
 )
 
 
@@ -333,24 +330,25 @@ def upgrade(general_config, actor_options, retarget, target_address, ignore_depl
     contract_name = actor_options.contract_name
 
     # Check deployer address is owner
-    agent = ContractAgency.get_agent_by_contract_name(contract_name=contract_name, registry=local_registry)
-    dispatcher = agent.get_proxy_contract()  # Implicit verification of updatability
-    dispatcher_owner = dispatcher.owner      # contract read
-    if deployer_address != dispatcher_owner:
-        DEPLOYER_IS_NOT_OWNER = f"Address {deployer_address} is not the owner of {contract_name}'s" \
-                                f" Dispatcher ({dispatcher.address}). Aborting."  # TODO:  Move to literature.py
-        emitter.echo(DEPLOYER_IS_NOT_OWNER)
+    Deployer = ADMINISTRATOR.deployers[contract_name]
+    deployer = Deployer(registry=local_registry)
+    if Deployer._ownable and deployer_address != deployer.owner:  # blockchain read
+        emitter.echo(DEPLOYER_IS_NOT_OWNER.format(deployer_address=deployer_address,
+                                                  contract_name=contract_name,
+                                                  agent=deployer.make_agent()))
         raise click.Abort()
+    else:
+        emitter.echo('✓ Verified deployer address as contract owner', color='green')
 
     # Check registry ID has changed locally compared to remote source
-    github_registry = establish_deployer_registry(emitter=emitter, download_registry=True)
-    if github_registry.id == local_registry.id:
+    github_registry = establish_deployer_registry(emitter=emitter, download_registry=True, network=actor_options.network)
+    if (github_registry.id == local_registry.id) and not actor_options.force:
         emitter.echo(IDENTICAL_REGISTRY_WARNING.format(github_registry=github_registry,
                                                        local_registry=local_registry), color='red')
         raise click.Abort()
+    else:
+        emitter.echo('✓ Verified local registry contains updates', color='green')
 
-    if not contract_name:
-        raise click.BadArgumentUsage(message="--contract-name is required when using --upgrade")
 
     #
     # Business
@@ -397,6 +395,7 @@ def upgrade(general_config, actor_options, retarget, target_address, ignore_depl
         message = SUCCESSFUL_RETARGET.format(contract_name=contract_name, target_address=target_address)
         emitter.message(message, color='green')
         paint_receipt_summary(emitter=emitter, receipt=receipt)
+
     else:
         if not actor_options.force:
             click.confirm(CONFIRM_BEGIN_UPGRADE.format(contract_name=contract_name), abort=True)

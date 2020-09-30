@@ -152,7 +152,7 @@ class RegistrySourceManager:
     def get_primary_sources(cls):
         return [source for source in cls._FALLBACK_CHAIN if source.is_primary]
 
-    def fetch_latest_publication(self, registry_class, network: str = NetworksInventory.DEFAULT):  # TODO: see #1496
+    def fetch_latest_publication(self, registry_class, network: str):  # TODO: see #1496
         """
         Get the latest contract registry data available from a registry source chain.
         """

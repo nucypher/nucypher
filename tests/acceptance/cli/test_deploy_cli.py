@@ -20,9 +20,10 @@ import json
 import os
 import pytest
 
-from nucypher.blockchain.eth.actors import ContractAdministrator
-from nucypher.blockchain.eth.agents import (AdjudicatorAgent, ContractAgency, NucypherTokenAgent, PolicyManagerAgent,
-                                            StakingEscrowAgent)
+from nucypher.blockchain.eth.networks import NetworksInventory
+from nucypher.config.constants import TEMPORARY_DOMAIN
+from nucypher.blockchain.eth.agents import NucypherTokenAgent
+from nucypher.blockchain.eth.clients import EthereumClient
 from nucypher.blockchain.eth.interfaces import BlockchainInterface
 from nucypher.blockchain.eth.registry import LocalContractRegistry
 from nucypher.blockchain.eth.sol.compile import SOLIDITY_COMPILER_VERSION
@@ -31,6 +32,14 @@ from tests.constants import TEST_PROVIDER_URI, YES_ENTER
 
 PLANNED_UPGRADES = 4
 CONTRACTS_TO_UPGRADE = ('StakingEscrow', 'PolicyManager', 'Adjudicator', 'StakingInterface')
+
+
+@pytest.fixture(autouse=True)
+def monkeypatch_confirmations(testerchain, monkeypatch):
+    def monkey_block_until_enough_confirmations(client, transaction_hash, timeout, confirmations):
+        receipt = testerchain.wait_for_receipt(txhash=transaction_hash)
+        return receipt
+    monkeypatch.setattr(EthereumClient, 'block_until_enough_confirmations', monkey_block_until_enough_confirmations)
 
 
 @pytest.fixture(scope="module")
@@ -45,75 +54,6 @@ def test_echo_solidity_version(click_runner):
     assert str(SOLIDITY_COMPILER_VERSION) in result.output, 'Solidity version text was not produced.'
 
 
-@pytest.mark.skip("Retired test")
-def test_nucypher_deploy_contracts(click_runner,
-                                   token_economics,
-                                   registry_filepath,
-                                   testerchain):
-
-    #
-    # Main
-    #
-
-    assert not os.path.exists(registry_filepath), f"Registry File '{registry_filepath}' Exists."
-    assert not os.path.lexists(registry_filepath), f"Registry File '{registry_filepath}' Exists."
-
-    command = ['contracts',
-               '--registry-outfile', registry_filepath,
-               '--provider', TEST_PROVIDER_URI,
-               '--se-test-mode']
-
-    user_input = '0\n' + YES_ENTER + 'DEPLOY'
-    result = click_runner.invoke(deploy, command, input=user_input, catch_exceptions=False)
-    assert result.exit_code == 0
-
-    # Ensure there is a report on each primary contract
-    contract_names = tuple(a.contract_name for a in ContractAdministrator.primary_deployer_classes)
-    for registry_name in contract_names:
-        assert registry_name in result.output
-
-    # Check that the primary contract registry was written
-    # and peek at some of the registered entries
-    assert os.path.isfile(registry_filepath)
-    with open(registry_filepath, 'r') as file:
-
-        # Ensure every contract's name was written to the file, somehow
-        raw_registry_data = file.read()
-        for registry_name in contract_names:
-            assert registry_name in raw_registry_data
-
-        # Ensure the Registry is JSON deserializable
-        registry_data = json.loads(raw_registry_data)
-
-        # and that is has the correct number of entries
-        assert len(registry_data) == 9
-
-        # Read several records
-        token_record, escrow_record, dispatcher_record, *other_records = registry_data
-        registered_name, registered_version, registered_address, registered_abi = token_record
-
-    #
-    # Agency
-    #
-    registry = LocalContractRegistry(filepath=registry_filepath)
-
-    token_agent = NucypherTokenAgent(registry=registry)
-    assert token_agent.contract_name == registered_name
-    assert token_agent.contract_name == registered_name
-    assert token_agent.contract_address == registered_address
-    assert token_agent.contract.version == registered_version
-
-    # Now show that we can use contract Agency and read from the blockchain
-    assert token_agent.get_balance() == 0
-    staking_agent = ContractAgency.get_agent(StakingEscrowAgent, registry=registry)
-    assert staking_agent.get_current_period()
-    assert staking_agent.contract.functions.isTestContract().call()
-
-    # and at least the others can be instantiated
-    assert PolicyManagerAgent(registry=registry)
-    assert AdjudicatorAgent(registry=registry)
-
-
 def test_deploy_single_contract(click_runner, tempfile_path):
 
     # Perform the Test
@@ -125,59 +65,21 @@ def test_deploy_single_contract(click_runner, tempfile_path):
 
     user_input = '0\n' + YES_ENTER
     result = click_runner.invoke(deploy, command, input=user_input, catch_exceptions=False)
-    assert result.exit_code == 0
+    assert result.exit_code == 0, result.output
 
 
-def test_transfer_tokens(click_runner, registry_filepath, get_random_checksum_address, testerchain):
+def test_upgrade_contracts(click_runner, test_registry_source_manager, test_registry,
+                           testerchain, registry_filepath, agency):
 
-    # Let's transfer some NU to a random stranger
-    recipient_address = get_random_checksum_address()
-
-    registry = LocalContractRegistry(filepath=registry_filepath)
-    token_agent = NucypherTokenAgent(registry=registry)
-    assert token_agent.get_balance(address=recipient_address) == 0
-
-    command = ['transfer-tokens',
-               '--target-address', recipient_address,
-               '--value', 42,
-               '--registry-infile', registry_filepath,
-               '--provider', TEST_PROVIDER_URI]
-
-    user_input = '0\n' + YES_ENTER + YES_ENTER
-    result = click_runner.invoke(deploy, command, input=user_input, catch_exceptions=False)
-    assert result.exit_code == 0
-
-    # Check that the NU has arrived to the recipient
-    assert token_agent.get_balance(address=recipient_address) == 42
-
-    # Let's approve an allowance to a random spender
-    spender_address = get_random_checksum_address()
-    owner_address = testerchain.client.accounts[0]
-    assert token_agent.get_allowance(spender=spender_address, owner=owner_address) == 0
-
-    command = ['transfer-tokens',
-               '--target-address', spender_address,
-               '--value', 42,
-               '--allowance',
-               '--registry-infile', registry_filepath,
-               '--provider', TEST_PROVIDER_URI]
-
-    user_input = '0\n' + YES_ENTER + YES_ENTER
-    result = click_runner.invoke(deploy, command, input=user_input, catch_exceptions=False)
-    assert result.exit_code == 0
-
-    # Check that the NU was approved for the spender
-    assert token_agent.get_allowance(spender=spender_address, owner=owner_address) == 42
-
-
-def test_upgrade_contracts(click_runner, registry_filepath, testerchain):
+    NetworksInventory.DEFAULT = TEMPORARY_DOMAIN
+    registry_filepath = test_registry.commit(filepath=registry_filepath)
 
     #
     # Setup
     #
 
     # Check the existing state of the registry before the meat and potatoes
-    expected_enrollments = 9
+    expected_enrollments = 10
     with open(registry_filepath, 'r') as file:
         raw_registry_data = file.read()
         registry_data = json.loads(raw_registry_data)
@@ -190,7 +92,9 @@ def test_upgrade_contracts(click_runner, registry_filepath, testerchain):
     cli_action = 'upgrade'
     base_command = ('--registry-infile', registry_filepath,
                     '--provider', TEST_PROVIDER_URI,
-                    '--confirmations', 1)
+                    '--confirmations', 30,
+                    '--network', TEMPORARY_DOMAIN,
+                    '--force')  # skip some preflights
 
     #
     # Stage Upgrades
@@ -251,7 +155,7 @@ def test_upgrade_contracts(click_runner, registry_filepath, testerchain):
 
         # Execute upgrade (Meat)
         result = click_runner.invoke(deploy, command, input=user_input, catch_exceptions=False)
-        assert result.exit_code == 0
+        assert result.exit_code == 0, result.output
         assert "Successfully deployed" in result.output
 
         # Mutate the version tracking
@@ -299,7 +203,7 @@ def test_upgrade_contracts(click_runner, registry_filepath, testerchain):
         assert targeted_address == new_address
 
 
-def test_rollback(click_runner, testerchain, registry_filepath):
+def test_rollback(click_runner, testerchain, registry_filepath, agency):
     """Roll 'em back!"""
 
     # Stage Rollbacks

@@ -475,6 +475,7 @@ WARNING: --etherscan is disabled. If you want to see deployed contracts and TXs 
 
 IDENTICAL_REGISTRY_WARNING = "Local registry ({local_registry.id}) is identical to the one on GitHub ({github_registry.id})."
 
+DEPLOYER_IS_NOT_OWNER = "Address {deployer_address} is not the owner of {contract_name}'s Dispatcher ({agent.contract_address}). Aborting."
 
 #
 # Multisig

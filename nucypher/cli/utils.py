@@ -105,6 +105,7 @@ def make_cli_character(character_config,
 
 
 def establish_deployer_registry(emitter,
+                                network: str = None,
                                 registry_infile: str = None,
                                 registry_outfile: str = None,
                                 use_existing_registry: bool = False,
@@ -113,7 +114,7 @@ def establish_deployer_registry(emitter,
                                 ) -> BaseContractRegistry:
 
     if download_registry:
-        registry = InMemoryContractRegistry.from_latest_publication()
+        registry = InMemoryContractRegistry.from_latest_publication(network=network)
         emitter.message(PRODUCTION_REGISTRY_ADVISORY.format(source=registry.source))
         return registry
 
