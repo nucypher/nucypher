@@ -16,15 +16,14 @@
 """
 
 import datetime
-from unittest.mock import PropertyMock
+from unittest.mock import PropertyMock, Mock
 
 import pytest
 from web3 import HTTPProvider, IPCProvider, WebsocketProvider
 
-from nucypher.blockchain.eth.clients import (EthereumClient, GanacheClient, GethClient, InfuraClient, PUBLIC_CHAINS,
-                                             ParityClient)
+from nucypher.blockchain.eth.clients import (GanacheClient, GethClient, InfuraClient, PUBLIC_CHAINS,
+                                             ParityClient, AlchemyClient)
 from nucypher.blockchain.eth.interfaces import BlockchainInterface
-from tests.mock.interfaces import MockEthereumClient
 
 DEFAULT_GAS_PRICE = 42
 GAS_PRICE_FROM_STRATEGY = 1234
@@ -51,6 +50,11 @@ class MockGanacheProvider:
 class MockInfuraProvider:
     endpoint_uri = 'wss://:@goerli.infura.io/ws/v3/1234567890987654321abcdef'
     clientVersion = 'Geth/v1.8.23-omnibus-2ad89aaa/linux-amd64/go1.11.1'
+
+
+class MockAlchemyProvider:
+    endpoint_uri = 'https://eth-rinkeby.alchemyapi.io/v2/1234567890987654321abcdef'
+    clientVersion = 'Geth/v1.9.20-stable-979fc968/linux-amd64/go1.15'
 
 
 class MockWebSocketProvider:
@@ -138,6 +142,7 @@ class SyncedMockWeb3:
 
     def __init__(self, provider):
         self.provider = provider
+        self.middleware_onion = Mock()
 
     @property
     def clientVersion(self):
@@ -199,6 +204,12 @@ class InfuraTestClient(BlockchainInterfaceTestBase):
 
     def _attach_provider(self, *args, **kwargs) -> None:
         super()._attach_provider(provider=MockInfuraProvider())
+
+
+class AlchemyTestClient(BlockchainInterfaceTestBase):
+
+    def _attach_provider(self, *args, **kwargs) -> None:
+        super()._attach_provider(provider=MockAlchemyProvider())
 
 
 class GethClientTestBlockchain(BlockchainInterfaceTestBase):
@@ -299,7 +310,7 @@ def test_detect_provider_type_ws():
 
 
 def test_infura_web3_client():
-    interface = InfuraTestClient(provider_uri='infura://1234567890987654321abcdef')
+    interface = InfuraTestClient(provider_uri='wss://:@goerli.infura.io/ws/v3/1234567890987654321abcdef')
     interface.connect()
 
     assert isinstance(interface.client, InfuraClient)
@@ -312,6 +323,18 @@ def test_infura_web3_client():
     assert interface.client.chain_id == 5
 
     assert interface.client.unlock_account('address', 'password')  # Returns True on success
+
+
+def test_alchemy_web3_client():
+    interface = AlchemyTestClient(provider_uri='https://eth-rinkeby.alchemyapi.io/v2/1234567890987654321abcdef')
+    interface.connect()
+
+    assert isinstance(interface.client, AlchemyClient)
+
+    assert interface.client.node_technology == 'Geth'
+    assert interface.client.node_version == 'v1.9.20-stable-979fc968'
+    assert interface.client.platform == 'linux-amd64'
+    assert interface.client.backend == 'go1.15'
 
 
 def test_parity_web3_client():

@@ -36,7 +36,7 @@ from geth.chain import (
     is_ropsten_chain
 )
 from geth.process import BaseGethProcess
-from typing import Union, Optional
+from typing import Union
 from web3 import Web3
 from web3.contract import Contract
 from web3.types import Wei, TxReceipt
@@ -44,6 +44,8 @@ from web3._utils.threads import Timeout
 from web3.exceptions import TimeExhausted, TransactionNotFound
 
 from nucypher.blockchain.eth.constants import AVERAGE_BLOCK_TIME_IN_SECONDS
+from nucypher.blockchain.middleware.retry import RetryRequestMiddleware, AlchemyRetryRequestMiddleware, \
+    InfuraRetryRequestMiddleware
 from nucypher.config.constants import DEFAULT_CONFIG_ROOT, DEPLOY_DIR, USER_LOG_DIR
 from nucypher.utilities.logging import Logger
 
@@ -158,6 +160,13 @@ class EthereumClient:
         self.platform = platform
         self.backend = backend
         self.log = Logger(self.__class__.__name__)
+
+        self._add_default_middleware()
+
+    def _add_default_middleware(self):
+        # default retry functionality
+        self.log.debug('Adding RPC retry middleware to client')
+        self.add_middleware(RetryRequestMiddleware)
 
     @classmethod
     def _get_variant(cls, w3):
@@ -448,8 +457,12 @@ class GethClient(EthereumClient):
 
     @classmethod
     def _get_variant(cls, w3):
-        if 'infura' in getattr(w3.provider, 'endpoint_uri', ''):
+        endpoint_uri = getattr(w3.provider, 'endpoint_uri', '')
+        if 'infura' in endpoint_uri:
             return InfuraClient
+        elif 'alchemyapi.io' in endpoint_uri:
+            return AlchemyClient
+
         return cls
 
     @property
@@ -538,11 +551,24 @@ class InfuraClient(EthereumClient):
     is_local = False
     TRANSACTION_POLLING_TIME = 2  # seconds
 
+    def _add_default_middleware(self):
+        # default retry functionality
+        self.log.debug('Adding Infura RPC retry middleware to client')
+        self.add_middleware(InfuraRetryRequestMiddleware)
+
     def unlock_account(self, *args, **kwargs) -> bool:
         return True
 
     def sync(self, *args, **kwargs) -> bool:
         return True
+
+
+class AlchemyClient(EthereumClient):
+
+    def _add_default_middleware(self):
+        # default retry functionality
+        self.log.debug('Adding Alchemy RPC retry middleware to client')
+        self.add_middleware(AlchemyRetryRequestMiddleware)
 
 
 class EthereumTesterClient(EthereumClient):
