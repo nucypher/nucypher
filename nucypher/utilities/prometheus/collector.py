@@ -311,16 +311,22 @@ class EventMetricsCollector(BaseMetricsCollector):
             self.metrics[metric_key] = metric_class(metric_name, metric_doc, registry=registry)
 
     def _collect_internal(self) -> None:
-        last_block_checked = self.filter_last_block_checked
+        from_block = self.filter_last_block_checked
+        to_block = self.contract_agent.blockchain.client.block_number
+        if from_block == to_block:
+            # nothing to see here
+            return
+
         events_throttler = ContractEventsThrottler(agent=self.contract_agent,
                                                    event_name=self.event_name,
-                                                   from_block=last_block_checked,
+                                                   from_block=from_block,
+                                                   to_block=to_block,
                                                    **self.filter_arguments)
         for event_record in events_throttler:
             self._event_occurred(event_record.raw_event)
-            if event_record.block_number > self.filter_last_block_checked:
-                # increase last block checked to most recent event obtained
-                self.filter_last_block_checked = event_record.block_number
+
+        # update last block for the next round
+        self.filter_last_block_checked = to_block
 
     def _event_occurred(self, event) -> None:
         for arg_name in self.event_args_config:
