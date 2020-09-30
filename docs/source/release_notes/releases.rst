@@ -4,6 +4,12 @@ Releases
 
 .. towncrier release notes start
 
+v3.0.0-beta.3 (2020-09-30)
+--------------------------
+
+No significant changes.
+
+
 v3.0.0-beta.2 (2020-09-25)
 --------------------------
 
