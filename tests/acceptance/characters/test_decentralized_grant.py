@@ -21,8 +21,9 @@ import pytest
 from umbral.kfrags import KFrag
 
 from nucypher.crypto.api import keccak_digest
-from nucypher.datastore.models import PolicyArrangement
-from nucypher.policy.collections import PolicyCredential
+from nucypher.datastore.models import PolicyArrangement, TreasureMap as DatastoreTreasureMap
+from nucypher.policy.collections import PolicyCredential, SignedTreasureMap as DecentralizedTreasureMap
+from tests.utils.middleware import MockRestMiddleware
 
 
 @pytest.mark.usefixtures('blockchain_ursulas')
@@ -81,3 +82,18 @@ def test_decentralized_grant(blockchain_alice, blockchain_bob, agency):
     cred_json = credential.to_json()
     deserialized_cred = PolicyCredential.from_json(cred_json)
     assert credential == deserialized_cred
+
+
+def test_alice_sets_treasure_map_decentralized(enacted_blockchain_policy):
+    """
+    Same as test_alice_sets_treasure_map except with a blockchain policy.
+    """
+    enacted_blockchain_policy.publish_treasure_map(network_middleware=MockRestMiddleware())
+    treasure_map_hrac = enacted_blockchain_policy.treasure_map._hrac.hex()
+    found = 0
+    for node in enacted_blockchain_policy.bob.matching_nodes_among(enacted_blockchain_policy.alice.known_nodes):
+        with node.datastore.describe(DatastoreTreasureMap, treasure_map_hrac) as treasure_map_on_node:
+            assert DecentralizedTreasureMap.from_bytes(treasure_map_on_node.treasure_map) == enacted_blockchain_policy.treasure_map
+        found += 1
+    assert found
+

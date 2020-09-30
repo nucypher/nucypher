@@ -50,7 +50,6 @@ class TreasureMap(DatastoreRecord):
     # circular import due to `Bob` and `Character` in `policy.collections`.
     # TODO #2126
     _treasure_map = RecordField(bytes)
-    _hrac = RecordField(bytes)
     _expiration = RecordField(MayaDT,
                 encode=lambda maya_date: maya_date.iso8601().encode(),
                 decode=lambda maya_bytes: MayaDT.from_iso8601(maya_bytes.decode()))

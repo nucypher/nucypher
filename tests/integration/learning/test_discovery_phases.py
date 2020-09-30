@@ -116,7 +116,7 @@ def test_alice_verifies_ursula_just_in_time(fleet_of_highperf_mocked_ursulas,
     def mock_set_policy(id_as_hex):
         return ""
 
-    def mock_receive_treasure_map(treasure_map_id):
+    def mock_receive_treasure_map():
         return Response(bytes(), status=201)
 
     with NotARestApp.replace_route("receive_treasure_map", mock_receive_treasure_map):
@@ -139,6 +139,7 @@ def test_alice_verifies_ursula_just_in_time(fleet_of_highperf_mocked_ursulas,
 
 
 # @pytest_twisted.inlineCallbacks   # TODO: Why does this, in concert with yield policy.publishing_mutex.when_complete, hang?
+@pytest.mark.skip
 def test_mass_treasure_map_placement(fleet_of_highperf_mocked_ursulas,
                                      highperf_mocked_alice,
                                      highperf_mocked_bob):

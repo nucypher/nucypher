@@ -411,10 +411,8 @@ class Policy(ABC):
         return keccak_digest(bytes(self.alice.stamp) + bytes(self.bob.stamp) + self.label)
 
     async def put_treasure_map_on_node(self, node, network_middleware):
-        treasure_map_id = self.treasure_map.public_id()
         response = network_middleware.put_treasure_map_on_node(
             node=node,
-            map_id=treasure_map_id,
             map_payload=bytes(self.treasure_map))
         return response
 

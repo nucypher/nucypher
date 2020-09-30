@@ -72,7 +72,7 @@ from nucypher.crypto.kits import UmbralMessageKit
 from nucypher.crypto.powers import DecryptingPower, DelegatingPower, PowerUpError, SigningPower, TransactingPower
 from nucypher.crypto.signing import InvalidSignature
 from nucypher.datastore.datastore import DatastoreTransactionError, RecordNotFound
-from nucypher.datastore.models import PolicyArrangement
+from nucypher.datastore.models import PolicyArrangement, TreasureMap as DatastoreTreasureMap
 from nucypher.network.exceptions import NodeSeemsToBeDown
 from nucypher.network.middleware import RestMiddleware
 from nucypher.network.nodes import NodeSprout, Teacher
@@ -563,8 +563,13 @@ class Bob(Character):
             if not self.known_nodes:
                 raise self.NotEnoughTeachers("Can't retrieve without knowing about any nodes at all.  Pass a teacher or seed node.")
 
+        # Ugh stupid federated only mode....
+        if not self.federated_only:
+            map_identifier = _hrac.hex()
+        else:
+            map_identifier = map_id
         treasure_map = self.get_treasure_map_from_known_ursulas(self.network_middleware,
-                                                                map_id)
+                                                                map_identifier)
 
         alice = Alice.from_public_keys(verifying_key=alice_verifying_key)
         compass = self.make_compass_for_alice(alice)
@@ -589,7 +594,7 @@ class Bob(Character):
         map_id = keccak_digest(bytes(verifying_key) + hrac).hex()
         return hrac, map_id
 
-    def get_treasure_map_from_known_ursulas(self, network_middleware, map_id, timeout=3):
+    def get_treasure_map_from_known_ursulas(self, network_middleware, map_identifier, timeout=3):
         """
         Iterate through the nodes we know, asking for the TreasureMap.
         Return the first one who has it.
@@ -604,17 +609,16 @@ class Bob(Character):
         # Spend no more than half the timeout finding the nodes.  8 nodes is arbitrary.  Come at me.
         self.block_until_number_of_known_nodes_is(8, timeout=timeout/2, learn_on_this_thread=True)
         while True:
-
             nodes_with_map = self.matching_nodes_among(self.known_nodes)
             random.shuffle(nodes_with_map)
 
             for node in nodes_with_map:
                 try:
-                    response = network_middleware.get_treasure_map_from_node(node=node, map_id=map_id)
+                    response = network_middleware.get_treasure_map_from_node(node, map_identifier)
                 except (*NodeSeemsToBeDown, self.NotEnoughNodes):
                     continue
                 except network_middleware.NotFound:
-                    self.log.info(f"Node {node} claimed not to have TreasureMap {map_id}")
+                    self.log.info(f"Node {node} claimed not to have TreasureMap {map_identifier}")
                     continue
 
                 if response.status_code == 200 and response.content:
@@ -630,7 +634,7 @@ class Bob(Character):
                 self.learn_from_teacher_node()
 
             if (start - maya.now()).seconds > timeout:
-                raise _MapClass.NowhereToBeFound(f"Asked {len(self.known_nodes)} nodes, but none had map {map_id} ")
+                raise _MapClass.NowhereToBeFound(f"Asked {len(self.known_nodes)} nodes, but none had map {map_identifier} ")
 
     def work_orders_for_capsules(self,
                                  *capsules,
@@ -667,7 +671,8 @@ class Bob(Character):
                     self.log.debug(f"{capsule} already has a saved WorkOrder for this Node:{node_id}.")
                     complete_work_orders[node_id] = precedent_work_order
                 except KeyError:
-                    # Don't have a precedent completed WorkOrder for this Ursula for this Capsule.  We need to make a new one.
+                    # Don't have a precedent completed WorkOrder for this Ursula for this Capsule.
+                    # We need to make a new one.
                     capsules_to_include.append(capsule)
 
             # TODO: Bob crashes if he hasn't learned about this Ursula #999

@@ -19,9 +19,13 @@ import msgpack
 import pytest
 import tempfile
 from datetime import datetime
+from nucypher.datastore import datastore
+from nucypher.datastore.base import DatastoreRecord, RecordField
 
 
 class TestRecord(DatastoreRecord):
+    __test__ = False    # For pytest
+
     _test = RecordField(bytes)
     _test_date = RecordField(datetime,
             encode=lambda val: datetime.isoformat(val).encode(),

@@ -22,8 +22,10 @@ import weakref
 from bytestring_splitter import BytestringSplitter
 from constant_sorrow import constants
 from constant_sorrow.constants import FLEET_STATES_MATCH, NO_BLOCKCHAIN_CONNECTION, NO_KNOWN_NODES
+from datetime import datetime, timedelta
 from flask import Flask, Response, jsonify, request
 from jinja2 import Template, TemplateError
+from maya import MayaDT
 from typing import Tuple, Set
 from umbral.keys import UmbralPublicKey
 from umbral.kfrags import KFrag
@@ -331,78 +333,84 @@ def _make_rest_app(datastore: Datastore, this_node, serving_domain: str, log: Lo
         headers = {'Content-Type': 'application/octet-stream'}
         return Response(headers=headers, response=response)
 
-    @rest_app.route('/treasure_map/<treasure_map_id>')
-    def provide_treasure_map(treasure_map_id):
+    @rest_app.route('/treasure_map/<identifier>')
+    def provide_treasure_map(identifier):
         headers = {'Content-Type': 'application/octet-stream'}
 
         try:
-            with datastore.describe(TreasureMap, treasure_map_id) as stored_treasure_map:
+            with datastore.describe(TreasureMap, identifier) as stored_treasure_map:
                 response = Response(stored_treasure_map.treasure_map, headers=headers)
-            log.info("{} providing TreasureMap {}".format(this_node.nickname, treasure_map_id))
+            log.info(f"{this_node} providing TreasureMap {identifier}")
         except RecordNotFound:
-            log.info("{} doesn't have requested TreasureMap {}".format(this_node.stamp, treasure_map_id))
-            response = Response("No Treasure Map with ID {}".format(treasure_map_id),
-                                status=404, headers=headers)
+            log.info(f"{this_node} doesn't have requested TreasureMap under {identifier}")
+            response = Response(f"No Treasure Map with identifier {identifier}", status=404, headers=headers)
         return response
 
-    @rest_app.route('/treasure_map/<treasure_map_id>', methods=['POST'])
-    def receive_treasure_map(treasure_map_id):
-        # TODO: Any of the codepaths that trigger 4xx Responses here are also SuspiciousActivity.
+    @rest_app.route('/treasure_map/', methods=['POST'])
+    def receive_treasure_map():
+        """
+        Okay, so we've received a TreasureMap to store. We begin verifying
+        the treasure map by first validating the request and the received
+        treasure map itself.
+
+        We set the datastore identifier as the HRAC iff the node is running
+        as a decentralized node. Otherwise, we use the map_id in
+        federated mode.
+        """
         if not this_node.federated_only:
             from nucypher.policy.collections import SignedTreasureMap as _MapClass
         else:
             from nucypher.policy.collections import TreasureMap as _MapClass
 
-        # Okay, so we've received a TreasureMap to store. We begin verifying
-        # the treasure map by first validating the request and the received
-        # treasure map itself.
+        # Step 1: First, we verify the signature of the received treasure map.
+        # This step also deserializes the treasure map iff it's signed correctly.
         try:
-            # Step 1: First, we verify the signature of the received treasure map.
-            # This step also deserializes the treasure map iff it's signed correctly.
             received_treasure_map = _MapClass.from_bytes(bytes_representation=request.data, verify=True)
         except _MapClass.InvalidSignature:
-            log.info("Bad TreasureMap HRAC Signature; not storing {}".format(treasure_map_id))
+            log.info(f"Bad TreasureMap HRAC Signature; not storing for HRAC {received_treasure_map._hrac.hex()}")
             return Response("This TreasureMap's HRAC is not properly signed.", status=401)
 
-        # Step 2: Next, we check that the received treasure map ID matches the request ID.
-        if not received_treasure_map.public_id() == treasure_map_id:
-            return Response("Can't save a TreasureMap with this ID from you.", status=409)
+        # Additionally, we determine the map identifier from the type of node. 
+        # If the node is federated, we also set the expiration for a week.
+        if not this_node.federated_only:
+            map_identifier = received_treasure_map._hrac.hex()
+        else:
+            map_identifier = received_treasure_map.public_id()
+            expiration_date = MayaDT.from_datetime(datetime.utcnow() + timedelta(days=7))
 
-        # Okie dokie, looks like the request is valid. Let's continue with
-        # further verification and datastore operations!
+        # Step 2: Check if we already have the treasure map.
         try:
-            # Step 3: Check if we already have the treasure map in our datastore.
-            with datastore.describe(TreasureMap, treasure_map_id) as stored_treasure_map:
+            with datastore.describe(TreasureMap, map_identifier) as stored_treasure_map:
                 if _MapClass.from_bytes(stored_treasure_map.treasure_map) == received_treasure_map:
                     return Response("Already have this map.", status=303)
         except RecordNotFound:
             # This appears to be a new treasure map that we don't have!
             pass
 
-        # Step 4: If the node is decentralized, we check that the received
+        # Step 3: If the node is decentralized, we check that the received
         # treasure map is valid pursuant to an active policy.
+        # We also set the expiration from the data on the blockchain here.
         if not this_node.federated_only:
-            policy_data, alice_checksum_address = this_node.policy_agent.fetch_policy(received_treasure_map._hrac[:16])
+            policy_data, alice_checksum_address = this_node.policy_agent.fetch_policy(
+                                                    received_treasure_map._hrac[:16],
+                                                    with_owner=True)
 
             # Check that this treasure map is from Alice per the Policy.
             if not received_treasure_map.verify_blockchain_signature(checksum_address=alice_checksum_address):
-                log.info("Bad TreasureMap ID; not storing {}".format(treasure_map_id))
+                log.info(f"Bad TreasureMap ID; not storing {map_identifier}")
                 return Response("This TreasureMap doesn't match a paid Policy.", status=402)
 
             # Check that this treasure map is valid for the Policy datetime and that it's not disabled.
-            if datetime.today() < datetime.utcfromtimestamp(policy_data[5]) and not policy_data[0]:
-                log.info("Received TreasureMap for an expired/disabled policy; not storing {}".format(treasure_map_id))
+            if policy_data[0] or datetime.utcnow() >= datetime.utcfromtimestamp(policy_data[5]):
+                log.info(f"Received TreasureMap for an expired/disabled policy; not storing {map_identifier}")
                 return Response("This TreasureMap is for an expired/disabled policy.", status=402)
+            expiration_date = MayaDT.from_datetime(datetime.utcfromtimestamp(policy_data[5]))
 
-            #TODO # Finally, check that we don't already store a treasure map for this Policy.
-
-        # Step 5: Finally, we store our treasure map!
-        log.info("{} storing TreasureMap {}".format(this_node, treasure_map_id))
-        
-        with datastore.describe(TreasureMap, treasure_map_id, writeable=True) as new_treasure_map:
+        # Step 4: Finally, we store our treasure map under its identifier!
+        log.info(f"{this_node} storing TreasureMap {map_identifier}")
+        with datastore.describe(TreasureMap, map_identifier, writeable=True) as new_treasure_map:
             new_treasure_map.treasure_map = bytes(received_treasure_map)
-            new_treasure_map.hrac = received_treasure_map._hrac
-            new_treasure_map.expiration = MayaDT.from_datetime(datetime.fromutctimestamp(policy_data[5]))
+            new_treasure_map.expiration = expiration_date
         return Response("Treasure map stored!", status=201)
 
     @rest_app.route('/status/', methods=['GET'])

@@ -20,7 +20,7 @@ import pytest
 from nucypher.characters.lawful import Ursula
 from nucypher.crypto.api import keccak_digest
 from nucypher.datastore.models import TreasureMap as DatastoreTreasureMap
-from nucypher.policy.collections import TreasureMap as PolicyTreasureMap
+from nucypher.policy.collections import TreasureMap as FederatedTreasureMap
 from tests.utils.middleware import MockRestMiddleware
 
 
@@ -36,7 +36,7 @@ def test_alice_creates_policy_with_correct_hrac(idle_federated_policy):
                                                          + idle_federated_policy.label)
 
 
-def test_alice_sets_treasure_map(enacted_federated_policy, federated_ursulas):
+def test_alice_sets_treasure_map(enacted_federated_policy):
     """
     Having enacted all the policies of a PolicyGroup, Alice creates a TreasureMap and ...... TODO
     """
@@ -45,7 +45,7 @@ def test_alice_sets_treasure_map(enacted_federated_policy, federated_ursulas):
     found = 0
     for node in enacted_federated_policy.bob.matching_nodes_among(enacted_federated_policy.alice.known_nodes):
         with node.datastore.describe(DatastoreTreasureMap, treasure_map_id) as treasure_map_on_node:
-            assert PolicyTreasureMap.from_bytes(treasure_map_on_node.treasure_map) == enacted_federated_policy.treasure_map
+            assert FederatedTreasureMap.from_bytes(treasure_map_on_node.treasure_map) == enacted_federated_policy.treasure_map
         found += 1
     assert found
 
@@ -59,7 +59,7 @@ def test_treasure_map_stored_by_ursula_is_the_correct_one_for_bob(federated_alic
     treasure_map_id = enacted_federated_policy.treasure_map.public_id()
     an_ursula = federated_bob.matching_nodes_among(federated_ursulas)[0]
     with an_ursula.datastore.describe(DatastoreTreasureMap, treasure_map_id) as treasure_map_record:
-        treasure_map_on_network = PolicyTreasureMap.from_bytes(treasure_map_record.treasure_map)
+        treasure_map_on_network = FederatedTreasureMap.from_bytes(treasure_map_record.treasure_map)
 
     hrac_by_bob = federated_bob.construct_policy_hrac(federated_alice.stamp, enacted_federated_policy.label)
     assert enacted_federated_policy.hrac() == hrac_by_bob
