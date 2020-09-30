@@ -227,9 +227,10 @@ class Amonia(Alice):
             #############################################################################################
             # Now I'll mess with the hrac just a bit.  I can't touch the last 16 bytes, because these   #
             # are checked against the blockchain.  But the first half is up for grabs.                  #
-            bad_hrac = the_map._hrac[:28] + int(i).to_bytes(length=4, byteorder="big")                  #
+            bad_hrac = the_map._hrac[:15] + int(i).to_bytes(length=1, byteorder="big")                  #
             # Note: if the hrac is reduced in length to 16 bytes, I'll be unable to perform this attack.#
             #############################################################################################
+            # Also note that we only touch the last byte to demonstrate that this attack isn't possible
 
             # I know Ursula checks the public signature because she thinks I'm Alice.  So I'll sign my bad hrac.
             like_a_map_but_awful._public_signature = self.stamp(bytes(self.stamp) + bad_hrac)

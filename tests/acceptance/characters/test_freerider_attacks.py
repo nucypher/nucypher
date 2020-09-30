@@ -22,6 +22,7 @@ import pytest
 from nucypher.characters.unlawful import Amonia
 from nucypher.datastore.models import PolicyArrangement, TreasureMap as DatastoreTreasureMap
 from nucypher.datastore.datastore import RecordNotFound
+from nucypher.network.middleware import RestMiddleware
 
 
 def test_policy_simple_sinpa(blockchain_ursulas, blockchain_alice, blockchain_bob, agency, testerchain):
@@ -152,8 +153,7 @@ def test_put_additional_treasure_map_on_network(blockchain_ursulas, blockchain_a
                           expiration=policy_end_datetime)
     sucker = blockchain_ursulas[0]
 
-    amonia.use_ursula_as_an_involuntary_and_unbeknownst_cdn(policy, sucker_ursula=blockchain_ursulas[0])
-
-    # This assertion will fail if my attack succeeded.
-    with sucker.datastore.query_by(DatastoreTreasureMap) as all_treasure_maps:
-        assert len(all_treasure_maps) <= 1
+    # This should 404 because Ursula won't be able to find an HRAC on-chain
+    # with the modified HRAC.
+    with pytest.raises(RestMiddleware.UnexpectedResponse):
+        amonia.use_ursula_as_an_involuntary_and_unbeknownst_cdn(policy, sucker_ursula=blockchain_ursulas[0])

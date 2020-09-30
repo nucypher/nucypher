@@ -408,7 +408,7 @@ class Policy(ABC):
         Alice and Bob have all the information they need to construct this.
         Ursula does not, so we share it with her.
         """
-        return keccak_digest(bytes(self.alice.stamp) + bytes(self.bob.stamp) + self.label)
+        return keccak_digest(bytes(self.alice.stamp) + bytes(self.bob.stamp) + self.label)[:16]
 
     async def put_treasure_map_on_node(self, node, network_middleware):
         response = network_middleware.put_treasure_map_on_node(
@@ -793,7 +793,7 @@ class BlockchainPolicy(Policy):
 
         # Transact  # TODO: Move this logic to BlockchainPolicyActor
         receipt = self.author.policy_agent.create_policy(
-            policy_id=self.hrac()[:16],  # bytes16 _policyID
+            policy_id=self.hrac(),  # bytes16 _policyID
             author_address=self.author.checksum_address,
             value=self.value,
             end_timestamp=self.expiration.epoch,  # uint16 _numberOfPeriods

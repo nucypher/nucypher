@@ -33,7 +33,7 @@ def test_alice_creates_policy_with_correct_hrac(idle_federated_policy):
 
     assert idle_federated_policy.hrac() == keccak_digest(bytes(alice.stamp)
                                                          + bytes(bob.stamp)
-                                                         + idle_federated_policy.label)
+                                                         + idle_federated_policy.label)[:16]
 
 
 def test_alice_sets_treasure_map(enacted_federated_policy):

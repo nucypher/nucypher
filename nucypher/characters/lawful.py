@@ -565,7 +565,7 @@ class Bob(Character):
 
         # Ugh stupid federated only mode....
         if not self.federated_only:
-            map_identifier = _hrac[:16].hex()
+            map_identifier = _hrac.hex()
         else:
             map_identifier = map_id
         treasure_map = self.get_treasure_map_from_known_ursulas(self.network_middleware,
@@ -586,7 +586,7 @@ class Bob(Character):
         return partial(self.verify_from, alice, decrypt=True)
 
     def construct_policy_hrac(self, verifying_key: Union[bytes, UmbralPublicKey], label: bytes) -> bytes:
-        _hrac = keccak_digest(bytes(verifying_key) + self.stamp + label)
+        _hrac = keccak_digest(bytes(verifying_key) + self.stamp + label)[:16]
         return _hrac
 
     def construct_hrac_and_map_id(self, verifying_key, label):

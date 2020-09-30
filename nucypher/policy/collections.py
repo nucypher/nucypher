@@ -102,7 +102,7 @@ class TreasureMap:
     def splitter(cls):
         return BytestringKwargifier(cls,
                                     public_signature=Signature,
-                                    hrac=(bytes, KECCAK_DIGEST_LENGTH),
+                                    hrac=(bytes, 16),
                                     message_kit=(UmbralMessageKit, VariableLengthBytestring)
                                     )
 
@@ -130,7 +130,7 @@ class TreasureMap:
 
         This way, Bob can generate it and use it to find the TreasureMap.
         """
-        self._hrac = keccak_digest(bytes(alice_stamp) + bytes(bob_verifying_key) + label)
+        self._hrac = keccak_digest(bytes(alice_stamp) + bytes(bob_verifying_key) + label)[:16]
         self._public_signature = alice_stamp(bytes(alice_stamp) + self._hrac)
         self._set_payload()
         self._set_id()
@@ -255,7 +255,7 @@ class SignedTreasureMap(TreasureMap):
         return BytestringKwargifier(cls,
                                     blockchain_signature=65,
                                     public_signature=Signature,
-                                    hrac=(bytes, KECCAK_DIGEST_LENGTH),
+                                    hrac=(bytes, 16),
                                     message_kit=(UmbralMessageKit, VariableLengthBytestring)
                                     )
 

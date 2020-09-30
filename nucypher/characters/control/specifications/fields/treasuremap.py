@@ -41,7 +41,7 @@ class TreasureMap(BaseField, fields.Field):
     def _validate(self, value):
 
         splitter = BytestringSplitter(Signature,
-                                  (bytes, KECCAK_DIGEST_LENGTH),  # hrac
+                                  (bytes, 16),  # hrac
                                   (UmbralMessageKit, VariableLengthBytestring)
                                   )  # TODO: USe the one from TMap
         try:
