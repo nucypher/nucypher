@@ -297,8 +297,10 @@ class EventMetricsCollector(BaseMetricsCollector):
         super().__init__()
         self.event_name = event_name
         self.contract_agent = contract_agent
-        self.event_filter = contract_agent.contract.events[event_name].createFilter(fromBlock='latest',
-                                                                                    argument_filters=argument_filters)
+
+        # this way we don't have to deal with 'latest' at all
+        self.filter_last_block_checked = self.contract_agent.blockchain.client.block_number
+        self.filter_arguments = argument_filters
         self.event_args_config = event_args_config
 
     def initialize(self, metrics_prefix: str, registry: CollectorRegistry) -> None:
@@ -309,9 +311,16 @@ class EventMetricsCollector(BaseMetricsCollector):
             self.metrics[metric_key] = metric_class(metric_name, metric_doc, registry=registry)
 
     def _collect_internal(self) -> None:
-        events = self.event_filter.get_new_entries()
-        for event in events:
-            self._event_occurred(event)
+        last_block_checked = self.filter_last_block_checked
+        events_throttler = ContractEventsThrottler(agent=self.contract_agent,
+                                                   event_name=self.event_name,
+                                                   from_block=last_block_checked,
+                                                   **self.filter_arguments)
+        for event_record in events_throttler:
+            self._event_occurred(event_record.raw_event)
+            if event_record.block_number > self.filter_last_block_checked:
+                # increase last block checked to most recent event obtained
+                self.filter_last_block_checked = event_record.block_number
 
     def _event_occurred(self, event) -> None:
         for arg_name in self.event_args_config:

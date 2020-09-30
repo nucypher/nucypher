@@ -66,10 +66,7 @@ class ContractEvents:
             if to_block is None:
                 to_block = 'latest'
 
-            event_filter = event_method.createFilter(fromBlock=from_block,
-                                                     toBlock=to_block,
-                                                     argument_filters=argument_filters)
-            entries = event_filter.get_all_entries()
+            entries = event_method.getLogs(fromBlock=from_block, toBlock=to_block, argument_filters=argument_filters)
             for entry in entries:
                 yield EventRecord(entry)
         return wrapper
