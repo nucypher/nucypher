@@ -4,11 +4,12 @@ asn1crypto==1.4.0
 attrs==20.2.0
 autobahn==20.7.1
 automat==20.2.0
+backports.zoneinfo==0.2.1
 base58==2.0.1
 bitarray==1.2.2
 blake2b-py==0.1.3
 bytestring-splitter==2.2.0
-cached-property==1.5.1
+cached-property==1.5.2
 certifi==2020.6.20
 cffi==1.14.3
 chardet==3.0.4
@@ -18,8 +19,8 @@ colorama==0.4.3
 constant-sorrow==0.1.0a9
 constantly==15.1.0
 construct==2.10.56
-cryptography==3.1
-cytoolz==0.10.1 ; implementation_name == 'cpython'
+cryptography==3.1.1
+cytoolz==0.11.0 ; implementation_name == 'cpython'
 dateparser==0.7.6
 ecdsa==0.16.0
 eth-abi==2.1.1
@@ -36,7 +37,7 @@ flask-sqlalchemy==2.4.4
 flask==1.1.2
 hendrix==3.4.0
 hexbytes==0.2.1
-humanize==2.6.0
+humanize==3.0.0
 hyperlink==20.0.1
 idna==2.10
 incremental==17.5.0
@@ -60,7 +61,7 @@ parsimonious==0.8.1
 pathtools==0.1.2
 pendulum==2.1.2
 protobuf==3.13.0
-py-ecc==4.0.0
+py-ecc==4.1.0
 py-evm==0.3.0a19
 py-geth==2.4.0
 pyasn1-modules==0.2.8
@@ -77,7 +78,7 @@ pysha3==1.0.2
 python-dateutil==2.8.1
 pytz==2020.1
 pytzdata==2020.1
-regex==2020.7.14
+regex==2020.9.27
 requests==2.24.0
 rlp==2.0.0a1
 rusty-rlp==0.1.15
@@ -88,13 +89,13 @@ snaptime==0.2.4
 sortedcontainers==2.2.2
 sqlalchemy==1.3.19
 tabulate==0.8.7
-toolz==0.10.0
+toolz==0.11.1
 trezor==0.12.2
 trie==2.0.0a4
 twisted==20.3.0
 txaio==20.4.1
 typing-extensions==3.7.4.3
-tzlocal==2.1
+tzlocal==3.0b1
 umbral==0.1.3a2
 urllib3==1.25.10
 varint==1.0.2
@@ -102,4 +103,4 @@ watchdog==0.10.3
 web3==5.12.1
 websockets==8.1
 werkzeug==1.0.1
-zope.interface==5.1.0
+zope.interface==5.1.1
