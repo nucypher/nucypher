@@ -191,8 +191,6 @@ Assuming geth is running locally, configure and run an Ursula using port and vol
     # Daemonized Ursula
     docker run -d -v ~/.local/share/nucypher:/root/.local/share/nucypher -v ~/.ethereum/:/root/.ethereum -p 9151:9151 -e NUCYPHER_KEYRING_PASSWORD -e NUCYPHER_WORKER_ETH_PASSWORD nucypher/nucypher:latest nucypher ursula run
 
-``<YOUR STAKING ADDRESS>`` is the address you've staked from when following the :ref:`staking-guide`.
-
 
 5. Monitor Worker
 ^^^^^^^^^^^^^^^^^
