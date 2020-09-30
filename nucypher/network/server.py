@@ -394,6 +394,10 @@ def _make_rest_app(datastore: Datastore, this_node, serving_domain: str, log: Lo
             policy_data, alice_checksum_address = this_node.policy_agent.fetch_policy(
                     received_treasure_map._hrac,
                     with_owner=True)
+            # If the Policy doesn't exist, the policy_data is all zeros.
+            if not policy_data[5]:
+                log.info(f"TreasureMap is for non-existent Policy; not storing {map_identifier}")
+                return Response("The Policy for this TreasureMap doesn't exist.", status=409)
 
             # Check that this treasure map is from Alice per the Policy.
             if not received_treasure_map.verify_blockchain_signature(checksum_address=alice_checksum_address):
