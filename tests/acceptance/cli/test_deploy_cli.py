@@ -94,7 +94,8 @@ def test_upgrade_contracts(click_runner, test_registry_source_manager, test_regi
                     '--provider', TEST_PROVIDER_URI,
                     '--confirmations', 1,
                     '--network', TEMPORARY_DOMAIN,
-                    '--force')  # skip registry preflight for tests
+                    '--force'  # skip registry preflight check for tests
+                    )
 
     #
     # Stage Upgrades
@@ -151,7 +152,7 @@ def test_upgrade_contracts(click_runner, test_registry_source_manager, test_regi
 
         # Select upgrade interactive input scenario
         current_version = version_tracker[contract_name]
-        user_input = '0\n' + YES_ENTER + YES_ENTER
+        user_input = '0\n' + YES_ENTER + YES_ENTER + YES_ENTER
 
         # Execute upgrade (Meat)
         result = click_runner.invoke(deploy, command, input=user_input, catch_exceptions=False)

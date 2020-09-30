@@ -19,16 +19,16 @@
 import os
 import pytest
 
-from nucypher.config.constants import TEMPORARY_DOMAIN
-from nucypher.blockchain.eth.clients import EthereumClient
 from nucypher.blockchain.eth.agents import (AdjudicatorAgent, ContractAgency, PolicyManagerAgent, StakingEscrowAgent)
+from nucypher.blockchain.eth.clients import EthereumClient
 from nucypher.blockchain.eth.constants import (ADJUDICATOR_CONTRACT_NAME, DISPATCHER_CONTRACT_NAME,
                                                NUCYPHER_TOKEN_CONTRACT_NAME, POLICY_MANAGER_CONTRACT_NAME,
                                                STAKING_ESCROW_CONTRACT_NAME)
 from nucypher.blockchain.eth.deployers import StakingEscrowDeployer
 from nucypher.blockchain.eth.registry import InMemoryContractRegistry, LocalContractRegistry
 from nucypher.cli.commands.deploy import deploy
-from tests.constants import (INSECURE_DEVELOPMENT_PASSWORD, TEST_PROVIDER_URI)
+from nucypher.config.constants import TEMPORARY_DOMAIN
+from tests.constants import (INSECURE_DEVELOPMENT_PASSWORD, TEST_PROVIDER_URI, YES_ENTER)
 
 ALTERNATE_REGISTRY_FILEPATH = '/tmp/nucypher-test-registry-alternate.json'
 ALTERNATE_REGISTRY_FILEPATH_2 = '/tmp/nucypher-test-registry-alternate-2.json'
@@ -214,7 +214,7 @@ def test_manual_proxy_retargeting(monkeypatch, testerchain, click_runner, token_
                '--network', TEMPORARY_DOMAIN)
 
     # Upgrade
-    user_input = '0\n' + 'Y\n' + 'Y\n'
+    user_input = '0\n' + YES_ENTER + YES_ENTER + YES_ENTER
     result = click_runner.invoke(deploy, command, input=user_input, catch_exceptions=False)
     assert result.exit_code == 0
 

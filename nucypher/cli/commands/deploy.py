@@ -319,19 +319,30 @@ def inspect(general_config, provider_uri, config_root, registry_infile, deployer
 def upgrade(general_config, actor_options, retarget, target_address, ignore_deployed, multisig, confirmations):
     """Upgrade NuCypher existing proxy contract deployments."""
 
+    #
     # Setup
+    #
+
     emitter = general_config.emitter
     ADMINISTRATOR, deployer_address, blockchain, local_registry = actor_options.create_actor(emitter, is_multisig=bool(multisig))  # FIXME: Workaround for building MultiSig TXs | NRN
+
+    contract_name = actor_options.contract_name
+    if not contract_name:
+        raise click.BadArgumentUsage(message="--contract-name is required when using --upgrade")
+
+    github_registry = establish_deployer_registry(emitter=emitter, download_registry=True, network=actor_options.network)
+    try:
+        Deployer = ADMINISTRATOR.deployers[contract_name]
+    except KeyError:
+        emitter.echo(f'No such contract "{contract_name}"', color='red')
+        raise click.Abort()
+    deployer = Deployer(registry=local_registry)
 
     #
     # Pre-flight
     #
 
-    contract_name = actor_options.contract_name
-
     # Check deployer address is owner
-    Deployer = ADMINISTRATOR.deployers[contract_name]
-    deployer = Deployer(registry=local_registry)
     if Deployer._ownable and deployer_address != deployer.owner:  # blockchain read
         emitter.echo(DEPLOYER_IS_NOT_OWNER.format(deployer_address=deployer_address,
                                                   contract_name=contract_name,
@@ -341,14 +352,12 @@ def upgrade(general_config, actor_options, retarget, target_address, ignore_depl
         emitter.echo('✓ Verified deployer address as contract owner', color='green')
 
     # Check registry ID has changed locally compared to remote source
-    github_registry = establish_deployer_registry(emitter=emitter, download_registry=True, network=actor_options.network)
     if (github_registry.id == local_registry.id) and not actor_options.force:
         emitter.echo(IDENTICAL_REGISTRY_WARNING.format(github_registry=github_registry,
                                                        local_registry=local_registry), color='red')
         raise click.Abort()
     else:
         emitter.echo('✓ Verified local registry contains updates', color='green')
-
 
     #
     # Business
@@ -398,7 +407,15 @@ def upgrade(general_config, actor_options, retarget, target_address, ignore_depl
 
     else:
         if not actor_options.force:
+            # Check for human verification of versioned upgrade details
             click.confirm(CONFIRM_BEGIN_UPGRADE.format(contract_name=contract_name), abort=True)
+            if deployer._ownable:  # Only ownable + upgradeable contracts apply
+                old_agent = ContractAgency.get_agent(agent_class=deployer.agency, registry=github_registry)
+                new_agent = ContractAgency.get_agent(agent_class=deployer.agency, registry=local_registry)
+                prompt = f"Confirm upgrade {contract_name} from version {old_agent.contract.version}" \
+                         f" to version {new_agent.contract.version}?"
+                click.confirm(prompt, abort=True)
+
         receipts = ADMINISTRATOR.upgrade_contract(contract_name=contract_name,
                                                   ignore_deployed=ignore_deployed,
                                                   confirmations=confirmations)
