@@ -139,7 +139,6 @@ def test_alice_verifies_ursula_just_in_time(fleet_of_highperf_mocked_ursulas,
 
 
 # @pytest_twisted.inlineCallbacks   # TODO: Why does this, in concert with yield policy.publishing_mutex.when_complete, hang?
-@pytest.mark.skip
 def test_mass_treasure_map_placement(fleet_of_highperf_mocked_ursulas,
                                      highperf_mocked_alice,
                                      highperf_mocked_bob):
@@ -162,8 +161,8 @@ def test_mass_treasure_map_placement(fleet_of_highperf_mocked_ursulas,
         node.treasure_maps = dict()
 
         def _partial_rest_app(node):
-            def faster_receive_map(treasure_map_id, *args, **kwargs):
-                node.treasure_maps[treasure_map_id] = True
+            def faster_receive_map(*args, **kwargs):
+                node._its_down_there_somewhere_let_me_take_another_look = True
                 return Response(bytes(b"Sure, we stored it."), status=201)
             return faster_receive_map
         node.rest_app._actual_rest_app.view_functions._view_functions_registry['receive_treasure_map'] = _partial_rest_app(node)
@@ -214,5 +213,5 @@ def test_mass_treasure_map_placement(fleet_of_highperf_mocked_ursulas,
         # We have the same number of successful responses as nodes we expected to have the map.
         assert len(policy.publishing_mutex.completed) == len(nodes_we_expect_to_have_the_map)
         nodes_that_got_the_map = sum(
-            policy.treasure_map.public_id() in u.treasure_maps for u in nodes_we_expect_to_have_the_map)
+            u._its_down_there_somewhere_let_me_take_another_look is True for u in nodes_we_expect_to_have_the_map)
         assert nodes_that_got_the_map == len(nodes_we_expect_to_have_the_map)
