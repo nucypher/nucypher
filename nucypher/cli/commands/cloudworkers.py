@@ -46,14 +46,14 @@ def cloudworkers():
 @cloudworkers.command('up')
 @group_staker_options
 @option_config_file
-@click.option('--cloudprovider', help="currently aws", default='aws')
-@click.option('--cloud-profile', help="The cloud provider account profile you'd like to use", default=None)
-@click.option('--remote-provider', help="The blockchain provider for the remote node, if not provided nodes will run geth.", default=None)
-@click.option('--nucypher-image', help="The docker image containing the nucypher code to run on the remote nodes.", default=None)
+@click.option('--cloudprovider', help="aws or digitalocean", default='aws')
+@click.option('--cloud-profile', help="The cloud provider account profile you'd like to use (an aws profile)", default=None)
+@click.option('--remote-provider', help="The blockchain provider for the remote node, if not provided, nodes will run geth.", default=None)
+@click.option('--nucypher-image', help="The docker image containing the nucypher code to run on the remote nodes. (default is nucypher/nucypher:latest)", default=None)
 @click.option('--seed-network', help="Do you want the 1st node to be --lonely and act as a seed node for this network", default=False, is_flag=True)
 @click.option('--sentry-dsn', help="a sentry dsn for these workers (https://sentry.io/)", default=None)
 @click.option('--include-stakeholder', 'stakes', help="limit worker to specified stakeholder addresses", multiple=True)
-@click.option('--wipe', help="Clear your nucypher config and start a fresh node with new kets", default=False, is_flag=True)
+@click.option('--wipe', help="Clear nucypher configs on existing nodes and start a fresh node with new keys.", default=False, is_flag=True)
 @group_general_config
 def up(general_config, staker_options, config_file, cloudprovider, cloud_profile, remote_provider, nucypher_image, seed_network, sentry_dsn, stakes, wipe):
     """Creates workers for all stakes owned by the user for the given network."""
