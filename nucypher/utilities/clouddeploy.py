@@ -141,6 +141,8 @@ class BaseCloudNodeConfigurator:
         self.network = self.stakeholder.network
         self.created_new_nodes = False
 
+        # the keys in this dict are used as search patterns by the anisble result collector and it will return
+        # these values for each node if it happens upon them in some output
         self.output_capture = {'worker address': [], 'rest url': [], 'nucypher version': [], 'nickname': []}
 
         # where we save our state data so we can remember the resources we created for future use
@@ -161,6 +163,15 @@ class BaseCloudNodeConfigurator:
 
         # configure provider specific attributes
         self._configure_provider_params(profile)
+
+        # if certain config options have been specified with this invocation,
+        # save these to update host specific variables before deployment
+        # to allow for individual host config differentiation
+        self.host_level_overrides = {
+            'blockchain_provider': blockchain_provider,
+            'nucypher_image': nucypher_image,
+            'sentry_dsn': sentry_dsn
+        }
 
         self.config['blockchain_provider'] = blockchain_provider or self.config.get('blockchain_provider') or f'/root/.local/share/geth/.ethereum/{self.chain_name}/geth.ipc' # the default for nodes that run their own geth container
         self.config['nucypher_image'] = nucypher_image or self.config.get('nucypher_image') or 'nucypher/nucypher:latest'
@@ -201,13 +212,14 @@ class BaseCloudNodeConfigurator:
     def inventory_path(self):
         return os.path.join(DEFAULT_CONFIG_ROOT, NODE_CONFIG_STORAGE_KEY, f'{self.provider_name}-{self.namespace}.ansible_inventory.yml')
 
-    def generate_ansible_inventory(self, staker_addresses):
+    def generate_ansible_inventory(self, staker_addresses, wipe_nucypher=False):
 
         status_template = Template(self._inventory_template)
 
         inventory_content = status_template.render(
             deployer=self,
             nodes=[value for key, value in self.config['instances'].items() if key in staker_addresses],
+            wipe_nucypher=wipe_nucypher
         )
 
 
@@ -229,7 +241,8 @@ class BaseCloudNodeConfigurator:
             self.config['instances'] = {}
 
         for address in stakers:
-            if not self.config['instances'].get(address):
+            existing_node = self.config['instances'].get(address)
+            if not existing_node:
                 self.emitter.echo(f'creating new node for {address}', color='yellow')
                 time.sleep(3)
                 self.create_new_node_for_staker(address)
@@ -241,18 +254,29 @@ class BaseCloudNodeConfigurator:
     def _inventory_template(self):
         return open(os.path.join(os.path.dirname(__file__), 'templates', 'cloud_deploy_ansible_inventory.j2'), 'r').read()
 
-    def deploy_nucypher_on_existing_nodes(self, staker_addresses):
+    def deploy_nucypher_on_existing_nodes(self, staker_addresses, wipe_nucypher=False):
+
+        # first update any specified input in our node config
+        for k, input_specified_value in self.host_level_overrides.items():
+            for address in staker_addresses:
+                # if an instance already has a specified value, we only override
+                # it if that value was input for this command invocation
+                if input_specified_value:
+                    self.config['instances'][address][k] = input_specified_value
+                elif not self.config['instances'][address].get(k):
+                    self.config['instances'][address][k] = self.config[k]
+                self._write_config()
+
         if self.created_new_nodes:
             self.emitter.echo("--- Giving newly created nodes some time to get ready ----")
             time.sleep(30)
         self.emitter.echo('Running ansible deployment for all running nodes.', color='green')
-        self.emitter.echo('If something goes wrong, it is generally safe to ctrl-c and run the previous command again.')
 
         self.emitter.echo(f"using inventory file at {self.inventory_path}", color='yellow')
         if self.config.get('keypair_path'):
             self.emitter.echo(f"using keypair file at {self.config['keypair_path']}", color='yellow')
 
-        self.generate_ansible_inventory(staker_addresses)
+        self.generate_ansible_inventory(staker_addresses, wipe_nucypher=wipe_nucypher)
 
         results = self.output_capture
         loader = DataLoader()
@@ -271,6 +295,8 @@ class BaseCloudNodeConfigurator:
         executor.run()
 
         self.update_captured_instance_data(self.output_capture)
+        self.give_helpful_hints()
+
 
     def get_worker_status(self, staker_addresses):
 
@@ -299,6 +325,9 @@ class BaseCloudNodeConfigurator:
         executor._tqm._stdout_callback = callback
         executor.run()
         self.update_captured_instance_data(self.output_capture)
+
+        self.give_helpful_hints()
+
 
     def destroy_resources(self, stakes=None):
         if self._destroy_resources(stakes):
@@ -330,6 +359,12 @@ class BaseCloudNodeConfigurator:
         data['worker_data'] = existing_worker_data
         with open(self.config['stakeholder_config_file'], 'w') as outfile:
             json.dump(data, outfile, indent=4)
+
+    def give_helpful_hints(self):
+
+        if self.config.get('keypair_path'):
+            keypair = self.config['keypair_path']
+            self.emitter.echo(f'ssh into any node using `ssh ubuntu@<node address> -i "{keypair}"`', color="yellow")
 
 class DigitalOceanConfigurator(BaseCloudNodeConfigurator):
 
@@ -406,6 +441,7 @@ class DigitalOceanConfigurator(BaseCloudNodeConfigurator):
                     if instance_resp.get('networks', {}).get('v4'):
                         instance_ip = instance_resp['networks']['v4'][0]['ip_address']
             self.config['instances'][address]['publicaddress'] = instance_ip
+            self.config['instances'][address]['remote_provider'] = self.config.get('blockchain_provider')
 
             if self.config['seed_network'] and not self.config.get('seed_node'):
                 self.config['seed_node'] = instance_ip

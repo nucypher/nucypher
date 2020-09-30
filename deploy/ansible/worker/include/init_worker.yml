@@ -3,7 +3,7 @@
   remote_user: "{{default_user}}"
   gather_facts: no
   tasks:
-    - name: "remove existing config data"
+    - name: "remove existing nucypher config data"
       become: yes
       file:
         path: /home/nucypher/nucypher/

@@ -24,6 +24,10 @@ all:
                 DECENTRALIZED: {{deployer.nodes_are_decentralized}}
                 {% if deployer.config.get('seed_network') %}SEED_NODE_URI: {{deployer.config['seed_node']}}{% endif %}
                 {% if deployer.config.get('sentry_dsn')%}SENTRY_DSN: {{deployer.config['sentry_dsn']}}{% endif %}
-                WIPE: True
+                WIPE: {{wipe_nucypher}}
               hosts:{% for node in nodes %}
-                {{node.publicaddress}}:{% endfor %}
+                {{node.publicaddress}}:{% if node.blockchain_provider %}
+                  blockchain_provider: {{node.blockchain_provider}}{% endif %}{% if node.nucypher_image %}
+                  nucypher_image: {{node.nucypher_image}}{% endif %}{% if node.sentry_dsn %}
+                  sentry_dsn: {{node.sentry_dsn}}{% endif %}
+                {% endfor %}
