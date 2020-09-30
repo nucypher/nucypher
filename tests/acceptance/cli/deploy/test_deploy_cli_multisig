@@ -20,6 +20,7 @@ import json
 import os
 import pytest
 
+from nucypher.blockchain.eth.clients import EthereumClient
 from nucypher.blockchain.eth.agents import (
     MultiSigAgent
 )
