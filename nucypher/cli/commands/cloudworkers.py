@@ -78,7 +78,7 @@ def up(general_config, staker_options, config_file, cloudprovider, cloud_profile
     config = deployer.create_nodes_for_stakers(staker_addresses)
 
     if config.get('instances') and len(config.get('instances')) >= len(staker_addresses):
-        emitter.echo('Nodes exist for all active stakers', color="yellow")
+        emitter.echo('Nodes exist for all requested stakes', color="yellow")
         deployer.deploy_nucypher_on_existing_nodes(staker_addresses, wipe_nucypher=wipe)
 
 
@@ -137,9 +137,17 @@ def destroy(general_config, staker_options, config_file, cloudprovider, stakes):
         emitter.echo("Ansible is required to use `nucypher cloudworkers *` commands.  (Please run 'pip install ansible'.)", color="red")
         return
     STAKEHOLDER = staker_options.create_character(emitter, config_file)
+
+    stakers = STAKEHOLDER.get_stakers()
+    if not stakers:
+        emitter.echo("No staking accounts found.")
+        return
+
+    staker_addresses = filter_staker_addresses(stakers, stakes)
+
     config_file = config_file or StakeHolderConfiguration.default_filepath()
     deployer = CloudDeployers.get_deployer(cloudprovider)(emitter, STAKEHOLDER, config_file)
-    deployer.destroy_resources(stakes=stakes)
+    deployer.destroy_resources(stakes=staker_addresses)
 
 
 @cloudworkers.command('status')

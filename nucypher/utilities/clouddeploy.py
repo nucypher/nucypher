@@ -15,7 +15,7 @@
  along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
-import sys
+import copy
 import os
 import re
 import json
@@ -259,13 +259,14 @@ class BaseCloudNodeConfigurator:
         # first update any specified input in our node config
         for k, input_specified_value in self.host_level_overrides.items():
             for address in staker_addresses:
-                # if an instance already has a specified value, we only override
-                # it if that value was input for this command invocation
-                if input_specified_value:
-                    self.config['instances'][address][k] = input_specified_value
-                elif not self.config['instances'][address].get(k):
-                    self.config['instances'][address][k] = self.config[k]
-                self._write_config()
+                if self.config['instances'].get(address):
+                    # if an instance already has a specified value, we only override
+                    # it if that value was input for this command invocation
+                    if input_specified_value:
+                        self.config['instances'][address][k] = input_specified_value
+                    elif not self.config['instances'][address].get(k):
+                        self.config['instances'][address][k] = self.config[k]
+                    self._write_config()
 
         if self.created_new_nodes:
             self.emitter.echo("--- Giving newly created nodes some time to get ready ----")
@@ -454,8 +455,9 @@ class DigitalOceanConfigurator(BaseCloudNodeConfigurator):
 
     def _destroy_resources(self, stakes):
 
-        if self.config.get('instances'):
-            for address, instance in self.config['instances'].items():
+        existing_instances = copy.copy(self.config.get('instances'))
+        if existing_instances:
+            for address, instance in existing_instances.items():
                 if stakes and not address in stakes:
                     continue
                 self.emitter.echo(f"deleting worker instance for {address} in 3 seconds...", color='red')
