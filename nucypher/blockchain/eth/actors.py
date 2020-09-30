@@ -322,21 +322,25 @@ class ContractAdministrator(NucypherTokenActor):
 
     def upgrade_contract(self,
                          contract_name: str,
-                         ignore_deployed: bool = False
+                         confirmations: int,
+                         ignore_deployed: bool = False,
                          ) -> dict:
         Deployer = self.__get_deployer(contract_name=contract_name)
         deployer = Deployer(registry=self.registry, deployer_address=self.deployer_address)
-        receipts = deployer.upgrade(ignore_deployed=ignore_deployed)
+        receipts = deployer.upgrade(ignore_deployed=ignore_deployed, confirmations=confirmations)
         return receipts
 
     def retarget_proxy(self,
+                       confirmations: int,
                        contract_name: str,
                        target_address: str,
-                       just_build_transaction: bool = False):
+                       just_build_transaction: bool = False
+                       ):
         Deployer = self.__get_deployer(contract_name=contract_name)
         deployer = Deployer(registry=self.registry, deployer_address=self.deployer_address)
         result = deployer.retarget(target_address=target_address,
-                                   just_build_transaction=just_build_transaction)
+                                   just_build_transaction=just_build_transaction,
+                                   confirmations=confirmations)
         return result
 
     def rollback_contract(self, contract_name: str):

@@ -115,7 +115,7 @@ def locked_tokens(general_config, registry_options, periods):
 @status.command()
 @group_registry_options
 @group_general_config
-@option_contract_name
+@option_contract_name(required=False)
 @option_event_name
 @click.option('--from-block', help="Collect events from this block number", type=click.INT)
 @click.option('--to-block', help="Collect events until this block number", type=click.INT)

@@ -88,7 +88,7 @@ def test_upgrade(testerchain, test_registry):
                                                      use_proxy_address=False)
     old_address = bare_contract.address
 
-    receipts = deployer.upgrade(ignore_deployed=True)
+    receipts = deployer.upgrade(ignore_deployed=True, confirmations=0)
 
     bare_contract = testerchain.get_contract_by_name(registry=test_registry,
                                                      contract_name=PolicyManagerDeployer.contract_name,
@@ -114,7 +114,7 @@ def test_rollback(testerchain, test_registry):
     current_target = policy_manager_agent.contract.functions.target().call()
 
     # Let's do one more upgrade
-    receipts = deployer.upgrade(ignore_deployed=True)
+    receipts = deployer.upgrade(ignore_deployed=True, confirmations=0)
     for title, receipt in receipts.items():
         assert receipt['status'] == 1
 

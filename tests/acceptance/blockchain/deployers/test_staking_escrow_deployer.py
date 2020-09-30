@@ -82,7 +82,7 @@ def test_upgrade(testerchain, test_registry, token_economics):
                                      economics=token_economics,
                                      deployer_address=testerchain.etherbase_account)
 
-    receipts = deployer.upgrade(ignore_deployed=True)
+    receipts = deployer.upgrade(ignore_deployed=True, confirmations=0)
     for title, receipt in receipts.items():
         assert receipt['status'] == 1
 
@@ -96,7 +96,7 @@ def test_rollback(testerchain, test_registry):
     current_target = staking_agent.contract.functions.target().call()
 
     # Let's do one more upgrade
-    receipts = deployer.upgrade(ignore_deployed=True)
+    receipts = deployer.upgrade(ignore_deployed=True, confirmations=0)
 
     for title, receipt in receipts.items():
         assert receipt['status'] == 1
@@ -169,14 +169,15 @@ def test_manual_proxy_retargeting(testerchain, test_registry, token_economics):
 
     # Build retarget transaction (just for informational purposes)
     transaction = deployer.retarget(target_address=latest_deployment.address,
-                                    just_build_transaction=True)
+                                    just_build_transaction=True,
+                                    confirmations=0)
 
     assert transaction['to'] == proxy_deployer.contract.address
     upgrade_function, _params = proxy_deployer.contract.decode_function_input(transaction['data']) # TODO: this only tests for ethtester
     assert upgrade_function.fn_name == proxy_deployer.contract.functions.upgrade.fn_name
 
     # Retarget, for real
-    receipt = deployer.retarget(target_address=latest_deployment.address)
+    receipt = deployer.retarget(target_address=latest_deployment.address, confirmations=0)
 
     assert receipt['status'] == 1
 

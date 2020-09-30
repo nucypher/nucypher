@@ -153,6 +153,7 @@ Registry  ................ {registry.filepath}
 
             proxy_payload = f"""
 {agent.contract_name} .... {bare_contract.address}
+    ~ Version ............ {bare_contract.version}
     ~ Owner .............. {bare_contract.functions.owner().call()}
     ~ Ethers ............. {Web3.fromWei(blockchain.client.get_balance(bare_contract.address), 'ether')} ETH
     ~ Tokens ............. {NU.from_nunits(token_agent.get_balance(bare_contract.address))}

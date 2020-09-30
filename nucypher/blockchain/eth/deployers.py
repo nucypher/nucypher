@@ -19,6 +19,7 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 from collections import OrderedDict
 
 from constant_sorrow.constants import (BARE, CONTRACT_NOT_DEPLOYED, FULL, IDLE, NO_BENEFICIARY, NO_DEPLOYER_CONFIGURED)
+from eth_typing.evm import ChecksumAddress
 from typing import Dict, List, Tuple
 from web3 import Web3
 from web3.contract import Contract
@@ -190,6 +191,17 @@ class OwnableContractMixin:
     class ContractNotOwnable(RuntimeError):
         pass
 
+    @property
+    def owner(self) -> ChecksumAddress:
+        if self._upgradeable:
+            # Get the address of the proxy
+            contract = self.get_proxy_deployer()
+        else:
+            # Get the address of the implementation
+            contract = self.blockchain.get_contract_by_name(contract_name=self.contract_name, registry=self.registry)
+        owner_address = ChecksumAddress(contract.contract.functions.owner().call())  # blockchain read
+        return owner_address
+
     def transfer_ownership(self, new_owner: str, transaction_gas_limit: int = None) -> dict:
         if not self._ownable:
             raise self.ContractNotOwnable(f"{self.contract_name} is not ownable.")
@@ -273,6 +285,7 @@ class UpgradeableContractMixin:
 
     def retarget(self,
                  target_address: str,
+                 confirmations: int,
                  gas_limit: int = None,
                  just_build_transaction: bool = False):
         """
@@ -293,10 +306,12 @@ class UpgradeableContractMixin:
             return transaction
         else:
             receipt = proxy_deployer.retarget(new_target=target_address,
-                                              gas_limit=gas_limit)
+                                              gas_limit=gas_limit,
+                                              confirmations=confirmations)
             return receipt
 
     def upgrade(self,
+                confirmations: int,
                 gas_limit: int = None,
                 contract_version: str = "latest",
                 ignore_deployed: bool = False,
@@ -316,6 +331,7 @@ class UpgradeableContractMixin:
         # 3 - Deploy new version
         new_contract, deploy_receipt = self._deploy_essential(contract_version=contract_version,
                                                               gas_limit=gas_limit,
+                                                              confirmations=confirmations,
                                                               **overrides)
 
         # 4 - Wrap the escrow contract
@@ -324,7 +340,8 @@ class UpgradeableContractMixin:
 
         # 5 - Set the new Dispatcher target
         upgrade_receipt = proxy_deployer.retarget(new_target=new_contract.address,
-                                                  gas_limit=gas_limit)
+                                                  gas_limit=gas_limit,
+                                                  confirmations=confirmations)
 
         # 6 - Respond
         upgrade_transaction = {'deploy': deploy_receipt, 'retarget': upgrade_receipt}
@@ -439,12 +456,15 @@ class ProxyContractDeployer(BaseContractDeployer):
 
     def retarget(self,
                  new_target: str,
-                 gas_limit: int = None) -> dict:
+                 confirmations: int,
+                 gas_limit: int = None,
+                 ) -> dict:
         self._validate_retarget(new_target)
         upgrade_function = self._contract.functions.upgrade(new_target)
         upgrade_receipt = self.blockchain.send_transaction(contract_function=upgrade_function,
                                                            sender_address=self.deployer_address,
-                                                           transaction_gas_limit=gas_limit)
+                                                           transaction_gas_limit=gas_limit,
+                                                           confirmations=confirmations)
         return upgrade_receipt
 
     def build_retarget_transaction(self,
