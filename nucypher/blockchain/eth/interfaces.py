@@ -630,9 +630,8 @@ class BlockchainInterface:
                          fire_and_forget: bool = False  # do not wait for receipt.
                          ) -> dict:
 
-        # TODO: Are confirmations and fire_and_forget conflicting options?
-        # if fire_and_forget and confirmations > 0:
-        #     raise ValueError
+        if fire_and_forget and confirmations > 0:
+            raise ValueError('Transaction Prevented: Cannot use confirmations and fire_and_forget options together.')
 
         transaction = self.build_contract_transaction(contract_function=contract_function,
                                                       sender_address=sender_address,

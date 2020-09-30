@@ -238,8 +238,7 @@ def test_batch_deposits(click_runner,
                       '--provider', TEST_PROVIDER_URI)
 
     account_index = '0\n'
-    yes = 'Y\n'
-    user_input = account_index + yes + yes
+    user_input = account_index + YES_ENTER + YES_ENTER
 
     result = click_runner.invoke(deploy,
                                  deploy_command,
@@ -264,7 +263,7 @@ def test_manual_deployment_of_idle_network(click_runner):
                '--provider', TEST_PROVIDER_URI,
                '--registry-infile', ALTERNATE_REGISTRY_FILEPATH_2)
 
-    user_input = '0\n' + 'Y\n' + INSECURE_DEVELOPMENT_PASSWORD
+    user_input = '0\n' + YES_ENTER + INSECURE_DEVELOPMENT_PASSWORD
     result = click_runner.invoke(deploy, command, input=user_input, catch_exceptions=False)
     assert result.exit_code == 0
 
@@ -281,7 +280,7 @@ def test_manual_deployment_of_idle_network(click_runner):
                '--provider', TEST_PROVIDER_URI,
                '--registry-infile', ALTERNATE_REGISTRY_FILEPATH_2)
 
-    user_input = '0\n' + 'Y\n'
+    user_input = '0\n' + YES_ENTER + INSECURE_DEVELOPMENT_PASSWORD
     result = click_runner.invoke(deploy, command, input=user_input, catch_exceptions=False)
     assert result.exit_code == 0
 
@@ -294,7 +293,7 @@ def test_manual_deployment_of_idle_network(click_runner):
                '--provider', TEST_PROVIDER_URI,
                '--registry-infile', ALTERNATE_REGISTRY_FILEPATH_2)
 
-    user_input = '0\n' + 'Y\n'
+    user_input = '0\n' + YES_ENTER + INSECURE_DEVELOPMENT_PASSWORD
     result = click_runner.invoke(deploy, command, input=user_input, catch_exceptions=False)
     assert result.exit_code == 0
 
@@ -307,7 +306,7 @@ def test_manual_deployment_of_idle_network(click_runner):
                '--provider', TEST_PROVIDER_URI,
                '--registry-infile', ALTERNATE_REGISTRY_FILEPATH_2)
 
-    user_input = '0\n' + 'Y\n'
+    user_input = '0\n' + YES_ENTER + INSECURE_DEVELOPMENT_PASSWORD
     result = click_runner.invoke(deploy, command, input=user_input, catch_exceptions=False)
     assert result.exit_code == 0
 
@@ -321,7 +320,7 @@ def test_manual_deployment_of_idle_network(click_runner):
                '--provider', TEST_PROVIDER_URI,
                '--registry-infile', ALTERNATE_REGISTRY_FILEPATH_2)
 
-    user_input = '0\n' + 'Y\n' + 'Y\n'
+    user_input = '0\n' + YES_ENTER + YES_ENTER + INSECURE_DEVELOPMENT_PASSWORD
     result = click_runner.invoke(deploy, command, input=user_input, catch_exceptions=False)
     assert result.exit_code == 0
     assert list(new_registry.enrolled_names) == deployed_contracts

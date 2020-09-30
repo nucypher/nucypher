@@ -69,7 +69,7 @@ from nucypher.cli.literature import (
     SUCCESSFUL_SAVE_MULTISIG_TX_PROPOSAL,
     SUCCESSFUL_UPGRADE,
     UNKNOWN_CONTRACT_NAME,
-    IDENTICAL_REGISTRY_WARNING, DEPLOYER_IS_NOT_OWNER
+    IDENTICAL_REGISTRY_WARNING, DEPLOYER_IS_NOT_OWNER, CONFIRM_VERSIONED_UPGRADE
 )
 from nucypher.cli.options import (
     group_options,
@@ -334,7 +334,9 @@ def upgrade(general_config, actor_options, retarget, target_address, ignore_depl
     try:
         Deployer = ADMINISTRATOR.deployers[contract_name]
     except KeyError:
-        emitter.echo(f'No such contract "{contract_name}"', color='red')
+        message = UNKNOWN_CONTRACT_NAME.format(contract_name=contract_name,
+                                               constants=ADMINISTRATOR.deployers.keys())
+        emitter.echo(message, color='red', bold=True)
         raise click.Abort()
     deployer = Deployer(registry=local_registry)
 
@@ -353,8 +355,7 @@ def upgrade(general_config, actor_options, retarget, target_address, ignore_depl
 
     # Check registry ID has changed locally compared to remote source
     if (github_registry.id == local_registry.id) and not actor_options.force:
-        emitter.echo(IDENTICAL_REGISTRY_WARNING.format(github_registry=github_registry,
-                                                       local_registry=local_registry), color='red')
+        emitter.echo(IDENTICAL_REGISTRY_WARNING.format(github_registry=github_registry, local_registry=local_registry), color='red')
         raise click.Abort()
     else:
         emitter.echo('✓ Verified local registry contains updates', color='green')
@@ -400,7 +401,7 @@ def upgrade(general_config, actor_options, retarget, target_address, ignore_depl
             raise click.BadArgumentUsage(message="--target-address is required when using --retarget")
         if not actor_options.force:
             click.confirm(CONFIRM_RETARGET.format(contract_name=contract_name, target_address=target_address), abort=True)
-        receipt = ADMINISTRATOR.retarget_proxy(contract_name=contract_name,target_address=target_address, confirmations=0)
+        receipt = ADMINISTRATOR.retarget_proxy(contract_name=contract_name,target_address=target_address, confirmations=confirmations)
         message = SUCCESSFUL_RETARGET.format(contract_name=contract_name, target_address=target_address)
         emitter.message(message, color='green')
         paint_receipt_summary(emitter=emitter, receipt=receipt)
@@ -410,11 +411,11 @@ def upgrade(general_config, actor_options, retarget, target_address, ignore_depl
             # Check for human verification of versioned upgrade details
             click.confirm(CONFIRM_BEGIN_UPGRADE.format(contract_name=contract_name), abort=True)
             if deployer._ownable:  # Only ownable + upgradeable contracts apply
-                old_agent = ContractAgency.get_agent(agent_class=deployer.agency, registry=github_registry)
-                new_agent = ContractAgency.get_agent(agent_class=deployer.agency, registry=local_registry)
-                prompt = f"Confirm upgrade {contract_name} from version {old_agent.contract.version}" \
-                         f" to version {new_agent.contract.version}?"
-                click.confirm(prompt, abort=True)
+                old_contract = github_registry.search(contract_name=contract_name)[-1]  # latest GH version
+                new_contract = local_registry.search(contract_name=contract_name)[-1]   # latest local version
+                click.confirm(CONFIRM_VERSIONED_UPGRADE.format(contract_name=contract_name,
+                                                               old_contract=old_contract,
+                                                               new_contract=new_contract), abort=True)
 
         receipts = ADMINISTRATOR.upgrade_contract(contract_name=contract_name,
                                                   ignore_deployed=ignore_deployed,
@@ -461,14 +462,14 @@ def contracts(general_config, actor_options, mode, activate, gas, ignore_deploye
     deployment_parameters = {}
     if parameters:
         with open(parameters) as json_file:
-            deployment_parameters = json.load(json_file)
+            deployment_parameters = json.load(json_file)  # TODO: Seems like this is bypassing existing flow in economics.py
 
     #
     # Deploy Single Contract (Amend Registry)
     #
     contract_name = actor_options.contract_name
     deployment_mode = constants.__getattr__(mode.upper())  # TODO: constant sorrow
-    if contract_name:
+    if contract_name:  # TODO: Remove this conditional, make it the default
         try:
             contract_deployer_class = ADMINISTRATOR.deployers[contract_name]
         except KeyError:
