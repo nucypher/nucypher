@@ -209,10 +209,10 @@ class Amonia(Alice):
         to the Policy for which I paid.
         """
         # Here's the proper map associated with the policy for which I paid.
-        map = policy.treasure_map
+        the_map = policy.treasure_map
 
         # I'll make a copy of it to modify for use in this attack.
-        like_a_map_but_awful = SignedTreasureMap.from_bytes(bytes(map))
+        like_a_map_but_awful = SignedTreasureMap.from_bytes(bytes(the_map))
 
         # I'll split the film up into segments, because I know Ursula checks that the file size is under 50k.
         for i in range(50):
@@ -227,7 +227,7 @@ class Amonia(Alice):
             #############################################################################################
             # Now I'll mess with the hrac just a bit.  I can't touch the last 16 bytes, because these   #
             # are checked against the blockchain.  But the first half is up for grabs.                  #
-            bad_hrac = map._hrac[:28] + int(i).to_bytes(length=4, byteorder="big")                      #
+            bad_hrac = the_map._hrac[:28] + int(i).to_bytes(length=4, byteorder="big")                  #
             # Note: if the hrac is reduced in length to 16 bytes, I'll be unable to perform this attack.#
             #############################################################################################
 
@@ -244,5 +244,4 @@ class Amonia(Alice):
             like_a_map_but_awful.include_blockchain_signature(blockchain_signer=transacting_power.sign_message)
 
             # Sucker.
-            self.network_middleware.put_treasure_map_on_node(sucker_ursula, map_id=like_a_map_but_awful.public_id(),
-                                                             map_payload=bytes(like_a_map_but_awful))
+            self.network_middleware.put_treasure_map_on_node(sucker_ursula, map_payload=bytes(like_a_map_but_awful))

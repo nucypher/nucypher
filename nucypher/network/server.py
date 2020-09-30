@@ -373,7 +373,8 @@ def _make_rest_app(datastore: Datastore, this_node, serving_domain: str, log: Lo
         # Additionally, we determine the map identifier from the type of node. 
         # If the node is federated, we also set the expiration for a week.
         if not this_node.federated_only:
-            map_identifier = received_treasure_map._hrac.hex()
+            # HOT LAVA - Do not forget to truncate the hrac to 16 bytes so it matches on-chain data.
+            map_identifier = received_treasure_map._hrac[:16].hex()
         else:
             map_identifier = received_treasure_map.public_id()
             expiration_date = MayaDT.from_datetime(datetime.utcnow() + timedelta(days=7))
@@ -392,8 +393,8 @@ def _make_rest_app(datastore: Datastore, this_node, serving_domain: str, log: Lo
         # We also set the expiration from the data on the blockchain here.
         if not this_node.federated_only:
             policy_data, alice_checksum_address = this_node.policy_agent.fetch_policy(
-                                                    received_treasure_map._hrac[:16],
-                                                    with_owner=True)
+                    received_treasure_map._hrac[:16],
+                    with_owner=True)
 
             # Check that this treasure map is from Alice per the Policy.
             if not received_treasure_map.verify_blockchain_signature(checksum_address=alice_checksum_address):

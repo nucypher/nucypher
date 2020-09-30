@@ -89,7 +89,7 @@ def test_alice_sets_treasure_map_decentralized(enacted_blockchain_policy):
     Same as test_alice_sets_treasure_map except with a blockchain policy.
     """
     enacted_blockchain_policy.publish_treasure_map(network_middleware=MockRestMiddleware())
-    treasure_map_hrac = enacted_blockchain_policy.treasure_map._hrac.hex()
+    treasure_map_hrac = enacted_blockchain_policy.treasure_map._hrac[:16].hex()
     found = 0
     for node in enacted_blockchain_policy.bob.matching_nodes_among(enacted_blockchain_policy.alice.known_nodes):
         with node.datastore.describe(DatastoreTreasureMap, treasure_map_hrac) as treasure_map_on_node:

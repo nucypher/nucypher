@@ -565,7 +565,7 @@ class Bob(Character):
 
         # Ugh stupid federated only mode....
         if not self.federated_only:
-            map_identifier = _hrac.hex()
+            map_identifier = _hrac[:16].hex()
         else:
             map_identifier = map_id
         treasure_map = self.get_treasure_map_from_known_ursulas(self.network_middleware,
