@@ -557,47 +557,6 @@ def allocations(general_config, actor_options, allocation_infile, gas):
         emitter.echo(SUCCESSFUL_SAVE_BATCH_DEPOSIT_RECEIPTS.format(receipts_filepath=receipts_filepath), color='blue', bold=True)
 
 
-@deploy.command(name='transfer-tokens')
-@group_general_config
-@group_actor_options
-@option_target_address
-@click.option('--value', help="Amount of tokens to transfer in the smallest denomination", type=click.INT)
-@click.option('--allowance', help="Allow target address to spend tokens on behalf of owner", is_flag=True, default=False)
-def transfer_tokens(general_config, actor_options, target_address, value, allowance):
-    """Transfer tokens from contract's owner address to another address"""
-
-    emitter = general_config.emitter
-    ADMINISTRATOR, deployer_address, _, local_registry = actor_options.create_actor(emitter)
-
-    token_agent = ContractAgency.get_agent(NucypherTokenAgent, registry=local_registry)  # type: NucypherTokenAgent
-    tokens = NU.from_nunits(token_agent.get_balance(deployer_address))
-    emitter.echo(DISPLAY_SENDER_TOKEN_BALANCE_BEFORE_TRANSFER.format(token_balance=tokens))
-    if not target_address:
-        target_address = click.prompt(PROMPT_RECIPIENT_CHECKSUM_ADDRESS, type=EIP55_CHECKSUM_ADDRESS)
-    if not value:
-        stake_value_range = click.FloatRange(min=0, clamp=False)
-        value = NU.from_tokens(click.prompt(PROMPT_TOKEN_VALUE, type=stake_value_range))
-
-    value = NuNits(int(value))
-    if allowance:
-        confirmation = CONFIRM_TOKEN_ALLOWANCE.format(value=value,
-                                                      deployer_address=deployer_address,
-                                                      spender_address=target_address)
-    else:
-        confirmation = CONFIRM_TOKEN_TRANSFER.format(value=value,
-                                                     deployer_address=deployer_address,
-                                                     target_address=target_address)
-    click.confirm(confirmation, abort=True)
-
-    if allowance:
-        receipt = token_agent.approve_transfer(amount=value,
-                                               sender_address=deployer_address,
-                                               spender_address=target_address)
-    else:
-        receipt = token_agent.transfer(amount=value, sender_address=deployer_address, target_address=target_address)
-    paint_receipt_summary(emitter=emitter, receipt=receipt)
-
-
 @deploy.command("transfer-ownership")
 @group_general_config
 @group_actor_options
