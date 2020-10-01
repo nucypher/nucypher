@@ -294,8 +294,10 @@ def download_registry(general_config, config_root, registry_outfile, network, fo
 @option_registry_infile
 @option_deployer_address
 @option_poa
+@option_network(required=False, default=NetworksInventory.DEFAULT)
 @option_ignore_solidity_version
-def inspect(general_config, provider_uri, config_root, registry_infile, deployer_address, poa, ignore_solidity_check):
+def inspect(general_config, provider_uri, config_root, registry_infile, deployer_address,
+            poa, ignore_solidity_check, network):
     """Echo owner information and bare contract metadata."""
     emitter = general_config.emitter
     ensure_config_root(config_root)
@@ -303,9 +305,11 @@ def inspect(general_config, provider_uri, config_root, registry_infile, deployer
                                   provider_uri=provider_uri,
                                   emitter=emitter,
                                   ignore_solidity_check=ignore_solidity_check)
+    download_required = not bool(registry_infile)
     registry = establish_deployer_registry(emitter=emitter,
                                            registry_infile=registry_infile,
-                                           download_registry=not bool(registry_infile))
+                                           download_registry=download_required,
+                                           network=network if download_required else None)
     paint_deployer_contract_inspection(emitter=emitter,
                                        registry=registry,
                                        deployer_address=deployer_address)
