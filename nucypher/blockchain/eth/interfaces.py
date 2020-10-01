@@ -59,8 +59,8 @@ from nucypher.blockchain.eth.registry import BaseContractRegistry
 from nucypher.blockchain.eth.sol.compile import SolidityCompiler
 from nucypher.blockchain.eth.utils import get_transaction_name, prettify_eth_amount
 from nucypher.characters.control.emitters import JSONRPCStdoutEmitter, StdoutEmitter
-from nucypher.utilities.datafeeds import datafeed_fallback_gas_price_strategy
 from nucypher.utilities.ethereum import encode_constructor_arguments
+from nucypher.utilities.gas_strategies import datafeed_fallback_gas_price_strategy
 from nucypher.utilities.logging import GlobalLoggerSettings, Logger
 
 
