@@ -14,8 +14,11 @@
  You should have received a copy of the GNU Affero General Public License
  along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
-
+from eth_typing import HexStr
 from web3 import Web3
+from web3._utils.abi import get_constructor_abi, merge_args_and_kwargs
+from web3._utils.contracts import encode_abi
+from web3.contract import ContractConstructor
 
 
 def to_bytes32(value=None, hexstr=None) -> bytes:
@@ -38,3 +41,16 @@ def get_array_data_location(array_location: int) -> int:
     # See https://solidity.readthedocs.io/en/latest/internals/layout_in_storage.html#mappings-and-dynamic-arrays
     data_location = Web3.toInt(Web3.keccak(to_bytes32(array_location)))
     return data_location
+
+
+def encode_constructor_arguments(web3: Web3,
+                                 constructor_function: ContractConstructor,
+                                 *constructor_args, **constructor_kwargs) -> HexStr:
+    """
+    Takes a web3 constructor function and the arguments passed to it, and produces an encoding hex string
+    of the constructor arguments, following the standard ABI encoding conventions.
+    """
+    constructor_abi = get_constructor_abi(constructor_function.abi)
+    arguments = merge_args_and_kwargs(constructor_abi, constructor_args, constructor_kwargs)
+    data = encode_abi(web3, constructor_abi, arguments)
+    return data
