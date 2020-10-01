@@ -299,7 +299,7 @@ class EventMetricsCollector(BaseMetricsCollector):
         self.contract_agent = contract_agent
 
         # this way we don't have to deal with 'latest' at all
-        self.filter_last_block_checked = self.contract_agent.blockchain.client.block_number
+        self.filter_current_from_block = self.contract_agent.blockchain.client.block_number
         self.filter_arguments = argument_filters
         self.event_args_config = event_args_config
 
@@ -311,9 +311,10 @@ class EventMetricsCollector(BaseMetricsCollector):
             self.metrics[metric_key] = metric_class(metric_name, metric_doc, registry=registry)
 
     def _collect_internal(self) -> None:
-        from_block = self.filter_last_block_checked
+        from_block = self.filter_current_from_block
         to_block = self.contract_agent.blockchain.client.block_number
-        if from_block == to_block:
+        if from_block >= to_block:
+            # we've already checked the latest block and waiting for a new block
             # nothing to see here
             return
 
@@ -325,8 +326,8 @@ class EventMetricsCollector(BaseMetricsCollector):
         for event_record in events_throttler:
             self._event_occurred(event_record.raw_event)
 
-        # update last block for the next round
-        self.filter_last_block_checked = to_block
+        # update last block checked for the next round - from/to block range is inclusive
+        self.filter_current_from_block = to_block + 1
 
     def _event_occurred(self, event) -> None:
         for arg_name in self.event_args_config:
@@ -373,6 +374,10 @@ class CommitmentMadeEventMetricsCollector(EventMetricsCollector):
                                                        **arg_filters)
             for event_record in events_throttler:
                 self._event_occurred(event_record.raw_event)
+
+            # update last block checked since we just looked for this event up to and including latest block
+            # block range is inclusive, hence the increment
+            self.filter_current_from_block = latest_block + 1
 
 
 class ReStakeEventMetricsCollector(EventMetricsCollector):
