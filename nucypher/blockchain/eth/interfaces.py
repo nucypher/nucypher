@@ -18,11 +18,6 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 import math
 import os
 import pprint
-import time
-from typing import Callable, NamedTuple, Tuple, Union, Optional
-from urllib.parse import urlparse
-
-import click
 import requests
 from constant_sorrow.constants import (
     INSUFFICIENT_ETH,
@@ -36,15 +31,16 @@ from eth_tester.exceptions import TransactionFailed as TestTransactionFailed
 from eth_typing import ChecksumAddress
 from eth_utils import to_checksum_address
 from hexbytes.main import HexBytes
-from web3 import Web3, middleware
+from typing import NamedTuple, Tuple, Union, Optional
+from urllib.parse import urlparse
+from web3 import Web3
 from web3.contract import Contract, ContractConstructor, ContractFunction
 from web3.exceptions import TimeExhausted, ValidationError
 from web3.gas_strategies import time_based
-from web3.middleware import geth_poa_middleware
 from web3.providers import BaseProvider
 from web3.types import TxReceipt
 
-from nucypher.blockchain.eth.clients import EthereumClient, POA_CHAINS, InfuraClient
+from nucypher.blockchain.eth.clients import EthereumClient, InfuraClient
 from nucypher.blockchain.eth.decorators import validate_checksum_address
 from nucypher.blockchain.eth.providers import (
     _get_auto_provider,
@@ -59,8 +55,8 @@ from nucypher.blockchain.eth.registry import BaseContractRegistry
 from nucypher.blockchain.eth.sol.compile import SolidityCompiler
 from nucypher.blockchain.eth.utils import get_transaction_name, prettify_eth_amount
 from nucypher.characters.control.emitters import JSONRPCStdoutEmitter, StdoutEmitter
-from nucypher.utilities.datafeeds import datafeed_fallback_gas_price_strategy
 from nucypher.utilities.ethereum import encode_constructor_arguments
+from nucypher.utilities.gas_strategies import datafeed_fallback_gas_price_strategy
 from nucypher.utilities.logging import GlobalLoggerSettings, Logger
 
 

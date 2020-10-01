@@ -99,22 +99,5 @@ class UpvestGasPriceDatafeed(EthereumGasPriceDatafeed):
         self.gas_prices = {k: int(Web3.toWei(v, 'gwei')) for k, v in self._raw_data['estimates'].items()}
 
 
-def datafeed_fallback_gas_price_strategy(web3: Web3, transaction_params: TxParams = None) -> Wei:
-    feeds = (EtherchainGasPriceDatafeed, UpvestGasPriceDatafeed)
-
-    for gas_price_feed_class in feeds:
-        try:
-            gas_strategy = gas_price_feed_class.construct_gas_strategy()
-            gas_price = gas_strategy(web3, transaction_params)
-        except Datafeed.DatafeedError:
-            continue
-        else:
-            return gas_price
-    else:
-        # Worst-case scenario, we get the price from the ETH node itself
-        return rpc_gas_price_strategy(web3, transaction_params)
-
-
-
 # TODO: We can implement here other datafeeds, like the ETH/USD (e.g., https://api.coinmarketcap.com/v1/ticker/ethereum/)
 # suggested in a comment in nucypher.blockchain.eth.interfaces.BlockchainInterface#sign_and_broadcast_transaction
