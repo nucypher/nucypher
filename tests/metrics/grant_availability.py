@@ -34,13 +34,18 @@ from nucypher.policy.policies import Policy
 from nucypher.utilities.logging import GlobalLoggerSettings
 
 # Wallet Configuration
-METRICS_ADDRESS_ENVVAR: str = 'NUCYPHER_METRICS_CHECKSUM_ADDRESS'
-METRICS_PASSWORD_ENVVAR: str = 'NUCYPHER_METRICS_SIGNER_PASSWORD'
-METRICS_SIGNER_ENVVAR: str = 'NUCYPHER_METRICS_SIGNER_URI'
+# In order to use this script, you must configure a wallet for alice
+METRICS_ADDRESS_ENVVAR: str = 'NUCYPHER_METRICS_ADDRESS'
+METRICS_PASSWORD_ENVVAR: str = 'NUCYPHER_METRICS_PASSWORD'
+METRICS_SIGNER_ENVVAR: str = 'NUCYPHER_METRICS_KEYFILE_PATH'
+METRICS_PROVIDER_URI: str = 'NUCYPHER_METRICS_PROVIDER_URI'
+
+
 try:
     ALICE_ADDRESS: ChecksumAddress = os.environ[METRICS_ADDRESS_ENVVAR]
     SIGNER_PASSWORD: str = os.environ[METRICS_PASSWORD_ENVVAR]
     SIGNER_URI: str = os.environ[METRICS_SIGNER_ENVVAR]
+    ETHEREUM_PROVIDER_URI: str = os.environ[METRICS_PROVIDER_URI]
 except KeyError:
     message = f'{METRICS_ADDRESS_ENVVAR}, {METRICS_SIGNER_ENVVAR} and {METRICS_PASSWORD_ENVVAR}' \
               f' are required to run grant availability metrics.'
@@ -49,7 +54,6 @@ except KeyError:
 # Alice Configuration
 DOMAIN: str = 'ibex'
 DEFAULT_SEEDNODE_URIS: List[str] = ['https://ibex.nucypher.network:9151', ]
-ETHEREUM_PROVIDER_URI: str = 'wss://rinkeby.infura.io/ws/v3/8fb725f72a3342f6a8cf8fc7ab674123'
 INSECURE_PASSWORD: str = "METRICS_INSECURE_DEVELOPMENT_PASSWORD"
 TEMP_ALICE_DIR: str = os.path.join('/', 'tmp', 'grant-metrics')
 
@@ -119,11 +123,11 @@ def collect(alice: Alice,
         delta = end - start
         print(f"Completed in {(delta).total_seconds()} seconds.")
 
-        if i == iterations and not run_forever:
+        if i+1 == iterations and not run_forever:
             break  # Exit
 
         # score
-        elif i != iterations:
+        elif i+1 != iterations:
             if fail > 0:
                 print(f'{fail}/{i+1} ({(fail/(i+1))*100}%) failure rate')
             if success > 0:
@@ -138,9 +142,9 @@ def make_alice(known_nodes: Optional[Set[Ursula]] = None):
     alice_config = AliceConfiguration(
         provider_uri=ETHEREUM_PROVIDER_URI,
         checksum_address=ALICE_ADDRESS,
-        signer_uri=SIGNER_URI,
+        signer_uri=f'keystore://{SIGNER_URI}',
         config_root=os.path.join(TEMP_ALICE_DIR),
-        domains={DOMAIN},
+        domain=DOMAIN,
         known_nodes=known_nodes,
         start_learning_now=False,
         federated_only=False,
