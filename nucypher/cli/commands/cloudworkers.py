@@ -61,7 +61,7 @@ def up(general_config, staker_options, config_file, cloudprovider, cloud_profile
     emitter = setup_emitter(general_config)
 
     if not CloudDeployers:
-        emitter.echo("Ansible is required to use `nucypher cloudworkers *` commands.  (Please run 'pip install ansible'.)", color="red")
+        emitter.echo("Ansible is required to use this command.  (Please run 'pip install ansible'.)", color="red")
         return
     STAKEHOLDER = staker_options.create_character(emitter, config_file)
 
@@ -82,11 +82,42 @@ def up(general_config, staker_options, config_file, cloudprovider, cloud_profile
         deployer.deploy_nucypher_on_existing_nodes(staker_addresses, wipe_nucypher=wipe)
 
 
+@cloudworkers.command('add')
+@group_staker_options
+@option_config_file
+@click.option('--staker-address',  help="The staker account address for whom you are adding a worker host.", required=True)
+@click.option('--host-address', help="The IP address or Hostname of the host you are adding.", required=True)
+@click.option('--login-name', help="The name username of a user with root privileges we can ssh as on the host.", required=True)
+@click.option('--key-path', help="The path to a keypair we will need to ssh into this host", default="~/.ssh/id_rsa.pub")
+@click.option('--ssh-port', help="The port this host's ssh daemon is listening on", default=22)
+@group_general_config
+def add(general_config, staker_options, config_file, staker_address, host_address, login_name, key_path, ssh_port):
+    """Creates workers for all stakes owned by the user for the given network."""
+
+    emitter = setup_emitter(general_config)
+
+    STAKEHOLDER = staker_options.create_character(emitter, config_file)
+
+    stakers = STAKEHOLDER.get_stakers()
+    if not stakers:
+        emitter.echo("No staking accounts found.")
+        return
+
+    staker_addresses = filter_staker_addresses(stakers, [staker_address])
+    if not staker_addresses:
+        emitter.echo(f"Could not find staker address: {staker_address} among your stakes. (try `nucypher stake --list`)", color="red")
+        return
+
+    config_file = config_file or StakeHolderConfiguration.default_filepath()
+
+    deployer = CloudDeployers.get_deployer('generic')(emitter, STAKEHOLDER, config_file)
+    config = deployer.create_nodes_for_stakers(staker_addresses, host_address, login_name, key_path, ssh_port)
+
+
+
 @cloudworkers.command('deploy')
 @group_staker_options
 @option_config_file
-@click.option('--cloudprovider', help="currently aws", default='aws')
-@click.option('--cloud-profile', help="The cloud provider account profile you'd like to use", default=None)
 @click.option('--remote-provider', help="The blockchain provider for the remote node, if not provided nodes will run geth.", default=None)
 @click.option('--nucypher-image', help="The docker image containing the nucypher code to run on the remote nodes.", default=None)
 @click.option('--seed-network', help="Do you want the 1st node to be --lonely and act as a seed node for this network", default=False, is_flag=True)
@@ -94,8 +125,8 @@ def up(general_config, staker_options, config_file, cloudprovider, cloud_profile
 @click.option('--include-stakeholder', 'stakes', help="limit worker to specified stakeholder addresses", multiple=True)
 @click.option('--wipe', help="Clear your nucypher config and start a fresh node with new kets", default=False, is_flag=True)
 @group_general_config
-def deploy(general_config, staker_options, config_file, cloudprovider, cloud_profile, remote_provider, nucypher_image, seed_network, sentry_dsn, stakes, wipe):
-    """Creates workers for all stakes owned by the user for the given network."""
+def deploy(general_config, staker_options, config_file, remote_provider, nucypher_image, seed_network, sentry_dsn, stakes, wipe):
+    """Deploys NuCypher on existing hardware."""
 
     emitter = setup_emitter(general_config)
 
@@ -113,7 +144,7 @@ def deploy(general_config, staker_options, config_file, cloudprovider, cloud_pro
 
     config_file = config_file or StakeHolderConfiguration.default_filepath()
 
-    deployer = CloudDeployers.get_deployer(cloudprovider)(emitter, STAKEHOLDER, config_file, cloud_profile, remote_provider, nucypher_image, seed_network, sentry_dsn)
+    deployer = CloudDeployers.get_deployer('generic')(emitter, STAKEHOLDER, config_file, remote_provider, nucypher_image, seed_network, sentry_dsn)
 
     emitter.echo("found nodes for the following stakers:")
     for staker_address in staker_addresses:

@@ -42,7 +42,7 @@ from nucypher.blockchain.eth.networks import NetworksInventory
 
 NODE_CONFIG_STORAGE_KEY = 'worker-configs'
 URSULA_PORT = 9151
-PROMETHEUS_PORTS = [9101, 9090]
+PROMETHEUS_PORTS = [9101]
 
 
 ansible_context.CLIARGS = ImmutableDict(
@@ -137,7 +137,7 @@ class BaseCloudNodeConfigurator:
 
         self.emitter = emitter
         self.stakeholder = stakeholder
-        self.config_filename = f'{self.provider_name}-{self.stakeholder.network}.json'
+        self.config_filename = f'{self.stakeholder.network}.json'
         self.network = self.stakeholder.network
         self.created_new_nodes = False
 
@@ -147,6 +147,8 @@ class BaseCloudNodeConfigurator:
 
         # where we save our state data so we can remember the resources we created for future use
         self.config_path = os.path.join(DEFAULT_CONFIG_ROOT, NODE_CONFIG_STORAGE_KEY, self.config_filename)
+
+        self.emitter.echo(f"cloudworker config path: {self.config_path}")
 
         if os.path.exists(self.config_path):
             self.config = json.load(open(self.config_path))
@@ -210,7 +212,7 @@ class BaseCloudNodeConfigurator:
 
     @property
     def inventory_path(self):
-        return os.path.join(DEFAULT_CONFIG_ROOT, NODE_CONFIG_STORAGE_KEY, f'{self.provider_name}-{self.namespace}.ansible_inventory.yml')
+        return os.path.join(DEFAULT_CONFIG_ROOT, NODE_CONFIG_STORAGE_KEY, f'{self.namespace}.ansible_inventory.yml')
 
     def generate_ansible_inventory(self, staker_addresses, wipe_nucypher=False):
 
@@ -374,7 +376,6 @@ class BaseCloudNodeConfigurator:
 
 class DigitalOceanConfigurator(BaseCloudNodeConfigurator):
 
-    provider_name = 'digitalocean'
     default_region = 'SFO3'
 
     @property
@@ -488,7 +489,6 @@ class AWSNodeConfigurator(BaseCloudNodeConfigurator):
 
     # TODO: this probably needs to be region specific...
     EC2_AMI = 'ami-09dd2e08d601bff67'
-    provider_name = 'aws'
     preferred_platform = 'ubuntu-focal' #unused
 
     @property
@@ -740,12 +740,41 @@ class AWSNodeConfigurator(BaseCloudNodeConfigurator):
 
         return node_data
 
+class GenericConfigurator(BaseCloudNodeConfigurator):
+
+    def create_nodes_for_stakers(self, stakers, host_address, login_name, key_path, ssh_port):
+
+        if not self.config.get('instances'):
+            self.config['instances'] = {}
+
+        for address in stakers:
+            node_data = self.config['instances'].get(address, {})
+            if node_data:
+                self.emitter.echo(f"Host info already exists for staker {address}; Updating and proceeding.", color="yellow")
+                time.sleep(3)
+
+            node_data['publicaddress'] = host_address
+            node_data['provider_deploy_attrs'] = [
+                {'key': 'ansible_ssh_private_key_file', 'value': key_path},
+                {'key': 'default_user', 'value': login_name},
+                {'key': 'ansible_port', 'value': ssh_port}
+            ]
+
+            self.config['instances'][address] = node_data
+            if self.config['seed_network'] and not self.config.get('seed_node'):
+                self.config['seed_node'] = node_data['publicaddress']
+            self._write_config()
+            self.created_new_nodes = True
+
+        return self.config
+
+
 
 class CloudDeployers:
 
     aws = AWSNodeConfigurator
-    do = DigitalOceanConfigurator
     digitalocean = DigitalOceanConfigurator
+    generic = GenericConfigurator
 
     @staticmethod
     def get_deployer(name):
