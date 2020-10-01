@@ -19,6 +19,7 @@ cryptography = ">=2.3"
 pysha3="*"
 # Utilities
 maya = "*"
+tzlocal = "==2.1"
 marshmallow = "*"
 msgpack = "*"
 # Web

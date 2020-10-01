@@ -95,7 +95,7 @@ trie==2.0.0a4
 twisted==20.3.0
 txaio==20.4.1
 typing-extensions==3.7.4.3
-tzlocal==3.0b1
+tzlocal==2.1
 umbral==0.1.3a2
 urllib3==1.25.10
 varint==1.0.2
