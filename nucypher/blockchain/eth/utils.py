@@ -85,10 +85,11 @@ def estimate_block_number_for_period(period: int, seconds_per_period: int,  late
 def etherscan_url(item, network: str, is_token=False) -> str:
     if network is None or network is UNKNOWN_DEVELOPMENT_CHAIN_ID:
         raise ValueError("A network must be provided")
-    elif network == 'mainnet':
+
+    network = network.lower()
+    if network == 'mainnet':
         domain = "https://etherscan.io"
     else:
-        network = network.lower()
         testnets_supported_by_etherscan = ('ropsten', 'goerli', 'rinkeby', 'kovan')
         if network in testnets_supported_by_etherscan:
             domain = f"https://{network}.etherscan.io"
@@ -96,7 +97,7 @@ def etherscan_url(item, network: str, is_token=False) -> str:
             raise ValueError(f"'{network}' network not supported by Etherscan")
 
     if is_address(item):
-        item_type = 'address' if not is_token else 'token'
+        item_type = 'token' if is_token else 'address'
         item = to_checksum_address(item)
     elif is_hex(item) and len(item) == 2 + 32*2:  # If it's a hash...
         item_type = 'tx'
