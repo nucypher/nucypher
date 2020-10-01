@@ -245,7 +245,11 @@ class BaseCloudNodeConfigurator:
             if not existing_node:
                 self.emitter.echo(f'creating new node for {address}', color='yellow')
                 time.sleep(3)
-                self.create_new_node_for_staker(address)
+                node_data = self.create_new_node_for_staker(address)
+                self.config['instances'][address] = node_data
+                if self.config['seed_network'] and not self.config.get('seed_node'):
+                    self.config['seed_node'] = node_data['publicaddress']
+                self._write_config()
                 self.created_new_nodes = True
 
         return self.config
@@ -266,6 +270,7 @@ class BaseCloudNodeConfigurator:
                         self.config['instances'][address][k] = input_specified_value
                     elif not self.config['instances'][address].get(k):
                         self.config['instances'][address][k] = self.config[k]
+
                     self._write_config()
 
         if self.created_new_nodes:
@@ -372,7 +377,6 @@ class DigitalOceanConfigurator(BaseCloudNodeConfigurator):
     provider_name = 'digitalocean'
     default_region = 'SFO3'
 
-
     @property
     def instance_size(self):
         if self.nodes_are_decentralized:
@@ -424,7 +428,7 @@ class DigitalOceanConfigurator(BaseCloudNodeConfigurator):
             resp = response.json()
 
             new_node_id = resp['droplet']['id']
-            self.config['instances'][address] = {'InstanceId': new_node_id}
+            node_data = {'InstanceId': new_node_id}
 
             self.emitter.echo("\twaiting for instance to come online...")
 
@@ -441,13 +445,10 @@ class DigitalOceanConfigurator(BaseCloudNodeConfigurator):
                 if instance_resp['status'] == 'active':
                     if instance_resp.get('networks', {}).get('v4'):
                         instance_ip = instance_resp['networks']['v4'][0]['ip_address']
-            self.config['instances'][address]['publicaddress'] = instance_ip
-            self.config['instances'][address]['remote_provider'] = self.config.get('blockchain_provider')
-
-            if self.config['seed_network'] and not self.config.get('seed_node'):
-                self.config['seed_node'] = instance_ip
-
-            self._write_config()
+            node_data['publicaddress'] = instance_ip
+            node_data['remote_provider'] = self.config.get('blockchain_provider')
+            node_data['provider_deploy_attrs']= self._provider_deploy_attrs
+            return node_data
 
         else:
             self.emitter.echo(response.text, color='red')
@@ -728,18 +729,16 @@ class AWSNodeConfigurator(BaseCloudNodeConfigurator):
             ],
         )
 
-        self.config['instances'][address] = {
-            'InstanceId': new_instance_data['Instances'][0]['InstanceId'],
-        }
+        node_data = {'InstanceId': new_instance_data['Instances'][0]['InstanceId']}
 
         instance = self.ec2Resource.Instance(new_instance_data['Instances'][0]['InstanceId'])
         self.emitter.echo("\twaiting for instance to come online...")
         instance.wait_until_running()
         instance.load()
-        self.config['instances'][address]['publicaddress'] = instance.public_dns_name
-        if self.config['seed_network'] and not self.config.get('seed_node'):
-            self.config['seed_node'] = instance.public_dns_name
-        self._write_config()
+        node_data['publicaddress'] = instance.public_dns_name
+        node_data['provider_deploy_attrs']= self._provider_deploy_attrs
+
+        return node_data
 
 
 class CloudDeployers:

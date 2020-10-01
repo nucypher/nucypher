@@ -6,8 +6,6 @@ all:
           children:
             nodes:
               vars:
-                {% for attr in deployer._provider_deploy_attrs %}
-                {{attr.key}}: {{attr.value}}{% endfor %}
                 network_name: "{{deployer.network}}"
                 geth_options: "--{{deployer.chain_name}}"
                 geth_dir: '/home/nucypher/geth/.ethereum/{{deployer.chain_name}}/'
@@ -25,7 +23,8 @@ all:
                 {% if deployer.config.get('sentry_dsn')%}SENTRY_DSN: {{deployer.config['sentry_dsn']}}{% endif %}
                 wipe_nucypher_config: {{wipe_nucypher}}
               hosts:{% for node in nodes %}
-                {{node.publicaddress}}:{% if node.blockchain_provider %}
+                {{node.publicaddress}}:{% for attr in deployer._provider_deploy_attrs %}
+                  {{attr.key}}: {{attr.value}}{% endfor %}{% if node.blockchain_provider %}
                   blockchain_provider: {{node.blockchain_provider}}{% endif %}{% if node.nucypher_image %}
                   nucypher_image: {{node.nucypher_image}}{% endif %}{% if node.sentry_dsn %}
                   sentry_dsn: {{node.sentry_dsn}}{% endif %}
