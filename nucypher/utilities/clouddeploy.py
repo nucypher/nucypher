@@ -133,7 +133,7 @@ class AnsiblePlayBookResultsCollector(CallbackBase):
 
 class BaseCloudNodeConfigurator:
 
-    def __init__(self, emitter, stakeholder, stakeholder_config_path, profile=None, blockchain_provider=None, nucypher_image=None, seed_network=False, sentry_dsn=None):
+    def __init__(self, emitter, stakeholder, stakeholder_config_path, blockchain_provider=None, nucypher_image=None, seed_network=False, sentry_dsn=None, profile=None):
 
         self.emitter = emitter
         self.stakeholder = stakeholder
@@ -166,6 +166,8 @@ class BaseCloudNodeConfigurator:
         # configure provider specific attributes
         self._configure_provider_params(profile)
 
+        print (f"bcp:{blockchain_provider}")
+
         # if certain config options have been specified with this invocation,
         # save these to update host specific variables before deployment
         # to allow for individual host config differentiation
@@ -174,6 +176,7 @@ class BaseCloudNodeConfigurator:
             'nucypher_image': nucypher_image,
             'sentry_dsn': sentry_dsn
         }
+        print (self.host_level_overrides)
 
         self.config['blockchain_provider'] = blockchain_provider or self.config.get('blockchain_provider') or f'/root/.local/share/geth/.ethereum/{self.chain_name}/geth.ipc' # the default for nodes that run their own geth container
         self.config['nucypher_image'] = nucypher_image or self.config.get('nucypher_image') or 'nucypher/nucypher:latest'
@@ -248,6 +251,7 @@ class BaseCloudNodeConfigurator:
                 self.emitter.echo(f'creating new node for {address}', color='yellow')
                 time.sleep(3)
                 node_data = self.create_new_node_for_staker(address)
+                node_data['provider'] = self.provider_name
                 self.config['instances'][address] = node_data
                 if self.config['seed_network'] and not self.config.get('seed_node'):
                     self.config['seed_node'] = node_data['publicaddress']
@@ -377,6 +381,7 @@ class BaseCloudNodeConfigurator:
 class DigitalOceanConfigurator(BaseCloudNodeConfigurator):
 
     default_region = 'SFO3'
+    provider_name = 'digitalocean'
 
     @property
     def instance_size(self):
@@ -485,6 +490,7 @@ class AWSNodeConfigurator(BaseCloudNodeConfigurator):
     gets a node up and running.
     """
 
+    provider_name = 'aws'
     EC2_INSTANCE_SIZE = 't3.small'
 
     # TODO: this probably needs to be region specific...
@@ -742,6 +748,8 @@ class AWSNodeConfigurator(BaseCloudNodeConfigurator):
 
 class GenericConfigurator(BaseCloudNodeConfigurator):
 
+    provider_name = 'generic'
+
     def create_nodes_for_stakers(self, stakers, host_address, login_name, key_path, ssh_port):
 
         if not self.config.get('instances'):
@@ -754,6 +762,7 @@ class GenericConfigurator(BaseCloudNodeConfigurator):
                 time.sleep(3)
 
             node_data['publicaddress'] = host_address
+            node_data['provider'] = self.provider_name
             node_data['provider_deploy_attrs'] = [
                 {'key': 'ansible_ssh_private_key_file', 'value': key_path},
                 {'key': 'default_user', 'value': login_name},
