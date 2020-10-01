@@ -18,13 +18,12 @@ all:
                 ansible_connection: ssh
                 NUCYPHER_KEYRING_PASSWORD: {{deployer.config['keyringpassword']}}
                 NUCYPHER_WORKER_ETH_PASSWORD: {{deployer.config['ethpassword']}}
-                CHAIN_ID: {{deployer.chain_id}}
                 nucypher_image: {{deployer.config['nucypher_image']}}
                 blockchain_provider: {{deployer.config['blockchain_provider']}}
-                DECENTRALIZED: {{deployer.nodes_are_decentralized}}
+                node_is_decentralized: {{deployer.nodes_are_decentralized}}
                 {% if deployer.config.get('seed_network') %}SEED_NODE_URI: {{deployer.config['seed_node']}}{% endif %}
                 {% if deployer.config.get('sentry_dsn')%}SENTRY_DSN: {{deployer.config['sentry_dsn']}}{% endif %}
-                WIPE: {{wipe_nucypher}}
+                wipe_nucypher_config: {{wipe_nucypher}}
               hosts:{% for node in nodes %}
                 {{node.publicaddress}}:{% if node.blockchain_provider %}
                   blockchain_provider: {{node.blockchain_provider}}{% endif %}{% if node.nucypher_image %}

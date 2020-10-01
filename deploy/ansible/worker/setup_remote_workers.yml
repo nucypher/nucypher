@@ -6,7 +6,7 @@
 - import_playbook: include/setup_docker.yml
 - import_playbook: include/init_worker.yml
 - import_playbook: include/run_geth.yml
-  when: DECENTRALIZED is not undefined and DECENTRALIZED
+  when: node_is_decentralized is not undefined and node_is_decentralized
 - import_playbook: include/init_ursula.yml
 - import_playbook: include/run_ursula.yml
 - import_playbook: include/check_running_ursula.yml

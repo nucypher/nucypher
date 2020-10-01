@@ -21,5 +21,5 @@
 
 - import_playbook: stop_containers.yml
 - import_playbook: run_geth.yml
-  when: DECENTRALIZED is not undefined and DECENTRALIZED
+  when: node_is_decentralized is not undefined and node_is_decentralized
 - import_playbook: run_ursula.yml

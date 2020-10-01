@@ -18,17 +18,17 @@
       debug:
         verbosity: 0
         var: keystore_output
-      when: DECENTRALIZED is undefined or not DECENTRALIZED
+      when: node_is_decentralized is undefined or not node_is_decentralized
 
     - name: store signer options
       set_fact:
         signer_options: "--signer keystore://{{nucypher_container_geth_datadir}}/keystore/{{keystore_output.files[0].path | basename}}"
-      when: DECENTRALIZED is undefined or not DECENTRALIZED
+      when: node_is_decentralized is undefined or not node_is_decentralized
 
     - name: store empty signer options
       set_fact:
         signer_options: ""
-      when: DECENTRALIZED is not undefined and DECENTRALIZED
+      when: node_is_decentralized is not undefined and node_is_decentralized
 
     - name: "remove known nodes"
       become: yes

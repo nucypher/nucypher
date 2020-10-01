@@ -17,4 +17,4 @@
       docker_container:
         name: geth
         state: stopped
-      when: DECENTRALIZED is not undefined and DECENTRALIZED
+      when: node_is_decentralized is not undefined and node_is_decentralized

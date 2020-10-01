@@ -8,7 +8,7 @@
       file:
         path: /home/nucypher/nucypher/
         state: absent
-      when: WIPE is not undefined and WIPE
+      when: wipe_nucypher_config is not undefined and wipe_nucypher_config
 
     - name: "create geth directory"
       become: yes
