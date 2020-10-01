@@ -15,31 +15,23 @@
  along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
+
 import json
 
 import os
 import pytest
 
-from nucypher.blockchain.eth.networks import NetworksInventory
-from nucypher.config.constants import TEMPORARY_DOMAIN
 from nucypher.blockchain.eth.agents import NucypherTokenAgent
-from nucypher.blockchain.eth.clients import EthereumClient
 from nucypher.blockchain.eth.interfaces import BlockchainInterface
+from nucypher.blockchain.eth.networks import NetworksInventory
 from nucypher.blockchain.eth.registry import LocalContractRegistry
 from nucypher.blockchain.eth.sol.compile import SOLIDITY_COMPILER_VERSION
 from nucypher.cli.commands.deploy import deploy
+from nucypher.config.constants import TEMPORARY_DOMAIN
 from tests.constants import TEST_PROVIDER_URI, YES_ENTER
 
 PLANNED_UPGRADES = 4
 CONTRACTS_TO_UPGRADE = ('StakingEscrow', 'PolicyManager', 'Adjudicator', 'StakingInterface')
-
-
-@pytest.fixture(autouse=True)
-def monkeypatch_confirmations(testerchain, monkeypatch):
-    def monkey_block_until_enough_confirmations(client, transaction_hash, timeout, confirmations):
-        receipt = testerchain.wait_for_receipt(txhash=transaction_hash)
-        return receipt
-    monkeypatch.setattr(EthereumClient, 'block_until_enough_confirmations', monkey_block_until_enough_confirmations)
 
 
 @pytest.fixture(scope="module")

@@ -69,7 +69,9 @@ from nucypher.cli.literature import (
     SUCCESSFUL_SAVE_MULTISIG_TX_PROPOSAL,
     SUCCESSFUL_UPGRADE,
     UNKNOWN_CONTRACT_NAME,
-    IDENTICAL_REGISTRY_WARNING, DEPLOYER_IS_NOT_OWNER, CONFIRM_VERSIONED_UPGRADE
+    IDENTICAL_REGISTRY_WARNING,
+    DEPLOYER_IS_NOT_OWNER,
+    CONFIRM_VERSIONED_UPGRADE
 )
 from nucypher.cli.options import (
     group_options,
@@ -462,7 +464,7 @@ def contracts(general_config, actor_options, mode, activate, gas, ignore_deploye
     deployment_parameters = {}
     if parameters:
         with open(parameters) as json_file:
-            deployment_parameters = json.load(json_file)  # TODO: Seems like this is bypassing existing flow in economics.py
+            deployment_parameters = json.load(json_file)
 
     #
     # Deploy Single Contract (Amend Registry)

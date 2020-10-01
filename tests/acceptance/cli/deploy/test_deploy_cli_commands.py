@@ -19,27 +19,31 @@
 import os
 import pytest
 
-from nucypher.blockchain.eth.agents import (AdjudicatorAgent, ContractAgency, PolicyManagerAgent, StakingEscrowAgent)
-from nucypher.blockchain.eth.clients import EthereumClient
-from nucypher.blockchain.eth.constants import (ADJUDICATOR_CONTRACT_NAME, DISPATCHER_CONTRACT_NAME,
-                                               NUCYPHER_TOKEN_CONTRACT_NAME, POLICY_MANAGER_CONTRACT_NAME,
-                                               STAKING_ESCROW_CONTRACT_NAME)
+from nucypher.blockchain.eth.agents import (
+    AdjudicatorAgent,
+    ContractAgency,
+    PolicyManagerAgent,
+    StakingEscrowAgent
+)
+from nucypher.blockchain.eth.constants import (
+    ADJUDICATOR_CONTRACT_NAME,
+    DISPATCHER_CONTRACT_NAME,
+    NUCYPHER_TOKEN_CONTRACT_NAME,
+    POLICY_MANAGER_CONTRACT_NAME,
+    STAKING_ESCROW_CONTRACT_NAME
+)
 from nucypher.blockchain.eth.deployers import StakingEscrowDeployer
 from nucypher.blockchain.eth.registry import InMemoryContractRegistry, LocalContractRegistry
 from nucypher.cli.commands.deploy import deploy
 from nucypher.config.constants import TEMPORARY_DOMAIN
-from tests.constants import (INSECURE_DEVELOPMENT_PASSWORD, TEST_PROVIDER_URI, YES_ENTER)
+from tests.constants import (
+    INSECURE_DEVELOPMENT_PASSWORD,
+    TEST_PROVIDER_URI,
+    YES_ENTER
+)
 
 ALTERNATE_REGISTRY_FILEPATH = '/tmp/nucypher-test-registry-alternate.json'
 ALTERNATE_REGISTRY_FILEPATH_2 = '/tmp/nucypher-test-registry-alternate-2.json'
-
-
-@pytest.fixture(autouse=True)
-def monkeypatch_confirmations(testerchain, monkeypatch):
-    def monkey_block_until_enough_confirmations(client, transaction_hash, timeout, confirmations):
-        receipt = testerchain.wait_for_receipt(txhash=transaction_hash)
-        return receipt
-    monkeypatch.setattr(EthereumClient, 'block_until_enough_confirmations', monkey_block_until_enough_confirmations)
 
 
 def test_nucypher_deploy_inspect_no_deployments(click_runner, testerchain, new_local_registry):
@@ -93,7 +97,7 @@ def test_nucypher_deploy_inspect_fully_deployed(click_runner, agency_local_regis
     assert policy_agent.owner in result.output
     assert adjudicator_agent.owner in result.output
 
-    minimum, default, maximum = 10, 10, 10  # TODO: Fix with skipped test see Issue #2314
+    minimum, default, maximum = 10, 10, 10
     assert 'Range' in result.output
     assert f"{minimum} wei" in result.output
     assert f"{default} wei" in result.output
@@ -183,7 +187,6 @@ def test_bare_contract_deployment_to_alternate_registry(click_runner, agency_loc
 
 
 # TODO: test to validate retargetting via multisig, specifically, building the transaction
-
 
 def test_manual_proxy_retargeting(monkeypatch, testerchain, click_runner, token_economics):
 
