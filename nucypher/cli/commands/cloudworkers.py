@@ -157,7 +157,7 @@ def deploy(general_config, staker_options, config_file, remote_provider, nucyphe
 @cloudworkers.command('destroy')
 @group_staker_options
 @option_config_file
-@click.option('--cloudprovider', help="aws or digitalocean", default='aws')
+@click.option('--cloudprovider', help="aws or digitalocean")
 @click.option('--include-stakeholder', 'stakes', help="one or more stakeholder addresses to whom we should limit worker destruction", multiple=True)
 @group_general_config
 def destroy(general_config, staker_options, config_file, cloudprovider, stakes):
@@ -178,7 +178,7 @@ def destroy(general_config, staker_options, config_file, cloudprovider, stakes):
 
     config_file = config_file or StakeHolderConfiguration.default_filepath()
     deployer = CloudDeployers.get_deployer(cloudprovider)(emitter, STAKEHOLDER, config_file)
-    deployer.destroy_resources(stakes=staker_addresses)
+    deployer.destroy_resources(staker_addresses=staker_addresses)
 
 
 @cloudworkers.command('status')

@@ -340,11 +340,16 @@ class BaseCloudNodeConfigurator:
 
         self.give_helpful_hints()
 
+    def get_provider_hosts(self):
+        return [
+            (address, host_data) for address, host_data in self.config['instances'].items()
+            if host_data['provider'] == self.provider_name
+        ]
 
-    def destroy_resources(self, stakes=None):
-        if self._destroy_resources(stakes):
-            self.emitter.echo("deleted all resources.  We are clean.  No money is being spent.", color="green")
-            os.remove(self.config_path)
+    def destroy_resources(self, staker_addresses=None):
+        addresses = [s for s in staker_addresses if s in self.get_provider_hosts()]
+        if self._destroy_resources(addresses):
+            self.emitter.echo(f"deleted all requested resources for {self.provider_name}.  We are clean.  No money is being spent.", color="green")
 
     def _destroy_resources(self):
         raise NotImplementedError
