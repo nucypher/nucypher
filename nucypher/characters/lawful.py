@@ -66,7 +66,7 @@ from nucypher.characters.control.interfaces import AliceInterface, BobInterface,
 from nucypher.cli.processes import UrsulaCommandProtocol
 from nucypher.config.storages import ForgetfulNodeStorage, NodeStorage
 from nucypher.crypto.api import encrypt_and_sign, keccak_digest
-from nucypher.crypto.constants import PUBLIC_KEY_LENGTH
+from nucypher.crypto.constants import HRAC_LENGTH, PUBLIC_KEY_LENGTH
 from nucypher.crypto.keypairs import HostingKeypair
 from nucypher.crypto.kits import UmbralMessageKit
 from nucypher.crypto.powers import DecryptingPower, DelegatingPower, PowerUpError, SigningPower, TransactingPower
@@ -462,12 +462,14 @@ class Bob(Character):
         def __init__(self, evidence: List):
             self.evidence = evidence
 
-    def __init__(self, treasure_maps: Dict = dict(), controller: bool = True, *args, **kwargs) -> None:
+    def __init__(self, treasure_maps: Dict = None, controller: bool = True, *args, **kwargs) -> None:
         Character.__init__(self, known_node_class=Ursula, *args, **kwargs)
 
         if controller:
             self.make_cli_controller()
 
+        if not treasure_maps:
+            treasure_maps = dict()
         self.treasure_maps = treasure_maps
 
         from nucypher.policy.collections import WorkOrderHistory  # Need a bigger strategy to avoid circulars.
@@ -586,7 +588,7 @@ class Bob(Character):
         return partial(self.verify_from, alice, decrypt=True)
 
     def construct_policy_hrac(self, verifying_key: Union[bytes, UmbralPublicKey], label: bytes) -> bytes:
-        _hrac = keccak_digest(bytes(verifying_key) + self.stamp + label)[:16]
+        _hrac = keccak_digest(bytes(verifying_key) + self.stamp + label)[:HRAC_LENGTH]
         return _hrac
 
     def construct_hrac_and_map_id(self, verifying_key, label):

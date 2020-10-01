@@ -35,7 +35,7 @@ from constant_sorrow.constants import NOT_SIGNED
 from nucypher.blockchain.eth.constants import ETH_ADDRESS_BYTE_LENGTH, ETH_HASH_BYTE_LENGTH
 from nucypher.characters.lawful import Bob, Character
 from nucypher.crypto.api import encrypt_and_sign, keccak_digest, verify_eip_191
-from nucypher.crypto.constants import KECCAK_DIGEST_LENGTH
+from nucypher.crypto.constants import HRAC_LENGTH
 from nucypher.crypto.kits import UmbralMessageKit
 from nucypher.crypto.signing import InvalidSignature, Signature, signature_splitter
 from nucypher.crypto.splitters import capsule_splitter, cfrag_splitter, key_splitter
@@ -102,7 +102,7 @@ class TreasureMap:
     def splitter(cls):
         return BytestringKwargifier(cls,
                                     public_signature=Signature,
-                                    hrac=(bytes, 16),
+                                    hrac=(bytes, HRAC_LENGTH),
                                     message_kit=(UmbralMessageKit, VariableLengthBytestring)
                                     )
 
@@ -130,7 +130,7 @@ class TreasureMap:
 
         This way, Bob can generate it and use it to find the TreasureMap.
         """
-        self._hrac = keccak_digest(bytes(alice_stamp) + bytes(bob_verifying_key) + label)[:16]
+        self._hrac = keccak_digest(bytes(alice_stamp) + bytes(bob_verifying_key) + label)[:HRAC_LENGTH]
         self._public_signature = alice_stamp(bytes(alice_stamp) + self._hrac)
         self._set_payload()
         self._set_id()
@@ -255,7 +255,7 @@ class SignedTreasureMap(TreasureMap):
         return BytestringKwargifier(cls,
                                     blockchain_signature=65,
                                     public_signature=Signature,
-                                    hrac=(bytes, 16),
+                                    hrac=(bytes, HRAC_LENGTH),
                                     message_kit=(UmbralMessageKit, VariableLengthBytestring)
                                     )
 
