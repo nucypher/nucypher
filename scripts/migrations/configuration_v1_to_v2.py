@@ -23,35 +23,41 @@ import os
 import sys
 
 BACKUP_SUFFIX = '.old'
+OLD_VERSION = 1
+NEW_VERSION = 2
 
 
 def configuration_v1_to_v2(filepath: str):
-    """Updates configuration file V2 to V2 by remapping 'domains' to 'domain'"""
+    """Updates configuration file v1 to v2 by remapping 'domains' to 'domain'"""
 
     # Read + deserialize
     with open(filepath, 'r') as file:
         contents = file.read()
     config = json.loads(contents)
 
-    # Check we have version 1 indeed
-    if config['version'] != 1:
-        raise RuntimeError('Existing configuration is not version 1.')
+    try:
+        # Check we have version 1 indeed
+        existing_version = config['version']
+        if existing_version != OLD_VERSION:
+            raise RuntimeError(f'Existing configuration is not version 1; Got version {existing_version}')
 
-    # Make a copy of the original file
-    backup_filepath = filepath+BACKUP_SUFFIX
-    os.rename(filepath, backup_filepath)
-    print(f'Backed up existing configuration to {backup_filepath}')
+        # Make a copy of the original file
+        backup_filepath = filepath+BACKUP_SUFFIX
+        os.rename(filepath, backup_filepath)
+        print(f'Backed up existing configuration to {backup_filepath}')
 
-    # Get current domain value
-    domains = config['domains']
-    domian = domains[0]
-    if len(domains) > 1:
-        print(f'Multiple domains configured, selecting the first one ({domian}).')
+        # Get current domain value
+        domains = config['domains']
+        domain = domains[0]
+        if len(domains) > 1:
+            print(f'Multiple domains configured, using the first one ({domain}).')
 
-    # Apply updates
-    del config['domains']  # deprecated
-    config['domain'] = domian
-    config['version'] = 2
+        # Apply updates
+        del config['domains']  # deprecated
+        config['domain'] = domain
+        config['version'] = NEW_VERSION
+    except KeyError:
+        raise RuntimeError(f'Invalid {OLD_VERSION} configuration file.')
 
     # Commit updates
     with open(filepath, 'w') as file:
@@ -62,8 +68,6 @@ def configuration_v1_to_v2(filepath: str):
 if __name__ == "__main__":
     try:
         _python, filepath = sys.argv
-    except IndexError:
-        raise ValueError('Configuration filepath is required')
     except ValueError:
-        raise ValueError('Too many arguments, pass the filepath only.')
+        raise ValueError('Invalid command: Provide a single configuration filepath.')
     configuration_v1_to_v2(filepath=filepath)
