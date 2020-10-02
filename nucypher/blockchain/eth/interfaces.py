@@ -831,7 +831,8 @@ class BlockchainDeployerInterface(BlockchainInterface):
                                                             constructor_function,
                                                             *constructor_args,
                                                             **constructor_kwargs)
-        self.log.info(f"Constructor calldata: {constructor_calldata}")
+        if not constructor_calldata:
+            self.log.info(f"Constructor calldata: {constructor_calldata}")
 
         #
         # Transmit the deployment tx #

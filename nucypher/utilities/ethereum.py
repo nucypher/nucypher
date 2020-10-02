@@ -49,8 +49,12 @@ def encode_constructor_arguments(web3: Web3,
     """
     Takes a web3 constructor function and the arguments passed to it, and produces an encoding hex string
     of the constructor arguments, following the standard ABI encoding conventions.
+    If there's no constructor, it returns None.
     """
     constructor_abi = get_constructor_abi(constructor_function.abi)
-    arguments = merge_args_and_kwargs(constructor_abi, constructor_args, constructor_kwargs)
-    data = encode_abi(web3, constructor_abi, arguments)
+    if constructor_abi:
+        arguments = merge_args_and_kwargs(constructor_abi, constructor_args, constructor_kwargs)
+        data = encode_abi(web3, constructor_abi, arguments)
+    else:
+        data = None
     return data
