@@ -14,7 +14,7 @@
  You should have received a copy of the GNU Affero General Public License
  along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
-from typing import Type
+from typing import Type, Union
 
 import click
 from constant_sorrow.constants import UNKNOWN_DEVELOPMENT_CHAIN_ID
@@ -22,7 +22,7 @@ from constant_sorrow.constants import UNKNOWN_DEVELOPMENT_CHAIN_ID
 from nucypher.blockchain.eth.deployers import BaseContractDeployer
 from nucypher.blockchain.eth.registry import LocalContractRegistry, InMemoryContractRegistry
 from nucypher.cli.literature import CONFIRM_VERSIONED_UPGRADE
-from nucypher.blockchain.eth.interfaces import BlockchainDeployerInterface, VersionedContract
+from nucypher.blockchain.eth.interfaces import BlockchainDeployerInterface, VersionedContract, BlockchainInterface
 from nucypher.blockchain.eth.token import NU
 from nucypher.characters.control.emitters import StdoutEmitter
 from nucypher.cli.literature import (
@@ -123,29 +123,28 @@ def confirm_destroy_configuration(config: CharacterConfiguration) -> bool:
     return True
 
 
-def verify_upgrade_details(contract_name: str,
-                           blockchain: BlockchainDeployerInterface,
-                           local_registry: LocalContractRegistry,
-                           source_registry: InMemoryContractRegistry,
+def verify_upgrade_details(blockchain: Union[BlockchainDeployerInterface, BlockchainInterface],
+                           new_registry: LocalContractRegistry,
+                           old_registry: InMemoryContractRegistry,
                            deployer: Type[BaseContractDeployer],
                            ) -> None:
     """
     Compares the versions of two 'implementation' contracts using a local and source registry.
     """
     old_contract: VersionedContract = blockchain.get_contract_by_name(
-        registry=source_registry,
+        registry=old_registry,
         contract_name=deployer.contract_name,
         proxy_name=deployer.agency._proxy_name,
         use_proxy_address=False
     )
 
     new_contract: VersionedContract = blockchain.get_contract_by_name(
-        registry=local_registry,
+        registry=new_registry,
         contract_name=deployer.contract_name,
         proxy_name=deployer.agency._proxy_name,
         use_proxy_address=False
     )
 
-    click.confirm(CONFIRM_VERSIONED_UPGRADE.format(contract_name=contract_name,
+    click.confirm(CONFIRM_VERSIONED_UPGRADE.format(contract_name=deployer.contract_name,
                                                    old_contract=old_contract,
                                                    new_contract=new_contract), abort=True)
