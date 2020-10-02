@@ -1,11 +1,11 @@
 .. _running-a-node:
 
-======================
+===================================================
 Nucypher CLI tools for running and managing workers
-======================
+===================================================
 
 Cloudworkers CLI
-------------
+----------------
 
 Nucypher maintains some simple tools leveraging open source tools such as Ansible, to make it easy
 to keep your Nucypher Ursula nodes working and up to date.
