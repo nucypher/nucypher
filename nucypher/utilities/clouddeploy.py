@@ -166,8 +166,6 @@ class BaseCloudNodeConfigurator:
         # configure provider specific attributes
         self._configure_provider_params(profile)
 
-        print (f"bcp:{blockchain_provider}")
-
         # if certain config options have been specified with this invocation,
         # save these to update host specific variables before deployment
         # to allow for individual host config differentiation
@@ -176,7 +174,6 @@ class BaseCloudNodeConfigurator:
             'nucypher_image': nucypher_image,
             'sentry_dsn': sentry_dsn
         }
-        print (self.host_level_overrides)
 
         self.config['blockchain_provider'] = blockchain_provider or self.config.get('blockchain_provider') or f'/root/.local/share/geth/.ethereum/{self.chain_name}/geth.ipc' # the default for nodes that run their own geth container
         self.config['nucypher_image'] = nucypher_image or self.config.get('nucypher_image') or 'nucypher/nucypher:latest'
@@ -519,12 +516,16 @@ class AWSNodeConfigurator(BaseCloudNodeConfigurator):
             import boto3
         except ImportError:
             self.emitter.echo("You need to have boto3 installed to use this feature (pip3 install boto3)", color='red')
+            raise AttributeError("boto3 not found.")
         # figure out which AWS account to use.
 
         # find aws profiles on user's local environment
         profiles = boto3.session.Session().available_profiles
 
         self.profile = provider_profile or self.config.get('profile')
+        if not self.profile:
+            self.emitter.echo("Aws nodes can only be created with an aws profile. (https://docs.aws.amazon.com/cli/latest/userguide/cli-configure-profiles.html)", color='red')
+            raise AttributeError("AWS profile not configured.")
         self.emitter.echo(f'using profile: {self.profile}')
         if self.profile in profiles:
             self.session = boto3.Session(profile_name=self.profile)
@@ -645,7 +646,9 @@ class AWSNodeConfigurator(BaseCloudNodeConfigurator):
 
     def _do_setup_for_instance_creation(self):
         if not getattr(self, 'profile', None):
-            raise AttributeError('AWS needs an active profile to create cloud resources. Run "nucypher stake create-workers --help" for more info')
+            self.emitter.echo("Aws nodes can only be created with an aws profile. (https://docs.aws.amazon.com/cli/latest/userguide/cli-configure-profiles.html)", color='red')
+            raise AttributeError("AWS profile not configured.")
+
         self.emitter.echo("ensuring that prerequisite cloud resources exist for instance creation.")
         self._ensure_vpc()
         self._configure_path_to_internet()

@@ -47,7 +47,7 @@ def cloudworkers():
 @group_staker_options
 @option_config_file
 @click.option('--cloudprovider', help="aws or digitalocean", default='aws')
-@click.option('--cloud-profile', help="The cloud provider account profile you'd like to use (an aws profile)", default=None)
+@click.option('--aws-profile', help="The cloud provider account profile you'd like to use (an aws profile)", default=None)
 @click.option('--remote-provider', help="The blockchain provider for the remote node, if not provided, nodes will run geth.", default=None)
 @click.option('--nucypher-image', help="The docker image containing the nucypher code to run on the remote nodes. (default is nucypher/nucypher:latest)", default=None)
 @click.option('--seed-network', help="Do you want the 1st node to be --lonely and act as a seed node for this network", default=False, is_flag=True)
@@ -55,7 +55,7 @@ def cloudworkers():
 @click.option('--include-stakeholder', 'stakes', help="limit worker to specified stakeholder addresses", multiple=True)
 @click.option('--wipe', help="Clear nucypher configs on existing nodes and start a fresh node with new keys.", default=False, is_flag=True)
 @group_general_config
-def up(general_config, staker_options, config_file, cloudprovider, cloud_profile, remote_provider, nucypher_image, seed_network, sentry_dsn, stakes, wipe):
+def up(general_config, staker_options, config_file, cloudprovider, aws_profile, remote_provider, nucypher_image, seed_network, sentry_dsn, stakes, wipe):
     """Creates workers for all stakes owned by the user for the given network."""
 
     emitter = setup_emitter(general_config)
@@ -74,7 +74,7 @@ def up(general_config, staker_options, config_file, cloudprovider, cloud_profile
 
     config_file = config_file or StakeHolderConfiguration.default_filepath()
 
-    deployer = CloudDeployers.get_deployer(cloudprovider)(emitter, STAKEHOLDER, config_file, remote_provider, nucypher_image, seed_network, sentry_dsn, cloud_profile)
+    deployer = CloudDeployers.get_deployer(cloudprovider)(emitter, STAKEHOLDER, config_file, remote_provider, nucypher_image, seed_network, sentry_dsn, aws_profile)
     config = deployer.create_nodes_for_stakers(staker_addresses)
 
     if config.get('instances') and len(config.get('instances')) >= len(staker_addresses):
