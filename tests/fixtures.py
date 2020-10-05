@@ -40,7 +40,7 @@ from web3.types import TxReceipt
 from nucypher.blockchain.economics import BaseEconomics, StandardTokenEconomics
 from nucypher.blockchain.eth.actors import StakeHolder, Staker
 from nucypher.blockchain.eth.agents import NucypherTokenAgent, PolicyManagerAgent, StakingEscrowAgent
-from nucypher.blockchain.eth.clients import NuCypherGethDevProcess
+from nucypher.blockchain.eth.processes import NuCypherGethDevProcess
 from nucypher.blockchain.eth.deployers import (
     AdjudicatorDeployer,
     NucypherTokenDeployer,

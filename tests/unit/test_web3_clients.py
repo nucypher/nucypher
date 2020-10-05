@@ -32,6 +32,7 @@ GAS_PRICE_FROM_STRATEGY = 1234
 # Mock Providers
 #
 
+
 class MockGethProvider:
     endpoint_uri = 'file:///ipc.geth'
     clientVersion = 'Geth/v1.4.11-stable-fed692f6/darwin/go1.7'

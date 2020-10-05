@@ -109,7 +109,7 @@ class BlockchainInterface:
 
     class TransactionFailed(InterfaceError):
 
-        IPC_CODE = -32000  # (geth)
+        IPC_CODE = -32000
 
         def __init__(self,
                      message: str,
@@ -158,7 +158,6 @@ class BlockchainInterface:
                  emitter = None,  # TODO # 1754
                  poa: bool = None,
                  light: bool = False,
-                 provider_process=NO_PROVIDER_PROCESS,
                  provider_uri: str = NO_BLOCKCHAIN_CONNECTION,
                  provider: BaseProvider = NO_BLOCKCHAIN_CONNECTION,
                  gas_strategy: Union[str, Callable] = DEFAULT_GAS_STRATEGY):
@@ -230,7 +229,6 @@ class BlockchainInterface:
         self.poa = poa
         self.provider_uri = provider_uri
         self._provider = provider
-        self._provider_process = provider_process
         self.w3 = NO_BLOCKCHAIN_CONNECTION
         self.client = NO_BLOCKCHAIN_CONNECTION         # type: EthereumClient
         self.transacting_power = READ_ONLY_INTERFACE
@@ -301,13 +299,8 @@ class BlockchainInterface:
 
     def connect(self):
 
-        # Spawn child process
-        if self._provider_process:
-            self._provider_process.start()
-            provider_uri = self._provider_process.provider_uri(scheme='file')
-        else:
-            provider_uri = self.provider_uri
-            self.log.info(f"Using external Web3 Provider '{self.provider_uri}'")
+        provider_uri = self.provider_uri
+        self.log.info(f"Using external Web3 Provider '{self.provider_uri}'")
 
         # Attach Provider
         self._attach_provider(provider=self._provider, provider_uri=provider_uri)

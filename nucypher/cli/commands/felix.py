@@ -26,7 +26,6 @@ from nucypher.cli.actions.auth import (
     unlock_nucypher_keyring
 )
 from nucypher.cli.actions.configure import destroy_configuration, handle_missing_configuration_file
-from nucypher.cli.processes import get_geth_provider_process
 from nucypher.cli.utils import setup_emitter
 from nucypher.cli.config import group_general_config
 from nucypher.cli.literature import (
@@ -45,7 +44,6 @@ from nucypher.cli.options import (
     option_discovery_port,
     option_dry_run,
     option_force,
-    option_geth,
     option_middleware,
     option_min_stake,
     option_network,
@@ -67,7 +65,6 @@ class FelixConfigOptions:
     __option_name__ = 'config_options'
 
     def __init__(self,
-                 geth,
                  dev,
                  network,
                  provider_uri,
@@ -79,12 +76,6 @@ class FelixConfigOptions:
                  poa,
                  port):
 
-        eth_node = NO_BLOCKCHAIN_CONNECTION
-        if geth:
-            eth_node = get_geth_provider_process(dev)
-            provider_uri = eth_node.provider_uri
-
-        self.eth_node = eth_node
         self.provider_uri = provider_uri
         self.signer_uri = signer_uri
         self.domain = network
@@ -104,7 +95,6 @@ class FelixConfigOptions:
                 filepath=config_file,
                 domain=self.domain,
                 registry_filepath=self.registry_filepath,
-                provider_process=self.eth_node,
                 provider_uri=self.provider_uri,
                 signer=self.signer_uri,
                 rest_host=self.host,
@@ -129,13 +119,11 @@ class FelixConfigOptions:
             registry_filepath=self.registry_filepath,
             provider_uri=self.provider_uri,
             signer_uri=self.signer_uri,
-            provider_process=self.eth_node,
             poa=self.poa)
 
 
 group_config_options = group_options(
     FelixConfigOptions,
-    geth=option_geth,
     dev=option_dev,
     network=option_network(),
     provider_uri=option_provider_uri(),
