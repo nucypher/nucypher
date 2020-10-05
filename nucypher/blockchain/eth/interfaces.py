@@ -260,40 +260,63 @@ class BlockchainInterface:
         else:
             gas_strategy = self.gas_strategy
         self.client.set_gas_strategy(gas_strategy=gas_strategy)
-        gwei_gas_price = Web3.fromWei(self.client.gas_price_for_transaction(), 'gwei')
-        self.log.debug(f"Currently, our gas strategy returns a gas price of {gwei_gas_price} gwei")
 
-        self.client.add_middleware(middleware.time_based_cache_middleware)
-        # self.client.add_middleware(middleware.latest_block_based_cache_middleware)
-        self.client.add_middleware(middleware.simple_cache_middleware)
-
-    def connect(self):
-
-        provider_uri = self.provider_uri
-        self.log.info(f"Using external Web3 Provider '{self.provider_uri}'")
-
-        # Attach Provider
-        self._attach_provider(provider=self._provider, provider_uri=provider_uri)
-        self.log.info("Connecting to {}".format(self.provider_uri))
-        if self._provider is NO_BLOCKCHAIN_CONNECTION:
-            raise self.NoProvider("There are no configured blockchain providers")
-
-        # Connect if not connected
-        try:
-            self.w3 = self.Web3(provider=self._provider)
-            self.client = EthereumClient.from_w3(w3=self.w3)
-        except requests.ConnectionError:  # RPC
-            raise self.ConnectionFailed(f'Connection Failed - {str(self.provider_uri)} - is RPC enabled?')
-        except FileNotFoundError:         # IPC File Protocol
-            raise self.ConnectionFailed(f'Connection Failed - {str(self.provider_uri)} - is IPC enabled?')
+    def connect(self) -> bool:
+        if self.client:
+            self.log.info("Using pre-configured ethereum client {}".format(self.provider_uri))
+            return True
         else:
-            self.attach_middleware()
-
+            self.log.info("Connecting to Web3 Provider {}".format(self.provider_uri))
+            self._attach_provider(provider=self._provider, provider_uri=self.provider_uri)
+            try:
+                w3 = self.Web3(provider=self._provider)
+                self.client = EthereumClient.from_w3(w3=w3)
+            except requests.ConnectionError:  # RPC
+                raise self.ConnectionFailed(f'Connection Failed - {str(self.provider_uri)} - is RPC enabled?')
+            except FileNotFoundError:         # IPC File Protocol
+                raise self.ConnectionFailed(f'Connection Failed - {str(self.provider_uri)} - is IPC enabled?')
+        self._init_gas_strategy()  # TODO: is this a good home?
         return self.is_connected
 
     @property
     def provider(self) -> BaseProvider:
         return self._provider
+
+    def provider_from_uri(self, uri: str):
+        uri_breakdown = urlparse(uri)
+
+        if uri_breakdown.scheme == 'tester':
+            providers = {
+                'pyevm': _get_pyevm_test_provider,
+                'geth': _get_test_geth_parity_provider,
+                'parity-ethereum': _get_test_geth_parity_provider,
+                'mock': _get_mock_test_provider
+            }
+            provider_scheme = uri_breakdown.netloc
+
+        else:
+            providers = {
+                'auto': _get_auto_provider,
+                'ipc': _get_IPC_provider,
+                'ws': _get_websocket_provider,
+                'wss': _get_websocket_provider,
+                'http': _get_HTTP_provider,
+                'https': _get_HTTP_provider,
+            }
+            provider_scheme = uri_breakdown.scheme
+
+        # auto-detect for file based ipc
+        if not provider_scheme:
+            if os.path.exists(uri):
+                # file is available - assume ipc/file scheme
+                provider_scheme = 'ipc'
+                self.log.info(f"Auto-detected provider scheme as 'ipc://' for provider {uri}")
+
+        try:
+            return providers[provider_scheme](uri)
+        except KeyError:
+            raise self.UnsupportedProvider(f"{uri} is an invalid or unsupported blockchain provider URI")
+
 
     def _attach_provider(self,
                          provider: Optional[BaseProvider] = None,
@@ -301,49 +324,13 @@ class BlockchainInterface:
         """
         https://web3py.readthedocs.io/en/latest/providers.html#providers
         """
-
-        if not provider_uri and not provider:
-            raise self.NoProvider("No URI or provider instances supplied.")
-
-        if provider_uri and not provider:
-            uri_breakdown = urlparse(provider_uri)
-
-            if uri_breakdown.scheme == 'tester':
-                providers = {
-                    'pyevm': _get_pyevm_test_provider,
-                    'geth': _get_test_geth_parity_provider,
-                    'parity-ethereum': _get_test_geth_parity_provider,
-                    'mock': _get_mock_test_provider
-                }
-                provider_scheme = uri_breakdown.netloc
-
-            else:
-                providers = {
-                    'auto': _get_auto_provider,
-                    'ipc': _get_IPC_provider,
-                    'file': _get_IPC_provider,
-                    'ws': _get_websocket_provider,
-                    'wss': _get_websocket_provider,
-                    'http': _get_HTTP_provider,
-                    'https': _get_HTTP_provider,
-                }
-                provider_scheme = uri_breakdown.scheme
-
-            # auto-detect for file based ipc
-            if not provider_scheme:
-                if os.path.exists(provider_uri):
-                    # file is available - assume ipc/file scheme
-                    provider_scheme = 'file'
-                    self.log.info(f"Auto-detected provider scheme as 'file://' for provider {provider_uri}")
-
-            try:
-                self._provider = providers[provider_scheme](provider_uri)
-            except KeyError:
-                raise self.UnsupportedProvider(f"{provider_uri} is an invalid or unsupported blockchain provider URI")
-            else:
-                self.provider_uri = provider_uri or NO_BLOCKCHAIN_CONNECTION
-        else:
+        if not bool(provider) ^ bool(provider_uri):
+            raise ValueError(f'Pass either provider_uri or provider; Got {provider_uri}, {provider}')
+        if provider:
             self._provider = provider
+            return  # that's all folks!
+        else:
+            self._provider = self.provider_from_uri(uri=provider_uri)
 
     @classmethod
     def _handle_failed_transaction(cls,
@@ -718,7 +705,7 @@ class BlockchainDeployerInterface(BlockchainInterface):
         self.dry_run = dry_run
         self.compiler = compiler or SolidityCompiler(ignore_solidity_check=ignore_solidity_check)
 
-    def connect(self):
+    def connect(self) -> bool:
         super().connect()
         self._setup_solidity(compiler=self.compiler)
         return self.is_connected
