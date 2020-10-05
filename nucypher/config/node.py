@@ -111,7 +111,6 @@ class CharacterConfiguration(BaseConfiguration):
                  light: bool = False,
                  sync: bool = False,
                  provider_uri: str = None,
-                 provider_process=None,
                  gas_strategy: Union[Callable, str] = DEFAULT_GAS_STRATEGY,
                  signer_uri: str = None,
 
@@ -146,7 +145,6 @@ class CharacterConfiguration(BaseConfiguration):
         self.poa = poa
         self.is_light = light
         self.provider_uri = provider_uri or NO_BLOCKCHAIN_CONNECTION
-        self.provider_process = provider_process or NO_BLOCKCHAIN_CONNECTION
         self.signer_uri = signer_uri or None
 
         # Learner
@@ -177,7 +175,6 @@ class CharacterConfiguration(BaseConfiguration):
             # Check for incompatible values
             blockchain_args = {'filepath': registry_filepath,
                                'poa': poa,
-                               'provider_process': provider_process,
                                'provider_uri': provider_uri,
                                'gas_strategy': gas_strategy}
             if any(blockchain_args.values()):
@@ -190,7 +187,6 @@ class CharacterConfiguration(BaseConfiguration):
                 self.poa = False
                 self.is_light = False
                 self.provider_uri = None
-                self.provider_process = None
                 self.registry_filepath = None
                 self.gas_strategy = None
 
@@ -205,7 +201,6 @@ class CharacterConfiguration(BaseConfiguration):
                 BlockchainInterfaceFactory.initialize_interface(provider_uri=self.provider_uri,
                                                                 poa=self.poa,
                                                                 light=self.is_light,
-                                                                provider_process=self.provider_process,
                                                                 sync=sync,
                                                                 emitter=emitter,
                                                                 gas_strategy=gas_strategy)
@@ -365,13 +360,12 @@ class CharacterConfiguration(BaseConfiguration):
     @classmethod
     def from_configuration_file(cls,
                                 filepath: str = None,
-                                provider_process=None,
                                 **overrides  # < ---- Inlet for CLI Flags
                                 ) -> 'CharacterConfiguration':
         """Initialize a CharacterConfiguration from a JSON file."""
         filepath = filepath or cls.default_filepath()
         assembled_params = cls.assemble(filepath=filepath, **overrides)
-        node_configuration = cls(filepath=filepath, provider_process=provider_process, **assembled_params)
+        node_configuration = cls(filepath=filepath, **assembled_params)
         return node_configuration
 
     def validate(self) -> bool:
@@ -518,34 +512,21 @@ class CharacterConfiguration(BaseConfiguration):
 
     def write_keyring(self, password: str, checksum_address: str = None, **generation_kwargs) -> NucypherKeyring:
 
+        # Configure checksum address
+        checksum_address = checksum_address or self.checksum_address
         if self.federated_only:
             checksum_address = FEDERATED_ADDRESS
-
         elif not checksum_address:
+            raise self.ConfigurationError(f'No checksum address provided for decentralized configuration.')
 
-            # Note: It is assumed the blockchain interface is not yet connected.
-            if self.provider_process:
-
-                # Generate Geth's "datadir"
-                if not os.path.exists(self.provider_process.data_dir):
-                    os.mkdir(self.provider_process.data_dir)
-
-                # Get or create wallet address
-                if not self.checksum_address:
-                    self.checksum_address = self.provider_process.ensure_account_exists(password=password)
-                elif self.checksum_address not in self.provider_process.accounts():
-                    raise self.ConfigurationError(f'Unknown Account {self.checksum_address}')
-
-            elif not self.checksum_address:
-                raise self.ConfigurationError(f'No checksum address provided for decentralized configuration.')
-
-            checksum_address = self.checksum_address
-
+        # Generate new keys
         self.keyring = NucypherKeyring.generate(password=password,
                                                 keyring_root=self.keyring_root,
                                                 checksum_address=checksum_address,
                                                 **generation_kwargs)
 
+        # In the case of a federated keyring generation,
+        # the generated federated address must be set here.
         if self.federated_only:
             self.checksum_address = self.keyring.checksum_address
 

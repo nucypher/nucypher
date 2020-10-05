@@ -114,7 +114,6 @@ class TesterBlockchain(BlockchainDeployerInterface):
             TesterBlockchain._compiler = compiler
 
         super().__init__(provider_uri=self._PROVIDER_URI,
-                         provider_process=None,
                          poa=poa,
                          light=light,
                          compiler=self._compiler,
