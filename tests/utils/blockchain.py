@@ -98,7 +98,6 @@ class TesterBlockchain(BlockchainDeployerInterface):
 
     def __init__(self,
                  test_accounts=None,
-                 poa=True,
                  light=False,
                  eth_airdrop=False,
                  free_transactions=False,
@@ -114,7 +113,6 @@ class TesterBlockchain(BlockchainDeployerInterface):
             TesterBlockchain._compiler = compiler
 
         super().__init__(provider_uri=self._PROVIDER_URI,
-                         poa=poa,
                          light=light,
                          compiler=self._compiler,
                          dry_run=mock_backend,

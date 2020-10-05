@@ -82,7 +82,8 @@ class NuCypherGethProcess(LoggingMixin, BaseGethProcess):
 
 
 class NuCypherGethDevProcess(NuCypherGethProcess):
-    _CHAIN_NAME = 'poa-development'
+
+    _CHAIN_NAME = 'geth-development'
 
     def __init__(self, config_root: str = None, *args, **kwargs):
 

@@ -42,7 +42,6 @@ from nucypher.cli.options import (
     option_hw_wallet,
     option_light,
     option_network,
-    option_poa,
     option_provider_uri,
     option_registry_filepath
 )
@@ -56,9 +55,8 @@ class BlockchainOptions:
 
     __option_name__ = 'blockchain_options'
 
-    def __init__(self, provider_uri, poa, registry_filepath, light, network):
+    def __init__(self, provider_uri, registry_filepath, light, network):
         self.provider_uri = provider_uri
-        self.poa = poa
         self.registry_filepath = registry_filepath
         self.light = light
         self.network = network
@@ -69,7 +67,6 @@ class BlockchainOptions:
             # Note: For test compatibility.
             if not BlockchainInterfaceFactory.is_interface_initialized(provider_uri=self.provider_uri):
                 BlockchainInterfaceFactory.initialize_interface(provider_uri=self.provider_uri,
-                                                                poa=self.poa,
                                                                 light=self.light,
                                                                 sync=False,
                                                                 emitter=emitter)
@@ -89,7 +86,6 @@ class BlockchainOptions:
 group_blockchain_options = group_options(
     BlockchainOptions,
     provider_uri=option_provider_uri(),
-    poa=option_poa,
     light=option_light,
     registry_filepath=option_registry_filepath,
     network=option_network,
@@ -188,7 +184,6 @@ def propose(general_config, blockchain_options, multisig_options):
     if not multisig_options.checksum_address:
         multisig_options.checksum_address = select_client_account(emitter=emitter,
                                                                   provider_uri=blockchain_options.provider_uri,
-                                                                  poa=blockchain_options.poa,
                                                                   network=blockchain_options.network,
                                                                   registry=registry,
                                                                   show_balances=True)  # FIXME: Unexpected input
@@ -229,7 +224,6 @@ def sign(general_config, blockchain_options, multisig_options, proposal):
     if not multisig_options.checksum_address:
         multisig_options.checksum_address = select_client_account(emitter=emitter,
                                                                   provider_uri=blockchain_options.provider_uri,
-                                                                  poa=blockchain_options.poa,
                                                                   network=blockchain_options.network,
                                                                   registry=registry,
                                                                   show_balances=True)
@@ -271,7 +265,6 @@ def execute(general_config, blockchain_options, multisig_options, proposal):
     if not multisig_options.checksum_address:
         multisig_options.checksum_address = select_client_account(emitter=emitter,
                                                                   provider_uri=blockchain_options.provider_uri,
-                                                                  poa=blockchain_options.poa,
                                                                   network=blockchain_options.network,
                                                                   registry=registry,
                                                                   show_balances=True)  # FIXME: Unexpected argument!!

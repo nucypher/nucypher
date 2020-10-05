@@ -35,7 +35,7 @@ from tests.markers import skip_on_circleci
 def test_geth_EIP_191_client_signature_integration(instant_geth_dev_node):
 
     # Start a geth process
-    blockchain = BlockchainInterface(provider_uri=instant_geth_dev_node.provider_uri(), poa=True)
+    blockchain = BlockchainInterface(provider_uri=instant_geth_dev_node.provider_uri())
     blockchain.connect()
 
     # Sign a message (RPC) and verify it.
@@ -50,7 +50,7 @@ def test_geth_EIP_191_client_signature_integration(instant_geth_dev_node):
 
 @skip_on_circleci
 def test_geth_create_new_account(instant_geth_dev_node):
-    blockchain = BlockchainInterface(provider_uri=instant_geth_dev_node.provider_uri(), poa=True)
+    blockchain = BlockchainInterface(provider_uri=instant_geth_dev_node.provider_uri())
     blockchain.connect()
     new_account = blockchain.client.new_account(password=INSECURE_DEVELOPMENT_PASSWORD)
     assert is_checksum_address(new_account)
@@ -59,7 +59,7 @@ def test_geth_create_new_account(instant_geth_dev_node):
 @pytest.mark.skip('See PR #2074')
 @skip_on_circleci
 def test_geth_deployment_integration(instant_geth_dev_node, test_registry):
-    blockchain = BlockchainInterface(provider_uri=instant_geth_dev_node.provider_uri(), poa=True)
+    blockchain = BlockchainInterface(provider_uri=instant_geth_dev_node.provider_uri())
     BlockchainInterfaceFactory.register_interface(interface=blockchain)
 
     # Make Deployer

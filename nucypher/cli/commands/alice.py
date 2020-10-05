@@ -47,7 +47,6 @@ from nucypher.cli.options import (
     option_min_stake,
     option_n,
     option_network,
-    option_poa,
     option_provider_uri,
     option_registry_filepath,
     option_signer_uri,
@@ -168,9 +167,8 @@ class AliceFullConfigOptions:
 
     __option_name__ = 'full_config_options'
 
-    def __init__(self, config_options, poa: bool, light: bool, m: int, n: int, duration_periods: int):
+    def __init__(self, config_options, light: bool, m: int, n: int, duration_periods: int):
         self.config_options = config_options
-        self.poa = poa
         self.light = light
         self.m = m
         self.n = n
@@ -204,7 +202,6 @@ class AliceFullConfigOptions:
             provider_uri=opts.provider_uri,
             signer_uri=opts.signer_uri,
             registry_filepath=opts.registry_filepath,
-            poa=self.poa,
             light=self.light,
             m=self.m,
             n=self.n,
@@ -218,7 +215,6 @@ class AliceFullConfigOptions:
                        provider_uri=opts.provider_uri,
                        signer_uri=opts.signer_uri,
                        registry_filepath=opts.registry_filepath,
-                       poa=self.poa,
                        light=self.light,
                        m=self.m,
                        n=self.n,
@@ -231,7 +227,6 @@ class AliceFullConfigOptions:
 group_full_config_options = group_options(
     AliceFullConfigOptions,
     config_options=group_config_options,
-    poa=option_poa,
     light=option_light,
     m=option_m,
     n=option_n,
