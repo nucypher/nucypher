@@ -173,13 +173,11 @@ class UrsulaConfigOptions:
                                                        provider_uri=self.provider_uri,
                                                        signer_uri=self.signer_uri)
 
+        # Resolve rest host
         rest_host = self.rest_host
         if not rest_host:
-            rest_host = os.environ.get(NUCYPHER_ENVVAR_WORKER_IP_ADDRESS)
-            if not rest_host:
-                # TODO: Something less centralized... :-(
-                # TODO: Ask Ursulas instead
-                rest_host = determine_external_ip_address(emitter, force=force)
+            rest_host = os.environ.get(NUCYPHER_ENVVAR_WORKER_IP_ADDRESS,
+                                       determine_external_ip_address(emitter, force=force))
 
         return UrsulaConfiguration.generate(password=get_nucypher_password(confirm=True),
                                             config_root=config_root,

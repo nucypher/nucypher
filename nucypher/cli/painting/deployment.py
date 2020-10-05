@@ -48,14 +48,7 @@ def paint_staged_deployment(emitter, deployer_interface, administrator) -> None:
     emitter.echo(f"Chain Name .......... {deployer_interface.client.chain_name}")
 
     # Ask - Last chance to gracefully abort. This step cannot be forced.
-    emitter.echo("\nDeployment successfully staged. Take a deep breath. \n", color='green')
-
-
-def paint_deployment_delay(emitter, delay: int = 3) -> None:
-    emitter.echo(f"Starting deployment in {delay} seconds...", color='red')
-    for i in range(delay)[::-1]:
-        emitter.echo(f"{i}...", color='yellow')
-        time.sleep(1)
+    emitter.echo("\nDeployment successfully staged.", color='green')
 
 
 def paint_contract_deployment(emitter,
