@@ -350,71 +350,6 @@ class ContractAdministrator(NucypherTokenActor):
         receipts = deployer.rollback()
         return receipts
 
-    def deploy_network_contracts(self,
-                                 interactive: bool = True,
-                                 emitter: StdoutEmitter = None,
-                                 etherscan: bool = False,
-                                 ignore_deployed: bool = False) -> dict:
-        """
-
-        :param interactive: If True, wait for keypress after each contract deployment
-        :param emitter: A console output emitter instance. If emitter is None, no output will be echoed to the console.
-        :param etherscan: Open deployed contracts in Etherscan
-        :param ignore_deployed: Ignore already deployed contracts if exist
-        :return: Returns a dictionary of deployment receipts keyed by contract name
-        """
-
-        if interactive and not emitter:
-            raise ValueError("'emitter' is a required keyword argument when interactive is True.")
-
-        deployment_receipts = dict()
-        gas_limit = None  # TODO: Gas management - #842
-
-        # deploy contracts
-        total_deployment_transactions = 0
-        for deployer_class in self.primary_deployer_classes:
-            total_deployment_transactions += len(deployer_class.deployment_steps)
-
-        first_iteration = True
-        with click.progressbar(length=total_deployment_transactions,
-                               label="Deployment progress",
-                               show_eta=False) as bar:
-            bar.short_limit = 0
-            for deployer_class in self.primary_deployer_classes:
-                if interactive and not first_iteration:
-                    click.pause(info=f"\nPress any key to continue with deployment of {deployer_class.contract_name}")
-
-                if emitter:
-                    emitter.echo(f"\nDeploying {deployer_class.contract_name} ...")
-                    bar._last_line = None
-                    bar.render_progress()
-
-                if deployer_class in self.standard_deployer_classes:
-                    receipts, deployer = self.deploy_contract(contract_name=deployer_class.contract_name,
-                                                              gas_limit=gas_limit,
-                                                              progress=bar,
-                                                              emitter=emitter)
-                else:
-                    receipts, deployer = self.deploy_contract(contract_name=deployer_class.contract_name,
-                                                              gas_limit=gas_limit,
-                                                              progress=bar,
-                                                              ignore_deployed=ignore_deployed,
-                                                              emitter=emitter)
-
-                if emitter:
-                    blockchain = BlockchainInterfaceFactory.get_interface()
-                    paint_contract_deployment(contract_name=deployer_class.contract_name,
-                                              receipts=receipts,
-                                              contract_address=deployer.contract_address,
-                                              emitter=emitter,
-                                              chain_name=blockchain.client.chain_name,
-                                              open_in_browser=etherscan)
-
-                deployment_receipts[deployer_class.contract_name] = receipts
-                first_iteration = False
-
-        return deployment_receipts
-
     def batch_deposits(self,
                        allocation_data_filepath: str,
                        interactive: bool = True,
@@ -491,7 +426,7 @@ class ContractAdministrator(NucypherTokenActor):
                         emitter.echo()
                         paint_receipt_summary(emitter=emitter,
                                               receipt=receipt,
-                                              chain_name=chain_name,
+                                              chain_name=chain_name,  # TODO: this variable might be unused
                                               transaction_type=f'batch_deposit_{number_of_deposits}_stakers')
 
                     batch_deposit_receipts.update({staker: {'batch_deposit': receipt} for staker in deposited_stakers})

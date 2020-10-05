@@ -91,7 +91,6 @@ from nucypher.cli.options import (
 from nucypher.cli.painting.deployment import (
     paint_contract_deployment,
     paint_deployer_contract_inspection,
-    paint_deployment_delay,
     paint_staged_deployment
 )
 from nucypher.cli.painting.help import echo_solidity_version
@@ -468,71 +467,36 @@ def contracts(general_config, actor_options, mode, activate, gas, ignore_deploye
         with open(parameters) as json_file:
             deployment_parameters = json.load(json_file)
 
-    #
-    # Deploy Single Contract (Amend Registry)
-    #
     contract_name = actor_options.contract_name
     deployment_mode = constants.__getattr__(mode.upper())  # TODO: constant sorrow
-    if contract_name:  # TODO: Remove this conditional, make it the default
-        try:
-            contract_deployer_class = ADMINISTRATOR.deployers[contract_name]
-        except KeyError:
-            message = UNKNOWN_CONTRACT_NAME.format(contract_name=contract_name,
-                                                   constants=ADMINISTRATOR.deployers.keys())
-            emitter.echo(message, color='red', bold=True)
-            raise click.Abort()
+    try:
+        contract_deployer_class = ADMINISTRATOR.deployers[contract_name]
+    except KeyError:
+        message = UNKNOWN_CONTRACT_NAME.format(contract_name=contract_name,
+                                               constants=ADMINISTRATOR.deployers.keys())
+        emitter.echo(message, color='red', bold=True)
+        raise click.Abort()
 
-        if activate:
-            # For the moment, only StakingEscrow can be activated
-            staking_escrow_deployer = contract_deployer_class(registry=ADMINISTRATOR.registry,
-                                                              deployer_address=ADMINISTRATOR.deployer_address)
-            if contract_name != STAKING_ESCROW_CONTRACT_NAME or not staking_escrow_deployer.ready_to_activate:
-                raise click.BadOptionUsage(option_name="--activate",
-                                           message=f"You can only activate an idle instance of {STAKING_ESCROW_CONTRACT_NAME}")
+    if activate:
+        # For the moment, only StakingEscrow can be activated
+        staking_escrow_deployer = contract_deployer_class(registry=ADMINISTRATOR.registry,
+                                                          deployer_address=ADMINISTRATOR.deployer_address)
+        if contract_name != STAKING_ESCROW_CONTRACT_NAME or not staking_escrow_deployer.ready_to_activate:
+            raise click.BadOptionUsage(option_name="--activate",
+                                       message=f"You can only activate an idle instance of {STAKING_ESCROW_CONTRACT_NAME}")
 
-            escrow_address = staking_escrow_deployer._get_deployed_contract().address
-            prompt = CONFIRM_NETWORK_ACTIVATION.format(staking_escrow_name=STAKING_ESCROW_CONTRACT_NAME,
-                                                       staking_escrow_address=escrow_address)
-            click.confirm(prompt, abort=True)
+        escrow_address = staking_escrow_deployer._get_deployed_contract().address
+        prompt = CONFIRM_NETWORK_ACTIVATION.format(staking_escrow_name=STAKING_ESCROW_CONTRACT_NAME,
+                                                   staking_escrow_address=escrow_address)
+        click.confirm(prompt, abort=True)
 
-            receipts = staking_escrow_deployer.activate(gas_limit=gas, confirmations=confirmations)
-            for tx_name, receipt in receipts.items():
-                paint_receipt_summary(emitter=emitter,
-                                      receipt=receipt,
-                                      chain_name=chain_name,
-                                      transaction_type=tx_name)
-            return  # Exit
-
-        # Deploy
-        emitter.echo(CONTRACT_DEPLOYMENT_SERIES_BEGIN_ADVISORY.format(contract_name=contract_name))
-        receipts, agent = ADMINISTRATOR.deploy_contract(contract_name=contract_name,
-                                                        gas_limit=gas,
-                                                        deployment_mode=deployment_mode,
-                                                        ignore_deployed=ignore_deployed,
-                                                        confirmations=confirmations,
-                                                        deployment_parameters=deployment_parameters)
-
-        # Report
-        paint_contract_deployment(contract_name=contract_name,
-                                  contract_address=agent.contract_address,
-                                  receipts=receipts,
-                                  emitter=emitter,
+        receipts = staking_escrow_deployer.activate(gas_limit=gas, confirmations=confirmations)
+        for tx_name, receipt in receipts.items():
+            paint_receipt_summary(emitter=emitter,
+                                  receipt=receipt,
                                   chain_name=chain_name,
-                                  open_in_browser=actor_options.etherscan)
+                                  transaction_type=tx_name)
         return  # Exit
-
-    #
-    # Deploy Automated Series (Create Registry)
-    #
-    if deployment_mode is not FULL:
-        raise click.BadOptionUsage(option_name='--mode',
-                                   message="Only 'full' mode is supported when deploying all network contracts")
-
-    # Confirm filesystem registry writes.
-    if os.path.isfile(local_registry.filepath):
-        emitter.echo(EXISTING_REGISTRY_FOR_DOMAIN.format(registry_filepath=local_registry.filepath), color='yellow')
-        click.confirm(CONFIRM_LOCAL_REGISTRY_DESTRUCTION, abort=True)
-        os.remove(local_registry.filepath)
 
     # Stage Deployment
     paint_staged_deployment(deployer_interface=deployer_interface, administrator=ADMINISTRATOR, emitter=emitter)
@@ -541,21 +505,29 @@ def contracts(general_config, actor_options, mode, activate, gas, ignore_deploye
     if not confirm_deployment(emitter=emitter, deployer_interface=deployer_interface):
         raise click.Abort()
 
-    # Delay - Last chance to abort via KeyboardInterrupt
-    paint_deployment_delay(emitter=emitter)
+    # Deploy
+    emitter.echo(CONTRACT_DEPLOYMENT_SERIES_BEGIN_ADVISORY.format(contract_name=contract_name))
+    receipts, agent = ADMINISTRATOR.deploy_contract(contract_name=contract_name,
+                                                    gas_limit=gas,
+                                                    deployment_mode=deployment_mode,
+                                                    ignore_deployed=ignore_deployed,
+                                                    confirmations=confirmations,
+                                                    deployment_parameters=deployment_parameters)
 
-    # Execute Deployment
-    deployment_receipts = ADMINISTRATOR.deploy_network_contracts(emitter=emitter,
-                                                                 interactive=not actor_options.force,
-                                                                 etherscan=actor_options.etherscan,
-                                                                 ignore_deployed=ignore_deployed)
+    # Report
+    paint_contract_deployment(contract_name=contract_name,
+                              contract_address=agent.contract_address,
+                              receipts=receipts,
+                              emitter=emitter,
+                              chain_name=chain_name,
+                              open_in_browser=actor_options.etherscan)
 
-    # Paint outfile paths
+    # Success
     registry_outfile = local_registry.filepath
     emitter.echo(SUCCESSFUL_REGISTRY_CREATION.format(registry_outfile=registry_outfile), bold=True, color='blue')
 
     # Save transaction metadata
-    receipts_filepath = ADMINISTRATOR.save_deployment_receipts(receipts=deployment_receipts)
+    receipts_filepath = ADMINISTRATOR.save_deployment_receipts(receipts=receipts)
     emitter.echo(SUCCESSFUL_SAVE_DEPLOY_RECEIPTS.format(receipts_filepath=receipts_filepath), color='blue', bold=True)
 
 

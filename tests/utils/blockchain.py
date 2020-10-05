@@ -214,18 +214,23 @@ class TesterBlockchain(BlockchainDeployerInterface):
         registry = InMemoryContractRegistry()
         testerchain = cls(compiler=SolidityCompiler())
         BlockchainInterfaceFactory.register_interface(testerchain)
-        power = TransactingPower(password=INSECURE_DEVELOPMENT_PASSWORD,
-                                 account=testerchain.etherbase_account)
+        power = TransactingPower(password=INSECURE_DEVELOPMENT_PASSWORD, account=testerchain.etherbase_account)
         power.activate()
         testerchain.transacting_power = power
 
         origin = testerchain.client.etherbase
-        deployer = ContractAdministrator(deployer_address=origin,
-                                         registry=registry,
-                                         economics=economics or cls._default_token_economics,
-                                         staking_escrow_test_mode=True)
+        admin = ContractAdministrator(deployer_address=origin,
+                                      registry=registry,
+                                      economics=economics or cls._default_token_economics,
+                                      staking_escrow_test_mode=True)
 
-        _receipts = deployer.deploy_network_contracts(interactive=False)
+        gas_limit = None  # TODO: Gas management - #842
+        for deployer_class in admin.primary_deployer_classes:
+            if deployer_class in ContractAdministrator.standard_deployer_classes:
+                admin.deploy_contract(contract_name=deployer_class.contract_name, gas_limit=gas_limit)
+            else:
+                admin.deploy_contract(contract_name=deployer_class.contract_name, gas_limit=gas_limit)
+
         return testerchain, registry
 
     @property

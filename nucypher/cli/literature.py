@@ -415,7 +415,7 @@ SUCCESSFUL_SAVE_BATCH_DEPOSIT_RECEIPTS = "Saved batch deposits receipts to {rece
 
 SUCCESSFUL_SAVE_DEPLOY_RECEIPTS = "Saved deployment receipts to {receipts_filepath}"
 
-SUCCESSFUL_REGISTRY_CREATION = 'Generated registry {registry_outfile}'
+SUCCESSFUL_REGISTRY_CREATION = 'Wrote to registry {registry_outfile}'
 
 CONFIRM_LOCAL_REGISTRY_DESTRUCTION = "*DESTROY* existing local registry and continue?"
 
