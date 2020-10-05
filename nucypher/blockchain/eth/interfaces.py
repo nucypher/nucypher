@@ -155,11 +155,11 @@ class BlockchainInterface:
             return message
 
     def __init__(self,
-                 emitter = None,  # TODO # 1754
                  light: bool = False,
                  provider_uri: str = NO_BLOCKCHAIN_CONNECTION,
                  provider: BaseProvider = NO_BLOCKCHAIN_CONNECTION,
-                 gas_strategy: Union[str, Callable] = DEFAULT_GAS_STRATEGY):
+                 client: Optional[EthereumClient] = None,
+                 gas_strategy: str = DEFAULT_GAS_STRATEGY):
 
         """
         TODO: #1502 - Move to API docs.
@@ -252,31 +252,7 @@ class BlockchainInterface:
             return False
         return self.client.is_connected
 
-    @classmethod
-    def get_gas_strategy(cls, gas_strategy: Union[str, Callable] = None) -> Callable:
-        try:
-            gas_strategy = cls.GAS_STRATEGIES[gas_strategy]
-        except KeyError:
-            if gas_strategy:
-                if not callable(gas_strategy):
-                    raise ValueError(f"{gas_strategy} must be callable to be a valid gas strategy.")
-            else:
-                gas_strategy = cls.GAS_STRATEGIES[cls.DEFAULT_GAS_STRATEGY]
-        return gas_strategy
-
-    @property
-    def poa(self):
-        chain_id = int(self.client.chain_id)
-        return chain_id in POA_CHAINS
-
-    def attach_middleware(self):
-        # Autodetect POA from chain id;  For use with Proof-Of-Authority blockchains
-        if self.poa:
-            self.log.debug(f'Ethereum chain: {self.client.chain_name} ID# {int(self.client.chain_id)}')
-            self.log.debug('Injecting POA middleware at layer 0')
-            self.client.inject_middleware(geth_poa_middleware, layer=0)
-
-        # Gas Price Strategy:
+    def _init_gas_strategy(self) -> None:
         # Bundled web3 strategies are too expensive for Infura (it takes ~1 minute to get a price),
         # so we use external gas price oracles, instead (see #2139)
         if isinstance(self.client, InfuraClient):

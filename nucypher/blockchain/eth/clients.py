@@ -25,8 +25,9 @@ from eth_account.messages import encode_defunct
 from eth_typing.evm import BlockNumber, ChecksumAddress
 from eth_utils import to_canonical_address, to_checksum_address
 from typing import Union
-from web3 import Web3
+from web3 import Web3, middleware
 from web3.contract import Contract
+from web3.middleware.geth_poa import geth_poa_middleware
 from web3.types import Wei, TxReceipt
 from web3._utils.threads import Timeout
 from web3.exceptions import TimeExhausted, TransactionNotFound
@@ -142,12 +143,29 @@ class EthereumClient:
         self.backend = backend
         self.log = Logger(self.__class__.__name__)
 
-        self._add_default_middleware()
+        self.__chain_id = None  # cache to reduce RPC calls
+        self._attach_middleware()
 
-    def _add_default_middleware(self):
-        # default retry functionality
+    @property
+    def poa(self):
+        chain_id = int(self.chain_id)
+        return chain_id in POA_CHAINS
+
+    def _attach_middleware(self):
+        # Autodetect POA from chain id; For use with Proof-Of-Authority blockchains
+        if self.poa:
+            self.log.debug(f'Ethereum chain: {self.chain_name} ID# {int(self.chain_id)}')
+            self.log.debug('Injecting POA middleware at layer 0')
+            self.inject_middleware(geth_poa_middleware, layer=0)
+
+        # Default retry functionality
         self.log.debug('Adding RPC retry middleware to client')
         self.add_middleware(RetryRequestMiddleware)
+
+        # Cache
+        self.add_middleware(middleware.time_based_cache_middleware)
+        self.add_middleware(middleware.latest_block_based_cache_middleware)
+        self.add_middleware(middleware.simple_cache_middleware)
 
     @classmethod
     def _get_variant(cls, w3):
@@ -245,12 +263,15 @@ class EthereumClient:
 
     @property
     def chain_id(self) -> int:
-        try:
-            # from hex-str
-            return int(self.w3.eth.chainId, 16)
-        except TypeError:
-            # from str
-            return int(self.w3.eth.chainId)
+        if self.__chain_id is None:
+            try:
+                # from hex-str
+                chain_id = int(self.w3.eth.chainId, 16)
+            except TypeError:
+                # from str
+                chain_id = int(self.w3.eth.chainId)
+            self.__chain_id = chain_id  # cache it!
+        return self.__chain_id
 
     @property
     def net_version(self) -> int:
@@ -495,8 +516,7 @@ class InfuraClient(EthereumClient):
 
 class AlchemyClient(EthereumClient):
 
-    def _add_default_middleware(self):
-        # default retry functionality
+    def _attach_middleware(self):
         self.log.debug('Adding Alchemy RPC retry middleware to client')
         self.add_middleware(AlchemyRetryRequestMiddleware)
 

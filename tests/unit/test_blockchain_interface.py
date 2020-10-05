@@ -30,16 +30,6 @@ def test_get_gas_strategy():
                               'fast': time_based.fast_gas_price_strategy  # 60s
                               }
     for gas_strategy_name, expected_gas_strategy in bundled_gas_strategies.items():
-        gas_strategy = BlockchainInterface.get_gas_strategy(gas_strategy_name)
+        gas_strategy = BlockchainInterface.GAS_STRATEGIES[gas_strategy_name]
         assert expected_gas_strategy == gas_strategy
         assert callable(gas_strategy)
-
-    # Passing a callable gas strategy
-    callable_gas_strategy = time_based.glacial_gas_price_strategy
-    assert callable_gas_strategy == BlockchainInterface.get_gas_strategy(callable_gas_strategy)
-
-    # Passing None should retrieve the default gas strategy
-    assert BlockchainInterface.DEFAULT_GAS_STRATEGY == 'fast'
-    default = bundled_gas_strategies[BlockchainInterface.DEFAULT_GAS_STRATEGY]
-    gas_strategy = BlockchainInterface.get_gas_strategy()
-    assert default == gas_strategy
