@@ -25,6 +25,7 @@ from eth_utils import is_address, is_hex, to_checksum_address
 from web3 import Web3
 from web3.contract import ContractConstructor, ContractFunction
 
+from nucypher.blockchain.eth.clients import PUBLIC_CHAINS
 from nucypher.blockchain.eth.constants import AVERAGE_BLOCK_TIME_IN_SECONDS
 
 
@@ -86,13 +87,16 @@ def etherscan_url(item, network: str, is_token=False) -> str:
     if network is None or network is UNKNOWN_DEVELOPMENT_CHAIN_ID:
         raise ValueError("A network must be provided")
 
-    network = network.lower()
-    if network == 'mainnet':
+    if network == PUBLIC_CHAINS[1]:  # Mainnet chain ID is 1
         domain = "https://etherscan.io"
     else:
-        testnets_supported_by_etherscan = ('ropsten', 'goerli', 'rinkeby', 'kovan')
+        testnets_supported_by_etherscan = (PUBLIC_CHAINS[3],  # Ropsten
+                                           PUBLIC_CHAINS[4],  # Rinkeby
+                                           PUBLIC_CHAINS[5],  # Goerli
+                                           PUBLIC_CHAINS[42],  # Kovan
+                                           )
         if network in testnets_supported_by_etherscan:
-            domain = f"https://{network}.etherscan.io"
+            domain = f"https://{network.lower()}.etherscan.io"
         else:
             raise ValueError(f"'{network}' network not supported by Etherscan")
 

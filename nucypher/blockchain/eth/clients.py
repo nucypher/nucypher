@@ -224,9 +224,8 @@ class EthereumClient:
 
     @property
     def chain_name(self) -> str:
-        if not self.is_local:
-            return PUBLIC_CHAINS[int(self.chain_id)]
-        name = LOCAL_CHAINS.get(self.chain_id, UNKNOWN_DEVELOPMENT_CHAIN_ID)
+        chain_inventory = LOCAL_CHAINS if self.is_local else PUBLIC_CHAINS
+        name = chain_inventory.get(self.chain_id, UNKNOWN_DEVELOPMENT_CHAIN_ID)
         return name
 
     @property
