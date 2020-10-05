@@ -76,35 +76,6 @@ class SyncedMockW3Eth:
         }
 
 
-class SyncingMockW3Eth(SyncedMockW3Eth):
-
-    _sync_test_limit = 10
-
-    def __init__(self, *args, **kwargs):
-        self._syncing_counter = 0
-
-        super().__init__(*args, **kwargs)
-
-    @property
-    def syncing(self):
-
-        if self._syncing_counter < self._sync_test_limit:
-            self._syncing_counter += 1
-            return {
-                'currentBlock': self._syncing_counter,
-                'highestBlock': self._sync_test_limit,
-            }
-
-
-        return False
-
-
-    def getBlock(self, blockNumber):
-        return {
-            'timestamp': datetime.datetime.timestamp(datetime.datetime.now() - datetime.timedelta(seconds=500))
-        }
-
-
 class MockedW3GethWithPeers:
 
     @property
@@ -154,17 +125,7 @@ class SyncedMockWeb3:
         return lambda: True
 
 
-class SyncingMockWeb3(SyncedMockWeb3):
-
-    net = SyncingMockW3Eth()
-    eth = SyncingMockW3Eth()
-
-
-class SyncingMockWeb3NoPeers(SyncingMockWeb3):
-
-    geth = MockedW3GethWithNoPeers()
-
-
+#
 # Mock Blockchain
 #
 

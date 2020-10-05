@@ -92,13 +92,11 @@ class EthereumClient:
     ETHEREUM_TESTER = 'EthereumTester'  # (PyEVM)
     CLEF = 'Clef'  # Signer-only
 
-    PEERING_TIMEOUT = 30  # seconds
-    SYNC_TIMEOUT_DURATION = 60  # seconds to wait for various blockchain syncing endeavors
-    SYNC_SLEEP_DURATION = 5  # seconds
     BLOCK_CONFIRMATIONS_POLLING_TIME = 3  # seconds
     TRANSACTION_POLLING_TIME = 0.5  # seconds
     COOLING_TIME = 5  # seconds
-    STALECHECK_ALLOWABLE_DELAY = 30  # seconds
+
+    STALECHECK_ALLOWABLE_DELAY = 30  # seconds  # TODO: Increase for tests / debugging
 
     class ConnectionNotEstablished(RuntimeError):
         pass
@@ -210,10 +208,6 @@ class EthereumClient:
         chain_inventory = LOCAL_CHAINS if self.is_local else PUBLIC_CHAINS
         name = chain_inventory.get(self.chain_id, UNKNOWN_DEVELOPMENT_CHAIN_ID)
         return name
-
-    @property
-    def syncing(self) -> Union[bool, dict]:
-        return self.w3.eth.syncing
 
     def lock_account(self, account) -> bool:
         if self.is_local:
@@ -391,46 +385,6 @@ class EthereumClient:
         # check that our local chain data is up to date
         return (time.time() - self.get_blocktime()) < self.STALECHECK_ALLOWABLE_DELAY
 
-    def sync(self, timeout: int = 120, quiet: bool = False):
-
-        # Provide compatibility with local chains
-        if self.is_local:
-            return
-
-        # Record start time for timeout calculation
-        now = maya.now()
-        start_time = now
-
-        def check_for_timeout(t):
-            last_update = maya.now()
-            duration = (last_update - start_time).total_seconds()
-            if duration > t:
-                raise self.SyncTimeout
-
-        while not self._has_latest_block():
-            # Check for ethereum peers
-            self.log.info(f"Waiting for Ethereum peers ({len(self.peers)} known)")
-            while not self.peers:
-                time.sleep(0)
-                check_for_timeout(t=self.PEERING_TIMEOUT)
-
-            # Wait for sync start
-            self.log.info(f"Waiting for {self.chain_name.capitalize()} chain synchronization to begin")
-            while not self.syncing:
-                time.sleep(0)
-                check_for_timeout(t=self.SYNC_TIMEOUT_DURATION * 2)
-
-            while True:
-                syncdata = self.syncing
-                if not syncdata:
-                    return False
-
-                self.log.info(f"Syncing {syncdata['currentBlock']}/{syncdata['highestBlock']}")
-                time.sleep(self.SYNC_SLEEP_DURATION)
-                yield syncdata
-
-        return True
-
     def parse_transaction_data(self, transaction):
         return transaction.input
 
@@ -525,9 +479,6 @@ class GanacheClient(EthereumClient):
     def unlock_account(self, *args, **kwargs) -> bool:
         return True
 
-    def sync(self, *args, **kwargs) -> bool:
-        return True
-
 
 class InfuraClient(EthereumClient):
     is_local = False
@@ -539,9 +490,6 @@ class InfuraClient(EthereumClient):
         self.add_middleware(InfuraRetryRequestMiddleware)
 
     def unlock_account(self, *args, **kwargs) -> bool:
-        return True
-
-    def sync(self, *args, **kwargs) -> bool:
         return True
 
 
@@ -575,9 +523,6 @@ class EthereumTesterClient(EthereumClient):
             return True
         else:
             return self.w3.provider.ethereum_tester.lock_account(account=account)
-
-    def sync(self, *args, **kwargs):
-        return True
 
     def new_account(self, password: str) -> str:
         insecure_account = self.w3.provider.ethereum_tester.add_account(private_key=os.urandom(32).hex(),

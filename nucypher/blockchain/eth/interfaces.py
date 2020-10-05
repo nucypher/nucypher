@@ -319,51 +319,6 @@ class BlockchainInterface:
 
         return self.is_connected
 
-    def sync(self, emitter=None) -> None:
-
-        sync_state = self.client.sync()
-        if emitter is not None:
-
-            emitter.echo(f"Syncing: {self.client.chain_name.capitalize()}. Waiting for sync to begin.", verbosity=1)
-
-            while not len(self.client.peers):
-                emitter.echo("waiting for peers...", verbosity=1)
-                time.sleep(5)
-
-            peer_count = len(self.client.peers)
-            emitter.echo(
-                f"Found {'an' if peer_count == 1 else peer_count} Ethereum peer{('s' if peer_count > 1 else '')}.",
-                verbosity=1)
-
-            try:
-                emitter.echo("Beginning sync...", verbosity=1)
-                initial_state = next(sync_state)
-            except StopIteration:  # will occur if no syncing needs to happen
-                emitter.echo("Local blockchain data is already synced.", verbosity=1)
-                return
-
-            prior_state = initial_state
-            total_blocks_to_sync = int(initial_state.get('highestBlock', 0)) - int(
-                initial_state.get('currentBlock', 0))
-            with click.progressbar(
-                    length=total_blocks_to_sync,
-                    label="sync progress",
-                    file=emitter.get_stream(verbosity=1)
-            ) as bar:
-                for syncdata in sync_state:
-                    if syncdata:
-                        blocks_accomplished = int(syncdata['currentBlock']) - int(
-                            prior_state.get('currentBlock', 0))
-                        bar.update(blocks_accomplished)
-                        prior_state = syncdata
-        else:
-            try:
-                for syncdata in sync_state:
-                    self.client.log.info(f"Syncing {syncdata['currentBlock']}/{syncdata['highestBlock']}")
-            except TypeError:  # it's already synced
-                return
-        return
-
     @property
     def provider(self) -> BaseProvider:
         return self._provider
@@ -1005,7 +960,6 @@ class BlockchainInterfaceFactory:
 
     class CachedInterface(NamedTuple):
         interface: BlockchainInterface
-        sync: bool
         emitter: StdoutEmitter
 
     class FactoryError(Exception):
@@ -1035,7 +989,6 @@ class BlockchainInterfaceFactory:
     @classmethod
     def register_interface(cls,
                            interface: BlockchainInterface,
-                           sync: bool = False,
                            emitter=None,
                            force: bool = False
                            ) -> None:
@@ -1044,13 +997,12 @@ class BlockchainInterfaceFactory:
         if (provider_uri in cls._interfaces) and not force:
             raise cls.InterfaceAlreadyInitialized(f"A connection already exists for {provider_uri}. "
                                                   "Use .get_interface instead.")
-        cached = cls.CachedInterface(interface=interface, sync=sync, emitter=emitter)
+        cached = cls.CachedInterface(interface=interface, emitter=emitter)
         cls._interfaces[provider_uri] = cached
 
     @classmethod
     def initialize_interface(cls,
                              provider_uri: str,
-                             sync: bool = False,
                              emitter=None,
                              interface_class: Interfaces = None,
                              *interface_args,
@@ -1071,7 +1023,7 @@ class BlockchainInterfaceFactory:
                                     *interface_args,
                                     **interface_kwargs)
 
-        cls._interfaces[provider_uri] = cls.CachedInterface(interface=interface, sync=sync,  emitter=emitter)
+        cls._interfaces[provider_uri] = cls.CachedInterface(interface=interface,  emitter=emitter)
 
     @classmethod
     def get_interface(cls, provider_uri: str = None) -> Interfaces:
@@ -1092,11 +1044,9 @@ class BlockchainInterfaceFactory:
                 raise cls.NoRegisteredInterfaces(f"There is no existing blockchain connection.")
 
         # Connect and Sync
-        interface, sync, emitter = cached_interface
+        interface, emitter = cached_interface
         if not interface.is_connected:
             interface.connect()
-            if sync:
-                interface.sync(emitter=emitter)
         return interface
 
     @classmethod
