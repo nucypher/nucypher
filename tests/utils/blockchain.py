@@ -121,22 +121,21 @@ class TesterBlockchain(BlockchainDeployerInterface):
         self.log = Logger("test-blockchain")
         self.connect()
 
+        if self.free_transactions:
+            self.w3.eth.setGasPriceStrategy(free_gas_price_strategy)
+
         # Generate additional ethereum accounts for testing
         population = test_accounts
         enough_accounts = len(self.client.accounts) >= population
         if not enough_accounts:
             accounts_to_make = population - len(self.client.accounts)
-            self.__generate_insecure_unlocked_accounts(quantity=accounts_to_make)
-            assert test_accounts == len(self.w3.eth.accounts)
+            self._generate_insecure_unlocked_accounts(quantity=accounts_to_make)
+            assert test_accounts == len(self.client.accounts)
 
         if eth_airdrop is True:  # ETH for everyone!
             self.ether_airdrop(amount=DEVELOPMENT_ETH_AIRDROP_AMOUNT)
 
-    def attach_middleware(self):
-        if self.free_transactions:
-            self.w3.eth.setGasPriceStrategy(free_gas_price_strategy)
-
-    def __generate_insecure_unlocked_accounts(self, quantity: int) -> List[str]:
+    def _generate_insecure_unlocked_accounts(self, quantity: int) -> List[str]:
 
         #
         # Sanity Check - Only PyEVM can be used.

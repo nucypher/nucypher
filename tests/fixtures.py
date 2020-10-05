@@ -429,6 +429,7 @@ def lonely_ursula_maker(ursula_federated_test_config):
 #
 
 def make_token_economics(blockchain):
+
     # Get current blocktime
     now = blockchain.w3.eth.getBlock('latest').timestamp
 

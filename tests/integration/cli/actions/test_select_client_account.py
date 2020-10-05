@@ -30,10 +30,11 @@ from nucypher.cli.actions.select import select_client_account
 from nucypher.cli.literature import (
     NO_ETH_ACCOUNTS,
     GENERIC_SELECT_ACCOUNT,
-    )
+)
 from nucypher.config.constants import TEMPORARY_DOMAIN
 from nucypher.types import SubStakeInfo
 from tests.constants import MOCK_PROVIDER_URI, MOCK_SIGNER_URI, NUMBER_OF_ETH_TEST_ACCOUNTS
+from tests.mock.interfaces import MockEthereumClient
 
 
 @pytest.mark.parametrize('selection', range(NUMBER_OF_ETH_TEST_ACCOUNTS))
@@ -56,7 +57,7 @@ def test_select_client_account_with_no_accounts(mocker,
                                                 test_emitter,
                                                 mock_testerchain,
                                                 capsys):
-    mocker.patch.object(EthereumClient, 'accounts', return_value=[])
+    mocker.patch.object(MockEthereumClient, 'accounts', return_value=[])
     with pytest.raises(click.Abort):
         select_client_account(emitter=test_emitter, provider_uri=MOCK_PROVIDER_URI)
     captured = capsys.readouterr()

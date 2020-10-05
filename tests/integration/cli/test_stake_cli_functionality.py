@@ -238,7 +238,7 @@ def test_collecting_whole_reward_with_warning(click_runner, surrogate_stakers, m
                        '--network', TEMPORARY_DOMAIN,
                        '--staking-address', surrogate_stakers[0])
 
-    user_input = '\n'.join((INSECURE_DEVELOPMENT_PASSWORD, YES))
+    user_input = '\n'.join((INSECURE_DEVELOPMENT_PASSWORD, YES, YES))
     result = click_runner.invoke(stake, collection_args, input=user_input, catch_exceptions=False)
     assert result.exit_code == 0
     assert COLLECTING_TOKEN_REWARD.format(reward_amount=reward) in result.output
@@ -368,7 +368,7 @@ def test_mint_with_warning(click_runner, surrogate_stakers, mock_staking_agent, 
                        '--network', TEMPORARY_DOMAIN,
                        '--staking-address', surrogate_stakers[0])
 
-    user_input = '\n'.join((INSECURE_DEVELOPMENT_PASSWORD, YES))
+    user_input = '\n'.join((INSECURE_DEVELOPMENT_PASSWORD, YES, YES))
     result = click_runner.invoke(stake, mint_command, input=user_input, catch_exceptions=False)
     assert result.exit_code == 0
     assert STILL_LOCKED_TOKENS in result.output
@@ -391,11 +391,11 @@ def test_mint_without_warning(click_runner, surrogate_stakers, mock_staking_agen
     mock_staking_agent.non_withdrawable_stake.return_value = 0
 
     mint_command = ('mint',
-                       '--provider', MOCK_PROVIDER_URI,
-                       '--network', TEMPORARY_DOMAIN,
-                       '--staking-address', surrogate_stakers[0])
+                    '--provider', MOCK_PROVIDER_URI,
+                    '--network', TEMPORARY_DOMAIN,
+                    '--staking-address', surrogate_stakers[0])
 
-    user_input = '\n'.join((INSECURE_DEVELOPMENT_PASSWORD, YES))
+    user_input = '\n'.join((INSECURE_DEVELOPMENT_PASSWORD, YES, YES))
     result = click_runner.invoke(stake, mint_command, input=user_input, catch_exceptions=False)
     assert result.exit_code == 0
     assert STILL_LOCKED_TOKENS not in result.output

@@ -227,15 +227,18 @@ class BlockchainInterface:
         self.log = Logger('Blockchain')
         self.provider_uri = provider_uri
         self._provider = provider
-        self.w3 = NO_BLOCKCHAIN_CONNECTION
-        self.client = NO_BLOCKCHAIN_CONNECTION         # type: EthereumClient
+        self.client = client or NO_BLOCKCHAIN_CONNECTION         # type: EthereumClient
         self.transacting_power = READ_ONLY_INTERFACE
         self.is_light = light
-        self.gas_strategy = self.get_gas_strategy(gas_strategy)
+        self.gas_strategy = self.GAS_STRATEGIES.get(gas_strategy)
 
     def __repr__(self):
         r = '{name}({uri})'.format(name=self.__class__.__name__, uri=self.provider_uri)
         return r
+
+    @property
+    def w3(self):
+        return self.client.w3
 
     def get_blocktime(self):
         return self.client.get_blocktime()

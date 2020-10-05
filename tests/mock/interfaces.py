@@ -18,16 +18,22 @@
 import json
 from contextlib import contextmanager
 
-from typing import Union
+from eth_account.account import Account
+from typing import Union, List
 
 from nucypher.blockchain.eth.clients import EthereumClient
 from nucypher.blockchain.eth.constants import PREALLOCATION_ESCROW_CONTRACT_NAME
 from nucypher.blockchain.eth.networks import NetworksInventory
-from nucypher.blockchain.eth.registry import (BaseContractRegistry, CanonicalRegistrySource,
-                                              IndividualAllocationRegistry, RegistrySourceManager)
+from nucypher.blockchain.eth.registry import (
+    BaseContractRegistry,
+    CanonicalRegistrySource,
+    IndividualAllocationRegistry,
+    RegistrySourceManager
+)
 from nucypher.config.constants import TEMPORARY_DOMAIN
-from tests.utils.blockchain import TesterBlockchain
 from tests.constants import MOCK_PROVIDER_URI
+from tests.utils.blockchain import TesterBlockchain
+from tests.mock.web3 import MockWeb3
 
 
 @contextmanager
@@ -71,16 +77,42 @@ def mock_registry_source_manager(blockchain, test_registry, mock_backend: bool =
         NetworksInventory.NETWORKS = real_inventory
 
 
+class MockEthereumClient(EthereumClient):
+
+    __accounts = dict()
+
+    def __init__(self, w3):
+        super().__init__(w3, None, None, None, None)
+
+    def create_account(self):
+        account = Account.create()
+        self.__accounts[account.address] = account
+        return account
+
+    @property
+    def accounts(self):
+        return list(self.__accounts)
+
+    @property
+    def is_local(self):
+        return True
+
+
 class MockBlockchain(TesterBlockchain):
 
     _PROVIDER_URI = MOCK_PROVIDER_URI
     _compiler = None
+    w3 = MockWeb3()
 
     def __init__(self):
-        super().__init__(mock_backend=True)
+        client = MockEthereumClient(w3=self.w3)
+        super().__init__(mock_backend=True, client=client)
 
-
-class MockEthereumClient(EthereumClient):
-
-    def __init__(self, w3):
-        super().__init__(w3, None, None, None, None)
+    def _generate_insecure_unlocked_accounts(self, quantity: int) -> List[str]:
+        addresses = list()
+        for _ in range(quantity):
+            account = self.client.create_account()
+            addresses.append(account.address)
+            self._test_account_cache.append(account.address)
+            self.log.info('Generated new insecure account {}'.format(account.address))
+        return addresses

@@ -22,6 +22,7 @@ from tests.mock.interfaces import MockEthereumClient
 
 @pytest.fixture(scope='function')
 def mock_ethereum_client(mocker):
-    web3_mock = mocker.Mock()
+    eth_mock = mocker.Mock(chainId=1234567890)
+    web3_mock = mocker.Mock(eth=eth_mock)
     mock_client = MockEthereumClient(w3=web3_mock)
     return mock_client

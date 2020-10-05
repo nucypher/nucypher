@@ -15,123 +15,35 @@
  along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
-import datetime
-from unittest.mock import PropertyMock, Mock
+from unittest.mock import PropertyMock
 
 import pytest
 from web3 import HTTPProvider, IPCProvider, WebsocketProvider
 
-from nucypher.blockchain.eth.clients import (GanacheClient, GethClient, InfuraClient, PUBLIC_CHAINS,
-                                             ParityClient, AlchemyClient)
+from tests.mock.web3 import (
+    MockGethProvider,
+    MockParityProvider,
+    MockGanacheProvider,
+    MockInfuraProvider,
+    MockAlchemyProvider,
+    MockWebSocketProvider,
+    MockWeb3
+)
+from nucypher.blockchain.eth.clients import (
+    GanacheClient,
+    GethClient,
+    InfuraClient,
+    PUBLIC_CHAINS,
+    ParityClient,
+    AlchemyClient
+)
 from nucypher.blockchain.eth.interfaces import BlockchainInterface
+from tests.mock.web3 import GAS_PRICE_FROM_STRATEGY, DEFAULT_GAS_PRICE
 
-DEFAULT_GAS_PRICE = 42
-GAS_PRICE_FROM_STRATEGY = 1234
-
-#
-# Mock Providers
-#
-
-
-class MockGethProvider:
-    endpoint_uri = 'file:///ipc.geth'
-    clientVersion = 'Geth/v1.4.11-stable-fed692f6/darwin/go1.7'
-
-
-class MockParityProvider:
-    endpoint_uri = 'file:///ipc.parity'
-    clientVersion = 'Parity-Ethereum/v2.5.1-beta-e0141f8-20190510/x86_64-linux-gnu/rustc1.34.1'
-
-
-class MockGanacheProvider:
-    endpoint_uri = 'http://ganache:8445'
-    clientVersion = 'EthereumJS TestRPC/v2.1.5/ethereum-js'
-
-
-class MockInfuraProvider:
-    endpoint_uri = 'wss://:@goerli.infura.io/ws/v3/1234567890987654321abcdef'
-    clientVersion = 'Geth/v1.8.23-omnibus-2ad89aaa/linux-amd64/go1.11.1'
-
-
-class MockAlchemyProvider:
-    endpoint_uri = 'https://eth-rinkeby.alchemyapi.io/v2/1234567890987654321abcdef'
-    clientVersion = 'Geth/v1.9.20-stable-979fc968/linux-amd64/go1.15'
-
-
-class MockWebSocketProvider:
-    endpoint_uri = 'ws://127.0.0.1:8546'
-    clientVersion = 'Geth/v1.8.23-omnibus-2ad89aaa/linux-amd64/go1.11.1'
-
-
-class SyncedMockW3Eth:
-
-    # Support older and newer versions of web3 py in-test
-    version = 5
-    chainId = hex(5)
-    blockNumber = 5
-
-    def getBlock(self, blockNumber):
-        return {
-            'timestamp': datetime.datetime.timestamp(datetime.datetime.now() - datetime.timedelta(seconds=25))
-        }
-
-
-class MockedW3GethWithPeers:
-
-    @property
-    def admin(self):
-
-        class GethAdmin:
-
-            def peers(self):
-                return [1, 2, 3]
-
-        return GethAdmin()
-
-
-class MockedW3GethWithNoPeers:
-
-    @property
-    def admin(self):
-
-        class GethAdmin:
-
-            def peers(self):
-                return []
-
-        return GethAdmin()
-
-
-#
-# Mock Web3
-#
-
-class SyncedMockWeb3:
-
-    net = SyncedMockW3Eth()
-    eth = SyncedMockW3Eth()
-    geth = MockedW3GethWithPeers()
-
-    def __init__(self, provider):
-        self.provider = provider
-        self.middleware_onion = Mock()
-
-    @property
-    def clientVersion(self):
-        return self.provider.clientVersion
-
-    @property
-    def isConnected(self):
-        return lambda: True
-
-
-#
-# Mock Blockchain
-#
 
 class BlockchainInterfaceTestBase(BlockchainInterface):
 
-    Web3 = SyncedMockWeb3
+    Web3 = MockWeb3
 
     def _configure_registry(self, *args, **kwargs):
         pass
@@ -213,7 +125,7 @@ def test_geth_web3_client():
     assert interface.client.backend == 'go1.7'
 
     assert interface.client.is_local is False
-    assert interface.client.chain_id == 5  # Hardcoded above
+    assert interface.client.chain_id == 123456789  # Hardcoded above
 
 
 def test_autodetect_provider_type_file(tempfile_path):
@@ -282,7 +194,7 @@ def test_infura_web3_client():
     assert interface.client.platform == 'linux-amd64'
     assert interface.client.backend == 'go1.11.1'
     assert interface.client.is_local is False
-    assert interface.client.chain_id == 5
+    assert interface.client.chain_id == 123456789
 
     assert interface.client.unlock_account('address', 'password')  # Returns True on success
 
