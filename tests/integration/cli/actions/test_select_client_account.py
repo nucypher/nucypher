@@ -22,7 +22,6 @@ from unittest.mock import Mock
 from web3 import Web3
 
 from nucypher.blockchain.eth.actors import Wallet
-from nucypher.blockchain.eth.clients import EthereumClient
 from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
 from nucypher.blockchain.eth.signers import KeystoreSigner
 from nucypher.blockchain.eth.token import NU
