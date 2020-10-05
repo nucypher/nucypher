@@ -28,9 +28,7 @@ from constant_sorrow.constants import (
 )
 from eth_utils.address import is_checksum_address
 from tempfile import TemporaryDirectory
-from typing import Callable, List, Set, Union
-
-from nucypher.characters.lawful import Ursula
+from typing import Callable, List, Union
 from umbral.signing import Signature
 
 from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
@@ -41,6 +39,7 @@ from nucypher.blockchain.eth.registry import (
     LocalContractRegistry
 )
 from nucypher.blockchain.eth.signers import Signer
+from nucypher.characters.lawful import Ursula
 from nucypher.config.base import BaseConfiguration
 from nucypher.config.keyring import NucypherKeyring
 from nucypher.config.storages import ForgetfulNodeStorage, LocalFileBasedNodeStorage, NodeStorage
@@ -117,7 +116,6 @@ class CharacterConfiguration(BaseConfiguration):
                  # Blockchain
                  poa: bool = None,
                  light: bool = False,
-                 sync: bool = False,
                  provider_uri: str = None,
                  gas_strategy: Union[Callable, str] = DEFAULT_GAS_STRATEGY,
                  signer_uri: str = None,
@@ -215,7 +213,6 @@ class CharacterConfiguration(BaseConfiguration):
                 BlockchainInterfaceFactory.initialize_interface(provider_uri=self.provider_uri,
                                                                 poa=self.poa,
                                                                 light=self.is_light,
-                                                                sync=sync,
                                                                 emitter=emitter,
                                                                 gas_strategy=gas_strategy)
             else:

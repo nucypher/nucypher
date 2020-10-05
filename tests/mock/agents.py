@@ -30,9 +30,7 @@ from tests.constants import MOCK_PROVIDER_URI
 from tests.mock.interfaces import MockBlockchain
 
 MOCK_TESTERCHAIN = MockBlockchain()
-CACHED_MOCK_TESTERCHAIN = BlockchainInterfaceFactory.CachedInterface(interface=MOCK_TESTERCHAIN,
-                                                                     sync=False,
-                                                                     emitter=None)
+CACHED_MOCK_TESTERCHAIN = BlockchainInterfaceFactory.CachedInterface(interface=MOCK_TESTERCHAIN, emitter=None)
 BlockchainInterfaceFactory._interfaces[MOCK_PROVIDER_URI] = CACHED_MOCK_TESTERCHAIN
 
 CURRENT_BLOCK = MOCK_TESTERCHAIN.w3.eth.getBlock('latest')
