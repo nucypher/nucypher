@@ -53,7 +53,6 @@ from nucypher.cli.options import (
     option_light,
     option_min_stake,
     option_network,
-    option_poa,
     option_provider_uri,
     option_registry_filepath,
     option_signer_uri,
@@ -88,7 +87,6 @@ class UrsulaConfigOptions:
                  network,
                  registry_filepath,
                  dev,
-                 poa,
                  light,
                  gas_strategy,
                  signer_uri,
@@ -111,7 +109,6 @@ class UrsulaConfigOptions:
         self.domain = network
         self.registry_filepath = registry_filepath
         self.dev = dev
-        self.poa = poa
         self.light = light
         self.gas_strategy = gas_strategy
         self.availability_check = availability_check
@@ -123,7 +120,6 @@ class UrsulaConfigOptions:
                 emitter=emitter,
                 dev_mode=True,
                 domain=TEMPORARY_DOMAIN,
-                poa=self.poa,
                 light=self.light,
                 registry_filepath=self.registry_filepath,
                 provider_uri=self.provider_uri,
@@ -149,7 +145,6 @@ class UrsulaConfigOptions:
                     rest_host=self.rest_host,
                     rest_port=self.rest_port,
                     db_filepath=self.db_filepath,
-                    poa=self.poa,
                     light=self.light,
                     federated_only=self.federated_only,
                     availability_check=self.availability_check
@@ -195,7 +190,6 @@ class UrsulaConfigOptions:
                                             provider_uri=self.provider_uri,
                                             signer_uri=self.signer_uri,
                                             gas_strategy=self.gas_strategy,
-                                            poa=self.poa,
                                             light=self.light,
                                             availability_check=self.availability_check)
 
@@ -210,7 +204,6 @@ class UrsulaConfigOptions:
                        provider_uri=self.provider_uri,
                        signer_uri=self.signer_uri,
                        gas_strategy=self.gas_strategy,
-                       poa=self.poa,
                        light=self.light,
                        availability_check=self.availability_check)
         # Depends on defaults being set on Configuration classes, filtrates None values
@@ -230,7 +223,6 @@ group_config_options = group_options(
     db_filepath=option_db_filepath,
     network=option_network(),
     registry_filepath=option_registry_filepath,
-    poa=option_poa,
     light=option_light,
     dev=option_dev,
     availability_check=click.option('--availability-check/--disable-availability-check', help="Enable or disable self-health checks while running", is_flag=True, default=None),

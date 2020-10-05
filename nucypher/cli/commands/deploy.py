@@ -81,7 +81,6 @@ from nucypher.cli.options import (
     option_force,
     option_hw_wallet,
     option_network,
-    option_poa,
     option_provider_uri,
     option_signer_uri,
     option_parameters)
@@ -126,7 +125,6 @@ class ActorOptions:
                  hw_wallet: bool,
                  dev: bool,
                  force: bool,
-                 poa: bool,
                  config_root: str,
                  etherscan: bool,
                  se_test_mode,
@@ -148,7 +146,6 @@ class ActorOptions:
         self.force = force
         self.config_root = config_root
         self.etherscan = etherscan
-        self.poa = poa
         self.se_test_mode = se_test_mode
         self.ignore_solidity_check = ignore_solidity_check
         self.network = network
@@ -159,8 +156,7 @@ class ActorOptions:
                      ) -> Tuple[ContractAdministrator, str, BlockchainInterface, BaseContractRegistry]:
 
         ensure_config_root(self.config_root)
-        deployer_interface = initialize_deployer_interface(poa=self.poa,
-                                                           provider_uri=self.provider_uri,
+        deployer_interface = initialize_deployer_interface(provider_uri=self.provider_uri,
                                                            emitter=emitter,
                                                            ignore_solidity_check=self.ignore_solidity_check,
                                                            gas_strategy=self.gas_strategy)
@@ -228,7 +224,6 @@ group_actor_options = group_options(
     gas_strategy=option_gas_strategy,
     signer_uri=option_signer_uri,
     contract_name=option_contract_name(required=False),  # TODO: Make this required see Issue #2314
-    poa=option_poa,
     force=option_force,
     hw_wallet=option_hw_wallet,
     deployer_address=option_deployer_address,
@@ -292,14 +287,12 @@ def download_registry(general_config, config_root, registry_outfile, network, fo
 @option_config_root
 @option_registry_infile
 @option_deployer_address
-@option_poa
 @option_ignore_solidity_version
-def inspect(general_config, provider_uri, config_root, registry_infile, deployer_address, poa, ignore_solidity_check):
+def inspect(general_config, provider_uri, config_root, registry_infile, deployer_address, ignore_solidity_check):
     """Echo owner information and bare contract metadata."""
     emitter = general_config.emitter
     ensure_config_root(config_root)
-    initialize_deployer_interface(poa=poa,
-                                  provider_uri=provider_uri,
+    initialize_deployer_interface(provider_uri=provider_uri,
                                   emitter=emitter,
                                   ignore_solidity_check=ignore_solidity_check)
     registry = establish_deployer_registry(emitter=emitter,

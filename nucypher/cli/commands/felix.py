@@ -47,7 +47,6 @@ from nucypher.cli.options import (
     option_middleware,
     option_min_stake,
     option_network,
-    option_poa,
     option_provider_uri,
     option_registry_filepath,
     option_teacher_uri, option_signer_uri,
@@ -73,7 +72,6 @@ class FelixConfigOptions:
                  db_filepath,
                  checksum_address,
                  registry_filepath,
-                 poa,
                  port):
 
         self.provider_uri = provider_uri
@@ -84,7 +82,6 @@ class FelixConfigOptions:
         self.db_filepath = db_filepath
         self.checksum_address = checksum_address
         self.registry_filepath = registry_filepath
-        self.poa = poa
         self.port = port
 
     def create_config(self, emitter, config_file):
@@ -99,8 +96,7 @@ class FelixConfigOptions:
                 signer=self.signer_uri,
                 rest_host=self.host,
                 rest_port=self.port,
-                db_filepath=self.db_filepath,
-                poa=self.poa)
+                db_filepath=self.db_filepath)
         except FileNotFoundError:
             return handle_missing_configuration_file(
                 character_config_class=FelixConfiguration,
@@ -118,8 +114,7 @@ class FelixConfigOptions:
             checksum_address=self.checksum_address,
             registry_filepath=self.registry_filepath,
             provider_uri=self.provider_uri,
-            signer_uri=self.signer_uri,
-            poa=self.poa)
+            signer_uri=self.signer_uri)
 
 
 group_config_options = group_options(
@@ -132,8 +127,7 @@ group_config_options = group_options(
     db_filepath=option_db_filepath,
     checksum_address=option_checksum_address,
     registry_filepath=option_registry_filepath,
-    poa=option_poa,
-    port=option_port,
+    port=option_port
 )
 
 

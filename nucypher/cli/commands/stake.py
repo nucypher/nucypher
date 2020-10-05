@@ -82,7 +82,6 @@ from nucypher.cli.options import (
     option_hw_wallet,
     option_light,
     option_network,
-    option_poa,
     option_provider_uri,
     option_registry_filepath,
     option_signer_uri,
@@ -115,10 +114,9 @@ class StakeHolderConfigOptions:
 
     __option_name__ = 'config_options'
 
-    def __init__(self, provider_uri, poa, light, registry_filepath, network, signer_uri):
+    def __init__(self, provider_uri, light, registry_filepath, network, signer_uri):
         self.provider_uri = provider_uri
         self.signer_uri = signer_uri
-        self.poa = poa
         self.light = light
         self.registry_filepath = registry_filepath
         self.network = network
@@ -130,7 +128,6 @@ class StakeHolderConfigOptions:
                 filepath=config_file,
                 provider_uri=self.provider_uri,
                 signer_uri=self.signer_uri,
-                poa=self.poa,
                 light=self.light,
                 sync=False,
                 domain=self.network,
@@ -158,7 +155,6 @@ class StakeHolderConfigOptions:
             config_root=config_root,
             provider_uri=self.provider_uri,
             signer_uri=self.signer_uri,
-            poa=self.poa,
             light=self.light,
             sync=False,
             registry_filepath=self.registry_filepath,
@@ -168,7 +164,6 @@ class StakeHolderConfigOptions:
     def get_updates(self) -> dict:
         payload = dict(provider_uri=self.provider_uri,
                        signer_uri=self.signer_uri,
-                       poa=self.poa,
                        light=self.light,
                        registry_filepath=self.registry_filepath,
                        domain=self.network)
@@ -180,7 +175,6 @@ class StakeHolderConfigOptions:
 group_config_options = group_options(
     StakeHolderConfigOptions,
     provider_uri=option_provider_uri(),
-    poa=option_poa,
     light=option_light,
     registry_filepath=option_registry_filepath,
     network=option_network(),

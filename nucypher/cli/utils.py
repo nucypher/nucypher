@@ -174,7 +174,6 @@ def connect_to_blockchain(emitter: StdoutEmitter,
 
 
 def initialize_deployer_interface(emitter: StdoutEmitter,
-                                  poa: bool,
                                   provider_uri,
                                   ignore_solidity_check: bool,
                                   gas_strategy: str = None
@@ -182,7 +181,6 @@ def initialize_deployer_interface(emitter: StdoutEmitter,
     
     if not BlockchainInterfaceFactory.is_interface_initialized(provider_uri=provider_uri):
         deployer_interface = BlockchainDeployerInterface(provider_uri=provider_uri,
-                                                         poa=poa,
                                                          ignore_solidity_check=ignore_solidity_check,
                                                          gas_strategy=gas_strategy)
         BlockchainInterfaceFactory.register_interface(interface=deployer_interface, sync=False,

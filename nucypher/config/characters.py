@@ -261,7 +261,6 @@ class StakeHolderConfiguration(CharacterConfiguration):
         if not self.signer_uri:
             self.signer_uri = self.provider_uri
         payload = dict(provider_uri=self.provider_uri,
-                       poa=self.poa,
                        light=self.is_light,
                        domain=self.domain,
                        # TODO: Move empty collection casting to base

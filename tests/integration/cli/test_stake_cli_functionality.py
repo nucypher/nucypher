@@ -123,7 +123,6 @@ def surrogate_stakes(mock_staking_agent, token_economics, surrogate_stakers):
 def test_stakeholder_configuration(test_emitter, test_registry, mock_testerchain, mock_staking_agent):
 
     stakeholder_config_options = StakeHolderConfigOptions(provider_uri=MOCK_PROVIDER_URI,
-                                                          poa=None,
                                                           light=None,
                                                           registry_filepath=None,
                                                           network=TEMPORARY_DOMAIN,

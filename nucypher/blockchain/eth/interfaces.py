@@ -150,7 +150,6 @@ class BlockchainInterface:
 
     def __init__(self,
                  emitter = None,  # TODO # 1754
-                 poa: bool = None,
                  light: bool = False,
                  provider_uri: str = NO_BLOCKCHAIN_CONNECTION,
                  provider: BaseProvider = NO_BLOCKCHAIN_CONNECTION,
@@ -220,7 +219,6 @@ class BlockchainInterface:
         """
 
         self.log = Logger('Blockchain')
-        self.poa = poa
         self.provider_uri = provider_uri
         self._provider = provider
         self.w3 = NO_BLOCKCHAIN_CONNECTION
@@ -240,7 +238,7 @@ class BlockchainInterface:
         return blockchain
 
     def to_dict(self) -> dict:
-        payload = dict(provider_uri=self.provider_uri, poa=self.poa, light=self.is_light)
+        payload = dict(provider_uri=self.provider_uri, light=self.is_light)
         return payload
 
     @property
@@ -264,15 +262,15 @@ class BlockchainInterface:
                 gas_strategy = cls.GAS_STRATEGIES[cls.DEFAULT_GAS_STRATEGY]
         return gas_strategy
 
-    def attach_middleware(self):
+    @property
+    def poa(self):
         chain_id = int(self.client.chain_id)
-        if self.poa is None:  # If POA is not set explicitly, try to autodetect from chain id
-            self.poa = chain_id in POA_CHAINS
+        return chain_id in POA_CHAINS
 
-        self.log.debug(f'Ethereum chain: {self.client.chain_name} (chain_id={chain_id}, poa={self.poa})')
-
-        # For use with Proof-Of-Authority test-blockchains
-        if self.poa is True:
+    def attach_middleware(self):
+        # Autodetect POA from chain id;  For use with Proof-Of-Authority blockchains
+        if self.poa:
+            self.log.debug(f'Ethereum chain: {self.client.chain_name} ID# {int(self.client.chain_id)}')
             self.log.debug('Injecting POA middleware at layer 0')
             self.client.inject_middleware(geth_poa_middleware, layer=0)
 

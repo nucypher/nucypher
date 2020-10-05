@@ -87,7 +87,6 @@ def select_client_account(emitter,
                           show_nu_balance: bool = False,
                           show_staking: bool = False,
                           network: str = None,
-                          poa: bool = None
                           ) -> str:
     """
     Interactively select an ethereum wallet account from a table of nucypher account metadata.
@@ -110,7 +109,7 @@ def select_client_account(emitter,
         if provider_uri:
             # Lazy connect the blockchain interface
             if not BlockchainInterfaceFactory.is_interface_initialized(provider_uri=provider_uri):
-                BlockchainInterfaceFactory.initialize_interface(provider_uri=provider_uri, poa=poa, emitter=emitter)
+                BlockchainInterfaceFactory.initialize_interface(provider_uri=provider_uri, emitter=emitter)
 
         if signer_uri:
             testnet = network != NetworksInventory.MAINNET

@@ -107,7 +107,6 @@ class CharacterConfiguration(BaseConfiguration):
                  save_metadata: bool = True,
 
                  # Blockchain
-                 poa: bool = None,
                  light: bool = False,
                  sync: bool = False,
                  provider_uri: str = None,
@@ -142,7 +141,6 @@ class CharacterConfiguration(BaseConfiguration):
         self.registry_filepath = registry_filepath or UNINITIALIZED_CONFIGURATION
 
         # Blockchain
-        self.poa = poa
         self.is_light = light
         self.provider_uri = provider_uri or NO_BLOCKCHAIN_CONNECTION
         self.signer_uri = signer_uri or None
@@ -174,7 +172,6 @@ class CharacterConfiguration(BaseConfiguration):
         if self.federated_only:
             # Check for incompatible values
             blockchain_args = {'filepath': registry_filepath,
-                               'poa': poa,
                                'provider_uri': provider_uri,
                                'gas_strategy': gas_strategy}
             if any(blockchain_args.values()):
@@ -184,7 +181,6 @@ class CharacterConfiguration(BaseConfiguration):
 
                 # Clear decentralized attributes to ensure consistency with a
                 # federated configuration.
-                self.poa = False
                 self.is_light = False
                 self.provider_uri = None
                 self.registry_filepath = None
@@ -199,7 +195,6 @@ class CharacterConfiguration(BaseConfiguration):
             is_initialized = BlockchainInterfaceFactory.is_interface_initialized(provider_uri=self.provider_uri)
             if not is_initialized and provider_uri:
                 BlockchainInterfaceFactory.initialize_interface(provider_uri=self.provider_uri,
-                                                                poa=self.poa,
                                                                 light=self.is_light,
                                                                 sync=sync,
                                                                 emitter=emitter,
@@ -324,7 +319,6 @@ class CharacterConfiguration(BaseConfiguration):
         """
         merged_parameters = {**self.static_payload(), **self.dynamic_payload, **overrides}
         non_init_params = ('config_root',
-                           'poa',
                            'light',
                            'provider_uri',
                            'registry_filepath',
@@ -410,7 +404,6 @@ class CharacterConfiguration(BaseConfiguration):
                 if not self.signer_uri:
                     self.signer_uri = self.provider_uri
                 payload.update(dict(provider_uri=self.provider_uri,
-                                    poa=self.poa,
                                     light=self.is_light,
                                     signer_uri=self.signer_uri))
             if self.registry_filepath:
