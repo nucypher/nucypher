@@ -429,7 +429,8 @@ def upgrade(general_config, actor_options, retarget, target_address, ignore_depl
         for name, receipt in receipts.items():
             paint_receipt_summary(emitter=emitter, receipt=receipt)
         emitter.echo(REGISTRY_PUBLICATION_HINT.format(contract_name=contract_name,
-                                                      local_registry=local_registry), color='blue')
+                                                      local_registry=local_registry,
+                                                      network=actor_options.network), color='blue')
         emitter.echo(ETHERSCAN_VERIFY_HINT.format(solc_version=SOLIDITY_COMPILER_VERSION), color='blue')
         return  # Exit
 

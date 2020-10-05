@@ -482,12 +482,13 @@ CONFIRM_VERSIONED_UPGRADE = "Confirm upgrade {contract_name} from version {old_v
 REGISTRY_PUBLICATION_HINT = '''
 Remember to commit and/or publish the new registry!
 
-* git add {local_registry.filepath}
+* cp {local_registry.filepath} nucypher/blockchain/eth/contract_registry/{network}/contract_registry.json
+* git add nucypher/blockchain/eth/contract_registry/{network}/contract_registry.json
 * git commit -m "Update contract registry for {contract_name}"
+* Push to the appropriate branch and open a pull request!
 
 '''
 ETHERSCAN_VERIFY_HINT = '''
-
 Remember to record deployment parameters for etherscan verification
 Compiled with solc version {solc_version}
 
