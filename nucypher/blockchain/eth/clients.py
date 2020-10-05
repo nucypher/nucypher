@@ -53,34 +53,30 @@ class Web3ClientUnexpectedVersionString(Web3ClientError):
 
 # TODO: Consider creating a ChainInventory class and/or moving this to a separate module
 
+PUBLIC_CHAINS = {
+    0: "Olympic",
+    1: "Mainnet",
+    2: "Morden",
+    3: "Ropsten",
+    4: "Rinkeby",
+    5: "Goerli",
+    6: "Kotti",
+    42: "Kovan",
+    77: "Sokol",
+    100: "xDai",
+}
 
-PUBLIC_CHAINS = {0: "Olympic",
-                 1: "Mainnet",
-                 2: "Morden",
-                 3: "Ropsten",
-                 4: "Rinkeby",
-                 5: "Goerli",
-                 6: "Kotti",
-                 8: "Ubiq",
-                 42: "Kovan",
-                 60: "GoChain",
-                 77: "Sokol",
-                 99: "Core",
-                 100: "xDai",
-                 31337: "GoChain",
-                 401697: "Tobalaba",
-                 7762959: "Musicoin",
-                 61717561: "Aquachain"}
+LOCAL_CHAINS = {
+    1337: "GethDev",
+    5777: "Ganache/TestRPC"
+}
 
-LOCAL_CHAINS = {1337: "GethDev",
-                5777: "Ganache/TestRPC"}
-
-POA_CHAINS = {  # TODO: This list is incomplete, but it suffices for the moment - See #1857
-    4,  # Rinkeby
-    5,  # Goerli
-    42,  # Kovan
-    77,  # Sokol
-    99,  # Core
+# TODO: This list is incomplete, but it suffices for the moment - See #1857
+POA_CHAINS = {
+    4,    # Rinkeby
+    5,    # Goerli
+    42,   # Kovan
+    77,   # Sokol
     100,  # xDAI
 }
 
