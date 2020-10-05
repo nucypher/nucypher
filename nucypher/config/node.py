@@ -108,7 +108,6 @@ class CharacterConfiguration(BaseConfiguration):
 
                  # Blockchain
                  light: bool = False,
-                 sync: bool = False,
                  provider_uri: str = None,
                  gas_strategy: Union[Callable, str] = DEFAULT_GAS_STRATEGY,
                  signer_uri: str = None,
@@ -196,7 +195,6 @@ class CharacterConfiguration(BaseConfiguration):
             if not is_initialized and provider_uri:
                 BlockchainInterfaceFactory.initialize_interface(provider_uri=self.provider_uri,
                                                                 light=self.is_light,
-                                                                sync=sync,
                                                                 emitter=emitter,
                                                                 gas_strategy=gas_strategy)
             else:

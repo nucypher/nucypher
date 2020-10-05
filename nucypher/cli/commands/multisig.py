@@ -68,7 +68,6 @@ class BlockchainOptions:
             if not BlockchainInterfaceFactory.is_interface_initialized(provider_uri=self.provider_uri):
                 BlockchainInterfaceFactory.initialize_interface(provider_uri=self.provider_uri,
                                                                 light=self.light,
-                                                                sync=False,
                                                                 emitter=emitter)
 
             blockchain = BlockchainInterfaceFactory.get_interface(provider_uri=self.provider_uri)

@@ -129,7 +129,6 @@ class StakeHolderConfigOptions:
                 provider_uri=self.provider_uri,
                 signer_uri=self.signer_uri,
                 light=self.light,
-                sync=False,
                 domain=self.network,
                 registry_filepath=self.registry_filepath)
 
@@ -156,7 +155,6 @@ class StakeHolderConfigOptions:
             provider_uri=self.provider_uri,
             signer_uri=self.signer_uri,
             light=self.light,
-            sync=False,
             registry_filepath=self.registry_filepath,
             domain=self.network
         )
