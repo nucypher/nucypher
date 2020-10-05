@@ -50,7 +50,6 @@ from nucypher.cli.options import (
     option_dry_run,
     option_federated_only,
     option_force,
-    option_geth,
     option_light,
     option_min_stake,
     option_network,
@@ -63,7 +62,6 @@ from nucypher.cli.options import (
 )
 from nucypher.cli.painting.help import paint_new_installation_help
 from nucypher.cli.painting.transactions import paint_receipt_summary
-from nucypher.cli.processes import get_geth_provider_process
 from nucypher.cli.types import EIP55_CHECKSUM_ADDRESS, NETWORK_PORT
 from nucypher.cli.utils import make_cli_character, setup_emitter
 from nucypher.config.characters import UrsulaConfiguration
@@ -81,7 +79,6 @@ class UrsulaConfigOptions:
     __option_name__ = 'config_options'
 
     def __init__(self,
-                 geth,
                  provider_uri,
                  worker_address,
                  federated_only,
@@ -100,19 +97,10 @@ class UrsulaConfigOptions:
                  ):
 
         if federated_only:
-            if geth:
-                raise click.BadOptionUsage(option_name="--geth", message="--geth cannot be used in federated mode.")
-
             if registry_filepath:
                 raise click.BadOptionUsage(option_name="--registry-filepath",
                                            message=f"--registry-filepath cannot be used in federated mode.")
 
-        eth_node = NO_BLOCKCHAIN_CONNECTION
-        if geth:
-            eth_node = get_geth_provider_process()
-            provider_uri = eth_node.provider_uri(scheme='file')
-
-        self.eth_node = eth_node
         self.provider_uri = provider_uri
         self.signer_uri = signer_uri
         self.worker_address = worker_address
@@ -138,7 +126,6 @@ class UrsulaConfigOptions:
                 poa=self.poa,
                 light=self.light,
                 registry_filepath=self.registry_filepath,
-                provider_process=self.eth_node,
                 provider_uri=self.provider_uri,
                 signer_uri=self.signer_uri,
                 gas_strategy=self.gas_strategy,
@@ -156,7 +143,6 @@ class UrsulaConfigOptions:
                     filepath=config_file,
                     domain=self.domain,
                     registry_filepath=self.registry_filepath,
-                    provider_process=self.eth_node,
                     provider_uri=self.provider_uri,
                     signer_uri=self.signer_uri,
                     gas_strategy=self.gas_strategy,
@@ -206,7 +192,6 @@ class UrsulaConfigOptions:
                                             federated_only=self.federated_only,
                                             worker_address=worker_address,
                                             registry_filepath=self.registry_filepath,
-                                            provider_process=self.eth_node,
                                             provider_uri=self.provider_uri,
                                             signer_uri=self.signer_uri,
                                             gas_strategy=self.gas_strategy,
@@ -235,7 +220,6 @@ class UrsulaConfigOptions:
 
 group_config_options = group_options(
     UrsulaConfigOptions,
-    geth=option_geth,
     provider_uri=option_provider_uri(),
     signer_uri=option_signer_uri,
     gas_strategy=option_gas_strategy,

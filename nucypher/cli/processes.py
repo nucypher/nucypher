@@ -26,7 +26,6 @@ from twisted.internet.protocol import connectionDone
 from twisted.internet.stdio import StandardIO
 from twisted.protocols.basic import LineReceiver
 
-from nucypher.blockchain.eth.clients import NuCypherGethGoerliProcess
 from nucypher.utilities.logging import Logger
 
 
@@ -231,12 +230,3 @@ class JSONRPCLineReceiver(LineReceiver):
         line = line.strip(self.delimiter)
         if line:
             self.rpc_controller.handle_request(control_request=line)
-
-
-def get_geth_provider_process(start_now: bool = False) -> NuCypherGethGoerliProcess:
-    """Stage integrated ethereum node process"""
-    # TODO: Support domains and non-geth clients
-    process = NuCypherGethGoerliProcess()
-    if start_now:
-        process.start()
-    return process

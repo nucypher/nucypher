@@ -15,21 +15,19 @@ You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
-import os
-from pathlib import Path
-from typing import List, Tuple, Union
 
 import maya
+import os
 from eth_tester.exceptions import TransactionFailed
 from eth_utils import to_canonical_address
 from hexbytes import HexBytes
+from typing import List, Tuple, Union
 from web3 import Web3
 
 from nucypher.blockchain.economics import BaseEconomics, StandardTokenEconomics
 from nucypher.blockchain.eth.actors import ContractAdministrator
 from nucypher.blockchain.eth.interfaces import BlockchainDeployerInterface, BlockchainInterfaceFactory
 from nucypher.blockchain.eth.registry import InMemoryContractRegistry
-from nucypher.blockchain.eth.sol.compile.compile import multiversion_compile
 from nucypher.blockchain.eth.sol.compile.constants import TEST_SOLIDITY_SOURCE_ROOT, SOLIDITY_SOURCE_ROOT
 from nucypher.blockchain.eth.sol.compile.types import SourceBundle
 from nucypher.blockchain.eth.token import NU
@@ -37,7 +35,6 @@ from nucypher.blockchain.eth.utils import epoch_to_period
 from nucypher.crypto.powers import TransactingPower
 from nucypher.utilities.gas_strategies import EXPECTED_CONFIRMATION_TIME_IN_SECONDS
 from nucypher.utilities.logging import Logger
-
 from tests.constants import (
     DEVELOPMENT_ETH_AIRDROP_AMOUNT,
     INSECURE_DEVELOPMENT_PASSWORD,
@@ -115,7 +112,6 @@ class TesterBlockchain(BlockchainDeployerInterface):
         EXPECTED_CONFIRMATION_TIME_IN_SECONDS['free'] = 5  # Just some upper-limit
 
         super().__init__(provider_uri=self.PROVIDER_URI,
-                         provider_process=None,
                          poa=poa,
                          light=light,
                          *args, **kwargs)

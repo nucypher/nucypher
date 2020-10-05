@@ -15,6 +15,7 @@ You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
+
 from collections import namedtuple
 
 import click
@@ -46,7 +47,6 @@ option_event_name = click.option('--event-name', help="Specify an event by name"
 option_federated_only = click.option('--federated-only/--decentralized', '-F', help="Connect only to federated nodes", is_flag=True, default=None)
 option_force = click.option('--force', help="Don't ask for confirmation", is_flag=True)
 option_gas_price = click.option('--gas-price', help="Use this gas price (in GWEI)", type=GWEI)
-option_geth = click.option('--geth', '-G', help="Run using the built-in geth node", is_flag=True)
 option_hw_wallet = click.option('--hw-wallet/--no-hw-wallet')
 option_light = click.option('--light', help="Indicate that node is light", is_flag=True, default=None)
 option_lonely = click.option('--lonely', help="Do not connect to seednodes", is_flag=True)

@@ -55,8 +55,8 @@ def initialize_sentry(dsn: str):
 
     import logging
 
-    # Logger blacklist
-    from nucypher.blockchain.eth.clients import NuCypherGethProcess
+    # Logger ignore list
+    from blockchain.eth.processes import NuCypherGethProcess
     ignored_loggers = (NuCypherGethProcess._LOG_NAME,)
 
     def before_breadcrumb(crumb, hint):
