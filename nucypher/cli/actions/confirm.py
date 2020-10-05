@@ -124,27 +124,23 @@ def confirm_destroy_configuration(config: CharacterConfiguration) -> bool:
 
 
 def verify_upgrade_details(blockchain: Union[BlockchainDeployerInterface, BlockchainInterface],
-                           new_registry: LocalContractRegistry,
-                           old_registry: InMemoryContractRegistry,
+                           registry: LocalContractRegistry,
                            deployer: Type[BaseContractDeployer],
                            ) -> None:
     """
     Compares the versions of two 'implementation' contracts using a local and source registry.
     """
+
     old_contract: VersionedContract = blockchain.get_contract_by_name(
-        registry=old_registry,
+        registry=registry,
         contract_name=deployer.contract_name,
         proxy_name=deployer.agency._proxy_name,
         use_proxy_address=False
     )
 
-    new_contract: VersionedContract = blockchain.get_contract_by_name(
-        registry=new_registry,
-        contract_name=deployer.contract_name,
-        proxy_name=deployer.agency._proxy_name,
-        use_proxy_address=False
-    )
+    new_contract = blockchain.find_raw_contract_data(contract_name=deployer.contract_name)
+    new_version = new_contract[0]  # Handle index error?
 
     click.confirm(CONFIRM_VERSIONED_UPGRADE.format(contract_name=deployer.contract_name,
-                                                   old_contract=old_contract,
-                                                   new_contract=new_contract), abort=True)
+                                                   old_version=old_contract.version,
+                                                   new_version=new_version), abort=True)

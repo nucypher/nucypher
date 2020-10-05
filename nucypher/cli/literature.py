@@ -477,21 +477,19 @@ IDENTICAL_REGISTRY_WARNING = "Local registry ({local_registry.id}) is identical 
 
 DEPLOYER_IS_NOT_OWNER = "Address {deployer_address} is not the owner of {contract_name}'s Dispatcher ({agent.contract_address}). Aborting."
 
-CONFIRM_VERSIONED_UPGRADE = "Confirm upgrade {contract_name} from version {old_contract.version} to version {new_contract.version}?"
+CONFIRM_VERSIONED_UPGRADE = "Confirm upgrade {contract_name} from version {old_version} to version {new_version}?"
 
 REGISTRY_PUBLICATION_HINT = '''
-
 Remember to commit and/or publish the new registry!
 
 * git add {local_registry.filepath}
 * git commit -m "Update contract registry for {contract_name}"
 
 '''
-
 ETHERSCAN_VERIFY_HINT = '''
 
 Remember to record deployment parameters for etherscan verification
-Compiled with solc version {solc_version}'
+Compiled with solc version {solc_version}
 
 '''
 

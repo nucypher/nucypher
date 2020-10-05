@@ -240,7 +240,7 @@ group_actor_options = group_options(
     config_root=option_config_root,
     etherscan=option_etherscan,
     ignore_solidity_check=option_ignore_solidity_version,
-    network=option_network(required=True, default=NetworksInventory.DEFAULT)
+    network=option_network(required=True)
 )
 
 
@@ -417,9 +417,7 @@ def upgrade(general_config, actor_options, retarget, target_address, ignore_depl
             click.confirm(CONFIRM_BEGIN_UPGRADE.format(contract_name=contract_name), abort=True)
             if deployer._ownable:  # Only ownable + upgradeable contracts apply
                 verify_upgrade_details(blockchain=blockchain,
-                                       local_registry=local_registry,
-                                       source_registry=github_registry,
-                                       contract_name=contract_name,
+                                       registry=github_registry,
                                        deployer=deployer)
 
         # Success
