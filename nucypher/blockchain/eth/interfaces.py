@@ -237,15 +237,8 @@ class BlockchainInterface:
         r = '{name}({uri})'.format(name=self.__class__.__name__, uri=self.provider_uri)
         return r
 
-    @classmethod
-    def from_dict(cls, payload: dict, **overrides) -> 'BlockchainInterface':
-        payload.update({k: v for k, v in overrides.items() if v is not None})
-        blockchain = cls(**payload)
-        return blockchain
-
-    def to_dict(self) -> dict:
-        payload = dict(provider_uri=self.provider_uri, light=self.is_light)
-        return payload
+    def get_blocktime(self):
+        return self.client.get_blocktime()
 
     @property
     def is_connected(self) -> bool:
@@ -587,9 +580,6 @@ class BlockchainInterface:
                                           f"Full receipt: \n {pprint.pformat(receipt, indent=2)}")
 
         return receipt
-
-    def get_blocktime(self):
-        return self.client.get_blocktime()
 
     @validate_checksum_address
     def send_transaction(self,
