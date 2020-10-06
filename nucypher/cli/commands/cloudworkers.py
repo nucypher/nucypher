@@ -54,8 +54,9 @@ def cloudworkers():
 @click.option('--sentry-dsn', help="a sentry dsn for these workers (https://sentry.io/)", default=None)
 @click.option('--include-stakeholder', 'stakes', help="limit worker to specified stakeholder addresses", multiple=True)
 @click.option('--wipe', help="Clear nucypher configs on existing nodes and start a fresh node with new keys.", default=False, is_flag=True)
+@click.option('--prometheus', help="Run Prometheus on workers.", default=False, is_flag=True)
 @group_general_config
-def up(general_config, staker_options, config_file, cloudprovider, aws_profile, remote_provider, nucypher_image, seed_network, sentry_dsn, stakes, wipe):
+def up(general_config, staker_options, config_file, cloudprovider, aws_profile, remote_provider, nucypher_image, seed_network, sentry_dsn, stakes, wipe, prometheus):
     """Creates workers for all stakes owned by the user for the given network."""
 
     emitter = setup_emitter(general_config)
@@ -74,7 +75,7 @@ def up(general_config, staker_options, config_file, cloudprovider, aws_profile, 
 
     config_file = config_file or StakeHolderConfiguration.default_filepath()
 
-    deployer = CloudDeployers.get_deployer(cloudprovider)(emitter, STAKEHOLDER, config_file, remote_provider, nucypher_image, seed_network, sentry_dsn, aws_profile)
+    deployer = CloudDeployers.get_deployer(cloudprovider)(emitter, STAKEHOLDER, config_file, remote_provider, nucypher_image, seed_network, sentry_dsn, aws_profile, prometheus)
     config = deployer.create_nodes_for_stakers(staker_addresses)
 
     if config.get('instances') and len(config.get('instances')) >= len(staker_addresses):
@@ -124,8 +125,9 @@ def add(general_config, staker_options, config_file, staker_address, host_addres
 @click.option('--sentry-dsn', help="a sentry dsn for these workers (https://sentry.io/)", default=None)
 @click.option('--include-stakeholder', 'stakes', help="limit worker to specified stakeholder addresses", multiple=True)
 @click.option('--wipe', help="Clear your nucypher config and start a fresh node with new kets", default=False, is_flag=True)
+@click.option('--prometheus', help="Run Prometheus on workers.", default=False, is_flag=True)
 @group_general_config
-def deploy(general_config, staker_options, config_file, remote_provider, nucypher_image, seed_network, sentry_dsn, stakes, wipe):
+def deploy(general_config, staker_options, config_file, remote_provider, nucypher_image, seed_network, sentry_dsn, stakes, wipe, prometheus):
     """Deploys NuCypher on existing hardware."""
 
     emitter = setup_emitter(general_config)
@@ -144,7 +146,7 @@ def deploy(general_config, staker_options, config_file, remote_provider, nucyphe
 
     config_file = config_file or StakeHolderConfiguration.default_filepath()
 
-    deployer = CloudDeployers.get_deployer('generic')(emitter, STAKEHOLDER, config_file, remote_provider, nucypher_image, seed_network, sentry_dsn)
+    deployer = CloudDeployers.get_deployer('generic')(emitter, STAKEHOLDER, config_file, remote_provider, nucypher_image, seed_network, sentry_dsn, prometheus=prometheus)
 
     emitter.echo("found nodes for the following stakers:")
     for staker_address in staker_addresses:

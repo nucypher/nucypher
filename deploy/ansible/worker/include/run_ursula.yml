@@ -70,7 +70,7 @@
           max-file: "5"
         image: "{{ nucypher_image | default('nucypher/nucypher:latest') }}"
         restart_policy: "unless-stopped"
-        command: "nucypher ursula run {{nucypher_ursula_run_options | default('')}} {{signer_options}} --lonely --prometheus --metrics-port 9101"
+        command: "nucypher ursula run {{nucypher_ursula_run_options | default('')}} {{signer_options}} --lonely {{prometheus | default('')}}"
         volumes:
           - /home/nucypher:/root/.local/share/
         ports:
@@ -102,7 +102,7 @@
           max-file: "5"
         image: "{{ nucypher_image | default('nucypher/nucypher:latest') }}"
         restart_policy: "unless-stopped"
-        command: "nucypher ursula run {{nucypher_ursula_run_options | default('')}} {{signer_options}} --disable-availability-check --teacher {{SEED_NODE_URI}} --prometheus --metrics-port 9101"
+        command: "nucypher ursula run {{nucypher_ursula_run_options | default('')}} {{signer_options}} --disable-availability-check --teacher {{SEED_NODE_URI}} {{prometheus | default('')}}"
         volumes:
           - /home/nucypher:/root/.local/share/
         ports:

@@ -133,7 +133,19 @@ class AnsiblePlayBookResultsCollector(CallbackBase):
 
 class BaseCloudNodeConfigurator:
 
-    def __init__(self, emitter, stakeholder, stakeholder_config_path, blockchain_provider=None, nucypher_image=None, seed_network=False, sentry_dsn=None, profile=None):
+    PROMETHEUS_PORT = PROMETHEUS_PORTS[0]
+
+    def __init__(self,
+        emitter,
+        stakeholder,
+        stakeholder_config_path,
+        blockchain_provider=None,
+        nucypher_image=None,
+        seed_network=False,
+        sentry_dsn=None,
+        profile=None,
+        prometheus=False,
+        ):
 
         self.emitter = emitter
         self.stakeholder = stakeholder
@@ -183,6 +195,8 @@ class BaseCloudNodeConfigurator:
             self.config.pop('seed_node', None)
         self.nodes_are_decentralized = 'geth.ipc' in self.config['blockchain_provider']
         self.config['stakeholder_config_file'] = stakeholder_config_path
+        self.config['use-prometheus'] = prometheus
+
         self._write_config()
 
     def _write_config(self):
