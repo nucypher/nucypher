@@ -14,6 +14,7 @@
  You should have received a copy of the GNU Affero General Public License
  along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
+from collections import defaultdict
 
 import time
 from typing import Callable, Any, Union
@@ -23,6 +24,23 @@ from web3 import Web3
 from web3.types import RPCEndpoint, RPCResponse
 
 from nucypher.utilities.logging import Logger
+
+
+def nonce_tracking_middleware(
+        make_request: Callable[[RPCEndpoint, Any], Any],
+        web3: "Web3"
+        ) -> Callable[[RPCEndpoint, Any], RPCResponse]:
+    cache = list()
+
+    def middleware(method: RPCEndpoint, params: Any) -> RPCResponse:
+        if method == 'eth_sendRawTransaction':
+            time.sleep(2)
+            result = make_request(method, params)
+            cache.append((method, params))
+        else:
+            result = make_request(method, params)
+        return result
+    return middleware
 
 
 class RetryRequestMiddleware:
@@ -86,7 +104,7 @@ class RetryRequestMiddleware:
             if self.exponential_backoff:
                 time.sleep(2 ** (i + 1))  # exponential back-off - 2^(retry number)
 
-        if isinstance(result, Exception):
+        if isinstance(result, Exception):  # TODO: Handle this in exception handling middleware instead
             raise result
         else:
             # RPCResponse

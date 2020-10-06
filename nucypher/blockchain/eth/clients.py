@@ -34,7 +34,7 @@ from web3.exceptions import TimeExhausted, TransactionNotFound
 
 from nucypher.blockchain.eth.constants import AVERAGE_BLOCK_TIME_IN_SECONDS
 from nucypher.blockchain.middleware.retry import RetryRequestMiddleware, AlchemyRetryRequestMiddleware, \
-    InfuraRetryRequestMiddleware
+    InfuraRetryRequestMiddleware, nonce_tracking_middleware
 from nucypher.utilities.logging import Logger
 
 UNKNOWN_DEVELOPMENT_CHAIN_ID.bool_value(True)
@@ -157,6 +157,8 @@ class EthereumClient:
             self.log.debug(f'Ethereum chain: {self.chain_name} ID# {int(self.chain_id)}')
             self.log.debug('Injecting POA middleware at layer 0')
             self.inject_middleware(geth_poa_middleware, layer=0)
+
+        self.add_middleware(nonce_tracking_middleware)
 
         # Default retry functionality
         self.log.debug('Adding RPC retry middleware to client')

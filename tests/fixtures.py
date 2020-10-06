@@ -423,7 +423,6 @@ def lonely_ursula_maker(ursula_federated_test_config):
     _maker.clean()
 
 
-
 #
 # Blockchain
 #
@@ -461,7 +460,7 @@ def token_economics(testerchain):
 
 @pytest.fixture(scope='session')
 def solidity_compiler():
-    """Doing this more than once per session will result in slower test run times."""
+    """Doing this more than once per session will result in significantly slower test run times."""
     compiler = SolidityCompiler()
     yield compiler
 

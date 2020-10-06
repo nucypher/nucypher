@@ -14,10 +14,10 @@
  You should have received a copy of the GNU Affero General Public License
  along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
-
-import random
+import time
 
 import pytest
+import random
 from eth_tester.exceptions import TransactionFailed
 
 from nucypher.blockchain.eth.actors import Bidder
@@ -57,13 +57,14 @@ def test_bidding(testerchain, agency, token_economics, test_registry):
 
 
 def test_cancel_bid(testerchain, agency, token_economics, test_registry):
+
     # Wait until the bidding window closes...
     testerchain.time_travel(seconds=token_economics.bidding_duration+1)
 
     bidder_address = testerchain.client.accounts[1]
     bidder = Bidder(checksum_address=bidder_address, registry=test_registry)
-    assert bidder.get_deposited_eth        # Bid
-    receipt = bidder.cancel_bid()    # Cancel
+    assert bidder.get_deposited_eth   # Bid
+    receipt = bidder.cancel_bid()     # Cancel
     assert receipt['status'] == 1
     assert not bidder.get_deposited_eth    # No more bid
 

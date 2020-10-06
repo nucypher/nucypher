@@ -401,7 +401,7 @@ class BlockchainInterface:
                       ) -> dict:
 
         base_payload = {'chainId': int(self.client.chain_id),
-                        'nonce': self.client.w3.eth.getTransactionCount(sender_address, 'pending'),
+                        'nonce': self.client.w3.eth.getTransactionCount(sender_address, 'pending'),  # TODO: Internal nonce tracking for workers
                         'from': sender_address}
 
         # Aggregate
@@ -470,6 +470,7 @@ class BlockchainInterface:
         otherwise return the transaction receipt.
 
         """
+
         #
         # Setup
         #
@@ -505,6 +506,8 @@ class BlockchainInterface:
 
         emitter.message(f'Broadcasting {transaction_name} Transaction ({cost} ETH @ {price_gwei} gwei)...',
                         color='yellow')
+
+        # time.sleep(1)  # FIXME: workaround for reused nonce
         try:
             txhash = self.client.send_raw_transaction(signed_raw_transaction)  # <--- BROADCAST
         except (TestTransactionFailed, ValueError):
