@@ -56,7 +56,7 @@ ansible_context.CLIARGS = ImmutableDict(
 
 class AnsiblePlayBookResultsCollector(CallbackBase):
     """
-    执行playbook的回调类
+
     """
 
     def __init__(self, sock, *args, return_results=None, **kwargs):
@@ -112,8 +112,11 @@ class AnsiblePlayBookResultsCollector(CallbackBase):
     def v2_runner_on_skipped(self, result):
         if 'changed' in result._result:
             del result._result['changed']
-        data = '[{}]=> {}: {}'.format(result._host.name, 'skipped',
-                                                                            self._dump_results(result._result))
+        data = '[{}]=> {}: {}'.format(
+            result._host.name,
+            'skipped',
+            self._dump_results(result._result)
+        )
         self.send_save(data, color='blue')
 
     def v2_playbook_on_stats(self, stats):
