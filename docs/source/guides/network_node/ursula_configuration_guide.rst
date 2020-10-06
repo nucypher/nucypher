@@ -203,7 +203,13 @@ It should eventually be listed on the `Status Monitor Page <https://status.nucyp
 Prometheus Endpoint
 ~~~~~~~~~~~~~~~~~~~
 Ursula can optionally provide a `Prometheus <https://prometheus.io>`_ metrics endpoint to be used for as a data source
-for real-time monitoring. This functionality is disabled by default but can be enabled by providing the following
+for real-time monitoring. The Prometheus client library is **not** installed by default and must be explicitly installed:
+
+.. code:: bash
+
+     (nucypher)$ pip install nucypher[ursula]
+
+The metrics endpoint is disabled by default but can be enabled by providing the following
 parameters to the ``nucypher ursula run`` command:
 
 * ``--prometheus`` - a boolean flag to enable the prometheus endpoint
@@ -212,12 +218,12 @@ parameters to the ``nucypher ursula run`` command:
 The corresponding endpoint, ``http://<node_ip>:<METRICS PORT>/metrics``, can be used as a Prometheus data source for
 monitoring including the creation of alert criteria.
 
-Prometheus is **not** installed by default and must be explicitly installed:
+During the Technical Contributor Phase of our testnet, *P2P Validator*
+contributed a `self-hosted node monitoring suite <https://economy.p2p.org/nucypher-worker-node-monitoring-suite/amp/>`_
+that uses a Grafana dashboard to visualize and monitor the metrics produced by the prometheus endpoint.
 
-.. code:: bash
-
-     (nucypher)$ pip install nucypher[ursula]
-
+.. image:: ../../.static/img/p2p_validator_dashboard.png
+    :target: ../../.static/img/p2p_validator_dashboard.png
 
 .. note::
 
