@@ -1149,8 +1149,7 @@ def events(general_config, staker_options, config_file, event_name):
 
     for event in events:
         emitter.echo(f"{event.event_name}:", bold=True, color='yellow')
-        event_filter = event.createFilter(fromBlock=0, toBlock='latest', argument_filters={'staker': staking_address})
-        entries = event_filter.get_all_entries()
+        entries = event.getLogs(fromBlock=0, toBlock='latest', argument_filters={'staker': staking_address})
         for event_record in entries:
             emitter.echo(f"  - {EventRecord(event_record)}")
 

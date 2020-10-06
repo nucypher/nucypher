@@ -66,10 +66,7 @@ class ContractEvents:
             if to_block is None:
                 to_block = 'latest'
 
-            event_filter = event_method.createFilter(fromBlock=from_block,
-                                                     toBlock=to_block,
-                                                     argument_filters=argument_filters)
-            entries = event_filter.get_all_entries()
+            entries = event_method.getLogs(fromBlock=from_block, toBlock=to_block, argument_filters=argument_filters)
             for entry in entries:
                 yield EventRecord(entry)
         return wrapper
@@ -96,17 +93,13 @@ class ContractEventsThrottler:
                  to_block: int = None,  # defaults to latest block
                  max_blocks_per_call: int = DEFAULT_MAX_BLOCKS_PER_CALL,
                  **argument_filters):
-        if not agent:
-            raise ValueError(f"Contract agent must be provided")
-        if not event_name:
-            raise ValueError(f"Event name must be provided")
-
         self.event_filter = agent.events[event_name]
         self.from_block = from_block
-        self.to_block = to_block if to_block else agent.blockchain.client.block_number
+        self.to_block = to_block if to_block is not None else agent.blockchain.client.block_number
         # validity check of block range
-        if to_block <= from_block:
-            raise ValueError(f"Invalid block range provided ({from_block} - {to_block})")
+        if self.to_block < self.from_block:
+            raise ValueError(f"Invalid events block range: to_block {self.to_block} must be greater than or equal "
+                             f"to from_block {self.from_block}")
 
         self.max_blocks_per_call = max_blocks_per_call
         self.argument_filters = argument_filters
@@ -114,12 +107,13 @@ class ContractEventsThrottler:
     def __iter__(self):
         current_from_block = self.from_block
         current_to_block = min(self.from_block + self.max_blocks_per_call, self.to_block)
-        while current_from_block < current_to_block:
+        while current_from_block <= current_to_block:
             for event_record in self.event_filter(from_block=current_from_block,
                                                   to_block=current_to_block,
                                                   **self.argument_filters):
                 yield event_record
-            current_from_block = current_to_block
+            # previous block range is inclusive hence the increment
+            current_from_block = current_to_block + 1
             # update the 'to block' to the lesser of either the next `max_blocks_per_call` blocks,
             # or the remainder of blocks
             current_to_block = min(current_from_block + self.max_blocks_per_call, self.to_block)

@@ -297,8 +297,10 @@ class EventMetricsCollector(BaseMetricsCollector):
         super().__init__()
         self.event_name = event_name
         self.contract_agent = contract_agent
-        self.event_filter = contract_agent.contract.events[event_name].createFilter(fromBlock='latest',
-                                                                                    argument_filters=argument_filters)
+
+        # this way we don't have to deal with 'latest' at all
+        self.filter_current_from_block = self.contract_agent.blockchain.client.block_number
+        self.filter_arguments = argument_filters
         self.event_args_config = event_args_config
 
     def initialize(self, metrics_prefix: str, registry: CollectorRegistry) -> None:
@@ -309,9 +311,23 @@ class EventMetricsCollector(BaseMetricsCollector):
             self.metrics[metric_key] = metric_class(metric_name, metric_doc, registry=registry)
 
     def _collect_internal(self) -> None:
-        events = self.event_filter.get_new_entries()
-        for event in events:
-            self._event_occurred(event)
+        from_block = self.filter_current_from_block
+        to_block = self.contract_agent.blockchain.client.block_number
+        if from_block >= to_block:
+            # we've already checked the latest block and waiting for a new block
+            # nothing to see here
+            return
+
+        events_throttler = ContractEventsThrottler(agent=self.contract_agent,
+                                                   event_name=self.event_name,
+                                                   from_block=from_block,
+                                                   to_block=to_block,
+                                                   **self.filter_arguments)
+        for event_record in events_throttler:
+            self._event_occurred(event_record.raw_event)
+
+        # update last block checked for the next round - from/to block range is inclusive
+        self.filter_current_from_block = to_block + 1
 
     def _event_occurred(self, event) -> None:
         for arg_name in self.event_args_config:
@@ -358,6 +374,10 @@ class CommitmentMadeEventMetricsCollector(EventMetricsCollector):
                                                        **arg_filters)
             for event_record in events_throttler:
                 self._event_occurred(event_record.raw_event)
+
+            # update last block checked since we just looked for this event up to and including latest block
+            # block range is inclusive, hence the increment
+            self.filter_current_from_block = latest_block + 1
 
 
 class ReStakeEventMetricsCollector(EventMetricsCollector):
