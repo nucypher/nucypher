@@ -9,17 +9,6 @@
         paths: "{{geth_dir}}keystore"
       register: keystore_output
 
-    - name: "gethdir path"
-      debug:
-        verbosity: 0
-        var: geth_dir
-
-    - name: "keystore output"
-      debug:
-        verbosity: 0
-        var: keystore_output
-      when: node_is_decentralized is undefined or not node_is_decentralized
-
     - name: store signer options
       set_fact:
         signer_options: "--signer keystore://{{nucypher_container_geth_datadir}}/keystore/{{keystore_output.files[0].path | basename}}"
@@ -40,14 +29,6 @@
       become: yes
       command: 'cat {{geth_dir}}account.txt'
       register: active_account
-
-
-    # keeping this around for when we merge the datastore PR
-    # - name: "remove database file"
-    #   become: yes
-    #   file:
-    #     path: /home/nucypher/nucypher/ursula.db
-    #     state: absent
 
     - name: "ensure known nodes certificates directory"
       become: yes
@@ -70,7 +51,7 @@
     - name: "update Ursula worker config"
       become: yes
       become_user: nucypher
-      command: "docker run -v /home/nucypher:/root/.local/share/ -e NUCYPHER_KEYRING_PASSWORD -it {{ nucypher_image | default('nucypher/nucypher:latest') }}  nucypher ursula config --provider {{ blockchain_provider }} --worker-address {{active_account.stdout}} --rest-host {{ip_response.content}} --network {{network_name}} {{nucypher_ursula_init_options | default('')}} --config-file /root/.local/share/nucypher/ursula.json"
+      command: "docker run -v /home/nucypher:/root/.local/share/ -e NUCYPHER_KEYRING_PASSWORD -it {{ nucypher_image | default('nucypher/nucypher:latest') }}  nucypher ursula config --provider {{ blockchain_provider }} --worker-address {{active_account.stdout}} --rest-host {{ip_response.content}} --network {{network_name}} {{nucypher_ursula_init_options | default('')}} {{signer_options}} --config-file /root/.local/share/nucypher/ursula.json"
       environment:
         NUCYPHER_KEYRING_PASSWORD: "{{NUCYPHER_KEYRING_PASSWORD}}"
 

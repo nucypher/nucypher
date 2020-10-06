@@ -25,7 +25,10 @@
       docker_prune:
         containers: yes
         images: yes
+        images_filters:
+          dangling: false
         networks: yes
+        volumes: yes
         builder_cache: yes
 
     - name: "pull {{ nucypher_image | default('nucypher/nucypher:latest') }}"
@@ -42,6 +45,20 @@
         path: /home/nucypher/nucypher/ursula.json
       register: ursula_check
 
+    - name: find keystore file
+      find:
+        paths: "{{geth_dir}}keystore"
+      register: keystore_output
+
+    - name: store signer options
+      set_fact:
+        signer_options: "--signer keystore://{{nucypher_container_geth_datadir}}/keystore/{{keystore_output.files[0].path | basename}}"
+      when: node_is_decentralized is undefined or not node_is_decentralized and ursula_check.stat.exists == False
+
+    - name: store empty signer options
+      set_fact:
+        signer_options: ""
+      when: node_is_decentralized is not undefined and node_is_decentralized and ursula_check.stat.exists == False
 
     - name: Find my public ip
       uri:
@@ -53,6 +70,6 @@
       become: yes
       become_user: nucypher
       when: ursula_check.stat.exists == False
-      command: "docker run -v /home/nucypher:/root/.local/share/ -e NUCYPHER_KEYRING_PASSWORD -it {{ nucypher_image | default('nucypher/nucypher:latest') }}  nucypher ursula init --provider {{ blockchain_provider }} --worker-address {{active_account.stdout}} --rest-host {{ip_response.content}} --network {{network_name}} {{nucypher_ursula_init_options | default('')}}"
+      command: "docker run -v /home/nucypher:/root/.local/share/ -e NUCYPHER_KEYRING_PASSWORD -it {{ nucypher_image | default('nucypher/nucypher:latest') }} nucypher ursula init --provider {{ blockchain_provider }} --worker-address {{active_account.stdout}} --rest-host {{ip_response.content}} --network {{network_name}} {{nucypher_ursula_init_options | default('')}} {{signer_options}}"
       environment:
         NUCYPHER_KEYRING_PASSWORD: "{{NUCYPHER_KEYRING_PASSWORD}}"

@@ -92,6 +92,8 @@ def paint_stakes(emitter: StdoutEmitter,
             emitter.echo(f"\t public address: {worker_data['publicaddress']}")
             if worker_data.get('nucypher version'):
                 emitter.echo(f"\t NuCypher Version: {worker_data['nucypher version']}")
+            if worker_data.get('blockchain_provider'):
+                emitter.echo(f"\t Blockchain Provider: {worker_data['blockchain_provider']}")
     emitter.echo(tabulate.tabulate(zip(STAKER_TABLE_COLUMNS, staker_data), floatfmt="fancy_grid"))
 
     rows = list()
