@@ -53,6 +53,7 @@ def test_deploy_single_contract(click_runner, tempfile_path):
                '--contract-name', NucypherTokenAgent.contract_name,
                '--registry-infile', tempfile_path,
                '--provider', TEST_PROVIDER_URI,
+               '--network', TEMPORARY_DOMAIN,
                '--debug']
 
     user_input = '0\n' + YES_ENTER
@@ -211,11 +212,12 @@ def test_rollback(click_runner, testerchain, registry_filepath, agency):
         command = ('rollback',
                    '--contract-name', contract_name,
                    '--registry-infile', registry_filepath,
+                   '--network', TEMPORARY_DOMAIN,
                    '--provider', TEST_PROVIDER_URI)
 
         user_input = '0\n' + YES_ENTER
         result = click_runner.invoke(deploy, command, input=user_input, catch_exceptions=False)
-        assert result.exit_code == 0
+        assert result.exit_code == 0, result.output
 
         # TODO unify this, trust more to registry_filepath, reduce calls
         registry = LocalContractRegistry(filepath=registry_filepath)

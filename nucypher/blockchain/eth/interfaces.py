@@ -60,6 +60,7 @@ from nucypher.blockchain.eth.sol.compile import SolidityCompiler
 from nucypher.blockchain.eth.utils import get_transaction_name, prettify_eth_amount
 from nucypher.characters.control.emitters import JSONRPCStdoutEmitter, StdoutEmitter
 from nucypher.utilities.datafeeds import datafeed_fallback_gas_price_strategy
+from nucypher.utilities.ethereum import encode_constructor_arguments
 from nucypher.utilities.logging import GlobalLoggerSettings, Logger
 
 
@@ -825,13 +826,19 @@ class BlockchainDeployerInterface(BlockchainInterface):
                       f"deployer address {deployer_address} "
                       f"and parameters {pprint_args}")
 
-        transaction_function = contract_factory.constructor(*constructor_args, **constructor_kwargs)
+        constructor_function = contract_factory.constructor(*constructor_args, **constructor_kwargs)
+        constructor_calldata = encode_constructor_arguments(self.client.w3,
+                                                            constructor_function,
+                                                            *constructor_args,
+                                                            **constructor_kwargs)
+        if not constructor_calldata:
+            self.log.info(f"Constructor calldata: {constructor_calldata}")
 
         #
         # Transmit the deployment tx #
         #
 
-        receipt = self.send_transaction(contract_function=transaction_function,
+        receipt = self.send_transaction(contract_function=constructor_function,
                                         sender_address=deployer_address,
                                         payload=deploy_transaction,
                                         confirmations=confirmations)

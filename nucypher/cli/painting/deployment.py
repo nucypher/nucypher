@@ -189,6 +189,7 @@ Registry  ................ {registry.filepath}
 
         preallocation_escrow_payload = f"""
 {staking_interface_agent.contract_name} ......... {bare_contract.address}
+  ~ Version .............. {bare_contract.version}
   ~ Ethers ............... {Web3.fromWei(blockchain.client.get_balance(bare_contract.address), 'ether')} ETH
   ~ Tokens ............... {NU.from_nunits(token_agent.get_balance(bare_contract.address))}
   ~ StakingInterfaceRouter {router_deployer.contract.address}

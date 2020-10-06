@@ -16,12 +16,12 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
 import json
+from typing import Tuple
 
 import click
 import os
 from constant_sorrow import constants
 from constant_sorrow.constants import FULL
-from typing import Tuple
 
 from nucypher.blockchain.eth.actors import ContractAdministrator, Trustee
 from nucypher.blockchain.eth.agents import ContractAgency, MultiSigAgent
@@ -36,9 +36,10 @@ from nucypher.blockchain.eth.registry import (
 )
 from nucypher.blockchain.eth.signers.base import Signer
 from nucypher.blockchain.eth.signers.software import ClefSigner
+from nucypher.blockchain.eth.sol.__conf__ import SOLIDITY_COMPILER_VERSION
 from nucypher.characters.control.emitters import StdoutEmitter
 from nucypher.cli.actions.auth import get_client_password
-from nucypher.cli.actions.confirm import confirm_deployment
+from nucypher.cli.actions.confirm import confirm_deployment, verify_upgrade_details
 from nucypher.cli.actions.select import select_client_account
 from nucypher.cli.config import group_general_config
 from nucypher.cli.literature import (
@@ -69,9 +70,9 @@ from nucypher.cli.literature import (
     SUCCESSFUL_SAVE_MULTISIG_TX_PROPOSAL,
     SUCCESSFUL_UPGRADE,
     UNKNOWN_CONTRACT_NAME,
-    IDENTICAL_REGISTRY_WARNING,
     DEPLOYER_IS_NOT_OWNER,
-    CONFIRM_VERSIONED_UPGRADE
+    REGISTRY_PUBLICATION_HINT,
+    ETHERSCAN_VERIFY_HINT
 )
 from nucypher.cli.options import (
     group_options,
@@ -239,7 +240,7 @@ group_actor_options = group_options(
     config_root=option_config_root,
     etherscan=option_etherscan,
     ignore_solidity_check=option_ignore_solidity_version,
-    network=option_network(required=True, default=NetworksInventory.DEFAULT)
+    network=option_network(required=True)
 )
 
 
@@ -293,8 +294,10 @@ def download_registry(general_config, config_root, registry_outfile, network, fo
 @option_registry_infile
 @option_deployer_address
 @option_poa
+@option_network(required=False, default=NetworksInventory.DEFAULT)
 @option_ignore_solidity_version
-def inspect(general_config, provider_uri, config_root, registry_infile, deployer_address, poa, ignore_solidity_check):
+def inspect(general_config, provider_uri, config_root, registry_infile, deployer_address,
+            poa, ignore_solidity_check, network):
     """Echo owner information and bare contract metadata."""
     emitter = general_config.emitter
     ensure_config_root(config_root)
@@ -302,9 +305,11 @@ def inspect(general_config, provider_uri, config_root, registry_infile, deployer
                                   provider_uri=provider_uri,
                                   emitter=emitter,
                                   ignore_solidity_check=ignore_solidity_check)
+    download_required = not bool(registry_infile)
     registry = establish_deployer_registry(emitter=emitter,
                                            registry_infile=registry_infile,
-                                           download_registry=not bool(registry_infile))
+                                           download_registry=download_required,
+                                           network=network if download_required else None)
     paint_deployer_contract_inspection(emitter=emitter,
                                        registry=registry,
                                        deployer_address=deployer_address)
@@ -328,23 +333,22 @@ def upgrade(general_config, actor_options, retarget, target_address, ignore_depl
     emitter = general_config.emitter
     ADMINISTRATOR, deployer_address, blockchain, local_registry = actor_options.create_actor(emitter, is_multisig=bool(multisig))  # FIXME: Workaround for building MultiSig TXs | NRN
 
+    #
+    # Pre-flight
+    #
+
     contract_name = actor_options.contract_name
     if not contract_name:
         raise click.BadArgumentUsage(message="--contract-name is required when using --upgrade")
 
-    github_registry = establish_deployer_registry(emitter=emitter, download_registry=True, network=actor_options.network)
     try:
+        # Check contract name exists
         Deployer = ADMINISTRATOR.deployers[contract_name]
     except KeyError:
-        message = UNKNOWN_CONTRACT_NAME.format(contract_name=contract_name,
-                                               constants=ADMINISTRATOR.deployers.keys())
+        message = UNKNOWN_CONTRACT_NAME.format(contract_name=contract_name, constants=ADMINISTRATOR.deployers.keys())
         emitter.echo(message, color='red', bold=True)
         raise click.Abort()
     deployer = Deployer(registry=local_registry)
-
-    #
-    # Pre-flight
-    #
 
     # Check deployer address is owner
     if Deployer._ownable and deployer_address != deployer.owner:  # blockchain read
@@ -354,13 +358,6 @@ def upgrade(general_config, actor_options, retarget, target_address, ignore_depl
         raise click.Abort()
     else:
         emitter.echo('✓ Verified deployer address as contract owner', color='green')
-
-    # Check registry ID has changed locally compared to remote source
-    if (github_registry.id == local_registry.id) and not actor_options.force:
-        emitter.echo(IDENTICAL_REGISTRY_WARNING.format(github_registry=github_registry, local_registry=local_registry), color='red')
-        raise click.Abort()
-    else:
-        emitter.echo('✓ Verified local registry contains updates', color='green')
 
     #
     # Business
@@ -397,6 +394,7 @@ def upgrade(general_config, actor_options, retarget, target_address, ignore_depl
         filepath = f'proposal-{trustee.multisig_agent.contract_address[:8]}-TX-{transaction_proposal.nonce}.json'
         transaction_proposal.write(filepath=filepath)
         emitter.echo(SUCCESSFUL_SAVE_MULTISIG_TX_PROPOSAL.format(filepath=filepath), color='blue', bold=True)
+        return  # Exit
 
     elif retarget:
         if not target_address:
@@ -407,24 +405,34 @@ def upgrade(general_config, actor_options, retarget, target_address, ignore_depl
         message = SUCCESSFUL_RETARGET.format(contract_name=contract_name, target_address=target_address)
         emitter.message(message, color='green')
         paint_receipt_summary(emitter=emitter, receipt=receipt)
+        return  # Exit
 
     else:
+        github_registry = establish_deployer_registry(emitter=emitter,
+                                                      download_registry=True,
+                                                      network=actor_options.network)
         if not actor_options.force:
+
             # Check for human verification of versioned upgrade details
             click.confirm(CONFIRM_BEGIN_UPGRADE.format(contract_name=contract_name), abort=True)
             if deployer._ownable:  # Only ownable + upgradeable contracts apply
-                old_contract = github_registry.search(contract_name=contract_name)[-1]  # latest GH version
-                new_contract = local_registry.search(contract_name=contract_name)[-1]   # latest local version
-                click.confirm(CONFIRM_VERSIONED_UPGRADE.format(contract_name=contract_name,
-                                                               old_contract=old_contract,
-                                                               new_contract=new_contract), abort=True)
+                verify_upgrade_details(blockchain=blockchain,
+                                       registry=github_registry,
+                                       deployer=deployer)
 
+        # Success
         receipts = ADMINISTRATOR.upgrade_contract(contract_name=contract_name,
                                                   ignore_deployed=ignore_deployed,
                                                   confirmations=confirmations)
         emitter.message(SUCCESSFUL_UPGRADE.format(contract_name=contract_name), color='green')
+
         for name, receipt in receipts.items():
             paint_receipt_summary(emitter=emitter, receipt=receipt)
+        emitter.echo(REGISTRY_PUBLICATION_HINT.format(contract_name=contract_name,
+                                                      local_registry=local_registry,
+                                                      network=actor_options.network), color='blue')
+        emitter.echo(ETHERSCAN_VERIFY_HINT.format(solc_version=SOLIDITY_COMPILER_VERSION), color='blue')
+        return  # Exit
 
 
 @deploy.command()

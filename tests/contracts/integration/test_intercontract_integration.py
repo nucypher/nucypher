@@ -15,7 +15,6 @@ You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
-
 import os
 import pytest
 from eth_tester.exceptions import TransactionFailed
@@ -28,7 +27,8 @@ from nucypher.blockchain.economics import BaseEconomics
 from nucypher.blockchain.eth.constants import NULL_ADDRESS
 from nucypher.crypto.api import sha256_digest
 from nucypher.crypto.signing import SignatureStamp
-from tests.utils.solidity import to_32byte_hex
+from nucypher.utilities.ethereum import to_32byte_hex
+
 
 DISABLED_FIELD = 0
 
