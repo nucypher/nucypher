@@ -1,4 +1,4 @@
-.. _managing-network-nodes:
+.. _managing-cloud-workers:
 
 ===================================================
 Nucypher CLI tools for running and managing workers
@@ -42,6 +42,11 @@ Some examples:
     $ export DIGITALOCEAN_REGION=<a digitalocean availability region>
     $ nucypher cloudworkers up --cloudprovider digitalocean --remote-provider http://mainnet.infura..3epifj3rfioj
 
+    # --------------------------------------------------------------------------------------------------------------------------- #
+    # NOTE:  if no --remote-provider is specified, geth will be run on the host and a larger instance with more RAM will be used.
+    # this will probably cost more and require some time to sync.
+    # --------------------------------------------------------------------------------------------------------------------------- #
+
     # on AWS
     $ nucypher cloudworkers up --cloudprovider aws --aws-profile my-aws-profile --remote-provider http://mainnet.infura..3epifj3rfioj
 
@@ -50,3 +55,6 @@ Some examples:
 
     # deploy or update all your existing hosts to the latest code
     $ nucypher cloudworkers deploy --nucypher-image nucypher/nucypher:latest
+
+    # change two of your existing hosts to use alchemy instead of infura as a delegated blockchain
+    $ nucypher cloudworkers deploy --remote-provider wss://eth-mainnet.ws.alchemyapi.io/v2/aodfh298fh2398fh2398hf3924f... --include-stakeholder 0x9a92354D3811938A1f35644825188cAe3103bA8e --include-stakeholder 0x1Da644825188cAe3103bA8e92354D3811938A1f35
