@@ -1,4 +1,4 @@
-.. _running-a-node:
+.. _managing-network-nodes:
 
 ===================================================
 Nucypher CLI tools for running and managing workers
