@@ -17,14 +17,16 @@
 
 
 import json
-
 import os
+from unittest.mock import patch, PropertyMock
+
 import pytest
 
 from nucypher.blockchain.eth.agents import NucypherTokenAgent
 from nucypher.blockchain.eth.interfaces import BlockchainInterface
 from nucypher.blockchain.eth.networks import NetworksInventory
 from nucypher.blockchain.eth.registry import LocalContractRegistry
+from nucypher.blockchain.eth.signers import Signer
 from nucypher.blockchain.eth.sol.compile import SOLIDITY_COMPILER_VERSION
 from nucypher.cli.commands.deploy import deploy
 from nucypher.config.constants import TEMPORARY_DOMAIN
@@ -59,6 +61,32 @@ def test_deploy_single_contract(click_runner, tempfile_path):
     user_input = '0\n' + YES_ENTER
     result = click_runner.invoke(deploy, command, input=user_input, catch_exceptions=False)
     assert result.exit_code == 0, result.output
+
+
+def test_deploy_signer_uri_testnet_check(click_runner, mocker, tempfile_path):
+    spy_from_signer_uri = mocker.spy(Signer, 'from_signer_uri')
+
+    with patch('nucypher.blockchain.eth.actors.BaseActor.eth_balance', PropertyMock(return_value=0)):
+        command = ['contracts',
+                   '--contract-name', NucypherTokenAgent.contract_name,
+                   '--registry-infile', tempfile_path,
+                   '--provider', TEST_PROVIDER_URI,
+                   '--signer', TEST_PROVIDER_URI,
+                   '--network', TEMPORARY_DOMAIN,
+                   '--debug']
+
+        user_input = '0\n' + YES_ENTER
+
+        # fail trying to deploy contract to testnet since ETH blanace is 0, signer will already have been initialized
+        result = click_runner.invoke(deploy, command, input=user_input, catch_exceptions=False)
+        assert result.exit_code != 0, result.output  # expected failure given eth balance is 0
+        spy_from_signer_uri.assert_called_with(TEST_PROVIDER_URI, testnet=True)
+
+        # fail trying to deploy contract to mainnet (:-o) since ETH balance is 0, signer will already have been initialized
+        with patch('nucypher.blockchain.eth.clients.EthereumTesterClient.chain_name', PropertyMock(return_value='Mainnet')):
+            result = click_runner.invoke(deploy, command, input=user_input, catch_exceptions=False)
+            assert result.exit_code != 0, result.output  # expected failure given invalid contract name
+            spy_from_signer_uri.assert_called_with(TEST_PROVIDER_URI, testnet=False)  # the "real" deal
 
 
 def test_upgrade_contracts(click_runner, test_registry_source_manager, test_registry,

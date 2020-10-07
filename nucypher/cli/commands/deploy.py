@@ -16,15 +16,16 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
 import json
+import os
 from typing import Tuple
 
 import click
-import os
 from constant_sorrow import constants
 from constant_sorrow.constants import FULL
 
 from nucypher.blockchain.eth.actors import ContractAdministrator, Trustee
 from nucypher.blockchain.eth.agents import ContractAgency, MultiSigAgent
+from nucypher.blockchain.eth.clients import PUBLIC_CHAINS
 from nucypher.blockchain.eth.constants import STAKING_ESCROW_CONTRACT_NAME
 from nucypher.blockchain.eth.interfaces import BlockchainInterface
 from nucypher.blockchain.eth.networks import NetworksInventory
@@ -207,7 +208,7 @@ class ActorOptions:
                 password = get_client_password(checksum_address=deployer_address)
 
         # Produce Actor
-        testnet = deployer_interface.client.chain_name != NetworksInventory.MAINNET
+        testnet = deployer_interface.client.chain_name != PUBLIC_CHAINS[1]  # Mainnet
         signer = Signer.from_signer_uri(self.signer_uri, testnet=testnet) if self.signer_uri else None
         ADMINISTRATOR = ContractAdministrator(registry=local_registry,
                                               client_password=password,
