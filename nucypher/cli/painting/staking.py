@@ -45,7 +45,7 @@ def paint_all_stakes(emitter: StdoutEmitter,
             # TODO: Something with non-staking accounts?
             continue
 
-        paint_stakes(emitter=emitter, staker=staker, paint_unlocked=paint_unlocked)
+        paint_stakes(emitter=emitter, staker=staker, paint_unlocked=paint_unlocked, stakeholder=stakeholder)
         total_stakers += 1
 
     if not total_stakers:
@@ -55,7 +55,8 @@ def paint_all_stakes(emitter: StdoutEmitter,
 def paint_stakes(emitter: StdoutEmitter,
                  staker: 'Staker',
                  stakes: List[Stake] = None,
-                 paint_unlocked: bool = False) -> None:
+                 paint_unlocked: bool = False,
+                 stakeholder=None) -> None:
 
     stakes = stakes or staker.sorted_stakes()
 
@@ -85,6 +86,14 @@ def paint_stakes(emitter: StdoutEmitter,
     emitter.echo(f"Staker {staker.checksum_address} ════", bold=True, color='red' if missing else 'green')
     worker = staker.worker_address if staker.worker_address != NULL_ADDRESS else 'not bonded'
     emitter.echo(f"Worker {worker} ════", color='red' if staker.worker_address == NULL_ADDRESS else None)
+    if stakeholder and stakeholder.worker_data:
+        worker_data = stakeholder.worker_data.get(staker.checksum_address)
+        if worker_data:
+            emitter.echo(f"\t public address: {worker_data['publicaddress']}")
+            if worker_data.get('nucypher version'):
+                emitter.echo(f"\t NuCypher Version: {worker_data['nucypher version']}")
+            if worker_data.get('blockchain_provider'):
+                emitter.echo(f"\t Blockchain Provider: {worker_data['blockchain_provider']}")
     emitter.echo(tabulate.tabulate(zip(STAKER_TABLE_COLUMNS, staker_data), floatfmt="fancy_grid"))
 
     rows = list()

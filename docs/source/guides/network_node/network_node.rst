@@ -20,6 +20,7 @@ comfort level:
 
        staking_guide
        ursula_configuration_guide
+       nucypher_host_management_cli
 
 Here is a simple heuristic to help decide on a course of action:
 

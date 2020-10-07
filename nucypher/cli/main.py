@@ -17,7 +17,7 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 
 import click
 
-from nucypher.cli.commands import alice, bob, dao, enrico, felix, multisig, stake, status, ursula, worklock
+from nucypher.cli.commands import alice, bob, dao, enrico, felix, multisig, stake, status, ursula, worklock, cloudworkers
 from nucypher.cli.painting.help import echo_version
 
 
@@ -65,7 +65,8 @@ ENTRY_POINTS = (
     status.status,      # Network Status
     felix.felix,        # Faucet
     multisig.multisig,  # MultiSig operations
-    worklock.worklock   # WorkLock
+    worklock.worklock,   # WorkLock
+    cloudworkers.cloudworkers #Remote Worker node management
 )
 
 for entry_point in ENTRY_POINTS:

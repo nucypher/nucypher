@@ -1815,11 +1815,13 @@ class StakeHolder(Staker):
                  initial_address: str = None,
                  checksum_addresses: set = None,
                  signer: Signer = None,
+                 worker_data: dict = None,
                  *args, **kwargs):
 
         self.staking_interface_agent = None
 
         super().__init__(is_me=is_me, *args, **kwargs)
+        self.worker_data = worker_data
         self.log = Logger(f"stakeholder")
 
         # Wallet
