@@ -932,7 +932,7 @@ class Staker(NucypherTokenActor):
                          lock_periods: int = None,
                          expiration: maya.MayaDT = None,
                          entire_balance: bool = False,
-                         use_rewards: bool = False
+                         from_unlocked: bool = False
                          ) -> TxReceipt:
 
         """Create a new stake."""
@@ -950,7 +950,7 @@ class Staker(NucypherTokenActor):
         elif not entire_balance and not amount:
             raise ValueError("Specify an amount or entire balance, got neither")
 
-        token_balance = self.calculate_staking_reward() if use_rewards else self.token_balance
+        token_balance = self.calculate_staking_reward() if from_unlocked else self.token_balance
         if entire_balance:
             amount = token_balance
         if not token_balance >= amount:
@@ -965,7 +965,7 @@ class Staker(NucypherTokenActor):
                                            lock_periods=lock_periods)
 
         # Create stake on-chain
-        if use_rewards:
+        if from_unlocked:
             receipt = self._lock_and_create(amount=new_stake.value.to_nunits(), lock_periods=new_stake.duration)
         else:
             receipt = self._deposit(amount=new_stake.value.to_nunits(), lock_periods=new_stake.duration)
@@ -1023,7 +1023,7 @@ class Staker(NucypherTokenActor):
                        stake: Stake,
                        amount: NU = None,
                        entire_balance: bool = False,
-                       use_rewards: bool = False
+                       from_unlocked: bool = False
                        ) -> TxReceipt:
         """Add tokens to existing stake."""
         self._ensure_stake_exists(stake)
@@ -1033,7 +1033,7 @@ class Staker(NucypherTokenActor):
             raise ValueError(f"Pass either an amount or entire balance; "
                              f"got {'both' if entire_balance else 'neither'}")
 
-        token_balance = self.calculate_staking_reward() if use_rewards else self.token_balance
+        token_balance = self.calculate_staking_reward() if from_unlocked else self.token_balance
         if entire_balance:
             amount = token_balance
         if not token_balance >= amount:
@@ -1045,7 +1045,7 @@ class Staker(NucypherTokenActor):
         validate_increase(stake=stake, amount=amount)
 
         # Write to blockchain
-        if use_rewards:
+        if from_unlocked:
             receipt = self._lock_and_increase(stake_index=stake.index, amount=int(amount))
         else:
             receipt = self._deposit_and_increase(stake_index=stake.index, amount=int(amount))

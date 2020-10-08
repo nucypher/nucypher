@@ -71,7 +71,7 @@ from nucypher.cli.literature import (
     INSUFFICIENT_BALANCE_TO_CREATE, PROMPT_STAKE_CREATE_VALUE, PROMPT_STAKE_CREATE_LOCK_PERIODS,
     ONLY_DISPLAYING_MERGEABLE_STAKES_NOTE, CONFIRM_MERGE, SUCCESSFUL_STAKES_MERGE, SUCCESSFUL_ENABLE_SNAPSHOTS,
     SUCCESSFUL_DISABLE_SNAPSHOTS, CONFIRM_ENABLE_SNAPSHOTS,
-    CONFIRM_USE_UNCOLLECTED_REWARDS)
+    CONFIRM_STAKE_USE_UNLOCKED)
 from nucypher.cli.options import (
     group_options,
     option_config_file,
@@ -108,10 +108,10 @@ option_value = click.option('--value', help="Token value of stake", type=click.I
 option_lock_periods = click.option('--lock-periods', help="Duration of stake in periods.", type=click.INT)
 option_worker_address = click.option('--worker-address', help="Address to bond as an Ursula-Worker", type=EIP55_CHECKSUM_ADDRESS)
 option_index = click.option('--index', help="The staker-specific stake index to edit", type=click.INT)
-option_use_uncollected_rewards = click.option('--use-rewards',
-                                              help="Only use uncollected staking rewards, and not tokens from staker address",
-                                              default=False,
-                                              is_flag=True)
+option_from_unlocked = click.option('--from-unlocked',
+                                    help="Only use uncollected staking rewards and unlocked sub-stakes; not tokens from staker address",
+                                    default=False,
+                                    is_flag=True)
 
 
 class StakeHolderConfigOptions:
@@ -454,8 +454,8 @@ def unbond_worker(general_config, transacting_staker_options, config_file, force
 @option_value
 @option_lock_periods
 @group_general_config
-@option_use_uncollected_rewards
-def create(general_config, transacting_staker_options, config_file, force, value, lock_periods, use_rewards):
+@option_from_unlocked
+def create(general_config, transacting_staker_options, config_file, force, value, lock_periods, from_unlocked):
     """Initialize a new stake."""
 
     # Setup
@@ -481,10 +481,10 @@ def create(general_config, transacting_staker_options, config_file, force, value
     #
 
     if not value:
-        if use_rewards:
-            click.confirm(CONFIRM_USE_UNCOLLECTED_REWARDS, abort=True)
+        if from_unlocked:
+            click.confirm(CONFIRM_STAKE_USE_UNLOCKED, abort=True)
 
-        token_balance = STAKEHOLDER.calculate_staking_reward() if use_rewards else STAKEHOLDER.token_balance
+        token_balance = STAKEHOLDER.calculate_staking_reward() if from_unlocked else STAKEHOLDER.token_balance
         lower_limit = NU.from_nunits(STAKEHOLDER.economics.minimum_allowed_locked)
         locked_tokens = STAKEHOLDER.locked_tokens(periods=1).to_nunits()
         upper_limit = min(token_balance, NU.from_nunits(STAKEHOLDER.economics.maximum_allowed_locked - locked_tokens))
@@ -543,7 +543,7 @@ def create(general_config, transacting_staker_options, config_file, force, value
         raise click.Abort
 
     # Execute
-    receipt = STAKEHOLDER.initialize_stake(amount=value, lock_periods=lock_periods, use_rewards=use_rewards)
+    receipt = STAKEHOLDER.initialize_stake(amount=value, lock_periods=lock_periods, from_unlocked=from_unlocked)
     paint_staking_confirmation(emitter=emitter, staker=STAKEHOLDER, receipt=receipt)
 
 
@@ -554,8 +554,8 @@ def create(general_config, transacting_staker_options, config_file, force, value
 @option_value
 @option_index
 @group_general_config
-@option_use_uncollected_rewards
-def increase(general_config, transacting_staker_options, config_file, force, value, index, use_rewards):
+@option_from_unlocked
+def increase(general_config, transacting_staker_options, config_file, force, value, index, from_unlocked):
     """Increase an existing stake."""
 
     # Setup
@@ -581,10 +581,10 @@ def increase(general_config, transacting_staker_options, config_file, force, val
     #
 
     if not value:
-        if use_rewards:
-            click.confirm(CONFIRM_USE_UNCOLLECTED_REWARDS, abort=True)
+        if from_unlocked:
+            click.confirm(CONFIRM_STAKE_USE_UNLOCKED, abort=True)
 
-        token_balance = STAKEHOLDER.calculate_staking_reward() if use_rewards else STAKEHOLDER.token_balance
+        token_balance = STAKEHOLDER.calculate_staking_reward() if from_unlocked else STAKEHOLDER.token_balance
         locked_tokens = STAKEHOLDER.locked_tokens(periods=1).to_nunits()
         upper_limit = min(token_balance, NU.from_nunits(STAKEHOLDER.economics.maximum_allowed_locked - locked_tokens))
 
@@ -624,7 +624,7 @@ def increase(general_config, transacting_staker_options, config_file, force, val
     STAKEHOLDER.assimilate(password=password)
 
     # Execute
-    receipt = STAKEHOLDER.increase_stake(stake=current_stake, amount=value, use_rewards=use_rewards)
+    receipt = STAKEHOLDER.increase_stake(stake=current_stake, amount=value, from_unlocked=from_unlocked)
 
     # Report
     emitter.echo(SUCCESSFUL_STAKE_INCREASE, color='green', verbosity=1)
