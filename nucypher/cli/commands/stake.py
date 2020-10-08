@@ -24,7 +24,7 @@ from nucypher.blockchain.eth.events import EventRecord
 from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
 from nucypher.blockchain.eth.registry import IndividualAllocationRegistry
 from nucypher.blockchain.eth.signers.software import ClefSigner
-from nucypher.blockchain.eth.token import NU, StakeList, Stake
+from nucypher.blockchain.eth.token import NU, Stake
 from nucypher.blockchain.eth.utils import datetime_at_period
 from nucypher.cli.actions.auth import get_client_password
 from nucypher.cli.actions.configure import get_or_update_configuration, handle_missing_configuration_file
@@ -36,7 +36,6 @@ from nucypher.cli.actions.confirm import (
     confirm_staged_stake, confirm_disable_snapshots
 )
 from nucypher.cli.actions.select import select_client_account_for_staking, select_stake
-from nucypher.cli.utils import setup_emitter
 from nucypher.cli.config import group_general_config
 from nucypher.cli.literature import (
     BONDING_DETAILS,
@@ -69,10 +68,10 @@ from nucypher.cli.literature import (
     SUCCESSFUL_WORKER_BONDING, NO_MINTABLE_PERIODS, STILL_LOCKED_TOKENS, CONFIRM_MINTING, SUCCESSFUL_MINTING,
     CONFIRM_COLLECTING_WITHOUT_MINTING, NO_TOKENS_TO_WITHDRAW, NO_FEE_TO_WITHDRAW, CONFIRM_INCREASING_STAKE,
     PROMPT_STAKE_INCREASE_VALUE, SUCCESSFUL_STAKE_INCREASE, INSUFFICIENT_BALANCE_TO_INCREASE, MAXIMUM_STAKE_REACHED,
-    INSUFFICIENT_BALANCE_TO_CREATE, PROMPT_STAKE_CREATE_VALUE, PROMPT_DEPOSIT_OR_LOCK, PROMPT_STAKE_CREATE_LOCK_PERIODS,
-    ONLY_DISPLAYING_MERGEABLE_STAKES_NOTE, CONFIRM_MERGE, SUCCESSFUL_STAKES_MERGE, CONFIRM_DISABLE_SNAPSHOTS,
-    SUCCESSFUL_ENABLE_SNAPSHOTS, SUCCESSFUL_DISABLE_SNAPSHOTS, CONFIRM_ENABLE_SNAPSHOTS
-)
+    INSUFFICIENT_BALANCE_TO_CREATE, PROMPT_STAKE_CREATE_VALUE, PROMPT_STAKE_CREATE_LOCK_PERIODS,
+    ONLY_DISPLAYING_MERGEABLE_STAKES_NOTE, CONFIRM_MERGE, SUCCESSFUL_STAKES_MERGE, SUCCESSFUL_ENABLE_SNAPSHOTS,
+    SUCCESSFUL_DISABLE_SNAPSHOTS, CONFIRM_ENABLE_SNAPSHOTS,
+    CONFIRM_USE_UNCOLLECTED_REWARDS)
 from nucypher.cli.options import (
     group_options,
     option_config_file,
@@ -102,13 +101,17 @@ from nucypher.cli.types import (
     EXISTING_READABLE_FILE,
     WEI
 )
+from nucypher.cli.utils import setup_emitter
 from nucypher.config.characters import StakeHolderConfiguration
 
 option_value = click.option('--value', help="Token value of stake", type=click.INT)
 option_lock_periods = click.option('--lock-periods', help="Duration of stake in periods.", type=click.INT)
 option_worker_address = click.option('--worker-address', help="Address to bond as an Ursula-Worker", type=EIP55_CHECKSUM_ADDRESS)
 option_index = click.option('--index', help="The staker-specific stake index to edit", type=click.INT)
-option_only_lock = click.option('--only-lock', help="Locking tokens without deposit", is_flag=True)
+option_use_uncollected_rewards = click.option('--use-rewards',
+                                              help="Only use uncollected staking rewards, and not tokens from staker address",
+                                              default=False,
+                                              is_flag=True)
 
 
 class StakeHolderConfigOptions:
@@ -451,8 +454,8 @@ def unbond_worker(general_config, transacting_staker_options, config_file, force
 @option_value
 @option_lock_periods
 @group_general_config
-@option_only_lock
-def create(general_config, transacting_staker_options, config_file, force, value, lock_periods, only_lock):
+@option_use_uncollected_rewards
+def create(general_config, transacting_staker_options, config_file, force, value, lock_periods, use_rewards):
     """Initialize a new stake."""
 
     # Setup
@@ -478,10 +481,10 @@ def create(general_config, transacting_staker_options, config_file, force, value
     #
 
     if not value:
-        if not only_lock:
-            only_lock = not click.prompt(PROMPT_DEPOSIT_OR_LOCK, type=click.BOOL, default=True)
+        if use_rewards:
+            click.confirm(CONFIRM_USE_UNCOLLECTED_REWARDS, abort=True)
 
-        token_balance = STAKEHOLDER.token_balance if not only_lock else STAKEHOLDER.calculate_staking_reward()
+        token_balance = STAKEHOLDER.calculate_staking_reward() if use_rewards else STAKEHOLDER.token_balance
         lower_limit = NU.from_nunits(STAKEHOLDER.economics.minimum_allowed_locked)
         locked_tokens = STAKEHOLDER.locked_tokens(periods=1).to_nunits()
         upper_limit = min(token_balance, NU.from_nunits(STAKEHOLDER.economics.maximum_allowed_locked - locked_tokens))
@@ -540,7 +543,7 @@ def create(general_config, transacting_staker_options, config_file, force, value
         raise click.Abort
 
     # Execute
-    receipt = STAKEHOLDER.initialize_stake(amount=value, lock_periods=lock_periods, only_lock=only_lock)
+    receipt = STAKEHOLDER.initialize_stake(amount=value, lock_periods=lock_periods, use_rewards=use_rewards)
     paint_staking_confirmation(emitter=emitter, staker=STAKEHOLDER, receipt=receipt)
 
 
@@ -551,8 +554,8 @@ def create(general_config, transacting_staker_options, config_file, force, value
 @option_value
 @option_index
 @group_general_config
-@option_only_lock
-def increase(general_config, transacting_staker_options, config_file, force, value, index, only_lock):
+@option_use_uncollected_rewards
+def increase(general_config, transacting_staker_options, config_file, force, value, index, use_rewards):
     """Increase an existing stake."""
 
     # Setup
@@ -578,10 +581,10 @@ def increase(general_config, transacting_staker_options, config_file, force, val
     #
 
     if not value:
-        if not only_lock:
-            only_lock = not click.prompt(PROMPT_DEPOSIT_OR_LOCK, type=click.BOOL, default=True)
+        if use_rewards:
+            click.confirm(CONFIRM_USE_UNCOLLECTED_REWARDS, abort=True)
 
-        token_balance = STAKEHOLDER.token_balance if not only_lock else STAKEHOLDER.calculate_staking_reward()
+        token_balance = STAKEHOLDER.calculate_staking_reward() if use_rewards else STAKEHOLDER.token_balance
         locked_tokens = STAKEHOLDER.locked_tokens(periods=1).to_nunits()
         upper_limit = min(token_balance, NU.from_nunits(STAKEHOLDER.economics.maximum_allowed_locked - locked_tokens))
 
@@ -621,7 +624,7 @@ def increase(general_config, transacting_staker_options, config_file, force, val
     STAKEHOLDER.assimilate(password=password)
 
     # Execute
-    receipt = STAKEHOLDER.increase_stake(stake=current_stake, amount=value, only_lock=only_lock)
+    receipt = STAKEHOLDER.increase_stake(stake=current_stake, amount=value, use_rewards=use_rewards)
 
     # Report
     emitter.echo(SUCCESSFUL_STAKE_INCREASE, color='green', verbosity=1)

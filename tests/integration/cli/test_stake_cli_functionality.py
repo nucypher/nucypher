@@ -30,14 +30,14 @@ from nucypher.cli.literature import (
     NO_FEE_TO_WITHDRAW, COLLECTING_ETH_FEE, NO_MINTABLE_PERIODS, STILL_LOCKED_TOKENS, CONFIRM_MINTING,
     PROMPT_PROLONG_VALUE, CONFIRM_PROLONG, SUCCESSFUL_STAKE_PROLONG, PERIOD_ADVANCED_WARNING, PROMPT_STAKE_DIVIDE_VALUE,
     PROMPT_STAKE_EXTEND_VALUE, CONFIRM_BROADCAST_STAKE_DIVIDE, SUCCESSFUL_STAKE_DIVIDE, SUCCESSFUL_STAKE_INCREASE,
-    PROMPT_STAKE_INCREASE_VALUE, CONFIRM_INCREASING_STAKE, PROMPT_DEPOSIT_OR_LOCK, PROMPT_STAKE_CREATE_VALUE,
+    PROMPT_STAKE_INCREASE_VALUE, CONFIRM_INCREASING_STAKE, PROMPT_STAKE_CREATE_VALUE,
     PROMPT_STAKE_CREATE_LOCK_PERIODS, CONFIRM_LARGE_STAKE_VALUE, CONFIRM_LARGE_STAKE_DURATION, CONFIRM_STAGED_STAKE,
     CONFIRM_BROADCAST_CREATE_STAKE, INSUFFICIENT_BALANCE_TO_INCREASE, MAXIMUM_STAKE_REACHED,
-    INSUFFICIENT_BALANCE_TO_CREATE, ONLY_DISPLAYING_MERGEABLE_STAKES_NOTE, CONFIRM_MERGE, SUCCESSFUL_STAKES_MERGE
-)
+    INSUFFICIENT_BALANCE_TO_CREATE, ONLY_DISPLAYING_MERGEABLE_STAKES_NOTE, CONFIRM_MERGE, SUCCESSFUL_STAKES_MERGE,
+    CONFIRM_USE_UNCOLLECTED_REWARDS)
 from nucypher.config.constants import TEMPORARY_DOMAIN
 from nucypher.types import SubStakeInfo, StakerInfo
-from tests.constants import MOCK_PROVIDER_URI, YES, INSECURE_DEVELOPMENT_PASSWORD, NO
+from tests.constants import MOCK_PROVIDER_URI, YES, INSECURE_DEVELOPMENT_PASSWORD
 
 
 @pytest.fixture()
@@ -612,7 +612,6 @@ def test_increase_interactive(click_runner,
 
     user_input = '\n'.join((str(selected_index),
                             str(sub_stake_index),
-                            YES,
                             str(additional_value.to_tokens()),
                             YES,
                             INSECURE_DEVELOPMENT_PASSWORD))
@@ -638,10 +637,10 @@ def test_increase_interactive(click_runner,
     assert result.exit_code == 0
 
     upper_limit = NU.from_nunits(balance)
+    assert CONFIRM_USE_UNCOLLECTED_REWARDS not in result.output  # default is use staker address
     assert PROMPT_STAKE_INCREASE_VALUE.format(upper_limit=upper_limit) in result.output
     assert CONFIRM_INCREASING_STAKE.format(stake_index=sub_stake_index, value=additional_value) in result.output
     assert SUCCESSFUL_STAKE_INCREASE in result.output
-    assert PROMPT_DEPOSIT_OR_LOCK in result.output
 
     mock_staking_agent.get_all_stakes.assert_called()
     mock_staking_agent.get_current_period.assert_called()
@@ -692,7 +691,7 @@ def test_increase_non_interactive(click_runner,
     assert PROMPT_STAKE_INCREASE_VALUE.format(upper_limit=upper_limit) not in result.output
     assert CONFIRM_INCREASING_STAKE.format(stake_index=sub_stake_index, value=additional_value) not in result.output
     assert SUCCESSFUL_STAKE_INCREASE in result.output
-    assert PROMPT_DEPOSIT_OR_LOCK not in result.output
+    assert CONFIRM_USE_UNCOLLECTED_REWARDS not in result.output  # default is use staker address
 
     mock_staking_agent.get_all_stakes.assert_called()
     mock_staking_agent.get_current_period.assert_called()
@@ -727,11 +726,12 @@ def test_increase_lock_interactive(click_runner,
 
     command = ('increase',
                '--provider', MOCK_PROVIDER_URI,
-               '--network', TEMPORARY_DOMAIN)
+               '--network', TEMPORARY_DOMAIN,
+               '--use-rewards')
 
     user_input = '\n'.join((str(selected_index),
                             str(sub_stake_index),
-                            NO,
+                            YES,
                             str(additional_value.to_tokens()),
                             YES,
                             INSECURE_DEVELOPMENT_PASSWORD))
@@ -762,7 +762,7 @@ def test_increase_lock_interactive(click_runner,
     assert PROMPT_STAKE_INCREASE_VALUE.format(upper_limit=upper_limit) in result.output
     assert CONFIRM_INCREASING_STAKE.format(stake_index=sub_stake_index, value=additional_value) in result.output
     assert SUCCESSFUL_STAKE_INCREASE in result.output
-    assert PROMPT_DEPOSIT_OR_LOCK in result.output
+    assert CONFIRM_USE_UNCOLLECTED_REWARDS in result.output  # value not provided but --use-rewards specified so prompted
 
     mock_staking_agent.get_all_stakes.assert_called()
     mock_staking_agent.get_current_period.assert_called()
@@ -799,7 +799,7 @@ def test_increase_lock_non_interactive(click_runner,
                '--staking-address', surrogate_stakers[selected_index],
                '--index', sub_stake_index,
                '--value', additional_value.to_tokens(),
-               '--only-lock',
+               '--use-rewards',
                '--force')
 
     user_input = INSECURE_DEVELOPMENT_PASSWORD
@@ -807,10 +807,10 @@ def test_increase_lock_non_interactive(click_runner,
     assert result.exit_code == 0
 
     upper_limit = NU.from_nunits(unlocked_tokens)
+    assert CONFIRM_USE_UNCOLLECTED_REWARDS not in result.output  # value provided so not prompted
     assert PROMPT_STAKE_INCREASE_VALUE.format(upper_limit=upper_limit) not in result.output
     assert CONFIRM_INCREASING_STAKE.format(stake_index=sub_stake_index, value=additional_value) not in result.output
     assert SUCCESSFUL_STAKE_INCREASE in result.output
-    assert PROMPT_DEPOSIT_OR_LOCK not in result.output
 
     mock_staking_agent.get_all_stakes.assert_called()
     mock_staking_agent.get_current_period.assert_called()
@@ -879,6 +879,7 @@ def test_create_interactive(click_runner,
     min_locktime = token_economics.minimum_locked_periods
     max_locktime = MAX_UINT16 - 10  # MAX_UINT16 - current period
 
+    assert CONFIRM_USE_UNCOLLECTED_REWARDS not in result.output  # default is to use staker address
     assert PROMPT_STAKE_CREATE_VALUE.format(lower_limit=lower_limit, upper_limit=upper_limit) in result.output
     assert PROMPT_STAKE_CREATE_LOCK_PERIODS.format(min_locktime=min_locktime, max_locktime=max_locktime) in result.output
     assert CONFIRM_STAGED_STAKE.format(nunits=str(value.to_nunits()),
@@ -886,7 +887,6 @@ def test_create_interactive(click_runner,
                                        staker_address=surrogate_stakers[selected_index],
                                        lock_periods=lock_periods) in result.output
     assert CONFIRM_BROADCAST_CREATE_STAKE in result.output
-    assert PROMPT_DEPOSIT_OR_LOCK in result.output
     assert CONFIRM_LARGE_STAKE_VALUE.format(value=value) in result.output
     assert CONFIRM_LARGE_STAKE_DURATION.format(lock_periods=lock_periods) in result.output
 
@@ -937,6 +937,8 @@ def test_create_non_interactive(click_runner,
     lower_limit = NU.from_nunits(token_economics.minimum_allowed_locked)
     min_locktime = token_economics.minimum_locked_periods
     max_locktime = MAX_UINT16 - 10  # MAX_UINT16 - current period
+
+    assert CONFIRM_USE_UNCOLLECTED_REWARDS not in result.output  # default is to use staker address
     assert PROMPT_STAKE_CREATE_VALUE.format(lower_limit=lower_limit, upper_limit=upper_limit) not in result.output
     assert PROMPT_STAKE_CREATE_LOCK_PERIODS.format(min_locktime=min_locktime, max_locktime=max_locktime) not in result.output
     assert CONFIRM_STAGED_STAKE.format(nunits=str(value.to_nunits()),
@@ -944,7 +946,6 @@ def test_create_non_interactive(click_runner,
                                        staker_address=surrogate_stakers[selected_index],
                                        lock_periods=lock_periods) not in result.output
     assert CONFIRM_BROADCAST_CREATE_STAKE in result.output
-    assert PROMPT_DEPOSIT_OR_LOCK not in result.output
     assert CONFIRM_LARGE_STAKE_VALUE.format(value=value) not in result.output
     assert CONFIRM_LARGE_STAKE_DURATION.format(lock_periods=lock_periods) not in result.output
 
@@ -977,10 +978,11 @@ def test_create_lock_interactive(click_runner,
 
     command = ('create',
                '--provider', MOCK_PROVIDER_URI,
-               '--network', TEMPORARY_DOMAIN)
+               '--network', TEMPORARY_DOMAIN,
+               '--use-rewards')
 
     user_input = '\n'.join((str(selected_index),
-                            NO,
+                            YES,
                             str(value.to_tokens()),
                             str(lock_periods),
                             YES,
@@ -1014,6 +1016,7 @@ def test_create_lock_interactive(click_runner,
     min_locktime = token_economics.minimum_locked_periods
     max_locktime = MAX_UINT16 - 10  # MAX_UINT16 - current period
 
+    assert CONFIRM_USE_UNCOLLECTED_REWARDS in result.output  # value not provided but --use-rewards specified so prompted
     assert PROMPT_STAKE_CREATE_VALUE.format(lower_limit=lower_limit, upper_limit=upper_limit) in result.output
     assert PROMPT_STAKE_CREATE_LOCK_PERIODS.format(min_locktime=min_locktime, max_locktime=max_locktime) in result.output
     assert CONFIRM_STAGED_STAKE.format(nunits=str(value.to_nunits()),
@@ -1021,7 +1024,6 @@ def test_create_lock_interactive(click_runner,
                                        staker_address=surrogate_stakers[selected_index],
                                        lock_periods=lock_periods) in result.output
     assert CONFIRM_BROADCAST_CREATE_STAKE in result.output
-    assert PROMPT_DEPOSIT_OR_LOCK in result.output
     assert CONFIRM_LARGE_STAKE_VALUE.format(value=value) not in result.output
     assert CONFIRM_LARGE_STAKE_DURATION.format(lock_periods=lock_periods) in result.output
 
@@ -1059,7 +1061,7 @@ def test_create_lock_non_interactive(click_runner,
                '--staking-address', surrogate_stakers[selected_index],
                '--lock-periods', lock_periods,
                '--value', value.to_tokens(),
-               '--only-lock',
+               '--use-rewards',
                '--force')
 
     user_input = '\n'.join((YES, YES, INSECURE_DEVELOPMENT_PASSWORD))
@@ -1071,6 +1073,7 @@ def test_create_lock_non_interactive(click_runner,
     min_locktime = token_economics.minimum_locked_periods
     max_locktime = MAX_UINT16 - 10  # MAX_UINT16 - current period
 
+    assert CONFIRM_USE_UNCOLLECTED_REWARDS not in result.output  # value provided so not prompted
     assert PROMPT_STAKE_CREATE_VALUE.format(lower_limit=lower_limit, upper_limit=upper_limit) not in result.output
     assert PROMPT_STAKE_CREATE_LOCK_PERIODS.format(min_locktime=min_locktime, max_locktime=max_locktime) not in result.output
     assert CONFIRM_STAGED_STAKE.format(nunits=str(value.to_nunits()),
@@ -1078,7 +1081,6 @@ def test_create_lock_non_interactive(click_runner,
                                        staker_address=surrogate_stakers[selected_index],
                                        lock_periods=lock_periods) not in result.output
     assert CONFIRM_BROADCAST_CREATE_STAKE in result.output
-    assert PROMPT_DEPOSIT_OR_LOCK not in result.output
     assert CONFIRM_LARGE_STAKE_VALUE.format(value=value) not in result.output
     assert CONFIRM_LARGE_STAKE_DURATION.format(lock_periods=lock_periods) not in result.output
 
