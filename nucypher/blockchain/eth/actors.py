@@ -20,19 +20,21 @@ import json
 import os
 import sys
 import time
-from decimal import Decimal
-from web3.types import TxReceipt
 import traceback
+from decimal import Decimal
+from typing import Callable
+from typing import Dict, Iterable, List, Optional, Tuple
+
 import click
 import maya
+from constant_sorrow.constants import FULL, WORKER_NOT_RUNNING
 from eth_tester.exceptions import TransactionFailed as TestTransactionFailed
 from eth_typing import ChecksumAddress
 from eth_utils import to_canonical_address, to_checksum_address
-from typing import Dict, Iterable, List, Optional, Tuple
 from web3 import Web3
 from web3.exceptions import ValidationError
+from web3.types import TxReceipt
 
-from constant_sorrow.constants import FULL, WORKER_NOT_RUNNING
 from nucypher.acumen.nicknames import nickname_from_seed
 from nucypher.blockchain.economics import BaseEconomics, EconomicsFactory, StandardTokenEconomics
 from nucypher.blockchain.eth.agents import (
@@ -75,8 +77,8 @@ from nucypher.blockchain.eth.deployers import (
 from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
 from nucypher.blockchain.eth.multisig import Authorization, Proposal
 from nucypher.blockchain.eth.registry import BaseContractRegistry, IndividualAllocationRegistry
-from nucypher.blockchain.eth.signers.software import KeystoreSigner, Web3Signer
 from nucypher.blockchain.eth.signers.base import Signer
+from nucypher.blockchain.eth.signers.software import KeystoreSigner, Web3Signer
 from nucypher.blockchain.eth.token import NU, Stake, StakeList, WorkTracker, validate_prolong, validate_increase, \
     validate_divide, validate_merge
 from nucypher.blockchain.eth.utils import (
@@ -93,7 +95,6 @@ from nucypher.config.constants import DEFAULT_CONFIG_ROOT
 from nucypher.crypto.powers import TransactingPower
 from nucypher.types import NuNits, Period
 from nucypher.utilities.logging import Logger
-from typing import Callable
 
 
 class BaseActor:
@@ -931,7 +932,7 @@ class Staker(NucypherTokenActor):
                          lock_periods: int = None,
                          expiration: maya.MayaDT = None,
                          entire_balance: bool = False,
-                         only_lock: bool = False
+                         from_unlocked: bool = False
                          ) -> TxReceipt:
 
         """Create a new stake."""
@@ -949,7 +950,7 @@ class Staker(NucypherTokenActor):
         elif not entire_balance and not amount:
             raise ValueError("Specify an amount or entire balance, got neither")
 
-        token_balance = self.token_balance if not only_lock else self.calculate_staking_reward()
+        token_balance = self.calculate_staking_reward() if from_unlocked else self.token_balance
         if entire_balance:
             amount = token_balance
         if not token_balance >= amount:
@@ -964,10 +965,10 @@ class Staker(NucypherTokenActor):
                                            lock_periods=lock_periods)
 
         # Create stake on-chain
-        if not only_lock:
-            receipt = self._deposit(amount=new_stake.value.to_nunits(), lock_periods=new_stake.duration)
-        else:
+        if from_unlocked:
             receipt = self._lock_and_create(amount=new_stake.value.to_nunits(), lock_periods=new_stake.duration)
+        else:
+            receipt = self._deposit(amount=new_stake.value.to_nunits(), lock_periods=new_stake.duration)
 
         # Log and return receipt
         self.log.info(f"{self.checksum_address} initialized new stake: {amount} tokens for {lock_periods} periods")
@@ -1022,7 +1023,7 @@ class Staker(NucypherTokenActor):
                        stake: Stake,
                        amount: NU = None,
                        entire_balance: bool = False,
-                       only_lock: bool = False
+                       from_unlocked: bool = False
                        ) -> TxReceipt:
         """Add tokens to existing stake."""
         self._ensure_stake_exists(stake)
@@ -1032,7 +1033,7 @@ class Staker(NucypherTokenActor):
             raise ValueError(f"Pass either an amount or entire balance; "
                              f"got {'both' if entire_balance else 'neither'}")
 
-        token_balance = self.token_balance if not only_lock else self.calculate_staking_reward()
+        token_balance = self.calculate_staking_reward() if from_unlocked else self.token_balance
         if entire_balance:
             amount = token_balance
         if not token_balance >= amount:
@@ -1044,10 +1045,10 @@ class Staker(NucypherTokenActor):
         validate_increase(stake=stake, amount=amount)
 
         # Write to blockchain
-        if not only_lock:
-            receipt = self._deposit_and_increase(stake_index=stake.index, amount=int(amount))
-        else:
+        if from_unlocked:
             receipt = self._lock_and_increase(stake_index=stake.index, amount=int(amount))
+        else:
+            receipt = self._deposit_and_increase(stake_index=stake.index, amount=int(amount))
 
         # Update staking cache element
         self.refresh_stakes()

@@ -84,7 +84,7 @@ PROMPT_STAKE_CREATE_VALUE = "Enter stake value in NU ({lower_limit} - {upper_lim
 
 PROMPT_STAKE_CREATE_LOCK_PERIODS = "Enter stake duration ({min_locktime} - {max_locktime})"
 
-PROMPT_DEPOSIT_OR_LOCK = "Transfer tokens from the staker address? Otherwise, unlocked tokens in the escrow will be used"
+CONFIRM_STAKE_USE_UNLOCKED = "Confirm only use uncollected staking rewards and unlocked sub-stakes; not tokens from staker address"
 
 CONFIRM_BROADCAST_CREATE_STAKE = "Publish staged stake to the blockchain?"
 
