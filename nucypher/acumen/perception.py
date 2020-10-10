@@ -39,7 +39,7 @@ def icon_from_checksum(checksum,
     <div class="nucypher-nickname-icon" style="border-color:{color};">
     <div class="small">{number_of_nodes} nodes</div>
     <div class="symbols">
-        <span class="single-symbol" style="color: {color}">{symbol}&#xFE0E;</span>
+        <span class="single-symbol" style="color: {color}">{symbol}</span>
     </div>
     <br/>
     <span class="small-address">{fleet_state_checksum}</span>

@@ -21,26 +21,49 @@ from typing import List
 import random
 from os.path import abspath, dirname, join
 
-import unicodedata
 
 _HERE = abspath(dirname(__file__))
 with open(join(_HERE, 'web_colors.json')) as f:
     _COLORS = json.load(f)['colors']
 
-_SYMBOLS = ("♈", "♉", "♊", "♋", "♌", "♍", "♎", "♏", "♐", "♑", "♒", "♓",
-           "♚", "♛", "♜", "♝", "♞", "♟", "⚓", "⚔", "⚖", "⚗", "⚑", "⚘",
-           "⚪", "⚵", "⚿", "⛇", "⛈", "⛰", "⛸", "⛴", "⛨", "✈", "☤",
-           "⏚", "☠", "☸", "☿", "☾", "♁", "♃", "♄", "☄", "☘", "⚜", "⚚",
-           "⏲", "☣", "☥", "♣", "♥", "♦", "♠", "♫", "🟒", "⚛", "⚙", "⎈",
-           "☮", "☕", "☈", "♯", "♭")
-
-
-def nicename(symbol):
-    unicode_name = unicodedata.name(symbol)
-    final_word = unicode_name.split()[-1]
-    if final_word in ("SYMBOL", "SUIT", "SIGN"):
-        final_word = unicode_name.split()[-2]
-    return final_word.capitalize()
+_SYMBOLS = {
+    "A": "Alfa",
+    "B": "Bravo",
+    "C": "Charlie",
+    "D": "Delta",
+    "E": "Echo",
+    "F": "Foxtrot",
+    "G": "Golf",
+    "H": "Hotel",
+    "I": "India",
+    "J": "Juliett",
+    "K": "Kilo",
+    "L": "Lima",
+    "M": "Mike",
+    "N": "November",
+    "O": "Oscar",
+    "P": "Papa",
+    "Q": "Quebec",
+    "R": "Romeo",
+    "S": "Sierra",
+    "T": "Tango",
+    "U": "Uniform",
+    "V": "Victor",
+    "W": "Whiskey",
+    "X": "X-ray",
+    "Y": "Yankee",
+    "Z": "Zulu",
+    "0": "Zero",
+    "1": "One",
+    "2": "Two",
+    "3": "Three",
+    "4": "Four",
+    "5": "Five",
+    "6": "Six",
+    "7": "Seven",
+    "8": "Eight",
+    "9": "Nine",
+}
 
 
 class NicknameCharacter:
@@ -49,7 +72,7 @@ class NicknameCharacter:
         self.symbol = symbol
         self.color_name = color_name
         self.color_hex = color_hex
-        self._text = color_name + " " + nicename(symbol)
+        self._text = color_name + " " + _SYMBOLS[symbol]
 
     def payload(self):
         return dict(symbol=self.symbol,
@@ -68,7 +91,7 @@ class Nickname:
         # if not seed:
         #     raise ValueError("No checksum provided to derive nickname.")
         rng = random.Random(seed)
-        nickname_symbols = rng.sample(_SYMBOLS, length)
+        nickname_symbols = rng.sample(list(_SYMBOLS), length)
         nickname_colors = rng.sample(_COLORS, length)
         characters = [
             NicknameCharacter(symbol, color['color'], color['hex'])
