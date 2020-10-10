@@ -47,7 +47,7 @@ from constant_sorrow.constants import (INCLUDED_IN_BYTESTRING,
                                        UNKNOWN_VERSION,
                                        READY,
                                        INVALIDATED)
-from nucypher.acumen.nicknames import nickname_from_seed
+from nucypher.acumen.nicknames import Nickname
 from nucypher.acumen.perception import FleetSensor
 from nucypher.blockchain.eth.actors import BlockchainPolicyAuthor, Worker
 from nucypher.blockchain.eth.agents import ContractAgency, StakingEscrowAgent
@@ -1506,7 +1506,7 @@ class Ursula(Teacher, Character, Worker):
             try:
                 canonical_address, _ = BytestringSplitter(ETH_ADDRESS_BYTE_LENGTH)(payload, return_remainder=True)
                 checksum_address = to_checksum_address(canonical_address)
-                nickname, _ = nickname_from_seed(checksum_address)
+                nickname = Nickname.from_seed(checksum_address)
                 display_name = cls._display_name_template.format(cls.__name__, nickname, checksum_address)
                 message = cls.unknown_version_message.format(display_name, version, cls.LEARNER_VERSION)
                 if version > cls.LEARNER_VERSION:

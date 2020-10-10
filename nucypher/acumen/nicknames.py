@@ -17,24 +17,22 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 
 
 import json
+from typing import List
 import random
 from os.path import abspath, dirname, join
 
 import unicodedata
 
-HERE = BASE_DIR = abspath(dirname(__file__))
-with open(join(HERE, 'web_colors.json')) as f:
-    colors = json.load(f)
+_HERE = abspath(dirname(__file__))
+with open(join(_HERE, 'web_colors.json')) as f:
+    _COLORS = json.load(f)['colors']
 
-colors = colors['colors']
-pairs = []
-
-symbols_tuple = ("♈", "♉", "♊", "♋", "♌", "♍", "♎", "♏", "♐", "♑", "♒", "♓",
-                 "♚", "♛", "♜", "♝", "♞", "♟", "⚓", "⚔", "⚖", "⚗", "⚑", "⚘",
-                 "⚪", "⚵", "⚿", "⛇", "⛈", "⛰", "⛸", "⛴", "⛨", "✈", "☤",
-                 "⏚", "☠", "☸", "☿", "☾", "♁", "♃", "♄", "☄", "☘", "⚜", "⚚",
-                 "⏲", "☣", "☥", "♣", "♥", "♦", "♠", "♫", "🟒", "⚛", "⚙", "⎈",
-                 "☮", "☕", "☈", "♯", "♭")
+_SYMBOLS = ("♈", "♉", "♊", "♋", "♌", "♍", "♎", "♏", "♐", "♑", "♒", "♓",
+           "♚", "♛", "♜", "♝", "♞", "♟", "⚓", "⚔", "⚖", "⚗", "⚑", "⚘",
+           "⚪", "⚵", "⚿", "⛇", "⛈", "⛰", "⛸", "⛴", "⛨", "✈", "☤",
+           "⏚", "☠", "☸", "☿", "☾", "♁", "♃", "♄", "☄", "☘", "⚜", "⚚",
+           "⏲", "☣", "☥", "♣", "♥", "♦", "♠", "♫", "🟒", "⚛", "⚙", "⎈",
+           "☮", "☕", "☈", "♯", "♭")
 
 
 def nicename(symbol):
@@ -45,18 +43,45 @@ def nicename(symbol):
     return final_word.capitalize()
 
 
-def nickname_from_seed(seed, number_of_pairs=2):
-    # TODO: #1823 - Workaround for new nickname every restart
-    # if not seed:
-    #     raise ValueError("No checksum provided to derive nickname.")
-    symbols = list(symbols_tuple)
+class NicknameCharacter:
 
-    random.seed(seed)
-    pairs = []
-    for pair in range(number_of_pairs):
-        color = random.choice(colors)
-        symbol = random.choice(symbols)
-        symbols.remove(symbol)
-        pairs.append((color, symbol))
-    nickname = " ".join(("{} {}".format(c['color'], nicename(s)) for c, s in pairs))
-    return nickname, pairs
+    def __init__(self, symbol: str, color_name: str, color_hex: str):
+        self.symbol = symbol
+        self.color_name = color_name
+        self.color_hex = color_hex
+        self._text = color_name + " " + nicename(symbol)
+
+    def payload(self):
+        return dict(symbol=self.symbol,
+                    color_name=self.color_name,
+                    color_hex=self.color_hex)
+
+    def __str__(self):
+        return self._text
+
+
+class Nickname:
+
+    @classmethod
+    def from_seed(cls, seed, length: int = 2):
+        # TODO: #1823 - Workaround for new nickname every restart
+        # if not seed:
+        #     raise ValueError("No checksum provided to derive nickname.")
+        rng = random.Random(seed)
+        nickname_symbols = rng.sample(_SYMBOLS, length)
+        nickname_colors = rng.sample(_COLORS, length)
+        characters = [
+            NicknameCharacter(symbol, color['color'], color['hex'])
+            for symbol, color in zip(nickname_symbols, nickname_colors)]
+        return cls(characters)
+
+    def __init__(self, characters: List[NicknameCharacter]):
+        self._text = " ".join(str(character) for character in characters)
+        self.icon = "[" + "".join(character.symbol for character in characters) + "]"
+        self.characters = characters
+
+    def payload(self):
+        return [character.payload() for character in self.characters]
+
+    def __str__(self):
+        return self._text

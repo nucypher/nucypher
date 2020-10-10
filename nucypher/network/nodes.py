@@ -40,7 +40,7 @@ from constant_sorrow import constant_or_bytes
 from constant_sorrow.constants import (CERTIFICATE_NOT_SAVED, FLEET_STATES_MATCH, NEVER_SEEN, NOT_SIGNED,
                                        NO_KNOWN_NODES, NO_STORAGE_AVAILIBLE, UNKNOWN_FLEET_STATE, UNKNOWN_VERSION,
                                        RELAX)
-from nucypher.acumen.nicknames import nickname_from_seed
+from nucypher.acumen.nicknames import Nickname
 from nucypher.acumen.perception import FleetSensor, icon_from_checksum
 from nucypher.blockchain.economics import EconomicsFactory
 from nucypher.blockchain.eth.agents import ContractAgency, StakingEscrowAgent
@@ -111,7 +111,7 @@ class NodeSprout(PartiallyKwargifiedBytes):
     @property
     def nickname(self):
         if not self._nickname:
-            self._nickname = nickname_from_seed(self.checksum_address)[0]
+            self._nickname = Nickname.from_seed(self.checksum_address)
         return self._nickname
 
     def mature(self):
@@ -957,7 +957,6 @@ class Teacher:
 
         self.fleet_state_icon = UNKNOWN_FLEET_STATE
         self.fleet_state_nickname = UNKNOWN_FLEET_STATE
-        self.fleet_state_nickname_metadata = UNKNOWN_FLEET_STATE
 
         #
         # Identity
@@ -1069,11 +1068,11 @@ class Teacher:
         :param number_of_known_nodes:
         :return:
         """
-        self.fleet_state_nickname, self.fleet_state_nickname_metadata = nickname_from_seed(checksum, number_of_pairs=1)
+        self.fleet_state_nickname = Nickname.from_seed(checksum, length=1)
         self.fleet_state_checksum = checksum
         self.fleet_state_updated = updated
         self.fleet_state_icon = icon_from_checksum(self.fleet_state_checksum,
-                                                   nickname_metadata=self.fleet_state_nickname_metadata,
+                                                   nickname=self.fleet_state_nickname,
                                                    number_of_nodes=number_of_known_nodes)
 
     #
@@ -1324,30 +1323,17 @@ class Teacher:
 
     @property
     def nickname_icon(self):
-        return '{} {}'.format(self.nickname_metadata[0][1], self.nickname_metadata[1][1])
-
-    def nickname_icon_html(self):
-        icon_template = """
-        <div class="nucypher-nickname-icon" style="border-top-color:{first_color}; border-left-color:{first_color}; border-bottom-color:{second_color}; border-right-color:{second_color};">
-        <span class="small">{known_node_class} v{version}</span>
-        <div class="symbols">
-            <span class="single-symbol" style="color: {first_color}">{first_symbol}&#xFE0E;</span>
-            <span class="single-symbol" style="color: {second_color}">{second_symbol}&#xFE0E;</span>
-        </div>
-        <br/>
-        <span class="small-address">{address_first6}</span>
-        </div>
-        """.replace("  ", "").replace('\n', "")
-        return icon_template.format(**self.nickname_icon_details)
+        return self.nickname.icon
 
     def nickname_icon_details(self):
         return dict(
             node_class=self.__class__.__name__,
             version=self.TEACHER_VERSION,
-            first_color=self.nickname_metadata[0][0]['hex'],  # TODO: These index lookups are awful.  NRN
-            first_symbol=self.nickname_metadata[0][1],
-            second_color=self.nickname_metadata[1][0]['hex'],
-            second_symbol=self.nickname_metadata[1][1],
+            # FIXME: generalize in case we want to extend the number of symbols in the node nickname
+            first_color=self.nickname.characters[0].color_hex,
+            first_symbol=self.nickname.characters[0].symbol,
+            second_color=self.nickname.characters[1].color_hex,
+            second_symbol=self.nickname.characters[1].symbol,
             address_first6=self.checksum_address[2:8]
         )
 
@@ -1367,15 +1353,15 @@ class Teacher:
         except AttributeError:
             last_seen = str(node.last_seen)  # In case it's the constant NEVER_SEEN
 
-        fleet_icon = node.fleet_state_nickname_metadata
+        fleet_icon = node.fleet_state_nickname
         if fleet_icon is UNKNOWN_FLEET_STATE:
             fleet_icon = "?"  # TODO  NRN, MN
         else:
-            fleet_icon = fleet_icon[0][1]
+            fleet_icon = fleet_icon.icon
 
-        payload = {"icon_details": node.nickname_icon_details(),
+        payload = {"icon_details": node.nickname.payload(),
                    "rest_url": node.rest_url(),
-                   "nickname": node.nickname,
+                   "nickname": str(node.nickname),
                    "worker_address": node.worker_address,
                    "staker_address": node.checksum_address,
                    "timestamp": node.timestamp.iso8601(),

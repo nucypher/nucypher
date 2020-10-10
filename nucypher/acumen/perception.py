@@ -26,12 +26,12 @@ from collections import namedtuple
 from collections import OrderedDict
 from twisted.logger import Logger
 
-from .nicknames import nickname_from_seed
+from .nicknames import Nickname
 from nucypher.crypto.api import keccak_digest
 
 
 def icon_from_checksum(checksum,
-                       nickname_metadata,
+                       nickname,
                        number_of_nodes="Unknown number of "):
     if checksum is NO_KNOWN_NODES:
         return "NO FLEET STATE AVAILABLE"
@@ -47,8 +47,9 @@ def icon_from_checksum(checksum,
     """.replace("  ", "").replace('\n', "")
     return icon_template.format(
         number_of_nodes=number_of_nodes,
-        color=nickname_metadata[0][0]['hex'],
-        symbol=nickname_metadata[0][1],
+        # FIXME: generalize in case we want to extend the number of symbols in the state nickname
+        color=nickname.characters[0].color_hex,
+        symbol=nickname.characters[0].symbol,
         fleet_state_checksum=checksum[0:8]
     )
 
@@ -59,12 +60,11 @@ class FleetSensor:
     """
     _checksum = NO_KNOWN_NODES.bool_value(False)
     _nickname = NO_KNOWN_NODES
-    _nickname_metadata = NO_KNOWN_NODES
     _tracking = False
     most_recent_node_change = NO_KNOWN_NODES
     snapshot_splitter = BytestringSplitter(32, 4)
     log = Logger("Learning")
-    FleetState = namedtuple("FleetState", ("nickname", "metadata", "icon", "nodes", "updated"))
+    FleetState = namedtuple("FleetState", ("nickname", "icon", "nodes", "updated"))
 
     def __init__(self):
         self.additional_nodes_to_track = []
@@ -107,29 +107,20 @@ class FleetSensor:
     @checksum.setter
     def checksum(self, checksum_value):
         self._checksum = checksum_value
-        self._nickname, self._nickname_metadata = nickname_from_seed(checksum_value, number_of_pairs=1)
+        self._nickname = Nickname.from_seed(checksum_value, length=1)
 
     @property
     def nickname(self):
         return self._nickname
 
     @property
-    def nickname_metadata(self):
-        return self._nickname_metadata
-
-    @property
     def icon(self) -> str:
-        if self.nickname_metadata is NO_KNOWN_NODES:
+        if self.nickname is NO_KNOWN_NODES:
             return str(NO_KNOWN_NODES)
-        return self.nickname_metadata[0][1]
+        return self.nickname.icon
 
     def addresses(self):
         return self._nodes.keys()
-
-    def icon_html(self):
-        return icon_from_checksum(checksum=self.checksum,
-                                  number_of_nodes=str(len(self)),
-                                  nickname_metadata=self.nickname_metadata)
 
     def snapshot(self):
         fleet_state_checksum_bytes = binascii.unhexlify(self.checksum)
@@ -153,7 +144,6 @@ class FleetSensor:
             # For now we store the sorted node list.  Someday we probably spin this out into
             # its own class, FleetState, and use it as the basis for partial updates.
             new_state = self.FleetState(nickname=self.nickname,
-                                        metadata=self.nickname_metadata,
                                         nodes=sorted_nodes,
                                         icon=self.icon,
                                         updated=self.updated)
@@ -184,9 +174,10 @@ class FleetSensor:
 
     @staticmethod
     def abridged_state_details(state):
-        return {"nickname": state.nickname,
-                "symbol": state.metadata[0][1],
-                "color_hex": state.metadata[0][0]['hex'],
-                "color_name": state.metadata[0][0]['color'],
+        return {"nickname": str(state.nickname),
+                # FIXME: generalize in case we want to extend the number of symbols in the state nickname
+                "symbol": state.nickname.characters[0].symbol,
+                "color_hex": state.nickname.characters[0].color_hex,
+                "color_name": state.nickname.characters[0].color_name,
                 "updated": state.updated.rfc2822(),
                 }
