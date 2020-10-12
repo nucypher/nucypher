@@ -981,7 +981,7 @@ class Bob(Character):
                 # Not enough matching nodes.  Fine, we'll just publish to the first few.
                 try:
                     # TODO: This is almost certainly happening in a test.  If it does happen in production, it's a bit of a problem.  Need to fix #2124 to mitigate.
-                    target_nodes = list(nodes._nodes.values())[0:6]
+                    target_nodes = list(nodes.values())[0:6]
                     return target_nodes
                 except IndexError:
                     raise self.NotEnoughNodes("There aren't enough nodes on the network to enact this policy.  Unless this is day one of the network and nodes are still getting spun up, something is bonkers.")
@@ -1113,6 +1113,7 @@ class Ursula(Teacher, Character, Worker):
                            known_nodes=known_nodes,
                            domain=domain,
                            known_node_class=Ursula,
+                           include_self_in_the_state=True,
                            **character_kwargs)
 
         if is_me:
@@ -1232,7 +1233,7 @@ class Ursula(Teacher, Character, Worker):
                          decentralized_identity_evidence=decentralized_identity_evidence)
 
         if is_me:
-            self.known_nodes.record_fleet_state(additional_nodes_to_track=[self])  # Initial Impression
+            self.known_nodes.record_fleet_state()  # Initial Impression
 
             message = "THIS IS YOU: {}: {}".format(self.__class__.__name__, self)
             self.log.info(message)
@@ -1240,6 +1241,11 @@ class Ursula(Teacher, Character, Worker):
         else:
             message = "Initialized Stranger {} | {}".format(self.__class__.__name__, self)
             self.log.debug(message)
+
+        # FIXME: we need to know when Ursula is ready to be recorded in a fleet state.
+        # The first time fleet state is updated may be still within this constructor.
+        # Any better way to solve this?
+        self.finished_initializing = True
 
     def __prune_datastore(self) -> None:
         """Deletes all expired arrangements, kfrags, and treasure maps in the datastore."""

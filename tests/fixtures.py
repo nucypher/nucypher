@@ -954,8 +954,8 @@ def fleet_of_highperf_mocked_ursulas(ursula_federated_test_config, request):
                 all_ursulas = {u.checksum_address: u for u in _ursulas}
 
                 for ursula in _ursulas:
-                    ursula.known_nodes._nodes = all_ursulas
-                    ursula.known_nodes.checksum = b"This is a fleet state checksum..".hex()
+                    ursula.known_nodes.current_state._nodes = all_ursulas
+                    ursula.known_nodes.current_state.checksum = b"This is a fleet state checksum..".hex()
     yield _ursulas
 
     for ursula in _ursulas:
@@ -972,7 +972,7 @@ def highperf_mocked_alice(fleet_of_highperf_mocked_ursulas):
                                 save_metadata=False,
                                 reload_metadata=False)
 
-    with mock_cert_storage, mock_verify_node, mock_record_fleet_state, mock_message_verification, mock_keep_learning:
+    with mock_cert_storage, mock_verify_node, mock_message_verification, mock_keep_learning:
         alice = config.produce(known_nodes=list(fleet_of_highperf_mocked_ursulas)[:1])
     yield alice
     # TODO: Where does this really, truly belong?

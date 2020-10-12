@@ -46,9 +46,11 @@ def test_ursula_html_renders(ursula, client):
     assert str(ursula.nickname).encode() in response.data
 
 
-def test_decentralized_json_status_endpoint(ursula, client):
-    response = client.get('/status/?json=true')
+@pytest.mark.parametrize('omit_known_nodes', [False, True])
+def test_decentralized_json_status_endpoint(ursula, client, omit_known_nodes):
+    omit_known_nodes_str = 'true' if omit_known_nodes else 'false'
+    response = client.get(f'/status/?json=true&omit_known_nodes={omit_known_nodes_str}')
     assert response.status_code == 200
     json_status = response.get_json()
-    status = ursula.abridged_node_details()
+    status = ursula.status_info(omit_known_nodes=omit_known_nodes)
     assert json_status == status

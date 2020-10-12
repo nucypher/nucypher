@@ -53,7 +53,7 @@
       debug:
         msg:
           "local nickname: {{host_nickname}}\n
-          {% if serving and 'json' in status_data %}nickname: {{status_data.json.nickname}}\n
+          {% if serving and 'json' in status_data %}nickname: {{status_data.json.nickname.text}}\n
           staker address:          {{status_data.json.staker_address}}\n
           worker address:          {{status_data.json.worker_address}}\n
           rest url:                https://{{status_data.json.rest_url}}\n

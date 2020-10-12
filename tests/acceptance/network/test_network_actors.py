@@ -118,9 +118,6 @@ def test_vladimir_illegal_interface_key_does_not_propagate(blockchain_ursulas):
     # Indeed, Ursula noticed that something was up.
     vladimir in other_ursula.suspicious_activities_witnessed['vladimirs']
 
-    # She marked him as Invalid...
-    vladimir in other_ursula.known_nodes._marked[vladimir.InvalidNode]
-
     # ...and booted him from known_nodes
     vladimir not in other_ursula.known_nodes
 
@@ -143,7 +140,8 @@ def test_alice_refuses_to_make_arrangement_unless_ursula_is_valid(blockchain_ali
     # Ideally, a fishy node shouldn't be present in `known_nodes`,
     # but I guess we're testing the case when it became fishy somewhere between we learned about it
     # and the proposal arrangement.
-    blockchain_alice.known_nodes[vladimir.checksum_address] = vladimir
+    blockchain_alice.known_nodes.record_node(vladimir)
+    blockchain_alice.known_nodes.record_fleet_state()
 
     with pytest.raises(vladimir.InvalidNode):
         idle_blockchain_policy._propose_arrangement(address=vladimir.checksum_address,

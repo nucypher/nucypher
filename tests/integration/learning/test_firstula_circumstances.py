@@ -51,7 +51,7 @@ def test_get_cert_from_running_seed_node(lonely_ursula_maker):
                                            network_middleware=RestMiddleware()).pop()
     assert not any_other_ursula.known_nodes
 
-    yield deferToThread(any_other_ursula.load_seednodes)
+    yield deferToThread(lambda: any_other_ursula.load_seednodes(record_fleet_state=True))
     assert firstula in any_other_ursula.known_nodes
 
     firstula_as_learned = any_other_ursula.known_nodes[firstula.checksum_address]

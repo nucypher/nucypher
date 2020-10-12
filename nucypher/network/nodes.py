@@ -174,7 +174,6 @@ class Learner:
     tracker_class = FleetSensor
 
     invalid_metadata_message = "{} has invalid metadata.  The node's stake may have ended, or it is transitioning to a new interface. Ignoring."
-    fleet_state_population = None
 
     _DEBUG_MODE = False
 
@@ -209,6 +208,7 @@ class Learner:
                  abort_on_learning_error: bool = False,
                  lonely: bool = False,
                  verify_node_bonding: bool = True,
+                 include_self_in_the_state: bool = False,
                  ) -> None:
 
         self.log = Logger("learning-loop")  # type: Logger
@@ -228,7 +228,7 @@ class Learner:
         self._learning_listeners = defaultdict(list)
         self._node_ids_to_learn_about_immediately = set()
 
-        self.__known_nodes = self.tracker_class(domain=domain)
+        self.__known_nodes = self.tracker_class(domain=domain, this_node=self if include_self_in_the_state else None)
         self._verify_node_bonding = verify_node_bonding
 
         self.lonely = lonely
@@ -253,6 +253,7 @@ class Learner:
                 self.remember_node(node, eager=True)
             except self.UnresponsiveTeacher:
                 self.unresponsive_startup_nodes.append(node)
+        self.known_nodes.record_fleet_state()
 
         self.teacher_nodes = deque()
         self._current_teacher_node = None  # type: Teacher
@@ -387,7 +388,7 @@ class Learner:
                 # This node is already known.  We can safely return.
                 return False
 
-        self.known_nodes[node.checksum_address] = node  # FIXME - dont always remember nodes, bucket them.
+        self.known_nodes.record_node(node) # FIXME - dont always remember nodes, bucket them.
 
         if self.save_metadata:
             self.node_storage.store_node_metadata(node=node)
@@ -749,7 +750,7 @@ class Learner:
 
         if not self.done_seeding:
             try:
-                remembered_seednodes = self.load_seednodes(record_fleet_state=False)
+                remembered_seednodes = self.load_seednodes(record_fleet_state=True)
             except Exception as e:
                 # Even if we aren't aborting on learning errors, we want this to crash the process pronto.
                 e.crash_right_now = True
@@ -761,7 +762,7 @@ class Learner:
 
         current_teacher = self.current_teacher_node()  # Will raise if there's no available teacher.
 
-        if Teacher in self.__class__.__bases__:
+        if isinstance(self, Teacher):
             announce_nodes = [self]
         else:
             announce_nodes = None
@@ -842,18 +843,18 @@ class Learner:
                 f"Invalid signature ({signature}) received from teacher {current_teacher} for payload {node_payload}")
 
         # End edge case handling.
-        payload = FleetSensor.snapshot_splitter(node_payload, return_remainder=True)
-        fleet_state_checksum_bytes, fleet_state_updated_bytes, node_payload = payload
+
+        fleet_state_checksum, fleet_state_updated, node_payload = FleetSensor.unpack_snapshot(node_payload)
 
         current_teacher.last_seen = maya.now()
-        # TODO: This is weird - let's get a stranger FleetState going.  NRN
-        checksum = fleet_state_checksum_bytes.hex()
 
         if constant_or_bytes(node_payload) is FLEET_STATES_MATCH:
-            current_teacher.update_snapshot(checksum=checksum,
-                                            updated=maya.MayaDT(
-                                                int.from_bytes(fleet_state_updated_bytes, byteorder="big")),
-                                            number_of_known_nodes=self.known_nodes.population())
+            self.known_nodes.record_remote_fleet_state(
+                current_teacher.checksum_address,
+                fleet_state_checksum,
+                fleet_state_updated,
+                self.known_nodes.population)
+
             return FLEET_STATES_MATCH
 
         # Note: There was previously a version check here, but that required iterating through node bytestrings twice,
@@ -908,9 +909,11 @@ class Learner:
                 self.log.warn(message)
 
         # Is cycling happening in the right order?
-        current_teacher.update_snapshot(checksum=checksum,
-                                        updated=maya.MayaDT(int.from_bytes(fleet_state_updated_bytes, byteorder="big")),
-                                        number_of_known_nodes=len(sprouts))
+        self.known_nodes.record_remote_fleet_state(
+            current_teacher.checksum_address,
+            fleet_state_checksum,
+            fleet_state_updated,
+            len(sprouts))
 
         ###################
 
@@ -945,12 +948,7 @@ class Teacher:
         #
 
         self.domain = domain
-        self.fleet_state_checksum = None
-        self.fleet_state_updated = None
         self.last_seen = NEVER_SEEN("No Connection to Node")
-
-        self.fleet_state_population = UNKNOWN_FLEET_STATE
-        self.fleet_state_nickname = UNKNOWN_FLEET_STATE
 
         #
         # Identity
@@ -1049,23 +1047,6 @@ class Teacher:
 
         payload += ursulas_as_bytes
         return payload
-
-    def update_snapshot(self, checksum, updated, number_of_known_nodes):
-        """
-        TODO: We update the simple snapshot here, but of course if we're dealing
-              with an instance that is also a Learner, it has
-              its own notion of its FleetState, so we probably
-              need a reckoning of sorts here to manage that.  In time.  NRN
-
-        :param checksum:
-        :param updated:
-        :param number_of_known_nodes:
-        :return:
-        """
-        self.fleet_state_nickname = Nickname.from_seed(checksum, length=1)
-        self.fleet_state_checksum = checksum
-        self.fleet_state_updated = updated
-        self.fleet_state_population = number_of_known_nodes
 
     #
     # Stamp
@@ -1310,75 +1291,66 @@ class Teacher:
         return self.timestamp.epoch.to_bytes(4, 'big')
 
     #
-    # Nicknames and Metadata
+    # Status metadata
     #
 
-    @property
-    def nickname_icon(self):
-        return self.nickname.icon
-
-    def nickname_icon_details(self):
-        return dict(
-            node_class=self.__class__.__name__,
-            version=self.TEACHER_VERSION,
-            # FIXME: generalize in case we want to extend the number of symbols in the node nickname
-            first_color=self.nickname.characters[0].color_hex,
-            first_symbol=self.nickname.characters[0].symbol,
-            second_color=self.nickname.characters[1].color_hex,
-            second_symbol=self.nickname.characters[1].symbol,
-            address_first6=self.checksum_address[2:8]
-        )
-
-    def known_nodes_details(self, raise_invalid=True) -> dict:
-        abridged_nodes = {}
-        for checksum_address, node in self.known_nodes._nodes.items():
-            try:
-                abridged_nodes[checksum_address] = self.node_details(node=node)
-            except self.StampNotSigned:
-                if raise_invalid:
-                    raise
-                self.log.error(f"encountered unsigned stamp for node with checksum: {checksum_address}")
-        return abridged_nodes
-
-    @staticmethod
-    def node_details(node):
-        """Stranger-Safe Details"""
-        node.mature()
+    def _status_info_base(self, raise_invalid=True):
 
         try:
-            last_seen = node.last_seen.iso8601()
+            worker_address = self.worker_address
+        # FIXME: how did such a node end up in `known_nodes`?
+        except self.StampNotSigned:
+            if raise_invalid:
+                raise
+            self.log.error(f"encountered unsigned stamp for node with checksum: {self.checksum_address}")
+            worker_address = 'UNSIGNED_STAMP'
+
+        return dict(
+            nickname=self.nickname.to_json(),
+            staker_address=self.checksum_address,
+            worker_address=worker_address,
+            rest_url=self.rest_url(),
+            )
+
+    def _status_info_remote(self, known_nodes, raise_invalid=True):
+        info = self._status_info_base(raise_invalid=raise_invalid)
+
+        try:
+            last_seen = self.last_seen.iso8601()
         except AttributeError:
-            last_seen = str(node.last_seen)  # In case it's the constant NEVER_SEEN
+            last_seen = None # In case it's the constant NEVER_SEEN
 
-        fleet_icon = node.fleet_state_nickname
-        if fleet_icon is UNKNOWN_FLEET_STATE:
-            fleet_icon = "?"  # TODO  NRN, MN
+        info['last_learned_from'] = last_seen
+
+        # TODO: what *is* the `timestamp`, anyway? When is it created?
+        info['timestamp'] = self.timestamp.iso8601()
+
+        # TODO: how come we know about the node but not about its fleet state? Does it ever happen?
+        if self.checksum_address in known_nodes.remote_states:
+            info['recorded_fleet_state'] = known_nodes.remote_states[self.checksum_address].to_json()
         else:
-            fleet_icon = fleet_icon.icon
+            info['recorded_fleet_state'] = None
 
-        payload = {"icon_details": node.nickname.payload(),
-                   "rest_url": node.rest_url(),
-                   "nickname": str(node.nickname),
-                   "worker_address": node.worker_address,
-                   "staker_address": node.checksum_address,
-                   "timestamp": node.timestamp.iso8601(),
-                   "last_seen": last_seen,
-                   "fleet_state": node.fleet_state_checksum or 'unknown',
-                   "fleet_state_icon": fleet_icon,
-                   "domain": node.domain,
-                   'version': nucypher.__version__
-                   }
-        return payload
+        return info
 
-    def abridged_node_details(self, raise_invalid=True) -> dict:
-        """Self-Reporting"""
-        payload = self.node_details(node=self)
-        states = self.known_nodes.abridged_states_dict()
-        known = self.known_nodes_details(raise_invalid=raise_invalid)
-        payload.update({'states': states, 'known_nodes': known})
-        if not self.federated_only:
-            payload.update({
-                "balances": dict(eth=float(self.eth_balance), nu=float(self.token_balance.to_tokens())),
-                "missing_commitments": self.missing_commitments,
-                "last_committed_period": self.last_committed_period})
-        return payload
+    def status_info(self, raise_invalid=True, omit_known_nodes=False):
+        # FIXME: is anyone using `raise_invalid=True`? Or is it always `False`?
+
+        for node in self.known_nodes:
+            node.mature()
+
+        info = self._status_info_base()
+
+        info['domain'] = self.domain
+        info['version'] = nucypher.__version__
+
+        latest_states = self.known_nodes.latest_states(5)
+
+        info['fleet_state'] = latest_states[-1].to_json()
+        info['previous_fleet_states'] = [state.to_json() for state in latest_states[:-1]]
+
+        if not omit_known_nodes:
+            info['known_nodes'] = [node._status_info_remote(self.known_nodes, raise_invalid=raise_invalid)
+                                   for node in self.known_nodes.values()]
+
+        return info
