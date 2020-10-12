@@ -529,7 +529,10 @@ class WorkTracker:
     INTERVAL_FLOOR = 60 * 15  # fifteen minutes
     INTERVAL_CEIL = 60 * 180  # three hours
 
-    def __init__(self, worker, *args, **kwargs):
+    def __init__(self,
+                 worker,
+                 crash_on_error: bool = False,
+                 *args, **kwargs):
 
         super().__init__(*args, **kwargs)
         self.log = Logger('stake-tracker')
@@ -539,11 +542,12 @@ class WorkTracker:
         self._tracking_task = task.LoopingCall(self._do_work)
         self._tracking_task.clock = self.CLOCK
 
+        self.__pending = dict()
         self.__requirement = None
         self.__current_period = None
         self.__start_time = NOT_STAKING
         self.__uptime_period = NOT_STAKING
-        self._abort_on_error = True
+        self._abort_on_error = crash_on_error
 
     @classmethod
     def random_interval(cls) -> int:
@@ -590,15 +594,12 @@ class WorkTracker:
     def handle_working_errors(self, *args, **kwargs) -> None:
         failure = args[0]
         if self._abort_on_error:
-            self.log.critical('Unhandled error during node work tracking. {failure!r}',
-                              failure=failure)
+            self.log.critical('Unhandled error during node work tracking. {failure!r}', failure=failure)
             reactor.callFromThread(self._crash_gracefully, failure=failure)
         else:
-            self.log.warn('Unhandled error during work tracking: {failure.getTraceback()!r}',
-                          failure=failure)
+            self.log.warn('Unhandled error during work tracking: {failure.getTraceback()!r}', failure=failure)
 
-    def __check_work_requirement(self) -> bool:
-        # TODO: Check for stake expiration and exit
+    def __check_work_requirements(self) -> bool:
         if self.__requirement is None:
             return True
         try:
@@ -627,21 +628,26 @@ class WorkTracker:
         if interval < 0:
             return  # No need to commit to this period.  Save the gas.
         if interval > 0:
-            # TODO: #1516 Follow-up actions for downtime
+            # TODO: #1516 Follow-up actions for downtime with injected callable
             self.log.warn(f"MISSED COMMITMENTS - {interval} missed staking commitments detected.")
+            # if self.handle_missed_commitments is not None:
+            #     self.handle_missed_commitments(self.ursula)
 
         # Only perform work this round if the requirements are met
-        if not self.__check_work_requirement():
-            self.log.warn(f'COMMIT PREVENTED (callable: "{self.__requirement.__name__}") - '
-                          f'There are unmet commit requirements.')
-            # TODO: Follow-up actions for downtime
+        if not self.__check_work_requirements():
+            warning = f'COMMIT PREVENTED (callable: "{self.__requirement.__name__}") - There are unmet commit requirements.'
+            self.log.warn(warning)
             return
 
         # Make a Commitment
         self.log.info("Made a commitment to period {}".format(self.current_period))
         transacting_power = self.worker.transacting_power
         with transacting_power:
-            self.worker.commit_to_next_period(fire_and_forget=True)  # < --- blockchain WRITE | Do not wait for receipt
+            txhash = self.worker.commit_to_next_period(wait_for_receipt=False)  # < --- blockchain WRITE
+
+        # Populate pending
+        now = maya.now().epoch
+        self.__pending[now] = txhash
 
 
 class StakeList(UserList):
