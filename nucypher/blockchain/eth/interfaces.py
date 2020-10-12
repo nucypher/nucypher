@@ -397,7 +397,8 @@ class BlockchainInterface:
                       ) -> dict:
 
         base_payload = {'chainId': int(self.client.chain_id),
-                        'nonce': self.client.w3.eth.getTransactionCount(sender_address, 'pending'),  # TODO: Internal nonce tracking for workers
+                        # TODO: Internal nonce tracking for workers
+                        'nonce': self.client.w3.eth.getTransactionCount(sender_address, 'pending'),
                         'from': sender_address}
 
         # Aggregate
@@ -484,7 +485,6 @@ class BlockchainInterface:
         # Sign
         #
 
-        # TODO: Show the USD Price:  https://api.coinmarketcap.com/v1/ticker/ethereum/
         price = transaction_dict['gasPrice']
         price_gwei = Web3.fromWei(price, 'gwei')
         cost_wei = price * transaction_dict['gas']

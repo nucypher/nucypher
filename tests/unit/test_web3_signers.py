@@ -31,7 +31,7 @@ from nucypher.blockchain.eth.signers import TrezorSigner
 
 TRANSACTION_DICT = {
     'chainId': 1,
-    'nonce': 2,
+    'nonce': 42,
     'gasPrice': 2000000000000,
     'gas': 314159,
     'to': '0xd3CdA913deB6f67967B99D67aCDFa1712C293601',

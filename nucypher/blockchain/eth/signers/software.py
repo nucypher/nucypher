@@ -49,7 +49,7 @@ class Web3Signer(Signer):
         return NotImplemented  # web3 signer uses a "passthrough" scheme
 
     @classmethod
-    def from_signer_uri(cls, uri: str, testnet: bool = False) -> 'Web3Signer':
+    def from_signer_uri(cls, uri: str, testnet: bool = False) -> 'Web3Signer':  # TODO: testnet flag is unused in this signer
         from nucypher.blockchain.eth.interfaces import BlockchainInterface, BlockchainInterfaceFactory
         try:
             blockchain = BlockchainInterfaceFactory.get_or_create_interface(provider_uri=uri)
