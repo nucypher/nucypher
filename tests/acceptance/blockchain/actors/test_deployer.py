@@ -31,7 +31,7 @@ from tests.constants import INSECURE_DEVELOPMENT_PASSWORD, NUMBER_OF_ALLOCATIONS
 
 
 @pytest.mark.usefixtures('testerchain')
-def test_rapid_deployment(token_economics, test_registry, tmpdir, get_random_checksum_address, test_economics):
+def test_rapid_deployment(token_economics, test_registry, tmpdir, get_random_checksum_address):
     compiler = SolidityCompiler()
 
     blockchain = _TesterBlockchain(eth_airdrop=False,

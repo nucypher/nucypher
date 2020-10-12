@@ -19,7 +19,7 @@ from unittest import mock
 
 import os
 
-from nucypher.cli.literature import SUCCESSFUL_DESTRUCTION
+from nucypher.cli.literature import SUCCESSFUL_DESTRUCTION, COLLECT_NUCYPHER_PASSWORD
 from nucypher.cli.main import nucypher_cli
 from nucypher.config.characters import AliceConfiguration
 from nucypher.config.constants import NUCYPHER_ENVVAR_KEYRING_PASSWORD, TEMPORARY_DOMAIN
@@ -55,7 +55,7 @@ def test_initialize_alice_defaults(click_runner, mocker, custom_filepath, monkey
     assert "nucypher alice run" in result.output
 
     # Auth
-    assert 'Enter NuCypher keyring password' in result.output, 'WARNING: User was not prompted for password'
+    assert COLLECT_NUCYPHER_PASSWORD in result.output, 'WARNING: User was not prompted for password'
     assert 'Repeat for confirmation:' in result.output, 'User was not prompted to confirm password'
 
 
@@ -104,7 +104,7 @@ def test_initialize_alice_with_custom_configuration_root(custom_filepath, click_
     assert os.path.isfile(custom_config_filepath), 'Configuration file does not exist'
 
     # Auth
-    assert 'Enter NuCypher keyring password' in result.output, 'WARNING: User was not prompted for password'
+    assert COLLECT_NUCYPHER_PASSWORD in result.output, 'WARNING: User was not prompted for password'
     assert 'Repeat for confirmation:' in result.output, 'User was not prompted to confirm password'
 
 
