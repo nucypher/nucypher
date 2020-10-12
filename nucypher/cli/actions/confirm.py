@@ -56,7 +56,7 @@ def confirm_deployment(emitter: StdoutEmitter, deployer_interface: BlockchainDep
         expected_chain_name = deployer_interface.client.chain_name
     if click.prompt(f"Type '{expected_chain_name.upper()}' to continue") != expected_chain_name.upper():
         emitter.echo(ABORT_DEPLOYMENT, color='red', bold=True)
-        raise click.Abort()
+        raise click.Abort(ABORT_DEPLOYMENT)
     return True
 
 

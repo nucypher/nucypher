@@ -92,7 +92,7 @@ CONFIRM_INCREASING_STAKE = "Confirm increase stake (index: {stake_index}) by {va
 
 INSUFFICIENT_BALANCE_TO_INCREASE = "There are no tokens to increase stake"
 
-INSUFFICIENT_BALANCE_TO_CREATE = "There are not enough tokens to create stake"
+INSUFFICIENT_BALANCE_TO_CREATE = "Insufficient NU for stake creation."
 
 MAXIMUM_STAKE_REACHED = "Maximum stake reached, can't lock more"
 
@@ -216,11 +216,10 @@ PROMPT_WORKER_ADDRESS = "Enter worker address"
 CONFIRM_WORKER_AND_STAKER_ADDRESSES_ARE_EQUAL = """
 
 {address}
-The worker address provided is the same as the staking account.
+The worker address provided is the same as the staker.
 It is *highly recommended* to use a different accounts for staker and worker roles.
 
-Continue?
-"""
+Continue using the same account for worker and staker?"""
 
 SUCCESSFUL_WORKER_BONDING = "\nWorker {worker_address} successfully bonded to staker {staking_address}"
 
@@ -296,7 +295,10 @@ NO_FEE_TO_WITHDRAW = "No policy fee can be withdrawn."
 # Configuration
 #
 
-MISSING_CONFIGURATION_FILE = """No {name} configuration file found. 'To create a new persistent {name} run:
+MISSING_CONFIGURATION_FILE = """
+
+No {name} configuration file found.  To create a new {name} configuration run:
+
 nucypher {init_command}
 """
 
@@ -326,7 +328,7 @@ Delete all {name} character files including:
 
 Are you sure?"""
 
-SUCCESSFUL_DESTRUCTION = "Successfully destroyed NuCypher configuration"
+SUCCESSFUL_DESTRUCTION = "Successfully destroyed nucypher configuration"
 
 CONFIRM_FORGET_NODES = "Permanently delete all known node data?"
 
@@ -338,16 +340,26 @@ SUCCESSFUL_DATABASE_DESTRUCTION = "Destroyed existing database {path}"
 
 SUCCESSFUL_DATABASE_CREATION = "\nCreated new database at {path}"
 
-SUCCESSFUL_NEW_STAKEHOLDER_CONFIG = "Wrote new stakeholder configuration to {filepath}"
+SUCCESSFUL_NEW_STAKEHOLDER_CONFIG = """
+Configured new stakeholder!
+Wrote JSON configuration to {filepath}
+
+* Review configuration     -> nucypher stake config
+* View connected accounts  -> nucypher stake accounts
+* Create a new stake       -> nucypher stake create
+* Bond a worker            -> nucypher stake bond-worker
+* List active stakes       -> nucypher stake list
+
+"""
 
 
 #
 #  Authentication
 #
 
-COLLECT_ETH_PASSWORD = "Enter password to unlock account {checksum_address}"
+COLLECT_ETH_PASSWORD = "Enter ethereum account password ({checksum_address})"
 
-COLLECT_NUCYPHER_PASSWORD = "Enter NuCypher keyring password"
+COLLECT_NUCYPHER_PASSWORD = 'Enter nucypher keyring password'
 
 GENERIC_PASSWORD_PROMPT = "Enter password"
 
@@ -359,7 +371,7 @@ DECRYPTING_CHARACTER_KEYRING = 'Decrypting {name} keyring...'
 #
 
 
-CONFIRM_URSULA_IPV4_ADDRESS = "Is this the public-facing IPv4 address ({rest_host}) you want to use for Ursula?"
+CONFIRM_URSULA_IPV4_ADDRESS = "Detected IPv4 address ({rest_host}) - Is this is the public-facing address of Ursula?"
 
 COLLECT_URSULA_IPV4_ADDRESS = "Enter Ursula's public-facing IPv4 address:"
 
