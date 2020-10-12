@@ -401,12 +401,12 @@ class Character(Learner):
         :return: Whether or not the signature is valid, the decrypted plaintext or NO_DECRYPTION_PERFORMED
         """
 
-        #
+
         # Optional Sanity Check
         #
 
-        # In the spirit of duck-typing, we want to accept a message kit object, or bytes
-        # If the higher-order object MessageKit is passed, we can perform an additional
+        # In the spirit of duck-typing, we want to accept a message kit object or bytes.
+        # If the higher-order object - MessageKit - is passed, we can perform an additional
         # eager sanity check before performing decryption.
 
         with contextlib.suppress(AttributeError):
