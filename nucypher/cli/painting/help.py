@@ -71,13 +71,8 @@ def paint_new_installation_help(emitter, new_configuration):
         emitter.echo(how_to_stake_message, color='green')
 
     # Everyone: Give the use a suggestion as to what to do next
-    vowels = ('a', 'e', 'i', 'o', 'u')
-    character_name_starts_with_vowel = character_name[0].lower() in vowels
-    adjective = 'an' if character_name_starts_with_vowel else 'a'
     suggested_command = f'nucypher {character_name} run'
-    how_to_run_message = f"\nTo run {adjective} {character_name.capitalize()} node from the default configuration " \
-                         f"filepath run: \n\n'{suggested_command}'\n"
-
+    how_to_run_message = f"\nTo start {character_name.capitalize()} run '{suggested_command}'\n"
     emitter.echo(how_to_run_message.format(suggested_command), color='green')
 
 

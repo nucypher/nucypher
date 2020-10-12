@@ -135,6 +135,7 @@ def prettify_stake(stake, index: int = None) -> str:
 
 
 def paint_staged_stake_division(emitter,
+                                blockchain,
                                 stakeholder,
                                 original_stake,
                                 target_value,
@@ -149,6 +150,7 @@ Staking address: {staking_address}
 """
 
     paint_staged_stake(emitter=emitter,
+                       blockchain=blockchain,
                        stakeholder=stakeholder,
                        staking_address=staking_address,
                        stake_value=target_value,
@@ -159,6 +161,7 @@ Staking address: {staking_address}
 
 
 def paint_staged_stake(emitter,
+                       blockchain,
                        stakeholder,
                        staking_address,
                        stake_value,
@@ -185,7 +188,7 @@ def paint_staged_stake(emitter,
 
     emitter.echo(f"""
 Staking address: {staking_address}
-~ Chain      -> ID # {stakeholder.wallet.blockchain.client.chain_id} | {stakeholder.wallet.blockchain.client.chain_name}
+~ Chain      -> ID # {blockchain.client.chain_id} | {blockchain.client.chain_name}
 ~ Value      -> {stake_value} ({int(stake_value)} NuNits)
 ~ Duration   -> {lock_periods} Days ({lock_periods} Periods)
 ~ Enactment  -> {start_datetime_pretty} (period #{start_period})
