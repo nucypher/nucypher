@@ -90,7 +90,9 @@ class UrsulaConfiguration(CharacterConfiguration):
             db_filepath=self.db_filepath,
             availability_check=self.availability_check,
         )
-        return {**super().static_payload(), **payload}
+        payload = {**super().static_payload(), **payload}
+        del payload['checksum_address']  # avoid configuration confusion, use worker address
+        return payload
 
     @property
     def dynamic_payload(self) -> dict:
@@ -258,15 +260,13 @@ class StakeHolderConfiguration(CharacterConfiguration):
 
     def static_payload(self) -> dict:
         """Values to read/write from stakeholder JSON configuration files"""
-        if not self.signer_uri:
-            self.signer_uri = self.provider_uri
         payload = dict(provider_uri=self.provider_uri,
                        light=self.is_light,
                        domain=self.domain,
                        # TODO: Move empty collection casting to base
                        checksum_addresses=self.checksum_addresses or list(),
                        signer_uri=self.signer_uri,
-                       worker_data=self.worker_data
+                       worker_data=self.worker_data,
                        )
 
         if self.registry_filepath:

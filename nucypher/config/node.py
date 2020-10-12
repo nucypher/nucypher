@@ -345,10 +345,9 @@ class CharacterConfiguration(BaseConfiguration):
         payload = cls._read_configuration_file(filepath=filepath)
         node_storage = cls.load_node_storage(storage_payload=payload['node_storage'],
                                              federated_only=payload['federated_only'])
-        domain = payload['domain']
 
         # Assemble
-        payload.update(dict(node_storage=node_storage, domain=domain))
+        payload.update(dict(node_storage=node_storage))
         # Filter out None values from **overrides to detect, well, overrides...
         # Acts as a shim for optional CLI flags.
         overrides = {k: v for k, v in overrides.items() if v is not None}
@@ -383,7 +382,7 @@ class CharacterConfiguration(BaseConfiguration):
         return True
 
     def static_payload(self) -> dict:
-        """Exported static configuration values for initializing Ursula"""
+        """Exported static configuration values for initializing"""
 
         payload = dict(
 
@@ -405,8 +404,6 @@ class CharacterConfiguration(BaseConfiguration):
         # Optional values (mode)
         if not self.federated_only:
             if self.provider_uri:
-                if not self.signer_uri:
-                    self.signer_uri = self.provider_uri
                 payload.update(dict(provider_uri=self.provider_uri,
                                     light=self.is_light,
                                     signer_uri=self.signer_uri))
