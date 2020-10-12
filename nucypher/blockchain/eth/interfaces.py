@@ -15,15 +15,18 @@ You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
+
+import pprint
+from typing import NamedTuple, Tuple, Union, Optional, Callable
+from urllib.parse import urlparse
+
 import math
 import os
-import pprint
 import requests
 from constant_sorrow.constants import (
     INSUFFICIENT_ETH,
     NO_BLOCKCHAIN_CONNECTION,
     NO_COMPILATION_PERFORMED,
-    NO_PROVIDER_PROCESS,
     READ_ONLY_INTERFACE,
     UNKNOWN_TX_STATUS
 )
@@ -31,16 +34,13 @@ from eth_tester.exceptions import TransactionFailed as TestTransactionFailed
 from eth_typing import ChecksumAddress
 from eth_utils import to_checksum_address
 from hexbytes.main import HexBytes
-from typing import NamedTuple, Tuple, Union, Optional
-from urllib.parse import urlparse
 from web3 import Web3
 from web3.contract import Contract, ContractConstructor, ContractFunction
 from web3.exceptions import TimeExhausted, ValidationError
-from web3.gas_strategies import time_based
 from web3.providers import BaseProvider
 from web3.types import TxReceipt
 
-from nucypher.blockchain.eth.clients import EthereumClient, InfuraClient
+from nucypher.blockchain.eth.clients import EthereumClient
 from nucypher.blockchain.eth.decorators import validate_checksum_address
 from nucypher.blockchain.eth.providers import (
     _get_auto_provider,
@@ -56,7 +56,6 @@ from nucypher.blockchain.eth.sol.compile import SolidityCompiler
 from nucypher.blockchain.eth.utils import get_transaction_name, prettify_eth_amount
 from nucypher.characters.control.emitters import JSONRPCStdoutEmitter, StdoutEmitter
 from nucypher.utilities.ethereum import encode_constructor_arguments
-from nucypher.utilities.gas_strategies import datafeed_fallback_gas_price_strategy
 from nucypher.utilities.logging import GlobalLoggerSettings, Logger
 
 
@@ -65,22 +64,9 @@ class VersionedContract(Contract):
 
 
 class BlockchainInterface:
-    """
-    Interacts with a solidity compiler and a registry in order to instantiate compiled
-    ethereum contracts with the given web3 provider backend.
-    """
 
-    TIMEOUT = 600  # seconds  # TODO: Correlate with the gas strategy - #2070
-
-    DEFAULT_GAS_STRATEGY = 'fast'
-    GAS_STRATEGIES = {'glacial': time_based.glacial_gas_price_strategy,     # 24h
-                      'slow': time_based.slow_gas_price_strategy,           # 1h
-                      'medium': time_based.medium_gas_price_strategy,       # 5m
-                      'fast': time_based.fast_gas_price_strategy            # 60s
-                      }
-
-    process = NO_PROVIDER_PROCESS.bool_value(False)
-    Web3 = Web3
+    TIMEOUT = 600  # seconds  # TODO: Correlate with the gas strategy (only applies to wait_for_receipt) - #2070
+    web3_factory_class = Web3  # for mocking
 
     _contract_factory = VersionedContract
 
@@ -99,13 +85,13 @@ class BlockchainInterface:
     class UnknownContract(InterfaceError):
         pass
 
-    REASONS = {
-        INSUFFICIENT_ETH: 'insufficient funds for gas * price + value',
-    }
-
     class TransactionFailed(InterfaceError):
 
         IPC_CODE = -32000
+
+        REASONS = {
+            INSUFFICIENT_ETH: 'insufficient funds for gas * price + value',
+        }
 
         def __init__(self,
                      message: str,
@@ -113,12 +99,13 @@ class BlockchainInterface:
                      contract_function: Union[ContractFunction, ContractConstructor],
                      *args):
 
+            self.blockchain = BlockchainInterfaceFactory.get_interface()
             self.base_message = message
             self.name = get_transaction_name(contract_function=contract_function)
             self.payload = transaction_dict
             self.contract_function = contract_function
             self.failures = {
-                BlockchainInterface.REASONS[INSUFFICIENT_ETH]: self.insufficient_eth
+                self.REASONS[INSUFFICIENT_ETH]: self.insufficient_eth
             }
             self.message = self.failures.get(self.base_message, self.default)
             super().__init__(self.message, *args)
@@ -133,8 +120,7 @@ class BlockchainInterface:
             return message
 
         def get_balance(self):
-            blockchain = BlockchainInterfaceFactory.get_interface()
-            balance = blockchain.client.get_balance(account=self.payload['from'])
+            balance = self.blockchain.client.get_balance(account=self.payload['from'])
             return balance
 
         @property
@@ -155,130 +141,62 @@ class BlockchainInterface:
                  provider_uri: str = NO_BLOCKCHAIN_CONNECTION,
                  provider: BaseProvider = NO_BLOCKCHAIN_CONNECTION,
                  client: Optional[EthereumClient] = None,
-                 gas_strategy: str = DEFAULT_GAS_STRATEGY):
-
-        """
-        TODO: #1502 - Move to API docs.
-
-         Filesystem          Configuration           Node              Client                  EVM
-        ================ ====================== =============== =====================  ===========================
-
-         Solidity Files -- SolidityCompiler -                      --- HTTPProvider ------ ...
-                                            |                    |
-                                            |                    |
-                                            |                    |
-                                            - *BlockchainInterface* -- IPCProvider ----- External EVM (geth, parity...)
-                                                       |         |
-                                                       |         |
-                                                 TestProvider ----- EthereumTester -------------
-                                                                                                |
-                                                                                                |
-                                                                                        PyEVM (Development Chain)
-
-         ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-         Runtime Files --                 --BlockchainInterface ----> Registry
-                        |                |             ^
-                        |                |             |
-                        |                |             |
-         Key Files ------ CharacterConfiguration     Agent                          ... (Contract API)
-                        |                |             ^
-                        |                |             |
-                        |                |             |
-                        |                |           Actor                          ...Blockchain-Character API)
-                        |                |             ^
-                        |                |             |
-                        |                |             |
-         Config File ---                  --------- Character                       ... (Public API)
-                                                       ^
-                                                       |
-                                                     Human
-
-
-        The Blockchain is the junction of the solidity compiler, a contract registry, and a collection of
-        web3 network providers as a means of interfacing with the ethereum blockchain to execute
-        or deploy contract code on the network.
-
-
-        Compiler and Registry Usage
-        -----------------------------
-
-        Contracts are freshly re-compiled if an instance of SolidityCompiler is passed; otherwise,
-        The registry will read contract data saved to disk that is be used to retrieve contact address and op-codes.
-        Optionally, A registry instance can be passed instead.
-
-
-        Provider Usage
-        ---------------
-        https: // github.com / ethereum / eth - tester     # available-backends
-
-
-        * HTTP Provider - Web3 HTTP provider, typically JSON RPC 2.0 over HTTP
-        * Websocket Provider - Web3 WS provider, typically JSON RPC 2.0 over WS, supply endpoint uri and websocket=True
-        * IPC Provider - Web3 File based IPC provider transported over standard I/O
-        * Custom Provider - A pre-initialized web3.py provider instance to attach to this interface
-
-        """
+                 gas_strategy: Optional[Callable] = None):
 
         self.log = Logger('Blockchain')
         self.provider_uri = provider_uri
         self._provider = provider
-        self.client = client or NO_BLOCKCHAIN_CONNECTION         # type: EthereumClient
+        self.__default_gas_strategy = gas_strategy  # initial post-connection strategy
+        self.client = client or NO_BLOCKCHAIN_CONNECTION  # type: EthereumClient
         self.transacting_power = READ_ONLY_INTERFACE
         self.is_light = light
-        self.gas_strategy = self.GAS_STRATEGIES.get(gas_strategy)
 
     def __repr__(self):
         r = '{name}({uri})'.format(name=self.__class__.__name__, uri=self.provider_uri)
         return r
 
     @property
-    def w3(self):
+    def w3(self) -> Web3:
         return self.client.w3
 
-    def get_blocktime(self):
+    def get_blocktime(self) -> int:
         return self.client.get_blocktime()
 
     @property
     def is_connected(self) -> bool:
-        """
-        https://web3py.readthedocs.io/en/stable/__provider.html#examples-using-automated-detection
-        """
+        """https://web3py.readthedocs.io/en/stable/__provider.html#examples-using-automated-detection"""
         if self.client is NO_BLOCKCHAIN_CONNECTION:
             return False
         return self.client.is_connected
 
-    def _init_gas_strategy(self) -> None:
-        # Bundled web3 strategies are too expensive for Infura (it takes ~1 minute to get a price),
-        # so we use external gas price oracles, instead (see #2139)
-        if isinstance(self.client, InfuraClient):
-            gas_strategy = datafeed_fallback_gas_price_strategy
-        else:
-            gas_strategy = self.gas_strategy
-        self.client.set_gas_strategy(gas_strategy=gas_strategy)
-
     def connect(self) -> bool:
         if self.client:
             self.log.info("Using pre-configured ethereum client {}".format(self.provider_uri))
+            self.client.setup_gas_strategy(gas_strategy=self.__default_gas_strategy)
             return True
-        else:
-            self.log.info("Connecting to Web3 Provider {}".format(self.provider_uri))
-            self._attach_provider(provider=self._provider, provider_uri=self.provider_uri)
-            try:
-                w3 = self.Web3(provider=self._provider)
-                self.client = EthereumClient.from_w3(w3=w3)
-            except requests.ConnectionError:  # RPC
-                raise self.ConnectionFailed(f'Connection Failed - {str(self.provider_uri)} - is RPC enabled?')
-            except FileNotFoundError:         # IPC File Protocol
-                raise self.ConnectionFailed(f'Connection Failed - {str(self.provider_uri)} - is IPC enabled?')
-        self._init_gas_strategy()  # TODO: is this a good home?
+
+        # pre-connect
+        self.log.info("Connecting to Web3 Provider {}".format(self.provider_uri))
+        self._attach_provider(provider=self._provider, provider_uri=self.provider_uri)
+
+        # connect
+        try:
+            w3 = self.web3_factory_class(provider=self._provider)
+            self.client = EthereumClient.from_w3(w3=w3)
+        except requests.ConnectionError:  # RPC
+            raise self.ConnectionFailed(f'Connection Failed - {str(self.provider_uri)} - is RPC enabled?')
+        except FileNotFoundError:         # IPC File Protocol
+            raise self.ConnectionFailed(f'Connection Failed - {str(self.provider_uri)} - is IPC enabled?')
+
+        # post-connect
+        self.client.setup_gas_strategy(gas_strategy=self.__default_gas_strategy)
         return self.is_connected
 
     @property
     def provider(self) -> BaseProvider:
         return self._provider
 
-    def provider_from_uri(self, uri: str):
+    def provider_from_uri(self, uri: str) -> BaseProvider:
         uri_breakdown = urlparse(uri)
 
         if uri_breakdown.scheme == 'tester':
@@ -313,13 +231,10 @@ class BlockchainInterface:
         except KeyError:
             raise self.UnsupportedProvider(f"{uri} is an invalid or unsupported blockchain provider URI")
 
-
     def _attach_provider(self,
                          provider: Optional[BaseProvider] = None,
                          provider_uri: str = None) -> None:
-        """
-        https://web3py.readthedocs.io/en/latest/providers.html#providers
-        """
+        """https://web3py.readthedocs.io/en/latest/providers.html#providers"""
         if not bool(provider) ^ bool(provider_uri):
             raise ValueError(f'Pass either provider_uri or provider; Got {provider_uri}, {provider}')
         if provider:
@@ -427,8 +342,7 @@ class BlockchainInterface:
             elif transaction_gas_limit is not None:
                 raise ValueError("'transaction_gas_limit' and 'gas_estimation_multiplier' can't be used together.")
 
-        payload = self.build_payload(sender_address=sender_address,
-                                     payload=payload,
+        payload = self.build_payload(sender_address=sender_address, payload=payload,
                                      transaction_gas_limit=transaction_gas_limit)
         self.__log_transaction(transaction_dict=payload, contract_function=contract_function)
         try:

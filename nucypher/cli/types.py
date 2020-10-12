@@ -20,7 +20,7 @@ from decimal import Decimal, DecimalException
 from eth_utils import to_checksum_address
 from ipaddress import ip_address
 
-from nucypher.blockchain.eth.interfaces import BlockchainInterface
+from nucypher.blockchain.eth.gas_strategies import GAS_STRATEGIES
 from nucypher.blockchain.eth.networks import NetworksInventory
 
 
@@ -113,4 +113,4 @@ EXISTING_READABLE_FILE = click.Path(exists=True, dir_okay=False, file_okay=True,
 NETWORK_PORT = click.IntRange(min=0, max=65535, clamp=False)
 IPV4_ADDRESS = IPv4Address()
 
-GAS_STRATEGY_CHOICES = click.Choice(list(BlockchainInterface.GAS_STRATEGIES.keys()))
+GAS_STRATEGY_CHOICES = click.Choice(list(GAS_STRATEGIES.keys()))

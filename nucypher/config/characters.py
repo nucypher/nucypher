@@ -17,14 +17,13 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 
 
 import os
-from constant_sorrow.constants import (
-    UNINITIALIZED_CONFIGURATION
-)
+from constant_sorrow.constants import UNINITIALIZED_CONFIGURATION
 from cryptography.hazmat.primitives.asymmetric import ec
 from cryptography.hazmat.primitives.asymmetric.ec import EllipticCurve
 from cryptography.x509 import Certificate
 from tempfile import TemporaryDirectory
 
+from nucypher.blockchain.eth.gas_strategies import strategy_from_nickname
 from nucypher.blockchain.eth.networks import NetworksInventory
 from nucypher.blockchain.eth.actors import StakeHolder
 from nucypher.blockchain.eth.signers import Signer

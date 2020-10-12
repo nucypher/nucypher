@@ -15,7 +15,7 @@ You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
-import maya
+
 import os
 import time
 from constant_sorrow.constants import UNKNOWN_DEVELOPMENT_CHAIN_ID
@@ -24,17 +24,28 @@ from eth_account import Account
 from eth_account.messages import encode_defunct
 from eth_typing.evm import BlockNumber, ChecksumAddress
 from eth_utils import to_canonical_address, to_checksum_address
-from typing import Union
+from typing import Callable, Optional, Type
 from web3 import Web3, middleware
-from web3.contract import Contract
-from web3.middleware.geth_poa import geth_poa_middleware
-from web3.types import Wei, TxReceipt
 from web3._utils.threads import Timeout
+from web3.contract import Contract
 from web3.exceptions import TimeExhausted, TransactionNotFound
+from web3.middleware.geth_poa import geth_poa_middleware
+from web3.middleware.stalecheck import make_stalecheck_middleware
+from web3.types import Wei, TxReceipt
 
-from nucypher.blockchain.eth.constants import AVERAGE_BLOCK_TIME_IN_SECONDS
-from nucypher.blockchain.middleware.retry import RetryRequestMiddleware, AlchemyRetryRequestMiddleware, \
-    InfuraRetryRequestMiddleware, nonce_tracking_middleware
+from nucypher.blockchain.eth.constants import (
+    AVERAGE_BLOCK_TIME_IN_SECONDS,
+    POA_CHAINS,
+    LOCAL_CHAINS,
+    PUBLIC_CHAINS
+)
+from nucypher.blockchain.eth.gas_strategies import GAS_STRATEGIES
+from nucypher.blockchain.middleware.retry import (
+    RetryRequestMiddleware,
+    AlchemyRetryRequestMiddleware,
+    InfuraRetryRequestMiddleware
+)
+from nucypher.blockchain.eth.gas_strategies import datafeed_fallback_gas_price_strategy
 from nucypher.utilities.logging import Logger
 
 UNKNOWN_DEVELOPMENT_CHAIN_ID.bool_value(True)
@@ -52,36 +63,6 @@ class Web3ClientUnexpectedVersionString(Web3ClientError):
     pass
 
 
-# TODO: Consider creating a ChainInventory class and/or moving this to a separate module
-
-PUBLIC_CHAINS = {
-    0: "Olympic",
-    1: "Mainnet",
-    2: "Morden",
-    3: "Ropsten",
-    4: "Rinkeby",
-    5: "Goerli",
-    6: "Kotti",
-    42: "Kovan",
-    77: "Sokol",
-    100: "xDai",
-}
-
-LOCAL_CHAINS = {
-    1337: "GethDev",
-    5777: "Ganache/TestRPC"
-}
-
-# TODO: This list is incomplete, but it suffices for the moment - See #1857
-POA_CHAINS = {
-    4,    # Rinkeby
-    5,    # Goerli
-    42,   # Kovan
-    77,   # Sokol
-    100,  # xDAI
-}
-
-
 class EthereumClient:
     is_local = False
 
@@ -97,12 +78,11 @@ class EthereumClient:
     TRANSACTION_POLLING_TIME = 0.5  # seconds
     COOLING_TIME = 5  # seconds
 
-    STALECHECK_ALLOWABLE_DELAY = 30  # seconds  # TODO: Increase for tests / debugging
+    # Web3 Middlewares
+    STALECHECK_ALLOWABLE_DELAY = 60  # seconds
+    DEFAULT_GAS_STRATEGY = 'fast'
 
     class ConnectionNotEstablished(RuntimeError):
-        pass
-
-    class SyncTimeout(RuntimeError):
         pass
 
     class UnknownAccount(ValueError):
@@ -143,31 +123,53 @@ class EthereumClient:
         self.backend = backend
         self.log = Logger(self.__class__.__name__)
 
-        self.__chain_id = None  # cache to reduce RPC calls
+        self.__poa = None  # cache
         self._attach_middleware()
 
     @property
     def poa(self):
-        chain_id = int(self.chain_id)
-        return chain_id in POA_CHAINS
+        """cached POA lookup"""
+        if self.__poa is None:
+            chain_id = int(self.chain_id)
+            self.__poa = chain_id in POA_CHAINS
+        return self.__poa
+
+    @property
+    def _client_middleware(self):
+        self.log.debug('Adding RPC retry middleware to client')
+        return RetryRequestMiddleware
+
+    @property
+    def _default_gas_strategy(self) -> Callable:
+        return GAS_STRATEGIES[self.DEFAULT_GAS_STRATEGY]
+
+    def setup_gas_strategy(self, gas_strategy: Optional[Callable] = None) -> None:
+        self.set_gas_strategy(gas_strategy=gas_strategy or self._default_gas_strategy)
 
     def _attach_middleware(self):
+
         # Autodetect POA from chain id; For use with Proof-Of-Authority blockchains
         if self.poa:
             self.log.debug(f'Ethereum chain: {self.chain_name} ID# {int(self.chain_id)}')
             self.log.debug('Injecting POA middleware at layer 0')
             self.inject_middleware(geth_poa_middleware, layer=0)
 
-        self.add_middleware(nonce_tracking_middleware)
-
-        # Default retry functionality
-        self.log.debug('Adding RPC retry middleware to client')
-        self.add_middleware(RetryRequestMiddleware)
-
-        # Cache
-        self.add_middleware(middleware.time_based_cache_middleware)
-        self.add_middleware(middleware.latest_block_based_cache_middleware)
+        # RPC I/O caching (reduce number of RPC calls)
+        self.add_middleware(middleware.time_based_cache_middleware)  # used by gas strategies
         self.add_middleware(middleware.simple_cache_middleware)
+
+        # TODO: causes nonce reuse in tests
+        # This is caused by block caching the eth_getTransactionCount endpoint
+        # and can be avoided by not caching that particular endpoint.
+        # https://github.com/ethereum/web3.py/blob/c3dd5f20b326d5331ceb7484b21c8a2b03511cf8/web3/middleware/cache.py#L276
+        # self.add_middleware(middleware.latest_block_based_cache_middleware)
+
+        # Stalecheck - stay in sync!
+        stalecheck_middleware = make_stalecheck_middleware(self.STALECHECK_ALLOWABLE_DELAY)
+        self.add_middleware(stalecheck_middleware)
+
+        # Client-specific middleware
+        self.add_middleware(self._client_middleware)
 
     @classmethod
     def _get_variant(cls, w3):
@@ -176,7 +178,6 @@ class EthereumClient:
     @classmethod
     def from_w3(cls, w3: Web3) -> 'EthereumClient':
         """
-
         Client version strings:
 
         Geth    -> 'Geth/v1.4.11-stable-fed692f6/darwin/go1.7'
@@ -201,7 +202,7 @@ class EthereumClient:
         try:
             client_data = w3.clientVersion.split('/')
             node_technology = client_data[0]
-            ClientSubclass = clients[node_technology]
+            ClientSubclass: Type[EthereumClient] = clients[node_technology]
 
         except (ValueError, IndexError):
             raise ValueError(f"Invalid client version string. Got '{w3.clientVersion}'")
@@ -265,15 +266,13 @@ class EthereumClient:
 
     @property
     def chain_id(self) -> int:
-        if self.__chain_id is None:
-            try:
-                # from hex-str
-                chain_id = int(self.w3.eth.chainId, 16)
-            except TypeError:
-                # from str
-                chain_id = int(self.w3.eth.chainId)
-            self.__chain_id = chain_id  # cache it!
-        return self.__chain_id
+        try:
+            # from hex-str
+            chain_id = int(self.w3.eth.chainId, 16)
+        except TypeError:
+            # from str
+            chain_id = int(self.w3.eth.chainId)
+        return chain_id
 
     @property
     def net_version(self) -> int:
@@ -507,10 +506,16 @@ class InfuraClient(EthereumClient):
     is_local = False
     TRANSACTION_POLLING_TIME = 2  # seconds
 
-    def _add_default_middleware(self):
-        # default retry functionality
+    @property
+    def _default_gas_strategy(self) -> Callable:
+        # Bundled web3 strategies are too expensive for Infura (it takes ~1 minute to get a price),
+        # so we use external gas price oracles, instead (see #2139)
+        return datafeed_fallback_gas_price_strategy
+
+    @property
+    def _client_middleware(self):
         self.log.debug('Adding Infura RPC retry middleware to client')
-        self.add_middleware(InfuraRetryRequestMiddleware)
+        return InfuraRetryRequestMiddleware
 
     def unlock_account(self, *args, **kwargs) -> bool:
         return True
@@ -518,13 +523,21 @@ class InfuraClient(EthereumClient):
 
 class AlchemyClient(EthereumClient):
 
-    def _attach_middleware(self):
+    def _client_middleware(self):
         self.log.debug('Adding Alchemy RPC retry middleware to client')
-        self.add_middleware(AlchemyRetryRequestMiddleware)
+        return AlchemyRetryRequestMiddleware
 
 
 class EthereumTesterClient(EthereumClient):
+
     is_local = True
+
+    STALECHECK_ALLOWABLE_DELAY = 600  # seconds
+    DEFAULT_GAS_STRATEGY = 'free'
+
+    @property
+    def _default_gas_strategy(self) -> Callable:
+        return lambda *a, **k: 0
 
     def unlock_account(self, account, password, duration: int = None) -> bool:
         """Returns True if the testing backend keyring has control of the given address."""

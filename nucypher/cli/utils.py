@@ -23,12 +23,17 @@ import os
 import shutil
 from constant_sorrow.constants import NO_CONTROL_PROTOCOL
 
+from nucypher.blockchain.eth.gas_strategies import strategy_from_nickname
 from nucypher.blockchain.eth.interfaces import (
     BlockchainDeployerInterface,
     BlockchainInterface,
     BlockchainInterfaceFactory
 )
-from nucypher.blockchain.eth.registry import BaseContractRegistry, InMemoryContractRegistry, LocalContractRegistry
+from nucypher.blockchain.eth.registry import (
+    BaseContractRegistry,
+    InMemoryContractRegistry,
+    LocalContractRegistry
+)
 from nucypher.characters.base import Character
 from nucypher.characters.control.emitters import StdoutEmitter
 from nucypher.cli.actions.auth import get_nucypher_password, unlock_nucypher_keyring
@@ -175,10 +180,11 @@ def connect_to_blockchain(emitter: StdoutEmitter,
 def initialize_deployer_interface(emitter: StdoutEmitter,
                                   provider_uri,
                                   ignore_solidity_check: bool,
-                                  gas_strategy: str = None
+                                  gas_strategy_name: str = None
                                   ) -> BlockchainDeployerInterface:
     
     if not BlockchainInterfaceFactory.is_interface_initialized(provider_uri=provider_uri):
+        gas_strategy = strategy_from_nickname(name=gas_strategy_name) if gas_strategy_name else None
         deployer_interface = BlockchainDeployerInterface(provider_uri=provider_uri,
                                                          ignore_solidity_check=ignore_solidity_check,
                                                          gas_strategy=gas_strategy)

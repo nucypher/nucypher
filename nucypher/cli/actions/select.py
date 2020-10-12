@@ -21,13 +21,18 @@ import glob
 import click
 import os
 from tabulate import tabulate
+from typing import Callable
 from typing import Optional, Tuple, Type
 from web3.main import Web3
 
-from nucypher.blockchain.eth.actors import StakeHolder, Staker, Wallet
+from nucypher.blockchain.eth.agents import NucypherTokenAgent, ContractAgency
+from nucypher.blockchain.eth.actors import StakeHolder, Staker
 from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
 from nucypher.blockchain.eth.networks import NetworksInventory
-from nucypher.blockchain.eth.registry import InMemoryContractRegistry, IndividualAllocationRegistry
+from nucypher.blockchain.eth.registry import (
+    InMemoryContractRegistry,
+    IndividualAllocationRegistry
+)
 from nucypher.blockchain.eth.signers.base import Signer
 from nucypher.blockchain.eth.token import NU, Stake
 from nucypher.characters.control.emitters import StdoutEmitter
@@ -45,9 +50,11 @@ from nucypher.cli.literature import (
     SELECTED_ACCOUNT
 )
 from nucypher.cli.painting.staking import paint_stakes
-from nucypher.config.constants import DEFAULT_CONFIG_ROOT, NUCYPHER_ENVVAR_WORKER_ADDRESS
+from nucypher.config.constants import (
+    DEFAULT_CONFIG_ROOT,
+    NUCYPHER_ENVVAR_WORKER_ADDRESS
+)
 from nucypher.config.node import CharacterConfiguration
-from typing import Callable
 
 
 def select_stake(staker: Staker,

@@ -14,21 +14,26 @@ GNU Affero General Public License for more details.
 You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
+
+
 import contextlib
 
 import os
-import pytest
 import requests
 from web3.exceptions import ValidationError
 
-from nucypher.blockchain.eth.deployers import AdjudicatorDeployer, BaseContractDeployer, NucypherTokenDeployer, \
-    PolicyManagerDeployer, StakingEscrowDeployer
+from nucypher.blockchain.eth.deployers import (
+    AdjudicatorDeployer,
+    BaseContractDeployer,
+    NucypherTokenDeployer,
+    PolicyManagerDeployer,
+    StakingEscrowDeployer
+)
 from nucypher.blockchain.eth.interfaces import BlockchainDeployerInterface, BlockchainInterfaceFactory
 from nucypher.blockchain.eth.registry import InMemoryContractRegistry
 from nucypher.blockchain.eth.sol.compile import SolidityCompiler, SourceDirs
 from nucypher.crypto.powers import TransactingPower
 from tests.constants import INSECURE_DEVELOPMENT_PASSWORD
-from tests.utils.blockchain import free_gas_price_strategy
 
 USER = "nucypher"
 REPO = "nucypher"
@@ -105,7 +110,7 @@ def test_upgradeability(temp_dir_path):
     try:
         blockchain_interface = BlockchainDeployerInterface(provider_uri=provider_uri,
                                                            compiler=solidity_compiler,
-                                                           gas_strategy=free_gas_price_strategy)
+                                                           gas_strategy=lambda *a, **k: 1)
         blockchain_interface.connect()
         origin = blockchain_interface.client.accounts[0]
         BlockchainInterfaceFactory.register_interface(interface=blockchain_interface)

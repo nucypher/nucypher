@@ -21,19 +21,18 @@ import os
 from eth_tester.exceptions import TransactionFailed
 from eth_utils import to_canonical_address
 from hexbytes import HexBytes
-from typing import List, Tuple, Union
+from typing import List, Union
 from web3 import Web3
 
 from nucypher.blockchain.economics import BaseEconomics, StandardTokenEconomics
 from nucypher.blockchain.eth.actors import ContractAdministrator
+from nucypher.blockchain.eth.clients import EthereumTesterClient
 from nucypher.blockchain.eth.interfaces import BlockchainDeployerInterface, BlockchainInterfaceFactory
-from nucypher.blockchain.eth.registry import InMemoryContractRegistry
 from nucypher.blockchain.eth.sol.compile import SolidityCompiler
 from nucypher.blockchain.eth.token import NU
 from nucypher.blockchain.eth.utils import epoch_to_period
 from nucypher.crypto.powers import TransactingPower
 from nucypher.utilities.logging import Logger
-
 from tests.constants import (
     DEVELOPMENT_ETH_AIRDROP_AMOUNT,
     INSECURE_DEVELOPMENT_PASSWORD,
@@ -62,10 +61,6 @@ def token_airdrop(token_agent, amount: NU, origin: str, addresses: List[str]):
     return receipts
 
 
-def free_gas_price_strategy(w3, transaction_params=None):
-    return 0
-
-
 class TesterBlockchain(BlockchainDeployerInterface):
     """
     Blockchain subclass with additional test utility methods and options.
@@ -74,10 +69,6 @@ class TesterBlockchain(BlockchainDeployerInterface):
     __test__ = False # prohibit Pytest from picking it up
 
     _instance = None
-
-    GAS_STRATEGIES = {**BlockchainDeployerInterface.GAS_STRATEGIES,
-                      'free': free_gas_price_strategy}
-    DEFAULT_GAS_STRATEGY = 'free'
 
     _PROVIDER_URI = 'tester://pyevm'
     _compiler = SolidityCompiler(source_dirs=[(SolidityCompiler.default_contract_dir(), {TEST_CONTRACTS_DIR})])
@@ -100,17 +91,15 @@ class TesterBlockchain(BlockchainDeployerInterface):
                  test_accounts=None,
                  light=False,
                  eth_airdrop=False,
-                 free_transactions=False,
                  compiler: SolidityCompiler = None,
                  mock_backend: bool = False,
                  *args, **kwargs):
 
-        if not test_accounts:
-            test_accounts = self._default_test_accounts
-        self.free_transactions = free_transactions
-
         if compiler:
             TesterBlockchain._compiler = compiler
+
+        if not test_accounts:
+            test_accounts = self._default_test_accounts
 
         super().__init__(provider_uri=self._PROVIDER_URI,
                          light=light,
@@ -120,9 +109,6 @@ class TesterBlockchain(BlockchainDeployerInterface):
 
         self.log = Logger("test-blockchain")
         self.connect()
-
-        if self.free_transactions:
-            self.w3.eth.setGasPriceStrategy(free_gas_price_strategy)
 
         # Generate additional ethereum accounts for testing
         population = test_accounts

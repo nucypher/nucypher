@@ -16,14 +16,12 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
 
+import pytest
 import random
 import tempfile
-
-import pytest
 from eth_utils import to_wei
 from web3 import Web3
 
-from nucypher.crypto.powers import TransactingPower
 from nucypher.blockchain.eth.actors import Bidder, Staker
 from nucypher.blockchain.eth.agents import (
     ContractAgency,
@@ -32,9 +30,14 @@ from nucypher.blockchain.eth.agents import (
 from nucypher.blockchain.eth.token import NU
 from nucypher.characters.lawful import Ursula
 from nucypher.cli.commands.worklock import worklock
-from tests.constants import (INSECURE_DEVELOPMENT_PASSWORD, MOCK_IP_ADDRESS, TEST_PROVIDER_URI)
-from tests.utils.ursula import select_test_port
 from nucypher.config.constants import TEMPORARY_DOMAIN
+from nucypher.crypto.powers import TransactingPower
+from tests.constants import (
+    INSECURE_DEVELOPMENT_PASSWORD,
+    MOCK_IP_ADDRESS,
+    TEST_PROVIDER_URI
+)
+from tests.utils.ursula import select_test_port
 
 
 @pytest.fixture(scope='module')

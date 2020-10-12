@@ -30,6 +30,7 @@ from eth_utils.address import is_checksum_address
 from tempfile import TemporaryDirectory
 from typing import Callable, List, Set, Union
 
+from nucypher.blockchain.eth.gas_strategies import strategy_from_nickname
 from nucypher.characters.lawful import Ursula
 from umbral.signing import Signature
 
@@ -196,9 +197,14 @@ class CharacterConfiguration(BaseConfiguration):
         #
 
         else:
+
+            # Consume the gas strategy for this connection
             self.gas_strategy = gas_strategy
+
             is_initialized = BlockchainInterfaceFactory.is_interface_initialized(provider_uri=self.provider_uri)
             if not is_initialized and provider_uri:
+                if gas_strategy:
+                    gas_strategy = strategy_from_nickname(gas_strategy)
                 BlockchainInterfaceFactory.initialize_interface(provider_uri=self.provider_uri,
                                                                 light=self.is_light,
                                                                 emitter=emitter,

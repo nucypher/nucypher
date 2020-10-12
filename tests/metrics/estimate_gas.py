@@ -33,6 +33,7 @@ from umbral.signing import Signer
 from unittest.mock import Mock
 from zope.interface import provider
 
+from blockchain.eth.registry import InMemoryContractRegistry
 from nucypher.blockchain.economics import StandardTokenEconomics
 from nucypher.blockchain.eth.agents import AdjudicatorAgent, NucypherTokenAgent, PolicyManagerAgent, StakingEscrowAgent
 from nucypher.blockchain.eth.constants import NUCYPHER_CONTRACT_NAMES

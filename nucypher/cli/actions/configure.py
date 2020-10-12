@@ -22,6 +22,7 @@ import click
 from json.decoder import JSONDecodeError
 from typing import Optional, Type
 
+from nucypher.config.characters import StakeHolderConfiguration
 from nucypher.characters.control.emitters import StdoutEmitter
 from nucypher.cli.actions.confirm import confirm_destroy_configuration
 from nucypher.cli.literature import (

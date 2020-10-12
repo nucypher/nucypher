@@ -14,6 +14,8 @@ GNU Affero General Public License for more details.
 You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
+
+
 from _pydecimal import Decimal
 from collections import UserList
 from enum import Enum
@@ -21,9 +23,15 @@ from typing import Callable, Dict, Union
 
 import maya
 import random
-from constant_sorrow.constants import (EMPTY_STAKING_SLOT, NEW_STAKE, NOT_STAKING)
+from constant_sorrow.constants import (
+    EMPTY_STAKING_SLOT,
+    NEW_STAKE,
+    NOT_STAKING
+)
 from eth_utils import currency, is_checksum_address
+from hexbytes.main import HexBytes
 from twisted.internet import reactor, task
+from web3.exceptions import TransactionNotFound
 
 from nucypher.blockchain.eth.agents import ContractAgency, StakingEscrowAgent
 from nucypher.blockchain.eth.decorators import validate_checksum_address
@@ -306,7 +314,6 @@ class Stake:
                         ) -> 'Stake':
 
         """Reads staking values as they exist on the blockchain"""
-
         instance = cls(checksum_address=checksum_address,
                        index=index,
                        first_locked_period=stake_info.first_period,
@@ -428,9 +435,7 @@ def validate_duration(stake: Stake) -> None:
 
 
 def validate_divide(stake: Stake, target_value: NU, additional_periods: int = None) -> None:
-    """
-    Validates possibility to divide specified stake into two stakes using provided parameters.
-    """
+    """Validates possibility to divide specified stake into two stakes using provided parameters."""
 
     # Ensure selected stake is active
     status = stake.status()
@@ -518,7 +523,6 @@ def validate_increase(stake: Stake, amount: NU) -> None:
     if not status.is_child(Stake.Status.EDITABLE):
         raise Stake.StakingError(f'Cannot increase a non-editable stake. '
                                  f'Selected stake expired {stake.unlock_datetime}.')
-
     validate_max_value(stake=stake, amount=amount)
 
 

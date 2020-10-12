@@ -16,20 +16,22 @@
 """
 
 
-from web3.gas_strategies import time_based
+import pytest
 
-from nucypher.blockchain.eth.interfaces import BlockchainInterface
+from nucypher.blockchain.eth.gas_strategies import GAS_STRATEGIES, strategy_from_nickname, UnknownGasStrategy
 
 
 def test_get_gas_strategy():
 
     # Testing Web3's bundled time-based gas strategies
-    bundled_gas_strategies = {'glacial': time_based.glacial_gas_price_strategy,  # 24h
-                              'slow': time_based.slow_gas_price_strategy,  # 1h
-                              'medium': time_based.medium_gas_price_strategy,  # 5m
-                              'fast': time_based.fast_gas_price_strategy  # 60s
-                              }
-    for gas_strategy_name, expected_gas_strategy in bundled_gas_strategies.items():
-        gas_strategy = BlockchainInterface.GAS_STRATEGIES[gas_strategy_name]
+    for gas_strategy_name, expected_gas_strategy in GAS_STRATEGIES.items():
+        gas_strategy = GAS_STRATEGIES[gas_strategy_name]
         assert expected_gas_strategy == gas_strategy
         assert callable(gas_strategy)
+
+    expected = GAS_STRATEGIES['fast']
+    strategy = strategy_from_nickname('fast')
+    assert strategy == expected
+
+    with pytest.raises(UnknownGasStrategy):
+        _strategy = strategy_from_nickname('llama-counting-gas-strategy')

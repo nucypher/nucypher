@@ -54,6 +54,32 @@ LENGTH_ECDSA_SIGNATURE_WITH_RECOVERY = 65
 MAX_UINT16 = 65535
 NULL_ADDRESS = '0x' + '0' * 40
 
+PUBLIC_CHAINS = {
+    0: "Olympic",
+    1: "Mainnet",
+    2: "Morden",
+    3: "Ropsten",
+    4: "Rinkeby",
+    5: "Goerli",
+    6: "Kotti",
+    42: "Kovan",
+    77: "Sokol",
+    100: "xDai",
+}
+
+LOCAL_CHAINS = {
+    1337: "GethDev",
+    5777: "Ganache/TestRPC"
+}
+
+POA_CHAINS = {
+    4,    # Rinkeby
+    5,    # Goerli
+    42,   # Kovan
+    77,   # Sokol
+    100,  # xDAI
+}
+
 # Aragon DAO contract names
 
 DAO_AGENT_CONTRACT_NAME = 'Agent'

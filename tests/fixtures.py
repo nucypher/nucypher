@@ -492,7 +492,7 @@ def _make_testerchain(mock_backend: bool = False) -> TesterBlockchain:
     if mock_backend:
         testerchain = MockBlockchain()
     else:
-        testerchain = TesterBlockchain(eth_airdrop=True, free_transactions=True)
+        testerchain = TesterBlockchain(eth_airdrop=True)
 
     return testerchain
 
