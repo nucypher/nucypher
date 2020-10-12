@@ -89,11 +89,13 @@ from nucypher.cli.options import (
     option_staking_address
 )
 from nucypher.cli.painting.staking import (
-    paint_min_rate, paint_staged_stake,
+    paint_min_rate,
+    paint_staged_stake,
     paint_staged_stake_division,
     paint_stakes,
     paint_staking_accounts,
-    paint_staking_confirmation, paint_all_stakes
+    paint_staking_confirmation,
+    paint_all_stakes
 )
 from nucypher.cli.painting.status import paint_preallocation_status
 from nucypher.cli.painting.transactions import paint_receipt_summary
@@ -181,7 +183,7 @@ group_config_options = group_options(
     light=option_light,
     registry_filepath=option_registry_filepath,
     network=option_network(),
-    signer_uri=option_signer_uri
+    signer_uri=option_signer_uri()
 )
 
 
@@ -299,6 +301,9 @@ def stake():
 def init_stakeholder(general_config, config_root, force, config_options):
     """Create a new stakeholder configuration."""
     emitter = setup_emitter(general_config)
+    if not config_options.signer_uri:
+        emitter.error('Missing option --signer is required to create a new stakeholder configuration.')
+        raise click.Abort()
     new_stakeholder = config_options.generate_config(config_root)
     filepath = new_stakeholder.to_configuration_file(override=force)
     emitter.echo(SUCCESSFUL_NEW_STAKEHOLDER_CONFIG.format(filepath=filepath), color='green')
@@ -339,7 +344,7 @@ def accounts(general_config, staker_options, config_file):
     """Show ETH and NU balances for stakeholder's accounts."""
     emitter = setup_emitter(general_config)
     STAKEHOLDER = staker_options.create_character(emitter, config_file)
-    paint_staking_accounts(emitter=emitter, wallet=STAKEHOLDER.wallet, registry=STAKEHOLDER.registry)
+    paint_staking_accounts(emitter=emitter, stakeholder=STAKEHOLDER)
 
 
 @stake.command('bond-worker')
@@ -530,6 +535,7 @@ def create(general_config: GroupGeneralConfig,
     if not force:
         confirm_large_stake(value=value, lock_periods=lock_periods)
         paint_staged_stake(emitter=emitter,
+                           blockchain=blockchain,
                            stakeholder=STAKEHOLDER,
                            staking_address=staking_address,
                            stake_value=value,
@@ -626,6 +632,7 @@ def increase(general_config: GroupGeneralConfig,
 
         confirm_large_stake(value=value, lock_periods=lock_periods)
         paint_staged_stake(emitter=emitter,
+                           blockchain=blockchain,
                            stakeholder=STAKEHOLDER,
                            staking_address=staking_address,
                            stake_value=value,
@@ -887,6 +894,7 @@ def divide(general_config: GroupGeneralConfig,
     if not force:
         confirm_large_stake(lock_periods=extension, value=value)
         paint_staged_stake_division(emitter=emitter,
+                                    blockchain=blockchain,
                                     stakeholder=STAKEHOLDER,
                                     original_stake=current_stake,
                                     target_value=value,
@@ -1116,7 +1124,7 @@ def collect_reward(general_config: GroupGeneralConfig,
 
         staking_receipt = STAKEHOLDER.collect_staking_reward()
         paint_receipt_summary(receipt=staking_receipt,
-                              chain_name=STAKEHOLDER.wallet.blockchain.client.chain_name,
+                              chain_name=blockchain.client.chain_name,
                               emitter=emitter)
 
     if policy_fee:
@@ -1137,7 +1145,7 @@ def collect_reward(general_config: GroupGeneralConfig,
 
         policy_receipt = STAKEHOLDER.collect_policy_fee(collector_address=withdraw_address)
         paint_receipt_summary(receipt=policy_receipt,
-                              chain_name=STAKEHOLDER.wallet.blockchain.client.chain_name,
+                              chain_name=blockchain.client.chain_name,
                               emitter=emitter)
 
 
@@ -1187,7 +1195,7 @@ def preallocation(general_config: GroupGeneralConfig,
                                                                     staking_address=staking_address))
         receipt = STAKEHOLDER.withdraw_preallocation_tokens(unlocked_tokens)
         paint_receipt_summary(receipt=receipt,
-                              chain_name=STAKEHOLDER.wallet.blockchain.client.chain_name,
+                              chain_name=blockchain.client.chain_name,
                               emitter=emitter)
 
 

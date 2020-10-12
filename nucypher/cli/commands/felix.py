@@ -49,7 +49,8 @@ from nucypher.cli.options import (
     option_network,
     option_provider_uri,
     option_registry_filepath,
-    option_teacher_uri, option_signer_uri,
+    option_teacher_uri,
+    option_signer_uri,
 )
 from nucypher.cli.painting.help import paint_new_installation_help
 from nucypher.cli.types import NETWORK_PORT
@@ -122,7 +123,7 @@ group_config_options = group_options(
     dev=option_dev,
     network=option_network(),
     provider_uri=option_provider_uri(),
-    signer_uri=option_signer_uri,
+    signer_uri=option_signer_uri(),
     host=click.option('--host', help="The host to run Felix HTTP services on", type=click.STRING, default='127.0.0.1'),
     db_filepath=option_db_filepath,
     checksum_address=option_checksum_address,

@@ -27,7 +27,7 @@ from nucypher.cli.actions.configure import (
     get_or_update_configuration,
     handle_missing_configuration_file
 )
-from nucypher.cli.actions.select import select_client_account, select_config_file
+from nucypher.cli.actions.select import select_ethereum_account, select_config_file
 from nucypher.cli.commands.deploy import option_gas_strategy
 from nucypher.cli.config import group_general_config
 from nucypher.cli.options import (
@@ -125,9 +125,9 @@ class BobConfigOptions:
 
         checksum_address = self.checksum_address
         if not checksum_address and not self.federated_only:
-            checksum_address = select_client_account(emitter=emitter,
-                                                     signer_uri=self.signer_uri,
-                                                     provider_uri=self.provider_uri)  # TODO: See #1888
+            checksum_address = select_ethereum_account(emitter=emitter,
+                                                       signer_uri=self.signer_uri,
+                                                       provider_uri=self.provider_uri)  # TODO: See #1888
 
         return BobConfiguration.generate(
             password=get_nucypher_password(confirm=True),
@@ -161,7 +161,7 @@ group_config_options = group_options(
     BobConfigOptions,
     provider_uri=option_provider_uri(),
     gas_strategy=option_gas_strategy,
-    signer_uri=option_signer_uri,
+    signer_uri=option_signer_uri(),
     network=option_network(),
     registry_filepath=option_registry_filepath,
     checksum_address=option_checksum_address,

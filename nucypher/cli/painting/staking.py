@@ -197,17 +197,16 @@ def paint_staking_confirmation(emitter, staker, receipt):
     emitter.echo(POST_STAKING_ADVICE, color='green')
 
 
-def paint_staking_accounts(emitter, wallet, registry):
+def paint_staking_accounts(emitter, stakeholder):
     from nucypher.blockchain.eth.actors import Staker
 
     rows = list()
-    for account in wallet.accounts:
-        eth = str(Web3.fromWei(wallet.eth_balance(account), 'ether')) + " ETH"
-        nu = str(NU.from_nunits(wallet.token_balance(account, registry)))
-
-        staker = Staker(is_me=True, checksum_address=account, registry=registry)
+    for account in stakeholder.signer.accounts:
+        staker = Staker(is_me=True, checksum_address=account, registry=stakeholder.registry)
         staker.refresh_stakes()
         is_staking = 'Yes' if bool(staker.stakes) else 'No'
+        eth = str(staker.eth_balance) + " ETH"
+        nu = str(staker.token_balance)
         rows.append((is_staking, account, eth, nu))
     headers = ('Staking', 'Account', 'ETH', 'NU')
     emitter.echo(tabulate.tabulate(rows, showindex=True, headers=headers, tablefmt="fancy_grid"))

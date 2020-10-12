@@ -36,7 +36,7 @@ from tests.constants import (
     MOCK_IP_ADDRESS,
     TEST_PROVIDER_URI
 )
-from tests.utils.ursula import MOCK_URSULA_STARTING_PORT, select_test_port
+from tests.utils.ursula import select_test_port
 
 
 @pytest.fixture(scope='module')
@@ -77,6 +77,7 @@ def test_ursula_and_local_keystore_signer_integration(click_runner,
     init_args = ('stake', 'init-stakeholder',
                  '--config-root', config_root_path,
                  '--provider', TEST_PROVIDER_URI,
+                 '--signer', TEST_PROVIDER_URI,
                  '--network', TEMPORARY_DOMAIN)
     click_runner.invoke(nucypher_cli, init_args, catch_exceptions=False)
 
@@ -86,6 +87,7 @@ def test_ursula_and_local_keystore_signer_integration(click_runner,
                   '--value', stake_value.to_tokens(),
                   '--lock-periods', token_economics.minimum_locked_periods,
                   '--force')
+
     # TODO: Is This test is writing to the default system directory and ignoring updates to the passed filepath?
     user_input = f'0\n{password}\nY\n'
     click_runner.invoke(nucypher_cli, stake_args, input=user_input, catch_exceptions=False)

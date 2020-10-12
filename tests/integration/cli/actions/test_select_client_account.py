@@ -15,24 +15,28 @@
  along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
+
 import click
 import pytest
 from eth_utils import is_checksum_address
-from unittest.mock import Mock
 from web3 import Web3
 
 from nucypher.blockchain.eth.actors import Wallet
 from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
 from nucypher.blockchain.eth.signers import KeystoreSigner
 from nucypher.blockchain.eth.token import NU
-from nucypher.cli.actions.select import select_client_account
+from nucypher.cli.actions.select import select_ethereum_account
 from nucypher.cli.literature import (
     NO_ETH_ACCOUNTS,
     GENERIC_SELECT_ACCOUNT,
 )
 from nucypher.config.constants import TEMPORARY_DOMAIN
 from nucypher.types import SubStakeInfo
-from tests.constants import MOCK_PROVIDER_URI, MOCK_SIGNER_URI, NUMBER_OF_ETH_TEST_ACCOUNTS
+from tests.constants import (
+    MOCK_PROVIDER_URI,
+    MOCK_KEYSTORE_SIGNER_URI,
+    NUMBER_OF_ETH_TEST_ACCOUNTS
+)
 from tests.mock.interfaces import MockEthereumClient
 
 
@@ -41,7 +45,7 @@ def test_select_client_account(mock_stdin, test_emitter, mock_testerchain, selec
     """Fine-grained assertions about the return value of interactive client account selection"""
     mock_stdin.line(str(selection))
     expected_account = mock_testerchain.client.accounts[selection]
-    selected_account = select_client_account(emitter=test_emitter, provider_uri=MOCK_PROVIDER_URI)
+    selected_account = select_ethereum_account(emitter=test_emitter, signer_uri=MOCK_PROVIDER_URI)
     assert selected_account, "Account selection returned Falsy instead of an address"
     assert isinstance(selected_account, str), "Selection is not a str"
     assert is_checksum_address(selected_account), "Selection is not a valid checksum address"
@@ -58,7 +62,7 @@ def test_select_client_account_with_no_accounts(mocker,
                                                 capsys):
     mocker.patch.object(MockEthereumClient, 'accounts', return_value=[])
     with pytest.raises(click.Abort):
-        select_client_account(emitter=test_emitter, provider_uri=MOCK_PROVIDER_URI)
+        select_ethereum_account(emitter=test_emitter, signer_uri=MOCK_PROVIDER_URI)
     captured = capsys.readouterr()
     assert NO_ETH_ACCOUNTS in captured.out
 
@@ -112,21 +116,15 @@ def test_select_client_account_valid_sources(mocker,
 
     # From External Signer
     mock_stdin.line(str(selection))
-    mock_signer = mocker.patch.object(KeystoreSigner, 'from_signer_uri')
-    selected_account = select_client_account(emitter=test_emitter, signer_uri=MOCK_SIGNER_URI)
-    expected_account = mock_testerchain.client.accounts[selection]
-    assert selected_account == expected_account
-    mock_signer.assert_called_once_with(uri=MOCK_SIGNER_URI, testnet=True)
-    assert mock_stdin.empty()
-    captured = capsys.readouterr()
-    assert GENERIC_SELECT_ACCOUNT in captured.out and f"Selected {selection}" in captured.out
-
-    # From Wallet
-    mock_stdin.line(str(selection))
+    spy_uri = mocker.spy(KeystoreSigner, 'from_signer_uri')
+    mocker.patch.object(KeystoreSigner, '_KeystoreSigner__read_keystore')
+    mocker.patch.object(KeystoreSigner, 'accounts', mock_testerchain.client.accounts)
+    selected_account = select_ethereum_account(emitter=test_emitter, signer_uri=MOCK_KEYSTORE_SIGNER_URI)
     expected_account = mock_testerchain.client.accounts[selection]
     wallet = Wallet(provider_uri=MOCK_PROVIDER_URI)
     selected_account = select_client_account(emitter=test_emitter, wallet=wallet)
     assert selected_account == expected_account
+    spy_uri.assert_called_once_with(uri=MOCK_KEYSTORE_SIGNER_URI, testnet=True)
     assert mock_stdin.empty()
     captured = capsys.readouterr()
     assert GENERIC_SELECT_ACCOUNT in captured.out and f"Selected {selection}" in captured.out
@@ -134,7 +132,7 @@ def test_select_client_account_valid_sources(mocker,
     # From pre-initialized Provider
     mock_stdin.line(str(selection))
     expected_account = mock_testerchain.client.accounts[selection]
-    selected_account = select_client_account(emitter=test_emitter, provider_uri=MOCK_PROVIDER_URI)
+    selected_account = select_ethereum_account(emitter=test_emitter, signer_uri=MOCK_PROVIDER_URI)
     assert selected_account == expected_account
     assert mock_stdin.empty()
     captured = capsys.readouterr()
@@ -145,7 +143,7 @@ def test_select_client_account_valid_sources(mocker,
     mocker.patch.object(BlockchainInterfaceFactory, 'is_interface_initialized', return_value=False)
     mocker.patch.object(BlockchainInterfaceFactory, '_interfaces', return_value={})
     mocker.patch.object(BlockchainInterfaceFactory, 'get_interface', return_value=mock_testerchain)
-    selected_account = select_client_account(emitter=test_emitter, provider_uri=MOCK_PROVIDER_URI)
+    selected_account = select_ethereum_account(emitter=test_emitter, signer_uri=MOCK_PROVIDER_URI)
     assert selected_account == expected_account
     assert mock_stdin.empty()
     captured = capsys.readouterr()
@@ -183,20 +181,20 @@ def test_select_client_account_with_balance_display(mock_stdin,
     blockchain_read_required = any((show_staking, show_eth, show_tokens))
     if blockchain_read_required:
         with pytest.raises(ValueError, match='Pass network name or registry; Got neither.'):
-            select_client_account(emitter=test_emitter,
-                                  show_eth_balance=show_eth,
-                                  show_nu_balance=show_tokens,
-                                  show_staking=show_staking,
-                                  provider_uri=MOCK_PROVIDER_URI)
+            select_ethereum_account(emitter=test_emitter,
+                                    show_eth_balance=show_eth,
+                                    show_nu_balance=show_tokens,
+                                    show_staking=show_staking,
+                                    signer_uri=MOCK_PROVIDER_URI)
 
     # Good selection
     mock_stdin.line(str(selection))
-    selected_account = select_client_account(emitter=test_emitter,
-                                             network=TEMPORARY_DOMAIN,
-                                             show_eth_balance=show_eth,
-                                             show_nu_balance=show_tokens,
-                                             show_staking=show_staking,
-                                             provider_uri=MOCK_PROVIDER_URI)
+    selected_account = select_ethereum_account(emitter=test_emitter,
+                                               network=TEMPORARY_DOMAIN,
+                                               show_eth_balance=show_eth,
+                                               show_nu_balance=show_tokens,
+                                               show_staking=show_staking,
+                                               signer_uri=MOCK_PROVIDER_URI)
 
     # check for accurate selection consistency with client index
     assert selected_account == mock_testerchain.client.accounts[selection]

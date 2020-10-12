@@ -872,9 +872,9 @@ def software_stakeholder(testerchain, agency, stakeholder_config_file_location, 
     txhash = testerchain.client.w3.eth.sendTransaction(tx)
     _receipt = testerchain.wait_for_receipt(txhash)
 
-    # Mock TransactingPower consumption (Etherbase)
-    transacting_power = TransactingPower(account=testerchain.etherbase_account,
-                                         signer=Web3Signer(testerchain.client),
+    signer = Web3Signer(testerchain.client)
+    transacting_power = TransactingPower(signer=signer,
+                                         account=testerchain.etherbase_account,
                                          password=INSECURE_DEVELOPMENT_PASSWORD)
     transacting_power.activate()
 
@@ -883,7 +883,7 @@ def software_stakeholder(testerchain, agency, stakeholder_config_file_location, 
                          target_address=address)
 
     # Create stakeholder from on-chain values given accounts over a web3 provider
-    stakeholder = StakeHolder(registry=test_registry, initial_address=address)
+    stakeholder = StakeHolder(registry=test_registry, initial_address=address, signer=signer)
 
     # Teardown
     yield stakeholder
@@ -981,13 +981,14 @@ def mock_transacting_power_activation(testerchain):
                                                          signer=Web3Signer(testerchain.client),
                                                          account=account)
         testerchain.transacting_power.activate()
+        testerchain.transacting_power.unlock_account()
 
     return _mock_transacting_power_activation
 
 
 @pytest.fixture(scope="module")
 def fleet_of_highperf_mocked_ursulas(ursula_federated_test_config, request):
-    # good_serials = _determine_good_serials(10000, 50000)
+    # good_serials = _determine_good_serials(10000, 50000)  # wheaties
     try:
         quantity = request.param
     except AttributeError:

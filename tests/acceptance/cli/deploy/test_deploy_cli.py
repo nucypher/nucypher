@@ -55,10 +55,11 @@ def test_deploy_single_contract(click_runner, tempfile_path):
                '--contract-name', NucypherTokenAgent.contract_name,
                '--registry-infile', tempfile_path,
                '--provider', TEST_PROVIDER_URI,
+               '--signer', TEST_PROVIDER_URI,
                '--network', TEMPORARY_DOMAIN,
                '--debug']
 
-    user_input = '0\n' + YES_ENTER
+    user_input = '0\n' + YES_ENTER + 'DEPLOY'
     result = click_runner.invoke(deploy, command, input=user_input, catch_exceptions=False)
     assert result.exit_code == 0, result.output
 
@@ -75,7 +76,7 @@ def test_deploy_signer_uri_testnet_check(click_runner, mocker, tempfile_path):
                    '--network', TEMPORARY_DOMAIN,
                    '--debug']
 
-        user_input = '0\n' + YES_ENTER
+        user_input = '0\n' + YES_ENTER + 'DEPLOY'
 
         # fail trying to deploy contract to testnet since ETH blanace is 0, signer will already have been initialized
         result = click_runner.invoke(deploy, command, input=user_input, catch_exceptions=False)
@@ -113,6 +114,7 @@ def test_upgrade_contracts(click_runner, test_registry_source_manager, test_regi
     cli_action = 'upgrade'
     base_command = ('--registry-infile', registry_filepath,
                     '--provider', TEST_PROVIDER_URI,
+                    '--signer', TEST_PROVIDER_URI,
                     '--confirmations', 1,
                     '--network', TEMPORARY_DOMAIN,
                     '--force'  # skip registry preflight check for tests
@@ -241,7 +243,9 @@ def test_rollback(click_runner, testerchain, registry_filepath, agency):
                    '--contract-name', contract_name,
                    '--registry-infile', registry_filepath,
                    '--network', TEMPORARY_DOMAIN,
-                   '--provider', TEST_PROVIDER_URI)
+                   '--provider', TEST_PROVIDER_URI,
+                   '--signer', TEST_PROVIDER_URI,
+                   )
 
         user_input = '0\n' + YES_ENTER
         result = click_runner.invoke(deploy, command, input=user_input, catch_exceptions=False)

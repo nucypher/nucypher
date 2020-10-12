@@ -62,6 +62,7 @@ def test_set_range(click_runner, testerchain, agency_local_registry):
     minimum, default, maximum = 10, 20, 30
     status_command = ('set-range',
                       '--provider', TEST_PROVIDER_URI,
+                      '--signer', TEST_PROVIDER_URI,
                       '--registry-infile', agency_local_registry.filepath,
                       '--minimum', minimum,
                       '--default', default,
@@ -89,12 +90,13 @@ def test_nucypher_deploy_inspect_fully_deployed(click_runner, agency_local_regis
     status_command = ('inspect',
                       '--registry-infile', agency_local_registry.filepath,
                       '--network', TEMPORARY_DOMAIN,
-                      '--provider', TEST_PROVIDER_URI)
+                      '--provider', TEST_PROVIDER_URI,
+                      )
 
     result = click_runner.invoke(deploy,
                                  status_command,
                                  catch_exceptions=False)
-    assert result.exit_code == 0
+    assert result.exit_code == 0, result.output
     assert staking_agent.owner in result.output
     assert policy_agent.owner in result.output
     assert adjudicator_agent.owner in result.output
@@ -122,6 +124,7 @@ def test_transfer_ownership(click_runner, testerchain, agency_local_registry):
                          '--registry-infile', agency_local_registry.filepath,
                          '--contract-name', STAKING_ESCROW_CONTRACT_NAME,
                          '--provider', TEST_PROVIDER_URI,
+                         '--signer', TEST_PROVIDER_URI,
                          '--network', TEMPORARY_DOMAIN,
                          '--target-address', maclane)
 
@@ -146,6 +149,7 @@ def test_transfer_ownership(click_runner, testerchain, agency_local_registry):
                          '--contract-name', STAKING_ESCROW_CONTRACT_NAME,
                          '--registry-infile', agency_local_registry.filepath,
                          '--provider', TEST_PROVIDER_URI,
+                         '--signer', TEST_PROVIDER_URI,
                          '--network', TEMPORARY_DOMAIN,
                          '--target-address', michwill)
 
@@ -171,6 +175,7 @@ def test_bare_contract_deployment_to_alternate_registry(click_runner, agency_loc
                '--contract-name', StakingEscrowDeployer.contract_name,
                '--mode', 'bare',
                '--provider', TEST_PROVIDER_URI,
+               '--signer', TEST_PROVIDER_URI,
                '--registry-infile', agency_local_registry.filepath,
                '--registry-outfile', ALTERNATE_REGISTRY_FILEPATH,
                '--network', TEMPORARY_DOMAIN,
@@ -217,6 +222,7 @@ def test_manual_proxy_retargeting(monkeypatch, testerchain, click_runner, token_
                '--contract-name', StakingEscrowDeployer.contract_name,
                '--target-address', untargeted_deployment.address,
                '--provider', TEST_PROVIDER_URI,
+               '--signer', TEST_PROVIDER_URI,
                '--registry-infile', ALTERNATE_REGISTRY_FILEPATH,
                '--confirmations', 4,
                '--network', TEMPORARY_DOMAIN)
@@ -244,7 +250,8 @@ def test_batch_deposits(click_runner,
                       '--registry-infile', agency_local_registry.filepath,
                       '--allocation-infile', mock_allocation_infile,
                       '--network', TEMPORARY_DOMAIN,
-                      '--provider', TEST_PROVIDER_URI)
+                      '--provider', TEST_PROVIDER_URI,
+                      '--signer', TEST_PROVIDER_URI)
 
     account_index = '0\n'
     user_input = account_index + YES_ENTER + YES_ENTER
@@ -270,12 +277,13 @@ def test_manual_deployment_of_idle_network(click_runner):
     command = ('contracts',
                '--contract-name', NUCYPHER_TOKEN_CONTRACT_NAME,
                '--provider', TEST_PROVIDER_URI,
+               '--signer', TEST_PROVIDER_URI,
                '--network', TEMPORARY_DOMAIN,
                '--registry-infile', ALTERNATE_REGISTRY_FILEPATH_2)
 
-    user_input = '0\n' + YES_ENTER + INSECURE_DEVELOPMENT_PASSWORD
+    user_input = '0\n' + YES_ENTER + 'DEPLOY\n' + INSECURE_DEVELOPMENT_PASSWORD
     result = click_runner.invoke(deploy, command, input=user_input, catch_exceptions=False)
-    assert result.exit_code == 0
+    assert result.exit_code == 0, result.output
 
     assert os.path.exists(ALTERNATE_REGISTRY_FILEPATH_2)
     new_registry = LocalContractRegistry(filepath=ALTERNATE_REGISTRY_FILEPATH_2)
@@ -288,12 +296,12 @@ def test_manual_deployment_of_idle_network(click_runner):
                '--contract-name', STAKING_ESCROW_CONTRACT_NAME,
                '--mode', 'idle',
                '--provider', TEST_PROVIDER_URI,
+               '--signer', TEST_PROVIDER_URI,
                '--network', TEMPORARY_DOMAIN,
                '--registry-infile', ALTERNATE_REGISTRY_FILEPATH_2)
 
-    user_input = '0\n' + YES_ENTER + INSECURE_DEVELOPMENT_PASSWORD
     result = click_runner.invoke(deploy, command, input=user_input, catch_exceptions=False)
-    assert result.exit_code == 0
+    assert result.exit_code == 0, result.output
 
     deployed_contracts.extend([STAKING_ESCROW_CONTRACT_NAME, DISPATCHER_CONTRACT_NAME])
     assert list(new_registry.enrolled_names) == deployed_contracts
@@ -302,12 +310,12 @@ def test_manual_deployment_of_idle_network(click_runner):
     command = ('contracts',
                '--contract-name', POLICY_MANAGER_CONTRACT_NAME,
                '--provider', TEST_PROVIDER_URI,
+               '--signer', TEST_PROVIDER_URI,
                '--network', TEMPORARY_DOMAIN,
                '--registry-infile', ALTERNATE_REGISTRY_FILEPATH_2)
 
-    user_input = '0\n' + YES_ENTER + INSECURE_DEVELOPMENT_PASSWORD
     result = click_runner.invoke(deploy, command, input=user_input, catch_exceptions=False)
-    assert result.exit_code == 0
+    assert result.exit_code == 0, result.output
 
     deployed_contracts.extend([POLICY_MANAGER_CONTRACT_NAME, DISPATCHER_CONTRACT_NAME])
     assert list(new_registry.enrolled_names) == deployed_contracts
@@ -316,12 +324,12 @@ def test_manual_deployment_of_idle_network(click_runner):
     command = ('contracts',
                '--contract-name', ADJUDICATOR_CONTRACT_NAME,
                '--provider', TEST_PROVIDER_URI,
+               '--signer', TEST_PROVIDER_URI,
                '--network', TEMPORARY_DOMAIN,
                '--registry-infile', ALTERNATE_REGISTRY_FILEPATH_2)
 
-    user_input = '0\n' + YES_ENTER + INSECURE_DEVELOPMENT_PASSWORD
     result = click_runner.invoke(deploy, command, input=user_input, catch_exceptions=False)
-    assert result.exit_code == 0
+    assert result.exit_code == 0, result.output
 
     deployed_contracts.extend([ADJUDICATOR_CONTRACT_NAME, DISPATCHER_CONTRACT_NAME])
     assert list(new_registry.enrolled_names) == deployed_contracts
@@ -331,10 +339,11 @@ def test_manual_deployment_of_idle_network(click_runner):
                '--contract-name', STAKING_ESCROW_CONTRACT_NAME,
                '--activate',
                '--provider', TEST_PROVIDER_URI,
+               '--signer', TEST_PROVIDER_URI,
                '--network', TEMPORARY_DOMAIN,
                '--registry-infile', ALTERNATE_REGISTRY_FILEPATH_2)
 
     user_input = '0\n' + YES_ENTER + YES_ENTER + INSECURE_DEVELOPMENT_PASSWORD
     result = click_runner.invoke(deploy, command, input=user_input, catch_exceptions=False)
-    assert result.exit_code == 0
+    assert result.exit_code == 0, result.output
     assert list(new_registry.enrolled_names) == deployed_contracts

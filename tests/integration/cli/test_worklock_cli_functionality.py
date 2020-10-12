@@ -67,7 +67,7 @@ def assert_successful_transaction_echo(bidder_address: str, cli_output: str):
 def test_status(click_runner, mock_worklock_agent, test_registry_source_manager):
     command = ('status', '--provider', MOCK_PROVIDER_URI, '--network', TEMPORARY_DOMAIN)
     result = click_runner.invoke(worklock, command, catch_exceptions=False)
-    assert result.exit_code == 0
+    assert result.exit_code == 0, result.output
 
 
 def test_account_selection(click_runner, mocker, mock_testerchain, mock_worklock_agent, test_registry_source_manager):
@@ -76,10 +76,11 @@ def test_account_selection(click_runner, mocker, mock_testerchain, mock_worklock
     the_chosen_one = accounts[index]
 
     # I spy
-    mock_select = mocker.spy(worklock_command, 'select_client_account')
+    mock_select = mocker.spy(worklock_command, 'select_ethereum_account')
 
     command = ('cancel-escrow',
                '--provider', MOCK_PROVIDER_URI,
+               '--signer', MOCK_PROVIDER_URI,
                '--network', TEMPORARY_DOMAIN)
 
     user_input = '\n'.join((str(index), INSECURE_DEVELOPMENT_PASSWORD, YES))
@@ -103,6 +104,7 @@ def bidding_command(token_economics, surrogate_bidder):
                '--participant-address', surrogate_bidder.checksum_address,
                '--value', bid_value,
                '--provider', MOCK_PROVIDER_URI,
+               '--signer', MOCK_PROVIDER_URI,
                '--network', TEMPORARY_DOMAIN,
                '--force')
     return command
@@ -197,6 +199,7 @@ def test_valid_bid(click_runner,
                '--participant-address', surrogate_bidder.checksum_address,
                '--value', bid_value_in_eth,
                '--provider', MOCK_PROVIDER_URI,
+               '--signer', MOCK_PROVIDER_URI,
                '--network', TEMPORARY_DOMAIN,
                '--force')
 
@@ -237,6 +240,7 @@ def test_cancel_bid(click_runner,
     command = ('cancel-escrow',
                '--participant-address', surrogate_bidder.checksum_address,
                '--provider', MOCK_PROVIDER_URI,
+               '--signer', MOCK_PROVIDER_URI,
                '--network', TEMPORARY_DOMAIN,
                '--force')
     result = click_runner.invoke(worklock, command, input=INSECURE_DEVELOPMENT_PASSWORD, catch_exceptions=False)
@@ -303,6 +307,7 @@ def test_enable_claiming(click_runner,
     command = ('enable-claiming',
                '--participant-address', surrogate_bidder.checksum_address,
                '--provider', MOCK_PROVIDER_URI,
+               '--signer', MOCK_PROVIDER_URI,
                '--network', TEMPORARY_DOMAIN)
 
     gas_limit_1 = 200000
@@ -362,6 +367,7 @@ def test_initial_claim(click_runner,
     command = ('claim',
                '--participant-address', bidder_address,
                '--provider', MOCK_PROVIDER_URI,
+               '--signer', MOCK_PROVIDER_URI,
                '--network', TEMPORARY_DOMAIN)
 
     # First, let's test that if claiming is not available, command fails
@@ -439,6 +445,7 @@ def test_already_claimed(click_runner,
     command = ('claim',
                '--participant-address', surrogate_bidder.checksum_address,
                '--provider', MOCK_PROVIDER_URI,
+               '--signer', MOCK_PROVIDER_URI,
                '--network', TEMPORARY_DOMAIN,
                '--force')
 
@@ -470,6 +477,7 @@ def test_remaining_work(click_runner,
     command = ('remaining-work',
                '--participant-address', surrogate_bidder.checksum_address,
                '--provider', MOCK_PROVIDER_URI,
+               '--signer', MOCK_PROVIDER_URI,
                '--network', TEMPORARY_DOMAIN)
 
     result = click_runner.invoke(worklock, command, catch_exceptions=False)
@@ -496,6 +504,7 @@ def test_refund(click_runner,
     command = ('refund',
                '--participant-address', bidder_address,
                '--provider', MOCK_PROVIDER_URI,
+               '--signer', MOCK_PROVIDER_URI,
                '--network', TEMPORARY_DOMAIN)
 
     user_input = INSECURE_DEVELOPMENT_PASSWORD + '\n' + YES
@@ -521,6 +530,7 @@ def test_participant_status(click_runner,
     command = ('status',
                '--participant-address', surrogate_bidder.checksum_address,
                '--provider', MOCK_PROVIDER_URI,
+               '--signer', MOCK_PROVIDER_URI,
                '--network', TEMPORARY_DOMAIN)
 
     result = click_runner.invoke(worklock, command, catch_exceptions=False)
@@ -574,6 +584,7 @@ def test_interactive_new_bid(click_runner,
     command = ('escrow',
                '--participant-address', surrogate_bidder.checksum_address,
                '--provider', MOCK_PROVIDER_URI,
+               '--signer', MOCK_PROVIDER_URI,
                '--network', TEMPORARY_DOMAIN,)
 
     user_input = "\n".join((INSECURE_DEVELOPMENT_PASSWORD, str(wrong_bid_in_eth), str(bid_value_in_eth), YES))
@@ -624,6 +635,7 @@ def test_interactive_increase_bid(click_runner,
     command = ('escrow',
                '--participant-address', surrogate_bidder.checksum_address,
                '--provider', MOCK_PROVIDER_URI,
+               '--signer', MOCK_PROVIDER_URI,
                '--network', TEMPORARY_DOMAIN,)
 
     user_input = "\n".join((INSECURE_DEVELOPMENT_PASSWORD, str(bid_value_in_eth), YES))

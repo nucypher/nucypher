@@ -29,7 +29,7 @@ from nucypher.blockchain.eth.signers import Signer, ClefSigner
 from nucypher.blockchain.eth.token import NU
 from nucypher.blockchain.eth.utils import prettify_eth_amount
 from nucypher.cli.actions.auth import get_client_password
-from nucypher.cli.actions.select import select_client_account
+from nucypher.cli.actions.select import select_ethereum_account
 from nucypher.cli.utils import connect_to_blockchain, get_registry, setup_emitter
 from nucypher.cli.config import group_general_config, GroupGeneralConfig
 from nucypher.cli.literature import (
@@ -66,7 +66,8 @@ from nucypher.cli.options import (
     option_provider_uri,
     option_registry_filepath,
     option_signer_uri,
-    option_participant_address)
+    option_participant_address
+)
 from nucypher.cli.painting.transactions import paint_receipt_summary
 from nucypher.cli.painting.worklock import (
     paint_bidder_status,
@@ -103,12 +104,11 @@ class WorkLockOptions:
 
     def get_bidder_address(self, emitter, registry):
         if not self.bidder_address:
-            self.bidder_address = select_client_account(emitter=emitter,
-                                                        provider_uri=self.provider_uri,
-                                                        signer_uri=self.signer_uri,
-                                                        network=self.network,
-                                                        registry=registry,
-                                                        show_eth_balance=True)
+            self.bidder_address = select_ethereum_account(emitter=emitter,
+                                                          signer_uri=self.signer_uri,
+                                                          network=self.network,
+                                                          registry=registry,
+                                                          show_eth_balance=True)
         return self.bidder_address
 
     def __create_bidder(self,
@@ -139,7 +139,17 @@ class WorkLockOptions:
 group_worklock_options = group_options(
     WorkLockOptions,
     participant_address=option_participant_address,
-    signer_uri=option_signer_uri,
+    signer_uri=option_signer_uri(required=True),
+    provider_uri=option_provider_uri(required=True, default=os.environ.get(NUCYPHER_ENVVAR_PROVIDER_URI)),
+    network=option_network(default=NetworksInventory.DEFAULT, validate=True),  # TODO: See 2214
+    registry_filepath=option_registry_filepath,
+)
+
+
+readonly_worklock_options = group_options(
+    WorkLockOptions,
+    participant_address=option_participant_address,
+    signer_uri=option_signer_uri(required=False),
     provider_uri=option_provider_uri(required=True, default=os.environ.get(NUCYPHER_ENVVAR_PROVIDER_URI)),
     network=option_network(default=NetworksInventory.DEFAULT, validate=True),  # TODO: See 2214
     registry_filepath=option_registry_filepath,
@@ -152,7 +162,7 @@ def worklock():
 
 
 @worklock.command()
-@group_worklock_options
+@readonly_worklock_options
 @group_general_config
 def status(general_config: GroupGeneralConfig, worklock_options: WorkLockOptions):
     """Show current WorkLock information"""

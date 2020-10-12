@@ -31,7 +31,7 @@ from nucypher.cli.actions.configure import (
     handle_missing_configuration_file,
     get_or_update_configuration
 )
-from nucypher.cli.actions.select import select_client_account, select_config_file, select_network
+from nucypher.cli.actions.select import select_ethereum_account, select_config_file, select_network
 from nucypher.cli.commands.deploy import option_gas_strategy
 from nucypher.cli.config import group_general_config
 from nucypher.cli.literature import (
@@ -165,10 +165,9 @@ class UrsulaConfigOptions:
         if (not worker_address) and not self.federated_only:
             if not worker_address:
                 prompt = "Select worker account"
-                worker_address = select_client_account(emitter=emitter,
-                                                       prompt=prompt,
-                                                       provider_uri=self.provider_uri,
-                                                       signer_uri=self.signer_uri)
+                worker_address = select_ethereum_account(emitter=emitter,
+                                                         prompt=prompt,
+                                                         signer_uri=self.signer_uri)
 
         rest_host = self.rest_host
         if not rest_host:
@@ -214,7 +213,7 @@ class UrsulaConfigOptions:
 group_config_options = group_options(
     UrsulaConfigOptions,
     provider_uri=option_provider_uri(),
-    signer_uri=option_signer_uri,
+    signer_uri=option_signer_uri(),
     gas_strategy=option_gas_strategy,
     worker_address=click.option('--worker-address', help="Run the worker-ursula with a specified address", type=EIP55_CHECKSUM_ADDRESS),
     federated_only=option_federated_only,
@@ -288,11 +287,12 @@ def ursula():
 @option_config_root
 @group_general_config
 def init(general_config, config_options, force, config_root):
-    """
-    Create a new Ursula node configuration.
-    """
+    """Create a new Ursula node configuration."""
     emitter = setup_emitter(general_config, config_options.worker_address)
     _pre_launch_warnings(emitter, dev=None, force=force)
+    if not config_options.federated_only and not config_options.signer_uri:
+        emitter.error('Missing option --signer is required to init ursula')
+        raise click.Abort()
     if not config_root:
         config_root = general_config.config_root
     if not config_options.federated_only and not config_options.domain:
@@ -408,7 +408,6 @@ def config(general_config, config_options, config_file):
         config_file = select_config_file(emitter=emitter,
                                          checksum_address=config_options.worker_address,
                                          config_class=UrsulaConfiguration)
-    emitter.echo(f"Ursula Configuration {config_file} \n {'='*55}")
     updates = config_options.get_updates()
     get_or_update_configuration(emitter=emitter,
                                 config_class=UrsulaConfiguration,

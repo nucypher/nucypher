@@ -23,7 +23,7 @@ from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
 from nucypher.blockchain.eth.multisig import Authorization, Proposal
 from nucypher.blockchain.eth.signers.software import ClefSigner
 from nucypher.cli.actions.auth import get_client_password
-from nucypher.cli.actions.select import select_client_account
+from nucypher.cli.actions.select import select_ethereum_account
 from nucypher.cli.utils import get_registry
 from nucypher.cli.commands.stake import option_signer_uri
 from nucypher.cli.config import group_general_config
@@ -134,7 +134,7 @@ class MultiSigOptions:
 group_multisig_options = group_options(
     MultiSigOptions,
     checksum_address=option_checksum_address,
-    signer_uri=option_signer_uri,
+    signer_uri=option_signer_uri(required=True),
     hw_wallet=option_hw_wallet
 )
 
@@ -181,11 +181,11 @@ def propose(general_config, blockchain_options, multisig_options):
     registry = get_registry(network=blockchain_options.network)
 
     if not multisig_options.checksum_address:
-        multisig_options.checksum_address = select_client_account(emitter=emitter,
-                                                                  provider_uri=blockchain_options.provider_uri,
-                                                                  network=blockchain_options.network,
-                                                                  registry=registry,
-                                                                  show_balances=True)  # FIXME: Unexpected input
+        multisig_options.checksum_address = select_ethereum_account(emitter=emitter,
+                                                                    provider_uri=blockchain_options.provider_uri,
+                                                                    network=blockchain_options.network,
+                                                                    registry=registry,
+                                                                    show_balances=True)  # FIXME: Unexpected input
 
     trustee = multisig_options.create_transactingless_trustee(registry)
 
@@ -221,11 +221,11 @@ def sign(general_config, blockchain_options, multisig_options, proposal):
     proposal = Proposal.from_file(proposal)
 
     if not multisig_options.checksum_address:
-        multisig_options.checksum_address = select_client_account(emitter=emitter,
-                                                                  provider_uri=blockchain_options.provider_uri,
-                                                                  network=blockchain_options.network,
-                                                                  registry=registry,
-                                                                  show_balances=True)
+        multisig_options.checksum_address = select_ethereum_account(emitter=emitter,
+                                                                    provider_uri=blockchain_options.provider_uri,
+                                                                    network=blockchain_options.network,
+                                                                    registry=registry,
+                                                                    show_balances=True)
 
     name, version, address, abi = registry.search(contract_address=proposal.target_address)
     # TODO: This assumes that we're always signing proxy retargetting. For the moment is true.
@@ -262,11 +262,11 @@ def execute(general_config, blockchain_options, multisig_options, proposal):
     proposal = Proposal.from_file(proposal)
 
     if not multisig_options.checksum_address:
-        multisig_options.checksum_address = select_client_account(emitter=emitter,
-                                                                  provider_uri=blockchain_options.provider_uri,
-                                                                  network=blockchain_options.network,
-                                                                  registry=registry,
-                                                                  show_balances=True)  # FIXME: Unexpected argument!!
+        multisig_options.checksum_address = select_ethereum_account(emitter=emitter,
+                                                                    provider_uri=blockchain_options.provider_uri,
+                                                                    network=blockchain_options.network,
+                                                                    registry=registry,
+                                                                    show_balances=True)  # FIXME: Unexpected argument!!
 
     name, version, address, abi = registry.search(contract_address=proposal.target_address)
     # TODO: This assumes that we're always signing proxy retargetting. For the moment is true.

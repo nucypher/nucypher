@@ -17,12 +17,10 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 
 
 import json
-import os
-from typing import Tuple
 
 import click
 from constant_sorrow import constants
-from constant_sorrow.constants import FULL
+from typing import Tuple
 
 from nucypher.blockchain.eth.actors import ContractAdministrator, Trustee
 from nucypher.blockchain.eth.agents import ContractAgency, MultiSigAgent
@@ -42,13 +40,12 @@ from nucypher.blockchain.eth.sol.__conf__ import SOLIDITY_COMPILER_VERSION
 from nucypher.characters.control.emitters import StdoutEmitter
 from nucypher.cli.actions.auth import get_client_password
 from nucypher.cli.actions.confirm import confirm_deployment, verify_upgrade_details
-from nucypher.cli.actions.select import select_client_account
+from nucypher.cli.actions.select import select_ethereum_account
 from nucypher.cli.config import group_general_config
 from nucypher.cli.literature import (
     CANNOT_OVERWRITE_REGISTRY,
     CONFIRM_BEGIN_UPGRADE,
     CONFIRM_BUILD_RETARGET_TRANSACTION,
-    CONFIRM_LOCAL_REGISTRY_DESTRUCTION,
     CONFIRM_MANUAL_REGISTRY_DOWNLOAD,
     CONFIRM_NETWORK_ACTIVATION,
     CONFIRM_RETARGET,
@@ -57,7 +54,6 @@ from nucypher.cli.literature import (
     CONTRACT_IS_NOT_OWNABLE,
     DEPLOYER_ADDRESS_ZERO_ETH,
     DEPLOYER_BALANCE,
-    EXISTING_REGISTRY_FOR_DOMAIN,
     MINIMUM_POLICY_RATE_EXCEEDED_WARNING,
     PROMPT_FOR_ALLOCATION_DATA_FILEPATH,
     PROMPT_NEW_OWNER_ADDRESS,
@@ -162,7 +158,7 @@ class ActorOptions:
         deployer_interface = initialize_deployer_interface(provider_uri=self.provider_uri,
                                                            emitter=emitter,
                                                            ignore_solidity_check=self.ignore_solidity_check,
-                                                           gas_strategy=self.gas_strategy)
+                                                           gas_strategy_name=self.gas_strategy)
 
         # Warnings
         deployer_pre_launch_warnings(emitter, self.etherscan, self.hw_wallet)
@@ -190,11 +186,10 @@ class ActorOptions:
             is_transacting = True
             deployer_address = self.deployer_address
             if not deployer_address:
-                deployer_address = select_client_account(emitter=emitter,
-                                                         prompt=SELECT_DEPLOYER_ACCOUNT,
-                                                         provider_uri=self.provider_uri,
-                                                         signer_uri=self.signer_uri,
-                                                         show_eth_balance=True)
+                deployer_address = select_ethereum_account(emitter=emitter,
+                                                           prompt=SELECT_DEPLOYER_ACCOUNT,
+                                                           signer_uri=self.signer_uri,
+                                                           show_eth_balance=True)
 
             if not self.force:
                 click.confirm(CONFIRM_SELECTED_ACCOUNT.format(address=deployer_address), abort=True)
@@ -225,7 +220,7 @@ group_actor_options = group_options(
     ActorOptions,
     provider_uri=option_provider_uri(),
     gas_strategy=option_gas_strategy,
-    signer_uri=option_signer_uri,
+    signer_uri=option_signer_uri(required=True),
     contract_name=option_contract_name(required=False),  # TODO: Make this required see Issue #2314
     force=option_force,
     hw_wallet=option_hw_wallet,
@@ -288,10 +283,11 @@ def download_registry(general_config, config_root, registry_outfile, network, fo
 @group_general_config
 @option_provider_uri(required=True)
 @option_config_root
+@option_network()
 @option_registry_infile
 @option_deployer_address
 @option_ignore_solidity_version
-def inspect(general_config, provider_uri, config_root, registry_infile, deployer_address, ignore_solidity_check):
+def inspect(general_config, provider_uri, config_root, registry_infile, deployer_address, ignore_solidity_check, network):
     """Echo owner information and bare contract metadata."""
     emitter = general_config.emitter
     ensure_config_root(config_root)
@@ -367,12 +363,12 @@ def upgrade(general_config, actor_options, retarget, target_address, ignore_depl
                                                    just_build_transaction=True,
                                                    confirmations=confirmations)
 
-        trustee_address = select_client_account(emitter=emitter,
-                                                prompt="Select trustee address",
-                                                provider_uri=actor_options.provider_uri,
-                                                show_eth_balance=False,
-                                                show_nu_balance=False,
-                                                show_staking=False)
+        trustee_address = select_ethereum_account(emitter=emitter,
+                                                  prompt="Select trustee address",
+                                                  provider_uri=actor_options.provider_uri,
+                                                  show_eth_balance=False,
+                                                  show_nu_balance=False,
+                                                  show_staking=False)
 
         if not actor_options.force:
             click.confirm(CONFIRM_SELECTED_ACCOUNT.format(address=trustee_address), abort=True)
@@ -498,12 +494,9 @@ def contracts(general_config, actor_options, mode, activate, gas, ignore_deploye
                                   transaction_type=tx_name)
         return  # Exit
 
-    # Stage Deployment
+    # Stage & Confirm Deployment
     paint_staged_deployment(deployer_interface=deployer_interface, administrator=ADMINISTRATOR, emitter=emitter)
-
-    # Confirm Trigger Deployment
-    if not confirm_deployment(emitter=emitter, deployer_interface=deployer_interface):
-        raise click.Abort()
+    confirm_deployment(emitter=emitter, deployer_interface=deployer_interface)
 
     # Deploy
     emitter.echo(CONTRACT_DEPLOYMENT_SERIES_BEGIN_ADVISORY.format(contract_name=contract_name))

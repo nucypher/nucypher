@@ -140,6 +140,7 @@ def test_stake_via_contract(click_runner,
     init_args = ('stake', 'init-stakeholder',
                  '--config-root', custom_filepath,
                  '--provider', TEST_PROVIDER_URI,
+                 '--signer', TEST_PROVIDER_URI,
                  '--network', TEMPORARY_DOMAIN,
                  '--registry-filepath', agency_local_registry.filepath)
 
@@ -427,6 +428,7 @@ def test_ursula_init(click_runner,
                  '--worker-address', manual_worker,
                  '--config-root', custom_filepath,
                  '--provider', TEST_PROVIDER_URI,
+                 '--signer', TEST_PROVIDER_URI,
                  '--registry-filepath', agency_local_registry.filepath,
                  '--rest-host', MOCK_IP_ADDRESS,
                  '--rest-port', deploy_port)

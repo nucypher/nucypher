@@ -75,47 +75,28 @@ def select_stake(staker: Staker,
     return chosen_stake
 
 
-def select_client_account(emitter,
-                          provider_uri: str = None,
-                          signer: Signer = None,
-                          signer_uri: str = None,
-                          wallet: Wallet = None,
-                          prompt: str = None,
-                          default: int = 0,
-                          registry=None,
-                          show_eth_balance: bool = False,
-                          show_nu_balance: bool = False,
-                          show_staking: bool = False,
-                          network: str = None,
-                          ) -> str:
+def select_ethereum_account(emitter,
+                            signer: Signer = None,
+                            signer_uri: str = None,
+                            prompt: str = None,
+                            default: int = 0,
+                            registry=None,
+                            show_eth_balance: bool = False,
+                            show_nu_balance: bool = False,
+                            show_staking: bool = False,
+                            network: str = None,
+                            ) -> str:
     """
     Interactively select an ethereum wallet account from a table of nucypher account metadata.
-
     Note: Showing ETH and/or NU balances, causes an eager blockchain connection.
     """
 
-    if wallet and (provider_uri or signer_uri or signer):
-        raise ValueError("If a wallet is provided, don't provide a signer, provider URI, or signer URI.")
+    if not bool(signer) ^ bool(signer_uri):
+        raise ValueError(f'Pass either signer or signer_uri; Got signer={signer}, signer_uri={signer_uri}')
 
-    # We use Wallet internally as an account management abstraction
-    if not wallet:
-
-        if signer and signer_uri:
-            raise ValueError('Pass either signer or signer_uri but not both.')
-
-        if not provider_uri and not signer_uri:
-            raise ValueError("At least a provider URI or signer URI is necessary to select an account")
-
-        if provider_uri:
-            # Lazy connect the blockchain interface
-            if not BlockchainInterfaceFactory.is_interface_initialized(provider_uri=provider_uri):
-                BlockchainInterfaceFactory.initialize_interface(provider_uri=provider_uri, emitter=emitter)
-
-        if signer_uri:
-            testnet = network != NetworksInventory.MAINNET
-            signer = Signer.from_signer_uri(signer_uri, testnet=testnet)
-
-        wallet = Wallet(provider_uri=provider_uri, signer=signer)
+    if not signer:
+        testnet = network != NetworksInventory.MAINNET
+        signer = Signer.from_signer_uri(signer_uri, testnet=testnet)
 
     # Display accounts info
     if show_nu_balance or show_staking:  # Lazy registry fetching
@@ -124,11 +105,14 @@ def select_client_account(emitter,
                 raise ValueError("Pass network name or registry; Got neither.")
             registry = InMemoryContractRegistry.from_latest_publication(network=network)
 
-    wallet_accounts = wallet.accounts
-    enumerated_accounts = dict(enumerate(wallet_accounts))
+    enumerated_accounts = dict(enumerate(signer.accounts))
     if len(enumerated_accounts) < 1:
         emitter.echo(NO_ETH_ACCOUNTS, color='red', bold=True)
-        raise click.Abort()
+        raise click.Abort(NO_ETH_ACCOUNTS)
+    elif len(signer.accounts) == 1:
+        only_account = signer.accounts[0]
+        emitter.echo(f'Automatically selecting only available signer account ({only_account})', color='yellow')
+        return only_account
 
     # Display account info
     headers = ['Account']
@@ -148,10 +132,12 @@ def select_client_account(emitter,
             is_staking = 'Yes' if bool(staker.stakes) else 'No'
             row.append(is_staking)
         if show_eth_balance:
-            ether_balance = Web3.fromWei(wallet.eth_balance(account), 'ether')
+            blockchain = BlockchainInterfaceFactory.get_interface()
+            ether_balance = Web3.fromWei(blockchain.client.get_balance(account=account), 'ether')
             row.append(f'{ether_balance} ETH')
         if show_nu_balance:
-            token_balance = NU.from_nunits(wallet.token_balance(account, registry))
+            token_agent = ContractAgency.get_agent(NucypherTokenAgent, registry=registry)
+            token_balance = NU.from_nunits(token_agent.get_balance(address=account))
             row.append(token_balance)
         rows.append(row)
     emitter.echo(tabulate(rows, headers=headers, showindex='always'))
@@ -192,11 +178,11 @@ def select_client_account_for_staking(emitter: StdoutEmitter,
         if staking_address:
             client_account = staking_address
         else:
-            client_account = select_client_account(prompt=SELECT_STAKING_ACCOUNT_INDEX,
-                                                   emitter=emitter,
-                                                   registry=stakeholder.registry,
-                                                   network=stakeholder.network,
-                                                   wallet=stakeholder.wallet)
+            client_account = select_ethereum_account(prompt=SELECT_STAKING_ACCOUNT_INDEX,
+                                                     emitter=emitter,
+                                                     registry=stakeholder.registry,
+                                                     network=stakeholder.network,
+                                                     signer=stakeholder.signer)
             staking_address = client_account
     stakeholder.set_staker(client_account)
 

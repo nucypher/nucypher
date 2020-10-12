@@ -26,7 +26,7 @@ from nucypher.blockchain.eth.actors import EmergencyResponseManager, BaseActor
 from nucypher.blockchain.eth.signers.base import Signer
 from nucypher.blockchain.eth.signers.software import ClefSigner
 from nucypher.cli.actions.auth import get_client_password
-from nucypher.cli.actions.select import select_client_account
+from nucypher.cli.actions.select import select_ethereum_account
 from nucypher.cli.config import group_general_config, GroupGeneralConfig
 from nucypher.cli.options import (
     group_options,
@@ -35,7 +35,9 @@ from nucypher.cli.options import (
     option_provider_uri,
     option_registry_filepath,
     option_signer_uri,
-    option_parameters, option_hw_wallet)
+    option_parameters,
+    option_hw_wallet
+)
 from nucypher.cli.utils import setup_emitter, get_registry, connect_to_blockchain
 from nucypher.config.constants import NUCYPHER_ENVVAR_PROVIDER_URI
 
@@ -67,14 +69,14 @@ class DaoOptions:  # TODO: This class is essentially the same that WorkLock opti
 
     def get_participant_address(self, emitter, registry, show_staking: bool = False):
         if not self.participant_address:
-            self.participant_address = select_client_account(emitter=emitter,
-                                                             provider_uri=self.provider_uri,
-                                                             signer_uri=self.signer_uri,
-                                                             network=self.network,
-                                                             registry=registry,
-                                                             show_eth_balance=True,
-                                                             show_nu_balance=False,
-                                                             show_staking=show_staking)
+            self.participant_address = select_ethereum_account(emitter=emitter,
+                                                               provider_uri=self.provider_uri,
+                                                               signer_uri=self.signer_uri,
+                                                               network=self.network,
+                                                               registry=registry,
+                                                               show_eth_balance=True,
+                                                               show_nu_balance=False,
+                                                               show_staking=show_staking)
         return self.participant_address
 
     def __create_participant(self,
@@ -107,7 +109,7 @@ class DaoOptions:  # TODO: This class is essentially the same that WorkLock opti
 group_dao_options = group_options(
     DaoOptions,
     participant_address=option_participant_address,
-    signer_uri=option_signer_uri,
+    signer_uri=option_signer_uri(),
     provider_uri=option_provider_uri(required=True, default=os.environ.get(NUCYPHER_ENVVAR_PROVIDER_URI)),
     network=option_network(required=True),
     registry_filepath=option_registry_filepath,

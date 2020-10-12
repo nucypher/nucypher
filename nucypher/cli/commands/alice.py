@@ -27,7 +27,7 @@ from nucypher.cli.actions.configure import (
     destroy_configuration,
     handle_missing_configuration_file, get_or_update_configuration
 )
-from nucypher.cli.actions.select import select_client_account, select_config_file
+from nucypher.cli.actions.select import select_ethereum_account, select_config_file
 from nucypher.cli.commands.deploy import option_gas_strategy
 from nucypher.cli.config import group_general_config
 from nucypher.cli.options import (
@@ -152,7 +152,7 @@ group_config_options = group_options(
     dev=option_dev,
     network=option_network(),
     provider_uri=option_provider_uri(),
-    signer_uri=option_signer_uri,
+    signer_uri=option_signer_uri(),
     gas_strategy=option_gas_strategy,
     federated_only=option_federated_only,
     discovery_port=option_discovery_port(),
@@ -188,10 +188,10 @@ class AliceFullConfigOptions:
 
         pay_with = opts.pay_with
         if not pay_with and not opts.federated_only:
-            pay_with = select_client_account(emitter=emitter,
-                                             provider_uri=opts.provider_uri,
-                                             signer_uri=opts.signer_uri,
-                                             show_eth_balance=True)
+            pay_with = select_ethereum_account(emitter=emitter,
+                                               provider_uri=opts.provider_uri,
+                                               signer_uri=opts.signer_uri,
+                                               show_eth_balance=True)
 
         return AliceConfiguration.generate(
             password=get_nucypher_password(confirm=True),
