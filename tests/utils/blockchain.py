@@ -144,10 +144,8 @@ class TesterBlockchain(BlockchainDeployerInterface):
         # Detect provider platform
         client_version = self.w3.clientVersion
 
-        if 'Geth' in client_version:
-            raise RuntimeError("WARNING: Geth providers are not implemented.")
-        elif "Parity" in client_version:
-            raise RuntimeError("WARNING: Parity providers are not implemented.")
+        if client_version != EthereumTesterClient.ETHEREUM_TESTER:
+            raise self.InterfaceError(f'Cannot generate insecure accounts for {client_version}')
 
         addresses = list()
         for _ in range(quantity):
@@ -208,12 +206,11 @@ class TesterBlockchain(BlockchainDeployerInterface):
                       f"| epoch {end_timestamp}")
 
     @classmethod
-    def bootstrap_network(cls, economics: BaseEconomics = None) -> Tuple['TesterBlockchain', 'InMemoryContractRegistry']:
+    def bootstrap_network(cls, registry, economics: BaseEconomics) -> 'TesterBlockchain':
         """For use with metric testing scripts"""
 
-        registry = InMemoryContractRegistry()
         testerchain = cls(compiler=SolidityCompiler())
-        BlockchainInterfaceFactory.register_interface(testerchain)
+        BlockchainInterfaceFactory.get_interface(provider_uri=testerchain.provider_uri)
         power = TransactingPower(password=INSECURE_DEVELOPMENT_PASSWORD, account=testerchain.etherbase_account)
         power.activate()
         testerchain.transacting_power = power
@@ -231,7 +228,7 @@ class TesterBlockchain(BlockchainDeployerInterface):
             else:
                 admin.deploy_contract(contract_name=deployer_class.contract_name, gas_limit=gas_limit)
 
-        return testerchain, registry
+        return testerchain
 
     @property
     def etherbase_account(self):

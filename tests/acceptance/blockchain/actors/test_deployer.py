@@ -47,7 +47,7 @@ def test_rapid_deployment(token_economics, test_registry, tmpdir, get_random_che
     administrator = ContractAdministrator(deployer_address=deployer_address,
                                           registry=test_registry)
 
-    blockchain.bootstrap_network(economics=test_economics)
+    blockchain.bootstrap_network(registry=test_registry, economics=token_economics)
 
     all_yall = blockchain.unassigned_accounts
 

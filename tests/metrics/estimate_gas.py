@@ -166,7 +166,9 @@ def estimate_gas(analyzer: AnalyzeGas = None) -> None:
         percentage_penalty_coefficient=2,
         reward_coefficient=2
     )
-    testerchain, registry = TesterBlockchain.bootstrap_network(economics=economics)
+
+    registry = InMemoryContractRegistry()
+    testerchain = TesterBlockchain.bootstrap_network(registry=registry, economics=economics)
     web3 = testerchain.w3
 
     print("\n********* SIZE OF MAIN CONTRACTS *********")
