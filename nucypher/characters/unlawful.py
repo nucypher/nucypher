@@ -100,11 +100,7 @@ class Vladimir(Ursula):
             password = 'iamverybadass'
             blockchain.w3.provider.ethereum_tester.add_account(cls.fraud_key, password=password)
         except (ValidationError,):
-            # check if Vlad's key is already on the keyring...
-            if cls.fraud_address in blockchain.client.accounts:
-                return True
-            else:
-                raise
+            return True  # allow this key to be added more than once for tests
         return True
 
     def publish_fraudulent_treasure_map(self, legit_treasure_map, target_node):

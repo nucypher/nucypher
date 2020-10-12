@@ -56,7 +56,7 @@ class NotAPublicKey:
 
     _umbral_pubkey_from_bytes = UmbralPublicKey.from_bytes
 
-    def _tick():
+    def _tick():  # FIXME syntax error?
         for serial in good_serials:
             yield serial
     tick = _tick()

@@ -31,10 +31,13 @@ from tests.constants import INSECURE_DEVELOPMENT_PASSWORD
 from tests.markers import skip_on_circleci
 
 
+@pytest.mark.skip()
 @skip_on_circleci
 def test_geth_EIP_191_client_signature_integration(instant_geth_dev_node):
 
     # Start a geth process
+    instant_geth_dev_node.start()
+
     blockchain = BlockchainInterface(provider_uri=instant_geth_dev_node.provider_uri())
     blockchain.connect()
 
@@ -48,6 +51,7 @@ def test_geth_EIP_191_client_signature_integration(instant_geth_dev_node):
     assert is_valid
 
 
+@pytest.mark.skip()
 @skip_on_circleci
 def test_geth_create_new_account(instant_geth_dev_node):
     blockchain = BlockchainInterface(provider_uri=instant_geth_dev_node.provider_uri())

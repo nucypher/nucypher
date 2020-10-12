@@ -43,7 +43,7 @@ from tests.mock.web3 import GAS_PRICE_FROM_STRATEGY, DEFAULT_GAS_PRICE
 
 class BlockchainInterfaceTestBase(BlockchainInterface):
 
-    Web3 = MockWeb3
+    web3_factory_class = MockWeb3
 
     def _configure_registry(self, *args, **kwargs):
         pass
