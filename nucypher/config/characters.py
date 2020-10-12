@@ -90,7 +90,8 @@ class UrsulaConfiguration(CharacterConfiguration):
             availability_check=self.availability_check,
         )
         payload = {**super().static_payload(), **payload}
-        del payload['checksum_address']  # avoid configuration confusion, use worker address
+        # TODO: Support only worker address or checksum address, not this mixed mode business here
+        # del payload['checksum_address']  # avoid configuration confusion, use worker address
         return payload
 
     @property
@@ -120,6 +121,8 @@ class UrsulaConfiguration(CharacterConfiguration):
 
     def attach_keyring(self, checksum_address: str = None, *args, **kwargs) -> None:
         if self.federated_only:
+            # TODO: Support only worker address or checksum address, not this mixed mode business here
+            # This may be the only remaining reason 'checksum address' is still supported for Ursula.
             account = checksum_address or self.checksum_address
         else:
             account = checksum_address or self.worker_address
