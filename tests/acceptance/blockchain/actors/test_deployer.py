@@ -16,12 +16,11 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
 import json
-import random
 
 import pytest
+import random
 
 from nucypher.blockchain.eth.actors import ContractAdministrator
-from nucypher.blockchain.eth.agents import StakingEscrowAgent, ContractAgency
 from nucypher.characters.control.emitters import StdoutEmitter
 from nucypher.crypto.powers import TransactingPower
 from tests.constants import INSECURE_DEVELOPMENT_PASSWORD, NUMBER_OF_ALLOCATIONS_IN_TESTS

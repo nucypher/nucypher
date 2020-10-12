@@ -147,7 +147,7 @@ def test_coexisting_configurations(click_runner,
                  '--config-root', custom_filepath)
 
     result = click_runner.invoke(nucypher_cli, init_args, catch_exceptions=False, env=envvars)
-    assert result.exit_code == 0
+    assert result.exit_code == 0, result.output
 
     # All configuration files still exist.
     assert len(os.listdir(public_keys_dir)) == 8
