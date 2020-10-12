@@ -15,22 +15,24 @@ You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
-import csv
+
 import json
+import traceback
+
+import click
+import csv
+import maya
 import os
 import sys
 import time
-import traceback
+from constant_sorrow.constants import FULL, WORKER_NOT_RUNNING, READONLY_STAKEHOLDER
 from decimal import Decimal
-from typing import Callable
-from typing import Dict, Iterable, List, Optional, Tuple
-
-import click
-import maya
-from constant_sorrow.constants import FULL, WORKER_NOT_RUNNING
 from eth_tester.exceptions import TransactionFailed as TestTransactionFailed
 from eth_typing import ChecksumAddress
 from eth_utils import to_canonical_address, to_checksum_address
+from hexbytes.main import HexBytes
+from typing import Callable, Union
+from typing import Dict, Iterable, List, Optional, Tuple
 from web3 import Web3
 from web3.exceptions import ValidationError
 from web3.types import TxReceipt
@@ -78,9 +80,16 @@ from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
 from nucypher.blockchain.eth.multisig import Authorization, Proposal
 from nucypher.blockchain.eth.registry import BaseContractRegistry, IndividualAllocationRegistry
 from nucypher.blockchain.eth.signers.base import Signer
-from nucypher.blockchain.eth.signers.software import KeystoreSigner, Web3Signer
-from nucypher.blockchain.eth.token import NU, Stake, StakeList, WorkTracker, validate_prolong, validate_increase, \
-    validate_divide, validate_merge
+from nucypher.blockchain.eth.token import (
+    NU,
+    Stake,
+    StakeList,
+    WorkTracker,
+    validate_prolong,
+    validate_increase,
+    validate_divide,
+    validate_merge
+)
 from nucypher.blockchain.eth.utils import (
     calculate_period_duration,
     datetime_at_period,
@@ -89,7 +98,7 @@ from nucypher.blockchain.eth.utils import (
 )
 from nucypher.characters.banners import STAKEHOLDER_BANNER
 from nucypher.characters.control.emitters import StdoutEmitter
-from nucypher.cli.painting.deployment import paint_contract_deployment, paint_input_allocation_file
+from nucypher.cli.painting.deployment import paint_input_allocation_file
 from nucypher.cli.painting.transactions import paint_receipt_summary
 from nucypher.config.constants import DEFAULT_CONFIG_ROOT
 from nucypher.crypto.powers import TransactingPower
@@ -142,7 +151,7 @@ class BaseActor:
 
     @property
     def eth_balance(self) -> Decimal:
-        """Return this actors's current ETH balance"""
+        """Return this actor's current ETH balance"""
         blockchain = BlockchainInterfaceFactory.get_interface()  # TODO: EthAgent?  #1509
         balance = blockchain.client.get_balance(self.checksum_address)
         return Web3.fromWei(balance, 'ether')
@@ -179,23 +188,22 @@ class ContractAdministrator(NucypherTokenActor):
     dispatched_upgradeable_deployer_classes = (
         StakingEscrowDeployer,
         PolicyManagerDeployer,
-        AdjudicatorDeployer,
+        AdjudicatorDeployer
     )
 
     upgradeable_deployer_classes = (
         *dispatched_upgradeable_deployer_classes,
-        StakingInterfaceDeployer,
+        StakingInterfaceDeployer
     )
 
     aux_deployer_classes = (
         WorklockDeployer,
-        MultiSigDeployer,
+        MultiSigDeployer
     )
 
     # For ownership transfers.
     ownable_deployer_classes = (*dispatched_upgradeable_deployer_classes,
-                                StakingInterfaceRouterDeployer,
-                                )
+                                StakingInterfaceRouterDeployer)
 
     # Used in the automated deployment series.
     primary_deployer_classes = (*standard_deployer_classes,
@@ -217,7 +225,8 @@ class ContractAdministrator(NucypherTokenActor):
                  is_transacting: bool = True,  # FIXME: Workaround to be able to build MultiSig TXs
                  economics: BaseEconomics = None):
         """
-        Note: super() is not called here to avoid setting the token agent.  TODO: call super but use "bare mode" without token agent.  #1510
+        Note: super() is not called here to avoid setting the token agent.
+        TODO: call super but use "bare mode" without token agent.  #1510
         """
         self.log = Logger("Deployment-Actor")
 
@@ -1666,91 +1675,17 @@ class Investigator(NucypherTokenActor):
         return receipt
 
 
-class Wallet:
-    """
-    Account management abstraction on top of blockchain providers and external signers
-    """
-
-    class UnknownAccount(KeyError):
-        pass
-
-    def __init__(self,
-                 client_addresses: set = None,
-                 provider_uri: str = None,
-                 signer=None):
-
-        self.__client_accounts = list()
-        self.__transacting_powers = dict()
-
-        # Blockchain
-        self.blockchain = BlockchainInterfaceFactory.get_interface(provider_uri)
-        self.signer = signer
-
-        self.__get_accounts()
-        if client_addresses:
-            self.__client_accounts.extend([a for a in client_addresses if a not in self.__client_accounts])
-
-    @validate_checksum_address
-    def __contains__(self, checksum_address: str) -> bool:
-        return bool(checksum_address in self.accounts)
-
-    @property
-    def active_account(self) -> str:
-        return self.blockchain.transacting_power.account
-
-    def __get_accounts(self) -> None:
-        if self.signer:
-            signer_accounts = self.signer.accounts
-            self.__client_accounts.extend([a for a in signer_accounts if a not in self.__client_accounts])
-        client_accounts = self.blockchain.client.accounts  # Accounts via connected provider
-        self.__client_accounts.extend([a for a in client_accounts if a not in self.__client_accounts])
-
-    @property
-    def accounts(self) -> Tuple:
-        return tuple(self.__client_accounts)
-
-    @validate_checksum_address
-    def activate_account(self,
-                         checksum_address: str,
-                         signer: Optional[Signer] = None,
-                         password: Optional[str] = None
-                         ) -> None:
-
-        if checksum_address not in self:
-            self.signer = signer or Web3Signer(client=self.blockchain.client)
-            if isinstance(self.signer, KeystoreSigner):
-                raise BaseActor.ActorError(f"Staking operations are not permitted while using a local keystore signer.")
-            self.__get_accounts()
-            if checksum_address not in self:
-                raise self.UnknownAccount
-        try:
-            transacting_power = self.__transacting_powers[checksum_address]
-        except KeyError:
-            transacting_power = TransactingPower(signer=self.signer or Web3Signer(client=self.blockchain.client),
-                                                 password=password,
-                                                 account=checksum_address)
-            self.__transacting_powers[checksum_address] = transacting_power
-        transacting_power.activate(password=password)
-
-    def eth_balance(self, account: str) -> int:
-        return self.blockchain.client.get_balance(account)
-
-    def token_balance(self, account: str, registry: BaseContractRegistry) -> int:
-        token_agent = ContractAgency.get_agent(NucypherTokenAgent, registry)  # type: NucypherTokenAgent
-        return token_agent.get_balance(account)
-
-
 class StakeHolder(Staker):
     banner = STAKEHOLDER_BANNER
 
-    #
-    # StakeHolder
-    #
+    class UnknownAccount(RuntimeError):
+        pass
+
     def __init__(self,
                  is_me: bool = True,
-                 initial_address: str = None,
-                 checksum_addresses: set = None,
                  signer: Signer = None,
+                 checksum_addresses: List[ChecksumAddress] = None,
+                 initial_address: str = None,
                  worker_data: dict = None,
                  *args, **kwargs):
 
@@ -1761,14 +1696,17 @@ class StakeHolder(Staker):
         self.log = Logger(f"stakeholder")
 
         # Wallet
-        self.wallet = Wallet(client_addresses=checksum_addresses, signer=signer)
+        if not signer:
+            signer = READONLY_STAKEHOLDER.bool_value(False)
+        self.signer = signer
+
+        # TODO: Offline tracking of staking account without a signer available
+        if checksum_addresses is None:
+            checksum_addresses = list()
+        self.checksum_address = checksum_addresses
+        self.__transacting_powers = dict()
+
         if initial_address:
-            # If an initial address was passed,
-            # it is safe to understand that it has already been used at a higher level.
-            if initial_address not in self.wallet:
-                message = f"Account {initial_address} is not known by this Ethereum client. Is it a HW account? " \
-                          f"If so, make sure that your device is plugged in and you use the --hw-wallet flag."
-                raise Wallet.UnknownAccount(message)
             self.set_staker(checksum_address=initial_address)
 
     @validate_checksum_address
@@ -1811,16 +1749,30 @@ class StakeHolder(Staker):
         self.log.info(f"Setting Staker from {original_form} to {new_form}.")
 
     @validate_checksum_address
+    def activate_account(self,
+                         checksum_address: str,
+                         password: Optional[str] = None
+                         ) -> None:
+        try:
+            transacting_power = self.__transacting_powers[checksum_address]
+        except KeyError:
+            transacting_power = TransactingPower(signer=self.signer,
+                                                 password=password,
+                                                 account=checksum_address)
+            self.__transacting_powers[checksum_address] = transacting_power
+        transacting_power.activate(password=password)
+
+    @validate_checksum_address
     def assimilate(self, checksum_address: str = None, password: str = None) -> None:
         if checksum_address:
             self.set_staker(checksum_address=checksum_address)
 
         account = self.checksum_address if not self.individual_allocation else self.beneficiary_address
-        self.wallet.activate_account(checksum_address=account, password=password)
+        self.activate_account(checksum_address=account, password=password)
 
     @validate_checksum_address
     def get_staker(self, checksum_address: str):
-        if checksum_address not in self.wallet.accounts:
+        if checksum_address not in self.signer.accounts:
             raise ValueError(f"{checksum_address} is not a known client account.")
         staker = Staker(is_me=True, checksum_address=checksum_address, registry=self.registry)
         staker.refresh_stakes()
@@ -1828,7 +1780,7 @@ class StakeHolder(Staker):
 
     def get_stakers(self) -> List[Staker]:
         stakers = list()
-        for account in self.wallet.accounts:
+        for account in self.signer.accounts:
             staker = self.get_staker(checksum_address=account)
             stakers.append(staker)
         return stakers
@@ -1838,7 +1790,7 @@ class StakeHolder(Staker):
         """
         The total number of staked tokens, either locked or unlocked in the current period.
         """
-        stake = sum(self.staking_agent.owned_tokens(staker_address=account) for account in self.wallet.accounts)
+        stake = sum(self.staking_agent.owned_tokens(staker_address=account) for account in self.signer.accounts)
         nu_stake = NU.from_nunits(stake)
         return nu_stake
 

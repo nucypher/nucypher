@@ -21,7 +21,6 @@ import pytest
 from eth_utils import is_checksum_address
 from web3 import Web3
 
-from nucypher.blockchain.eth.actors import Wallet
 from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
 from nucypher.blockchain.eth.signers import KeystoreSigner
 from nucypher.blockchain.eth.token import NU
@@ -67,43 +66,6 @@ def test_select_client_account_with_no_accounts(mocker,
     assert NO_ETH_ACCOUNTS in captured.out
 
 
-def test_select_client_account_ambiguous_source(mock_stdin, # used to assert the user was not prompted
-                                                test_emitter,
-                                                mock_testerchain):
-
-    #
-    # Implicit wallet
-    #
-
-    error_message = "At least a provider URI or signer URI is necessary to select an account"
-    with pytest.raises(ValueError, match=error_message):
-        select_client_account(emitter=test_emitter)
-
-    error_message = "Pass either signer or signer_uri but not both."
-    with pytest.raises(ValueError, match=error_message):
-        select_client_account(emitter=test_emitter, signer=Mock(), signer_uri=MOCK_SIGNER_URI)
-
-    #
-    # Explicit wallet
-    #
-
-    error_message = "If a wallet is provided, don't provide a signer, provider URI, or signer URI."
-    with pytest.raises(ValueError, match=error_message):
-        select_client_account(emitter=test_emitter,
-                              signer_uri=Mock(),
-                              wallet=Mock())
-
-    with pytest.raises(ValueError, match=error_message):
-        select_client_account(emitter=test_emitter,
-                              signer=Mock(),
-                              wallet=Mock())
-
-    with pytest.raises(ValueError, match=error_message):
-        select_client_account(emitter=test_emitter,
-                              provider_uri=Mock(),
-                              wallet=Mock())
-
-
 @pytest.mark.parametrize('selection', range(NUMBER_OF_ETH_TEST_ACCOUNTS))
 def test_select_client_account_valid_sources(mocker,
                                              mock_stdin,
@@ -121,8 +83,6 @@ def test_select_client_account_valid_sources(mocker,
     mocker.patch.object(KeystoreSigner, 'accounts', mock_testerchain.client.accounts)
     selected_account = select_ethereum_account(emitter=test_emitter, signer_uri=MOCK_KEYSTORE_SIGNER_URI)
     expected_account = mock_testerchain.client.accounts[selection]
-    wallet = Wallet(provider_uri=MOCK_PROVIDER_URI)
-    selected_account = select_client_account(emitter=test_emitter, wallet=wallet)
     assert selected_account == expected_account
     spy_uri.assert_called_once_with(uri=MOCK_KEYSTORE_SIGNER_URI, testnet=True)
     assert mock_stdin.empty()
