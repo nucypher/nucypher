@@ -455,7 +455,7 @@ class BlockchainInterface:
                                        transaction_dict,
                                        transaction_name: str = "",
                                        confirmations: int = 0,
-                                       fire_and_forget: bool = False
+                                       wait_for_receipt: bool = False
                                        ) -> Union[TxReceipt, HexBytes]:
         """
         Takes a transaction dictionary, signs it with the configured signer, then broadcasts the signed
@@ -492,25 +492,22 @@ class BlockchainInterface:
 
         if self.transacting_power.is_device:
             emitter.message(f'Confirm transaction {transaction_name} on hardware wallet... '
-                            f'({cost} ETH @ {price_gwei} gwei)',
-                            color='yellow')
+                            f'({cost} ETH @ {price_gwei} gwei)', color='yellow')
+
         signed_raw_transaction = self.transacting_power.sign_transaction(transaction_dict)
 
         #
         # Broadcast
         #
 
-        emitter.message(f'Broadcasting {transaction_name} Transaction ({cost} ETH @ {price_gwei} gwei)...',
-                        color='yellow')
-
-        # time.sleep(1)  # FIXME: workaround for reused nonce
+        message = f'Broadcasting {transaction_name} Transaction ({cost} ETH @ {price_gwei} gwei)...'
+        emitter.message(message, color='yellow')
         try:
             txhash = self.client.send_raw_transaction(signed_raw_transaction)  # <--- BROADCAST
+            if not wait_for_receipt:
+                return txhash
         except (TestTransactionFailed, ValueError):
             raise  # TODO: Unify with Transaction failed handling -- Entry point for _handle_failed_transaction
-        else:
-            if fire_and_forget:
-                return txhash
 
         #
         # Receipt
@@ -519,10 +516,8 @@ class BlockchainInterface:
         try:  # TODO: Handle block confirmation exceptions
             receipt = self.client.wait_for_receipt(txhash, timeout=self.TIMEOUT, confirmations=confirmations)
         except TimeExhausted:
-            # TODO: #1504 - Handle transaction timeout
-            raise
-        else:
-            self.log.debug(f"[RECEIPT-{transaction_name}] | txhash: {receipt['transactionHash'].hex()}")
+            raise  # TODO: #1504 - Further handle transaction timeout
+        self.log.debug(f"[RECEIPT-{transaction_name}] | txhash: {receipt['transactionHash'].hex()}")
 
         #
         # Confirmations
@@ -554,11 +549,8 @@ class BlockchainInterface:
                          transaction_gas_limit: Optional[int] = None,
                          gas_estimation_multiplier: Optional[float] = None,
                          confirmations: int = 0,
-                         fire_and_forget: bool = False  # do not wait for receipt.
+                         wait_for_receipt: bool = True
                          ) -> dict:
-
-        if fire_and_forget and confirmations > 0:
-            raise ValueError('Transaction Prevented: Cannot use confirmations and fire_and_forget options together.')
 
         transaction = self.build_contract_transaction(contract_function=contract_function,
                                                       sender_address=sender_address,
@@ -575,7 +567,7 @@ class BlockchainInterface:
         txhash_or_receipt = self.sign_and_broadcast_transaction(transaction_dict=transaction,
                                                                 transaction_name=transaction_name,
                                                                 confirmations=confirmations,
-                                                                fire_and_forget=fire_and_forget)
+                                                                wait_for_receipt=wait_for_receipt)
         return txhash_or_receipt
 
     def get_contract_by_name(self,
@@ -936,9 +928,7 @@ class BlockchainInterfaceFactory:
 
     @classmethod
     def is_interface_initialized(cls, provider_uri: str) -> bool:
-        """
-        Returns True if there is an existing connection with an equal provider_uri.
-        """
+        """Returns True if there is an existing connection with an equal provider_uri."""
         return bool(cls._interfaces.get(provider_uri, False))
 
     @classmethod

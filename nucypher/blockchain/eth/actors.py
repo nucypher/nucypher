@@ -1550,11 +1550,11 @@ class Worker(NucypherTokenActor):
         return period
 
     @only_me
-    @save_receipt  # saves txhash instead of receipt if `fire_and_forget` is True
-    def commit_to_next_period(self, fire_and_forget: bool = True) -> TxReceipt:
+    @save_receipt  # saves txhash instead of receipt if `wait_for_receipt` is False
+    def commit_to_next_period(self, wait_for_receipt: bool = False) -> Union[HexBytes, TxReceipt]:
         """For each period that the worker makes a commitment, the staker is rewarded"""
         txhash_or_receipt = self.staking_agent.commit_to_next_period(worker_address=self.__worker_address,
-                                                                     fire_and_forget=fire_and_forget)
+                                                                     wait_for_receipt=wait_for_receipt)
         return txhash_or_receipt
 
     @property

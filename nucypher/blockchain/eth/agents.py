@@ -550,21 +550,25 @@ class StakingEscrowAgent(EthereumContractAgent):
 
     @contract_api(CONTRACT_CALL)
     def get_last_committed_period(self, staker_address: ChecksumAddress) -> Period:
+        """Read the last period the staker as committed to"""
         period: int = self.contract.functions.getLastCommittedPeriod(staker_address).call()
         return Period(period)
 
     @contract_api(CONTRACT_CALL)
     def get_worker_from_staker(self, staker_address: ChecksumAddress) -> ChecksumAddress:
+        """Resolve worker address from staker address or return null address is the staker is ubbonded."""
         worker: str = self.contract.functions.getWorkerFromStaker(staker_address).call()
         return to_checksum_address(worker)
 
     @contract_api(CONTRACT_CALL)
     def get_staker_from_worker(self, worker_address: ChecksumAddress) -> ChecksumAddress:
+        """Resolve staking address from worker address"""
         staker = self.contract.functions.stakerFromWorker(worker_address).call()
         return to_checksum_address(staker)
 
     @contract_api(TRANSACTION)
     def bond_worker(self, staker_address: ChecksumAddress, worker_address: ChecksumAddress) -> TxReceipt:
+        """Bond a worker address to a stake"""
         contract_function: ContractFunction = self.contract.functions.bondWorker(worker_address)
         receipt: TxReceipt = self.blockchain.send_transaction(contract_function=contract_function,
                                                               sender_address=staker_address)
@@ -572,18 +576,17 @@ class StakingEscrowAgent(EthereumContractAgent):
 
     @contract_api(TRANSACTION)
     def release_worker(self, staker_address: ChecksumAddress) -> TxReceipt:
+        """Unbond the current worker address so that another address can be bonded as the worker."""
         return self.bond_worker(staker_address=staker_address, worker_address=NULL_ADDRESS)
 
     @contract_api(TRANSACTION)
-    def commit_to_next_period(self, worker_address: ChecksumAddress, fire_and_forget: bool = True) -> TxReceipt:  # TODO: make fire_and_forget required
-        """
-        For each period that the worker makes a commitment, the staker is rewarded.
-        """
+    def commit_to_next_period(self, worker_address: ChecksumAddress, wait_for_receipt: bool = False) -> TxReceipt:
+        """For each period that the worker makes a commitment, the staker is rewarded."""
         contract_function: ContractFunction = self.contract.functions.commitToNextPeriod()
         receipt: TxReceipt = self.blockchain.send_transaction(contract_function=contract_function,
                                                               sender_address=worker_address,
                                                               gas_estimation_multiplier=1.5,  # TODO: Workaround for #2337
-                                                              fire_and_forget=fire_and_forget)
+                                                              wait_for_receipt=wait_for_receipt)
         return receipt
 
     @contract_api(TRANSACTION)

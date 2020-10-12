@@ -170,7 +170,7 @@ class UrsulaCommandProtocol(LineReceiver):
         """
         manually make a commitment to the next period
         """
-        return self.ursula.commit_to_next_period(fire_and_forget=False)
+        return self.ursula.commit_to_next_period(wait_for_receipt=True)
 
     def stop(self):
         """
