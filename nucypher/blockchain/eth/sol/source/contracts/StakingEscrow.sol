@@ -544,7 +544,7 @@ contract StakingEscrow is Issuer, IERC900History {
         uint256 _value,
         uint16 _periods
     )
-        external isInitialized
+        external
     {
         require(msg.sender == address(workLock));
         StakerInfo storage info = stakerInfo[_staker];
