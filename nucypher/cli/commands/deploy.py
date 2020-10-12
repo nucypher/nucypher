@@ -519,9 +519,10 @@ def contracts(general_config, actor_options, mode, activate, gas, ignore_deploye
     registry_outfile = local_registry.filepath
     emitter.echo(SUCCESSFUL_REGISTRY_CREATION.format(registry_outfile=registry_outfile), bold=True, color='blue')
 
+    # TODO: Reintroduce?
     # Save transaction metadata
-    receipts_filepath = ADMINISTRATOR.save_deployment_receipts(receipts=receipts)
-    emitter.echo(SUCCESSFUL_SAVE_DEPLOY_RECEIPTS.format(receipts_filepath=receipts_filepath), color='blue', bold=True)
+    # receipts_filepath = ADMINISTRATOR.save_deployment_receipts(receipts=receipts)
+    # emitter.echo(SUCCESSFUL_SAVE_DEPLOY_RECEIPTS.format(receipts_filepath=receipts_filepath), color='blue', bold=True)
 
 
 @deploy.command()
