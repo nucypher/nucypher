@@ -14,17 +14,16 @@ GNU Affero General Public License for more details.
 You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
-import random
 from _pydecimal import Decimal
 from collections import UserList
 from enum import Enum
+from typing import Callable, Dict, Union
 
 import maya
-from constant_sorrow.constants import (EMPTY_STAKING_SLOT, NEW_STAKE, NOT_STAKING, NO_STAKING_RECEIPT,
-                                       UNKNOWN_WORKER_STATUS)
+import random
+from constant_sorrow.constants import (EMPTY_STAKING_SLOT, NEW_STAKE, NOT_STAKING)
 from eth_utils import currency, is_checksum_address
 from twisted.internet import reactor, task
-from typing import Callable, Dict, Union
 
 from nucypher.blockchain.eth.agents import ContractAgency, StakingEscrowAgent
 from nucypher.blockchain.eth.decorators import validate_checksum_address
@@ -602,15 +601,39 @@ class WorkTracker:
     def __check_work_requirements(self) -> bool:
         if self.__requirement is None:
             return True
-        try:
-            r = self.__requirement()
-            if not isinstance(r, bool):
-                raise ValueError(f"'requirement' must return a boolean.")
-        except TypeError:
-            raise ValueError(f"'requirement' must be a callable.")
+        r = self.__requirement()
+        if not isinstance(r, bool):
+            raise ValueError(f"'requirement' must return a boolean.")
         return r
 
+    @property
+    def pending(self) -> Dict[int, HexBytes]:
+        return self.__pending.copy()
+
+    def __track_pending_commitments(self) -> None:
+        unmined_transactions = list()
+        for epoch, txhash in self.pending.items():  # note: this must be performed non-mutatively
+            try:
+                self.staking_agent.blockchain.client.get_transaction(transaction_hash=txhash)
+            except TransactionNotFound:
+                unmined_transactions.append(txhash)  # Keep tracking it for now
+            else:
+                self.log.info(f'Pending commitment transaction confirmed - {txhash.hex()}')
+                del self.__pending[epoch]
+
+        if unmined_transactions:
+            pluarlize = "s" if len(unmined_transactions) > 1 else ""
+            self.log.info(f'{len(unmined_transactions)} pending commitment transaction{pluarlize} detected.')
+            # TODO: Do something more about this...
+            # if len(unmined) > threshold:
+            #     pass
+
     def _do_work(self) -> None:
+        """Async working task for Ursula"""
+
+        # TODO: Move this to another async task?
+        if self.__pending:
+            self.__track_pending_commitments()
 
         # Randomize the task interval over time, within bounds.
         self._tracking_task.interval = self.random_interval()
@@ -621,7 +644,11 @@ class WorkTracker:
         onchain_period = self.staking_agent.get_current_period()  # < -- Read from contract
         if self.current_period != onchain_period:
             self.__current_period = onchain_period
-            # self.worker.stakes.refresh()  # TODO: #1517 Track stakes for fast access to terminal period.
+            # TODO: #1517 Track stakes for fast access to terminal period.
+            # TODO: #1515 Shut down at end of terminal stake (as part of work requirement func?)
+            # TODO: Check for stake expiration and exit
+            # This slows down tests substantially, but might be acceptable in production
+            # self.worker.stakes.refresh()
 
         # Measure working interval
         interval = onchain_period - self.worker.last_committed_period
