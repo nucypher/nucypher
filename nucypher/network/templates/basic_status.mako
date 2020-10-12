@@ -103,31 +103,31 @@
 </style>
 
 <div id="this-node">
-    <h2>{{ this_node.nickname }}</h2>
-    <h5>({{ checksum_address }})</h5>
-    {{ this_node.nickname_icon }}
-    <h4>v{{ version }}</h4>
-    <h4>Domain: {{ domain }}</h4>
+    <h2>${ this_node.nickname }</h2>
+    <h5>(${ checksum_address })</h5>
+    ${ this_node.nickname_icon }
+    <h4>v${ version }</h4>
+    <h4>Domain: ${ domain }</h4>
 
     <h3>Fleet State</h3>
     <div class="state">
-        <h4>{{ known_nodes.nickname }}</h4>
-        {{ known_nodes.icon }}
+        <h4>${ known_nodes.nickname }</h4>
+        ${ known_nodes.icon }
         <br/>
-        <span class="small">{{ known_nodes.updated }}</span>
+        <span class="small">${ known_nodes.updated }</span>
         </ul>
     </div>
 
     <div id="previous-states">
         <h3>Previous States</h3>
-        {% for state in previous_states %}
+        %for state in previous_states:
             <div class="state">
-                <h5>{{ state.nickname }}</h5>
-                {{ state.icon }}
+                <h5>${ state.nickname }</h5>
+                ${ state.icon }
                 <br/>
-                <span class="small">{{ state.updated }}</span>
+                <span class="small">${ state.updated }</span>
             </div>
-        {% endfor %}
+        %endfor
     </div>
 </div>
 <div id="known-nodes">
@@ -140,18 +140,18 @@
             <td>Last Seen</td>
             <td>Fleet State</td>
         </thead>
-        {% for node in known_nodes -%}
+        %for node in known_nodes:
             <tr>
-                <td>{{ node.nickname_icon }}</td>
+                <td>${ node.nickname_icon }</td>
                 <td>
-                    <a href="https://{{ node.rest_url()}}/status">{{ node.nickname }}</a>
-                    <br/><span class="small">{{ node.checksum_address }}</span>
+                    <a href="https://${node.rest_url()}/status">${ node.nickname }</a>
+                    <br/><span class="small">${ node.checksum_address }</span>
                 </td>
-                <td>{{ node.timestamp }}</td>
-                <td>{{ node.last_seen }}</td>
-                <td>{{ node.fleet_state_icon }}</td>
+                <td>${ node.timestamp }</td>
+                <td>${ node.last_seen }</td>
+                <td>${ node.fleet_state_icon }</td>
             </tr>
-        {%- endfor %}
+        %endfor
     </table>
 </div>
 </html>

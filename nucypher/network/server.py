@@ -24,7 +24,8 @@ from constant_sorrow import constants
 from constant_sorrow.constants import FLEET_STATES_MATCH, NO_BLOCKCHAIN_CONNECTION, NO_KNOWN_NODES
 from datetime import datetime, timedelta
 from flask import Flask, Response, jsonify, request
-from jinja2 import Template, TemplateError
+from mako import exceptions as mako_exceptions
+from mako.template import Template
 from maya import MayaDT
 from typing import Tuple, Set
 from umbral.keys import UmbralPublicKey
@@ -49,9 +50,7 @@ from nucypher.utilities.logging import Logger
 HERE = BASE_DIR = os.path.abspath(os.path.dirname(__file__))
 TEMPLATES_DIR = os.path.join(HERE, "templates")
 
-with open(os.path.join(TEMPLATES_DIR, "basic_status.j2"), "r") as f:
-    _status_template_content = f.read()
-status_template = Template(_status_template_content)
+status_template = Template(filename=os.path.join(TEMPLATES_DIR, "basic_status.mako"))
 
 
 class ProxyRESTServer:
@@ -370,7 +369,7 @@ def _make_rest_app(datastore: Datastore, this_node, serving_domain: str, log: Lo
             log.info(f"Bad TreasureMap HRAC Signature; not storing for HRAC {received_treasure_map._hrac.hex()}")
             return Response("This TreasureMap's HRAC is not properly signed.", status=401)
 
-        # Additionally, we determine the map identifier from the type of node. 
+        # Additionally, we determine the map identifier from the type of node.
         # If the node is federated, we also set the expiration for a week.
         if not this_node.federated_only:
             map_identifier = received_treasure_map._hrac.hex()
@@ -439,8 +438,10 @@ def _make_rest_app(datastore: Datastore, this_node, serving_domain: str, log: Lo
                                                  version=nucypher.__version__,
                                                  checksum_address=this_node.checksum_address)
             except Exception as e:
-                log.debug("Template Rendering Exception: ".format(str(e)))
-                raise TemplateError(str(e)) from e
+                text_error = mako_exceptions.text_error_template().render()
+                html_error = mako_exceptions.html_error_template().render()
+                log.debug("Template Rendering Exception:\n" + text_error)
+                return Response(response=html_error, headers=headers, status=500)
             return Response(response=content, headers=headers)
 
     return rest_app
