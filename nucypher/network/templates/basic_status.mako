@@ -91,6 +91,7 @@ ${fleet_state_icon(state.checksum, state.nickname, len(state))}
 
     table.state-info {
         float: left;
+        padding: 0 1em 0 0;
     }
 
     table.state-info > tr > td {
