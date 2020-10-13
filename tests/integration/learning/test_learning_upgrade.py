@@ -22,7 +22,7 @@ from eth_utils.address import to_checksum_address
 from twisted.logger import LogLevel, globalLogPublisher
 
 from bytestring_splitter import VariableLengthBytestring
-from nucypher.acumen.nicknames import nickname_from_seed
+from nucypher.acumen.nicknames import Nickname
 from nucypher.characters.base import Character
 from tests.utils.middleware import MockRestMiddleware
 
@@ -81,7 +81,7 @@ def test_emit_warning_upon_new_version(lonely_ursula_maker, caplog):
 
     # If you really try, you can read a node representation from the garbage
     accidental_checksum = to_checksum_address(random_bytes[:20])
-    accidental_nickname = nickname_from_seed(accidental_checksum)[0]
+    accidental_nickname = Nickname.from_seed(accidental_checksum)
     accidental_node_repr = Character._display_name_template.format("Ursula", accidental_nickname, accidental_checksum)
 
     assert len(warnings) == 3

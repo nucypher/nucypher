@@ -17,46 +17,94 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 
 
 import json
+from typing import List
 import random
 from os.path import abspath, dirname, join
 
-import unicodedata
 
-HERE = BASE_DIR = abspath(dirname(__file__))
-with open(join(HERE, 'web_colors.json')) as f:
-    colors = json.load(f)
+_HERE = abspath(dirname(__file__))
+with open(join(_HERE, 'web_colors.json')) as f:
+    _COLORS = json.load(f)['colors']
 
-colors = colors['colors']
-pairs = []
+_SYMBOLS = {
+    "A": "Alfa",
+    "B": "Bravo",
+    "C": "Charlie",
+    "D": "Delta",
+    "E": "Echo",
+    "F": "Foxtrot",
+    "G": "Golf",
+    "H": "Hotel",
+    "I": "India",
+    "J": "Juliett",
+    "K": "Kilo",
+    "L": "Lima",
+    "M": "Mike",
+    "N": "November",
+    "O": "Oscar",
+    "P": "Papa",
+    "Q": "Quebec",
+    "R": "Romeo",
+    "S": "Sierra",
+    "T": "Tango",
+    "U": "Uniform",
+    "V": "Victor",
+    "W": "Whiskey",
+    "X": "X-ray",
+    "Y": "Yankee",
+    "Z": "Zulu",
+    "0": "Zero",
+    "1": "One",
+    "2": "Two",
+    "3": "Three",
+    "4": "Four",
+    "5": "Five",
+    "6": "Six",
+    "7": "Seven",
+    "8": "Eight",
+    "9": "Nine",
+}
 
-symbols_tuple = ("♈", "♉", "♊", "♋", "♌", "♍", "♎", "♏", "♐", "♑", "♒", "♓",
-                 "♚", "♛", "♜", "♝", "♞", "♟", "⚓", "⚔", "⚖", "⚗", "⚑", "⚘",
-                 "⚪", "⚵", "⚿", "⛇", "⛈", "⛰", "⛸", "⛴", "⛨", "✈", "☤",
-                 "⏚", "☠", "☸", "☿", "☾", "♁", "♃", "♄", "☄", "☘", "⚜", "⚚",
-                 "⏲", "☣", "☥", "♣", "♥", "♦", "♠", "♫", "🟒", "⚛", "⚙", "⎈",
-                 "☮", "☕", "☈", "♯", "♭")
+
+class NicknameCharacter:
+
+    def __init__(self, symbol: str, color_name: str, color_hex: str):
+        self.symbol = symbol
+        self.color_name = color_name
+        self.color_hex = color_hex
+        self._text = color_name + " " + _SYMBOLS[symbol]
+
+    def payload(self):
+        return dict(symbol=self.symbol,
+                    color_name=self.color_name,
+                    color_hex=self.color_hex)
+
+    def __str__(self):
+        return self._text
 
 
-def nicename(symbol):
-    unicode_name = unicodedata.name(symbol)
-    final_word = unicode_name.split()[-1]
-    if final_word in ("SYMBOL", "SUIT", "SIGN"):
-        final_word = unicode_name.split()[-2]
-    return final_word.capitalize()
+class Nickname:
 
+    @classmethod
+    def from_seed(cls, seed, length: int = 2):
+        # TODO: #1823 - Workaround for new nickname every restart
+        # if not seed:
+        #     raise ValueError("No checksum provided to derive nickname.")
+        rng = random.Random(seed)
+        nickname_symbols = rng.sample(list(_SYMBOLS), length)
+        nickname_colors = rng.sample(_COLORS, length)
+        characters = [
+            NicknameCharacter(symbol, color['color'], color['hex'])
+            for symbol, color in zip(nickname_symbols, nickname_colors)]
+        return cls(characters)
 
-def nickname_from_seed(seed, number_of_pairs=2):
-    # TODO: #1823 - Workaround for new nickname every restart
-    # if not seed:
-    #     raise ValueError("No checksum provided to derive nickname.")
-    symbols = list(symbols_tuple)
+    def __init__(self, characters: List[NicknameCharacter]):
+        self._text = " ".join(str(character) for character in characters)
+        self.icon = "[" + "".join(character.symbol for character in characters) + "]"
+        self.characters = characters
 
-    random.seed(seed)
-    pairs = []
-    for pair in range(number_of_pairs):
-        color = random.choice(colors)
-        symbol = random.choice(symbols)
-        symbols.remove(symbol)
-        pairs.append((color, symbol))
-    nickname = " ".join(("{} {}".format(c['color'], nicename(s)) for c, s in pairs))
-    return nickname, pairs
+    def payload(self):
+        return [character.payload() for character in self.characters]
+
+    def __str__(self):
+        return self._text

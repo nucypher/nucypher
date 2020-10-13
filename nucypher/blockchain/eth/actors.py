@@ -35,7 +35,7 @@ from web3 import Web3
 from web3.exceptions import ValidationError
 from web3.types import TxReceipt
 
-from nucypher.acumen.nicknames import nickname_from_seed
+from nucypher.acumen.nicknames import Nickname
 from nucypher.blockchain.economics import BaseEconomics, EconomicsFactory, StandardTokenEconomics
 from nucypher.blockchain.eth.agents import (
     AdjudicatorAgent,
@@ -1549,7 +1549,7 @@ class Worker(NucypherTokenActor):
                 self._checksum_address = staking_address
 
                 # TODO: #1823 - Workaround for new nickname every restart
-                self.nickname, self.nickname_metadata = nickname_from_seed(self.checksum_address)
+                self.nickname = Nickname.from_seed(self.checksum_address)
                 break
 
             # Provide periodic feedback to the user

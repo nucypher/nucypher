@@ -30,7 +30,7 @@ from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
 from nucypher.blockchain.eth.registry import BaseContractRegistry
 from nucypher.blockchain.eth.token import NU
 from nucypher.blockchain.eth.utils import prettify_eth_amount
-from nucypher.acumen.nicknames import nickname_from_seed
+from nucypher.acumen.nicknames import Nickname
 
 
 def paint_contract_status(registry, emitter):
@@ -46,10 +46,10 @@ def paint_contract_status(registry, emitter):
 {token_agent.contract_name} ............ {token_agent.contract_address}
 {staking_agent.contract_name} ............ {staking_agent.contract_address}
 {policy_agent.contract_name} ............ {policy_agent.contract_address}
-{adjudicator_agent.contract_name} .............. {adjudicator_agent.contract_address} 
+{adjudicator_agent.contract_name} .............. {adjudicator_agent.contract_address}
     """
 
-    blockchain = f"""    
+    blockchain = f"""
 | '{blockchain.client.chain_name}' Blockchain Network |
 Gas Price ................ {Web3.fromWei(blockchain.client.gas_price, 'gwei')} Gwei
 Provider URI ............. {blockchain.provider_uri}
@@ -104,7 +104,7 @@ Locked until: ........ {maya.MayaDT(epoch=end_timestamp)}
 
 {" NU and ETH Balance ".center(width, "-")}
 NU balance: .......... {token_balance}
-    Available: ....... {available_amount} 
+    Available: ....... {available_amount}
 ETH balance: ......... {eth_balance} ETH
 """
     emitter.echo(output)
@@ -152,9 +152,8 @@ def paint_stakers(emitter, stakers: List[str], registry: BaseContractRegistry) -
 
     for staker_address in stakers:
         staker = Staker(is_me=False, checksum_address=staker_address, registry=registry)
-        nickname, pairs = nickname_from_seed(staker_address)
-        symbols = f"{pairs[0][1]}  {pairs[1][1]}"
-        emitter.echo(f"{staker_address}  {'Nickname:':10} {nickname} {symbols}")
+        nickname = Nickname.from_seed(staker_address)
+        emitter.echo(f"{staker_address}  {'Nickname:':10} {nickname} {nickname.icon}")
         tab = " " * len(staker_address)
 
         owned_tokens = staker.owned_tokens()

@@ -26,7 +26,7 @@ from constant_sorrow import default_constant_splitter
 from constant_sorrow.constants import (DO_NOT_SIGN, NO_BLOCKCHAIN_CONNECTION, NO_CONTROL_PROTOCOL,
                                        NO_DECRYPTION_PERFORMED, NO_NICKNAME, NO_SIGNING_POWER,
                                        SIGNATURE_IS_ON_CIPHERTEXT, SIGNATURE_TO_FOLLOW, STRANGER)
-from nucypher.acumen.nicknames import nickname_from_seed
+from nucypher.acumen.nicknames import Nickname
 from nucypher.blockchain.eth.registry import BaseContractRegistry, InMemoryContractRegistry
 from nucypher.blockchain.eth.signers.base import Signer
 from nucypher.characters.control.controllers import CLIController, JSONRPCController
@@ -216,18 +216,18 @@ class Character(Learner):
             # Sometimes we don't care about the nickname.  For example, if Alice is granting to Bob, she usually
             # doesn't know or care about his wallet.  Maybe this needs to change?
             # Currently, if this is a stranger and there's no blockchain connection, we assign NO_NICKNAME:
-            self.nickname = self.nickname_metadata = NO_NICKNAME
+            self.nickname = NO_NICKNAME
         else:
             try:
                 # TODO: It's possible that this is NO_BLOCKCHAIN_CONNECTION.
                 if self.checksum_address is NO_BLOCKCHAIN_CONNECTION:
-                    self.nickname = self.nickname_metadata = NO_NICKNAME
+                    self.nickname = NO_NICKNAME
                 else:
                     # This can call _set_checksum_address.
-                    self.nickname, self.nickname_metadata = nickname_from_seed(self.checksum_address)
+                    self.nickname = Nickname.from_seed(self.checksum_address)
             except SigningPower.not_found_error:  # TODO: Handle NO_BLOCKCHAIN_CONNECTION more coherently - #1547
                 if self.federated_only:
-                    self.nickname = self.nickname_metadata = NO_NICKNAME
+                    self.nickname = NO_NICKNAME
                 else:
                     raise
 

@@ -23,7 +23,7 @@ import pytest
 from hendrix.experience import crosstown_traffic
 from hendrix.utils.test_utils import crosstownTaskListDecoratorFactory
 
-from nucypher.acumen.nicknames import nickname_from_seed
+from nucypher.acumen.nicknames import Nickname
 from nucypher.acumen.perception import FleetSensor
 from nucypher.characters.unlawful import Vladimir
 from nucypher.crypto.powers import SigningPower
@@ -42,7 +42,7 @@ def test_all_blockchain_ursulas_know_about_all_other_ursulas(blockchain_ursulas,
                 continue
             else:
                 assert address in propagating_ursula.known_nodes.addresses(), "{} did not know about {}". \
-                    format(propagating_ursula, nickname_from_seed(address))
+                    format(propagating_ursula, Nickname.from_seed(address))
 
 
 def test_blockchain_alice_finds_ursula_via_rest(blockchain_alice, blockchain_ursulas):

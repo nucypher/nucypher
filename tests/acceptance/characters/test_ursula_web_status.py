@@ -43,7 +43,7 @@ def test_ursula_html_renders(ursula, client):
     assert response.status_code == 200
     assert b'<!DOCTYPE html>' in response.data
     assert ursula.checksum_address.encode() in response.data
-    assert ursula.nickname.encode() in response.data
+    assert str(ursula.nickname).encode() in response.data
 
 
 def test_decentralized_json_status_endpoint(ursula, client):

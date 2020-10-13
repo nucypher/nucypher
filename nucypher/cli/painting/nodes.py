@@ -27,8 +27,7 @@ def build_fleet_state_status(ursula) -> str:
     if ursula.known_nodes.checksum is not NO_KNOWN_NODES:
         fleet_state_checksum = ursula.known_nodes.checksum[:7]
         fleet_state_nickname = ursula.known_nodes.nickname
-        fleet_state_icon = ursula.known_nodes.icon
-        fleet_state = '{checksum} ⇀{nickname}↽ {icon}'.format(icon=fleet_state_icon,
+        fleet_state = '{checksum} ⇀{nickname}↽ {icon}'.format(icon=fleet_state_nickname.icon,
                                                               nickname=fleet_state_nickname,
                                                               checksum=fleet_state_checksum)
     elif ursula.known_nodes.checksum is NO_KNOWN_NODES:
