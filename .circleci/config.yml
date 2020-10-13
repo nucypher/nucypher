@@ -564,7 +564,7 @@ jobs:
       - run:
           name: Preparing Contract Deployer Tests
           command: |
-            circleci tests glob "tests/acceptance/blockchain/deployers/test_*.py" | circleci tests split --split-by=timings | tee test-names.tmp
+            circleci tests glob "tests/acceptance/blockchain/deployers/**/test_*.py" | circleci tests split --split-by=timings | tee test-names.tmp
       - run_test_suite
       - capture_test_results
 
@@ -586,9 +586,9 @@ jobs:
     steps:
       - prepare_environment
       - run:
-          name: Preparing Tests for Blockhain interfaces, Crypto functions, Node Configuration and Datastore
+          name: Preparing Tests for Blockchain interfaces and Ethereum clients
           command: |
-            circleci tests glob "tests/acceptance/blockchain/interfaces" "tests/acceptance/blockchain/clients" | tee test-names.tmp
+            circleci tests glob "tests/acceptance/blockchain/interfaces/**/test_*.py" "tests/acceptance/blockchain/clients/**/test_*.py" | tee test-names.tmp
       - run_test_suite
       - capture_test_results
 
@@ -598,9 +598,9 @@ jobs:
     steps:
       - prepare_environment
       - run:
-          name: Preparing Character Tests
+          name: Preparing Character, Discovery Loop (aka "Learning") and Network Tests
           command: |
-            circleci tests glob "tests/acceptance/characters/**/test_*.py" "tests/learning/**/test_*.py" | circleci tests split --split-by=timings | tee test-names.tmp
+            circleci tests glob "tests/acceptance/characters/**/test_*.py" "tests/acceptance/learning/**/test_*.py" "tests/acceptance/network/**/test_*.py" | circleci tests split --split-by=timings | tee test-names.tmp
       - run_test_suite
       - capture_test_results
 
