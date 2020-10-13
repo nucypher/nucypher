@@ -778,13 +778,7 @@ class Learner:
                                                                   nodes_i_need=self._node_ids_to_learn_about_immediately,
                                                                   announce_nodes=announce_nodes,
                                                                   fleet_checksum=self.known_nodes.checksum)
-        except RuntimeError as e:
-            if canceller and canceller.stop_now:
-                # Race condition that seems limited to tests.
-                # TODO: Sort this out.
-                return RELAX
-            else:
-                raise
+        # These except clauses apply to the current_teacher itself, not the learned-about nodes.
         except NodeSeemsToBeDown as e:
             unresponsive_nodes.add(current_teacher)
             self.log.info("Bad Response from teacher: {}:{}.".format(current_teacher, e))
@@ -792,10 +786,18 @@ class Learner:
         except current_teacher.InvalidNode as e:
             # Ugh.  The teacher is invalid.  Rough.
             # TODO: Bucket separately and report.
-            unresponsive_nodes.add(current_teacher)
-            self.log.info("Teacher is invalid: {}:{}.".format(current_teacher, e))
+            unresponsive_nodes.add(current_teacher)  # This does nothing.
+            self.known_nodes.mark_as(current_teacher.InvalidNode, current_teacher)
+            self.log.warn(f"Teacher {str(current_teacher)} is invalid: {bytes(current_teacher)}:{e}.")
+            self.suspicious_activities_witnessed['vladimirs'].append(current_teacher)
             return
-
+        except RuntimeError as e:
+            if canceller and canceller.stop_now:
+                # Race condition that seems limited to tests.
+                # TODO: Sort this out.
+                return RELAX
+            else:
+                raise
         finally:
             # Is cycling happening in the right order?
             self.cycle_teacher_node()
