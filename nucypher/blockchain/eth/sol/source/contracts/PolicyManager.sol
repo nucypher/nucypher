@@ -49,7 +49,6 @@ contract PolicyManager is Upgradeable {
     );
     event PolicyRevoked(bytes16 indexed policyId, address indexed sender, uint256 value);
     event RefundForPolicy(bytes16 indexed policyId, address indexed sender, uint256 value);
-    event NodeBrokenState(address indexed node, uint16 period);
     event MinFeeRateSet(address indexed node, uint256 value);
     // TODO #1501
     // Range range
@@ -308,10 +307,10 @@ contract PolicyManager is Upgradeable {
     {
         NodeInfo storage node = nodes[_node];
         if (_processedPeriod1 != 0) {
-            updateFee(_node, node, _processedPeriod1);
+            updateFee(node, _processedPeriod1);
         }
         if (_processedPeriod2 != 0) {
-            updateFee(_node, node, _processedPeriod2);
+            updateFee(node, _processedPeriod2);
         }
         // This code increases gas cost for node in trade of decreasing cost for policy sponsor
         if (_periodToSetDefault != 0 && node.feeDelta[_periodToSetDefault] == 0) {
@@ -321,11 +320,10 @@ contract PolicyManager is Upgradeable {
 
     /**
     * @notice Update node fee
-    * @param _node Node address
     * @param _info Node info structure
     * @param _period Processed period
     */
-    function updateFee(address _node, NodeInfo storage _info, uint16 _period) internal {
+    function updateFee(NodeInfo storage _info, uint16 _period) internal {
         if (_info.previousFeePeriod == 0 || _period <= _info.previousFeePeriod) {
             return;
         }
@@ -337,17 +335,9 @@ contract PolicyManager is Upgradeable {
                 continue;
             }
 
-            // broken state
-            if (delta < 0 && uint256(-delta) > _info.feeRate) {
-                _info.feeDelta[i] += int256(_info.feeRate);
-                _info.feeRate = 0;
-                emit NodeBrokenState(_node, _period);
-            // good state
-            } else {
-                _info.feeRate = _info.feeRate.addSigned(delta);
-                // gas refund
-                _info.feeDelta[i] = 0;
-            }
+            _info.feeRate = _info.feeRate.addSigned(delta);
+            // gas refund
+            _info.feeDelta[i] = 0;
         }
         _info.previousFeePeriod = _period;
         _info.fee += uint128(_info.feeRate);
