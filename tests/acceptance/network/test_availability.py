@@ -27,6 +27,7 @@ from nucypher.network.trackers import AvailabilityTracker
 from tests.utils.ursula import start_pytest_ursula_services
 
 
+@pytest.mark.skip('See #2024 - skipped tests')
 @pt.inlineCallbacks
 def test_availability_tracker_success(blockchain_ursulas):
 
@@ -93,7 +94,7 @@ def test_availability_tracker_success(blockchain_ursulas):
             ursula._availability_tracker = None
 
 
-@pytest.mark.skip('Awaiting PR #1863')
+@pytest.mark.skip('See #2024 - skipped tests')
 @pt.inlineCallbacks
 def test_availability_tracker_integration(blockchain_ursulas, monkeypatch):
 
