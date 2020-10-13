@@ -74,16 +74,14 @@ ${fleet_state_icon(state.checksum, state.nickname, len(state))}
 <!DOCTYPE html>
 <html>
 <head>
-     <meta charset="UTF-8">
-     <link rel="icon" type="image/x-icon" href="https://www.nucypher.com/favicon-32x32.png"/>
+    <meta charset="UTF-8">
+    <link rel="icon" type="image/x-icon" href="https://www.nucypher.com/favicon-32x32.png"/>
+    <link rel="stylesheet" type="text/css" href="https://fonts.googleapis.com/css?family=Open+Sans" />
 </head>
 <style type="text/css">
 
-    html {
-        font-family: sans-serif;
-    }
-
     body {
+        font-family: "Open Sans", sans-serif;
         margin: 2em 2em 2em 2em;
     }
 
