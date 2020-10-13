@@ -86,7 +86,6 @@ def test_treasure_map_cannot_be_duplicated(blockchain_ursulas, blockchain_alice,
     assert e.value.status == 402
 
 
-@pytest.mark.skip("See Issue #1075")  # TODO: Issue #1075
 def test_vladimir_illegal_interface_key_does_not_propagate(blockchain_ursulas):
     """
     Although Ursulas propagate each other's interface information, as demonstrated above,
@@ -104,10 +103,7 @@ def test_vladimir_illegal_interface_key_does_not_propagate(blockchain_ursulas):
     vladimir = Vladimir.from_target_ursula(ursula_whom_vladimir_will_imitate)
 
     # This Ursula is totally legit...
-    ursula_whom_vladimir_will_imitate.verify_node(MockRestMiddleware(), accept_federated_only=True)
-
-    learning_callers = []
-    crosstown_traffic.decorator = crosstownTaskListDecoratorFactory(learning_callers)
+    ursula_whom_vladimir_will_imitate.verify_node(MockRestMiddleware())
 
     vladimir.network_middleware.propagate_shitty_interface_id(other_ursula, bytes(vladimir))
 
@@ -115,26 +111,23 @@ def test_vladimir_illegal_interface_key_does_not_propagate(blockchain_ursulas):
     assert other_ursula.suspicious_activities_witnessed['vladimirs'] == []
 
     # ...but now, Ursula will now try to learn about Vladimir on a different thread.
-    # We only passed one node (Vladimir)...
-    learn_about_vladimir = learning_callers.pop()
-    #  ...so there was only one learning caller in the queue (now none since we popped it just now).
-    assert len(learning_callers) == 0
+    other_ursula.block_until_specific_nodes_are_known([vladimir.checksum_address])
+    vladimir_as_learned = other_ursula.known_nodes[vladimir.checksum_address]
 
-    # OK, so cool, let's see what happens when Ursula tries to learn about Vlad.
-    learn_about_vladimir()
+    # OK, so cool, let's see what happens when Ursula tries to learn with Vlad as the teacher.
+    other_ursula._current_teacher_node = vladimir_as_learned
+    result = other_ursula.learn_from_teacher_node()
 
-    # And indeed, Ursula noticed the situation.
-    # She didn't record Vladimir's address.
-    assert vladimir not in other_ursula.known_nodes
+    # Indeed, Ursula noticed that something was up.
+    vladimir in other_ursula.suspicious_activities_witnessed['vladimirs']
 
-    # But she *did* record the actual Ursula's address.
-    assert ursula_whom_vladimir_will_imitate in other_ursula.known_nodes
+    # She marked him as Invalid...
+    vladimir in other_ursula.known_nodes._marked[vladimir.InvalidNode]
 
-    # Furthermore, she properly marked Vladimir as suspicious.
-    assert vladimir in other_ursula.suspicious_activities_witnessed['vladimirs']
+    # ...and booted him from known_nodes
+    vladimir not in other_ursula.known_nodes
 
 
-@pytest.mark.skip("See Issue #1075")  # TODO: Issue #1075
 def test_alice_refuses_to_make_arrangement_unless_ursula_is_valid(blockchain_alice,
                                                                   idle_blockchain_policy,
                                                                   blockchain_ursulas):
@@ -145,7 +138,7 @@ def test_alice_refuses_to_make_arrangement_unless_ursula_is_valid(blockchain_ali
     message = vladimir._signable_interface_info_message()
     signature = vladimir._crypto_power.power_ups(SigningPower).sign(message)
 
-    vladimir.substantiate_stamp(client_password=INSECURE_DEVELOPMENT_PASSWORD)
+    vladimir.substantiate_stamp()
     vladimir._Teacher__interface_signature = signature
 
     class FakeArrangement:
@@ -163,8 +156,10 @@ def test_alice_refuses_to_make_arrangement_unless_ursula_is_valid(blockchain_ali
                                                    )
 
 
-@pytest.mark.skip('Needs to be restored -- no way to access treasure maps from stranger ursulas here.')
-def test_treasure_map_cannot_be_duplicated(blockchain_ursulas, blockchain_alice, blockchain_bob, agency):
+def test_treasure_map_cannot_be_duplicated(blockchain_ursulas,
+                                           blockchain_alice,
+                                           blockchain_bob,
+                                           agency):
 
     # Setup the policy details
     n = 3
@@ -179,14 +174,18 @@ def test_treasure_map_cannot_be_duplicated(blockchain_ursulas, blockchain_alice,
                                     rate=int(1e18),  # one ether
                                     expiration=policy_end_datetime)
 
-    u = blockchain_bob.matching_nodes_among(blockchain_alice.known_nodes)[0]
-    saved_map = u._stored_treasure_maps[bytes.fromhex(policy.treasure_map.public_id())]
+    matching_ursulas = blockchain_bob.matching_nodes_among(blockchain_ursulas)
+    first_matching_ursula = matching_ursulas[0]
+    saved_map = first_matching_ursula.treasure_maps[bytes.fromhex(policy.treasure_map.public_id())]
     assert saved_map == policy.treasure_map
+
     # This Ursula was actually a Vladimir.
     # Thus, he has access to the (encrypted) TreasureMap and can use its details to
     # try to store his own fake details.
-    vladimir = Vladimir.from_target_ursula(u)
-    node_on_which_to_store_bad_map = blockchain_ursulas[1]
+    vladimir = Vladimir.from_target_ursula(first_matching_ursula)
+
+    ursulas_who_probably_do_not_have_the_map = [u for u in blockchain_ursulas if not u in matching_ursulas]
+    node_on_which_to_store_bad_map = ursulas_who_probably_do_not_have_the_map[0]
     with pytest.raises(vladimir.network_middleware.UnexpectedResponse) as e:
         vladimir.publish_fraudulent_treasure_map(legit_treasure_map=saved_map,
                                                  target_node=node_on_which_to_store_bad_map)
