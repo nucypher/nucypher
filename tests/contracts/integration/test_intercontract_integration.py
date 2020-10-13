@@ -569,23 +569,7 @@ def test_worklock_phases(testerchain,
     testerchain.wait_for_receipt(tx)
     assert worklock.functions.nextBidderToCheck().call() == 2
 
-    # Can't claim before initialization
-    with pytest.raises((TransactionFailed, ValueError)):
-        tx = worklock.functions.claim().transact({'from': staker2, 'gas_price': 0})
-        testerchain.wait_for_receipt(tx)
-
-    # Initialize escrow
-    tx = token.functions.transfer(multisig.address, token_economics.erc20_reward_supply).transact({'from': creator})
-    testerchain.wait_for_receipt(tx)
-    tx = token.functions.approve(escrow.address, token_economics.erc20_reward_supply) \
-        .buildTransaction({'from': multisig.address, 'gasPrice': 0})
-    execute_multisig_transaction(testerchain, multisig, [contracts_owners[0], contracts_owners[1]], tx)
-    tx = escrow.functions.initialize(token_economics.erc20_reward_supply, multisig.address) \
-        .buildTransaction({'from': multisig.address, 'gasPrice': 0})
-    execute_multisig_transaction(testerchain, multisig, [contracts_owners[0], contracts_owners[1]], tx)
-    pytest.escrow_supply += token_economics.erc20_reward_supply
-
-    # Stakers claim tokens
+    # Stakers claim tokens before initialization
     assert not worklock.functions.workInfo(staker2).call()[2]
     tx = worklock.functions.claim().transact({'from': staker2, 'gas_price': 0})
     testerchain.wait_for_receipt(tx)
@@ -610,6 +594,17 @@ def test_worklock_phases(testerchain,
     assert escrow.functions.getCompletedWork(staker2).call() == 0
     wind_down, _re_stake, _measure_work, _snapshots = escrow.functions.getFlags(staker2).call()
     assert wind_down
+
+    # Initialize escrow
+    tx = token.functions.transfer(multisig.address, token_economics.erc20_reward_supply).transact({'from': creator})
+    testerchain.wait_for_receipt(tx)
+    tx = token.functions.approve(escrow.address, token_economics.erc20_reward_supply) \
+        .buildTransaction({'from': multisig.address, 'gasPrice': 0})
+    execute_multisig_transaction(testerchain, multisig, [contracts_owners[0], contracts_owners[1]], tx)
+    tx = escrow.functions.initialize(token_economics.erc20_reward_supply, multisig.address) \
+        .buildTransaction({'from': multisig.address, 'gasPrice': 0})
+    execute_multisig_transaction(testerchain, multisig, [contracts_owners[0], contracts_owners[1]], tx)
+    pytest.escrow_supply += token_economics.erc20_reward_supply
 
     assert not escrow.functions.isReStakeLocked(staker1).call()
     tx = worklock.functions.claim().transact({'from': staker1, 'gas_price': 0})

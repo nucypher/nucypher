@@ -16,9 +16,13 @@ import "zeppelin/token/ERC20/SafeERC20.sol";
 */
 interface PolicyManagerInterface {
     function register(address _node, uint16 _period) external;
-    function updateFee(address _node, uint16 _period) external;
     function escrow() external view returns (address);
-    function setDefaultFeeDelta(address _node, uint16 _period) external;
+    function ping(
+        address _node,
+        uint16 _processedPeriod1,
+        uint16 _processedPeriod2,
+        uint16 _periodToSetDefault
+    ) external;
 }
 
 
@@ -41,7 +45,7 @@ interface WorkLockInterface {
 /**
 * @notice Contract holds and locks stakers tokens.
 * Each staker that locks their tokens will receive some compensation
-* @dev |v5.4.3|
+* @dev |v5.4.4|
 */
 contract StakingEscrow is Issuer, IERC900History {
 
@@ -540,7 +544,7 @@ contract StakingEscrow is Issuer, IERC900History {
         uint256 _value,
         uint16 _periods
     )
-        external isInitialized
+        external
     {
         require(msg.sender == address(workLock));
         StakerInfo storage info = stakerInfo[_staker];
@@ -1086,7 +1090,7 @@ contract StakingEscrow is Issuer, IERC900History {
         require(msg.sender == tx.origin);
 
         uint16 lastCommittedPeriod = getLastCommittedPeriod(staker);
-        mint(staker);
+        (uint16 processedPeriod1, uint16 processedPeriod2) = mint(staker);
         uint16 currentPeriod = getCurrentPeriod();
         uint16 nextPeriod = currentPeriod + 1;
 
@@ -1108,7 +1112,8 @@ contract StakingEscrow is Issuer, IERC900History {
         if (lastCommittedPeriod < currentPeriod) {
             info.pastDowntime.push(Downtime(lastCommittedPeriod + 1, currentPeriod));
         }
-        policyManager.setDefaultFeeDelta(staker, nextPeriod);
+
+        policyManager.ping(staker, processedPeriod1, processedPeriod2, nextPeriod);
         emit CommitmentMade(staker, nextPeriod, lockedTokens);
     }
 
@@ -1143,37 +1148,46 @@ contract StakingEscrow is Issuer, IERC900History {
         if (info.nextCommittedPeriod <= previousPeriod && info.nextCommittedPeriod != 0) {
             info.lastCommittedPeriod = info.nextCommittedPeriod;
         }
-        mint(msg.sender);
+        (uint16 processedPeriod1, uint16 processedPeriod2) = mint(msg.sender);
+
+        if (processedPeriod1 != 0 || processedPeriod2 != 0) {
+            policyManager.ping(msg.sender, processedPeriod1, processedPeriod2, 0);
+        }
     }
 
     /**
     * @notice Mint tokens for previous periods if staker locked their tokens and made a commitment
     * @param _staker Staker
+    * @return processedPeriod1 Processed period: currentCommittedPeriod or zero
+    * @return processedPeriod2 Processed period: nextCommittedPeriod or zero
     */
-    function mint(address _staker) internal {
+    function mint(address _staker) internal returns (uint16 processedPeriod1, uint16 processedPeriod2) {
         uint16 currentPeriod = getCurrentPeriod();
-        uint16 previousPeriod = currentPeriod  - 1;
+        uint16 previousPeriod = currentPeriod - 1;
         StakerInfo storage info = stakerInfo[_staker];
 
         if (info.nextCommittedPeriod == 0 ||
             info.currentCommittedPeriod == 0 &&
             info.nextCommittedPeriod > previousPeriod ||
             info.currentCommittedPeriod > previousPeriod) {
-            return;
+            return (0, 0);
         }
 
         uint16 startPeriod = getStartPeriod(info, currentPeriod);
         uint256 reward = 0;
         bool reStake = !info.flags.bitSet(RE_STAKE_DISABLED_INDEX);
+
         if (info.currentCommittedPeriod != 0) {
-            reward = mint(_staker, info, info.currentCommittedPeriod, currentPeriod, startPeriod, reStake);
+            reward = mint(info, info.currentCommittedPeriod, currentPeriod, startPeriod, reStake);
+            processedPeriod1 = info.currentCommittedPeriod;
             info.currentCommittedPeriod = 0;
             if (reStake) {
                 lockedPerPeriod[info.nextCommittedPeriod] += reward;
             }
         }
         if (info.nextCommittedPeriod <= previousPeriod) {
-            reward += mint(_staker, info, info.nextCommittedPeriod, currentPeriod, startPeriod, reStake);
+            reward += mint(info, info.nextCommittedPeriod, currentPeriod, startPeriod, reStake);
+            processedPeriod2 = info.nextCommittedPeriod;
             info.nextCommittedPeriod = 0;
         }
 
@@ -1188,14 +1202,12 @@ contract StakingEscrow is Issuer, IERC900History {
 
     /**
     * @notice Calculate reward for one period
-    * @param _staker Staker's address
     * @param _info Staker structure
     * @param _mintingPeriod Period for minting calculation
     * @param _currentPeriod Current period
     * @param _startPeriod Pre-calculated start period
     */
     function mint(
-        address _staker,
         StakerInfo storage _info,
         uint16 _mintingPeriod,
         uint16 _currentPeriod,
@@ -1220,7 +1232,6 @@ contract StakingEscrow is Issuer, IERC900History {
                 }
             }
         }
-        policyManager.updateFee(_staker, _mintingPeriod);
         return reward;
     }
 

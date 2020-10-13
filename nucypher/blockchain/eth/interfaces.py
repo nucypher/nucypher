@@ -291,7 +291,7 @@ class BlockchainInterface:
         self.log.debug(f"Currently, our gas strategy returns a gas price of {gwei_gas_price} gwei")
 
         self.client.add_middleware(middleware.time_based_cache_middleware)
-        self.client.add_middleware(middleware.latest_block_based_cache_middleware)
+        # self.client.add_middleware(middleware.latest_block_based_cache_middleware)
         self.client.add_middleware(middleware.simple_cache_middleware)
 
     def connect(self):
