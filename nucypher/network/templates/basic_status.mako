@@ -1,3 +1,25 @@
+<%def name="fleet_state_icon(checksum, nickname, population)">
+%if not checksum:
+NO FLEET STATE AVAILABLE
+%else:
+<%
+    # FIXME: generalize in case we want to extend the number of symbols in the state nickname
+    color = nickname.characters[0].color_hex
+    symbol = nickname.characters[0].symbol
+    short_checksum = checksum[0:8]
+%>
+<div class="nucypher-nickname-icon" style="border-color:${color};">
+<div class="small">${population} nodes</div>
+<div class="symbols">
+    <span class="single-symbol" style="color: ${color}">${symbol}</span>
+</div>
+<br/>
+<span class="small-address">${short_checksum}</span>
+</div>
+%endif
+</%def>
+
+<%def name="main()">
 <!DOCTYPE html>
 <html>
 <head>
@@ -149,9 +171,12 @@
                 </td>
                 <td>${ node.timestamp }</td>
                 <td>${ node.last_seen }</td>
-                <td>${ node.fleet_state_icon }</td>
+                <td>${fleet_state_icon(node.fleet_state_checksum,
+                                       node.fleet_state_nickname,
+                                       node.fleet_state_population)}</td>
             </tr>
         %endfor
     </table>
 </div>
 </html>
+</%def>

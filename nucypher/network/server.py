@@ -50,7 +50,7 @@ from nucypher.utilities.logging import Logger
 HERE = BASE_DIR = os.path.abspath(os.path.dirname(__file__))
 TEMPLATES_DIR = os.path.join(HERE, "templates")
 
-status_template = Template(filename=os.path.join(TEMPLATES_DIR, "basic_status.mako"))
+status_template = Template(filename=os.path.join(TEMPLATES_DIR, "basic_status.mako")).get_def('main')
 
 
 class ProxyRESTServer:
