@@ -1671,45 +1671,6 @@ class Ursula(Teacher, Character, Worker):
         # ... and finally returns all the re-encrypted bytes
         return cfrag_byte_stream
 
-    def receive_treasure_map(self, treasure_map_id, treasure_map_bytes):
-        # TODO: Any of the codepaths that trigger 4xx Responses here are also SuspiciousActivity.
-        if not self.federated_only:
-            from nucypher.policy.collections import SignedTreasureMap as _MapClass
-        else:
-            from nucypher.policy.collections import TreasureMap as _MapClass
-
-        try:
-            treasure_map = _MapClass.from_bytes(bytes_representation=treasure_map_bytes, verify=True)
-        except _MapClass.InvalidSignature:
-            raise TreasureMapReceptionExceptions.InvalidTreasureMapSignature
-
-        treasure_map_index = bytes.fromhex(treasure_map_id)
-
-        # First let's see if we already have this map.
-
-        try:
-            self.treasure_maps[treasure_map_index]
-        except KeyError:
-            pass # We don't have the map.  We'll validate and perhaps save it.
-        else:
-            raise TreasureMapReceptionExceptions.AlreadyHaveThisTreasureMap
-
-        if treasure_map.public_id() == treasure_map_id:
-            do_store = True
-        else:
-            raise TreasureMapReceptionExceptions.TreasureMapAddressMismatch
-
-        if do_store and not self.federated_only:
-            alice_checksum_address = self.policy_agent.contract.functions.getPolicyOwner(
-                treasure_map._hrac[:16]).call()
-            do_store = treasure_map.verify_blockchain_signature(checksum_address=alice_checksum_address)
-
-        if do_store:
-            self.treasure_maps[treasure_map_index] = treasure_map
-            return bytes(treasure_map)
-        else:
-            raise TreasureMapReceptionExceptions.TreasureMapBadID
-
 
 class Enrico(Character):
     """A Character that represents a Data Source that encrypts data for some policy's public key"""

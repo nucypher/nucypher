@@ -116,20 +116,3 @@ def test_alice_can_decrypt(federated_alice):
                                             decrypt=True,
                                             label=label)
     assert cleartext == message
-
-
-def test_federated_ursula_stores_treasuremap(federated_ursulas, federated_bob, enacted_federated_policy):
-
-    if not federated_bob.done_seeding:
-        federated_bob.learn_from_teacher_node()
-
-    treasure_map_index = bytes.fromhex(enacted_federated_policy.treasure_map.public_id())
-
-    for node in federated_ursulas:
-        node.receive_treasure_map(enacted_federated_policy.treasure_map.public_id(), bytes(enacted_federated_policy.treasure_map))
-    found = 0
-    for node in federated_ursulas:
-        treasure_map_as_set_on_network = node.treasure_maps[treasure_map_index]
-        assert treasure_map_as_set_on_network == enacted_federated_policy.treasure_map
-        found += 1
-    assert found
