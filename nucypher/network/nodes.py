@@ -781,7 +781,7 @@ class Learner:
         # These except clauses apply to the current_teacher itself, not the learned-about nodes.
         except NodeSeemsToBeDown as e:
             unresponsive_nodes.add(current_teacher)
-            self.log.info("Bad Response from teacher: {}:{}.".format(current_teacher, e))
+            self.log.info(f"Teacher {str(current_teacher)} is perhaps down: {bytes(current_teacher)}:{e}.")
             return
         except current_teacher.InvalidNode as e:
             # Ugh.  The teacher is invalid.  Rough.
@@ -797,7 +797,11 @@ class Learner:
                 # TODO: Sort this out.
                 return RELAX
             else:
+                self.log.warn(f"Unhandled error while learning from {str(current_teacher)}: {bytes(current_teacher)}:{e}.")
                 raise
+        except Exception as e:
+            self.log.warn(f"Unhandled error while learning from {str(current_teacher)}: {bytes(current_teacher)}:{e}.")  # To track down 2345 / 1698
+            raise
         finally:
             # Is cycling happening in the right order?
             self.cycle_teacher_node()
@@ -1203,7 +1207,7 @@ class Teacher:
         # This is both the stamp's client signature and interface metadata check; May raise InvalidNode
         try:
             self.validate_metadata(registry=registry)
-        except self.UnbondedWorker:
+        except self.UnbondedWorker:  # TODO: Why are we specifically catching this and not other reasons for invalidity, eg StampNotSigned?
             self.verified_node = False
             return False
 
