@@ -40,7 +40,7 @@ class FleetSensor:
     most_recent_node_change = NO_KNOWN_NODES
     snapshot_splitter = BytestringSplitter(32, 4)
     log = Logger("Learning")
-    FleetState = namedtuple("FleetState", ("nickname", "icon", "nodes", "updated"))
+    FleetState = namedtuple("FleetState", ("nickname", "icon", "nodes", "updated", "checksum"))
 
     def __init__(self):
         self.additional_nodes_to_track = []
@@ -122,7 +122,8 @@ class FleetSensor:
             new_state = self.FleetState(nickname=self.nickname,
                                         nodes=sorted_nodes,
                                         icon=self.icon,
-                                        updated=self.updated)
+                                        updated=self.updated,
+                                        checksum=self.checksum)
             self.states[checksum] = new_state
             return checksum, new_state
 
