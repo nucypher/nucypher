@@ -85,6 +85,17 @@ ${fleet_state_icon(state.checksum, state.nickname, len(state))}
         margin: 2em 2em 2em 2em;
     }
 
+    /* unvisited link */
+    a:link {
+        color: #115;
+        text-decoration-color: #bbb;
+    }
+
+    /* visited link */
+    a:visited {
+        color: #626;
+    }
+
     table.node-info > tr > td {
         padding: 0 0em;
     }
