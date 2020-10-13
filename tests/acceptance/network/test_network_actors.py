@@ -150,14 +150,17 @@ def test_alice_refuses_to_make_arrangement_unless_ursula_is_valid(blockchain_ali
 
     class FakeArrangement:
         federated = False
-        ursula = target
+        ursula = vladimir
+
+        def __bytes__(self):
+            return b""
 
     vladimir.node_storage.store_node_certificate(certificate=target.certificate)
 
     with pytest.raises(vladimir.InvalidNode):
         idle_blockchain_policy.propose_arrangement(network_middleware=blockchain_alice.network_middleware,
-                                                   arrangement=FakeArrangement(),
-                                                   ursula=vladimir)
+                                                   arrangement=FakeArrangement()
+                                                   )
 
 
 @pytest.mark.skip('Needs to be restored -- no way to access treasure maps from stranger ursulas here.')
