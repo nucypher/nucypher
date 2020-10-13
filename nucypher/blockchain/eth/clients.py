@@ -154,8 +154,9 @@ class EthereumClient:
             self.log.debug('Injecting POA middleware at layer 0')
             self.inject_middleware(geth_poa_middleware, layer=0)
 
+        # TODO: Restore caching
         # RPC I/O caching (reduce number of RPC calls)
-        self.add_middleware(middleware.time_based_cache_middleware)  # used by gas strategies
+        # self.add_middleware(middleware.time_based_cache_middleware)  # used by gas strategies
         self.add_middleware(middleware.simple_cache_middleware)
 
         # TODO: causes nonce reuse in tests
