@@ -545,11 +545,9 @@ class Learner:
             self.log.info("Learning loop wasn't started; forcing start now.")
             self._learning_task.start(self._SHORT_LEARNING_DELAY, now=True)
 
-    def keep_learning_about_nodes(self, learner=None, frames=None):
+    def keep_learning_about_nodes(self):
         """
         Continually learn about new nodes.
-
-        learner is for debugging and logging only.
         """
 
         # TODO: Allow the user to set eagerness?  1712
@@ -558,20 +556,13 @@ class Learner:
         self._learning_deferred = Deferred(canceller=self._discovery_canceller)  # TODO: No longer relevant.
 
         def _discover_or_abort(_first_result):
-            self.log.debug(f"========={self} learning at {datetime.datetime.now()}")
+            self.log.debug(f"{self} learning at {datetime.datetime.now()}")
             result = self.learn_from_teacher_node(eager=False, canceller=self._discovery_canceller)
-            self.log.debug(f"///////////{self} finished learning at {datetime.datetime.now()}")
+            self.log.debug(f"{self} finished learning at {datetime.datetime.now()}")
             return result
 
         self._learning_deferred.addCallback(_discover_or_abort)
         self._learning_deferred.addErrback(self.handle_learning_errors)
-
-        # def clear_learning_deferred(result_of_last_learning_cycle):
-        #     # TODO: This is an interesting opportunity to add throttling and / or check against a canonical fleet state.  #1712  #1000
-        #     print(f"Clearing {self} at {datetime.datetime.now()}")
-        #     self._learning_deferred = None
-        #
-        # self._learning_deferred.addCallback(clear_learning_deferred)
 
         # Instead of None, we might want to pass something useful about the context.
         # Alternately, it might be nice for learn_from_teacher_node to (some or all of the time) return a Deferred.
@@ -634,14 +625,10 @@ class Learner:
                                              addresses: Set,
                                              timeout=LEARNING_TIMEOUT,
                                              allow_missing=0,
-                                             learn_on_this_thread=False):
+                                             learn_on_this_thread=False,
+                                             verify_now=False):
         start = maya.now()
         starting_round = self._learning_round
-
-        # if not learn_on_this_thread:
-        #     # Get a head start by firing the looping call now.  If it's very fast, maybe we'll have enough nodes on the first iteration.
-        #     # if self._learning_task.running:
-        #     #     self._learning_task()
 
         addresses = set(addresses)
 
