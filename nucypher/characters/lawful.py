@@ -16,6 +16,7 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 import contextlib
 import json
+import maya
 import random
 import time
 from base64 import b64decode, b64encode
@@ -25,9 +26,8 @@ from functools import partial
 from json.decoder import JSONDecodeError
 from queue import Queue
 from random import shuffle
-from typing import Dict, Iterable, List, Set, Tuple, Union
+from typing import Dict, Iterable, List, Optional, Set, Tuple, Union
 
-import maya
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives.asymmetric.ec import EllipticCurve
 from cryptography.hazmat.primitives.serialization import Encoding
@@ -462,7 +462,7 @@ class Bob(Character):
         def __init__(self, evidence: List):
             self.evidence = evidence
 
-    def __init__(self, treasure_maps: Dict = None, controller: bool = True, *args, **kwargs) -> None:
+    def __init__(self, treasure_maps: Optional[Dict] = None, controller: bool = True, *args, **kwargs) -> None:
         Character.__init__(self, known_node_class=Ursula, *args, **kwargs)
 
         if controller:
