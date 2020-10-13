@@ -225,15 +225,15 @@ class RestMiddleware:
     def get_competitive_rate(self):
         return NotImplemented
 
-    def get_treasure_map_from_node(self, node, map_id):
+    def get_treasure_map_from_node(self, node, map_identifier):
         response = self.client.get(node_or_sprout=node,
-                                   path=f"treasure_map/{map_id}",
+                                   path=f"treasure_map/{map_identifier}",
                                    timeout=2)
         return response
 
-    def put_treasure_map_on_node(self, node, map_id, map_payload):
+    def put_treasure_map_on_node(self, node, map_payload):
         response = self.client.post(node_or_sprout=node,
-                                    path=f"treasure_map/{map_id}",
+                                    path=f"treasure_map/",
                                     data=map_payload,
                                     timeout=2)
         return response

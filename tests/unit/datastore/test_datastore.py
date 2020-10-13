@@ -15,19 +15,17 @@ You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 import lmdb
-import maya
 import msgpack
 import pytest
 import tempfile
 from datetime import datetime
-
-from nucypher.crypto import keypairs
 from nucypher.datastore import datastore
 from nucypher.datastore.base import DatastoreRecord, RecordField
-from nucypher.datastore.models import PolicyArrangement, Workorder
 
 
 class TestRecord(DatastoreRecord):
+    __test__ = False    # For pytest
+
     _test = RecordField(bytes)
     _test_date = RecordField(datetime,
             encode=lambda val: datetime.isoformat(val).encode(),
@@ -317,63 +315,6 @@ def test_datastore_record_write():
     with db_env.begin() as db_tx:
         test_rec = TestRecord(db_tx, 'testing', writeable=False)
         assert test_rec.test == b'good write'
-
-
-def test_datastore_policy_arrangement_model():
-    temp_path = tempfile.mkdtemp()
-    storage = datastore.Datastore(temp_path)
-
-    arrangement_id_hex = 'beef'
-    expiration = maya.now()
-    alice_verifying_key = keypairs.SigningKeypair(generate_keys_if_needed=True).pubkey
- 
-    # TODO: Leaving out KFrag for now since I don't have an easy way to grab one.
-    with storage.describe(PolicyArrangement, arrangement_id_hex, writeable=True) as policy_arrangement:
-        policy_arrangement.arrangement_id = bytes.fromhex(arrangement_id_hex)
-        policy_arrangement.expiration = expiration
-        policy_arrangement.alice_verifying_key = alice_verifying_key
-
-    with storage.describe(PolicyArrangement, arrangement_id_hex) as policy_arrangement:
-        assert policy_arrangement.arrangement_id == bytes.fromhex(arrangement_id_hex)
-        assert policy_arrangement.expiration == expiration
-        assert policy_arrangement.alice_verifying_key == alice_verifying_key
-
-    # Now let's `delete` it
-    with storage.describe(PolicyArrangement, arrangement_id_hex, writeable=True) as policy_arrangement:
-        policy_arrangement.delete()
-
-        # Should be deleted now.
-        with pytest.raises(AttributeError):
-            should_error = policy_arrangement.arrangement_id
- 
- 
-def test_datastore_workorder_model():
-    temp_path = tempfile.mkdtemp()
-    storage = datastore.Datastore(temp_path)
-    bob_keypair = keypairs.SigningKeypair(generate_keys_if_needed=True)
- 
-    arrangement_id_hex = 'beef'
-    bob_verifying_key = bob_keypair.pubkey
-    bob_signature = bob_keypair.sign(b'test')
- 
-    # Test create
-    with storage.describe(Workorder, arrangement_id_hex, writeable=True) as work_order:
-        work_order.arrangement_id = bytes.fromhex(arrangement_id_hex)
-        work_order.bob_verifying_key = bob_verifying_key
-        work_order.bob_signature = bob_signature
-
-    with storage.describe(Workorder, arrangement_id_hex) as work_order:
-        assert work_order.arrangement_id == bytes.fromhex(arrangement_id_hex)
-        assert work_order.bob_verifying_key == bob_verifying_key
-        assert work_order.bob_signature == bob_signature
-
-    # Test delete
-    with storage.describe(Workorder, arrangement_id_hex, writeable=True) as work_order:
-        work_order.delete()
-
-        # Should be deleted now.
-        with pytest.raises(AttributeError):
-            should_error = work_order.arrangement_id
 
 
 def test_key_tuple():

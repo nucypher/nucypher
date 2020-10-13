@@ -22,7 +22,7 @@ from marshmallow import fields
 
 from nucypher.characters.control.specifications.exceptions import InvalidInputData, InvalidNativeDataTypes
 from nucypher.characters.control.specifications.fields.base import BaseField
-from nucypher.crypto.constants import KECCAK_DIGEST_LENGTH
+from nucypher.crypto.constants import HRAC_LENGTH
 from nucypher.crypto.kits import UmbralMessageKit
 from nucypher.crypto.signing import Signature
 
@@ -41,7 +41,7 @@ class TreasureMap(BaseField, fields.Field):
     def _validate(self, value):
 
         splitter = BytestringSplitter(Signature,
-                                  (bytes, KECCAK_DIGEST_LENGTH),  # hrac
+                                  (bytes, HRAC_LENGTH),  # hrac
                                   (UmbralMessageKit, VariableLengthBytestring)
                                   )  # TODO: USe the one from TMap
         try:

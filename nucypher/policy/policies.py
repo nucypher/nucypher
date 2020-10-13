@@ -14,16 +14,18 @@ GNU Affero General Public License for more details.
 You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
+import datetime
 import math
 import time
 import random
 from abc import ABC, abstractmethod
 from collections import OrderedDict, deque
-from queue import Queue
+from queue import Queue, Empty
 from typing import Callable
 from typing import Generator, List, Set
 
 import maya
+from twisted._threads import AlreadyQuit
 from twisted.internet import reactor
 from twisted.internet.defer import ensureDeferred, Deferred
 from twisted.python.threadpool import ThreadPool
@@ -38,7 +40,7 @@ from nucypher.blockchain.eth.actors import BlockchainPolicyAuthor
 from nucypher.blockchain.eth.agents import PolicyManagerAgent, StakingEscrowAgent
 from nucypher.characters.lawful import Alice, Ursula
 from nucypher.crypto.api import keccak_digest, secure_random
-from nucypher.crypto.constants import PUBLIC_KEY_LENGTH
+from nucypher.crypto.constants import HRAC_LENGTH, PUBLIC_KEY_LENGTH
 from nucypher.crypto.kits import RevocationKit
 from nucypher.crypto.powers import DecryptingPower, SigningPower, TransactingPower
 from nucypher.crypto.utils import construct_policy_id
@@ -188,6 +190,7 @@ class NodeEngagementMutex:
                  percent_to_complete_before_release=5,
                  note=None,
                  threadpool_size=120,
+                 timeout=20,
                  *args,
                  **kwargs):
         self.f = callable_to_engage
@@ -201,6 +204,7 @@ class NodeEngagementMutex:
 
         self._started = False
         self._finished = False
+        self.timeout = timeout
 
         self.percent_to_complete_before_release = percent_to_complete_before_release
         self._partial_queue = Queue()
@@ -217,30 +221,51 @@ class NodeEngagementMutex:
 
         self._threadpool = ThreadPool(minthreads=threadpool_size, maxthreads=threadpool_size, name=self._repr)
         self.log.info(f"NEM spinning up {self._threadpool}")
+        self._threadpool.callInThread(self._bail_on_timeout)
 
     def __repr__(self):
         return self._repr
+
+    def _bail_on_timeout(self):
+        while True:
+            if self.when_complete.called:
+                return
+            duration = datetime.datetime.now() - self._started
+            if duration.seconds >= self.timeout:
+                try:
+                    self._threadpool.stop()
+                except AlreadyQuit:
+                    raise RuntimeError("Is there a race condition here?  If this line is being hit, it's a bug.")
+                raise RuntimeError(f"Timed out.  Nodes completed: {self.completed}")
+            time.sleep(.5)
 
     def block_until_success_is_reasonably_likely(self):
         """
         https://www.youtube.com/watch?v=OkSLswPSq2o
         """
         if len(self.completed) < self._block_until_this_many_are_complete:
-            completed_for_reasonable_likelihood_of_success = self._partial_queue.get()  # Interesting opportuntiy to pass some data, like the list of contacted nodes above.
+            try:
+                completed_for_reasonable_likelihood_of_success = self._partial_queue.get(timeout=self.timeout) # TODO: Shorter timeout here?
+            except Empty:
+                raise RuntimeError(f"Timed out.  Nodes completed: {self.completed}")
             self.log.debug(f"{len(self.completed)} nodes were contacted while blocking for a little while.")
             return completed_for_reasonable_likelihood_of_success
         else:
             return self.completed
 
+
     def block_until_complete(self):
         if self.total_disposed() < len(self.nodes):
-            _ = self._completion_queue.get()  # Interesting opportuntiy to pass some data, like the list of contacted nodes above.
+            try:
+                _ = self._completion_queue.get(timeout=self.timeout)  # Interesting opportuntiy to pass some data, like the list of contacted nodes above.
+            except Empty:
+                raise RuntimeError(f"Timed out.  Nodes completed: {self.completed}")
         if not reactor.running and not self._threadpool.joined:
             # If the reactor isn't running, the user *must* call this, because this is where we stop.
             self._threadpool.stop()
 
     def _handle_success(self, response, node):
-        if response.status_code == 202:
+        if response.status_code == 201:
             self.completed[node] = response
         else:
             assert False  # TODO: What happens if this is a 300 or 400 level response?  (A 500 response will propagate as an error and be handled in the errback chain.)
@@ -286,7 +311,7 @@ class NodeEngagementMutex:
     def start(self):
         if self._started:
             raise RuntimeError("Already started.")
-        self._started = True
+        self._started = datetime.datetime.now()
         self.log.info(f"NEM Starting {self._threadpool}")
         for node in self.nodes:
              self._threadpool.callInThread(self._engage_node, node)
@@ -383,13 +408,11 @@ class Policy(ABC):
         Alice and Bob have all the information they need to construct this.
         Ursula does not, so we share it with her.
         """
-        return keccak_digest(bytes(self.alice.stamp) + bytes(self.bob.stamp) + self.label)
+        return keccak_digest(bytes(self.alice.stamp) + bytes(self.bob.stamp) + self.label)[:HRAC_LENGTH]
 
     async def put_treasure_map_on_node(self, node, network_middleware):
-        treasure_map_id = self.treasure_map.public_id()
         response = network_middleware.put_treasure_map_on_node(
             node=node,
-            map_id=treasure_map_id,
             map_payload=bytes(self.treasure_map))
         return response
 
@@ -770,7 +793,7 @@ class BlockchainPolicy(Policy):
 
         # Transact  # TODO: Move this logic to BlockchainPolicyActor
         receipt = self.author.policy_agent.create_policy(
-            policy_id=self.hrac()[:16],  # bytes16 _policyID
+            policy_id=self.hrac(),  # bytes16 _policyID
             author_address=self.author.checksum_address,
             value=self.value,
             end_timestamp=self.expiration.epoch,  # uint16 _numberOfPeriods

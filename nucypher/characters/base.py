@@ -154,8 +154,6 @@ class Character(Learner):
         #
 
         if is_me:
-            self.treasure_maps = {}  # type: dict
-
             #
             # Signing Power
             #

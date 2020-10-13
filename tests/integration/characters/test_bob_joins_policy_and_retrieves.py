@@ -236,10 +236,10 @@ def test_bob_retrieves_too_late(federated_bob, federated_ursulas,
     clock = Clock()
     clock.advance(time.time())
     for urs in federated_ursulas:
-        if urs._arrangement_pruning_task.running:
-            urs._arrangement_pruning_task.stop()
-        urs._arrangement_pruning_task.clock = clock
-        urs._arrangement_pruning_task.start(interval=Ursula._pruning_interval)
+        if urs._datastore_pruning_task.running:
+            urs._datastore_pruning_task.stop()
+        urs._datastore_pruning_task.clock = clock
+        urs._datastore_pruning_task.start(interval=Ursula._pruning_interval)
 
     clock.advance(86400 * 7)  # 1 week
 
@@ -256,3 +256,7 @@ def test_bob_retrieves_too_late(federated_bob, federated_ursulas,
             label=enacted_federated_policy.label,
             treasure_map=treasure_map,
             use_attached_cfrags=False)
+
+    # Check that Bob can't get the treasure map after the policy is expired
+    with pytest.raises(TreasureMap.NowhereToBeFound):
+        federated_bob.get_treasure_map(alice_verifying_key, label=enacted_federated_policy.label)

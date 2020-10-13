@@ -20,8 +20,9 @@ import maya
 import pytest
 
 from nucypher.characters.unlawful import Amonia
-from nucypher.datastore.models import PolicyArrangement
+from nucypher.datastore.models import PolicyArrangement, TreasureMap as DatastoreTreasureMap
 from nucypher.datastore.datastore import RecordNotFound
+from nucypher.network.middleware import RestMiddleware
 
 
 def test_policy_simple_sinpa(blockchain_ursulas, blockchain_alice, blockchain_bob, agency, testerchain):
@@ -135,3 +136,25 @@ def test_pay_a_flunky_instead_of_the_arranged_ursula(blockchain_alice, blockchai
         except RecordNotFound:
             # No records were found; this Ursula didn't have the arrangement.
             continue
+
+
+def test_put_additional_treasure_map_on_network(blockchain_ursulas, blockchain_alice, blockchain_bob, agency, testerchain):
+    amonia = Amonia.from_lawful_alice(blockchain_alice)
+    # Setup the policy details
+    n = 3
+    policy_end_datetime = maya.now() + datetime.timedelta(days=5)
+    label = b"this_is_the_path_to_which_access_is_being_granted"
+
+    policy = amonia.grant(bob=blockchain_bob,
+                          label=label,
+                          m=2,
+                          n=n,
+                          rate=int(1e18),  # one ether
+                          expiration=policy_end_datetime)
+    sucker = blockchain_ursulas[0]
+
+    # This should 409 because Ursula won't be able to find an HRAC on-chain
+    # with the modified HRAC.
+    with pytest.raises(RestMiddleware.UnexpectedResponse) as should_409:
+        amonia.use_ursula_as_an_involuntary_and_unbeknownst_cdn(policy, sucker_ursula=blockchain_ursulas[0])
+    assert should_409.value.status == 409

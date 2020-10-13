@@ -835,9 +835,17 @@ class PolicyManagerAgent(EthereumContractAgent):
         return receipt
 
     @contract_api(CONTRACT_CALL)
-    def fetch_policy(self, policy_id: str) -> list:
-        """Fetch raw stored blockchain data regarding the policy with the given policy ID"""
+    def fetch_policy(self, policy_id: str, with_owner=False) -> list:
+        """
+        Fetch raw stored blockchain data regarding the policy with the given policy ID.
+        If `with_owner=True`, this method executes the equivalent of `getPolicyOwner`
+        to avoid another call.
+        """
         blockchain_record = self.contract.functions.policies(policy_id).call()
+        if with_owner:
+            # If the policyOwner addr is null, we return the sponsor addr instead of the owner.
+            owner_checksum_addr = blockchain_record[1] if blockchain_record[2] == NULL_ADDRESS else blockchain_record[2]
+            return blockchain_record, owner_checksum_addr
         return blockchain_record
 
     def fetch_arrangement_addresses_from_policy_txid(self, txhash: Union[str, bytes], timeout: int = 600) -> Iterable:

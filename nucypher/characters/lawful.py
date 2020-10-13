@@ -16,6 +16,7 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 import contextlib
 import json
+import maya
 import random
 import time
 from base64 import b64decode, b64encode
@@ -25,9 +26,8 @@ from functools import partial
 from json.decoder import JSONDecodeError
 from queue import Queue
 from random import shuffle
-from typing import Dict, Iterable, List, Set, Tuple, Union
+from typing import Dict, Iterable, List, Optional, Set, Tuple, Union
 
-import maya
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives.asymmetric.ec import EllipticCurve
 from cryptography.hazmat.primitives.serialization import Encoding
@@ -66,13 +66,13 @@ from nucypher.characters.control.interfaces import AliceInterface, BobInterface,
 from nucypher.cli.processes import UrsulaCommandProtocol
 from nucypher.config.storages import ForgetfulNodeStorage, NodeStorage
 from nucypher.crypto.api import encrypt_and_sign, keccak_digest
-from nucypher.crypto.constants import PUBLIC_KEY_LENGTH
+from nucypher.crypto.constants import HRAC_LENGTH, PUBLIC_KEY_LENGTH
 from nucypher.crypto.keypairs import HostingKeypair
 from nucypher.crypto.kits import UmbralMessageKit
 from nucypher.crypto.powers import DecryptingPower, DelegatingPower, PowerUpError, SigningPower, TransactingPower
 from nucypher.crypto.signing import InvalidSignature
 from nucypher.datastore.datastore import DatastoreTransactionError, RecordNotFound
-from nucypher.datastore.models import PolicyArrangement
+from nucypher.datastore.models import PolicyArrangement, TreasureMap as DatastoreTreasureMap
 from nucypher.network.exceptions import NodeSeemsToBeDown
 from nucypher.network.middleware import RestMiddleware
 from nucypher.network.nodes import NodeSprout, Teacher
@@ -462,11 +462,15 @@ class Bob(Character):
         def __init__(self, evidence: List):
             self.evidence = evidence
 
-    def __init__(self, controller: bool = True, *args, **kwargs) -> None:
+    def __init__(self, treasure_maps: Optional[Dict] = None, controller: bool = True, *args, **kwargs) -> None:
         Character.__init__(self, known_node_class=Ursula, *args, **kwargs)
 
         if controller:
             self.make_cli_controller()
+
+        if not treasure_maps:
+            treasure_maps = dict()
+        self.treasure_maps = treasure_maps
 
         from nucypher.policy.collections import WorkOrderHistory  # Need a bigger strategy to avoid circulars.
         self._completed_work_orders = WorkOrderHistory()
@@ -561,8 +565,13 @@ class Bob(Character):
             if not self.known_nodes:
                 raise self.NotEnoughTeachers("Can't retrieve without knowing about any nodes at all.  Pass a teacher or seed node.")
 
+        # Ugh stupid federated only mode....
+        if not self.federated_only:
+            map_identifier = _hrac.hex()
+        else:
+            map_identifier = map_id
         treasure_map = self.get_treasure_map_from_known_ursulas(self.network_middleware,
-                                                                map_id)
+                                                                map_identifier)
 
         alice = Alice.from_public_keys(verifying_key=alice_verifying_key)
         compass = self.make_compass_for_alice(alice)
@@ -579,7 +588,7 @@ class Bob(Character):
         return partial(self.verify_from, alice, decrypt=True)
 
     def construct_policy_hrac(self, verifying_key: Union[bytes, UmbralPublicKey], label: bytes) -> bytes:
-        _hrac = keccak_digest(bytes(verifying_key) + self.stamp + label)
+        _hrac = keccak_digest(bytes(verifying_key) + self.stamp + label)[:HRAC_LENGTH]
         return _hrac
 
     def construct_hrac_and_map_id(self, verifying_key, label):
@@ -587,7 +596,7 @@ class Bob(Character):
         map_id = keccak_digest(bytes(verifying_key) + hrac).hex()
         return hrac, map_id
 
-    def get_treasure_map_from_known_ursulas(self, network_middleware, map_id, timeout=3):
+    def get_treasure_map_from_known_ursulas(self, network_middleware, map_identifier, timeout=3):
         """
         Iterate through the nodes we know, asking for the TreasureMap.
         Return the first one who has it.
@@ -602,17 +611,16 @@ class Bob(Character):
         # Spend no more than half the timeout finding the nodes.  8 nodes is arbitrary.  Come at me.
         self.block_until_number_of_known_nodes_is(8, timeout=timeout/2, learn_on_this_thread=True)
         while True:
-
             nodes_with_map = self.matching_nodes_among(self.known_nodes)
             random.shuffle(nodes_with_map)
 
             for node in nodes_with_map:
                 try:
-                    response = network_middleware.get_treasure_map_from_node(node=node, map_id=map_id)
+                    response = network_middleware.get_treasure_map_from_node(node, map_identifier)
                 except (*NodeSeemsToBeDown, self.NotEnoughNodes):
                     continue
                 except network_middleware.NotFound:
-                    self.log.info(f"Node {node} claimed not to have TreasureMap {map_id}")
+                    self.log.info(f"Node {node} claimed not to have TreasureMap {map_identifier}")
                     continue
 
                 if response.status_code == 200 and response.content:
@@ -628,7 +636,7 @@ class Bob(Character):
                 self.learn_from_teacher_node()
 
             if (start - maya.now()).seconds > timeout:
-                raise _MapClass.NowhereToBeFound(f"Asked {len(self.known_nodes)} nodes, but none had map {map_id} ")
+                raise _MapClass.NowhereToBeFound(f"Asked {len(self.known_nodes)} nodes, but none had map {map_identifier} ")
 
     def work_orders_for_capsules(self,
                                  *capsules,
@@ -665,7 +673,8 @@ class Bob(Character):
                     self.log.debug(f"{capsule} already has a saved WorkOrder for this Node:{node_id}.")
                     complete_work_orders[node_id] = precedent_work_order
                 except KeyError:
-                    # Don't have a precedent completed WorkOrder for this Ursula for this Capsule.  We need to make a new one.
+                    # Don't have a precedent completed WorkOrder for this Ursula for this Capsule.
+                    # We need to make a new one.
                     capsules_to_include.append(capsule)
 
             # TODO: Bob crashes if he hasn't learned about this Ursula #999
@@ -1038,9 +1047,6 @@ class Ursula(Teacher, Character, Worker):
                            **character_kwargs)
 
         if is_me:
-            # In-Memory TreasureMap tracking
-            self._stored_treasure_maps = dict()  # TODO: Something more persistent (See PR #2132)
-
             # Learner
             self._start_learning_now = start_learning_now
 
@@ -1048,10 +1054,10 @@ class Ursula(Teacher, Character, Worker):
             self._availability_check = availability_check
             self._availability_tracker = AvailabilityTracker(ursula=self)
 
-            # Arrangement Pruning
+            # Datastore Pruning
             self.__pruning_task = None
             self._prune_datastore = prune_datastore
-            self._arrangement_pruning_task = LoopingCall(f=self.__prune_arrangements)
+            self._datastore_pruning_task = LoopingCall(f=self.__prune_datastore)
 
         #
         # Ursula the Decentralized Worker (Self)
@@ -1166,9 +1172,9 @@ class Ursula(Teacher, Character, Worker):
             message = "Initialized Stranger {} | {}".format(self.__class__.__name__, self)
             self.log.debug(message)
 
-    def __prune_arrangements(self) -> None:
-        """Deletes all expired arrangements and kfrags in the datastore."""
-        now = maya.MayaDT.from_datetime(datetime.fromtimestamp(self._arrangement_pruning_task.clock.seconds()))
+    def __prune_datastore(self) -> None:
+        """Deletes all expired arrangements, kfrags, and treasure maps in the datastore."""
+        now = maya.MayaDT.from_datetime(datetime.fromtimestamp(self._datastore_pruning_task.clock.seconds()))
         try:
             with self.datastore.query_by(PolicyArrangement,
                                          filter_field='expiration',
@@ -1184,6 +1190,22 @@ class Ursula(Teacher, Character, Worker):
         else:
             if result > 0:
                 self.log.debug(f"Pruned {result} policy arrangements.")
+
+        try:
+            with self.datastore.query_by(DatastoreTreasureMap,
+                                         filter_field='expiration',
+                                         filter_func=lambda expiration: expiration <= now,
+                                         writeable=True) as expired_treasure_maps:
+                for treasure_map in expired_treasure_maps:
+                    treasure_map.delete()
+                result = len(expired_treasure_maps)
+        except RecordNotFound:
+            self.log.debug("No expired treasure maps found.")
+        except DatastoreTransactionError:
+            self.log.warn(f"Failed to prune expired treasure maps; DB session rolled back.")
+        else:
+            if result > 0:
+                self.log.debug(f"Pruned {result} treasure maps.")
 
     def run(self,
             emitter: StdoutEmitter = None,
@@ -1207,7 +1229,7 @@ class Ursula(Teacher, Character, Worker):
             emitter.message(f"Starting services...", color='yellow')
 
         if pruning:
-            self.__pruning_task = self._arrangement_pruning_task.start(interval=self._pruning_interval, now=True)
+            self.__pruning_task = self._datastore_pruning_task.start(interval=self._pruning_interval, now=True)
             if emitter:
                 emitter.message(f"✓ Database pruning", color='green')
 
@@ -1280,8 +1302,8 @@ class Ursula(Teacher, Character, Worker):
             self.stop_learning_loop()
             if not self.federated_only:
                 self.work_tracker.stop()
-            if self._arrangement_pruning_task.running:
-                self._arrangement_pruning_task.stop()
+            if self._datastore_pruning_task.running:
+                self._datastore_pruning_task.stop()
         if halt_reactor:
             reactor.stop()
 
