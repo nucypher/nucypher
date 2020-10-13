@@ -15,19 +15,16 @@ You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
-
 import datetime
 
 import maya
 import pytest
-from hendrix.experience import crosstown_traffic
-from hendrix.utils.test_utils import crosstownTaskListDecoratorFactory
 
 from nucypher.acumen.nicknames import Nickname
 from nucypher.acumen.perception import FleetSensor
 from nucypher.characters.unlawful import Vladimir
 from nucypher.crypto.powers import SigningPower
-from tests.constants import INSECURE_DEVELOPMENT_PASSWORD
+from nucypher.datastore.models import TreasureMap
 from tests.utils.middleware import MockRestMiddleware
 
 
@@ -58,7 +55,6 @@ def test_blockchain_alice_finds_ursula_via_rest(blockchain_alice, blockchain_urs
 
 
 def test_treasure_map_cannot_be_duplicated(blockchain_ursulas, blockchain_alice, blockchain_bob, agency):
-
     # Setup the policy details
     n = 3
     policy_end_datetime = maya.now() + datetime.timedelta(days=5)
@@ -160,7 +156,6 @@ def test_treasure_map_cannot_be_duplicated(blockchain_ursulas,
                                            blockchain_alice,
                                            blockchain_bob,
                                            agency):
-
     # Setup the policy details
     n = 3
     policy_end_datetime = maya.now() + datetime.timedelta(days=5)
@@ -176,8 +171,9 @@ def test_treasure_map_cannot_be_duplicated(blockchain_ursulas,
 
     matching_ursulas = blockchain_bob.matching_nodes_among(blockchain_ursulas)
     first_matching_ursula = matching_ursulas[0]
-    saved_map = first_matching_ursula.treasure_maps[bytes.fromhex(policy.treasure_map.public_id())]
-    assert saved_map == policy.treasure_map
+
+    with first_matching_ursula.datastore.describe(TreasureMap, policy.treasure_map._hrac.hex()) as saved_map_record:
+        assert saved_map_record.treasure_map == bytes(policy.treasure_map)
 
     # This Ursula was actually a Vladimir.
     # Thus, he has access to the (encrypted) TreasureMap and can use its details to
@@ -187,6 +183,6 @@ def test_treasure_map_cannot_be_duplicated(blockchain_ursulas,
     ursulas_who_probably_do_not_have_the_map = [u for u in blockchain_ursulas if not u in matching_ursulas]
     node_on_which_to_store_bad_map = ursulas_who_probably_do_not_have_the_map[0]
     with pytest.raises(vladimir.network_middleware.UnexpectedResponse) as e:
-        vladimir.publish_fraudulent_treasure_map(legit_treasure_map=saved_map,
+        vladimir.publish_fraudulent_treasure_map(legit_treasure_map=policy.treasure_map,
                                                  target_node=node_on_which_to_store_bad_map)
     assert e.value.status == 402
