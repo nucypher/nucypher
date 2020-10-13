@@ -196,7 +196,8 @@ class TesterBlockchain(BlockchainDeployerInterface):
         """For use with metric testing scripts"""
 
         testerchain = cls(compiler=SolidityCompiler())
-        BlockchainInterfaceFactory.get_interface(provider_uri=testerchain.provider_uri)
+        if not BlockchainInterfaceFactory.is_interface_initialized(provider_uri=testerchain.provider_uri):
+            BlockchainInterfaceFactory.register_interface(interface=testerchain)
         power = TransactingPower(password=INSECURE_DEVELOPMENT_PASSWORD, account=testerchain.etherbase_account)
         power.activate()
         testerchain.transacting_power = power
