@@ -148,6 +148,7 @@ class BaseCloudNodeConfigurator:
         sentry_dsn=None,
         profile=None,
         prometheus=False,
+        pre_config=False
         ):
 
         self.emitter = emitter
@@ -162,8 +163,10 @@ class BaseCloudNodeConfigurator:
 
         # where we save our state data so we can remember the resources we created for future use
         self.config_path = os.path.join(DEFAULT_CONFIG_ROOT, NODE_CONFIG_STORAGE_KEY, self.config_filename)
-
-        self.emitter.echo(f"cloudworker config path: {self.config_path}")
+        if pre_config:
+            self.config = pre_config
+            self.namespace = self.config['namespace']
+            return
 
         if os.path.exists(self.config_path):
             self.config = json.load(open(self.config_path))
@@ -355,12 +358,16 @@ class BaseCloudNodeConfigurator:
 
     def get_provider_hosts(self):
         return [
-            (address, host_data) for address, host_data in self.config['instances'].items()
+            (address, host_data) for address, host_data in self.get_all_hosts()
             if host_data['provider'] == self.provider_name
         ]
 
+    def get_all_hosts(self):
+        return [(address, host_data) for address, host_data in self.config['instances'].items()]
+
     def destroy_resources(self, staker_addresses=None):
         addresses = [s for s in staker_addresses if s in self.get_provider_hosts()]
+        self.emitter.echo(f"Destroying all {self.provider_name} instances for stakers: {' '.join(addresses)}")
         if self._destroy_resources(addresses):
             self.emitter.echo(f"deleted all requested resources for {self.provider_name}.  We are clean.  No money is being spent.", color="green")
 
@@ -382,19 +389,29 @@ class BaseCloudNodeConfigurator:
         self.update_stakeholder_config()
 
     def update_stakeholder_config(self):
-        data = {}
         data = json.loads(open(self.config['stakeholder_config_file'], 'r').read())
-        existing_worker_data = data.get('worker_data', {})
+        existing_worker_data = data.get('worker_data') or {}
+
         existing_worker_data.update(self.config['instances'])
         data['worker_data'] = existing_worker_data
         with open(self.config['stakeholder_config_file'], 'w') as outfile:
             json.dump(data, outfile, indent=4)
 
     def give_helpful_hints(self):
+        self.emitter.echo("You may wish to ssh into your running hosts:")
+        for address, n in self.get_all_hosts():
+            dep = CloudDeployers.get_deployer(n['provider'])(
+                self.emitter,
+                self.stakeholder,
+                self.config['stakeholder_config_file'],
+                pre_config=self.config
+            )
+            self.emitter.echo(f"\t {dep.format_ssh_cmd(n)}", color="yellow")
 
-        if self.config.get('keypair_path'):
-            keypair = self.config['keypair_path']
-            self.emitter.echo(f'ssh into any node using `ssh ubuntu@<node address> -i "{keypair}"`', color="yellow")
+    def format_ssh_cmd(self, hostdata):
+        user = next(v['value'] for v in hostdata['provider_deploy_attrs'] if v['key'] == 'default_user')
+        return f"ssh {user}@{hostdata['publicaddress']}"
+
 
 class DigitalOceanConfigurator(BaseCloudNodeConfigurator):
 
@@ -456,8 +473,8 @@ class DigitalOceanConfigurator(BaseCloudNodeConfigurator):
 
             self.emitter.echo("\twaiting for instance to come online...")
 
-            instance_ip = None
-            while not instance_ip:
+            instance_public_ip = None
+            while not instance_public_ip:
                 time.sleep(1)
 
                 instance_resp = requests.get(
@@ -468,8 +485,9 @@ class DigitalOceanConfigurator(BaseCloudNodeConfigurator):
                 ).json().get('droplet')
                 if instance_resp['status'] == 'active':
                     if instance_resp.get('networks', {}).get('v4'):
-                        instance_ip = instance_resp['networks']['v4'][0]['ip_address']
-            node_data['publicaddress'] = instance_ip
+                        instance_public_ip = next(
+                            (n['ip_address'] for n in instance_resp['networks']['v4'] if n['type'] == 'public'), None)
+            node_data['publicaddress'] = instance_public_ip
             node_data['remote_provider'] = self.config.get('blockchain_provider')
             node_data['provider_deploy_attrs']= self._provider_deploy_attrs
             return node_data
@@ -769,6 +787,10 @@ class AWSNodeConfigurator(BaseCloudNodeConfigurator):
         node_data['provider_deploy_attrs']= self._provider_deploy_attrs
 
         return node_data
+
+    def format_ssh_cmd(self, hostdata):
+        keypair_path = next(v['value'] for v in hostdata['provider_deploy_attrs'] if v['key'] == 'ansible_ssh_private_key_file')
+        return f'{super().format_ssh_cmd(hostdata)} -i "{keypair_path}"'
 
 class GenericConfigurator(BaseCloudNodeConfigurator):
 

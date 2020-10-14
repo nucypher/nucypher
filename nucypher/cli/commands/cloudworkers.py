@@ -179,6 +179,13 @@ def destroy(general_config, staker_options, config_file, cloudprovider, stakes):
     staker_addresses = filter_staker_addresses(stakers, stakes)
 
     config_file = config_file or StakeHolderConfiguration.default_filepath()
+
+    if not cloudprovider:
+        hosts = CloudDeployers.get_deployer('generic')(emitter, STAKEHOLDER, config_file).get_all_hosts()
+        if len(set(host['provider'] for address, host in hosts)) == 1:
+            cloudprovider = hosts[0][1]['provider']
+        else:
+            emitter.echo("Please specify which provider's hosts you'd like to destroy using --cloudprovider (digitalocean or aws)")
     deployer = CloudDeployers.get_deployer(cloudprovider)(emitter, STAKEHOLDER, config_file)
     deployer.destroy_resources(staker_addresses=staker_addresses)
 
@@ -186,7 +193,7 @@ def destroy(general_config, staker_options, config_file, cloudprovider, stakes):
 @cloudworkers.command('status')
 @group_staker_options
 @option_config_file
-@click.option('--cloudprovider', help="aws or digitalocean", default='aws')
+@click.option('--cloudprovider', help="aws or digitalocean")
 @click.option('--include-stakeholder', 'stakes', help="only show nodes for included stakeholder addresses", multiple=True)
 @group_general_config
 def status(general_config, staker_options, config_file, cloudprovider, stakes):
@@ -198,7 +205,7 @@ def status(general_config, staker_options, config_file, cloudprovider, stakes):
         return
     STAKEHOLDER = staker_options.create_character(emitter, config_file)
     config_file = config_file or StakeHolderConfiguration.default_filepath()
-    deployer = CloudDeployers.get_deployer(cloudprovider)(emitter, STAKEHOLDER, config_file)
+    deployer = CloudDeployers.get_deployer('generic')(emitter, STAKEHOLDER, config_file)
 
     stakers = STAKEHOLDER.get_stakers()
     staker_addresses = filter_staker_addresses(stakers, stakes)
