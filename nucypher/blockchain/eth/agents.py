@@ -1269,7 +1269,8 @@ class WorkLockAgent(EthereumContractAgent):
         """
         contract_function: ContractFunction = self.contract.functions.claim()
         receipt = self.blockchain.send_transaction(contract_function=contract_function,
-                                                   sender_address=checksum_address)
+                                                   sender_address=checksum_address,
+                                                   gas_estimation_multiplier=1.5)  # FIXME
         return receipt
 
     @contract_api(TRANSACTION)
