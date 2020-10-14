@@ -512,8 +512,8 @@ class Policy(ABC):
             if publish_treasure_map is True:
                 return self.publish_treasure_map(network_middleware=network_middleware)  # TODO: blockchain_signer?
 
-    def propose_arrangement(self, network_middleware, ursula, arrangement) -> bool:
-        negotiation_response = network_middleware.propose_arrangement(arrangement=arrangement)
+    def propose_arrangement(self, network_middleware, arrangement) -> bool:
+        negotiation_response = network_middleware.propose_arrangement(arrangement=arrangement)  # Wow, we aren't even passing node here.
 
         # TODO: check out the response: need to assess the result and see if we're actually good to go.
         arrangement_is_accepted = negotiation_response.status_code == 200
@@ -583,8 +583,7 @@ class Policy(ABC):
         for index, selected_ursula in enumerate(candidate_ursulas):
             arrangement = self.make_arrangement(ursula=selected_ursula, *args, **kwargs)
             try:
-                is_accepted = self.propose_arrangement(ursula=selected_ursula,
-                                                       arrangement=arrangement,
+                is_accepted = self.propose_arrangement(arrangement=arrangement,
                                                        network_middleware=network_middleware)
 
             except NodeSeemsToBeDown as e:  # TODO: #355 Also catch InvalidNode here?

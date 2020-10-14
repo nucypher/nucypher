@@ -545,11 +545,9 @@ class Learner:
             self.log.info("Learning loop wasn't started; forcing start now.")
             self._learning_task.start(self._SHORT_LEARNING_DELAY, now=True)
 
-    def keep_learning_about_nodes(self, learner=None, frames=None):
+    def keep_learning_about_nodes(self):
         """
         Continually learn about new nodes.
-
-        learner is for debugging and logging only.
         """
 
         # TODO: Allow the user to set eagerness?  1712
@@ -558,20 +556,13 @@ class Learner:
         self._learning_deferred = Deferred(canceller=self._discovery_canceller)  # TODO: No longer relevant.
 
         def _discover_or_abort(_first_result):
-            self.log.debug(f"========={self} learning at {datetime.datetime.now()}")
+            self.log.debug(f"{self} learning at {datetime.datetime.now()}")
             result = self.learn_from_teacher_node(eager=False, canceller=self._discovery_canceller)
-            self.log.debug(f"///////////{self} finished learning at {datetime.datetime.now()}")
+            self.log.debug(f"{self} finished learning at {datetime.datetime.now()}")
             return result
 
         self._learning_deferred.addCallback(_discover_or_abort)
         self._learning_deferred.addErrback(self.handle_learning_errors)
-
-        # def clear_learning_deferred(result_of_last_learning_cycle):
-        #     # TODO: This is an interesting opportunity to add throttling and / or check against a canonical fleet state.  #1712  #1000
-        #     print(f"Clearing {self} at {datetime.datetime.now()}")
-        #     self._learning_deferred = None
-        #
-        # self._learning_deferred.addCallback(clear_learning_deferred)
 
         # Instead of None, we might want to pass something useful about the context.
         # Alternately, it might be nice for learn_from_teacher_node to (some or all of the time) return a Deferred.
@@ -634,14 +625,10 @@ class Learner:
                                              addresses: Set,
                                              timeout=LEARNING_TIMEOUT,
                                              allow_missing=0,
-                                             learn_on_this_thread=False):
+                                             learn_on_this_thread=False,
+                                             verify_now=False):
         start = maya.now()
         starting_round = self._learning_round
-
-        # if not learn_on_this_thread:
-        #     # Get a head start by firing the looping call now.  If it's very fast, maybe we'll have enough nodes on the first iteration.
-        #     # if self._learning_task.running:
-        #     #     self._learning_task()
 
         addresses = set(addresses)
 
@@ -791,24 +778,30 @@ class Learner:
                                                                   nodes_i_need=self._node_ids_to_learn_about_immediately,
                                                                   announce_nodes=announce_nodes,
                                                                   fleet_checksum=self.known_nodes.checksum)
+        # These except clauses apply to the current_teacher itself, not the learned-about nodes.
+        except NodeSeemsToBeDown as e:
+            unresponsive_nodes.add(current_teacher)
+            self.log.info(f"Teacher {str(current_teacher)} is perhaps down: {bytes(current_teacher)}:{e}.")
+            return
+        except current_teacher.InvalidNode as e:
+            # Ugh.  The teacher is invalid.  Rough.
+            # TODO: Bucket separately and report.
+            unresponsive_nodes.add(current_teacher)  # This does nothing.
+            self.known_nodes.mark_as(current_teacher.InvalidNode, current_teacher)
+            self.log.warn(f"Teacher {str(current_teacher)} is invalid: {bytes(current_teacher)}:{e}.")
+            self.suspicious_activities_witnessed['vladimirs'].append(current_teacher)
+            return
         except RuntimeError as e:
             if canceller and canceller.stop_now:
                 # Race condition that seems limited to tests.
                 # TODO: Sort this out.
                 return RELAX
             else:
+                self.log.warn(f"Unhandled error while learning from {str(current_teacher)}: {bytes(current_teacher)}:{e}.")
                 raise
-        except NodeSeemsToBeDown as e:
-            unresponsive_nodes.add(current_teacher)
-            self.log.info("Bad Response from teacher: {}:{}.".format(current_teacher, e))
-            return
-        except current_teacher.InvalidNode as e:
-            # Ugh.  The teacher is invalid.  Rough.
-            # TODO: Bucket separately and report.
-            unresponsive_nodes.add(current_teacher)
-            self.log.info("Teacher is invalid: {}:{}.".format(current_teacher, e))
-            return
-
+        except Exception as e:
+            self.log.warn(f"Unhandled error while learning from {str(current_teacher)}: {bytes(current_teacher)}:{e}.")  # To track down 2345 / 1698
+            raise
         finally:
             # Is cycling happening in the right order?
             self.cycle_teacher_node()
@@ -1212,7 +1205,7 @@ class Teacher:
         # This is both the stamp's client signature and interface metadata check; May raise InvalidNode
         try:
             self.validate_metadata(registry=registry)
-        except self.UnbondedWorker:
+        except self.UnbondedWorker:  # TODO: Why are we specifically catching this and not other reasons for invalidity, eg StampNotSigned?
             self.verified_node = False
             return False
 

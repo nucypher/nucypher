@@ -120,8 +120,8 @@ class Vladimir(Ursula):
         legit_treasure_map._set_payload()
 
         response = self.network_middleware.put_treasure_map_on_node(node=target_node,
-                                                                    map_id=legit_treasure_map.public_id(),
                                                                     map_payload=bytes(legit_treasure_map))
+        return response
 
 
 class Amonia(Alice):

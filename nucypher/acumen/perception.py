@@ -22,7 +22,7 @@ import maya
 
 from bytestring_splitter import BytestringSplitter
 from constant_sorrow.constants import NO_KNOWN_NODES
-from collections import namedtuple
+from collections import namedtuple, defaultdict
 from collections import OrderedDict
 from twisted.logger import Logger
 
@@ -46,6 +46,7 @@ class FleetSensor:
         self.additional_nodes_to_track = []
         self.updated = maya.now()
         self._nodes = OrderedDict()
+        self._marked = defaultdict(list)  # Beginning of bucketing.
         self.states = OrderedDict()
 
     def __setitem__(self, key, value):
@@ -158,3 +159,9 @@ class FleetSensor:
                 "color_name": state.nickname.characters[0].color_name,
                 "updated": state.updated.rfc2822(),
                 }
+
+    def mark_as(self, label: Exception, node: "Teacher"):
+        self._marked[label].append(node)
+
+        if self._nodes.get(node):
+            del self._nodes[node]
