@@ -577,6 +577,7 @@ class StakingEscrowAgent(EthereumContractAgent):
         contract_function: ContractFunction = self.contract.functions.commitToNextPeriod()
         receipt: TxReceipt = self.blockchain.send_transaction(contract_function=contract_function,
                                                               sender_address=worker_address,
+                                                              gas_estimation_multiplier=1.5,  # TODO: Workaround for #2337
                                                               fire_and_forget=fire_and_forget)
         return receipt
 
