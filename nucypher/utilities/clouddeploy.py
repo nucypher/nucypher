@@ -461,8 +461,7 @@ class DigitalOceanConfigurator(BaseCloudNodeConfigurator):
 
             self.emitter.echo("\twaiting for instance to come online...")
 
-            instance_ip = None
-            while not instance_ip:
+            while not instance_public_ip:
                 time.sleep(1)
 
                 instance_resp = requests.get(
@@ -473,8 +472,8 @@ class DigitalOceanConfigurator(BaseCloudNodeConfigurator):
                 ).json().get('droplet')
                 if instance_resp['status'] == 'active':
                     if instance_resp.get('networks', {}).get('v4'):
-                        instance_ip = instance_resp['networks']['v4'][0]['ip_address']
-            node_data['publicaddress'] = instance_ip
+                        instance_public_ip = next(
+                            (n['ip_address'] for n in instance_resp['networks']['v4'] if n['type'] == 'public'), None)
             node_data['remote_provider'] = self.config.get('blockchain_provider')
             node_data['provider_deploy_attrs']= self._provider_deploy_attrs
             return node_data
