@@ -193,7 +193,7 @@ def destroy(general_config, staker_options, config_file, cloudprovider, stakes):
 @cloudworkers.command('status')
 @group_staker_options
 @option_config_file
-@click.option('--cloudprovider', help="aws or digitalocean", default='aws')
+@click.option('--cloudprovider', help="aws or digitalocean")
 @click.option('--include-stakeholder', 'stakes', help="only show nodes for included stakeholder addresses", multiple=True)
 @group_general_config
 def status(general_config, staker_options, config_file, cloudprovider, stakes):
@@ -205,7 +205,7 @@ def status(general_config, staker_options, config_file, cloudprovider, stakes):
         return
     STAKEHOLDER = staker_options.create_character(emitter, config_file)
     config_file = config_file or StakeHolderConfiguration.default_filepath()
-    deployer = CloudDeployers.get_deployer(cloudprovider)(emitter, STAKEHOLDER, config_file)
+    deployer = CloudDeployers.get_deployer('generic')(emitter, STAKEHOLDER, config_file)
 
     stakers = STAKEHOLDER.get_stakers()
     staker_addresses = filter_staker_addresses(stakers, stakes)
