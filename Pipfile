@@ -22,7 +22,7 @@ maya = "*"
 tzlocal = "==2.1"
 marshmallow = "*"
 msgpack = "*"
-mako = "*"
+jinja2 = "*"
 # Web
 requests = "*"
 flask = "*"
