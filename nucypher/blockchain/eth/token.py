@@ -14,7 +14,7 @@ GNU Affero General Public License for more details.
 You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
-
+import random
 from _pydecimal import Decimal
 from collections import UserList
 from enum import Enum
@@ -526,19 +526,16 @@ def validate_increase(stake: Stake, amount: NU) -> None:
 class WorkTracker:
 
     CLOCK = reactor
-    REFRESH_RATE = 60 * 15  # Fifteen minutes
+    INTERVAL_FLOOR = 60 * 15  # fifteen minutes
+    INTERVAL_CEIL = 60 * 180  # three hours
 
-    def __init__(self,
-                 worker,
-                 refresh_rate: int = None,
-                 *args, **kwargs):
+    def __init__(self, worker, *args, **kwargs):
 
         super().__init__(*args, **kwargs)
         self.log = Logger('stake-tracker')
         self.worker = worker
         self.staking_agent = self.worker.staking_agent
 
-        self._refresh_rate = refresh_rate or self.REFRESH_RATE
         self._tracking_task = task.LoopingCall(self._do_work)
         self._tracking_task.clock = self.CLOCK
 
@@ -547,6 +544,10 @@ class WorkTracker:
         self.__start_time = NOT_STAKING
         self.__uptime_period = NOT_STAKING
         self._abort_on_error = True
+
+    @classmethod
+    def random_interval(cls) -> int:
+        return random.randint(cls.INTERVAL_FLOOR, cls.INTERVAL_CEIL)
 
     @property
     def current_period(self):
@@ -575,7 +576,7 @@ class WorkTracker:
         self.__current_period = self.__uptime_period
 
         self.log.info(f"START WORK TRACKING")
-        d = self._tracking_task.start(interval=self._refresh_rate, now=act_now)
+        d = self._tracking_task.start(interval=self.random_interval(), now=act_now)
         d.addErrback(self.handle_working_errors)
 
     def _crash_gracefully(self, failure=None) -> None:
@@ -609,8 +610,11 @@ class WorkTracker:
         return r
 
     def _do_work(self) -> None:
-        # TODO: #1515 Shut down at end of terminal stake
 
+        # Randomize the task interval over time, within bounds.
+        self._tracking_task.interval = self.random_interval()
+
+        # TODO: #1515 Shut down at end of terminal stake
         # Update on-chain status
         self.log.info(f"Checking for new period. Current period is {self.__current_period}")
         onchain_period = self.staking_agent.get_current_period()  # < -- Read from contract

@@ -69,7 +69,7 @@ def test_worker_auto_commitments(mocker,
 
     def time_travel(_):
         testerchain.time_travel(periods=1)
-        clock.advance(WorkTracker.REFRESH_RATE+1)
+        clock.advance(WorkTracker.INTERVAL_CEIL + 1)
         return clock
 
     def verify(clock):
