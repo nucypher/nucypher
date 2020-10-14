@@ -8,7 +8,7 @@ docutils==0.16
 idna==2.10
 imagesize==1.2.0
 incremental==17.5.0
-jinja2==3.0.0a1
+jinja2==2.11.2
 markupsafe==2.0.0a1
 packaging==20.4
 pygments==2.7.1
