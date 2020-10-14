@@ -356,12 +356,16 @@ class BaseCloudNodeConfigurator:
 
     def get_provider_hosts(self):
         return [
-            (address, host_data) for address, host_data in self.config['instances'].items()
+            (address, host_data) for address, host_data in self.get_all_hosts()
             if host_data['provider'] == self.provider_name
         ]
 
+    def get_all_hosts(self):
+        return [(address, host_data) for address, host_data in self.config['instances'].items()]
+
     def destroy_resources(self, staker_addresses=None):
         addresses = [s for s in staker_addresses if s in self.get_provider_hosts()]
+        self.emitter.echo(f"Destroying all {self.provider_name} instances for stakers: {' '.join(addresses)}")
         if self._destroy_resources(addresses):
             self.emitter.echo(f"deleted all requested resources for {self.provider_name}.  We are clean.  No money is being spent.", color="green")
 

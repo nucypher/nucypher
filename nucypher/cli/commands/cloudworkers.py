@@ -179,6 +179,13 @@ def destroy(general_config, staker_options, config_file, cloudprovider, stakes):
     staker_addresses = filter_staker_addresses(stakers, stakes)
 
     config_file = config_file or StakeHolderConfiguration.default_filepath()
+
+    if not cloudprovider:
+        hosts = CloudDeployers.get_deployer('generic')(emitter, STAKEHOLDER, config_file).get_all_hosts()
+        if len(set(host['provider'] for address, host in hosts)) == 1:
+            cloudprovider = hosts[0][1]['provider']
+        else:
+            emitter.echo("Please specify which provider's hosts you'd like to destroy using --cloudprovider (digitalocean or aws)")
     deployer = CloudDeployers.get_deployer(cloudprovider)(emitter, STAKEHOLDER, config_file)
     deployer.destroy_resources(staker_addresses=staker_addresses)
 
