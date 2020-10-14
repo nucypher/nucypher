@@ -130,7 +130,7 @@ def _make_rest_app(datastore: Datastore, this_node, serving_domain: str, log: Lo
         """
 
         try:
-            requesting_ursula = Ursula.from_bytes(request.data, registry=this_node.registry)
+            requesting_ursula = Ursula.from_bytes(request.data)
             requesting_ursula.mature()
         except ValueError:  # (ValueError)
             return Response({'error': 'Invalid Ursula'}, status=400)
