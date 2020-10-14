@@ -24,8 +24,7 @@ from constant_sorrow import constants
 from constant_sorrow.constants import FLEET_STATES_MATCH, NO_BLOCKCHAIN_CONNECTION, NO_KNOWN_NODES, RELAX
 from datetime import datetime, timedelta
 from flask import Flask, Response, jsonify, request
-from mako import exceptions as mako_exceptions
-from mako.template import Template
+from jinja2 import Environment, FileSystemLoader, select_autoescape, StrictUndefined
 from maya import MayaDT
 from typing import Tuple
 from umbral.kfrags import KFrag
@@ -49,7 +48,66 @@ from nucypher.utilities.logging import Logger
 HERE = BASE_DIR = os.path.abspath(os.path.dirname(__file__))
 TEMPLATES_DIR = os.path.join(HERE, "templates")
 
-status_template = Template(filename=os.path.join(TEMPLATES_DIR, "basic_status.mako")).get_def('main')
+env = Environment(
+    loader=FileSystemLoader(TEMPLATES_DIR),
+    autoescape=select_autoescape(["html"]),
+    undefined=StrictUndefined,
+)
+
+_character_span_tmpl = env.get_template("character_span.html.j2")
+_fleet_state_icon_tmpl = env.get_template("fleet_state_icon.html.j2")
+_node_info_tmpl = env.get_template("node_info.html.j2")
+_status_page_tmpl = env.get_template("basic_status.html.j2")
+
+
+def hex_to_rgb(color_hex):
+    # Expects a color in the form "#abcdef"
+    r = int(color_hex[1:3], 16)
+    g = int(color_hex[3:5], 16)
+    b = int(color_hex[5:7], 16)
+    return r, g, b
+
+
+def contrast_color(color_hex):
+    r, g, b = hex_to_rgb(color_hex)
+    # As defined in https://www.w3.org/WAI/ER/WD-AERT/#color-contrast
+    # Ranges from 0 to 255
+    intensity = (r * 299 + g * 587 + b * 114) / 1000
+    if intensity > 128:
+        return "black"
+    else:
+        return "white"
+
+
+def character_span(character):
+    return _character_span_tmpl.render(contrast_color=contrast_color, character=character)
+
+
+def fleet_state_icon(checksum, nickname, population):
+    return _fleet_state_icon_tmpl.render(character_span=character_span,
+                                         checksum=checksum,
+                                         nickname=nickname,
+                                         population=population)
+
+
+def fleet_state_icon_from_state(state):
+    return fleet_state_icon(state.checksum, state.nickname, len(state))
+
+
+def node_info(node):
+    return _node_info_tmpl.render(character_span=character_span, node=node)
+
+
+def status_page(this_node, previous_states, domain, version):
+    return _status_page_tmpl.render(fleet_state_icon=fleet_state_icon,
+                                    node_info=node_info,
+                                    fleet_state_icon_from_state=fleet_state_icon_from_state,
+                                    this_node=this_node,
+                                    known_nodes=this_node.known_nodes,
+                                    previous_states=previous_states,
+                                    domain=domain,
+                                    version=version,
+                                    checksum_address=this_node.checksum_address)
 
 
 class ProxyRESTServer:
@@ -433,17 +491,13 @@ def _make_rest_app(datastore: Datastore, this_node, serving_domain: str, log: Lo
                 node.mature()
 
             try:
-                content = status_template.render(this_node=this_node,
-                                                 known_nodes=this_node.known_nodes,
-                                                 previous_states=previous_states,
-                                                 domain=serving_domain,
-                                                 version=nucypher.__version__,
-                                                 checksum_address=this_node.checksum_address)
+                content = status_page(this_node=this_node,
+                                      previous_states=previous_states,
+                                      domain=serving_domain,
+                                      version=nucypher.__version__)
             except Exception as e:
-                text_error = mako_exceptions.text_error_template().render()
-                html_error = mako_exceptions.html_error_template().render()
-                log.debug("Template Rendering Exception:\n" + text_error)
-                return Response(response=html_error, headers=headers, status=500)
+                log.debug("Template Rendering Exception: " + str(e))
+                return Response("Template Rendering Exception: " + str(e), headers=headers, status=500)
             return Response(response=content, headers=headers)
 
     return rest_app

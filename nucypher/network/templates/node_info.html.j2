@@ -1,0 +1,16 @@
+<div>
+    <table class="node-info">
+        <tr>
+            <td>
+                <span class="node-icon">{% for character in node.nickname.characters %}{{ character_span(character) }}{% endfor %}</span>
+            </td>
+            <td>
+                <a href="https://{{ node.rest_url() }}/status">
+                <span class="nickname">{{ node.nickname }}</span>
+                </a>
+                <br/>
+                <span class="checksum">{{ node.checksum_address }}</span>
+            </td>
+        </tr>
+    </table>
+</div>

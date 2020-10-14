@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <link rel="icon" type="image/x-icon" href="https://www.nucypher.com/favicon-32x32.png"/>
+    <link rel="stylesheet" type="text/css" href="https://fonts.googleapis.com/css?family=Open+Sans" />
+</head>
+<style type="text/css">
+
+    body {
+        font-family: "Open Sans", sans-serif;
+        margin: 2em 2em 2em 2em;
+    }
+
+    /* unvisited link */
+    a:link {
+        color: #115;
+        text-decoration-color: #bbb;
+    }
+
+    /* visited link */
+    a:visited {
+        color: #626;
+    }
+
+    table.node-info > tr > td {
+        padding: 0 0em;
+    }
+
+    table.state-info {
+        float: left;
+        padding: 0 1em 0 0;
+    }
+
+    table.state-info > tr > td {
+        padding: 0 0em;
+    }
+
+    table.known-nodes > tbody > tr > td {
+        padding: 0 1em 0 0;
+    }
+
+    table.known-nodes > thead > tr > td {
+        border-bottom: 1px solid #ddd;
+    }
+
+    table.known-nodes > tbody > tr > td {
+        border-bottom: 1px solid #ddd;
+    }
+
+    .this-node-info {
+        margin-bottom: 1em;
+    }
+
+    .this-node {
+        font-size: x-large;
+    }
+
+    .nickname {
+        font-weight: bold;
+    }
+
+    .node-icon {
+        font-size: 2em;
+        font-family: monospace;
+        margin-right: 0.2em;
+    }
+
+    .state-icon {
+        font-size: 2em;
+        font-family: monospace;
+        margin-right: 0.2em;
+    }
+
+    .checksum {
+        font-family: monospace;
+    }
+</style>
+</body>
+
+    <table class="this-node-info">
+        <tr>
+            <td></td>
+            <td><div class="this-node">{{ nnode_info(this_node) }}</div></td>
+        </tr>
+        <tr>
+            <td><div style="margin-bottom: 1em"></div></td>
+            <td></td>
+        </tr>
+        <tr>
+            <td><i>Running:</i></td>
+            <td><span class="version">v{{ version }}</span></td>
+        </tr>
+        <tr>
+            <td><i>Domain:</i></td>
+            <td><span class="domain">{{ domain }}</span></td>
+        </tr>
+        <tr>
+            <td><i>Fleet state:</i></td>
+            <td>    {{ fleet_state_icon(this_node.fleet_state_checksum,
+                                        this_node.fleet_state_nickname,
+                                        this_node.fleet_state_population) }}</td>
+        </tr>
+        <tr>
+            <td><i>Previous states:</i></td>
+            <td>
+                {% for state in previous_states %}
+                    {{ fleet_state_icon_from_state(state) }}
+                {% endfor %}
+            </td>
+        </tr>
+    </table>
+
+    <h3>Known nodes</h3>
+
+    <table class="known-nodes">
+        <thead>
+            <td></td>
+            <td>Launched</td>
+            <td>Last Seen</td>
+            <td>Fleet State</td>
+        </thead>
+        <tbody>
+        {% for node in known_nodes %}
+            <tr>
+                <td>{{ node_info(node) }}</td>
+                <td>{{ node.timestamp }}</td>
+                <td>{{ node.last_seen }}</td>
+                <td>{{ fleet_state_icon(node.fleet_state_checksum,
+                                        node.fleet_state_nickname,
+                                        node.fleet_state_population) }}</td>
+            </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+</body>
+</html>

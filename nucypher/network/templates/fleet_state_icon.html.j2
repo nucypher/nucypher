@@ -1,0 +1,16 @@
+{% if not checksum %}
+NO FLEET STATE AVAILABLE
+{% else %}
+<table class="state-info" title="{{ nickname }}">
+    <tr>
+        <td>
+            <span class="state-icon">{% for character in nickname.characters %}{{ character_span(character) }}{% endfor %}</span>
+        </td>
+        <td>
+            <span>{{ population }} nodes</span>
+            <br/>
+            <span class="checksum">{{ checksum[0:8] }}</span>
+        </td>
+    </tr>
+</table>
+{% endif %}
