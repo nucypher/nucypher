@@ -22,7 +22,7 @@ import json
 import maya
 import time
 from base64 import b64encode
-from jinja2 import Template
+from mako.template import Template
 import requests
 
 from ansible.playbook import Playbook
@@ -233,9 +233,7 @@ class BaseCloudNodeConfigurator:
 
     def generate_ansible_inventory(self, staker_addresses, wipe_nucypher=False):
 
-        status_template = Template(self._inventory_template)
-
-        inventory_content = status_template.render(
+        inventory_content = self._inventory_template.render(
             deployer=self,
             nodes=[value for key, value in self.config['instances'].items() if key in staker_addresses],
             wipe_nucypher=wipe_nucypher
@@ -276,7 +274,8 @@ class BaseCloudNodeConfigurator:
 
     @property
     def _inventory_template(self):
-        return open(os.path.join(os.path.dirname(__file__), 'templates', 'cloud_deploy_ansible_inventory.j2'), 'r').read()
+        template_path = os.path.join(os.path.dirname(__file__), 'templates', 'cloud_deploy_ansible_inventory.mako')
+        return Template(filename=template_path)
 
     def deploy_nucypher_on_existing_nodes(self, staker_addresses, wipe_nucypher=False):
 

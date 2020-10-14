@@ -41,7 +41,7 @@ from constant_sorrow.constants import (CERTIFICATE_NOT_SAVED, FLEET_STATES_MATCH
                                        NO_KNOWN_NODES, NO_STORAGE_AVAILIBLE, UNKNOWN_FLEET_STATE, UNKNOWN_VERSION,
                                        RELAX)
 from nucypher.acumen.nicknames import Nickname
-from nucypher.acumen.perception import FleetSensor, icon_from_checksum
+from nucypher.acumen.perception import FleetSensor
 from nucypher.blockchain.economics import EconomicsFactory
 from nucypher.blockchain.eth.agents import ContractAgency, StakingEscrowAgent
 from nucypher.blockchain.eth.constants import NULL_ADDRESS
@@ -170,7 +170,7 @@ class Learner:
     tracker_class = FleetSensor
 
     invalid_metadata_message = "{} has invalid metadata.  The node's stake may have ended, or it is transitioning to a new interface. Ignoring."
-    fleet_state_icon = ""
+    fleet_state_population = None
 
     _DEBUG_MODE = False
 
@@ -955,7 +955,7 @@ class Teacher:
         self.fleet_state_updated = None
         self.last_seen = NEVER_SEEN("No Connection to Node")
 
-        self.fleet_state_icon = UNKNOWN_FLEET_STATE
+        self.fleet_state_population = UNKNOWN_FLEET_STATE
         self.fleet_state_nickname = UNKNOWN_FLEET_STATE
 
         #
@@ -1071,9 +1071,7 @@ class Teacher:
         self.fleet_state_nickname = Nickname.from_seed(checksum, length=1)
         self.fleet_state_checksum = checksum
         self.fleet_state_updated = updated
-        self.fleet_state_icon = icon_from_checksum(self.fleet_state_checksum,
-                                                   nickname=self.fleet_state_nickname,
-                                                   number_of_nodes=number_of_known_nodes)
+        self.fleet_state_population = number_of_known_nodes
 
     #
     # Stamp
