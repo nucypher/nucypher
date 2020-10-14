@@ -365,7 +365,7 @@ class EthereumClient:
     def check_transaction_is_on_chain(self, receipt: TxReceipt) -> bool:
         transaction_hash = Web3.toHex(receipt['transactionHash'])
         try:
-            new_receipt = self.w3.eth.getTransactionReceipt(transaction_hash=transaction_hash)
+            new_receipt = self.w3.eth.getTransactionReceipt(transaction_hash)
         except TransactionNotFound:
             reorg_detected = True
         else:
@@ -382,13 +382,13 @@ class EthereumClient:
         raise NotImplementedError
 
     def get_transaction(self, transaction_hash) -> dict:
-        return self.w3.eth.getTransaction(transaction_hash=transaction_hash)
+        return self.w3.eth.getTransaction(transaction_hash)
 
     def send_transaction(self, transaction_dict: dict) -> str:
-        return self.w3.eth.sendTransaction(transaction=transaction_dict)
+        return self.w3.eth.sendTransaction(transaction_dict)
 
     def send_raw_transaction(self, transaction_bytes: bytes) -> str:
-        return self.w3.eth.sendRawTransaction(raw_transaction=transaction_bytes)
+        return self.w3.eth.sendRawTransaction(transaction_bytes)
 
     def sign_message(self, account: str, message: bytes) -> str:
         """
@@ -505,7 +505,7 @@ class GethClient(EthereumClient):
             transaction_dict = dissoc(transaction_dict, 'to')
 
         # Sign
-        result = self.w3.eth.signTransaction(transaction=transaction_dict)
+        result = self.w3.eth.signTransaction(transaction_dict)
 
         # Return RLP bytes
         rlp_encoded_transaction = result.raw

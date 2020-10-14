@@ -50,7 +50,7 @@ MIN_ALLOWED_BID = to_wei(1, 'ether')
 def worklock_factory(testerchain, token, escrow, token_economics, deploy_contract):
     def deploy_worklock(supply, bidding_delay, additional_time_to_cancel, boosting_refund):
 
-        now = testerchain.w3.eth.getBlock(block_identifier='latest').timestamp
+        now = testerchain.w3.eth.getBlock('latest').timestamp
         start_bid_date = now + bidding_delay
         end_bid_date = start_bid_date + BIDDING_DURATION
         end_cancellation_date = end_bid_date + additional_time_to_cancel
@@ -1148,7 +1148,7 @@ def test_force_refund(testerchain, token_economics, deploy_contract, worklock_fa
     testerchain.wait_for_receipt(tx)
 
     end_cancellation_date = worklock.functions.endCancellationDate().call()
-    now = testerchain.w3.eth.getBlock(block_identifier='latest').timestamp
+    now = testerchain.w3.eth.getBlock('latest').timestamp
     assert end_cancellation_date > now
     assert token.functions.balanceOf(worklock.address).call() == 0
     assert token.functions.balanceOf(creator).call() == creator_tokens + worklock_tokens

@@ -37,7 +37,7 @@ def policy_meta(testerchain, agency, token_economics, blockchain_ursulas):
     _policy_id = os.urandom(16)
     staker_addresses = list(staking_agent.get_stakers_reservoir(duration=1).draw(3))
     number_of_periods = 10
-    now = testerchain.w3.eth.getBlock(block_identifier='latest').timestamp
+    now = testerchain.w3.eth.getBlock('latest').timestamp
     _txhash = agent.create_policy(policy_id=_policy_id,
                                   author_address=testerchain.alice_account,
                                   value=to_wei(1, 'gwei') * len(staker_addresses) * number_of_periods,
@@ -57,7 +57,7 @@ def test_create_policy(testerchain, agency, token_economics, mock_transacting_po
 
     policy_id = os.urandom(16)
     node_addresses = list(staking_agent.get_stakers_reservoir(duration=1).draw(3))
-    now = testerchain.w3.eth.getBlock(block_identifier='latest').timestamp
+    now = testerchain.w3.eth.getBlock('latest').timestamp
     receipt = agent.create_policy(policy_id=policy_id,
                                   author_address=testerchain.alice_account,
                                   value=token_economics.minimum_allowed_locked,

@@ -200,7 +200,7 @@ class TesterBlockchain(BlockchainDeployerInterface):
         else:
             raise ValueError("Specify either hours, seconds, or periods.")
 
-        now = self.w3.eth.getBlock(block_identifier='latest').timestamp
+        now = self.w3.eth.getBlock('latest').timestamp
         end_timestamp = ((now+duration)//base) * base
 
         self.w3.eth.web3.testing.timeTravel(timestamp=end_timestamp)
@@ -224,8 +224,8 @@ class TesterBlockchain(BlockchainDeployerInterface):
         testerchain.transacting_power = power
 
         origin = testerchain.client.etherbase
-        deployer = ContractAdministrator(deployer_address=origin, 
-                                         registry=registry, 
+        deployer = ContractAdministrator(deployer_address=origin,
+                                         registry=registry,
                                          economics=economics or cls._default_token_economics,
                                          staking_escrow_test_mode=True)
 

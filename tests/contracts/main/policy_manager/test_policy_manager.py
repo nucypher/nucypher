@@ -81,7 +81,7 @@ def test_create_revoke(testerchain, escrow, policy_manager):
     assert 0 < policy_manager.functions.nodes(node2).call()[PREVIOUS_FEE_PERIOD_FIELD]
     assert 0 < policy_manager.functions.nodes(node3).call()[PREVIOUS_FEE_PERIOD_FIELD]
     assert 0 == policy_manager.functions.nodes(bad_node).call()[PREVIOUS_FEE_PERIOD_FIELD]
-    current_timestamp = testerchain.w3.eth.getBlock(block_identifier='latest').timestamp
+    current_timestamp = testerchain.w3.eth.getBlock('latest').timestamp
     end_timestamp = current_timestamp + (number_of_periods - 1) * one_period
     policy_id = os.urandom(POLICY_ID_LENGTH)
 
@@ -111,7 +111,7 @@ def test_create_revoke(testerchain, escrow, policy_manager):
     tx = policy_manager.functions.createPolicy(policy_id, policy_sponsor, end_timestamp, [node1])\
         .transact({'from': policy_sponsor, 'value': value, 'gas_price': 0})
     testerchain.wait_for_receipt(tx)
-    current_timestamp = testerchain.w3.eth.getBlock(block_identifier='latest').timestamp
+    current_timestamp = testerchain.w3.eth.getBlock('latest').timestamp
     # Check balances and policy info
     assert value == testerchain.client.get_balance(policy_manager.address)
     assert policy_sponsor_balance - 200 == testerchain.client.get_balance(policy_sponsor)
@@ -192,7 +192,7 @@ def test_create_revoke(testerchain, escrow, policy_manager):
     tx = policy_manager.functions.createPolicy(policy_id_2, policy_owner, end_timestamp, [node1, node2, node3])\
         .transact({'from': policy_sponsor, 'value': 6 * value, 'gas_price': 0})
     testerchain.wait_for_receipt(tx)
-    current_timestamp = testerchain.w3.eth.getBlock(block_identifier='latest').timestamp
+    current_timestamp = testerchain.w3.eth.getBlock('latest').timestamp
     assert 6 * value == testerchain.client.get_balance(policy_manager.address)
     assert policy_sponsor_balance - 6 * value == testerchain.client.get_balance(policy_sponsor)
     policy = policy_manager.functions.policies(policy_id_2).call()
@@ -382,7 +382,7 @@ def test_create_revoke(testerchain, escrow, policy_manager):
     assert event_args['value'] == 20
 
     # Try to create policy with low rate
-    current_timestamp = testerchain.w3.eth.getBlock(block_identifier='latest').timestamp
+    current_timestamp = testerchain.w3.eth.getBlock('latest').timestamp
     end_timestamp = current_timestamp + 10
     with pytest.raises((TransactionFailed, ValueError)):
         tx = policy_manager.functions.createPolicy(policy_id_3, policy_sponsor, end_timestamp, [node1])\
@@ -399,7 +399,7 @@ def test_create_revoke(testerchain, escrow, policy_manager):
         policy_id_3, NULL_ADDRESS, end_timestamp, [node1, node2]) \
         .transact({'from': policy_sponsor, 'value': 2 * value, 'gas_price': 0})
     testerchain.wait_for_receipt(tx)
-    current_timestamp = testerchain.w3.eth.getBlock(block_identifier='latest').timestamp
+    current_timestamp = testerchain.w3.eth.getBlock('latest').timestamp
     assert 2 * value == testerchain.client.get_balance(policy_manager.address)
     assert policy_sponsor_balance - 2 * value == testerchain.client.get_balance(policy_sponsor)
     policy = policy_manager.functions.policies(policy_id_3).call()
@@ -497,7 +497,7 @@ def test_create_revoke(testerchain, escrow, policy_manager):
     assert event_args['max'] == max_rate
 
     # Try to create policy with low rate
-    current_timestamp = testerchain.w3.eth.getBlock(block_identifier='latest').timestamp
+    current_timestamp = testerchain.w3.eth.getBlock('latest').timestamp
     end_timestamp = current_timestamp + 10
     policy_id_5 = os.urandom(POLICY_ID_LENGTH)
     with pytest.raises((TransactionFailed, ValueError)):
