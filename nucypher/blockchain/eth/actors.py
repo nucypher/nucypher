@@ -1749,7 +1749,7 @@ class Wallet:
 
         # Blockchain
         self.blockchain = BlockchainInterfaceFactory.get_interface(provider_uri)
-        self.__signer = signer
+        self.signer = signer
 
         self.__get_accounts()
         if client_addresses:
@@ -1764,8 +1764,8 @@ class Wallet:
         return self.blockchain.transacting_power.account
 
     def __get_accounts(self) -> None:
-        if self.__signer:
-            signer_accounts = self.__signer.accounts
+        if self.signer:
+            signer_accounts = self.signer.accounts
             self.__client_accounts.extend([a for a in signer_accounts if a not in self.__client_accounts])
         client_accounts = self.blockchain.client.accounts  # Accounts via connected provider
         self.__client_accounts.extend([a for a in client_accounts if a not in self.__client_accounts])
@@ -1782,8 +1782,8 @@ class Wallet:
                          ) -> None:
 
         if checksum_address not in self:
-            self.__signer = signer or Web3Signer(client=self.blockchain.client)
-            if isinstance(self.__signer, KeystoreSigner):
+            self.signer = signer or Web3Signer(client=self.blockchain.client)
+            if isinstance(self.signer, KeystoreSigner):
                 raise BaseActor.ActorError(f"Staking operations are not permitted while using a local keystore signer.")
             self.__get_accounts()
             if checksum_address not in self:
@@ -1791,7 +1791,7 @@ class Wallet:
         try:
             transacting_power = self.__transacting_powers[checksum_address]
         except KeyError:
-            transacting_power = TransactingPower(signer=self.__signer or Web3Signer(client=self.blockchain.client),
+            transacting_power = TransactingPower(signer=self.signer or Web3Signer(client=self.blockchain.client),
                                                  password=password,
                                                  account=checksum_address)
             self.__transacting_powers[checksum_address] = transacting_power
