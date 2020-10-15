@@ -160,6 +160,35 @@ def test_transfer_ownership(click_runner, testerchain, agency_local_registry):
     assert policy_agent.owner == testerchain.etherbase_account
     assert adjudicator_agent.owner == testerchain.etherbase_account
 
+    #### BEGIN HOTFIX TEST
+
+    ownership_command = ('transfer-ownership',
+                         '--registry-infile', agency_local_registry.filepath,
+                         '--contract-name', 'StakingInterface',
+                         '--provider', TEST_PROVIDER_URI,
+                         '--network', TEMPORARY_DOMAIN,
+                         '--target-address', maclane,
+                         '--debug')
+
+    account_index = '0\n'
+    yes = 'Y\n'
+    user_input = account_index + yes + yes
+
+    result = click_runner.invoke(deploy,
+                                 ownership_command,
+                                 input=user_input,
+                                 catch_exceptions=False)
+    assert result.exit_code == 0, result.output
+
+    # All of these are unchanged
+    assert staking_agent.owner == michwill
+    assert policy_agent.owner == testerchain.etherbase_account
+    assert adjudicator_agent.owner == testerchain.etherbase_account
+
+    # TODO: Assert the new owner is correct
+    # This owner is updated
+    # assert interface_agent.owner == maclane
+
 
 def test_bare_contract_deployment_to_alternate_registry(click_runner, agency_local_registry):
 

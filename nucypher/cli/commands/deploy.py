@@ -592,9 +592,7 @@ def allocations(general_config, actor_options, allocation_infile, gas):
 @option_target_address
 @option_gas
 def transfer_ownership(general_config, actor_options, target_address, gas):
-    """
-    Transfer ownership of contracts to another address.
-    """
+    """Transfer ownership of contracts to another address."""
     emitter = general_config.emitter
     ADMINISTRATOR, _, _, _ = actor_options.create_actor(emitter)
 
