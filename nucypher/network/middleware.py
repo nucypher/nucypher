@@ -147,6 +147,7 @@ class RestMiddleware:
 
     TEACHER_NODES = {
         'ibex': ('https://ibex.nucypher.network:9151',),
+        'mainnet': ('https://mainnet.nucypher.network:9151',),
     }
 
     class UnexpectedResponse(Exception):
