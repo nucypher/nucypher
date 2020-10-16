@@ -143,10 +143,15 @@ class BlockchainInterface:
 
         @property
         def insufficient_eth(self) -> str:
-            gas = (self.payload.get('gas', 1) * self.payload['gasPrice'])  # FIXME: If gas is not included...
-            cost = gas + self.payload.get('value', 0)
-            message = f'{self.payload} from {self.payload["from"][:8]} - {self.base_message}.' \
-                      f'Calculated cost is {cost} but sender only has {self.get_balance()}.'
+            try:
+                transaction_fee = self.payload['gas'] * self.payload['gasPrice']
+            except KeyError:
+                return self.default
+            else:
+                cost = transaction_fee + self.payload.get('value', 0)
+                message = f'{self.name} from {self.payload["from"][:8]} - {self.base_message}.' \
+                          f'Calculated cost is {prettify_eth_amount(cost)},' \
+                          f'but sender only has {prettify_eth_amount(self.get_balance())}.'
             return message
 
     def __init__(self,

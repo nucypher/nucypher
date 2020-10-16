@@ -350,7 +350,10 @@ class Learner:
         restored_from_disk = []
         invalid_nodes = defaultdict(list)
         for node in stored_nodes:
-            node_domain = node.domain.decode('utf-8')
+            try:  # Workaround until #2356 is fixed
+                node_domain = node.domain.decode('utf-8')
+            except:
+                node_domain = node.serving_domain
             if node_domain != self.learning_domain:
                 invalid_nodes[node_domain].append(node)
                 continue
@@ -383,7 +386,7 @@ class Learner:
         with suppress(KeyError):
             already_known_node = self.known_nodes[node.checksum_address]
             if not node.timestamp > already_known_node.timestamp:
-                self.log.debug("Skipping already known node {}".format(already_known_node))
+                # self.log.debug("Skipping already known node {}".format(already_known_node))  # FIXME: ""OMG, enough with the learning already!" – @vepkenez  (#1712)
                 # This node is already known.  We can safely return.
                 return False
 
@@ -520,7 +523,7 @@ class Learner:
         except IndexError:
             error = "Not enough nodes to select a good teacher, Check your network connection then node configuration"
             raise self.NotEnoughTeachers(error)
-        self.log.info("Cycled teachers; New teacher is {}".format(self._current_teacher_node))
+        self.log.debug("Cycled teachers; New teacher is {}".format(self._current_teacher_node))
 
     def current_teacher_node(self, cycle=False):
         if cycle:
@@ -781,7 +784,7 @@ class Learner:
         # These except clauses apply to the current_teacher itself, not the learned-about nodes.
         except NodeSeemsToBeDown as e:
             unresponsive_nodes.add(current_teacher)
-            self.log.info(f"Teacher {str(current_teacher)} is perhaps down: {bytes(current_teacher)}:{e}.")
+            self.log.info(f"Teacher {str(current_teacher)} is perhaps down:{e}.")  # FIXME: This was printing the node bytestring. Is this really necessary?  #1712
             return
         except current_teacher.InvalidNode as e:
             # Ugh.  The teacher is invalid.  Rough.
@@ -1359,7 +1362,7 @@ class Teacher:
                    "last_seen": last_seen,
                    "fleet_state": node.fleet_state_checksum or 'unknown',
                    "fleet_state_icon": fleet_icon,
-                   "domain": node.learning_domain,
+                   "domain": node.serving_domain,
                    'version': nucypher.__version__}
         return payload
 
