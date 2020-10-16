@@ -386,7 +386,7 @@ class Learner:
         with suppress(KeyError):
             already_known_node = self.known_nodes[node.checksum_address]
             if not node.timestamp > already_known_node.timestamp:
-                self.log.debug("Skipping already known node {}".format(already_known_node))
+                # self.log.debug("Skipping already known node {}".format(already_known_node))  # FIXME: ""OMG, enough with the learning already!" – @vepkenez  (#1712)
                 # This node is already known.  We can safely return.
                 return False
 
@@ -784,7 +784,7 @@ class Learner:
         # These except clauses apply to the current_teacher itself, not the learned-about nodes.
         except NodeSeemsToBeDown as e:
             unresponsive_nodes.add(current_teacher)
-            self.log.info(f"Teacher {str(current_teacher)} is perhaps down: {bytes(current_teacher)}:{e}.")
+            self.log.info(f"Teacher {str(current_teacher)} is perhaps down:{e}.")  # FIXME: This was printing the node bytestring. Is this really necessary?  #1712
             return
         except current_teacher.InvalidNode as e:
             # Ugh.  The teacher is invalid.  Rough.
