@@ -350,7 +350,10 @@ class Learner:
         restored_from_disk = []
         invalid_nodes = defaultdict(list)
         for node in stored_nodes:
-            node_domain = node.domain.decode('utf-8')
+            try:  # Workaround until #2356 is fixed
+                node_domain = node.domain.decode('utf-8')
+            except:
+                node_domain = node.serving_domain
             if node_domain != self.learning_domain:
                 invalid_nodes[node_domain].append(node)
                 continue
@@ -520,7 +523,7 @@ class Learner:
         except IndexError:
             error = "Not enough nodes to select a good teacher, Check your network connection then node configuration"
             raise self.NotEnoughTeachers(error)
-        self.log.info("Cycled teachers; New teacher is {}".format(self._current_teacher_node))
+        self.log.debug("Cycled teachers; New teacher is {}".format(self._current_teacher_node))
 
     def current_teacher_node(self, cycle=False):
         if cycle:
@@ -1359,7 +1362,7 @@ class Teacher:
                    "last_seen": last_seen,
                    "fleet_state": node.fleet_state_checksum or 'unknown',
                    "fleet_state_icon": fleet_icon,
-                   "domain": node.learning_domain,
+                   "domain": node.serving_domain,
                    'version': nucypher.__version__}
         return payload
 
