@@ -41,14 +41,15 @@ from nucypher.utilities.prometheus.collector import (
     ReStakeEventMetricsCollector,
     WindDownEventMetricsCollector,
     WorkerBondedEventMetricsCollector,
-    CommitmentMadeEventMetricsCollector)
+    CommitmentMadeEventMetricsCollector,
+    WorkLockRefundEventMetricsCollector)
 
 from typing import List
 
 from twisted.internet import reactor, task
 from twisted.web.resource import Resource
 
-from nucypher.blockchain.eth.agents import ContractAgency, StakingEscrowAgent, PolicyManagerAgent
+from nucypher.blockchain.eth.agents import ContractAgency, StakingEscrowAgent, PolicyManagerAgent, WorkLockAgent
 
 
 class PrometheusMetricsConfig:
@@ -205,6 +206,11 @@ def create_metrics_collectors(ursula: 'Ursula', metrics_prefix: str) -> List[Met
                                                                             metrics_prefix=metrics_prefix)
         collectors.extend(staking_events_collectors)
 
+        # WorkLock Events
+        worklock_events_collectors = create_worklock_events_metric_collectors(ursula=ursula,
+                                                                              metrics_prefix=metrics_prefix)
+        collectors.extend(worklock_events_collectors)
+
         # Policy Events
         policy_events_collectors = create_policy_events_metric_collectors(ursula=ursula,
                                                                           metrics_prefix=metrics_prefix)
@@ -279,6 +285,25 @@ def create_staking_events_metric_collectors(ursula: 'Ursula', metrics_prefix: st
         staker_address=staker_address,
         worker_address=ursula.worker_address,
         contract_agent=staking_agent))
+
+    return collectors
+
+
+def create_worklock_events_metric_collectors(ursula: 'Ursula', metrics_prefix: str) -> List[MetricsCollector]:
+    """Create collectors for worklock-related events."""
+    collectors: List[MetricsCollector] = []
+    worklock_agent = ContractAgency.get_agent(WorkLockAgent, registry=ursula.registry)
+    staker_address = ursula.checksum_address
+
+    # Refund
+    collectors.append(WorkLockRefundEventMetricsCollector(
+        event_args_config={
+            "refundETH": (Gauge, f'{metrics_prefix}_worklock_refund_refundETH',
+                          'Refunded ETH'),
+        },
+        staker_address=staker_address,
+        contract_agent=worklock_agent,
+    ))
 
     return collectors
 

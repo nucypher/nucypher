@@ -33,10 +33,9 @@ from nucypher.blockchain.eth.registry import BaseContractRegistry
 from nucypher.datastore.datastore import RecordNotFound
 from nucypher.datastore.models import Workorder, PolicyArrangement
 
-from prometheus_client.metrics import MetricWrapperBase
 from prometheus_client.registry import CollectorRegistry
 
-from typing import Dict, List, Union
+from typing import Dict, Union
 
 ContractAgents = Union[StakingEscrowAgent, WorkLockAgent, PolicyManagerAgent]
 
@@ -432,3 +431,21 @@ class WorkerBondedEventMetricsCollector(EventMetricsCollector):
         super()._event_occurred(event)
         self.metrics["current_worker_is_me_gauge"].set(
             self.contract_agent.get_worker_from_staker(self.staker_address) == self.worker_address)
+
+
+class WorkLockRefundEventMetricsCollector(EventMetricsCollector):
+    """Collector for WorkLock Refund event."""
+
+    def __init__(self, staker_address: ChecksumAddress, event_name: str = 'Refund', *args, **kwargs):
+        super().__init__(event_name=event_name, argument_filters={'sender': staker_address}, *args, **kwargs)
+        self.staker_address = staker_address
+
+    def initialize(self, metrics_prefix: str, registry: CollectorRegistry) -> None:
+        super().initialize(metrics_prefix=metrics_prefix, registry=registry)
+        self.metrics["worklock_deposited_eth_gauge"] = Gauge(f'{metrics_prefix}_worklock_current_deposited_eth',
+                                                             'Worklock deposited ETH',
+                                                             registry=registry)
+
+    def _event_occurred(self, event) -> None:
+        super()._event_occurred(event)
+        self.metrics["worklock_deposited_eth_gauge"].set(self.contract_agent.get_deposited_eth(self.staker_address))
