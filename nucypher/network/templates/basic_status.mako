@@ -192,7 +192,7 @@ ${fleet_state_icon(state.checksum, state.nickname, state.population())}
         </tr>
     </table>
 
-    <h3>Known nodes</h3>
+    <h3>${len(known_nodes)} ${"known node" if len(known_nodes) == 1 else "known nodes"}:</h3>
 
     <table class="known-nodes">
         <thead>
