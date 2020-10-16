@@ -58,7 +58,7 @@ class PrometheusMetricsConfig:
                  port: int,
                  metrics_prefix: str,
                  listen_address: str = '',  # default to localhost ip
-                 collection_interval: int = 10,
+                 collection_interval: int = 90,  # every 1.5 minutes
                  start_now: bool = False):
 
         if not port:
