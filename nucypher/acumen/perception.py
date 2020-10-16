@@ -22,36 +22,12 @@ import maya
 
 from bytestring_splitter import BytestringSplitter
 from constant_sorrow.constants import NO_KNOWN_NODES
-from collections import namedtuple
+from collections import namedtuple, defaultdict
 from collections import OrderedDict
 from twisted.logger import Logger
 
 from .nicknames import Nickname
 from nucypher.crypto.api import keccak_digest
-
-
-def icon_from_checksum(checksum,
-                       nickname,
-                       number_of_nodes="Unknown number of "):
-    if checksum is NO_KNOWN_NODES:
-        return "NO FLEET STATE AVAILABLE"
-    icon_template = """
-    <div class="nucypher-nickname-icon" style="border-color:{color};">
-    <div class="small">{number_of_nodes} nodes</div>
-    <div class="symbols">
-        <span class="single-symbol" style="color: {color}">{symbol}</span>
-    </div>
-    <br/>
-    <span class="small-address">{fleet_state_checksum}</span>
-    </div>
-    """.replace("  ", "").replace('\n', "")
-    return icon_template.format(
-        number_of_nodes=number_of_nodes,
-        # FIXME: generalize in case we want to extend the number of symbols in the state nickname
-        color=nickname.characters[0].color_hex,
-        symbol=nickname.characters[0].symbol,
-        fleet_state_checksum=checksum[0:8]
-    )
 
 
 class FleetSensor:
@@ -64,12 +40,13 @@ class FleetSensor:
     most_recent_node_change = NO_KNOWN_NODES
     snapshot_splitter = BytestringSplitter(32, 4)
     log = Logger("Learning")
-    FleetState = namedtuple("FleetState", ("nickname", "icon", "nodes", "updated"))
+    FleetState = namedtuple("FleetState", ("nickname", "icon", "nodes", "updated", "checksum"))
 
     def __init__(self):
         self.additional_nodes_to_track = []
         self.updated = maya.now()
         self._nodes = OrderedDict()
+        self._marked = defaultdict(list)  # Beginning of bucketing.
         self.states = OrderedDict()
 
     def __setitem__(self, key, value):
@@ -146,7 +123,8 @@ class FleetSensor:
             new_state = self.FleetState(nickname=self.nickname,
                                         nodes=sorted_nodes,
                                         icon=self.icon,
-                                        updated=self.updated)
+                                        updated=self.updated,
+                                        checksum=self.checksum)
             self.states[checksum] = new_state
             return checksum, new_state
 
@@ -181,3 +159,9 @@ class FleetSensor:
                 "color_name": state.nickname.characters[0].color_name,
                 "updated": state.updated.rfc2822(),
                 }
+
+    def mark_as(self, label: Exception, node: "Teacher"):
+        self._marked[label].append(node)
+
+        if self._nodes.get(node):
+            del self._nodes[node]

@@ -21,13 +21,13 @@ import uuid
 import weakref
 from bytestring_splitter import BytestringSplitter
 from constant_sorrow import constants
-from constant_sorrow.constants import FLEET_STATES_MATCH, NO_BLOCKCHAIN_CONNECTION, NO_KNOWN_NODES
+from constant_sorrow.constants import FLEET_STATES_MATCH, NO_BLOCKCHAIN_CONNECTION, NO_KNOWN_NODES, RELAX
 from datetime import datetime, timedelta
 from flask import Flask, Response, jsonify, request
-from jinja2 import Template, TemplateError
+from mako import exceptions as mako_exceptions
+from mako.template import Template
 from maya import MayaDT
-from typing import Tuple, Set
-from umbral.keys import UmbralPublicKey
+from typing import Tuple
 from umbral.kfrags import KFrag
 from web3.exceptions import TimeExhausted
 
@@ -49,9 +49,7 @@ from nucypher.utilities.logging import Logger
 HERE = BASE_DIR = os.path.abspath(os.path.dirname(__file__))
 TEMPLATES_DIR = os.path.join(HERE, "templates")
 
-with open(os.path.join(TEMPLATES_DIR, "basic_status.j2"), "r") as f:
-    _status_template_content = f.read()
-status_template = Template(_status_template_content)
+status_template = Template(filename=os.path.join(TEMPLATES_DIR, "basic_status.mako")).get_def('main')
 
 
 class ProxyRESTServer:
@@ -131,7 +129,7 @@ def _make_rest_app(datastore: Datastore, this_node, serving_domain: str, log: Lo
         """
 
         try:
-            requesting_ursula = Ursula.from_bytes(request.data, registry=this_node.registry)
+            requesting_ursula = Ursula.from_bytes(request.data)
             requesting_ursula.mature()
         except ValueError:  # (ValueError)
             return Response({'error': 'Invalid Ursula'}, status=400)
@@ -169,6 +167,9 @@ def _make_rest_app(datastore: Datastore, this_node, serving_domain: str, log: Lo
     @rest_app.route('/node_metadata', methods=["GET"])
     def all_known_nodes():
         headers = {'Content-Type': 'application/octet-stream'}
+        if this_node._learning_deferred is not RELAX and not this_node._learning_task.running:
+            # TODO: Is this every something we don't want to do?
+            this_node.start_learning_loop()
 
         if this_node.known_nodes.checksum is NO_KNOWN_NODES:
             return Response(b"", headers=headers, status=204)
@@ -370,7 +371,7 @@ def _make_rest_app(datastore: Datastore, this_node, serving_domain: str, log: Lo
             log.info(f"Bad TreasureMap HRAC Signature; not storing for HRAC {received_treasure_map._hrac.hex()}")
             return Response("This TreasureMap's HRAC is not properly signed.", status=401)
 
-        # Additionally, we determine the map identifier from the type of node. 
+        # Additionally, we determine the map identifier from the type of node.
         # If the node is federated, we also set the expiration for a week.
         if not this_node.federated_only:
             map_identifier = received_treasure_map._hrac.hex()
@@ -439,8 +440,10 @@ def _make_rest_app(datastore: Datastore, this_node, serving_domain: str, log: Lo
                                                  version=nucypher.__version__,
                                                  checksum_address=this_node.checksum_address)
             except Exception as e:
-                log.debug("Template Rendering Exception: ".format(str(e)))
-                raise TemplateError(str(e)) from e
+                text_error = mako_exceptions.text_error_template().render()
+                html_error = mako_exceptions.html_error_template().render()
+                log.debug("Template Rendering Exception:\n" + text_error)
+                return Response(response=html_error, headers=headers, status=500)
             return Response(response=content, headers=headers)
 
     return rest_app

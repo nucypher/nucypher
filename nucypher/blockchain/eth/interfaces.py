@@ -15,7 +15,7 @@ You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
-
+import math
 import os
 import pprint
 import time
@@ -143,10 +143,15 @@ class BlockchainInterface:
 
         @property
         def insufficient_eth(self) -> str:
-            gas = (self.payload.get('gas', 1) * self.payload['gasPrice'])  # FIXME: If gas is not included...
-            cost = gas + self.payload.get('value', 0)
-            message = f'{self.payload} from {self.payload["from"][:8]} - {self.base_message}.' \
-                      f'Calculated cost is {cost} but sender only has {self.get_balance()}.'
+            try:
+                transaction_fee = self.payload['gas'] * self.payload['gasPrice']
+            except KeyError:
+                return self.default
+            else:
+                cost = transaction_fee + self.payload.get('value', 0)
+                message = f'{self.name} from {self.payload["from"][:8]} - {self.base_message}.' \
+                          f'Calculated cost is {prettify_eth_amount(cost)},' \
+                          f'but sender only has {prettify_eth_amount(self.get_balance())}.'
             return message
 
     def __init__(self,
@@ -508,8 +513,17 @@ class BlockchainInterface:
                                    contract_function: ContractFunction,
                                    sender_address: str,
                                    payload: dict = None,
-                                   transaction_gas_limit: int = None,
+                                   transaction_gas_limit: Optional[int] = None,
+                                   gas_estimation_multiplier: Optional[float] = None,
                                    ) -> dict:
+
+        # Sanity checks for the gas estimation multiplier
+        if gas_estimation_multiplier is not None:
+            if not 1 <= gas_estimation_multiplier <= 3:  # TODO: Arbitrary upper bound.
+                raise ValueError(f"The gas estimation multiplier should be a float between 1 and 3, "
+                                 f"but we received {gas_estimation_multiplier}.")
+            elif transaction_gas_limit is not None:
+                raise ValueError("'transaction_gas_limit' and 'gas_estimation_multiplier' can't be used together.")
 
         payload = self.build_payload(sender_address=sender_address,
                                      payload=payload,
@@ -524,6 +538,16 @@ class BlockchainInterface:
                                                   transaction_dict=payload,
                                                   contract_function=contract_function,
                                                   logger=self.log)
+
+        # Overestimate the transaction gas limit according to the gas estimation multiplier, if any
+        if gas_estimation_multiplier:
+            gas_estimation = transaction_dict['gas']
+            overestimation = int(math.ceil(gas_estimation * gas_estimation_multiplier))
+            self.log.debug(f"Gas limit for this TX was increased from {gas_estimation} to {overestimation}, "
+                           f"using a multiplier of {gas_estimation_multiplier}.")
+            transaction_dict['gas'] = overestimation
+            # TODO: What if we're going over the block limit? Not likely, but perhaps worth checking (NRN)
+
         return transaction_dict
 
     def sign_and_broadcast_transaction(self,
@@ -626,7 +650,8 @@ class BlockchainInterface:
                          contract_function: Union[ContractFunction, ContractConstructor],
                          sender_address: str,
                          payload: dict = None,
-                         transaction_gas_limit: int = None,
+                         transaction_gas_limit: Optional[int] = None,
+                         gas_estimation_multiplier: Optional[float] = None,
                          confirmations: int = 0,
                          fire_and_forget: bool = False  # do not wait for receipt.
                          ) -> dict:
@@ -637,7 +662,8 @@ class BlockchainInterface:
         transaction = self.build_contract_transaction(contract_function=contract_function,
                                                       sender_address=sender_address,
                                                       payload=payload,
-                                                      transaction_gas_limit=transaction_gas_limit)
+                                                      transaction_gas_limit=transaction_gas_limit,
+                                                      gas_estimation_multiplier=gas_estimation_multiplier)
 
         # Get transaction name
         try:
@@ -831,7 +857,7 @@ class BlockchainDeployerInterface(BlockchainInterface):
                                                             constructor_function,
                                                             *constructor_args,
                                                             **constructor_kwargs)
-        if not constructor_calldata:
+        if constructor_calldata:
             self.log.info(f"Constructor calldata: {constructor_calldata}")
 
         #

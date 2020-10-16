@@ -413,7 +413,8 @@ class StakingEscrowAgent(EthereumContractAgent):
         if not sender_address:
             sender_address = staker_address
         contract_function: ContractFunction = self.contract.functions.deposit(staker_address, amount, lock_periods)
-        receipt: TxReceipt = self.blockchain.send_transaction(contract_function=contract_function, sender_address=sender_address)
+        receipt: TxReceipt = self.blockchain.send_transaction(contract_function=contract_function,
+                                                              sender_address=sender_address)
         return receipt
 
     @contract_api(TRANSACTION)
@@ -428,7 +429,8 @@ class StakingEscrowAgent(EthereumContractAgent):
         Note that this resolved to two separate contract function signatures.
         """
         contract_function: ContractFunction = self.contract.functions.depositAndIncrease(stake_index, amount)
-        receipt: TxReceipt = self.blockchain.send_transaction(contract_function=contract_function, sender_address=staker_address)
+        receipt: TxReceipt = self.blockchain.send_transaction(contract_function=contract_function,
+                                                              sender_address=staker_address)
         return receipt
 
     @contract_api(TRANSACTION)
@@ -441,7 +443,8 @@ class StakingEscrowAgent(EthereumContractAgent):
         Locks tokens amount and creates new sub-stake
         """
         contract_function: ContractFunction = self.contract.functions.lockAndCreate(amount, lock_periods)
-        receipt: TxReceipt = self.blockchain.send_transaction(contract_function=contract_function, sender_address=staker_address)
+        receipt: TxReceipt = self.blockchain.send_transaction(contract_function=contract_function,
+                                                              sender_address=staker_address)
         return receipt
 
     @contract_api(TRANSACTION)
@@ -454,7 +457,8 @@ class StakingEscrowAgent(EthereumContractAgent):
         Locks tokens amount and add them to selected sub-stake
         """
         contract_function: ContractFunction = self.contract.functions.lockAndIncrease(stake_index, amount)
-        receipt: TxReceipt = self.blockchain.send_transaction(contract_function=contract_function, sender_address=staker_address)
+        receipt: TxReceipt = self.blockchain.send_transaction(contract_function=contract_function,
+                                                              sender_address=staker_address)
         return receipt
 
     @contract_api(CONTRACT_CALL)
@@ -562,7 +566,8 @@ class StakingEscrowAgent(EthereumContractAgent):
     @contract_api(TRANSACTION)
     def bond_worker(self, staker_address: ChecksumAddress, worker_address: ChecksumAddress) -> TxReceipt:
         contract_function: ContractFunction = self.contract.functions.bondWorker(worker_address)
-        receipt: TxReceipt = self.blockchain.send_transaction(contract_function=contract_function, sender_address=staker_address)
+        receipt: TxReceipt = self.blockchain.send_transaction(contract_function=contract_function,
+                                                              sender_address=staker_address)
         return receipt
 
     @contract_api(TRANSACTION)
@@ -577,6 +582,7 @@ class StakingEscrowAgent(EthereumContractAgent):
         contract_function: ContractFunction = self.contract.functions.commitToNextPeriod()
         receipt: TxReceipt = self.blockchain.send_transaction(contract_function=contract_function,
                                                               sender_address=worker_address,
+                                                              gas_estimation_multiplier=1.5,  # TODO: Workaround for #2337
                                                               fire_and_forget=fire_and_forget)
         return receipt
 
@@ -588,7 +594,8 @@ class StakingEscrowAgent(EthereumContractAgent):
         when you intend to withdraw 100% of tokens.
         """
         contract_function: ContractFunction = self.contract.functions.mint()
-        receipt: TxReceipt = self.blockchain.send_transaction(contract_function=contract_function, sender_address=staker_address)
+        receipt: TxReceipt = self.blockchain.send_transaction(contract_function=contract_function,
+                                                              sender_address=staker_address)
         return receipt
 
     @contract_api(CONTRACT_CALL)
@@ -649,14 +656,16 @@ class StakingEscrowAgent(EthereumContractAgent):
         If set to True, then all staking rewards will be automatically added to locked stake.
         """
         contract_function: ContractFunction = self.contract.functions.setReStake(value)
-        receipt: TxReceipt = self.blockchain.send_transaction(contract_function=contract_function, sender_address=staker_address)
+        receipt: TxReceipt = self.blockchain.send_transaction(contract_function=contract_function,
+                                                              sender_address=staker_address)
         # TODO: Handle ReStakeSet event (see #1193)
         return receipt
 
     @contract_api(TRANSACTION)
     def lock_restaking(self, staker_address: ChecksumAddress, release_period: Period) -> TxReceipt:
         contract_function: ContractFunction = self.contract.functions.lockReStake(release_period)
-        receipt: TxReceipt = self.blockchain.send_transaction(contract_function=contract_function, sender_address=staker_address)
+        receipt: TxReceipt = self.blockchain.send_transaction(contract_function=contract_function,
+                                                              sender_address=staker_address)
         # TODO: Handle ReStakeLocked event (see #1193)
         return receipt
 
@@ -678,7 +687,8 @@ class StakingEscrowAgent(EthereumContractAgent):
         If set to True, then stakes duration will decrease in each period with `commitToNextPeriod()`.
         """
         contract_function: ContractFunction = self.contract.functions.setWindDown(value)
-        receipt = self.blockchain.send_transaction(contract_function=contract_function, sender_address=staker_address)
+        receipt = self.blockchain.send_transaction(contract_function=contract_function,
+                                                   sender_address=staker_address)
         # TODO: Handle WindDownSet event (see #1193)
         return receipt
 
@@ -1258,21 +1268,25 @@ class WorkLockAgent(EthereumContractAgent):
         Claim tokens - will be deposited and locked as stake in the StakingEscrow contract.
         """
         contract_function: ContractFunction = self.contract.functions.claim()
-        receipt = self.blockchain.send_transaction(contract_function=contract_function, sender_address=checksum_address)
+        receipt = self.blockchain.send_transaction(contract_function=contract_function,
+                                                   sender_address=checksum_address,
+                                                   gas_estimation_multiplier=1.5)  # FIXME
         return receipt
 
     @contract_api(TRANSACTION)
     def refund(self, checksum_address: ChecksumAddress) -> TxReceipt:
         """Refund ETH for completed work."""
         contract_function: ContractFunction = self.contract.functions.refund()
-        receipt: TxReceipt = self.blockchain.send_transaction(contract_function=contract_function, sender_address=checksum_address)
+        receipt: TxReceipt = self.blockchain.send_transaction(contract_function=contract_function,
+                                                              sender_address=checksum_address)
         return receipt
 
     @contract_api(TRANSACTION)
     def withdraw_compensation(self, checksum_address: ChecksumAddress) -> TxReceipt:
         """Withdraw compensation after force refund."""
         contract_function: ContractFunction = self.contract.functions.withdrawCompensation()
-        receipt: TxReceipt = self.blockchain.send_transaction(contract_function=contract_function, sender_address=checksum_address)
+        receipt: TxReceipt = self.blockchain.send_transaction(contract_function=contract_function,
+                                                              sender_address=checksum_address)
         return receipt
 
     @contract_api(CONTRACT_CALL)
@@ -1574,7 +1588,8 @@ class MultiSigAgent(EthereumContractAgent):
                 sender_address: ChecksumAddress,
                 ) -> TxReceipt:
         contract_function: ContractFunction = self.contract.functions.execute(v, r, s, destination, value, data)
-        receipt: TxReceipt = self.blockchain.send_transaction(contract_function=contract_function, sender_address=sender_address)
+        receipt: TxReceipt = self.blockchain.send_transaction(contract_function=contract_function,
+                                                              sender_address=sender_address)
         return receipt
 
 

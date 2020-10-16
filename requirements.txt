@@ -4,7 +4,6 @@ asn1crypto==1.4.0
 attrs==20.2.0
 autobahn==20.7.1
 automat==20.2.0
-backports.zoneinfo==0.2.1
 base58==2.0.1
 bitarray==1.2.2
 blake2b-py==0.1.3
@@ -37,18 +36,19 @@ flask-sqlalchemy==2.4.4
 flask==1.1.2
 hendrix==3.4.0
 hexbytes==0.2.1
-humanize==3.0.0
+humanize==3.0.1
 hyperlink==20.0.1
 idna==2.10
 incremental==17.5.0
 ipfshttpclient==0.6.1
-itsdangerous==2.0.0a1
-jinja2==3.0.0a1
+itsdangerous==1.1.0
+jinja2==2.11.2
 jsonschema==3.2.0
 libusb1==1.8
 lmdb==0.99
 lru-dict==1.1.6
-markupsafe==2.0.0a1
+mako==1.1.3
+markupsafe==1.1.1
 marshmallow==3.8.0
 maya==0.6.1
 mnemonic==0.19
@@ -78,7 +78,7 @@ pysha3==1.0.2
 python-dateutil==2.8.1
 pytz==2020.1
 pytzdata==2020.1
-regex==2020.9.27
+regex==2020.10.11
 requests==2.24.0
 rlp==2.0.0a1
 rusty-rlp==0.1.15
@@ -103,4 +103,4 @@ watchdog==0.10.3
 web3==5.12.1
 websockets==8.1
 werkzeug==1.0.1
-zope.interface==5.1.1
+zope.interface==5.1.2

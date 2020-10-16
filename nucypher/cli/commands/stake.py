@@ -19,10 +19,12 @@
 import click
 from web3 import Web3
 
+from nucypher.blockchain.eth.actors import StakeHolder
 from nucypher.blockchain.eth.constants import MAX_UINT16
 from nucypher.blockchain.eth.events import EventRecord
-from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
+from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory, BlockchainInterface
 from nucypher.blockchain.eth.registry import IndividualAllocationRegistry
+from nucypher.blockchain.eth.signers import TrezorSigner
 from nucypher.blockchain.eth.signers.software import ClefSigner
 from nucypher.blockchain.eth.token import NU, Stake
 from nucypher.blockchain.eth.utils import datetime_at_period
@@ -36,7 +38,7 @@ from nucypher.cli.actions.confirm import (
     confirm_staged_stake, confirm_disable_snapshots
 )
 from nucypher.cli.actions.select import select_client_account_for_staking, select_stake
-from nucypher.cli.config import group_general_config
+from nucypher.cli.config import group_general_config, GroupGeneralConfig
 from nucypher.cli.literature import (
     BONDING_DETAILS,
     BONDING_RELEASE_INFO,
@@ -126,7 +128,7 @@ class StakeHolderConfigOptions:
         self.registry_filepath = registry_filepath
         self.network = network
 
-    def create_config(self, emitter, config_file):
+    def retrieve_config(self, emitter, config_file):
         try:
             return StakeHolderConfiguration.from_configuration_file(
                 emitter=emitter,
@@ -200,7 +202,7 @@ class StakerOptions:
         self.staking_address = staking_address
 
     def create_character(self, emitter, config_file, initial_address=None, *args, **kwargs):
-        stakeholder_config = self.config_options.create_config(emitter, config_file)
+        stakeholder_config = self.config_options.retrieve_config(emitter, config_file)
         if initial_address is None:
             initial_address = self.staking_address
         return stakeholder_config.produce(initial_address=initial_address, *args, **kwargs)
@@ -229,7 +231,7 @@ class TransactingStakerOptions:
     def create_character(self, emitter, config_file):
 
         opts = self.staker_options
-        stakeholder_config = opts.config_options.create_config(emitter, config_file)
+        stakeholder_config = opts.config_options.retrieve_config(emitter, config_file)
 
         # Now let's check whether we're dealing here with a regular staker or a preallocation staker
         is_preallocation_staker = (self.beneficiary_address and opts.staking_address) or self.allocation_filepath
@@ -270,14 +272,6 @@ class TransactingStakerOptions:
     def get_blockchain(self):
         return self.staker_options.get_blockchain()
 
-    def get_password(self, blockchain, client_account):
-        is_clef = ClefSigner.is_valid_clef_uri(self.staker_options.config_options.signer_uri)
-        eth_password_needed = not self.hw_wallet and not blockchain.client.is_local and not is_clef
-        password = None
-        if eth_password_needed:
-            password = get_client_password(checksum_address=client_account)
-        return password
-
 
 group_transacting_staker_options = group_options(
     TransactingStakerOptions,
@@ -286,6 +280,18 @@ group_transacting_staker_options = group_options(
     beneficiary_address=click.option('--beneficiary-address', help="Address of a pre-allocation beneficiary", type=EIP55_CHECKSUM_ADDRESS),
     allocation_filepath=click.option('--allocation-filepath', help="Path to individual allocation file", type=EXISTING_READABLE_FILE),
 )
+
+
+def get_password(stakeholder: StakeHolder,
+                 blockchain: BlockchainInterface,
+                 client_account: str,
+                 hw_wallet: bool = False):
+    signer_handles_passwords = isinstance(stakeholder.wallet.signer, (ClefSigner, TrezorSigner))
+    eth_password_needed = not hw_wallet and not blockchain.client.is_local and not signer_handles_passwords
+    password = None
+    if eth_password_needed:
+        password = get_client_password(checksum_address=client_account)
+    return password
 
 
 @click.group()
@@ -350,7 +356,9 @@ def accounts(general_config, staker_options, config_file):
 @option_force
 @group_general_config
 @option_worker_address
-def bond_worker(general_config, transacting_staker_options, config_file, force, worker_address):
+def bond_worker(general_config: GroupGeneralConfig,
+                transacting_staker_options: TransactingStakerOptions,
+                config_file, force, worker_address):
     """Bond a worker to a staker."""
 
     emitter = setup_emitter(general_config)
@@ -389,7 +397,10 @@ def bond_worker(general_config, transacting_staker_options, config_file, force, 
                       f"worker {worker_address} to staker {staking_address} "
                       f"for a minimum of {STAKEHOLDER.economics.minimum_worker_periods} periods?", abort=True)
 
-    password = transacting_staker_options.get_password(blockchain, client_account)
+    password = get_password(stakeholder=STAKEHOLDER,
+                            blockchain=blockchain,
+                            client_account=client_account,
+                            hw_wallet=transacting_staker_options.hw_wallet)
     STAKEHOLDER.assimilate(password=password)
     receipt = STAKEHOLDER.bond_worker(worker_address=worker_address)
 
@@ -409,7 +420,9 @@ def bond_worker(general_config, transacting_staker_options, config_file, force, 
 @option_config_file
 @option_force
 @group_general_config
-def unbond_worker(general_config, transacting_staker_options, config_file, force):
+def unbond_worker(general_config: GroupGeneralConfig,
+                  transacting_staker_options: TransactingStakerOptions,
+                  config_file, force):
     """
     Unbond worker currently bonded to a staker.
     """
@@ -430,7 +443,10 @@ def unbond_worker(general_config, transacting_staker_options, config_file, force
     # TODO: Check preconditions (e.g., minWorkerPeriods)
     worker_address = STAKEHOLDER.staking_agent.get_worker_from_staker(staking_address)
 
-    password = transacting_staker_options.get_password(blockchain, client_account)
+    password = get_password(stakeholder=STAKEHOLDER,
+                            blockchain=blockchain,
+                            client_account=client_account,
+                            hw_wallet=transacting_staker_options.hw_wallet)
     STAKEHOLDER.assimilate(password=password)
     receipt = STAKEHOLDER.unbond_worker()
 
@@ -455,7 +471,9 @@ def unbond_worker(general_config, transacting_staker_options, config_file, force
 @option_lock_periods
 @group_general_config
 @option_from_unlocked
-def create(general_config, transacting_staker_options, config_file, force, value, lock_periods, from_unlocked):
+def create(general_config: GroupGeneralConfig,
+           transacting_staker_options: TransactingStakerOptions,
+           config_file, force, value, lock_periods, from_unlocked):
     """Initialize a new stake."""
 
     # Setup
@@ -533,7 +551,10 @@ def create(general_config, transacting_staker_options, config_file, force, value
     click.confirm(CONFIRM_BROADCAST_CREATE_STAKE, abort=True)
 
     # Authenticate
-    password = transacting_staker_options.get_password(blockchain, client_account)
+    password = get_password(stakeholder=STAKEHOLDER,
+                            blockchain=blockchain,
+                            client_account=client_account,
+                            hw_wallet=transacting_staker_options.hw_wallet)
     STAKEHOLDER.assimilate(password=password)
 
     # Consistency check to prevent the above agreement from going stale.
@@ -555,7 +576,9 @@ def create(general_config, transacting_staker_options, config_file, force, value
 @option_index
 @group_general_config
 @option_from_unlocked
-def increase(general_config, transacting_staker_options, config_file, force, value, index, from_unlocked):
+def increase(general_config: GroupGeneralConfig,
+             transacting_staker_options: TransactingStakerOptions,
+             config_file, force, value, index, from_unlocked):
     """Increase an existing stake."""
 
     # Setup
@@ -620,7 +643,10 @@ def increase(general_config, transacting_staker_options, config_file, force, val
         click.confirm(CONFIRM_INCREASING_STAKE.format(stake_index=current_stake.index, value=value), abort=True)
 
     # Authenticate
-    password = transacting_staker_options.get_password(blockchain, client_account)
+    password = get_password(stakeholder=STAKEHOLDER,
+                            blockchain=blockchain,
+                            client_account=client_account,
+                            hw_wallet=transacting_staker_options.hw_wallet)
     STAKEHOLDER.assimilate(password=password)
 
     # Execute
@@ -639,7 +665,9 @@ def increase(general_config, transacting_staker_options, config_file, force, val
 @click.option('--lock-until', help="Period to release re-staking lock", type=click.IntRange(min=0))
 @option_force
 @group_general_config
-def restake(general_config, transacting_staker_options, config_file, enable, lock_until, force):
+def restake(general_config: GroupGeneralConfig,
+            transacting_staker_options: TransactingStakerOptions,
+            config_file, enable, lock_until, force):
     """Manage re-staking with --enable or --disable."""
 
     # Setup
@@ -660,7 +688,10 @@ def restake(general_config, transacting_staker_options, config_file, enable, loc
             confirm_enable_restaking_lock(emitter, staking_address=staking_address, release_period=lock_until)
 
         # Authenticate and Execute
-        password = transacting_staker_options.get_password(blockchain, client_account)
+        password = get_password(stakeholder=STAKEHOLDER,
+                                blockchain=blockchain,
+                                client_account=client_account,
+                                hw_wallet=transacting_staker_options.hw_wallet)
         STAKEHOLDER.assimilate(password=password)
 
         receipt = STAKEHOLDER.enable_restaking_lock(release_period=lock_until)
@@ -671,7 +702,10 @@ def restake(general_config, transacting_staker_options, config_file, enable, loc
             confirm_enable_restaking(emitter, staking_address=staking_address)
 
         # Authenticate and Execute
-        password = transacting_staker_options.get_password(blockchain, client_account)
+        password = get_password(stakeholder=STAKEHOLDER,
+                                blockchain=blockchain,
+                                client_account=client_account,
+                                hw_wallet=transacting_staker_options.hw_wallet)
         STAKEHOLDER.assimilate(password=password)
 
         receipt = STAKEHOLDER.enable_restaking()
@@ -681,7 +715,10 @@ def restake(general_config, transacting_staker_options, config_file, enable, loc
             click.confirm(CONFIRM_DISABLE_RESTAKING.format(staking_address=staking_address), abort=True)
 
         # Authenticate and Execute
-        password = transacting_staker_options.get_password(blockchain, client_account)
+        password = get_password(stakeholder=STAKEHOLDER,
+                                blockchain=blockchain,
+                                client_account=client_account,
+                                hw_wallet=transacting_staker_options.hw_wallet)
         STAKEHOLDER.assimilate(password=password)
 
         receipt = STAKEHOLDER.disable_restaking()
@@ -696,7 +733,9 @@ def restake(general_config, transacting_staker_options, config_file, enable, loc
 @click.option('--enable/--disable', help="Used to enable and disable winding down", is_flag=True, default=True)
 @option_force
 @group_general_config
-def winddown(general_config, transacting_staker_options, config_file, enable, force):
+def winddown(general_config: GroupGeneralConfig,
+             transacting_staker_options: TransactingStakerOptions,
+             config_file, enable, force):
     """Manage winding down with --enable or --disable."""
 
     # Setup
@@ -717,7 +756,10 @@ def winddown(general_config, transacting_staker_options, config_file, enable, fo
             confirm_enable_winding_down(emitter, staking_address=staking_address)
 
         # Authenticate and Execute
-        password = transacting_staker_options.get_password(blockchain, client_account)
+        password = get_password(stakeholder=STAKEHOLDER,
+                                blockchain=blockchain,
+                                client_account=client_account,
+                                hw_wallet=transacting_staker_options.hw_wallet)
         STAKEHOLDER.assimilate(password=password)
 
         receipt = STAKEHOLDER.enable_winding_down()
@@ -727,7 +769,10 @@ def winddown(general_config, transacting_staker_options, config_file, enable, fo
             click.confirm(CONFIRM_DISABLE_WIND_DOWN.format(staking_address=staking_address), abort=True)
 
         # Authenticate and Execute
-        password = transacting_staker_options.get_password(blockchain, client_account)
+        password = get_password(stakeholder=STAKEHOLDER,
+                                blockchain=blockchain,
+                                client_account=client_account,
+                                hw_wallet=transacting_staker_options.hw_wallet)
         STAKEHOLDER.assimilate(password=password)
 
         receipt = STAKEHOLDER.disable_winding_down()
@@ -742,7 +787,9 @@ def winddown(general_config, transacting_staker_options, config_file, enable, fo
 @click.option('--enable/--disable', help="Used to enable and disable taking snapshots", is_flag=True, default=True)
 @option_force
 @group_general_config
-def snapshots(general_config, transacting_staker_options, config_file, enable, force):
+def snapshots(general_config: GroupGeneralConfig,
+              transacting_staker_options: TransactingStakerOptions,
+              config_file, enable, force):
     """Manage snapshots with --enable or --disable."""
 
     # Setup
@@ -763,7 +810,10 @@ def snapshots(general_config, transacting_staker_options, config_file, enable, f
             click.confirm(CONFIRM_ENABLE_SNAPSHOTS.format(staking_address=staking_address), abort=True)
 
         # Authenticate and Execute
-        password = transacting_staker_options.get_password(blockchain, client_account)
+        password = get_password(stakeholder=STAKEHOLDER,
+                                blockchain=blockchain,
+                                client_account=client_account,
+                                hw_wallet=transacting_staker_options.hw_wallet)
         STAKEHOLDER.assimilate(password=password)
 
         receipt = STAKEHOLDER.enable_snapshots()
@@ -773,7 +823,10 @@ def snapshots(general_config, transacting_staker_options, config_file, enable, f
             confirm_disable_snapshots(emitter, staking_address=staking_address)
 
         # Authenticate and Execute
-        password = transacting_staker_options.get_password(blockchain, client_account)
+        password = get_password(stakeholder=STAKEHOLDER,
+                                blockchain=blockchain,
+                                client_account=client_account,
+                                hw_wallet=transacting_staker_options.hw_wallet)
         STAKEHOLDER.assimilate(password=password)
 
         receipt = STAKEHOLDER.disable_snapshots()
@@ -790,7 +843,9 @@ def snapshots(general_config, transacting_staker_options, config_file, enable, f
 @option_lock_periods
 @option_index
 @group_general_config
-def divide(general_config, transacting_staker_options, config_file, force, value, lock_periods, index):
+def divide(general_config: GroupGeneralConfig,
+           transacting_staker_options: TransactingStakerOptions,
+           config_file, force, value, lock_periods, index):
     """Create a new stake from part of an existing one."""
 
     # Setup
@@ -847,7 +902,10 @@ def divide(general_config, transacting_staker_options, config_file, force, value
         click.confirm(CONFIRM_BROADCAST_STAKE_DIVIDE, abort=True)
 
     # Authenticate
-    password = transacting_staker_options.get_password(blockchain, client_account)
+    password = get_password(stakeholder=STAKEHOLDER,
+                            blockchain=blockchain,
+                            client_account=client_account,
+                            hw_wallet=transacting_staker_options.hw_wallet)
     STAKEHOLDER.assimilate(password=password)
 
     # Consistency check to prevent the above agreement from going stale.
@@ -874,7 +932,9 @@ def divide(general_config, transacting_staker_options, config_file, force, value
 @option_lock_periods
 @option_index
 @group_general_config
-def prolong(general_config, transacting_staker_options, config_file, force, lock_periods, index):
+def prolong(general_config: GroupGeneralConfig,
+            transacting_staker_options: TransactingStakerOptions,
+            config_file, force, lock_periods, index):
     """Prolong an existing stake's duration."""
 
     # Setup
@@ -916,7 +976,10 @@ def prolong(general_config, transacting_staker_options, config_file, force, lock
         click.confirm(CONFIRM_PROLONG.format(lock_periods=lock_periods), abort=True)
 
     # Authenticate
-    password = transacting_staker_options.get_password(blockchain, client_account)
+    password = get_password(stakeholder=STAKEHOLDER,
+                            blockchain=blockchain,
+                            client_account=client_account,
+                            hw_wallet=transacting_staker_options.hw_wallet)
     STAKEHOLDER.assimilate(password=password)
 
     # Non-interactive: Consistency check to prevent the above agreement from going stale.
@@ -941,7 +1004,9 @@ def prolong(general_config, transacting_staker_options, config_file, force, lock
 @group_general_config
 @click.option('--index-1', help="First index of stake to merge", type=click.INT)
 @click.option('--index-2', help="Second index of stake to merge", type=click.INT)
-def merge(general_config, transacting_staker_options, config_file, force, index_1, index_2):
+def merge(general_config: GroupGeneralConfig,
+          transacting_staker_options: TransactingStakerOptions,
+          config_file, force, index_1, index_2):
     """Merge two stakes into one."""
 
     # Setup
@@ -982,7 +1047,10 @@ def merge(general_config, transacting_staker_options, config_file, force, index_
         click.confirm(CONFIRM_MERGE.format(stake_index_1=stake_1.index, stake_index_2=stake_2.index), abort=True)
 
     # Authenticate
-    password = transacting_staker_options.get_password(blockchain, client_account)
+    password = get_password(stakeholder=STAKEHOLDER,
+                            blockchain=blockchain,
+                            client_account=client_account,
+                            hw_wallet=transacting_staker_options.hw_wallet)
     STAKEHOLDER.assimilate(password=password)
 
     # Non-interactive: Consistency check to prevent the above agreement from going stale.
@@ -1008,8 +1076,8 @@ def merge(general_config, transacting_staker_options, config_file, force, index_
 @click.option('--withdraw-address', help="Send fee collection to an alternate address", type=EIP55_CHECKSUM_ADDRESS)
 @option_force
 @group_general_config
-def collect_reward(general_config,
-                   transacting_staker_options,
+def collect_reward(general_config: GroupGeneralConfig,
+                   transacting_staker_options: TransactingStakerOptions,
                    config_file,
                    staking_reward,
                    policy_fee,
@@ -1048,7 +1116,10 @@ def collect_reward(general_config,
             click.confirm(CONFIRM_COLLECTING_WITHOUT_MINTING, abort=True)
 
         # Authenticate and Execute
-        password = transacting_staker_options.get_password(blockchain, client_account)
+        password = get_password(stakeholder=STAKEHOLDER,
+                                blockchain=blockchain,
+                                client_account=client_account,
+                                hw_wallet=transacting_staker_options.hw_wallet)
         STAKEHOLDER.assimilate(password=password)
 
         staking_receipt = STAKEHOLDER.collect_staking_reward()
@@ -1066,7 +1137,10 @@ def collect_reward(general_config,
 
         if password is None:
             # Authenticate and Execute
-            password = transacting_staker_options.get_password(blockchain, client_account)
+            password = get_password(stakeholder=STAKEHOLDER,
+                                    blockchain=blockchain,
+                                    client_account=client_account,
+                                    hw_wallet=transacting_staker_options.hw_wallet)
             STAKEHOLDER.assimilate(password=password)
 
         policy_receipt = STAKEHOLDER.collect_policy_fee(collector_address=withdraw_address)
@@ -1081,7 +1155,9 @@ def collect_reward(general_config,
 @option_config_file
 @option_force
 @group_general_config
-def preallocation(general_config, transacting_staker_options, config_file, action, force):
+def preallocation(general_config: GroupGeneralConfig,
+                  transacting_staker_options: TransactingStakerOptions,
+                  config_file, action, force):
     """Claim token rewards collected by a preallocation contract."""
 
     # Setup
@@ -1104,7 +1180,10 @@ def preallocation(general_config, transacting_staker_options, config_file, actio
         force=force)
 
     # Authenticate
-    password = transacting_staker_options.get_password(blockchain, client_account)
+    password = get_password(stakeholder=STAKEHOLDER,
+                            blockchain=blockchain,
+                            client_account=client_account,
+                            hw_wallet=transacting_staker_options.hw_wallet)
     STAKEHOLDER.assimilate(checksum_address=client_account, password=password)
 
     if action == 'withdraw':
@@ -1163,7 +1242,9 @@ def events(general_config, staker_options, config_file, event_name):
 @option_force
 @group_general_config
 @click.option('--min-rate', help="Minimum acceptable fee rate, set by staker", type=WEI)
-def set_min_rate(general_config, transacting_staker_options, config_file, force, min_rate):
+def set_min_rate(general_config: GroupGeneralConfig,
+                 transacting_staker_options: TransactingStakerOptions,
+                 config_file, force, min_rate):
     """Staker sets the minimum acceptable fee rate for their associated worker."""
 
     # Setup
@@ -1184,7 +1265,10 @@ def set_min_rate(general_config, transacting_staker_options, config_file, force,
         min_rate = click.prompt(PROMPT_STAKER_MIN_POLICY_RATE, type=WEI)
     if not force:
         click.confirm(CONFIRM_NEW_MIN_POLICY_RATE.format(min_rate=min_rate), abort=True)
-    password = transacting_staker_options.get_password(blockchain, client_account)
+    password = get_password(stakeholder=STAKEHOLDER,
+                            blockchain=blockchain,
+                            client_account=client_account,
+                            hw_wallet=transacting_staker_options.hw_wallet)
     STAKEHOLDER.assimilate(password=password)
     receipt = STAKEHOLDER.set_min_fee_rate(min_rate=min_rate)
 
@@ -1202,7 +1286,9 @@ def set_min_rate(general_config, transacting_staker_options, config_file, force,
 @option_config_file
 @option_force
 @group_general_config
-def mint(general_config, transacting_staker_options, config_file, force):
+def mint(general_config: GroupGeneralConfig,
+         transacting_staker_options: TransactingStakerOptions,
+         config_file, force):
     """Mint last portion of reward"""
 
     # Setup
@@ -1231,7 +1317,10 @@ def mint(general_config, transacting_staker_options, config_file, force):
         click.confirm(CONFIRM_MINTING.format(mintable_periods=mintable_periods), abort=True)
 
     # Authenticate
-    password = transacting_staker_options.get_password(blockchain, client_account)
+    password = get_password(stakeholder=STAKEHOLDER,
+                            blockchain=blockchain,
+                            client_account=client_account,
+                            hw_wallet=transacting_staker_options.hw_wallet)
     STAKEHOLDER.assimilate(password=password)
     receipt = STAKEHOLDER.mint()
     emitter.echo(SUCCESSFUL_MINTING, color='green', verbosity=1)

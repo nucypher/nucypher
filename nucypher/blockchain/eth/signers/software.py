@@ -115,7 +115,7 @@ class ClefSigner(Signer):
     DEFAULT_CONTENT_TYPE = SIGN_DATA_FOR_ECRECOVER
     SIGN_DATA_CONTENT_TYPES = (SIGN_DATA_FOR_VALIDATOR, SIGN_DATA_FOR_CLIQUE, SIGN_DATA_FOR_ECRECOVER)
 
-    TIMEOUT = 60  # Default timeout for Clef of 60 seconds
+    TIMEOUT = 180  # Default timeout for Clef of 180 seconds
 
     def __init__(self,
                  ipc_path: str = DEFAULT_IPC_PATH,
