@@ -41,7 +41,6 @@ from nucypher.utilities.prometheus.collector import (
     ReStakeEventMetricsCollector,
     WindDownEventMetricsCollector,
     WorkerBondedEventMetricsCollector,
-    BidRefundCompositeEventMetricsCollector,
     CommitmentMadeEventMetricsCollector)
 
 from typing import List
@@ -49,7 +48,7 @@ from typing import List
 from twisted.internet import reactor, task
 from twisted.web.resource import Resource
 
-from nucypher.blockchain.eth.agents import ContractAgency, StakingEscrowAgent, WorkLockAgent, PolicyManagerAgent
+from nucypher.blockchain.eth.agents import ContractAgency, StakingEscrowAgent, PolicyManagerAgent
 
 
 class PrometheusMetricsConfig:
@@ -206,11 +205,6 @@ def create_metrics_collectors(ursula: 'Ursula', metrics_prefix: str) -> List[Met
                                                                             metrics_prefix=metrics_prefix)
         collectors.extend(staking_events_collectors)
 
-        # WorkLock Events
-        worklock_events_collectors = create_worklock_events_metric_collectors(ursula=ursula,
-                                                                              metrics_prefix=metrics_prefix)
-        collectors.extend(worklock_events_collectors)
-
         # Policy Events
         policy_events_collectors = create_policy_events_metric_collectors(ursula=ursula,
                                                                           metrics_prefix=metrics_prefix)
@@ -285,39 +279,6 @@ def create_staking_events_metric_collectors(ursula: 'Ursula', metrics_prefix: st
         staker_address=staker_address,
         worker_address=ursula.worker_address,
         contract_agent=staking_agent))
-
-    return collectors
-
-
-def create_worklock_events_metric_collectors(ursula: 'Ursula', metrics_prefix: str) -> List[MetricsCollector]:
-    """Create collectors for worklock-related events."""
-    collectors: List[MetricsCollector] = []
-    worklock_agent = ContractAgency.get_agent(WorkLockAgent, registry=ursula.registry)
-    staker_address = ursula.checksum_address
-
-    # Deposited\
-    collectors.append(EventMetricsCollector(
-        event_name='Deposited',
-        event_args_config={
-            "value": (Gauge, f'{metrics_prefix}_worklock_deposited_value', 'Deposited value')
-        },
-        argument_filters={"sender": staker_address},
-        contract_agent=worklock_agent))
-
-    # Claimed
-    collectors.append(EventMetricsCollector(
-        event_name='Claimed',
-        event_args_config={
-            "claimedTokens": (Gauge, f'{metrics_prefix}_worklock_claimed_claimedTokens', 'Claimed tokens value')
-        },
-        argument_filters={"sender": staker_address},
-        contract_agent=worklock_agent))
-
-    # Bid/Refund (Modify a common metric)
-    collectors.append(BidRefundCompositeEventMetricsCollector(
-        staker_address=staker_address,
-        contract_registry=ursula.registry,
-        metrics_prefix=metrics_prefix))
 
     return collectors
 
