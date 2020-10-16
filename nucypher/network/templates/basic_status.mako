@@ -176,11 +176,11 @@ ${fleet_state_icon(state.checksum, state.nickname, state.population())}
         </tr>
         <tr>
             <td><i>Running:</i></td>
-            <td><span class="version">v${ version }</span></td>
+            <td>v${ version }</td>
         </tr>
         <tr>
             <td><i>Domain:</i></td>
-            <td><span class="domain">${ domain }</span></td>
+            <td>${ domain }</td>
         </tr>
         <tr>
             <td><i>Fleet state:</i></td>
