@@ -45,7 +45,12 @@ NO FLEET STATE AVAILABLE
 
 
 <%def name="fleet_state_icon_from_state(state)">
-${fleet_state_icon(state.checksum, state.nickname, len(state))}
+${fleet_state_icon(state.checksum, state.nickname, len(state.nodes))}
+</%def>
+
+
+<%def name="fleet_state_icon_from_known_nodes(state)">
+${fleet_state_icon(state.checksum, state.nickname, state.population())}
 </%def>
 
 
@@ -170,9 +175,7 @@ ${fleet_state_icon(state.checksum, state.nickname, len(state))}
         </tr>
         <tr>
             <td><i>Fleet state:</i></td>
-            <td>    ${fleet_state_icon(this_node.fleet_state_checksum,
-                       this_node.fleet_state_nickname,
-                       this_node.fleet_state_population)}</td>
+            <td>${fleet_state_icon_from_known_nodes(this_node.known_nodes)}</td>
         </tr>
         <tr>
             <td><i>Previous states:</i></td>

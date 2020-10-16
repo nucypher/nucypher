@@ -77,6 +77,9 @@ class FleetSensor:
     def __repr__(self):
         return self._nodes.__repr__()
 
+    def population(self):
+        return len(self) + len(self.additional_nodes_to_track)
+
     @property
     def checksum(self):
         return self._checksum
