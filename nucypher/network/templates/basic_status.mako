@@ -127,7 +127,11 @@ ${fleet_state_icon(state.checksum, state.nickname, state.population())}
     }
 
     .this-node-info {
-        margin-bottom: 1em;
+        margin-bottom: 2em;
+    }
+
+    h3 {
+        margin-bottom: 0em;
     }
 
     .this-node {
