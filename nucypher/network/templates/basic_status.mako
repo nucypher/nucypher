@@ -20,7 +20,7 @@ def contrast_color(color_hex):
         return "white"
 
 def character_span(character):
-    return f'<span style="color: {contrast_color(character.color_hex)}; background-color: {character.color_hex}">{character.symbol}</span>'
+    return f'<span class="symbol" style="color: {contrast_color(character.color_hex)}; background-color: {character.color_hex}">{character.symbol}</span>'
 %>
 
 <%def name="fleet_state_icon(checksum, nickname, population)">
@@ -148,6 +148,11 @@ ${fleet_state_icon(state.checksum, state.nickname, state.population())}
         font-size: 2em;
         font-family: monospace;
         margin-right: 0.2em;
+    }
+
+    .symbol {
+        padding-left: 0.05em;
+        padding-right: 0.05em;
     }
 
     .checksum {
