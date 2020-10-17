@@ -9,10 +9,10 @@ idna==2.10
 imagesize==1.2.0
 incremental==17.5.0
 jinja2==2.11.2
-markupsafe==2.0.0a1
+markupsafe==1.1.1
 packaging==20.4
 pygments==2.7.1
-pyparsing==3.0.0a2
+pyparsing==2.4.7
 pytz==2020.1
 requests==2.24.0
 six==1.15.0
