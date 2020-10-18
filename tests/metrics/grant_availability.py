@@ -17,6 +17,15 @@
  along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
+
+"""
+WARNING: This script makes automatic transactions.  
+Do not use this script unless you intend know what you 
+are doing and intend to spend ETH measuring live policy availability.
+"""
+
+
+from web3.main import Web3
 import datetime
 from typing import Set, Optional, List, Tuple
 
@@ -35,10 +44,10 @@ from nucypher.utilities.logging import GlobalLoggerSettings
 
 # Wallet Configuration
 # In order to use this script, you must configure a wallet for alice
-METRICS_ADDRESS_ENVVAR: str = 'NUCYPHER_METRICS_ADDRESS'
-METRICS_PASSWORD_ENVVAR: str = 'NUCYPHER_METRICS_PASSWORD'
-METRICS_SIGNER_ENVVAR: str = 'NUCYPHER_METRICS_KEYFILE_PATH'
-METRICS_PROVIDER_URI: str = 'NUCYPHER_METRICS_PROVIDER_URI'
+METRICS_ADDRESS_ENVVAR: str = 'NUCYPHER_GRANT_METRICS_ADDRESS'
+METRICS_PASSWORD_ENVVAR: str = 'NUCYPHER_GRANT_METRICS_PASSWORD'
+METRICS_SIGNER_ENVVAR: str = 'NUCYPHER_GRANT_METRICS_KEYFILE_PATH'
+METRICS_PROVIDER_URI: str = 'NUCYPHER_GRANT_METRICS_PROVIDER'
 
 
 try:
@@ -52,24 +61,24 @@ except KeyError:
     raise RuntimeError(message)
 
 # Alice Configuration
-DOMAIN: str = 'ibex'
-DEFAULT_SEEDNODE_URIS: List[str] = ['https://ibex.nucypher.network:9151', ]
+DOMAIN: str = 'mainnet'
+DEFAULT_SEEDNODE_URIS: List[str] = ['https://mainnet.nucypher.network:9151', ]
 INSECURE_PASSWORD: str = "METRICS_INSECURE_DEVELOPMENT_PASSWORD"
 TEMP_ALICE_DIR: str = os.path.join('/', 'tmp', 'grant-metrics')
 
 # Policy Parameters
 M: int = 1
 N: int = 1
-RATE: Wei = Wei(1)
+RATE: Wei = Web3.toWei(50, 'gwei')
 DURATION: datetime.timedelta = datetime.timedelta(days=1)
 
 # Tuning
-SAMPLE_RATE: int = 10  # seconds
+SAMPLE_RATE: int = 15  # seconds
 GAS_STRATEGY: str = 'fast'
 LABEL_PREFIX = 'random-metrics-label-'
-LABEL_SUFFIXER = lambda: os.urandom(4).hex()
+LABEL_SUFFIXER = lambda: os.urandom(16).hex()
 HANDPICKED_URSULA_URIS: List[str] = [
-    DEFAULT_SEEDNODE_URIS[0],  # use the seednode for granting
+    # DEFAULT_SEEDNODE_URIS[0],  # uncomment to use the seednode for granting
 ]
 
 
@@ -85,6 +94,9 @@ def make_random_bob():
     return bob
 
 
+BOB = make_random_bob()
+
+
 def metric_grant(alice, handpicked_ursulas: Optional[Set[Ursula]] = None) -> Policy:
     """Perform a granting operation for metrics collection."""
     label = f'{LABEL_PREFIX}{LABEL_SUFFIXER()}'.encode()
@@ -92,7 +104,7 @@ def metric_grant(alice, handpicked_ursulas: Optional[Set[Ursula]] = None) -> Pol
     policy = alice.grant(m=M, n=N,
                          handpicked_ursulas=handpicked_ursulas,
                          expiration=policy_end_datetime,
-                         bob=make_random_bob(),
+                         bob=BOB,
                          label=label,
                          rate=RATE)
     return policy
