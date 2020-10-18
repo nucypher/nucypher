@@ -1467,3 +1467,130 @@ def test_snapshots(testerchain, token, escrow_contract):
     assert last_balance_staker1 + deposit_staker2 == escrow.functions.totalStakedAt(now).call()
     assert balance_staker1 == escrow.functions.totalStakedForAt(staker1, now - 1).call()
     assert balance_staker1 + deposit_staker2 == escrow.functions.totalStakedAt(now - 1).call()
+
+
+def test_remove_unused_sub_stakes(testerchain, token, escrow_contract, token_economics):
+    escrow = escrow_contract(token_economics.maximum_allowed_locked, disable_reward=True)
+    creator = testerchain.client.accounts[0]
+    staker = testerchain.client.accounts[1]
+
+    # GIVe staker some tokens
+    stake = 10 * token_economics.minimum_allowed_locked
+    tx = token.functions.transfer(staker, stake).transact({'from': creator})
+    testerchain.wait_for_receipt(tx)
+    tx = token.functions.approve(escrow.address, stake).transact({'from': staker})
+    testerchain.wait_for_receipt(tx)
+
+    # Prepare sub-stakes
+    initial_period = escrow.functions.getCurrentPeriod().call()
+    sub_stake = token_economics.minimum_allowed_locked
+    duration = token_economics.minimum_locked_periods
+    for i in range(3):
+        tx = escrow.functions.deposit(staker, sub_stake, duration).transact({'from': staker})
+        testerchain.wait_for_receipt(tx)
+    for i in range(2):
+        tx = escrow.functions.deposit(staker, sub_stake, duration + 1).transact({'from': staker})
+        testerchain.wait_for_receipt(tx)
+        testerchain.time_travel(hours=1)
+    assert escrow.functions.getLockedTokens(staker, 1).call() == 5 * sub_stake
+
+    tx = escrow.functions.mergeStake(1, 0).transact({'from': staker})
+    testerchain.wait_for_receipt(tx)
+    tx = escrow.functions.mergeStake(1, 2).transact({'from': staker})
+    testerchain.wait_for_receipt(tx)
+    tx = escrow.functions.mergeStake(3, 4).transact({'from': staker})
+    testerchain.wait_for_receipt(tx)
+    assert escrow.functions.getLockedTokens(staker, 1).call() == 5 * sub_stake
+    assert escrow.functions.getSubStakesLength(staker).call() == 5
+    assert escrow.functions.getSubStakeInfo(staker, 0).call() == [initial_period + 1, 1, 0, sub_stake]
+    assert escrow.functions.getSubStakeInfo(staker, 1).call() == [initial_period + 1, 0, duration, 3 * sub_stake]
+    assert escrow.functions.getSubStakeInfo(staker, 2).call() == [initial_period + 1, 1, 0, sub_stake]
+    assert escrow.functions.getSubStakeInfo(staker, 3).call() == [initial_period + 1, initial_period + 1, 0, sub_stake]
+    assert escrow.functions.getSubStakeInfo(staker, 4).call() == [initial_period + 2, 0, duration + 1, 2 * sub_stake]
+
+    # Can't remove active sub-stakes
+    with pytest.raises((TransactionFailed, ValueError)):
+        tx = escrow.functions.removeUnusedSubStake(1).transact({'from': staker})
+        testerchain.wait_for_receipt(tx)
+    with pytest.raises((TransactionFailed, ValueError)):
+        tx = escrow.functions.removeUnusedSubStake(4).transact({'from': staker})
+        testerchain.wait_for_receipt(tx)
+    with pytest.raises((TransactionFailed, ValueError)):
+        tx = escrow.functions.removeUnusedSubStake(5).transact({'from': staker})
+        testerchain.wait_for_receipt(tx)
+
+    # Remove first unused sub-stake
+    tx = escrow.functions.removeUnusedSubStake(0).transact({'from': staker})
+    testerchain.wait_for_receipt(tx)
+    assert escrow.functions.getLockedTokens(staker, 1).call() == 5 * sub_stake
+    assert escrow.functions.getSubStakesLength(staker).call() == 4
+    assert escrow.functions.getSubStakeInfo(staker, 0).call() == [initial_period + 2, 0, duration + 1, 2 * sub_stake]
+    assert escrow.functions.getSubStakeInfo(staker, 1).call() == [initial_period + 1, 0, duration, 3 * sub_stake]
+    assert escrow.functions.getSubStakeInfo(staker, 2).call() == [initial_period + 1, 1, 0, sub_stake]
+    assert escrow.functions.getSubStakeInfo(staker, 3).call() == [initial_period + 1, initial_period + 1, 0, sub_stake]
+
+    with pytest.raises((TransactionFailed, ValueError)):
+        tx = escrow.functions.removeUnusedSubStake(0).transact({'from': staker})
+        testerchain.wait_for_receipt(tx)
+
+    # Remove unused sub-stake in the middle
+    tx = escrow.functions.removeUnusedSubStake(2).transact({'from': staker})
+    testerchain.wait_for_receipt(tx)
+    assert escrow.functions.getLockedTokens(staker, 1).call() == 5 * sub_stake
+    assert escrow.functions.getSubStakesLength(staker).call() == 3
+    assert escrow.functions.getSubStakeInfo(staker, 0).call() == [initial_period + 2, 0, duration + 1, 2 * sub_stake]
+    assert escrow.functions.getSubStakeInfo(staker, 1).call() == [initial_period + 1, 0, duration, 3 * sub_stake]
+    assert escrow.functions.getSubStakeInfo(staker, 2).call() == [initial_period + 1, initial_period + 1, 0, sub_stake]
+
+    # Remove last sub-stake
+    tx = escrow.functions.removeUnusedSubStake(2).transact({'from': staker})
+    testerchain.wait_for_receipt(tx)
+    assert escrow.functions.getLockedTokens(staker, 1).call() == 5 * sub_stake
+    assert escrow.functions.getSubStakesLength(staker).call() == 2
+    assert escrow.functions.getSubStakeInfo(staker, 0).call() == [initial_period + 2, 0, duration + 1, 2 * sub_stake]
+    assert escrow.functions.getSubStakeInfo(staker, 1).call() == [initial_period + 1, 0, duration, 3 * sub_stake]
+
+    # Prepare other case: when sub-stake is unlocked but still active
+    tx = escrow.functions.initialize(0, creator).transact({'from': creator})
+    testerchain.wait_for_receipt(tx)
+    tx = escrow.functions.setWindDown(True).transact({'from': staker})
+    testerchain.wait_for_receipt(tx)
+    tx = escrow.functions.bondWorker(staker).transact({'from': staker})
+    testerchain.wait_for_receipt(tx)
+    for i in range(duration):
+        tx = escrow.functions.commitToNextPeriod().transact({'from': staker})
+        testerchain.wait_for_receipt(tx)
+        testerchain.time_travel(hours=1)
+
+    current_period = escrow.functions.getCurrentPeriod().call()
+    assert escrow.functions.getSubStakeInfo(staker, 0).call() == [initial_period + 2, 0, 1, 2 * sub_stake]
+    assert escrow.functions.getSubStakeInfo(staker, 1).call() == [initial_period + 1, current_period, 0, 3 * sub_stake]
+
+    # Can't remove active sub-stakes
+    with pytest.raises((TransactionFailed, ValueError)):
+        tx = escrow.functions.removeUnusedSubStake(1).transact({'from': staker})
+        testerchain.wait_for_receipt(tx)
+    tx = escrow.functions.mint().transact({'from': staker})
+    testerchain.wait_for_receipt(tx)
+    with pytest.raises((TransactionFailed, ValueError)):
+        tx = escrow.functions.removeUnusedSubStake(1).transact({'from': staker})
+        testerchain.wait_for_receipt(tx)
+    tx = escrow.functions.commitToNextPeriod().transact({'from': staker})
+    testerchain.wait_for_receipt(tx)
+    with pytest.raises((TransactionFailed, ValueError)):
+        tx = escrow.functions.removeUnusedSubStake(1).transact({'from': staker})
+        testerchain.wait_for_receipt(tx)
+
+    testerchain.time_travel(hours=1)
+    current_period = escrow.functions.getCurrentPeriod().call()
+    assert escrow.functions.getSubStakeInfo(staker, 0).call() == [initial_period + 2, current_period, 0, 2 * sub_stake]
+    assert escrow.functions.getSubStakeInfo(staker, 1).call() == [initial_period + 1, current_period - 1, 0, 3 * sub_stake]
+    with pytest.raises((TransactionFailed, ValueError)):
+        tx = escrow.functions.removeUnusedSubStake(1).transact({'from': staker})
+        testerchain.wait_for_receipt(tx)
+    tx = escrow.functions.mint().transact({'from': staker})
+    testerchain.wait_for_receipt(tx)
+    tx = escrow.functions.removeUnusedSubStake(1).transact({'from': staker})
+    testerchain.wait_for_receipt(tx)
+    assert escrow.functions.getSubStakesLength(staker).call() == 1
+    assert escrow.functions.getSubStakeInfo(staker, 0).call() == [initial_period + 2, current_period, 0, 2 * sub_stake]
