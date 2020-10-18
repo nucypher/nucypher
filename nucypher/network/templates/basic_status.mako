@@ -20,7 +20,7 @@ def contrast_color(color_hex):
         return "white"
 
 def character_span(character):
-    return f'<span style="color: {contrast_color(character.color_hex)}; background-color: {character.color_hex}">{character.symbol}</span>'
+    return f'<span class="symbol" style="color: {contrast_color(character.color_hex)}; background-color: {character.color_hex}">{character.symbol}</span>'
 %>
 
 <%def name="fleet_state_icon(checksum, nickname, population)">
@@ -45,7 +45,12 @@ NO FLEET STATE AVAILABLE
 
 
 <%def name="fleet_state_icon_from_state(state)">
-${fleet_state_icon(state.checksum, state.nickname, len(state))}
+${fleet_state_icon(state.checksum, state.nickname, len(state.nodes))}
+</%def>
+
+
+<%def name="fleet_state_icon_from_known_nodes(state)">
+${fleet_state_icon(state.checksum, state.nickname, state.population())}
 </%def>
 
 
@@ -122,7 +127,11 @@ ${fleet_state_icon(state.checksum, state.nickname, len(state))}
     }
 
     .this-node-info {
-        margin-bottom: 1em;
+        margin-bottom: 2em;
+    }
+
+    h3 {
+        margin-bottom: 0em;
     }
 
     .this-node {
@@ -145,6 +154,11 @@ ${fleet_state_icon(state.checksum, state.nickname, len(state))}
         margin-right: 0.2em;
     }
 
+    .symbol {
+        padding-left: 0.05em;
+        padding-right: 0.05em;
+    }
+
     .checksum {
         font-family: monospace;
     }
@@ -162,17 +176,15 @@ ${fleet_state_icon(state.checksum, state.nickname, len(state))}
         </tr>
         <tr>
             <td><i>Running:</i></td>
-            <td><span class="version">v${ version }</span></td>
+            <td>v${ version }</td>
         </tr>
         <tr>
             <td><i>Domain:</i></td>
-            <td><span class="domain">${ domain }</span></td>
+            <td>${ domain }</td>
         </tr>
         <tr>
             <td><i>Fleet state:</i></td>
-            <td>    ${fleet_state_icon(this_node.fleet_state_checksum,
-                       this_node.fleet_state_nickname,
-                       this_node.fleet_state_population)}</td>
+            <td>${fleet_state_icon_from_known_nodes(this_node.known_nodes)}</td>
         </tr>
         <tr>
             <td><i>Previous states:</i></td>
@@ -184,7 +196,7 @@ ${fleet_state_icon(state.checksum, state.nickname, len(state))}
         </tr>
     </table>
 
-    <h3>Known nodes</h3>
+    <h3>${len(known_nodes)} ${"known node" if len(known_nodes) == 1 else "known nodes"}:</h3>
 
     <table class="known-nodes">
         <thead>
