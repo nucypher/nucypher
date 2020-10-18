@@ -280,7 +280,7 @@ def get_password(stakeholder: StakeHolder,
                  blockchain: BlockchainInterface,
                  client_account: str,
                  hw_wallet: bool = False):
-    signer_handles_passwords = isinstance(stakeholder.wallet.signer, (ClefSigner, TrezorSigner))
+    signer_handles_passwords = isinstance(stakeholder.signer, (ClefSigner, TrezorSigner))
     eth_password_needed = not hw_wallet and not blockchain.client.is_local and not signer_handles_passwords
     password = None
     if eth_password_needed:
