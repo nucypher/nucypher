@@ -838,8 +838,6 @@ def test_create_interactive(click_runner,
     lock_periods = 366
     value = NU.from_nunits(token_economics.minimum_allowed_locked * 11)
 
-    mock_token_agent.get_balance.return_value = token_economics.minimum_allowed_locked - 1
-
     command = ('create',
                '--provider', MOCK_PROVIDER_URI,
                '--network', TEMPORARY_DOMAIN)
@@ -854,12 +852,15 @@ def test_create_interactive(click_runner,
                             YES,
                             INSECURE_DEVELOPMENT_PASSWORD))
 
+    # insufficient existing balance
+    mock_token_agent.get_balance.return_value = token_economics.minimum_allowed_locked - 1
     result = click_runner.invoke(stake, command, input=user_input, catch_exceptions=False)
     assert result.exit_code == 1
     assert INSUFFICIENT_BALANCE_TO_CREATE in result.output
     assert MAXIMUM_STAKE_REACHED not in result.output
     assert SUCCESSFUL_STAKE_INCREASE not in result.output
 
+    # already at max stake
     mock_staking_agent.get_locked_tokens.return_value = token_economics.maximum_allowed_locked
     balance = token_economics.minimum_allowed_locked * 12
     mock_token_agent.get_balance.return_value = balance
@@ -870,7 +871,32 @@ def test_create_interactive(click_runner,
     assert MAXIMUM_STAKE_REACHED in result.output
     assert SUCCESSFUL_STAKE_INCREASE not in result.output
 
+    # successfully stake minimum allowed which equals available balance
+    mock_staking_agent.get_locked_tokens.return_value = token_economics.minimum_allowed_locked
+    mock_token_agent.get_balance.return_value = token_economics.minimum_allowed_locked
+    min_stake_value = NU.from_nunits(token_economics.minimum_allowed_locked)
+    min_amount_user_input = '\n'.join((str(selected_index),
+                                       YES,
+                                       str(min_stake_value.to_tokens()),
+                                       str(lock_periods),
+                                       YES,
+                                       YES,
+                                       YES,
+                                       INSECURE_DEVELOPMENT_PASSWORD))
+    result = click_runner.invoke(stake, command, input=min_amount_user_input, catch_exceptions=False)
+    assert result.exit_code == 0
+    assert CONFIRM_STAKE_USE_UNLOCKED not in result.output  # default is to use staker address
+    assert INSUFFICIENT_BALANCE_TO_CREATE not in result.output
+    assert PROMPT_STAKE_CREATE_VALUE.format(lower_limit=min_stake_value, upper_limit=min_stake_value) in result.output
+    assert CONFIRM_STAGED_STAKE.format(nunits=str(min_stake_value.to_nunits()),
+                                       tokens=min_stake_value,
+                                       staker_address=surrogate_stakers[selected_index],
+                                       lock_periods=lock_periods) in result.output
+    assert CONFIRM_BROADCAST_CREATE_STAKE in result.output
+
+    # successfully stake large stake
     mock_staking_agent.get_locked_tokens.return_value = token_economics.maximum_allowed_locked // 2
+    mock_token_agent.get_balance.return_value = balance
     result = click_runner.invoke(stake, command, input=user_input, catch_exceptions=False)
     assert result.exit_code == 0
 
@@ -893,10 +919,10 @@ def test_create_interactive(click_runner,
     mock_staking_agent.get_all_stakes.assert_called()
     mock_staking_agent.get_current_period.assert_called()
     mock_refresh_stakes.assert_called()
-    mock_token_agent.approve_and_call.assert_called_once_with(amount=value.to_nunits(),
-                                                              target_address=mock_staking_agent.contract_address,
-                                                              sender_address=surrogate_stakers[selected_index],
-                                                              call_data=Web3.toBytes(lock_periods))
+    mock_token_agent.approve_and_call.assert_called_with(amount=value.to_nunits(),
+                                                         target_address=mock_staking_agent.contract_address,
+                                                         sender_address=surrogate_stakers[selected_index],
+                                                         call_data=Web3.toBytes(lock_periods))
     mock_token_agent.assert_only_transactions([mock_token_agent.approve_and_call])
     mock_staking_agent.assert_no_transactions()
 
