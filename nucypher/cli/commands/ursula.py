@@ -366,7 +366,8 @@ def forget(general_config, config_options, config_file):
 @click.option('--metrics-port', help="Run a Prometheus metrics exporter on specified HTTP port", type=NETWORK_PORT)
 @click.option("--metrics-listen-address", help="Run a prometheus metrics exporter on specified IP address", default='')
 @click.option("--metrics-prefix", help="Create metrics params with specified prefix", default="ursula")
-def run(general_config, character_options, config_file, interactive, dry_run, metrics_port, metrics_listen_address, metrics_prefix, prometheus):
+@click.option("--metrics-interval", help="The frequency of metrics collection", type=click.INT, default=90)
+def run(general_config, character_options, config_file, interactive, dry_run, prometheus, metrics_port, metrics_listen_address, metrics_prefix, metrics_interval):
     """Run an "Ursula" node."""
 
     worker_address = character_options.config_options.worker_address
@@ -393,7 +394,8 @@ def run(general_config, character_options, config_file, interactive, dry_run, me
         from nucypher.utilities.prometheus.metrics import PrometheusMetricsConfig
         prometheus_config = PrometheusMetricsConfig(port=metrics_port,
                                                     metrics_prefix=metrics_prefix,
-                                                    listen_address=metrics_listen_address)
+                                                    listen_address=metrics_listen_address,
+                                                    collection_interval=metrics_interval)
 
     # TODO should we just not call run at all for "dry_run"
     try:

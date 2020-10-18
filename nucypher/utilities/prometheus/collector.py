@@ -33,10 +33,9 @@ from nucypher.blockchain.eth.registry import BaseContractRegistry
 from nucypher.datastore.datastore import RecordNotFound
 from nucypher.datastore.models import Workorder, PolicyArrangement
 
-from prometheus_client.metrics import MetricWrapperBase
 from prometheus_client.registry import CollectorRegistry
 
-from typing import Dict, List, Union
+from typing import Dict, Union
 
 ContractAgents = Union[StakingEscrowAgent, WorkLockAgent, PolicyManagerAgent]
 
@@ -434,63 +433,19 @@ class WorkerBondedEventMetricsCollector(EventMetricsCollector):
             self.contract_agent.get_worker_from_staker(self.staker_address) == self.worker_address)
 
 
-class BidRefundCompositeEventMetricsCollector(MetricsCollector):
-    """
-    Collector for both Bid and Refund WorkLock events.
+class WorkLockRefundEventMetricsCollector(EventMetricsCollector):
+    """Collector for WorkLock Refund event."""
 
-    Both Bid and Refund events additionally update the same metric of how much eth is deposited by the staker
-    so they are combined into one overall collector.
-    """
-    COMMON_METRIC_KEY = "worklock_deposited_eth_gauge"
-
-    class BidRefundCommonCollector(EventMetricsCollector):
-        """Configurable and generalized event metric collector applicable to both Bid and Refund events."""
-        def __init__(self, staker_address: ChecksumAddress, *args, **kwargs):
-            super().__init__(*args, **kwargs)
-            self.staker_address = staker_address
-
-        def add_common_metric(self, metric: MetricWrapperBase):
-            self.metrics[BidRefundCompositeEventMetricsCollector.COMMON_METRIC_KEY] = metric
-
-        def _event_occurred(self, event) -> None:
-            super()._event_occurred(event)
-            self.metrics[BidRefundCompositeEventMetricsCollector.COMMON_METRIC_KEY].set(
-                self.contract_agent.get_deposited_eth(self.staker_address))
-
-    def __init__(self, staker_address: ChecksumAddress, contract_registry: BaseContractRegistry, metrics_prefix: str):
-        # Bid/Refund (Modify the same metric)
-        worklock_agent = ContractAgency.get_agent(WorkLockAgent, registry=contract_registry)
-
-        self.collectors: List[BidRefundCompositeEventMetricsCollector.BidRefundCommonCollector] = [
-            # Bid Events
-            self.BidRefundCommonCollector(
-                event_name='Bid',
-                event_args_config={
-                    "depositedETH": (Gauge, f'{metrics_prefix}_worklock_bid_depositedETH', 'Deposited ETH value')
-                },
-                argument_filters={"sender": staker_address},
-                staker_address=staker_address,
-                contract_agent=worklock_agent),
-            # Refund Events
-            self.BidRefundCommonCollector(
-                event_name='Refund',
-                event_args_config={
-                    "refundETH": (Gauge, f'{metrics_prefix}_worklock_refund_refundETH', 'Refunded ETH')
-                },
-                argument_filters={"sender": staker_address},
-                staker_address=staker_address,
-                contract_agent=worklock_agent)
-        ]
+    def __init__(self, staker_address: ChecksumAddress, event_name: str = 'Refund', *args, **kwargs):
+        super().__init__(event_name=event_name, argument_filters={'sender': staker_address}, *args, **kwargs)
+        self.staker_address = staker_address
 
     def initialize(self, metrics_prefix: str, registry: CollectorRegistry) -> None:
-        common_gauge = Gauge(f'{metrics_prefix}_worklock_current_deposited_eth',
-                             'Worklock deposited ETH',
-                             registry=registry)
-        for collector in self.collectors:
-            collector.initialize(metrics_prefix, registry)
-            # manually add common gauge to both collectors' dictionary of metrics
-            collector.add_common_metric(common_gauge)
+        super().initialize(metrics_prefix=metrics_prefix, registry=registry)
+        self.metrics["worklock_deposited_eth_gauge"] = Gauge(f'{metrics_prefix}_worklock_current_deposited_eth',
+                                                             'Worklock deposited ETH',
+                                                             registry=registry)
 
-    def collect(self) -> None:
-        for collector in self.collectors:
-            collector.collect()
+    def _event_occurred(self, event) -> None:
+        super()._event_occurred(event)
+        self.metrics["worklock_deposited_eth_gauge"].set(self.contract_agent.get_deposited_eth(self.staker_address))

@@ -218,6 +218,10 @@ parameters to the ``nucypher ursula run`` command:
 The corresponding endpoint, ``http://<node_ip>:<METRICS PORT>/metrics``, can be used as a Prometheus data source for
 monitoring including the creation of alert criteria.
 
+By default metrics will be collected every 90 seconds but this can be modified using the ``--metrics-interval`` option.
+Collection of metrics will increase the number of RPC requests made to your web3 endpoint; increasing the frequency
+of metrics collection will further increase this number.
+
 During the Technical Contributor Phase of our testnet, *P2P Validator*
 contributed a `self-hosted node monitoring suite <https://economy.p2p.org/nucypher-worker-node-monitoring-suite/amp/>`_
 that uses a Grafana dashboard to visualize and monitor the metrics produced by the prometheus endpoint.

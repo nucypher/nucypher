@@ -62,7 +62,7 @@ def test_prometheus_metrics_config():
     assert prometheus_config.listen_address == ''
 
     # defaults
-    assert prometheus_config.collection_interval == 10
+    assert prometheus_config.collection_interval == 90
     assert not prometheus_config.start_now
     assert prometheus_config.listen_address == ''
 

@@ -41,15 +41,15 @@ from nucypher.utilities.prometheus.collector import (
     ReStakeEventMetricsCollector,
     WindDownEventMetricsCollector,
     WorkerBondedEventMetricsCollector,
-    BidRefundCompositeEventMetricsCollector,
-    CommitmentMadeEventMetricsCollector)
+    CommitmentMadeEventMetricsCollector,
+    WorkLockRefundEventMetricsCollector)
 
 from typing import List
 
 from twisted.internet import reactor, task
 from twisted.web.resource import Resource
 
-from nucypher.blockchain.eth.agents import ContractAgency, StakingEscrowAgent, WorkLockAgent, PolicyManagerAgent
+from nucypher.blockchain.eth.agents import ContractAgency, StakingEscrowAgent, PolicyManagerAgent, WorkLockAgent
 
 
 class PrometheusMetricsConfig:
@@ -58,7 +58,7 @@ class PrometheusMetricsConfig:
                  port: int,
                  metrics_prefix: str,
                  listen_address: str = '',  # default to localhost ip
-                 collection_interval: int = 10,
+                 collection_interval: int = 90,  # every 1.5 minutes
                  start_now: bool = False):
 
         if not port:
@@ -295,29 +295,15 @@ def create_worklock_events_metric_collectors(ursula: 'Ursula', metrics_prefix: s
     worklock_agent = ContractAgency.get_agent(WorkLockAgent, registry=ursula.registry)
     staker_address = ursula.checksum_address
 
-    # Deposited\
-    collectors.append(EventMetricsCollector(
-        event_name='Deposited',
+    # Refund
+    collectors.append(WorkLockRefundEventMetricsCollector(
         event_args_config={
-            "value": (Gauge, f'{metrics_prefix}_worklock_deposited_value', 'Deposited value')
+            "refundETH": (Gauge, f'{metrics_prefix}_worklock_refund_refundETH',
+                          'Refunded ETH'),
         },
-        argument_filters={"sender": staker_address},
-        contract_agent=worklock_agent))
-
-    # Claimed
-    collectors.append(EventMetricsCollector(
-        event_name='Claimed',
-        event_args_config={
-            "claimedTokens": (Gauge, f'{metrics_prefix}_worklock_claimed_claimedTokens', 'Claimed tokens value')
-        },
-        argument_filters={"sender": staker_address},
-        contract_agent=worklock_agent))
-
-    # Bid/Refund (Modify a common metric)
-    collectors.append(BidRefundCompositeEventMetricsCollector(
         staker_address=staker_address,
-        contract_registry=ursula.registry,
-        metrics_prefix=metrics_prefix))
+        contract_agent=worklock_agent,
+    ))
 
     return collectors
 
