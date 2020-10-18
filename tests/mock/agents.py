@@ -31,7 +31,7 @@ from tests.utils.blockchain import free_gas_price_strategy
 
 MOCK_TESTERCHAIN = BlockchainInterfaceFactory.get_or_create_interface(provider_uri=MOCK_PROVIDER_URI,
                                                                       gas_strategy=free_gas_price_strategy)
-CURRENT_BLOCK = MOCK_TESTERCHAIN.w3.eth.getBlock(block_identifier='latest')
+CURRENT_BLOCK = MOCK_TESTERCHAIN.w3.eth.getBlock('latest')
 
 
 class MockContractAgent:

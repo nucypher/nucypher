@@ -629,7 +629,7 @@ class Allocator:
 
         batch_size = 1
         if not gas_limit:
-            block_limit = self.staking_agent.blockchain.client.w3.eth.getBlock(block_identifier='latest').gasLimit
+            block_limit = self.staking_agent.blockchain.client.w3.eth.getBlock('latest').gasLimit
             gas_limit = int(self.OCCUPATION_RATIO * block_limit)
         self.log.debug(f"Gas limit for this batch is {gas_limit}")
 

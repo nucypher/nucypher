@@ -53,7 +53,7 @@ def test_fee(testerchain, escrow, policy_manager):
         testerchain.wait_for_receipt(tx)
 
     # Create policy
-    current_timestamp = testerchain.w3.eth.getBlock(block_identifier='latest').timestamp
+    current_timestamp = testerchain.w3.eth.getBlock('latest').timestamp
     end_timestamp = current_timestamp + (number_of_periods - 1) * one_period
     tx = policy_manager.functions.createPolicy(policy_id, policy_sponsor, end_timestamp, [node1, node3])\
         .transact({'from': policy_sponsor, 'value': 2 * value})
@@ -179,7 +179,7 @@ def test_refund(testerchain, escrow, policy_manager):
     policy_refund_log = policy_manager.events.RefundForPolicy.createFilter(fromBlock='latest')
 
     # Create policy
-    current_timestamp = testerchain.w3.eth.getBlock(block_identifier='latest').timestamp
+    current_timestamp = testerchain.w3.eth.getBlock('latest').timestamp
     end_timestamp = current_timestamp + (number_of_periods - 1) * one_period
     tx = policy_manager.functions.createPolicy(policy_id, policy_owner, end_timestamp, [node1]) \
         .transact({'from': policy_creator, 'value': value, 'gas_price': 0})
@@ -273,7 +273,7 @@ def test_refund(testerchain, escrow, policy_manager):
     period = escrow.functions.getCurrentPeriod().call()
     tx = escrow.functions.setLastCommittedPeriod(period).transact()
     testerchain.wait_for_receipt(tx)
-    current_timestamp = testerchain.w3.eth.getBlock(block_identifier='latest').timestamp
+    current_timestamp = testerchain.w3.eth.getBlock('latest').timestamp
     end_timestamp = current_timestamp + (number_of_periods - 1) * one_period
     tx = policy_manager.functions.createPolicy(policy_id_2, policy_creator, end_timestamp, [node1, node2, node3]) \
         .transact({'from': policy_creator, 'value': 3 * value, 'gas_price': 0})
@@ -428,7 +428,7 @@ def test_refund(testerchain, escrow, policy_manager):
 
     # Create new policy
     period = escrow.functions.getCurrentPeriod().call()
-    current_timestamp = testerchain.w3.eth.getBlock(block_identifier='latest').timestamp
+    current_timestamp = testerchain.w3.eth.getBlock('latest').timestamp
     end_timestamp = current_timestamp + (number_of_periods - 1) * one_period
     tx = policy_manager.functions.createPolicy(policy_id_3, policy_creator, end_timestamp, [node1])\
         .transact({'from': policy_creator, 'value': value, 'gas_price': 0})
@@ -496,7 +496,7 @@ def test_refund(testerchain, escrow, policy_manager):
     testerchain.time_travel(hours=number_of_periods + 2)
     policy_id_4 = os.urandom(POLICY_ID_LENGTH)
     number_of_periods_4 = 3
-    current_timestamp = testerchain.w3.eth.getBlock(block_identifier='latest').timestamp
+    current_timestamp = testerchain.w3.eth.getBlock('latest').timestamp
     end_timestamp = current_timestamp + (number_of_periods_4 - 1) * one_period
     tx = policy_manager.functions.createPolicy(policy_id_4, policy_creator, end_timestamp, [node1]) \
         .transact({'from': policy_creator, 'value': number_of_periods_4 * rate, 'gas_price': 0})
@@ -566,7 +566,7 @@ def test_reentrancy(testerchain, escrow, policy_manager, deploy_contract):
     # Create policy and mint one period
     periods = 3
     policy_value = int(periods * rate)
-    current_timestamp = testerchain.w3.eth.getBlock(block_identifier='latest').timestamp
+    current_timestamp = testerchain.w3.eth.getBlock('latest').timestamp
     end_timestamp = current_timestamp + (periods - 1) * one_period
     transaction = policy_manager.functions.createPolicy(policy_id, contract_address, end_timestamp, [contract_address])\
         .buildTransaction({'gas': 0})

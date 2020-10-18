@@ -187,7 +187,7 @@ def staking_interface_router(testerchain, staking_interface, deploy_contract):
 @pytest.fixture(scope='module')
 def worklock(testerchain, token, escrow, token_economics, deploy_contract):
     # Creator deploys the worklock using test values
-    now = testerchain.w3.eth.getBlock(block_identifier='latest').timestamp
+    now = testerchain.w3.eth.getBlock('latest').timestamp
     start_bid_date = ((now + 3600) // 3600 + 1) * 3600  # beginning of the next hour plus 1 hour
     end_bid_date = start_bid_date + 3600
     end_cancellation_date = end_bid_date + 3600
@@ -701,7 +701,7 @@ def test_policy(testerchain,
     rate = 200
     one_node_value = number_of_periods * rate
     value = 2 * one_node_value
-    current_timestamp = testerchain.w3.eth.getBlock(block_identifier='latest').timestamp
+    current_timestamp = testerchain.w3.eth.getBlock('latest').timestamp
     end_timestamp = current_timestamp + (number_of_periods - 1) * one_period
     tx = policy_manager.functions.createPolicy(policy_id_1, alice1, end_timestamp, [staker1]) \
         .transact({'from': alice1, 'value': one_node_value, 'gas_price': 0})
@@ -768,7 +768,7 @@ def test_policy(testerchain,
 
     # Create other policies
     policy_id_1 = os.urandom(16)
-    current_timestamp = testerchain.w3.eth.getBlock(block_identifier='latest').timestamp
+    current_timestamp = testerchain.w3.eth.getBlock('latest').timestamp
     end_timestamp = current_timestamp + (number_of_periods - 1) * one_period
     tx = policy_manager.functions.createPolicy(policy_id_1, alice1, end_timestamp, [staker1, staker2]) \
         .transact({'from': alice1, 'value': value, 'gas_price': 0})

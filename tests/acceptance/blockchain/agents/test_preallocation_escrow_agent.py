@@ -187,7 +187,7 @@ def test_collect_policy_fees(testerchain, agent, agency, token_economics, mock_t
     testerchain.time_travel(periods=1)
 
     mock_transacting_power_activation(account=author, password=INSECURE_DEVELOPMENT_PASSWORD)
-    now = testerchain.w3.eth.getBlock(block_identifier='latest').timestamp
+    now = testerchain.w3.eth.getBlock('latest').timestamp
     policy_id = os.urandom(16)
     _receipt = policy_agent.create_policy(policy_id=policy_id,
                                           author_address=author,

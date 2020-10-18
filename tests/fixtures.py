@@ -258,7 +258,7 @@ def idle_blockchain_policy(testerchain, blockchain_alice, blockchain_bob, token_
     """
     random_label = generate_random_label()
     days = token_economics.minimum_locked_periods // 2
-    now = testerchain.w3.eth.getBlock(block_identifier='latest').timestamp
+    now = testerchain.w3.eth.getBlock('latest').timestamp
     expiration = maya.MayaDT(now).add(days=days - 1)
     n = 3
     m = 2
@@ -430,7 +430,7 @@ def lonely_ursula_maker(ursula_federated_test_config):
 
 def make_token_economics(blockchain):
     # Get current blocktime
-    now = blockchain.w3.eth.getBlock(block_identifier='latest').timestamp
+    now = blockchain.w3.eth.getBlock('latest').timestamp
 
     # Calculate instant start time
     one_hour_in_seconds = (60 * 60)
