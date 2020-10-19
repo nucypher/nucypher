@@ -384,6 +384,9 @@ class EthereumClient:
     def get_transaction(self, transaction_hash) -> dict:
         return self.w3.eth.getTransaction(transaction_hash)
 
+    def get_transaction_receipt(self, transaction_hash) -> Union[dict, None]:
+        return self.w3.eth.getTransactionReceipt(transaction_hash)
+
     def get_transaction_count(self, account: str, pending: bool) -> int:
         block_identifier = 'pending' if pending else 'latest'
         return self.w3.eth.getTransactionCount(account, block_identifier)
