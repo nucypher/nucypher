@@ -138,7 +138,6 @@ def test_get_swarm(agency, blockchain_ursulas):
     assert is_address(staker_addr)
 
 
-
 @pytest.mark.usefixtures("blockchain_ursulas")
 def test_sample_stakers(agency):
     _token_agent, staking_agent, _policy_agent = agency
@@ -262,16 +261,6 @@ def test_deposit_and_increase(agency, testerchain, test_registry, token_economic
     new_stake = stakes[0]
     assert new_stake.locked_value == original_stake.locked_value + amount
     assert staking_agent.get_locked_tokens(staker_account, 1) == locked_tokens + amount
-
-
-def test_disable_restaking(agency, testerchain, test_registry):
-    staking_agent = ContractAgency.get_agent(StakingEscrowAgent, registry=test_registry)
-    staker_account, worker_account, *other = testerchain.unassigned_accounts
-
-    assert staking_agent.is_restaking(staker_account)
-    receipt = staking_agent.set_restaking(staker_account, value=False)
-    assert receipt['status'] == 1
-    assert not staking_agent.is_restaking(staker_account)
 
 
 def test_lock_restaking(agency, testerchain, test_registry):
@@ -438,6 +427,33 @@ def test_merge(agency, testerchain, test_registry, token_economics):
     assert staking_agent.get_locked_tokens(staker_account, 0) == current_locked_tokens
 
 
+def test_remove_unused_stake(agency, testerchain, test_registry):
+    staking_agent = ContractAgency.get_agent(StakingEscrowAgent, registry=test_registry)
+    staker_account = testerchain.unassigned_accounts[0]
+
+    testerchain.time_travel(periods=1)
+    staking_agent.mint(staker_address=staker_account)
+    current_period = staking_agent.get_current_period()
+    original_stakes = list(staking_agent.get_all_stakes(staker_address=staker_account))
+    assert original_stakes[2].last_period == current_period - 1
+
+    current_locked_tokens = staking_agent.get_locked_tokens(staker_account, 0)
+    next_locked_tokens = staking_agent.get_locked_tokens(staker_account, 1)
+
+    receipt = staking_agent.remove_unused_stake(staker_address=staker_account, stake_index=2)
+    assert receipt['status'] == 1
+
+    # Ensure stake was extended by one period.
+    stakes = list(staking_agent.get_all_stakes(staker_address=staker_account))
+    assert len(stakes) == len(original_stakes) - 1
+    assert stakes[0] == original_stakes[0]
+    assert stakes[1] == original_stakes[1]
+    assert stakes[2] == original_stakes[4]
+    assert stakes[3] == original_stakes[3]
+    assert staking_agent.get_locked_tokens(staker_account, 1) == next_locked_tokens
+    assert staking_agent.get_locked_tokens(staker_account, 0) == current_locked_tokens
+
+
 def test_batch_deposit(testerchain,
                        agency,
                        token_economics,
@@ -448,7 +464,6 @@ def test_batch_deposit(testerchain,
 
     amount = token_economics.minimum_allowed_locked
     lock_periods = token_economics.minimum_locked_periods
-    current_period = staking_agent.get_current_period()
 
     stakers = [get_random_checksum_address() for _ in range(4)]
 
