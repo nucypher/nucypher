@@ -76,6 +76,7 @@ def test_worker_auto_commitments(mocker,
         # Verify that periods were committed on-chain automatically
         last_committed_period = staker.staking_agent.get_last_committed_period(staker_address=staker.checksum_address)
         current_period = staker.staking_agent.get_current_period()
+        assert len(ursula.work_tracker.pending) == 1, 'no pending transaction found'
         assert (last_committed_period - current_period) == 1
         assert commit_spy.call_count == current_period - initial_period + 1
 

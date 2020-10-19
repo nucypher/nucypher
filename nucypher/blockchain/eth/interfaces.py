@@ -491,8 +491,9 @@ class BlockchainInterface:
                       transaction_gas_limit: int = None,
                       ) -> dict:
 
+        nonce = self.client.w3.eth.getTransactionCount(sender_address, 'pending')
         base_payload = {'chainId': int(self.client.chain_id),
-                        'nonce': self.client.w3.eth.getTransactionCount(sender_address, 'pending'),
+                        'nonce': nonce,
                         'from': sender_address}
 
         # Aggregate

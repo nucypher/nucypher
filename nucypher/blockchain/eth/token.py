@@ -18,13 +18,15 @@ import random
 from _pydecimal import Decimal
 from collections import UserList
 from enum import Enum
+from typing import Callable, Dict, Union, List
 
 import maya
-from constant_sorrow.constants import (EMPTY_STAKING_SLOT, NEW_STAKE, NOT_STAKING, NO_STAKING_RECEIPT,
-                                       UNKNOWN_WORKER_STATUS)
+import random
+from constant_sorrow.constants import (EMPTY_STAKING_SLOT, NEW_STAKE, NOT_STAKING)
 from eth_utils import currency, is_checksum_address
+from hexbytes.main import HexBytes
 from twisted.internet import reactor, task
-from typing import Callable, Dict, Union
+from web3.exceptions import TransactionNotFound
 
 from nucypher.blockchain.eth.agents import ContractAgency, StakingEscrowAgent
 from nucypher.blockchain.eth.decorators import validate_checksum_address
@@ -539,6 +541,7 @@ class WorkTracker:
         self._tracking_task = task.LoopingCall(self._do_work)
         self._tracking_task.clock = self.CLOCK
 
+        self.__pending = dict()  # TODO: Prime with pending worker transactions
         self.__requirement = None
         self.__current_period = None
         self.__start_time = NOT_STAKING
@@ -597,21 +600,76 @@ class WorkTracker:
             self.log.warn('Unhandled error during work tracking: {failure.getTraceback()!r}',
                           failure=failure)
 
-    def __check_work_requirement(self) -> bool:
+    def __work_requirement_is_satisfied(self) -> bool:
         # TODO: Check for stake expiration and exit
         if self.__requirement is None:
             return True
-        try:
-            r = self.__requirement()
-            if not isinstance(r, bool):
-                raise ValueError(f"'requirement' must return a boolean.")
-        except TypeError:
-            raise ValueError(f"'requirement' must be a callable.")
+        r = self.__requirement()
+        if not isinstance(r, bool):
+            raise ValueError(f"'requirement' must return a boolean.")
         return r
 
-    def _do_work(self) -> None:
+    @property
+    def pending(self) -> Dict[int, HexBytes]:
+        return self.__pending.copy()
 
-        # Randomize the task interval over time, within bounds.
+    def __track_pending_commitments(self, current_block_number: int) -> Dict[int, HexBytes]:
+
+        if not self.__pending:
+            return dict()  # No transactions tracked
+
+        unmined_transactions = dict()
+        pending_transactions = self.pending.items()    # note: this must be performed non-mutatively
+
+        for transaction_block_number, txhash in pending_transactions:
+            try:
+                self.worker.client.get_transaction(transaction_hash=txhash)
+            except TransactionNotFound:
+                unmined_transactions[current_block_number] = txhash  # mark as unmined - Keep tracking it for now
+                continue
+            else:
+                confirmations = current_block_number - transaction_block_number
+                self.log.info(f'Commitment transaction confirmed {confirmations} confirmations - {txhash.hex()}')
+                del self.__pending[transaction_block_number]
+        if unmined_transactions:
+            pluralize = "s" if len(unmined_transactions) > 1 else ""
+            self.log.info(f'{len(unmined_transactions)} pending commitment transaction{pluralize} detected.')
+        return unmined_transactions
+
+    def _do_work(self) -> None:
+        """Async working task for Ursula"""
+
+        # TODO: Move this to another async task?
+
+        current_block = self.worker.client.w3.eth.getBlock('latest')
+        current_block_number = current_block.blockNumber
+
+        # alt approach
+        # external tracking
+        # pending_block = self.worker.client.w3.eth.getBlock('pending', full_transactions=True)
+        # pending_block_transactions = pending_block.transactions
+        # pending_worker_transactions = [tx for tx in pending_block_transactions
+        #                                if tx['from'] == self.worker.checksum_address]
+
+        # self-tracking
+        unmined_transactions = self.__track_pending_commitments(current_block_number=current_block_number)
+        if unmined_transactions:
+            block, txhash = list(self.pending.items())[0]
+            self.log.info(f'Waiting for pending commitment transaction to be mined ({txhash}).')
+
+            # TODO: If the transaction is still not mined after threshold number of blocks
+            #       follow-up - possibly issue a replacement transaction?
+            pending_duration = current_block - block
+            if pending_duration > 100:
+                pass
+
+            # while there are known pending transactions, remain in fast interval mode
+            self._tracking_task.interval = self.INTERVAL_FLOOR
+
+            # do not commit this iteration
+            return
+
+        # Randomize the next task interval over time, within bounds.
         self._tracking_task.interval = self.random_interval()
 
         # TODO: #1515 Shut down at end of terminal stake
@@ -620,28 +678,33 @@ class WorkTracker:
         onchain_period = self.staking_agent.get_current_period()  # < -- Read from contract
         if self.current_period != onchain_period:
             self.__current_period = onchain_period
-            # self.worker.stakes.refresh()  # TODO: #1517 Track stakes for fast access to terminal period.
+
+            # TODO: #1515 and #1517 - Shut down at end of terminal stake
+            # This slows down tests substantially and adds additional
+            # RPC calls, but might be acceptable in production
+            # self.worker.stakes.refresh()
 
         # Measure working interval
         interval = onchain_period - self.worker.last_committed_period
         if interval < 0:
             return  # No need to commit to this period.  Save the gas.
         if interval > 0:
-            # TODO: #1516 Follow-up actions for downtime
+            # TODO: #1516 Follow-up actions for missed commitments
             self.log.warn(f"MISSED COMMITMENTS - {interval} missed staking commitments detected.")
 
         # Only perform work this round if the requirements are met
-        if not self.__check_work_requirement():
+        if not self.__work_requirement_is_satisfied():
             self.log.warn(f'COMMIT PREVENTED (callable: "{self.__requirement.__name__}") - '
                           f'There are unmet commit requirements.')
-            # TODO: Follow-up actions for downtime
+            # TODO: Follow-up actions for failed requirement calls
             return
 
         # Make a Commitment
         self.log.info("Made a commitment to period {}".format(self.current_period))
         transacting_power = self.worker.transacting_power
         with transacting_power:
-            self.worker.commit_to_next_period(fire_and_forget=True)  # < --- blockchain WRITE | Do not wait for receipt
+            txhash = self.worker.commit_to_next_period(fire_and_forget=True)  # < --- blockchain WRITE
+            self.__pending[current_block] = txhash  # track this transaction
 
 
 class StakeList(UserList):
