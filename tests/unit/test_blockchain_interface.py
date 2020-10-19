@@ -17,17 +17,13 @@
 from web3.gas_strategies import time_based
 
 from nucypher.blockchain.eth.interfaces import BlockchainInterface
+from nucypher.utilities.gas_strategies import WEB3_GAS_STRATEGIES
 
 
 def test_get_gas_strategy():
 
     # Testing Web3's bundled time-based gas strategies
-    bundled_gas_strategies = {'glacial': time_based.glacial_gas_price_strategy,  # 24h
-                              'slow': time_based.slow_gas_price_strategy,  # 1h
-                              'medium': time_based.medium_gas_price_strategy,  # 5m
-                              'fast': time_based.fast_gas_price_strategy  # 60s
-                              }
-    for gas_strategy_name, expected_gas_strategy in bundled_gas_strategies.items():
+    for gas_strategy_name, expected_gas_strategy in WEB3_GAS_STRATEGIES.items():
         gas_strategy = BlockchainInterface.get_gas_strategy(gas_strategy_name)
         assert expected_gas_strategy == gas_strategy
         assert callable(gas_strategy)
@@ -38,6 +34,6 @@ def test_get_gas_strategy():
 
     # Passing None should retrieve the default gas strategy
     assert BlockchainInterface.DEFAULT_GAS_STRATEGY == 'fast'
-    default = bundled_gas_strategies[BlockchainInterface.DEFAULT_GAS_STRATEGY]
+    default = WEB3_GAS_STRATEGIES[BlockchainInterface.DEFAULT_GAS_STRATEGY]
     gas_strategy = BlockchainInterface.get_gas_strategy()
     assert default == gas_strategy

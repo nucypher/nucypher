@@ -14,13 +14,27 @@
  You should have received a copy of the GNU Affero General Public License
  along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
+import datetime
+import functools
+from typing import Callable
 
 from web3 import Web3
+from web3.exceptions import ValidationError
+from web3.gas_strategies import time_based
 from web3.gas_strategies.rpc import rpc_gas_price_strategy
 from web3.types import Wei, TxParams
 
-from nucypher.utilities import EtherchainGasPriceDatafeed, UpvestGasPriceDatafeed
-from nucypher.utilities.datafeeds import Datafeed
+from nucypher.utilities.datafeeds import Datafeed, EtherchainGasPriceDatafeed, UpvestGasPriceDatafeed
+
+
+class GasStrategyError(RuntimeError):
+    """
+    Generic exception when retrieving a gas price using a gas strategy
+    """
+
+#
+# Datafeed gas strategies
+#
 
 
 def datafeed_fallback_gas_price_strategy(web3: Web3, transaction_params: TxParams = None) -> Wei:
@@ -37,3 +51,36 @@ def datafeed_fallback_gas_price_strategy(web3: Web3, transaction_params: TxParam
     else:
         # Worst-case scenario, we get the price from the ETH node itself
         return rpc_gas_price_strategy(web3, transaction_params)
+
+#
+# Web3 gas strategies
+#
+
+
+__RAW_WEB3_GAS_STRATEGIES = {'glacial': time_based.glacial_gas_price_strategy,  # 24h
+                             'slow': time_based.slow_gas_price_strategy,  # 1h
+                             'medium': time_based.medium_gas_price_strategy,  # 5m
+                             'fast': time_based.fast_gas_price_strategy  # 60s
+                             }
+
+
+def wrap_web3_gas_strategy(web3_gas_strategy: Callable):
+    """
+    Enriches the web3 exceptions thrown by gas strategies
+    """
+    @functools.wraps(web3_gas_strategy)
+    def _wrapper(*args, **kwargs):
+        try:
+            return web3_gas_strategy(*args, **kwargs)
+        except ValidationError as e:
+            raise GasStrategyError("Calling the web3 gas strategy failed, probably due to an unsynced chain.") from e
+    return _wrapper
+
+
+WEB3_GAS_STRATEGIES = {speed: wrap_web3_gas_strategy(strategy) for speed, strategy in __RAW_WEB3_GAS_STRATEGIES.items()}
+
+EXPECTED_CONFIRMATION_TIME_IN_SECONDS = {'glacial': int(datetime.timedelta(hours=24).total_seconds()),  # 24h
+                                         'slow': int(datetime.timedelta(hours=1).total_seconds()),  # 1h
+                                         'medium': int(datetime.timedelta(minutes=5).total_seconds()),  # 5m
+                                         'fast': 60  # 60s
+                                         }

@@ -60,7 +60,7 @@ from nucypher.blockchain.eth.sol.compile import SolidityCompiler
 from nucypher.blockchain.eth.utils import get_transaction_name, prettify_eth_amount
 from nucypher.characters.control.emitters import JSONRPCStdoutEmitter, StdoutEmitter
 from nucypher.utilities.ethereum import encode_constructor_arguments
-from nucypher.utilities.gas_strategies import datafeed_fallback_gas_price_strategy
+from nucypher.utilities.gas_strategies import datafeed_fallback_gas_price_strategy, WEB3_GAS_STRATEGIES
 from nucypher.utilities.logging import GlobalLoggerSettings, Logger
 
 
@@ -77,11 +77,7 @@ class BlockchainInterface:
     TIMEOUT = 600  # seconds  # TODO: Correlate with the gas strategy - #2070
 
     DEFAULT_GAS_STRATEGY = 'fast'
-    GAS_STRATEGIES = {'glacial': time_based.glacial_gas_price_strategy,     # 24h
-                      'slow': time_based.slow_gas_price_strategy,           # 1h
-                      'medium': time_based.medium_gas_price_strategy,       # 5m
-                      'fast': time_based.fast_gas_price_strategy            # 60s
-                      }
+    GAS_STRATEGIES = WEB3_GAS_STRATEGIES
 
     process = NO_PROVIDER_PROCESS.bool_value(False)
     Web3 = Web3

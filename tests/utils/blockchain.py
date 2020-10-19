@@ -32,6 +32,7 @@ from nucypher.blockchain.eth.sol.compile import SolidityCompiler
 from nucypher.blockchain.eth.token import NU
 from nucypher.blockchain.eth.utils import epoch_to_period
 from nucypher.crypto.powers import TransactingPower
+from nucypher.utilities.gas_strategies import EXPECTED_CONFIRMATION_TIME_IN_SECONDS
 from nucypher.utilities.logging import Logger
 
 from tests.constants import (
@@ -109,6 +110,8 @@ class TesterBlockchain(BlockchainDeployerInterface):
         if not test_accounts:
             test_accounts = self._default_test_accounts
         self.free_transactions = free_transactions
+
+        EXPECTED_CONFIRMATION_TIME_IN_SECONDS['free'] = 5  # Just some upper-limit
 
         if compiler:
             TesterBlockchain._compiler = compiler
