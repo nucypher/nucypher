@@ -493,8 +493,7 @@ class BlockchainInterface:
                       use_pending_nonce: bool = True,
                       ) -> dict:
 
-        block_identifier = 'pending' if use_pending_nonce else 'latest'
-        nonce = self.client.w3.eth.getTransactionCount(sender_address, block_identifier)
+        nonce = self.client.get_transaction_count(account=sender_address, pending=use_pending_nonce)
         base_payload = {'chainId': int(self.client.chain_id),
                         'nonce': nonce,
                         'from': sender_address}
