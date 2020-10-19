@@ -171,11 +171,8 @@ def mock_stdin(mocker):
 
 
 @pytest.fixture(scope='module', autouse=True)
-def mock_testerchain() -> MockBlockchain:
-    BlockchainInterfaceFactory._interfaces = dict()
-    testerchain = _make_testerchain(mock_backend=True)
-    BlockchainInterfaceFactory.register_interface(interface=testerchain)
-    yield testerchain
+def mock_testerchain(_mock_testerchain) -> MockBlockchain:
+    yield _mock_testerchain
 
 
 @pytest.fixture(scope='module')
