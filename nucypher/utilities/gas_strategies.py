@@ -57,10 +57,9 @@ def datafeed_fallback_gas_price_strategy(web3: Web3, transaction_params: TxParam
 #
 
 
-__RAW_WEB3_GAS_STRATEGIES = {# 'glacial': time_based.glacial_gas_price_strategy,  # 24h  # Glacial strategy is just a risk
-                             'slow': time_based.slow_gas_price_strategy,  # 1h
+__RAW_WEB3_GAS_STRATEGIES = {'slow': time_based.slow_gas_price_strategy,      # 1h
                              'medium': time_based.medium_gas_price_strategy,  # 5m
-                             'fast': time_based.fast_gas_price_strategy  # 60s
+                             'fast': time_based.fast_gas_price_strategy       # 60s
                              }
 
 
@@ -79,8 +78,8 @@ def wrap_web3_gas_strategy(web3_gas_strategy: Callable):
 
 WEB3_GAS_STRATEGIES = {speed: wrap_web3_gas_strategy(strategy) for speed, strategy in __RAW_WEB3_GAS_STRATEGIES.items()}
 
-EXPECTED_CONFIRMATION_TIME_IN_SECONDS = {# 'glacial': int(datetime.timedelta(hours=24).total_seconds()),  # 24h  # Glacial strategy is just a risk
-                                         'slow': int(datetime.timedelta(hours=1).total_seconds()),  # 1h
-                                         'medium': int(datetime.timedelta(minutes=5).total_seconds()),  # 5m
-                                         'fast': 60  # 60s
-                                         }
+EXPECTED_CONFIRMATION_TIME_IN_SECONDS = {
+    'slow': int(datetime.timedelta(hours=1).total_seconds()),
+    'medium': int(datetime.timedelta(minutes=5).total_seconds()),
+    'fast': 60
+}

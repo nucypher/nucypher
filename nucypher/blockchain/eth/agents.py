@@ -578,7 +578,7 @@ class StakingEscrowAgent(EthereumContractAgent):
     def commit_to_next_period(self,
                               worker_address: ChecksumAddress,
                               fire_and_forget: bool = True,  # TODO: make fire_and_forget required? See #2385 too.
-                              ) -> TxReceipt:
+                              ) -> Union[TxReceipt, HexBytes]:
         """
         For each period that the worker makes a commitment, the staker is rewarded.
         """
