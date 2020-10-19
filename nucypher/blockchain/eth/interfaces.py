@@ -514,6 +514,7 @@ class BlockchainInterface:
                                    payload: dict = None,
                                    transaction_gas_limit: Optional[int] = None,
                                    gas_estimation_multiplier: Optional[float] = None,
+                                   use_pending_nonce: Optional[bool] = None,
                                    ) -> dict:
 
         # Sanity checks for the gas estimation multiplier
@@ -526,7 +527,8 @@ class BlockchainInterface:
 
         payload = self.build_payload(sender_address=sender_address,
                                      payload=payload,
-                                     transaction_gas_limit=transaction_gas_limit)
+                                     transaction_gas_limit=transaction_gas_limit,
+                                     use_pending_nonce=use_pending_nonce)
         self.__log_transaction(transaction_dict=payload, contract_function=contract_function)
         try:
             transaction_dict = contract_function.buildTransaction(payload)  # Gas estimation occurs here
@@ -652,17 +654,24 @@ class BlockchainInterface:
                          transaction_gas_limit: Optional[int] = None,
                          gas_estimation_multiplier: Optional[float] = None,
                          confirmations: int = 0,
-                         fire_and_forget: bool = False  # do not wait for receipt.
+                         fire_and_forget: bool = False,  # do not wait for receipt.  See #2385
                          ) -> dict:
 
-        if fire_and_forget and confirmations > 0:
-            raise ValueError('Transaction Prevented: Cannot use confirmations and fire_and_forget options together.')
+        if fire_and_forget:
+            if confirmations > 0:
+                raise ValueError("Transaction Prevented: "
+                                 "Cannot use 'confirmations' and 'fire_and_forget' options together.")
+
+            use_pending_nonce = False  # TODO: #2385
+        else:
+            use_pending_nonce = None  # TODO: #2385
 
         transaction = self.build_contract_transaction(contract_function=contract_function,
                                                       sender_address=sender_address,
                                                       payload=payload,
                                                       transaction_gas_limit=transaction_gas_limit,
-                                                      gas_estimation_multiplier=gas_estimation_multiplier)
+                                                      gas_estimation_multiplier=gas_estimation_multiplier,
+                                                      use_pending_nonce=use_pending_nonce)
 
         # Get transaction name
         try:
