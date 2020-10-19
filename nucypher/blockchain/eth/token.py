@@ -621,16 +621,17 @@ class WorkTracker:
         unmined_transactions = dict()
         pending_transactions = self.pending.items()    # note: this must be performed non-mutatively
 
-        for transaction_block_number, txhash in pending_transactions:
+        for tx_firing_block_number, txhash in pending_transactions:
             try:
-                self.worker.client.get_transaction(transaction_hash=txhash)
+                confirmed_tx = self.worker.client.get_transaction(transaction_hash=txhash)
             except TransactionNotFound:
                 unmined_transactions[current_block_number] = txhash  # mark as unmined - Keep tracking it for now
                 continue
             else:
-                confirmations = current_block_number - transaction_block_number
-                self.log.info(f'Commitment transaction confirmed {confirmations} confirmations - {txhash.hex()}')
-                del self.__pending[transaction_block_number]
+                confirmation_block_number = confirmed_tx['blockNumber']
+                confirmations = confirmation_block_number - tx_firing_block_number
+                self.log.info(f'Commitment transaction {txhash.hex()[:10]} confirmed: {confirmations} confirmations')
+                del self.__pending[tx_firing_block_number]
         if unmined_transactions:
             pluralize = "s" if len(unmined_transactions) > 1 else ""
             self.log.info(f'{len(unmined_transactions)} pending commitment transaction{pluralize} detected.')
@@ -641,8 +642,7 @@ class WorkTracker:
 
         # TODO: Move this to another async task?
 
-        current_block = self.worker.client.w3.eth.getBlock('latest')
-        current_block_number = current_block.blockNumber
+        current_block_number = self.worker.client.block_number
 
         # alt approach
         # external tracking
@@ -654,12 +654,12 @@ class WorkTracker:
         # self-tracking
         unmined_transactions = self.__track_pending_commitments(current_block_number=current_block_number)
         if unmined_transactions:
-            block, txhash = list(self.pending.items())[0]
+            block_number, txhash = list(self.pending.items())[0]
             self.log.info(f'Waiting for pending commitment transaction to be mined ({txhash}).')
 
             # TODO: If the transaction is still not mined after threshold number of blocks
             #       follow-up - possibly issue a replacement transaction?
-            pending_duration = current_block - block
+            pending_duration = current_block_number - block_number
             if pending_duration > 100:
                 pass
 
@@ -704,7 +704,7 @@ class WorkTracker:
         transacting_power = self.worker.transacting_power
         with transacting_power:
             txhash = self.worker.commit_to_next_period(fire_and_forget=True)  # < --- blockchain WRITE
-            self.__pending[current_block] = txhash  # track this transaction
+            self.__pending[current_block_number] = txhash  # track this transaction
 
 
 class StakeList(UserList):
