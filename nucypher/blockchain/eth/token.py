@@ -549,8 +549,6 @@ class WorkTracker:
         self.client = self.staking_agent.blockchain.client
 
         self.gas_strategy = self.staking_agent.blockchain.gas_strategy
-        expected_time = EXPECTED_CONFIRMATION_TIME_IN_SECONDS[self.gas_strategy]
-        self.max_confirmation_time = expected_time * (1 + self.ALLOWED_DEVIATION)
 
         self._tracking_task = task.LoopingCall(self._do_work)
         self._tracking_task.clock = self.CLOCK
@@ -569,6 +567,11 @@ class WorkTracker:
     @property
     def current_period(self):
         return self.__current_period
+
+    def max_confirmation_time(self) -> int:
+        expected_time = EXPECTED_CONFIRMATION_TIME_IN_SECONDS[self.gas_strategy]
+        result = expected_time * (1 + self.ALLOWED_DEVIATION)
+        return result
 
     def stop(self) -> None:
         if self._tracking_task.running:
@@ -678,12 +681,12 @@ class WorkTracker:
         # (based on current gas strategy) issue a replacement transaction.
         wait_time_in_blocks = current_block_number - tx_firing_block_number
         wait_time_in_seconds = wait_time_in_blocks * AVERAGE_BLOCK_TIME_IN_SECONDS
-        if wait_time_in_seconds > self.max_confirmation_time:
+        if wait_time_in_seconds > self.max_confirmation_time():
             if txhash is UNTRACKED_PENDING_TRANSACTION:
                 # TODO: Detect if this untracked pending transaction is a commitment transaction at all.
                 message = f"We've an untracked pending transaction. Issuing a replacement transaction."
             else:
-                message = f"We've waited for {wait_time_in_seconds}, but max time is {self.max_confirmation_time}" \
+                message = f"We've waited for {wait_time_in_seconds}, but max time is {self.max_confirmation_time()}" \
                           f" for {self.gas_strategy} gas strategy. Issuing a replacement transaction."
             self.log.info(message)
             replacement_txhash = self.__fire_commitment()
