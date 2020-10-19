@@ -73,7 +73,7 @@ from nucypher.cli.literature import (
     INSUFFICIENT_BALANCE_TO_CREATE, PROMPT_STAKE_CREATE_VALUE, PROMPT_STAKE_CREATE_LOCK_PERIODS,
     ONLY_DISPLAYING_MERGEABLE_STAKES_NOTE, CONFIRM_MERGE, SUCCESSFUL_STAKES_MERGE, SUCCESSFUL_ENABLE_SNAPSHOTS,
     SUCCESSFUL_DISABLE_SNAPSHOTS, CONFIRM_ENABLE_SNAPSHOTS,
-    CONFIRM_STAKE_USE_UNLOCKED, CONFIRM_REMOVE, SUCCESSFUL_STAKE_REMOVING)
+    CONFIRM_STAKE_USE_UNLOCKED, CONFIRM_REMOVE_SUBSTAKE, SUCCESSFUL_STAKE_REMOVAL)
 from nucypher.cli.options import (
     group_options,
     option_config_file,
@@ -1099,7 +1099,7 @@ def remove_unused(general_config: GroupGeneralConfig,
         current_stake = select_stake(staker=STAKEHOLDER, emitter=emitter, stakes_status=Stake.Status.INACTIVE)
 
     if not force:
-        click.confirm(CONFIRM_REMOVE.format(stake_index=current_stake.index), abort=True)
+        click.confirm(CONFIRM_REMOVE_SUBSTAKE.format(stake_index=current_stake.index), abort=True)
 
     # Authenticate
     password = get_password(stakeholder=STAKEHOLDER,
@@ -1118,7 +1118,7 @@ def remove_unused(general_config: GroupGeneralConfig,
     receipt = STAKEHOLDER.remove_unused_stake(stake=current_stake)
 
     # Report
-    emitter.echo(SUCCESSFUL_STAKE_REMOVING, color='green', verbosity=1)
+    emitter.echo(SUCCESSFUL_STAKE_REMOVAL, color='green', verbosity=1)
     paint_receipt_summary(emitter=emitter, receipt=receipt, chain_name=blockchain.client.chain_name)
     paint_stakes(emitter=emitter, staker=STAKEHOLDER)
 

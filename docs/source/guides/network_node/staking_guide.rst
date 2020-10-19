@@ -493,7 +493,8 @@ This can help to decrease gas consumption in some operations. To merge two stake
 Remove unused sub-stake
 ***********************
 
-Unused sub-stakes still cost some amount of gas while calculations. 
+Merging or editing sub-stakes can lead to 'unused', inactive sub-stakes remaining on-chain. 
+These unused sub-stakes add unnecessary gas costs to daily operations.
 To remove unused sub-stake:
 
 .. code:: bash
