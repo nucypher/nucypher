@@ -676,6 +676,11 @@ class WorkTracker:
 
         return bool(self.__pending)
 
+    def __fire_replacement_commitment(self, current_block_number: int, tx_firing_block_number: int) -> None:
+        replacement_txhash = self.__fire_commitment()  # replace
+        self.__pending[current_block_number] = replacement_txhash  # track this transaction
+        del self.__pending[tx_firing_block_number]  # assume our original TX is stuck
+
     def __handle_replacement_commitment(self, current_block_number: int) -> None:
         tx_firing_block_number, txhash = list(sorted(self.pending.items()))[0]
         self.log.info(f'Waiting for pending commitment transaction to be mined ({txhash}).')
@@ -692,9 +697,9 @@ class WorkTracker:
                 message = f"We've waited for {wait_time_in_seconds}, but max time is {self.max_confirmation_time()}" \
                           f" for {self.gas_strategy} gas strategy. Issuing a replacement transaction."
             self.log.info(message)
-            replacement_txhash = self.__fire_commitment()              # replace
-            self.__pending[current_block_number] = replacement_txhash  # track this transaction
-            del self.__pending[tx_firing_block_number]                 # assume our original TX is stuck
+            self.__fire_replacement_commitment(current_block_number=current_block_number,
+                                               tx_firing_block_number=tx_firing_block_number)
+
 
     def _do_work(self) -> None:
         """

@@ -52,15 +52,16 @@ def datafeed_fallback_gas_price_strategy(web3: Web3, transaction_params: TxParam
         # Worst-case scenario, we get the price from the ETH node itself
         return rpc_gas_price_strategy(web3, transaction_params)
 
+
 #
 # Web3 gas strategies
 #
 
-
-__RAW_WEB3_GAS_STRATEGIES = {'slow': time_based.slow_gas_price_strategy,      # 1h
-                             'medium': time_based.medium_gas_price_strategy,  # 5m
-                             'fast': time_based.fast_gas_price_strategy       # 60s
-                             }
+__RAW_WEB3_GAS_STRATEGIES = {
+    'slow': time_based.slow_gas_price_strategy,      # 1h
+    'medium': time_based.medium_gas_price_strategy,  # 5m
+    'fast': time_based.fast_gas_price_strategy       # 60s
+}
 
 
 def wrap_web3_gas_strategy(web3_gas_strategy: Callable):
