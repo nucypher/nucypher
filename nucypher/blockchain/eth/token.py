@@ -661,20 +661,20 @@ class WorkTracker:
                 confirmations = confirmation_block_number - tx_firing_block_number
                 self.log.info(f'Commitment transaction {txhash.hex()[:10]} confirmed: {confirmations} confirmations')
                 del self.__pending[tx_firing_block_number]
+
         if unmined_transactions:
             pluralize = "s" if len(unmined_transactions) > 1 else ""
             self.log.info(f'{len(unmined_transactions)} pending commitment transaction{pluralize} detected.')
-            return bool(unmined_transactions)
 
-        tx_tracker_is_ok = self.__tracking_consistency_check()
-        if not tx_tracker_is_ok:
+        inconsistency = self.__tracking_consistency_check() is False
+        if inconsistency:
             # If we detect there's a mismatch between the number of internally tracked and
             # pending block transactions, create a special pending TX that accounts for this.
             # TODO: Detect if this untracked pending transaction is a commitment transaction at all.
             self.__pending[0] = UNTRACKED_PENDING_TRANSACTION
             return True
-        if not self.__pending:
-            return False
+
+        return bool(self.__pending)
 
     def __handle_replacement_commitment(self, current_block_number: int) -> None:
         tx_firing_block_number, txhash = list(sorted(self.pending.items()))[0]
@@ -692,9 +692,9 @@ class WorkTracker:
                 message = f"We've waited for {wait_time_in_seconds}, but max time is {self.max_confirmation_time()}" \
                           f" for {self.gas_strategy} gas strategy. Issuing a replacement transaction."
             self.log.info(message)
-            replacement_txhash = self.__fire_commitment()
+            replacement_txhash = self.__fire_commitment()              # replace
             self.__pending[current_block_number] = replacement_txhash  # track this transaction
-            del self.__pending[tx_firing_block_number]  # Assume our original TX is stuck
+            del self.__pending[tx_firing_block_number]                 # assume our original TX is stuck
 
     def _do_work(self) -> None:
         """
