@@ -27,10 +27,14 @@ from nucypher.blockchain.eth.agents import Agent, ContractAgency, EthereumContra
 from nucypher.blockchain.eth.constants import NULL_ADDRESS
 from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
 from tests.constants import MOCK_PROVIDER_URI
-from tests.utils.blockchain import free_gas_price_strategy
+from tests.mock.interfaces import MockBlockchain
 
-MOCK_TESTERCHAIN = BlockchainInterfaceFactory.get_or_create_interface(provider_uri=MOCK_PROVIDER_URI,
-                                                                      gas_strategy=free_gas_price_strategy)
+MOCK_TESTERCHAIN = MockBlockchain()
+CACHED_MOCK_TESTERCHAIN = BlockchainInterfaceFactory.CachedInterface(interface=MOCK_TESTERCHAIN,
+                                                                     sync=False,
+                                                                     emitter=None)
+BlockchainInterfaceFactory._interfaces[MOCK_PROVIDER_URI] = CACHED_MOCK_TESTERCHAIN
+
 CURRENT_BLOCK = MOCK_TESTERCHAIN.w3.eth.getBlock('latest')
 
 
