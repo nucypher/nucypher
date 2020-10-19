@@ -231,7 +231,7 @@ class BlockchainInterface:
         self.client = NO_BLOCKCHAIN_CONNECTION         # type: EthereumClient
         self.transacting_power = READ_ONLY_INTERFACE
         self.is_light = light
-        self.gas_strategy = self.get_gas_strategy(gas_strategy)
+        self.gas_strategy = gas_strategy
 
     def __repr__(self):
         r = '{name}({uri})'.format(name=self.__class__.__name__, uri=self.provider_uri)
@@ -285,8 +285,9 @@ class BlockchainInterface:
         # so we use external gas price oracles, instead (see #2139)
         if isinstance(self.client, InfuraClient):
             gas_strategy = datafeed_fallback_gas_price_strategy
+            self.gas_strategy = 'fast'  # FIXME
         else:
-            gas_strategy = self.gas_strategy
+            gas_strategy = self.get_gas_strategy(self.gas_strategy)
         self.client.set_gas_strategy(gas_strategy=gas_strategy)
         gwei_gas_price = Web3.fromWei(self.client.gas_price_for_transaction(), 'gwei')
         self.log.debug(f"Currently, our gas strategy returns a gas price of {gwei_gas_price} gwei")
