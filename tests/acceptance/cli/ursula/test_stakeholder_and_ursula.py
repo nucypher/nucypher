@@ -286,6 +286,33 @@ def test_merge_stakes(click_runner,
     assert stakes[selection_2].last_period == 1
 
 
+def test_remove_unused(click_runner,
+                       stakeholder_configuration_file_location,
+                       token_economics,
+                       testerchain,
+                       agency_local_registry,
+                       manual_staker,
+                       stake_value):
+
+    staking_agent = ContractAgency.get_agent(StakingEscrowAgent, registry=agency_local_registry)
+    original_stakes = list(staking_agent.get_all_stakes(staker_address=manual_staker))
+
+    selection = 2
+    assert original_stakes[selection].last_period == 1
+
+    stake_args = ('stake', 'remove-unused',
+                  '--config-file', stakeholder_configuration_file_location,
+                  '--staking-address', manual_staker,
+                  '--index', selection,
+                  '--force')
+    user_input = f'0\n' + f'{INSECURE_DEVELOPMENT_PASSWORD}\n' + YES_ENTER
+    result = click_runner.invoke(nucypher_cli, stake_args, input=user_input, catch_exceptions=False)
+    assert result.exit_code == 0
+
+    stakes = list(staking_agent.get_all_stakes(staker_address=manual_staker))
+    assert len(stakes) == len(original_stakes) - 1
+
+
 def test_stake_bond_worker(click_runner,
                            testerchain,
                            agency_local_registry,

@@ -271,6 +271,10 @@ CONFIRM_MERGE = "Publish merging of {stake_index_1} and {stake_index_2} stakes?"
 
 SUCCESSFUL_STAKES_MERGE = 'Successfully Merged Stakes'
 
+CONFIRM_REMOVE = "Publish removing of {stake_index} stake?"
+
+SUCCESSFUL_STAKE_REMOVING = 'Successfully Removed Stake'
+
 #
 # Rewards
 #
