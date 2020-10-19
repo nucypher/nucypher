@@ -22,7 +22,12 @@ from typing import Callable, Dict, Union, List
 
 import maya
 import random
-from constant_sorrow.constants import (EMPTY_STAKING_SLOT, NEW_STAKE, NOT_STAKING)
+from constant_sorrow.constants import (
+    EMPTY_STAKING_SLOT,
+    NEW_STAKE,
+    NOT_STAKING,
+    UNTRACKED_PENDING_TRANSACTION
+)
 from eth_utils import currency, is_checksum_address
 from hexbytes.main import HexBytes
 from twisted.internet import reactor, task
@@ -621,19 +626,38 @@ class WorkTracker:
     def pending(self) -> Dict[int, HexBytes]:
         return self.__pending.copy()
 
-    def __track_pending_commitments(self, current_block_number: int) -> Dict[int, HexBytes]:
+    def __track_pending_commitments(self) -> bool:
+
+        worker_address = self.worker.transacting_power.account  # FIXME: Why is worker_address private in Worker?
+        tx_count_pending = self.worker.client.get_transaction_count(account=worker_address, pending=True)
+        tx_count_latest = self.worker.client.get_transaction_count(account=worker_address, pending=False)
+
+        txs_in_mempool = tx_count_pending - tx_count_latest
+
+        if txs_in_mempool > len(self.__pending):  # We're not tracking all pending TXs
+            tx_tracker_is_ok = False
+        elif txs_in_mempool < len(self.__pending):  # Our tracking is somehow outdated
+            tx_tracker_is_ok = False  # TODO: Not sure what to do in this case, but let's do this for the moment
+        else:
+            tx_tracker_is_ok = True
+
+        if not tx_tracker_is_ok:
+            # If we detect there's a mismatch between the number of tracked and existing pending transactions,
+            # we create a special pending TX that accounts for this.
+            self.__pending[0] = UNTRACKED_PENDING_TRANSACTION
+            return True
 
         if not self.__pending:
-            return dict()  # No transactions tracked
+            return False
 
-        unmined_transactions = dict()
+        unmined_transactions = list()
         pending_transactions = self.pending.items()    # note: this must be performed non-mutatively
 
-        for tx_firing_block_number, txhash in pending_transactions:
+        for tx_firing_block_number, txhash in sorted(pending_transactions):
             try:
                 confirmed_tx = self.worker.client.get_transaction(transaction_hash=txhash)
             except TransactionNotFound:
-                unmined_transactions[current_block_number] = txhash  # mark as unmined - Keep tracking it for now
+                unmined_transactions.append(txhash)  # mark as unmined - Keep tracking it for now
                 continue
             else:
                 confirmation_block_number = confirmed_tx['blockNumber']
@@ -643,7 +667,7 @@ class WorkTracker:
         if unmined_transactions:
             pluralize = "s" if len(unmined_transactions) > 1 else ""
             self.log.info(f'{len(unmined_transactions)} pending commitment transaction{pluralize} detected.')
-        return unmined_transactions
+        return bool(unmined_transactions)
 
     def _do_work(self) -> None:
         """Async working task for Ursula"""
@@ -652,17 +676,10 @@ class WorkTracker:
 
         current_block_number = self.worker.client.block_number
 
-        # alt approach
-        # external tracking
-        # pending_block = self.worker.client.w3.eth.getBlock('pending', full_transactions=True)
-        # pending_block_transactions = pending_block.transactions
-        # pending_worker_transactions = [tx for tx in pending_block_transactions
-        #                                if tx['from'] == self.worker.checksum_address]
-
         # self-tracking
-        unmined_transactions = self.__track_pending_commitments(current_block_number=current_block_number)
+        unmined_transactions = self.__track_pending_commitments()
         if unmined_transactions:
-            tx_firing_block_number, txhash = list(self.pending.items())[0]
+            tx_firing_block_number, txhash = list(sorted(self.pending.items()))[0]
             self.log.info(f'Waiting for pending commitment transaction to be mined ({txhash}).')
 
             # If the transaction is still not mined after a max confirmation time (based on current gas strategy),
@@ -670,8 +687,12 @@ class WorkTracker:
             wait_time_in_blocks = current_block_number - tx_firing_block_number
             wait_time_in_seconds = wait_time_in_blocks * AVERAGE_BLOCK_TIME_IN_SECONDS
             if wait_time_in_seconds > self.max_confirmation_time:
-                self.log.info(f"We've waited for {wait_time_in_seconds}, but max time is {self.max_confirmation_time} "
-                              f"for {self.gas_strategy} gas strategy. Issuing a replacement transaction.")
+                if txhash is UNTRACKED_PENDING_TRANSACTION:
+                    message = f"We've an untracked pending transaction. Issuing a replacement transaction."
+                else:
+                    message = f"We've waited for {wait_time_in_seconds}, but max time is {self.max_confirmation_time}" \
+                              f" for {self.gas_strategy} gas strategy. Issuing a replacement transaction."
+                self.log.info(message)
                 replacement_txhash = self.__fire_commitment()
                 self.__pending[current_block_number] = replacement_txhash  # track this transaction
                 del self.__pending[tx_firing_block_number]  # Assume our original TX is stuck
