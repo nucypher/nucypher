@@ -29,10 +29,12 @@ from twisted.internet import reactor, task
 from web3.exceptions import TransactionNotFound
 
 from nucypher.blockchain.eth.agents import ContractAgency, StakingEscrowAgent
+from nucypher.blockchain.eth.constants import AVERAGE_BLOCK_TIME_IN_SECONDS
 from nucypher.blockchain.eth.decorators import validate_checksum_address
 from nucypher.blockchain.eth.registry import BaseContractRegistry
 from nucypher.blockchain.eth.utils import datetime_at_period
 from nucypher.types import SubStakeInfo, NuNits, StakerInfo, Period
+from nucypher.utilities.gas_strategies import EXPECTED_CONFIRMATION_TIME_IN_SECONDS
 from nucypher.utilities.logging import Logger
 
 
@@ -531,12 +533,18 @@ class WorkTracker:
     INTERVAL_FLOOR = 60 * 15  # fifteen minutes
     INTERVAL_CEIL = 60 * 180  # three hours
 
+    ALLOWED_DEVIATION = 0.5  # i.e., up to +50% from the expected confirmation time
+
     def __init__(self, worker, *args, **kwargs):
 
         super().__init__(*args, **kwargs)
         self.log = Logger('stake-tracker')
         self.worker = worker
         self.staking_agent = self.worker.staking_agent
+
+        self.gas_strategy = self.staking_agent.blockchain.gas_strategy
+        expected_time = EXPECTED_CONFIRMATION_TIME_IN_SECONDS[self.gas_strategy]
+        self.max_confirmation_time = expected_time * (1 + self.ALLOWED_DEVIATION)
 
         self._tracking_task = task.LoopingCall(self._do_work)
         self._tracking_task.clock = self.CLOCK
@@ -654,19 +662,22 @@ class WorkTracker:
         # self-tracking
         unmined_transactions = self.__track_pending_commitments(current_block_number=current_block_number)
         if unmined_transactions:
-            block_number, txhash = list(self.pending.items())[0]
+            tx_firing_block_number, txhash = list(self.pending.items())[0]
             self.log.info(f'Waiting for pending commitment transaction to be mined ({txhash}).')
 
-            # TODO: If the transaction is still not mined after threshold number of blocks
-            #       follow-up - possibly issue a replacement transaction?
-            pending_duration = current_block_number - block_number
-            if pending_duration > 100:
-                pass
+            # If the transaction is still not mined after a max confirmation time (based on current gas strategy),
+            # issue a replacement transaction.
+            wait_time_in_blocks = current_block_number - tx_firing_block_number
+            wait_time_in_seconds = wait_time_in_blocks * AVERAGE_BLOCK_TIME_IN_SECONDS
+            if wait_time_in_seconds > self.max_confirmation_time:
+                self.log.info(f"We've waited for {wait_time_in_seconds}, but max time is {self.max_confirmation_time} "
+                              f"for {self.gas_strategy} gas strategy. Issuing a replacement transaction.")
+                replacement_txhash = self.__fire_commitment()
+                self.__pending[current_block_number] = replacement_txhash  # track this transaction
+                del self.__pending[tx_firing_block_number]  # Assume our original TX is stuck
 
             # while there are known pending transactions, remain in fast interval mode
             self._tracking_task.interval = self.INTERVAL_FLOOR
-
-            # do not commit this iteration
             return
 
         # Randomize the next task interval over time, within bounds.
@@ -699,12 +710,16 @@ class WorkTracker:
             # TODO: Follow-up actions for failed requirement calls
             return
 
+        txhash = self.__fire_commitment(current_block_number)
+        self.__pending[current_block_number] = txhash  # track this transaction
+
+    def __fire_commitment(self):
         # Make a Commitment
-        self.log.info("Made a commitment to period {}".format(self.current_period))
         transacting_power = self.worker.transacting_power
         with transacting_power:
             txhash = self.worker.commit_to_next_period(fire_and_forget=True)  # < --- blockchain WRITE
-            self.__pending[current_block_number] = txhash  # track this transaction
+        self.log.info(f"Making a commitment to period {self.current_period} - TxHash: {txhash}")
+        return txhash
 
 
 class StakeList(UserList):
