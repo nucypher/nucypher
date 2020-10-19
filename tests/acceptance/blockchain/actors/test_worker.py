@@ -19,6 +19,7 @@ import pytest
 import pytest_twisted
 from twisted.internet import threads
 from twisted.internet.task import Clock
+from web3.middleware.simulate_unmined_transaction import unmined_receipt_simulator_middleware
 
 from nucypher.blockchain.eth.actors import Worker
 from nucypher.blockchain.eth.token import NU, WorkTracker
@@ -67,23 +68,55 @@ def test_worker_auto_commitments(mocker,
         # Start running the worker
         start_pytest_ursula_services(ursula=ursula)
 
-    def time_travel(_):
+    def advance_one_period(_):
+        print('Advancing one period')
         testerchain.time_travel(periods=1)
         clock.advance(WorkTracker.INTERVAL_CEIL + 1)
-        return clock
 
-    def verify(clock):
+    def advance_one_cycle(_):
+        print('Advancing one tracking iteration')
+        clock.advance(WorkTracker.INTERVAL_FLOOR + 1)
+
+    def pending_commitments(_):
+        print('Starting unmined transaction simulation')
+        testerchain.client.add_middleware(unmined_receipt_simulator_middleware)
+
+    def verify_unmined_commitment(_):
+        print('Verifying worker has unmined commitment transaction')
+        assert len(ursula.work_tracker.pending) == 1
+        current_period = staker.staking_agent.get_current_period()
+        assert commit_spy.call_count == current_period - initial_period + 1
+
+    def verify_confirmed(_):
+        print('Verifying worker made a commitments')
         # Verify that periods were committed on-chain automatically
         last_committed_period = staker.staking_agent.get_last_committed_period(staker_address=staker.checksum_address)
         current_period = staker.staking_agent.get_current_period()
-        assert len(ursula.work_tracker.pending) == 1, 'no pending transaction found'
         assert (last_committed_period - current_period) == 1
         assert commit_spy.call_count == current_period - initial_period + 1
 
-    # Run the callbacks
+    # Behavioural Test, like a screenplay made of legos
+
+    # Ursula commits on startup
     d = threads.deferToThread(start)
-    d.addCallback(verify)
-    for i in range(5):
-        d.addCallback(time_travel)
-        d.addCallback(verify)
+    d.addCallback(verify_confirmed)
+
+    # Ursula commits for 3 periods with no problem
+    for i in range(3):
+        d.addCallback(advance_one_period)
+        d.addCallback(verify_confirmed)
+
+    # Introduce unmined transactions
+    d.addCallback(pending_commitments)
+
+    # Ursula's commitment transaction gets stuck
+    # in the ethereum mempool for some time
+    for i in range(4):
+        d.addCallback(advance_one_cycle)
+        d.addCallback(verify_unmined_commitment)
+
+    # Ursula recovers from this situation
+    d.addCallback(advance_one_cycle)
+    d.addCallback(verify_confirmed)
+
     yield d

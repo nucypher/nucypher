@@ -631,7 +631,6 @@ class WorkTracker:
         worker_address = self.worker.worker_address
         tx_count_pending = self.client.get_transaction_count(account=worker_address, pending=True)
         tx_count_latest = self.client.get_transaction_count(account=worker_address, pending=False)
-
         txs_in_mempool = tx_count_pending - tx_count_latest
         if txs_in_mempool > len(self.__pending):  # We're not tracking all pending TXs
             tx_tracker_is_ok = False
@@ -659,16 +658,17 @@ class WorkTracker:
         if unmined_transactions:
             pluralize = "s" if len(unmined_transactions) > 1 else ""
             self.log.info(f'{len(unmined_transactions)} pending commitment transaction{pluralize} detected.')
+            return bool(unmined_transactions)
 
-        tx_tracker_is_ok = self.__tracking_consistency_check
+        tx_tracker_is_ok = self.__tracking_consistency_check()
         if not tx_tracker_is_ok:
             # If we detect there's a mismatch between the number of internally tracked and
             # pending block transactions, create a special pending TX that accounts for this.
+            # TODO: Detect if this untracked pending transaction is a commitment transaction at all.
             self.__pending[0] = UNTRACKED_PENDING_TRANSACTION
             return True
         if not self.__pending:
             return False
-        return bool(unmined_transactions)
 
     def __handle_replacement_commitment(self, current_block_number: int) -> None:
         tx_firing_block_number, txhash = list(sorted(self.pending.items()))[0]
@@ -690,25 +690,24 @@ class WorkTracker:
             self.__pending[current_block_number] = replacement_txhash  # track this transaction
             del self.__pending[tx_firing_block_number]  # Assume our original TX is stuck
 
-        # while there are known pending transactions, remain in fast interval mode
-        self._tracking_task.interval = self.INTERVAL_FLOOR
-        return
-
     def _do_work(self) -> None:
-        """Async working task for Ursula"""
-
-        # TODO: Split into multiple async tasks?
+        """
+        Async working task for Ursula  # TODO: Split into multiple async tasks
+        """
 
         # Call once here, and inject later for temporal consistency
         current_block_number = self.client.block_number
 
-        # self-tracking
+        # Commitment tracking
         unmined_transactions = self.__track_pending_commitments()
         if unmined_transactions:
-            return self.__handle_replacement_commitment(current_block_number=current_block_number)
-
-        # Randomize the next task interval over time, within bounds.
-        self._tracking_task.interval = self.random_interval()
+            self.__handle_replacement_commitment(current_block_number=current_block_number)
+            # while there are known pending transactions, remain in fast interval mode
+            self._tracking_task.interval = self.INTERVAL_FLOOR
+            return  # This cycle is finished.
+        else:
+            # Randomize the next task interval over time, within bounds.
+            self._tracking_task.interval = self.random_interval()
 
         # Update on-chain status
         self.log.info(f"Checking for new period. Current period is {self.__current_period}")
@@ -733,7 +732,7 @@ class WorkTracker:
         if not self.__work_requirement_is_satisfied():
             self.log.warn(f'COMMIT PREVENTED (callable: "{self.__requirement.__name__}") - '
                           f'There are unmet commit requirements.')
-            # TODO: Follow-up actions for failed requirement calls
+            # TODO: Follow-up actions for failed requirements
             return
 
         txhash = self.__fire_commitment()
