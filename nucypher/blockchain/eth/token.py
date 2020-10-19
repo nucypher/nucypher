@@ -742,7 +742,7 @@ class WorkTracker:
             return
 
         txhash = self.__fire_commitment()
-        self.__pending[current_block_number] = txhash  # track this transaction
+        self.__pending[current_block_number] = txhash
 
     def __fire_commitment(self):
         """Makes an initial/replacement worker commitment transaction"""
