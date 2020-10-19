@@ -546,6 +546,7 @@ class WorkTracker:
         self.log = Logger('stake-tracker')
         self.worker = worker
         self.staking_agent = self.worker.staking_agent
+        self.client = self.staking_agent.blockchain.client
 
         self.gas_strategy = self.staking_agent.blockchain.gas_strategy
         expected_time = EXPECTED_CONFIRMATION_TIME_IN_SECONDS[self.gas_strategy]
@@ -606,11 +607,11 @@ class WorkTracker:
     def handle_working_errors(self, *args, **kwargs) -> None:
         failure = args[0]
         if self._abort_on_error:
-            self.log.critical('Unhandled error during node work tracking. {failure!r}',
+            self.log.critical(f'Unhandled error during node work tracking. {failure!r}',
                               failure=failure)
             reactor.callFromThread(self._crash_gracefully, failure=failure)
         else:
-            self.log.warn('Unhandled error during work tracking: {failure.getTraceback()!r}',
+            self.log.warn(f'Unhandled error during work tracking: {failure.getTraceback()!r}',
                           failure=failure)
 
     def __work_requirement_is_satisfied(self) -> bool:
@@ -629,8 +630,8 @@ class WorkTracker:
     def __track_pending_commitments(self) -> bool:
 
         worker_address = self.worker.transacting_power.account  # FIXME: Why is worker_address private in Worker?
-        tx_count_pending = self.worker.client.get_transaction_count(account=worker_address, pending=True)
-        tx_count_latest = self.worker.client.get_transaction_count(account=worker_address, pending=False)
+        tx_count_pending = self.client.get_transaction_count(account=worker_address, pending=True)
+        tx_count_latest = self.client.get_transaction_count(account=worker_address, pending=False)
 
         txs_in_mempool = tx_count_pending - tx_count_latest
 
@@ -655,7 +656,7 @@ class WorkTracker:
 
         for tx_firing_block_number, txhash in sorted(pending_transactions):
             try:
-                confirmed_tx = self.worker.client.get_transaction(transaction_hash=txhash)
+                confirmed_tx = self.client.get_transaction(transaction_hash=txhash)
             except TransactionNotFound:
                 unmined_transactions.append(txhash)  # mark as unmined - Keep tracking it for now
                 continue
@@ -674,7 +675,7 @@ class WorkTracker:
 
         # TODO: Move this to another async task?
 
-        current_block_number = self.worker.client.block_number
+        current_block_number = self.client.block_number
 
         # self-tracking
         unmined_transactions = self.__track_pending_commitments()
@@ -731,7 +732,7 @@ class WorkTracker:
             # TODO: Follow-up actions for failed requirement calls
             return
 
-        txhash = self.__fire_commitment(current_block_number)
+        txhash = self.__fire_commitment()
         self.__pending[current_block_number] = txhash  # track this transaction
 
     def __fire_commitment(self):
