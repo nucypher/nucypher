@@ -635,16 +635,19 @@ class WorkTracker:
         tx_count_pending = self.client.get_transaction_count(account=worker_address, pending=True)
         tx_count_latest = self.client.get_transaction_count(account=worker_address, pending=False)
         txs_in_mempool = tx_count_pending - tx_count_latest
-        if txs_in_mempool > len(self.__pending):  # We're not tracking all pending TXs
-            tx_tracker_is_ok = False
-        elif txs_in_mempool < len(self.__pending):  # Our tracking is somehow outdated
-            tx_tracker_is_ok = False  # TODO: Not sure what to do in this case, but let's do this for the moment
-        else:
-            tx_tracker_is_ok = True
-        return tx_tracker_is_ok
+        if len(self.__pending) == txs_in_mempool:
+            return True  # OK!
+        if txs_in_mempool > len(self.__pending):  # We're missing some pending TXs
+            return False    
+
+        # TODO: Not sure what to do in this case, but let's do this for the moment
+        #       Note that the block my have changed since the previous query
+        # elif txs_in_mempool < len(self.__pending):  # Our tracking is somehow outdated
+        #     return False
 
     def __track_pending_commitments(self) -> bool:
         # TODO: Keep a purpose-built persistent log of worker transaction history
+
         unmined_transactions = list()
         pending_transactions = self.pending.items()    # note: this must be performed non-mutatively
         for tx_firing_block_number, txhash in sorted(pending_transactions):
