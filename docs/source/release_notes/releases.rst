@@ -4,6 +4,12 @@ Releases
 
 .. towncrier release notes start
 
+v4.1.0 (2020-10-19)
+-------------------
+
+No significant changes.
+
+
 v4.0.1 (2020-10-14)
 -------------------
 
