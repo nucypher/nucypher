@@ -59,8 +59,8 @@ from nucypher.blockchain.eth.registry import BaseContractRegistry
 from nucypher.blockchain.eth.sol.compile import SolidityCompiler
 from nucypher.blockchain.eth.utils import get_transaction_name, prettify_eth_amount
 from nucypher.characters.control.emitters import JSONRPCStdoutEmitter, StdoutEmitter
-from nucypher.utilities.datafeeds import datafeed_fallback_gas_price_strategy
 from nucypher.utilities.ethereum import encode_constructor_arguments
+from nucypher.utilities.gas_strategies import datafeed_fallback_gas_price_strategy, WEB3_GAS_STRATEGIES
 from nucypher.utilities.logging import GlobalLoggerSettings, Logger
 
 
@@ -77,11 +77,7 @@ class BlockchainInterface:
     TIMEOUT = 600  # seconds  # TODO: Correlate with the gas strategy - #2070
 
     DEFAULT_GAS_STRATEGY = 'fast'
-    GAS_STRATEGIES = {'glacial': time_based.glacial_gas_price_strategy,     # 24h
-                      'slow': time_based.slow_gas_price_strategy,           # 1h
-                      'medium': time_based.medium_gas_price_strategy,       # 5m
-                      'fast': time_based.fast_gas_price_strategy            # 60s
-                      }
+    GAS_STRATEGIES = WEB3_GAS_STRATEGIES
 
     process = NO_PROVIDER_PROCESS.bool_value(False)
     Web3 = Web3
@@ -235,7 +231,7 @@ class BlockchainInterface:
         self.client = NO_BLOCKCHAIN_CONNECTION         # type: EthereumClient
         self.transacting_power = READ_ONLY_INTERFACE
         self.is_light = light
-        self.gas_strategy = self.get_gas_strategy(gas_strategy)
+        self.gas_strategy = gas_strategy
 
     def __repr__(self):
         r = '{name}({uri})'.format(name=self.__class__.__name__, uri=self.provider_uri)
@@ -289,8 +285,9 @@ class BlockchainInterface:
         # so we use external gas price oracles, instead (see #2139)
         if isinstance(self.client, InfuraClient):
             gas_strategy = datafeed_fallback_gas_price_strategy
+            self.gas_strategy = 'fast'  # FIXME
         else:
-            gas_strategy = self.gas_strategy
+            gas_strategy = self.get_gas_strategy(self.gas_strategy)
         self.client.set_gas_strategy(gas_strategy=gas_strategy)
         gwei_gas_price = Web3.fromWei(self.client.gas_price_for_transaction(), 'gwei')
         self.log.debug(f"Currently, our gas strategy returns a gas price of {gwei_gas_price} gwei")
@@ -493,10 +490,12 @@ class BlockchainInterface:
                       sender_address: str,
                       payload: dict = None,
                       transaction_gas_limit: int = None,
+                      use_pending_nonce: bool = True,
                       ) -> dict:
 
+        nonce = self.client.get_transaction_count(account=sender_address, pending=use_pending_nonce)
         base_payload = {'chainId': int(self.client.chain_id),
-                        'nonce': self.client.w3.eth.getTransactionCount(sender_address, 'pending'),
+                        'nonce': nonce,
                         'from': sender_address}
 
         # Aggregate
@@ -515,6 +514,7 @@ class BlockchainInterface:
                                    payload: dict = None,
                                    transaction_gas_limit: Optional[int] = None,
                                    gas_estimation_multiplier: Optional[float] = None,
+                                   use_pending_nonce: Optional[bool] = None,
                                    ) -> dict:
 
         # Sanity checks for the gas estimation multiplier
@@ -527,7 +527,8 @@ class BlockchainInterface:
 
         payload = self.build_payload(sender_address=sender_address,
                                      payload=payload,
-                                     transaction_gas_limit=transaction_gas_limit)
+                                     transaction_gas_limit=transaction_gas_limit,
+                                     use_pending_nonce=use_pending_nonce)
         self.__log_transaction(transaction_dict=payload, contract_function=contract_function)
         try:
             transaction_dict = contract_function.buildTransaction(payload)  # Gas estimation occurs here
@@ -653,17 +654,24 @@ class BlockchainInterface:
                          transaction_gas_limit: Optional[int] = None,
                          gas_estimation_multiplier: Optional[float] = None,
                          confirmations: int = 0,
-                         fire_and_forget: bool = False  # do not wait for receipt.
+                         fire_and_forget: bool = False,  # do not wait for receipt.  See #2385
                          ) -> dict:
 
-        if fire_and_forget and confirmations > 0:
-            raise ValueError('Transaction Prevented: Cannot use confirmations and fire_and_forget options together.')
+        if fire_and_forget:
+            if confirmations > 0:
+                raise ValueError("Transaction Prevented: "
+                                 "Cannot use 'confirmations' and 'fire_and_forget' options together.")
+
+            use_pending_nonce = False  # TODO: #2385
+        else:
+            use_pending_nonce = None  # TODO: #2385
 
         transaction = self.build_contract_transaction(contract_function=contract_function,
                                                       sender_address=sender_address,
                                                       payload=payload,
                                                       transaction_gas_limit=transaction_gas_limit,
-                                                      gas_estimation_multiplier=gas_estimation_multiplier)
+                                                      gas_estimation_multiplier=gas_estimation_multiplier,
+                                                      use_pending_nonce=use_pending_nonce)
 
         # Get transaction name
         try:

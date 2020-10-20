@@ -15,16 +15,16 @@
  along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
-import pytest
+
 import pytest_twisted
 from twisted.internet import threads
 from twisted.internet.task import Clock
+from web3.middleware.simulate_unmined_transaction import unmined_receipt_simulator_middleware
 
 from nucypher.blockchain.eth.actors import Worker
 from nucypher.blockchain.eth.token import NU, WorkTracker
 from tests.constants import INSECURE_DEVELOPMENT_PASSWORD
 from tests.utils.ursula import make_decentralized_ursulas, start_pytest_ursula_services
-
 
 
 @pytest_twisted.inlineCallbacks
@@ -53,6 +53,7 @@ def test_worker_auto_commitments(mocker,
     staker.bond_worker(worker_address=worker_address)
 
     commit_spy = mocker.spy(Worker, 'commit_to_next_period')
+    replacement_spy = mocker.spy(WorkTracker, '_WorkTracker__fire_replacement_commitment')
 
     # Make the Worker
     ursula = make_decentralized_ursulas(ursula_config=ursula_decentralized_test_config,
@@ -64,25 +65,76 @@ def test_worker_auto_commitments(mocker,
     initial_period = staker.staking_agent.get_current_period()
 
     def start():
-        # Start running the worker
+        print("Starting Worker for auto-commitment simulation")
         start_pytest_ursula_services(ursula=ursula)
 
-    def time_travel(_):
+    def advance_one_period(_):
+        print('Advancing one period')
         testerchain.time_travel(periods=1)
         clock.advance(WorkTracker.INTERVAL_CEIL + 1)
-        return clock
 
-    def verify(clock):
+    def pending_commitments(_):
+        print('Starting unmined transaction simulation')
+        testerchain.client.add_middleware(unmined_receipt_simulator_middleware)
+
+    def advance_one_cycle(_):
+        print('Advancing one tracking iteration')
+        clock.advance(ursula.work_tracker._tracking_task.interval + 1)
+
+    def advance_until_replacement_indicated(_):
+        print("Advancing until replacement is indicated")
+        testerchain.time_travel(periods=1)
+        clock.advance(WorkTracker.INTERVAL_CEIL + 1)
+        mocker.patch.object(WorkTracker, 'max_confirmation_time', return_value=1.0)
+        clock.advance(ursula.work_tracker.max_confirmation_time() + 1)
+
+    def verify_unmined_commitment(_):
+        print('Verifying worker has unmined commitment transaction')
+        assert len(ursula.work_tracker.pending) == 1
+        current_period = staker.staking_agent.get_current_period()
+        assert commit_spy.call_count == current_period - initial_period + 1
+
+    def verify_replacement_commitment(_):
+        print('Verifying worker has replaced commitment transaction')
+        assert len(ursula.work_tracker.pending) == 1
+        assert replacement_spy.call_count > 0
+
+    def verify_confirmed(_):
+        print('Verifying worker made a commitments')
         # Verify that periods were committed on-chain automatically
         last_committed_period = staker.staking_agent.get_last_committed_period(staker_address=staker.checksum_address)
         current_period = staker.staking_agent.get_current_period()
         assert (last_committed_period - current_period) == 1
         assert commit_spy.call_count == current_period - initial_period + 1
+        assert replacement_spy.call_count == 0
 
-    # Run the callbacks
+
+    # Behavioural Test, like a screenplay made of legos
+
+    # Ursula commits on startup
     d = threads.deferToThread(start)
-    d.addCallback(verify)
-    for i in range(5):
-        d.addCallback(time_travel)
-        d.addCallback(verify)
+    d.addCallback(verify_confirmed)
+
+    # Ursula commits for 3 periods with no problem
+    for i in range(3):
+        d.addCallback(advance_one_period)
+        d.addCallback(verify_confirmed)
+
+    # Introduce unmined transactions
+    d.addCallback(pending_commitments)
+
+    # Ursula's commitment transaction gets stuck
+    for i in range(4):
+        d.addCallback(advance_one_cycle)
+        d.addCallback(verify_unmined_commitment)
+
+    # Ursula recovers from this situation
+    d.addCallback(advance_one_cycle)
+    d.addCallback(verify_confirmed)
+
+    # but it happens again, resulting in a replacement transaction
+    d.addCallback(advance_until_replacement_indicated)
+    d.addCallback(advance_one_cycle)
+    d.addCallback(verify_replacement_commitment)
+
     yield d

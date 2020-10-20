@@ -24,9 +24,9 @@ from web3 import Web3
 from nucypher.utilities.datafeeds import (
     EtherchainGasPriceDatafeed,
     Datafeed,
-    datafeed_fallback_gas_price_strategy,
     UpvestGasPriceDatafeed
 )
+from nucypher.utilities.gas_strategies import datafeed_fallback_gas_price_strategy
 
 etherchain_json = {
     "safeLow": "99.0",
@@ -144,5 +144,5 @@ def test_datafeed_fallback_gas_price_strategy():
                side_effect=Datafeed.DatafeedError):
         with patch('nucypher.utilities.datafeeds.UpvestGasPriceDatafeed._probe_feed',
                    side_effect=Datafeed.DatafeedError):
-            with patch('nucypher.utilities.datafeeds.rpc_gas_price_strategy', side_effect=mock_gas_strategy):
+            with patch('nucypher.utilities.gas_strategies.rpc_gas_price_strategy', side_effect=mock_gas_strategy):
                 assert datafeed_fallback_gas_price_strategy("web3", "tx") == mocked_gas_price

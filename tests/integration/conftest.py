@@ -33,7 +33,7 @@ from nucypher.blockchain.eth.agents import (
     StakingEscrowAgent,
     WorkLockAgent
 )
-from nucypher.blockchain.eth.interfaces import BlockchainInterface, BlockchainInterfaceFactory
+from nucypher.blockchain.eth.interfaces import BlockchainInterface
 from nucypher.blockchain.eth.registry import InMemoryContractRegistry
 from nucypher.blockchain.eth.signers import KeystoreSigner
 from nucypher.config.characters import UrsulaConfiguration, StakeHolderConfiguration
@@ -43,7 +43,7 @@ from tests.constants import (
     MOCK_PROVIDER_URI,
     NUMBER_OF_MOCK_KEYSTORE_ACCOUNTS
 )
-from tests.fixtures import _make_testerchain, make_token_economics
+from tests.fixtures import make_token_economics
 from tests.mock.agents import MockContractAgency, MockContractAgent
 from tests.mock.interfaces import MockBlockchain, mock_registry_source_manager
 from tests.mock.io import MockStdinWrapper
@@ -171,11 +171,8 @@ def mock_stdin(mocker):
 
 
 @pytest.fixture(scope='module', autouse=True)
-def mock_testerchain() -> MockBlockchain:
-    BlockchainInterfaceFactory._interfaces = dict()
-    testerchain = _make_testerchain(mock_backend=True)
-    BlockchainInterfaceFactory.register_interface(interface=testerchain)
-    yield testerchain
+def mock_testerchain(_mock_testerchain) -> MockBlockchain:
+    yield _mock_testerchain
 
 
 @pytest.fixture(scope='module')

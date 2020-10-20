@@ -1363,7 +1363,8 @@ class Teacher:
                    "fleet_state": node.fleet_state_checksum or 'unknown',
                    "fleet_state_icon": fleet_icon,
                    "domain": node.serving_domain,
-                   'version': nucypher.__version__}
+                   'version': nucypher.__version__
+                   }
         return payload
 
     def abridged_node_details(self) -> dict:

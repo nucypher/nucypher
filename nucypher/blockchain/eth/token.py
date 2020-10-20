@@ -18,19 +18,28 @@ import random
 from _pydecimal import Decimal
 from collections import UserList
 from enum import Enum
+from typing import Callable, Dict, Union, List
 
 import maya
-from constant_sorrow.constants import (EMPTY_STAKING_SLOT, NEW_STAKE, NOT_STAKING, NO_STAKING_RECEIPT,
-                                       UNKNOWN_WORKER_STATUS)
+import random
+from constant_sorrow.constants import (
+    EMPTY_STAKING_SLOT,
+    NEW_STAKE,
+    NOT_STAKING,
+    UNTRACKED_PENDING_TRANSACTION
+)
 from eth_utils import currency, is_checksum_address
+from hexbytes.main import HexBytes
 from twisted.internet import reactor, task
-from typing import Callable, Dict, Union
+from web3.exceptions import TransactionNotFound
 
 from nucypher.blockchain.eth.agents import ContractAgency, StakingEscrowAgent
+from nucypher.blockchain.eth.constants import AVERAGE_BLOCK_TIME_IN_SECONDS
 from nucypher.blockchain.eth.decorators import validate_checksum_address
 from nucypher.blockchain.eth.registry import BaseContractRegistry
 from nucypher.blockchain.eth.utils import datetime_at_period
 from nucypher.types import SubStakeInfo, NuNits, StakerInfo, Period
+from nucypher.utilities.gas_strategies import EXPECTED_CONFIRMATION_TIME_IN_SECONDS
 from nucypher.utilities.logging import Logger
 
 
@@ -529,16 +538,22 @@ class WorkTracker:
     INTERVAL_FLOOR = 60 * 15  # fifteen minutes
     INTERVAL_CEIL = 60 * 180  # three hours
 
+    ALLOWED_DEVIATION = 0.5  # i.e., up to +50% from the expected confirmation time
+
     def __init__(self, worker, *args, **kwargs):
 
         super().__init__(*args, **kwargs)
         self.log = Logger('stake-tracker')
         self.worker = worker
         self.staking_agent = self.worker.staking_agent
+        self.client = self.staking_agent.blockchain.client
+
+        self.gas_strategy = self.staking_agent.blockchain.gas_strategy
 
         self._tracking_task = task.LoopingCall(self._do_work)
         self._tracking_task.clock = self.CLOCK
 
+        self.__pending = dict()  # TODO: Prime with pending worker transactions
         self.__requirement = None
         self.__current_period = None
         self.__start_time = NOT_STAKING
@@ -552,6 +567,11 @@ class WorkTracker:
     @property
     def current_period(self):
         return self.__current_period
+
+    def max_confirmation_time(self) -> int:
+        expected_time = EXPECTED_CONFIRMATION_TIME_IN_SECONDS[self.gas_strategy]
+        result = expected_time * (1 + self.ALLOWED_DEVIATION)
+        return result
 
     def stop(self) -> None:
         if self._tracking_task.running:
@@ -590,58 +610,152 @@ class WorkTracker:
     def handle_working_errors(self, *args, **kwargs) -> None:
         failure = args[0]
         if self._abort_on_error:
-            self.log.critical('Unhandled error during node work tracking. {failure!r}',
+            self.log.critical(f'Unhandled error during node work tracking. {failure!r}',
                               failure=failure)
             reactor.callFromThread(self._crash_gracefully, failure=failure)
         else:
-            self.log.warn('Unhandled error during work tracking: {failure.getTraceback()!r}',
+            self.log.warn(f'Unhandled error during work tracking: {failure.getTraceback()!r}',
                           failure=failure)
 
-    def __check_work_requirement(self) -> bool:
+    def __work_requirement_is_satisfied(self) -> bool:
         # TODO: Check for stake expiration and exit
         if self.__requirement is None:
             return True
-        try:
-            r = self.__requirement()
-            if not isinstance(r, bool):
-                raise ValueError(f"'requirement' must return a boolean.")
-        except TypeError:
-            raise ValueError(f"'requirement' must be a callable.")
+        r = self.__requirement()
+        if not isinstance(r, bool):
+            raise ValueError(f"'requirement' must return a boolean.")
         return r
 
+    @property
+    def pending(self) -> Dict[int, HexBytes]:
+        return self.__pending.copy()
+
+    def __tracking_consistency_check(self) -> bool:
+        worker_address = self.worker.worker_address
+        tx_count_pending = self.client.get_transaction_count(account=worker_address, pending=True)
+        tx_count_latest = self.client.get_transaction_count(account=worker_address, pending=False)
+        txs_in_mempool = tx_count_pending - tx_count_latest
+        if len(self.__pending) == txs_in_mempool:
+            return True  # OK!
+        if txs_in_mempool > len(self.__pending):  # We're missing some pending TXs
+            return False    
+
+        # TODO: Not sure what to do in this case, but let's do this for the moment
+        #       Note that the block my have changed since the previous query
+        # elif txs_in_mempool < len(self.__pending):  # Our tracking is somehow outdated
+        #     return False
+
+    def __track_pending_commitments(self) -> bool:
+        # TODO: Keep a purpose-built persistent log of worker transaction history
+
+        unmined_transactions = list()
+        pending_transactions = self.pending.items()    # note: this must be performed non-mutatively
+        for tx_firing_block_number, txhash in sorted(pending_transactions):
+            try:
+                confirmed_tx_receipt = self.client.get_transaction_receipt(transaction_hash=txhash)
+            except TransactionNotFound:
+                unmined_transactions.append(txhash)  # mark as unmined - Keep tracking it for now
+                continue
+            else:
+                confirmation_block_number = confirmed_tx_receipt['blockNumber']
+                confirmations = confirmation_block_number - tx_firing_block_number
+                self.log.info(f'Commitment transaction {txhash.hex()[:10]} confirmed: {confirmations} confirmations')
+                del self.__pending[tx_firing_block_number]
+
+        if unmined_transactions:
+            pluralize = "s" if len(unmined_transactions) > 1 else ""
+            self.log.info(f'{len(unmined_transactions)} pending commitment transaction{pluralize} detected.')
+
+        inconsistency = self.__tracking_consistency_check() is False
+        if inconsistency:
+            # If we detect there's a mismatch between the number of internally tracked and
+            # pending block transactions, create a special pending TX that accounts for this.
+            # TODO: Detect if this untracked pending transaction is a commitment transaction at all.
+            self.__pending[0] = UNTRACKED_PENDING_TRANSACTION
+            return True
+
+        return bool(self.__pending)
+
+    def __fire_replacement_commitment(self, current_block_number: int, tx_firing_block_number: int) -> None:
+        replacement_txhash = self.__fire_commitment()  # replace
+        self.__pending[current_block_number] = replacement_txhash  # track this transaction
+        del self.__pending[tx_firing_block_number]  # assume our original TX is stuck
+
+    def __handle_replacement_commitment(self, current_block_number: int) -> None:
+        tx_firing_block_number, txhash = list(sorted(self.pending.items()))[0]
+        self.log.info(f'Waiting for pending commitment transaction to be mined ({txhash}).')
+
+        # If the transaction is still not mined after a max confirmation time
+        # (based on current gas strategy) issue a replacement transaction.
+        wait_time_in_blocks = current_block_number - tx_firing_block_number
+        wait_time_in_seconds = wait_time_in_blocks * AVERAGE_BLOCK_TIME_IN_SECONDS
+        if wait_time_in_seconds > self.max_confirmation_time():
+            if txhash is UNTRACKED_PENDING_TRANSACTION:
+                # TODO: Detect if this untracked pending transaction is a commitment transaction at all.
+                message = f"We've an untracked pending transaction. Issuing a replacement transaction."
+            else:
+                message = f"We've waited for {wait_time_in_seconds}, but max time is {self.max_confirmation_time()}" \
+                          f" for {self.gas_strategy} gas strategy. Issuing a replacement transaction."
+            self.log.info(message)
+            self.__fire_replacement_commitment(current_block_number=current_block_number,
+                                               tx_firing_block_number=tx_firing_block_number)
+
+
     def _do_work(self) -> None:
+        """
+        Async working task for Ursula  # TODO: Split into multiple async tasks
+        """
 
-        # Randomize the task interval over time, within bounds.
-        self._tracking_task.interval = self.random_interval()
+        # Call once here, and inject later for temporal consistency
+        current_block_number = self.client.block_number
 
-        # TODO: #1515 Shut down at end of terminal stake
+        # Commitment tracking
+        unmined_transactions = self.__track_pending_commitments()
+        if unmined_transactions:
+            self.__handle_replacement_commitment(current_block_number=current_block_number)
+            # while there are known pending transactions, remain in fast interval mode
+            self._tracking_task.interval = self.INTERVAL_FLOOR
+            return  # This cycle is finished.
+        else:
+            # Randomize the next task interval over time, within bounds.
+            self._tracking_task.interval = self.random_interval()
+
         # Update on-chain status
         self.log.info(f"Checking for new period. Current period is {self.__current_period}")
         onchain_period = self.staking_agent.get_current_period()  # < -- Read from contract
         if self.current_period != onchain_period:
             self.__current_period = onchain_period
-            # self.worker.stakes.refresh()  # TODO: #1517 Track stakes for fast access to terminal period.
+
+            # TODO: #1515 and #1517 - Shut down at end of terminal stake
+            # This slows down tests substantially and adds additional
+            # RPC calls, but might be acceptable in production
+            # self.worker.stakes.refresh()
 
         # Measure working interval
         interval = onchain_period - self.worker.last_committed_period
         if interval < 0:
             return  # No need to commit to this period.  Save the gas.
         if interval > 0:
-            # TODO: #1516 Follow-up actions for downtime
+            # TODO: #1516 Follow-up actions for missed commitments
             self.log.warn(f"MISSED COMMITMENTS - {interval} missed staking commitments detected.")
 
         # Only perform work this round if the requirements are met
-        if not self.__check_work_requirement():
+        if not self.__work_requirement_is_satisfied():
             self.log.warn(f'COMMIT PREVENTED (callable: "{self.__requirement.__name__}") - '
                           f'There are unmet commit requirements.')
-            # TODO: Follow-up actions for downtime
+            # TODO: Follow-up actions for failed requirements
             return
 
-        # Make a Commitment
-        self.log.info("Made a commitment to period {}".format(self.current_period))
+        txhash = self.__fire_commitment()
+        self.__pending[current_block_number] = txhash
+
+    def __fire_commitment(self):
+        """Makes an initial/replacement worker commitment transaction"""
         transacting_power = self.worker.transacting_power
         with transacting_power:
-            self.worker.commit_to_next_period(fire_and_forget=True)  # < --- blockchain WRITE | Do not wait for receipt
+            txhash = self.worker.commit_to_next_period(fire_and_forget=True)  # < --- blockchain WRITE
+        self.log.info(f"Making a commitment to period {self.current_period} - TxHash: {txhash}")
+        return txhash
 
 
 class StakeList(UserList):

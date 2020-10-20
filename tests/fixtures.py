@@ -535,6 +535,14 @@ def testerchain(_testerchain) -> TesterBlockchain:
     yield testerchain
 
 
+@pytest.fixture(scope='module')
+def _mock_testerchain() -> MockBlockchain:
+    BlockchainInterfaceFactory._interfaces = dict()
+    testerchain = _make_testerchain(mock_backend=True)
+    BlockchainInterfaceFactory.register_interface(interface=testerchain)
+    yield testerchain
+
+
 def _make_agency(testerchain,
                  test_registry,
                  token_economics) -> Tuple[NucypherTokenAgent, StakingEscrowAgent, PolicyManagerAgent]:
