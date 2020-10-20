@@ -237,11 +237,11 @@ DETACH_DETAILS = "Detached at period #{current_period} ({bonded_date})"
 # Worker Rate
 #
 
-PROMPT_STAKER_MIN_POLICY_RATE = "Enter new value so the minimum fee rate falls within global fee range"
+PROMPT_STAKER_MIN_POLICY_RATE = "Enter new value (in GWEI) so the minimum fee rate falls within global fee range"
 
-CONFIRM_NEW_MIN_POLICY_RATE = "Commit new value {min_rate} for minimum fee rate?"
+CONFIRM_NEW_MIN_POLICY_RATE = "Commit new value {min_rate} GWEI for minimum fee rate?"
 
-SUCCESSFUL_SET_MIN_POLICY_RATE = "\nMinimum fee rate {min_rate} successfully set by staker {staking_address}"
+SUCCESSFUL_SET_MIN_POLICY_RATE = "\nMinimum fee rate {min_rate} GWEI successfully set by staker {staking_address}"
 
 
 #

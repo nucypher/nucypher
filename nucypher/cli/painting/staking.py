@@ -224,10 +224,10 @@ Global fee Range:
     emitter.echo(range_payload)
 
 
-def paint_min_rate(emitter, registry, policy_agent, staker_address):
-    paint_fee_rate_range(emitter, policy_agent)
-    minimum = policy_agent.min_fee_rate(staker_address)
-    raw_minimum = policy_agent.raw_min_fee_rate(staker_address)
+def paint_min_rate(emitter, staker):
+    paint_fee_rate_range(emitter, staker.policy_agent)
+    minimum = staker.min_fee_rate
+    raw_minimum = staker.raw_min_fee_rate
 
     rate_payload = f"""
 Minimum acceptable fee rate (set by staker for their associated worker):

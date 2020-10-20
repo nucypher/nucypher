@@ -22,11 +22,13 @@ import tempfile
 from unittest import mock
 
 import maya
+from web3 import Web3
 
 from nucypher.blockchain.eth.actors import Staker
 from nucypher.blockchain.eth.agents import ContractAgency, StakingEscrowAgent
 from nucypher.blockchain.eth.constants import NULL_ADDRESS
 from nucypher.blockchain.eth.token import NU, Stake
+from nucypher.blockchain.eth.utils import prettify_eth_amount
 from nucypher.characters.lawful import Enrico, Ursula
 from nucypher.cli.literature import SUCCESSFUL_MINTING
 from nucypher.cli.main import nucypher_cli
@@ -779,8 +781,10 @@ def test_set_min_rate(click_runner,
     staker = Staker(is_me=True, checksum_address=manual_staker, registry=agency_local_registry)
     assert staker.raw_min_fee_rate == 0
 
+    min_rate_in_gwei = Web3.fromWei(min_rate, 'gwei')
+
     restake_args = ('stake', 'set-min-rate',
-                    '--min-rate', min_rate,
+                    '--min-rate', min_rate_in_gwei,
                     '--config-file', stakeholder_configuration_file_location,
                     '--staking-address', manual_staker,
                     '--force')
@@ -799,7 +803,7 @@ def test_set_min_rate(click_runner,
     user_input = INSECURE_DEVELOPMENT_PASSWORD
     result = click_runner.invoke(nucypher_cli, stake_args, input=user_input, catch_exceptions=False)
     assert result.exit_code == 0
-    assert f"{min_rate} wei" in result.output
+    assert f"{prettify_eth_amount(min_rate)}" in result.output
 
 
 def test_mint(click_runner,
