@@ -84,3 +84,19 @@ EXPECTED_CONFIRMATION_TIME_IN_SECONDS = {
     'medium': int(datetime.timedelta(minutes=5).total_seconds()),
     'fast': 60
 }
+
+
+#
+# Fixed-price gas strategy
+#
+
+
+def construct_fixed_price_gas_strategy(gas_price, denomination: str = "wei") -> Callable:
+    gas_price_in_wei = Web3.toWei(gas_price, denomination)
+
+    def _fixed_price_strategy(web3: Web3, transaction_params: TxParams = None) -> Wei:
+        return gas_price_in_wei
+
+    _fixed_price_strategy.name = f"{round(Web3.fromWei(gas_price_in_wei, 'gwei'))}gwei"
+
+    return _fixed_price_strategy
