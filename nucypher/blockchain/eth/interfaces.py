@@ -280,21 +280,26 @@ class BlockchainInterface:
             self.log.debug('Injecting POA middleware at layer 0')
             self.client.inject_middleware(geth_poa_middleware, layer=0)
 
-        # Gas Price Strategy:
-        # Bundled web3 strategies are too expensive for Infura (it takes ~1 minute to get a price),
-        # so we use external gas price oracles, instead (see #2139)
-        if isinstance(self.client, InfuraClient):
-            gas_strategy = datafeed_fallback_gas_price_strategy
-            self.gas_strategy = 'fast'  # FIXME
-        else:
-            gas_strategy = self.get_gas_strategy(self.gas_strategy)
-        self.client.set_gas_strategy(gas_strategy=gas_strategy)
-        gwei_gas_price = Web3.fromWei(self.client.gas_price_for_transaction(), 'gwei')
-        self.log.debug(f"Currently, our gas strategy returns a gas price of {gwei_gas_price} gwei")
-
         self.client.add_middleware(middleware.time_based_cache_middleware)
         # self.client.add_middleware(middleware.latest_block_based_cache_middleware)
         self.client.add_middleware(middleware.simple_cache_middleware)
+
+        self.set_gas_strategy()
+
+    def set_gas_strategy(self, gas_strategy: Optional[Callable] = None):
+        if gas_strategy:
+            reported_gas_strategy = f"fixed/{gas_strategy.name}"
+        elif isinstance(self.client, InfuraClient):
+            gas_strategy = datafeed_fallback_gas_price_strategy
+            self.gas_strategy = 'fast'
+            reported_gas_strategy = "datafeed/fast"
+        else:
+            reported_gas_strategy = f"web3/{self.gas_strategy}"
+            gas_strategy = self.get_gas_strategy(self.gas_strategy)
+        self.client.set_gas_strategy(gas_strategy=gas_strategy)
+        gwei_gas_price = Web3.fromWei(self.client.gas_price_for_transaction(), 'gwei')
+        self.log.debug(f"Using gas strategy '{reported_gas_strategy}'. "
+                       f"Currently, it returns a gas price of {gwei_gas_price} gwei")
 
     def connect(self):
 

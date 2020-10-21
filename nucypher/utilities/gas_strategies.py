@@ -15,8 +15,7 @@
  along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 import datetime
-import functools
-from typing import Callable
+from typing import Callable, Optional
 
 from web3 import Web3
 from web3.exceptions import ValidationError
@@ -64,20 +63,24 @@ __RAW_WEB3_GAS_STRATEGIES = {
 }
 
 
-def wrap_web3_gas_strategy(web3_gas_strategy: Callable):
+def wrap_web3_gas_strategy(speed: Optional[str] = None):
     """
     Enriches the web3 exceptions thrown by gas strategies
     """
-    @functools.wraps(web3_gas_strategy)
+    web3_gas_strategy = __RAW_WEB3_GAS_STRATEGIES[speed]
+
     def _wrapper(*args, **kwargs):
         try:
             return web3_gas_strategy(*args, **kwargs)
         except ValidationError as e:
             raise GasStrategyError("Calling the web3 gas strategy failed, probably due to an unsynced chain.") from e
+
+    _wrapper.name = speed
+
     return _wrapper
 
 
-WEB3_GAS_STRATEGIES = {speed: wrap_web3_gas_strategy(strategy) for speed, strategy in __RAW_WEB3_GAS_STRATEGIES.items()}
+WEB3_GAS_STRATEGIES = {speed: wrap_web3_gas_strategy(speed) for speed in __RAW_WEB3_GAS_STRATEGIES}
 
 EXPECTED_CONFIRMATION_TIME_IN_SECONDS = {
     'slow': int(datetime.timedelta(hours=1).total_seconds()),
