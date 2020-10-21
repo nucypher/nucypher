@@ -199,7 +199,7 @@ def test_staker_increases_stake(staker, token_economics):
     assert stake.value == origin_stake.value + balance
 
 
-def test_staker_merges_stakes(agency, staker, token_economics):
+def test_staker_merges_stakes(agency, staker):
     stake_index_1 = 0
     stake_index_2 = 3
     origin_stake_1 = staker.stakes[stake_index_1]
@@ -222,6 +222,19 @@ def test_staker_merges_stakes(agency, staker, token_economics):
         staker.merge_stakes(stake_1=stake, stake_2=staker.stakes[1])
     with pytest.raises(ValueError):
         staker.merge_stakes(stake_1=staker.stakes[1], stake_2=stake)
+
+
+def test_remove_unused_stake(agency, staker):
+    stake_index = 3
+    staker.refresh_stakes()
+    original_stakes = list(staker.stakes)
+    unused_stake = original_stakes[stake_index]
+    assert unused_stake.final_locked_period == 1
+
+    staker.remove_unused_stake(stake=unused_stake)
+
+    stakes = staker.stakes
+    assert stakes == original_stakes[:-1]
 
 
 def test_staker_manages_restaking(testerchain, test_registry, staker):

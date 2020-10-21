@@ -83,6 +83,8 @@ All staking-related operations done by Staker are performed through the ``nucyph
 +----------------------+-------------------------------------------------------------------------------+
 |  ``merge``           | Merge two stakes into one                                                     |
 +----------------------+-------------------------------------------------------------------------------+
+|  ``remove-unused``   | Remove unused stake                                                           |
++----------------------+-------------------------------------------------------------------------------+
 
 **Stake Command Options**
 
@@ -486,6 +488,18 @@ This can help to decrease gas consumption in some operations. To merge two stake
 .. code:: bash
 
     (nucypher)$ nucypher stake merge --hw-wallet
+
+
+Remove unused sub-stake
+***********************
+
+Merging or editing sub-stakes can lead to 'unused', inactive sub-stakes remaining on-chain. 
+These unused sub-stakes add unnecessary gas costs to daily operations.
+To remove unused sub-stake:
+
+.. code:: bash
+
+    (nucypher)$ nucypher stake remove-unused --hw-wallet
 
 
 Collect rewards earned by the staker

@@ -73,7 +73,7 @@ from nucypher.cli.literature import (
     INSUFFICIENT_BALANCE_TO_CREATE, PROMPT_STAKE_CREATE_VALUE, PROMPT_STAKE_CREATE_LOCK_PERIODS,
     ONLY_DISPLAYING_MERGEABLE_STAKES_NOTE, CONFIRM_MERGE, SUCCESSFUL_STAKES_MERGE, SUCCESSFUL_ENABLE_SNAPSHOTS,
     SUCCESSFUL_DISABLE_SNAPSHOTS, CONFIRM_ENABLE_SNAPSHOTS,
-    CONFIRM_STAKE_USE_UNLOCKED)
+    CONFIRM_STAKE_USE_UNLOCKED, CONFIRM_REMOVE_SUBSTAKE, SUCCESSFUL_STAKE_REMOVAL)
 from nucypher.cli.options import (
     group_options,
     option_config_file,
@@ -1064,6 +1064,61 @@ def merge(general_config: GroupGeneralConfig,
 
     # Report
     emitter.echo(SUCCESSFUL_STAKES_MERGE, color='green', verbosity=1)
+    paint_receipt_summary(emitter=emitter, receipt=receipt, chain_name=blockchain.client.chain_name)
+    paint_stakes(emitter=emitter, staker=STAKEHOLDER)
+
+
+@stake.command()
+@group_transacting_staker_options
+@option_config_file
+@option_force
+@group_general_config
+@click.option('--index', help="Index of unused stake to remove", type=click.INT)
+def remove_unused(general_config: GroupGeneralConfig,
+                  transacting_staker_options: TransactingStakerOptions,
+                  config_file, force, index):
+    """Remove unused stake."""
+
+    # Setup
+    emitter = setup_emitter(general_config)
+    STAKEHOLDER = transacting_staker_options.create_character(emitter, config_file)
+    action_period = STAKEHOLDER.staking_agent.get_current_period()
+    blockchain = transacting_staker_options.get_blockchain()
+
+    client_account, staking_address = select_client_account_for_staking(
+        emitter=emitter,
+        stakeholder=STAKEHOLDER,
+        staking_address=transacting_staker_options.staker_options.staking_address,
+        individual_allocation=STAKEHOLDER.individual_allocation,
+        force=force)
+
+    # Handle stake update and selection
+    if index is not None:  # 0 is valid.
+        current_stake = STAKEHOLDER.stakes[index]
+    else:
+        current_stake = select_stake(staker=STAKEHOLDER, emitter=emitter, stakes_status=Stake.Status.INACTIVE)
+
+    if not force:
+        click.confirm(CONFIRM_REMOVE_SUBSTAKE.format(stake_index=current_stake.index), abort=True)
+
+    # Authenticate
+    password = get_password(stakeholder=STAKEHOLDER,
+                            blockchain=blockchain,
+                            client_account=client_account,
+                            hw_wallet=transacting_staker_options.hw_wallet)
+    STAKEHOLDER.assimilate(password=password)
+
+    # Non-interactive: Consistency check to prevent the above agreement from going stale.
+    last_second_current_period = STAKEHOLDER.staking_agent.get_current_period()
+    if action_period != last_second_current_period:
+        emitter.echo(PERIOD_ADVANCED_WARNING, color='red')
+        raise click.Abort
+
+    # Execute
+    receipt = STAKEHOLDER.remove_unused_stake(stake=current_stake)
+
+    # Report
+    emitter.echo(SUCCESSFUL_STAKE_REMOVAL, color='green', verbosity=1)
     paint_receipt_summary(emitter=emitter, receipt=receipt, chain_name=blockchain.client.chain_name)
     paint_stakes(emitter=emitter, staker=STAKEHOLDER)
 

@@ -45,7 +45,7 @@ interface WorkLockInterface {
 /**
 * @notice Contract holds and locks stakers tokens.
 * Each staker that locks their tokens will receive some compensation
-* @dev |v5.4.4|
+* @dev |v5.5.1|
 */
 contract StakingEscrow is Issuer, IERC900History {
 
@@ -1046,6 +1046,30 @@ contract StakingEscrow is Issuer, IERC900History {
             subStake1.lastPeriod = subStake2.firstPeriod - 1;
             subStake1.periods = 0;
         }
+    }
+
+    /**
+    * @notice Remove unused sub-stake to decrease gas cost for several methods
+    */
+    function removeUnusedSubStake(uint16 _index) external onlyStaker {
+        StakerInfo storage info = stakerInfo[msg.sender];
+
+        uint256 lastIndex = info.subStakes.length - 1;
+        SubStakeInfo storage subStake = info.subStakes[_index];
+        require(subStake.lastPeriod != 0 &&
+                (info.currentCommittedPeriod == 0 ||
+                subStake.lastPeriod < info.currentCommittedPeriod) &&
+                (info.nextCommittedPeriod == 0 ||
+                subStake.lastPeriod < info.nextCommittedPeriod));
+
+        if (_index != lastIndex) {
+            SubStakeInfo storage lastSubStake = info.subStakes[lastIndex];
+            subStake.firstPeriod = lastSubStake.firstPeriod;
+            subStake.lastPeriod = lastSubStake.lastPeriod;
+            subStake.periods = lastSubStake.periods;
+            subStake.lockedValue = lastSubStake.lockedValue;
+        }
+        info.subStakes.pop();
     }
 
     /**

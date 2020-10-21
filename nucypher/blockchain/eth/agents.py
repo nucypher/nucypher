@@ -711,6 +711,13 @@ class StakingEscrowAgent(EthereumContractAgent):
         # TODO: Handle SnapshotSet event (see #1193)
         return receipt
 
+    @contract_api(TRANSACTION)
+    def remove_unused_stake(self, staker_address: ChecksumAddress, stake_index: int) -> TxReceipt:
+        contract_function: ContractFunction = self.contract.functions.removeUnusedSubStake(stake_index)
+        receipt: TxReceipt = self.blockchain.send_transaction(contract_function=contract_function,
+                                                              sender_address=staker_address)
+        return receipt
+
     @contract_api(CONTRACT_CALL)
     def staking_parameters(self) -> StakingEscrowParameters:
         parameter_signatures = (
