@@ -16,27 +16,28 @@
  You should have received a copy of the GNU Affero General Public License
  along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
-
+from pathlib import Path
 
 """
 WARNING: This script makes automatic transactions.  
-Do not use this script unless you intend know what you 
-are doing and intend to spend ETH measuring live policy availability.
+Do not use this script unless you know what you 
+are doing and intend to spend ETH measuring live
+policy availability.
 """
 
 
-from web3.main import Web3
 import datetime
-from typing import Set, Optional, List, Tuple
-
 import maya
 import os
 import shutil
 import time
 from eth_typing.evm import ChecksumAddress
+from typing import Set, Optional, List, Tuple
 from umbral.keys import UmbralPrivateKey
+from web3.main import Web3
 from web3.types import Wei
 
+from network.middleware import RestMiddleware
 from nucypher.characters.lawful import Bob, Ursula, Alice
 from nucypher.config.characters import AliceConfiguration
 from nucypher.policy.policies import Policy
@@ -44,27 +45,32 @@ from nucypher.utilities.logging import GlobalLoggerSettings
 
 # Wallet Configuration
 # In order to use this script, you must configure a wallet for alice
-METRICS_ADDRESS_ENVVAR: str = 'NUCYPHER_GRANT_METRICS_ADDRESS'
-METRICS_PASSWORD_ENVVAR: str = 'NUCYPHER_GRANT_METRICS_PASSWORD'
-METRICS_SIGNER_ENVVAR: str = 'NUCYPHER_GRANT_METRICS_KEYFILE_PATH'
-METRICS_PROVIDER_URI: str = 'NUCYPHER_GRANT_METRICS_PROVIDER'
+ADDRESS_ENVVAR: str = 'NUCYPHER_GRANT_METRICS_ADDRESS'
+PASSWORD_ENVVAR: str = 'NUCYPHER_GRANT_METRICS_PASSWORD'
+SIGNER_ENVVAR: str = 'NUCYPHER_GRANT_METRICS_KEYFILE_PATH'
+PROVIDER_ENVVAR: str = 'NUCYPHER_GRANT_METRICS_PROVIDER'
 
 
 try:
-    ALICE_ADDRESS: ChecksumAddress = os.environ[METRICS_ADDRESS_ENVVAR]
-    SIGNER_PASSWORD: str = os.environ[METRICS_PASSWORD_ENVVAR]
-    SIGNER_URI: str = os.environ[METRICS_SIGNER_ENVVAR]
-    ETHEREUM_PROVIDER_URI: str = os.environ[METRICS_PROVIDER_URI]
+    ALICE_ADDRESS: ChecksumAddress = os.environ[ADDRESS_ENVVAR]
+    SIGNER_PASSWORD: str = os.environ[PASSWORD_ENVVAR]
+    SIGNER_URI: str = os.environ[SIGNER_ENVVAR]
+    ETHEREUM_PROVIDER_URI: str = os.environ[PROVIDER_ENVVAR]
 except KeyError:
-    message = f'{METRICS_ADDRESS_ENVVAR}, {METRICS_SIGNER_ENVVAR} and {METRICS_PASSWORD_ENVVAR}' \
-              f' are required to run grant availability metrics.'
+    message = f'{ADDRESS_ENVVAR}, ' \
+              f'{PROVIDER_ENVVAR}, ' \
+              f'{SIGNER_ENVVAR} and ' \
+              f'{PASSWORD_ENVVAR} ' \
+              f'are required to run grant availability metrics.'
     raise RuntimeError(message)
 
 # Alice Configuration
-DOMAIN: str = 'mainnet'
-DEFAULT_SEEDNODE_URIS: List[str] = ['https://mainnet.nucypher.network:9151', ]
+DOMAIN: str = 'mainnet'  # ibex
+DEFAULT_SEEDNODE_URIS: List[str] = [
+    *RestMiddleware.TEACHER_NODES[DOMAIN],
+]
 INSECURE_PASSWORD: str = "METRICS_INSECURE_DEVELOPMENT_PASSWORD"
-TEMP_ALICE_DIR: str = os.path.join('/', 'tmp', 'grant-metrics')
+TEMP_ALICE_DIR: str = Path('/', 'tmp', 'grant-metrics')
 
 # Policy Parameters
 M: int = 1
@@ -73,6 +79,7 @@ RATE: Wei = Web3.toWei(50, 'gwei')
 DURATION: datetime.timedelta = datetime.timedelta(days=1)
 
 # Tuning
+DEFAULT_ITERATIONS = 1  # `None` will run forever
 SAMPLE_RATE: int = 15  # seconds
 GAS_STRATEGY: str = 'fast'
 LABEL_PREFIX = 'random-metrics-label-'
@@ -91,6 +98,7 @@ def make_random_bob():
     bob = Bob.from_public_keys(verifying_key=bob_verifying_key,
                                encrypting_key=decrypting_key,
                                federated_only=False)
+    print(f'Created BOB - {bytes(bob.stamp).hex()}')
     return bob
 
 
@@ -112,8 +120,7 @@ def metric_grant(alice, handpicked_ursulas: Optional[Set[Ursula]] = None) -> Pol
 
 def collect(alice: Alice,
             handpicked_ursulas: Optional[Set[Ursula]] = None,
-            iterations: Optional[int] = None,
-            run_forever: bool = False
+            iterations: Optional[int] = DEFAULT_ITERATIONS,
             ) -> None:
     """Collects grant success and failure rates."""
     policies, i, success, fail = dict(), 0, 0, 0
@@ -128,25 +135,26 @@ def collect(alice: Alice,
         else:
             success += 1
             policies[policy.public_key.hex()] = policy  # track
-            print(f"PEK:{policy.public_key.hex()}")
+            print(f"PEK:{policy.public_key.hex()} | HRAC {policy.hrac().hex()}")
 
         # timeit
         end = maya.now()
         delta = end - start
         print(f"Completed in {(delta).total_seconds()} seconds.")
 
-        if i+1 == iterations and not run_forever:
-            break  # Exit
-
         # score
-        elif i+1 != iterations:
+        if i+1 != iterations:
             if fail > 0:
                 print(f'{fail}/{i+1} ({(fail/(i+1))*100}%) failure rate')
             if success > 0:
                 print(f'{success}/{i+1} ({(success/(i+1))*100}%) success rate')
             print(f'Waiting {SAMPLE_RATE} seconds until next sample. ')
             time.sleep(SAMPLE_RATE)
-        i += 1
+
+        if i+1 == iterations:
+            return  # exit
+        else:
+            i += 1  # continue
 
 
 def make_alice(known_nodes: Optional[Set[Ursula]] = None):
@@ -200,4 +208,4 @@ if __name__ == '__main__':
     setup()
     seednodes, handpicked_ursulas = aggregate_nodes()
     alice = make_alice(known_nodes=seednodes)
-    collect(alice=alice, run_forever=True, handpicked_ursulas=handpicked_ursulas)
+    collect(alice=alice, handpicked_ursulas=handpicked_ursulas)
