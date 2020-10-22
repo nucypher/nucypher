@@ -184,7 +184,7 @@ def _make_rest_app(datastore: Datastore, this_node, serving_domain: str, log: Lo
         # If these nodes already have the same fleet state, no exchange is necessary.
         learner_fleet_state = request.args.get('fleet')
         if learner_fleet_state == this_node.known_nodes.checksum:
-            log.debug("Learner already knew fleet state {}; doing nothing.".format(learner_fleet_state))
+            # log.debug("Learner already knew fleet state {}; doing nothing.".format(learner_fleet_state))  # 1712
             headers = {'Content-Type': 'application/octet-stream'}
             payload = this_node.known_nodes.snapshot() + bytes(FLEET_STATES_MATCH)
             signature = this_node.stamp(payload)
