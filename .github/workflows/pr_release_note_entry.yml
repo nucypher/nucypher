@@ -14,4 +14,4 @@ jobs:
     steps:
       - uses: actions/checkout@v2
       - run: |
-          test -f '${{ github.workspace }}/newsfragments/${{ github.event.number }}.*'
+          test -f ${{ github.workspace }}/newsfragments/${{ github.event.number }}.*
