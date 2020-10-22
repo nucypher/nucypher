@@ -14,14 +14,14 @@ GNU Affero General Public License for more details.
 You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
+
 import random
 from _pydecimal import Decimal
 from collections import UserList
 from enum import Enum
-from typing import Callable, Dict, Union, List
+from typing import Callable, Dict, Union
 
 import maya
-import random
 from constant_sorrow.constants import (
     EMPTY_STAKING_SLOT,
     NEW_STAKE,
@@ -632,7 +632,7 @@ class WorkTracker:
     def pending(self) -> Dict[int, HexBytes]:
         return self.__pending.copy()
 
-    def __tracking_consistency_check(self) -> bool:
+    def __commitments_tracker_is_consistent(self) -> bool:
         worker_address = self.worker.worker_address
         tx_count_pending = self.client.get_transaction_count(account=worker_address, pending=True)
         tx_count_latest = self.client.get_transaction_count(account=worker_address, pending=False)
@@ -668,8 +668,8 @@ class WorkTracker:
             s = "s" if len(unmined_transactions) > 1 else ""
             self.log.info(f'{len(unmined_transactions)} pending commitment transaction{s} detected.')
 
-        inconsistency = self.__tracking_consistency_check() is False
-        if inconsistency:
+        inconsistent_tracker = not self.__commitments_tracker_is_consistent()
+        if inconsistent_tracker:
             # If we detect there's a mismatch between the number of internally tracked and
             # pending block transactions, create a special pending TX that accounts for this.
             # TODO: Detect if this untracked pending transaction is a commitment transaction at all.
@@ -713,17 +713,6 @@ class WorkTracker:
         # Call once here, and inject later for temporal consistency
         current_block_number = self.client.block_number
 
-        # Commitment tracking
-        unmined_transactions = self.__track_pending_commitments()
-        if unmined_transactions:
-            self.__handle_replacement_commitment(current_block_number=current_block_number)
-            # while there are known pending transactions, remain in fast interval mode
-            self._tracking_task.interval = self.INTERVAL_FLOOR
-            return  # This cycle is finished.
-        else:
-            # Randomize the next task interval over time, within bounds.
-            self._tracking_task.interval = self.random_interval()
-
         # Update on-chain status
         self.log.info(f"Checking for new period. Current period is {self.__current_period}")
         onchain_period = self.staking_agent.get_current_period()  # < -- Read from contract
@@ -742,6 +731,17 @@ class WorkTracker:
         if interval > 0:
             # TODO: #1516 Follow-up actions for missed commitments
             self.log.warn(f"MISSED COMMITMENTS - {interval} missed staking commitments detected.")
+
+        # Commitment tracking
+        unmined_transactions = self.__track_pending_commitments()
+        if unmined_transactions:
+            self.__handle_replacement_commitment(current_block_number=current_block_number)
+            # while there are known pending transactions, remain in fast interval mode
+            self._tracking_task.interval = self.INTERVAL_FLOOR
+            return  # This cycle is finished.
+        else:
+            # Randomize the next task interval over time, within bounds.
+            self._tracking_task.interval = self.random_interval()
 
         # Only perform work this round if the requirements are met
         if not self.__work_requirement_is_satisfied():
