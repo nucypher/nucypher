@@ -665,8 +665,8 @@ class WorkTracker:
                 del self.__pending[tx_firing_block_number]
 
         if unmined_transactions:
-            pluralize = "s" if len(unmined_transactions) > 1 else ""
-            self.log.info(f'{len(unmined_transactions)} pending commitment transaction{pluralize} detected.')
+            s = "s" if len(unmined_transactions) > 1 else ""
+            self.log.info(f'{len(unmined_transactions)} pending commitment transaction{s} detected.')
 
         inconsistency = self.__tracking_consistency_check() is False
         if inconsistency:
@@ -685,23 +685,25 @@ class WorkTracker:
 
     def __handle_replacement_commitment(self, current_block_number: int) -> None:
         tx_firing_block_number, txhash = list(sorted(self.pending.items()))[0]
-        self.log.info(f'Waiting for pending commitment transaction to be mined ({txhash}).')
-
-        # If the transaction is still not mined after a max confirmation time
-        # (based on current gas strategy) issue a replacement transaction.
-        wait_time_in_blocks = current_block_number - tx_firing_block_number
-        wait_time_in_seconds = wait_time_in_blocks * AVERAGE_BLOCK_TIME_IN_SECONDS
-        if wait_time_in_seconds > self.max_confirmation_time():
-            if txhash is UNTRACKED_PENDING_TRANSACTION:
-                # TODO: Detect if this untracked pending transaction is a commitment transaction at all.
-                message = f"We've an untracked pending transaction. Issuing a replacement transaction."
+        if txhash is UNTRACKED_PENDING_TRANSACTION:
+            # TODO: Detect if this untracked pending transaction is a commitment transaction at all.
+            message = f"We have an untracked pending transaction. Issuing a replacement transaction."
+        else:
+            # If the transaction is still not mined after a max confirmation time
+            # (based on current gas strategy) issue a replacement transaction.
+            wait_time_in_blocks = current_block_number - tx_firing_block_number
+            wait_time_in_seconds = wait_time_in_blocks * AVERAGE_BLOCK_TIME_IN_SECONDS
+            if wait_time_in_seconds < self.max_confirmation_time():
+                self.log.info(f'Waiting for pending commitment transaction to be mined ({txhash.hex()}).')
+                return
             else:
                 message = f"We've waited for {wait_time_in_seconds}, but max time is {self.max_confirmation_time()}" \
                           f" for {self.gas_strategy} gas strategy. Issuing a replacement transaction."
-            self.log.info(message)
-            self.__fire_replacement_commitment(current_block_number=current_block_number,
-                                               tx_firing_block_number=tx_firing_block_number)
 
+        # Send a replacement transaction
+        self.log.info(message)
+        self.__fire_replacement_commitment(current_block_number=current_block_number,
+                                           tx_firing_block_number=tx_firing_block_number)
 
     def _do_work(self) -> None:
         """
@@ -756,7 +758,7 @@ class WorkTracker:
         transacting_power = self.worker.transacting_power
         with transacting_power:
             txhash = self.worker.commit_to_next_period(fire_and_forget=True)  # < --- blockchain WRITE
-        self.log.info(f"Making a commitment to period {self.current_period} - TxHash: {txhash}")
+        self.log.info(f"Making a commitment to period {self.current_period} - TxHash: {txhash.hex()}")
         return txhash
 
 
