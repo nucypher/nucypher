@@ -1,4 +1,4 @@
--i https://pypi.python.org/simple
+-i https://pypi.python.org/simple/
 appdirs==1.4.4
 asn1crypto==1.4.0
 attrs==20.2.0
@@ -18,17 +18,17 @@ colorama==0.4.3
 constant-sorrow==0.1.0a9
 constantly==15.1.0
 construct==2.10.56
-cryptography==3.1.1
+cryptography==3.2
 cytoolz==0.11.0 ; implementation_name == 'cpython'
 dateparser==0.7.6
 ecdsa==0.16.0
 eth-abi==2.1.1
-eth-account==0.5.3
+eth-account==0.5.4
 eth-bloom==1.0.3
 eth-hash[pycryptodome]==0.2.0
 eth-keyfile==0.5.1
 eth-keys==0.3.3
-eth-rlp==0.2.0
+eth-rlp==0.2.1
 eth-tester==0.5.0b2
 eth-typing==2.2.2
 eth-utils==1.9.5
@@ -36,19 +36,19 @@ flask-sqlalchemy==2.4.4
 flask==1.1.2
 hendrix==3.4.0
 hexbytes==0.2.1
-humanize==3.0.1
+humanize==3.1.0
 hyperlink==20.0.1
 idna==2.10
 incremental==17.5.0
-ipfshttpclient==0.6.1
-itsdangerous==1.1.0
-jinja2==2.11.2
+ipfshttpclient==0.7.0a1
+itsdangerous==2.0.0a1
+jinja2==3.0.0a1
 jsonschema==3.2.0
 libusb1==1.8
 lmdb==0.99
 lru-dict==1.1.6
 mako==1.1.3
-markupsafe==1.1.1
+markupsafe==2.0.0a1
 marshmallow==3.8.0
 maya==0.6.1
 mnemonic==0.19
@@ -78,7 +78,7 @@ pysha3==1.0.2
 python-dateutil==2.8.1
 pytz==2020.1
 pytzdata==2020.1
-regex==2020.10.11
+regex==2020.10.23
 requests==2.24.0
 rlp==2.0.0a1
 rusty-rlp==0.1.15
@@ -97,7 +97,7 @@ txaio==20.4.1
 typing-extensions==3.7.4.3
 tzlocal==2.1
 umbral==0.1.3a2
-urllib3==1.25.10
+urllib3==1.25.11
 varint==1.0.2
 watchdog==0.10.3
 web3==5.12.1
