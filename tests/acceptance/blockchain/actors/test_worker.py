@@ -153,12 +153,12 @@ class WorkTrackerThatFailsHalfTheTime(WorkTracker):
 
         return MockStakingAgent()
 
-    def _do_work(self) -> None:
 
+    def _do_work(self) -> None:
+        self.period += 1
         if self.period % 2:
             raise BaseException("zomg something went wrong")
         self.workdone += 1
-        self.period += 1
 
     def __init__(self, clock, *args, **kwargs):
         self.workdone = 0
@@ -178,12 +178,11 @@ def test_worker_failure_resilience():
     worktracker = WorkTrackerThatFailsHalfTheTime(clock)
 
     def advance_one_cycle(_):
-        print('Advancing one tracking iteration')
+        worktracker.period += 1
         clock.advance(WorkTrackerThatFailsHalfTheTime.INTERVAL_CEIL)
 
-    def checkworkstate(something, expectedvalue):
-        assert worktracker._tracking_task.running
-        assert worktracker.workdone == expectedvalue
+    def checkworkstate(_):
+        assert worktracker.period/2 == worktracker.workdone
 
     def start():
         worktracker.start()
@@ -195,6 +194,6 @@ def test_worker_failure_resilience():
         # so... on 0 we should succeed, on 1 we fail... and so on.
         # so at say, 9, we should be at... floor(9/2) + 1 = 5
         d.addCallback(advance_one_cycle)
-        d.addCallback(checkworkstate, floor(i / 2) + 1 )
+        d.addCallback(checkworkstate)
 
     yield d

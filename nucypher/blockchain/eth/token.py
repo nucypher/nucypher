@@ -616,7 +616,6 @@ class WorkTracker:
         else:
             self.log.warn(f'Unhandled error during work tracking: {failure.getTraceback()!r}',
                           failure=failure)
-
             self.start()
 
 
