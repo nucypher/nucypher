@@ -612,6 +612,7 @@ class WorkTracker:
         if self._abort_on_error:
             self.log.critical(f'Unhandled error during node work tracking. {failure!r}',
                               failure=failure)
+            self.stop()
             reactor.callFromThread(self._crash_gracefully, failure=failure)
         else:
             self.log.warn(f'Unhandled error during work tracking: {failure.getTraceback()!r}',
