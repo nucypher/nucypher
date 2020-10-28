@@ -17,12 +17,10 @@
 import pytest_twisted
 from twisted.internet import threads
 from twisted.internet.task import Clock
-from twisted.internet import task
 from web3.middleware.simulate_unmined_transaction import unmined_receipt_simulator_middleware
 
 from nucypher.blockchain.eth.actors import Worker
 from nucypher.blockchain.eth.token import NU, WorkTracker
-from nucypher.utilities.logging import Logger
 from tests.constants import INSECURE_DEVELOPMENT_PASSWORD
 from tests.utils.ursula import make_decentralized_ursulas, start_pytest_ursula_services
 
@@ -36,7 +34,6 @@ def test_worker_auto_commitments(mocker,
                                  token_economics,
                                  mock_transacting_power_activation,
                                  ursula_decentralized_test_config):
-
     mock_transacting_power_activation(account=staker.checksum_address, password=INSECURE_DEVELOPMENT_PASSWORD)
 
     staker.initialize_stake(amount=NU(token_economics.minimum_allowed_locked, 'NuNit'),
@@ -108,7 +105,6 @@ def test_worker_auto_commitments(mocker,
         assert commit_spy.call_count == current_period - initial_period + 1
         assert replacement_spy.call_count == 0
 
-
     # Behavioural Test, like a screenplay made of legos
 
     # Ursula commits on startup
@@ -136,87 +132,5 @@ def test_worker_auto_commitments(mocker,
     d.addCallback(advance_until_replacement_indicated)
     d.addCallback(advance_one_cycle)
     d.addCallback(verify_replacement_commitment)
-
-    yield d
-
-
-class WorkTrackerThatFailsHalfTheTime(WorkTracker):
-
-    @property
-    def staking_agent(self):
-
-        class MockStakingAgent:
-            def get_current_period(self):
-                return 1
-
-        return MockStakingAgent()
-
-    def _do_work(self) -> None:
-        self.attempts += 1
-        if self.attempts % 2:
-            raise BaseException("zomg something went wrong")
-        self.workdone += 1
-
-    def __init__(self, clock, abort_on_error, *args, **kwargs):
-        self.workdone = 0
-        self.attempts = 0
-        self.CLOCK = clock
-        self.log = Logger('stake-tracker')
-        self._tracking_task = task.LoopingCall(self._do_work)
-        self._tracking_task.clock = self.CLOCK
-        self._abort_on_error = abort_on_error
-
-
-@pytest_twisted.inlineCallbacks
-def test_worker_failure_resilience():
-
-    # Control time
-    clock = Clock()
-    worktracker = WorkTrackerThatFailsHalfTheTime(clock, False)
-
-    def advance_one_cycle(_):
-        clock.advance(WorkTrackerThatFailsHalfTheTime.INTERVAL_CEIL)
-
-    def checkworkstate(_):
-        assert worktracker.attempts / 2 == worktracker.workdone
-
-    def start():
-        worktracker.start()
-
-    d = threads.deferToThread(start)
-
-    for i in range(10):
-
-        d.addCallback(advance_one_cycle)
-        d.addCallback(checkworkstate)
-
-    yield d
-
-
-@pytest_twisted.inlineCallbacks
-def test_worker_failure_non_resilience():
-    """
-    abort on error is True for this one
-    """
-
-    # Control time
-    clock = Clock()
-    worktracker = WorkTrackerThatFailsHalfTheTime(clock, True)
-
-    def advance_one_cycle(_):
-        clock.advance(WorkTrackerThatFailsHalfTheTime.INTERVAL_CEIL)
-
-    def checkworkstate(_):
-        assert worktracker.workdone == 0
-
-    def start():
-        worktracker.start()
-
-    d = threads.deferToThread(start)
-
-    for i in range(10):
-
-        d.addCallback(advance_one_cycle)
-        d.addCallback(checkworkstate)
 
     yield d
