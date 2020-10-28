@@ -14,15 +14,17 @@
  You should have received a copy of the GNU Affero General Public License
  along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
-
+from math import floor
 
 import pytest_twisted
 from twisted.internet import threads
 from twisted.internet.task import Clock
+from twisted.internet import task
 from web3.middleware.simulate_unmined_transaction import unmined_receipt_simulator_middleware
 
 from nucypher.blockchain.eth.actors import Worker
 from nucypher.blockchain.eth.token import NU, WorkTracker
+from nucypher.utilities.logging import Logger
 from tests.constants import INSECURE_DEVELOPMENT_PASSWORD
 from tests.utils.ursula import make_decentralized_ursulas, start_pytest_ursula_services
 
@@ -136,5 +138,63 @@ def test_worker_auto_commitments(mocker,
     d.addCallback(advance_until_replacement_indicated)
     d.addCallback(advance_one_cycle)
     d.addCallback(verify_replacement_commitment)
+
+    yield d
+
+
+class WorkTrackerThatFailsHalfTheTime(WorkTracker):
+
+    @property
+    def staking_agent(self):
+
+        class MockStakingAgent:
+            def get_current_period(self):
+                return 1
+
+        return MockStakingAgent()
+
+    def _do_work(self) -> None:
+
+        if self.period % 2:
+            raise BaseException("zomg something went wrong")
+        self.workdone += 1
+        self.period += 1
+
+    def __init__(self, clock, *args, **kwargs):
+        self.workdone = 0
+        self.period = 0
+        self.CLOCK = clock
+        self.log = Logger('stake-tracker')
+        self._tracking_task = task.LoopingCall(self._do_work)
+        self._tracking_task.clock = self.CLOCK
+        self._abort_on_error = False
+
+
+@pytest_twisted.inlineCallbacks
+def test_worker_failure_resilience():
+
+    # Control time
+    clock = Clock()
+    worktracker = WorkTrackerThatFailsHalfTheTime(clock)
+
+    def advance_one_cycle(_):
+        print('Advancing one tracking iteration')
+        clock.advance(WorkTrackerThatFailsHalfTheTime.INTERVAL_CEIL)
+
+    def checkworkstate(something, expectedvalue):
+        assert worktracker._tracking_task.running
+        assert worktracker.workdone == expectedvalue
+
+    def start():
+        worktracker.start()
+
+    d = threads.deferToThread(start)
+
+    for i in range(10):
+
+        # so... on 0 we should succeed, on 1 we fail... and so on.
+        # so at say, 9, we should be at... floor(9/2) + 1 = 5
+        d.addCallback(advance_one_cycle)
+        d.addCallback(checkworkstate, floor(i / 2) + 1 )
 
     yield d
