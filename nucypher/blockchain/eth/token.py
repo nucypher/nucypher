@@ -618,7 +618,6 @@ class WorkTracker:
                           failure=failure)
             self.start()
 
-
     def __work_requirement_is_satisfied(self) -> bool:
         # TODO: Check for stake expiration and exit
         if self.__requirement is None:

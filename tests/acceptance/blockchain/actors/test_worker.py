@@ -14,8 +14,6 @@
  You should have received a copy of the GNU Affero General Public License
  along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
-from math import floor
-
 import pytest_twisted
 from twisted.internet import threads
 from twisted.internet.task import Clock
@@ -178,11 +176,10 @@ def test_worker_failure_resilience():
     worktracker = WorkTrackerThatFailsHalfTheTime(clock)
 
     def advance_one_cycle(_):
-        worktracker.period += 1
         clock.advance(WorkTrackerThatFailsHalfTheTime.INTERVAL_CEIL)
 
     def checkworkstate(_):
-        assert worktracker.period/2 == worktracker.workdone
+        assert worktracker.period / 2 == worktracker.workdone
 
     def start():
         worktracker.start()
@@ -191,8 +188,6 @@ def test_worker_failure_resilience():
 
     for i in range(10):
 
-        # so... on 0 we should succeed, on 1 we fail... and so on.
-        # so at say, 9, we should be at... floor(9/2) + 1 = 5
         d.addCallback(advance_one_cycle)
         d.addCallback(checkworkstate)
 
