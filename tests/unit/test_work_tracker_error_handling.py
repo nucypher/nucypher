@@ -2,9 +2,10 @@ import pytest_twisted
 from twisted.internet import task
 from twisted.internet import threads
 from twisted.internet.task import Clock
+from twisted.logger import globalLogPublisher, LogLevel
 
 from nucypher.blockchain.eth.token import WorkTracker
-from nucypher.utilities.logging import Logger
+from nucypher.utilities.logging import Logger, GlobalLoggerSettings
 
 
 class WorkTrackerThatFailsHalfTheTime(WorkTracker):
@@ -22,6 +23,9 @@ class WorkTrackerThatFailsHalfTheTime(WorkTracker):
         if self.attempts % 2:
             raise BaseException("zomg something went wrong")
         self.workdone += 1
+
+    def _crash_gracefully(self, failure=None) -> None:
+        assert failure.getErrorMessage() == 'zomg something went wrong'
 
     def __init__(self, clock, abort_on_error, *args, **kwargs):
         self.workdone = 0
@@ -54,7 +58,19 @@ def test_worker_failure_resilience():
         d.addCallback(advance_one_cycle)
         d.addCallback(checkworkstate)
 
+    warnings = []
+
+    def warning_trapper(event):
+        if event['log_level'] == LogLevel.warn:
+            warnings.append(event)
+
+    globalLogPublisher.addObserver(warning_trapper)
     yield d
+    globalLogPublisher.removeObserver(warning_trapper)
+
+    assert warnings
+    for warning in warnings:
+        assert warning['failure'].getErrorMessage() == "zomg something went wrong"
 
 
 @pytest_twisted.inlineCallbacks
@@ -82,4 +98,18 @@ def test_worker_failure_non_resilience():
         d.addCallback(advance_one_cycle)
         d.addCallback(checkworkstate)
 
-    yield d
+    critical = []
+
+    def critical_trapper(event):
+        if event['log_level'] == LogLevel.critical:
+            critical.append(event)
+
+    globalLogPublisher.addObserver(critical_trapper)
+
+    with GlobalLoggerSettings.pause_all_logging_while():  # To suppress the traceback being displayed from the cricial error.
+        globalLogPublisher.addObserver(critical_trapper)
+        yield d
+        globalLogPublisher.removeObserver(critical_trapper)
+
+    assert len(critical) == 1
+    assert critical[0]['failure'].getErrorMessage() == "zomg something went wrong"
