@@ -612,10 +612,12 @@ class WorkTracker:
         if self._abort_on_error:
             self.log.critical(f'Unhandled error during node work tracking. {failure!r}',
                               failure=failure)
+            self.stop()
             reactor.callFromThread(self._crash_gracefully, failure=failure)
         else:
             self.log.warn(f'Unhandled error during work tracking: {failure.getTraceback()!r}',
                           failure=failure)
+            self.start()
 
     def __work_requirement_is_satisfied(self) -> bool:
         # TODO: Check for stake expiration and exit
@@ -638,7 +640,7 @@ class WorkTracker:
         if len(self.__pending) == txs_in_mempool:
             return True  # OK!
         if txs_in_mempool > len(self.__pending):  # We're missing some pending TXs
-            return False    
+            return False
 
         # TODO: Not sure what to do in this case, but let's do this for the moment
         #       Note that the block my have changed since the previous query
