@@ -564,10 +564,8 @@ class Policy(ABC):
         selected_ursulas = set(handpicked_ursulas) if handpicked_ursulas else set()
 
         # Calculate the target sample quantity
-        target_sample_quantity = self.n - len(selected_ursulas)
-        if target_sample_quantity > 0:
-            sampled_ursulas = self.sample_essential(quantity=target_sample_quantity,
-                                                    handpicked_ursulas=selected_ursulas,
+        if self.n - len(selected_ursulas) > 0:
+            sampled_ursulas = self.sample_essential(handpicked_ursulas=selected_ursulas,
                                                     discover_on_this_thread=discover_on_this_thread)
             selected_ursulas.update(sampled_ursulas)
 
@@ -625,15 +623,17 @@ class FederatedPolicy(Policy):
             raise self.MoreKFragsThanArrangements(error)  # TODO: NotEnoughUrsulas where in the exception tree is this?
 
     def sample_essential(self,
-                         quantity: int,
                          handpicked_ursulas: Set[Ursula],
                          discover_on_this_thread: bool = True) -> Set[Ursula]:
-        self.alice.block_until_number_of_known_nodes_is(quantity, learn_on_this_thread=discover_on_this_thread)
+
+        self.alice.block_until_specific_nodes_are_known(set(ursula.checksum_address for ursula in handpicked_ursulas))
+        self.alice.block_until_number_of_known_nodes_is(self.n, learn_on_this_thread=discover_on_this_thread)
         known_nodes = self.alice.known_nodes
         if handpicked_ursulas:
             # Prevent re-sampling of handpicked ursulas.
             known_nodes = set(known_nodes) - handpicked_ursulas
-        sampled_ursulas = set(random.sample(k=quantity, population=list(known_nodes)))
+        sampled_ursulas = set(random.sample(k=self.n - len(handpicked_ursulas),
+                                            population=list(known_nodes)))
         return sampled_ursulas
 
     def make_arrangement(self, ursula: Ursula, *args, **kwargs):
@@ -727,14 +727,13 @@ class BlockchainPolicy(Policy):
         return params
 
     def sample_essential(self,
-                         quantity: int,
                          handpicked_ursulas: Set[Ursula],
                          learner_timeout: int = 1,
                          timeout: int = 10,
                          discover_on_this_thread: bool = False) -> Set[Ursula]: # TODO #843: Make timeout configurable
 
         selected_ursulas = set(handpicked_ursulas)
-        quantity_remaining = quantity
+        quantity_remaining = self.n - len(handpicked_ursulas)
 
         # Need to sample some stakers
 
@@ -742,7 +741,7 @@ class BlockchainPolicy(Policy):
         reservoir = self.alice.get_stakers_reservoir(duration=self.duration_periods,
                                                      without=handpicked_addresses)
         if len(reservoir) < quantity_remaining:
-            error = f"Cannot create policy with {quantity} arrangements"
+            error = f"Cannot create policy with {quantity_remaining} arrangements"
             raise self.NotEnoughBlockchainUrsulas(error)
 
         to_check = set(reservoir.draw(quantity_remaining))
