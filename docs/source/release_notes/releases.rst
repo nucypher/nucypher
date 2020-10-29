@@ -4,6 +4,15 @@ Releases
 
 .. towncrier release notes start
 
+v4.1.1 (2020-10-29)
+-------------------
+
+Features
+~~~~~~~~
+
+- GitHub Action to ensure that each pull request into main makes an associated release note entry. (`#2396 <https://github.com/nucypher/nucypher/issues/2396>`__)
+
+
 v4.1.0 (2020-10-19)
 -------------------
 

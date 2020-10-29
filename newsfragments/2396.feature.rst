@@ -1,1 +1,0 @@
-GitHub Action to ensure that each pull request into main makes an associated release note entry.
