@@ -732,52 +732,58 @@ class BlockchainPolicy(Policy):
                          timeout: int = 10,
                          discover_on_this_thread: bool = False) -> Set[Ursula]: # TODO #843: Make timeout configurable
 
-        selected_ursulas = set(handpicked_ursulas)
-        quantity_remaining = self.n - len(handpicked_ursulas)
-
-        # Need to sample some stakers
-
         handpicked_addresses = [ursula.checksum_address for ursula in handpicked_ursulas]
         reservoir = self.alice.get_stakers_reservoir(duration=self.duration_periods,
                                                      without=handpicked_addresses)
+
+        quantity_remaining = self.n - len(handpicked_ursulas)
         if len(reservoir) < quantity_remaining:
-            error = f"Cannot create policy with {quantity_remaining} arrangements"
+            error = f"Cannot create policy with {self.n} arrangements"
             raise self.NotEnoughBlockchainUrsulas(error)
 
-        to_check = set(reservoir.draw(quantity_remaining))
+        # Handpicked Ursulas are not necessarily known
+        to_check = list(handpicked_ursulas) + reservoir.draw(quantity_remaining)
+        checked = []
 
         # Sample stakers in a loop and feed them to the learner to check
         # until we have enough in `selected_ursulas`.
 
         start_time = maya.now()
-        new_to_check = to_check
 
         while True:
 
             # Check if the sampled addresses are already known.
             # If we're lucky, we won't have to wait for the learner iteration to finish.
-            known = {x for x in to_check if x in self.alice.known_nodes}
-            to_check = to_check - known
+            checked += [x for x in to_check if x in self.alice.known_nodes]
+            to_check = [x for x in to_check if x not in self.alice.known_nodes]
 
-            known = random.sample(known, min(len(known), quantity_remaining)) # we only need so many
-            selected_ursulas.update([self.alice.known_nodes[address] for address in known])
-            quantity_remaining -= len(known)
-
-            if quantity_remaining == 0:
+            if len(checked) >= self.n:
                 break
-            else:
-                new_to_check = reservoir.draw_at_most(quantity_remaining)
-                to_check.update(new_to_check)
+
+            # The number of new nodes to draw on each iteration.
+            # The choice of this depends on how expensive it is to check a node for validity,
+            # and how likely is it for a picked node to be offline.
+            # We assume here that it is unlikely, and be conservative.
+            drawing_step = self.n - len(checked)
+
+            # Draw a little bit more nodes, if there are any
+            to_check += reservoir.draw_at_most(drawing_step)
 
             delta = maya.now() - start_time
             if delta.total_seconds() >= timeout:
                 still_checking = ', '.join(to_check)
+                quantity_remaining = self.n - len(checked)
                 raise RuntimeError(f"Timed out after {timeout} seconds; "
                                    f"need {quantity_remaining} more, still checking {still_checking}.")
 
-            self.alice.block_until_specific_nodes_are_known(to_check, learn_on_this_thread=discover_on_this_thread)
+            self.alice.block_until_specific_nodes_are_known(to_check,
+                                                            learn_on_this_thread=discover_on_this_thread,
+                                                            allow_missing=len(to_check),
+                                                            timeout=learner_timeout)
 
-        found_ursulas = list(selected_ursulas)
+        # We only need `n` nodes. Pick the first `n` ones,
+        # since they were the first drawn, and hence have the priority.
+        found_ursulas = [self.alice.known_nodes[address] for address in checked[:self.n]]
 
         # Randomize the output to avoid the largest stakers always being the first in the list
         system_random = random.SystemRandom()
