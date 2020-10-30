@@ -196,21 +196,12 @@ class Logger(TwistedLogger):
 
     See Issue #724 and, particularly, https://github.com/nucypher/nucypher/issues/724#issuecomment-600190455"""
 
-    CURLY_BRACES_REGEX = re.compile('{+|}+')
-
     @classmethod
     def escape_format_string(cls, string):
         """
-        Escapes curly braces from a PEP-3101's format string when there's a sequence of odd length
+        Escapes all curly braces from a PEP-3101's format string.
         """
-
-        def escape_group_of_curly_braces(match):
-            curlies = match.group()
-            if len(curlies) % 2 == 1:
-                curlies += curlies
-            return curlies
-
-        escaped_string = cls.CURLY_BRACES_REGEX.sub(escape_group_of_curly_braces, string)
+        escaped_string = string.replace("{", "{{").replace("}", "}}")
         return escaped_string
 
     def emit(self, level, format=None, **kwargs):
