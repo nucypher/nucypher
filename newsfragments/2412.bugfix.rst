@@ -1,2 +1,2 @@
-* Remove leftover imports of Twisted Logger, using instead our shim.
-* Change NuCypher Logger behavior to always escape curly braces. The rationale is that it's unclear how to justify the previous behavior with some edge cases like ``{{}``, which was processed to ``{}``.
+| Remove leftover imports of Twisted Logger, using instead our shim.
+| Change NuCypher Logger behavior to always escape curly braces. The rationale is that it's unclear how to justify the previous behavior with some edge cases like ``{{}``, which was processed to ``{}``.
