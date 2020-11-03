@@ -50,15 +50,19 @@ class FleetSensor:
         self._marked = defaultdict(list)  # Beginning of bucketing.
         self.states = OrderedDict()
 
-    def __setitem__(self, key, value):
-        self._nodes[key] = value
+    def __setitem__(self, checksum_address, node_or_sprout):
+        if node_or_sprout.domain == self.domain:
+            self._nodes[checksum_address] = node_or_sprout
 
-        if self._tracking:
-            self.log.info("Updating fleet state after saving node {}".format(value))
-            self.record_fleet_state()
+            if self._tracking:
+                self.log.info("Updating fleet state after saving node {}".format(node_or_sprout))
+                self.record_fleet_state()
+        else:
+            msg = f"Rejected node {node_or_sprout} because its domain is '{node_or_sprout.domain}' but we're only tracking '{self.domain}'"
+            self.log.warn(msg)
 
-    def __getitem__(self, item):
-        return self._nodes[item]
+    def __getitem__(self, checksum_address):
+        return self._nodes[checksum_address]
 
     def __bool__(self):
         return bool(self._nodes)
