@@ -558,7 +558,7 @@ class WorkTracker:
         self.__current_period = None
         self.__start_time = NOT_STAKING
         self.__uptime_period = NOT_STAKING
-        self._abort_on_error = True
+        self._abort_on_error = False
 
     @classmethod
     def random_interval(cls) -> int:
