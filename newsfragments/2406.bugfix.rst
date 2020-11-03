@@ -1,0 +1,2 @@
+In the Worker's commitment tracker, the logic to check for what's the current period should happen before the logic to track pending transactions.
+Otherwise, it's possible to try to fire a replacement transaction in the context of a different period.
