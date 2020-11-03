@@ -103,6 +103,11 @@ class NodeSprout(PartiallyKwargifiedBytes):
         return self.processed_objects['verifying_key'][0]
 
     @property
+    def domain(self) -> str:
+        domain_bytes = PartiallyKwargifiedBytes.__getattr__(self, "domain")
+        return domain_bytes.decode("utf-8")
+
+    @property
     def checksum_address(self):
         if not self._checksum_address:
             self._checksum_address = to_checksum_address(self.public_address)
