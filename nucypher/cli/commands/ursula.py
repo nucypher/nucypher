@@ -432,7 +432,6 @@ def config(general_config, config_options, config_file):
         config_file = select_config_file(emitter=emitter,
                                          checksum_address=config_options.worker_address,
                                          config_class=UrsulaConfiguration)
-    emitter.echo(f"Ursula Configuration {config_file} \n {'='*55}")
     updates = config_options.get_updates()
     get_or_update_configuration(emitter=emitter,
                                 config_class=UrsulaConfiguration,

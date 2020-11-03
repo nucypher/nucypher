@@ -1,0 +1,1 @@
+Tone-down learning logging messages even more (see issue #1712). Fixes some CLI and exception messages.

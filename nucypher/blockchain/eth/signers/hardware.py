@@ -101,7 +101,7 @@ class TrezorSigner(Signer):
         try:
             client = get_default_client()
         except TransportException:
-            raise self.NoDeviceDetected("Could not find a TREZOR device to connect to."
+            raise self.NoDeviceDetected("Could not find a TREZOR device to connect to. "
                                         "Is it connected and unlocked?")
         return client
 
