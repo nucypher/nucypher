@@ -1,0 +1,1 @@
+Correct CLI problems when setting the min fee rate. Also, simplifies usage by expressing rates in GWEI.
