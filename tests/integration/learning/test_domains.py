@@ -82,7 +82,7 @@ def test_learner_restores_metadata_from_storage(lonely_ursula_maker, tmpdir):
                                        know_each_other=True,
                                        save_metadata=False)
     learner, buddy = new_learners
-    buddy._Learner__known_nodes = FleetSensor()
+    buddy._Learner__known_nodes = FleetSensor(domain="fistro")
 
     # The learner shouldn't learn about any node from the first domain, since it's different.
     learner.learn_from_teacher_node()

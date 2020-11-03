@@ -23,6 +23,7 @@ import pytest
 from nucypher.acumen.nicknames import Nickname
 from nucypher.acumen.perception import FleetSensor
 from nucypher.characters.unlawful import Vladimir
+from nucypher.config.constants import TEMPORARY_DOMAIN
 from nucypher.crypto.powers import SigningPower
 from nucypher.datastore.models import TreasureMap
 from tests.utils.middleware import MockRestMiddleware
@@ -44,7 +45,7 @@ def test_all_blockchain_ursulas_know_about_all_other_ursulas(blockchain_ursulas,
 
 def test_blockchain_alice_finds_ursula_via_rest(blockchain_alice, blockchain_ursulas):
     # Imagine alice knows of nobody.
-    blockchain_alice._Learner__known_nodes = FleetSensor()
+    blockchain_alice._Learner__known_nodes = FleetSensor(domain=TEMPORARY_DOMAIN)
 
     blockchain_alice.remember_node(blockchain_ursulas[0])
     blockchain_alice.learn_from_teacher_node()

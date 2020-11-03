@@ -224,7 +224,7 @@ class Learner:
         self._learning_listeners = defaultdict(list)
         self._node_ids_to_learn_about_immediately = set()
 
-        self.__known_nodes = self.tracker_class()
+        self.__known_nodes = self.tracker_class(domain=domain)
         self._verify_node_bonding = verify_node_bonding
 
         self.lonely = lonely

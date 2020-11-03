@@ -20,6 +20,7 @@ from twisted.logger import LogLevel, globalLogPublisher
 
 from constant_sorrow.constants import NOT_SIGNED
 from nucypher.acumen.perception import FleetSensor
+from nucypher.config.constants import TEMPORARY_DOMAIN
 from nucypher.crypto.powers import TransactingPower
 from nucypher.network.nodes import Learner
 from tests.utils.middleware import MockRestMiddleware
@@ -45,7 +46,7 @@ def test_blockchain_ursula_stamp_verification_tolerance(blockchain_ursulas, mock
     unsigned._Teacher__decentralized_identity_evidence = NOT_SIGNED
 
     # Wipe known nodes!
-    lonely_blockchain_learner._Learner__known_nodes = FleetSensor()
+    lonely_blockchain_learner._Learner__known_nodes = FleetSensor(domain=TEMPORARY_DOMAIN)
     lonely_blockchain_learner._current_teacher_node = blockchain_teacher
     lonely_blockchain_learner.remember_node(blockchain_teacher)
 

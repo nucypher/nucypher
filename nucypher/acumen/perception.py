@@ -42,7 +42,8 @@ class FleetSensor:
     log = Logger("Learning")
     FleetState = namedtuple("FleetState", ("nickname", "icon", "nodes", "updated", "checksum"))
 
-    def __init__(self):
+    def __init__(self, domain: str):
+        self.domain = domain
         self.additional_nodes_to_track = []
         self.updated = maya.now()
         self._nodes = OrderedDict()
