@@ -35,14 +35,23 @@ def get_json_observer_for_file(logfile):
     return json_observer
 
 
+def expected_processing(string_with_curly_braces):
+    ascii_string = py_encode_basestring_ascii(string_with_curly_braces)[1:-1]
+    expected_output = Logger.escape_format_string(ascii_string)
+    return expected_output
+
+
 # Any string without curly braces won't have any problem
 ordinary_strings = (
     "Because there's nothing worse in life than being ordinary.",
+    "🍌 🍌 🍌 terracotta 🍌 🍌 🍌 terracotta terracotta 🥧",
+    '"You can quote me on this"',
+    f"Some bytes: {b''.join(chr(i).encode() for i in range(1024) if chr(i) not in '{}')}"
 )
 
 # Strings that have curly braces but that appear in groups of even length are considered safe too,
-# as curly braces are escaped. Twisted will eat these just fine, but since they have curly braces,
-# we will process them in our Logger.
+# as curly braces are escaped this way, according to PEP 3101. Twisted will eat these just fine,
+# but since they have curly braces, we will have to process them in our Logger.
 quirky_strings = (
     "{{}}", "{{hola}}", "{{{{}}}}", "foo{{}}",
 )
@@ -65,6 +74,7 @@ freaky_format_strings = (  # Including the expected exception and error message
     ("{{{{{}}}}}", KeyError, ""),
     ("{bananas}", KeyError, "bananas"),
     (str({'bananas': '🍌🍌🍌'}), KeyError, "bananas"),
+    (f"Some bytes: {b''.join(chr(i).encode() for i in range(1024))}", KeyError, "|")
 )
 
 # Embrace the quirky!
@@ -100,7 +110,7 @@ def test_twisted_json_logger_doesnt_like_curly_braces_either():
         twisted_logger.info(string)
         logged_event = file.getvalue()
         assert '"log_level": {"name": "info"' in logged_event
-        assert f'"log_format": "{string}"' in logged_event
+        assert f'"log_format": "{expected_processing(string.format())}"' in logged_event
 
     # But curly braces are not
     for string, exception, exception_message in freaky_format_strings:
@@ -130,11 +140,6 @@ def test_but_nucypher_logger_is_cool_with_that(capsys):
 
 
 def test_even_nucypher_json_logger_is_cool():
-
-    def expected_processing(string_with_curly_braces):
-        ascii_string = py_encode_basestring_ascii(string_with_curly_braces)[1:-1]
-        expected_output = Logger.escape_format_string(ascii_string)
-        return expected_output
 
     nucypher_logger = Logger('nucypher-logger-json')
 
