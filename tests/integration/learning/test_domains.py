@@ -89,8 +89,35 @@ def test_learner_restores_metadata_from_storage(lonely_ursula_maker, tmpdir):
     # The learner shouldn't learn about any node from the first domain, since it's different.
     learner.learn_from_teacher_node()
     for restored_node in learner.known_nodes:
-        assert restored_node.mature().serving_domain == learner.learning_domain
+        assert restored_node.mature().domain == learner.domain
 
     # In fact, since the storage only contains nodes from a different domain,
     # the learner should only know its buddy from the second domain.
     assert set(learner.known_nodes) == {buddy}
+
+
+def test_learner_ignores_stored_nodes_from_other_domains(lonely_ursula_maker, tmpdir):
+
+    learner, other_staker = lonely_ursula_maker(domain="call-it-mainnet",
+                                        know_each_other=True,
+                                        quantity=2)
+
+    pest, *other_ursulas_from_the_wrong_side_of_the_tracks = lonely_ursula_maker(domain="i-dunno-testt-maybe",
+                                       quantity=5,
+                                       know_each_other=True)
+
+    assert pest not in learner.known_nodes
+    pest._current_teacher_node = learner
+    pest.learn_from_teacher_node()
+
+    ##################################
+    # Prior to #2423, learner remembered pest because POSTed node metadata was not domain-checked.
+    # This is how ibex nodes initially made their way into mainnet fleet states.
+    assert pest not in learner.known_nodes  # But not anymore.
+
+    # Once pest made its way into learner, learner taught passed it to other mainnet nodes.
+
+    learner.known_nodes._nodes[pest.checksum_address] = pest  # This used to happen anyway.
+    other_staker._current_teacher_node = learner
+    other_staker.learn_from_teacher_node()  # And once it did, the node from the wrong domain spread.
+    assert pest not in other_staker.known_nodes  # But not anymore.
