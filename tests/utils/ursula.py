@@ -106,8 +106,9 @@ def make_decentralized_ursulas(ursula_config: UrsulaConfiguration,
                                        worker_address=worker_address,
                                        db_filepath=tempfile.mkdtemp(),
                                        rest_port=port + 100,
+                                       # start_working_now=commit_to_next_period,  # FIXME: 2424
                                        **ursula_overrides)
-        if commit_to_next_period:
+        if commit_to_next_period:  # FIXME: 2424
             # TODO: Is _crypto_power trying to be public?  Or is there a way to expose *something* public about TransactingPower?
             # Do we need to revisit the concept of "public material"?  Or does this rightly belong as a method?
             tx_power = ursula._crypto_power.power_ups(TransactingPower)
