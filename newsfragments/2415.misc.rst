@@ -1,0 +1,1 @@
+Improved newsfragments README file to clarify release note entry naming convention.

@@ -5,18 +5,20 @@ release notes. This should be a description of aspects of the change
 commit message and PR description, which are a description of the change as
 relevant to people working on the code itself.)
 
- Each file should be named like `<ISSUE>.<TYPE>.rst`, where
-`<ISSUE>` is an issue number, and `<TYPE>` is one of:
+The pull request (PR) number should be used for the newsfragment file. Each file
+should be named `<PR_NUMBER>.<TYPE>.rst`, where `<TYPE>` is one of:
 
 * `feature`
 * `bugfix`
 * `doc`
 * `misc`
 
-So for example: `123.feature.rst`, `456.bugfix.rst`
+For example: `123.feature.rst`, `456.bugfix.rst`
 
-If the PR fixes an issue, use that number here. If there is no issue,
-then open up the PR first and use the PR number for the newsfragment.
+Along with the required PR newsfragment file (enforced by a GitHub Action),
+additional newsfragment files for issues linked to the PR can optionally be
+included by following the same naming convention above, and
+using `<ISSUE_NUMBER>` instead of `<PR_NUMBER>`.
 
 Note that the `towncrier` tool will automatically
 reflow your text, so don't try to do any fancy formatting. Run
