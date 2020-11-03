@@ -116,7 +116,7 @@ class UrsulaInfoMetricsCollector(BaseMetricsCollector):
         base_payload = {'app_version': nucypher.__version__,
                         'teacher_version': str(self.ursula.TEACHER_VERSION),
                         'host': str(self.ursula.rest_interface),
-                        'domain': self.ursula.learning_domain,
+                        'domain': self.ursula.domain,
                         'nickname': str(self.ursula.nickname),
                         'nickname_icon': self.ursula.nickname_icon,
                         'fleet_state': str(self.ursula.known_nodes.checksum),
