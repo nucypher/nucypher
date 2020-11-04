@@ -641,11 +641,8 @@ class WorkTracker:
             return True  # OK!
         if txs_in_mempool > len(self.__pending):  # We're missing some pending TXs
             return False
-
-        # TODO: Not sure what to do in this case, but let's do this for the moment
-        #       Note that the block my have changed since the previous query
-        # elif txs_in_mempool < len(self.__pending):  # Our tracking is somehow outdated
-        #     return False
+        else:  # TODO: What to do when txs_in_mempool < len(self.__pending)? What does this imply?
+            return True
 
     def __track_pending_commitments(self) -> bool:
         # TODO: Keep a purpose-built persistent log of worker transaction history
