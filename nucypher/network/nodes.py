@@ -355,12 +355,8 @@ class Learner:
         restored_from_disk = []
         invalid_nodes = defaultdict(list)
         for node in stored_nodes:
-            try:  # Workaround until #2356 is fixed
-                node_domain = node.domain.decode('utf-8')
-            except:  # TODO: The heck is happening here?
-                node_domain = node.domain
-            if node_domain != self.domain:
-                invalid_nodes[node_domain].append(node)
+            if node.domain != self.domain:
+                invalid_nodes[node.domain].append(node)
                 continue
             restored_node = self.remember_node(node, record_fleet_state=False)  # TODO: Validity status 1866
             restored_from_disk.append(restored_node)
