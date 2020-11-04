@@ -415,12 +415,16 @@ commands:
 
   run_test_suite:
     description: "Runs a group of tests, specified by name and contained in a file"
+    parameters:
+      path_prefix:
+        type: string
+        default: "tests.foo"
     steps:
       - run:
           name: Running Test Suite
           command: |
             cat test-names.tmp | tr '\n' ' ' > test-names.txt
-            pytest -c .circleci/pytest.ini `cat test-names.txt`
+            pytest -c .circleci/pytest.ini `cat test-names.txt` --junit-prefix=<< parameters.path_prefix >>
 
   prepare_dev_docker:
     description: "access pre-build docker image"
@@ -520,7 +524,8 @@ jobs:
           name: Preparing Integration Test Suite
           command: |
             circleci tests glob "tests/integration/**/test_*.py" | circleci tests split --split-by=timings | tee test-names.tmp
-      - run_test_suite
+      - run_test_suite:
+          path_prefix: "tests.integration"
       - capture_test_results
 
   unit:
@@ -532,7 +537,8 @@ jobs:
           name: Preparing Unit Test Suite
           command: |
             circleci tests glob "tests/unit/**/test_*.py" | circleci tests split --split-by=timings | tee test-names.tmp
-      - run_test_suite
+      - run_test_suite:
+          path_prefix: "tests.unit"
       - capture_test_results
 
   agents:
