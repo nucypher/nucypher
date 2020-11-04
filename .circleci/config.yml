@@ -443,6 +443,9 @@ commands:
       - store_artifacts:
           path: test-names.txt
           destination: tests
+      - store_artifacts:
+          path: ~/reports/pytest-results.xml
+          destination: results
 
   build_and_save_test_docker:
     description: "Build dev docker image for running tests against docker"
