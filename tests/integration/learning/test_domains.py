@@ -15,8 +15,6 @@
  along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
-from functools import partial
-
 from nucypher.acumen.perception import FleetSensor
 from nucypher.config.storages import LocalFileBasedNodeStorage
 
@@ -59,8 +57,8 @@ def test_learner_learns_about_domains_separately(lonely_ursula_maker, caplog):
     assert other_first_domain_learner in new_first_domain_learner.known_nodes
     assert _nobody in new_first_domain_learner.known_nodes
 
-def test_learner_restores_metadata_from_storage(lonely_ursula_maker, tmpdir):
 
+def test_learner_restores_metadata_from_storage(lonely_ursula_maker, tmpdir):
     # Create a local file-based node storage
     root = tmpdir.mkdir("known_nodes")
     metadata = root.mkdir("metadata")
@@ -97,14 +95,13 @@ def test_learner_restores_metadata_from_storage(lonely_ursula_maker, tmpdir):
 
 
 def test_learner_ignores_stored_nodes_from_other_domains(lonely_ursula_maker, tmpdir):
-
     learner, other_staker = lonely_ursula_maker(domain="call-it-mainnet",
-                                        know_each_other=True,
-                                        quantity=2)
+                                                know_each_other=True,
+                                                quantity=2)
 
     pest, *other_ursulas_from_the_wrong_side_of_the_tracks = lonely_ursula_maker(domain="i-dunno-testt-maybe",
-                                       quantity=5,
-                                       know_each_other=True)
+                                                                                 quantity=5,
+                                                                                 know_each_other=True)
 
     assert pest not in learner.known_nodes
     pest._current_teacher_node = learner
