@@ -156,7 +156,7 @@ class BlockchainInterface:
                  provider_process=NO_PROVIDER_PROCESS,
                  provider_uri: str = NO_BLOCKCHAIN_CONNECTION,
                  provider: BaseProvider = NO_BLOCKCHAIN_CONNECTION,
-                 gas_strategy: Union[str, Callable] = None):
+                 gas_strategy: Optional[Union[str, Callable]] = None):
 
         """
         TODO: #1502 - Move to API docs.
@@ -659,7 +659,7 @@ class BlockchainInterface:
                          gas_estimation_multiplier: Optional[float] = None,
                          confirmations: int = 0,
                          fire_and_forget: bool = False,  # do not wait for receipt.  See #2385
-                         ) -> dict:
+                         ) -> Union[TxReceipt, HexBytes]:
 
         if fire_and_forget:
             if confirmations > 0:

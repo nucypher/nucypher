@@ -40,7 +40,9 @@ CURRENT_BLOCK = MOCK_TESTERCHAIN.w3.eth.getBlock('latest')
 
 class MockContractAgent:
 
-    FAKE_RECEIPT = {'transactionHash': HexBytes(b'FAKE29890FAKE8349804'),
+    FAKE_TX_HASH = HexBytes(b'FAKE29890FAKE8349804')
+
+    FAKE_RECEIPT = {'transactionHash': FAKE_TX_HASH,
                     'gasUsed': 1,
                     'blockNumber': CURRENT_BLOCK.number,
                     'blockHash': HexBytes(b'FAKE43434343FAKE43443434')}

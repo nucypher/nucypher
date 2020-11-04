@@ -22,7 +22,7 @@ import sys
 import time
 import traceback
 from decimal import Decimal
-from typing import Callable
+from typing import Callable, Union
 from typing import Dict, Iterable, List, Optional, Tuple
 
 import click
@@ -31,6 +31,7 @@ from constant_sorrow.constants import FULL, WORKER_NOT_RUNNING
 from eth_tester.exceptions import TransactionFailed as TestTransactionFailed
 from eth_typing import ChecksumAddress
 from eth_utils import to_canonical_address, to_checksum_address
+from hexbytes import HexBytes
 from web3 import Web3
 from web3.exceptions import ValidationError
 from web3.types import TxReceipt
@@ -1632,7 +1633,7 @@ class Worker(NucypherTokenActor):
 
     @only_me
     @save_receipt  # saves txhash instead of receipt if `fire_and_forget` is True
-    def commit_to_next_period(self, fire_and_forget: bool = True) -> TxReceipt:
+    def commit_to_next_period(self, fire_and_forget: bool = True) -> Union[TxReceipt, HexBytes]:
         """For each period that the worker makes a commitment, the staker is rewarded"""
         txhash_or_receipt = self.staking_agent.commit_to_next_period(worker_address=self.__worker_address,
                                                                      fire_and_forget=fire_and_forget)
