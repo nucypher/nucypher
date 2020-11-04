@@ -101,4 +101,4 @@ def test_deserialize_ursulas_version_2():
         assert version == Ursula.LEARNER_VERSION
 
         resurrected_ursula = Ursula.from_bytes(fossilized_ursula, fail_fast=True)
-        assert TEMPORARY_DOMAIN.encode('utf-8') == resurrected_ursula.domain
+        assert TEMPORARY_DOMAIN == resurrected_ursula.domain
