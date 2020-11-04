@@ -74,8 +74,8 @@ def test_bob_can_retrieve_the_treasure_map_and_decrypt_it(enacted_federated_poli
     that Bob can retrieve it with only the information about which he is privy pursuant to the PolicyGroup.
     """
     bob = enacted_federated_policy.bob
-    _previous_domain = bob.learning_domain
-    bob.learning_domain = None  # Bob has no knowledge of the network.
+    _previous_domain = bob.domain
+    bob.domain = None  # Bob has no knowledge of the network.
 
     # Of course, in the real world, Bob has sufficient information to reconstitute a PolicyGroup, gleaned, we presume,
     # through a side-channel with Alice.
@@ -88,7 +88,7 @@ def test_bob_can_retrieve_the_treasure_map_and_decrypt_it(enacted_federated_poli
 
     # Bob finds out about one Ursula (in the real world, a seed node, hardcoded based on his learning domain)
     bob.done_seeding = False
-    bob.learning_domain = _previous_domain
+    bob.domain = _previous_domain
 
     # ...and then learns about the rest of the network.
     bob.learn_from_teacher_node(eager=True)

@@ -103,6 +103,11 @@ class NodeSprout(PartiallyKwargifiedBytes):
         return self.processed_objects['verifying_key'][0]
 
     @property
+    def domain(self) -> str:
+        domain_bytes = PartiallyKwargifiedBytes.__getattr__(self, "domain")
+        return domain_bytes.decode("utf-8")
+
+    @property
     def checksum_address(self):
         if not self._checksum_address:
             self._checksum_address = to_checksum_address(self.public_address)
@@ -210,7 +215,7 @@ class Learner:
         self.log = Logger("learning-loop")  # type: Logger
 
         self.learning_deferred = Deferred()
-        self.learning_domain = domain
+        self.domain = domain
         if not self.federated_only:
             default_middleware = self.__DEFAULT_MIDDLEWARE_CLASS(registry=self.registry)
         else:
@@ -224,7 +229,7 @@ class Learner:
         self._learning_listeners = defaultdict(list)
         self._node_ids_to_learn_about_immediately = set()
 
-        self.__known_nodes = self.tracker_class()
+        self.__known_nodes = self.tracker_class(domain=domain)
         self._verify_node_bonding = verify_node_bonding
 
         self.lonely = lonely
@@ -293,8 +298,8 @@ class Learner:
 
         discovered = []
 
-        if self.learning_domain:
-            canonical_sage_uris = self.network_middleware.TEACHER_NODES.get(self.learning_domain, ())
+        if self.domain:
+            canonical_sage_uris = self.network_middleware.TEACHER_NODES.get(self.domain, ())
 
             for uri in canonical_sage_uris:
                 try:
@@ -350,18 +355,14 @@ class Learner:
         restored_from_disk = []
         invalid_nodes = defaultdict(list)
         for node in stored_nodes:
-            try:  # Workaround until #2356 is fixed
-                node_domain = node.domain.decode('utf-8')
-            except:
-                node_domain = node.serving_domain
-            if node_domain != self.learning_domain:
-                invalid_nodes[node_domain].append(node)
+            if node.domain != self.domain:
+                invalid_nodes[node.domain].append(node)
                 continue
             restored_node = self.remember_node(node, record_fleet_state=False)  # TODO: Validity status 1866
             restored_from_disk.append(restored_node)
 
         if invalid_nodes:
-            self.log.warn(f"We're learning about domain '{self.learning_domain}', but found nodes from other domains; "
+            self.log.warn(f"We're learning about domain '{self.domain}', but found nodes from other domains; "
                           f"let's ignore them. These domains and nodes are: {dict(invalid_nodes)}")
 
         return restored_from_disk
@@ -821,9 +822,9 @@ class Learner:
             self.log.info("Bad response from teacher {}: {} - {}".format(current_teacher, response, response.content))
             return
 
-        if self.learning_domain != current_teacher.serving_domain:
-            self.log.debug(f"{current_teacher} is serving '{current_teacher.serving_domain}', "
-                           f"ignore since we are learning about '{self.learning_domain}'")
+        if self.domain != current_teacher.domain:
+            self.log.debug(f"{current_teacher} is serving '{current_teacher.domain}', "
+                           f"ignore since we are learning about '{self.domain}'")
             return  # This node is not serving our domain.
 
         #
@@ -946,7 +947,7 @@ class Teacher:
         # Fleet
         #
 
-        self.serving_domain = domain
+        self.domain = domain
         self.fleet_state_checksum = None
         self.fleet_state_updated = None
         self.last_seen = NEVER_SEEN("No Connection to Node")
@@ -1362,7 +1363,7 @@ class Teacher:
                    "last_seen": last_seen,
                    "fleet_state": node.fleet_state_checksum or 'unknown',
                    "fleet_state_icon": fleet_icon,
-                   "domain": node.serving_domain,
+                   "domain": node.domain,
                    'version': nucypher.__version__
                    }
         return payload

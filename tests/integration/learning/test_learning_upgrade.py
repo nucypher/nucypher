@@ -33,7 +33,7 @@ def test_emit_warning_upon_new_version(lonely_ursula_maker, caplog):
                                                        know_each_other=True)
     learner, _bystander = lonely_ursula_maker(quantity=2, domain="no hardcodes")
 
-    learner.learning_domain = "no hardcodes"
+    learner.domain = "no hardcodes"
     learner.remember_node(teacher)
     teacher.remember_node(learner)
     teacher.remember_node(new_node)

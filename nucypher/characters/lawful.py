@@ -1111,7 +1111,7 @@ class Ursula(Teacher, Character, Worker):
                 rest_app, datastore = make_rest_app(
                     this_node=self,
                     db_filepath=db_filepath,
-                    serving_domain=domain,
+                    domain=domain,
                 )
 
                 # TLSHostingPower (Ephemeral Powers and Private Keys)
@@ -1237,7 +1237,7 @@ class Ursula(Teacher, Character, Worker):
         # if learning:  # TODO: Include learning startup here with the rest of the services?
         #     self.start_learning_loop(now=self._start_learning_now)
         #     if emitter:
-        #         emitter.message(f"✓ Node Discovery ({','.join(self.learning_domain)})", color='green')
+        #         emitter.message(f"✓ Node Discovery ({','.join(self.domain)})", color='green')
 
         if self._availability_check and availability:
             self._availability_tracker.start(now=False)  # wait...
@@ -1352,7 +1352,7 @@ class Ursula(Teacher, Character, Worker):
 
         as_bytes = bytes().join((version,
                                  self.canonical_public_address,
-                                 bytes(VariableLengthBytestring(self.serving_domain.encode('utf-8'))),
+                                 bytes(VariableLengthBytestring(self.domain.encode('utf-8'))),
                                  self.timestamp_bytes(),
                                  bytes(self._interface_signature),
                                  bytes(VariableLengthBytestring(self.decentralized_identity_evidence)),  # FIXME: Fixed length doesn't work with federated

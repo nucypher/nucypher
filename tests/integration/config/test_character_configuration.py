@@ -77,7 +77,7 @@ def test_federated_development_character_configurations(character, configuration
     assert thing_one.federated_only is True
 
     # Domain
-    assert TEMPORARY_DOMAIN == thing_one.learning_domain
+    assert TEMPORARY_DOMAIN == thing_one.domain
 
     # Node Storage
     assert configuration.TEMP_CONFIGURATION_DIR_PREFIX in thing_one.keyring_root
