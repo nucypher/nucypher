@@ -21,6 +21,7 @@ import os
 
 from nucypher.characters.lawful import Bob
 from nucypher.config.characters import AliceConfiguration
+from nucypher.config.constants import TEMPORARY_DOMAIN
 from nucypher.crypto.powers import DecryptingPower, SigningPower
 from tests.constants import INSECURE_DEVELOPMENT_PASSWORD
 from tests.utils.middleware import MockRestMiddleware
@@ -31,7 +32,7 @@ def test_alices_powers_are_persistent(federated_ursulas, tmpdir):
     alice_config = AliceConfiguration(
         config_root=os.path.join(tmpdir, 'nucypher-custom-alice-config'),
         network_middleware=MockRestMiddleware(),
-        known_nodes=federated_ursulas,
+        domain=TEMPORARY_DOMAIN,
         start_learning_now=False,
         federated_only=True,
         save_metadata=False,
