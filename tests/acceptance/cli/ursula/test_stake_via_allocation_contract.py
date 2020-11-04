@@ -526,7 +526,8 @@ def test_collect_rewards_integration(click_runner,
                     rest_port=ursula_port,
                     start_working_now=False,
                     network_middleware=MockRestMiddleware(),
-                    db_filepath=tempfile.mkdtemp())
+                    db_filepath=tempfile.mkdtemp(),
+                    domain=TEMPORARY_DOMAIN)
 
     MOCK_KNOWN_URSULAS_CACHE[ursula_port] = ursula
     assert ursula.worker_address == worker_address
