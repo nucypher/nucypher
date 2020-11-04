@@ -25,12 +25,11 @@ from tests.utils.ursula import make_federated_ursulas
 
 def test_proper_seed_node_instantiation(lonely_ursula_maker):
     _lonely_ursula_maker = partial(lonely_ursula_maker, quantity=1)
-    firstula = _lonely_ursula_maker().pop()
+    firstula = _lonely_ursula_maker(domain="this-is-meaningful-now").pop()
     firstula_as_seed_node = firstula.seed_node_metadata()
-    any_other_ursula = _lonely_ursula_maker(seed_nodes=[firstula_as_seed_node], domain="useless domain").pop()
+    any_other_ursula = _lonely_ursula_maker(seed_nodes=[firstula_as_seed_node], domain="this-is-meaningful-now").pop()
 
     assert not any_other_ursula.known_nodes
-    # print(f"**********************Starting {any_other_ursula} loop")
     any_other_ursula.start_learning_loop(now=True)
     assert firstula in any_other_ursula.known_nodes
 
