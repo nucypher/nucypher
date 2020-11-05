@@ -1,0 +1,1 @@
+Fix missing detection of test timings in CircleCI (see issue #2249)
