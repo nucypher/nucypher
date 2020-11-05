@@ -589,7 +589,8 @@ jobs:
           name: Preparing Ethereum Contract Unit Tests
           command: |
             circleci tests glob "tests/contracts/**/test_*.py" | circleci tests split --split-by=timings | tee test-names.tmp
-      - run_test_suite
+      - run_test_suite:
+          path_prefix: "tests.contracts"
       - capture_test_results
 
   interfaces:
