@@ -523,7 +523,7 @@ jobs:
       - run:
           name: Preparing Integration Test Suite
           command: |
-            circleci tests glob "tests/integration/**/test_*.py" | circleci tests split --split-by=timings | tee test-names.tmp
+            circleci tests glob "tests/integration/**/test_*.py" | circleci tests split --split-by=timings --timings-type=classname | tee test-names.tmp
       - run_test_suite:
           path_prefix: "tests.integration"
       - capture_test_results
@@ -536,7 +536,7 @@ jobs:
       - run:
           name: Preparing Unit Test Suite
           command: |
-            circleci tests glob "tests/unit/**/test_*.py" | circleci tests split --split-by=timings | tee test-names.tmp
+            circleci tests glob "tests/unit/**/test_*.py" | circleci tests split --split-by=timings --timings-type=classname | tee test-names.tmp
       - run_test_suite:
           path_prefix: "tests.unit"
       - capture_test_results
