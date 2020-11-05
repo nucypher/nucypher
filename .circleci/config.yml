@@ -411,7 +411,7 @@ commands:
       - restore_dependency_cache
       - run:
           name: "Create directory for test reports"
-          command: mkdir reports
+          command: mkdir reports coverage
 
   run_test_suite:
     description: "Runs a group of tests, specified by name and contained in a file"
@@ -440,7 +440,7 @@ commands:
     description: "Store and Upload test results; Follow-up step for tests"
     steps:
       - store_test_results:
-          path: reports
+          path: ~/reports
       - store_artifacts:
           path: ~/.cache/nucypher/log/nucypher.log
           destination: logs
@@ -449,7 +449,10 @@ commands:
           destination: tests
       - store_artifacts:
           path: ~/reports/pytest-results.xml
-          destination: results
+          destination: pytest_results
+      - store_artifacts:
+          path: ~/coverage/coverage.xml
+          destination: coverage
 
   build_and_save_test_docker:
     description: "Build dev docker image for running tests against docker"
