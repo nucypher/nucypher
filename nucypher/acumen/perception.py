@@ -24,10 +24,10 @@ from bytestring_splitter import BytestringSplitter
 from constant_sorrow.constants import NO_KNOWN_NODES
 from collections import namedtuple, defaultdict
 from collections import OrderedDict
-from twisted.logger import Logger
 
 from .nicknames import Nickname
 from nucypher.crypto.api import keccak_digest
+from nucypher.utilities.logging import Logger
 
 
 class FleetSensor:
