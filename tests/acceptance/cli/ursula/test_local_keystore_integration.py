@@ -143,9 +143,10 @@ def test_ursula_and_local_keystore_signer_integration(click_runner,
     ursula_config.attach_keyring(checksum_address=worker_account.address)
     ursula_config.keyring.unlock(password=password)
 
-    # Produce an ursula with a Keystore signer correctly derived from the signer URI, and dont do anything else!
+    # Produce an Ursula with a Keystore signer correctly derived from the signer URI, and don't do anything else!
     mocker.patch.object(StakeList, 'refresh', autospec=True)
     ursula = ursula_config.produce(client_password=password,
+                                   start_working_now=False,
                                    block_until_ready=False)
 
     try:
@@ -157,7 +158,7 @@ def test_ursula_and_local_keystore_signer_integration(click_runner,
         # Show that we can produce the exact same signer as pre-config...
         assert pre_config_signer.path == ursula.signer.path
 
-        # ...and that transactions are signed by the keytore signer
+        # ...and that transactions are signed by the keystore signer
         txhash = ursula.commit_to_next_period()
         receipt = testerchain.wait_for_receipt(txhash)
         transaction_data = testerchain.client.w3.eth.getTransaction(receipt['transactionHash'])
