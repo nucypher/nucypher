@@ -73,7 +73,8 @@ def wrap_web3_gas_strategy(speed: Optional[str] = None):
         try:
             return web3_gas_strategy(*args, **kwargs)
         except ValidationError as e:
-            raise GasStrategyError("Calling the web3 gas strategy failed, probably due to an unsynced chain.") from e
+            raise GasStrategyError(f"Calling the '{speed}' web3 gas strategy failed. "
+                                   f"Verify your Ethereum provider connection and syncing status.") from e
 
     _wrapper.name = speed
 
