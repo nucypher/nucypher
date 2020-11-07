@@ -101,6 +101,7 @@ from nucypher.cli.painting.transactions import paint_receipt_summary
 from nucypher.cli.types import (
     EIP55_CHECKSUM_ADDRESS,
     EXISTING_READABLE_FILE,
+    GWEI,
     DecimalRange)
 from nucypher.cli.utils import setup_emitter
 from nucypher.config.characters import StakeHolderConfiguration
@@ -1302,7 +1303,7 @@ def events(general_config, staker_options, config_file, event_name):
 @option_config_file
 @option_force
 @group_general_config
-@click.option('--min-rate', help="Minimum acceptable fee rate (in GWEI), set by staker", type=DecimalRange(min=0))
+@click.option('--min-rate', help="Minimum acceptable fee rate (in GWEI), set by staker", type=GWEI)
 def set_min_rate(general_config: GroupGeneralConfig,
                  transacting_staker_options: TransactingStakerOptions,
                  config_file, force, min_rate):
