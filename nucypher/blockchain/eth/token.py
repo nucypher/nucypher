@@ -641,7 +641,7 @@ class WorkTracker:
             return True  # OK!
         if txs_in_mempool > len(self.__pending):  # We're missing some pending TXs
             return False
-        else:  # TODO: What to do when txs_in_mempool < len(self.__pending)? What does this imply?
+        else:  # TODO #2429: What to do when txs_in_mempool < len(self.__pending)? What does this imply?
             return True
 
     def __track_pending_commitments(self) -> bool:
