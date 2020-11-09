@@ -108,8 +108,12 @@ def mock_token_agent(mock_testerchain, token_economics, mock_contract_agency):
 
 
 @pytest.fixture(scope='function', autouse=True)
-def mock_staking_agent(mock_testerchain, token_economics, mock_contract_agency):
+def mock_staking_agent(mock_testerchain, token_economics, mock_contract_agency, mocker):
     mock_agent = mock_contract_agency.get_agent(StakingEscrowAgent)
+
+    # Handle the special case of commit_to_next_period, which returns a txhash due to the fire_and_forget option
+    mock_agent.commit_to_next_period = mocker.Mock(return_value=MockContractAgent.FAKE_TX_HASH)
+
     yield mock_agent
     mock_agent.reset()
 

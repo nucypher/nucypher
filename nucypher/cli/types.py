@@ -104,6 +104,7 @@ class NuCypherNetworkName(click.ParamType):
 # Ethereum
 EIP55_CHECKSUM_ADDRESS = ChecksumAddress()
 WEI = click.IntRange(min=1, clamp=False)  # TODO: Better validation for ether and wei values?
+GWEI = DecimalRange(min=0)
 
 # Filesystem
 EXISTING_WRITABLE_DIRECTORY = click.Path(exists=True, dir_okay=True, file_okay=False, writable=True)

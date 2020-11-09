@@ -15,8 +15,7 @@
  along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 import datetime
-import functools
-from typing import Callable
+from typing import Callable, Optional
 
 from web3 import Web3
 from web3.exceptions import ValidationError
@@ -64,23 +63,44 @@ __RAW_WEB3_GAS_STRATEGIES = {
 }
 
 
-def wrap_web3_gas_strategy(web3_gas_strategy: Callable):
+def wrap_web3_gas_strategy(speed: Optional[str] = None):
     """
     Enriches the web3 exceptions thrown by gas strategies
     """
-    @functools.wraps(web3_gas_strategy)
+    web3_gas_strategy = __RAW_WEB3_GAS_STRATEGIES[speed]
+
     def _wrapper(*args, **kwargs):
         try:
             return web3_gas_strategy(*args, **kwargs)
         except ValidationError as e:
-            raise GasStrategyError("Calling the web3 gas strategy failed, probably due to an unsynced chain.") from e
+            raise GasStrategyError(f"Calling the '{speed}' web3 gas strategy failed. "
+                                   f"Verify your Ethereum provider connection and syncing status.") from e
+
+    _wrapper.name = speed
+
     return _wrapper
 
 
-WEB3_GAS_STRATEGIES = {speed: wrap_web3_gas_strategy(strategy) for speed, strategy in __RAW_WEB3_GAS_STRATEGIES.items()}
+WEB3_GAS_STRATEGIES = {speed: wrap_web3_gas_strategy(speed) for speed in __RAW_WEB3_GAS_STRATEGIES}
 
 EXPECTED_CONFIRMATION_TIME_IN_SECONDS = {
     'slow': int(datetime.timedelta(hours=1).total_seconds()),
     'medium': int(datetime.timedelta(minutes=5).total_seconds()),
     'fast': 60
 }
+
+
+#
+# Fixed-price gas strategy
+#
+
+
+def construct_fixed_price_gas_strategy(gas_price, denomination: str = "wei") -> Callable:
+    gas_price_in_wei = Web3.toWei(gas_price, denomination)
+
+    def _fixed_price_strategy(web3: Web3, transaction_params: TxParams = None) -> Wei:
+        return gas_price_in_wei
+
+    _fixed_price_strategy.name = f"{round(Web3.fromWei(gas_price_in_wei, 'gwei'))}gwei"
+
+    return _fixed_price_strategy

@@ -39,7 +39,6 @@ from hexbytes.main import HexBytes
 from web3 import Web3, middleware
 from web3.contract import Contract, ContractConstructor, ContractFunction
 from web3.exceptions import TimeExhausted, ValidationError
-from web3.gas_strategies import time_based
 from web3.middleware import geth_poa_middleware
 from web3.providers import BaseProvider
 from web3.types import TxReceipt
@@ -157,7 +156,7 @@ class BlockchainInterface:
                  provider_process=NO_PROVIDER_PROCESS,
                  provider_uri: str = NO_BLOCKCHAIN_CONNECTION,
                  provider: BaseProvider = NO_BLOCKCHAIN_CONNECTION,
-                 gas_strategy: Union[str, Callable] = DEFAULT_GAS_STRATEGY):
+                 gas_strategy: Optional[Union[str, Callable]] = None):
 
         """
         TODO: #1502 - Move to API docs.
@@ -231,7 +230,7 @@ class BlockchainInterface:
         self.client = NO_BLOCKCHAIN_CONNECTION         # type: EthereumClient
         self.transacting_power = READ_ONLY_INTERFACE
         self.is_light = light
-        self.gas_strategy = gas_strategy
+        self.gas_strategy = gas_strategy or self.DEFAULT_GAS_STRATEGY
 
     def __repr__(self):
         r = '{name}({uri})'.format(name=self.__class__.__name__, uri=self.provider_uri)
@@ -280,21 +279,26 @@ class BlockchainInterface:
             self.log.debug('Injecting POA middleware at layer 0')
             self.client.inject_middleware(geth_poa_middleware, layer=0)
 
-        # Gas Price Strategy:
-        # Bundled web3 strategies are too expensive for Infura (it takes ~1 minute to get a price),
-        # so we use external gas price oracles, instead (see #2139)
-        if isinstance(self.client, InfuraClient):
+        self.client.add_middleware(middleware.time_based_cache_middleware)
+        # self.client.add_middleware(middleware.latest_block_based_cache_middleware)  # TODO: This line causes failed tests and nonce reuse in tests. See #2348.
+        self.client.add_middleware(middleware.simple_cache_middleware)
+
+        self.set_gas_strategy()
+
+    def set_gas_strategy(self, gas_strategy: Optional[Callable] = None):
+        if gas_strategy:
+            reported_gas_strategy = f"fixed/{gas_strategy.name}"
+        elif isinstance(self.client, InfuraClient):
             gas_strategy = datafeed_fallback_gas_price_strategy
-            self.gas_strategy = 'fast'  # FIXME
+            self.gas_strategy = 'fast'
+            reported_gas_strategy = "datafeed/fast"
         else:
+            reported_gas_strategy = f"web3/{self.gas_strategy}"
             gas_strategy = self.get_gas_strategy(self.gas_strategy)
         self.client.set_gas_strategy(gas_strategy=gas_strategy)
         gwei_gas_price = Web3.fromWei(self.client.gas_price_for_transaction(), 'gwei')
-        self.log.debug(f"Currently, our gas strategy returns a gas price of {gwei_gas_price} gwei")
-
-        self.client.add_middleware(middleware.time_based_cache_middleware)
-        # self.client.add_middleware(middleware.latest_block_based_cache_middleware)
-        self.client.add_middleware(middleware.simple_cache_middleware)
+        self.log.debug(f"Using gas strategy '{reported_gas_strategy}'. "
+                       f"Currently, it returns a gas price of {gwei_gas_price} gwei")
 
     def connect(self):
 
@@ -655,7 +659,7 @@ class BlockchainInterface:
                          gas_estimation_multiplier: Optional[float] = None,
                          confirmations: int = 0,
                          fire_and_forget: bool = False,  # do not wait for receipt.  See #2385
-                         ) -> dict:
+                         ) -> Union[TxReceipt, HexBytes]:
 
         if fire_and_forget:
             if confirmations > 0:

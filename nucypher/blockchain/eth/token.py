@@ -14,14 +14,14 @@ GNU Affero General Public License for more details.
 You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
+
 import random
 from _pydecimal import Decimal
 from collections import UserList
 from enum import Enum
-from typing import Callable, Dict, Union, List
+from typing import Callable, Dict, Union
 
 import maya
-import random
 from constant_sorrow.constants import (
     EMPTY_STAKING_SLOT,
     NEW_STAKE,
@@ -632,7 +632,7 @@ class WorkTracker:
     def pending(self) -> Dict[int, HexBytes]:
         return self.__pending.copy()
 
-    def __tracking_consistency_check(self) -> bool:
+    def __commitments_tracker_is_consistent(self) -> bool:
         worker_address = self.worker.worker_address
         tx_count_pending = self.client.get_transaction_count(account=worker_address, pending=True)
         tx_count_latest = self.client.get_transaction_count(account=worker_address, pending=False)
@@ -641,11 +641,8 @@ class WorkTracker:
             return True  # OK!
         if txs_in_mempool > len(self.__pending):  # We're missing some pending TXs
             return False
-
-        # TODO: Not sure what to do in this case, but let's do this for the moment
-        #       Note that the block my have changed since the previous query
-        # elif txs_in_mempool < len(self.__pending):  # Our tracking is somehow outdated
-        #     return False
+        else:  # TODO #2429: What to do when txs_in_mempool < len(self.__pending)? What does this imply?
+            return True
 
     def __track_pending_commitments(self) -> bool:
         # TODO: Keep a purpose-built persistent log of worker transaction history
@@ -665,11 +662,11 @@ class WorkTracker:
                 del self.__pending[tx_firing_block_number]
 
         if unmined_transactions:
-            pluralize = "s" if len(unmined_transactions) > 1 else ""
-            self.log.info(f'{len(unmined_transactions)} pending commitment transaction{pluralize} detected.')
+            s = "s" if len(unmined_transactions) > 1 else ""
+            self.log.info(f'{len(unmined_transactions)} pending commitment transaction{s} detected.')
 
-        inconsistency = self.__tracking_consistency_check() is False
-        if inconsistency:
+        inconsistent_tracker = not self.__commitments_tracker_is_consistent()
+        if inconsistent_tracker:
             # If we detect there's a mismatch between the number of internally tracked and
             # pending block transactions, create a special pending TX that accounts for this.
             # TODO: Detect if this untracked pending transaction is a commitment transaction at all.
@@ -685,23 +682,25 @@ class WorkTracker:
 
     def __handle_replacement_commitment(self, current_block_number: int) -> None:
         tx_firing_block_number, txhash = list(sorted(self.pending.items()))[0]
-        self.log.info(f'Waiting for pending commitment transaction to be mined ({txhash}).')
-
-        # If the transaction is still not mined after a max confirmation time
-        # (based on current gas strategy) issue a replacement transaction.
-        wait_time_in_blocks = current_block_number - tx_firing_block_number
-        wait_time_in_seconds = wait_time_in_blocks * AVERAGE_BLOCK_TIME_IN_SECONDS
-        if wait_time_in_seconds > self.max_confirmation_time():
-            if txhash is UNTRACKED_PENDING_TRANSACTION:
-                # TODO: Detect if this untracked pending transaction is a commitment transaction at all.
-                message = f"We've an untracked pending transaction. Issuing a replacement transaction."
+        if txhash is UNTRACKED_PENDING_TRANSACTION:
+            # TODO: Detect if this untracked pending transaction is a commitment transaction at all.
+            message = f"We have an untracked pending transaction. Issuing a replacement transaction."
+        else:
+            # If the transaction is still not mined after a max confirmation time
+            # (based on current gas strategy) issue a replacement transaction.
+            wait_time_in_blocks = current_block_number - tx_firing_block_number
+            wait_time_in_seconds = wait_time_in_blocks * AVERAGE_BLOCK_TIME_IN_SECONDS
+            if wait_time_in_seconds < self.max_confirmation_time():
+                self.log.info(f'Waiting for pending commitment transaction to be mined ({txhash.hex()}).')
+                return
             else:
                 message = f"We've waited for {wait_time_in_seconds}, but max time is {self.max_confirmation_time()}" \
                           f" for {self.gas_strategy} gas strategy. Issuing a replacement transaction."
-            self.log.info(message)
-            self.__fire_replacement_commitment(current_block_number=current_block_number,
-                                               tx_firing_block_number=tx_firing_block_number)
 
+        # Send a replacement transaction
+        self.log.info(message)
+        self.__fire_replacement_commitment(current_block_number=current_block_number,
+                                           tx_firing_block_number=tx_firing_block_number)
 
     def _do_work(self) -> None:
         """
@@ -710,17 +709,6 @@ class WorkTracker:
 
         # Call once here, and inject later for temporal consistency
         current_block_number = self.client.block_number
-
-        # Commitment tracking
-        unmined_transactions = self.__track_pending_commitments()
-        if unmined_transactions:
-            self.__handle_replacement_commitment(current_block_number=current_block_number)
-            # while there are known pending transactions, remain in fast interval mode
-            self._tracking_task.interval = self.INTERVAL_FLOOR
-            return  # This cycle is finished.
-        else:
-            # Randomize the next task interval over time, within bounds.
-            self._tracking_task.interval = self.random_interval()
 
         # Update on-chain status
         self.log.info(f"Checking for new period. Current period is {self.__current_period}")
@@ -741,6 +729,17 @@ class WorkTracker:
             # TODO: #1516 Follow-up actions for missed commitments
             self.log.warn(f"MISSED COMMITMENTS - {interval} missed staking commitments detected.")
 
+        # Commitment tracking
+        unmined_transactions = self.__track_pending_commitments()
+        if unmined_transactions:
+            self.__handle_replacement_commitment(current_block_number=current_block_number)
+            # while there are known pending transactions, remain in fast interval mode
+            self._tracking_task.interval = self.INTERVAL_FLOOR
+            return  # This cycle is finished.
+        else:
+            # Randomize the next task interval over time, within bounds.
+            self._tracking_task.interval = self.random_interval()
+
         # Only perform work this round if the requirements are met
         if not self.__work_requirement_is_satisfied():
             self.log.warn(f'COMMIT PREVENTED (callable: "{self.__requirement.__name__}") - '
@@ -756,7 +755,7 @@ class WorkTracker:
         transacting_power = self.worker.transacting_power
         with transacting_power:
             txhash = self.worker.commit_to_next_period(fire_and_forget=True)  # < --- blockchain WRITE
-        self.log.info(f"Making a commitment to period {self.current_period} - TxHash: {txhash}")
+        self.log.info(f"Making a commitment to period {self.current_period} - TxHash: {txhash.hex()}")
         return txhash
 
 

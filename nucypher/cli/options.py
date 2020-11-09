@@ -24,6 +24,7 @@ from nucypher.blockchain.eth.constants import NUCYPHER_CONTRACT_NAMES
 from nucypher.cli.types import (
     EIP55_CHECKSUM_ADDRESS,
     EXISTING_READABLE_FILE,
+    GWEI,
     NETWORK_PORT,
     NuCypherNetworkName,
     WEI
@@ -42,6 +43,7 @@ option_etherscan = click.option('--etherscan/--no-etherscan', help="Enable/disab
 option_event_name = click.option('--event-name', help="Specify an event by name", type=click.STRING)
 option_federated_only = click.option('--federated-only/--decentralized', '-F', help="Connect only to federated nodes", is_flag=True, default=None)
 option_force = click.option('--force', help="Don't ask for confirmation", is_flag=True)
+option_gas_price = click.option('--gas-price', help="Use this gas price (in GWEI)", type=GWEI)
 option_geth = click.option('--geth', '-G', help="Run using the built-in geth node", is_flag=True)
 option_hw_wallet = click.option('--hw-wallet/--no-hw-wallet')
 option_light = click.option('--light', help="Indicate that node is light", is_flag=True, default=None)

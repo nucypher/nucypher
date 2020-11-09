@@ -87,8 +87,8 @@ from nucypher.cli.options import (
     option_provider_uri,
     option_registry_filepath,
     option_signer_uri,
-    option_staking_address
-)
+    option_staking_address,
+    option_gas_price)
 from nucypher.cli.painting.staking import (
     paint_min_rate, paint_staged_stake,
     paint_staged_stake_division,
@@ -101,9 +101,11 @@ from nucypher.cli.painting.transactions import paint_receipt_summary
 from nucypher.cli.types import (
     EIP55_CHECKSUM_ADDRESS,
     EXISTING_READABLE_FILE,
+    GWEI,
     DecimalRange)
 from nucypher.cli.utils import setup_emitter
 from nucypher.config.characters import StakeHolderConfiguration
+from nucypher.utilities.gas_strategies import construct_fixed_price_gas_strategy
 
 option_value = click.option('--value', help="Token value of stake", type=click.INT)
 option_lock_periods = click.option('--lock-periods', help="Duration of stake in periods.", type=click.INT)
@@ -221,11 +223,12 @@ class TransactingStakerOptions:
 
     __option_name__ = 'transacting_staker_options'
 
-    def __init__(self, staker_options: StakerOptions, hw_wallet, beneficiary_address, allocation_filepath):
+    def __init__(self, staker_options: StakerOptions, hw_wallet, beneficiary_address, allocation_filepath, gas_price):
         self.staker_options = staker_options
         self.hw_wallet = hw_wallet
         self.beneficiary_address = beneficiary_address
         self.allocation_filepath = allocation_filepath
+        self.gas_price = gas_price
 
     def create_character(self, emitter, config_file):
 
@@ -269,7 +272,11 @@ class TransactingStakerOptions:
         )
 
     def get_blockchain(self):
-        return self.staker_options.get_blockchain()
+        blockchain = self.staker_options.get_blockchain()
+        if self.gas_price:  # TODO: Consider performing this step in the init of EthereumClient
+            fixed_price_strategy = construct_fixed_price_gas_strategy(gas_price=self.gas_price, denomination="gwei")
+            blockchain.set_gas_strategy(fixed_price_strategy)
+        return blockchain
 
 
 group_transacting_staker_options = group_options(
@@ -278,6 +285,7 @@ group_transacting_staker_options = group_options(
     hw_wallet=option_hw_wallet,
     beneficiary_address=click.option('--beneficiary-address', help="Address of a pre-allocation beneficiary", type=EIP55_CHECKSUM_ADDRESS),
     allocation_filepath=click.option('--allocation-filepath', help="Path to individual allocation file", type=EXISTING_READABLE_FILE),
+    gas_price=option_gas_price,
 )
 
 
@@ -1295,7 +1303,7 @@ def events(general_config, staker_options, config_file, event_name):
 @option_config_file
 @option_force
 @group_general_config
-@click.option('--min-rate', help="Minimum acceptable fee rate (in GWEI), set by staker", type=DecimalRange(min=0))
+@click.option('--min-rate', help="Minimum acceptable fee rate (in GWEI), set by staker", type=GWEI)
 def set_min_rate(general_config: GroupGeneralConfig,
                  transacting_staker_options: TransactingStakerOptions,
                  config_file, force, min_rate):

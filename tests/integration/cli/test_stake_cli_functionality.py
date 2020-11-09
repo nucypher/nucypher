@@ -142,7 +142,8 @@ def test_stakeholder_configuration(test_emitter, test_registry, mock_testerchain
     transacting_staker_options = TransactingStakerOptions(staker_options=staker_options,
                                                           hw_wallet=None,
                                                           beneficiary_address=None,
-                                                          allocation_filepath=None)
+                                                          allocation_filepath=None,
+                                                          gas_price=None)
     stakeholder_from_configuration = transacting_staker_options.create_character(emitter=test_emitter, config_file=None)
     client_account, staking_address = select_client_account_for_staking(emitter=test_emitter,
                                                                         stakeholder=stakeholder_from_configuration,
@@ -157,7 +158,8 @@ def test_stakeholder_configuration(test_emitter, test_registry, mock_testerchain
     transacting_staker_options = TransactingStakerOptions(staker_options=staker_options,
                                                           hw_wallet=None,
                                                           beneficiary_address=None,
-                                                          allocation_filepath=None)
+                                                          allocation_filepath=None,
+                                                          gas_price=None)
     stakeholder_from_configuration = transacting_staker_options.create_character(emitter=None, config_file=None)
     client_account, staking_address = select_client_account_for_staking(emitter=test_emitter,
                                                                         stakeholder=stakeholder_from_configuration,
