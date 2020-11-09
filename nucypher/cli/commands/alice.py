@@ -55,12 +55,16 @@ from nucypher.cli.options import (
     option_teacher_uri,
     option_lonely
 )
-from nucypher.cli.painting.help import paint_new_installation_help
+from nucypher.cli.painting.help import paint_new_installation_help, paint_probationary_period_disclaimer
 from nucypher.cli.processes import get_geth_provider_process
 from nucypher.cli.types import EIP55_CHECKSUM_ADDRESS
 from nucypher.cli.utils import make_cli_character, setup_emitter
 from nucypher.config.characters import AliceConfiguration
-from nucypher.config.constants import NUCYPHER_ENVVAR_ALICE_ETH_PASSWORD, TEMPORARY_DOMAIN
+from nucypher.config.constants import (
+    END_OF_POLICIES_PROBATIONARY_PERIOD,
+    NUCYPHER_ENVVAR_ALICE_ETH_PASSWORD,
+    TEMPORARY_DOMAIN,
+)
 from nucypher.config.keyring import NucypherKeyring
 from nucypher.network.middleware import RestMiddleware
 
@@ -442,6 +446,12 @@ def grant(general_config,
     # Setup
     emitter = setup_emitter(general_config)
     ALICE = character_options.create_character(emitter, config_file, general_config.json_ipc)
+    # Probationary period disclaimer and check. See #2353
+    paint_probationary_period_disclaimer(emitter)
+    if expiration > END_OF_POLICIES_PROBATIONARY_PERIOD:
+        emitter.echo(f"The requested duration for this policy (until {expiration}) exceeds the probationary_period "
+                     f"({END_OF_POLICIES_PROBATIONARY_PERIOD}).", color="red")
+        raise click.Abort()
 
     # Input validation
     if ALICE.federated_only:
