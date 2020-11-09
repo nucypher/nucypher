@@ -1,1 +1,0 @@
-Fixes logical bug in ``WorkTracker`` to ensure commitment transactions can only be issued once per period.

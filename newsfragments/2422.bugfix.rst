@@ -1,1 +1,0 @@
-Take advantage of the changes in PR#2410 by retrying worker commitments on failure

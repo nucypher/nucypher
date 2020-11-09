@@ -1,1 +1,0 @@
-Added support for a user-provided gas price to the ``nucypher stake`` command, using ``--gas-price GWEI``.

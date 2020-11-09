@@ -1,1 +1,0 @@
-Updates contract registry after upgrade of StakingEscrow to v5.5.1, at behest of the DAO (proposal #0).
