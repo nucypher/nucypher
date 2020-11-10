@@ -40,61 +40,53 @@ v4.1.1 (2020-10-29)
 Features
 ~~~~~~~~
 
+- Add CLI functionality for the removal of unused sub-stakes to save Ursula gas costs. (`#2384 <https://github.com/nucypher/nucypher/issues/2384>`__)
+
+
+Bugfixes
+~~~~~~~~
+
+- Automatically restart Ursula worker task on failure. (`#2410 <https://github.com/nucypher/nucypher/issues/2410>`__)
+
+
+Improved Documentation
+~~~~~~~~~~~~~~~~~~~~~~
+
+- Update global fee range documentation, including genesis values. (`#2363 <https://github.com/nucypher/nucypher/issues/2363>`__)
+
+
+Misc
+~~~~
+
+- Update Ursula network grant availability script for mainnet usage. (`#2383 <https://github.com/nucypher/nucypher/issues/2383>`__)
 - GitHub Action to ensure that each pull request into main makes an associated release note entry. (`#2396 <https://github.com/nucypher/nucypher/issues/2396>`__)
 
 
 v4.1.0 (2020-10-19)
 -------------------
 
-No significant changes.
+Bugfixes
+~~~~~~~~
+
+- Temporary workaround for lack of single attribute for the value of "domain" in sprouts and mature nodes. (`#2356 <https://github.com/nucypher/nucypher/issues/2356>`__)
+- Show the correct fleet state on Ursula status page. (`#2368 <https://github.com/nucypher/nucypher/issues/2368>`__)
+- Don't crash when handling failed transaction; reduce network learning messages. (`#2375 <https://github.com/nucypher/nucypher/issues/2375>`__)
+- Reduce the greediness of prometheus metrics collection. (`#2376 <https://github.com/nucypher/nucypher/issues/2376>`__)
+- Ensure minimum NU stake is allowed instead of stake creation failing for not enough tokens. (`#2377 <https://github.com/nucypher/nucypher/issues/2377>`__)
+- Fixes to status page based on reworked design done in PR #2351. (`#2378 <https://github.com/nucypher/nucypher/issues/2378>`__)
+- Track pending Ursula commitment transactions due to slower gas strategies. (`#2389 <https://github.com/nucypher/nucypher/issues/2389>`__)
 
 
 v4.0.1 (2020-10-14)
 -------------------
 
-No significant changes.
+Misc
+~~~~
+
+- Set default teacher uri for mainnet. (`#2367 <https://github.com/nucypher/nucypher/issues/2382>`__)
 
 
 v4.0.0 (2020-10-14)
 -------------------
 
-No significant changes.
-
-
-v3.0.0-beta.4 (2020-10-12)
---------------------------
-
-No significant changes.
-
-
-v3.0.0-beta.3 (2020-09-30)
---------------------------
-
-No significant changes.
-
-
-v3.0.0-beta.2 (2020-09-25)
---------------------------
-
-No significant changes.
-
-
-v3.0.0-beta.1 (2020-09-21)
---------------------------
-
-No significant changes.
-
-
-v2.1.0-beta.12 (2020-06-15)
----------------------------
-
-Improved Documentation
-~~~~~~~~~~~~~~~~~~~~~~
-
-- Guide for issuing new releases using ``make release`` (`#2094 <https://github.com/nucypher/nucypher/issues/2094>`__)
-
-
-Misc
-~~~~
-
-- New WorkLock on IBEX testnet (`#2093 <https://github.com/nucypher/nucypher/issues/2093>`__)
+**🚀 Mainnet Launch 🚀**
