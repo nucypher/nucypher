@@ -112,15 +112,36 @@ For example, external signers can be used with:
 - Local ethereum node
 - Remote ethereum node
 
-Two external signers are currently supported:
+The following external signers are currently supported:
 
-#. `Signing with Clef`_
-#. `Signing with Local Keystore`_
-
+#. :ref:`Hardware Wallet <signing-with-hardware>` (recommended for :ref:`Stakers <staking-guide>`)
+#. :ref:`Clef <signing-with-clef>`
+#. :ref:`Local Keystore <signing-with-local-keystore>` (recommended for :ref:`Workers <ursula-config-guide>`)
 
 .. important::
 
     External signing support is an experimental feature and under active development.
+
+
+.. _signing-with-hardware:
+
+Signing with Hardware Wallet
+****************************
+
+A hardware wallet stores private keys on a physical device. Storing private keys offline keeps them out of
+reach of attackers and therefore provides a high level of security.
+
+.. note::
+
+    Currently, ``nucypher`` only provides native support for Trezor. Work is underway to natively support other
+    hardware wallets such as Ledger. In the meantime, other hardware wallets can be used in conjunction
+    with `Clef <Signing with Clef>`_.
+
+Trezor
+++++++
+
+A `Trezor <https://trezor.io/>`_ signer can be specified either through the CLI (``--signer``) or
+API (``nucypher.blockchain.eth.signers.Signer.from_signer_uri``), using the URI ``trezor``.
 
 
 .. _signing-with-clef:
@@ -174,7 +195,8 @@ Running Clef
 
 
 * ``<PATH TO KEYSTORE>`` - The path to the directory containing geth-formatted private key files; the default path for Linux is ``~/.ethereum/keystore``.
-* ``<CHAIN ID>`` - 1 is specified to ensure Clef signs transactions with the network ID of ethereum mainnet.
+  **No need to specify if using a hardware wallet.**
+* ``<CHAIN ID>`` - 1 is specified to ensure Clef signs transactions with the network ID of ethereum mainnet (4 for the ``ibex`` testnet on rinkeby).
 
 .. code:: bash
 
@@ -251,6 +273,8 @@ Usage
 Once ``clef`` is running, specify the Clef signer either through the CLI (``--signer``) or
 API (``nucypher.blockchain.eth.signers.Signer.from_signer_uri``), using the URI ``clef://<CLEF IPC PATH>``.
 
+
+.. _signing-with-local-keystore:
 
 Signing with Local Keystore
 ***************************
