@@ -129,7 +129,7 @@ Signing with Hardware Wallet
 ****************************
 
 A hardware wallet stores private keys on a physical device. Storing private keys offline keeps them out of
-reach of hackers and therefore provides a high level of security.
+reach of attackers and therefore provides a high level of security.
 
 .. note::
 
