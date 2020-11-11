@@ -40,7 +40,7 @@ v4.1.1 (2020-10-29)
 Features
 ~~~~~~~~
 
-- Add CLI functionality for the removal of unused sub-stakes to save Ursula gas costs. (`#2384 <https://github.com/nucypher/nucypher/issues/2384>`__)
+- Add CLI functionality for the removal of unused (inactive) sub-stakes. Depending on the staker's sub-stake configuration, this command can reduce the associated worker's gas costs when making commitments. (`#2384 <https://github.com/nucypher/nucypher/issues/2384>`__)
 
 
 Bugfixes
