@@ -16,7 +16,7 @@ There is a 1:1 relationship between the roles: A Staker controls a single ethere
 but only ever has one Worker. A fully synced ethereum node is required - The staker's account needs NU tokens to stake
 as well as enough ether to pay for transaction gas. Stakers can run on a laptop and do not need to remain online since
 they only need to perform stake management transactions. Using a hardware wallet is *highly* recommended, they are ideal
-for stakers since only temporarily access to private keys is required during stake management while providing a higher standard
+for stakers since only temporary access to private keys is required during stake management while providing a higher standard
 of security than software wallets.
 
 Mainnet Staking Procedure:
@@ -128,7 +128,7 @@ Using External Signing
 
 By default, transaction signing requests are forwarded to the configured ethereum provider. This is the typical
 configuration for locally or independently run ethereum nodes. To use a remote ethereum provider
-(e.g. Alchemy, Infura, Public Remote Node) an external transaction signing client (e.g. `clef` or `geth`) is needed
+(e.g. Alchemy, Infura, Public Remote Node) an external transaction signing client (e.g. ``clef`` or ``geth``) is needed
 separate from the broadcasting node.
 
 Using Clef
@@ -356,7 +356,7 @@ To enable re-staking again:
 
 
 Additionally, you can enable **re-stake locking**, an on-chain commitment to continue re-staking
-until a future period (``release_period``). Once enabled, the `StakingEscrow` contract will not
+until a future period. Once enabled, the ``StakingEscrow`` contract will not
 allow **re-staking** to be disabled until the release period begins, even if you are the stake owner.
 
 .. code:: bash
@@ -562,7 +562,7 @@ Stake 30000 NU for 90 Periods
 
 .. code:: bash
 
-    (nucypher)$ nucypher stake init --value 30000 --duration 90 --hw-wallet
+    (nucypher)$ nucypher stake create --value 30000 --duration 90 --hw-wallet
     ...
 
 
