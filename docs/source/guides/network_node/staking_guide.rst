@@ -382,11 +382,27 @@ stake's duration is not shorter than the minimum. To prolong an existing stake's
 Wind Down
 **********
 
-Wind down is *disabled* by default. To start winding down an existing stake:
+Wind down is *disabled* by default.
+When wind down is disabled, the stake's duration remains constant,
+which results in improved staking yield.
+When disabled, the lock duration decreases as time goes by.
+See :ref:`sub-stake-winddown` for more information.
+
+To start winding down an existing stake:
 
 .. code:: bash
 
-    (nucypher)$ nucypher stake winddown --hw-wallet
+    (nucypher)$ nucypher stake winddown --enable
+
+
+To stop winding down:
+
+.. code:: bash
+
+    (nucypher)$ nucypher stake winddown --disable
+
+
+.. note:: WorkLock participants have wind down *enabled* by default.
 
 
 Snapshots
