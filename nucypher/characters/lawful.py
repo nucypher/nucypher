@@ -549,7 +549,7 @@ class Bob(Character):
             raise  # TODO: Maybe do something here?  NRN
 
     def get_treasure_map(self, alice_verifying_key, label):
-        map_id = self.construct_map_id(verifying_key=alice_verifying_key, label=label)
+        map_identifier = self.construct_map_id(verifying_key=alice_verifying_key, label=label)
 
         if not self.known_nodes and not self._learning_task.running:
             # Quick sanity check - if we don't know of *any* Ursulas, and we have no
@@ -561,11 +561,6 @@ class Bob(Character):
             if not self.known_nodes:
                 raise self.NotEnoughTeachers("Can't retrieve without knowing about any nodes at all.  Pass a teacher or seed node.")
 
-        # Ugh stupid federated only mode....
-        if not self.federated_only:
-            map_identifier = _hrac.hex()
-        else:
-            map_identifier = map_id
         treasure_map = self.get_treasure_map_from_known_ursulas(self.network_middleware,
                                                                 map_identifier)
         self._try_orient(treasure_map, alice_verifying_key)
@@ -581,7 +576,13 @@ class Bob(Character):
 
     def construct_map_id(self, verifying_key, label):
         hrac = self.construct_policy_hrac(verifying_key, label)
-        map_id = keccak_digest(bytes(verifying_key) + hrac).hex()
+
+        # Ugh stupid federated only mode....
+        if not self.federated_only:
+            map_id = hrac.hex()
+        else:
+            map_id = keccak_digest(bytes(verifying_key) + hrac).hex()
+
         return map_id
 
     def get_treasure_map_from_known_ursulas(self, network_middleware, map_identifier, timeout=3):
