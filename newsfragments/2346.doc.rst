@@ -1,0 +1,1 @@
+Document usage of hardware wallets for signing.
