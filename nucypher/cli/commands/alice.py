@@ -15,10 +15,13 @@ You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
-import click
 import os
-from constant_sorrow.constants import NO_BLOCKCHAIN_CONNECTION, NO_PASSWORD
 
+import click
+from constant_sorrow.constants import NO_BLOCKCHAIN_CONNECTION, NO_PASSWORD
+from maya import MayaDT
+
+from nucypher.blockchain.eth.networks import NetworksInventory
 from nucypher.blockchain.eth.signers.software import ClefSigner
 from nucypher.characters.control.emitters import StdoutEmitter
 from nucypher.characters.control.interfaces import AliceInterface
@@ -446,12 +449,15 @@ def grant(general_config,
     # Setup
     emitter = setup_emitter(general_config)
     ALICE = character_options.create_character(emitter, config_file, general_config.json_ipc)
-    # Probationary period disclaimer and check. See #2353
-    paint_probationary_period_disclaimer(emitter)
-    if expiration > END_OF_POLICIES_PROBATIONARY_PERIOD:
-        emitter.echo(f"The requested duration for this policy (until {expiration}) exceeds the probationary_period "
-                     f"({END_OF_POLICIES_PROBATIONARY_PERIOD}).", color="red")
-        raise click.Abort()
+
+    is_mainnet = NetworksInventory.MAINNET == ALICE.domain.lower()
+    if not ALICE.federated_only and is_mainnet:
+        # Probationary period disclaimer and check. See #2353
+        paint_probationary_period_disclaimer(emitter)
+        if MayaDT.from_iso8601(expiration) > END_OF_POLICIES_PROBATIONARY_PERIOD:
+            emitter.echo(f"The requested duration for this policy (until {expiration}) exceeds the probationary period"
+                         f" ({END_OF_POLICIES_PROBATIONARY_PERIOD}).", color="red")
+            raise click.Abort()
 
     # Input validation
     if ALICE.federated_only:
