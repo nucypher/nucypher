@@ -31,6 +31,8 @@ from urllib.parse import urlparse
 
 import click
 import requests
+from eth_tester import EthereumTester
+
 from constant_sorrow.constants import (
     INSUFFICIENT_ETH,
     NO_BLOCKCHAIN_CONNECTION,
@@ -43,7 +45,7 @@ from eth_tester.exceptions import TransactionFailed as TestTransactionFailed
 from eth_typing import ChecksumAddress
 from eth_utils import to_checksum_address
 from hexbytes.main import HexBytes
-from web3 import Web3, middleware
+from web3 import Web3, middleware, IPCProvider, WebsocketProvider, HTTPProvider
 from web3.contract import Contract, ContractConstructor, ContractFunction
 from web3.exceptions import ValidationError, TimeExhausted
 from web3.middleware import geth_poa_middleware
@@ -62,6 +64,9 @@ from nucypher.blockchain.eth.providers import (
     _get_websocket_provider
 )
 from nucypher.blockchain.eth.registry import BaseContractRegistry
+from nucypher.blockchain.eth.sol.compile.compile import multiversion_compile
+from nucypher.blockchain.eth.sol.compile.constants import SOLIDITY_SOURCE_ROOT
+from nucypher.blockchain.eth.sol.compile.types import SourceBundle
 from nucypher.blockchain.eth.utils import get_transaction_name, prettify_eth_amount
 from nucypher.characters.control.emitters import JSONRPCStdoutEmitter, StdoutEmitter
 from nucypher.utilities.ethereum import encode_constructor_arguments
@@ -821,7 +826,6 @@ class BlockchainDeployerInterface(BlockchainInterface):
 
     class DeploymentFailed(RuntimeError):
         pass
-
 
     def connect(self, compile_now: bool = True, ignore_solidity_check: bool = False) -> bool:
         super().connect()

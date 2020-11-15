@@ -15,20 +15,21 @@
  along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
-from pathlib import Path
 
 from nucypher.blockchain.eth.interfaces import BlockchainDeployerInterface, BlockchainInterfaceFactory
 from nucypher.blockchain.eth.registry import InMemoryContractRegistry
+from nucypher.blockchain.eth.sol.compile.constants import TEST_MULTIVERSION_CONTRACTS
 from nucypher.blockchain.eth.sol.compile.types import SourceBundle
 from nucypher.crypto.powers import TransactingPower
 from tests.constants import INSECURE_DEVELOPMENT_PASSWORD
+from tests.utils.blockchain import free_gas_price_strategy
 
 
 def test_deployer_interface_multiversion_contract():
 
     # Prepare compiler
-    base_dir = Path(__file__).parent / 'test_contracts' / 'multiversion'
-    v1_dir, v2_dir = Path(base_dir / 'v1'), Path(base_dir / 'v2')
+    base_dir = TEST_MULTIVERSION_CONTRACTS
+    v1_dir, v2_dir = base_dir / 'v1', base_dir / 'v2'
 
     # TODO: Check type of sources
     # I am a contract administrator and I an compiling a new updated version of an existing contract...
@@ -40,7 +41,8 @@ def test_deployer_interface_multiversion_contract():
 
     # Prepare chain
     BlockchainInterfaceFactory._interfaces.clear()
-    blockchain_interface = BlockchainDeployerInterface(provider_uri='tester://pyevm')
+    blockchain_interface = BlockchainDeployerInterface(provider_uri='tester://pyevm',
+                                                       gas_strategy=free_gas_price_strategy)
     blockchain_interface.connect()
     BlockchainInterfaceFactory.register_interface(interface=blockchain_interface)  # Lets this test run in isolation
 

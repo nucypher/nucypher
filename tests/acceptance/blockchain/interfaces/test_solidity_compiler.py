@@ -17,7 +17,7 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 
 from nucypher.blockchain.eth.deployers import NucypherTokenDeployer
 from nucypher.blockchain.eth.sol.compile.compile import multiversion_compile
-from nucypher.blockchain.eth.sol.compile.constants import DEFAULT_VERSION_STRING
+from nucypher.blockchain.eth.sol.compile.constants import DEFAULT_VERSION_STRING, TEST_MULTIVERSION_CONTRACTS
 from nucypher.blockchain.eth.sol.compile.types import SourceBundle
 from nucypher.config.constants import NUCYPHER_TEST_DIR
 
@@ -41,7 +41,7 @@ def test_multi_source_compilation(testerchain):
 
 
 def test_multi_versions():
-    base_dir = NUCYPHER_TEST_DIR / "test_contracts" / "multiversion"
+    base_dir = TEST_MULTIVERSION_CONTRACTS
     v1_dir, v2_dir = base_dir / "v1", base_dir / "v2"
     bundles = (
         SourceBundle(base_path=v1_dir),

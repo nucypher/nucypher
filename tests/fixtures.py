@@ -108,8 +108,7 @@ from tests.utils.config import (
 from tests.utils.middleware import MockRestMiddleware, MockRestMiddlewareForLargeFleetTests
 from tests.utils.policy import generate_random_label
 from tests.utils.ursula import MOCK_URSULA_STARTING_PORT, make_decentralized_ursulas, make_federated_ursulas, \
-    MOCK_KNOWN_URSULAS_CACHE
-
+    MOCK_KNOWN_URSULAS_CACHE, _mock_ursula_reencrypts
 
 test_logger = Logger("test-logger")
 

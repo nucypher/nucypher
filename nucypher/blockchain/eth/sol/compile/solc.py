@@ -43,7 +43,7 @@ def __execute(compiler_version: VersionString, input_config: Dict, allow_paths: 
 
     _allow_paths = f'{SOLIDITY_SOURCE_ROOT},{TEST_SOLIDITY_SOURCE_ROOT}'
     if allow_paths:
-        _allow_paths += ','.join(str(p) for p in allow_paths)
+        _allow_paths += ',' + ','.join(str(p) for p in allow_paths)
 
     # Execute Compilation
     try:

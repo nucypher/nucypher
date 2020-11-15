@@ -21,6 +21,7 @@ from nucypher.blockchain.eth.clients import EthereumClient
 from nucypher.blockchain.eth.interfaces import BlockchainDeployerInterface
 from nucypher.blockchain.eth.registry import InMemoryContractRegistry
 from nucypher.blockchain.eth.sol.compile.compile import multiversion_compile
+from nucypher.blockchain.eth.sol.compile.constants import TEST_MULTIVERSION_CONTRACTS
 from nucypher.blockchain.eth.sol.compile.types import SourceBundle
 from nucypher.config.constants import NUCYPHER_TEST_DIR
 from nucypher.crypto.powers import TransactingPower
@@ -94,7 +95,7 @@ def test_testerchain_creation(testerchain, another_testerchain):
 def test_multiversion_contract():
 
     # Prepare compiler
-    base_dir = NUCYPHER_TEST_DIR / 'test_contracts' / 'multiversion'
+    base_dir = TEST_MULTIVERSION_CONTRACTS
     v1_dir, v2_dir = base_dir / 'v1', base_dir / 'v2'
     bundles = (
         SourceBundle(base_path=v1_dir),

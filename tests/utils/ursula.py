@@ -214,11 +214,11 @@ def _mock_ursula_reencrypts(ursula, corrupt_cfrag: bool = False):
     if corrupt_cfrag:
         cfrag.proof.bn_sig = CurveBN.gen_rand(capsule.params.curve)
 
-    cfrag_signature = bytes(ursula.stamp(bytes(cfrag)))
+    cfrag_signature = ursula.stamp(bytes(cfrag))
 
     bob = Bob.from_public_keys(verifying_key=pub_key_bob)
     task = WorkOrder.PRETask(capsule, task_signature, cfrag, cfrag_signature)
-    work_order = WorkOrder(bob, None, alice_address, [task], None, ursula, blockhash)
+    work_order = WorkOrder(bob, None, alice_address, {capsule: task}, None, ursula, blockhash)
 
     evidence = IndisputableEvidence(task, work_order)
     return evidence

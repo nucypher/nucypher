@@ -28,7 +28,8 @@ SOLC_LOGGER = Logger("solidity-compilation")
 # Vocabulary
 CONTRACTS = 'contracts'
 
-TEST_SOLIDITY_SOURCE_ROOT: Path = Path(NUCYPHER_TEST_DIR).parent / CONTRACTS / CONTRACTS
+TEST_SOLIDITY_SOURCE_ROOT: Path = Path(NUCYPHER_TEST_DIR) / CONTRACTS / CONTRACTS
+TEST_MULTIVERSION_CONTRACTS: Path = Path(NUCYPHER_TEST_DIR) / 'acceptance' / 'blockchain' / 'interfaces' / 'test_contracts' / 'multiversion'
 
 from nucypher.blockchain.eth import sol
 SOLIDITY_SOURCE_ROOT: Path = Path(sol.__file__).parent / 'source'

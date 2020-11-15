@@ -114,9 +114,6 @@ class TesterBlockchain(BlockchainDeployerInterface):
 
         EXPECTED_CONFIRMATION_TIME_IN_SECONDS['free'] = 5  # Just some upper-limit
 
-        if compiler:
-            TesterBlockchain._compiler = compiler
-
         super().__init__(provider_uri=self.PROVIDER_URI,
                          provider_process=None,
                          poa=poa,

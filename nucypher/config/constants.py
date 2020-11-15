@@ -18,6 +18,7 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 
 import os
 from collections import namedtuple
+from os.path import dirname
 from pathlib import Path
 
 from appdirs import AppDirs
@@ -48,7 +49,8 @@ else:
     # TODO: Another way to handle this situation?
     # __file__ can be None, especially with namespace packages on
     # Python 3.7 or when using apidoc and sphinx-build.
-    NUCYPHER_TEST_DIR = tests.__file__ or str()
+    file_path = tests.__file__
+    NUCYPHER_TEST_DIR = dirname(file_path) if file_path is not None else str()
 
 # User Application Filepaths
 APP_DIR = AppDirs(nucypher.__title__, nucypher.__author__)
