@@ -47,7 +47,7 @@ def test_multi_versions():
         SourceBundle(base_path=v1_dir),
         SourceBundle(base_path=v2_dir)
     )
-    interfaces = multiversion_compile(source_bundles=bundles, allow_paths=[base_dir])
+    interfaces = multiversion_compile(source_bundles=bundles)
     assert "VersionTest" in interfaces
     contract_data = interfaces["VersionTest"]
     assert len(contract_data) == 2

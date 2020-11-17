@@ -101,7 +101,7 @@ def test_multiversion_contract():
         SourceBundle(base_path=v1_dir),
         SourceBundle(base_path=v2_dir)
     )
-    compiled_contracts = multiversion_compile(source_bundles=bundles, allow_paths=[base_dir])
+    compiled_contracts = multiversion_compile(source_bundles=bundles)
 
     # Prepare chain
     blockchain_interface = BlockchainDeployerInterface(provider_uri='tester://pyevm/2',

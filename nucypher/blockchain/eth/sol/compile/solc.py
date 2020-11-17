@@ -20,13 +20,13 @@ from logging import Logger
 from typing import Dict, Optional, List
 
 from nucypher.blockchain.eth.sol.compile.config import OPTIMIZER_RUNS
-from nucypher.blockchain.eth.sol.compile.constants import SOLC_LOGGER, SOLIDITY_SOURCE_ROOT, TEST_SOLIDITY_SOURCE_ROOT
+from nucypher.blockchain.eth.sol.compile.constants import SOLC_LOGGER
 from nucypher.blockchain.eth.sol.compile.exceptions import CompilationError
 from nucypher.blockchain.eth.sol.compile.types import VersionString
 from nucypher.exceptions import DevelopmentInstallationRequired
 
 
-def __execute(compiler_version: VersionString, input_config: Dict, allow_paths: Optional[List[str]] = None):
+def __execute(compiler_version: VersionString, input_config: Dict, allow_paths: Optional[List[str]]):
     """Executes the solcx command and underlying solc wrapper"""
     log = Logger('execute-solcx')
 
@@ -41,9 +41,7 @@ def __execute(compiler_version: VersionString, input_config: Dict, allow_paths: 
     solc_binary_path: str = get_executable(version=compiler_version)
     SOLC_LOGGER.info(f"Compiling with base path")  # TODO: Add base path
 
-    _allow_paths = f'{SOLIDITY_SOURCE_ROOT},{TEST_SOLIDITY_SOURCE_ROOT}'
-    if allow_paths:
-        _allow_paths += ',' + ','.join(str(p) for p in allow_paths)
+    _allow_paths = ',' + ','.join(str(p) for p in allow_paths)
 
     # Execute Compilation
     try:

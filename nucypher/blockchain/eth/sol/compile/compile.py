@@ -45,30 +45,26 @@ def prepare_configuration(sources: Dict[str, Path]) -> CompilerSources:
     return input_sources
 
 
-def compile_sources(source_bundle: SourceBundle,
-                    version_check: bool = True,
-                    allow_paths: Optional[List[str]] = None
-                    ) -> Dict:
+def compile_sources(source_bundle: SourceBundle, version_check: bool = True) -> Dict:
     """Compiled solidity contracts for a single source directory"""
     sources = collect_sources(source_bundle=source_bundle)
     source_config = prepare_configuration(sources=sources)
     solc_configuration = merge(BASE_COMPILER_CONFIGURATION, dict(sources=source_config))  # does not mutate.
     ignore_version_check: bool = not version_check
     version: VersionString = VersionString(SOLIDITY_COMPILER_VERSION) if ignore_version_check else None
+    allow_paths = [source_bundle.base_path, *source_bundle.other_paths]
     compiler_output = __execute(compiler_version=version, input_config=solc_configuration, allow_paths=allow_paths)
     return compiler_output
 
 
 def multiversion_compile(source_bundles: Tuple[SourceBundle, ...],
-                         compiler_version_check: bool = True,
-                         allow_paths: List[str] = None
+                         compiler_version_check: bool = True
                          ) -> VersionedContractOutputs:
     """Compile contracts from `source_dirs` and aggregate the resulting source contract outputs by version"""
     raw_compiler_results: List[CompiledContractOutputs] = list()
     for bundle in source_bundles:
         compile_result = compile_sources(source_bundle=bundle,
-                                         version_check=compiler_version_check,
-                                         allow_paths=allow_paths)
+                                         version_check=compiler_version_check)
         raw_compiler_results.append(compile_result['contracts'])
     raw_compiled_contracts = itertools.chain.from_iterable(output.values() for output in raw_compiler_results)
     versioned_contract_outputs = VersionedContractOutputs(merge_with(merge_contract_outputs, *raw_compiled_contracts))
