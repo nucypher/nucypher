@@ -17,9 +17,9 @@ rm -r ~/.cache/pip ~/.cache/pipenv
 set -e
 
 echo "Building Development Requirements"
-pipenv lock --clear --pre --requirements --dev > dev-$PREFIX.txt
+pipenv lock --clear --pre --requirements --dev --no-header > dev-$PREFIX.txt
 
 echo "Building Standard Requirements"
-pipenv lock --clear --pre --requirements > $PREFIX.txt
+pipenv lock --clear --pre --requirements --no-header > $PREFIX.txt
 
 echo "OK!"
