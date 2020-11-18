@@ -27,7 +27,7 @@ from nucypher.utilities.datafeeds import (
     Datafeed,
     UpvestGasPriceDatafeed,
     EthereumGasPriceDatafeed)
-from nucypher.utilities.gas_strategies import datafeed_fallback_gas_price_strategy
+from nucypher.utilities.gas_strategies import construct_datafeed_fallback_strategy
 
 etherchain_json = {
     "safeLow": "99.0",
@@ -166,6 +166,7 @@ def test_datafeed_fallback_gas_price_strategy():
     # In normal circumstances, the first datafeed (Etherchain) will return the gas price
     with patch('nucypher.utilities.datafeeds.EtherchainGasPriceDatafeed.construct_gas_strategy',
                return_value=mock_gas_strategy):
+        datafeed_fallback_gas_price_strategy = construct_datafeed_fallback_strategy()
         assert datafeed_fallback_gas_price_strategy("web3", "tx") == mocked_gas_price
 
     # If the first datafeed in the chain fails, we resort to the second one
@@ -173,6 +174,7 @@ def test_datafeed_fallback_gas_price_strategy():
                side_effect=Datafeed.DatafeedError):
         with patch('nucypher.utilities.datafeeds.UpvestGasPriceDatafeed.construct_gas_strategy',
                    return_value=mock_gas_strategy):
+            datafeed_fallback_gas_price_strategy = construct_datafeed_fallback_strategy()
             assert datafeed_fallback_gas_price_strategy("web3", "tx") == mocked_gas_price
 
     # If both datafeeds fail, we fallback to the rpc_gas_price_strategy
@@ -181,4 +183,5 @@ def test_datafeed_fallback_gas_price_strategy():
         with patch('nucypher.utilities.datafeeds.UpvestGasPriceDatafeed._probe_feed',
                    side_effect=Datafeed.DatafeedError):
             with patch('nucypher.utilities.gas_strategies.rpc_gas_price_strategy', side_effect=mock_gas_strategy):
+                datafeed_fallback_gas_price_strategy = construct_datafeed_fallback_strategy()
                 assert datafeed_fallback_gas_price_strategy("web3", "tx") == mocked_gas_price

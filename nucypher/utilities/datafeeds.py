@@ -74,10 +74,10 @@ class EthereumGasPriceDatafeed(Datafeed):
         return gas_price_wei
 
     @classmethod
-    def construct_gas_strategy(cls):
+    def construct_gas_strategy(cls, speed: Optional[str] = None):
         def gas_price_strategy(web3: Web3, transaction_params: TxParams = None) -> Wei:
             feed = cls()
-            gas_price = feed.get_gas_price()
+            gas_price = feed.get_gas_price(speed=speed)
             return gas_price
         return gas_price_strategy
 
