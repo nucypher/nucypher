@@ -18,14 +18,15 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 from unittest.mock import patch
 
 import pytest
+from constant_sorrow.constants import SLOW, MEDIUM, FAST, FASTEST
 from requests.exceptions import ConnectionError
 from web3 import Web3
 
 from nucypher.utilities.datafeeds import (
     EtherchainGasPriceDatafeed,
     Datafeed,
-    UpvestGasPriceDatafeed
-)
+    UpvestGasPriceDatafeed,
+    EthereumGasPriceDatafeed)
 from nucypher.utilities.gas_strategies import datafeed_fallback_gas_price_strategy
 
 etherchain_json = {
@@ -74,6 +75,41 @@ def test_probe_datafeed(mocker):
         feed._probe_feed()
         mocked_get.assert_called_once_with(feed.api_url)
         assert feed._raw_data == json
+
+
+def test_canonical_speed_names():
+    # Valid speed names, grouped in equivalence classes
+    speed_equivalence_classes = {
+        SLOW: ('slow', 'SLOW', 'Slow',
+               'safeLow', 'safelow', 'SafeLow', 'SAFELOW',
+               'low', 'LOW', 'Low'),
+        MEDIUM: ('medium', 'MEDIUM', 'Medium',
+                 'standard', 'STANDARD', 'Standard',
+                 'average', 'AVERAGE', 'Average'),
+        FAST: ('fast', 'FAST', 'Fast',
+               'high', 'HIGH', 'High'),
+        FASTEST: ('fastest', 'FASTEST', 'Fastest')
+    }
+
+    for canonical_speed, equivalence_class in speed_equivalence_classes.items():
+        for speed_name in equivalence_class:
+            assert canonical_speed == EthereumGasPriceDatafeed.get_canonical_speed(speed_name)
+
+    # Invalid speed names, but that are somewhat similar to a valid one so we can give a suggestion
+    similarities = (
+        ('hihg', 'high'),
+        ('zlow', 'low'),
+    )
+
+    for wrong_name, suggestion in similarities:
+        message = f"'{wrong_name}' is not a valid speed name. Did you mean '{suggestion}'?"
+        with pytest.raises(LookupError, match=message):
+            EthereumGasPriceDatafeed.get_canonical_speed(wrong_name)
+
+    # Utterly wrong speed names. Shame on you.
+    wrong_name = "🙈"
+    with pytest.raises(LookupError, match=f"'{wrong_name}' is not a valid speed name."):
+        EthereumGasPriceDatafeed.get_canonical_speed(wrong_name)
 
 
 def test_etherchain():

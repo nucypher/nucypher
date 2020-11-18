@@ -14,12 +14,14 @@
  You should have received a copy of the GNU Affero General Public License
  along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
+
 from abc import ABC, abstractmethod
+from difflib import get_close_matches
 from typing import Optional
 
 import requests
+from constant_sorrow.constants import SLOW, MEDIUM, FAST, FASTEST
 from web3 import Web3
-from web3.gas_strategies.rpc import rpc_gas_price_strategy
 from web3.types import Wei, TxParams
 
 
@@ -54,6 +56,13 @@ class EthereumGasPriceDatafeed(Datafeed):
     _speed_names = NotImplemented
     _default_speed = NotImplemented
 
+    _speed_equivalence_classes = {
+        SLOW: ('slow', 'safeLow', 'low'),
+        MEDIUM: ('medium', 'standard', 'average'),
+        FAST: ('fast', 'high'),
+        FASTEST: ('fastest', )
+    }
+
     @abstractmethod
     def _parse_gas_prices(self):
         return NotImplementedError
@@ -71,6 +80,22 @@ class EthereumGasPriceDatafeed(Datafeed):
             gas_price = feed.get_gas_price()
             return gas_price
         return gas_price_strategy
+
+    @classmethod
+    def get_canonical_speed(cls, speed: str):
+        for canonical_speed, speed_names in cls._speed_equivalence_classes.items():
+            if speed.lower() in map(str.lower, speed_names):
+                return canonical_speed
+        else:
+            all_speed_names = [name for names in cls._speed_equivalence_classes.values() for name in names]
+            suggestion = get_close_matches(speed, all_speed_names, n=1)
+            if not suggestion:
+                message = f"'{speed}' is not a valid speed name."
+            else:
+                suggestion = suggestion.pop()
+                message = f"'{speed}' is not a valid speed name. Did you mean '{suggestion}'?"
+            raise LookupError(message)
+
 
 
 class EtherchainGasPriceDatafeed(EthereumGasPriceDatafeed):
