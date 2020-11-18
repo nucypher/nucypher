@@ -15,14 +15,13 @@
  along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
-
 import json
-
-import click
 import os
 
+import click
+
 from nucypher.blockchain.eth.networks import NetworksInventory
-from nucypher.blockchain.eth.actors import EmergencyResponseManager, BaseActor
+from nucypher.blockchain.eth.actors import DaoActor
 from nucypher.blockchain.eth.signers.base import Signer
 from nucypher.blockchain.eth.signers.software import ClefSigner
 from nucypher.cli.actions.auth import get_client_password
@@ -80,7 +79,7 @@ class DaoOptions:  # TODO: This class is essentially the same that WorkLock opti
     def __create_participant(self,
                              registry,
                              transacting: bool = True,
-                             hw_wallet: bool = False) -> BaseActor:
+                             hw_wallet: bool = False) -> DaoActor:
 
         client_password = None
         is_clef = ClefSigner.is_valid_clef_uri(self.signer_uri)  # TODO: why not allow the clef signer's validator act on this?
@@ -89,11 +88,11 @@ class DaoOptions:  # TODO: This class is essentially the same that WorkLock opti
 
         testnet = self.domain != NetworksInventory.MAINNET
         signer = Signer.from_signer_uri(self.signer_uri, testnet=testnet) if self.signer_uri else None
-        actor = EmergencyResponseManager(checksum_address=self.participant_address,  # bomberos
-                                         network=self.network,
-                                         registry=registry,
-                                         signer=signer,
-                                         transacting=transacting)
+        actor = DaoActor(checksum_address=self.participant_address,
+                         network=self.network,
+                         registry=registry,
+                         signer=signer,
+                         transacting=transacting)
         return actor
 
     def create_participant(self, registry, hw_wallet: bool = False):
@@ -142,7 +141,7 @@ def propose(general_config: GroupGeneralConfig, dao_options: DaoOptions, hw_wall
     emitter, registry, blockchain = dao_options.setup(general_config=general_config)
     _participant_address = dao_options.get_participant_address(emitter, registry, show_staking=True)
 
-    manager: EmergencyResponseManager = dao_options.create_participant(registry=registry, hw_wallet=hw_wallet)
+    manager = dao_options.create_participant(registry=registry, hw_wallet=hw_wallet)
     with open(parameters) as json_file:
         parameters = json.load(json_file)
 

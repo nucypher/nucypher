@@ -1636,7 +1636,7 @@ class Bidder(NucypherTokenActor):
 
 
 class DaoActor(BaseActor):
-    """Base class for actors that interact with the NuCypher DAO"""
+    """Generic actor to interact with the NuCypher DAO"""
 
     def __init__(self,
                  network: str,
@@ -1649,19 +1649,13 @@ class DaoActor(BaseActor):
         if transacting:  # TODO: This logic is repeated in Bidder and possible others.
             self.transacting_power = TransactingPower(signer=signer, account=checksum_address)
 
-
-class EmergencyResponseManager(DaoActor):
-
-    def __init__(self, **kwargs):
-        super().__init__(**kwargs)
-
         self.token_manager = TokenManagerAgent(address=self.dao_registry.get_address_of(EMERGENCY_MANAGER))
         self.voting = VotingAgent(address=self.dao_registry.get_address_of(STANDARD_VOTING))
         self.voting_aggregator = VotingAggregatorAgent(self.dao_registry.get_address_of(STANDARD_AGGREGATOR))
 
     def rotate_emergency_response_team(self,
                                        members_out: Iterable[ChecksumAddress],
-                                       members_in: Iterable[ChecksumAddress]):
+                                       members_in: Iterable[ChecksumAddress]) -> TxReceipt:
 
         members_out_set = set(members_out)
         if not members_out_set.isdisjoint(members_in):
