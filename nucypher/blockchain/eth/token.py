@@ -51,7 +51,7 @@ class NU:
     The easiest way to use NU, is to pass an int, Decimal, or str, and denomination string:
 
     Int:    nu = NU(100, 'NU')
-    Int:    nu_wei = NU(15000000000000000000000, 'NuNit')
+    Int:    nu = NU(15000000000000000000000, 'NuNit')
 
     Decimal:  nu = NU(Decimal('15042.445'), 'NU')
     String: nu = NU('10002.302', 'NU')
@@ -59,7 +59,7 @@ class NU:
     ...or alternately...
 
     Decimal: nu = NU.from_tokens(Decimal('100.50'))
-    Int: nu_wei = NU.from_nu_wei(15000000000000000000000)
+    Int: nu = NU.from_nunits(15000000000000000000000)
 
     Token quantity is stored internally as an int in the smallest denomination,
     and all arithmetic operations use this value.
