@@ -1413,6 +1413,18 @@ class VotingAggregatorAgent(ForwarderAgent):
 
     contract_name = VOTING_AGGREGATOR_CONTRACT_NAME
 
+    def balance_of(self, address: ChecksumAddress, at_block: Optional[int] = None) -> int:
+        if at_block is None:
+            return self.contract.functions.balanceOf(address).call()
+        else:
+            return self.contract.functions.balanceOfAt(address, at_block).call()
+
+    def total_supply(self, at_block: Optional[int] = None) -> int:
+        if at_block is None:
+            return self.contract.functions.totalSupply().call()
+        else:
+            return self.contract.functions.totalSupplyAt(at_block).call()
+
 
 class TokenManagerAgent(ForwarderAgent):
 
