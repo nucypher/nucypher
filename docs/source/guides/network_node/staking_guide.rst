@@ -16,7 +16,7 @@ There is a 1:1 relationship between the roles: A Staker controls a single ethere
 but only ever has one Worker. A fully synced ethereum node is required - The staker's account needs NU tokens to stake
 as well as enough ether to pay for transaction gas. Stakers can run on a laptop and do not need to remain online since
 they only need to perform stake management transactions. Using a hardware wallet is *highly* recommended, they are ideal
-for stakers since only temporarily access to private keys is required during stake management while providing a higher standard
+for stakers since only temporary access to private keys is required during stake management while providing a higher standard
 of security than software wallets.
 
 Mainnet Staking Procedure:
@@ -128,7 +128,7 @@ Using External Signing
 
 By default, transaction signing requests are forwarded to the configured ethereum provider. This is the typical
 configuration for locally or independently run ethereum nodes. To use a remote ethereum provider
-(e.g. Alchemy, Infura, Public Remote Node) an external transaction signing client (e.g. `clef` or `geth`) is needed
+(e.g. Alchemy, Infura, Public Remote Node) an external transaction signing client (e.g. ``clef`` or ``geth``) is needed
 separate from the broadcasting node.
 
 Using Clef
@@ -356,7 +356,7 @@ To enable re-staking again:
 
 
 Additionally, you can enable **re-stake locking**, an on-chain commitment to continue re-staking
-until a future period (``release_period``). Once enabled, the `StakingEscrow` contract will not
+until a future period. Once enabled, the ``StakingEscrow`` contract will not
 allow **re-staking** to be disabled until the release period begins, even if you are the stake owner.
 
 .. code:: bash
@@ -382,11 +382,30 @@ stake's duration is not shorter than the minimum. To prolong an existing stake's
 Wind Down
 **********
 
-Wind down is *disabled* by default. To start winding down an existing stake:
+The proportion of staking rewards received by a staker depends on the
+stake size and the remaining locked duration.
+
+When wind down is enabled, the locked duration decreases after each period which results
+in reduced staking yield. When disabled, the stake's locked duration remains
+constant and improves staking yield.
+See :ref:`sub-stake-winddown` for more information.
+
+Wind down is *disabled* by default.
+
+.. note:: WorkLock participants have wind down *enabled* by default.
+
+To start winding down an existing stake:
 
 .. code:: bash
 
-    (nucypher)$ nucypher stake winddown --hw-wallet
+    (nucypher)$ nucypher stake winddown --enable
+
+
+To stop winding down:
+
+.. code:: bash
+
+    (nucypher)$ nucypher stake winddown --disable
 
 
 Snapshots
@@ -540,80 +559,6 @@ staking compensation if you use a hardware wallet.
 .. note:: If you want to withdraw all tokens when all of them are unlocked - 
           make sure to call ``nucypher stake mint`` first to ensure the last reward is included
 
-Staking using a preallocation contract
----------------------------------------
-
-Each NuCypher staker with a preallocation will have some amount of tokens locked
-in a preallocation contract named ``PreallocationEscrow``, which is used to stake and
-perform other staker-related operations.
-From the perspective of the main NuCypher contracts, each ``PreallocationEscrow``
-contract represents a staker, no different from "regular" stakers.
-However, from the perspective of the preallocation user, things are different
-since the contract can't perform transactions, and it's the preallocation user
-(also known as the "`beneficiary`" of the contract)
-who has to perform staking operations.
-
-As part of the preallocation process, beneficiaries receive an allocation file,
-containing the ETH addresses of their beneficiary account and corresponding
-preallocation contract.
-
-In general, preallocation users can use all staking-related operations offered
-by the CLI in the same way as described above, except that they have to specify
-the path to the allocation file using the option ``--allocation-filepath PATH``.
-
-For example, to create a stake:
-
-.. code:: bash
-
-    (nucypher)$ nucypher stake create --hw-wallet --allocation-filepath PATH
-
-
-Or to bond a worker:
-
-.. code:: bash
-
-    (nucypher)$ nucypher stake bond-worker --hw-wallet --allocation-filepath PATH
-
-
-As an alternative to the ``--allocation-filepath`` flag, preallocation users
-can directly specify their beneficiary and staking contract addresses with the
-``--beneficiary-address ADDRESS`` and ``--staking-address ADDRESS``, respectively.
-
-Finally, note that collected staking rewards are always placed in the original
-staking account, which for preallocation users is the staking contract.
-Run the following command to view the balance of the ``PreallocationEscrow`` contract:
-
-.. code:: bash
-
-    (nucypher)$ nucypher stake preallocation --status --allocation-filepath PATH
-
-    -------------------------- Addresses ---------------------------
-    Staking contract: ... 0x0f4Ebe8a28a8eF33bEcD6A3782D74308FC35D021
-    Beneficiary: ........ 0x4f5e87f833faF9a747463f7E4387a0d9323a3979
-
-    ------------------------ Locked Tokens -------------------------
-    Initial locked amount: 35000 NU
-    Current locked amount: 35000 NU
-    Locked until: ........ 2020-12-31 16:33:37+00:00
-
-    ---------------------- NU and ETH Balance ----------------------
-    NU balance: .......... 17.345 NU
-        Available: ....... 12.345 NU
-    ETH balance: ......... 0 ETH
-
-
-To withdraw the unlocked tokens, you need to retrieve them from the
-``PreallocationEscrow`` contract using the following command:
-
-.. code:: bash
-
-    (nucypher)$ nucypher stake preallocation --withdraw-tokens --allocation-filepath PATH
-
-
-.. note:: If you're a preallocation user, recall that you're using a contract to stake.
-  Replace ``<YOUR STAKER ADDRESS>`` with the contract address when configuring your node.
-  If you don't know this address, you'll find it in the preallocation file.
-
 
 One-Liners
 --------------
@@ -636,7 +581,7 @@ Stake 30000 NU for 90 Periods
 
 .. code:: bash
 
-    (nucypher)$ nucypher stake init --value 30000 --duration 90 --hw-wallet
+    (nucypher)$ nucypher stake create --value 30000 --duration 90 --hw-wallet
     ...
 
 
