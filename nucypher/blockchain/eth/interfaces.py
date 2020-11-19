@@ -232,6 +232,10 @@ class BlockchainInterface:
         self.client = NO_BLOCKCHAIN_CONNECTION
         self.transacting_power = READ_ONLY_INTERFACE
         self.is_light = light
+
+        # FIXME: Not ready to give users total flexibility. Let's stick for the moment to known values. See #2447
+        if gas_strategy not in ('slow', 'medium', 'fast', 'free', None):
+            raise ValueError(f"'{gas_strategy}' is an invalid gas strategy")
         self.gas_strategy = gas_strategy or self.DEFAULT_GAS_STRATEGY
 
     def __repr__(self):

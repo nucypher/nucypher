@@ -85,7 +85,7 @@ def wrap_web3_gas_strategy(speed: Optional[str] = None):
 
 WEB3_GAS_STRATEGIES = {speed: wrap_web3_gas_strategy(speed) for speed in __RAW_WEB3_GAS_STRATEGIES}
 
-EXPECTED_CONFIRMATION_TIME_IN_SECONDS = {
+EXPECTED_CONFIRMATION_TIME_IN_SECONDS = {  # TODO: See #2447
     'slow': int(datetime.timedelta(hours=1).total_seconds()),
     'medium': int(datetime.timedelta(minutes=5).total_seconds()),
     'fast': 60

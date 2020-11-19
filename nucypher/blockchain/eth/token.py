@@ -572,7 +572,7 @@ class WorkTracker:
         return self.__current_period
 
     def max_confirmation_time(self) -> int:
-        expected_time = EXPECTED_CONFIRMATION_TIME_IN_SECONDS[self.gas_strategy]
+        expected_time = EXPECTED_CONFIRMATION_TIME_IN_SECONDS[self.gas_strategy]  # FIXME: #2447
         result = expected_time * (1 + self.ALLOWED_DEVIATION)
         return result
 
