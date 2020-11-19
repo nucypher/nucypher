@@ -130,7 +130,7 @@ class BlockchainInterface:
         def default(self) -> str:
             sender = self.payload["from"]
             message = f'{self.name} from {sender[:6]}... \n' \
-                      f'Sender balance: {self.get_balance()} ETH \n' \
+                      f'Sender balance: {prettify_eth_amount(self.get_balance())} \n' \
                       f'Reason: {self.base_message} \n' \
                       f'Transaction: {self.payload}'
             return message
