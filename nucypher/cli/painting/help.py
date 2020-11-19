@@ -19,6 +19,7 @@ import click
 
 from nucypher.blockchain.eth.sol.__conf__ import SOLIDITY_COMPILER_VERSION
 from nucypher.characters.banners import NUCYPHER_BANNER
+from nucypher.config.constants import DEFAULT_CONFIG_ROOT, USER_LOG_DIR
 
 
 def echo_version(ctx, param, value):
@@ -34,6 +35,12 @@ def echo_solidity_version(ctx, param, value):
     click.secho(f"Supported solidity version: {SOLIDITY_COMPILER_VERSION}", bold=True)
     ctx.exit()
 
+
+def echo_config_location(ctx, param, value):
+    if not value or ctx.resilient_parsing:
+        return
+    click.secho(f"{DEFAULT_CONFIG_ROOT}\n{USER_LOG_DIR}")
+    ctx.exit()
 
 def paint_new_installation_help(emitter, new_configuration):
     character_config_class = new_configuration.__class__
