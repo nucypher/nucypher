@@ -362,11 +362,13 @@ class KeystoreSigner(Signer):
                 return False  # Decryption Failed
             except KeyError:
                 raise self.UnknownAccount(account=account)
-            else:
+            try:
                 # TODO: It is possible that password is None here passed form the above leayer,
                 #       causing Account.decrypt to crash, expecting a value for password.
                 signing_key = Account.from_key(Account.decrypt(key_metadata, password))
                 self.__signers[account] = signing_key
+            except ValueError as e:
+                raise self.AccessDenied("Invalid or incorrect signer password") from e
         return True
 
     @validate_checksum_address
