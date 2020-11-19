@@ -83,6 +83,10 @@ def construct_datafeed_fallback_strategy(speed: Optional[str] = None) -> Callabl
     return datafeed_fallback_gas_price_strategy
 
 
+def construct_capped_datafeed_fallback_strategy(speed: Optional[str] = None) -> Callable:
+    return max_price_gas_strategy_wrapper(construct_datafeed_fallback_strategy(speed=speed))
+
+
 #
 # Web3 gas strategies
 #
@@ -94,12 +98,10 @@ __RAW_WEB3_GAS_STRATEGIES = {
 }
 
 
-def wrap_web3_gas_strategy(speed: Optional[str] = None):
+def web3_gas_strategy_wrapper(web3_gas_strategy, speed):
     """
     Enriches the web3 exceptions thrown by gas strategies
     """
-    web3_gas_strategy = __RAW_WEB3_GAS_STRATEGIES[speed]
-
     def _wrapper(*args, **kwargs):
         try:
             return web3_gas_strategy(*args, **kwargs)
@@ -112,7 +114,8 @@ def wrap_web3_gas_strategy(speed: Optional[str] = None):
     return _wrapper
 
 
-WEB3_GAS_STRATEGIES = {speed: wrap_web3_gas_strategy(speed) for speed in __RAW_WEB3_GAS_STRATEGIES}
+WEB3_GAS_STRATEGIES = {speed: web3_gas_strategy_wrapper(max_price_gas_strategy_wrapper(strategy), speed)
+                       for speed, strategy in __RAW_WEB3_GAS_STRATEGIES.items()}
 
 EXPECTED_CONFIRMATION_TIME_IN_SECONDS = {  # TODO: See #2447
     'slow': int(datetime.timedelta(hours=1).total_seconds()),
