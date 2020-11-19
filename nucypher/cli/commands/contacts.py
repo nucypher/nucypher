@@ -27,32 +27,44 @@ from nucypher.cli.painting.policies import paint_single_card, paint_cards
 from nucypher.cli.types import EXISTING_READABLE_FILE
 from nucypher.policy.identity import Card
 
+id_option = click.option('--id', 'card_id', help="A single card's checksum or ID", type=click.STRING, required=False)
+type_option = click.option('--type', 'character_flag', help="Type of card: (A)lice or (B)ob.", type=click.STRING, required=False)
+verifying_key_option = click.option('--verifying-key', help="Alice's or Bob's verifying key as hex", type=click.STRING, required=False)
+encrypting_key_option = click.option('--encrypting-key', help="An encrypting key as hex", type=click.STRING, required=False)
+nickname_option = click.option('--nickname', help="Human-readable nickname / alias for a card", type=click.STRING, required=False)
+
 
 @click.group()
 def contacts():
-    """"Manage character cards"""
+    """Lightweight contacts utility to store public keys of known ("character cards") Alices and Bobs."""
 
 
 @contacts.command()
-@click.option('--id', 'card_identifier', type=click.STRING, required=False)
-@click.option('--name', 'card_nickname', type=click.STRING, required=False)
-@click.option('--qrcode', is_flag=True, default=None)
-def lookup(card_identifier, card_nickname, qrcode):
-    """"Manage character cards"""
+@click.argument('query')
+@click.option('--qrcode', help="Display the QR code representing a card to the console", is_flag=True, default=None)
+def show(query, qrcode):
+    """View existing character card"""
     emitter = StdoutEmitter()
-    if card_nickname and card_identifier:
-
-        raise click.Abort
-    card = select_card(emitter=emitter, card_identifier=card_identifier or card_nickname)
+    try:
+        card = select_card(emitter=emitter, card_identifier=query)
+    except Card.UnknownCard as e:
+        return emitter.error(str(e))
     paint_single_card(emitter=emitter, card=card, qrcode=qrcode)
 
 
-@contacts.command()
-def all():
+@contacts.command('list')
+def _list():
+    """Show all character cards"""
     emitter = StdoutEmitter()
-    card_filepaths = os.listdir(Card.CARD_DIR)
+    card_directory = Card.CARD_DIR
+    try:
+        card_filepaths = os.listdir(card_directory)
+    except FileNotFoundError:
+        os.mkdir(Card.CARD_DIR)
+        card_filepaths = os.listdir(card_directory)
     if not card_filepaths:
-        emitter.error('No cards found.')
+        emitter.error(f'No cards found at {card_directory}.  '
+                      f"To create one run 'nucypher {contacts.name} {create.name}'.")
     cards = list()
     for filename in card_filepaths:
         card_id, ext = filename.split('.')
@@ -62,18 +74,19 @@ def all():
 
 
 @contacts.command()
-@click.option('--id', 'card_id', type=click.STRING, required=False)
-@click.option('--type', 'character_flag', type=click.STRING, required=False)
-@click.option('--verifying-key', type=click.STRING, required=False)
-@click.option('--encrypting-key', type=click.STRING, required=False)
-@click.option('--nickname', type=click.STRING, required=False)
-def create(emitter, card_id, character_flag, verifying_key, encrypting_key, nickname, force):
+@type_option
+@encrypting_key_option
+@verifying_key_option
+@nickname_option
+@option_force
+def create(character_flag, verifying_key, encrypting_key, nickname, force):
+    """Store a new character card"""
     emitter = StdoutEmitter()
 
     if not all((character_flag, verifying_key, encrypting_key)) and force:
         emitter.error(f'--verifying-key, --encrypting-key, and --type are required with --force enabled.')
     if not force and not nickname:
-        nickname = click.prompt('Enter Card Nickname')
+        nickname = click.prompt('Enter Card Nickname').strip()
     if not character_flag:
         from constant_sorrow.constants import ALICE, BOB
         choice = click.prompt('Enter Card Type - (A)lice or (B)ob', type=click.Choice(['a', 'b'], case_sensitive=False))
@@ -96,20 +109,22 @@ def create(emitter, card_id, character_flag, verifying_key, encrypting_key, nick
 
 
 @contacts.command()
-@click.option('--id', 'card_id', type=click.STRING, required=False)
+@id_option
 @option_force
 def delete(force, card_id):
+    """Delete an existing character card."""
     emitter = StdoutEmitter()
-    card = select_card(emitter=emitter, card_id=card_id)
+    card = select_card(emitter=emitter, card_identifier=card_id)
     if not force:
         click.confirm(f'Are you sure you want to delete {card}?', abort=True)
     card.delete()
-    emitter.message(f'Deleted card.', color='red')
+    emitter.message(f'Deleted card for {card.id}.', color='red')
 
 
 @contacts.command()
-@click.option('--filepath', type=EXISTING_READABLE_FILE)
+@click.option('--filepath', help="System filepath of stored card to import", type=EXISTING_READABLE_FILE)
 def import_card(filepath):
+    """Import a character card from a card file"""
     emitter = StdoutEmitter()
     shutil.copy(filepath, Card.CARD_DIR)
     # paint_single_card(card=card)

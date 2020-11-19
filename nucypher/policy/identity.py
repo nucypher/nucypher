@@ -199,12 +199,21 @@ class Card:
         )
         return payload
 
+    def describe(self, truncate: int = 16) -> Dict:
+        description = dict(
+            nickname=self.__nickname,
+            verifying_key=bytes(self.verifying_key).hex()[:truncate],
+            encrypting_key=bytes(self.encrypting_key).hex()[:truncate],
+            character=self.character.__name__
+        )
+        return description
+
     def to_json(self, as_string: bool = True) -> Union[dict, str]:
         payload = dict(
             nickname=self.__nickname.decode(),
             verifying_key=bytes(self.verifying_key).hex(),
             encrypting_key=bytes(self.encrypting_key).hex(),
-            character=bytes(self.__character_flag).hex()
+            character=self.character.__name__
         )
         if as_string:
             payload = json.dumps(payload)
@@ -256,7 +265,7 @@ class Card:
 
     @property
     def filepath(self) -> Path:
-        identifier = f'{self.nickname}{self.__DELIMITER}' if self.__nickname else self.id.hex()
+        identifier = f'{self.nickname}{self.__DELIMITER}{self.id.hex()}' if self.__nickname else self.id.hex()
         filename = f'{identifier}.{self.__FILE_EXTENSION}'
         filepath = self.card_dir / filename
         return filepath
@@ -276,10 +285,8 @@ class Card:
         return Path(self.filepath)
 
     @classmethod
-    def lookup(cls, identifier: str, card_dir: Optional[Path] = None) -> Path:
+    def lookup(cls, identifier: str, card_dir: Optional[Path] = CARD_DIR) -> Path:
         """Resolve a card ID or nickname into a Path object"""
-        if not card_dir:
-            card_dir = cls.CARD_DIR
         try:
             int(identifier, 16)  # Is this hex?
         except ValueError:
@@ -291,7 +298,7 @@ class Card:
                 if nickname.casefold() in filename.casefold():
                     break
             else:
-                raise ValueError(f'Unknown card nickname "{nickname}"')
+                raise cls.UnknownCard(f'Unknown card nickname or ID"{nickname}"')
             name, _extension = filename.split('.')  # TODO: glob or regex?
             parsed_nickname, parsed_checksum = name.split(cls.__DELIMITER)
             if parsed_nickname != nickname:

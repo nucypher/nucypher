@@ -25,8 +25,10 @@ from nucypher.policy.identity import Card
 def paint_single_card(emitter, card: Card, qrcode: bool = False) -> None:
     emitter.echo('*'*90)
     emitter.message(f'{card.nickname.capitalize() or str(card.character.__name__)}\'s Card ({card.id.hex()})')
-    emitter.echo(f'Encrypting Key - {card.encrypting_key.hex()}')
-    emitter.echo(f'Verifying Key - {card.verifying_key.hex()}')
+    encrypting_key = card.encrypting_key.hex()
+    verifying_key = card.verifying_key.hex()
+    emitter.echo(f'Encrypting Key - {encrypting_key}')
+    emitter.echo(f'Verifying Key - {verifying_key}')
     if qrcode:
         card.to_qr_code()
     emitter.echo('*'*90)
@@ -34,8 +36,8 @@ def paint_single_card(emitter, card: Card, qrcode: bool = False) -> None:
 
 def paint_cards(emitter, cards: List[Card], as_table: bool = True) -> None:
     if as_table:
-        rows = [card.to_json(as_string=False) for card in cards]
-        emitter.echo(tabulate(rows, headers='keys', showindex='always'))
+        rows = [card.describe() for card in cards]
+        emitter.echo(tabulate(rows, headers='keys', showindex='always', tablefmt="presto"))
     else:
         for card in cards:
             paint_single_card(emitter=emitter, card=card)
