@@ -1,0 +1,1 @@
+Improve gas strategy selection: Infura users now can choose between ``slow``, ``medium`` and ``fast``.
