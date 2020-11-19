@@ -23,6 +23,7 @@ from constant_sorrow.constants import NO_BLOCKCHAIN_CONNECTION, NO_PASSWORD
 from datetime import timedelta
 from web3.main import Web3
 
+from nucypher.blockchain.eth.signers import ClefSigner
 from nucypher.blockchain.eth.signers.software import ClefSigner
 from nucypher.characters.control.emitters import StdoutEmitter
 from nucypher.characters.control.interfaces import AliceInterface
@@ -33,10 +34,7 @@ from nucypher.cli.actions.configure import (
     get_or_update_configuration
 )
 from nucypher.cli.actions.confirm import confirm_staged_grant
-from nucypher.cli.actions.select import (
-    select_client_account,
-    select_config_file
-)
+from nucypher.cli.actions.select import select_client_account, select_config_file
 from nucypher.cli.commands.deploy import option_gas_strategy
 from nucypher.cli.config import group_general_config
 from nucypher.cli.options import (
@@ -82,13 +80,6 @@ from nucypher.config.keyring import NucypherKeyring
 from nucypher.network.middleware import RestMiddleware
 from nucypher.policy.identity import Card
 
-option_bob_verifying_key = click.option(
-    '--bob-verifying-key',
-    '-bvk',
-    help="Bob's verifying key as a hexadecimal string",
-    type=click.STRING,
-    required=True
-)
 
 option_pay_with = click.option('--pay-with', help="Run with a specified account", type=EIP55_CHECKSUM_ADDRESS)
 option_duration_periods = click.option('--duration-periods', help="Policy duration in periods", type=click.INT)
@@ -447,8 +438,7 @@ def derive_policy_pubkey(general_config, label, character_options, config_file):
 @group_general_config
 @group_character_options
 @option_force
-@click.option('--bob', type=click.STRING)
-@option_force
+@click.option('--bob', type=click.STRING, help="The card id or nickname of a stored Bob card.")
 def grant(general_config,
           bob,
           bob_encrypting_key,
@@ -464,7 +454,7 @@ def grant(general_config,
     """Create and enact an access policy for some Bob. """
 
     if bob and any((bob_encrypting_key, bob_verifying_key)):
-        message = '--bob canot be used with --bob-encrypting-key or --bob-veryfying key'
+        message = '--bob cannot be used with --bob-encrypting-key or --bob-veryfying key'
         raise click.BadOptionUsage(option_name='--bob', message=message)
 
     # Setup
