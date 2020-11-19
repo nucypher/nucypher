@@ -23,7 +23,6 @@ from constant_sorrow.constants import NO_BLOCKCHAIN_CONNECTION, NO_PASSWORD
 from datetime import timedelta
 from web3.main import Web3
 
-from nucypher.blockchain.eth.signers import ClefSigner
 from nucypher.blockchain.eth.signers.software import ClefSigner
 from nucypher.characters.control.emitters import StdoutEmitter
 from nucypher.characters.control.interfaces import AliceInterface
@@ -79,7 +78,6 @@ from nucypher.config.constants import (
 from nucypher.config.keyring import NucypherKeyring
 from nucypher.network.middleware import RestMiddleware
 from nucypher.policy.identity import Card
-
 
 option_pay_with = click.option('--pay-with', help="Run with a specified account", type=EIP55_CHECKSUM_ADDRESS)
 option_duration_periods = click.option('--duration-periods', help="Policy duration in periods", type=click.INT)
@@ -453,15 +451,11 @@ def grant(general_config,
           force):
     """Create and enact an access policy for some Bob. """
 
-    if bob and any((bob_encrypting_key, bob_verifying_key)):
-        message = '--bob cannot be used with --bob-encrypting-key or --bob-veryfying key'
-        raise click.BadOptionUsage(option_name='--bob', message=message)
-
     # Setup
     emitter = setup_emitter(general_config)
     ALICE = character_options.create_character(emitter, config_file, general_config.json_ipc)
 
-    # Policy validation
+    # Policy option validation
     if ALICE.federated_only:
         if any((value, rate)):
             message = "Can't use --value or --rate with a federated Alice."
@@ -470,6 +464,10 @@ def grant(general_config,
         raise click.BadOptionUsage(option_name="--rate", message="Can't use --value if using --rate")
 
     # Grantee validation
+    if bob and any((bob_encrypting_key, bob_verifying_key)):
+        message = '--bob cannot be used with --bob-encrypting-key or --bob-veryfying key'
+        raise click.BadOptionUsage(option_name='--bob', message=message)
+
     if bob:
         card = Card.load(identifier=bob)
         bob_verifying_key = card.verifying_key.hex()
