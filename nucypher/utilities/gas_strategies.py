@@ -15,6 +15,7 @@
  along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 import datetime
+import os
 from typing import Callable, Optional
 
 from web3 import Web3
@@ -23,6 +24,7 @@ from web3.gas_strategies import time_based
 from web3.gas_strategies.rpc import rpc_gas_price_strategy
 from web3.types import Wei, TxParams
 
+from nucypher.config.constants import NUCYPHER_ENVVAR_MAX_GAS_PRICE_GWEI
 from nucypher.utilities.datafeeds import Datafeed, EtherchainGasPriceDatafeed, UpvestGasPriceDatafeed
 
 
@@ -30,6 +32,33 @@ class GasStrategyError(RuntimeError):
     """
     Generic exception when retrieving a gas price using a gas strategy
     """
+
+
+#
+# Max Price Gas Strategy Wrapper
+#
+
+def max_price_gas_strategy_wrapper(gas_strategy: Callable) -> Callable:
+    """
+    Sets a max price to a gas strategy, controlled by the NUCYPHER_MAX_GAS_PRICE_GWEI environment variable.
+    """
+
+    def _wrapper(*args, **kwargs):
+        gas_price = gas_strategy(*args, **kwargs)
+        max_gas_price_gwei = os.getenv(NUCYPHER_ENVVAR_MAX_GAS_PRICE_GWEI)
+        if max_gas_price_gwei:
+            try:
+                max_gas_price_wei = Web3.toWei(max_gas_price_gwei, 'gwei')
+            except Exception as e:
+                raise GasStrategyError(f"Check the value of the {NUCYPHER_ENVVAR_MAX_GAS_PRICE_GWEI} environment "
+                                       f"variable: '{max_gas_price_gwei}' is not a valid gas price in GWEI.") from e
+            else:
+                if gas_price > max_gas_price_wei:
+                    gas_price = max_gas_price_wei
+        return gas_price
+
+    return _wrapper
+
 
 #
 # Datafeed gas strategies
