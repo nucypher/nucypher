@@ -70,7 +70,7 @@ class EthereumGasPriceDatafeed(Datafeed):
     def get_gas_price(self, speed: Optional[str] = None) -> Wei:
         speed = speed or self._default_speed
         self._parse_gas_prices()
-        gas_price_wei = Wei(self.gas_prices[speed])
+        gas_price_wei = Wei(self.gas_prices[self.get_canonical_speed(speed)])
         return gas_price_wei
 
     @classmethod
@@ -97,18 +97,22 @@ class EthereumGasPriceDatafeed(Datafeed):
             raise LookupError(message)
 
 
-
 class EtherchainGasPriceDatafeed(EthereumGasPriceDatafeed):
     """Gas price datafeed from Etherchain"""
 
     name = "Etherchain datafeed"
     api_url = "https://www.etherchain.org/api/gasPriceOracle"
-    _speed_names = ('safeLow', 'standard', 'fast', 'fastest')
+    _speed_names = {
+        SLOW: 'safeLow',
+        MEDIUM: 'standard',
+        FAST: 'fast',
+        FASTEST: 'fastest'
+    }
     _default_speed = 'fast'
 
     def _parse_gas_prices(self):
         self._probe_feed()
-        self.gas_prices = {k: int(Web3.toWei(v, 'gwei')) for k, v in self._raw_data.items()}
+        self.gas_prices = {self.get_canonical_speed(k): int(Web3.toWei(v, 'gwei')) for k, v in self._raw_data.items()}
 
 
 class UpvestGasPriceDatafeed(EthereumGasPriceDatafeed):
@@ -116,13 +120,15 @@ class UpvestGasPriceDatafeed(EthereumGasPriceDatafeed):
 
     name = "Upvest datafeed"
     api_url = "https://fees.upvest.co/estimate_eth_fees"
-    _speed_names = ('slow', 'medium', 'fast', 'fastest')
+    _speed_names = {
+        SLOW: 'slow',
+        MEDIUM: 'medium',
+        FAST: 'fast',
+        FASTEST: 'fastest'
+    }
     _default_speed = 'fastest'
 
     def _parse_gas_prices(self):
         self._probe_feed()
-        self.gas_prices = {k: int(Web3.toWei(v, 'gwei')) for k, v in self._raw_data['estimates'].items()}
-
-
-# TODO: We can implement here other datafeeds, like the ETH/USD (e.g., https://api.coinmarketcap.com/v1/ticker/ethereum/)
-# suggested in a comment in nucypher.blockchain.eth.interfaces.BlockchainInterface#sign_and_broadcast_transaction
+        self.gas_prices = {self.get_canonical_speed(k): int(Web3.toWei(v, 'gwei'))
+                           for k, v in self._raw_data['estimates'].items()}

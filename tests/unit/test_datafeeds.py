@@ -115,7 +115,7 @@ def test_canonical_speed_names():
 def test_etherchain():
     feed = EtherchainGasPriceDatafeed()
 
-    assert set(feed._speed_names).issubset(etherchain_json.keys())
+    assert set(feed._speed_names.values()).issubset(etherchain_json.keys())
     assert feed._default_speed in etherchain_json.keys()
 
     with patch.object(feed, '_probe_feed'):
@@ -137,7 +137,7 @@ def test_etherchain():
 def test_upvest():
     feed = UpvestGasPriceDatafeed()
 
-    assert set(feed._speed_names).issubset(upvest_json['estimates'].keys())
+    assert set(feed._speed_names.values()).issubset(upvest_json['estimates'].keys())
     assert feed._default_speed in upvest_json['estimates'].keys()
 
     with patch.object(feed, '_probe_feed'):
