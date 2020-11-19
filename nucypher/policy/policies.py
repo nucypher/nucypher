@@ -31,7 +31,7 @@ from twisted._threads import AlreadyQuit
 from twisted.internet import reactor
 from twisted.internet.defer import ensureDeferred, Deferred
 from twisted.python.threadpool import ThreadPool
-from typing import Callable
+from typing import Callable, Tuple
 from typing import Generator, List, Set, Optional
 from umbral.keys import UmbralPublicKey
 from umbral.kfrags import KFrag
@@ -47,6 +47,7 @@ from nucypher.crypto.utils import construct_policy_id
 from nucypher.network.exceptions import NodeSeemsToBeDown
 from nucypher.network.middleware import RestMiddleware
 from nucypher.utilities.logging import Logger
+from nucypher.policy.collections import TreasureMap, SignedTreasureMap
 
 
 class Arrangement:
@@ -331,6 +332,7 @@ class Policy(ABC):
 
     POLICY_ID_LENGTH = 16
     _arrangement_class = NotImplemented
+    _treasure_map_class = SignedTreasureMap
 
     log = Logger("Policy")
 
@@ -338,11 +340,11 @@ class Policy(ABC):
         """Too many Ursulas rejected"""
 
     def __init__(self,
-                 alice,
-                 label,
+                 alice: Alice,
+                 label: bytes,
                  expiration: maya.MayaDT,
-                 bob=None,
-                 kfrags=(UNKNOWN_KFRAG,),
+                 bob: 'Bob' = None,
+                 kfrags: Tuple[KFrag, ...] = (UNKNOWN_KFRAG,),
                  public_key=None,
                  m: int = None,
                  alice_signature=NOT_SIGNED) -> None:
@@ -351,10 +353,10 @@ class Policy(ABC):
         :param kfrags:  A list of KFrags to distribute per this Policy.
         :param label: The identity of the resource to which Bob is granted access.
         """
-        self.alice = alice  # type: Alice
-        self.label = label  # type: bytes
-        self.bob = bob  # type: Bob
-        self.kfrags = kfrags  # type: List[KFrag]
+        self.alice = alice
+        self.label = label
+        self.bob = bob
+        self.kfrags = kfrags
         self.public_key = public_key
         self._id = construct_policy_id(self.label, bytes(self.bob.stamp))
         self.treasure_map = self._treasure_map_class(m=m)

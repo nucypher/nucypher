@@ -22,7 +22,6 @@ import pytest
 from nucypher.crypto.api import keccak_digest
 from nucypher.datastore.models import PolicyArrangement
 from nucypher.datastore.models import TreasureMap as DatastoreTreasureMap
-from nucypher.policy.collections import PolicyCredential
 from nucypher.policy.collections import SignedTreasureMap as DecentralizedTreasureMap
 from nucypher.policy.identity import PolicyCredential
 from tests.utils.middleware import MockRestMiddleware

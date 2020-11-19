@@ -185,8 +185,8 @@ class AliceConfiguration(CharacterConfiguration):
         payload = dict(
             m=self.m,
             n=self.n,
-            store_policy_credentials=self.store_policies,
-            store_character_cards=self.store_cards
+            store_policies=self.store_policies,
+            store_cards=self.store_cards
         )
         if not self.federated_only:
             if self.rate:

@@ -17,6 +17,8 @@
 
 import base64
 import json
+
+import maya
 from pathlib import Path
 from typing import Union, Optional, Dict, Callable
 
@@ -32,7 +34,7 @@ from nucypher.characters.base import Character
 from nucypher.characters.lawful import Alice, Bob
 from nucypher.config.constants import DEFAULT_CONFIG_ROOT
 from nucypher.crypto.powers import SigningPower, DecryptingPower
-from nucypher.policy.collections import TreasureMap
+from nucypher.policy.collections import TreasureMap, SignedTreasureMap
 
 
 class Card:
@@ -55,7 +57,7 @@ class Card:
     __ID_LENGTH = 20  # TODO: Review this size (bytes of hex len?)
     __MAX_NICKNAME_SIZE = 10
     __BASE_PAYLOAD_SIZE = sum(length[1] for length in _specification.values() if isinstance(length[1], int))
-    __MAX_CARD_LENGTH = __BASE_PAYLOAD_SIZE + __MAX_NICKNAME_SIZE
+    __MAX_CARD_LENGTH = __BASE_PAYLOAD_SIZE + __MAX_NICKNAME_SIZE + 2
     __FILE_EXTENSION = 'card'
     __DELIMITER = ':'
     CARD_DIR = Path(DEFAULT_CONFIG_ROOT) / 'cards'
@@ -153,7 +155,8 @@ class Card:
     @classmethod
     def from_bytes(cls, card_bytes: bytes) -> 'Card':
         if len(card_bytes) > cls.__MAX_CARD_LENGTH:
-            raise cls.InvalidCard(f'Card exceeds maximum size. Verify the card filepath and contents.')
+            raise cls.InvalidCard(f'Card exceeds maximum size (max is {cls.__MAX_CARD_LENGTH} bytes card is {len(card_bytes)} bytes). '
+                                  f'Verify the card filepath and contents.')
         return BytestringKwargifier(cls, **cls._specification)(card_bytes)
 
     @classmethod
@@ -333,7 +336,7 @@ class Card:
         os.remove(str(self.filepath))
 
 
-class PolicyCredential:
+class PolicyCredential:  # TODO: Rename this. It is not a credential in any way.
     """
     A portable structure that contains information necessary for Alice or Bob
     to utilize the policy on the network that the credential describes.
@@ -365,26 +368,21 @@ class PolicyCredential:
 
     @classmethod
     def from_json(cls, data: str):
-        """
-        Deserializes the PolicyCredential from JSON.
-        """
+        """Deserializes the PolicyCredential from JSON."""
         cred_json = json.loads(data)
-
-        alice_verifying_key = UmbralPublicKey.from_bytes(
-                                    cred_json['alice_verifying_key'],
-                                    decoder=bytes().fromhex)
-        label = bytes().fromhex(cred_json['label'])
+        alice_verifying_key = UmbralPublicKey.from_bytes(cred_json['alice_verifying_key'], decoder=bytes.fromhex)
+        label = bytes.fromhex(cred_json['label'])
         expiration = maya.MayaDT.from_iso8601(cred_json['expiration'])
-        policy_pubkey = UmbralPublicKey.from_bytes(
-                            cred_json['policy_pubkey'],
-                            decoder=bytes().fromhex)
+        policy_pubkey = UmbralPublicKey.from_bytes(cred_json['policy_pubkey'], decoder=bytes.fromhex)
         treasure_map = None
-
         if 'treasure_map' in cred_json:
-            treasure_map = TreasureMap.from_bytes(
-                                bytes().fromhex(cred_json['treasure_map']))
+            # TODO: Support unsigned treasuremaps?
+            treasure_map = SignedTreasureMap.from_bytes(bytes.fromhex(cred_json['treasure_map']))
 
-        return cls(alice_verifying_key, label, expiration, policy_pubkey,
+        return cls(alice_verifying_key,
+                   label,
+                   expiration,
+                   policy_pubkey,
                    treasure_map)
 
     def __eq__(self, other):

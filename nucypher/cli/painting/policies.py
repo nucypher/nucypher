@@ -15,7 +15,8 @@
  along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
-from typing import List
+
+from typing import List, Optional
 
 from tabulate import tabulate
 
