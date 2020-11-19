@@ -38,7 +38,7 @@ class GasStrategyError(RuntimeError):
 
 def construct_datafeed_fallback_strategy(speed: Optional[str] = None) -> Callable:
     def datafeed_fallback_gas_price_strategy(web3: Web3, transaction_params: TxParams = None) -> Wei:
-        feeds = (EtherchainGasPriceDatafeed, UpvestGasPriceDatafeed)
+        feeds = (UpvestGasPriceDatafeed, EtherchainGasPriceDatafeed)
 
         for gas_price_feed_class in feeds:
             try:
