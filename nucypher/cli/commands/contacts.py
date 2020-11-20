@@ -15,16 +15,15 @@
  along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
-import shutil
-
 import click
 import os
+import shutil
 
 from nucypher.characters.control.emitters import StdoutEmitter
 from nucypher.cli.actions.select import select_card
 from nucypher.cli.options import option_force
 from nucypher.cli.painting.policies import paint_single_card, paint_cards
-from nucypher.cli.types import EXISTING_READABLE_FILE
+from nucypher.cli.types import EXISTING_READABLE_FILE, UMBRAL_PUBLIC_KEY_HEX
 from nucypher.policy.identity import Card
 
 id_option = click.option('--id', 'card_id', help="A single card's checksum or ID", type=click.STRING, required=False)
@@ -85,24 +84,33 @@ def create(character_flag, verifying_key, encrypting_key, nickname, force):
 
     if not all((character_flag, verifying_key, encrypting_key)) and force:
         emitter.error(f'--verifying-key, --encrypting-key, and --type are required with --force enabled.')
-    if not force and not nickname:
-        nickname = click.prompt('Enter Card Nickname').strip()
+
     if not character_flag:
         from constant_sorrow.constants import ALICE, BOB
         choice = click.prompt('Enter Card Type - (A)lice or (B)ob', type=click.Choice(['a', 'b'], case_sensitive=False))
         flags = {'a': ALICE, 'b': BOB}
         character_flag = flags[choice]
+
     if not verifying_key:
-        verifying_key = click.prompt('Enter Verifying Key', type=click.STRING)
+        verifying_key = click.prompt('Enter Verifying Key', type=UMBRAL_PUBLIC_KEY_HEX)
     verifying_key = bytes.fromhex(verifying_key)  # TODO: Move / Validate
-    if not encrypting_key:
-        encrypting_key = click.prompt('Enter Encrypting Key', type=click.STRING)
-    encrypting_key = bytes.fromhex(encrypting_key)  # TODO: Move / Validate
+
+    if character_flag is BOB:
+        if not encrypting_key:
+            encrypting_key = click.prompt('Enter Encrypting Key', type=UMBRAL_PUBLIC_KEY_HEX)
+        encrypting_key = bytes.fromhex(encrypting_key)  # TODO: Move / Validate
 
     new_card = Card(character_flag=character_flag,
                     verifying_key=verifying_key,
                     encrypting_key=encrypting_key,
                     nickname=nickname)
+    
+    if not force and not nickname:
+        card_id_hex = new_card.id.hex()
+        nickname = click.prompt('Enter nickname for card', default=card_id_hex)
+        if nickname != card_id_hex:  # not the default
+            nickname = nickname.strip()
+            new_card.nickname = nickname
     new_card.save()
     emitter.message(f'Saved new card {new_card}', color='green')
     paint_single_card(emitter=emitter, card=new_card)

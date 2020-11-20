@@ -15,15 +15,15 @@
  along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
-import base64
-import json
 
-import maya
+import json
 from pathlib import Path
 from typing import Union, Optional, Dict, Callable
 
+import base64
 import constant_sorrow
 import hashlib
+import maya
 import os
 from bytestring_splitter import VariableLengthBytestring, BytestringKwargifier
 from constant_sorrow.constants import ALICE, BOB, NO_SIGNATURE
@@ -34,7 +34,7 @@ from nucypher.characters.base import Character
 from nucypher.characters.lawful import Alice, Bob
 from nucypher.config.constants import DEFAULT_CONFIG_ROOT
 from nucypher.crypto.powers import SigningPower, DecryptingPower
-from nucypher.policy.collections import TreasureMap, SignedTreasureMap
+from nucypher.policy.collections import SignedTreasureMap
 
 
 class Card:
@@ -54,12 +54,12 @@ class Card:
         bytes(BOB): Bob,
     }
 
-    __ID_LENGTH = 20  # TODO: Review this size (bytes of hex len?)
+    __ID_LENGTH = 10  # TODO: Review this size (bytes of hex len?)
     __MAX_NICKNAME_SIZE = 10
     __BASE_PAYLOAD_SIZE = sum(length[1] for length in _specification.values() if isinstance(length[1], int))
     __MAX_CARD_LENGTH = __BASE_PAYLOAD_SIZE + __MAX_NICKNAME_SIZE + 2
     __FILE_EXTENSION = 'card'
-    __DELIMITER = ':'
+    __DELIMITER = ':'  # delimits nickname from ID
     CARD_DIR = Path(DEFAULT_CONFIG_ROOT) / 'cards'
     NO_SIGNATURE.bool_value(False)
 
@@ -205,6 +205,7 @@ class Card:
     def describe(self, truncate: int = 16) -> Dict:
         description = dict(
             nickname=self.__nickname,
+            id=self.id.hex(),
             verifying_key=bytes(self.verifying_key).hex()[:truncate],
             encrypting_key=bytes(self.encrypting_key).hex()[:truncate],
             character=self.character.__name__
@@ -227,7 +228,7 @@ class Card:
         flag = getattr(constant_sorrow.constants, character.__class__.__name__.upper())
         instance = cls(verifying_key=character.public_keys(power_up_class=SigningPower),
                        encrypting_key=character.public_keys(power_up_class=DecryptingPower),
-                       character_flag=flag,
+                       character_flag=bytes(flag),
                        nickname=nickname)
         return instance
 
@@ -291,24 +292,14 @@ class Card:
     def lookup(cls, identifier: str, card_dir: Optional[Path] = CARD_DIR) -> Path:
         """Resolve a card ID or nickname into a Path object"""
         try:
-            int(identifier, 16)  # Is this hex?
+            nickname, id = identifier.split(cls.__DELIMITER)
         except ValueError:
-            try:
-                nickname, checksum = identifier.split(cls.__DELIMITER)
-            except ValueError:
-                nickname = identifier
-            for filename in os.listdir(Card.CARD_DIR):
-                if nickname.casefold() in filename.casefold():
-                    break
-            else:
-                raise cls.UnknownCard(f'Unknown card nickname or ID"{nickname}"')
-            name, _extension = filename.split('.')  # TODO: glob or regex?
-            parsed_nickname, parsed_checksum = name.split(cls.__DELIMITER)
-            if parsed_nickname != nickname:
-                raise ValueError('Nickname matches another')
+            nickname = identifier
+        for filename in os.listdir(Card.CARD_DIR):
+            if nickname.lower() in filename.lower():
+                break
         else:
-            checksum = identifier
-            filename = f'{checksum}.{cls.__FILE_EXTENSION}'
+            raise cls.UnknownCard(f'Unknown card nickname or ID"{nickname}"')
         filepath = card_dir / filename
         return filepath
 

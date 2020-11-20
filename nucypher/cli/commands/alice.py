@@ -26,6 +26,7 @@ from web3.main import Web3
 from nucypher.blockchain.eth.signers.software import ClefSigner
 from nucypher.characters.control.emitters import StdoutEmitter
 from nucypher.characters.control.interfaces import AliceInterface
+from nucypher.characters.lawful import Bob
 from nucypher.cli.actions.auth import get_client_password, get_nucypher_password
 from nucypher.cli.actions.configure import (
     destroy_configuration,
@@ -66,6 +67,7 @@ from nucypher.cli.painting.help import (
     paint_probationary_period_disclaimer,
     enforce_probationary_period
 )
+from nucypher.cli.painting.policies import paint_single_card
 from nucypher.cli.processes import get_geth_provider_process
 from nucypher.cli.types import EIP55_CHECKSUM_ADDRESS
 from nucypher.cli.types import GWEI
@@ -418,6 +420,23 @@ def public_keys(general_config, character_options, config_file):
     return response
 
 
+@alice.command()
+@group_character_options
+@option_config_file
+@group_general_config
+@click.option('--nickname', help="Human-readable nickname / alias for a card", type=click.STRING, required=False)
+def make_card(general_config, character_options, config_file, nickname):
+    """Create a character card file for public key sharing"""
+    emitter = setup_emitter(general_config)
+    ALICE = character_options.create_character(emitter, config_file, general_config.json_ipc, load_seednodes=False)
+    card = Card.from_character(ALICE)
+    if nickname:
+        card.nickname = nickname
+    card.save(overwrite=True)
+    emitter.message(f"Saved new character card to {card.filepath}", color='green')
+    paint_single_card(card=card, emitter=emitter)
+
+
 @alice.command('derive-policy-pubkey')
 @AliceInterface.connect_cli('derive_policy_encrypting_key')
 @group_character_options
@@ -470,10 +489,12 @@ def grant(general_config,
 
     if bob:
         card = Card.load(identifier=bob)
+        if card.character is not Bob:
+            emitter.error('Grantee card is not a Bob.')
+            raise click.Abort
         bob_verifying_key = card.verifying_key.hex()
         bob_encrypting_key = card.encrypting_key.hex()
-        emitter.message(f'Loaded card from storage\n'
-                        f'*{card.nickname or card.id.hex()}*\n'
+        emitter.message(f'{card.nickname or ("Bob #"+card.id.hex())}\n'
                         f'Encrypting Key | {card.encrypting_key.hex()}\n'
                         f'Verifying Key  | {card.verifying_key.hex()}',
                         color='green')
