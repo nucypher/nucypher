@@ -25,7 +25,12 @@ from web3.gas_strategies.rpc import rpc_gas_price_strategy
 from web3.types import Wei, TxParams
 
 from nucypher.config.constants import NUCYPHER_ENVVAR_MAX_GAS_PRICE_GWEI
-from nucypher.utilities.datafeeds import Datafeed, EtherchainGasPriceDatafeed, UpvestGasPriceDatafeed
+from nucypher.utilities.datafeeds import (
+    Datafeed,
+    EtherchainGasPriceDatafeed,
+    UpvestGasPriceDatafeed,
+    ZoltuGasPriceDatafeed
+)
 
 
 class GasStrategyError(RuntimeError):
@@ -67,7 +72,7 @@ def max_price_gas_strategy_wrapper(gas_strategy: Callable) -> Callable:
 
 def construct_datafeed_fallback_strategy(speed: Optional[str] = None) -> Callable:
     def datafeed_fallback_gas_price_strategy(web3: Web3, transaction_params: TxParams = None) -> Wei:
-        feeds = (UpvestGasPriceDatafeed, EtherchainGasPriceDatafeed)
+        feeds = (UpvestGasPriceDatafeed, EtherchainGasPriceDatafeed, ZoltuGasPriceDatafeed)
 
         for gas_price_feed_class in feeds:
             try:
