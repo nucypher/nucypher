@@ -62,7 +62,7 @@ from nucypher.blockchain.eth.sol.compile.types import SourceBundle
 from nucypher.blockchain.eth.utils import get_transaction_name, prettify_eth_amount
 from nucypher.characters.control.emitters import JSONRPCStdoutEmitter, StdoutEmitter
 from nucypher.utilities.ethereum import encode_constructor_arguments
-from nucypher.utilities.gas_strategies import construct_capped_datafeed_fallback_strategy, WEB3_GAS_STRATEGIES
+from nucypher.utilities.gas_strategies import construct_capped_datafeed_median_strategy, WEB3_GAS_STRATEGIES
 from nucypher.utilities.logging import GlobalLoggerSettings, Logger
 
 Web3Providers = Union[IPCProvider, WebsocketProvider, HTTPProvider, EthereumTester]  # TODO: Move to types.py
@@ -288,7 +288,7 @@ class BlockchainInterface:
         if gas_strategy:
             reported_gas_strategy = f"fixed/{gas_strategy.name}"
         elif isinstance(self.client, InfuraClient):
-            gas_strategy = construct_capped_datafeed_fallback_strategy(speed=self.gas_strategy)
+            gas_strategy = construct_capped_datafeed_median_strategy(speed=self.gas_strategy)
             reported_gas_strategy = f"datafeed/{self.gas_strategy}"
         else:
             reported_gas_strategy = f"web3/{self.gas_strategy}"
