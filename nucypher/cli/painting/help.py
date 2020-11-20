@@ -39,8 +39,10 @@ def echo_solidity_version(ctx, param, value):
 def echo_config_location(ctx, param, value):
     if not value or ctx.resilient_parsing:
         return
-    click.secho(f"{DEFAULT_CONFIG_ROOT}\n{USER_LOG_DIR}")
+    click.secho(f"Configuration directory: {DEFAULT_CONFIG_ROOT}\n"
+                f"Logging directory: {USER_LOG_DIR}")
     ctx.exit()
+
 
 def paint_new_installation_help(emitter, new_configuration):
     character_config_class = new_configuration.__class__
