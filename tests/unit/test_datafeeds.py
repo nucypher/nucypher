@@ -23,10 +23,12 @@ from requests.exceptions import ConnectionError
 from web3 import Web3
 
 from nucypher.utilities.datafeeds import (
-    EtherchainGasPriceDatafeed,
     Datafeed,
+    EtherchainGasPriceDatafeed,
+    EthereumGasPriceDatafeed,
     UpvestGasPriceDatafeed,
-    EthereumGasPriceDatafeed)
+    ZoltuGasPriceDatafeed
+)
 from nucypher.utilities.gas_strategies import construct_datafeed_fallback_strategy
 
 etherchain_json = {
@@ -45,6 +47,39 @@ upvest_json = {
         "medium": 91.424,
         "slow": 87.19
     }
+}
+
+zoltu_json = {
+    "number_of_blocks": 200,
+    "latest_block_number": 11294588,
+    "percentile_1": "1 nanoeth",
+    "percentile_2": "1 nanoeth",
+    "percentile_3": "3.452271231 nanoeth",
+    "percentile_4": "10 nanoeth",
+    "percentile_5": "10 nanoeth",
+    "percentile_10": "18.15 nanoeth",
+    "percentile_15": "25 nanoeth",
+    "percentile_20": "28 nanoeth",
+    "percentile_25": "30 nanoeth",
+    "percentile_30": "32 nanoeth",
+    "percentile_35": "37 nanoeth",
+    "percentile_40": "41 nanoeth",
+    "percentile_45": "44 nanoeth",
+    "percentile_50": "47.000001459 nanoeth",
+    "percentile_55": "50 nanoeth",
+    "percentile_60": "52.5 nanoeth",
+    "percentile_65": "55.20000175 nanoeth",
+    "percentile_70": "56.1 nanoeth",
+    "percentile_75": "58 nanoeth",
+    "percentile_80": "60.20000175 nanoeth",
+    "percentile_85": "63 nanoeth",
+    "percentile_90": "64 nanoeth",
+    "percentile_95": "67 nanoeth",
+    "percentile_96": "67.32 nanoeth",
+    "percentile_97": "68 nanoeth",
+    "percentile_98": "70 nanoeth",
+    "percentile_99": "71 nanoeth",
+    "percentile_100": "74 nanoeth"
 }
 
 
@@ -154,6 +189,28 @@ def test_upvest():
         with patch.dict(UpvestGasPriceDatafeed.gas_prices, values=parsed_gas_prices):
             gas_strategy = feed.construct_gas_strategy()
             assert gas_strategy("web3", "tx") == Web3.toWei(105.2745, 'gwei')
+
+
+def test_zoltu():
+    feed = ZoltuGasPriceDatafeed()
+
+    assert set(feed._speed_names.values()).issubset(zoltu_json.keys())
+    # assert feed._default_speed in zoltu_json.keys()
+
+    with patch.object(feed, '_probe_feed'):
+        feed._raw_data = zoltu_json
+        assert feed.get_gas_price('slow') == Web3.toWei(41, 'gwei')
+        assert feed.get_gas_price('medium') == Web3.toWei(58, 'gwei')
+        assert feed.get_gas_price('fast') == Web3.toWei(67, 'gwei')
+        assert feed.get_gas_price('fastest') == Web3.toWei(70, 'gwei')
+        assert feed.get_gas_price() == feed.get_gas_price('fast')  # Default
+        parsed_gas_prices = feed.gas_prices
+
+    with patch('nucypher.utilities.datafeeds.ZoltuGasPriceDatafeed._parse_gas_prices', autospec=True):
+        ZoltuGasPriceDatafeed.gas_prices = dict()
+        with patch.dict(ZoltuGasPriceDatafeed.gas_prices, values=parsed_gas_prices):
+            gas_strategy = feed.construct_gas_strategy()
+            assert gas_strategy("web3", "tx") == Web3.toWei(67, 'gwei')
 
 
 def test_datafeed_fallback_gas_price_strategy():

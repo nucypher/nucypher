@@ -132,3 +132,25 @@ class UpvestGasPriceDatafeed(EthereumGasPriceDatafeed):
         self._probe_feed()
         self.gas_prices = {self.get_canonical_speed(k): int(Web3.toWei(v, 'gwei'))
                            for k, v in self._raw_data['estimates'].items()}
+
+
+class ZoltuGasPriceDatafeed(EthereumGasPriceDatafeed):
+    """Gas price datafeed from gas-oracle.zoltu.io"""
+
+    name = "gas-oracle.zoltu.io datafeed"
+    api_url = "https://gas-oracle.zoltu.io"
+    _speed_names = {
+        SLOW: 'percentile_40',
+        MEDIUM: 'percentile_75',
+        FAST: 'percentile_95',
+        FASTEST: 'percentile_98'
+    }
+    _default_speed = 'fast'
+
+    def _parse_gas_prices(self):
+        self._probe_feed()
+        self.gas_prices = dict()
+        for canonical_speed_name, zoltu_speed in self._speed_names.items():
+            gwei_price = self._raw_data[zoltu_speed].split(" ")[0]
+            wei_price = int(Web3.toWei(gwei_price, 'gwei'))
+            self.gas_prices[canonical_speed_name] = wei_price
