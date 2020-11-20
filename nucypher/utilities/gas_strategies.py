@@ -16,6 +16,7 @@
 """
 import datetime
 import os
+import statistics
 from typing import Callable, Optional
 
 from web3 import Web3
@@ -69,6 +70,36 @@ def max_price_gas_strategy_wrapper(gas_strategy: Callable) -> Callable:
 # Datafeed gas strategies
 #
 
+
+# Median
+
+def construct_datafeed_median_strategy(speed: Optional[str] = None) -> Callable:
+    def datafeed_median_gas_price_strategy(web3: Web3, transaction_params: TxParams = None) -> Wei:
+        feeds = (UpvestGasPriceDatafeed, EtherchainGasPriceDatafeed, ZoltuGasPriceDatafeed)
+
+        prices = []
+        for gas_price_feed_class in feeds:
+            try:
+                gas_strategy = gas_price_feed_class.construct_gas_strategy(speed=speed)
+                gas_price = gas_strategy(web3, transaction_params)
+            except Datafeed.DatafeedError:
+                continue
+            else:
+                prices.append(gas_price)
+
+        if prices:
+            median_price = statistics.median(prices)
+            return median_price
+        else:  # Worst-case scenario, we get the price from the ETH node itself
+            return rpc_gas_price_strategy(web3, transaction_params)
+    return datafeed_median_gas_price_strategy
+
+
+def construct_capped_datafeed_median_strategy(speed: Optional[str] = None) -> Callable:
+    return max_price_gas_strategy_wrapper(construct_datafeed_median_strategy(speed=speed))
+
+
+# Fallback
 
 def construct_datafeed_fallback_strategy(speed: Optional[str] = None) -> Callable:
     def datafeed_fallback_gas_price_strategy(web3: Web3, transaction_params: TxParams = None) -> Wei:

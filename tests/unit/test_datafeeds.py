@@ -14,7 +14,8 @@ GNU Affero General Public License for more details.
 You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
-
+from collections import Callable
+from statistics import median
 from unittest.mock import patch
 
 import pytest
@@ -29,7 +30,7 @@ from nucypher.utilities.datafeeds import (
     UpvestGasPriceDatafeed,
     ZoltuGasPriceDatafeed
 )
-from nucypher.utilities.gas_strategies import construct_datafeed_fallback_strategy
+from nucypher.utilities.gas_strategies import construct_datafeed_median_strategy, construct_datafeed_fallback_strategy
 
 etherchain_json = {
     "safeLow": "99.0",
@@ -211,6 +212,64 @@ def test_zoltu():
         with patch.dict(ZoltuGasPriceDatafeed.gas_prices, values=parsed_gas_prices):
             gas_strategy = feed.construct_gas_strategy()
             assert gas_strategy("web3", "tx") == Web3.toWei(67, 'gwei')
+
+
+def test_datafeed_median_gas_price_strategy():
+
+    mock_etherchain_gas_price = 1000
+    mock_upvest_gas_price = 2000
+    mock_zoltu_gas_price = 4000
+    mock_rpc_gas_price = 42
+
+    def construct_mock_gas_strategy(gas_price) -> Callable:
+        def _mock_gas_strategy(web3, tx=None):
+            return gas_price
+        return _mock_gas_strategy
+
+    # In normal circumstances, all datafeeds in the strategy work, and the median is returned
+    with patch('nucypher.utilities.datafeeds.UpvestGasPriceDatafeed.construct_gas_strategy',
+               return_value=construct_mock_gas_strategy(mock_upvest_gas_price)):
+        with patch('nucypher.utilities.datafeeds.EtherchainGasPriceDatafeed.construct_gas_strategy',
+                   return_value=construct_mock_gas_strategy(mock_etherchain_gas_price)):
+            with patch('nucypher.utilities.datafeeds.ZoltuGasPriceDatafeed.construct_gas_strategy',
+                       return_value=construct_mock_gas_strategy(mock_zoltu_gas_price)):
+                datafeed_median_gas_price_strategy = construct_datafeed_median_strategy()
+                assert datafeed_median_gas_price_strategy("web3", "tx") == median([mock_etherchain_gas_price,
+                                                                                   mock_upvest_gas_price,
+                                                                                   mock_zoltu_gas_price])
+
+    # If, for example, Upvest fails, the median is computed using the other two feeds
+    with patch('nucypher.utilities.datafeeds.UpvestGasPriceDatafeed._probe_feed',
+               side_effect=Datafeed.DatafeedError):
+        with patch('nucypher.utilities.datafeeds.EtherchainGasPriceDatafeed.construct_gas_strategy',
+                   return_value=construct_mock_gas_strategy(mock_etherchain_gas_price)):
+            with patch('nucypher.utilities.datafeeds.ZoltuGasPriceDatafeed.construct_gas_strategy',
+                       return_value=construct_mock_gas_strategy(mock_zoltu_gas_price)):
+                datafeed_median_gas_price_strategy = construct_datafeed_median_strategy()
+                assert datafeed_median_gas_price_strategy("web3", "tx") == median([mock_etherchain_gas_price,
+                                                                                   mock_zoltu_gas_price])
+
+    # If only one feed works, then the return value corresponds to this feed
+    with patch('nucypher.utilities.datafeeds.UpvestGasPriceDatafeed._probe_feed',
+               side_effect=Datafeed.DatafeedError):
+        with patch('nucypher.utilities.datafeeds.EtherchainGasPriceDatafeed._probe_feed',
+                   side_effect=Datafeed.DatafeedError):
+            with patch('nucypher.utilities.datafeeds.ZoltuGasPriceDatafeed.construct_gas_strategy',
+                       return_value=construct_mock_gas_strategy(mock_zoltu_gas_price)):
+                datafeed_median_gas_price_strategy = construct_datafeed_median_strategy()
+                assert datafeed_median_gas_price_strategy("web3", "tx") == mock_zoltu_gas_price
+
+    # If all feeds fail, we fallback to the rpc_gas_price_strategy
+    with patch('nucypher.utilities.datafeeds.EtherchainGasPriceDatafeed._probe_feed',
+               side_effect=Datafeed.DatafeedError):
+        with patch('nucypher.utilities.datafeeds.UpvestGasPriceDatafeed._probe_feed',
+                   side_effect=Datafeed.DatafeedError):
+            with patch('nucypher.utilities.datafeeds.ZoltuGasPriceDatafeed._probe_feed',
+                   side_effect=Datafeed.DatafeedError):
+                with patch('nucypher.utilities.gas_strategies.rpc_gas_price_strategy',
+                           side_effect=construct_mock_gas_strategy(mock_rpc_gas_price)):
+                    datafeed_median_gas_price_strategy = construct_datafeed_median_strategy()
+                    assert datafeed_median_gas_price_strategy("web3", "tx") == mock_rpc_gas_price
 
 
 def test_datafeed_fallback_gas_price_strategy():
