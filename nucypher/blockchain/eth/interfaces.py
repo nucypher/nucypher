@@ -19,7 +19,7 @@ import os
 import pprint
 import threading
 import time
-from typing import Callable, Tuple, Union, NamedTuple
+from typing import Callable, Tuple, Union, NamedTuple, List
 from urllib.parse import urlparse
 
 import math
@@ -815,9 +815,9 @@ class BlockchainDeployerInterface(BlockchainInterface):
 
     # TODO: Make more func - use as a parameter
     # Source directories to (recursively) compile
-    SOURCES: Tuple[SourceBundle, ...] = (
+    SOURCES: List[SourceBundle] = [
         SourceBundle(base_path=SOLIDITY_SOURCE_ROOT),
-    )
+    ]
 
     _raw_contract_cache = NO_COMPILATION_PERFORMED
 

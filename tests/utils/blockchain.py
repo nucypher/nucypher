@@ -30,7 +30,7 @@ from nucypher.blockchain.eth.actors import ContractAdministrator
 from nucypher.blockchain.eth.interfaces import BlockchainDeployerInterface, BlockchainInterfaceFactory
 from nucypher.blockchain.eth.registry import InMemoryContractRegistry
 from nucypher.blockchain.eth.sol.compile.compile import multiversion_compile
-from nucypher.blockchain.eth.sol.compile.constants import TEST_SOLIDITY_SOURCE_ROOT
+from nucypher.blockchain.eth.sol.compile.constants import TEST_SOLIDITY_SOURCE_ROOT, SOLIDITY_SOURCE_ROOT
 from nucypher.blockchain.eth.sol.compile.types import SourceBundle
 from nucypher.blockchain.eth.token import NU
 from nucypher.blockchain.eth.utils import epoch_to_period
@@ -77,10 +77,10 @@ class TesterBlockchain(BlockchainDeployerInterface):
     __test__ = False  # prohibit pytest from collecting this object as a test
 
     # Solidity
-    SOURCES: Tuple[SourceBundle, ...] = (
-        *BlockchainDeployerInterface.SOURCES,
-        SourceBundle(base_path=TEST_SOLIDITY_SOURCE_ROOT)
-    )
+    SOURCES: List[SourceBundle] = [
+        SourceBundle(base_path=SOLIDITY_SOURCE_ROOT,
+                     other_paths=(TEST_SOLIDITY_SOURCE_ROOT,))
+    ]
 
     # Web3
     GAS_STRATEGIES = {**BlockchainDeployerInterface.GAS_STRATEGIES, 'free': free_gas_price_strategy}

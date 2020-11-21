@@ -57,7 +57,7 @@ def compile_sources(source_bundle: SourceBundle, version_check: bool = True) -> 
     return compiler_output
 
 
-def multiversion_compile(source_bundles: Tuple[SourceBundle, ...],
+def multiversion_compile(source_bundles: List[SourceBundle],
                          compiler_version_check: bool = True
                          ) -> VersionedContractOutputs:
     """Compile contracts from `source_dirs` and aggregate the resulting source contract outputs by version"""

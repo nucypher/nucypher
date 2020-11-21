@@ -25,6 +25,8 @@ from nucypher.blockchain.eth.deployers import AdjudicatorDeployer, BaseContractD
     PolicyManagerDeployer, StakingEscrowDeployer
 from nucypher.blockchain.eth.interfaces import BlockchainDeployerInterface, BlockchainInterfaceFactory
 from nucypher.blockchain.eth.registry import InMemoryContractRegistry
+from nucypher.blockchain.eth.sol.compile.constants import SOLIDITY_SOURCE_ROOT
+from nucypher.blockchain.eth.sol.compile.types import SourceBundle
 from nucypher.crypto.powers import TransactingPower
 from tests.constants import INSECURE_DEVELOPMENT_PASSWORD
 from tests.utils.blockchain import free_gas_price_strategy
@@ -99,6 +101,11 @@ def test_upgradeability(temp_dir_path, token_economics):
     download_github_dir(GITHUB_SOURCE_LINK, temp_dir_path)
 
     # Prepare the blockchain
+    BlockchainDeployerInterface.SOURCES = [
+        SourceBundle(base_path=SOLIDITY_SOURCE_ROOT),
+        SourceBundle(base_path=temp_dir_path)
+    ]
+
     provider_uri = 'tester://pyevm/2'  # TODO: Testerchain caching Issues
     try:
         blockchain_interface = BlockchainDeployerInterface(provider_uri=provider_uri,
