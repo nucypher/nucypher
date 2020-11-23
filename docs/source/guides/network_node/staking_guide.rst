@@ -512,13 +512,40 @@ This can help to decrease gas consumption in some operations. To merge two stake
 Remove unused sub-stake
 ***********************
 
-Merging or editing sub-stakes can lead to 'unused', inactive sub-stakes remaining on-chain. 
+When sub-stakes terminate, or after merging or editing sub-stakes,
+there can be 'unused', inactive sub-stakes remaining on-chain.
 These unused sub-stakes add unnecessary gas costs to daily operations.
-To remove unused sub-stake:
+
+You can find out if you have unused sub-stakes by listing all sub-stakes and
+checking if you have any marked as ``INACTIVE``:
+
+.. code:: bash
+
+    (nucypher)$ nucypher stake list --all --hw-wallet
+
+    ...
+
+    ╒═══════╤═══════════════╤═════════════╤═════════════╤═══════════════╤═══════════╕
+    │   Idx │ Value         │   Remaining │ Enactment   │ Termination   │ Status    │
+    ╞═══════╪═══════════════╪═════════════╪═════════════╪═══════════════╪═══════════╡
+    │     0 │ 123456.789 NU │          -4 │ Oct 15 2020 │ Nov 19 2020   │ INACTIVE  │
+    ├───────┼───────────────┼─────────────┼─────────────┼───────────────┼───────────┤
+    │     1 │ 123456.789 NU │          27 │ Oct 15 2020 │ Dec 20 2020   │ DIVISIBLE │
+    ├───────┼───────────────┼─────────────┼─────────────┼───────────────┼───────────┤
+
+
+To remove an unused sub-stake, run the following command and select the index
+of your ``INACTIVE`` sub-stake:
 
 .. code:: bash
 
     (nucypher)$ nucypher stake remove-unused --hw-wallet
+
+
+In order to make the operation as simple and cheap as possible,
+the removal algorithm simply relocates the last active sub-stake to the slot
+occupied by the currently inactive one, so you will notice a slight
+re-ordering of your sub-stakes. This is normal and doesn't have any implication.
 
 
 Collect rewards earned by the staker
