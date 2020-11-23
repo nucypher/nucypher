@@ -11,6 +11,7 @@ import "zeppelin/token/ERC20/SafeERC20.sol";
 
 
 /**
+* @title Issuer
 * @notice Contract for calculation of issued tokens
 * @dev |v3.3.1|
 */

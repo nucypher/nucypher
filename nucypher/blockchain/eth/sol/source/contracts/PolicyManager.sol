@@ -15,6 +15,7 @@ import "contracts/proxy/Upgradeable.sol";
 
 
 /**
+* @title PolicyManager
 * @notice Contract holds policy data and locks accrued policy fees
 * @dev |v6.1.3|
 */
