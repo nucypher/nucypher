@@ -203,7 +203,16 @@ Q: How do I maximize the inflation-based rewards I will receive?
 Q: Where is my Ursula config path?
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-On Ubuntu/Debian - ``$HOME/.local/share/nucypher/ursula.json``
+Default configuration and logging paths can be displayed using the command line:
+
+Configuration path - ``nucypher --config-path``
+Default logging path - ``nucypher --logging-path``
+
+On Ubuntu/Debian the default ursula configuration path is``$HOME/.local/share/nucypher/ursula.json``,
+however if you have more than one ursula configuration, the filename will include the checksum address:
+``$HOME/.local/share/nucypher/ursula-0xdeadbeef.json``.
+
+To inspect the config path for configuration files run ``ls $(nucypher --config-path)``.
 
 Q: What is the difference between Standard Installation and Development Installation?
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~

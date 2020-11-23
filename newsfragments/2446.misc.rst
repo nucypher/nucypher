@@ -1,1 +1,1 @@
-Introduces 'nucypher --config' displaying default nucypher filepaths
+Introduces `--config-path` and `--logging-path` CLI flags displaying default nucypher directories
