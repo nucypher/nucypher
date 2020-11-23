@@ -718,7 +718,7 @@ class WorkTracker:
         onchain_period = self.staking_agent.get_current_period()  # < -- Read from contract
         if self.current_period != onchain_period:
             self.__current_period = onchain_period
-
+            self.log.info(f"New period is {self.__current_period}")
             # TODO: #1515 and #1517 - Shut down at end of terminal stake
             # This slows down tests substantially and adds additional
             # RPC calls, but might be acceptable in production
