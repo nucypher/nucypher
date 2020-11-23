@@ -812,6 +812,7 @@ class StakeList(UserList):
 
         # Read from blockchain
         stakes_reader = self.staking_agent.get_all_stakes(staker_address=self.checksum_address)
+        inactive_substakes = []
         for onchain_index, stake_info in enumerate(stakes_reader):
 
             if not stake_info:
@@ -833,6 +834,9 @@ class StakeList(UserList):
                 if onchain_stake.final_locked_period > terminal_period:
                     terminal_period = onchain_stake.final_locked_period
 
+                if onchain_stake.status() is Stake.Status.INACTIVE:
+                    inactive_substakes.append(onchain_index)
+
             # Store the replacement stake
             onchain_stakes.append(onchain_stake)
 
@@ -843,6 +847,8 @@ class StakeList(UserList):
             self.__terminal_period = terminal_period
             changed_records = abs(existing_records - len(onchain_stakes))
             self.log.debug(f"Updated {changed_records} local staking cache entries.")
+            if inactive_substakes:
+                self.log.debug(f"The following sub-stakes are inactive: {inactive_substakes}")
 
         # Record most recent cache update
         self.__updated = maya.now()
