@@ -72,7 +72,8 @@ def paint_stakes(emitter: StdoutEmitter,
         missing_info = f'Missing {missing} commitments{"s" if missing > 1 else ""}' if missing else f'Committed #{last_committed}'
 
     staker_data = [missing_info,
-                   f'{"Yes" if staker.is_restaking else "No"} ({"Locked" if staker.restaking_lock_enabled else "Unlocked"})',
+                   f'{"Yes" if staker.is_restaking else "No"} '
+                   f'({"Locked" if staker.restaking_lock_enabled else "Unlocked"})',
                    "Yes" if bool(staker.is_winding_down) else "No",
                    "Yes" if bool(staker.is_taking_snapshots) else "No",
                    pretty_fees,
@@ -96,8 +97,11 @@ def paint_stakes(emitter: StdoutEmitter,
                 emitter.echo(f"\t Blockchain Provider: {worker_data['blockchain_provider']}")
     emitter.echo(tabulate.tabulate(zip(STAKER_TABLE_COLUMNS, staker_data), floatfmt="fancy_grid"))
 
-    rows = list()
+    rows, inactive_substakes = [], []
     for index, stake in enumerate(stakes):
+        if stake.status() is Stake.Status.INACTIVE:
+            inactive_substakes.append(index)
+
         if stake.status().is_child(Stake.Status.UNLOCKED) and not paint_unlocked:
             # This stake is unlocked.
             continue
@@ -107,6 +111,10 @@ def paint_stakes(emitter: StdoutEmitter,
         emitter.echo(f"There are no locked stakes\n")
 
     emitter.echo(tabulate.tabulate(rows, headers=STAKE_TABLE_COLUMNS, tablefmt="fancy_grid"))  # newline
+
+    if not paint_unlocked and inactive_substakes:
+        emitter.echo(f"Note that some sub-stakes are inactive: {inactive_substakes}\n"
+                     f"Run `nucypher stake list --all` to show all sub-stakes.", color='yellow')
 
 
 def prettify_stake(stake, index: int = None) -> str:
