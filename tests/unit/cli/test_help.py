@@ -81,9 +81,15 @@ def test_echo_solidity_version(click_runner):
     assert str(SOLIDITY_COMPILER_VERSION) in result.output, 'Solidity version text was not produced.'
 
 
-def test_echo_config_paths(click_runner):
-    version_args = ('--config', )
+def test_echo_config_root(click_runner):
+    version_args = ('--config-path', )
+    result = click_runner.invoke(nucypher_cli, version_args, catch_exceptions=False)
+    assert result.exit_code == 0
+    assert DEFAULT_CONFIG_ROOT in result.output, 'Configuration path text was not produced.'
+
+
+def test_echo_logging_root(click_runner):
+    version_args = ('--logging-path', )
     result = click_runner.invoke(nucypher_cli, version_args, catch_exceptions=False)
     assert result.exit_code == 0
     assert USER_LOG_DIR in result.output, 'Log path text was not produced.'
-    assert DEFAULT_CONFIG_ROOT in result.output, 'Configuration path text was not produced.'

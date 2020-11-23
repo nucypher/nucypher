@@ -36,11 +36,17 @@ def echo_solidity_version(ctx, param, value):
     ctx.exit()
 
 
-def echo_config_location(ctx, param, value):
+def echo_config_root_path(ctx, param, value):
     if not value or ctx.resilient_parsing:
         return
-    click.secho(f"Configuration directory: {DEFAULT_CONFIG_ROOT}\n"
-                f"Logging directory: {USER_LOG_DIR}")
+    click.secho(DEFAULT_CONFIG_ROOT)
+    ctx.exit()
+
+
+def echo_logging_root_path(ctx, param, value):
+    if not value or ctx.resilient_parsing:
+        return
+    click.secho(USER_LOG_DIR)
     ctx.exit()
 
 
