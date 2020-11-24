@@ -16,9 +16,12 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
 
-from collections import OrderedDict
-
 import datetime
+from collections import OrderedDict
+from queue import Queue, Empty
+from typing import Callable, Tuple
+from typing import Generator, Set, Optional
+
 import math
 import maya
 import random
@@ -26,13 +29,10 @@ import time
 from abc import ABC, abstractmethod
 from bytestring_splitter import BytestringSplitter, VariableLengthBytestring
 from constant_sorrow.constants import NOT_SIGNED, UNKNOWN_KFRAG
-from queue import Queue, Empty
 from twisted._threads import AlreadyQuit
 from twisted.internet import reactor
 from twisted.internet.defer import ensureDeferred, Deferred
 from twisted.python.threadpool import ThreadPool
-from typing import Callable, Tuple
-from typing import Generator, List, Set, Optional
 from umbral.keys import UmbralPublicKey
 from umbral.kfrags import KFrag
 
@@ -46,8 +46,8 @@ from nucypher.crypto.powers import DecryptingPower, SigningPower, TransactingPow
 from nucypher.crypto.utils import construct_policy_id
 from nucypher.network.exceptions import NodeSeemsToBeDown
 from nucypher.network.middleware import RestMiddleware
+from nucypher.policy.identity import PolicyCredential
 from nucypher.utilities.logging import Logger
-from nucypher.policy.collections import TreasureMap, SignedTreasureMap
 
 
 class Arrangement:
@@ -332,7 +332,6 @@ class Policy(ABC):
 
     POLICY_ID_LENGTH = 16
     _arrangement_class = NotImplemented
-    _treasure_map_class = SignedTreasureMap
 
     log = Logger("Policy")
 
@@ -440,7 +439,7 @@ class Policy(ABC):
         Alice or Bob. By default, it will include the treasure_map for the
         policy unless `with_treasure_map` is False.
         """
-        from nucypher.policy.identity import PolicyCredential
+
         treasure_map = self.treasure_map
         if not with_treasure_map:
             treasure_map = None
@@ -614,6 +613,7 @@ class Policy(ABC):
 
 class FederatedPolicy(Policy):
     _arrangement_class = Arrangement
+    from nucypher.policy.collections import TreasureMap as _treasure_map_class  # TODO: Circular Import
 
     def make_arrangements(self, *args, **kwargs) -> None:
         try:
@@ -649,6 +649,7 @@ class BlockchainPolicy(Policy):
     A collection of n BlockchainArrangements representing a single Policy
     """
     _arrangement_class = BlockchainArrangement
+    from nucypher.policy.collections import SignedTreasureMap as _treasure_map_class  # TODO: Circular Import
 
     class NoSuchPolicy(Exception):
         pass
