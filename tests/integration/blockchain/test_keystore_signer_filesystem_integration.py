@@ -86,6 +86,7 @@ def unknown_address():
     address = Account.create().address
     return address
 
+
 def test_invalid_keystore(tmp_path):
     with pytest.raises(Signer.InvalidSignerURI) as e:
         Signer.from_signer_uri(uri=f'keystore:{tmp_path/"nonexistent"}', testnet=True)
@@ -168,6 +169,9 @@ def test_keystore_locking(mock_account, good_signer, unknown_address):
 
     with pytest.raises(Signer.UnknownAccount):
         good_signer.unlock_account(account=unknown_address, password=INSECURE_DEVELOPMENT_PASSWORD)
+
+    with pytest.raises(Signer.AccessDenied, match='No password supplied to unlock account.'):
+        good_signer.unlock_account(account=mock_account.address, password=None)
 
     successful_unlock = good_signer.unlock_account(account=mock_account.address, password=INSECURE_DEVELOPMENT_PASSWORD)
     assert successful_unlock
