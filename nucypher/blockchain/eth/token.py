@@ -719,6 +719,8 @@ class WorkTracker:
         if self.current_period != onchain_period:
             self.__current_period = onchain_period
             self.log.info(f"New period is {self.__current_period}")
+            self.__pending = dict()  # Forget the past. This is a new beginning.
+
             # TODO: #1515 and #1517 - Shut down at end of terminal stake
             # This slows down tests substantially and adds additional
             # RPC calls, but might be acceptable in production
