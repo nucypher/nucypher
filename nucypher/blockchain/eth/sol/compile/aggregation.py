@@ -42,6 +42,22 @@ v             # Capture version starting from symbol v
 \Z            # Anchor must be the end of the match
 """, re.VERBOSE)
 
+# simplified version of pattern to extract metadata hash from bytecode
+# see https://docs.soliditylang.org/en/latest/metadata.html#encoding-of-the-metadata-hash-in-the-bytecode
+METADATA_HASH_PATTERN: Pattern = re.compile(r"""
+a2
+64
+\w{8}       # 'i' 'p' 'f' 's'
+58
+22
+\w{68}      # 34 bytes IPFS hash
+64
+\w{8}       # 's' 'o' 'l' 'c'    
+43
+\w{6}       # <3 byte version encoding>
+0033
+""", re.VERBOSE)
+
 
 def extract_version(compiled_contract_outputs: dict) -> str:
     """
@@ -100,8 +116,10 @@ def validate_merge(existing_version: CompiledContractOutputs,
     if versioned and new_title:
         existing_title = existing_version['devdoc'].get('title')
         if existing_title == new_title:  # This is the same contract
-            existing_bytecode = existing_version['evm']['bytecode']['object']
-            new_bytecode = new_version['evm']['bytecode']['object']
+            # TODO this code excludes hash of metadata, it's not perfect because format of metadata could change
+            # ideally use a proper CBOR parser
+            existing_bytecode = METADATA_HASH_PATTERN.sub('', existing_version['evm']['bytecode']['object'])
+            new_bytecode = METADATA_HASH_PATTERN.sub('', new_version['evm']['bytecode']['object'])
             if not existing_bytecode == new_bytecode:
                 message = f"Two solidity sources ({new_title}, {existing_title}) specify version '{version_specifier}' " \
                           "but have different compiled bytecode. Ensure that the devdoc version is " \
@@ -136,10 +154,9 @@ def merge_contract_outputs(*compiled_versions) -> VersionedContractOutputs:
 
             else:
                 # Existing Version Update
-                # TODO: (Enhancement) Handle duplicate versioned bytecode
-                # validate_merge(existing_version=existing_version,
-                #                new_version=contract_outputs,
-                #                version_specifier=version)
+                validate_merge(existing_version=existing_version,
+                               new_version=contract_outputs,
+                               version_specifier=version)
                 versioned_outputs[version] = contract_outputs
 
     return VersionedContractOutputs(versioned_outputs)
