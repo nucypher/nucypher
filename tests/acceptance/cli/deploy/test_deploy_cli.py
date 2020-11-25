@@ -41,13 +41,6 @@ def registry_filepath(temp_dir_path):
     return os.path.join(temp_dir_path, 'nucypher-test-autodeploy.json')
 
 
-def test_echo_solidity_version(click_runner):
-    version_args = ('--solidity-version', )
-    result = click_runner.invoke(deploy, version_args, catch_exceptions=False)
-    assert result.exit_code == 0
-    assert str(SOLIDITY_COMPILER_VERSION) in result.output, 'Solidity version text was not produced.'
-
-
 def test_deploy_single_contract(click_runner, tempfile_path):
 
     # Perform the Test

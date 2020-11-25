@@ -195,6 +195,12 @@ Assuming geth is running locally, configure and run an Ursula using port and vol
 5. Monitor Worker
 ^^^^^^^^^^^^^^^^^
 
+Ursula's Logs
+~~~~~~~~~~~~~~
+
+A reliable way to check the status of a worker node is to view the logs.  As a shortcut, nucypher's
+logs can be viewed from the command line using ``tail``: `tail -f $(nucypher --logging-path)/nucypher.log`
+
 Status Page
 ~~~~~~~~~~~
 Once Ursula is running, you can view its public status page at ``https://<node_ip>:9151/status``.

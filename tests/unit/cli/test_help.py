@@ -19,8 +19,10 @@ import click
 import pytest
 
 import nucypher
+from nucypher.blockchain.eth.sol.__conf__ import SOLIDITY_COMPILER_VERSION
 from nucypher.cli.commands.deploy import deploy
 from nucypher.cli.main import ENTRY_POINTS, nucypher_cli
+from nucypher.config.constants import USER_LOG_DIR, DEFAULT_CONFIG_ROOT
 
 
 def test_echo_nucypher_version(click_runner):
@@ -70,3 +72,24 @@ def test_nucypher_deploy_help_message(click_runner):
     result = click_runner.invoke(deploy, help_args, catch_exceptions=False)
     assert result.exit_code == 0
     assert 'deploy [OPTIONS] COMMAND [ARGS]' in result.output, 'Missing or invalid help text was produced.'
+
+
+def test_echo_solidity_version(click_runner):
+    version_args = ('--solidity-version', )
+    result = click_runner.invoke(deploy, version_args, catch_exceptions=False)
+    assert result.exit_code == 0
+    assert str(SOLIDITY_COMPILER_VERSION) in result.output, 'Solidity version text was not produced.'
+
+
+def test_echo_config_root(click_runner):
+    version_args = ('--config-path', )
+    result = click_runner.invoke(nucypher_cli, version_args, catch_exceptions=False)
+    assert result.exit_code == 0
+    assert DEFAULT_CONFIG_ROOT in result.output, 'Configuration path text was not produced.'
+
+
+def test_echo_logging_root(click_runner):
+    version_args = ('--logging-path', )
+    result = click_runner.invoke(nucypher_cli, version_args, catch_exceptions=False)
+    assert result.exit_code == 0
+    assert USER_LOG_DIR in result.output, 'Log path text was not produced.'
