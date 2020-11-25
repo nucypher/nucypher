@@ -33,9 +33,8 @@ TEST_MULTIVERSION_CONTRACTS: Path = Path(NUCYPHER_TEST_DIR) / 'acceptance' / 'bl
 
 from nucypher.blockchain.eth import sol
 SOLIDITY_SOURCE_ROOT: Path = Path(sol.__file__).parent / 'source'
-CONTRACT_SOURCE_ROOT = SOLIDITY_SOURCE_ROOT / CONTRACTS
-ZEPPELIN_ROOT = SOLIDITY_SOURCE_ROOT / 'zeppelin'
-ARAGON_ROOT = SOLIDITY_SOURCE_ROOT / 'aragon'
+ZEPPELIN = 'zeppelin'
+ARAGON = 'aragon'
 
 # Do not compile contracts containing...
 IGNORE_CONTRACT_PREFIXES: Tuple[str, ...] = (

@@ -43,7 +43,6 @@ v             # Capture version starting from symbol v
 """, re.VERBOSE)
 
 
-
 def extract_version(compiled_contract_outputs: dict) -> str:
     """
     Returns the source specified version of a compiled solidity contract.

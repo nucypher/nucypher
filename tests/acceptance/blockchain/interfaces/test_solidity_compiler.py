@@ -17,9 +17,9 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 
 from nucypher.blockchain.eth.deployers import NucypherTokenDeployer
 from nucypher.blockchain.eth.sol.compile.compile import multiversion_compile
-from nucypher.blockchain.eth.sol.compile.constants import DEFAULT_VERSION_STRING, TEST_MULTIVERSION_CONTRACTS
+from nucypher.blockchain.eth.sol.compile.constants import DEFAULT_VERSION_STRING, TEST_MULTIVERSION_CONTRACTS, \
+    TEST_SOLIDITY_SOURCE_ROOT, SOLIDITY_SOURCE_ROOT
 from nucypher.blockchain.eth.sol.compile.types import SourceBundle
-from nucypher.config.constants import NUCYPHER_TEST_DIR
 
 
 def test_nucypher_contract_compiled(testerchain, test_registry):
@@ -34,8 +34,11 @@ def test_nucypher_contract_compiled(testerchain, test_registry):
 
 
 def test_multi_source_compilation(testerchain):
-    # TODO: Remove AST because id in tree node depends on compilation scope <<< Still relevant?
-    interfaces = multiversion_compile(source_bundles=testerchain.SOURCES)
+    bundles = [
+        SourceBundle(base_path=SOLIDITY_SOURCE_ROOT),
+        SourceBundle(base_path=SOLIDITY_SOURCE_ROOT, other_paths=(TEST_SOLIDITY_SOURCE_ROOT,))
+    ]
+    interfaces = multiversion_compile(source_bundles=bundles)
     raw_cache = testerchain._raw_contract_cache.copy()
     assert interfaces == raw_cache
 
@@ -43,10 +46,10 @@ def test_multi_source_compilation(testerchain):
 def test_multi_versions():
     base_dir = TEST_MULTIVERSION_CONTRACTS
     v1_dir, v2_dir = base_dir / "v1", base_dir / "v2"
-    bundles = (
+    bundles = [
         SourceBundle(base_path=v1_dir),
         SourceBundle(base_path=v2_dir)
-    )
+    ]
     interfaces = multiversion_compile(source_bundles=bundles)
     assert "VersionTest" in interfaces
     contract_data = interfaces["VersionTest"]

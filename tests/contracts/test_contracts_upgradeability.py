@@ -17,6 +17,8 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 import contextlib
 
 import os
+from pathlib import Path
+
 import pytest
 import requests
 from web3.exceptions import ValidationError
@@ -103,7 +105,7 @@ def test_upgradeability(temp_dir_path, token_economics):
     # Prepare the blockchain
     BlockchainDeployerInterface.SOURCES = [
         SourceBundle(base_path=SOLIDITY_SOURCE_ROOT),
-        SourceBundle(base_path=temp_dir_path)
+        SourceBundle(base_path=Path(temp_dir_path))
     ]
 
     provider_uri = 'tester://pyevm/2'  # TODO: Testerchain caching Issues

@@ -19,9 +19,7 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 from typing import List, Dict
 
 from nucypher.blockchain.eth.sol.compile.constants import (
-    CONTRACT_SOURCE_ROOT,
-    ZEPPELIN_ROOT,
-    ARAGON_ROOT
+    CONTRACTS, ZEPPELIN, ARAGON
 )
 from nucypher.blockchain.eth.sol.compile.types import CompilerConfiguration
 
@@ -114,16 +112,13 @@ COMPILER_SETTINGS: Dict = dict(
     optimizer=OPTIMIZER_SETTINGS,
     evmVersion=EVM_VERSION,
     outputSelection={"*": {"*": CONTRACT_OUTPUTS, "": FILE_OUTPUTS}},  # all contacts(*), all files("")
-    remappings=[
-        f"contracts={CONTRACT_SOURCE_ROOT}",
-        f"zeppelin={ZEPPELIN_ROOT}",
-        f"aragon={ARAGON_ROOT}"
-    ],
 )
+
+REMAPPINGS: List = [CONTRACTS, ZEPPELIN, ARAGON]
 
 # Base configuration for programmatic usage
 BASE_COMPILER_CONFIGURATION = CompilerConfiguration(
     language=LANGUAGE,
     settings=COMPILER_SETTINGS,
-    # sources added dynamically during runtime
+    # sources and remappings added dynamically during runtime
 )
