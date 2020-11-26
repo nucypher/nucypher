@@ -15,4 +15,4 @@ You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
-SOLIDITY_COMPILER_VERSION = 'v0.7.3'
+SOLIDITY_COMPILER_VERSION = 'v0.7.5'
