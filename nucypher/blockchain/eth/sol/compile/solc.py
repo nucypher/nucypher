@@ -16,7 +16,6 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
 
-from logging import Logger
 from typing import Dict, Optional, List
 
 from nucypher.blockchain.eth.sol.compile.config import OPTIMIZER_RUNS
@@ -28,7 +27,6 @@ from nucypher.exceptions import DevelopmentInstallationRequired
 
 def __execute(compiler_version: VersionString, input_config: Dict, allow_paths: Optional[List[str]]):
     """Executes the solcx command and underlying solc wrapper"""
-    log = Logger('execute-solcx')
 
     # Lazy import to allow for optional installation of solcx
     try:
@@ -52,5 +50,5 @@ def __execute(compiler_version: VersionString, input_config: Dict, allow_paths: 
     except PermissionError:
         raise CompilationError(f"The solidity compiler binary at {solc_binary_path} is not executable. "
                                "Check the file's permissions.")
-    log.info(f"Successfully compiled {len(compiler_output)} sources with {OPTIMIZER_RUNS} optimization runs")
+    SOLC_LOGGER.info(f"Successfully compiled {len(compiler_output)} sources with {OPTIMIZER_RUNS} optimization runs")
     return compiler_output

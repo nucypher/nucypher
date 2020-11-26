@@ -15,14 +15,13 @@ You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
-from logging import Logger
 from pathlib import Path
 from typing import Tuple
-
-import tests
 from nucypher.config.constants import NUCYPHER_TEST_DIR
 
 # Logging
+from nucypher.utilities.logging import Logger
+
 SOLC_LOGGER = Logger("solidity-compilation")
 
 # Vocabulary
