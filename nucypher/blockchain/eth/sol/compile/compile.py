@@ -62,8 +62,7 @@ def compile_sources(source_bundle: SourceBundle, version_check: bool = True) -> 
     remappings_config = prepare_remappings_configuration(base_path=source_bundle.base_path)
     solc_configuration['settings'].update(remappings_config)
 
-    ignore_version_check: bool = not version_check
-    version: VersionString = VersionString(SOLIDITY_COMPILER_VERSION) if ignore_version_check else None
+    version: VersionString = VersionString(SOLIDITY_COMPILER_VERSION) if version_check else None
     allow_paths = [source_bundle.base_path, *source_bundle.other_paths]
     compiler_output = __execute(compiler_version=version, input_config=solc_configuration, allow_paths=allow_paths)
     return compiler_output

@@ -14,8 +14,7 @@ GNU Affero General Public License for more details.
 You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
-
-
+from pathlib import Path
 from typing import Dict, Optional, List
 
 from nucypher.blockchain.eth.sol.compile.config import OPTIMIZER_RUNS
@@ -36,14 +35,16 @@ def __execute(compiler_version: VersionString, input_config: Dict, allow_paths: 
         raise DevelopmentInstallationRequired(importable_name='solcx')
 
     # Prepare Solc Command
-    solc_binary_path: str = get_executable(version=compiler_version)
+    solc_binary_path: Path = get_executable(version=compiler_version)
     SOLC_LOGGER.info(f"Compiling with base path")  # TODO: Add base path
 
     _allow_paths = ',' + ','.join(str(p) for p in allow_paths)
 
     # Execute Compilation
     try:
-        compiler_output = compile_standard(input_data=input_config, allow_paths=_allow_paths)
+        compiler_output = compile_standard(input_data=input_config,
+                                           allow_paths=_allow_paths,
+                                           solc_binary=solc_binary_path)
     except FileNotFoundError:
         raise CompilationError("The solidity compiler is not at the specified path. "
                                "Check that the file exists and is executable.")
