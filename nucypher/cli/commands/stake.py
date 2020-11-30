@@ -107,7 +107,7 @@ from nucypher.cli.utils import setup_emitter
 from nucypher.config.characters import StakeHolderConfiguration
 from nucypher.utilities.gas_strategies import construct_fixed_price_gas_strategy
 
-option_value = click.option('--value', help="Token value of stake", type=click.INT)
+option_value = click.option('--value', help="Token value of stake", type=DecimalRange(min=0))
 option_lock_periods = click.option('--lock-periods', help="Duration of stake in periods.", type=click.INT)
 option_worker_address = click.option('--worker-address', help="Address to bond as an Ursula-Worker", type=EIP55_CHECKSUM_ADDRESS)
 option_index = click.option('--index', help="The staker-specific stake index to edit", type=click.INT)
