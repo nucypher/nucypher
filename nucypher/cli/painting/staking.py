@@ -99,7 +99,7 @@ def paint_stakes(emitter: StdoutEmitter,
 
     rows, inactive_substakes = [], []
     for index, stake in enumerate(stakes):
-        if stake.status() is Stake.Status.INACTIVE:
+        if stake.status().is_child(Stake.Status.INACTIVE):
             inactive_substakes.append(index)
 
         if stake.status().is_child(Stake.Status.UNLOCKED) and not paint_unlocked:

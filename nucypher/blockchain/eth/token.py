@@ -834,7 +834,7 @@ class StakeList(UserList):
                 if onchain_stake.final_locked_period > terminal_period:
                     terminal_period = onchain_stake.final_locked_period
 
-                if onchain_stake.status() is Stake.Status.INACTIVE:
+                if onchain_stake.status().is_child(Stake.Status.INACTIVE):
                     inactive_substakes.append(onchain_index)
 
             # Store the replacement stake
