@@ -43,7 +43,7 @@ from tests.constants import (
     INSECURE_DEVELOPMENT_PASSWORD,
     NUMBER_OF_ETH_TEST_ACCOUNTS,
     NUMBER_OF_STAKERS_IN_BLOCKCHAIN_TESTS,
-    NUMBER_OF_URSULAS_IN_BLOCKCHAIN_TESTS
+    NUMBER_OF_URSULAS_IN_BLOCKCHAIN_TESTS, PYEVM_DEV_URI
 )
 
 
@@ -84,7 +84,7 @@ class TesterBlockchain(BlockchainDeployerInterface):
 
     # Web3
     GAS_STRATEGIES = {**BlockchainDeployerInterface.GAS_STRATEGIES, 'free': free_gas_price_strategy}
-    PROVIDER_URI = 'tester://pyevm'
+    PROVIDER_URI = PYEVM_DEV_URI
     DEFAULT_GAS_STRATEGY = 'free'
 
     # Reserved addresses

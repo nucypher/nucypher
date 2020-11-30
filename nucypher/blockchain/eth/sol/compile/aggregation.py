@@ -47,12 +47,12 @@ v             # Capture version starting from symbol v
 METADATA_HASH_PATTERN: Pattern = re.compile(r"""
 a2
 64
-\w{8}       # 'i' 'p' 'f' 's'
+69706673    # 'i' 'p' 'f' 's'
 58
 22
 \w{68}      # 34 bytes IPFS hash
 64
-\w{8}       # 's' 'o' 'l' 'c'    
+736f6c63    # 's' 'o' 'l' 'c'    
 43
 \w{6}       # <3 byte version encoding>
 0033

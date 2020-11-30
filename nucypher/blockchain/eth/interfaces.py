@@ -15,32 +15,18 @@ You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
+import math
 import os
 import pprint
 import threading
 import time
-from typing import Callable, Tuple, Union, NamedTuple, List
-from urllib.parse import urlparse
-
-import math
-import os
-import pprint
-import time
 from typing import Callable, NamedTuple, Tuple, Union, Optional
+from typing import List
 from urllib.parse import urlparse
 
 import click
 import requests
 from eth_tester import EthereumTester
-
-from constant_sorrow.constants import (
-    INSUFFICIENT_ETH,
-    NO_BLOCKCHAIN_CONNECTION,
-    NO_COMPILATION_PERFORMED,
-    NO_PROVIDER_PROCESS,
-    READ_ONLY_INTERFACE,
-    UNKNOWN_TX_STATUS
-)
 from eth_tester.exceptions import TransactionFailed as TestTransactionFailed
 from eth_typing import ChecksumAddress
 from eth_utils import to_checksum_address
@@ -52,6 +38,14 @@ from web3.middleware import geth_poa_middleware
 from web3.providers import BaseProvider
 from web3.types import TxReceipt
 
+from constant_sorrow.constants import (
+    INSUFFICIENT_ETH,
+    NO_BLOCKCHAIN_CONNECTION,
+    NO_COMPILATION_PERFORMED,
+    NO_PROVIDER_PROCESS,
+    READ_ONLY_INTERFACE,
+    UNKNOWN_TX_STATUS
+)
 from nucypher.blockchain.eth.clients import EthereumClient, POA_CHAINS, InfuraClient
 from nucypher.blockchain.eth.decorators import validate_checksum_address
 from nucypher.blockchain.eth.providers import (
@@ -74,6 +68,7 @@ from nucypher.utilities.gas_strategies import datafeed_fallback_gas_price_strate
 from nucypher.utilities.logging import GlobalLoggerSettings, Logger
 
 Web3Providers = Union[IPCProvider, WebsocketProvider, HTTPProvider, EthereumTester]  # TODO: Move to types.py
+
 
 class VersionedContract(Contract):
     version = None
@@ -243,7 +238,6 @@ class BlockchainInterface:
         self.transacting_power = READ_ONLY_INTERFACE
         self.is_light = light
         self.gas_strategy = gas_strategy or self.DEFAULT_GAS_STRATEGY
-        self.build_transaction_lock = threading.Lock()
 
     def __repr__(self):
         r = '{name}({uri})'.format(name=self.__class__.__name__, uri=self.provider_uri)
@@ -615,8 +609,6 @@ class BlockchainInterface:
         #
         # Broadcast
         #
-
-        time.sleep(1)  # TODO: Avoids race condition from invalid/resused nonce.
         emitter.message(f'Broadcasting {transaction_name} Transaction ({cost} ETH @ {price_gwei} gwei)...',
                         color='yellow')
         try:

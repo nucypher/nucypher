@@ -86,5 +86,5 @@ class MockEthereumClient(EthereumClient):
 
     def connect(self, *args, **kwargs) -> bool:
         if 'compile_now' in kwargs:
-            raise ValueError("Mock testerchain cannot handle solidity soure compilation.")
+            raise ValueError("Mock testerchain cannot handle solidity source compilation.")
         return super().connect(compile_now=False, *args, **kwargs)
