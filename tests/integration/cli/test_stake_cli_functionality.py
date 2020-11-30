@@ -341,9 +341,9 @@ def test_nothing_to_mint(click_runner, surrogate_stakers, mock_staking_agent, mo
     mock_staking_agent.get_next_committed_period.return_value = 0
 
     mint_command = ('mint',
-                       '--provider', MOCK_PROVIDER_URI,
-                       '--network', TEMPORARY_DOMAIN,
-                       '--staking-address', surrogate_stakers[0])
+                    '--provider', MOCK_PROVIDER_URI,
+                    '--network', TEMPORARY_DOMAIN,
+                    '--staking-address', surrogate_stakers[0])
 
     user_input = INSECURE_DEVELOPMENT_PASSWORD
     result = click_runner.invoke(stake, mint_command, input=user_input, catch_exceptions=False)
@@ -367,9 +367,9 @@ def test_mint_with_warning(click_runner, surrogate_stakers, mock_staking_agent, 
     mock_staking_agent.non_withdrawable_stake.return_value = NU(1, 'NU').to_nunits()
 
     mint_command = ('mint',
-                       '--provider', MOCK_PROVIDER_URI,
-                       '--network', TEMPORARY_DOMAIN,
-                       '--staking-address', surrogate_stakers[0])
+                    '--provider', MOCK_PROVIDER_URI,
+                    '--network', TEMPORARY_DOMAIN,
+                    '--staking-address', surrogate_stakers[0])
 
     user_input = '\n'.join((INSECURE_DEVELOPMENT_PASSWORD, YES))
     result = click_runner.invoke(stake, mint_command, input=user_input, catch_exceptions=False)
@@ -394,9 +394,9 @@ def test_mint_without_warning(click_runner, surrogate_stakers, mock_staking_agen
     mock_staking_agent.non_withdrawable_stake.return_value = 0
 
     mint_command = ('mint',
-                       '--provider', MOCK_PROVIDER_URI,
-                       '--network', TEMPORARY_DOMAIN,
-                       '--staking-address', surrogate_stakers[0])
+                    '--provider', MOCK_PROVIDER_URI,
+                    '--network', TEMPORARY_DOMAIN,
+                    '--staking-address', surrogate_stakers[0])
 
     user_input = '\n'.join((INSECURE_DEVELOPMENT_PASSWORD, YES))
     result = click_runner.invoke(stake, mint_command, input=user_input, catch_exceptions=False)
@@ -428,8 +428,8 @@ def test_prolong_interactive(click_runner,
     final_period = surrogate_stakes[selected_index][sub_stake_index][1]
 
     command = ('prolong',
-                '--provider', MOCK_PROVIDER_URI,
-                '--network', TEMPORARY_DOMAIN)
+               '--provider', MOCK_PROVIDER_URI,
+               '--network', TEMPORARY_DOMAIN)
 
     user_input = '\n'.join((str(selected_index),
                             str(sub_stake_index),
@@ -470,12 +470,12 @@ def test_prolong_non_interactive(click_runner,
     final_period = surrogate_stakes[selected_index][sub_stake_index][1]
 
     command = ('prolong',
-                '--provider', MOCK_PROVIDER_URI,
-                '--network', TEMPORARY_DOMAIN,
-                '--staking-address', surrogate_stakers[0],
-                '--index', sub_stake_index,
-                '--lock-periods', lock_periods,
-                '--force')
+               '--provider', MOCK_PROVIDER_URI,
+               '--network', TEMPORARY_DOMAIN,
+               '--staking-address', surrogate_stakers[0],
+               '--index', sub_stake_index,
+               '--lock-periods', lock_periods,
+               '--force')
 
     user_input = INSECURE_DEVELOPMENT_PASSWORD
     result = click_runner.invoke(stake, command, input=user_input, catch_exceptions=False)
@@ -510,7 +510,7 @@ def test_divide_interactive(click_runner,
     sub_stake_index = 1
     lock_periods = 10
     min_allowed_locked = token_economics.minimum_allowed_locked
-    target_value = min_allowed_locked
+    target_value = min_allowed_locked + 1  # Let's add some spare change to force dealing with decimal NU
 
     mock_staking_agent.get_worker_from_staker.return_value = NULL_ADDRESS
 
@@ -557,7 +557,7 @@ def test_divide_non_interactive(click_runner,
     sub_stake_index = 1
     lock_periods = 10
     min_allowed_locked = token_economics.minimum_allowed_locked
-    target_value = min_allowed_locked
+    target_value = min_allowed_locked + 1  # Let's add some spare change to force dealing with decimal NU
 
     mock_staking_agent.get_worker_from_staker.return_value = surrogate_stakers[0]
 
@@ -604,7 +604,7 @@ def test_increase_interactive(click_runner,
 
     selected_index = 0
     sub_stake_index = 1
-    additional_value = NU.from_nunits(token_economics.minimum_allowed_locked // 10)
+    additional_value = NU.from_nunits(token_economics.minimum_allowed_locked // 10 + 12345)
 
     mock_token_agent.get_balance.return_value = 0
 
@@ -671,7 +671,7 @@ def test_increase_non_interactive(click_runner,
     mock_refresh_stakes = mocker.spy(Staker, 'refresh_stakes')
 
     sub_stake_index = 1
-    additional_value = NU.from_nunits(token_economics.minimum_allowed_locked // 10)
+    additional_value = NU.from_nunits(token_economics.minimum_allowed_locked // 10 + 12345)
 
     locked_tokens = token_economics.minimum_allowed_locked * 5
     mock_staking_agent.get_locked_tokens.return_value = locked_tokens
@@ -722,7 +722,7 @@ def test_increase_lock_interactive(click_runner,
 
     selected_index = 0
     sub_stake_index = len(surrogate_stakes) - 1
-    additional_value = NU.from_nunits(token_economics.minimum_allowed_locked // 10)
+    additional_value = NU.from_nunits(token_economics.minimum_allowed_locked // 10 + 12345)
 
     mock_staking_agent.calculate_staking_reward.return_value = 0
 
@@ -789,7 +789,7 @@ def test_increase_lock_non_interactive(click_runner,
 
     selected_index = 0
     sub_stake_index = len(surrogate_stakes) - 1
-    additional_value = NU.from_nunits(token_economics.minimum_allowed_locked // 10)
+    additional_value = NU.from_nunits(token_economics.minimum_allowed_locked // 10 + 12345)
 
     mock_staking_agent.get_locked_tokens.return_value = token_economics.minimum_allowed_locked * 2
     unlocked_tokens = token_economics.minimum_allowed_locked * 5
@@ -838,7 +838,7 @@ def test_create_interactive(click_runner,
 
     selected_index = 0
     lock_periods = 366
-    value = NU.from_nunits(token_economics.minimum_allowed_locked * 11)
+    value = NU.from_nunits(token_economics.minimum_allowed_locked * 11 + 12345)
 
     command = ('create',
                '--provider', MOCK_PROVIDER_URI,
@@ -943,7 +943,7 @@ def test_create_non_interactive(click_runner,
     selected_index = 0
 
     lock_periods = token_economics.minimum_locked_periods
-    value = NU.from_nunits(token_economics.minimum_allowed_locked * 2)
+    value = NU.from_nunits(token_economics.minimum_allowed_locked * 2 + 12345)
 
     locked_tokens = token_economics.minimum_allowed_locked * 5
     mock_staking_agent.get_locked_tokens.return_value = locked_tokens
@@ -1000,7 +1000,7 @@ def test_create_lock_interactive(click_runner,
 
     selected_index = 0
     lock_periods = 366
-    value = NU.from_nunits(token_economics.minimum_allowed_locked * 2)
+    value = NU.from_nunits(token_economics.minimum_allowed_locked * 2 + 12345)
 
     mock_staking_agent.calculate_staking_reward.return_value = token_economics.minimum_allowed_locked - 1
 
@@ -1077,7 +1077,7 @@ def test_create_lock_non_interactive(click_runner,
     selected_index = 0
 
     lock_periods = token_economics.minimum_locked_periods
-    value = NU.from_nunits(token_economics.minimum_allowed_locked * 11)
+    value = NU.from_nunits(token_economics.minimum_allowed_locked * 11 + 12345)
 
     mock_staking_agent.get_locked_tokens.return_value = token_economics.minimum_allowed_locked * 5
     unlocked_tokens = token_economics.maximum_allowed_locked // 2
