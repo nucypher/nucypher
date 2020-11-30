@@ -514,7 +514,7 @@ Remove unused sub-stake
 
 When sub-stakes terminate, or after merging or editing sub-stakes,
 there can be 'unused', inactive sub-stakes remaining on-chain.
-These unused sub-stakes add unnecessary gas costs to daily operations.
+Continued tracking of these unused sub-stakes adds unnecessary gas costs to daily operations. Consequently, removal of unused sub-stakes will reduce daily gas costs.
 
 You can find out if you have unused sub-stakes by listing all sub-stakes and
 checking if you have any marked as ``INACTIVE``:
@@ -545,7 +545,7 @@ of your ``INACTIVE`` sub-stake:
 In order to make the operation as simple and cheap as possible,
 the removal algorithm simply relocates the last active sub-stake to the slot
 occupied by the currently inactive one, so you will notice a slight
-re-ordering of your sub-stakes. This is normal and doesn't have any implication.
+re-ordering of your sub-stakes. This is normal and doesn't have any negative implications.
 
 
 Collect rewards earned by the staker
