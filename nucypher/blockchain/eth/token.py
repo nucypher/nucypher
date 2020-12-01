@@ -48,21 +48,24 @@ class NU:
     An amount of NuCypher tokens that doesn't hurt your eyes.
     Wraps the eth_utils currency conversion methods.
 
-    The easiest way to use NU, is to pass an int, float, or str, and denomination string:
+    The easiest way to use NU, is to pass an int, Decimal, or str, and denomination string:
 
     Int:    nu = NU(100, 'NU')
-    Int:    nu_wei = NU(15000000000000000000000, 'NuNit')
+    Int:    nu = NU(15000000000000000000000, 'NuNit')
 
-    Float:  nu = NU(15042.445, 'NU')
+    Decimal:  nu = NU(Decimal('15042.445'), 'NU')
     String: nu = NU('10002.302', 'NU')
 
     ...or alternately...
 
-    Float: nu = NU.from_tokens(100.50)
-    Int: nu_wei = NU.from_nu_wei(15000000000000000000000)
+    Decimal: nu = NU.from_tokens(Decimal('100.50'))
+    Int: nu = NU.from_nunits(15000000000000000000000)
 
     Token quantity is stored internally as an int in the smallest denomination,
     and all arithmetic operations use this value.
+
+    Using float inputs to this class to represent amounts of NU is supported but not recommended,
+    as floats don't have enough precision to represent some quantities.
     """
 
     __symbol = 'NU'
@@ -74,7 +77,7 @@ class NU:
     class InvalidDenomination(ValueError):
         """Raised when an unknown denomination string is passed into __init__"""
 
-    def __init__(self, value: Union[int, float, str], denomination: str):
+    def __init__(self, value: Union[int, Decimal, str], denomination: str):
 
         # Lookup Conversion
         try:
@@ -97,7 +100,7 @@ class NU:
         return cls(value, denomination='NuNit')
 
     @classmethod
-    def from_tokens(cls, value: Union[int, float, str]) -> 'NU':
+    def from_tokens(cls, value: Union[int, Decimal, str]) -> 'NU':
         return cls(value, denomination='NU')
 
     def to_tokens(self) -> Decimal:

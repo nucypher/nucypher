@@ -107,7 +107,7 @@ from nucypher.cli.utils import setup_emitter
 from nucypher.config.characters import StakeHolderConfiguration
 from nucypher.utilities.gas_strategies import construct_fixed_price_gas_strategy
 
-option_value = click.option('--value', help="Token value of stake", type=click.INT)
+option_value = click.option('--value', help="Token value of stake", type=DecimalRange(min=0))
 option_lock_periods = click.option('--lock-periods', help="Duration of stake in periods.", type=click.INT)
 option_worker_address = click.option('--worker-address', help="Address to bond as an Ursula-Worker", type=EIP55_CHECKSUM_ADDRESS)
 option_index = click.option('--index', help="The staker-specific stake index to edit", type=click.INT)
@@ -498,7 +498,7 @@ def create(general_config: GroupGeneralConfig,
 
     # Dynamic click types (Economics)
     min_locked = economics.minimum_allowed_locked
-    stake_value_range = click.FloatRange(min=NU.from_nunits(min_locked).to_tokens(), clamp=False)
+    stake_value_range = DecimalRange(min=NU.from_nunits(min_locked).to_tokens(), clamp=False)
     stake_duration_range = click.IntRange(min=economics.minimum_locked_periods, clamp=False)
 
     #
@@ -625,7 +625,7 @@ def increase(general_config: GroupGeneralConfig,
             emitter.echo(MAXIMUM_STAKE_REACHED, color='red')
             raise click.Abort
 
-        stake_value_range = click.FloatRange(min=0, max=upper_limit.to_tokens(), clamp=False)
+        stake_value_range = DecimalRange(min=0, max=upper_limit.to_tokens(), clamp=False)
         value = click.prompt(PROMPT_STAKE_INCREASE_VALUE.format(upper_limit=upper_limit),
                              type=stake_value_range)
     value = NU.from_tokens(value)
@@ -872,7 +872,7 @@ def divide(general_config: GroupGeneralConfig,
 
     # Dynamic click types (Economics)
     min_locked = economics.minimum_allowed_locked
-    stake_value_range = click.FloatRange(min=NU.from_nunits(min_locked).to_tokens(), clamp=False)
+    stake_value_range = DecimalRange(min=NU.from_nunits(min_locked).to_tokens(), clamp=False)
 
     if index is not None:  # 0 is valid.
         current_stake = STAKEHOLDER.stakes[index]
