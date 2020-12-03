@@ -67,7 +67,8 @@ def select_stake(staker: Staker,
         raise click.Abort
 
     # Interactive Selection
-    paint_stakes(staker=staker, emitter=emitter, stakes=stakes)
+    paint_unlocked = stakes_status.is_child(Stake.Status.UNLOCKED)
+    paint_stakes(staker=staker, emitter=emitter, stakes=stakes, paint_unlocked=paint_unlocked)
     indexed_stakes = {stake.index: stake for stake in stakes}
     indices = [str(index) for index in indexed_stakes.keys()]
     choice = click.prompt(SELECT_STAKE, type=click.Choice(indices))
