@@ -97,7 +97,7 @@ def paint_stakes(emitter: StdoutEmitter,
                 emitter.echo(f"\t Blockchain Provider: {worker_data['blockchain_provider']}")
     emitter.echo(tabulate.tabulate(zip(STAKER_TABLE_COLUMNS, staker_data), floatfmt="fancy_grid"))
 
-    rows, inactive_substakes = [], []
+    rows, inactive_substakes = list(), list()
     for index, stake in enumerate(stakes):
         if stake.status().is_child(Stake.Status.INACTIVE):
             inactive_substakes.append(index)

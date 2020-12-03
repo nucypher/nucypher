@@ -512,12 +512,13 @@ This can help to decrease gas consumption in some operations. To merge two stake
 Remove unused sub-stake
 ***********************
 
-When sub-stakes terminate, or after merging or editing sub-stakes,
-there can be 'unused', inactive sub-stakes remaining on-chain.
-Continued tracking of these unused sub-stakes adds unnecessary gas costs to daily operations. Consequently, removal of unused sub-stakes will reduce daily gas costs.
+When sub-stakes terminate, are merged or edited,
+there may be 'unused', inactive sub-stakes remaining on-chain.
+Continued tracking of these unused sub-stakes adds unnecessary gas costs to daily operations.
+Consequently, removal of unused sub-stakes will reduce daily gas costs.
 
-You can find out if you have unused sub-stakes by listing all sub-stakes and
-checking if you have any marked as ``INACTIVE``:
+Unused sub-stakes can be displayed by listing all sub-stakes
+and will be indicated by the ``INACTIVE`` status label.
 
 .. code:: bash
 
