@@ -851,13 +851,14 @@ class StakingInterfaceRouterDeployer(OwnableContractMixin, ProxyContractDeployer
         raise NotImplementedError
 
 
-class StakingInterfaceDeployer(BaseContractDeployer, UpgradeableContractMixin):
+class StakingInterfaceDeployer(BaseContractDeployer, UpgradeableContractMixin, OwnableContractMixin):
 
     contract_name = 'StakingInterface'
     deployment_steps = ('contract_deployment', 'router_deployment')
     number_of_deployment_transactions = 2
     _proxy_deployer = StakingInterfaceRouterDeployer
-    _ownable = False
+
+    # _ownable = False  # TODO: This contract is not truly ownable but we need the logic of the mixin to execute
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)

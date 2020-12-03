@@ -32,7 +32,7 @@ from nucypher.blockchain.eth.constants import (
     POLICY_MANAGER_CONTRACT_NAME,
     STAKING_ESCROW_CONTRACT_NAME
 )
-from nucypher.blockchain.eth.deployers import StakingEscrowDeployer
+from nucypher.blockchain.eth.deployers import StakingEscrowDeployer, StakingInterfaceDeployer
 from nucypher.blockchain.eth.registry import InMemoryContractRegistry, LocalContractRegistry
 from nucypher.cli.commands.deploy import deploy
 from nucypher.config.constants import TEMPORARY_DOMAIN
@@ -159,6 +159,35 @@ def test_transfer_ownership(click_runner, testerchain, agency_local_registry):
     assert staking_agent.owner == michwill
     assert policy_agent.owner == testerchain.etherbase_account
     assert adjudicator_agent.owner == testerchain.etherbase_account
+
+    # Test transfer ownersh
+
+
+def test_transfer_ownership_staking_interface_router(click_runner, testerchain, agency_local_registry):
+
+    maclane = testerchain.unassigned_accounts[0]
+
+    ownership_command = ('transfer-ownership',
+                         '--registry-infile', agency_local_registry.filepath,
+                         '--contract-name', StakingInterfaceDeployer.contract_name,
+                         '--provider', TEST_PROVIDER_URI,
+                         '--network', TEMPORARY_DOMAIN,
+                         '--target-address', maclane,
+                         '--debug')
+
+    account_index = '0\n'
+    yes = 'Y\n'
+    user_input = account_index + yes + yes
+
+    result = click_runner.invoke(deploy,
+                                 ownership_command,
+                                 input=user_input,
+                                 catch_exceptions=False)
+    assert result.exit_code == 0, result.output
+
+    # This owner is updated
+    interface_deployer = StakingInterfaceDeployer(registry=agency_local_registry)
+    assert interface_deployer.owner == maclane
 
 
 def test_bare_contract_deployment_to_alternate_registry(click_runner, agency_local_registry):

@@ -195,8 +195,7 @@ class ContractAdministrator(NucypherTokenActor):
 
     # For ownership transfers.
     ownable_deployer_classes = (*dispatched_upgradeable_deployer_classes,
-                                StakingInterfaceRouterDeployer,
-                                )
+                                StakingInterfaceDeployer)
 
     # Used in the automated deployment series.
     primary_deployer_classes = (*standard_deployer_classes,
@@ -204,7 +203,8 @@ class ContractAdministrator(NucypherTokenActor):
 
     # Comprehensive collection.
     all_deployer_classes = (*primary_deployer_classes,
-                            *aux_deployer_classes)
+                            *aux_deployer_classes,
+                            *ownable_deployer_classes)
 
     class UnknownContract(ValueError):
         pass
