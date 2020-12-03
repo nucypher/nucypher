@@ -87,7 +87,7 @@ class Proposal:
                 contract = blockchain.client.w3.eth.contract(abi=abi,
                                                              address=address,
                                                              version=version,
-                                                             ContractFactoryClass=blockchain._contract_factory)
+                                                             ContractFactoryClass=blockchain._CONTRACT_FACTORY)
             contract_function, params = contract.decode_function_input(self.data)
             return contract_function, params
         else:

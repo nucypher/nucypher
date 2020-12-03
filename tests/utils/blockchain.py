@@ -15,20 +15,23 @@ You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
+import os
+from pathlib import Path
+from typing import List, Tuple, Union
 
 import maya
-import os
 from eth_tester.exceptions import TransactionFailed
 from eth_utils import to_canonical_address
 from hexbytes import HexBytes
-from typing import List, Tuple, Union
 from web3 import Web3
 
 from nucypher.blockchain.economics import BaseEconomics, StandardTokenEconomics
 from nucypher.blockchain.eth.actors import ContractAdministrator
 from nucypher.blockchain.eth.interfaces import BlockchainDeployerInterface, BlockchainInterfaceFactory
 from nucypher.blockchain.eth.registry import InMemoryContractRegistry
-from nucypher.blockchain.eth.sol.compile import SolidityCompiler
+from nucypher.blockchain.eth.sol.compile.compile import multiversion_compile
+from nucypher.blockchain.eth.sol.compile.constants import TEST_SOLIDITY_SOURCE_ROOT, SOLIDITY_SOURCE_ROOT
+from nucypher.blockchain.eth.sol.compile.types import SourceBundle
 from nucypher.blockchain.eth.token import NU
 from nucypher.blockchain.eth.utils import epoch_to_period
 from nucypher.crypto.powers import TransactingPower
@@ -40,8 +43,7 @@ from tests.constants import (
     INSECURE_DEVELOPMENT_PASSWORD,
     NUMBER_OF_ETH_TEST_ACCOUNTS,
     NUMBER_OF_STAKERS_IN_BLOCKCHAIN_TESTS,
-    NUMBER_OF_URSULAS_IN_BLOCKCHAIN_TESTS,
-    TEST_CONTRACTS_DIR
+    NUMBER_OF_URSULAS_IN_BLOCKCHAIN_TESTS, PYEVM_DEV_URI
 )
 
 
@@ -72,56 +74,50 @@ class TesterBlockchain(BlockchainDeployerInterface):
     Blockchain subclass with additional test utility methods and options.
     """
 
-    __test__ = False # prohibit Pytest from picking it up
+    __test__ = False  # prohibit pytest from collecting this object as a test
 
-    _instance = None
+    # Solidity
+    SOURCES: List[SourceBundle] = [
+        SourceBundle(base_path=SOLIDITY_SOURCE_ROOT,
+                     other_paths=(TEST_SOLIDITY_SOURCE_ROOT,))
+    ]
 
-    GAS_STRATEGIES = {**BlockchainDeployerInterface.GAS_STRATEGIES,
-                      'free': free_gas_price_strategy}
+    # Web3
+    GAS_STRATEGIES = {**BlockchainDeployerInterface.GAS_STRATEGIES, 'free': free_gas_price_strategy}
+    PROVIDER_URI = PYEVM_DEV_URI
     DEFAULT_GAS_STRATEGY = 'free'
-
-    _PROVIDER_URI = 'tester://pyevm'
-    _compiler = SolidityCompiler(source_dirs=[(SolidityCompiler.default_contract_dir(), {TEST_CONTRACTS_DIR})])
-    _test_account_cache = list()
-
-    _default_test_accounts = NUMBER_OF_ETH_TEST_ACCOUNTS
 
     # Reserved addresses
     _ETHERBASE = 0
     _ALICE = 1
     _BOB = 2
     _FIRST_STAKER = 5
-    _stakers_range = range(NUMBER_OF_STAKERS_IN_BLOCKCHAIN_TESTS)
     _FIRST_URSULA = _FIRST_STAKER + NUMBER_OF_STAKERS_IN_BLOCKCHAIN_TESTS
-    _ursulas_range = range(NUMBER_OF_URSULAS_IN_BLOCKCHAIN_TESTS)
 
-    _default_token_economics = StandardTokenEconomics()
+    # Internal
+    __STAKERS_RANGE = range(NUMBER_OF_STAKERS_IN_BLOCKCHAIN_TESTS)
+    __WORKERS_RANGE = range(NUMBER_OF_URSULAS_IN_BLOCKCHAIN_TESTS)
+    __ACCOUNT_CACHE = list()
+
+    # Defaults
+    DEFAULT_ECONOMICS = StandardTokenEconomics()
 
     def __init__(self,
-                 test_accounts=None,
-                 poa=True,
-                 light=False,
-                 eth_airdrop=False,
-                 free_transactions=False,
-                 compiler: SolidityCompiler = None,
-                 mock_backend: bool = False,
+                 test_accounts: int = NUMBER_OF_ETH_TEST_ACCOUNTS,
+                 poa: bool = True,
+                 light: bool = False,
+                 eth_airdrop: bool = False,
+                 free_transactions: bool = False,
                  *args, **kwargs):
 
-        if not test_accounts:
-            test_accounts = self._default_test_accounts
         self.free_transactions = free_transactions
 
         EXPECTED_CONFIRMATION_TIME_IN_SECONDS['free'] = 5  # Just some upper-limit
 
-        if compiler:
-            TesterBlockchain._compiler = compiler
-
-        super().__init__(provider_uri=self._PROVIDER_URI,
+        super().__init__(provider_uri=self.PROVIDER_URI,
                          provider_process=None,
                          poa=poa,
                          light=light,
-                         compiler=self._compiler,
-                         dry_run=mock_backend,
                          *args, **kwargs)
 
         self.log = Logger("test-blockchain")
@@ -137,6 +133,17 @@ class TesterBlockchain(BlockchainDeployerInterface):
 
         if eth_airdrop is True:  # ETH for everyone!
             self.ether_airdrop(amount=DEVELOPMENT_ETH_AIRDROP_AMOUNT)
+
+    # TODO: DRY this up
+    def connect(self, compile_now: bool = True, ignore_solidity_check: bool = False) -> bool:
+        super().connect()
+        if compile_now:
+            # Execute the compilation if we're recompiling
+            # Otherwise read compiled contract data from the registry.
+            check = not ignore_solidity_check
+            compiled_contracts = multiversion_compile(source_bundles=self.SOURCES, compiler_version_check=check)
+            self._raw_contract_cache = compiled_contracts
+        return self.is_connected
 
     def attach_middleware(self):
         if self.free_transactions:
@@ -160,7 +167,7 @@ class TesterBlockchain(BlockchainDeployerInterface):
         for _ in range(quantity):
             address = self.provider.ethereum_tester.add_account('0x' + os.urandom(32).hex())
             addresses.append(address)
-            self._test_account_cache.append(address)
+            self.__ACCOUNT_CACHE.append(address)
             self.log.info('Generated new insecure account {}'.format(address))
         return addresses
 
@@ -192,8 +199,8 @@ class TesterBlockchain(BlockchainDeployerInterface):
             raise ValueError("Specify hours, seconds, or periods, not a combination")
 
         if periods:
-            duration = self._default_token_economics.seconds_per_period * periods
-            base = self._default_token_economics.seconds_per_period
+            duration = self.DEFAULT_ECONOMICS.seconds_per_period * periods
+            base = self.DEFAULT_ECONOMICS.seconds_per_period
         elif hours:
             duration = hours * (60*60)
             base = 60 * 60
@@ -211,7 +218,7 @@ class TesterBlockchain(BlockchainDeployerInterface):
 
         delta = maya.timedelta(seconds=end_timestamp-now)
         self.log.info(f"Time traveled {delta} "
-                      f"| period {epoch_to_period(epoch=end_timestamp, seconds_per_period=self._default_token_economics.seconds_per_period)} "
+                      f"| period {epoch_to_period(epoch=end_timestamp, seconds_per_period=self.DEFAULT_ECONOMICS.seconds_per_period)} "
                       f"| epoch {end_timestamp}")
 
     @classmethod
@@ -219,7 +226,7 @@ class TesterBlockchain(BlockchainDeployerInterface):
         """For use with metric testing scripts"""
 
         registry = InMemoryContractRegistry()
-        testerchain = cls(compiler=SolidityCompiler())
+        testerchain = cls()
         BlockchainInterfaceFactory.register_interface(testerchain)
         power = TransactingPower(password=INSECURE_DEVELOPMENT_PASSWORD,
                                  account=testerchain.etherbase_account)
@@ -229,7 +236,7 @@ class TesterBlockchain(BlockchainDeployerInterface):
         origin = testerchain.client.etherbase
         deployer = ContractAdministrator(deployer_address=origin,
                                          registry=registry,
-                                         economics=economics or cls._default_token_economics,
+                                         economics=economics or cls.DEFAULT_ECONOMICS,
                                          staking_escrow_test_mode=True)
 
         _receipts = deployer.deploy_network_contracts(interactive=False)
@@ -248,22 +255,22 @@ class TesterBlockchain(BlockchainDeployerInterface):
         return self.client.accounts[self._BOB]
 
     def ursula_account(self, index):
-        if index not in self._ursulas_range:
+        if index not in self.__WORKERS_RANGE:
             raise ValueError(f"Ursula index must be lower than {NUMBER_OF_URSULAS_IN_BLOCKCHAIN_TESTS}")
         return self.client.accounts[index + self._FIRST_URSULA]
 
     def staker_account(self, index):
-        if index not in self._stakers_range:
+        if index not in self.__STAKERS_RANGE:
             raise ValueError(f"Staker index must be lower than {NUMBER_OF_STAKERS_IN_BLOCKCHAIN_TESTS}")
         return self.client.accounts[index + self._FIRST_STAKER]
 
     @property
     def ursulas_accounts(self):
-        return list(self.ursula_account(i) for i in self._ursulas_range)
+        return list(self.ursula_account(i) for i in self.__WORKERS_RANGE)
 
     @property
     def stakers_accounts(self):
-        return list(self.staker_account(i) for i in self._stakers_range)
+        return list(self.staker_account(i) for i in self.__STAKERS_RANGE)
 
     @property
     def unassigned_accounts(self):

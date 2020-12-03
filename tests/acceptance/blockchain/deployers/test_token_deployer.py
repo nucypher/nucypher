@@ -25,7 +25,7 @@ def test_token_deployer_and_agent(testerchain, deployment_progress, test_registr
 
     origin = testerchain.etherbase_account
 
-    # Trying to get token from blockchain before it's been published fails
+    # Trying to get token from blockchain before it's been published should fail
     with pytest.raises(BaseContractRegistry.UnknownContract):
         NucypherTokenAgent(registry=test_registry)
 

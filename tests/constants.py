@@ -16,16 +16,16 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
 import string
-from random import SystemRandom
-
 import tempfile
 import time
 from datetime import datetime
 from pathlib import Path
+from random import SystemRandom
+
 from web3 import Web3
 
 from nucypher.blockchain.eth.token import NU
-from nucypher.config.constants import BASE_DIR, NUCYPHER_ENVVAR_KEYRING_PASSWORD, NUCYPHER_ENVVAR_WORKER_ETH_PASSWORD
+from nucypher.config.constants import NUCYPHER_ENVVAR_KEYRING_PASSWORD, NUCYPHER_ENVVAR_WORKER_ETH_PASSWORD
 
 #
 # Ursula
@@ -57,7 +57,6 @@ NUMBER_OF_MOCK_KEYSTORE_ACCOUNTS = NUMBER_OF_ETH_TEST_ACCOUNTS
 # Testerchain
 #
 
-TEST_CONTRACTS_DIR = Path(BASE_DIR) / 'tests' / 'contracts' / 'contracts'
 
 ONE_YEAR_IN_SECONDS = ((60 * 60) * 24) * 365
 

@@ -14,33 +14,30 @@ GNU Affero General Public License for more details.
 You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
-import types
-from os.path import abspath, dirname
 
-import os
-from unittest.mock import PropertyMock
-
-import maya
 import pytest
-from hexbytes import HexBytes
 
 from nucypher.blockchain.eth.clients import EthereumClient
-from nucypher.blockchain.eth.interfaces import BlockchainDeployerInterface, BlockchainInterfaceFactory
+from nucypher.blockchain.eth.interfaces import BlockchainDeployerInterface
 from nucypher.blockchain.eth.registry import InMemoryContractRegistry
-from nucypher.blockchain.eth.sol.compile import SolidityCompiler, SourceDirs
+from nucypher.blockchain.eth.sol.compile.compile import multiversion_compile
+from nucypher.blockchain.eth.sol.compile.constants import TEST_MULTIVERSION_CONTRACTS, SOLIDITY_SOURCE_ROOT
+from nucypher.blockchain.eth.sol.compile.types import SourceBundle
+from nucypher.config.constants import NUCYPHER_TEST_DIR
 from nucypher.crypto.powers import TransactingPower
+from tests.constants import (
+    DEVELOPMENT_ETH_AIRDROP_AMOUNT,
+    NUMBER_OF_ETH_TEST_ACCOUNTS,
+    NUMBER_OF_STAKERS_IN_BLOCKCHAIN_TESTS,
+    NUMBER_OF_URSULAS_IN_BLOCKCHAIN_TESTS, INSECURE_DEVELOPMENT_PASSWORD
+)
 # Prevents TesterBlockchain to be picked up by py.test as a test class
-from tests.fixtures import _make_testerchain
-from tests.mock.interfaces import MockBlockchain
 from tests.utils.blockchain import TesterBlockchain as _TesterBlockchain, free_gas_price_strategy
-from tests.constants import (DEVELOPMENT_ETH_AIRDROP_AMOUNT, INSECURE_DEVELOPMENT_PASSWORD,
-                                   NUMBER_OF_ETH_TEST_ACCOUNTS, NUMBER_OF_STAKERS_IN_BLOCKCHAIN_TESTS,
-                                   NUMBER_OF_URSULAS_IN_BLOCKCHAIN_TESTS)
 
 
 @pytest.fixture()
-def another_testerchain(solidity_compiler):
-    testerchain = _TesterBlockchain(eth_airdrop=True, free_transactions=True, light=True, compiler=solidity_compiler)
+def another_testerchain():
+    testerchain = _TesterBlockchain(eth_airdrop=True, free_transactions=True, light=True)
     testerchain.deployer_address = testerchain.etherbase_account
     assert testerchain.is_light
     yield testerchain
@@ -96,19 +93,22 @@ def test_testerchain_creation(testerchain, another_testerchain):
 
 
 def test_multiversion_contract():
+
     # Prepare compiler
-    base_dir = os.path.join(dirname(abspath(__file__)), "contracts", "multiversion")
-    v1_dir = os.path.join(base_dir, "v1")
-    v2_dir = os.path.join(base_dir, "v2")
-    root_dir = SolidityCompiler.default_contract_dir()
-    solidity_compiler = SolidityCompiler(source_dirs=[SourceDirs(root_dir, {v2_dir}),
-                                                      SourceDirs(root_dir, {v1_dir})])
+    base_dir = TEST_MULTIVERSION_CONTRACTS
+    v1_dir, v2_dir = base_dir / 'v1', base_dir / 'v2'
+    bundles = [
+        SourceBundle(base_path=SOLIDITY_SOURCE_ROOT, other_paths=(v1_dir,)),
+        SourceBundle(base_path=SOLIDITY_SOURCE_ROOT, other_paths=(v2_dir,))
+    ]
+    compiled_contracts = multiversion_compile(source_bundles=bundles)
 
     # Prepare chain
     blockchain_interface = BlockchainDeployerInterface(provider_uri='tester://pyevm/2',
-                                                       compiler=solidity_compiler,
                                                        gas_strategy=free_gas_price_strategy)
-    blockchain_interface.connect()
+    blockchain_interface.connect(compile_now=False)
+    blockchain_interface._raw_contract_cache = compiled_contracts
+
     origin = blockchain_interface.client.accounts[0]
     blockchain_interface.transacting_power = TransactingPower(password=INSECURE_DEVELOPMENT_PASSWORD, account=origin)
     blockchain_interface.transacting_power.activate()

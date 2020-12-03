@@ -248,7 +248,7 @@ def sign(general_config, blockchain_options, multisig_options, proposal):
     proxy_contract = blockchain.client.w3.eth.contract(abi=abi,
                                                        address=address,
                                                        version=version,
-                                                       ContractFactoryClass=blockchain._contract_factory)
+                                                       ContractFactoryClass=blockchain._CONTRACT_FACTORY)
     paint_multisig_proposed_transaction(emitter, proposal, proxy_contract)
 
     click.confirm(PROMPT_CONFIRM_MULTISIG_SIGNATURE, abort=True)
@@ -290,7 +290,7 @@ def execute(general_config, blockchain_options, multisig_options, proposal):
     proxy_contract = blockchain.client.w3.eth.contract(abi=abi,
                                                        address=address,
                                                        version=version,
-                                                       ContractFactoryClass=blockchain._contract_factory)
+                                                       ContractFactoryClass=blockchain._CONTRACT_FACTORY)
     paint_multisig_proposed_transaction(emitter, proposal, proxy_contract)
 
     trustee = multisig_options.create_trustee(registry)

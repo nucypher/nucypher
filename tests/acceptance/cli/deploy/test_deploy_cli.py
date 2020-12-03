@@ -27,7 +27,7 @@ from nucypher.blockchain.eth.interfaces import BlockchainInterface
 from nucypher.blockchain.eth.networks import NetworksInventory
 from nucypher.blockchain.eth.registry import LocalContractRegistry
 from nucypher.blockchain.eth.signers import Signer
-from nucypher.blockchain.eth.sol.compile import SOLIDITY_COMPILER_VERSION
+from nucypher.blockchain.eth.sol import SOLIDITY_COMPILER_VERSION
 from nucypher.cli.commands.deploy import deploy
 from nucypher.config.constants import TEMPORARY_DOMAIN
 from tests.constants import TEST_PROVIDER_URI, YES_ENTER

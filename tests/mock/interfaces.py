@@ -73,14 +73,18 @@ def mock_registry_source_manager(blockchain, test_registry, mock_backend: bool =
 
 class MockBlockchain(TesterBlockchain):
 
-    _PROVIDER_URI = MOCK_PROVIDER_URI
-    _compiler = None
+    PROVIDER_URI = MOCK_PROVIDER_URI
 
     def __init__(self):
-        super().__init__(mock_backend=True)
+        super().__init__()
 
 
 class MockEthereumClient(EthereumClient):
 
     def __init__(self, w3):
-        super().__init__(w3, None, None, None, None)
+        super().__init__(w3=w3, node_technology=None, version=None, platform=None, backend=None)
+
+    def connect(self, *args, **kwargs) -> bool:
+        if 'compile_now' in kwargs:
+            raise ValueError("Mock testerchain cannot handle solidity source compilation.")
+        return super().connect(compile_now=False, *args, **kwargs)

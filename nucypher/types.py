@@ -16,8 +16,9 @@
 """
 
 
-from eth_typing.evm import ChecksumAddress
 from typing import TypeVar, NewType, Tuple, NamedTuple, Union
+
+from eth_typing.evm import ChecksumAddress
 from web3.types import Wei, Timestamp, TxReceipt
 
 NuNits = NewType("NuNits", int)
@@ -29,11 +30,7 @@ Evidence = TypeVar('Evidence', bound='IndisputableEvidence')
 ContractReturnValue = TypeVar('ContractReturnValue', bound=Union[TxReceipt, Wei, int, str, bool])
 
 
-class ContractParams(Tuple):
-    pass
-
-
-class WorklockParameters(ContractParams):
+class WorklockParameters(Tuple):
     token_supply: NuNits
     start_bid_date: Timestamp
     end_bid_date: Timestamp
@@ -43,7 +40,7 @@ class WorklockParameters(ContractParams):
     min_allowed_bid: Wei
 
 
-class StakingEscrowParameters(ContractParams):
+class StakingEscrowParameters(Tuple):
     seconds_per_period: int
     minting_coefficient: int
     lock_duration_coefficient_1: int
