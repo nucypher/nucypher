@@ -212,7 +212,8 @@ class AliceFullConfigOptions:
             pay_with = select_client_account(emitter=emitter,
                                              provider_uri=opts.provider_uri,
                                              signer_uri=opts.signer_uri,
-                                             show_eth_balance=True)
+                                             show_eth_balance=True,
+                                             network=opts.domain)
 
         return AliceConfiguration.generate(
             password=get_nucypher_password(confirm=True),
