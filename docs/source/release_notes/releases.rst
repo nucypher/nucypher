@@ -4,6 +4,15 @@ Releases
 
 .. towncrier release notes start
 
+v4.2.1 (2020-12-04)
+-------------------
+
+Bugfixes
+~~~~~~~~
+
+- Removes tests import from constants module causing pip installed versions to crash. (`#2452 <https://github.com/nucypher/nucypher/issues/2452>`__)
+
+
 v4.2.0 (2020-12-03)
 -------------------
 
