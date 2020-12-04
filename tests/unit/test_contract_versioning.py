@@ -39,8 +39,8 @@ def test_devdoc_regex_pattern(full_match):
 
     # Max Size
     numbers_only = re.sub("[^0-9]", "", full_match)
-    # I mean really... who has a version with more than 6 numbers (v99.99.99)
-    assert len(numbers_only) <= 10, 'Version string is too long: "{version_string}"'
+    # I mean really... who has a version with more than 11 numbers (v9999.9999.9999)
+    assert len(numbers_only) <= 12, 'Version string is too long: "{version_string}"'
 
     # "v" specifier
     version_string = full_match[1:-1]
