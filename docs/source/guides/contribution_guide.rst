@@ -79,14 +79,14 @@ Running individual suites can become part of a development workflow:
 
   (nucypher)$ pytest tests/unit
 
-Testing against multiple versions of python locally can be attained by running ``tox``.
+Testing against multiple versions of python simultaneously locally can be attained by running ``tox``.
 Be sure that the proper python executable versions are available on your system before running:
 
 .. code:: bash
 
   (nucypher)$ apt install python3.7 python3.7-dev
   (nucypher)$ apt install python3.8 python3.8-dev
-  (nucypher)$ tox
+  (nucypher)$ tox tests/unit
 
 Setup Commit & Push Hooks
 --------------------------
