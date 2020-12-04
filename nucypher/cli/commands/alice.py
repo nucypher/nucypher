@@ -69,8 +69,7 @@ from nucypher.cli.painting.help import (
 )
 from nucypher.cli.painting.policies import paint_single_card
 from nucypher.cli.processes import get_geth_provider_process
-from nucypher.cli.types import EIP55_CHECKSUM_ADDRESS
-from nucypher.cli.types import GWEI
+from nucypher.cli.types import EIP55_CHECKSUM_ADDRESS, GWEI
 from nucypher.cli.utils import make_cli_character, setup_emitter
 from nucypher.config.characters import AliceConfiguration
 from nucypher.config.constants import (
