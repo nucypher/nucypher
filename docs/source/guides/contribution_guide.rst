@@ -62,23 +62,31 @@ Running the Tests
 
 .. _Pytest Documentation: https://docs.pytest.org/en/latest/
 
-There are several test implementations in ``nucypher``, however, the vast majority
-of test are written for execution with ``pytest``.
+nucypher tests are written for execution with ``pytest``.
 For more details see the `Pytest Documentation`_.
 
-
-To run the tests:
-
-.. code:: bash
-
-  (nucypher)$ pytest -s
-
-
-Optionally, to run the full, slow, verbose test suite run:
+To run all tests:
 
 .. code:: bash
 
   (nucypher)$ pytest
+
+Tests are grouped at a high-level into unit, integration, and acceptance suites.
+
+Running individual suites can become part of a development workflow:
+
+.. code:: bash
+
+  (nucypher)$ pytest tests/unit
+
+Testing against multiple versions of python locally can be attained by running ``tox``.
+Be sure that the proper python executable versions are available on your system before running:
+
+.. code:: bash
+
+  (nucypher)$ apt install python3.7 python3.7-dev
+  (nucypher)$ apt install python3.8 python3.8-dev
+  (nucypher)$ tox
 
 Setup Commit & Push Hooks
 --------------------------
@@ -263,11 +271,11 @@ so the options are ``major``, ``minor``, ``patch``, ``stage``, or ``devnum``.
 We usually issue new releases increasing the ``devnum`` version.
 
 2. Use the ``make release`` script, specifying the version increment with the ``bump`` parameter.
-For example, for a new ``devnum`` release, we would do:
+For example, for a new ``patch`` release, we would do:
 
 .. code:: bash
 
-  (nucypher)$ make release bump=devnum
+  (nucypher)$ make release bump=patch
 
 3. The previous step triggers the publication webhooks on CircleCI.
 Monitor the triggered deployment build for manual approval.
