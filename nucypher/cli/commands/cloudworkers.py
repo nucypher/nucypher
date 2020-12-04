@@ -142,7 +142,7 @@ def add(general_config, host_address, login_name, key_path, ssh_port, host_nickn
     emitter = setup_emitter(general_config)
     name = f'{namespace}-{network}-{host_nickname}'
 
-    deployer = CloudDeployers.get_deployer('generic')(emitter, None, None, namespace=namespace, network=network)
+    deployer = CloudDeployers.get_deployer('generic')(emitter, None, None, namespace=namespace, network=network, action='add')
     config = deployer.create_nodes([name], host_address, login_name, key_path, ssh_port)
     emitter.echo(f'Success.  Now run `nucypher cloudworkers deploy --namespace {namespace} --remote-provider <an eth provider>` to deploy Nucypher on this node.', color='green')
 
@@ -176,7 +176,7 @@ def add_for_stake(general_config, staker_address, host_address, login_name, key_
 
     config_file = config_file or StakeHolderConfiguration.default_filepath()
 
-    deployer = CloudDeployers.get_deployer('generic')(emitter, STAKEHOLDER, config_file, namespace=namespace, network=STAKEHOLDER.network)
+    deployer = CloudDeployers.get_deployer('generic')(emitter, STAKEHOLDER, config_file, namespace=namespace, network=STAKEHOLDER.network, action='add_for_stake')
     config = deployer.create_nodes(staker_addresses, host_address, login_name, key_path, ssh_port)
 
 

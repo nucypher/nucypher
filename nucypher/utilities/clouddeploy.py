@@ -162,6 +162,8 @@ class AnsiblePlayBookResultsCollector(CallbackBase):
 
 class BaseCloudNodeConfigurator:
 
+    NAMESSPACE_CREATE_ACTIONS = ['add', 'create', 'up', 'add_for_stake']
+
     PROMETHEUS_PORT = PROMETHEUS_PORTS[0]
 
     def __init__(self,
@@ -178,12 +180,14 @@ class BaseCloudNodeConfigurator:
         network=None,
         namespace=None,
         gas_strategy=None,
+        action=None,
         ):
 
         self.emitter = emitter
         self.stakeholder = stakeholder
         self.network = network
         self.namespace = namespace or 'local-stakeholders'
+        self.action = action
 
         self.config_filename = f'{self.network}-{self.namespace}.json'
 
@@ -529,7 +533,7 @@ class BaseCloudNodeConfigurator:
             if not self.config.get('instances'):
                 self.emitter.echo(f"deleted all requested resources for {self.provider_name}.  We are clean.  No money is being spent.", color="green")
 
-    def _destroy_resources(self):
+    def _destroy_resources(self, *args, **kwargs):
         raise NotImplementedError
 
     def update_captured_instance_data(self, results):
@@ -745,7 +749,7 @@ class AWSNodeConfigurator(BaseCloudNodeConfigurator):
 
         self.profile = provider_profile or self.config.get('profile')
         if not self.profile:
-            self.emitter.echo("Aws nodes can only be created with an aws profile. (https://docs.aws.amazon.com/cli/latest/userguide/cli-configure-profiles.html)", color='red')
+            self.emitter.echo("Aws nodes can only be managed with an aws profile. (https://docs.aws.amazon.com/cli/latest/userguide/cli-configure-profiles.html)", color='red')
             raise AttributeError("AWS profile not configured.")
         self.emitter.echo(f'using profile: {self.profile}')
         if self.profile in profiles:
@@ -995,7 +999,7 @@ class GenericConfigurator(BaseCloudNodeConfigurator):
     provider_name = 'generic'
 
     def _write_config(self):
-        if not os.path.exists(self.config_path):
+        if not os.path.exists(self.config_path) and not self.action in self.NAMESSPACE_CREATE_ACTIONS:
             raise AttributeError(f"Namespace/config '{self.namespace}' does not exist. Show existing namespaces: `nucypher cloudworkers list-namespaces` or create a namespace: `nucypher cloudworkers create`")
 
         super()._write_config()
