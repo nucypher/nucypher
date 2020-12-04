@@ -1,0 +1,1 @@
+Removes tests import from constants module causing pip installed versions to crash.
