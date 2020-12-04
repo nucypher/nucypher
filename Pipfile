@@ -15,7 +15,7 @@ hendrix = ">=3.4"
 lmdb = "<=0.99"
 # Cryptography
 pyopenssl = "*"
-cryptography = ">=2.3"
+cryptography = ">=3.2"
 pysha3="*"
 # Utilities
 maya = "*"
@@ -30,7 +30,7 @@ flask = "*"
 py-evm = "*"
 eth-tester = "*"
 coincurve = "*"
-web3 = "*"
+web3 = "<=5.12.3"
 py-geth = "*"
 # CLI / Configuration
 appdirs = "*"
@@ -39,7 +39,6 @@ colorama = "*"
 tabulate = "*"
 # Utility
 trezor = "*"
-
 # Felix
 flask_sqlalchemy = "*"
 sqlalchemy = "*"
@@ -60,7 +59,7 @@ bandit = "*"
 mypy = "*"
 coverage = "*"
 # Develop & Deploy
- py-solc-x = "==0.10.1"
+py-solc-x = "==0.10.1"
 
 [scripts]
 install-solc = "python3 scripts/installation/install_solc.py"
