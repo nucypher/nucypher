@@ -1,0 +1,22 @@
+- name: "Ursula Status"
+  hosts: "{{ play_hosts }}"
+  remote_user: "{{default_user}}"
+  gather_facts: no
+  tasks:
+
+    - name: "Get LogPath"
+      become: yes
+      shell:
+        cmd: docker ps --no-trunc | grep ursula | cut -f 1 -d " "
+      register: ursula_container_name
+
+    - name: read log file
+      become: yes
+      shell:
+        cmd: cat "/var/lib/docker/containers/{{ursula_container_name['stdout']}}/{{ursula_container_name['stdout']}}-json.log"
+      register: log_output
+
+    - name: Print Ursula Log
+      debug:
+        msg:
+          "{{log_output.stdout}}"

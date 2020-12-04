@@ -1,0 +1,69 @@
+- name: "Create local backup of remote Ursula data"
+  hosts: "{{ play_hosts }}"
+  remote_user: "{{default_user}}"
+  gather_facts: no
+  tasks:
+
+    - name: find keystore files
+      find:
+        paths: "{{geth_dir}}keystore"
+      register: keystore_files
+
+    - name: find Ursula private keyring files
+      become: yes
+      find:
+        paths: /home/nucypher/nucypher/keyring/private
+      register: private_keyrings
+
+    - name: find Ursula public keyring files
+      become: yes
+      find:
+        paths: /home/nucypher/nucypher/keyring/public
+      register: public_keyrings
+
+    - name: find Ursula database files
+      find:
+        paths: /home/nucypher/nucypher/ursula.db
+      register: database_files
+
+    - name: "Backup Worker Nucypher Keystore locally to: {{deployer_config_path}}/remote_worker_backups/"
+      become: yes
+      become_user: nucypher
+      fetch:
+        src: "{{item.path}}"
+        dest: "{{deployer_config_path}}/remote_worker_backups/"
+      with_items: "{{keystore_files.files}}"
+
+    - name: "Backup remote worker config files: {{deployer_config_path}}/remote_worker_backups/"
+      become: yes
+      become_user: nucypher
+      fetch:
+        src: "{{item}}"
+        dest: "{{deployer_config_path}}/remote_worker_backups/"
+      with_items:
+        - "/home/nucypher/nucypher/ursula.json"
+        - "{{geth_dir}}account.txt"
+
+    - name: "Backup Public Keyrings locally to: {{deployer_config_path}}/remote_worker_backups/"
+      become: yes
+      # become_user: nucypher
+      fetch:
+        src: "{{item.path}}"
+        dest: "{{deployer_config_path}}/remote_worker_backups/"
+      with_items: "{{public_keyrings.files}}"
+
+    - name: "Backup Private Keyrings locally to: {{deployer_config_path}}/remote_worker_backups/"
+      become: yes
+      # become_user: nucypher
+      fetch:
+        src: "{{item.path}}"
+        dest: "{{deployer_config_path}}/remote_worker_backups/"
+      with_items: "{{private_keyrings.files}}"
+
+    - name: "Backup ursula.db to: {{deployer_config_path}}/remote_worker_backups/"
+      become: yes
+      # become_user: nucypher
+      fetch:
+        src: "{{item.path}}"
+        dest: "{{deployer_config_path}}/remote_worker_backups/"
+      with_items: "{{database_files.files}}"

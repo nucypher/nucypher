@@ -1,0 +1,5 @@
+- name: "Backup Remote Worker Data"
+  hosts: "{{ play_hosts }}"
+  remote_user: "{{default_user}}"
+
+- import_playbook: include/backup_ursula_data.yml
