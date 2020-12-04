@@ -1,1 +1,0 @@
-Allow arbitrary decimal precision when entering NU amounts to nucypher CLI.

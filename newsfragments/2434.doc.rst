@@ -1,1 +1,0 @@
-Improvements to the staking guide: extending description of winddown command, other minor corrections.
