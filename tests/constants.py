@@ -16,12 +16,11 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
 import string
-import tempfile
-import time
 from datetime import datetime
 from pathlib import Path
-from random import SystemRandom
 
+import tempfile
+from random import SystemRandom
 from web3 import Web3
 
 from nucypher.blockchain.eth.token import NU
