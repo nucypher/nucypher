@@ -37,11 +37,6 @@ def test_devdoc_regex_pattern(full_match):
     assert full_match.startswith('|'), 'Version string does not end in "|" delimiter: "{version_string}"'
     assert full_match.endswith('|'), 'Version string does not end in "|" delimiter: "{version_string}"'
 
-    # Max Size
-    numbers_only = re.sub("[^0-9]", "", full_match)
-    # I mean really... who has a version with more than 11 numbers (v9999.9999.9999)
-    assert len(numbers_only) <= 12, 'Version string is too long: "{version_string}"'
-
     # "v" specifier
     version_string = full_match[1:-1]
     assert version_string.startswith('v'), 'Version string does not start with "v": "{version_string}"'
