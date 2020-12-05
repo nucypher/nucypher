@@ -17,17 +17,15 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 
 
 import re
-from re import Pattern
-from typing import Dict
-
 from cytoolz.dicttoolz import merge
+from typing import Dict
 
 from nucypher.blockchain.eth.sol.compile.constants import DEFAULT_VERSION_STRING, SOLC_LOGGER
 from nucypher.blockchain.eth.sol.compile.exceptions import CompilationError, ProgrammingError
 from nucypher.blockchain.eth.sol.compile.types import VersionedContractOutputs, CompiledContractOutputs
 
 # RE pattern for matching solidity source compile version specification in devdoc details.
-DEVDOC_VERSION_PATTERN: Pattern = re.compile(r"""
+DEVDOC_VERSION_PATTERN = re.compile(r"""
 \A            # Anchor must be first
 \|            # Anchored pipe literal at beginning of version definition
 (             # Start Inner capture group
@@ -44,7 +42,7 @@ v             # Capture version starting from symbol v
 
 # simplified version of pattern to extract metadata hash from bytecode
 # see https://docs.soliditylang.org/en/latest/metadata.html#encoding-of-the-metadata-hash-in-the-bytecode
-METADATA_HASH_PATTERN: Pattern = re.compile(r"""
+METADATA_HASH_PATTERN = re.compile(r"""
 a2
 64
 69706673    # 'i' 'p' 'f' 's'
