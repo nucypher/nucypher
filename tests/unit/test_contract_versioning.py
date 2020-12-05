@@ -27,7 +27,7 @@ from nucypher.blockchain.eth.sol.compile.constants import DEFAULT_VERSION_STRING
 @example('|v99.99.99|')
 @example(f'|{DEFAULT_VERSION_STRING}|')
 @given(strategies.from_regex(DEVDOC_VERSION_PATTERN, fullmatch=True))
-@settings(max_examples=5000)
+@settings(max_examples=50)
 def test_devdoc_regex_pattern(full_match):
 
     # Not empty
@@ -36,11 +36,6 @@ def test_devdoc_regex_pattern(full_match):
     # Anchors
     assert full_match.startswith('|'), 'Version string does not end in "|" delimiter: "{version_string}"'
     assert full_match.endswith('|'), 'Version string does not end in "|" delimiter: "{version_string}"'
-
-    # Max Size
-    numbers_only = re.sub("[^0-9]", "", full_match)
-    # I mean really... who has a version with more than 11 numbers (v9999.9999.9999)
-    assert len(numbers_only) <= 12, 'Version string is too long: "{version_string}"'
 
     # "v" specifier
     version_string = full_match[1:-1]
