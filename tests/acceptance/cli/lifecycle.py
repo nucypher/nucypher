@@ -314,9 +314,8 @@ def run_entire_cli_lifecycle(click_runner,
             grant_args += ('--provider', TEST_PROVIDER_URI,
                            '--rate', Web3.toWei(9, 'gwei'))
 
-        # TODO: Stop.
         grant_result = click_runner.invoke(nucypher_cli, grant_args, catch_exceptions=False, env=envvars)
-        assert grant_result.exit_code == 0
+        assert grant_result.exit_code == 0, grant_result.output
 
         grant_result = json.loads(grant_result.output)
 

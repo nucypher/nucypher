@@ -100,7 +100,7 @@ class GrantPolicy(PolicyBaseSchema):
 
     label = fields.Label(
         load_only=True, required=True,
-        click=options.option_label(required=True))
+        click=options.option_label(required=False))
 
     # output fields
     treasure_map = fields.TreasureMap(dump_only=True)
