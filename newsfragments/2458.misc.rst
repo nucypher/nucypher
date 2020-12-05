@@ -1,0 +1,1 @@
+Maintain compatibility with python 3.6 (removes re.Pattern annotations)
