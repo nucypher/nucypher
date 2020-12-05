@@ -49,7 +49,7 @@ class PolicyBaseSchema(BaseSchema):
         click=click.option(
             '--expiration',
             help="Expiration Datetime of a policy",
-            type=click.STRING))
+            type=click.DateTime()))  # TODO: Expand acceptable formats
 
     # optional input
     value = fields.Wei(
