@@ -355,7 +355,7 @@ COLLECT_NUCYPHER_PASSWORD = "Enter NuCypher keyring password"
 
 GENERIC_PASSWORD_PROMPT = "Enter password"
 
-DECRYPTING_CHARACTER_KEYRING = 'Decrypting {name} keyring...'
+DECRYPTING_CHARACTER_KEYRING = 'Authenticating {name}'
 
 
 #

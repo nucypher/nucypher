@@ -65,7 +65,7 @@ def get_nucypher_password(confirm: bool = False, envvar=NUCYPHER_ENVVAR_KEYRING_
 
 def unlock_nucypher_keyring(emitter: StdoutEmitter, password: str, character_configuration: CharacterConfiguration) -> bool:
     """Unlocks a nucypher keyring and attaches it to the supplied configuration if successful."""
-    emitter.message(DECRYPTING_CHARACTER_KEYRING.format(name=character_configuration.NAME), color='yellow')
+    emitter.message(DECRYPTING_CHARACTER_KEYRING.format(name=character_configuration.NAME.capitalize()), color='yellow')
 
     # precondition
     if character_configuration.dev_mode:
