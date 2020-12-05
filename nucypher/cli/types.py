@@ -20,6 +20,8 @@ from decimal import Decimal, DecimalException
 from eth_utils import to_checksum_address
 from ipaddress import ip_address
 
+from nucypher.blockchain.economics import StandardTokenEconomics
+from nucypher.blockchain.eth.token import NU
 from nucypher.blockchain.eth.interfaces import BlockchainInterface
 from nucypher.blockchain.eth.networks import NetworksInventory
 
@@ -105,6 +107,10 @@ class NuCypherNetworkName(click.ParamType):
 EIP55_CHECKSUM_ADDRESS = ChecksumAddress()
 WEI = click.IntRange(min=1, clamp=False)  # TODO: Better validation for ether and wei values?
 GWEI = DecimalRange(min=0)
+
+__min_allowed_locked = NU.from_nunits(StandardTokenEconomics._default_minimum_allowed_locked).to_tokens()
+MIN_ALLOWED_LOCKED_TOKENS = Decimal(__min_allowed_locked)
+STAKED_TOKENS_RANGE = DecimalRange(min=__min_allowed_locked)
 
 # Filesystem
 EXISTING_WRITABLE_DIRECTORY = click.Path(exists=True, dir_okay=True, file_okay=False, writable=True)
