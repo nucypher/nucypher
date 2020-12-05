@@ -16,6 +16,7 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
 import click
+import maya
 
 from nucypher.blockchain.eth.sol.__conf__ import SOLIDITY_COMPILER_VERSION
 from nucypher.characters.banners import NUCYPHER_BANNER
@@ -101,3 +102,11 @@ as supported by nodes on the network.
     )
     for sentence in text:
         emitter.echo(sentence, color='yellow')
+
+
+def enforce_probationary_period(emitter, expiration):
+    """Used during CLI grant to prevent publication of a policy outside the probationary period."""
+    if maya.MayaDT.from_datetime(expiration) > END_OF_POLICIES_PROBATIONARY_PERIOD:
+        emitter.echo(f"The requested duration for this policy (until {expiration}) exceeds the probationary period"
+                     f" ({END_OF_POLICIES_PROBATIONARY_PERIOD}).", color="red")
+        raise click.Abort()

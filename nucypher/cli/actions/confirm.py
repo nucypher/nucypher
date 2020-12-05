@@ -145,3 +145,10 @@ def verify_upgrade_details(blockchain: Union[BlockchainDeployerInterface, Blockc
     click.confirm(CONFIRM_VERSIONED_UPGRADE.format(contract_name=deployer.contract_name,
                                                    old_version=old_contract.version,
                                                    new_version=new_version), abort=True)
+
+
+def confirm_staged_grant(emitter, grant_request: Dict) -> None:
+    emitter.echo("Successfully staged grant.  Please review the details:\n", color='green')
+    table = ([field, value] for field, value in grant_request.items())
+    emitter.echo(tabulate(table, tablefmt="simple"))
+    click.confirm('\nConfirm granting access policy and sign transaction?', abort=True)
