@@ -451,15 +451,6 @@ def grant(general_config,
     emitter = setup_emitter(general_config)
     ALICE = character_options.create_character(emitter, config_file, general_config.json_ipc)
 
-    is_mainnet = NetworksInventory.MAINNET == ALICE.domain.lower()
-    if not ALICE.federated_only and is_mainnet:
-        # Probationary period disclaimer and check. See #2353
-        paint_probationary_period_disclaimer(emitter)
-        if MayaDT.from_iso8601(expiration) > END_OF_POLICIES_PROBATIONARY_PERIOD:
-            emitter.echo(f"The requested duration for this policy (until {expiration}) exceeds the probationary period"
-                         f" ({END_OF_POLICIES_PROBATIONARY_PERIOD}).", color="red")
-            raise click.Abort()
-
     # Input validation
     if ALICE.federated_only:
         if any((value, rate)):
@@ -470,6 +461,15 @@ def grant(general_config,
     elif not (bool(value) or bool(rate)):
         rate = ALICE.default_rate  # TODO #1709
         click.confirm(f"Confirm default rate {rate}?", abort=True)
+
+    is_mainnet = NetworksInventory.MAINNET == ALICE.domain.lower()
+    if not ALICE.federated_only and is_mainnet:
+        # Probationary period disclaimer and check. See #2353
+        paint_probationary_period_disclaimer(emitter)
+        if MayaDT.from_datetime(expiration) > END_OF_POLICIES_PROBATIONARY_PERIOD:
+            emitter.echo(f"The requested duration for this policy (until {expiration}) exceeds the probationary period"
+                         f" ({END_OF_POLICIES_PROBATIONARY_PERIOD}).", color="red")
+            raise click.Abort()
 
     # Request
     grant_request = {
