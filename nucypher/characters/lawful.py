@@ -47,6 +47,8 @@ from constant_sorrow.constants import (INCLUDED_IN_BYTESTRING,
                                        UNKNOWN_VERSION,
                                        READY,
                                        INVALIDATED)
+
+from config.constants import END_OF_POLICIES_PROBATIONARY_PERIOD
 from nucypher.acumen.nicknames import Nickname
 from nucypher.acumen.perception import FleetSensor
 from nucypher.blockchain.eth.actors import BlockchainPolicyAuthor, Worker
@@ -288,7 +290,13 @@ class Alice(Character, BlockchainPolicyAuthor):
                 self.remember_node(node=handpicked_ursula)
 
         policy = self.create_policy(bob=bob, label=label, **policy_params)
-        self.log.debug(f"Successfully created {policy} ... ")
+
+        # TODO: Remove when the time is right.
+        if policy.expiration > END_OF_POLICIES_PROBATIONARY_PERIOD:
+            raise self.ActorError(f"The requested duration for this policy (until {policy.expiration}) exceeds the "
+                                  f"probationary period ({END_OF_POLICIES_PROBATIONARY_PERIOD}).")
+
+        self.log.debug(f"Generated new policy proposal {policy} ... ")
 
         #
         # We'll find n Ursulas by default.  It's possible to "play the field" by trying different
