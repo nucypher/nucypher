@@ -17,12 +17,15 @@
 
 import click
 from marshmallow import validates_schema
+from nucypher.cli import options, types
 
 from nucypher.characters.control.specifications import fields
 from nucypher.characters.control.specifications.base import BaseSchema
-from nucypher.characters.control.specifications.exceptions import (
-    InvalidArgumentCombo)
-from nucypher.cli import options, types
+from nucypher.characters.control.specifications.exceptions import InvalidArgumentCombo
+
+
+# TODO: Expand acceptable formats?
+DATETIME_FORMATS = ('%m-%d-%Y', '%m-%d-%Y:%H:%M:%S')
 
 
 class PolicyBaseSchema(BaseSchema):
@@ -52,7 +55,8 @@ class PolicyBaseSchema(BaseSchema):
         click=click.option(
             '--expiration',
             help="Expiration Datetime of a policy",
-            type=click.DateTime()))  # TODO: Expand acceptable formats
+            type=click.DateTime(formats=DATETIME_FORMATS))
+    )
 
     # optional input
     value = fields.Wei(
