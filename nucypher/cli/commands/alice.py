@@ -66,6 +66,7 @@ from nucypher.network.middleware import RestMiddleware
 
 option_bob_verifying_key = click.option(
     '--bob-verifying-key',
+    '-bvk',
     help="Bob's verifying key as a hexadecimal string",
     type=click.STRING,
     required=True
