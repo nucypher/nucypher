@@ -26,7 +26,6 @@ from nucypher.cli.actions.confirm import confirm_staged_grant
 from nucypher.blockchain.eth.signers.software import ClefSigner
 from nucypher.characters.control.emitters import StdoutEmitter
 from nucypher.characters.control.interfaces import AliceInterface
-from nucypher.characters.control.specifications.alice import DATETIME_FORMATS
 from nucypher.cli.actions.auth import get_client_password, get_nucypher_password
 from nucypher.cli.actions.configure import (
     destroy_configuration,
@@ -486,10 +485,10 @@ def grant(general_config,
             # TODO: use a default in days or periods?
             expiration = maya.now() + timedelta(days=ALICE.duration_periods)  # default
             if not click.confirm(f'Use default policy duration (expires {expiration})?'):
-                expiration = click.prompt('Enter policy expiration datetime', type=click.DateTime(formats=DATETIME_FORMATS))
+                expiration = click.prompt('Enter policy expiration datetime', type=click.DateTime())
         else:
             # No policy duration default default available; Go interactive
-            expiration = click.prompt('Enter policy expiration datetime', type=click.DateTime(formats=DATETIME_FORMATS))
+            expiration = click.prompt('Enter policy expiration datetime', type=click.DateTime())
 
     # TODO: Remove this line when the time is right.
     enforce_probationary_period(emitter=emitter, expiration=expiration)
