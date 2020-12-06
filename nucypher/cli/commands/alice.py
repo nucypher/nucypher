@@ -504,7 +504,7 @@ def grant(general_config,
             n = click.prompt('Enter threshold (M)', type=click.IntRange(1, n+1))
 
     # Policy Value
-    if not (bool(value) or bool(rate)):
+    if not ALICE.federated_only and (not (bool(value) or bool(rate))):
         rate = ALICE.default_rate  # TODO #1709
         if not force:
             use_default = click.confirm(f"Confirm default rate {rate}?", default=True)
@@ -528,7 +528,7 @@ def grant(general_config,
         elif rate:
             grant_request['rate'] = rate
 
-    if not force:
+    if not force and not general_config.json_ipc:
         confirm_staged_grant(emitter=emitter, grant_request=grant_request)
     emitter.echo(f'Granting Access to {bob_verifying_key[:8]}', color='yellow')
     return ALICE.controller.grant(request=grant_request)
