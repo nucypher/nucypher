@@ -64,7 +64,7 @@ def test_worker_auto_commitments(mocker,
     ursula = make_decentralized_ursulas(ursula_config=ursula_decentralized_test_config,
                                         stakers_addresses=[staker.checksum_address],
                                         workers_addresses=[worker_address],
-                                        commit_to_next_period=False,
+                                        commit_to_next_period=False,  # FIXME: 2424 - It commits anyway
                                         registry=test_registry).pop()
 
     initial_period = staker.staking_agent.get_current_period()
@@ -78,6 +78,12 @@ def test_worker_auto_commitments(mocker,
         testerchain.time_travel(periods=1)
         clock.advance(WorkTracker.INTERVAL_CEIL + 1)
 
+    def check_pending_commitments(number_of_commitments):
+        def _check_pending_commitments(_):
+            log(f'Checking we have {number_of_commitments} pending commitments')
+            assert number_of_commitments == len(ursula.work_tracker.pending)
+        return _check_pending_commitments
+
     def pending_commitments(_):
         log('Starting unmined transaction simulation')
         testerchain.client.add_middleware(unmined_receipt_simulator_middleware)
@@ -87,30 +93,39 @@ def test_worker_auto_commitments(mocker,
         clock.advance(ursula.work_tracker._tracking_task.interval + 1)
 
     def advance_until_replacement_indicated(_):
+        last_committed_period = staker.staking_agent.get_last_committed_period(staker_address=staker.checksum_address)
         log("Advancing until replacement is indicated")
         testerchain.time_travel(periods=1)
         clock.advance(WorkTracker.INTERVAL_CEIL + 1)
         mocker.patch.object(WorkTracker, 'max_confirmation_time', return_value=1.0)
+        mock_last_committed_period = mocker.PropertyMock(return_value=last_committed_period)
+        mocker.patch.object(Worker, 'last_committed_period', new_callable=mock_last_committed_period)
         clock.advance(ursula.work_tracker.max_confirmation_time() + 1)
 
     def verify_unmined_commitment(_):
         log('Verifying worker has unmined commitment transaction')
-        assert len(ursula.work_tracker.pending) == 1
+
+        # FIXME: The test doesn't model accurately an unmined TX, but an unconfirmed receipt,
+        # so the tracker does not have pending TXs. If we want to model pending TXs we need to actually
+        # prevent them from being mined.
+        #
+        # assert len(ursula.work_tracker.pending) == 1
         current_period = staker.staking_agent.get_current_period()
         assert commit_spy.call_count == current_period - initial_period + 1
 
     def verify_replacement_commitment(_):
         log('Verifying worker has replaced commitment transaction')
-        assert len(ursula.work_tracker.pending) == 1
         assert replacement_spy.call_count > 0
 
     def verify_confirmed(_):
-        log('Verifying worker made a commitments')
         # Verify that periods were committed on-chain automatically
         last_committed_period = staker.staking_agent.get_last_committed_period(staker_address=staker.checksum_address)
         current_period = staker.staking_agent.get_current_period()
+
+        expected_commitments = current_period - initial_period + 1
+        log(f'Verifying worker made {expected_commitments} commitments so far')
         assert (last_committed_period - current_period) == 1
-        assert commit_spy.call_count == current_period - initial_period + 1
+        assert commit_spy.call_count == expected_commitments
         assert replacement_spy.call_count == 0
 
     # Behavioural Test, like a screenplay made of legos
@@ -118,13 +133,18 @@ def test_worker_auto_commitments(mocker,
     # Ursula commits on startup
     d = threads.deferToThread(start)
     d.addCallback(verify_confirmed)
+    d.addCallback(check_pending_commitments(1))
+    d.addCallback(advance_one_cycle)
+    d.addCallback(check_pending_commitments(0))
 
     # Ursula commits for 3 periods with no problem
     for i in range(3):
         d.addCallback(advance_one_period)
         d.addCallback(verify_confirmed)
+        d.addCallback(check_pending_commitments(1))
 
     # Introduce unmined transactions
+    d.addCallback(advance_one_period)
     d.addCallback(pending_commitments)
 
     # Ursula's commitment transaction gets stuck
@@ -135,9 +155,13 @@ def test_worker_auto_commitments(mocker,
     # Ursula recovers from this situation
     d.addCallback(advance_one_cycle)
     d.addCallback(verify_confirmed)
+    d.addCallback(advance_one_cycle)
+    d.addCallback(check_pending_commitments(0))
 
     # but it happens again, resulting in a replacement transaction
     d.addCallback(advance_until_replacement_indicated)
+    d.addCallback(advance_one_cycle)
+    d.addCallback(check_pending_commitments(1))
     d.addCallback(advance_one_cycle)
     d.addCallback(verify_replacement_commitment)
 
