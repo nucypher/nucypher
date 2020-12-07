@@ -21,8 +21,16 @@ from web3.middleware.simulate_unmined_transaction import unmined_receipt_simulat
 
 from nucypher.blockchain.eth.actors import Worker
 from nucypher.blockchain.eth.token import NU, WorkTracker
+from nucypher.utilities.logging import Logger
 from tests.constants import INSECURE_DEVELOPMENT_PASSWORD
 from tests.utils.ursula import make_decentralized_ursulas, start_pytest_ursula_services
+
+logger = Logger("test-worker")
+
+
+def log(message):
+    logger.debug(message)
+    print(message)
 
 
 @pytest_twisted.inlineCallbacks
@@ -62,42 +70,42 @@ def test_worker_auto_commitments(mocker,
     initial_period = staker.staking_agent.get_current_period()
 
     def start():
-        print("Starting Worker for auto-commitment simulation")
+        log("Starting Worker for auto-commitment simulation")
         start_pytest_ursula_services(ursula=ursula)
 
     def advance_one_period(_):
-        print('Advancing one period')
+        log('Advancing one period')
         testerchain.time_travel(periods=1)
         clock.advance(WorkTracker.INTERVAL_CEIL + 1)
 
     def pending_commitments(_):
-        print('Starting unmined transaction simulation')
+        log('Starting unmined transaction simulation')
         testerchain.client.add_middleware(unmined_receipt_simulator_middleware)
 
     def advance_one_cycle(_):
-        print('Advancing one tracking iteration')
+        log('Advancing one tracking iteration')
         clock.advance(ursula.work_tracker._tracking_task.interval + 1)
 
     def advance_until_replacement_indicated(_):
-        print("Advancing until replacement is indicated")
+        log("Advancing until replacement is indicated")
         testerchain.time_travel(periods=1)
         clock.advance(WorkTracker.INTERVAL_CEIL + 1)
         mocker.patch.object(WorkTracker, 'max_confirmation_time', return_value=1.0)
         clock.advance(ursula.work_tracker.max_confirmation_time() + 1)
 
     def verify_unmined_commitment(_):
-        print('Verifying worker has unmined commitment transaction')
+        log('Verifying worker has unmined commitment transaction')
         assert len(ursula.work_tracker.pending) == 1
         current_period = staker.staking_agent.get_current_period()
         assert commit_spy.call_count == current_period - initial_period + 1
 
     def verify_replacement_commitment(_):
-        print('Verifying worker has replaced commitment transaction')
+        log('Verifying worker has replaced commitment transaction')
         assert len(ursula.work_tracker.pending) == 1
         assert replacement_spy.call_count > 0
 
     def verify_confirmed(_):
-        print('Verifying worker made a commitments')
+        log('Verifying worker made a commitments')
         # Verify that periods were committed on-chain automatically
         last_committed_period = staker.staking_agent.get_last_committed_period(staker_address=staker.checksum_address)
         current_period = staker.staking_agent.get_current_period()
