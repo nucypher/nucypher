@@ -118,7 +118,7 @@ def test_unlock_nucypher_keyring_invalid_password(mocker, test_emitter, alice_bl
     keyring_attach_spy.assert_called_once()
 
     captured = capsys.readouterr()
-    assert DECRYPTING_CHARACTER_KEYRING.format(name='alice') in captured.out
+    assert DECRYPTING_CHARACTER_KEYRING.format(name=alice_blockchain_test_config.NAME.capitalize()) in captured.out
 
 
 def test_unlock_nucypher_keyring_dev_mode(mocker, test_emitter, capsys, alice_blockchain_test_config):
@@ -137,7 +137,7 @@ def test_unlock_nucypher_keyring_dev_mode(mocker, test_emitter, capsys, alice_bl
 
     assert result
     output = capsys.readouterr().out
-    message = DECRYPTING_CHARACTER_KEYRING.format(name=alice_blockchain_test_config.NAME)
+    message = DECRYPTING_CHARACTER_KEYRING.format(name=alice_blockchain_test_config.NAME.capitalize())
     assert message in output
 
     unlock_spy.assert_not_called()
@@ -166,7 +166,7 @@ def test_unlock_nucypher_keyring(mocker,
 
     assert result
     captured = capsys.readouterr()
-    message = DECRYPTING_CHARACTER_KEYRING.format(name=alice_blockchain_test_config.NAME)
+    message = DECRYPTING_CHARACTER_KEYRING.format(name=alice_blockchain_test_config.NAME.capitalize())
     assert message in captured.out
 
     unlock_spy.assert_called_once_with(password=INSECURE_DEVELOPMENT_PASSWORD)

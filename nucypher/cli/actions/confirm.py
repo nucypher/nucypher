@@ -14,7 +14,8 @@
  You should have received a copy of the GNU Affero General Public License
  along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
-from typing import Type, Union
+from tabulate import tabulate
+from typing import Type, Union, Dict
 
 import click
 from constant_sorrow.constants import UNKNOWN_DEVELOPMENT_CHAIN_ID
@@ -144,3 +145,11 @@ def verify_upgrade_details(blockchain: Union[BlockchainDeployerInterface, Blockc
     click.confirm(CONFIRM_VERSIONED_UPGRADE.format(contract_name=deployer.contract_name,
                                                    old_version=old_contract.version,
                                                    new_version=new_version), abort=True)
+
+
+def confirm_staged_grant(emitter, grant_request: Dict) -> None:
+    # TODO: Expand and detail
+    emitter.echo("Successfully staged grant.  Please review the details:\n", color='green')
+    table = ([field, value] for field, value in grant_request.items())
+    emitter.echo(tabulate(table, tablefmt="simple"))
+    click.confirm('\nGrant access and sign transaction?', abort=True)

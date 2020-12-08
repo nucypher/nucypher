@@ -15,14 +15,14 @@
  along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
+
 import click
 from marshmallow import validates_schema
+from nucypher.cli import options, types
 
 from nucypher.characters.control.specifications import fields
 from nucypher.characters.control.specifications.base import BaseSchema
-from nucypher.characters.control.specifications.exceptions import (
-    InvalidArgumentCombo)
-from nucypher.cli import options, types
+from nucypher.characters.control.specifications.exceptions import InvalidArgumentCombo
 
 
 class PolicyBaseSchema(BaseSchema):
@@ -52,7 +52,8 @@ class PolicyBaseSchema(BaseSchema):
         click=click.option(
             '--expiration',
             help="Expiration Datetime of a policy",
-            type=click.STRING))
+            type=click.DateTime())
+    )
 
     # optional input
     value = fields.Wei(
@@ -96,7 +97,7 @@ class GrantPolicy(PolicyBaseSchema):
 
     label = fields.Label(
         load_only=True, required=True,
-        click=options.option_label(required=True))
+        click=options.option_label(required=False))
 
     # output fields
     treasure_map = fields.TreasureMap(dump_only=True)

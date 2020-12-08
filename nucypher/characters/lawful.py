@@ -14,56 +14,68 @@ GNU Affero General Public License for more details.
 You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
+
+
 import contextlib
 import json
+from collections import OrderedDict
+
 import maya
 import random
 import time
 from base64 import b64decode, b64encode
-from collections import OrderedDict
-from datetime import datetime
-from functools import partial
-from json.decoder import JSONDecodeError
-from queue import Queue
-from random import shuffle
-from typing import Dict, Iterable, List, Optional, Set, Tuple, Union
-
+from bytestring_splitter import (
+    BytestringKwargifier,
+    BytestringSplitter,
+    BytestringSplittingError,
+    VariableLengthBytestring
+)
+from constant_sorrow import constants
+from constant_sorrow.constants import (
+    INCLUDED_IN_BYTESTRING,
+    PUBLIC_ONLY,
+    STRANGER_ALICE,
+    UNKNOWN_VERSION,
+    READY,
+    INVALIDATED
+)
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives.asymmetric.ec import EllipticCurve
 from cryptography.hazmat.primitives.serialization import Encoding
 from cryptography.x509 import Certificate, NameOID, load_pem_x509_certificate
+from datetime import datetime
 from eth_utils import to_checksum_address
 from flask import Response, request
+from functools import partial
+from json.decoder import JSONDecodeError
+from queue import Queue
+from random import shuffle
 from twisted.internet import reactor, stdio, threads
 from twisted.internet.task import LoopingCall
+from typing import Dict, Iterable, List, Optional, Tuple, Union
+from umbral import pre
+from umbral.keys import UmbralPublicKey
+from umbral.kfrags import KFrag
+from umbral.pre import UmbralCorrectnessError
+from umbral.signing import Signature
 
 import nucypher
-from bytestring_splitter import BytestringKwargifier, BytestringSplitter, BytestringSplittingError, \
-    VariableLengthBytestring
-from constant_sorrow import constants
-from constant_sorrow.constants import (INCLUDED_IN_BYTESTRING,
-                                       PUBLIC_ONLY,
-                                       STRANGER_ALICE,
-                                       UNKNOWN_VERSION,
-                                       READY,
-                                       INVALIDATED)
 from nucypher.acumen.nicknames import Nickname
 from nucypher.acumen.perception import FleetSensor
 from nucypher.blockchain.eth.actors import BlockchainPolicyAuthor, Worker
 from nucypher.blockchain.eth.agents import ContractAgency, StakingEscrowAgent
-from nucypher.blockchain.eth.constants import LENGTH_ECDSA_SIGNATURE_WITH_RECOVERY, ETH_ADDRESS_BYTE_LENGTH
+from nucypher.blockchain.eth.constants import ETH_ADDRESS_BYTE_LENGTH
 from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
 from nucypher.blockchain.eth.registry import BaseContractRegistry
 from nucypher.blockchain.eth.signers.software import Web3Signer
 from nucypher.blockchain.eth.token import WorkTracker
 from nucypher.characters.banners import ALICE_BANNER, BOB_BANNER, ENRICO_BANNER, URSULA_BANNER
 from nucypher.characters.base import Character, Learner
-from nucypher.characters.control.controllers import (
-    WebController
-)
+from nucypher.characters.control.controllers import WebController
 from nucypher.characters.control.emitters import StdoutEmitter
 from nucypher.characters.control.interfaces import AliceInterface, BobInterface, EnricoInterface
 from nucypher.cli.processes import UrsulaCommandProtocol
+from nucypher.config.constants import END_OF_POLICIES_PROBATIONARY_PERIOD
 from nucypher.config.storages import ForgetfulNodeStorage, NodeStorage
 from nucypher.crypto.api import encrypt_and_sign, keccak_digest
 from nucypher.crypto.constants import HRAC_LENGTH, PUBLIC_KEY_LENGTH
@@ -80,11 +92,6 @@ from nucypher.network.protocols import InterfaceInfo, parse_node_uri
 from nucypher.network.server import ProxyRESTServer, TLSHostingPower, make_rest_app
 from nucypher.network.trackers import AvailabilityTracker
 from nucypher.utilities.logging import Logger
-from umbral import pre
-from umbral.keys import UmbralPublicKey
-from umbral.kfrags import KFrag
-from umbral.pre import UmbralCorrectnessError
-from umbral.signing import Signature
 
 
 class Alice(Character, BlockchainPolicyAuthor):
@@ -288,7 +295,13 @@ class Alice(Character, BlockchainPolicyAuthor):
                 self.remember_node(node=handpicked_ursula)
 
         policy = self.create_policy(bob=bob, label=label, **policy_params)
-        self.log.debug(f"Successfully created {policy} ... ")
+
+        # TODO: Remove when the time is right.
+        if policy.expiration > END_OF_POLICIES_PROBATIONARY_PERIOD:
+            raise self.ActorError(f"The requested duration for this policy (until {policy.expiration}) exceeds the "
+                                  f"probationary period ({END_OF_POLICIES_PROBATIONARY_PERIOD}).")
+
+        self.log.debug(f"Generated new policy proposal {policy} ... ")
 
         #
         # We'll find n Ursulas by default.  It's possible to "play the field" by trying different

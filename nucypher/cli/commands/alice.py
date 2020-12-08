@@ -15,9 +15,13 @@ You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
+
 import click
+import maya
 import os
 from constant_sorrow.constants import NO_BLOCKCHAIN_CONNECTION, NO_PASSWORD
+from datetime import timedelta
+from web3.main import Web3
 
 from nucypher.blockchain.eth.signers.software import ClefSigner
 from nucypher.characters.control.emitters import StdoutEmitter
@@ -25,8 +29,10 @@ from nucypher.characters.control.interfaces import AliceInterface
 from nucypher.cli.actions.auth import get_client_password, get_nucypher_password
 from nucypher.cli.actions.configure import (
     destroy_configuration,
-    handle_missing_configuration_file, get_or_update_configuration
+    handle_missing_configuration_file,
+    get_or_update_configuration
 )
+from nucypher.cli.actions.confirm import confirm_staged_grant
 from nucypher.cli.actions.select import select_client_account, select_config_file
 from nucypher.cli.commands.deploy import option_gas_strategy
 from nucypher.cli.config import group_general_config
@@ -55,12 +61,19 @@ from nucypher.cli.options import (
     option_teacher_uri,
     option_lonely
 )
-from nucypher.cli.painting.help import paint_new_installation_help
+from nucypher.cli.painting.help import (
+    paint_new_installation_help,
+    paint_probationary_period_disclaimer,
+    enforce_probationary_period
+)
 from nucypher.cli.processes import get_geth_provider_process
-from nucypher.cli.types import EIP55_CHECKSUM_ADDRESS
+from nucypher.cli.types import EIP55_CHECKSUM_ADDRESS, GWEI
 from nucypher.cli.utils import make_cli_character, setup_emitter
 from nucypher.config.characters import AliceConfiguration
-from nucypher.config.constants import NUCYPHER_ENVVAR_ALICE_ETH_PASSWORD, TEMPORARY_DOMAIN
+from nucypher.config.constants import (
+    NUCYPHER_ENVVAR_ALICE_ETH_PASSWORD,
+    TEMPORARY_DOMAIN,
+)
 from nucypher.config.keyring import NucypherKeyring
 from nucypher.network.middleware import RestMiddleware
 
@@ -428,6 +441,7 @@ def derive_policy_pubkey(general_config, label, character_options, config_file):
 @option_config_file
 @group_general_config
 @group_character_options
+@option_force
 def grant(general_config,
           bob_encrypting_key,
           bob_verifying_key,
@@ -437,7 +451,8 @@ def grant(general_config,
           expiration,
           m, n,
           character_options,
-          config_file):
+          config_file,
+          force):
     """Create and enact an access policy for some Bob. """
 
     # Setup
@@ -447,13 +462,62 @@ def grant(general_config,
     # Input validation
     if ALICE.federated_only:
         if any((value, rate)):
-            raise click.BadOptionUsage(option_name="--value, --rate",
-                                       message="Can't use --value or --rate with a federated Alice.")
+            message = "Can't use --value or --rate with a federated Alice."
+            raise click.BadOptionUsage(option_name="--value, --rate", message=message)
     elif bool(value) and bool(rate):
         raise click.BadOptionUsage(option_name="--rate", message="Can't use --value if using --rate")
-    elif not (bool(value) or bool(rate)):
-        rate = ALICE.default_rate  # TODO #1709
-        click.confirm(f"Confirm default rate {rate}?", abort=True)
+
+    # Interactive collection follows:
+    # TODO: Extricate to support modules
+    # - Disclaimer
+    # - Label
+    # - Expiration Date & Time
+    # - M of N
+    # - Policy Value (ETH)
+
+    # Policy Expiration
+    # TODO: Remove this line when the time is right.
+    paint_probationary_period_disclaimer(emitter)
+
+    # Label
+    if not label:
+        label = click.prompt(f'Enter label to grant Bob {bob_verifying_key[:8]}', type=click.STRING)
+
+    if not force and not expiration:
+        if ALICE.duration_periods:
+            # TODO: use a default in days or periods?
+            expiration = maya.now() + timedelta(days=ALICE.duration_periods)  # default
+            if not click.confirm(f'Use default policy duration (expires {expiration})?'):
+                expiration = click.prompt('Enter policy expiration datetime', type=click.DateTime())
+        else:
+            # No policy duration default default available; Go interactive
+            expiration = click.prompt('Enter policy expiration datetime', type=click.DateTime())
+
+    # TODO: Remove this line when the time is right.
+    enforce_probationary_period(emitter=emitter, expiration=expiration)
+
+    # Policy Threshold and Shares
+    if not n:
+        n = ALICE.n
+        if not force and not click.confirm(f'Use default value for N ({n})?', default=True):
+            n = click.prompt('Enter total number of shares (N)', type=click.INT)
+    if not m:
+        m = ALICE.m
+        if not force and not click.confirm(f'Use default value for M ({m})?', default=True):
+            m = click.prompt('Enter threshold (M)', type=click.IntRange(1, n))
+
+    # Policy Value
+    policy_value_provided = bool(value) or bool(rate)
+    if not ALICE.federated_only and not policy_value_provided:
+        rate = ALICE.default_rate  # TODO #1709 - Fine tuning and selection of default rates
+        if not force:
+            default_gwei = Web3.fromWei(rate, 'gwei')
+            prompt = "Confirm rate of {node_rate} gwei ({total_rate} gwei per period)?"
+            if not click.confirm(prompt.format(node_rate=default_gwei, total_rate=default_gwei*n), default=True):
+                interactive_rate = click.prompt('Enter rate per period in gwei', type=GWEI)
+                # TODO: Validate interactively collected rate (#1709)
+                click.confirm(prompt.format(node_rate=rate, total_rate=rate*n), default=True, abort=True)
+                rate = Web3.toWei(interactive_rate, 'gwei')
 
     # Request
     grant_request = {
@@ -468,7 +532,11 @@ def grant(general_config,
         if value:
             grant_request['value'] = value
         elif rate:
-            grant_request['rate'] = rate
+            grant_request['rate'] = rate  # in wei
+
+    if not force and not general_config.json_ipc:
+        confirm_staged_grant(emitter=emitter, grant_request=grant_request)
+    emitter.echo(f'Granting Access to {bob_verifying_key[:8]}', color='yellow')
     return ALICE.controller.grant(request=grant_request)
 
 

@@ -294,6 +294,7 @@ def run_entire_cli_lifecycle(click_runner,
         bob_keys = side_channel.fetch_bob_public_keys()
         bob_encrypting_key = bob_keys.bob_encrypting_key
         bob_verifying_key = bob_keys.bob_verifying_key
+        expiration = (maya.now() + datetime.timedelta(days=3)).datetime().strftime("%Y-%m-%d %H:%M:%S")
 
         grant_args = ('alice', 'grant',
                       '--mock-networking',
@@ -303,7 +304,7 @@ def run_entire_cli_lifecycle(click_runner,
                       '--config-file', alice_configuration_file_location,
                       '--m', 2,
                       '--n', 3,
-                      '--expiration', (maya.now() + datetime.timedelta(days=3)).iso8601(),
+                      '--expiration', expiration,
                       '--label', random_label,
                       '--bob-encrypting-key', bob_encrypting_key,
                       '--bob-verifying-key', bob_verifying_key)
@@ -314,9 +315,8 @@ def run_entire_cli_lifecycle(click_runner,
             grant_args += ('--provider', TEST_PROVIDER_URI,
                            '--rate', Web3.toWei(9, 'gwei'))
 
-        # TODO: Stop.
         grant_result = click_runner.invoke(nucypher_cli, grant_args, catch_exceptions=False, env=envvars)
-        assert grant_result.exit_code == 0
+        assert grant_result.exit_code == 0, grant_result.output
 
         grant_result = json.loads(grant_result.output)
 
