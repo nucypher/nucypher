@@ -31,6 +31,7 @@ class JoinPolicy(BaseSchema):  #TODO:  this doesn't have a cli implementation
         load_only=True, required=True,
         click=click.option(
             '--alice-verifying-key',
+            '-avk',
             help="Alice's verifying key as a hexadecimal string",
             required=True, type=click.STRING,))
 
@@ -51,6 +52,7 @@ class Retrieve(BaseSchema):
         required=True, load_only=True,
         click=click.option(
             '--alice-verifying-key',
+            '-avk',
             help="Alice's verifying key as a hexadecimal string",
             type=click.STRING,
             required=True))

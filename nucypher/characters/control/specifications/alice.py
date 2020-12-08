@@ -31,12 +31,15 @@ class PolicyBaseSchema(BaseSchema):
         required=True, load_only=True,
         click=click.option(
             '--bob-encrypting-key',
+            '-bek',
             help="Bob's encrypting key as a hexadecimal string",
             type=click.STRING, required=True,))
     bob_verifying_key = fields.Key(
         required=True, load_only=True,
         click=click.option(
-            '--bob-verifying-key', help="Bob's verifying key as a hexadecimal string",
+            '--bob-verifying-key',
+            '-bvk',
+            help="Bob's verifying key as a hexadecimal string",
             type=click.STRING, required=True))
     m = fields.M(
         required=True, load_only=True,
@@ -119,6 +122,7 @@ class Revoke(BaseSchema):
         required=True, load_only=True,
         click=click.option(
             '--bob-verifying-key',
+            '-bvk',
             help="Bob's verifying key as a hexadecimal string", type=click.STRING,
             required=True))
 
