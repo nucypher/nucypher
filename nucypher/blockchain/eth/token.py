@@ -652,13 +652,17 @@ class WorkTracker:
     def __track_pending_commitments(self) -> bool:
         # TODO: Keep a purpose-built persistent log of worker transaction history
 
-        unmined_transactions = list()
+        unmined_transactions = 0
         pending_transactions = self.pending.items()    # note: this must be performed non-mutatively
         for tx_firing_block_number, txhash in sorted(pending_transactions):
+            if txhash is UNTRACKED_PENDING_TRANSACTION:
+                unmined_transactions += 1
+                continue
+
             try:
                 confirmed_tx_receipt = self.client.get_transaction_receipt(transaction_hash=txhash)
             except TransactionNotFound:
-                unmined_transactions.append(txhash)  # mark as unmined - Keep tracking it for now
+                unmined_transactions += 1  # mark as unmined - Keep tracking it for now
                 continue
             else:
                 confirmation_block_number = confirmed_tx_receipt['blockNumber']
@@ -667,8 +671,8 @@ class WorkTracker:
                 del self.__pending[tx_firing_block_number]
 
         if unmined_transactions:
-            s = "s" if len(unmined_transactions) > 1 else ""
-            self.log.info(f'{len(unmined_transactions)} pending commitment transaction{s} detected.')
+            s = "s" if unmined_transactions > 1 else ""
+            self.log.info(f'{unmined_transactions} pending commitment transaction{s} detected.')
 
         inconsistent_tracker = not self.__commitments_tracker_is_consistent()
         if inconsistent_tracker:
