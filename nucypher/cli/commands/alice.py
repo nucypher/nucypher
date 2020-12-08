@@ -21,6 +21,7 @@ import maya
 import os
 from constant_sorrow.constants import NO_BLOCKCHAIN_CONNECTION, NO_PASSWORD
 from datetime import timedelta
+from web3.main import Web3
 
 from nucypher.blockchain.eth.signers.software import ClefSigner
 from nucypher.characters.control.emitters import StdoutEmitter
@@ -467,18 +468,20 @@ def grant(general_config,
         raise click.BadOptionUsage(option_name="--rate", message="Can't use --value if using --rate")
 
     # Interactive collection follows:
+    # TODO: Extricate to support modules
+    # - Disclaimer
     # - Label
     # - Expiration Date & Time
     # - M of N
     # - Policy Value (ETH)
 
-    # Label
-    if not label:
-        label = click.prompt(f'Enter label to grant Bob {bob_verifying_key[:8]}', type=click.STRING)
-
     # Policy Expiration
     # TODO: Remove this line when the time is right.
     paint_probationary_period_disclaimer(emitter)
+
+    # Label
+    if not label:
+        label = click.prompt(f'Enter label to grant Bob {bob_verifying_key[:8]}', type=click.STRING)
 
     if not force and not expiration:
         if ALICE.duration_periods:
@@ -501,16 +504,20 @@ def grant(general_config,
     if not m:
         m = ALICE.m
         if not force and not click.confirm(f'Use default value for M ({m})?', default=True):
-            m = click.prompt('Enter threshold (M)', type=click.IntRange(1, m))
+            m = click.prompt('Enter threshold (M)', type=click.IntRange(1, n))
 
     # Policy Value
-    if not ALICE.federated_only and (not (bool(value) or bool(rate))):
+    policy_value_provided = bool(value) or bool(rate)
+    if not ALICE.federated_only and not policy_value_provided:
         rate = ALICE.default_rate  # TODO #1709 - Fine tuning and selection of default rates
         if not force:
-            use_default = click.confirm(f"Confirm default rate {rate}?", default=True)
-            if not use_default:
-                rate = click.prompt('Enter rate per period in gwei', type=GWEI)
+            default_gwei = Web3.fromWei(rate, 'gwei')
+            prompt = "Confirm rate of {node_rate} gwei ({total_rate} gwei per period)?"
+            if not click.confirm(prompt.format(node_rate=default_gwei, total_rate=default_gwei*n), default=True):
+                interactive_rate = click.prompt('Enter rate per period in gwei', type=GWEI)
                 # TODO: Validate interactively collected rate (#1709)
+                click.confirm(prompt.format(node_rate=rate, total_rate=rate*n), default=True, abort=True)
+                rate = Web3.toWei(interactive_rate, 'gwei')
 
     # Request
     grant_request = {
@@ -525,7 +532,7 @@ def grant(general_config,
         if value:
             grant_request['value'] = value
         elif rate:
-            grant_request['rate'] = rate
+            grant_request['rate'] = rate  # in wei
 
     if not force and not general_config.json_ipc:
         confirm_staged_grant(emitter=emitter, grant_request=grant_request)

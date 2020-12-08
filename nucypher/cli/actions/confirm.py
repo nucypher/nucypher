@@ -148,6 +148,7 @@ def verify_upgrade_details(blockchain: Union[BlockchainDeployerInterface, Blockc
 
 
 def confirm_staged_grant(emitter, grant_request: Dict) -> None:
+    # TODO: Expand and detail
     emitter.echo("Successfully staged grant.  Please review the details:\n", color='green')
     table = ([field, value] for field, value in grant_request.items())
     emitter.echo(tabulate(table, tablefmt="simple"))
