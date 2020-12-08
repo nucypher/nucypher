@@ -88,8 +88,8 @@ def paint_probationary_period_disclaimer(emitter):
     paragraph = f"""
 Some areas of the NuCypher network are still under active development;
 as a consequence, we have established a probationary period for policies in the network.
-We currently recommend not to create data sharing policies with a duration beyond {END_OF_POLICIES_PROBATIONARY_PERIOD}.
-After this date, the probationary period will be over, and you will be able to create policies with any duration,
+Currently the creation of sharing policies with durations beyond {END_OF_POLICIES_PROBATIONARY_PERIOD} are prevented.
+After this date the probationary period will be over, and you will be able to create policies with any duration
 as supported by nodes on the network.
 """
 

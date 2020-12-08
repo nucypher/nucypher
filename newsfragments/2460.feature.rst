@@ -1,1 +1,1 @@
-Complete interactive collection of policy parameters via alice grant CLI
+Complete interactive collection of policy parameters via alice grant CLI.

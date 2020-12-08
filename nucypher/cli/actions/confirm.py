@@ -151,4 +151,4 @@ def confirm_staged_grant(emitter, grant_request: Dict) -> None:
     emitter.echo("Successfully staged grant.  Please review the details:\n", color='green')
     table = ([field, value] for field, value in grant_request.items())
     emitter.echo(tabulate(table, tablefmt="simple"))
-    click.confirm('\nConfirm granting access policy and sign transaction?', abort=True)
+    click.confirm('\nGrant access and sign transaction?', abort=True)

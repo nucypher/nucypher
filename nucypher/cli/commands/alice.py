@@ -501,17 +501,16 @@ def grant(general_config,
     if not m:
         m = ALICE.m
         if not force and not click.confirm(f'Use default value for M ({m})?', default=True):
-            n = click.prompt('Enter threshold (M)', type=click.IntRange(1, n+1))
+            m = click.prompt('Enter threshold (M)', type=click.IntRange(1, m))
 
     # Policy Value
     if not ALICE.federated_only and (not (bool(value) or bool(rate))):
-        rate = ALICE.default_rate  # TODO #1709
+        rate = ALICE.default_rate  # TODO #1709 - Fine tuning and selection of default rates
         if not force:
             use_default = click.confirm(f"Confirm default rate {rate}?", default=True)
             if not use_default:
                 rate = click.prompt('Enter rate per period in gwei', type=GWEI)
-                # TODO: Validate interactively collected rate here?
-                # Note that it will still be validated at a deeper API layer.
+                # TODO: Validate interactively collected rate (#1709)
 
     # Request
     grant_request = {
