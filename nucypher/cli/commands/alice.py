@@ -22,7 +22,6 @@ import os
 from constant_sorrow.constants import NO_BLOCKCHAIN_CONNECTION, NO_PASSWORD
 from datetime import timedelta
 
-from nucypher.cli.actions.confirm import confirm_staged_grant
 from nucypher.blockchain.eth.signers.software import ClefSigner
 from nucypher.characters.control.emitters import StdoutEmitter
 from nucypher.characters.control.interfaces import AliceInterface
@@ -32,6 +31,7 @@ from nucypher.cli.actions.configure import (
     handle_missing_configuration_file,
     get_or_update_configuration
 )
+from nucypher.cli.actions.confirm import confirm_staged_grant
 from nucypher.cli.actions.select import select_client_account, select_config_file
 from nucypher.cli.commands.deploy import option_gas_strategy
 from nucypher.cli.config import group_general_config
@@ -66,7 +66,7 @@ from nucypher.cli.painting.help import (
     enforce_probationary_period
 )
 from nucypher.cli.processes import get_geth_provider_process
-from nucypher.cli.types import EIP55_CHECKSUM_ADDRESS, WEI
+from nucypher.cli.types import EIP55_CHECKSUM_ADDRESS, GWEI
 from nucypher.cli.utils import make_cli_character, setup_emitter
 from nucypher.config.characters import AliceConfiguration
 from nucypher.config.constants import (
@@ -509,7 +509,7 @@ def grant(general_config,
         if not force:
             use_default = click.confirm(f"Confirm default rate {rate}?", default=True)
             if not use_default:
-                rate = click.prompt('Enter rate per period in Wei', type=WEI)
+                rate = click.prompt('Enter rate per period in gwei', type=GWEI)
                 # TODO: Validate interactively collected rate here?
                 # Note that it will still be validated at a deeper API layer.
 
