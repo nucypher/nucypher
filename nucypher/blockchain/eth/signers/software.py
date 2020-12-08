@@ -355,18 +355,21 @@ class KeystoreSigner(Signer):
         Decrypt the signing material from the key metadata file and cache it on
         the keystore instance is decryption is successful.
         """
+        if not password:
+            # It is possible that password is None here passed from the above layer
+            # causing Account.decrypt to crash, expecting a value for password.
+            raise self.AccessDenied('No password supplied to unlock account.')
+
         if not self.__signers.get(account):
             try:
                 key_metadata = self.__keys[account]
-            except ValueError:
-                return False  # Decryption Failed
             except KeyError:
                 raise self.UnknownAccount(account=account)
-            else:
-                # TODO: It is possible that password is None here passed form the above leayer,
-                #       causing Account.decrypt to crash, expecting a value for password.
+            try:
                 signing_key = Account.from_key(Account.decrypt(key_metadata, password))
                 self.__signers[account] = signing_key
+            except ValueError as e:
+                raise self.AccessDenied("Invalid or incorrect signer password.") from e
         return True
 
     @validate_checksum_address
