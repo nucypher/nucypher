@@ -86,11 +86,13 @@ def create(character_flag, verifying_key, encrypting_key, nickname, force):
         emitter.error(f'--verifying-key, --encrypting-key, and --type are required with --force enabled.')
 
     # Card type
+    from constant_sorrow.constants import ALICE, BOB
+    flags = {'a': ALICE, 'b': BOB}
     if not character_flag:
-        from constant_sorrow.constants import ALICE, BOB
         choice = click.prompt('Enter Card Type - (A)lice or (B)ob', type=click.Choice(['a', 'b'], case_sensitive=False))
-        flags = {'a': ALICE, 'b': BOB}
         character_flag = flags[choice]
+    else:
+        character_flag = flags[character_flag]
 
     # Verifying Key
     if not verifying_key:

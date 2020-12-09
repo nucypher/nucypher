@@ -481,7 +481,7 @@ def grant(general_config,
     elif bool(value) and bool(rate):
         raise click.BadOptionUsage(option_name="--rate", message="Can't use --value if using --rate")
 
-    # Grantee validation
+    # Grantee selection
     if bob and any((bob_encrypting_key, bob_verifying_key)):
         message = '--bob cannot be used with --bob-encrypting-key or --bob-veryfying key'
         raise click.BadOptionUsage(option_name='--bob', message=message)
@@ -491,14 +491,11 @@ def grant(general_config,
         if card.character is not Bob:
             emitter.error('Grantee card is not a Bob.')
             raise click.Abort
-        bob_verifying_key = card.verifying_key.hex()
-        bob_encrypting_key = card.encrypting_key.hex()
-        emitter.message(f'{card.nickname or ("Bob #"+card.id.hex())}\n'
-                        f'Encrypting Key | {card.encrypting_key.hex()}\n'
-                        f'Verifying Key  | {card.verifying_key.hex()}',
-                        color='green')
+        paint_single_card(emitter=emitter, card=card)
         if not force:
             click.confirm('Is this the correct grantee (Bob)?', abort=True)
+        bob_encrypting_key = card.encrypting_key.hex()
+        bob_verifying_key = card.verifying_key.hex()
 
     # Interactive collection follows:
     # TODO: Extricate to support modules

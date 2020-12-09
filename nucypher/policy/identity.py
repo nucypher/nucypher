@@ -171,6 +171,8 @@ class Card:
             specification = cls._alice_specification
         elif character_flag == bytes(BOB):
             specification = cls._bob_specification
+        else:
+            raise RuntimeError(f'Unknown character card header ({character_flag}).')
         return BytestringKwargifier(cls, **specification)(card_bytes)
 
     @classmethod
