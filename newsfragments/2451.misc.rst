@@ -1,1 +1,0 @@
-Supplies `AccessDenied` exception class for better incorrect password handling.
