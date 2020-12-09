@@ -17,6 +17,7 @@
 
 
 import json
+import os
 
 import click
 from json.decoder import JSONDecodeError
@@ -37,6 +38,7 @@ from nucypher.cli.literature import (
     CONFIRM_URSULA_IPV4_ADDRESS
 )
 from nucypher.cli.types import IPV4_ADDRESS
+from nucypher.config.constants import NUCYPHER_ENVVAR_WORKER_IP_ADDRESS
 from nucypher.config.node import CharacterConfiguration
 from nucypher.utilities.networking import determine_external_ip_address, UnknownIPAddress
 
@@ -119,17 +121,24 @@ def handle_invalid_configuration_file(emitter: StdoutEmitter,
 def configure_external_ip_address(emitter: StdoutEmitter,
                                   network: str,
                                   force: bool = False) -> str:
-    try:
-        ip = determine_external_ip_address(network=network)
-    except UnknownIPAddress:
-        emitter.message('Failed to automatically determine external IP address - input required')
-        ip = click.prompt(COLLECT_URSULA_IPV4_ADDRESS, type=IPV4_ADDRESS)
+    ip = os.environ.get(NUCYPHER_ENVVAR_WORKER_IP_ADDRESS)
+    if ip:
+        message = f'Using IP address from {NUCYPHER_ENVVAR_WORKER_IP_ADDRESS} environment variable'
+        emitter.message(message, verbosity=2)
+    else:
+        try:
+            ip = determine_external_ip_address(network=network)
+        except UnknownIPAddress:
+            emitter.message('Failed to automatically determine external IP address - input required')
+            ip = click.prompt(COLLECT_URSULA_IPV4_ADDRESS, type=IPV4_ADDRESS)
     if not force:
-        click.confirm(CONFIRM_URSULA_IPV4_ADDRESS.format(rest_host=ip), abort=True)
+        if not click.confirm(CONFIRM_URSULA_IPV4_ADDRESS.format(rest_host=ip)):
+            ip = click.prompt(COLLECT_URSULA_IPV4_ADDRESS, type=IPV4_ADDRESS)
     return ip
 
 
 def perform_ip_checkup(emitter: StdoutEmitter, ursula, force: bool = False) -> None:
+
     external_ip = determine_external_ip_address(network=ursula.network)
     if external_ip != ursula.rest_host:
         error = f'External IP address ({external_ip}) does not match configuration ({ursula.rest_host})' \

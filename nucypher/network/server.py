@@ -113,20 +113,15 @@ def _make_rest_app(datastore: Datastore, this_node, domain: str, log: Logger) ->
 
     @rest_app.route("/public_information")
     def public_information():
-        """
-        REST endpoint for public keys and address.
-        """
-        response = Response(
-            response=bytes(this_node),
-            mimetype='application/octet-stream')
-
+        """REST endpoint for public keys and address."""
+        response = Response(response=bytes(this_node), mimetype='application/octet-stream')
         return response
 
     @rest_app.route("/ping", methods=['GET', 'POST'])
     def ping():
         """
-        GET: Asks this node: "What is my IP address"
-        POST: Asks this node: "Can you access my public information endpoint"?
+        GET: Asks this node: "What is my IP address?"
+        POST: Asks this node: "Can you access my public information endpoint?"
         """
 
         if request.method == 'GET':
@@ -145,7 +140,7 @@ def _make_rest_app(datastore: Datastore, this_node, domain: str, log: Logger) ->
             # Compare requester and posted Ursula information
             request_address = request.environ['REMOTE_ADDR']
             if request_address != initiator_address:
-                return Response({'error': 'Suspicious origin address'}, status=400)
+                return Response({'error': 'Origin address mismatch'}, status=400)
 
             #
             # Make a Sandwich
