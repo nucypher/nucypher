@@ -122,47 +122,53 @@ def _make_rest_app(datastore: Datastore, this_node, domain: str, log: Logger) ->
 
         return response
 
-    @rest_app.route("/ping", methods=['POST'])
+    @rest_app.route("/ping", methods=['GET', 'POST'])
     def ping():
         """
-        Asks this node: "Can you access my public information endpoint"?
+        GET: Asks this node: "What is my IP address"
+        POST: Asks this node: "Can you access my public information endpoint"?
         """
 
-        try:
-            requesting_ursula = Ursula.from_bytes(request.data)
-            requesting_ursula.mature()
-        except ValueError:  # (ValueError)
-            return Response({'error': 'Invalid Ursula'}, status=400)
-        else:
-            initiator_address, initiator_port = tuple(requesting_ursula.rest_interface)
+        if request.method == 'GET':
+            requester_ip_address = request.environ['REMOTE_ADDR']
+            return Response(requester_ip_address, status=200)
 
-        # Compare requester and posted Ursula information
-        request_address = request.environ['REMOTE_ADDR']
-        if request_address != initiator_address:
-            return Response({'error': 'Suspicious origin address'}, status=400)
+        elif request.method == 'POST':
+            try:
+                requesting_ursula = Ursula.from_bytes(request.data)
+                requesting_ursula.mature()
+            except ValueError:
+                return Response({'error': 'Invalid Ursula'}, status=400)
+            else:
+                initiator_address, initiator_port = tuple(requesting_ursula.rest_interface)
 
-        #
-        # Make a Sandwich
-        #
+            # Compare requester and posted Ursula information
+            request_address = request.environ['REMOTE_ADDR']
+            if request_address != initiator_address:
+                return Response({'error': 'Suspicious origin address'}, status=400)
 
-        try:
-            # Fetch and store initiator's teacher certificate.
-            certificate = this_node.network_middleware.get_certificate(host=initiator_address, port=initiator_port)
-            certificate_filepath = this_node.node_storage.store_node_certificate(certificate=certificate)
-            requesting_ursula_bytes = this_node.network_middleware.client.node_information(host=initiator_address,
-                                                                                           port=initiator_port,
-                                                                                           certificate_filepath=certificate_filepath)
-        except NodeSeemsToBeDown:
-            return Response({'error': 'Unreachable node'}, status=400)  # ... toasted
+            #
+            # Make a Sandwich
+            #
 
-        except InvalidNodeCertificate:
-            return Response({'error': 'Invalid TLS certificate - missing checksum address'}, status=400)  # ... invalid
+            try:
+                # Fetch and store initiator's teacher certificate.
+                certificate = this_node.network_middleware.get_certificate(host=initiator_address, port=initiator_port)
+                certificate_filepath = this_node.node_storage.store_node_certificate(certificate=certificate)
+                requesting_ursula_bytes = this_node.network_middleware.client.node_information(host=initiator_address,
+                                                                                               port=initiator_port,
+                                                                                               certificate_filepath=certificate_filepath)
+            except NodeSeemsToBeDown:
+                return Response({'error': 'Unreachable node'}, status=400)  # ... toasted
 
-        # Compare the results of the outer POST with the inner GET... yum
-        if requesting_ursula_bytes == request.data:
-            return Response(status=200)
-        else:
-            return Response({'error': 'Suspicious node'}, status=400)
+            except InvalidNodeCertificate:
+                return Response({'error': 'Invalid TLS certificate - missing checksum address'}, status=400)  # ... invalid
+
+            # Compare the results of the outer POST with the inner GET... yum
+            if requesting_ursula_bytes == request.data:
+                return Response(status=200)
+            else:
+                return Response({'error': 'Suspicious node'}, status=400)
 
     @rest_app.route('/node_metadata', methods=["GET"])
     def all_known_nodes():
