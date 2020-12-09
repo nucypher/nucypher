@@ -42,7 +42,10 @@ def contacts():
 @click.argument('query')
 @click.option('--qrcode', help="Display the QR code representing a card to the console", is_flag=True, default=None)
 def show(query, qrcode):
-    """View existing character card"""
+    """
+    Lookup and view existing character card
+    QUERY can be either the card id or nickname.
+    """
     emitter = StdoutEmitter()
     try:
         card = select_card(emitter=emitter, card_identifier=query)

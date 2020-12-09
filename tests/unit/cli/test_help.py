@@ -15,11 +15,13 @@ You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
+
 import click
 import pytest
 
 import nucypher
 from nucypher.blockchain.eth.sol.__conf__ import SOLIDITY_COMPILER_VERSION
+from nucypher.cli.commands.contacts import contacts, show
 from nucypher.cli.commands.deploy import deploy
 from nucypher.cli.main import ENTRY_POINTS, nucypher_cli
 from nucypher.config.constants import USER_LOG_DIR, DEFAULT_CONFIG_ROOT
@@ -93,3 +95,20 @@ def test_echo_logging_root(click_runner):
     result = click_runner.invoke(nucypher_cli, version_args, catch_exceptions=False)
     assert result.exit_code == 0
     assert USER_LOG_DIR in result.output, 'Log path text was not produced.'
+
+
+def test_contacts_help(click_runner):
+    command = ('contacts', '--help')
+    result = click_runner.invoke(nucypher_cli, command, catch_exceptions=False)
+    assert result.exit_code == 0, result.output
+    normalized_help_text = ' '.join(result.output.split())
+    assert contacts.__doc__ in normalized_help_text
+
+
+def test_contacts_show_help(click_runner):
+    command = ('contacts', 'show', '--help')
+    result = click_runner.invoke(nucypher_cli, command, catch_exceptions=False)
+    assert result.exit_code == 0, result.output
+    normalized_help_text = ' '.join(result.output.split())
+    normalized_docstring = ' '.join(show.__doc__.split())
+    assert normalized_docstring in normalized_help_text

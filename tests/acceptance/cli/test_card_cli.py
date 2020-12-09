@@ -22,7 +22,6 @@ import tempfile
 from pathlib import Path
 from umbral.keys import UmbralPrivateKey
 
-from nucypher.cli.commands.contacts import contacts
 from nucypher.cli.main import nucypher_cli
 from nucypher.policy.identity import Card
 
@@ -61,15 +60,6 @@ def bob_verifying_key():
 @pytest.fixture(scope='module')
 def bob_encrypting_key():
     return UmbralPrivateKey.gen_key().get_pubkey().hex()
-
-
-
-def test_contacts_help(click_runner):
-    command = ('contacts', '--help')
-    result = click_runner.invoke(nucypher_cli, command, catch_exceptions=False)
-    assert result.exit_code == 0, result.output
-    normalized_help_text = ' '.join(result.output.split())
-    assert contacts.__doc__ in normalized_help_text
 
 
 def test_list_cards_with_none_created(click_runner, certificates_tempdir):
