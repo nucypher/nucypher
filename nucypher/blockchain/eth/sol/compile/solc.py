@@ -36,7 +36,6 @@ def __execute(compiler_version: VersionString, input_config: Dict, allow_paths: 
 
     # Prepare Solc Command
     solc_binary_path: Path = get_executable(version=compiler_version)
-    SOLC_LOGGER.info(f"Compiling with base path")  # TODO: Add base path
 
     _allow_paths = ',' + ','.join(str(p) for p in allow_paths)
 
@@ -51,5 +50,11 @@ def __execute(compiler_version: VersionString, input_config: Dict, allow_paths: 
     except PermissionError:
         raise CompilationError(f"The solidity compiler binary at {solc_binary_path} is not executable. "
                                "Check the file's permissions.")
+
+    errors = compiler_output.get('errors')
+    if errors:
+        formatted = '\n'.join([error['formattedMessage'] for error in errors])
+        SOLC_LOGGER.warn(f"Errors during compilation: \n{formatted}")
+
     SOLC_LOGGER.info(f"Successfully compiled {len(compiler_output)} sources with {OPTIMIZER_RUNS} optimization runs")
     return compiler_output

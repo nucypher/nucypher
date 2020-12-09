@@ -134,17 +134,6 @@ class TesterBlockchain(BlockchainDeployerInterface):
         if eth_airdrop is True:  # ETH for everyone!
             self.ether_airdrop(amount=DEVELOPMENT_ETH_AIRDROP_AMOUNT)
 
-    # TODO: DRY this up
-    def connect(self, compile_now: bool = True, ignore_solidity_check: bool = False) -> bool:
-        super().connect()
-        if compile_now:
-            # Execute the compilation if we're recompiling
-            # Otherwise read compiled contract data from the registry.
-            check = not ignore_solidity_check
-            compiled_contracts = multiversion_compile(source_bundles=self.SOURCES, compiler_version_check=check)
-            self._raw_contract_cache = compiled_contracts
-        return self.is_connected
-
     def attach_middleware(self):
         if self.free_transactions:
             self.w3.eth.setGasPriceStrategy(free_gas_price_strategy)
