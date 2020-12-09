@@ -226,7 +226,7 @@ class Card:
             character=self.character.__name__
         )
         if self.character is Bob:
-            description['encrypting_key'] = bytes(self.encrypting_key).hex()[:truncate],
+            description['encrypting_key'] = bytes(self.encrypting_key).hex()[:truncate]
         return description
 
     def to_json(self, as_string: bool = True) -> Union[dict, str]:
