@@ -21,27 +21,22 @@ of security than software wallets.
 
 Mainnet Staking Procedure:
 
+#. Obtain NU (initially via :ref:`WorkLock <worklock-guide>` at launch)
 #. Install ``nucypher`` on Staker's machine (see :doc:`/guides/installation_guide`)
-#. Obtain a Stake with tokens (initially via :ref:`WorkLock <worklock-guide>` at launch)
-#. Initialize a new StakeHolder (see `Initialize a new stakeholder`_)
+#. Configure nucypher CLI for staking (see `Initialize a new stakeholder`_)
 #. Bond a Worker to your Staker using the worker's ethereum address (see `Bonding a Worker`_)
 
 .. note::
 
-    For testnets the typical staking procedure is:
-
-        #. Install ``nucypher`` on Staker's machine (see :doc:`/guides/installation_guide`)
-        #. Establish ethereum account, provider, and, optionally, signer (see `Staking`_)
-        #. Request testnet tokens by joining the `Discord server <https://discord.gg/7rmXa3S>`_ and type ``.getfunded <YOUR_STAKER_ETH_ADDRESS>`` in the #testnet-faucet channel
-        #. Initialize a new StakeHolder and Stake (see `Initialize a new stakeholder`_)
-        #. Initialize a new stake (see `Initialize a new stake`_)
-        #. Bond a Worker to a Staker using the worker's ethereum address (see `Bonding a Worker`_)
+    If you are running a testnet node, Testnet tokens can be obtained by joining the
+    `Discord server <https://discord.gg/7rmXa3S>`_ and typing ``.getfunded <YOUR_STAKER_ETH_ADDRESS>``
+    in the #testnet-faucet channel
 
 
 Staking CLI
 ------------
 
-All staking-related operations done by Staker are performed through the ``nucypher stake`` command:
+All staking-related operations can be executed through the ``nucypher stake`` command:
 
 .. code:: bash
 
@@ -97,8 +92,6 @@ All staking-related operations done by Staker are performed through the ``nucyph
 +-----------------+--------------------------------------------+
 |  ``--index``    | Stake index                                |
 +-----------------+--------------------------------------------+
-| ``--hw-wallet`` | Use a hardware wallet                      |
-+-----------------+--------------------------------------------+
 
 **Re-stake Command Options**
 
@@ -116,40 +109,66 @@ All staking-related operations done by Staker are performed through the ``nucyph
 Staking
 --------
 
-Running an Ethereum Node for Staking
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Establish an ethereum provider
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Staking transactions can be broadcasted using either a local or remote ethereum node. See
 :ref:`using-eth-node` for more information.
 
+.. note::
 
-Using External Signing
-**********************
+    for local geth node operators the default location of geth's IPC file
+    is ``/home/<username>/.ethereum/geth.ipc``  (on MacOS, ``ipc:///Users/<username>/Library/Ethereum/geth.ipc``)
 
-By default, transaction signing requests are forwarded to the configured ethereum provider. This is the typical
-configuration for locally or independently run ethereum nodes. To use a remote ethereum provider
-(e.g. Alchemy, Infura, Public Remote Node) an external transaction signing client (e.g. ``clef`` or ``geth``) is needed
-separate from the broadcasting node.
 
-Using Clef
-++++++++++
+Choosing a Transaction Singer
+*****************************
+
+By default, all transaction and message signing requests are forwarded to the configured ethereum provider.
+To use a remote ethereum provider (e.g. Alchemy, Infura, Public Remote Node) an transaction signer
+(e.g. ``clef`` or ``geth``) must be configured in addition to the broadcasting node.
+
+.. code:: bash
+
+    $ nucypher <COMMAND> <ACTION> --signer <SIGNER_URI>
+
+Trezor Signer
++++++++++++++
+
+This is the top recommendation.
+
+.. code:: bash
+
+    $ nucypher <COMMAND> <ACTION> --signer trezor
+
+Keystore File Signer
+++++++++++++++++++++
+
+Not recommended for mainnet.
+
+.. code:: bash
+
+    $ nucypher <COMMAND> <ACTION> --signer keystore://<ABSOLUTE PATH TO KEYFILE>
+
+
+Clef Signer
++++++++++++
+
+Clef can be used as an external transaction signer with nucypher supporting both hardware (ledger & trezor) and software wallets.
 See :ref:`signing-with-clef` for setting up Clef. By default, all requests to the clef signer require manual
 confirmation. This includes not only transactions but also more innocuous requests such as listing the accounts
 that the signer is handling. This means, for example, that a command like ``nucypher stake accounts`` will first ask
 for user confirmation in the clef CLI before showing the staker accounts. You can automate this confirmation by
 using :ref:`clef-rules`.
 
+.. note::
 
-Using Clef with nucypher commands
-+++++++++++++++++++++++++++++++++
-
-.. code:: bash
-
-    $ nucypher <COMMAND> <ACTION> --signer <CLEF IPC PATH> --hw-wallet
-
-Some examples:
+    The default location for the clef IPC file is ``/home/<username>/.clef/clef.ipc``
+      (on MacOS, ``/Users/<username>/Library/Signer/clef.ipc``)
 
 .. code:: bash
+
+    $ nucypher <COMMAND> <ACTION> --signer clef://<CLEF IPC PATH> --hw-wallet
 
     # Create a new stakeholder with clef as the default signer
     $ nucypher stake init-stakeholder --signer clef:///home/<username>/.clef/clef.ipc ...
@@ -164,38 +183,28 @@ Some examples:
 Initialize a new stakeholder
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Before continuing with stake initiation and management, A setup step is required to configure nucypher for staking.
-This will create a configuration file (`~/.local/share/nucypher/stakeholder.json`) containing editable configuration values.
+Before continuing with stake initiation, A setup step is required to configure nucypher for staking.
+This will create a JSON configuration file (`~/.local/share/nucypher/stakeholder.json`) containing editable
+configuration values.
 
 .. code:: bash
 
-    (nucypher)$ nucypher stake init-stakeholder --signer <SIGNER URI> --provider <PROVIDER> --network <NETWORK_NAME>
+    (nucypher)$ nucypher stake init-stakeholder --signer <SIGNER URI> --provider <PROVIDER>
 
-where:
-
-    * If you utilized :ref:`signing-with-clef`, the ``SIGNER URI`` is ``clef:///home/<username>/.clef/clef.ipc``
-      (on MacOS, ``ipc:///Users/<username>/Library/Signer/clef.ipc``)
-    * If you ran ``geth`` node as above, your ``<PROVIDER>`` is ``ipc:///home/<username>/.ethereum/geth.ipc``
-      (on MacOS, ``ipc:///Users/<username>/Library/Ethereum/geth.ipc``)
-    * ``<NETWORK_NAME>`` is the name of the NuCypher network domain where the staker will participate.
-
-
-.. note:: If you are using NuCypher's testnet, this name is ``ibex``.
+.. note:: If you are using NuCypher's Rinkeby testnet, passing the network name is rquired ``--network ibex``.
 
 
 Initialize a new stake
 ~~~~~~~~~~~~~~~~~~~~~~
 
 Once you have configured nucypher for staking, you can proceed with stake initiation.
-This operation will transfer an amount of tokens to nucypher's staking escrow contract and lock them for
+This operation will transfer NU to nucypher's staking escrow contract, locking for
 the commitment period.
-
-.. note:: Use ``--hw-wallet`` if you are using a hardware wallet or clef to prevent password prompts.
 
 .. code:: bash
 
 
-    (nucypher)$ nucypher stake create --hw-wallet
+    (nucypher)$ nucypher stake create
 
         Account
     --  ------------------------------------------
@@ -288,7 +297,7 @@ There is a 1:1 relationship between the roles: A Staker may have multiple Stakes
 
 .. code:: bash
 
-    (nucypher)$ nucypher stake bond-worker --hw-wallet
+    (nucypher)$ nucypher stake bond-worker
 
             Account
     --  ------------------------------------------
@@ -604,22 +613,21 @@ Additional command line flags are available for one-line operation:
 +--------------------+----------------+--------------+
 
 
-Stake 30000 NU for 90 Periods
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Stake 30000 NU for 90 Periods:
 
 .. code:: bash
 
-    (nucypher)$ nucypher stake create --value 30000 --duration 90 --hw-wallet
+    (nucypher)$ nucypher stake create --value 30000 --duration 90
     ...
 
 
-Divide stake at index 0, at 15000 NU for 30 additional Periods
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Divide stake at index 0, at 15000 NU for 30 additional Periods:
 
 .. code:: bash
 
-    (nucypher)$ nucypher stake divide --index 0 --value 15000 --duration 30 --hw-wallet
+    (nucypher)$ nucypher stake divide --index 0 --value 15000 --duration 30
     ...
+
 
 Worker configuration
 ------------------------
