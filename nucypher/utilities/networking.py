@@ -15,42 +15,57 @@
  along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
-import click
-import requests
 
-from nucypher.cli.literature import CONFIRM_URSULA_IPV4_ADDRESS, COLLECT_URSULA_IPV4_ADDRESS, \
-    FORCE_DETECT_URSULA_IP_WARNING
-from nucypher.cli.types import IPV4_ADDRESS
+import requests
+from requests.exceptions import RequestException, HTTPError
+from typing import Union
+
+from nucypher.network.middleware import RestMiddleware
 
 
 class UnknownIPAddress(RuntimeError):
     pass
 
 
-def get_external_ip_from_centralized_source() -> str:
-    ip_request = requests.get('https://ifconfig.me/')
-    if ip_request.status_code == 200:
-        return ip_request.text
-    raise UnknownIPAddress(f"There was an error determining the IP address automatically. "
-                           f"(status code {ip_request.status_code})")
+RequestErrors = (
+    # https://requests.readthedocs.io/en/latest/user/quickstart/#errors-and-exceptions
+    ConnectionError,
+    TimeoutError,
+    RequestException,
+    HTTPError
+)
 
 
-def determine_external_ip_address(emitter, force: bool = False) -> str:
-    """
-    Attempts to automatically get the external IP from ifconfig.me
-    If the request fails, it falls back to the standard process.
-    """
+def get_external_ip_from_url_source(url: str) -> Union[str, None]:
     try:
-        rest_host = get_external_ip_from_centralized_source()
-    except UnknownIPAddress:
-        if force:
-            raise
-    else:
-        # Interactive
-        if not force:
-            if not click.confirm(CONFIRM_URSULA_IPV4_ADDRESS.format(rest_host=rest_host)):
-                rest_host = click.prompt(COLLECT_URSULA_IPV4_ADDRESS, type=IPV4_ADDRESS)
-        else:
-            emitter.message(FORCE_DETECT_URSULA_IP_WARNING.format(rest_host=rest_host), color='yellow')
+        response = requests.get(url)
+    except RequestErrors:
+        return None
+    if response.status_code == 200:
+        return response.text
 
-        return rest_host
+
+def get_external_ip_from_default_teacher(network: str) -> Union[str, None]:
+    endpoint = f'{RestMiddleware.TEACHER_NODES[network]}/ping'
+    ip = get_external_ip_from_url_source(url=endpoint)
+    return ip
+
+
+def get_external_ip_from_centralized_source() -> str:
+    endpoint = 'https://ifconfig.me/'
+    ip = get_external_ip_from_url_source(url=endpoint)
+    return ip
+
+
+def determine_external_ip_address(network: str) -> str:
+    """
+    Attempts to automatically get the external IP from the default teacher.
+    If the request fails, it falls back to a centralized service.  If the IP address cannot be determined
+    for any reason UnknownIPAddress is raised.
+    """
+    rest_host = get_external_ip_from_default_teacher(network=network)
+    if not rest_host:  # fallback
+        rest_host = get_external_ip_from_centralized_source()
+    if not rest_host:  # fallback failure
+        raise UnknownIPAddress('External IP address detection failed')
+    return rest_host

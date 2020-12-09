@@ -388,8 +388,6 @@ START_LOADING_SEEDNODES = "Connecting to preferred teacher nodes..."
 
 UNREADABLE_SEEDNODE_ADVISORY = "Failed to connect to teacher: {uri}"
 
-FORCE_DETECT_URSULA_IP_WARNING = "WARNING: --force is set, using auto-detected IP '{rest_host}'"
-
 NO_DOMAIN_PEERS = "WARNING: No Peers Available for domain: {domain}"
 
 SEEDNODE_NOT_STAKING_WARNING = "Teacher ({uri}) is not actively staking, skipping"

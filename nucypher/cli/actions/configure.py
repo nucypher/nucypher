@@ -32,9 +32,13 @@ from nucypher.cli.literature import (
     MISSING_CONFIGURATION_FILE,
     SUCCESSFUL_DESTRUCTION,
     SUCCESSFUL_FORGET_NODES,
-    SUCCESSFUL_UPDATE_CONFIGURATION_VALUES
+    SUCCESSFUL_UPDATE_CONFIGURATION_VALUES,
+    COLLECT_URSULA_IPV4_ADDRESS,
+    CONFIRM_URSULA_IPV4_ADDRESS
 )
+from nucypher.cli.types import IPV4_ADDRESS
 from nucypher.config.node import CharacterConfiguration
+from nucypher.utilities.networking import determine_external_ip_address, UnknownIPAddress
 
 
 def forget(emitter: StdoutEmitter, configuration: CharacterConfiguration) -> None:
@@ -110,3 +114,29 @@ def handle_invalid_configuration_file(emitter: StdoutEmitter,
         emitter.message(INVALID_JSON_IN_CONFIGURATION_WARNING.format(filepath=filepath))
         # ... sorry.. we tried as hard as we could
         raise  # crash :-(
+
+
+def configure_external_ip_address(emitter: StdoutEmitter,
+                                  network: str,
+                                  force: bool = False) -> str:
+    try:
+        ip = determine_external_ip_address(network=network)
+    except UnknownIPAddress:
+        emitter.message('Failed to automatically determine external IP address - input required')
+        ip = click.prompt(COLLECT_URSULA_IPV4_ADDRESS, type=IPV4_ADDRESS)
+    if not force:
+        click.confirm(CONFIRM_URSULA_IPV4_ADDRESS.format(rest_host=ip), abort=True)
+    return ip
+
+
+def perform_ip_checkup(emitter: StdoutEmitter, ursula, force: bool = False) -> None:
+    external_ip = determine_external_ip_address(network=ursula.network)
+    if external_ip != ursula.rest_host:
+        error = f'External IP address ({external_ip}) does not match configuration ({ursula.rest_host})' \
+                f"\nRun 'nucypher ursula config ip' to reconfigure the IP address then try " \
+                f"again or use --force to bypass this check."
+        emitter.error(error)
+        if not force:
+            raise click.Abort()
+    else:
+        emitter.message('✓ External IP matches configuration', 'green')
