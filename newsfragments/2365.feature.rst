@@ -1,0 +1,1 @@
+- nucypher cloudworkers now contains a complete and comprehensive set of features for easily managing, backing up and restoring one to many workers

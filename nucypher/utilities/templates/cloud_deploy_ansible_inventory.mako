@@ -17,6 +17,7 @@ all:
                 NUCYPHER_KEYRING_PASSWORD: ${deployer.config['keyringpassword']}
                 NUCYPHER_WORKER_ETH_PASSWORD: ${deployer.config['ethpassword']}
                 nucypher_image: ${deployer.config['nucypher_image']}
+                gas_strategy: ${deployer.config['gas_strategy']}
                 blockchain_provider: ${deployer.config['blockchain_provider']}
                 node_is_decentralized: ${deployer.nodes_are_decentralized}
                 %if deployer.config.get('use-prometheus'):
@@ -26,26 +27,35 @@ all:
                 %endif
                 %if deployer.config.get('seed_node'):
                 SEED_NODE_URI: ${deployer.config['seed_node']}
+                teacher_options: --teacher ${deployer.config['seed_node']}
                 %else:
                 SEED_NODE_URI:
+                teacher_options: ""
                 %endif
                 %if deployer.config.get('sentry_dsn'):
                 SENTRY_DSN: ${deployer.config['sentry_dsn']}
+                NUCYPHER_SENTRY_LOGS: yes
                 %endif
-                wipe_nucypher_config: ${wipe_nucypher}
+                wipe_nucypher_config: ${extra.get('wipe_nucypher', False)}
+                deployer_config_path: ${deployer.config_dir}
+                restore_path: ${extra.get('restore_path')}
               hosts:
                 %for node in nodes:
-                ${node.publicaddress}:
-                  %for attr in node.provider_deploy_attrs:
-                  ${attr.key}: ${attr.value}
+                ${node['publicaddress']}:
+                  host_nickname: ${node['host_nickname']}
+                  %for attr in node['provider_deploy_attrs']:
+                  ${attr['key']}: ${attr['value']}
                   %endfor
-                  % if node.blockchain_provider:
-                  blockchain_provider: {{node.blockchain_provider}}
+                  % if node.get('blockchain_provider'):
+                  blockchain_provider: ${node['blockchain_provider']}
                   %endif
-                  %if node.nucypher_image:
-                  nucypher_image: ${node.nucypher_image}
+                  %if node.get('nucypher_image'):
+                  nucypher_image: ${node['nucypher_image']}
                   %endif
-                  %if node.sentry_dsn:
-                  sentry_dsn: ${node.sentry_dsn}
+                  %if node.get('sentry_dsn'):
+                  sentry_dsn: ${node['sentry_dsn']}
+                  %endif
+                  %if node.get('gas_strategy'):
+                  gas_strategy: ${node['gas_strategy']}
                   %endif
                 %endfor

@@ -10,3 +10,4 @@
 - import_playbook: include/init_ursula.yml
 - import_playbook: include/run_ursula.yml
 - import_playbook: include/check_running_ursula.yml
+- import_playbook: include/backup_ursula_data.yml

@@ -3,11 +3,41 @@
   remote_user: "{{default_user}}"
   gather_facts: no
   tasks:
+
     - name: Get public ip
       uri:
         url: http://ifconfig.me/ip
         return_content: yes
       register: ip_response
+
+    - name: "Get LogPath"
+      become: yes
+      shell:
+        cmd: docker ps --no-trunc | grep ursula | cut -f 1 -d " "
+      register: ursula_container_name
+
+    - name: "Wait for Ursula Log"
+      become: yes
+      lineinfile:
+        dest: "/var/lib/docker/containers/{{ursula_container_name['stdout']}}/{{ursula_container_name['stdout']}}-json.log"
+        line: "Working ~ Keep Ursula Online!"
+      check_mode: yes
+      register: serving
+
+    - name: "Read Ursula Log"
+      become: yes
+      command: docker logs ursula
+      register: ursula_logs
+
+    - name: "Get Current running Image"
+      become: yes
+      command: sudo docker ps --no-trunc --format \"\{\{.Image\}\}\"
+      register: running_docker_image
+
+    - name: "Get Current running Command"
+      become: yes
+      command: sudo docker ps --no-trunc --format \"\{\{.Command\}\}\"
+      register: running_docker_command
 
     - name: "Request Ursula Status"
       become: yes
@@ -15,18 +45,22 @@
         url: "https://{{ip_response.content}}:9151/status/?json=true"
         validate_certs: no
       register: status_data
+      ignore_errors: yes
+      when: serving
 
-    - name: Print Result
+    - name: Print Ursula Status Data
+      ignore_errors: no
       debug:
         msg:
-          "{{status_data.json.nickname}}\n
-          nucypher version:      {{status_data.json.version}}\n
-          staker address:        {{status_data.json.staker_address}}\n
-          worker address:        {{status_data.json.worker_address}}\n
-          rest url:              https://{{status_data.json.rest_url}}\n
-          missing commitments:   {{status_data.json.missing_commitments}}\n
-          last committed period: {{status_data.json.last_committed_period}}\n
-          balances:\n
-            ETH:                {{status_data.json.balances.eth}}\n
-            NU:                 {{status_data.json.balances.nu}}\n
-          {{inventory_hostname}}:worker address:{{status_data.json.worker_address}}\n"
+          "local nickname: {{host_nickname}}\n
+          {% if serving and 'json' in status_data %}nickname: {{status_data.json.nickname}}\n
+          staker address:          {{status_data.json.staker_address}}\n
+          worker address:          {{status_data.json.worker_address}}\n
+          rest url:                https://{{status_data.json.rest_url}}\n
+          \tmissing commitments:   {{status_data.json.missing_commitments}}\n
+          \tlast committed period: {{status_data.json.last_committed_period}}\n
+          \tETH:                   {{status_data.json.balances.eth}}\n{% endif %}
+          \tprovider:              {{blockchain_provider}}\n
+          \tursula docker image:   {{running_docker_image.stdout}}\n
+          \tursula command:        {{running_docker_command.stdout}}\n
+          \tlast log line:         {{ursula_logs['stdout_lines'][-1]}}\n"

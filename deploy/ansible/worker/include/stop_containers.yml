@@ -5,7 +5,6 @@
   tasks:
     - name: Stop Ursula
       become: yes
-      become_user: nucypher
       docker_container:
         name: ursula
         state: stopped

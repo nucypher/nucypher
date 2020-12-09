@@ -1,0 +1,92 @@
+- import_playbook: include/setup_user.yml
+- import_playbook: include/setup_docker.yml
+- import_playbook: include/stop_containers.yml
+
+- name: "Restore from local backup of remote Ursula data"
+  hosts: "{{ play_hosts }}"
+  remote_user: "{{default_user}}"
+  gather_facts: no
+  tasks:
+
+    - name: Remove Existing Data
+      become: yes
+      file:
+        state: absent
+        path: "{{item}}"
+      with_items:
+        - "{{geth_dir}}keystore"
+        - /home/nucypher/nucypher/ursula.db
+        - /home/nucypher/nucypher/keyring/
+        - "{{geth_dir}}account.txt"
+        - home/nucypher/nucypher/ursula.json
+
+    - name: Ensure directories exist
+      become: yes
+      file:
+        state: directory
+        path: "{{item}}"
+      with_items:
+        - "{{geth_dir}}keystore"
+        - /home/nucypher/nucypher/ursula.db
+        - /home/nucypher/nucypher/keyring/private
+        - /home/nucypher/nucypher/keyring/public
+
+    - name: Restore Geth Keystore
+      become: yes
+      copy:
+        src: "{{ item }}"
+        dest: "{{geth_dir}}keystore/"
+        owner: "nucypher"
+        mode: 0600
+      with_fileglob:
+        - "{{restore_path}}{{geth_dir}}keystore/*"
+
+    - name: Restore private keyring
+      become: yes
+      copy:
+        src: "{{ item }}"
+        dest: /home/nucypher/nucypher/keyring/private/
+        owner: "nucypher"
+        mode: 0600
+      with_fileglob:
+        - "{{restore_path}}/home/nucypher/nucypher/keyring/private/*"
+
+    - name: Restore public keyring
+      become: yes
+      copy:
+        src: "{{ item }}"
+        dest: /home/nucypher/nucypher/keyring/public/
+        owner: "nucypher"
+        mode: 0600
+      with_fileglob:
+        - "{{restore_path}}/home/nucypher/nucypher/keyring/public/*"
+
+    - name: Restore Ursula database files
+      become: yes
+      copy:
+        src: "{{ item }}"
+        dest: /home/nucypher/nucypher/ursula.db/
+        owner: "nucypher"
+        mode: 0600
+      with_fileglob:
+        - "{{restore_path}}/home/nucypher/nucypher/ursula.db/*"
+
+    - name: Restore Ursula Config
+      become: yes
+      copy:
+        src: "{{restore_path}}/home/nucypher/nucypher/ursula.json"
+        dest: /home/nucypher/nucypher/
+        owner: "nucypher"
+        mode: 0600
+
+    - name: Restore Checksum
+      become: yes
+      copy:
+        src: "{{restore_path}}{{geth_dir}}account.txt"
+        dest: "{{geth_dir}}account.txt"
+        owner: "nucypher"
+        mode: 0600
+
+- import_playbook: include/update_existing_ursula.yml
+- import_playbook: include/check_running_ursula.yml
+- import_playbook: include/backup_ursula_data.yml
