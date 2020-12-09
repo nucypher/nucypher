@@ -564,10 +564,8 @@ class Policy(ABC):
         selected_ursulas = set(handpicked_ursulas) if handpicked_ursulas else set()
 
         # Calculate the target sample quantity
-        target_sample_quantity = self.n - len(selected_ursulas)
-        if target_sample_quantity > 0:
-            sampled_ursulas = self.sample_essential(quantity=target_sample_quantity,
-                                                    handpicked_ursulas=selected_ursulas,
+        if self.n - len(selected_ursulas) > 0:
+            sampled_ursulas = self.sample_essential(handpicked_ursulas=selected_ursulas,
                                                     discover_on_this_thread=discover_on_this_thread)
             selected_ursulas.update(sampled_ursulas)
 
@@ -625,15 +623,17 @@ class FederatedPolicy(Policy):
             raise self.MoreKFragsThanArrangements(error)  # TODO: NotEnoughUrsulas where in the exception tree is this?
 
     def sample_essential(self,
-                         quantity: int,
                          handpicked_ursulas: Set[Ursula],
                          discover_on_this_thread: bool = True) -> Set[Ursula]:
-        self.alice.block_until_number_of_known_nodes_is(quantity, learn_on_this_thread=discover_on_this_thread)
+
+        self.alice.block_until_specific_nodes_are_known(set(ursula.checksum_address for ursula in handpicked_ursulas))
+        self.alice.block_until_number_of_known_nodes_is(self.n, learn_on_this_thread=discover_on_this_thread)
         known_nodes = self.alice.known_nodes
         if handpicked_ursulas:
             # Prevent re-sampling of handpicked ursulas.
             known_nodes = set(known_nodes) - handpicked_ursulas
-        sampled_ursulas = set(random.sample(k=quantity, population=list(known_nodes)))
+        sampled_ursulas = set(random.sample(k=self.n - len(handpicked_ursulas),
+                                            population=list(known_nodes)))
         return sampled_ursulas
 
     def make_arrangement(self, ursula: Ursula, *args, **kwargs):
@@ -727,58 +727,63 @@ class BlockchainPolicy(Policy):
         return params
 
     def sample_essential(self,
-                         quantity: int,
                          handpicked_ursulas: Set[Ursula],
                          learner_timeout: int = 1,
                          timeout: int = 10,
                          discover_on_this_thread: bool = False) -> Set[Ursula]: # TODO #843: Make timeout configurable
 
-        selected_ursulas = set(handpicked_ursulas)
-        quantity_remaining = quantity
-
-        # Need to sample some stakers
-
         handpicked_addresses = [ursula.checksum_address for ursula in handpicked_ursulas]
         reservoir = self.alice.get_stakers_reservoir(duration=self.duration_periods,
                                                      without=handpicked_addresses)
+
+        quantity_remaining = self.n - len(handpicked_ursulas)
         if len(reservoir) < quantity_remaining:
-            error = f"Cannot create policy with {quantity} arrangements"
+            error = f"Cannot create policy with {self.n} arrangements"
             raise self.NotEnoughBlockchainUrsulas(error)
 
-        to_check = set(reservoir.draw(quantity_remaining))
+        # Handpicked Ursulas are not necessarily known
+        to_check = list(handpicked_ursulas) + reservoir.draw(quantity_remaining)
+        checked = []
 
         # Sample stakers in a loop and feed them to the learner to check
         # until we have enough in `selected_ursulas`.
 
         start_time = maya.now()
-        new_to_check = to_check
 
         while True:
 
             # Check if the sampled addresses are already known.
             # If we're lucky, we won't have to wait for the learner iteration to finish.
-            known = {x for x in to_check if x in self.alice.known_nodes}
-            to_check = to_check - known
+            checked += [x for x in to_check if x in self.alice.known_nodes]
+            to_check = [x for x in to_check if x not in self.alice.known_nodes]
 
-            known = random.sample(known, min(len(known), quantity_remaining)) # we only need so many
-            selected_ursulas.update([self.alice.known_nodes[address] for address in known])
-            quantity_remaining -= len(known)
-
-            if quantity_remaining == 0:
+            if len(checked) >= self.n:
                 break
-            else:
-                new_to_check = reservoir.draw_at_most(quantity_remaining)
-                to_check.update(new_to_check)
+
+            # The number of new nodes to draw on each iteration.
+            # The choice of this depends on how expensive it is to check a node for validity,
+            # and how likely is it for a picked node to be offline.
+            # We assume here that it is unlikely, and be conservative.
+            drawing_step = self.n - len(checked)
+
+            # Draw a little bit more nodes, if there are any
+            to_check += reservoir.draw_at_most(drawing_step)
 
             delta = maya.now() - start_time
             if delta.total_seconds() >= timeout:
                 still_checking = ', '.join(to_check)
+                quantity_remaining = self.n - len(checked)
                 raise RuntimeError(f"Timed out after {timeout} seconds; "
                                    f"need {quantity_remaining} more, still checking {still_checking}.")
 
-            self.alice.block_until_specific_nodes_are_known(to_check, learn_on_this_thread=discover_on_this_thread)
+            self.alice.block_until_specific_nodes_are_known(to_check,
+                                                            learn_on_this_thread=discover_on_this_thread,
+                                                            allow_missing=len(to_check),
+                                                            timeout=learner_timeout)
 
-        found_ursulas = list(selected_ursulas)
+        # We only need `n` nodes. Pick the first `n` ones,
+        # since they were the first drawn, and hence have the priority.
+        found_ursulas = [self.alice.known_nodes[address] for address in checked[:self.n]]
 
         # Randomize the output to avoid the largest stakers always being the first in the list
         system_random = random.SystemRandom()
