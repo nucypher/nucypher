@@ -42,12 +42,20 @@ class Card:
     A simple serializable representation of a character's public materials.
     """
 
-    _specification = dict(
+    _alice_specification = dict(
+        character_flag=(bytes, 8),
+        verifying_key=(UmbralPublicKey, 33),
+        nickname=(bytes, VariableLengthBytestring),
+    )
+
+
+    _bob_specification = dict(
         character_flag=(bytes, 8),
         verifying_key=(UmbralPublicKey, 33),
         encrypting_key=(UmbralPublicKey, 33),
         nickname=(bytes, VariableLengthBytestring),
     )
+
 
     __CARD_TYPES = {
         bytes(ALICE): Alice,
@@ -56,10 +64,11 @@ class Card:
 
     __ID_LENGTH = 10  # TODO: Review this size (bytes of hex len?)
     __MAX_NICKNAME_SIZE = 10
-    __BASE_PAYLOAD_SIZE = sum(length[1] for length in _specification.values() if isinstance(length[1], int))
+    __BASE_PAYLOAD_SIZE = sum(length[1] for length in _bob_specification.values() if isinstance(length[1], int))
     __MAX_CARD_LENGTH = __BASE_PAYLOAD_SIZE + __MAX_NICKNAME_SIZE + 2
     __FILE_EXTENSION = 'card'
     __DELIMITER = ':'  # delimits nickname from ID
+    TRUNCATE = 16
     CARD_DIR = Path(DEFAULT_CONFIG_ROOT) / 'cards'
     NO_SIGNATURE.bool_value(False)
 
@@ -98,7 +107,6 @@ class Card:
         self.__nickname = nickname
 
         self.__validate()
-        self.card_dir = card_dir
 
     def __repr__(self) -> str:
         name = self.nickname or f'{self.__character_class.__name__}'
@@ -126,7 +134,7 @@ class Card:
 
     @property
     def character(self):
-        return self.__CARD_TYPES[self.__character_flag]
+        return self.__CARD_TYPES[bytes(self.__character_flag)]
 
     #
     # Serializers
@@ -144,11 +152,12 @@ class Card:
 
     @property
     def __payload(self) -> bytes:
-        elements = (
+        elements = [
             self.__character_flag,
             self.__verifying_key,
-            self.__encrypting_key,
-        )
+        ]
+        if self.character is Bob:
+            elements.append(self.__encrypting_key)
         payload = b''.join(bytes(e) for e in elements)
         return payload
 
@@ -157,7 +166,12 @@ class Card:
         if len(card_bytes) > cls.__MAX_CARD_LENGTH:
             raise cls.InvalidCard(f'Card exceeds maximum size (max is {cls.__MAX_CARD_LENGTH} bytes card is {len(card_bytes)} bytes). '
                                   f'Verify the card filepath and contents.')
-        return BytestringKwargifier(cls, **cls._specification)(card_bytes)
+        character_flag = card_bytes[:8]
+        if character_flag == bytes(ALICE):
+            specification = cls._alice_specification
+        elif character_flag == bytes(BOB):
+            specification = cls._bob_specification
+        return BytestringKwargifier(cls, **specification)(card_bytes)
 
     @classmethod
     def from_hex(cls, hexdata: str):
@@ -202,14 +216,15 @@ class Card:
         )
         return payload
 
-    def describe(self, truncate: int = 16) -> Dict:
+    def describe(self, truncate: int = TRUNCATE) -> Dict:
         description = dict(
             nickname=self.__nickname,
             id=self.id.hex(),
             verifying_key=bytes(self.verifying_key).hex()[:truncate],
-            encrypting_key=bytes(self.encrypting_key).hex()[:truncate],
             character=self.character.__name__
         )
+        if self.character is Bob:
+            description['encrypting_key'] = bytes(self.encrypting_key).hex()[:truncate],
         return description
 
     def to_json(self, as_string: bool = True) -> Union[dict, str]:
@@ -271,7 +286,7 @@ class Card:
     def filepath(self) -> Path:
         identifier = f'{self.nickname}{self.__DELIMITER}{self.id.hex()}' if self.__nickname else self.id.hex()
         filename = f'{identifier}.{self.__FILE_EXTENSION}'
-        filepath = self.card_dir / filename
+        filepath = self.CARD_DIR / filename
         return filepath
 
     @property
@@ -280,7 +295,7 @@ class Card:
         return exists
 
     def save(self, encoder: Callable = base64.b64encode, overwrite: bool = False) -> Path:
-        if not self.card_dir.exists():
+        if not self.CARD_DIR.exists():
             os.mkdir(str(self.card_dir))
         if self.is_saved and not overwrite:
             raise FileExistsError('Card exists. Pass overwrite=True to allow this operation.')
@@ -307,10 +322,12 @@ class Card:
     def load(cls,
              filepath: Optional[Path] = None,
              identifier: str = None,
-             card_dir: Path = CARD_DIR,
+             card_dir: Path = None,
              decoder: Callable = base64.b64decode
              ) -> 'Card':
 
+        if not card_dir:
+            card_dir = cls.CARD_DIR
         if filepath and identifier:
             raise ValueError(f'Pass either filepath or identifier, not both.')
         if not filepath:

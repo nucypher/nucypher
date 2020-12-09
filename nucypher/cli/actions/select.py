@@ -301,7 +301,7 @@ def select_card(emitter, card_identifier: str = None, nickname: str = None) -> C
             card = Card.load(filepath=filepath)
             cards.append(card)
         paint_cards(emitter=emitter, cards=cards, as_table=True)
-        selection = click.prompt('Select card', type=click.IntRange(0, len(cards)-1))
+        selection = click.prompt('Select card', type=click.IntRange(0, len(cards)))
         card = cards[selection]
     else:
         card = Card.load(identifier=card_identifier or nickname)

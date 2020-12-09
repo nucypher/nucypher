@@ -66,8 +66,7 @@ def _list():
                       f"To create one run 'nucypher {contacts.name} {create.name}'.")
     cards = list()
     for filename in card_filepaths:
-        card_id, ext = filename.split('.')
-        card = Card.load(identifier=card_id)
+        card = Card.load(filepath=Card.CARD_DIR / filename)
         cards.append(card)
     paint_cards(emitter=emitter, cards=cards, as_table=True)
 
@@ -82,35 +81,43 @@ def create(character_flag, verifying_key, encrypting_key, nickname, force):
     """Store a new character card"""
     emitter = StdoutEmitter()
 
+    # Validate
     if not all((character_flag, verifying_key, encrypting_key)) and force:
         emitter.error(f'--verifying-key, --encrypting-key, and --type are required with --force enabled.')
 
+    # Card type
     if not character_flag:
         from constant_sorrow.constants import ALICE, BOB
         choice = click.prompt('Enter Card Type - (A)lice or (B)ob', type=click.Choice(['a', 'b'], case_sensitive=False))
         flags = {'a': ALICE, 'b': BOB}
         character_flag = flags[choice]
 
+    # Verifying Key
     if not verifying_key:
         verifying_key = click.prompt('Enter Verifying Key', type=UMBRAL_PUBLIC_KEY_HEX)
     verifying_key = bytes.fromhex(verifying_key)  # TODO: Move / Validate
 
+    # Encrypting Key
     if character_flag is BOB:
         if not encrypting_key:
             encrypting_key = click.prompt('Enter Encrypting Key', type=UMBRAL_PUBLIC_KEY_HEX)
         encrypting_key = bytes.fromhex(encrypting_key)  # TODO: Move / Validate
 
+    # Init
     new_card = Card(character_flag=character_flag,
                     verifying_key=verifying_key,
                     encrypting_key=encrypting_key,
                     nickname=nickname)
-    
+
+    # Nickname
     if not force and not nickname:
         card_id_hex = new_card.id.hex()
         nickname = click.prompt('Enter nickname for card', default=card_id_hex)
         if nickname != card_id_hex:  # not the default
             nickname = nickname.strip()
             new_card.nickname = nickname
+
+    # Save
     new_card.save()
     emitter.message(f'Saved new card {new_card}', color='green')
     paint_single_card(emitter=emitter, card=new_card)
@@ -126,7 +133,7 @@ def delete(force, card_id):
     if not force:
         click.confirm(f'Are you sure you want to delete {card}?', abort=True)
     card.delete()
-    emitter.message(f'Deleted card for {card.id}.', color='red')
+    emitter.message(f'Deleted card for {card.id.hex()}.', color='red')
 
 
 @contacts.command()
