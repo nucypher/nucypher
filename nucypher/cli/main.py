@@ -72,20 +72,18 @@ def nucypher_cli():
 ENTRY_POINTS = (
 
     # Characters & Actors
-    alice.alice,    # Author of Policies
-    bob.bob,        # Builder of Capsules
-    enrico.enrico,  # Encryptor of Data
-    ursula.ursula,  # Untrusted Re-Encryption Proxy
-    stake.stake,    # Stake Management
+    alice.alice,        # Author of Policies
+    bob.bob,            # Builder of Capsules
+    enrico.enrico,      # Encryptor of Data
+    ursula.ursula,      # Untrusted Re-Encryption Proxy
+    stake.stake,        # Stake Management
+    worklock.worklock,  # WorkLock
 
     # Utility Commands
     status.status,      # Network Status
     dao.dao,            # NuCypher DAO
     multisig.multisig,  # MultiSig operations
-    worklock.worklock,  # WorkLock
     felix.felix,        # Faucet
-
-    # Application commands
     cloudworkers.cloudworkers,  # Remote Worker node management
     contacts.contacts,          # Character "card" management
 )

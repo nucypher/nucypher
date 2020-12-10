@@ -293,8 +293,8 @@ def select_config_file(emitter: StdoutEmitter,
     return config_file
 
 
-def select_card(emitter, card_identifier: str = None, nickname: str = None) -> Card:
-    if not card_identifier and not nickname:
+def select_card(emitter, card_identifier: str) -> Card:
+    if not card_identifier:
         cards = []
         for filename in os.listdir(Card.CARD_DIR):
             filepath = Card.CARD_DIR / filename
@@ -304,5 +304,5 @@ def select_card(emitter, card_identifier: str = None, nickname: str = None) -> C
         selection = click.prompt('Select card', type=click.IntRange(0, len(cards)))
         card = cards[selection]
     else:
-        card = Card.load(identifier=card_identifier or nickname)
+        card = Card.load(identifier=card_identifier)
     return card

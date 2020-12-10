@@ -121,7 +121,7 @@ class Card:
 
     def __validate(self) -> bool:
         if self.__nickname and (len(self.__nickname) > self.__MAX_NICKNAME_SIZE):
-            raise self.InvalidCard(f'Nickname exceeds maximum length')
+            raise self.InvalidCard(f'Nickname exceeds maximum length of {self.__MAX_NICKNAME_SIZE}')
         return True
 
     @classmethod
@@ -309,14 +309,14 @@ class Card:
     def lookup(cls, identifier: str, card_dir: Optional[Path] = CARD_DIR) -> Path:
         """Resolve a card ID or nickname into a Path object"""
         try:
-            nickname, id = identifier.split(cls.__DELIMITER)
+            nickname, _id = identifier.split(cls.__DELIMITER)
         except ValueError:
             nickname = identifier
         for filename in os.listdir(Card.CARD_DIR):
             if nickname.lower() in filename.lower():
                 break
         else:
-            raise cls.UnknownCard(f'Unknown card nickname or ID"{nickname}"')
+            raise cls.UnknownCard(f'Unknown card nickname or ID "{nickname}".')
         filepath = card_dir / filename
         return filepath
 
