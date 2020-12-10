@@ -26,6 +26,7 @@ from web3.main import Web3
 from nucypher.blockchain.eth.signers.software import ClefSigner
 from nucypher.characters.control.emitters import StdoutEmitter
 from nucypher.characters.control.interfaces import AliceInterface
+from nucypher.characters.lawful import Bob
 from nucypher.cli.actions.auth import get_client_password, get_nucypher_password
 from nucypher.cli.actions.configure import (
     destroy_configuration,
@@ -61,11 +62,12 @@ from nucypher.cli.options import (
     option_teacher_uri,
     option_lonely
 )
+from nucypher.cli.painting.help import paint_new_installation_help
 from nucypher.cli.painting.help import (
-    paint_new_installation_help,
     paint_probationary_period_disclaimer,
     enforce_probationary_period
 )
+from nucypher.cli.painting.policies import paint_single_card
 from nucypher.cli.processes import get_geth_provider_process
 from nucypher.cli.types import EIP55_CHECKSUM_ADDRESS, GWEI
 from nucypher.cli.utils import make_cli_character, setup_emitter
@@ -76,14 +78,7 @@ from nucypher.config.constants import (
 )
 from nucypher.config.keyring import NucypherKeyring
 from nucypher.network.middleware import RestMiddleware
-
-option_bob_verifying_key = click.option(
-    '--bob-verifying-key',
-    '-bvk',
-    help="Bob's verifying key as a hexadecimal string",
-    type=click.STRING,
-    required=True
-)
+from nucypher.policy.identity import Card
 
 option_pay_with = click.option('--pay-with', help="Run with a specified account", type=EIP55_CHECKSUM_ADDRESS)
 option_duration_periods = click.option('--duration-periods', help="Policy duration in periods", type=click.INT)
@@ -424,6 +419,23 @@ def public_keys(general_config, character_options, config_file):
     return response
 
 
+@alice.command()
+@group_character_options
+@option_config_file
+@group_general_config
+@click.option('--nickname', help="Human-readable nickname / alias for a card", type=click.STRING, required=False)
+def make_card(general_config, character_options, config_file, nickname):
+    """Create a character card file for public key sharing"""
+    emitter = setup_emitter(general_config)
+    ALICE = character_options.create_character(emitter, config_file, general_config.json_ipc, load_seednodes=False)
+    card = Card.from_character(ALICE)
+    if nickname:
+        card.nickname = nickname
+    card.save(overwrite=True)
+    emitter.message(f"Saved new character card to {card.filepath}", color='green')
+    paint_single_card(card=card, emitter=emitter)
+
+
 @alice.command('derive-policy-pubkey')
 @AliceInterface.connect_cli('derive_policy_encrypting_key')
 @group_character_options
@@ -442,7 +454,9 @@ def derive_policy_pubkey(general_config, label, character_options, config_file):
 @group_general_config
 @group_character_options
 @option_force
+@click.option('--bob', type=click.STRING, help="The card id or nickname of a stored Bob card.")
 def grant(general_config,
+          bob,
           bob_encrypting_key,
           bob_verifying_key,
           label,
@@ -459,13 +473,29 @@ def grant(general_config,
     emitter = setup_emitter(general_config)
     ALICE = character_options.create_character(emitter, config_file, general_config.json_ipc)
 
-    # Input validation
+    # Policy option validation
     if ALICE.federated_only:
         if any((value, rate)):
             message = "Can't use --value or --rate with a federated Alice."
             raise click.BadOptionUsage(option_name="--value, --rate", message=message)
     elif bool(value) and bool(rate):
         raise click.BadOptionUsage(option_name="--rate", message="Can't use --value if using --rate")
+
+    # Grantee selection
+    if bob and any((bob_encrypting_key, bob_verifying_key)):
+        message = '--bob cannot be used with --bob-encrypting-key or --bob-veryfying key'
+        raise click.BadOptionUsage(option_name='--bob', message=message)
+
+    if bob:
+        card = Card.load(identifier=bob)
+        if card.character is not Bob:
+            emitter.error('Grantee card is not a Bob.')
+            raise click.Abort
+        paint_single_card(emitter=emitter, card=card)
+        if not force:
+            click.confirm('Is this the correct grantee (Bob)?', abort=True)
+        bob_encrypting_key = card.encrypting_key.hex()
+        bob_verifying_key = card.verifying_key.hex()
 
     # Interactive collection follows:
     # TODO: Extricate to support modules

@@ -300,8 +300,8 @@ NO_FEE_TO_WITHDRAW = "No policy fee can be withdrawn."
 # Configuration
 #
 
-MISSING_CONFIGURATION_FILE = """No {name} configuration file found. 'To create a new persistent {name} run:
-nucypher {init_command}
+MISSING_CONFIGURATION_FILE = """No {name} configuration file found. 
+To create a new persistent {name} run 'nucypher {init_command}'
 """
 
 

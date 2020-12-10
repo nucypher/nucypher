@@ -1,0 +1,1 @@
+Introduces "Character Cards" a serializable identity abstraction and 'nucypher contacts' CLI to support.

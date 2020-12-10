@@ -112,7 +112,7 @@ def option_message_kit(required: bool = False):
 
 
 def option_network(required: bool = False,
-                   default: str = None,  # TODO: NetworksInventory.DEFAULT is not a good default for the moment -- 2214
+                   default: str = None,  # NetworksInventory.DEFAULT is not a good global default (2214)
                    validate: bool = False):
     return click.option(
         '--network',

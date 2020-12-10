@@ -94,6 +94,14 @@ def test_bob_control_starts_with_preexisting_configuration(click_runner, custom_
     assert "Bob Encrypting Key" in result.output
 
 
+def test_bob_make_card(click_runner, custom_filepath):
+    custom_config_filepath = os.path.join(custom_filepath, BobConfiguration.generate_filename())
+    command = ('bob', 'make-card', '--nickname', 'anders', '--config-file', custom_config_filepath)
+    result = click_runner.invoke(nucypher_cli, command, input=FAKE_PASSWORD_CONFIRMED, catch_exceptions=False)
+    assert result.exit_code == 0
+    assert "Saved new character card " in result.output
+
+
 def test_bob_view_with_preexisting_configuration(click_runner, custom_filepath):
     custom_config_filepath = os.path.join(custom_filepath, BobConfiguration.generate_filename())
     view_args = ('bob', 'config', '--config-file', custom_config_filepath)

@@ -14,13 +14,13 @@
  You should have received a copy of the GNU Affero General Public License
  along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
-import base64
+
 
 import click
 
-
 from nucypher.characters.control.emitters import StdoutEmitter
 from nucypher.characters.control.interfaces import BobInterface
+from nucypher.characters.lawful import Alice
 from nucypher.cli.actions.auth import get_nucypher_password
 from nucypher.cli.actions.configure import (
     destroy_configuration,
@@ -51,11 +51,13 @@ from nucypher.cli.options import (
     option_lonely
 )
 from nucypher.cli.painting.help import paint_new_installation_help
+from nucypher.cli.painting.policies import paint_single_card
 from nucypher.cli.utils import make_cli_character, setup_emitter
 from nucypher.config.characters import BobConfiguration
 from nucypher.config.constants import TEMPORARY_DOMAIN
 from nucypher.crypto.powers import DecryptingPower
 from nucypher.network.middleware import RestMiddleware
+from nucypher.policy.identity import Card
 
 
 class BobConfigOptions:
@@ -297,8 +299,26 @@ def public_keys(general_config, character_options, config_file):
 @bob.command()
 @group_character_options
 @option_config_file
-@BobInterface.connect_cli('retrieve')
 @group_general_config
+@click.option('--nickname', help="Human-readable nickname / alias for a card", type=click.STRING, required=False)
+def make_card(general_config, character_options, config_file, nickname):
+    emitter = setup_emitter(general_config)
+    BOB = character_options.create_character(emitter, config_file)
+    card = Card.from_character(BOB)
+    if nickname:
+        card.nickname = nickname
+    card.save(overwrite=True)
+    emitter.message(f"Saved new character card to {card.filepath}", color='green')
+    paint_single_card(card=card, emitter=emitter)
+
+
+@bob.command()
+@group_character_options
+@option_config_file
+@group_general_config
+@option_force
+@BobInterface.connect_cli('retrieve')
+@click.option('--alice', type=click.STRING, help="The card id or nickname of a stored Alice card.")
 @click.option('--ipfs', help="Download an encrypted message from IPFS at the specified gateway URI")
 def retrieve(general_config,
              character_options,
@@ -307,18 +327,14 @@ def retrieve(general_config,
              policy_encrypting_key,
              alice_verifying_key,
              message_kit,
-             ipfs):
+             ipfs,
+             alice,
+             force):
     """Obtain plaintext from encrypted data, if access was granted."""
 
     # Setup
     emitter = setup_emitter(general_config)
     BOB = character_options.create_character(emitter, config_file)
-
-    # Validate
-    if not all((label, policy_encrypting_key, alice_verifying_key, message_kit)):
-        input_specification, output_specification = BOB.control.get_specifications(interface_name='retrieve')
-        required_fields = ', '.join(input_specification)
-        raise click.BadArgumentUsage(f'{required_fields} are required flags to retrieve')
 
     if ipfs:
         import ipfshttpclient
@@ -329,6 +345,21 @@ def retrieve(general_config,
         raw_message_kit = ipfs_client.cat(cid)  # cat the contents at the hash reference
         emitter.message(f"Downloaded message kit from IPFS (CID {cid})", color='green')
         message_kit = raw_message_kit.decode()  # cast to utf-8
+
+    if not alice_verifying_key:
+        if alice:  # from storage
+            card = Card.load(identifier=alice)
+            if card.character is not Alice:
+                emitter.error('Grantee card is not an Alice.')
+                raise click.Abort
+            alice_verifying_key = card.verifying_key.hex()
+            emitter.message(f'{card.nickname or ("Alice #"+card.id.hex())}\n'
+                            f'Verifying Key  | {card.verifying_key.hex()}',
+                            color='green')
+            if not force:
+                click.confirm('Is this the correct Granter (Alice)?', abort=True)
+        else:  # interactive
+            alice_verifying_key = click.prompt("Enter Alice's verifying key")
 
     # Request
     bob_request_data = {

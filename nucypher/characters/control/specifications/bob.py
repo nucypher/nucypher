@@ -33,7 +33,7 @@ class JoinPolicy(BaseSchema):  #TODO:  this doesn't have a cli implementation
             '--alice-verifying-key',
             '-avk',
             help="Alice's verifying key as a hexadecimal string",
-            required=True, type=click.STRING,))
+            required=False, type=click.STRING,))
 
     policy_encrypting_key = fields.String(dump_only=True)
     # this should be a Key Field
@@ -55,7 +55,7 @@ class Retrieve(BaseSchema):
             '-avk',
             help="Alice's verifying key as a hexadecimal string",
             type=click.STRING,
-            required=True))
+            required=False))
     message_kit = fields.UmbralMessageKit(
         required=True, load_only=True,
         click=options.option_message_kit(required=True))

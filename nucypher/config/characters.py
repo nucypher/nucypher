@@ -152,11 +152,22 @@ class AliceConfiguration(CharacterConfiguration):
     DEFAULT_M = 2
     DEFAULT_N = 3
 
+    DEFAULT_STORE_POLICIES = True
+    DEFAULT_STORE_CARDS = True
+
+    _CONFIG_FIELDS = (
+        *CharacterConfiguration._CONFIG_FIELDS,
+        'store_policies',
+        'store_cards'
+    )
+
     def __init__(self,
                  m: int = None,
                  n: int = None,
                  rate: int = None,
                  duration_periods: int = None,
+                 store_policies: bool = DEFAULT_STORE_POLICIES,
+                 store_cards: bool = DEFAULT_STORE_CARDS,
                  *args, **kwargs):
 
         super().__init__(*args, **kwargs)
@@ -167,8 +178,16 @@ class AliceConfiguration(CharacterConfiguration):
         self.rate = rate
         self.duration_periods = duration_periods
 
+        self.store_policies = store_policies
+        self.store_cards = store_cards
+
     def static_payload(self) -> dict:
-        payload = dict(m=self.m, n=self.n)
+        payload = dict(
+            m=self.m,
+            n=self.n,
+            store_policies=self.store_policies,
+            store_cards=self.store_cards
+        )
         if not self.federated_only:
             if self.rate:
                 payload['rate'] = self.rate
@@ -188,14 +207,36 @@ class BobConfiguration(CharacterConfiguration):
 
     CHARACTER_CLASS = Bob
     NAME = CHARACTER_CLASS.__name__.lower()
-
     DEFAULT_CONTROLLER_PORT = 7151
+    DEFFAULT_STORE_POLICIES = True
+    DEFAULT_STORE_CARDS = True
+
+    _CONFIG_FIELDS = (
+        *CharacterConfiguration._CONFIG_FIELDS,
+        'store_policies',
+        'store_cards'
+    )
+
+    def __init__(self,
+                 store_policies: bool = DEFFAULT_STORE_POLICIES,
+                 store_cards: bool = DEFAULT_STORE_CARDS,
+                 *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.store_policies = store_policies
+        self.store_cards = store_cards
 
     def write_keyring(self, password: str, **generation_kwargs) -> NucypherKeyring:
         return super().write_keyring(password=password,
                                      encrypting=True,
                                      rest=False,
                                      **generation_kwargs)
+
+    def static_payload(self) -> dict:
+        payload = dict(
+            store_policies=self.store_policies,
+            store_cards=self.store_cards
+        )
+        return {**super().static_payload(), **payload}
 
 
 class FelixConfiguration(CharacterConfiguration):

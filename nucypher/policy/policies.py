@@ -14,30 +14,30 @@ GNU Affero General Public License for more details.
 You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
-import datetime
-import math
-import time
-import random
-from abc import ABC, abstractmethod
-from collections import OrderedDict, deque
-from queue import Queue, Empty
-from typing import Callable
-from typing import Generator, List, Set
 
+
+import datetime
+from collections import OrderedDict
+from queue import Queue, Empty
+from typing import Callable, Tuple
+from typing import Generator, Set, Optional
+
+import math
 import maya
+import random
+import time
+from abc import ABC, abstractmethod
+from bytestring_splitter import BytestringSplitter, VariableLengthBytestring
+from constant_sorrow.constants import NOT_SIGNED, UNKNOWN_KFRAG
 from twisted._threads import AlreadyQuit
 from twisted.internet import reactor
 from twisted.internet.defer import ensureDeferred, Deferred
 from twisted.python.threadpool import ThreadPool
-
-from bytestring_splitter import BytestringSplitter, VariableLengthBytestring
-from constant_sorrow.constants import NOT_SIGNED, UNKNOWN_KFRAG
-from typing import Generator, List, Set, Optional
 from umbral.keys import UmbralPublicKey
 from umbral.kfrags import KFrag
 
 from nucypher.blockchain.eth.actors import BlockchainPolicyAuthor
-from nucypher.blockchain.eth.agents import PolicyManagerAgent, StakingEscrowAgent
+from nucypher.blockchain.eth.agents import PolicyManagerAgent
 from nucypher.characters.lawful import Alice, Ursula
 from nucypher.crypto.api import keccak_digest, secure_random
 from nucypher.crypto.constants import HRAC_LENGTH, PUBLIC_KEY_LENGTH
@@ -46,9 +46,8 @@ from nucypher.crypto.powers import DecryptingPower, SigningPower, TransactingPow
 from nucypher.crypto.utils import construct_policy_id
 from nucypher.network.exceptions import NodeSeemsToBeDown
 from nucypher.network.middleware import RestMiddleware
+from nucypher.policy.identity import PolicyCredential
 from nucypher.utilities.logging import Logger
-from umbral.keys import UmbralPublicKey
-from umbral.kfrags import KFrag
 
 
 class Arrangement:
@@ -340,11 +339,11 @@ class Policy(ABC):
         """Too many Ursulas rejected"""
 
     def __init__(self,
-                 alice,
-                 label,
+                 alice: Alice,
+                 label: bytes,
                  expiration: maya.MayaDT,
-                 bob=None,
-                 kfrags=(UNKNOWN_KFRAG,),
+                 bob: 'Bob' = None,
+                 kfrags: Tuple[KFrag, ...] = (UNKNOWN_KFRAG,),
                  public_key=None,
                  m: int = None,
                  alice_signature=NOT_SIGNED) -> None:
@@ -353,10 +352,10 @@ class Policy(ABC):
         :param kfrags:  A list of KFrags to distribute per this Policy.
         :param label: The identity of the resource to which Bob is granted access.
         """
-        self.alice = alice  # type: Alice
-        self.label = label  # type: bytes
-        self.bob = bob  # type: Bob
-        self.kfrags = kfrags  # type: List[KFrag]
+        self.alice = alice
+        self.label = label
+        self.bob = bob
+        self.kfrags = kfrags
         self.public_key = public_key
         self._id = construct_policy_id(self.label, bytes(self.bob.stamp))
         self.treasure_map = self._treasure_map_class(m=m)
@@ -440,14 +439,16 @@ class Policy(ABC):
         Alice or Bob. By default, it will include the treasure_map for the
         policy unless `with_treasure_map` is False.
         """
-        from nucypher.policy.collections import PolicyCredential
 
         treasure_map = self.treasure_map
         if not with_treasure_map:
             treasure_map = None
-
-        return PolicyCredential(self.alice.stamp, self.label, self.expiration,
-                                self.public_key, treasure_map)
+        credential = PolicyCredential(alice_verifying_key=self.alice.stamp,
+                                      label=self.label,
+                                      expiration=self.expiration,
+                                      policy_pubkey=self.public_key,
+                                      treasure_map=treasure_map)
+        return credential
 
     def __assign_kfrags(self) -> Generator[Arrangement, None, None]:
 

@@ -16,10 +16,10 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
 
-import contextlib
 import json
 from collections import OrderedDict
 
+import contextlib
 import maya
 import random
 import time
@@ -52,7 +52,9 @@ from queue import Queue
 from random import shuffle
 from twisted.internet import reactor, stdio, threads
 from twisted.internet.task import LoopingCall
-from typing import Dict, Iterable, List, Optional, Tuple, Union
+from twisted.logger import Logger
+from typing import Dict, Iterable, List, Tuple, Union
+from typing import Optional
 from umbral import pre
 from umbral.keys import UmbralPublicKey
 from umbral.kfrags import KFrag
@@ -81,7 +83,13 @@ from nucypher.crypto.api import encrypt_and_sign, keccak_digest
 from nucypher.crypto.constants import HRAC_LENGTH, PUBLIC_KEY_LENGTH
 from nucypher.crypto.keypairs import HostingKeypair
 from nucypher.crypto.kits import UmbralMessageKit
-from nucypher.crypto.powers import DecryptingPower, DelegatingPower, PowerUpError, SigningPower, TransactingPower
+from nucypher.crypto.powers import (
+    DecryptingPower,
+    DelegatingPower,
+    PowerUpError,
+    SigningPower,
+    TransactingPower
+)
 from nucypher.crypto.signing import InvalidSignature
 from nucypher.datastore.datastore import DatastoreTransactionError, RecordNotFound
 from nucypher.datastore.models import PolicyArrangement, TreasureMap as DatastoreTreasureMap
@@ -118,6 +126,10 @@ class Alice(Character, BlockchainPolicyAuthor):
                  # Policy Value
                  rate: int = None,
                  duration_periods: int = None,
+
+                 # Policy Storage
+                 store_policy_credentials: bool = None,
+                 store_character_cards: bool = None,
 
                  # Middleware
                  timeout: int = 10,  # seconds  # TODO: configure  NRN
@@ -172,6 +184,13 @@ class Alice(Character, BlockchainPolicyAuthor):
 
         self.active_policies = dict()
         self.revocation_kits = dict()
+        self.store_policy_credentials = store_policy_credentials
+        self.store_character_cards = store_character_cards
+
+    def get_card(self) -> 'Card':
+        from nucypher.policy.identity import Card
+        card = Card.from_character(self)
+        return card
 
     def add_active_policy(self, active_policy):
         """
@@ -500,6 +519,11 @@ class Bob(Character):
         elif map_id:
             raise ValueError("Don't pass both treasure_map and map_id - pick one or the other.")
         return treasure_map
+
+    def get_card(self) -> 'Card':
+        from nucypher.policy.identity import Card
+        card = Card.from_character(self)
+        return card
 
     def peek_at_treasure_map(self, treasure_map=None, map_id=None):
         """

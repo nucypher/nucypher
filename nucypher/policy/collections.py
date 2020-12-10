@@ -15,38 +15,41 @@ You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
-import json
 from collections import OrderedDict
-from typing import Optional, Tuple
 
 import maya
-from cryptography.hazmat.backends.openssl import backend
-from cryptography.hazmat.primitives import hashes
-from eth_utils import to_canonical_address, to_checksum_address
-
+from bytestring_splitter import BytestringKwargifier
 from bytestring_splitter import (
-    BytestringKwargifier,
     BytestringSplitter,
     BytestringSplittingError,
     VariableLengthBytestring
 )
 from constant_sorrow.constants import CFRAG_NOT_RETAINED, NO_DECRYPTION_PERFORMED
 from constant_sorrow.constants import NOT_SIGNED
-from nucypher.blockchain.eth.constants import ETH_ADDRESS_BYTE_LENGTH, ETH_HASH_BYTE_LENGTH
-from nucypher.characters.lawful import Bob, Character
-from nucypher.crypto.api import encrypt_and_sign, keccak_digest, verify_eip_191
-from nucypher.crypto.constants import HRAC_LENGTH
-from nucypher.crypto.kits import UmbralMessageKit
-from nucypher.crypto.signing import InvalidSignature, Signature, signature_splitter
-from nucypher.crypto.splitters import capsule_splitter, cfrag_splitter, key_splitter
-from nucypher.crypto.utils import (canonical_address_from_umbral_key,
-                                   get_coordinates_as_bytes,
-                                   get_signature_recovery_value)
-from nucypher.network.middleware import RestMiddleware
+from cryptography.hazmat.backends.openssl import backend
+from cryptography.hazmat.primitives import hashes
+from eth_utils import to_canonical_address, to_checksum_address
+from typing import Optional, Tuple
 from umbral.config import default_params
 from umbral.curvebn import CurveBN
 from umbral.keys import UmbralPublicKey
 from umbral.pre import Capsule
+
+from nucypher.blockchain.eth.constants import ETH_ADDRESS_BYTE_LENGTH, ETH_HASH_BYTE_LENGTH
+from nucypher.characters.lawful import Bob, Character
+from nucypher.crypto.api import encrypt_and_sign, keccak_digest
+from nucypher.crypto.api import verify_eip_191
+from nucypher.crypto.constants import HRAC_LENGTH
+from nucypher.crypto.kits import UmbralMessageKit
+from nucypher.crypto.signing import InvalidSignature, Signature, signature_splitter, SignatureStamp
+from nucypher.crypto.splitters import capsule_splitter, key_splitter
+from nucypher.crypto.splitters import cfrag_splitter
+from nucypher.crypto.utils import (
+    canonical_address_from_umbral_key,
+    get_coordinates_as_bytes,
+    get_signature_recovery_value
+)
+from nucypher.network.middleware import RestMiddleware
 
 
 class TreasureMap:
@@ -273,75 +276,6 @@ class SignedTreasureMap(TreasureMap):
             raise self.InvalidSignature(
                 "Can't cast a DecentralizedTreasureMap to bytes until it has a blockchain signature (otherwise, is it really a 'DecentralizedTreasureMap'?")
         return self._blockchain_signature + super().__bytes__()
-
-
-class PolicyCredential:
-    """
-    A portable structure that contains information necessary for Alice or Bob
-    to utilize the policy on the network that the credential describes.
-    """
-
-    def __init__(self, alice_verifying_key, label, expiration, policy_pubkey,
-                 treasure_map=None):
-        self.alice_verifying_key = alice_verifying_key
-        self.label = label
-        self.expiration = expiration
-        self.policy_pubkey = policy_pubkey
-        self.treasure_map = treasure_map
-
-    def to_json(self):
-        """
-        Serializes the PolicyCredential to JSON.
-        """
-        cred_dict = {
-            'alice_verifying_key': bytes(self.alice_verifying_key).hex(),
-            'label': self.label.hex(),
-            'expiration': self.expiration.iso8601(),
-            'policy_pubkey': bytes(self.policy_pubkey).hex()
-        }
-
-        if self.treasure_map is not None:
-            cred_dict['treasure_map'] = bytes(self.treasure_map).hex()
-
-        return json.dumps(cred_dict)
-
-    @classmethod
-    def from_json(cls, data: str, federated=False):
-        """
-        Deserializes the PolicyCredential from JSON.
-        """
-        from nucypher.characters.lawful import Ursula
-
-        cred_json = json.loads(data)
-
-        alice_verifying_key = UmbralPublicKey.from_bytes(
-            cred_json['alice_verifying_key'],
-            decoder=bytes().fromhex)
-        label = bytes().fromhex(cred_json['label'])
-        expiration = maya.MayaDT.from_iso8601(cred_json['expiration'])
-        policy_pubkey = UmbralPublicKey.from_bytes(
-            cred_json['policy_pubkey'],
-            decoder=bytes().fromhex)
-        treasure_map = None
-
-        if 'treasure_map' in cred_json:
-            if federated:  # I know know.  TODO: WTF.  466 and just... you know... whatever.
-                _MapClass = TreasureMap
-            else:
-                _MapClass = SignedTreasureMap
-
-            treasure_map = _MapClass.from_bytes(
-                bytes().fromhex(cred_json['treasure_map']))
-
-        return cls(alice_verifying_key, label, expiration, policy_pubkey,
-                   treasure_map)
-
-    def __eq__(self, other):
-        return ((self.alice_verifying_key == other.alice_verifying_key) and
-                (self.label == other.label) and
-                (self.expiration == other.expiration) and
-                (self.policy_pubkey == other.policy_pubkey))
-
 
 class WorkOrder:
     class PRETask:

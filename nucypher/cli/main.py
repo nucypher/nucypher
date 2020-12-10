@@ -28,7 +28,8 @@ from nucypher.cli.commands import (
     status,
     ursula,
     worklock,
-    cloudworkers
+    cloudworkers,
+    contacts
 )
 from nucypher.cli.painting.help import echo_version, echo_config_root_path, echo_logging_root_path
 
@@ -70,20 +71,21 @@ def nucypher_cli():
 
 ENTRY_POINTS = (
 
-    # Characters
+    # Characters & Actors
     alice.alice,        # Author of Policies
     bob.bob,            # Builder of Capsules
     enrico.enrico,      # Encryptor of Data
     ursula.ursula,      # Untrusted Re-Encryption Proxy
+    stake.stake,        # Stake Management
+    worklock.worklock,  # WorkLock
 
     # Utility Commands
-    dao.dao,            # NuCypher DAO
-    stake.stake,        # Stake Management
     status.status,      # Network Status
-    felix.felix,        # Faucet
+    dao.dao,            # NuCypher DAO
     multisig.multisig,  # MultiSig operations
-    worklock.worklock,         # WorkLock
-    cloudworkers.cloudworkers  # Remote Worker node management
+    felix.felix,        # Faucet
+    cloudworkers.cloudworkers,  # Remote Worker node management
+    contacts.contacts,          # Character "card" management
 )
 
 for entry_point in ENTRY_POINTS:

@@ -18,11 +18,12 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 import datetime
 import maya
 import pytest
-from umbral.kfrags import KFrag
 
 from nucypher.crypto.api import keccak_digest
-from nucypher.datastore.models import PolicyArrangement, TreasureMap as DatastoreTreasureMap
-from nucypher.policy.collections import PolicyCredential, SignedTreasureMap as DecentralizedTreasureMap
+from nucypher.datastore.models import PolicyArrangement
+from nucypher.datastore.models import TreasureMap as DatastoreTreasureMap
+from nucypher.policy.collections import SignedTreasureMap as DecentralizedTreasureMap
+from nucypher.policy.identity import PolicyCredential
 from tests.utils.middleware import MockRestMiddleware
 
 

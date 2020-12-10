@@ -47,7 +47,9 @@ def test_bob_cannot_follow_the_treasure_map_in_isolation(enacted_federated_polic
     assert len(known) == 0
 
 
-def test_bob_already_knows_all_nodes_in_treasure_map(enacted_federated_policy, federated_ursulas, federated_bob,
+def test_bob_already_knows_all_nodes_in_treasure_map(enacted_federated_policy,
+                                                     federated_ursulas,
+                                                     federated_bob,
                                                      federated_alice):
     # Bob knows of no Ursulas.
     assert len(federated_bob.known_nodes) == 0

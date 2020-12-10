@@ -17,11 +17,12 @@
 
 
 import glob
+import os
+from typing import Callable
+from typing import Optional, Tuple, Type
 
 import click
-import os
 from tabulate import tabulate
-from typing import Optional, Tuple, Type
 from web3.main import Web3
 
 from nucypher.blockchain.eth.actors import StakeHolder, Staker, Wallet
@@ -44,10 +45,11 @@ from nucypher.cli.literature import (
     SELECT_STAKING_ACCOUNT_INDEX,
     SELECTED_ACCOUNT
 )
+from nucypher.cli.painting.policies import paint_cards
 from nucypher.cli.painting.staking import paint_stakes
 from nucypher.config.constants import DEFAULT_CONFIG_ROOT, NUCYPHER_ENVVAR_WORKER_ADDRESS
 from nucypher.config.node import CharacterConfiguration
-from typing import Callable
+from nucypher.policy.identity import Card
 
 
 def select_stake(staker: Staker,
@@ -289,3 +291,18 @@ def select_config_file(emitter: StdoutEmitter,
         config_file = config_files[0]
 
     return config_file
+
+
+def select_card(emitter, card_identifier: str) -> Card:
+    if not card_identifier:
+        cards = []
+        for filename in os.listdir(Card.CARD_DIR):
+            filepath = Card.CARD_DIR / filename
+            card = Card.load(filepath=filepath)
+            cards.append(card)
+        paint_cards(emitter=emitter, cards=cards, as_table=True)
+        selection = click.prompt('Select card', type=click.IntRange(0, len(cards)))
+        card = cards[selection]
+    else:
+        card = Card.load(identifier=card_identifier)
+    return card

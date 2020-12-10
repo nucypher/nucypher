@@ -18,11 +18,11 @@
 
 import click
 from marshmallow import validates_schema
-from nucypher.cli import options, types
 
 from nucypher.characters.control.specifications import fields
 from nucypher.characters.control.specifications.base import BaseSchema
 from nucypher.characters.control.specifications.exceptions import InvalidArgumentCombo
+from nucypher.cli import options, types
 
 
 class PolicyBaseSchema(BaseSchema):
@@ -33,14 +33,14 @@ class PolicyBaseSchema(BaseSchema):
             '--bob-encrypting-key',
             '-bek',
             help="Bob's encrypting key as a hexadecimal string",
-            type=click.STRING, required=True,))
+            type=click.STRING, required=False))
     bob_verifying_key = fields.Key(
         required=True, load_only=True,
         click=click.option(
             '--bob-verifying-key',
             '-bvk',
             help="Bob's verifying key as a hexadecimal string",
-            type=click.STRING, required=True))
+            type=click.STRING, required=False))
     m = fields.M(
         required=True, load_only=True,
         click=options.option_m)
