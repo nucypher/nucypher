@@ -298,7 +298,7 @@ class Card:
 
     def save(self, encoder: Callable = base64.b64encode, overwrite: bool = False) -> Path:
         if not self.CARD_DIR.exists():
-            os.mkdir(str(self.card_dir))
+            os.mkdir(str(self.CARD_DIR))
         if self.is_saved and not overwrite:
             raise FileExistsError('Card exists. Pass overwrite=True to allow this operation.')
         with open(str(self.filepath), 'wb') as file:

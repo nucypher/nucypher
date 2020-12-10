@@ -14,14 +14,18 @@ GNU Affero General Public License for more details.
 You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
-import argparse
+
+
 from collections import defaultdict
 
 import pytest
+import tempfile
+from pathlib import Path
 
 from nucypher.characters.control.emitters import WebEmitter
 from nucypher.crypto.powers import TransactingPower
 from nucypher.network.trackers import AvailabilityTracker
+from nucypher.policy.identity import Card
 from nucypher.utilities.logging import GlobalLoggerSettings
 from tests.constants import INSECURE_DEVELOPMENT_PASSWORD
 
@@ -188,3 +192,14 @@ def check_character_state_after_test(request):
         still_tracking  = [learner for learner in test_learners if hasattr(learner, 'work_tracker') and learner.work_tracker._tracking_task.running]
         for tracker in still_tracking:
             tracker.work_tracker.stop()
+
+
+@pytest.fixture(scope='session', autouse=True)
+def patch_card_directory(session_mocker):
+    custom_filepath = '/tmp/nucypher-test-cards-'
+    tmpdir = tempfile.TemporaryDirectory(prefix=custom_filepath)
+    tmpdir.cleanup()
+    session_mocker.patch.object(Card, 'CARD_DIR', return_value=Path(tmpdir.name),
+                                new_callable=session_mocker.PropertyMock)
+    yield
+    tmpdir.cleanup()

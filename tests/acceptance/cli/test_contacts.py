@@ -18,23 +18,10 @@
 
 import os
 import pytest
-import tempfile
-from pathlib import Path
 from umbral.keys import UmbralPrivateKey
 
 from nucypher.cli.main import nucypher_cli
 from nucypher.policy.identity import Card
-
-
-@pytest.fixture(scope='module', autouse=True)
-def patch_card_directory(module_mocker):
-    custom_filepath = '/tmp/nucypher-test-cards-'
-    tmpdir = tempfile.TemporaryDirectory(prefix=custom_filepath)
-    tmpdir.cleanup()
-    module_mocker.patch.object(Card, 'CARD_DIR', return_value=Path(tmpdir.name),
-                               new_callable=module_mocker.PropertyMock)
-    yield
-    tmpdir.cleanup()
 
 
 @pytest.fixture(scope='module')
@@ -62,6 +49,16 @@ def bob_encrypting_key():
     return UmbralPrivateKey.gen_key().get_pubkey().hex()
 
 
+def test_card_directory_autocreation(click_runner, mocker):
+    mocked_mkdir = mocker.patch('os.mkdir')
+    mocked_listdir = mocker.patch('os.listdir', side_effect=(FileNotFoundError, []))
+    command = ('contacts', 'list')  # form list command
+    result = click_runner.invoke(nucypher_cli, command, catch_exceptions=False)
+    assert result.exit_code == 0, result.output
+    mocked_mkdir.assert_called_once()
+    mocked_listdir.call_count = 2
+
+
 def test_list_cards_with_none_created(click_runner, certificates_tempdir):
     command = ('contacts', 'list')
     result = click_runner.invoke(nucypher_cli, command, catch_exceptions=False)
@@ -69,7 +66,7 @@ def test_list_cards_with_none_created(click_runner, certificates_tempdir):
     assert f'No cards found at {Card.CARD_DIR}.' in result.output
 
 
-def test_create_alice_card_interactive(click_runner, alice_verifying_key, alice_nickname):
+def test_create_alice_card_interactive(click_runner, alice_verifying_key, alice_nickname, mocker):
     command = ('contacts', 'create')
     user_input = (
         'a',                  # Alice
@@ -78,7 +75,16 @@ def test_create_alice_card_interactive(click_runner, alice_verifying_key, alice_
     )
     user_input = '\n'.join(user_input)
     assert len(os.listdir(Card.CARD_DIR)) == 0
+
+    # Let's play pretend: this alice does not have the card directory (yet)
+    mocker.patch('pathlib.Path.exists', return_value=False)
+    mocked_mkdir = mocker.patch('os.mkdir')
+
     result = click_runner.invoke(nucypher_cli, command, input=user_input, catch_exceptions=False)
+
+    # The path was created.
+    mocked_mkdir.assert_called_once()
+
     assert result.exit_code == 0, result.output
     assert 'Enter Verifying Key' in result.output
     assert 'Saved new card' in result.output

@@ -23,8 +23,7 @@ from nucypher.cli.literature import SUCCESSFUL_DESTRUCTION
 from nucypher.cli.main import nucypher_cli
 from nucypher.config.characters import AliceConfiguration
 from nucypher.config.constants import NUCYPHER_ENVVAR_KEYRING_PASSWORD, TEMPORARY_DOMAIN
-from tests.constants import (FAKE_PASSWORD_CONFIRMED, INSECURE_DEVELOPMENT_PASSWORD, MOCK_CUSTOM_INSTALLATION_PATH,
-                             MOCK_IP_ADDRESS)
+from tests.constants import (FAKE_PASSWORD_CONFIRMED, INSECURE_DEVELOPMENT_PASSWORD, MOCK_CUSTOM_INSTALLATION_PATH)
 
 
 @mock.patch('nucypher.config.characters.AliceConfiguration.default_filepath', return_value='/non/existent/file')
@@ -113,6 +112,14 @@ def test_alice_control_starts_with_preexisting_configuration(click_runner, custo
     run_args = ('alice', 'run', '--dry-run', '--lonely', '--config-file', custom_config_filepath)
     result = click_runner.invoke(nucypher_cli, run_args, input=FAKE_PASSWORD_CONFIRMED)
     assert result.exit_code == 0
+
+
+def test_alice_make_card(click_runner, custom_filepath):
+    custom_config_filepath = os.path.join(custom_filepath, AliceConfiguration.generate_filename())
+    command = ('alice', 'make-card', '--nickname', 'flora', '--config-file', custom_config_filepath)
+    result = click_runner.invoke(nucypher_cli, command, input=FAKE_PASSWORD_CONFIRMED, catch_exceptions=False)
+    assert result.exit_code == 0
+    assert "Saved new character card " in result.output
 
 
 def test_alice_cannot_init_with_dev_flag(click_runner):
