@@ -95,19 +95,6 @@ def _get_mock_test_provider(provider_uri) -> BaseProvider:
     return provider
 
 
-def _get_test_geth_parity_provider(provider_uri) -> BaseProvider:
-    from nucypher.blockchain.eth.interfaces import BlockchainInterface
-
-    # geth --dev
-    geth_process = NuCypherGethDevProcess()
-    geth_process.start()
-    geth_process.wait_for_ipc(timeout=30)
-    provider = IPCProvider(ipc_path=geth_process.ipc_path, timeout=BlockchainInterface.TIMEOUT)
-
-    BlockchainInterface.process = geth_process
-    return provider
-
-
 def _get_tester_ganache(provider_uri=None) -> BaseProvider:
     endpoint_uri = provider_uri or 'http://localhost:7545'
     return HTTPProvider(endpoint_uri=endpoint_uri)
