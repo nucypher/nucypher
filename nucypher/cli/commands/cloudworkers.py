@@ -157,7 +157,7 @@ def add(general_config, host_address, login_name, key_path, ssh_port, host_nickn
 @click.option('--ssh-port', help="The port this host's ssh daemon is listening on", default=22)
 @click.option('--namespace', help="Namespace for these operations.  Used to address hosts and data locally and name hosts on cloud platforms.", type=click.STRING, default='local-stakeholders')
 @group_general_config
-def add_for_stake(general_config, staker_address, host_address, login_name, key_path, ssh_port, namespace):
+def add_for_stake(general_config, staker_options, config_file, staker_address, host_address, login_name, key_path, ssh_port, namespace):
     """Sets an existing node as the host for the given staker address."""
 
     emitter = setup_emitter(general_config)
