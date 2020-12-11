@@ -549,6 +549,7 @@ def create(general_config: GroupGeneralConfig,
     if not force:
         confirm_large_stake(value=value, lock_periods=lock_periods)
         paint_staged_stake(emitter=emitter,
+                           blockchain=blockchain,
                            stakeholder=STAKEHOLDER,
                            staking_address=staking_address,
                            stake_value=value,
@@ -645,6 +646,7 @@ def increase(general_config: GroupGeneralConfig,
 
         confirm_large_stake(value=value, lock_periods=lock_periods)
         paint_staged_stake(emitter=emitter,
+                           blockchain=blockchain,
                            stakeholder=STAKEHOLDER,
                            staking_address=staking_address,
                            stake_value=value,
@@ -906,6 +908,7 @@ def divide(general_config: GroupGeneralConfig,
     if not force:
         confirm_large_stake(lock_periods=extension, value=value)
         paint_staged_stake_division(emitter=emitter,
+                                    blockchain=blockchain,
                                     stakeholder=STAKEHOLDER,
                                     original_stake=current_stake,
                                     target_value=value,
