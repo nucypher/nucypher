@@ -18,10 +18,23 @@
 
 import os
 import pytest
+import tempfile
+from pathlib import Path
 from umbral.keys import UmbralPrivateKey
 
 from nucypher.cli.main import nucypher_cli
 from nucypher.policy.identity import Card
+
+
+@pytest.fixture(scope='module', autouse=True)
+def patch_card_directory(session_mocker):
+    custom_filepath = '/tmp/nucypher-test-cards-'
+    tmpdir = tempfile.TemporaryDirectory(prefix=custom_filepath)
+    tmpdir.cleanup()
+    session_mocker.patch.object(Card, 'CARD_DIR', return_value=Path(tmpdir.name),
+                                new_callable=session_mocker.PropertyMock)
+    yield
+    tmpdir.cleanup()
 
 
 @pytest.fixture(scope='module')
