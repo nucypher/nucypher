@@ -1,0 +1,1 @@
+Include checksum and IP addresses in exception messages for `Rejected`.
