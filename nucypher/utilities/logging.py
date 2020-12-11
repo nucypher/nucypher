@@ -15,10 +15,9 @@ You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
-import re
-from contextlib import contextmanager
 
 import pathlib
+from contextlib import contextmanager
 from twisted.logger import (
     FileLogObserver,
     formatEvent,
@@ -43,9 +42,6 @@ MAXIMUM_LOG_SIZE = ONE_MEGABYTE * 10
 MAX_LOG_FILES = 10
 
 
-# A single loggers retention = MAXIMUM_LOG_SIZE * MAX_LOG_FILES
-
-
 def initialize_sentry(dsn: str):
     try:
         import sentry_sdk
@@ -56,8 +52,7 @@ def initialize_sentry(dsn: str):
     import logging
 
     # Logger ignore list
-    from blockchain.eth.processes import NuCypherGethProcess
-    ignored_loggers = (NuCypherGethProcess._LOG_NAME,)
+    ignored_loggers = ()
 
     def before_breadcrumb(crumb, hint):
         logger = crumb.get('category')

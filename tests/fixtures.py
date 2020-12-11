@@ -46,7 +46,6 @@ from nucypher.blockchain.eth.deployers import (
     WorklockDeployer
 )
 from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
-from nucypher.blockchain.eth.processes import NuCypherGethDevProcess
 from nucypher.blockchain.eth.registry import InMemoryContractRegistry, LocalContractRegistry
 from nucypher.blockchain.eth.signers.software import Web3Signer
 from nucypher.blockchain.eth.token import NU
@@ -777,17 +776,6 @@ def funded_blockchain(testerchain, agency, token_economics, test_registry):
 @pytest.fixture(scope='session')
 def mock_ursula_reencrypts():
     return _mock_ursula_reencrypts
-
-
-@pytest.fixture(scope='session')
-def instant_geth_dev_node():
-    geth = NuCypherGethDevProcess()
-    try:
-        yield geth
-    finally:
-        if geth.is_running:
-            geth.stop()
-            assert not geth.is_running
 
 
 @pytest.fixture(scope='session')

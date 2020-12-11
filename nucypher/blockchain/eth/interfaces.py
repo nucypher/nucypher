@@ -53,7 +53,6 @@ from nucypher.blockchain.eth.providers import (
     _get_auto_provider,
     _get_mock_test_provider,
     _get_pyevm_test_provider,
-    _get_test_geth_parity_provider,
     _get_websocket_provider
 )
 from nucypher.blockchain.eth.registry import BaseContractRegistry
@@ -392,8 +391,6 @@ class BlockchainInterface:
             if uri_breakdown.scheme == 'tester':
                 providers = {
                     'pyevm': _get_pyevm_test_provider,
-                    'geth': _get_test_geth_parity_provider,
-                    'parity-ethereum': _get_test_geth_parity_provider,
                     'mock': _get_mock_test_provider
                 }
                 provider_scheme = uri_breakdown.netloc

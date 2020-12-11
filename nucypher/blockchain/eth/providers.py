@@ -16,16 +16,14 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
 
-from typing import Union
-from urllib.parse import urlparse
-
 from eth_tester import EthereumTester, PyEVMBackend
 from eth_tester.backends.mock.main import MockBackend
+from typing import Union
+from urllib.parse import urlparse
 from web3 import HTTPProvider, IPCProvider, WebsocketProvider
 from web3.providers import BaseProvider
 from web3.providers.eth_tester.main import EthereumTesterProvider
 
-from nucypher.blockchain.eth.processes import NuCypherGethDevProcess
 from nucypher.exceptions import DevelopmentInstallationRequired
 
 
