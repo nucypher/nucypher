@@ -1057,7 +1057,7 @@ class Ursula(Teacher, Character, Worker):
                  block_until_ready: bool = True,
                  # TODO: Must be true in order to set staker address - Allow for manual staker addr to be passed too!
                  work_tracker: WorkTracker = None,
-                 start_working_now: bool = True,
+                 start_working_now: bool = False,
                  client_password: str = None,
 
                  # Character
@@ -1260,14 +1260,14 @@ class Ursula(Teacher, Character, Worker):
 
     def run(self,
             emitter: StdoutEmitter = None,
-            hendrix: bool = True,
-            learning: bool = True,
+            discovery: bool = True,
             availability: bool = True,
             worker: bool = True,
             pruning: bool = True,
             interactive: bool = False,
+            hendrix: bool = True,
             start_reactor: bool = True,
-            prometheus_config: 'PrometheusMetricsConfig' = None,
+            prometheus_config: 'PrometheusMetricsConfig' = None
             ) -> None:
 
         """Schedule and start select ursula services, then optionally start the reactor."""
