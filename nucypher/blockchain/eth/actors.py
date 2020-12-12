@@ -15,6 +15,7 @@ You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
+
 import csv
 import json
 import os
@@ -1486,9 +1487,7 @@ class Worker(NucypherTokenActor):
         last_provided_feedback = start
 
         emitter = StdoutEmitter()
-        message = f"Awaiting worker qualification\n" \
-                  f"Startup will resume when {self.__worker_address} is funded and bonded to a staking account."
-        emitter.message(message, color='yellow')
+        emitter.message("Qualifying worker", color='yellow')
 
         funded, bonded = False, False
         while True:
@@ -1500,12 +1499,12 @@ class Worker(NucypherTokenActor):
             # Bonding
             if (not bonded) and (staking_address != NULL_ADDRESS):
                 bonded = True
-                emitter.message(f"✓ Worker is bonded to ({staking_address})!", color='green', bold=True)
+                emitter.message(f"✓ Worker is bonded to {staking_address}", color='green')
 
             # Balance
             if ether_balance and (not funded):
                 funded, balance = True, Web3.fromWei(ether_balance, 'ether')
-                emitter.message(f"✓ Worker is funded with {balance} ETH!", color='green', bold=True)
+                emitter.message(f"✓ Worker is funded with {balance} ETH", color='green')
 
             # Success and Escape
             if staking_address != NULL_ADDRESS and ether_balance:
@@ -1524,7 +1523,8 @@ class Worker(NucypherTokenActor):
                         waiting_for = "bonding and funding"
                     else:
                         waiting_for = "bonding" if not bonded else "funding"
-                    emitter.message(f"ⓘ  Worker not fully started - awaiting {waiting_for} ...", color='blue', bold=True)
+                    message = f"ⓘ  Worker startup is paused. Waiting for {waiting_for} ..."
+                    emitter.message(message, color='blue', bold=True)
                     last_provided_feedback = now
 
             # Crash on Timeout
@@ -1541,8 +1541,6 @@ class Worker(NucypherTokenActor):
 
             # Increment
             time.sleep(poll_rate)
-
-        emitter.message("✓ Worker settings confirmed", color='green')
 
     @property
     def eth_balance(self) -> Decimal:

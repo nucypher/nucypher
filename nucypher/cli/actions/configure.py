@@ -160,10 +160,11 @@ def perform_ip_checkup(emitter: StdoutEmitter, ursula: Ursula, force: bool = Fal
         return  # TODO: crash, or not to crash... that is the question
     ip_mismatch = external_ip != ursula.rest_interface.host
     if ip_mismatch and not force:
-        error = f'External IP address ({external_ip}) does not match configuration ({ursula.rest_interface.host})' \
-                f"\nRun 'nucypher ursula config ip' to reconfigure the IP address then try " \
-                f"again or use --no-ip-checkup to bypass this check."
-        emitter.error(error)
+        error = f'\nX External IP address ({external_ip}) does not match configuration ({ursula.rest_interface.host}).\n'
+        hint = f"Run 'nucypher ursula config ip-address' to reconfigure the IP address then try " \
+               f"again or use --no-ip-checkup to bypass this check.\n"
+        emitter.message(error, color='red')
+        emitter.message(hint, color='yellow')
         raise click.Abort()
     else:
         emitter.message('✓ External IP matches configuration', 'green')

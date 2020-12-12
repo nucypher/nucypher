@@ -1277,18 +1277,18 @@ class Ursula(Teacher, Character, Worker):
         #
 
         if emitter:
-            emitter.message(f"Starting services...", color='yellow')
+            emitter.message(f"Starting services", color='yellow')
 
         if pruning:
             self.__pruning_task = self._datastore_pruning_task.start(interval=self._pruning_interval, now=True)
             if emitter:
-                emitter.message(f"✓ Database pruning", color='green')
+                emitter.message(f"✓ Database Pruning", color='green')
 
         # TODO: block until specific nodes are known here?
-        # if learning:  # TODO: Include learning startup here with the rest of the services?
-        #     self.start_learning_loop(now=self._start_learning_now)
-        #     if emitter:
-        #         emitter.message(f"✓ Node Discovery ({','.join(self.domain)})", color='green')
+        if discovery:
+            self.start_learning_loop(now=self._start_learning_now)
+            if emitter:
+                emitter.message(f"✓ Node Discovery - {self.domain}", color='green')
 
         if self._availability_check and availability:
             self._availability_tracker.start(now=False)  # wait...
@@ -1316,9 +1316,8 @@ class Ursula(Teacher, Character, Worker):
             stdio.StandardIO(UrsulaCommandProtocol(ursula=self, emitter=emitter))
 
         if hendrix:
-
             if emitter:
-                emitter.message(f"Starting Ursula on {self.rest_interface}", color='green', bold=True)
+                emitter.message(f"✓ Rest Server https://{self.rest_interface}", color='green')
 
             deployer = self.get_deployer()
             deployer.addServices()
