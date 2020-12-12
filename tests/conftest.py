@@ -35,9 +35,6 @@ WebEmitter._crash_on_error_default = True
 LOCK_FUNCTION = TransactingPower.lock_account
 TransactingPower.lock_account = lambda *a, **k: True
 
-# Disable any hardcoded preferred teachers during tests.
-TEACHER_NODES = dict()
-
 # Prevent halting the reactor via health checks during tests
 AvailabilityTracker._halt_reactor = lambda *a, **kw: True
 
@@ -146,7 +143,7 @@ def pytest_collection_modifyitems(config, items):
     GlobalLoggerSettings.start_json_file_logging()
 
 
-# global_mutable_where_everybody = defaultdict(list)
+# global_mutable_where_everybody = defaultdict(list)  # TODO: cleanup
 
 @pytest.fixture(scope='module', autouse=True)
 def check_character_state_after_test(request):

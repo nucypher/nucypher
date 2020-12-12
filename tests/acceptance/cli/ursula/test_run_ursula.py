@@ -49,9 +49,9 @@ def test_missing_configuration_file(default_filepath_mock, click_runner):
     assert "No Ursula configurations found.  run 'nucypher ursula init' then try again." in result.output
 
 
-def test_ursula_rest_host_determination(click_runner, mocker):
+def test_ursula_startup_ip_checkup(click_runner, mocker):
     # Patch the get_external_ip call
-    mocker.patch.object(utilities.networking, 'get_external_ip_from_centralized_source', return_value=MOCK_IP_ADDRESS)
+    mocker.patch.object(utilities.networking, 'get_external_ip_from_default_teacher', return_value=MOCK_IP_ADDRESS)
     mocker.patch.object(UrsulaConfiguration, 'to_configuration_file', return_value=None)
 
     args = ('ursula', 'init', '--federated-only', '--network', TEMPORARY_DOMAIN)
@@ -66,10 +66,10 @@ def test_ursula_rest_host_determination(click_runner, mocker):
     assert MOCK_IP_ADDRESS in result.output
 
     # Patch get_external_ip call to error output
-    mocker.patch.object(utilities.networking, 'get_external_ip_from_centralized_source', side_effect=UnknownIPAddress)
+    mocker.patch.object(utilities.networking, 'get_external_ip_from_default_teacher', side_effect=UnknownIPAddress)
     args = ('ursula', 'init', '--federated-only', '--network', TEMPORARY_DOMAIN, '--force')
     result = click_runner.invoke(nucypher_cli, args, catch_exceptions=True, input=FAKE_PASSWORD_CONFIRMED)
-    assert result.exit_code == 1
+    assert result.exit_code == 1, result.output
     assert isinstance(result.exception, UnknownIPAddress)
 
 
@@ -78,7 +78,7 @@ def test_ursula_run_with_prometheus_but_no_metrics_port(click_runner):
     args = ('ursula', 'run',  # Stat Ursula Command
             '--debug',  # Display log output; Do not attach console
             '--federated-only',  # Operating Mode
-            '--dev',  # Run in development mode (ephemeral node)
+            '--dev',  # Run in development mode (local ephemeral node)
             '--dry-run',  # Disable twisted reactor in subprocess
             '--lonely',  # Do not load seednodes
             '--prometheus'  # Specify collection of prometheus metrics
@@ -111,7 +111,7 @@ def test_run_lone_federated_default_development_ursula(click_runner):
                                          input=INSECURE_DEVELOPMENT_PASSWORD + '\n')
 
     time.sleep(Learner._SHORT_LEARNING_DELAY)
-    assert result.exit_code == 0
+    assert result.exit_code == 0, result.output
     assert "Running" in result.output
     assert "127.0.0.1:{}".format(deploy_port) in result.output
 

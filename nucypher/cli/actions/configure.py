@@ -118,34 +118,46 @@ def handle_invalid_configuration_file(emitter: StdoutEmitter,
         raise  # crash :-(
 
 
-def configure_external_ip_address(emitter: StdoutEmitter,
-                                  network: str,
-                                  force: bool = False) -> str:
+def collect_external_ip_address(emitter: StdoutEmitter, network: str, force: bool = False) -> str:
+
+    # From environment variable
     ip = os.environ.get(NUCYPHER_ENVVAR_WORKER_IP_ADDRESS)
     if ip:
         message = f'Using IP address from {NUCYPHER_ENVVAR_WORKER_IP_ADDRESS} environment variable'
         emitter.message(message, verbosity=2)
-    else:
-        try:
-            ip = determine_external_ip_address(network=network)
-        except UnknownIPAddress:
-            emitter.message('Failed to automatically determine external IP address - input required')
-            ip = click.prompt(COLLECT_URSULA_IPV4_ADDRESS, type=IPV4_ADDRESS)
+        return ip
+
+    # From node swarm
+    try:
+        message = f'Detecting external IP address automatically'
+        emitter.message(message, verbosity=2)
+        ip = determine_external_ip_address(network=network)
+    except UnknownIPAddress:
+        if force:
+            raise
+        emitter.message('Failed to automatically determine external IP address - input required')
+
+    # Confirmation
     if not force:
         if not click.confirm(CONFIRM_URSULA_IPV4_ADDRESS.format(rest_host=ip)):
             ip = click.prompt(COLLECT_URSULA_IPV4_ADDRESS, type=IPV4_ADDRESS)
+
+    emitter.message(f'Configured IP address {ip}')
     return ip
 
 
 def perform_ip_checkup(emitter: StdoutEmitter, ursula, force: bool = False) -> None:
-
-    external_ip = determine_external_ip_address(network=ursula.network)
-    if external_ip != ursula.rest_host:
+    """
+    Used on ursula startup to determine if the external
+    IP address is consistent with the configuration's values.
+    """
+    external_ip = determine_external_ip_address(network=ursula.domain, known_nodes=ursula.known_nodes)
+    ip_mismatch = external_ip != ursula.rest_host
+    if ip_mismatch and not force:
         error = f'External IP address ({external_ip}) does not match configuration ({ursula.rest_host})' \
                 f"\nRun 'nucypher ursula config ip' to reconfigure the IP address then try " \
-                f"again or use --force to bypass this check."
+                f"again or use --no-ip-checkup to bypass this check."
         emitter.error(error)
-        if not force:
-            raise click.Abort()
+        raise click.Abort()
     else:
         emitter.message('✓ External IP matches configuration', 'green')

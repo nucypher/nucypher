@@ -23,7 +23,7 @@ from nucypher.cli.actions.auth import get_client_password, get_nucypher_password
 from nucypher.cli.actions.configure import (
     destroy_configuration,
     handle_missing_configuration_file,
-    get_or_update_configuration, configure_external_ip_address
+    get_or_update_configuration, collect_external_ip_address
 )
 from nucypher.cli.actions.configure import forget as forget_nodes, perform_ip_checkup
 from nucypher.cli.actions.select import (
@@ -176,7 +176,7 @@ class UrsulaConfigOptions:
 
         # Resolve rest host
         if not self.rest_host:
-            self.rest_host = configure_external_ip_address(emitter, network=self.domain, force=force)
+            self.rest_host = collect_external_ip_address(emitter, network=self.domain, force=force)
 
         return UrsulaConfiguration.generate(password=get_nucypher_password(confirm=True),
                                             config_root=config_root,
@@ -353,24 +353,22 @@ def run(general_config, character_options, config_file, interactive, dry_run, pr
 
     worker_address = character_options.config_options.worker_address
     emitter = setup_emitter(general_config)
-    _pre_launch_warnings(emitter, dev=character_options.config_options.dev, force=None)
+    dev_mode = character_options.config_options.dev
 
-    if not character_options.config_options.dev and not config_file:
+    if prometheus and not metrics_port:
+        raise click.BadOptionUsage(option_name='metrics-port',
+                                   message='--metrics-port is required when using --prometheus')
+
+    _pre_launch_warnings(emitter, dev=dev_mode, force=None)
+
+    if not config_file and not dev_mode:
         config_file = select_config_file(emitter=emitter,
                                          checksum_address=worker_address,
                                          config_class=UrsulaConfiguration)
 
-    ursula_config, URSULA = character_options.create_character(emitter=emitter,
-                                                               config_file=config_file,
-                                                               json_ipc=general_config.json_ipc)
-
     prometheus_config: 'PrometheusMetricsConfig' = None
-    if prometheus:
+    if prometheus and not dev_mode:
         # ensure metrics port is provided
-        if not metrics_port:
-            raise click.BadOptionUsage(option_name='metrics-port',
-                                       message='--metrics-port is required when using --prometheus')
-
         # Locally scoped to prevent import without prometheus explicitly installed
         from nucypher.utilities.prometheus.metrics import PrometheusMetricsConfig
         prometheus_config = PrometheusMetricsConfig(port=metrics_port,
@@ -378,8 +376,12 @@ def run(general_config, character_options, config_file, interactive, dry_run, pr
                                                     listen_address=metrics_listen_address,
                                                     collection_interval=metrics_interval)
 
-    if ip_checkup:
-        perform_ip_checkup(emitter=emitter, ursula=ursula, force=force)
+    ursula_config, URSULA = character_options.create_character(emitter=emitter,
+                                                               config_file=config_file,
+                                                               json_ipc=general_config.json_ipc)
+
+    if ip_checkup and not dev_mode:
+        perform_ip_checkup(emitter=emitter, ursula_config=URSULA, force=force)
 
     # TODO: should we just not call run at all for "dry_run"
     # RE: That might make the some tests less accurate
