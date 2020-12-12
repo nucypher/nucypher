@@ -52,8 +52,7 @@
       become: yes
       become_user: nucypher
       command: "docker run -v /home/nucypher:/root/.local/share/ -e NUCYPHER_KEYRING_PASSWORD -it {{ nucypher_image | default('nucypher/nucypher:latest') }}  nucypher ursula config --provider {{ blockchain_provider }} --worker-address {{active_account.stdout}} --rest-host {{ip_response.content}} --network {{network_name}} {{nucypher_ursula_init_options | default('')}} {{signer_options}} --config-file /root/.local/share/nucypher/ursula.json"
-      environment:
-        NUCYPHER_KEYRING_PASSWORD: "{{NUCYPHER_KEYRING_PASSWORD}}"
+      environment: "{{runtime_envvars}}"
 
     - name: "Backup Worker Nucypher Keystore locally to: {{deployer_config_path}}/remote_worker_backups/"
       become: yes
@@ -83,11 +82,7 @@
         ports:
           - "9151:9151"
           - "9101:9101"
-        env:
-          NUCYPHER_KEYRING_PASSWORD: "{{NUCYPHER_KEYRING_PASSWORD}}"
-          NUCYPHER_WORKER_ETH_PASSWORD: "{{NUCYPHER_WORKER_ETH_PASSWORD}}"
-          NUCYPHER_SENTRY_DSN: "{{SENTRY_DSN | default('')}}"
-          NUCYPHER_SENTRY_LOGS: "{{SENTRY_LOGS | default('no')}}"
+        env: "{{runtime_envvars}}"
 
     - name: "wait a few seconds for the seed node to become available"
       when: SEED_NODE_URI is not undefined
@@ -115,11 +110,8 @@
         ports:
           - "9151:9151"
           - "9101:9101"
-        env:
-          NUCYPHER_KEYRING_PASSWORD: "{{NUCYPHER_KEYRING_PASSWORD}}"
-          NUCYPHER_WORKER_ETH_PASSWORD: "{{NUCYPHER_WORKER_ETH_PASSWORD}}"
-          NUCYPHER_SENTRY_DSN: "{{SENTRY_DSN | default('')}}"
-          NUCYPHER_SENTRY_LOGS: "{{SENTRY_LOGS | default('no')}}"
+        env: "{{runtime_envvars}}"
+
 
     - name: "Get LogPath"
       become: yes

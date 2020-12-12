@@ -173,7 +173,6 @@ class BaseCloudNodeConfigurator:
         blockchain_provider=None,
         nucypher_image=None,
         seed_network=False,
-        sentry_dsn=None,
         profile=None,
         prometheus=False,
         pre_config=False,
@@ -181,6 +180,7 @@ class BaseCloudNodeConfigurator:
         namespace=None,
         gas_strategy=None,
         action=None,
+        envvars=None,
         ):
 
         self.emitter = emitter
@@ -188,6 +188,11 @@ class BaseCloudNodeConfigurator:
         self.network = network
         self.namespace = namespace or 'local-stakeholders'
         self.action = action
+        self.envvars = envvars or []
+        if self.envvars:
+            if not all([ (len(v.split('=')) == 2) for v in self.envvars]):
+                raise  ValueError("Improperly specified environment variables: --env variables must be specified in pairs as `<name>=<value>`")
+            self.envvars = [v.split('=') for v in (self.envvars)]
 
         self.config_filename = f'{self.network}-{self.namespace}.json'
 
@@ -229,13 +234,11 @@ class BaseCloudNodeConfigurator:
         self.host_level_overrides = {
             'blockchain_provider': blockchain_provider,
             'nucypher_image': nucypher_image,
-            'sentry_dsn': sentry_dsn,
             'gas_strategy': f'--gas-strategy {gas_strategy}' if gas_strategy else '',
         }
 
         self.config['blockchain_provider'] = blockchain_provider or self.config.get('blockchain_provider') or f'/root/.local/share/geth/.ethereum/{self.chain_name}/geth.ipc' # the default for nodes that run their own geth container
         self.config['nucypher_image'] = nucypher_image or self.config.get('nucypher_image') or 'nucypher/nucypher:latest'
-        self.config['sentry_dsn'] = sentry_dsn or self.config.get('sentry_dsn')
         self.config['gas_strategy'] = f'--gas-strategy {gas_strategy}' if gas_strategy else self.config.get('gas-strategy', '')
 
         self.config['seed_network'] = seed_network if seed_network is not None else self.config.get('seed_network')
@@ -289,16 +292,48 @@ class BaseCloudNodeConfigurator:
     def inventory_path(self):
         return os.path.join(DEFAULT_CONFIG_ROOT, NODE_CONFIG_STORAGE_KEY, f'{self.namespace_network}.ansible_inventory.yml')
 
-    def generate_ansible_inventory(self, node_names, **kwargs):
+    def update_generate_inventory(self, node_names, **kwargs):
+
+        # filter out the nodes we will not be dealing with
+        nodes = {key: value for key, value in self.config['instances'].items() if key in node_names}
+
+        default_envvars = [
+            ('NUCYPHER_KEYRING_PASSWORD',  self.config['keyringpassword']),
+            ('NUCYPHER_WORKER_ETH_PASSWORD', self.config['ethpassword']),
+        ]
+
+        input_envvars = [(k, v) for k, v in self.envvars]
+
+        # populate the specified environment variables as well as the
+        # defaults that are only used in the inventory
+        for key, node in nodes.items():
+            node_vars = nodes[key].get('runtime_envvars', {})
+            for k, v in input_envvars:
+                node_vars.update({k: v})
+            nodes[key]['runtime_envvars'] = node_vars
+
+            # we want to update the config with the specified envvars
+            # so they will persist in future invocations
+            self.config['instances'][key] = copy.deepcopy(nodes[key])
+
+        # we don't want to save the default_envvars to the config file
+        # but we do want them to be specified to the inventory template
+        # but overridden on a per node basis if previously specified
+        for key, node in nodes.items():
+            for k, v in default_envvars:
+                if not k in nodes[key]['runtime_envvars']:
+                    nodes[key]['runtime_envvars'][k] = v
 
         inventory_content = self._inventory_template.render(
             deployer=self,
-            nodes=[value for key, value in self.config['instances'].items() if key in node_names],
+            nodes=nodes.values(),
             extra=kwargs
         )
 
         with open(self.inventory_path, 'w') as outfile:
             outfile.write(inventory_content)
+
+        # now that everything rendered correctly, save how we got there.
         self._write_config()
 
         return self.inventory_path
@@ -361,7 +396,7 @@ class BaseCloudNodeConfigurator:
             self.config['seed_node'] = list(self.config['instances'].values())[0]['publicaddress']
             self._write_config()
 
-        self.generate_ansible_inventory(node_names, wipe_nucypher=wipe_nucypher)
+        self.update_generate_inventory(node_names, wipe_nucypher=wipe_nucypher)
 
         loader = DataLoader()
         inventory = InventoryManager(loader=loader, sources=self.inventory_path)
@@ -380,7 +415,6 @@ class BaseCloudNodeConfigurator:
 
         self.update_captured_instance_data(self.output_capture)
         self.give_helpful_hints(node_names, backup=True, playbook=playbook)
-
 
     def update_nucypher_on_existing_nodes(self, node_names):
 
@@ -402,7 +436,7 @@ class BaseCloudNodeConfigurator:
             self.config['seed_node'] = list(self.config['instances'].values())[0]['publicaddress']
             self._write_config()
 
-        self.generate_ansible_inventory(node_names)
+        self.update_generate_inventory(node_names)
 
         loader = DataLoader()
         inventory = InventoryManager(loader=loader, sources=self.inventory_path)
@@ -422,12 +456,11 @@ class BaseCloudNodeConfigurator:
         self.update_captured_instance_data(self.output_capture)
         self.give_helpful_hints(node_names, backup=True, playbook=playbook)
 
-
     def get_worker_status(self, node_names):
 
         playbook = 'deploy/ansible/worker/get_workers_status.yml'
 
-        self.generate_ansible_inventory(node_names)
+        self.update_generate_inventory(node_names)
 
         loader = DataLoader()
         inventory = InventoryManager(loader=loader, sources=self.inventory_path)
@@ -447,12 +480,11 @@ class BaseCloudNodeConfigurator:
 
         self.give_helpful_hints(node_names, playbook=playbook)
 
-
     def print_worker_logs(self, node_names):
 
         playbook = 'deploy/ansible/worker/get_worker_logs.yml'
 
-        self.generate_ansible_inventory(node_names)
+        self.update_generate_inventory(node_names)
 
         loader = DataLoader()
         inventory = InventoryManager(loader=loader, sources=self.inventory_path)
@@ -472,11 +504,10 @@ class BaseCloudNodeConfigurator:
 
         self.give_helpful_hints(node_names, playbook=playbook)
 
-
     def backup_remote_data(self, node_names):
 
         playbook = 'deploy/ansible/worker/backup_remote_workers.yml'
-        self.generate_ansible_inventory(node_names)
+        self.update_generate_inventory(node_names)
 
         loader = DataLoader()
         inventory = InventoryManager(loader=loader, sources=self.inventory_path)
@@ -499,7 +530,7 @@ class BaseCloudNodeConfigurator:
 
         playbook = 'deploy/ansible/worker/restore_ursula_from_backup.yml'
 
-        self.generate_ansible_inventory([target_host], restore_path=source_path)
+        self.update_generate_inventory([target_host], restore_path=source_path)
 
         loader = DataLoader()
         inventory = InventoryManager(loader=loader, sources=self.inventory_path)
@@ -585,7 +616,7 @@ class BaseCloudNodeConfigurator:
             )
             self.emitter.echo(f"\t{dep.format_ssh_cmd(host_data)}", color="yellow")
         if backup:
-            self.emitter.echo(" *** Local backups containing sensitive data have been created. ***", color="red")
+            self.emitter.echo(" *** Local backups containing sensitive data may have been created. ***", color="red")
             self.emitter.echo(f" Backup data can be found here: {self.config_dir}/remote_worker_backups/")
 
     def format_ssh_cmd(self, host_data):
