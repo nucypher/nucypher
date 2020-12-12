@@ -409,16 +409,21 @@ def save_metadata(general_config, character_options, config_file):
 
 
 @ursula.command()
+@click.argument('action', required=False)
 @group_config_options
 @option_config_file
 @group_general_config
-def config(general_config, config_options, config_file):
+@option_force
+def config(general_config, config_options, config_file, force, action):
     """View and optionally update the Ursula node's configuration."""
     emitter = setup_emitter(general_config, config_options.worker_address)
     if not config_file:
         config_file = select_config_file(emitter=emitter,
                                          checksum_address=config_options.worker_address,
                                          config_class=UrsulaConfiguration)
+    if action == 'ip-address':
+        rest_host = collect_external_ip_address(emitter=emitter, network=config_options.domain, force=force)
+        config_options.rest_host = rest_host
     updates = config_options.get_updates()
     get_or_update_configuration(emitter=emitter,
                                 config_class=UrsulaConfiguration,
