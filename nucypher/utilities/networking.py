@@ -14,6 +14,8 @@
  You should have received a copy of the GNU Affero General Public License
  along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
+
+
 import random
 
 import requests
@@ -47,7 +49,7 @@ def get_external_ip_from_url_source(url: str) -> Union[str, None]:
 
 def get_external_ip_from_default_teacher(network: str) -> Union[str, None]:
     try:
-        endpoint = f'{RestMiddleware.TEACHER_NODES[network]}/ping'
+        endpoint = f'{RestMiddleware.TEACHER_NODES[network]}/ping'  # TODO: use client
     except KeyError:  # unknown network name
         return
     ip = get_external_ip_from_url_source(url=endpoint)

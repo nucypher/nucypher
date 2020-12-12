@@ -185,7 +185,14 @@ def check_character_state_after_test(request):
             tracker.work_tracker.stop()
 
 
+
 @pytest.fixture(scope='session', autouse=True)
 def mock_datastore(monkeysession):
     monkeysession.setattr(lmdb, 'open', mock_lmdb_open)
     yield
+    
+
+def mock_get_external_ip_from_url_source(session_mocker):
+    """Prevent tests from making a call to third party external networks"""
+    target = 'nucypher.utilities.networking.get_external_ip_from_centralized_source'
+    session_mocker.patch(target, return_value=None)
