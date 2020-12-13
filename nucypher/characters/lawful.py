@@ -481,26 +481,6 @@ class Alice(Character, BlockchainPolicyAuthor):
         return controller
 
 
-def ensure_correct_sender(message_kit: UmbralMessageKit,
-                          enrico: Optional["Enrico"] = None,
-                          policy_encrypting_key: Optional[UmbralPublicKey] = None):
-    """
-    Make sure that the sender of the message kit is set and corresponds to
-    the given ``enrico``, or create it from the given ``policy_encrypting_key``.
-    """
-    if message_kit.sender:
-        if enrico and message_kit.sender != enrico:
-            raise ValueError
-    elif enrico:
-        message_kit.sender = enrico
-    elif message_kit.sender_verifying_key and policy_encrypting_key:
-        # Well, after all, this is all we *really* need.
-        message_kit.sender = Enrico.from_public_keys(verifying_key=message_kit.sender_verifying_key,
-                                                     policy_encrypting_key=policy_encrypting_key)
-    else:
-        raise TypeError
-
-
 class Bob(Character):
     banner = BOB_BANNER
     _interface_class = BobInterface
@@ -864,9 +844,8 @@ class Bob(Character):
 
         # Normalization
         for message in message_kits:
-            ensure_correct_sender(message,
-                                  enrico=enrico,
-                                  policy_encrypting_key=policy_encrypting_key)
+            message.ensure_correct_sender(enrico=enrico,
+                                          policy_encrypting_key=policy_encrypting_key)
 
         # Sanity check: If we're not using attached cfrags, we don't want a Capsule which has them.
         if not use_attached_cfrags and any(len(message.capsule) > 0 for message in message_kits):

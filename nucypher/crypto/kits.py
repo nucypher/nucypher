@@ -15,9 +15,11 @@ You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
+from typing import Optional
 
 from bytestring_splitter import BytestringKwargifier, VariableLengthBytestring
 from constant_sorrow.constants import NOT_SIGNED, UNKNOWN_SENDER
+from umbral.keys import UmbralPublicKey
 
 from nucypher.crypto.splitters import capsule_splitter, key_splitter
 
@@ -105,6 +107,28 @@ class PolicyMessageKit(MessageKit):
 
     def __bytes__(self):
         return super().to_bytes(include_alice_pubkey=True)
+
+    def ensure_correct_sender(self,
+                              enrico: Optional["Enrico"] = None,
+                              policy_encrypting_key: Optional[UmbralPublicKey] = None):
+        """
+        Make sure that the sender of the message kit is set and corresponds to
+        the given ``enrico``, or create it from the given ``policy_encrypting_key``.
+        """
+        if self.sender:
+            if enrico and self.sender != enrico:
+                raise ValueError(f"Mismatched sender: the object has {self.sender}, provided {enrico}")
+        elif enrico:
+            self.sender = enrico
+        elif self.sender_verifying_key and policy_encrypting_key:
+            # Well, after all, this is all we *really* need.
+            from nucypher.characters.lawful import Enrico
+            self.sender = Enrico.from_public_keys(verifying_key=self.sender_verifying_key,
+                                                  policy_encrypting_key=policy_encrypting_key)
+        else:
+            raise ValueError(
+                "No information provided to set the message kit sender. "
+                "Need eiter `enrico` or `policy_encrypting_key` to be given.")
 
 
 UmbralMessageKit = PolicyMessageKit  # Temporarily, until serialization w/ Enrico's
