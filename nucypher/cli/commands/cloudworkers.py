@@ -139,7 +139,7 @@ def add(general_config, host_address, login_name, key_path, ssh_port, host_nickn
     """Adds an existing node to the local config for future management."""
 
     emitter = setup_emitter(general_config)
-    name = f'{namespace}-{network}-{host_nickname}'
+    name = host_nickname
 
     deployer = CloudDeployers.get_deployer('generic')(emitter, None, None, namespace=namespace, network=network, action='add')
     config = deployer.create_nodes([name], host_address, login_name, key_path, ssh_port)
