@@ -36,7 +36,7 @@ from ansible.executor.playbook_executor import PlaybookExecutor
 from ansible import context as ansible_context
 from ansible.module_utils.common.collections import ImmutableDict
 
-from nucypher.config.constants import DEFAULT_CONFIG_ROOT
+from nucypher.config.constants import DEFAULT_CONFIG_ROOT, DEPLOY_DIR
 from nucypher.blockchain.eth.clients import PUBLIC_CHAINS
 from nucypher.blockchain.eth.networks import NetworksInventory
 
@@ -373,7 +373,7 @@ class BaseCloudNodeConfigurator:
 
     def deploy_nucypher_on_existing_nodes(self, node_names, wipe_nucypher=False):
 
-        playbook = 'deploy/ansible/worker/setup_remote_workers.yml'
+        playbook = os.path.join(DEPLOY_DIR, 'ansible/worker/setup_remote_workers.yml')
 
         # first update any specified input in our node config
         for k, input_specified_value in self.host_level_overrides.items():
@@ -418,7 +418,7 @@ class BaseCloudNodeConfigurator:
 
     def update_nucypher_on_existing_nodes(self, node_names):
 
-        playbook = 'deploy/ansible/worker/update_remote_workers.yml'
+        playbook = os.path.join(DEPLOY_DIR, 'ansible/worker/update_remote_workers.yml')
 
         # first update any specified input in our node config
         for k, input_specified_value in self.host_level_overrides.items():
@@ -458,7 +458,7 @@ class BaseCloudNodeConfigurator:
 
     def get_worker_status(self, node_names):
 
-        playbook = 'deploy/ansible/worker/get_workers_status.yml'
+        playbook = os.path.join(DEPLOY_DIR, 'ansible/worker/get_workers_status.yml')
 
         self.update_generate_inventory(node_names)
 
@@ -482,7 +482,7 @@ class BaseCloudNodeConfigurator:
 
     def print_worker_logs(self, node_names):
 
-        playbook = 'deploy/ansible/worker/get_worker_logs.yml'
+        playbook = os.path.join(DEPLOY_DIR, 'ansible/worker/get_worker_logs.yml')
 
         self.update_generate_inventory(node_names)
 
@@ -506,7 +506,7 @@ class BaseCloudNodeConfigurator:
 
     def backup_remote_data(self, node_names):
 
-        playbook = 'deploy/ansible/worker/backup_remote_workers.yml'
+        playbook = os.path.join(DEPLOY_DIR, 'ansible/worker/backup_remote_workers.yml')
         self.update_generate_inventory(node_names)
 
         loader = DataLoader()
@@ -528,7 +528,7 @@ class BaseCloudNodeConfigurator:
 
     def restore_from_backup(self, target_host, source_path):
 
-        playbook = 'deploy/ansible/worker/restore_ursula_from_backup.yml'
+        playbook = os.path.join(DEPLOY_DIR, 'ansible/worker/restore_ursula_from_backup.yml')
 
         self.update_generate_inventory([target_host], restore_path=source_path)
 
