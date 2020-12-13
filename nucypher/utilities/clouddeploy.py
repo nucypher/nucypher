@@ -296,6 +296,8 @@ class BaseCloudNodeConfigurator:
 
         # filter out the nodes we will not be dealing with
         nodes = {key: value for key, value in self.config['instances'].items() if key in node_names}
+        if not nodes:
+            raise KeyError(f"No hosts matched the supplied names: {node_names}.  Try `nucypher cloudworkers list-hosts`")
 
         default_envvars = [
             ('NUCYPHER_KEYRING_PASSWORD',  self.config['keyringpassword']),
