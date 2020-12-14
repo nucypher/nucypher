@@ -547,8 +547,10 @@ class Policy(ABC):
                                    *args, **kwargs)
 
         if len(self._accepted_arrangements) < self.n:
-            raise self.Rejected(f'Selected Ursulas rejected too many arrangements '
-                                f'- only {len(self._accepted_arrangements)} of {self.n} accepted.')
+            formatted_offenders = '\n'.join(f'{u.checksum_address}@{u.rest_url()}' for u in sampled_ursulas)
+            raise self.Rejected(f'Selected Ursulas rejected too many arrangements'
+                                f'- only {len(self._accepted_arrangements)} of {self.n} accepted.\n'
+                                f'Offending nodes: \n{formatted_offenders}\n')
 
     @abstractmethod
     def make_arrangement(self, ursula: Ursula, *args, **kwargs):
