@@ -184,7 +184,7 @@ contract PoolingStakingContract is AbstractStakingContract, Ownable {
             totalWithdrawnETH -= (delegator.withdrawnETH - newWithdrawnETH);
             delegator.depositedTokens = newDepositedTokens;
             delegator.withdrawnReward = newWithdrawnReward;
-            delegator.withdrawnETH = delegator.withdrawnETH.mul(newDepositedTokens).div(delegator.depositedTokens);
+            delegator.withdrawnETH = newWithdrawnETH;
         }
 
         token.safeTransfer(msg.sender, _value);
@@ -226,7 +226,7 @@ contract PoolingStakingContract is AbstractStakingContract, Ownable {
     }
 
     /**
-    * @notice Withdraw available amount of ETH to delegator
+    * @notice Withdraw available amount of ETH to pool owner
     */
     function withdrawOwnerETH() public onlyOwner {
         uint256 availableETH = getAvailableOwnerETH();

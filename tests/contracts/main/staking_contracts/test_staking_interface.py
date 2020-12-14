@@ -435,10 +435,10 @@ def test_worklock(testerchain, worklock, staking_contract, staking_contract_inte
     compensation = 11000
     tx = worklock.functions.sendCompensation().transact({'from': creator, 'value': compensation, 'gas_price': 0})
     testerchain.wait_for_receipt(tx)
-    assert worklock.functions.compensation().call() == compensation
+    assert worklock.functions.compensationValue().call() == compensation
     tx = staking_contract_interface.functions.withdrawCompensation().transact({'from': owner, 'gas_price': 0})
     testerchain.wait_for_receipt(tx)
-    assert worklock.functions.compensation().call() == 0
+    assert worklock.functions.compensationValue().call() == 0
     assert testerchain.client.get_balance(staking_contract.address) == 2 * bid + compensation
 
     events = compensations.get_all_entries()

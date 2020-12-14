@@ -143,8 +143,9 @@ contract WorkLockForStakingContractMock {
     uint256 public immutable boostingRefund = 1;
     uint256 public claimed;
     uint256 public depositedETH;
-    uint256 public compensation;
+    uint256 public compensationValue;
     uint256 public refundETH;
+    uint256 public futureClaim;
 
     function bid() external payable {
         depositedETH = msg.value;
@@ -157,17 +158,29 @@ contract WorkLockForStakingContractMock {
     }
 
     function sendCompensation() external payable {
-        compensation = msg.value;
+        compensationValue = msg.value;
+    }
+
+    function compensation(address) public returns (uint256) {
+        return compensationValue;
     }
 
     function withdrawCompensation() external {
-        uint256 value = compensation;
-        compensation = 0;
+        uint256 value = compensationValue;
+        compensationValue = 0;
         msg.sender.transfer(value);
     }
 
+    function setClaimedTokens(uint256 _claimedTokens) external {
+        futureClaim = _claimedTokens;
+    }
+
     function claim() external returns (uint256) {
-        claimed += 1;
+        if (futureClaim == 0) {
+            claimed += 1;
+        } else {
+            claimed += futureClaim;
+        }
         return claimed;
     }
 

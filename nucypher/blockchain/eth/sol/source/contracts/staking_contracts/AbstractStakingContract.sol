@@ -2,11 +2,11 @@
 
 pragma solidity ^0.7.0;
 
-
 import "zeppelin/ownership/Ownable.sol";
 import "zeppelin/utils/Address.sol";
 import "zeppelin/token/ERC20/SafeERC20.sol";
 import "contracts/staking_contracts/StakingInterface.sol";
+import "zeppelin/proxy/Initializable.sol";
 
 
 /**
@@ -36,27 +36,15 @@ contract StakingInterfaceRouter is Ownable {
 
 
 /**
-* @notice Base class for any staking contract
-* @dev Implement `isFallbackAllowed()` or override fallback function
-* Implement `withdrawTokens(uint256)` and `withdrawETH()` functions
+* @notice Internal base class for AbstractStakingContract and InitializableStakingContract
 */
-abstract contract AbstractStakingContract {
+abstract contract RawStakingContract {
     using Address for address;
-    using Address for address payable;
-    using SafeERC20 for NuCypherToken;
-
-    StakingInterfaceRouter public immutable router;
-    NuCypherToken public immutable token;
 
     /**
-    * @param _router Interface router contract address
+    * @dev Returns address of StakingInterfaceRouter
     */
-    constructor(StakingInterfaceRouter _router) {
-        router = _router;
-        NuCypherToken localToken = _router.target().token();
-        require(address(localToken) != address(0));
-        token = localToken;
-    }
+    function router() public view virtual returns (StakingInterfaceRouter);
 
     /**
     * @dev Checks permission for calling fallback function
@@ -80,10 +68,10 @@ abstract contract AbstractStakingContract {
     */
     fallback() external payable {
         require(isFallbackAllowed());
-        address target = address(router.target());
+        address target = address(router().target());
         require(target.isContract());
         // execute requested function from target contract
-        (bool callSuccess,) = target.delegatecall(msg.data);
+        (bool callSuccess, ) = target.delegatecall(msg.data);
         if (callSuccess) {
             // copy result of the request to the return data
             // we can use the second return value from `delegatecall` (bytes memory)
@@ -95,6 +83,65 @@ abstract contract AbstractStakingContract {
         } else {
             revert();
         }
+    }
+}
+
+
+/**
+* @notice Base class for any staking contract (not usable with openzeppelin proxy)
+* @dev Implement `isFallbackAllowed()` or override fallback function
+* Implement `withdrawTokens(uint256)` and `withdrawETH()` functions
+*/
+abstract contract AbstractStakingContract is RawStakingContract {
+
+    StakingInterfaceRouter immutable router_;
+    NuCypherToken public immutable token;
+
+    /**
+    * @param _router Interface router contract address
+    */
+    constructor(StakingInterfaceRouter _router) {
+        router_ = _router;
+        NuCypherToken localToken = _router.target().token();
+        require(address(localToken) != address(0));
+        token = localToken;
+    }
+
+    /**
+    * @dev Returns address of StakingInterfaceRouter
+    */
+    function router() public view override returns (StakingInterfaceRouter) {
+        return router_;
+    }
+
+}
+
+
+/**
+* @notice Base class for any staking contract usable with openzeppelin proxy
+* @dev Implement `isFallbackAllowed()` or override fallback function
+* Implement `withdrawTokens(uint256)` and `withdrawETH()` functions
+*/
+abstract contract InitializableStakingContract is Initializable, RawStakingContract {
+
+    StakingInterfaceRouter router_;
+    NuCypherToken public token;
+
+    /**
+    * @param _router Interface router contract address
+    */
+    function initialize(StakingInterfaceRouter _router) public initializer {
+        router_ = _router;
+        NuCypherToken localToken = _router.target().token();
+        require(address(localToken) != address(0));
+        token = localToken;
+    }
+
+    /**
+    * @dev Returns address of StakingInterfaceRouter
+    */
+    function router() public view override returns (StakingInterfaceRouter) {
+        return router_;
     }
 
 }
