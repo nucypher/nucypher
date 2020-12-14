@@ -42,7 +42,6 @@ from constant_sorrow.constants import (
     INSUFFICIENT_ETH,
     NO_BLOCKCHAIN_CONNECTION,
     NO_COMPILATION_PERFORMED,
-    NO_PROVIDER_PROCESS,
     READ_ONLY_INTERFACE,
     UNKNOWN_TX_STATUS
 )
@@ -54,7 +53,6 @@ from nucypher.blockchain.eth.providers import (
     _get_auto_provider,
     _get_mock_test_provider,
     _get_pyevm_test_provider,
-    _get_test_geth_parity_provider,
     _get_websocket_provider
 )
 from nucypher.blockchain.eth.registry import BaseContractRegistry
@@ -85,7 +83,6 @@ class BlockchainInterface:
     DEFAULT_GAS_STRATEGY = 'fast'
     GAS_STRATEGIES = WEB3_GAS_STRATEGIES
 
-    process = NO_PROVIDER_PROCESS.bool_value(False)
     Web3 = Web3  # TODO: This is name-shadowing the actual Web3. Is this intentional?
 
     _CONTRACT_FACTORY = VersionedContract
@@ -111,7 +108,7 @@ class BlockchainInterface:
 
     class TransactionFailed(InterfaceError):
 
-        IPC_CODE = -32000  # (geth)
+        IPC_CODE = -32000
 
         def __init__(self,
                      message: str,
@@ -160,7 +157,6 @@ class BlockchainInterface:
                  emitter = None,  # TODO # 1754
                  poa: bool = None,
                  light: bool = False,
-                 provider_process=NO_PROVIDER_PROCESS,
                  provider_uri: str = NO_BLOCKCHAIN_CONNECTION,
                  provider: BaseProvider = NO_BLOCKCHAIN_CONNECTION,
                  gas_strategy: Optional[Union[str, Callable]] = None):
@@ -232,7 +228,6 @@ class BlockchainInterface:
         self.poa = poa
         self.provider_uri = provider_uri
         self._provider = provider
-        self._provider_process = provider_process
         self.w3 = NO_BLOCKCHAIN_CONNECTION
         self.client = NO_BLOCKCHAIN_CONNECTION
         self.transacting_power = READ_ONLY_INTERFACE
@@ -309,13 +304,8 @@ class BlockchainInterface:
 
     def connect(self):
 
-        # Spawn child process
-        if self._provider_process:
-            self._provider_process.start()
-            provider_uri = self._provider_process.provider_uri(scheme='file')
-        else:
-            provider_uri = self.provider_uri
-            self.log.info(f"Using external Web3 Provider '{self.provider_uri}'")
+        provider_uri = self.provider_uri
+        self.log.info(f"Using external Web3 Provider '{self.provider_uri}'")
 
         # Attach Provider
         self._attach_provider(provider=self._provider, provider_uri=provider_uri)
@@ -401,8 +391,6 @@ class BlockchainInterface:
             if uri_breakdown.scheme == 'tester':
                 providers = {
                     'pyevm': _get_pyevm_test_provider,
-                    'geth': _get_test_geth_parity_provider,
-                    'parity-ethereum': _get_test_geth_parity_provider,
                     'mock': _get_mock_test_provider
                 }
                 provider_scheme = uri_breakdown.netloc

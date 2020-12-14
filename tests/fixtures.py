@@ -15,25 +15,21 @@ You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
-import contextlib
+
 import json
+
+import contextlib
+import maya
 import os
+import pytest
 import random
 import shutil
 import tempfile
-from datetime import datetime, timedelta
-from functools import partial
-from typing import Tuple
-
-import maya
-import pytest
 from click.testing import CliRunner
+from datetime import datetime, timedelta
 from eth_utils import to_checksum_address
+from functools import partial
 from typing import Tuple, Callable
-from umbral import pre
-from umbral.curvebn import CurveBN
-from umbral.keys import UmbralPrivateKey
-from umbral.signing import Signer
 from web3 import Web3
 from web3.contract import Contract
 from web3.types import TxReceipt
@@ -41,7 +37,6 @@ from web3.types import TxReceipt
 from nucypher.blockchain.economics import BaseEconomics, StandardTokenEconomics
 from nucypher.blockchain.eth.actors import StakeHolder, Staker
 from nucypher.blockchain.eth.agents import NucypherTokenAgent, PolicyManagerAgent, StakingEscrowAgent
-from nucypher.blockchain.eth.clients import NuCypherGethDevProcess
 from nucypher.blockchain.eth.deployers import (
     AdjudicatorDeployer,
     NucypherTokenDeployer,
@@ -66,7 +61,6 @@ from nucypher.config.constants import TEMPORARY_DOMAIN
 from nucypher.crypto.powers import TransactingPower
 from nucypher.datastore import datastore
 from nucypher.utilities.logging import GlobalLoggerSettings, Logger
-
 from tests.constants import (
     BASE_TEMP_DIR,
     BASE_TEMP_PREFIX,
@@ -107,8 +101,13 @@ from tests.utils.config import (
 )
 from tests.utils.middleware import MockRestMiddleware, MockRestMiddlewareForLargeFleetTests
 from tests.utils.policy import generate_random_label
-from tests.utils.ursula import MOCK_URSULA_STARTING_PORT, make_decentralized_ursulas, make_federated_ursulas, \
-    MOCK_KNOWN_URSULAS_CACHE, _mock_ursula_reencrypts
+from tests.utils.ursula import (
+    MOCK_URSULA_STARTING_PORT,
+    make_decentralized_ursulas,
+    make_federated_ursulas,
+    MOCK_KNOWN_URSULAS_CACHE,
+    _mock_ursula_reencrypts
+)
 
 test_logger = Logger("test-logger")
 
@@ -777,17 +776,6 @@ def funded_blockchain(testerchain, agency, token_economics, test_registry):
 @pytest.fixture(scope='session')
 def mock_ursula_reencrypts():
     return _mock_ursula_reencrypts
-
-
-@pytest.fixture(scope='session')
-def instant_geth_dev_node():
-    geth = NuCypherGethDevProcess()
-    try:
-        yield geth
-    finally:
-        if geth.is_running:
-            geth.stop()
-            assert not geth.is_running
 
 
 @pytest.fixture(scope='session')

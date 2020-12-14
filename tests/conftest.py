@@ -24,6 +24,7 @@ from pathlib import Path
 
 from nucypher.characters.control.emitters import WebEmitter
 from nucypher.crypto.powers import TransactingPower
+from nucypher.network.nodes import Learner
 from nucypher.network.trackers import AvailabilityTracker
 from nucypher.policy.identity import Card
 from nucypher.utilities.logging import GlobalLoggerSettings
@@ -45,11 +46,8 @@ AvailabilityTracker._halt_reactor = lambda *a, **kw: True
 # Global test character cache
 global_mutable_where_everybody = defaultdict(list)
 
-##########################################
-
-
-from nucypher.network.nodes import Learner
 Learner._DEBUG_MODE = False
+
 
 @pytest.fixture(autouse=True, scope='session')
 def __very_pretty_and_insecure_scrypt_do_not_use():
@@ -77,8 +75,6 @@ def __very_pretty_and_insecure_scrypt_do_not_use():
     yield
     # Re-Enable Scrypt KDF
     Scrypt.derive = original_derivation_function
-
-############################################
 
 
 @pytest.fixture(scope='module')

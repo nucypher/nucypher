@@ -19,7 +19,7 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 import click
 import maya
 import os
-from constant_sorrow.constants import NO_BLOCKCHAIN_CONNECTION, NO_PASSWORD
+from constant_sorrow.constants import NO_PASSWORD
 from datetime import timedelta
 from web3.main import Web3
 
@@ -47,7 +47,6 @@ from nucypher.cli.options import (
     option_dry_run,
     option_federated_only,
     option_force,
-    option_geth,
     option_hw_wallet,
     option_light,
     option_m,
@@ -68,8 +67,8 @@ from nucypher.cli.painting.help import (
     enforce_probationary_period
 )
 from nucypher.cli.painting.policies import paint_single_card
-from nucypher.cli.processes import get_geth_provider_process
-from nucypher.cli.types import EIP55_CHECKSUM_ADDRESS, GWEI
+from nucypher.cli.types import EIP55_CHECKSUM_ADDRESS
+from nucypher.cli.types import GWEI
 from nucypher.cli.utils import make_cli_character, setup_emitter
 from nucypher.config.characters import AliceConfiguration
 from nucypher.config.constants import (
@@ -92,7 +91,6 @@ class AliceConfigOptions:
                  dev: bool,
                  network: str,
                  provider_uri: str,
-                 geth: bool,
                  federated_only: bool,
                  discovery_port: int,
                  pay_with: str,
@@ -103,25 +101,12 @@ class AliceConfigOptions:
                  lonely: bool,
                  ):
 
-        if federated_only and geth:
-            raise click.BadOptionUsage(
-                option_name="--geth",
-                message="--federated-only cannot be used with the --geth flag")
-
-        # Managed Ethereum Client
-        eth_node = NO_BLOCKCHAIN_CONNECTION
-        if geth:
-            eth_node = get_geth_provider_process()
-            provider_uri = eth_node.provider_uri(scheme='file')
-
         self.dev = dev
         self.domain = network
         self.provider_uri = provider_uri
         self.signer_uri = signer_uri
         self.gas_strategy = gas_strategy
-        self.geth = geth
         self.federated_only = federated_only
-        self.eth_node = eth_node
         self.pay_with = pay_with
         self.discovery_port = discovery_port
         self.registry_filepath = registry_filepath
@@ -143,7 +128,6 @@ class AliceConfigOptions:
                 dev_mode=True,
                 network_middleware=self.middleware,
                 domain=TEMPORARY_DOMAIN,
-                provider_process=self.eth_node,
                 provider_uri=self.provider_uri,
                 signer_uri=self.signer_uri,
                 gas_strategy=self.gas_strategy,
@@ -158,7 +142,6 @@ class AliceConfigOptions:
                     dev_mode=False,
                     network_middleware=self.middleware,
                     domain=self.domain,
-                    provider_process=self.eth_node,
                     provider_uri=self.provider_uri,
                     signer_uri=self.signer_uri,
                     gas_strategy=self.gas_strategy,
@@ -182,7 +165,6 @@ group_config_options = group_options(
     provider_uri=option_provider_uri(),
     signer_uri=option_signer_uri,
     gas_strategy=option_gas_strategy,
-    geth=option_geth,
     federated_only=option_federated_only,
     discovery_port=option_discovery_port(),
     pay_with=option_pay_with,
@@ -232,7 +214,6 @@ class AliceFullConfigOptions:
             federated_only=opts.federated_only,
             provider_uri=opts.provider_uri,
             signer_uri=opts.signer_uri,
-            provider_process=opts.eth_node,
             registry_filepath=opts.registry_filepath,
             poa=self.poa,
             light=self.light,

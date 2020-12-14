@@ -23,7 +23,6 @@ from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
 from nucypher.blockchain.eth.multisig import Authorization, Proposal
 from nucypher.blockchain.eth.signers.software import ClefSigner
 from nucypher.cli.actions.auth import get_client_password
-from nucypher.cli.processes import get_geth_provider_process
 from nucypher.cli.actions.select import select_client_account
 from nucypher.cli.utils import get_registry
 from nucypher.cli.commands.stake import option_signer_uri
@@ -40,7 +39,6 @@ from nucypher.cli.literature import (
 from nucypher.cli.options import (
     group_options,
     option_checksum_address,
-    option_geth,
     option_hw_wallet,
     option_light,
     option_network,
@@ -58,9 +56,8 @@ class BlockchainOptions:
 
     __option_name__ = 'blockchain_options'
 
-    def __init__(self, provider_uri, geth, poa, registry_filepath, light, network):
+    def __init__(self, provider_uri, poa, registry_filepath, light, network):
         self.provider_uri = provider_uri
-        self.geth = geth
         self.poa = poa
         self.registry_filepath = registry_filepath
         self.light = light
@@ -69,14 +66,9 @@ class BlockchainOptions:
     def connect_blockchain(self, emitter, debug):
         # TODO: Move to common method shared with the rest of the CLI
         try:
-            eth_node = None
-            if self.geth:
-                eth_node = get_geth_provider_process()
-
             # Note: For test compatibility.
             if not BlockchainInterfaceFactory.is_interface_initialized(provider_uri=self.provider_uri):
                 BlockchainInterfaceFactory.initialize_interface(provider_uri=self.provider_uri,
-                                                                provider_process=eth_node,
                                                                 poa=self.poa,
                                                                 light=self.light,
                                                                 sync=False,
@@ -97,7 +89,6 @@ class BlockchainOptions:
 group_blockchain_options = group_options(
     BlockchainOptions,
     provider_uri=option_provider_uri(),
-    geth=option_geth,
     poa=option_poa,
     light=option_light,
     registry_filepath=option_registry_filepath,

@@ -14,16 +14,16 @@ GNU Affero General Public License for more details.
 You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
-from typing import Union
-from urllib.parse import urlparse
+
 
 from eth_tester import EthereumTester, PyEVMBackend
 from eth_tester.backends.mock.main import MockBackend
+from typing import Union
+from urllib.parse import urlparse
 from web3 import HTTPProvider, IPCProvider, WebsocketProvider
 from web3.providers import BaseProvider
 from web3.providers.eth_tester.main import EthereumTesterProvider
 
-from nucypher.blockchain.eth.clients import NuCypherGethDevProcess
 from nucypher.exceptions import DevelopmentInstallationRequired
 
 
@@ -90,19 +90,6 @@ def _get_mock_test_provider(provider_uri) -> BaseProvider:
     # https://github.com/ethereum/eth-tester#mockbackend
     mock_backend = MockBackend()
     provider = _get_ethereum_tester(test_backend=mock_backend)
-    return provider
-
-
-def _get_test_geth_parity_provider(provider_uri) -> BaseProvider:
-    from nucypher.blockchain.eth.interfaces import BlockchainInterface
-
-    # geth --dev
-    geth_process = NuCypherGethDevProcess()
-    geth_process.start()
-    geth_process.wait_for_ipc(timeout=30)
-    provider = IPCProvider(ipc_path=geth_process.ipc_path, timeout=BlockchainInterface.TIMEOUT)
-
-    BlockchainInterface.process = geth_process
     return provider
 
 
