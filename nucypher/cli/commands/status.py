@@ -19,6 +19,7 @@ import os
 
 import click
 
+from nucypher.blockchain.eth.actors import Staker
 from nucypher.blockchain.eth.agents import ContractAgency, PolicyManagerAgent, StakingEscrowAgent
 from nucypher.blockchain.eth.constants import (
     POLICY_MANAGER_CONTRACT_NAME,
@@ -38,7 +39,7 @@ from nucypher.cli.options import (
     option_registry_filepath,
     option_staking_address,
 )
-from nucypher.cli.painting.staking import paint_fee_rate_range
+from nucypher.cli.painting.staking import paint_fee_rate_range, paint_stakes
 from nucypher.cli.painting.status import paint_contract_status, paint_locked_tokens_status, paint_stakers
 from nucypher.cli.utils import (
     connect_to_blockchain,
@@ -116,13 +117,23 @@ def network(general_config, registry_options):
 @status.command()
 @group_registry_options
 @option_staking_address
+@click.option('--substakes', help="Print all sub-stakes for this staker", is_flag=True, default=False)
 @group_general_config
-def stakers(general_config, registry_options, staking_address):
+def stakers(general_config, registry_options, staking_address, substakes):
     """Show relevant information about stakers."""
+    if substakes and not staking_address:
+        raise click.BadOptionUsage(option_name="--substakes",
+                                   message="--substakes is only valid when used with --staking-address.")
     emitter, registry, blockchain = registry_options.setup(general_config=general_config)
     staking_agent = ContractAgency.get_agent(StakingEscrowAgent, registry=registry)
     stakers_list = [staking_address] if staking_address else staking_agent.get_stakers()
     paint_stakers(emitter=emitter, stakers=stakers_list, registry=registry)
+    if substakes:
+        staker = Staker(registry=registry,
+                        domain=registry_options.network,
+                        checksum_address=staking_address)
+        staker.stakes.refresh()
+        paint_stakes(emitter=emitter, staker=staker, paint_unlocked=True)
 
 
 @status.command(name='locked-tokens')
