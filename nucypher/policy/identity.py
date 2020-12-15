@@ -48,7 +48,6 @@ class Card:
         nickname=(bytes, VariableLengthBytestring),
     )
 
-
     _bob_specification = dict(
         character_flag=(bytes, 8),
         verifying_key=(UmbralPublicKey, 33),
@@ -56,18 +55,18 @@ class Card:
         nickname=(bytes, VariableLengthBytestring),
     )
 
-
     __CARD_TYPES = {
         bytes(ALICE): Alice,
         bytes(BOB): Bob,
     }
 
     __ID_LENGTH = 10  # TODO: Review this size (bytes of hex len?)
-    __MAX_NICKNAME_SIZE = 10
+    __MAX_NICKNAME_SIZE = 32
     __BASE_PAYLOAD_SIZE = sum(length[1] for length in _bob_specification.values() if isinstance(length[1], int))
     __MAX_CARD_LENGTH = __BASE_PAYLOAD_SIZE + __MAX_NICKNAME_SIZE + 2
     __FILE_EXTENSION = 'card'
     __DELIMITER = ':'  # delimits nickname from ID
+
     TRUNCATE = 16
     CARD_DIR = Path(DEFAULT_CONFIG_ROOT) / 'cards'
     NO_SIGNATURE.bool_value(False)
@@ -85,7 +84,6 @@ class Card:
                  character_flag: Union[ALICE, BOB],
                  verifying_key: Union[UmbralPublicKey, bytes],
                  encrypting_key: Optional[Union[UmbralPublicKey, bytes]] = None,
-                 card_dir: Path = CARD_DIR,
                  nickname: Optional[Union[bytes, str]] = None):
 
         try:

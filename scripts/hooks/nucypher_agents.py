@@ -55,7 +55,6 @@ except IndexError:
 
 BlockchainInterfaceFactory.initialize_interface(provider_uri=provider_uri,
                                                 light=False,
-                                                sync=False,
                                                 emitter=emitter)
 
 blockchain = BlockchainInterfaceFactory.get_interface(provider_uri=provider_uri)

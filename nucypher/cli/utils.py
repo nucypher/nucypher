@@ -161,7 +161,6 @@ def connect_to_blockchain(emitter: StdoutEmitter,
         if not BlockchainInterfaceFactory.is_interface_initialized(provider_uri=provider_uri):
             BlockchainInterfaceFactory.initialize_interface(provider_uri=provider_uri,
                                                             light=light,
-                                                            sync=False,
                                                             emitter=emitter)
         emitter.echo(message=CONNECTING_TO_BLOCKCHAIN)
         blockchain = BlockchainInterfaceFactory.get_interface(provider_uri=provider_uri)
@@ -185,8 +184,7 @@ def initialize_deployer_interface(emitter: StdoutEmitter,
                                                          poa=poa,
                                                          ignore_solidity_check=ignore_solidity_check,
                                                          gas_strategy=gas_strategy)
-        BlockchainInterfaceFactory.register_interface(interface=deployer_interface, sync=False,
-                                                      emitter=emitter)
+        BlockchainInterfaceFactory.register_interface(interface=deployer_interface, emitter=emitter)
     else:
         deployer_interface = BlockchainInterfaceFactory.get_interface(provider_uri=provider_uri)
     deployer_interface.connect()

@@ -71,7 +71,6 @@ class BlockchainOptions:
                 BlockchainInterfaceFactory.initialize_interface(provider_uri=self.provider_uri,
                                                                 poa=self.poa,
                                                                 light=self.light,
-                                                                sync=False,
                                                                 emitter=emitter)
 
             blockchain = BlockchainInterfaceFactory.get_interface(provider_uri=self.provider_uri)
