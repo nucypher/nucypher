@@ -20,7 +20,8 @@ General
     Password for the `nucypher` Keyring.
 * `NUCYPHER_PROVIDER_URI`
     Default Web3 node provider URI.
-
+* `NUCYPHER_MAX_GAS_PRICE_GWEI`
+    Maximum gas price in GWEI that the ``nucypher`` client can use.
 
 Alice
 -----
