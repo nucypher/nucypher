@@ -1,15 +1,27 @@
-**Type of PR**: Bugfix / Feature / Docs / Other
+**Type of PR:**
+- [ ] Bugfix
+- [ ] Feature
+- [ ] Documentation
+- [ ] Other
 
-**Required reviews**: 1 / 2 / 3
+**Required reviews:** 
+- [ ] 1
+- [ ] 2
+- [X] 3
 
-**What does this PR do? Why is it needed?**
+**What this does:**
+> High-level idea of the changes introduced in this PR. 
+> List relevant API changes (if any).
 
-> Try to answer both questions, when possible. 
-> The second one is often not obvious and can help the team to prioritize.
+**Issues fixed/closed:**
 
-**Which issues(s) does this PR fix?**
+> - Fixes #...
 
-> Fixes #...
+**Why it's needed:**
+> Explain how this PR fits in the greater context of the NuCypher Network, 
+> so it's justified why this PR (and reviewing it) is necessary.
+
+**Does this PR address a `nucypher/productdev` issue?**   Yes/No
 
 **Notes for reviewers:**
 
