@@ -14,7 +14,7 @@ cached-property==1.5.2
 certifi==2020.12.5
 cffi==1.14.4
 cfgv==3.2.0; python_full_version >= '3.6.1'
-chardet==3.0.4
+chardet==4.0.0; python_version >= '2.7' and python_version not in '3.0, 3.1, 3.2, 3.3, 3.4'
 click==7.1.2
 coincurve==13.0.0
 colorama==0.4.4
@@ -77,6 +77,7 @@ packaging==20.8; python_version >= '2.7' and python_version not in '3.0, 3.1, 3.
 parsimonious==0.8.1
 pbr==5.5.1; python_version >= '2.6'
 pendulum==2.1.2; python_version >= '2.7' and python_version not in '3.0, 3.1, 3.2, 3.3, 3.4'
+pillow==8.0.1
 pluggy==0.13.1; python_version >= '2.7' and python_version not in '3.0, 3.1, 3.2, 3.3'
 pre-commit==2.9.3
 protobuf==3.14.0
@@ -94,23 +95,24 @@ pyethash==0.1.27
 pyflakes==2.2.0
 pyhamcrest==2.0.2; python_version >= '3.5'
 pynacl==1.4.0; python_version >= '2.7' and python_version not in '3.0, 3.1, 3.2, 3.3'
-pyopenssl==20.0.0
+pyopenssl==20.0.1
 pyparsing==2.4.7; python_version >= '2.6' and python_version not in '3.0, 3.1, 3.2'
 pyrsistent==0.17.3; python_version >= '3.5'
 pysha3==1.0.2
 pytest-cov==2.10.1
 pytest-forked==1.3.0; python_version >= '2.7' and python_version not in '3.0, 3.1, 3.2, 3.3, 3.4'
-pytest-mock==3.3.1
+pytest-mock==3.4.0
 pytest-timeout==1.4.2
 pytest-twisted==1.13.2
 pytest-xdist==2.2.0
-pytest==6.2.0
+pytest==6.2.1
 python-dateutil==2.8.1; python_version >= '2.7' and python_version not in '3.0, 3.1, 3.2'
 pytz==2020.4
 pytzdata==2020.1; python_version >= '2.7' and python_version not in '3.0, 3.1, 3.2, 3.3'
 pyyaml==5.3.1
+qrcode[pil]==6.1
 regex==2020.11.13
-requests==2.25.0
+requests==2.25.1
 rlp==2.0.1
 semantic-version==2.8.5; python_version >= '2.7' and python_version not in '3.0, 3.1, 3.2, 3.3'
 service-identity==18.1.0
@@ -118,7 +120,7 @@ six==1.15.0; python_version >= '2.7' and python_version not in '3.0, 3.1, 3.2'
 smmap==3.0.4; python_version >= '2.7' and python_version not in '3.0, 3.1, 3.2, 3.3'
 snaptime==0.2.4
 sortedcontainers==2.3.0
-sqlalchemy==1.3.20
+sqlalchemy==1.3.21
 stevedore==3.3.0; python_version >= '3.6'
 tabulate==0.8.7
 toml==0.10.2; python_version >= '2.6' and python_version not in '3.0, 3.1, 3.2'
