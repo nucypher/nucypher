@@ -563,6 +563,8 @@ class WorkTracker:
         self.__uptime_period = NOT_STAKING
         self._abort_on_error = False
 
+        self._consecutive_fails = 0
+
     @classmethod
     def random_interval(cls) -> int:
         return random.randint(cls.INTERVAL_FLOOR, cls.INTERVAL_CEIL)
@@ -598,7 +600,7 @@ class WorkTracker:
         self.__uptime_period = self.staking_agent.get_current_period()
         self.__current_period = self.__uptime_period
 
-        self.log.info(f"START WORK TRACKING")
+        self.log.info(f"START WORK TRACKING (immediate action: {act_now})")
         d = self._tracking_task.start(interval=self.random_interval(), now=act_now)
         d.addErrback(self.handle_working_errors)
 
@@ -618,9 +620,16 @@ class WorkTracker:
             self.stop()
             reactor.callFromThread(self._crash_gracefully, failure=failure)
         else:
-            self.log.warn(f'Unhandled error during work tracking: {failure.getTraceback()!r}',
+            self.log.warn(f'Unhandled error during work tracking (#{self._consecutive_fails}): {failure.getTraceback()!r}',
                           failure=failure)
-            self.start()
+
+            # the effect of this is that we get one immediate retry.
+            # After that, the random_interval will be honored until
+            # success is achieved
+            act_now = self._consecutive_fails < 1
+            self._consecutive_fails += 1
+            self.start(act_now=act_now)
+
 
     def __work_requirement_is_satisfied(self) -> bool:
         # TODO: Check for stake expiration and exit
@@ -750,6 +759,7 @@ class WorkTracker:
             return  # This cycle is finished.
         else:
             # Randomize the next task interval over time, within bounds.
+            self._consecutive_fails = 0
             self._tracking_task.interval = self.random_interval()
 
         # Only perform work this round if the requirements are met
