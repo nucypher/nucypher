@@ -722,6 +722,10 @@ class WorkTracker:
         self.__fire_replacement_commitment(current_block_number=current_block_number,
                                            tx_firing_block_number=tx_firing_block_number)
 
+    def __reset_tracker_state(self) -> None:
+        self.__pending.clear()  # Forget the past. This is a new beginning.
+        self._consecutive_fails = 0
+
     def _do_work(self) -> None:
         """
         Async working task for Ursula  # TODO: Split into multiple async tasks
@@ -736,7 +740,7 @@ class WorkTracker:
         if self.current_period != onchain_period:
             self.__current_period = onchain_period
             self.log.info(f"New period is {self.__current_period}")
-            self.__pending.clear()  # Forget the past. This is a new beginning.
+            self.__reset_tracker_state()
 
             # TODO: #1515 and #1517 - Shut down at end of terminal stake
             # This slows down tests substantially and adds additional
@@ -746,7 +750,7 @@ class WorkTracker:
         # Measure working interval
         interval = onchain_period - self.worker.last_committed_period
         if interval < 0:
-            self.__pending.clear()  # Forget the past. This is a new beginning.
+            self.__reset_tracker_state()
             return  # No need to commit to this period.  Save the gas.
         if interval > 0:
             # TODO: #1516 Follow-up actions for missed commitments
@@ -761,7 +765,6 @@ class WorkTracker:
             return  # This cycle is finished.
         else:
             # Randomize the next task interval over time, within bounds.
-            self._consecutive_fails = 0
             self._tracking_task.interval = self.random_interval(fails=self._consecutive_fails)
 
         # Only perform work this round if the requirements are met
