@@ -566,7 +566,9 @@ class WorkTracker:
         self._consecutive_fails = 0
 
     @classmethod
-    def random_interval(cls) -> int:
+    def random_interval(cls, fails=None) -> int:
+        if fails is not None and fails > 0:
+            return cls.INTERVAL_FLOOR
         return random.randint(cls.INTERVAL_FLOOR, cls.INTERVAL_CEIL)
 
     @property
@@ -601,7 +603,7 @@ class WorkTracker:
         self.__current_period = self.__uptime_period
 
         self.log.info(f"START WORK TRACKING (immediate action: {act_now})")
-        d = self._tracking_task.start(interval=self.random_interval(), now=act_now)
+        d = self._tracking_task.start(interval=self.random_interval(fails=self._consecutive_fails), now=act_now)
         d.addErrback(self.handle_working_errors)
 
     def _crash_gracefully(self, failure=None) -> None:
@@ -760,7 +762,7 @@ class WorkTracker:
         else:
             # Randomize the next task interval over time, within bounds.
             self._consecutive_fails = 0
-            self._tracking_task.interval = self.random_interval()
+            self._tracking_task.interval = self.random_interval(fails=self._consecutive_fails)
 
         # Only perform work this round if the requirements are met
         if not self.__work_requirement_is_satisfied():
