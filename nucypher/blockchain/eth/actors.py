@@ -1551,8 +1551,10 @@ class Worker(NucypherTokenActor):
         start = maya.now()
         last_provided_feedback = start
 
-        emitter = StdoutEmitter()  # TODO: Make injectable, or embed this logic into Ursula
-        emitter.message("Checking worker settings: waiting for bonding and funding ...", color='yellow')
+        emitter = StdoutEmitter()
+        message = f"Awaiting worker qualification\n" \
+                  f"Startup will resume when {self.__worker_address} is funded and bonded to a staking account."
+        emitter.message(message, color='yellow')
 
         funded, bonded = False, False
         while True:
@@ -1564,12 +1566,12 @@ class Worker(NucypherTokenActor):
             # Bonding
             if (not bonded) and (staking_address != NULL_ADDRESS):
                 bonded = True
-                emitter.message(f"    ✓ Worker is bonded to ({staking_address})!", color='green', bold=True)
+                emitter.message(f"✓ Worker is bonded to ({staking_address})!", color='green', bold=True)
 
             # Balance
             if ether_balance and (not funded):
                 funded, balance = True, Web3.fromWei(ether_balance, 'ether')
-                emitter.message(f"    ✓ Worker is funded with {balance} ETH!", color='green', bold=True)
+                emitter.message(f"✓ Worker is funded with {balance} ETH!", color='green', bold=True)
 
             # Success and Escape
             if staking_address != NULL_ADDRESS and ether_balance:
@@ -1588,8 +1590,7 @@ class Worker(NucypherTokenActor):
                         waiting_for = "bonding and funding"
                     else:
                         waiting_for = "bonding" if not bonded else "funding"
-                    emitter.message(f"    ⓘ Worker not fully started - still waiting for {waiting_for} ...",
-                                    color='yellow')
+                    emitter.message(f"ⓘ  Worker not fully started - awaiting {waiting_for} ...", color='blue', bold=True)
                     last_provided_feedback = now
 
             # Crash on Timeout

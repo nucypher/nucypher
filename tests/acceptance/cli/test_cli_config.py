@@ -51,7 +51,7 @@ def test_initialize_via_cli(config_class, custom_filepath, click_runner, monkeyp
                                  input=FAKE_PASSWORD_CONFIRMED,
                                  catch_exceptions=False,
                                  env=ENV)
-    assert result.exit_code == 0
+    assert result.exit_code == 0, result.output
 
     # CLI Output
     assert str(MOCK_CUSTOM_INSTALLATION_PATH) in result.output, "Configuration not in system temporary directory"
