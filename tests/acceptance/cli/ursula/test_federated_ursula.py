@@ -46,7 +46,7 @@ def test_initialize_ursula_defaults(click_runner, mocker):
     assert result.exit_code == 0
 
     # REST Host
-    assert "Is this is the public-facing address of Ursula? " in result.output
+    assert "Is this the public-facing address of Ursula? " in result.output
 
     # Auth
     assert COLLECT_NUCYPHER_PASSWORD in result.output, 'WARNING: User was not prompted for password'
