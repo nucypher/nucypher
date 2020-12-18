@@ -706,7 +706,7 @@ jobs:
   build_docker:
     working_directory: ~/nucypher
     docker:
-      - image: docker:18.06.1-ce-git
+      - image: cimg/python:3.8.6
     steps:
       - checkout
       - setup_remote_docker
@@ -764,7 +764,7 @@ jobs:
   publish_docker_experimental:
     working_directory: ~/nucypher
     docker:
-      - image: docker:18.06.1-ce-git
+      - image: cimg/python:3.8.6
     steps:
       - checkout
       - setup_remote_docker
@@ -788,7 +788,7 @@ jobs:
   publish_docker:
     working_directory: ~/nucypher
     docker:
-      - image: docker:18.06.1-ce-git
+      - image: cimg/python:3.8.6
     steps:
       - checkout
       - setup_remote_docker
