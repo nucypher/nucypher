@@ -405,7 +405,9 @@ class BlockchainInterface:
 
         try:
             # Assume this error is formatted as an IPC response
-            code, message = exception.args[0].values()
+            response = exception.args[0]
+            code = response['code']
+            message = response['message']
 
         except (ValueError, IndexError, AttributeError):
             # TODO: #1504 - Try even harder to determine if this is insufficient funds causing the issue,
@@ -496,7 +498,12 @@ class BlockchainInterface:
                                      use_pending_nonce=use_pending_nonce)
         self.__log_transaction(transaction_dict=payload, contract_function=contract_function)
         try:
-            transaction_dict = contract_function.buildTransaction(payload)  # Gas estimation occurs here
+            if 'gas' not in payload:
+                # As web3 buildTransaction() will estimate gas with block identifier "pending" by default,
+                # explicitly estimate gas here with block identifier 'latest' if not otherwise specified
+                # as a pending transaction can cause gas estimation to fail, notably in case of worklock refunds.
+                payload['gas'] = contract_function.estimateGas(payload, 'latest')
+            transaction_dict = contract_function.buildTransaction(payload)
         except (TestTransactionFailed, ValidationError, ValueError) as error:
             # Note: Geth raises ValueError in the same condition that pyevm raises ValidationError here.
             # Treat this condition as "Transaction Failed" during gas estimation.
