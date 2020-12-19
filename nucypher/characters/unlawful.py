@@ -16,6 +16,7 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
 from copy import copy
+import tempfile
 from unittest.mock import patch
 
 from eth_tester.exceptions import ValidationError
@@ -41,7 +42,7 @@ class Vladimir(Ursula):
 
     fraud_address = '0xbad022A87Df21E4c787C7B1effD5077014b8CC45'
     fraud_key = 'a75d701cc4199f7646909d15f22e2e0ef6094b3e2aa47a188f35f47e8932a7b9'
-    db_filepath = ':memory:'
+    db_filepath = None
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -72,9 +73,11 @@ class Vladimir(Ursula):
         if attach_transacting_key:
             cls.attach_transacting_key(blockchain=target_ursula.policy_agent.blockchain)
 
+        db_filepath = tempfile.mkdtemp(prefix='Vladimir')
+
         vladimir = cls(is_me=True,
                        crypto_power=crypto_power,
-                       db_filepath=cls.db_filepath,
+                       db_filepath=db_filepath,
                        domain=TEMPORARY_DOMAIN,
                        block_until_ready=False,
                        start_working_now=False,
