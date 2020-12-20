@@ -25,13 +25,9 @@ but otherwise does not require installation of `nucypher` or its dependencies.
 """
 
 
-from os.path import dirname, abspath
-
 import os
 import sys
 from pathlib import Path
-
-import nucypher
 
 
 def get_solc_config_path() -> Path:
