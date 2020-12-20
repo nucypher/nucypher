@@ -173,6 +173,13 @@ Whitepapers
 
 .. toctree::
    :maxdepth: 1
+   :glob:
+   :caption: Contracts API
+
+   contracts_api/*
+
+.. toctree::
+   :maxdepth: 1
    :caption: Release Notes
 
    release_notes/genesis_release
