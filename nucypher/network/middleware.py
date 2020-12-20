@@ -287,3 +287,7 @@ class RestMiddleware:
                                        params=params)
 
         return response
+
+    def ping(self, node):
+        response = self.client.get(node_or_sprout=node, path=f"ping", timeout=2)
+        return response

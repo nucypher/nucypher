@@ -14,7 +14,7 @@
  You should have received a copy of the GNU Affero General Public License
  along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
-
+from urllib.parse import urlparse
 
 import random
 
@@ -22,6 +22,9 @@ import requests
 from requests.exceptions import RequestException, HTTPError
 from typing import Union
 
+from nucypher.blockchain.economics import StandardTokenEconomics
+from nucypher.characters.lawful import Ursula
+from nucypher.config.storages import LocalFileBasedNodeStorage
 from nucypher.network.middleware import RestMiddleware
 
 
@@ -38,22 +41,37 @@ RequestErrors = (
 )
 
 
-def get_external_ip_from_url_source(url: str) -> Union[str, None]:
+def get_external_ip_from_url_source(url: str, certificate=None) -> Union[str, None]:
+    """Certificate is needed if the remote URL source is self-signed."""
     try:
-        response = requests.get(url)
+        # 'None' or 'True' will verify self-signed certificates
+        response = requests.get(url, verify=certificate)
     except RequestErrors:
         return None
     if response.status_code == 200:
         return response.text
 
 
-def get_external_ip_from_default_teacher(network: str) -> Union[str, None]:
+def get_external_ip_from_default_teacher(network: str, federated_only: bool = False) -> Union[str, None]:
+
     try:
-        endpoint = f'{RestMiddleware.TEACHER_NODES[network]}/ping'  # TODO: use client
-    except KeyError:  # unknown network name
-        return
-    ip = get_external_ip_from_url_source(url=endpoint)
-    return ip
+        top_teacher_url = RestMiddleware.TEACHER_NODES[network][0]
+    except (KeyError, IndexError):
+        # unknown network or no default teachers available
+        return  # just move on.
+
+    teacher = Ursula.from_teacher_uri(teacher_uri=top_teacher_url,
+                                      federated_only=federated_only,
+                                      min_stake=StandardTokenEconomics._default_minimum_allowed_locked)
+
+    # host, port = teacher.rest_interface.host, teacher.rest_interface.port
+    # certificate = teacher.network_middleware.get_certificate(host=host, port=port)
+    # local_node_storage = LocalFileBasedNodeStorage()
+    # certificate_filepath = local_node_storage.store_node_certificate(certificate=certificate)
+    response = teacher.network_middleware.ping()
+    if response.status_code == 200:
+        return response.text
+    breakpoint()
 
 
 def get_external_ip_from_known_nodes(known_nodes, sample_size: int = 3):
@@ -70,7 +88,7 @@ def get_external_ip_from_centralized_source() -> str:
     return ip
 
 
-def determine_external_ip_address(network: str, known_nodes = None) -> str:
+def determine_external_ip_address(network: str, known_nodes=None) -> str:
     """
     Attempts to automatically get the external IP from the default teacher.
     If the request fails, it falls back to a centralized service.  If the IP address cannot be determined
