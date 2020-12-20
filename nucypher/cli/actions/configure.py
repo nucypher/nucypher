@@ -162,7 +162,7 @@ def perform_ip_checkup(emitter: StdoutEmitter, ursula: Ursula, force: bool = Fal
     if ip_mismatch and not force:
         error = f'\nX External IP address ({external_ip}) does not match configuration ({ursula.rest_interface.host}).\n'
         hint = f"Run 'nucypher ursula config ip-address' to reconfigure the IP address then try " \
-               f"again or use --no-ip-checkup to bypass this check.\n"
+               f"again or use --no-ip-checkup to bypass this check (not recommended).\n"
         emitter.message(error, color='red')
         emitter.message(hint, color='yellow')
         raise click.Abort()
