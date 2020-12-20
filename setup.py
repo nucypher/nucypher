@@ -24,6 +24,8 @@ import os
 import subprocess
 import sys
 from pathlib import Path
+from urllib.parse import urlparse
+
 from setuptools import find_packages, setup
 from setuptools.command.develop import develop
 from setuptools.command.install import install
@@ -98,7 +100,21 @@ class PostDevelopCommand(develop):
 
 def read_requirements(path):
     with open(os.path.join(BASE_DIR, path)) as f:
-        _pipenv_flags, *requirements = f.read().split('\n')
+        _pipenv_flags, *lines = f.read().split('\n')
+
+    # Transforms VCS requirements to PEP 508
+    requirements = []
+    for line in lines:
+        if line.startswith('-e git:') or line.startswith('-e git+') or \
+                line.startswith('git:') or line.startswith('git+'):
+            # parse out egg=... fragment from VCS URL
+            parsed = urlparse(line)
+            egg_name = parsed.fragment.partition("egg=")[-1]
+            without_fragment = parsed._replace(fragment="").geturl()
+            requirements.append(f"{egg_name} @ {without_fragment}")
+        else:
+            requirements.append(line)
+
     return requirements
 
 
