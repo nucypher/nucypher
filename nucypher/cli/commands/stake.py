@@ -14,6 +14,8 @@
  You should have received a copy of the GNU Affero General Public License
  along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
+
+
 from decimal import Decimal
 
 import click
@@ -35,7 +37,8 @@ from nucypher.cli.actions.confirm import (
     confirm_enable_restaking_lock,
     confirm_enable_winding_down,
     confirm_large_stake,
-    confirm_staged_stake, confirm_disable_snapshots
+    confirm_staged_stake,
+    confirm_disable_snapshots
 )
 from nucypher.cli.actions.select import select_client_account_for_staking, select_stake
 from nucypher.cli.config import group_general_config, GroupGeneralConfig
@@ -67,13 +70,32 @@ from nucypher.cli.literature import (
     SUCCESSFUL_SET_MIN_POLICY_RATE,
     SUCCESSFUL_STAKE_DIVIDE,
     SUCCESSFUL_STAKE_PROLONG,
-    SUCCESSFUL_WORKER_BONDING, NO_MINTABLE_PERIODS, STILL_LOCKED_TOKENS, CONFIRM_MINTING, SUCCESSFUL_MINTING,
-    CONFIRM_COLLECTING_WITHOUT_MINTING, NO_TOKENS_TO_WITHDRAW, NO_FEE_TO_WITHDRAW, CONFIRM_INCREASING_STAKE,
-    PROMPT_STAKE_INCREASE_VALUE, SUCCESSFUL_STAKE_INCREASE, INSUFFICIENT_BALANCE_TO_INCREASE, MAXIMUM_STAKE_REACHED,
-    INSUFFICIENT_BALANCE_TO_CREATE, PROMPT_STAKE_CREATE_VALUE, PROMPT_STAKE_CREATE_LOCK_PERIODS,
-    ONLY_DISPLAYING_MERGEABLE_STAKES_NOTE, CONFIRM_MERGE, SUCCESSFUL_STAKES_MERGE, SUCCESSFUL_ENABLE_SNAPSHOTS,
-    SUCCESSFUL_DISABLE_SNAPSHOTS, CONFIRM_ENABLE_SNAPSHOTS,
-    CONFIRM_STAKE_USE_UNLOCKED, CONFIRM_REMOVE_SUBSTAKE, SUCCESSFUL_STAKE_REMOVAL)
+    SUCCESSFUL_WORKER_BONDING,
+    NO_MINTABLE_PERIODS,
+    STILL_LOCKED_TOKENS,
+    CONFIRM_MINTING,
+    SUCCESSFUL_MINTING,
+    CONFIRM_COLLECTING_WITHOUT_MINTING,
+    NO_TOKENS_TO_WITHDRAW,
+    NO_FEE_TO_WITHDRAW,
+    CONFIRM_INCREASING_STAKE,
+    PROMPT_STAKE_INCREASE_VALUE,
+    SUCCESSFUL_STAKE_INCREASE,
+    INSUFFICIENT_BALANCE_TO_INCREASE,
+    MAXIMUM_STAKE_REACHED,
+    INSUFFICIENT_BALANCE_TO_CREATE,
+    PROMPT_STAKE_CREATE_VALUE,
+    PROMPT_STAKE_CREATE_LOCK_PERIODS,
+    ONLY_DISPLAYING_MERGEABLE_STAKES_NOTE,
+    CONFIRM_MERGE,
+    SUCCESSFUL_STAKES_MERGE,
+    SUCCESSFUL_ENABLE_SNAPSHOTS,
+    SUCCESSFUL_DISABLE_SNAPSHOTS,
+    CONFIRM_ENABLE_SNAPSHOTS,
+    CONFIRM_STAKE_USE_UNLOCKED,
+    CONFIRM_REMOVE_SUBSTAKE,
+    SUCCESSFUL_STAKE_REMOVAL
+)
 from nucypher.cli.options import (
     group_options,
     option_config_file,
@@ -102,7 +124,8 @@ from nucypher.cli.types import (
     EIP55_CHECKSUM_ADDRESS,
     EXISTING_READABLE_FILE,
     GWEI,
-    DecimalRange)
+    DecimalRange
+)
 from nucypher.cli.utils import setup_emitter
 from nucypher.config.characters import StakeHolderConfiguration
 from nucypher.utilities.gas_strategies import construct_fixed_price_gas_strategy

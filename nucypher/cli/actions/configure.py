@@ -57,7 +57,7 @@ def get_or_update_configuration(emitter: StdoutEmitter,
                                 updates: Optional[dict] = None) -> None:
     """
     Utility for writing updates to an existing configuration file then displaying the result.
-    If the config file is invalid, trey very hard to display the problem.  If there are no updates,
+    If the config file is invalid, try very hard to display the problem.  If there are no updates,
     the config file will be displayed without changes.
     """
     try:

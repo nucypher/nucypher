@@ -36,7 +36,6 @@ class NucypherMiddlewareClient:
     library = requests
     timeout = 1.2
 
-
     def __init__(self, registry=None, *args, **kwargs):
         self.registry = registry
 
