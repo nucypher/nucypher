@@ -59,19 +59,12 @@ def get_external_ip_from_default_teacher(network: str, federated_only: bool = Fa
     except (KeyError, IndexError):
         # unknown network or no default teachers available
         return  # just move on.
-
     teacher = Ursula.from_teacher_uri(teacher_uri=top_teacher_url,
                                       federated_only=federated_only,
                                       min_stake=StandardTokenEconomics._default_minimum_allowed_locked)
-
-    # host, port = teacher.rest_interface.host, teacher.rest_interface.port
-    # certificate = teacher.network_middleware.get_certificate(host=host, port=port)
-    # local_node_storage = LocalFileBasedNodeStorage()
-    # certificate_filepath = local_node_storage.store_node_certificate(certificate=certificate)
     response = teacher.network_middleware.ping()
     if response.status_code == 200:
         return response.text
-    breakpoint()
 
 
 def get_external_ip_from_known_nodes(known_nodes, sample_size: int = 3):
