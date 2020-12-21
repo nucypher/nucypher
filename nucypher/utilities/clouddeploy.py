@@ -17,6 +17,7 @@
 
 import copy
 import os
+from pathlib import Path
 import re
 import json
 import maya
@@ -265,7 +266,7 @@ class BaseCloudNodeConfigurator:
 
     @property
     def network_config_path(self):
-        return os.path.join(DEFAULT_CONFIG_ROOT, NODE_CONFIG_STORAGE_KEY, self.network)
+        return Path(DEFAULT_CONFIG_ROOT).joinpath(NODE_CONFIG_STORAGE_KEY, self.network)
 
     @property
     def _provider_deploy_attrs(self):
@@ -290,7 +291,7 @@ class BaseCloudNodeConfigurator:
 
     @property
     def inventory_path(self):
-        return os.path.join(DEFAULT_CONFIG_ROOT, NODE_CONFIG_STORAGE_KEY, f'{self.namespace_network}.ansible_inventory.yml')
+        return str(Path(DEFAULT_CONFIG_ROOT).joinpath(NODE_CONFIG_STORAGE_KEY, f'{self.namespace_network}.ansible_inventory.yml'))
 
     def update_generate_inventory(self, node_names, **kwargs):
 
@@ -375,7 +376,7 @@ class BaseCloudNodeConfigurator:
 
     def deploy_nucypher_on_existing_nodes(self, node_names, wipe_nucypher=False):
 
-        playbook = os.path.join(DEPLOY_DIR, 'ansible/worker/setup_remote_workers.yml')
+        playbook = Path(DEPLOY_DIR).joinpath('ansible/worker/setup_remote_workers.yml')
 
         # first update any specified input in our node config
         for k, input_specified_value in self.host_level_overrides.items():
@@ -420,7 +421,7 @@ class BaseCloudNodeConfigurator:
 
     def update_nucypher_on_existing_nodes(self, node_names):
 
-        playbook = os.path.join(DEPLOY_DIR, 'ansible/worker/update_remote_workers.yml')
+        playbook = Path(DEPLOY_DIR).joinpath('ansible/worker/update_remote_workers.yml')
 
         # first update any specified input in our node config
         for k, input_specified_value in self.host_level_overrides.items():
@@ -460,7 +461,7 @@ class BaseCloudNodeConfigurator:
 
     def get_worker_status(self, node_names):
 
-        playbook = os.path.join(DEPLOY_DIR, 'ansible/worker/get_workers_status.yml')
+        playbook = Path(DEPLOY_DIR).joinpath('ansible/worker/get_workers_status.yml')
 
         self.update_generate_inventory(node_names)
 
@@ -484,7 +485,7 @@ class BaseCloudNodeConfigurator:
 
     def print_worker_logs(self, node_names):
 
-        playbook = os.path.join(DEPLOY_DIR, 'ansible/worker/get_worker_logs.yml')
+        playbook = Path(DEPLOY_DIR).joinpath('ansible/worker/get_worker_logs.yml')
 
         self.update_generate_inventory(node_names)
 
@@ -508,7 +509,7 @@ class BaseCloudNodeConfigurator:
 
     def backup_remote_data(self, node_names):
 
-        playbook = os.path.join(DEPLOY_DIR, 'ansible/worker/backup_remote_workers.yml')
+        playbook = Path(DEPLOY_DIR).joinpath('ansible/worker/backup_remote_workers.yml')
         self.update_generate_inventory(node_names)
 
         loader = DataLoader()
@@ -530,7 +531,7 @@ class BaseCloudNodeConfigurator:
 
     def restore_from_backup(self, target_host, source_path):
 
-        playbook = os.path.join(DEPLOY_DIR, 'ansible/worker/restore_ursula_from_backup.yml')
+        playbook = Path(DEPLOY_DIR).joinpath('ansible/worker/restore_ursula_from_backup.yml')
 
         self.update_generate_inventory([target_host], restore_path=source_path)
 
@@ -816,7 +817,7 @@ class AWSNodeConfigurator(BaseCloudNodeConfigurator):
 
     def _create_keypair(self):
         new_keypair_data = self.ec2Client.create_key_pair(KeyName=f'{self.namespace_network}')
-        outpath = os.path.join(DEFAULT_CONFIG_ROOT, NODE_CONFIG_STORAGE_KEY, f'{self.namespace_network}.awskeypair')
+        outpath = Path(DEFAULT_CONFIG_ROOT).joinpath(NODE_CONFIG_STORAGE_KEY, f'{self.namespace_network}.awskeypair')
         os.makedirs(os.path.dirname(outpath), exist_ok=True)
         with open(outpath, 'w') as outfile:
             outfile.write(new_keypair_data['KeyMaterial'])
@@ -829,7 +830,7 @@ class AWSNodeConfigurator(BaseCloudNodeConfigurator):
         # only use self.namespace here to avoid accidental deletions of pre-existing keypairs
         deleted_keypair_data = self.ec2Client.delete_key_pair(KeyName=f'{self.namespace_network}')
         if deleted_keypair_data['HTTPStatusCode'] == 200:
-            outpath = os.path.join(DEFAULT_CONFIG_ROOT, NODE_CONFIG_STORAGE_KEY, f'{self.namespace_network}.awskeypair')
+            outpath = Path(DEFAULT_CONFIG_ROOT).joinpath(NODE_CONFIG_STORAGE_KEY, f'{self.namespace_network}.awskeypair')
             os.remove(outpath)
             self.emitter.echo(f"keypair at {outpath}, was deleted", color='yellow')
 
