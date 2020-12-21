@@ -37,7 +37,7 @@ from ansible.executor.playbook_executor import PlaybookExecutor
 from ansible import context as ansible_context
 from ansible.module_utils.common.collections import ImmutableDict
 
-from nucypher.config.constants import DEFAULT_CONFIG_ROOT, DEPLOY_DIR
+from nucypher.config.constants import DEFAULT_CONFIG_ROOT, DEPLOY_DIR, NUCYPHER_ENVVAR_KEYRING_PASSWORD, NUCYPHER_ENVVAR_WORKER_ETH_PASSWORD
 from nucypher.blockchain.eth.clients import PUBLIC_CHAINS
 from nucypher.blockchain.eth.networks import NetworksInventory
 
@@ -301,8 +301,8 @@ class BaseCloudNodeConfigurator:
             raise KeyError(f"No hosts matched the supplied names: {node_names}.  Try `nucypher cloudworkers list-hosts`")
 
         default_envvars = [
-            ('NUCYPHER_KEYRING_PASSWORD',  self.config['keyringpassword']),
-            ('NUCYPHER_WORKER_ETH_PASSWORD', self.config['ethpassword']),
+            (NUCYPHER_ENVVAR_KEYRING_PASSWORD,  self.config['keyringpassword']),
+            (NUCYPHER_ENVVAR_WORKER_ETH_PASSWORD, self.config['ethpassword']),
         ]
 
         input_envvars = [(k, v) for k, v in self.envvars]
