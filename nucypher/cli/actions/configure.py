@@ -121,7 +121,7 @@ def handle_invalid_configuration_file(emitter: StdoutEmitter,
 
 def collect_external_ip_address(emitter: StdoutEmitter, network: str, force: bool = False) -> str:
 
-    # From environment variable
+    # From environment variable  # TODO: remove this environment variable?
     ip = os.environ.get(NUCYPHER_ENVVAR_WORKER_IP_ADDRESS)
     if ip:
         message = f'Using IP address from {NUCYPHER_ENVVAR_WORKER_IP_ADDRESS} environment variable'
@@ -143,7 +143,6 @@ def collect_external_ip_address(emitter: StdoutEmitter, network: str, force: boo
         if not click.confirm(CONFIRM_URSULA_IPV4_ADDRESS.format(rest_host=ip)):
             ip = click.prompt(COLLECT_URSULA_IPV4_ADDRESS, type=IPV4_ADDRESS)
 
-    emitter.message(f'Configured IP address {ip}')
     return ip
 
 
