@@ -60,10 +60,11 @@ Some examples:
 
     # --------------------------------------------------------------------------------------------------------------------------- #
     # NOTE:  if no --remote-provider is specified, geth will be run on the host and a larger instance with more RAM will be used.
-    # this will probably cost more and require some time to sync.
+    # this will probably cost more and require some time to sync.  * A remote provider such as Alchemy or Infura is highly recommended *
     # --------------------------------------------------------------------------------------------------------------------------- #
 
     # on AWS
+    # configure your local aws cli with named profiles https://docs.aws.amazon.com/cli/latest/userguide/cli-configure-profiles.html
     $ nucypher cloudworkers up --cloudprovider aws --aws-profile my-aws-profile --remote-provider http://mainnet.infura..3epifj3rfioj
 
     # add your ubuntu machine at the office to an existing locally managed stake
@@ -85,6 +86,9 @@ Some examples:
 
     # deploy nucypher on all your managed hosts
     $ nucypher cloudworkers deploy --remote-provider http://mainnet.infura..3epifj3rfioj
+
+    # set some environment variables to configure Ursula workers on all your hosts
+    $ nucypher cloudworkers deploy -e NUCYPHER_MAX_GAS_PRICE_GWEI=35 -e DONT_PERFORM_WORK_ON_SUNDAY=true
 
     # print the current status of all workers across all namespaces (in bash)
     $ for ns in $(nucypher cloudworkers list-namespaces); do nucypher cloudworkers status --namespace $ns; done

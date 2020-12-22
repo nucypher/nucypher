@@ -14,8 +14,6 @@ all:
                 etherscan_domain: ${deployer.chain_name}.etherscan.io
                 ansible_python_interpreter: /usr/bin/python3
                 ansible_connection: ssh
-                NUCYPHER_KEYRING_PASSWORD: ${deployer.config['keyringpassword']}
-                NUCYPHER_WORKER_ETH_PASSWORD: ${deployer.config['ethpassword']}
                 nucypher_image: ${deployer.config['nucypher_image']}
                 gas_strategy: ${deployer.config['gas_strategy']}
                 blockchain_provider: ${deployer.config['blockchain_provider']}
@@ -32,17 +30,13 @@ all:
                 SEED_NODE_URI:
                 teacher_options: ""
                 %endif
-                %if deployer.config.get('sentry_dsn'):
-                SENTRY_DSN: ${deployer.config['sentry_dsn']}
-                NUCYPHER_SENTRY_LOGS: yes
-                %endif
                 wipe_nucypher_config: ${extra.get('wipe_nucypher', False)}
                 deployer_config_path: ${deployer.config_dir}
                 restore_path: ${extra.get('restore_path')}
               hosts:
                 %for node in nodes:
                 ${node['publicaddress']}:
-                  host_nickname: ${node['host_nickname']}
+                  host_nickname: "${node['host_nickname']}"
                   %for attr in node['provider_deploy_attrs']:
                   ${attr['key']}: ${attr['value']}
                   %endfor
@@ -52,10 +46,11 @@ all:
                   %if node.get('nucypher_image'):
                   nucypher_image: ${node['nucypher_image']}
                   %endif
-                  %if node.get('sentry_dsn'):
-                  sentry_dsn: ${node['sentry_dsn']}
-                  %endif
                   %if node.get('gas_strategy'):
                   gas_strategy: ${node['gas_strategy']}
                   %endif
+                  runtime_envvars:
+                  %for key, val in node['runtime_envvars'].items():
+                    ${key}: "${val}"
+                  %endfor
                 %endfor
