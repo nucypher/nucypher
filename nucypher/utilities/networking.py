@@ -14,18 +14,15 @@
  You should have received a copy of the GNU Affero General Public License
  along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
-from urllib.parse import urlparse
 
 import random
-
 import requests
 from requests.exceptions import RequestException, HTTPError
 from typing import Union
 
-from nucypher.blockchain.economics import StandardTokenEconomics
 from nucypher.characters.lawful import Ursula
-from nucypher.config.storages import LocalFileBasedNodeStorage
-from nucypher.network.middleware import RestMiddleware
+from nucypher.network.middleware import RestMiddleware, NucypherMiddlewareClient
+from nucypher.utilities.logging import Logger
 
 
 class UnknownIPAddress(RuntimeError):
@@ -52,7 +49,12 @@ def get_external_ip_from_url_source(url: str, certificate=None) -> Union[str, No
         return response.text
 
 
-def get_external_ip_from_default_teacher(network: str, federated_only: bool = False) -> Union[str, None]:
+def get_external_ip_from_default_teacher(network: str,
+                                         federated_only: bool = False,
+                                         log=None
+                                         ) -> Union[str, None]:
+    if not log:
+        log = Logger('whoami')
 
     try:
         top_teacher_url = RestMiddleware.TEACHER_NODES[network][0]
@@ -61,23 +63,32 @@ def get_external_ip_from_default_teacher(network: str, federated_only: bool = Fa
         return  # just move on.
     teacher = Ursula.from_teacher_uri(teacher_uri=top_teacher_url,
                                       federated_only=federated_only,
-                                      min_stake=StandardTokenEconomics._default_minimum_allowed_locked)
-    response = teacher.network_middleware.ping()
+                                      min_stake=0)  # TODO: Handle (more than) min stake here
+
+    client = NucypherMiddlewareClient()
+    response = client.get(node_or_sprout=teacher, path=f"ping", timeout=2)  # TLS certificate login within
     if response.status_code == 200:
+        log.info(f'Fetched external IP address from default teacher ({top_teacher_url}).')
         return response.text
 
 
-def get_external_ip_from_known_nodes(known_nodes, sample_size: int = 3):
+def get_external_ip_from_known_nodes(known_nodes, sample_size: int = 3, log: Logger = None):
+    if not log:
+        log = Logger('whoami')
     sample = random.sample(known_nodes, sample_size)
     for node in sample:
         ip = get_external_ip_from_url_source(url=node.rest_url())
         if ip:
+            log.info(f'Fetched external IP address from randomly selected known node(s).')
             return ip
 
 
-def get_external_ip_from_centralized_source() -> str:
+def get_external_ip_from_centralized_source(log: Logger = None) -> str:
     endpoint = 'https://ifconfig.me/'
     ip = get_external_ip_from_url_source(url=endpoint)
+    if not log:
+        log = Logger('whoami')
+    log.info(f'Fetched external IP address from centralized source ({endpoint}).')
     return ip
 
 
