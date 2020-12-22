@@ -19,9 +19,11 @@ import itertools
 import pytest
 from web3 import Web3
 
-from nucypher.config.constants import NUCYPHER_ENVVAR_MAX_GAS_PRICE_GWEI
-from nucypher.utilities.gas_strategies import construct_fixed_price_gas_strategy, max_price_gas_strategy_wrapper, \
+from nucypher.utilities.gas_strategies import (
+    construct_fixed_price_gas_strategy,
+    max_price_gas_strategy_wrapper,
     GasStrategyError
+)
 
 
 def test_fixed_price_gas_strategy():
@@ -49,15 +51,8 @@ def test_max_price_gas_strategy(mocker, monkeypatch):
     max_gas_price_wei = Web3.toWei(max_gas_price_gwei, 'gwei')
     mock_gas_strategy = mocker.Mock(side_effect=itertools.cycle(gas_prices_wei))
 
-    # Let's start assuming there's no limit
-    monkeypatch.delenv(NUCYPHER_ENVVAR_MAX_GAS_PRICE_GWEI, raising=False)
-    wrapped_strategy = max_price_gas_strategy_wrapper(mock_gas_strategy)
-
-    for price in gas_prices_wei:
-        assert wrapped_strategy("web3", "tx") == price
-
-    # If the corresponding envvar has a valid price in gwei, use this as the max gas price
-    monkeypatch.setenv(NUCYPHER_ENVVAR_MAX_GAS_PRICE_GWEI, max_gas_price_gwei)
+    wrapped_strategy = max_price_gas_strategy_wrapper(gas_strategy=mock_gas_strategy,
+                                                      max_gas_price_wei=max_gas_price_wei)
 
     for price in gas_prices_wei[:4]:
         assert wrapped_strategy("web3", "tx") == price
@@ -65,10 +60,3 @@ def test_max_price_gas_strategy(mocker, monkeypatch):
 
     for _ in gas_prices_wei[4:]:
         assert wrapped_strategy("web3", "tx") == max_gas_price_wei
-
-    # An invalid gas price limit as the envvar value will produce an exception
-    monkeypatch.setenv(NUCYPHER_ENVVAR_MAX_GAS_PRICE_GWEI, "🙈")
-    error_message = f"Check the value of the {NUCYPHER_ENVVAR_MAX_GAS_PRICE_GWEI} environment variable: " \
-                    f"'🙈' is not a valid gas price in GWEI."
-    with pytest.raises(GasStrategyError, match=error_message):
-        _ = wrapped_strategy("web3", "tx")

@@ -15,7 +15,6 @@
  along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 import datetime
-import os
 import statistics
 from typing import Callable, Optional
 
@@ -25,7 +24,6 @@ from web3.gas_strategies import time_based
 from web3.gas_strategies.rpc import rpc_gas_price_strategy
 from web3.types import Wei, TxParams
 
-from nucypher.config.constants import NUCYPHER_ENVVAR_MAX_GAS_PRICE_GWEI
 from nucypher.utilities.datafeeds import (
     Datafeed,
     EtherchainGasPriceDatafeed,
@@ -44,23 +42,15 @@ class GasStrategyError(RuntimeError):
 # Max Price Gas Strategy Wrapper
 #
 
-def max_price_gas_strategy_wrapper(gas_strategy: Callable) -> Callable:
+def max_price_gas_strategy_wrapper(gas_strategy: Callable, max_gas_price_wei: int) -> Callable:
     """
-    Sets a max price to a gas strategy, controlled by the NUCYPHER_MAX_GAS_PRICE_GWEI environment variable.
+    Puts a cap on the prices resulting from a given gas strategy.
     """
 
     def _wrapper(*args, **kwargs):
         gas_price = gas_strategy(*args, **kwargs)
-        max_gas_price_gwei = os.getenv(NUCYPHER_ENVVAR_MAX_GAS_PRICE_GWEI)
-        if max_gas_price_gwei:
-            try:
-                max_gas_price_wei = Web3.toWei(max_gas_price_gwei, 'gwei')
-            except Exception as e:
-                raise GasStrategyError(f"Check the value of the {NUCYPHER_ENVVAR_MAX_GAS_PRICE_GWEI} environment "
-                                       f"variable: '{max_gas_price_gwei}' is not a valid gas price in GWEI.") from e
-            else:
-                if gas_price > max_gas_price_wei:
-                    gas_price = max_gas_price_wei
+        if gas_price > max_gas_price_wei:
+            gas_price = max_gas_price_wei
         return gas_price
 
     return _wrapper
@@ -95,8 +85,9 @@ def construct_datafeed_median_strategy(speed: Optional[str] = None) -> Callable:
     return datafeed_median_gas_price_strategy
 
 
-def construct_capped_datafeed_median_strategy(speed: Optional[str] = None) -> Callable:
-    return max_price_gas_strategy_wrapper(construct_datafeed_median_strategy(speed=speed))
+def construct_capped_datafeed_median_strategy(max_gas_price_wei: int, speed: Optional[str] = None) -> Callable:
+    return max_price_gas_strategy_wrapper(gas_strategy=construct_datafeed_median_strategy(speed=speed),
+                                          max_gas_price_wei=max_gas_price_wei)
 
 
 #
