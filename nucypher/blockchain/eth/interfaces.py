@@ -155,7 +155,7 @@ class BlockchainInterface:
             return message
 
     def __init__(self,
-                 emitter = None,  # TODO # 1754
+                 emitter=None,  # TODO # 1754
                  poa: bool = None,
                  light: bool = False,
                  provider_uri: str = NO_BLOCKCHAIN_CONNECTION,
@@ -236,7 +236,7 @@ class BlockchainInterface:
         self.is_light = light
 
         # FIXME: Not ready to give users total flexibility. Let's stick for the moment to known values. See #2447
-        if gas_strategy not in ('slow', 'medium', 'fast', 'free', None):
+        if gas_strategy not in ('slow', 'medium', 'fast', 'free', None):  # FIXME: What is 'None' doing here?
             raise ValueError(f"'{gas_strategy}' is an invalid gas strategy")
         self.gas_strategy = gas_strategy or self.DEFAULT_GAS_STRATEGY
         self.max_gas_price = max_gas_price
@@ -285,27 +285,33 @@ class BlockchainInterface:
         # self.client.add_middleware(middleware.latest_block_based_cache_middleware)  # TODO: This line causes failed tests and nonce reuse in tests. See #2348.
         self.client.add_middleware(middleware.simple_cache_middleware)
 
-        self.set_gas_strategy()
+        self.configure_gas_strategy()
 
-    def set_gas_strategy(self, gas_strategy: Optional[Callable] = None):
+    def configure_gas_strategy(self, gas_strategy: Optional[Callable] = None) -> None:
+
         if gas_strategy:
             reported_gas_strategy = f"fixed/{gas_strategy.name}"
+
         elif isinstance(self.client, InfuraClient):
             gas_strategy = construct_datafeed_median_strategy(speed=self.gas_strategy)
             reported_gas_strategy = f"datafeed/{self.gas_strategy}"
+
         else:
             reported_gas_strategy = f"web3/{self.gas_strategy}"
             gas_strategy = self.get_gas_strategy(self.gas_strategy)
-        message = f"Using gas strategy '{reported_gas_strategy}'"
+
+        configuration_message = f"Using gas strategy '{reported_gas_strategy}'"
 
         if self.max_gas_price:
-            gas_strategy = max_price_gas_strategy_wrapper(gas_strategy=gas_strategy,
-                                                          max_gas_price_wei=self.max_gas_price)
-            message += ", with a max price of {Web3.fromWei(self.max_gas_price_wei)} gwei"
+            __price = Web3.toWei(self.max_gas_price, 'gwei')  # from gwei to wei
+            gas_strategy = max_price_gas_strategy_wrapper(gas_strategy=gas_strategy, max_gas_price_wei=__price)
+            configuration_message += ", with a max price of {Web3.fromWei(self.max_gas_price_wei)} gwei."
 
         self.client.set_gas_strategy(gas_strategy=gas_strategy)
         gwei_gas_price = Web3.fromWei(self.client.gas_price_for_transaction(), 'gwei')
-        self.log.debug(message + f". Currently, it returns a gas price of {gwei_gas_price} gwei")
+
+        self.log.info(configuration_message)
+        self.log.debug(f"Gas strategy currently reports a gas price of {gwei_gas_price} gwei.")
 
     def connect(self):
 

@@ -69,12 +69,15 @@ class CharacterConfiguration(BaseConfiguration):
     # Gas
     DEFAULT_GAS_STRATEGY = 'fast'
 
+    # Fields specified here are *not* passed into the Character's constructor
+    # and can be understood as configuration fields only.
     _CONFIG_FIELDS = ('config_root',
                       'poa',
                       'light',
                       'provider_uri',
                       'registry_filepath',
                       'gas_strategy',
+                      'max_gas_price',  # gwei
                       'signer_uri')
 
     def __init__(self,
@@ -127,7 +130,8 @@ class CharacterConfiguration(BaseConfiguration):
                  registry_filepath: str = None,
 
                  # Deployed Workers
-                 worker_data: dict = None):
+                 worker_data: dict = None
+                 ):
 
         self.log = Logger(self.__class__.__name__)
         UNINITIALIZED_CONFIGURATION.bool_value(False)
@@ -212,14 +216,14 @@ class CharacterConfiguration(BaseConfiguration):
 
         else:
             self.gas_strategy = gas_strategy
-            self.max_gas_price = Web3.toWei(max_gas_price, 'gwei')
+            self.max_gas_price = max_gas_price  # gwei
             is_initialized = BlockchainInterfaceFactory.is_interface_initialized(provider_uri=self.provider_uri)
             if not is_initialized and provider_uri:
                 BlockchainInterfaceFactory.initialize_interface(provider_uri=self.provider_uri,
                                                                 poa=self.poa,
                                                                 light=self.is_light,
                                                                 emitter=emitter,
-                                                                gas_strategy=gas_strategy,
+                                                                gas_strategy=self.gas_strategy,
                                                                 max_gas_price=self.max_gas_price)
             else:
                 self.log.warn(f"Using existing blockchain interface connection ({self.provider_uri}).")

@@ -16,30 +16,28 @@
 """
 
 import copy
-import os
-from pathlib import Path
-import re
 import json
-import maya
-import time
-from base64 import b64encode
-from mako.template import Template
-import requests
 
-from ansible.playbook import Playbook
-from ansible.parsing.dataloader import DataLoader
-from ansible.executor.task_queue_manager import TaskQueueManager
+import maya
+import os
+import re
+import requests
+import time
+from ansible.executor.playbook_executor import PlaybookExecutor
 from ansible.inventory.manager import InventoryManager
+from ansible.module_utils.common.collections import ImmutableDict
+from ansible.parsing.dataloader import DataLoader
 from ansible.plugins.callback import CallbackBase
 from ansible.vars.manager import VariableManager
-from ansible.playbook.play import Play
-from ansible.executor.playbook_executor import PlaybookExecutor
-from ansible import context as ansible_context
-from ansible.module_utils.common.collections import ImmutableDict
+from base64 import b64encode
+from mako.template import Template
+from pathlib import Path
 
-from nucypher.config.constants import DEFAULT_CONFIG_ROOT, DEPLOY_DIR, NUCYPHER_ENVVAR_KEYRING_PASSWORD, NUCYPHER_ENVVAR_WORKER_ETH_PASSWORD
+from ansible import context as ansible_context
 from nucypher.blockchain.eth.clients import PUBLIC_CHAINS
 from nucypher.blockchain.eth.networks import NetworksInventory
+from nucypher.config.constants import DEFAULT_CONFIG_ROOT, DEPLOY_DIR, NUCYPHER_ENVVAR_KEYRING_PASSWORD, \
+    NUCYPHER_ENVVAR_WORKER_ETH_PASSWORD
 
 NODE_CONFIG_STORAGE_KEY = 'worker-configs'
 URSULA_PORT = 9151
@@ -167,22 +165,24 @@ class BaseCloudNodeConfigurator:
 
     PROMETHEUS_PORT = PROMETHEUS_PORTS[0]
 
-    def __init__(self,
-        emitter,
-        stakeholder,
-        stakeholder_config_path,
-        blockchain_provider=None,
-        nucypher_image=None,
-        seed_network=False,
-        profile=None,
-        prometheus=False,
-        pre_config=False,
-        network=None,
-        namespace=None,
-        gas_strategy=None,
-        action=None,
-        envvars=None,
-        ):
+    def __init__(self,  # TODO: Add type annotations
+                 emitter,
+                 stakeholder,
+                 stakeholder_config_path,
+                 blockchain_provider=None,
+                 nucypher_image=None,
+                 seed_network=False,
+                 sentry_dsn=None,
+                 profile=None,
+                 prometheus=False,
+                 pre_config=False,
+                 network=None,
+                 namespace=None,
+                 gas_strategy=None,
+                 max_gas_price=None,
+                 action=None,
+                 envvars=None
+                 ):
 
         self.emitter = emitter
         self.stakeholder = stakeholder
@@ -236,11 +236,13 @@ class BaseCloudNodeConfigurator:
             'blockchain_provider': blockchain_provider,
             'nucypher_image': nucypher_image,
             'gas_strategy': f'--gas-strategy {gas_strategy}' if gas_strategy else '',
+            'max_gas_price': f'--max-gas-price {max_gas_price}' if max_gas_price else '',
         }
 
         self.config['blockchain_provider'] = blockchain_provider or self.config.get('blockchain_provider') or f'/root/.local/share/geth/.ethereum/{self.chain_name}/geth.ipc' # the default for nodes that run their own geth container
         self.config['nucypher_image'] = nucypher_image or self.config.get('nucypher_image') or 'nucypher/nucypher:latest'
         self.config['gas_strategy'] = f'--gas-strategy {gas_strategy}' if gas_strategy else self.config.get('gas-strategy', '')
+        self.config['max_gas_price'] = f'--max-gas-price {max_gas_price}' if max_gas_price else self.config.get('max-gas-price', '')
 
         self.config['seed_network'] = seed_network if seed_network is not None else self.config.get('seed_network')
         if not self.config['seed_network']:

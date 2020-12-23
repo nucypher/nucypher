@@ -113,8 +113,7 @@ def test_upgradeability(temp_dir_path):
 
     provider_uri = 'tester://pyevm/2'  # TODO: Testerchain caching Issues
     try:
-        blockchain_interface = BlockchainDeployerInterface(provider_uri=provider_uri,
-                                                           gas_strategy='free')
+        blockchain_interface = BlockchainDeployerInterface(provider_uri=provider_uri, gas_strategy='free')
         blockchain_interface.connect()
         origin = blockchain_interface.client.accounts[0]
         BlockchainInterfaceFactory.register_interface(interface=blockchain_interface)

@@ -48,7 +48,7 @@ from nucypher.cli.options import (
     option_registry_filepath,
     option_signer_uri,
     option_teacher_uri,
-    option_lonely
+    option_lonely, option_max_gas_price
 )
 from nucypher.cli.painting.help import paint_new_installation_help
 from nucypher.cli.painting.policies import paint_single_card
@@ -74,6 +74,7 @@ class BobConfigOptions:
                  middleware: RestMiddleware,
                  federated_only: bool,
                  gas_strategy: str,
+                 max_gas_price: int,
                  signer_uri: str,
                  lonely: bool
                  ):
@@ -81,6 +82,7 @@ class BobConfigOptions:
         self.provider_uri = provider_uri
         self.signer_uri = signer_uri
         self.gas_strategy = gas_strategy
+        self.max_gas_price = max_gas_price
         self.domain = network
         self.registry_filepath = registry_filepath
         self.checksum_address = checksum_address
@@ -97,7 +99,8 @@ class BobConfigOptions:
                 dev_mode=True,
                 domain=TEMPORARY_DOMAIN,
                 provider_uri=self.provider_uri,
-                gas_strategy=self.gas_strategy,  # TODO: Fix type hint
+                gas_strategy=self.gas_strategy,
+                max_gas_price=self.max_gas_price,
                 signer_uri=self.signer_uri,
                 federated_only=True,
                 checksum_address=self.checksum_address,
@@ -115,6 +118,7 @@ class BobConfigOptions:
                     provider_uri=self.provider_uri,
                     signer_uri=self.signer_uri,
                     gas_strategy=self.gas_strategy,
+                    max_gas_price=self.max_gas_price,
                     registry_filepath=self.registry_filepath,
                     network_middleware=self.middleware,
                     lonely=self.lonely
@@ -141,6 +145,7 @@ class BobConfigOptions:
             provider_uri=self.provider_uri,
             signer_uri=self.signer_uri,
             gas_strategy=self.gas_strategy,
+            max_gas_price=self.max_gas_price,
             lonely=self.lonely
         )
 
@@ -152,6 +157,7 @@ class BobConfigOptions:
                        provider_uri=self.provider_uri,
                        signer_uri=self.signer_uri,
                        gas_strategy=self.gas_strategy,
+                       max_gas_price=self.max_gas_price,
                        lonely=self.lonely
                        )
         # Depends on defaults being set on Configuration classes, filtrates None values
@@ -163,6 +169,7 @@ group_config_options = group_options(
     BobConfigOptions,
     provider_uri=option_provider_uri(),
     gas_strategy=option_gas_strategy,
+    max_gas_price=option_max_gas_price,
     signer_uri=option_signer_uri,
     network=option_network(),
     registry_filepath=option_registry_filepath,

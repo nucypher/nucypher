@@ -82,6 +82,7 @@ DURATION: datetime.timedelta = datetime.timedelta(days=1)
 DEFAULT_ITERATIONS = 1  # `None` will run forever
 SAMPLE_RATE: int = 15  # seconds
 GAS_STRATEGY: str = 'fast'
+MAX_GAS_PRICE: int = 200  # gwei
 LABEL_PREFIX = 'random-metrics-label-'
 LABEL_SUFFIXER = lambda: os.urandom(16).hex()
 HANDPICKED_URSULA_URIS: List[str] = [
@@ -169,7 +170,8 @@ def make_alice(known_nodes: Optional[Set[Ursula]] = None):
         start_learning_now=False,
         federated_only=False,
         learn_on_same_thread=True,
-        gas_strategy=GAS_STRATEGY
+        gas_strategy=GAS_STRATEGY,
+        max_gas_price=MAX_GAS_PRICE,
     )
 
     alice_config.initialize(password=INSECURE_PASSWORD)

@@ -14,6 +14,8 @@ GNU Affero General Public License for more details.
 You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
+
+
 from collections import Callable
 from statistics import median
 from unittest.mock import patch
@@ -30,7 +32,8 @@ from nucypher.utilities.datafeeds import (
     UpvestGasPriceDatafeed,
     ZoltuGasPriceDatafeed
 )
-from nucypher.utilities.gas_strategies import construct_datafeed_median_strategy, construct_datafeed_fallback_strategy
+from nucypher.utilities.gas_strategies import construct_datafeed_median_strategy
+
 
 etherchain_json = {
     "safeLow": "99.0",

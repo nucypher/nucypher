@@ -107,8 +107,7 @@ def test_multiversion_contract():
     BlockchainDeployerInterface.GAS_STRATEGIES = {**BlockchainDeployerInterface.GAS_STRATEGIES,
                                                   'free': free_gas_price_strategy}
 
-    blockchain_interface = BlockchainDeployerInterface(provider_uri='tester://pyevm/2',
-                                                       gas_strategy='free')
+    blockchain_interface = BlockchainDeployerInterface(provider_uri='tester://pyevm/2', gas_strategy='free')
     blockchain_interface.connect(compile_now=False)
     blockchain_interface._raw_contract_cache = compiled_contracts
 

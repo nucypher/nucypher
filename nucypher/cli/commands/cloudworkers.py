@@ -16,12 +16,16 @@
 """
 
 import click
-import json
 import os
+
+from nucypher.cli.options import option_gas_strategy, option_max_gas_price
 
 try:
     from nucypher.utilities.clouddeploy import CloudDeployers
 except ImportError:
+    # FIXME:  Do something more meaningful and conventional here.
+    # Locally scope the import instead or raising an
+    # exception similar to DevelopmentInstallationRequired.
     CloudDeployers = None
 from nucypher.cli.utils import setup_emitter
 from nucypher.config.characters import StakeHolderConfiguration
@@ -44,6 +48,7 @@ def filter_staker_addresses(stakers, stakes):
 @click.group()
 def cloudworkers():
     """Manage stakes and other staker-related operations."""
+
 
 @cloudworkers.command('up')
 @group_staker_options
@@ -161,7 +166,7 @@ def add_for_stake(general_config, staker_options, config_file, staker_address, h
 
     emitter = setup_emitter(general_config)
 
-    STAKEHOLDER = staker_options.create_character(emitter, config_file)
+    STAKEHOLDER = staker_options.create_character(emitter, config_file)  # FIXME: NameErrors for 'staker options' and 'config_file'
 
     stakers = STAKEHOLDER.get_stakers()
     if not stakers:
@@ -188,11 +193,13 @@ def add_for_stake(general_config, staker_options, config_file, staker_address, h
 @click.option('--prometheus', help="Run Prometheus on workers.", default=False, is_flag=True)
 @click.option('--namespace', help="Namespace for these operations.  Used to address hosts and data locally and name hosts on cloud platforms.", type=click.STRING, default='local-stakeholders')
 @click.option('--network', help="The Nucypher network name these hosts will run on.", type=click.STRING, default='mainnet')
-@click.option('--gas-strategy', help="Which gas strategy?  (glacial, slow, medium, fast)", type=click.STRING)
+@option_gas_strategy
+@option_max_gas_price
 @click.option('--include-host', 'include_hosts', help="specify hosts to update", multiple=True, type=click.STRING)
 @click.option('--env', '-e', 'envvars', help="environment variables (ENVVAR=VALUE)", multiple=True, type=click.STRING, default=[])
 @group_general_config
-def deploy(general_config, remote_provider, nucypher_image, seed_network, wipe, prometheus, namespace, network, gas_strategy, include_hosts, envvars):
+def deploy(general_config, remote_provider, nucypher_image, seed_network, sentry_dsn, wipe, prometheus,
+           namespace, network, gas_strategy, max_gas_price, include_hosts, envvars):
     """Deploys NuCypher on managed hosts."""
 
     emitter = setup_emitter(general_config)
@@ -201,8 +208,19 @@ def deploy(general_config, remote_provider, nucypher_image, seed_network, wipe, 
         emitter.echo("Ansible is required to use `nucypher cloudworkers *` commands.  (Please run 'pip install ansible'.)", color="red")
         return
 
-    deployer = CloudDeployers.get_deployer('generic')(emitter, None, None, remote_provider, nucypher_image, seed_network,
-        prometheus=prometheus, namespace=namespace, network=network, gas_strategy=gas_strategy, envvars=envvars)
+    deployer = CloudDeployers.get_deployer('generic')(emitter,
+                                                      None,  # TODO:  Why 'None' here?  (overtly implicit)
+                                                      None,  # TODO: Convert to kwargs usage for maintainability.
+                                                      remote_provider,
+                                                      nucypher_image,
+                                                      seed_network,
+                                                      sentry_dsn,
+                                                      prometheus=prometheus,
+                                                      namespace=namespace,
+                                                      network=network,
+                                                      gas_strategy=gas_strategy,
+                                                      max_gas_price=max_gas_price,
+                                                      envvars=envvars)
 
     hostnames = deployer.config['instances'].keys()
     if include_hosts:
@@ -220,11 +238,13 @@ def deploy(general_config, remote_provider, nucypher_image, seed_network, wipe, 
 @click.option('--prometheus', help="Run Prometheus on workers.", default=False, is_flag=True)
 @click.option('--namespace', help="Namespace for these operations.  Used to address hosts and data locally and name hosts on cloud platforms.", type=click.STRING, default='local-stakeholders')
 @click.option('--network', help="The Nucypher network name these hosts will run on.", type=click.STRING, default='mainnet')
-@click.option('--gas-strategy', help="Which gas strategy?  (glacial, slow, medium, fast)", type=click.STRING)
 @click.option('--include-host', 'include_hosts', help="specify hosts to update", multiple=True, type=click.STRING)
 @click.option('--env', '-e', 'envvars', help="environment variables (ENVVAR=VALUE)", multiple=True, type=click.STRING, default=[])
+@option_gas_strategy
+@option_max_gas_price
 @group_general_config
-def update(general_config, remote_provider, nucypher_image, seed_network, wipe, prometheus, namespace, network, gas_strategy, include_hosts, envvars):
+def update(general_config, remote_provider, nucypher_image, seed_network, sentry_dsn, wipe, prometheus,
+           namespace, network, gas_strategy, max_gas_price, include_hosts, envvars):
     """Updates existing installations of Nucypher on existing managed remote hosts."""
 
     emitter = setup_emitter(general_config)
@@ -234,9 +254,19 @@ def update(general_config, remote_provider, nucypher_image, seed_network, wipe, 
         return
 
     deployer = CloudDeployers.get_deployer('generic')(
-        emitter, None, None, remote_provider, nucypher_image,
+        emitter,
+        None,
+        None,
+        remote_provider,
+        nucypher_image,
         seed_network,
-        prometheus=prometheus, namespace=namespace, network=network, gas_strategy=gas_strategy, envvars=envvars
+        sentry_dsn,
+        prometheus=prometheus,
+        namespace=namespace,
+        network=network,
+        gas_strategy=gas_strategy,
+        max_gas_price=max_gas_price,
+        envvars=envvars
     )
 
     emitter.echo(f"updating the following existing hosts:")
