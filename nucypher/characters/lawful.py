@@ -127,9 +127,10 @@ class Alice(Character, BlockchainPolicyAuthor):
                  rate: int = None,
                  duration_periods: int = None,
 
-                 # Policy Storage
+                 # Policy Metadata
                  store_policy_credentials: bool = None,
                  store_character_cards: bool = None,
+                 distribute_treasure_maps: bool = None,
 
                  # Middleware
                  timeout: int = 10,  # seconds  # TODO: configure  NRN
@@ -147,12 +148,15 @@ class Alice(Character, BlockchainPolicyAuthor):
         if is_me:
             self.m = m
             self.n = n
+            self.distribute_treasure_maps = distribute_treasure_maps
 
             self._policy_queue = Queue()
             self._policy_queue.put(READY)
+
         else:
             self.m = STRANGER_ALICE
             self.n = STRANGER_ALICE
+            self.distribute_treasure_maps = STRANGER_ALICE
 
         Character.__init__(self,
                            known_node_class=Ursula,
@@ -297,11 +301,12 @@ class Alice(Character, BlockchainPolicyAuthor):
               label: bytes,
               handpicked_ursulas: set = None,
               timeout: int = None,
-              publish_treasure_map: bool = True,
+              publish_treasure_map: bool = False,
               block_until_success_is_reasonably_likely: bool = True,
               **policy_params):
 
         timeout = timeout or self.timeout
+        publish_treasure_map = self.distribute_treasure_maps or publish_treasure_map
 
         #
         # Policy Creation

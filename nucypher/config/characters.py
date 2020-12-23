@@ -159,11 +159,13 @@ class AliceConfiguration(CharacterConfiguration):
 
     DEFAULT_STORE_POLICIES = True
     DEFAULT_STORE_CARDS = True
+    DEFAULT_DISTRIBUTE_TREASURE_MAPS = False
 
     _CONFIG_FIELDS = (
         *CharacterConfiguration._CONFIG_FIELDS,
         'store_policies',
-        'store_cards'
+        'store_cards',
+        'distribute_treasure_maps'
     )
 
     def __init__(self,
@@ -173,25 +175,27 @@ class AliceConfiguration(CharacterConfiguration):
                  duration_periods: int = None,
                  store_policies: bool = DEFAULT_STORE_POLICIES,
                  store_cards: bool = DEFAULT_STORE_CARDS,
+                 distribute_treasure_maps: bool = DEFAULT_DISTRIBUTE_TREASURE_MAPS,
                  *args, **kwargs):
 
         super().__init__(*args, **kwargs)
         self.m = m or self.DEFAULT_M
         self.n = n or self.DEFAULT_N
 
-        # if not self.federated_only:  # TODO: why not?
         self.rate = rate
         self.duration_periods = duration_periods
 
         self.store_policies = store_policies
         self.store_cards = store_cards
+        self.distribute_treasure_maps = distribute_treasure_maps
 
     def static_payload(self) -> dict:
         payload = dict(
             m=self.m,
             n=self.n,
             store_policies=self.store_policies,
-            store_cards=self.store_cards
+            store_cards=self.store_cards,
+            distribute_treasure_maps=self.distribute_treasure_maps
         )
         if not self.federated_only:
             if self.rate:
