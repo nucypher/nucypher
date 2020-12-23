@@ -409,7 +409,7 @@ class BlockchainInterface:
             code = response['code']
             message = response['message']
 
-        except (ValueError, IndexError, AttributeError):
+        except (ValueError, IndexError, AttributeError, KeyError, TypeError):
             # TODO: #1504 - Try even harder to determine if this is insufficient funds causing the issue,
             #               This may be best handled at the agent or actor layer for registry and token interactions.
             # Worst case scenario - raise the exception held in context implicitly
