@@ -28,8 +28,9 @@ from constant_sorrow.constants import (
 )
 from eth_utils.address import is_checksum_address
 from tempfile import TemporaryDirectory
-from typing import Callable, List, Union
+from typing import Callable, List, Union, Optional
 from umbral.signing import Signature
+from web3 import Web3
 
 from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
 from nucypher.blockchain.eth.networks import NetworksInventory
@@ -118,6 +119,7 @@ class CharacterConfiguration(BaseConfiguration):
                  light: bool = False,
                  provider_uri: str = None,
                  gas_strategy: Union[Callable, str] = DEFAULT_GAS_STRATEGY,
+                 max_gas_price: Optional[int] = None,
                  signer_uri: str = None,
 
                  # Registry
@@ -188,7 +190,8 @@ class CharacterConfiguration(BaseConfiguration):
             blockchain_args = {'filepath': registry_filepath,
                                'poa': poa,
                                'provider_uri': provider_uri,
-                               'gas_strategy': gas_strategy}
+                               'gas_strategy': gas_strategy,
+                               'max_gas_price': max_gas_price}
             if any(blockchain_args.values()):
                 bad_args = ", ".join(f"{arg}={val}" for arg, val in blockchain_args.items() if val)
                 self.log.warn(f"Arguments {bad_args} are incompatible with federated_only. "
@@ -201,6 +204,7 @@ class CharacterConfiguration(BaseConfiguration):
                 self.provider_uri = None
                 self.registry_filepath = None
                 self.gas_strategy = None
+                self.max_gas_price = None
 
         #
         # Decentralized
@@ -208,13 +212,15 @@ class CharacterConfiguration(BaseConfiguration):
 
         else:
             self.gas_strategy = gas_strategy
+            self.max_gas_price = Web3.toWei(max_gas_price, 'gwei')
             is_initialized = BlockchainInterfaceFactory.is_interface_initialized(provider_uri=self.provider_uri)
             if not is_initialized and provider_uri:
                 BlockchainInterfaceFactory.initialize_interface(provider_uri=self.provider_uri,
                                                                 poa=self.poa,
                                                                 light=self.is_light,
                                                                 emitter=emitter,
-                                                                gas_strategy=gas_strategy)
+                                                                gas_strategy=gas_strategy,
+                                                                max_gas_price=self.max_gas_price)
             else:
                 self.log.warn(f"Using existing blockchain interface connection ({self.provider_uri}).")
 
@@ -421,7 +427,7 @@ class CharacterConfiguration(BaseConfiguration):
                 payload.update(dict(registry_filepath=self.registry_filepath))
 
             # Gas Price
-            payload.update(dict(gas_strategy=self.gas_strategy))
+            payload.update(dict(gas_strategy=self.gas_strategy, max_gas_price=self.max_gas_price))
 
         # Merge with base payload
         base_payload = super().static_payload()

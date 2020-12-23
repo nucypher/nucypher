@@ -85,11 +85,6 @@ def construct_datafeed_median_strategy(speed: Optional[str] = None) -> Callable:
     return datafeed_median_gas_price_strategy
 
 
-def construct_capped_datafeed_median_strategy(max_gas_price_wei: int, speed: Optional[str] = None) -> Callable:
-    return max_price_gas_strategy_wrapper(gas_strategy=construct_datafeed_median_strategy(speed=speed),
-                                          max_gas_price_wei=max_gas_price_wei)
-
-
 #
 # Web3 gas strategies
 #
@@ -117,7 +112,7 @@ def web3_gas_strategy_wrapper(web3_gas_strategy, speed):
     return _wrapper
 
 
-WEB3_GAS_STRATEGIES = {speed: web3_gas_strategy_wrapper(max_price_gas_strategy_wrapper(strategy), speed)
+WEB3_GAS_STRATEGIES = {speed: web3_gas_strategy_wrapper(strategy, speed)
                        for speed, strategy in __RAW_WEB3_GAS_STRATEGIES.items()}
 
 EXPECTED_CONFIRMATION_TIME_IN_SECONDS = {  # TODO: See #2447
