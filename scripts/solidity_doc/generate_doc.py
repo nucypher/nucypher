@@ -14,7 +14,7 @@
  You should have received a copy of the GNU Affero General Public License
  along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
-
+from typing import Dict
 
 from jsonschema2rst.parser import _traverse_bfs, _node2rst
 from jsonschema2rst.rst_utils import RST_DIRECTIVES
@@ -27,23 +27,25 @@ from nucypher.config.constants import BASE_DIR
 from nucypher.utilities.logging import GlobalLoggerSettings
 
 
-CONTRACTS = ['StakingEscrow',
-             'PolicyManager',
-             'WorkLock',
-             'Adjudicator',
-             'Dispatcher',
-             'Upgradeable',
-             'TokenRecipient',
-             'NuCypherToken',
-             'StakingInterface',
-             'StakingInterfaceRouter',
-             'AbstractStakingContract',
-             'InitializableStakingContract',
-             'PoolingStakingContract',
-             'WorkLockPoolingContract']
+CONTRACTS = {
+    'token': ['NuCypherToken',
+              'TokenRecipient'],
+    'main':  ['StakingEscrow',
+              'PolicyManager',
+              'Adjudicator',
+              'WorkLock'],
+    'proxy': ['Dispatcher',
+              'Upgradeable'],
+    'staking': ['StakingInterface',
+                'StakingInterfaceRouter',
+                'AbstractStakingContract',
+                'InitializableStakingContract',
+                'PoolingStakingContract',
+                'WorkLockPoolingContract']
+}
 
 
-def merge_and_update(source, destination):
+def merge_and_update(source: Dict, destination: Dict):
     """Update values in source dictionary and merge it to the destination dictionary"""
 
     for key, value in source.items():
@@ -52,6 +54,7 @@ def merge_and_update(source, destination):
         else:
             # | symbol causes warnings in docs compilation
             # doubles ` symbol to make it as code piece in rst
+            # TODO find library that will fix this or make our own
             value = value.replace('`', '``').replace('|', '') if isinstance(value, str) else value
             destination[key] = value
     return destination
@@ -65,24 +68,35 @@ def generate_doc() -> None:
     bundle = SourceBundle(base_path=SOLIDITY_SOURCE_ROOT)
     contracts = multiversion_compile(source_bundles=[bundle])
 
+    # Prepare folders
     base_path = BASE_DIR / 'docs' / 'source' / 'contracts_api'
     base_path.mkdir(exist_ok=True)
+    for dir in CONTRACTS.keys():
+        category_path = base_path / dir
+        category_path.mkdir(exist_ok=True)
 
+    contract_names = {contract for contracts in CONTRACTS.values() for contract in contracts}
     patch()
     for contract, data in contracts.items():
-        if contract not in CONTRACTS:
+        if contract not in contract_names:
             continue
 
+        # Merge, update and generate resulting rst
         no_version = next(iter(data.values()))
         docs = merge_and_update(no_version["userdoc"], dict())
         docs = merge_and_update(no_version["devdoc"], docs)
-
         rst = schema2rst(docs, "kind,version,title", contract)
-        with open(base_path / f"{contract}.rst", 'w') as file:
+
+        # Find proper category and write file
+        category_path = base_path
+        for category, contracts in CONTRACTS.items():
+            if contract in contracts:
+                category_path /= category
+        with open(category_path / f"{contract}.rst", 'w') as file:
             file.write(rst)
 
 
-def schema2rst(data, excluded_key, tree_name):
+def schema2rst(data: dict, excluded_key: str, tree_name: str):
     """Mimics parser.schema2rst method with string input parameters"""
 
     tree = TreeNode(tree_name)
@@ -93,6 +107,7 @@ def schema2rst(data, excluded_key, tree_name):
     return rst
 
 
+# TODO find library that will fix this or make our own
 def patch():
     """Remove putting quotes in strings while handling json schema"""
 

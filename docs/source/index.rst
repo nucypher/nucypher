@@ -176,7 +176,7 @@ Whitepapers
    :glob:
    :caption: Contracts API
 
-   contracts_api/*
+   contracts_api/index
 
 .. toctree::
    :maxdepth: 1
