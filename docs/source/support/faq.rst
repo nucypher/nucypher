@@ -375,7 +375,7 @@ There is one setting only – 6 month duration, restake on, winddown on – for 
 See NuCypher coinlist for more details: `CoinList <https://coinlist.co/asset/nucypher>`_
 
 
-Q: How does my worker node chooses what price to use? Can I control this?
+Q: How does my worker node choose what price to use for transactions? Can I control this?
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 When sending a transaction, your worker node automatically chooses the gas price
@@ -390,8 +390,8 @@ based on the approximate confirmation time:
 
 Note that the times are an approximation, and the confirmation time may vary
 when gas prices experience more volatility.
-In such situations, transactions may not be mined on the expected time;
-your node keeps track of the transactions and is capable of automatically
+In such situations, transactions may not be mined within the expected time.
+However, your node keeps track of the transactions and is capable of automatically
 sending replacement transactions to adjust to a scenario with new prices.
 In any case, we recommend that you monitor your node to be sure that the
 transactions are being sent and confirmed correctly.
@@ -412,12 +412,12 @@ This is complementary to the gas strategy that you may have configured.
 
 .. warning::
 
-    If you set a maximum limit and the gas prices are high or very close
-    to that limit, it's possible that your node doesn't get
+    If you set a maximum limit and gas prices remain higher
+    than that limit, it's possible that your node will not get
     the commitment transaction included in the blockchain.
     This implies that you can miss some rewards.
 
 .. warning::
 
-    The maximum gas price limit is an experimental feature and may change or
-    be removed in the future.
+    The maximum gas price limit is an experimental feature and may be changed
+    removed in the future.

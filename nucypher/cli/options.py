@@ -48,7 +48,7 @@ option_federated_only = click.option('--federated-only/--decentralized', '-F', h
 option_force = click.option('--force', help="Don't ask for confirmation", is_flag=True)
 option_gas_price = click.option('--gas-price', help="Set a static gas price (in GWEI)", type=GWEI)
 option_gas_strategy = click.option('--gas-strategy', help="Operate with a specified gas price strategy", type=click.STRING)  # TODO: GAS_STRATEGY_CHOICES
-option_max_gas_price = click.option('--max-gas-price', help="Maximum acceptable gas price in Gwei", type=GWEI)
+option_max_gas_price = click.option('--max-gas-price', help="Maximum acceptable gas price (in GWEI)", type=GWEI)
 option_hw_wallet = click.option('--hw-wallet/--no-hw-wallet')
 option_light = click.option('--light', help="Indicate that node is light", is_flag=True, default=None)
 option_lonely = click.option('--lonely', help="Do not connect to seednodes", is_flag=True)
