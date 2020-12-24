@@ -374,7 +374,7 @@ See NuCypher coinlist for more details: `CoinList <https://coinlist.co/asset/nuc
 
 
 Q: How does my worker node choose what price to use for transactions? Can I control this?
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 When sending a transaction, your worker node automatically chooses the gas price
 using a `gas strategy <https://web3py.readthedocs.io/en/stable/gas_price.html>`_.
@@ -403,9 +403,12 @@ For example, the following command sets the ``medium`` gas strategy:
 
 
 There's an additional, advanced control mechanism for limiting the maximum
-gas price that your node can spend.
-The ``--max-gas-price`` environment variable can be used to configure limit in `gwei`.
+gas price that your node can spend.  The ``--max-gas-price`` flag can be used to configure limit in `gwei`.
 This is complementary to the gas strategy that you may have configured.
+
+.. code:: bash
+
+    (nucypher)$ nucypher ursula config --max-gas-price 50
 
 .. warning::
 
@@ -417,4 +420,4 @@ This is complementary to the gas strategy that you may have configured.
 .. warning::
 
     The maximum gas price limit is an experimental feature and may be changed
-    removed in the future.
+    or removed in the future.
