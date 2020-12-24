@@ -27,8 +27,6 @@ Q: How long is a period?
 1 period is 24 hours. Periods begin at midnight UTC.
 
 
-
-
 Using the Network
 -----------------
 
@@ -406,8 +404,7 @@ For example, the following command sets the ``medium`` gas strategy:
 
 There's an additional, advanced control mechanism for limiting the maximum
 gas price that your node can spend.
-The ``NUCYPHER_MAX_GAS_PRICE_GWEI`` environment variable can be used to express,
-in `gwei`, such limit.
+The ``--max-gas-price`` environment variable can be used to configure limit in `gwei`.
 This is complementary to the gas strategy that you may have configured.
 
 .. warning::
