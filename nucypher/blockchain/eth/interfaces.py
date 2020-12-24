@@ -305,7 +305,7 @@ class BlockchainInterface:
         if self.max_gas_price:
             __price = Web3.toWei(self.max_gas_price, 'gwei')  # from gwei to wei
             gas_strategy = max_price_gas_strategy_wrapper(gas_strategy=gas_strategy, max_gas_price_wei=__price)
-            configuration_message += ", with a max price of {Web3.fromWei(self.max_gas_price_wei)} gwei."
+            configuration_message += f", with a max price of {self.max_gas_price} gwei."
 
         self.client.set_gas_strategy(gas_strategy=gas_strategy)
         gwei_gas_price = Web3.fromWei(self.client.gas_price_for_transaction(), 'gwei')

@@ -14,7 +14,7 @@ GNU Affero General Public License for more details.
 You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
-
+from decimal import Decimal
 
 import os
 import re
@@ -362,9 +362,12 @@ class CharacterConfiguration(BaseConfiguration):
         node_storage = cls.load_node_storage(storage_payload=payload['node_storage'],
                                              federated_only=payload['federated_only'])
         domain = payload['domain']
+        max_gas_price = payload.get('max_gas_price')  # gwei
+        if max_gas_price:
+            max_gas_price = Decimal(max_gas_price)
 
         # Assemble
-        payload.update(dict(node_storage=node_storage, domain=domain))
+        payload.update(dict(node_storage=node_storage, domain=domain, max_gas_price=max_gas_price))
         # Filter out None values from **overrides to detect, well, overrides...
         # Acts as a shim for optional CLI flags.
         overrides = {k: v for k, v in overrides.items() if v is not None}
@@ -431,7 +434,8 @@ class CharacterConfiguration(BaseConfiguration):
                 payload.update(dict(registry_filepath=self.registry_filepath))
 
             # Gas Price
-            payload.update(dict(gas_strategy=self.gas_strategy, max_gas_price=self.max_gas_price))
+            __max_price = str(self.max_gas_price) if self.max_gas_price else None
+            payload.update(dict(gas_strategy=self.gas_strategy, max_gas_price=__max_price))
 
         # Merge with base payload
         base_payload = super().static_payload()
