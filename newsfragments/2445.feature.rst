@@ -1,1 +1,1 @@
-Improve gas strategy selection: Infura users now can choose between ``slow``, ``medium`` and ``fast``.
+Improve gas strategy selection: Infura users now can choose between ``slow``, ``medium`` and ``fast``, and a maximum gas price can be configured with --max-gas-price.
