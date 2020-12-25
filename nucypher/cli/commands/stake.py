@@ -273,7 +273,7 @@ class TransactingStakerOptions:
         blockchain = self.staker_options.get_blockchain()
         if self.gas_price:  # TODO: Consider performing this step in the init of EthereumClient
             fixed_price_strategy = construct_fixed_price_gas_strategy(gas_price=self.gas_price, denomination="gwei")
-            blockchain.set_gas_strategy(fixed_price_strategy)
+            blockchain.configure_gas_strategy(fixed_price_strategy)
         return blockchain
 
 

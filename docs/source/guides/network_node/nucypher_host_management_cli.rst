@@ -88,7 +88,7 @@ Some examples:
     $ nucypher cloudworkers deploy --remote-provider http://mainnet.infura..3epifj3rfioj
 
     # set some environment variables to configure Ursula workers on all your hosts
-    $ nucypher cloudworkers deploy -e NUCYPHER_MAX_GAS_PRICE_GWEI=35 -e DONT_PERFORM_WORK_ON_SUNDAY=true
+    $ nucypher cloudworkers deploy -e DONT_PERFORM_WORK_ON_SUNDAY=true
 
     # print the current status of all workers across all namespaces (in bash)
     $ for ns in $(nucypher cloudworkers list-namespaces); do nucypher cloudworkers status --namespace $ns; done

@@ -18,13 +18,10 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 import math
 import os
 import pprint
-import threading
-import time
 from typing import Callable, NamedTuple, Tuple, Union, Optional
 from typing import List
 from urllib.parse import urlparse
 
-import click
 import requests
 from eth_tester import EthereumTester
 from eth_tester.exceptions import TransactionFailed as TestTransactionFailed
@@ -62,7 +59,11 @@ from nucypher.blockchain.eth.sol.compile.types import SourceBundle
 from nucypher.blockchain.eth.utils import get_transaction_name, prettify_eth_amount
 from nucypher.characters.control.emitters import JSONRPCStdoutEmitter, StdoutEmitter
 from nucypher.utilities.ethereum import encode_constructor_arguments
-from nucypher.utilities.gas_strategies import datafeed_fallback_gas_price_strategy, WEB3_GAS_STRATEGIES
+from nucypher.utilities.gas_strategies import (
+    construct_datafeed_median_strategy,
+    max_price_gas_strategy_wrapper,
+    WEB3_GAS_STRATEGIES
+)
 from nucypher.utilities.logging import GlobalLoggerSettings, Logger
 
 Web3Providers = Union[IPCProvider, WebsocketProvider, HTTPProvider, EthereumTester]  # TODO: Move to types.py
@@ -130,7 +131,7 @@ class BlockchainInterface:
         def default(self) -> str:
             sender = self.payload["from"]
             message = f'{self.name} from {sender[:6]}... \n' \
-                      f'Sender balance: {self.get_balance()} ETH \n' \
+                      f'Sender balance: {prettify_eth_amount(self.get_balance())} \n' \
                       f'Reason: {self.base_message} \n' \
                       f'Transaction: {self.payload}'
             return message
@@ -154,12 +155,13 @@ class BlockchainInterface:
             return message
 
     def __init__(self,
-                 emitter = None,  # TODO # 1754
+                 emitter=None,  # TODO # 1754
                  poa: bool = None,
                  light: bool = False,
                  provider_uri: str = NO_BLOCKCHAIN_CONNECTION,
                  provider: BaseProvider = NO_BLOCKCHAIN_CONNECTION,
-                 gas_strategy: Optional[Union[str, Callable]] = None):
+                 gas_strategy: Optional[Union[str, Callable]] = None,
+                 max_gas_price: Optional[int] = None):
 
         """
         TODO: #1502 - Move to API docs.
@@ -232,7 +234,12 @@ class BlockchainInterface:
         self.client = NO_BLOCKCHAIN_CONNECTION
         self.transacting_power = READ_ONLY_INTERFACE
         self.is_light = light
+
+        # FIXME: Not ready to give users total flexibility. Let's stick for the moment to known values. See #2447
+        if gas_strategy not in ('slow', 'medium', 'fast', 'free', None):  # FIXME: What is 'None' doing here?
+            raise ValueError(f"'{gas_strategy}' is an invalid gas strategy")
         self.gas_strategy = gas_strategy or self.DEFAULT_GAS_STRATEGY
+        self.max_gas_price = max_gas_price
 
     def __repr__(self):
         r = '{name}({uri})'.format(name=self.__class__.__name__, uri=self.provider_uri)
@@ -278,22 +285,33 @@ class BlockchainInterface:
         # self.client.add_middleware(middleware.latest_block_based_cache_middleware)  # TODO: This line causes failed tests and nonce reuse in tests. See #2348.
         self.client.add_middleware(middleware.simple_cache_middleware)
 
-        self.set_gas_strategy()
+        self.configure_gas_strategy()
 
-    def set_gas_strategy(self, gas_strategy: Optional[Callable] = None):
+    def configure_gas_strategy(self, gas_strategy: Optional[Callable] = None) -> None:
+
         if gas_strategy:
             reported_gas_strategy = f"fixed/{gas_strategy.name}"
+
         elif isinstance(self.client, InfuraClient):
-            gas_strategy = datafeed_fallback_gas_price_strategy
-            self.gas_strategy = 'fast'
-            reported_gas_strategy = "datafeed/fast"
+            gas_strategy = construct_datafeed_median_strategy(speed=self.gas_strategy)
+            reported_gas_strategy = f"datafeed/{self.gas_strategy}"
+
         else:
             reported_gas_strategy = f"web3/{self.gas_strategy}"
             gas_strategy = self.get_gas_strategy(self.gas_strategy)
+
+        configuration_message = f"Using gas strategy '{reported_gas_strategy}'"
+
+        if self.max_gas_price:
+            __price = Web3.toWei(self.max_gas_price, 'gwei')  # from gwei to wei
+            gas_strategy = max_price_gas_strategy_wrapper(gas_strategy=gas_strategy, max_gas_price_wei=__price)
+            configuration_message += f", with a max price of {self.max_gas_price} gwei."
+
         self.client.set_gas_strategy(gas_strategy=gas_strategy)
         gwei_gas_price = Web3.fromWei(self.client.gas_price_for_transaction(), 'gwei')
-        self.log.debug(f"Using gas strategy '{reported_gas_strategy}'. "
-                       f"Currently, it returns a gas price of {gwei_gas_price} gwei")
+
+        self.log.info(configuration_message)
+        self.log.debug(f"Gas strategy currently reports a gas price of {gwei_gas_price} gwei.")
 
     def connect(self):
 

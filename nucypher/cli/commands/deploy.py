@@ -16,12 +16,12 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
 import json
-import os
-from typing import Tuple
 
 import click
+import os
 from constant_sorrow import constants
 from constant_sorrow.constants import FULL
+from typing import Tuple
 
 from nucypher.blockchain.eth.actors import ContractAdministrator, Trustee
 from nucypher.blockchain.eth.agents import ContractAgency, MultiSigAgent
@@ -86,7 +86,7 @@ from nucypher.cli.options import (
     option_poa,
     option_provider_uri,
     option_signer_uri,
-    option_parameters)
+    option_parameters, option_gas_strategy, option_max_gas_price)
 from nucypher.cli.painting.deployment import (
     paint_contract_deployment,
     paint_deployer_contract_inspection,
@@ -109,7 +109,6 @@ option_registry_infile = click.option('--registry-infile', help="Input path for 
 option_registry_outfile = click.option('--registry-outfile', help="Output path for contract registry file", type=click.Path(file_okay=True))
 option_target_address = click.option('--target-address', help="Address of the target contract", type=EIP55_CHECKSUM_ADDRESS)
 option_gas = click.option('--gas', help="Operate with a specified gas per-transaction limit", type=click.IntRange(min=1))
-option_gas_strategy = click.option('--gas-strategy', help="Operate with a specified gas price strategy", type=click.STRING)  # TODO: GAS_STRATEGY_CHOICES
 option_ignore_deployed = click.option('--ignore-deployed', help="Ignore already deployed contracts if exist.", is_flag=True)
 option_ignore_solidity_version = click.option('--ignore-solidity-check', help="Ignore solidity version compatibility check", is_flag=True)
 option_confirmations = click.option('--confirmations', help="Number of block confirmations to wait between transactions", type=click.IntRange(min=0), default=3)
@@ -134,6 +133,7 @@ class ActorOptions:
                  se_test_mode,
                  ignore_solidity_check,
                  gas_strategy: str,
+                 max_gas_price: int,  # gwei
                  signer_uri: str,
                  network: str
                  ):
@@ -141,6 +141,7 @@ class ActorOptions:
         self.provider_uri = provider_uri
         self.signer_uri = signer_uri
         self.gas_strategy = gas_strategy
+        self.max_gas_price = max_gas_price
         self.deployer_address = deployer_address
         self.contract_name = contract_name
         self.registry_infile = registry_infile
@@ -165,7 +166,8 @@ class ActorOptions:
                                                            provider_uri=self.provider_uri,
                                                            emitter=emitter,
                                                            ignore_solidity_check=self.ignore_solidity_check,
-                                                           gas_strategy=self.gas_strategy)
+                                                           gas_strategy=self.gas_strategy,
+                                                           max_gas_price=self.max_gas_price)
 
         # Warnings
         deployer_pre_launch_warnings(emitter, self.etherscan, self.hw_wallet)
@@ -228,6 +230,7 @@ group_actor_options = group_options(
     ActorOptions,
     provider_uri=option_provider_uri(),
     gas_strategy=option_gas_strategy,
+    max_gas_price=option_max_gas_price,
     signer_uri=option_signer_uri,
     contract_name=option_contract_name(required=False),  # TODO: Make this required see Issue #2314
     poa=option_poa,

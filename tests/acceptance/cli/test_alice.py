@@ -23,7 +23,12 @@ from nucypher.cli.literature import SUCCESSFUL_DESTRUCTION, COLLECT_NUCYPHER_PAS
 from nucypher.cli.main import nucypher_cli
 from nucypher.config.characters import AliceConfiguration
 from nucypher.config.constants import NUCYPHER_ENVVAR_KEYRING_PASSWORD, TEMPORARY_DOMAIN
-from tests.constants import (FAKE_PASSWORD_CONFIRMED, INSECURE_DEVELOPMENT_PASSWORD, MOCK_CUSTOM_INSTALLATION_PATH)
+from nucypher.policy.identity import Card
+from tests.constants import (
+    FAKE_PASSWORD_CONFIRMED,
+    INSECURE_DEVELOPMENT_PASSWORD,
+    MOCK_CUSTOM_INSTALLATION_PATH
+)
 
 
 @mock.patch('nucypher.config.characters.AliceConfiguration.default_filepath', return_value='/non/existent/file')
@@ -114,11 +119,13 @@ def test_alice_control_starts_with_preexisting_configuration(click_runner, custo
     assert result.exit_code == 0
 
 
-def test_alice_make_card(click_runner, custom_filepath):
+def test_alice_make_card(click_runner, custom_filepath, mocker):
+    mock_save_card = mocker.patch.object(Card, 'save')
     custom_config_filepath = os.path.join(custom_filepath, AliceConfiguration.generate_filename())
     command = ('alice', 'make-card', '--nickname', 'flora', '--config-file', custom_config_filepath)
     result = click_runner.invoke(nucypher_cli, command, input=FAKE_PASSWORD_CONFIRMED, catch_exceptions=False)
     assert result.exit_code == 0
+    mock_save_card.assert_called_once()
     assert "Saved new character card " in result.output
 
 

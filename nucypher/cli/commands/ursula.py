@@ -58,7 +58,7 @@ from nucypher.cli.options import (
     option_registry_filepath,
     option_signer_uri,
     option_teacher_uri,
-    option_lonely
+    option_lonely, option_max_gas_price
 )
 from nucypher.cli.painting.help import paint_new_installation_help
 from nucypher.cli.painting.transactions import paint_receipt_summary
@@ -79,20 +79,21 @@ class UrsulaConfigOptions:
     __option_name__ = 'config_options'
 
     def __init__(self,
-                 provider_uri,
-                 worker_address,
-                 federated_only,
-                 rest_host,
-                 rest_port,
-                 db_filepath,
-                 network,
-                 registry_filepath,
-                 dev,
-                 poa,
-                 light,
-                 gas_strategy,
-                 signer_uri,
-                 availability_check,
+                 provider_uri: str,
+                 worker_address: str,
+                 federated_only: bool,
+                 rest_host: str,
+                 rest_port: int,
+                 db_filepath: str,
+                 network: str,
+                 registry_filepath: str,
+                 dev: bool,
+                 poa: bool,
+                 light: bool,
+                 gas_strategy: str,
+                 max_gas_price: int,  # gwei
+                 signer_uri: str,
+                 availability_check: bool,
                  lonely: bool
                  ):
 
@@ -114,6 +115,7 @@ class UrsulaConfigOptions:
         self.poa = poa
         self.light = light
         self.gas_strategy = gas_strategy
+        self.max_gas_price = max_gas_price
         self.availability_check = availability_check
         self.lonely = lonely
 
@@ -129,6 +131,7 @@ class UrsulaConfigOptions:
                 provider_uri=self.provider_uri,
                 signer_uri=self.signer_uri,
                 gas_strategy=self.gas_strategy,
+                max_gas_price=self.max_gas_price,
                 checksum_address=self.worker_address,
                 federated_only=self.federated_only,
                 rest_host=self.rest_host,
@@ -146,6 +149,7 @@ class UrsulaConfigOptions:
                     provider_uri=self.provider_uri,
                     signer_uri=self.signer_uri,
                     gas_strategy=self.gas_strategy,
+                    max_gas_price=self.max_gas_price,
                     rest_host=self.rest_host,
                     rest_port=self.rest_port,
                     db_filepath=self.db_filepath,
@@ -195,6 +199,7 @@ class UrsulaConfigOptions:
                                             provider_uri=self.provider_uri,
                                             signer_uri=self.signer_uri,
                                             gas_strategy=self.gas_strategy,
+                                            max_gas_price=self.max_gas_price,
                                             poa=self.poa,
                                             light=self.light,
                                             availability_check=self.availability_check)
@@ -210,6 +215,7 @@ class UrsulaConfigOptions:
                        provider_uri=self.provider_uri,
                        signer_uri=self.signer_uri,
                        gas_strategy=self.gas_strategy,
+                       max_gas_price=self.max_gas_price,
                        poa=self.poa,
                        light=self.light,
                        availability_check=self.availability_check)
@@ -223,6 +229,7 @@ group_config_options = group_options(
     provider_uri=option_provider_uri(),
     signer_uri=option_signer_uri,
     gas_strategy=option_gas_strategy,
+    max_gas_price=option_max_gas_price,
     worker_address=click.option('--worker-address', help="Run the worker-ursula with a specified address", type=EIP55_CHECKSUM_ADDRESS),
     federated_only=option_federated_only,
     rest_host=click.option('--rest-host', help="The host IP address to run Ursula network services on", type=click.STRING),

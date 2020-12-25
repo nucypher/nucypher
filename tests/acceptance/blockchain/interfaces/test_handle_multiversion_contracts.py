@@ -24,6 +24,9 @@ from nucypher.crypto.powers import TransactingPower
 from tests.constants import INSECURE_DEVELOPMENT_PASSWORD
 from tests.utils.blockchain import free_gas_price_strategy
 
+BlockchainDeployerInterface.GAS_STRATEGIES = {**BlockchainDeployerInterface.GAS_STRATEGIES,
+                                              'free': free_gas_price_strategy}
+
 
 def test_deployer_interface_multiversion_contract():
 
@@ -41,8 +44,7 @@ def test_deployer_interface_multiversion_contract():
 
     # Prepare chain
     BlockchainInterfaceFactory._interfaces.clear()
-    blockchain_interface = BlockchainDeployerInterface(provider_uri='tester://pyevm',
-                                                       gas_strategy=free_gas_price_strategy)
+    blockchain_interface = BlockchainDeployerInterface(provider_uri='tester://pyevm', gas_strategy='free')
     blockchain_interface.connect()
     BlockchainInterfaceFactory.register_interface(interface=blockchain_interface)  # Lets this test run in isolation
 

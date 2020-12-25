@@ -59,7 +59,7 @@ from nucypher.cli.options import (
     option_registry_filepath,
     option_signer_uri,
     option_teacher_uri,
-    option_lonely
+    option_lonely, option_max_gas_price
 )
 from nucypher.cli.painting.help import paint_new_installation_help
 from nucypher.cli.painting.help import (
@@ -97,6 +97,7 @@ class AliceConfigOptions:
                  registry_filepath: str,
                  middleware: RestMiddleware,
                  gas_strategy: str,
+                 max_gas_price: int,  # gwei
                  signer_uri: str,
                  lonely: bool,
                  ):
@@ -106,6 +107,7 @@ class AliceConfigOptions:
         self.provider_uri = provider_uri
         self.signer_uri = signer_uri
         self.gas_strategy = gas_strategy
+        self.max_gas_price = max_gas_price
         self.federated_only = federated_only
         self.pay_with = pay_with
         self.discovery_port = discovery_port
@@ -131,6 +133,7 @@ class AliceConfigOptions:
                 provider_uri=self.provider_uri,
                 signer_uri=self.signer_uri,
                 gas_strategy=self.gas_strategy,
+                max_gas_price=self.max_gas_price,
                 federated_only=True,
                 lonely=self.lonely
             )
@@ -145,6 +148,7 @@ class AliceConfigOptions:
                     provider_uri=self.provider_uri,
                     signer_uri=self.signer_uri,
                     gas_strategy=self.gas_strategy,
+                    max_gas_price=self.max_gas_price,
                     filepath=config_file,
                     rest_port=self.discovery_port,
                     checksum_address=self.pay_with,
@@ -165,6 +169,7 @@ group_config_options = group_options(
     provider_uri=option_provider_uri(),
     signer_uri=option_signer_uri,
     gas_strategy=option_gas_strategy,
+    max_gas_price=option_max_gas_price,
     federated_only=option_federated_only,
     discovery_port=option_discovery_port(),
     pay_with=option_pay_with,

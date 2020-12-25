@@ -1,0 +1,3 @@
+New composite gas strategy that uses the median from three different gas price oracles
+(currently, Etherchain, Upvest and gas-oracle.zoltu.io),
+which behaves more robustly against sporadic errors in the oracles (e.g., spikes, stuck feeds).

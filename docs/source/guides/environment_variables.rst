@@ -21,7 +21,6 @@ General
 * `NUCYPHER_PROVIDER_URI`
     Default Web3 node provider URI.
 
-
 Alice
 -----
 

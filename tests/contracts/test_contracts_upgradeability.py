@@ -39,6 +39,10 @@ BRANCH = "main"
 GITHUB_SOURCE_LINK = f"https://api.github.com/repos/{USER}/{REPO}/contents/nucypher/blockchain/eth/sol/source?ref={BRANCH}"
 
 
+BlockchainDeployerInterface.GAS_STRATEGIES = {**BlockchainDeployerInterface.GAS_STRATEGIES,
+                                              'free': free_gas_price_strategy}
+
+
 def download_github_dir(source_link: str, target_folder: str):
     response = requests.get(source_link)
     if response.status_code != 200:
@@ -109,8 +113,7 @@ def test_upgradeability(temp_dir_path):
 
     provider_uri = 'tester://pyevm/2'  # TODO: Testerchain caching Issues
     try:
-        blockchain_interface = BlockchainDeployerInterface(provider_uri=provider_uri,
-                                                           gas_strategy=free_gas_price_strategy)
+        blockchain_interface = BlockchainDeployerInterface(provider_uri=provider_uri, gas_strategy='free')
         blockchain_interface.connect()
         origin = blockchain_interface.client.accounts[0]
         BlockchainInterfaceFactory.register_interface(interface=blockchain_interface)
