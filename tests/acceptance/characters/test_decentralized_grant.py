@@ -23,7 +23,6 @@ from nucypher.crypto.api import keccak_digest
 from nucypher.datastore.models import PolicyArrangement
 from nucypher.datastore.models import TreasureMap as DatastoreTreasureMap
 from nucypher.policy.collections import SignedTreasureMap as DecentralizedTreasureMap
-from nucypher.policy.identity import PolicyCredential
 from tests.utils.middleware import MockRestMiddleware
 
 
@@ -59,30 +58,6 @@ def test_decentralized_grant(blockchain_alice, blockchain_bob, agency):
         # Get the Arrangement from Ursula's datastore, looking up by the Arrangement ID.
         with arrangement.ursula.datastore.describe(PolicyArrangement, arrangement.id.hex()) as policy_arrangement:
             assert kfrag == policy_arrangement.kfrag
-
-    # Test PolicyCredential w/o TreasureMap
-    credential = policy.credential(with_treasure_map=False)
-    assert credential.alice_verifying_key == policy.alice.stamp
-    assert credential.label == policy.label
-    assert credential.expiration == policy.expiration
-    assert credential.policy_pubkey == policy.public_key
-    assert credential.treasure_map is None
-
-    cred_json = credential.to_json()
-    deserialized_cred = PolicyCredential.from_json(cred_json)
-    assert credential == deserialized_cred
-
-    # Test PolicyCredential w/ TreasureMap
-    credential = policy.credential()
-    assert credential.alice_verifying_key == policy.alice.stamp
-    assert credential.label == policy.label
-    assert credential.expiration == policy.expiration
-    assert credential.policy_pubkey == policy.public_key
-    assert credential.treasure_map == policy.treasure_map
-
-    cred_json = credential.to_json()
-    deserialized_cred = PolicyCredential.from_json(cred_json)
-    assert credential == deserialized_cred
 
 
 def test_alice_sets_treasure_map_decentralized(enacted_blockchain_policy):

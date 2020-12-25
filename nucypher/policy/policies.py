@@ -46,7 +46,6 @@ from nucypher.crypto.powers import DecryptingPower, SigningPower, TransactingPow
 from nucypher.crypto.utils import construct_policy_id
 from nucypher.network.exceptions import NodeSeemsToBeDown
 from nucypher.network.middleware import RestMiddleware
-from nucypher.policy.identity import PolicyCredential
 from nucypher.utilities.logging import Logger
 
 
@@ -432,23 +431,6 @@ class Policy(ABC):
                                                     network_middleware=network_middleware)
 
         self.publishing_mutex.start()
-
-    def credential(self, with_treasure_map=True):
-        """
-        Creates a PolicyCredential for portable access to the policy via
-        Alice or Bob. By default, it will include the treasure_map for the
-        policy unless `with_treasure_map` is False.
-        """
-
-        treasure_map = self.treasure_map
-        if not with_treasure_map:
-            treasure_map = None
-        credential = PolicyCredential(alice_verifying_key=self.alice.stamp,
-                                      label=self.label,
-                                      expiration=self.expiration,
-                                      policy_pubkey=self.public_key,
-                                      treasure_map=treasure_map)
-        return credential
 
     def __assign_kfrags(self) -> Generator[Arrangement, None, None]:
 
