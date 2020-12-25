@@ -1,1 +1,0 @@
-Improves console messages for stakeholder CLI initialization and worker startup.

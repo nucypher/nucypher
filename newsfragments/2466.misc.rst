@@ -1,1 +1,0 @@
-Deprecates internally managed geth process management

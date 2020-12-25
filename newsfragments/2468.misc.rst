@@ -1,1 +1,0 @@
-Deprecates managed ethereum client syncing and stale interface methods
