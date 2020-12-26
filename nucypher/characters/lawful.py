@@ -188,6 +188,8 @@ class Alice(Character, BlockchainPolicyAuthor):
 
         self.active_policies = dict()
         self.revocation_kits = dict()
+
+        # TODO: Store policies and cards as part of the character's lifecycle.
         self.store_policy_credentials = store_policy_credentials
         self.store_character_cards = store_character_cards
 
@@ -495,11 +497,12 @@ class Bob(Character):
         def __init__(self, evidence: List):
             self.evidence = evidence
 
-    def __init__(self, treasure_maps: Optional[Dict] = None, controller: bool = True, *args, **kwargs) -> None:
-        Character.__init__(self, known_node_class=Ursula, *args, **kwargs)
-
-        if controller:
-            self.make_cli_controller()
+    def __init__(self,
+                 treasure_maps: Optional[Dict] = None,
+                 controller: bool = True,
+                 store_policy_credentials: bool = None,
+                 store_character_cards: bool = None,
+                 *args, **kwargs):
 
         if not treasure_maps:
             treasure_maps = dict()
@@ -508,8 +511,17 @@ class Bob(Character):
         from nucypher.policy.collections import WorkOrderHistory  # Need a bigger strategy to avoid circulars.
         self._completed_work_orders = WorkOrderHistory()
 
+        Character.__init__(self, known_node_class=Ursula, *args, **kwargs)
+
         self.log = Logger(self.__class__.__name__)
         self.log.info(self.banner)
+
+        if controller:
+            self.make_cli_controller()
+
+        # TODO: Store policies and cards as part of the character's lifecycle.
+        self.store_policy_credentials = store_policy_credentials
+        self.store_character_cards = store_character_cards
 
     def get_card(self) -> 'Card':
         from nucypher.policy.identity import Card
@@ -597,8 +609,7 @@ class Bob(Character):
             if not self.known_nodes:
                 raise self.NotEnoughTeachers("Can't retrieve without knowing about any nodes at all.  Pass a teacher or seed node.")
 
-        treasure_map = self.get_treasure_map_from_known_ursulas(self.network_middleware,
-                                                                map_identifier)
+        treasure_map = self.get_treasure_map_from_known_ursulas(self.network_middleware, map_identifier)
 
         self._try_orient(treasure_map, alice_verifying_key)
         self.treasure_maps[map_identifier] = treasure_map # TODO: make a part of _try_orient()?

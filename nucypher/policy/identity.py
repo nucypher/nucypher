@@ -294,9 +294,13 @@ class Card:
         exists = self.filepath.exists()
         return exists
 
+    @classmethod
+    def __ensure_card_dir_exists(cls):
+        if not cls.CARD_DIR.exists():
+            os.mkdir(str(cls.CARD_DIR))
+
     def save(self, encoder: Callable = base64.b64encode, overwrite: bool = False) -> Path:
-        if not self.CARD_DIR.exists():
-            os.mkdir(str(self.CARD_DIR))
+        self.__ensure_card_dir_exists()
         if self.is_saved and not overwrite:
             raise FileExistsError('Card exists. Pass overwrite=True to allow this operation.')
         with open(str(self.filepath), 'wb') as file:
@@ -310,6 +314,7 @@ class Card:
             nickname, _id = identifier.split(cls.__DELIMITER)
         except ValueError:
             nickname = identifier
+        cls.__ensure_card_dir_exists()
         for filename in os.listdir(Card.CARD_DIR):
             if nickname.lower() in filename.lower():
                 break
@@ -325,7 +330,6 @@ class Card:
              card_dir: Path = None,
              decoder: Callable = base64.b64decode
              ) -> 'Card':
-
         if not card_dir:
             card_dir = cls.CARD_DIR
         if filepath and identifier:

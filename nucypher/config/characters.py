@@ -157,25 +157,23 @@ class AliceConfiguration(CharacterConfiguration):
     DEFAULT_M = 2
     DEFAULT_N = 3
 
-    DEFAULT_STORE_POLICIES = True
-    DEFAULT_STORE_CARDS = True
+    DEFAULT_STORE_POLICIES = False
+    DEFAULT_STORE_CARDS = False
     DEFAULT_DISTRIBUTE_TREASURE_MAPS = False
 
-    _CONFIG_FIELDS = (
-        *CharacterConfiguration._CONFIG_FIELDS,
-        'store_policies',
-        'store_cards',
-        'distribute_treasure_maps'
-    )
-
     def __init__(self,
+
+                 # Policy Defaults
                  m: int = None,
                  n: int = None,
                  rate: int = None,
                  duration_periods: int = None,
-                 store_policies: bool = DEFAULT_STORE_POLICIES,
-                 store_cards: bool = DEFAULT_STORE_CARDS,
+
+                 # Behaviour Options
+                 store_policy_credentials: bool = DEFAULT_STORE_POLICIES,
+                 store_character_cards: bool = DEFAULT_STORE_CARDS,
                  distribute_treasure_maps: bool = DEFAULT_DISTRIBUTE_TREASURE_MAPS,
+
                  *args, **kwargs):
 
         super().__init__(*args, **kwargs)
@@ -185,16 +183,16 @@ class AliceConfiguration(CharacterConfiguration):
         self.rate = rate
         self.duration_periods = duration_periods
 
-        self.store_policies = store_policies
-        self.store_cards = store_cards
+        self.store_policies = store_policy_credentials
+        self.store_cards = store_character_cards
         self.distribute_treasure_maps = distribute_treasure_maps
 
     def static_payload(self) -> dict:
         payload = dict(
             m=self.m,
             n=self.n,
-            store_policies=self.store_policies,
-            store_cards=self.store_cards,
+            store_policy_credentials=self.store_policies,
+            store_character_cards=self.store_cards,
             distribute_treasure_maps=self.distribute_treasure_maps
         )
         if not self.federated_only:
@@ -217,22 +215,16 @@ class BobConfiguration(CharacterConfiguration):
     CHARACTER_CLASS = Bob
     NAME = CHARACTER_CLASS.__name__.lower()
     DEFAULT_CONTROLLER_PORT = 7151
-    DEFFAULT_STORE_POLICIES = True
-    DEFAULT_STORE_CARDS = True
-
-    _CONFIG_FIELDS = (
-        *CharacterConfiguration._CONFIG_FIELDS,
-        'store_policies',
-        'store_cards'
-    )
+    DEFAULT_STORE_POLICIES = False
+    DEFAULT_STORE_CARDS = False
 
     def __init__(self,
-                 store_policies: bool = DEFFAULT_STORE_POLICIES,
-                 store_cards: bool = DEFAULT_STORE_CARDS,
+                 store_policy_credentials: bool = DEFAULT_STORE_POLICIES,
+                 store_character_cards: bool = DEFAULT_STORE_CARDS,
                  *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.store_policies = store_policies
-        self.store_cards = store_cards
+        self.store_policies = store_policy_credentials
+        self.store_cards = store_character_cards
 
     def write_keyring(self, password: str, **generation_kwargs) -> NucypherKeyring:
         return super().write_keyring(password=password,
@@ -242,8 +234,8 @@ class BobConfiguration(CharacterConfiguration):
 
     def static_payload(self) -> dict:
         payload = dict(
-            store_policies=self.store_policies,
-            store_cards=self.store_cards
+            store_policy_credentials=self.store_policies,
+            store_character_cards=self.store_cards
         )
         return {**super().static_payload(), **payload}
 
