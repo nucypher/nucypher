@@ -161,7 +161,9 @@ def ursula_federated_test_config(test_registry):
 
 @pytest.fixture(scope="module")
 def alice_federated_test_config(federated_ursulas):
-    config = make_alice_test_configuration(federated=True, known_nodes=federated_ursulas)
+    config = make_alice_test_configuration(federated=True,
+                                           known_nodes=federated_ursulas,
+                                           distribute_treasure_maps=True)  # TODO: Consider setting this to False
     yield config
     config.cleanup()
 
@@ -196,7 +198,8 @@ def alice_blockchain_test_config(blockchain_ursulas, testerchain, test_registry)
                                            provider_uri=TEST_PROVIDER_URI,
                                            known_nodes=blockchain_ursulas,
                                            checksum_address=testerchain.alice_account,
-                                           test_registry=test_registry)
+                                           test_registry=test_registry,
+                                           distribute_treasure_maps=True)  # TODO: Consider setting this to False
     yield config
     config.cleanup()
 

@@ -39,7 +39,8 @@ def assemble(federated: bool,
              checksum_address: str = None,
              provider_uri: str = None,
              test_registry: BaseContractRegistry = None,
-             known_nodes: List[Ursula] = None) -> dict:
+             known_nodes: List[Ursula] = None,
+             **kwargs) -> dict:
 
     """Assemble a dictionary of keyword arguments to use when constructing a test configuration."""
 
@@ -61,7 +62,7 @@ def assemble(federated: bool,
                           checksum_address=checksum_address)
 
     # Combine and return
-    base_test_params = dict(**TEST_CHARACTER_CONFIG_BASE_PARAMS, **runtime_params)
+    base_test_params = dict(**TEST_CHARACTER_CONFIG_BASE_PARAMS, **runtime_params, **kwargs)
     return base_test_params
 
 
