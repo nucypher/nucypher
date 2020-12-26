@@ -56,24 +56,43 @@ def paint_new_installation_help(emitter, new_configuration):
     character_name = character_config_class.NAME.lower()
 
     emitter.message("Generated keyring {}".format(new_configuration.keyring_root), color='green')
-    emitter.message("Saved configuration file {}".format(new_configuration.config_file_location), color='green')
+    emitter.message("Generated configuration file {}".format(new_configuration.config_file_location), color='green')
 
     # Felix
     if character_name == 'felix':
-        suggested_db_command = 'nucypher felix createdb'
-        how_to_proceed_message = f'\nTo initialize a new faucet database run:'
-        emitter.echo(how_to_proceed_message, color='green')
-        emitter.echo(f'\n\'{suggested_db_command}\'', color='green')
+        hint = '''
+To initialize a new faucet recipient database run: nucypher felix createdb 
+'''
 
     # Ursula
-    elif character_name == 'ursula' and not new_configuration.federated_only:
-        how_to_stake_message = f"\nIf you haven't done it already, initialize a NU stake with 'nucypher stake' or"
-        emitter.echo(how_to_stake_message, color='green')
+    elif character_name == 'ursula':
+        hint = '''
+* Review configuration  -> nucypher ursula config
+* Start working         -> nucypher ursula run
+'''
 
-    # Everyone: Give the use a suggestion as to what to do next
-    suggested_command = f'nucypher {character_name} run'
-    how_to_run_message = f"\nTo start {character_name.capitalize()} run '{suggested_command}'\n"
-    emitter.echo(how_to_run_message.format(suggested_command), color='green')
+    elif character_name == 'alice':
+        hint = '''
+* Review configuration  -> nucypher alice config
+* View public keys      -> nucypher alice public-keys
+* Grant access          -> nucypher alice grant
+* Revoke access         -> nucypher alice revoke
+* Start HTTP server     -> nucypher alice run
+'''
+
+
+    elif character_name == 'bob':
+        hint = '''
+* Review configuration  -> nucypher bob config
+* View public keys      -> nucypher bob public-keys
+* Fetch & Decrypt       -> nucypher bob retrieve
+* Open dispute          -> nucypher bob challenge
+* Start HTTP server     -> nucypher bob run
+'''
+
+    else:
+        raise ValueError(f'Unknown character type "{character_name}"')
+    emitter.echo(hint, color='green')
 
 
 def paint_probationary_period_disclaimer(emitter):
