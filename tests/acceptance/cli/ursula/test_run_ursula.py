@@ -50,8 +50,10 @@ def test_missing_configuration_file(default_filepath_mock, click_runner):
 
 
 def test_ursula_startup_ip_checkup(click_runner, mocker):
+    target = 'nucypher.cli.actions.configure.determine_external_ip_address'
+
     # Patch the get_external_ip call
-    mocker.patch.object(utilities.networking, 'get_external_ip_from_default_teacher', return_value=MOCK_IP_ADDRESS)
+    mocker.patch(target, return_value=MOCK_IP_ADDRESS)
     mocker.patch.object(UrsulaConfiguration, 'to_configuration_file', return_value=None)
 
     args = ('ursula', 'init', '--federated-only', '--network', TEMPORARY_DOMAIN)
@@ -63,10 +65,9 @@ def test_ursula_startup_ip_checkup(click_runner, mocker):
     args = ('ursula', 'init', '--federated-only', '--network', TEMPORARY_DOMAIN, '--force')
     result = click_runner.invoke(nucypher_cli, args, catch_exceptions=False, input=FAKE_PASSWORD_CONFIRMED)
     assert result.exit_code == 0
-    assert MOCK_IP_ADDRESS in result.output
 
     # Patch get_external_ip call to error output
-    mocker.patch.object(utilities.networking, 'get_external_ip_from_default_teacher', side_effect=UnknownIPAddress)
+    mocker.patch(target, side_effect=UnknownIPAddress)
     args = ('ursula', 'init', '--federated-only', '--network', TEMPORARY_DOMAIN, '--force')
     result = click_runner.invoke(nucypher_cli, args, catch_exceptions=True, input=FAKE_PASSWORD_CONFIRMED)
     assert result.exit_code == 1, result.output
@@ -151,7 +152,7 @@ def test_federated_ursula_learns_via_cli(click_runner, federated_ursulas):
     result = d.result
 
     assert result.exit_code == 0
-    assert "Starting Ursula" in result.output
+    assert "Starting services" in result.output
     assert f"127.0.0.1:{deploy_port}" in result.output
 
     reserved_ports = (UrsulaConfiguration.DEFAULT_REST_PORT, UrsulaConfiguration.DEFAULT_DEVELOPMENT_REST_PORT)
