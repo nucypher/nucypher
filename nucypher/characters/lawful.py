@@ -1284,8 +1284,7 @@ class Ursula(Teacher, Character, Worker):
             if emitter:
                 emitter.message(f"✓ Database Pruning", color='green')
 
-        # TODO: block until specific nodes are known here?
-        if discovery:
+        if discovery and not self.lonely:
             self.start_learning_loop(now=self._start_learning_now)
             if emitter:
                 emitter.message(f"✓ Node Discovery - {self.domain}", color='green')

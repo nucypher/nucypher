@@ -25,7 +25,7 @@ from nucypher.crypto.powers import TransactingPower
 from nucypher.network.nodes import Learner
 from nucypher.network.trackers import AvailabilityTracker
 from nucypher.utilities.logging import GlobalLoggerSettings
-from tests.constants import INSECURE_DEVELOPMENT_PASSWORD
+from tests.constants import INSECURE_DEVELOPMENT_PASSWORD, MOCK_IP_ADDRESS
 from tests.mock.datastore import mock_lmdb_open
 
 # Crash on server error by default
@@ -186,13 +186,15 @@ def check_character_state_after_test(request):
 
 
 
+
 @pytest.fixture(scope='session', autouse=True)
 def mock_datastore(monkeysession):
     monkeysession.setattr(lmdb, 'open', mock_lmdb_open)
     yield
     
 
+
+@pytest.fixture(scope='session', autouse=True)
 def mock_get_external_ip_from_url_source(session_mocker):
-    """Prevent tests from making a call to third party external networks"""
-    target = 'nucypher.utilities.networking.get_external_ip_from_centralized_source'
-    session_mocker.patch(target, return_value=None)
+    target = 'nucypher.cli.actions.configure.determine_external_ip_address'
+    session_mocker.patch(target, return_value=MOCK_IP_ADDRESS)
