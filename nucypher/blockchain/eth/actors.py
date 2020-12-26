@@ -1437,7 +1437,7 @@ class Worker(NucypherTokenActor):
                  is_me: bool,
                  work_tracker: WorkTracker = None,
                  worker_address: str = None,
-                 start_working_now: bool = True,
+                 commit_now: bool = False,
                  block_until_ready: bool = True,
                  *args, **kwargs):
 
@@ -1467,8 +1467,7 @@ class Worker(NucypherTokenActor):
             self.stakes = StakeList(registry=self.registry, checksum_address=self.checksum_address)
             self.stakes.refresh()
             self.work_tracker = work_tracker or WorkTracker(worker=self)
-            if start_working_now:
-                self.work_tracker.start(act_now=start_working_now)
+            self.work_tracker.start(commit_now=commit_now)
 
     def block_until_ready(self, poll_rate: int = None, timeout: int = None, feedback_rate: int = None):
         """

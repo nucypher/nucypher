@@ -14,6 +14,8 @@
  You should have received a copy of the GNU Affero General Public License
  along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
+
+
 import pytest_twisted
 from twisted.internet import threads
 from twisted.internet.task import Clock
@@ -64,7 +66,7 @@ def test_worker_auto_commitments(mocker,
     ursula = make_decentralized_ursulas(ursula_config=ursula_decentralized_test_config,
                                         stakers_addresses=[staker.checksum_address],
                                         workers_addresses=[worker_address],
-                                        commit_to_next_period=False,  # FIXME: 2424 - It commits anyway
+                                        commit_now=True,
                                         registry=test_registry).pop()
 
     initial_period = staker.staking_agent.get_current_period()

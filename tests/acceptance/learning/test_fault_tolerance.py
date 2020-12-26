@@ -116,7 +116,7 @@ def test_invalid_workers_tolerance(testerchain,
                                     worker_address=testerchain.unassigned_accounts[-1],
                                     ursula_config=ursula_decentralized_test_config,
                                     blockchain=testerchain,
-                                    commit_to_next_period=True,
+                                    commit_now=True,
                                     ursulas_to_learn_about=None)
 
     # Since we made a commitment, we need to advance one period
