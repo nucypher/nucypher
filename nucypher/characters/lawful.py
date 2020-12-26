@@ -1284,10 +1284,11 @@ class Ursula(Teacher, Character, Worker):
             if emitter:
                 emitter.message(f"✓ Database Pruning", color='green')
 
-        if discovery and not self.lonely:
-            self.start_learning_loop(now=self._start_learning_now)
-            if emitter:
-                emitter.message(f"✓ Node Discovery - {self.domain}", color='green')
+        # TODO: Startup node discovery here with the rest of Ursula's services.
+        # if discovery and not self.lonely:
+        #     self.start_learning_loop(now=self._start_learning_now)
+        #     if emitter:
+        #         emitter.message(f"✓ Node Discovery - {self.domain}", color='green')
 
         if self._availability_check and availability:
             self._availability_tracker.start(now=False)  # wait...
