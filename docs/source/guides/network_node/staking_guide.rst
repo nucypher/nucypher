@@ -11,18 +11,31 @@ Staker Overview
 
 *Staker* - Controls NU tokens, manages staking, and collects rewards.
 
-The Staker is a manager of one or more stakes, delegating active network participation to a *Worker* through *bonding*.
-There is a 1:1 relationship between the roles: A Staker controls a single ethereum account and may have multiple Stakes,
-but only ever has one Worker. A fully synced ethereum node is required - The staker's account needs NU tokens to stake
-as well as enough ether to pay for transaction gas. Stakers can run on a laptop and do not need to remain online since
-they only need to perform stake management transactions. Using a hardware wallet is *highly* recommended, they are ideal
-for stakers since only temporary access to private keys is required during stake management while providing a higher standard
-of security than software wallets.
+The Staker is a manager of one or more NU stakes.  A stake is initiated by locking NU into the *"Staking Escrow "*
+contract for a fixed duration of time.  Staked NU earns two income streams: inflation rewards (NU) and policy fees (ETH).
+Staked NU unlocks with each period of completed, depending on *re-stake* and *wind-down* (more on this later).
+
+Active network participation (work) is delegated to a *Worker* node through *bonding*. There is a 1:1 relationship
+between the roles; One staker to one worker. A Staker controls a single ethereum account and may have multiple stakes,
+but only ever has one Worker bonded at a time. Once the stake is bonded to a worker node, it can only
+be *rebonded* once every 2 periods (48 Hours).
+
+The staking CLI itself is lightweight and can be run on commodity hardware. While there are no
+specific minimum system constraints, there are some basic requirements for stakers:
+
+#. Hosted or Remote Ethereum Node (Infura, Geth, etc.)
+#. Hardware or Software Wallet (Trezor, Ledger, Keyfile)
+#. At least 15,000 NU
+#. Small amount of ether to pay for transaction gas
+
+Using a hardware wallet is *highly* recommended. They are ideal for stakers since they hold NU and
+only temporary access to private keys is required during stake management while providing a higher standard
+of security than software wallets or keyfiles.
 
 Mainnet Staking Procedure:
 
-#. Obtain NU (initially via :ref:`WorkLock <worklock-guide>` at launch)
-#. Install ``nucypher`` on Staker's machine (see :doc:`/guides/installation_guide`)
+#. Obtain and Secure NU (initially via :ref:`WorkLock <worklock-guide>` at launch)
+#. Install ``nucypher`` on Staker's system (see :doc:`/guides/installation_guide`)
 #. Configure nucypher CLI for staking (see `Initialize a new stakeholder`_)
 #. Bond a Worker to your Staker using the worker's ethereum address (see `Bonding a Worker`_)
 
@@ -30,7 +43,7 @@ Mainnet Staking Procedure:
 
     If you are running a testnet node, Testnet tokens can be obtained by joining the
     `Discord server <https://discord.gg/7rmXa3S>`_ and typing ``.getfunded <YOUR_STAKER_ETH_ADDRESS>``
-    in the #testnet-faucet channel
+    in the #testnet-faucet channel.
 
 
 Staking CLI
