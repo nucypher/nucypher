@@ -7,7 +7,7 @@ Overview
 
 This guide is an example of NuCypher's decentralized network allowing Alice to share a secret
 with Bob using the NuCypher Network via the ``nucypher`` CLI. It is analogous to the ``python`` example
-in :doc:`getting_started`.
+in :doc:`../guides/development/getting_started`.
 
 .. note::
 
@@ -74,7 +74,7 @@ Enrico Encrypts Secret
 
     (nucypher)$ nucypher enrico encrypt \
     >     --policy-encrypting-key 021664726f939a8e79df4f4b737da2dd78d1c0fea106d19d6fce4df678e552c561 \
-    >     --message "Llama's ass"
+    >     --message "Peace at Dawn"
 
 Output:
 
@@ -101,9 +101,9 @@ Output:
 
     cleartexts ...... ['TGxhbWEncyBhc3M=']
 
-The resulting cleartext is ``"Llama's ass"`` in base64:
+The resulting cleartext is ``"Peace at Dawn"`` in base64:
 
 .. code::
 
     (nucypher)$ echo TGxhbWEncyBhc3M= | base64 -d
-    Llama's ass
+    Peace at Dawn

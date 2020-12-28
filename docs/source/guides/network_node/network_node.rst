@@ -4,12 +4,12 @@
 Running a Network Node
 ======================
 
-To be a node on the NuCypher network, operations are divided into two roles “Staker” and “Worker”. The Staker can be
-thought of as a fiduciary administrator that holds NU and collects rewards. The Worker is bonded to a Staker and
-performs cryptographic work on the network on behalf of the Staker.
+Nucypher staking operations are divided into two roles - “Staker” and “Worker”.
+The Staker can be thought of as a fiduciary administrator that holds NU and collects rewards.
+The Worker is bonded to a Staker and performs work on behalf of the Staker.
 
-Due to the complexity of running a node on the network, there are a variety of ways to participate depending on your
-comfort level:
+Due to the complexity of running a node on the network, there are several of ways to
+participate depending on your situation:
 
 * Delegate custody of NU and work to a third-party custodian.
 * Delegate work via a staking pool or `Node-as-a-Service provider <https://github.com/nucypher/validator-profiles>`_.
@@ -19,8 +19,9 @@ comfort level:
        :maxdepth: 1
 
        staking_guide
+       stake_management
        ursula_configuration_guide
-       nucypher_host_management_cli
+       ../../cli/remote_worker_management_cli
 
 Here is a simple heuristic to help decide on a course of action:
 

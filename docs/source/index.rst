@@ -131,11 +131,23 @@ Whitepapers
    guides/installation_guide
    guides/network_node/network_node
    guides/development/development
-   guides/ethereum_node
    guides/worklock_guide
    guides/dao_guide
-   guides/environment_variables
    guides/contribution_guide
+
+.. toctree::
+   :maxdepth: 1
+   :caption: CLI
+
+   cli/staking_cli
+   cli/remote_worker_management_cli
+   cli/cli_examples
+
+.. toctree::
+
+   ethereum_node
+   environment_variables
+
 
 .. toctree::
    :maxdepth: 1

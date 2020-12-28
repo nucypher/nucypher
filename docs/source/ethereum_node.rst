@@ -4,7 +4,7 @@
 Using an Ethereum Node
 ======================
 
-For operations that require an ethereum provider for transaction signing and broadcasting, either a local or remote
+For operations that require ethereum transaction signing and broadcast, either a local or remote
 ethereum node may be used. For general background information about choosing a node technology and operation,
 see https://web3py.readthedocs.io/en/stable/node.html.
 
@@ -91,17 +91,10 @@ For alternate geth configuration via docker see:
 
 
 
-Remote Ethereum Node
+Transaction Signing
 ~~~~~~~~~~~~~~~~~~~~
 
-Nucypher supports remote ethereum providers such as Alchemy, Infura, Public Remote Node, but an external transaction
-signing client is needed separate from the broadcasting node.
-
-
-External Transaction Signing
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-In conjunction with an ethereum provider, an external transaction signer can be specified and operated
+In conjunction with an ethereum provider, an external transaction signer can operated
 independently of the provider/broadcaster. This separation allows pre-signed transactions to be sent to an
 external (possibly remote) ethereum node and is particularly desirable when interacting with an untrusted
 ethereum node.
@@ -112,16 +105,11 @@ For example, external signers can be used with:
 - Local ethereum node
 - Remote ethereum node
 
-The following external signers are currently supported:
+The following signers are currently supported:
 
 #. :ref:`Hardware Wallet <signing-with-hardware>` (recommended for :ref:`Stakers <staking-guide>`)
 #. :ref:`Clef <signing-with-clef>`
 #. :ref:`Local Keystore <signing-with-local-keystore>` (recommended for :ref:`Workers <ursula-config-guide>`)
-
-.. important::
-
-    External signing support is an experimental feature and under active development.
-
 
 .. _signing-with-hardware:
 

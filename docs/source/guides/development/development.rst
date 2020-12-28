@@ -10,5 +10,4 @@ The NuCypher Network provides cryptographic infrastructure for privacy-preservin
    :maxdepth: 1
 
    getting_started
-   cli_guide
    character_control_guide
