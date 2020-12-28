@@ -1,6 +1,5 @@
-===========================
-Using Environment Variables
-===========================
+Environment Variables
+=====================
 
 Environment variables are used for configuration in various areas of the codebase to facilitate automation. The
 constants for these variables are available in ``nucypher.config.constants``.

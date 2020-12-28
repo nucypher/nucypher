@@ -18,8 +18,8 @@ Several administrative operations can be performed on active stakes:
 +----------------------+-------------------------------------------------------------------------------+
 
 
-Manage automatic reward re-staking
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Re-staking
+~~~~~~~~~~~
 
 As your Ursula performs work, all rewards are automatically added to your existing stake to optimize earnings.
 This feature, called `re-staking`, is *enabled* by default.

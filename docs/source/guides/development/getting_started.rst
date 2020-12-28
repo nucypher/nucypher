@@ -55,9 +55,10 @@ Running an Ethereum Node
 ------------------------
 
 Operation of a decentralized NuCypher character [\ ``Alice``\ , ``Bob``\ , ``Ursula``\ ] requires
-a connection to an Ethereum node and wallet to interact with :doc:`smart contracts </architecture/contracts>`. For more information about running an
-Ethereum node, see :ref:`using-eth-node`.
+a connection to an Ethereum node and wallet to interact with :doc:`smart contracts </architecture/contracts>`.
 
+For general background information about choosing a node technology and node operation,
+see https://web3py.readthedocs.io/en/stable/node.html.
 
 Connecting to The NuCypher Network
 ----------------------------------
@@ -118,7 +119,7 @@ they know about network-wide, then kick-off the automated node-discovery loop:
 
 
 For information on how to run a staking Ursula node via CLI,
-see :doc:`Running a Network Node </guides/network_node/network_node>`.
+see :doc:`Running a Network Node </guides/network_node/running_a_node>`.
 
 Alice: Grant Access to a Secret
 -------------------------------

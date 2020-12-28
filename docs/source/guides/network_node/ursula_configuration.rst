@@ -6,17 +6,6 @@ Worker (Ursula) Configuration Guide
 
 NuCypher staking operations are divided into two roles "Staker" and "Worker" - This Guide is for Workers.
 
-Worker Overview
-----------------
-
-*Worker* - (aka "Ursula") Active network participant who carries out re-encryption work orders.
-
-The Worker is the bonded delegate of a Staker and an active network node. Workers must remain online to provide
-uninterrupted re-encryption services on-demand. Each staking account or Staker is bonded to exactly one Worker.
-The worker's ethereum account must remain unlocked to send automated work confirmation transactions and have enough
-ether to pay for transaction gas; however, it is *not* necessary (and potentially risky) to hold NU tokens on a worker's
-account for any reason.
-
 
 Worker Requirements
 -------------------
@@ -36,8 +25,7 @@ Aside from the :ref:`base requirements <base-requirements>` for installation of 
 * 20GB HDD free storage - backups are required since data loss results in a malfunctioning worker
 * Publicly available IP address - static where possible, NAT management where applicable
 * TCP Port 9151 opened for network communication - firewall rules where applicable
-* Access to a fully synced Ethereum web3 provider e.g. local node, Infura, Alchemy etc. (see :ref:`using-eth-node`) is
-  required to read and write to smart contracts
+* Access to a fully synced Ethereum provider e.g. local node, Infura, Alchemy etc.
 
 ..
     TODO: separate section on backups and data (#2285)
@@ -46,9 +34,9 @@ Workers can be run on cloud infrastructure – for example,
 `Digital Ocean 4GB Basic Droplet <https://www.digitalocean.com/pricing/>`_ satisfies the memory and processing
 power requirements listed above.
 
-.. important::
+.. note::
 
-    If also running a local Ethereum node on the same machine,
+    Additional requirements are needed to run local Ethereum node on the same system
     `additional requirements <https://docs.ethhub.io/using-ethereum/running-an-ethereum-node/>`_ are needed.
 
 
@@ -63,7 +51,7 @@ Working Procedure:
 
 1) Ensure that a `Stake` is available (see :ref:`staking-guide`)
 2) Run an ethereum node on the Worker's machine eg. geth, parity, etc. (see :ref:`Running an Ethereum node for Ursula <running-worker-eth-node>`)
-3) Install ``nucypher`` on Worker node (see :doc:`/guides/installation_guide`)
+3) Install ``nucypher`` on Worker node (see :doc:`/guides/installation`)
 4) Create and fund worker's ethereum address (see :ref:`Fund Worker Account with ETH <fund-worker-account>`)
 5) Bond the Worker to a Staker (see :ref:`bond-worker`)
 6) Configure and run a Worker node (see :ref:`Configure and Run Ursula <configure-run-ursula>`)
@@ -76,9 +64,10 @@ Working Procedure:
 1. Run an Ethereum node for Worker
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Worker (Ursula) transactions can be broadcasted using either a local or remote ethereum node. See :ref:`using-eth-node`
-for more information.
+Worker Ursula transactions can be broadcasted using either a local or remote ethereum node.
 
+For general background information about choosing a node technology and operation,
+see https://web3py.readthedocs.io/en/stable/node.html.
 
 .. _fund-worker-account:
 
@@ -191,6 +180,63 @@ Assuming geth is running locally, configure and run an Ursula using port and vol
     # Daemonized Ursula
     docker run -d -v ~/.local/share/nucypher:/root/.local/share/nucypher -v ~/.ethereum/:/root/.ethereum -p 9151:9151 -e NUCYPHER_KEYRING_PASSWORD -e NUCYPHER_WORKER_ETH_PASSWORD nucypher/nucypher:latest nucypher ursula run
 
+
+Run Ursula with systemd
+~~~~~~~~~~~~~~~~~~~~~~~~
+
+#. Use this template to create a file named ``ursula.service`` and place it in ``/etc/systemd/system/``.
+
+   .. code-block::
+
+       [Unit]
+       Description="Run 'Ursula', a NuCypher Staking Node."
+
+       [Service]
+       User=<YOUR USER>
+       Type=simple
+       Environment="NUCYPHER_WORKER_ETH_PASSWORD=<YOUR WORKER ADDRESS PASSWORD>"
+       Environment="NUCYPHER_KEYRING_PASSWORD=<YOUR PASSWORD>"
+       ExecStart=<VIRTUALENV PATH>/bin/nucypher ursula run
+
+       [Install]
+       WantedBy=multi-user.target
+
+
+#. Replace the following values with your own:
+
+   * ``<YOUR USER>`` - The host system's username to run the process with
+   * ``<YOUR WORKER ADDRESS PASSWORD>`` - Worker's ETH account password
+   * ``<YOUR PASSWORD>`` - Ursula's keyring password
+   * ``<VIRTUALENV PATH>`` - The absolute path to the python virtual environment containing the ``nucypher`` executable
+
+
+#. Enable Ursula System Service
+
+   .. code-block::
+
+       $ sudo systemctl enable ursula
+
+
+#. Run Ursula System Service
+
+   To start Ursula services using systemd
+
+   .. code-block::
+
+       $ sudo systemctl start ursula
+
+
+#. Check Ursula service status
+
+   .. code-block::
+
+       $ sudo systemctl status ursula
+
+#. To restart your node service
+
+   .. code-block:: bash
+
+       $ sudo systemctl restart ursula
 
 5. Monitor Worker
 ^^^^^^^^^^^^^^^^^

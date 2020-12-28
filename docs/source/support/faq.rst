@@ -117,7 +117,7 @@ sets of keys separate.
 Q: How can I get help integrating nucypher into my application?
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-See :ref:`application-development`. To chat directly with our team, please join our `Discord <http://discord.nucypher.com>`_.
+See :doc:`../guides/development/getting_started`. To chat directly with our team, please join our `Discord <http://discord.nucypher.com>`_.
 
 Q: How do I integrate nucypher if my application is not written in Python?
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -168,7 +168,7 @@ Q: What are the recommended specifications for running a nucypher node?
 Worker nodes need to run ``nucypher`` and a local ethereum node. In total, you will
 require at least 4GB for RAM. Nodes also need 24/7 uptime and a static, public IPv4 address.
 
-For ``nucypher`` specific requirements, see `System Requirements and Dependencies <https://docs.nucypher.com/en/latest/guides/installation_guide.html#system-requirements-and-dependencies/>`_.
+For ``nucypher`` specific requirements, see `System Requirements and Dependencies <https://docs.nucypher.com/en/latest/guides/installation.html#system-requirements-and-dependencies/>`_.
 
 Q: How do I set up a network node?
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -255,8 +255,7 @@ This is **ONLY** a heuristic to ensure that your node is running correctly, it d
 Q: What's the best way to run Ursula in the background?
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Either through :ref:`Docker <run-ursula-with-docker>`
-or `systemd <https://docs.nucypher.com/en/latest/guides/installation_guide.html#systemd-service-installation>`_.
+Using docker :ref:`Docker <run-ursula-with-docker>`
 
 Q: When installing on Docker, what do I input for <NETWORK NAME>?
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~

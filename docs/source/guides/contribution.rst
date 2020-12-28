@@ -4,6 +4,71 @@ Contributing
 .. image:: https://cdn-images-1.medium.com/max/800/1*J31AEMsTP6o_E5QOohn0Hw.png
     :target: https://cdn-images-1.medium.com/max/800/1*J31AEMsTP6o_E5QOohn0Hw.png
 
+Development Installation
+------------------------
+
+Additional dependencies and setup steps are required to perform a "developer installation".
+You do not need to perform these steps unless you intend to contribute a code or documentation change to
+the nucypher codebase.
+
+Before continuing, ensure you have ``git`` installed (\ `Git Documentation <https://git-scm.com/doc>`_\ ).
+
+Acquire NuCypher Codebase
+^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Fork the nucypher repository on GitHub, as explained in the :doc:`Contribution Guide </guides/contribution>`,
+then clone your fork's repository to your local machine:
+
+.. code-block::
+
+    $ git clone https://github.com/<YOUR_GITHUB_USERNAME>/nucypher.git
+
+
+After acquiring a local copy of the application code, you will need to
+install the project dependencies, we recommend using either ``pip`` or ``pipenv``
+
+Pip Development Installation
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Alternately, you can install the development dependencies with pip:
+
+.. code-block:: bash
+
+    $ pip3 install -e .[dev]
+    $ ./scripts/installation/install_solc.sh
+
+
+Development Docker Installation
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+The intention of the Docker configurations in this directory is to enable anyone to develop and test NuCypher on all major operating systems with minimal prerequisites and installation hassle (tested on Ubuntu 16, MacOS 10.14, Windows 10).
+
+Standard Docker Installation
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+#. Install `Docker <https://docs.docker.com/install/>`_
+#. Install `Docker Compose <https://docs.docker.com/compose/install/>`_
+#. ``cd`` to ``dev/docker``
+#. Run ``docker-compose up --build`` **this must be done once to complete install**
+
+Running NuCypher
+~~~~~~~~~~~~~~~~
+
+Then you can do things like:
+
+* Run the tests: ``docker-compose run nucypher-dev pytest``
+* Start up an Ursula: ``docker-compose run nucypher-dev nucypher ursula run --dev --federated-only``
+* Open a shell: ``docker-compose run nucypher-dev bash``
+* Try some of the scripts in ``dev/docker/scripts/``
+
+From there you can develop, modify code, test as normal.
+
+Other cases:
+
+* Run a network of 8 independent Ursulas: ``docker-compose -f 8-federated-ursulas.yml up``
+* Get the local ports these ursulas will be exposed on: ``docker ps``
+* To stop them... ``docker-compose -f 8-federated-ursulas.yml stop``
+
 
 Acquiring the Codebase
 ----------------------
@@ -47,7 +112,7 @@ contributing proposed changes:
 
    $ git remote update
 
-.. _`Developer Installation Guide`: https://docs.nucypher.com/en/latest/guides/installation_guide.html
+.. _`Developer Installation Guide`: https://docs.nucypher.com/en/latest/guides/installation.html
 
 6. Install the project dependencies: see the `Developer Installation Guide`_
 

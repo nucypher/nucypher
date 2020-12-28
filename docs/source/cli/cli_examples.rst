@@ -1,6 +1,5 @@
-=========
-CLI Guide
-=========
+CLI Examples
+============
 
 Overview
 --------
@@ -22,9 +21,9 @@ Initialize Alice and Bob
 ------------------------
 .. code::
 
-    (nucypher)$ nucypher alice init --provider <YOUR PROVIDER URI>
+    (nucypher)$ nucypher alice init --provider <PROVIDER URI> --signer <SIGNER URI>
 
-    (nucypher)$ nucypher bob init --provider <YOUR PROVIDER URI>
+    (nucypher)$ nucypher bob init --provider <PROVIDER URI> --signer <SIGNER URI>
 
 Replace ``<YOUR PROVIDER URI>`` with a valid node web3 node provider string, for example:
 

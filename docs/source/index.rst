@@ -123,17 +123,36 @@ Whitepapers
 
    NuCypher is currently in the *Beta* development stage and is **not** intended for use in production.
 
+.. toctree::
+   :maxdepth: 2
+   :caption: Staking
+
+   guides/network_node/running_a_node
+   guides/network_node/stake_initialization
+   guides/network_node/stake_management
+   guides/network_node/ursula_configuration
+   guides/dao
+
+.. toctree::
+   :maxdepth: 1
+   :caption: Application Development
+
+   guides/development/getting_started
+   guides/development/character_control
+
+   demos/local_fleet_demo
+   demos/finnegans_wake_demo
+   demos/heartbeat_demo
 
 .. toctree::
    :maxdepth: 1
    :caption: Guides
 
-   guides/installation_guide
-   guides/network_node/network_node
-   guides/development/development
-   guides/worklock_guide
-   guides/dao_guide
-   guides/contribution_guide
+   guides/installation
+   guides/worklock
+   guides/signers
+   guides/environment_variables
+
 
 .. toctree::
    :maxdepth: 1
@@ -142,20 +161,6 @@ Whitepapers
    cli/staking_cli
    cli/remote_worker_management_cli
    cli/cli_examples
-
-.. toctree::
-
-   ethereum_node
-   environment_variables
-
-
-.. toctree::
-   :maxdepth: 1
-   :caption: Demos
-
-   demos/local_fleet_demo
-   demos/finnegans_wake_demo
-   demos/heartbeat_demo
 
 .. toctree::
    :maxdepth: 1
@@ -198,20 +203,27 @@ Whitepapers
    release_notes/pre_release_epics
    release_notes/releases.rst
 
+
 .. toctree::
    :maxdepth: 1
-   :caption: Glossary
+   :caption: Pre-Release Notes
 
-   glossary
+   release_notes/releases.rst
+   release_notes/genesis_release.rst
+   release_notes/pre_release_epics.rst
 
 .. toctree::
    :maxdepth: 1
    :caption: Support
 
+   guides/contribution
    support/node_providers
    support/community
    support/troubleshooting
    support/faq
+   glossary
+
+
 
 
 Indices and Tables

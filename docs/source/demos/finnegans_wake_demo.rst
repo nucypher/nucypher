@@ -35,7 +35,7 @@ Install NuCypher
 ----------------
 
     Acquire the ``nucypher`` application code and install the dependencies.
-    For a full installation guide see the :doc:`/guides/installation_guide`.
+    For a full installation guide see the :doc:`/guides/installation`.
 
 
 Run a fleet of federated Ursulas

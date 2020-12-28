@@ -22,7 +22,7 @@ Deployment Procedure
 --------------------
 
 This section provides a step-by-step guide of how NuCypher contracts are deployed.
-For a guide of how to deploy these contracts automatically, see the :doc:`Deployment Guide </guides/deployment_guide>`.
+For a guide of how to deploy these contracts automatically, see the :doc:`Deployment Guide </guides/deployment>`.
 
 #. Deploy ``NuCypherToken`` with all future supply tokens
 #. Deploy stub for ``StakingEscrow`` with a dispatcher targeting it

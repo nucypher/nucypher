@@ -1,27 +1,9 @@
 .. _staking-guide:
 
-==========================
-Staker Configuration Guide
-==========================
+Stake Initialization
+====================
 
 NuCypher staking operations are divided into two roles "Staker" and "Worker" - This Guide is for Stakers.
-
-Staker Overview
-----------------
-
-A nucypher staker is a holder of NU and manager of one or more stakes.  Stakes are initiated by locking NU into
-the *"Staking Escrow "* contract for a fixed duration of time.  Staked NU earns two income streams: inflation
-rewards (NU) and policy fees (ETH). Staked NU gradually unlocks with each period of completed,
-depending on *re-stake* and *wind-down* options (more on this later).
-
-Active network participation (work) is delegated to a *Worker* node through *bonding*. There is a 1:1 relationship
-between the roles; One staker to one worker. A Staker controls a single ethereum account and may have multiple stakes,
-but only ever has one Worker bonded at a time. Once the stake is bonded to a worker node, it can only
-be *rebonded* once every 2 periods (48 Hours).
-
-.. important::::
-
-    Once NU is locked in the staking escrow contract, a worker node must be run to unlock it.
 
 
 Staking Requirements
@@ -44,10 +26,14 @@ Staking Procedure
 -----------------
 
 #. Obtain and Secure NU
-#. Install ``nucypher`` on Staker's system (:doc:`/guides/installation_guide`)
+#. Install ``nucypher`` on Staker's system (:doc:`/guides/installation`)
 #. Configure nucypher CLI for staking (`3. Configure nucypher for staking`_)
 #. Bond a Worker to your Staker using the worker's ethereum address (see `6. Bond a worker`_)
 #. Manage active stakes (:doc:`stake_management`)
+
+.. important::
+
+    Once NU is locked in the staking escrow contract, a worker node must be run to unlock it.
 
 .. note::
 
@@ -59,21 +45,20 @@ Staking Procedure
 1. Establish an ethereum provider
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Staking transactions can be broadcasted using either a local or remote ethereum node. See
-:ref:`using-eth-node` for more information.
+Staking transactions can be broadcasted using either a local or remote ethereum node.
 
-.. note::
-
-    for local geth node operators the default location of geth's IPC file
-    is ``/home/<username>/.ethereum/geth.ipc``  (on MacOS, ``ipc:///Users/<username>/Library/Ethereum/geth.ipc``)
+For general background information about choosing a node technology and operation,
+see https://web3py.readthedocs.io/en/stable/node.html.
 
 
-2. Select ethereum wallet
-~~~~~~~~~~~~~~~~~~~~~~~~~
+2. Select transaction signer
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 By default, all transaction and message signing requests are forwarded to the configured ethereum provider.
 To use a remote ethereum provider (e.g. Infura, Alchemy, Another Remote Node) a local transaction signer must
 be configured in addition to the broadcasting node.  This can be a hardware wallet, software wallet, or clef.
+
+For more detailed information see :doc:`../signers`
 
 .. code:: bash
 

@@ -27,7 +27,7 @@ Running a Local Fleet
 1. Install NuCypher
 
 Acquire the NuCypher application code and install the dependencies.
-For a full installation guide see the :doc:`/guides/installation_guide`.
+For a full installation guide see the :doc:`/guides/installation`.
 
 2. Run a Lonely Ursula
 
