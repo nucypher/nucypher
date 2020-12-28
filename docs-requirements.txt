@@ -9,7 +9,9 @@ idna==2.10
 imagesize==1.2.0
 incremental==17.5.0
 jinja2==2.11.2
+git+git://github.com/inspirehep/jsonschema2rst@d211d9709046431a6b6a4594c97c22d8713d854b#egg=jsonschema2rst
 markupsafe==1.1.1
+py-solc-x==0.10.1
 packaging==20.4
 pygments==2.7.1
 pyparsing==2.4.7

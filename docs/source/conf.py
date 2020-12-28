@@ -262,9 +262,16 @@ def run_apidoc(_):
     apidoc.main(apidoc_command)
 
 
+def run_solidity_apidoc(_):
+    from scripts.solidity_doc.generate_doc import generate_doc
+    generate_doc()
+
+
 def setup(app):
+    app.add_css_file('style.css')
     app.connect("autodoc-process-docstring", remove_module_license)
     app.connect('builder-inited', run_apidoc)
+    app.connect('builder-inited', run_solidity_apidoc)
 
 
 add_module_names = False

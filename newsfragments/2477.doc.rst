@@ -1,0 +1,1 @@
+Auto docs generation for smart contracts
