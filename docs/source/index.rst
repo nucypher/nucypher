@@ -1,53 +1,36 @@
-NuCypher
-========
-*A decentralized cryptological network offering accessible, intuitive, and extensible runtimes and interfaces for secrets management and dynamic access control.*
+Introduction
+=============
 
 
-----
+.. _Umbral: https://github.com/nucypher/pyUmbralruntimes
 
-.. image:: https://img.shields.io/pypi/v/nucypher.svg?style=flat
-    :target: https://pypi.org/project/nucypher/
 
-.. image:: https://img.shields.io/pypi/pyversions/nucypher.svg
-    :target: https://pypi.org/project/nucypher/
+The NuCypher network is a decentralized network of nodes that perform threshold
+cryptography operations serving users with secrets management and dynamic access control.
+``nucypher`` is the python library and CLI for interacting with the
+decentralized threshold cryptography network.
 
-.. image:: https://img.shields.io/circleci/project/github/nucypher/nucypher.svg?logo=circleci
-    :target: https://circleci.com/gh/nucypher/nucypher/tree/main
-    :alt: CircleCI build status
+Decentralized - The network is permissionless and censorship-resistant.
+There are no gate-keepers and anyone can use it.
 
-.. image:: https://codecov.io/gh/nucypher/nucypher/branch/main/graph/badge.svg
-    :target: https://codecov.io/gh/nucypher/nucypher
+Intuitive - The network leverages the classic cryptological narrative of Alice and Bob
+(with additional characters where appropriate). This character-based narrative
+permeates the code-base and helps developers write safe, misuse-resistant code.
 
-.. image:: https://img.shields.io/discord/411401661714792449.svg?logo=discord
-    :target: https://discord.gg/7rmXa3S
-    :alt: Discord
+Extensible - The network supports proxy re-encryption but can be
+extended to provide support for other cryptographic primitives.
 
-.. image:: https://readthedocs.org/projects/nucypher/badge/?version=latest
-    :target: https://nucypher.readthedocs.io/en/latest/
-    :alt: Documentation Status
+Trustless - Data is never decrypted nor can the underlying private keys be
+determined by the NuCypher network nodes.
 
-.. image:: https://img.shields.io/pypi/l/nucypher.svg
-    :target: https://www.gnu.org/licenses/gpl-3.0.html
+Secure - Access permissions are baked into the underlying encryption.
+Under the hood the network implements the Umbral_ threshold
+proxy re-encryption scheme to provide cryptographic access control.
 
-.. _Umbral: https://github.com/nucypher/pyUmbral
+Privacy-Preserving - Access can only be explicitly granted by the data owner via
+sharing policies so that the data owner has ultimate control over access
+to their data.
 
-The NuCypher network provides accessible, intuitive, and extensible runtimes and interfaces for secrets management and dynamic access control.
-
-* Accessible - The network is permissionless and censorship-resistant.
-  There are no gate-keepers and anyone can use it.
-* Intuitive - The network leverages the classic cryptological narrative of Alice and Bob
-  (with additional characters where appropriate). This character-based narrative permeates the code-base and helps
-  developers write safe, misuse-resistant code.
-* Extensible - The network currently supports proxy re-encryption but can be extended to provide support for other cryptographic primitives.
-
-Access permissions are baked into the underlying encryption,
-and access can only be explicitly granted by the data owner via sharing policies.
-Consequently, the data owner has ultimate control over access to their data.
-At no point is the data decrypted nor can the underlying private keys be
-determined by the NuCypher network.
-
-Under the hood, the NuCypher network uses the Umbral_
-threshold proxy re-encryption scheme to provide cryptographic access control.
 
 How does NuCypher work?
 -----------------------
@@ -124,7 +107,7 @@ Whitepapers
    NuCypher is currently in the *Beta* development stage and is **not** intended for use in production.
 
 .. toctree::
-   :maxdepth: 2
+   :maxdepth: 1
    :caption: Staking
 
    guides/network_node/running_a_node
@@ -203,14 +186,6 @@ Whitepapers
    release_notes/pre_release_epics
    release_notes/releases.rst
 
-
-.. toctree::
-   :maxdepth: 1
-   :caption: Pre-Release Notes
-
-   release_notes/releases.rst
-   release_notes/genesis_release.rst
-   release_notes/pre_release_epics.rst
 
 .. toctree::
    :maxdepth: 1
