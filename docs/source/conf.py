@@ -30,6 +30,7 @@
 # documentation root, use os.path.abspath to make it absolute, like shown here.
 #
 import os
+import subprocess
 
 import sys
 from pathlib import Path
@@ -263,8 +264,9 @@ def run_apidoc(_):
 
 
 def run_solidity_apidoc(_):
-    from scripts.solidity_doc.generate_doc import generate_doc
-    generate_doc()
+    source_dir = Path(__file__).parent.resolve()
+    script = source_dir.parent.parent / 'scripts' / 'solidity_doc' / 'generate_doc.py'
+    subprocess.call(['python', str(script)])
 
 
 def setup(app):

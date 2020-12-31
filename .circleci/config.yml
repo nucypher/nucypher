@@ -679,7 +679,7 @@ jobs:
       - prepare_environment
       - run:
           name: Install Documentation Build Dependencies
-          command: pip3 install --user -e .[docs]
+          command: pip3 install --user .[docs]
       - run:
           name: Build Sphinx Documentation
           command: make docs
