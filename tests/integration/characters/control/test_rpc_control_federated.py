@@ -72,10 +72,16 @@ def test_alice_rpc_character_control_grant(alice_rpc_test_client, grant_control_
     assert 'jsonrpc' in response.data
 
 
-def test_bob_rpc_character_control_join_policy(bob_rpc_controller, join_control_request, enacted_federated_policy):
+def test_bob_rpc_character_control_join_policy(bob_rpc_controller, join_control_request, enacted_federated_policy, federated_bob, federated_ursulas):
 
-    # Simulate passing in a teacher-uri
-    enacted_federated_policy.bob.remember_node(list(enacted_federated_policy.accepted_ursulas)[0])
+    for ursula in federated_ursulas:
+        if ursula.checksum_address in enacted_federated_policy.treasure_map.destinations:
+            # Simulate passing in a teacher-uri
+            federated_bob.remember_node(ursula)
+            break
+    else:
+        # Shouldn't happen
+        raise Exception("No known Ursulas present in the treasure map destinations")
 
     method_name, params = join_control_request
     request_data = {'method': method_name, 'params': params}

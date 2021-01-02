@@ -557,7 +557,7 @@ def test_collect_rewards_integration(click_runner,
                                                handpicked_ursulas={ursula})
 
     # Ensure that the handpicked Ursula was selected for the policy
-    assert ursula in blockchain_policy._enacted_arrangements
+    assert ursula.checksum_address in blockchain_policy.treasure_map.destinations
 
     # Bob learns about the new staker and joins the policy
     blockchain_bob.remember_node(node=ursula)

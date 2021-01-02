@@ -128,6 +128,7 @@ def test_vladimir_illegal_interface_key_does_not_propagate(blockchain_ursulas):
 def test_alice_refuses_to_make_arrangement_unless_ursula_is_valid(blockchain_alice,
                                                                   idle_blockchain_policy,
                                                                   blockchain_ursulas):
+
     target = list(blockchain_ursulas)[2]
     # First, let's imagine that Alice has sampled a Vladimir while making this policy.
     vladimir = Vladimir.from_target_ursula(target)
@@ -137,21 +138,16 @@ def test_alice_refuses_to_make_arrangement_unless_ursula_is_valid(blockchain_ali
 
     vladimir.substantiate_stamp()
     vladimir._Teacher__interface_signature = signature
-
-    class FakeArrangement:
-        federated = False
-        ursula = vladimir
-
-        def __bytes__(self):
-            return b""
-
     vladimir.node_storage.store_node_certificate(certificate=target.certificate)
 
+    # Ideally, a fishy node shouldn't be present in `known_nodes`,
+    # but I guess we're testing the case when it became fishy somewhere between we learned about it
+    # and the proposal arrangement.
+    blockchain_alice.known_nodes[vladimir.checksum_address] = vladimir
+
     with pytest.raises(vladimir.InvalidNode):
-        idle_blockchain_policy.propose_arrangement(ursula=vladimir,
-                                                   network_middleware=blockchain_alice.network_middleware,
-                                                   arrangement=FakeArrangement()
-                                                   )
+        idle_blockchain_policy._propose_arrangement(address=vladimir.checksum_address,
+                                                    network_middleware=blockchain_alice.network_middleware)
 
 
 def test_treasure_map_cannot_be_duplicated(blockchain_ursulas,

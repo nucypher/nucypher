@@ -26,8 +26,7 @@ from nucypher.policy.collections import SignedTreasureMap as DecentralizedTreasu
 from tests.utils.middleware import MockRestMiddleware
 
 
-@pytest.mark.usefixtures('blockchain_ursulas')
-def test_decentralized_grant(blockchain_alice, blockchain_bob, agency):
+def test_decentralized_grant(blockchain_alice, blockchain_bob, blockchain_ursulas, agency):
     # Setup the policy details
     n = 3
     policy_end_datetime = maya.now() + datetime.timedelta(days=5)
@@ -42,49 +41,47 @@ def test_decentralized_grant(blockchain_alice, blockchain_bob, agency):
                                     expiration=policy_end_datetime)
 
     # Check the policy ID
-    policy_id = keccak_digest(policy.label + bytes(policy.bob.stamp))
+    policy_id = keccak_digest(label + bytes(blockchain_bob.stamp))
     assert policy_id == policy.id
 
-    # The number of accepted arrangements at least the number of Ursulas we're using (n)
-    assert len(policy._accepted_arrangements) >= n
-
     # The number of actually enacted arrangements is exactly equal to n.
-    assert len(policy._enacted_arrangements) == n
+    assert len(policy.treasure_map.destinations) == n
 
     # Let's look at the enacted arrangements.
-    for ursula, kfrag in policy._enacted_arrangements.items():
-        arrangement = policy._accepted_arrangements[ursula]
+    for ursula in blockchain_ursulas:
+        if ursula.checksum_address in policy.treasure_map.destinations:
+            arrangement_id = policy.treasure_map.destinations[ursula.checksum_address]
 
-        # Get the Arrangement from Ursula's datastore, looking up by the Arrangement ID.
-        with ursula.datastore.describe(PolicyArrangement, arrangement.id.hex()) as policy_arrangement:
-            assert kfrag == policy_arrangement.kfrag
+            # Get the Arrangement from Ursula's datastore, looking up by the Arrangement ID.
+            with ursula.datastore.describe(PolicyArrangement, arrangement_id.hex()) as policy_arrangement:
+                retrieved_kfrag = policy_arrangement.kfrag
+            assert bool(retrieved_kfrag) # TODO: try to assemble them back?
 
 
-def test_alice_sets_treasure_map_decentralized(enacted_blockchain_policy):
+def test_alice_sets_treasure_map_decentralized(enacted_blockchain_policy, blockchain_alice, blockchain_bob):
     """
     Same as test_alice_sets_treasure_map except with a blockchain policy.
     """
-    enacted_blockchain_policy.publish_treasure_map(network_middleware=MockRestMiddleware())
     treasure_map_hrac = enacted_blockchain_policy.treasure_map._hrac[:16].hex()
     found = 0
-    for node in enacted_blockchain_policy.bob.matching_nodes_among(enacted_blockchain_policy.alice.known_nodes):
+    for node in blockchain_bob.matching_nodes_among(blockchain_alice.known_nodes):
         with node.datastore.describe(DatastoreTreasureMap, treasure_map_hrac) as treasure_map_on_node:
             assert DecentralizedTreasureMap.from_bytes(treasure_map_on_node.treasure_map) == enacted_blockchain_policy.treasure_map
         found += 1
     assert found
 
 
-def test_bob_retrieves_treasure_map_from_decentralized_node(enacted_blockchain_policy):
+def test_bob_retrieves_treasure_map_from_decentralized_node(enacted_blockchain_policy, blockchain_alice, blockchain_bob):
     """
     This is the same test as `test_bob_retrieves_the_treasure_map_and_decrypt_it`,
     except with an `enacted_blockchain_policy`.
     """
-    bob = enacted_blockchain_policy.bob
+    bob = blockchain_bob
     _previous_domain = bob.domain
     bob.domain = None  # Bob has no knowledge of the network.
 
     with pytest.raises(bob.NotEnoughTeachers):
-        treasure_map_from_wire = bob.get_treasure_map(enacted_blockchain_policy.alice.stamp,
+        treasure_map_from_wire = bob.get_treasure_map(blockchain_alice.stamp,
                                                       enacted_blockchain_policy.label)
 
     # Bob finds out about one Ursula (in the real world, a seed node, hardcoded based on his learning domain)
@@ -95,6 +92,6 @@ def test_bob_retrieves_treasure_map_from_decentralized_node(enacted_blockchain_p
     bob.learn_from_teacher_node(eager=True)
 
     # Now he'll have better success finding that map.
-    treasure_map_from_wire = bob.get_treasure_map(enacted_blockchain_policy.alice.stamp,
+    treasure_map_from_wire = bob.get_treasure_map(blockchain_alice.stamp,
                                                   enacted_blockchain_policy.label)
     assert enacted_blockchain_policy.treasure_map == treasure_map_from_wire

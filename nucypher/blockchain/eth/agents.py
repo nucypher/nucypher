@@ -1760,7 +1760,10 @@ class WeightedSampler:
     """
 
     def __init__(self, weighted_elements: Dict[Any, int]):
-        elements, weights = zip(*weighted_elements.items())
+        if weighted_elements:
+            elements, weights = zip(*weighted_elements.items())
+        else:
+            elements, weights = [], []
         self.totals = list(accumulate(weights))
         self.elements = elements
         self.__length = len(self.totals)

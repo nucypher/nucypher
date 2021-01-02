@@ -341,20 +341,18 @@ class Alice(Character, BlockchainPolicyAuthor):
                     "know which nodes to use.  Either pass them here or when you make the Policy, "
                     "or run the learning loop on a network with enough Ursulas.".format(policy.n))
 
-        self.log.debug(f"Making arrangements for {policy} ... ")
-        policy.make_arrangements(network_middleware=self.network_middleware,
-                                 handpicked_ursulas=handpicked_ursulas,
-                                 discover_on_this_thread=discover_on_this_thread)
-
-        # REST call happens here, as does population of TreasureMap.
         self.log.debug(f"Enacting {policy} ... ")
-
         # TODO: Make it optional to publish to blockchain?  Or is this presumptive based on the `Policy` type?
-        policy.enact(network_middleware=self.network_middleware, publish_treasure_map=publish_treasure_map)
+        enacted_policy = policy.enact(network_middleware=self.network_middleware,
+                                      handpicked_ursulas=handpicked_ursulas,
+                                      publish_treasure_map=publish_treasure_map,
+                                      discover_on_this_thread=discover_on_this_thread)
+
+        self.add_active_policy(enacted_policy)
 
         if publish_treasure_map and block_until_success_is_reasonably_likely:
-            policy.publishing_mutex.block_until_success_is_reasonably_likely()
-        return policy  # Now with TreasureMap affixed!
+            enacted_policy.publishing_mutex.block_until_success_is_reasonably_likely()
+        return enacted_policy
 
     def get_policy_encrypting_key_from_label(self, label: bytes) -> UmbralPublicKey:
         alice_delegating_power = self._crypto_power.power_ups(DelegatingPower)

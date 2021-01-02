@@ -156,5 +156,5 @@ def test_put_additional_treasure_map_on_network(blockchain_ursulas, blockchain_a
     # This should 409 because Ursula won't be able to find an HRAC on-chain
     # with the modified HRAC.
     with pytest.raises(RestMiddleware.UnexpectedResponse) as should_409:
-        amonia.use_ursula_as_an_involuntary_and_unbeknownst_cdn(policy, sucker_ursula=blockchain_ursulas[0])
+        amonia.use_ursula_as_an_involuntary_and_unbeknownst_cdn(policy, blockchain_bob, sucker_ursula=blockchain_ursulas[0])
     assert should_409.value.status == 409

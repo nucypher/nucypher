@@ -123,6 +123,7 @@ def test_bob_retrieves_twice_via_cli(click_runner,
                                      federated_ursulas,
                                      custom_filepath_2,
                                      federated_alice,
+                                     federated_bob,
                                      mocker):
 
     teacher = list(federated_ursulas)[0]
@@ -164,7 +165,7 @@ def test_bob_retrieves_twice_via_cli(click_runner,
 
     def substitute_bob(*args, **kwargs):
         log.info("Substituting the Policy's Bob in CLI runtime.")
-        this_fuckin_guy = enacted_federated_policy.bob
+        this_fuckin_guy = federated_bob
         somebody_else = Ursula.from_teacher_uri(teacher_uri=kwargs['teacher_uri'],
                                                 min_stake=0,
                                                 federated_only=True,

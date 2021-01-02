@@ -53,7 +53,7 @@ Node Discovery happens in phases.  The first step is for a network actor to lear
 This is a straightforward step which we currently do with our own logic, but which may someday be replaced by something
 like libp2p, depending on the course of development of those sorts of tools.  The introduction of hamming distance
 in particular is useful when wanting to learn about a small number (~500) of nodes among a much larger (25,000+) swarm.
-This toolchain is not built for that scenario at this time, although it is not a stated nongoal. 
+This toolchain is not built for that scenario at this time, although it is not a stated nongoal.
 
 After this, our "Learning Loop" does four other things in sequence which are not part of the offering of node discovery tooling alone:
 
@@ -134,7 +134,9 @@ def test_alice_verifies_ursula_just_in_time(fleet_of_highperf_mocked_ursulas,
                                     publish_treasure_map=False)
     # TODO: Make some assertions about policy.
     total_verified = sum(node.verified_node for node in highperf_mocked_alice.known_nodes)
-    assert total_verified == 30
+    # Alice may be able to verify more than `n`, but certainly not less,
+    # otherwise `grant()` would fail.
+    assert total_verified >= 30
     _POLICY_PRESERVER.append(policy)
 
 
@@ -179,7 +181,7 @@ def test_mass_treasure_map_placement(fleet_of_highperf_mocked_ursulas,
 
         # defer.setDebugging(False)  # Debugging messes up the timing here; comment this line out if you actually need it.
 
-        policy.publish_treasure_map(network_middleware=highperf_mocked_alice.network_middleware)  # returns quickly.
+        policy.publish_treasure_map()  # returns quickly.
 
         # defer.setDebugging(True)
 
@@ -204,7 +206,7 @@ def test_mass_treasure_map_placement(fleet_of_highperf_mocked_ursulas,
         # Before Treasure Island (1741), this process took about 3 minutes.
         if partial_blocking_duration.total_seconds() > 10:
             pytest.fail(
-                f"Took too long ({partial_blocking_duration}) to contact {len(policy.publishing_mutex.nodes_contacted_during_partial_block)} nodes ({complete_distribution_time} total.)")
+                f"Took too long ({partial_blocking_duration}) to contact {len(nodes_that_have_the_map_when_we_unblock)} nodes ({complete_distribution_time} total.)")
 
         # TODO: Assert that no nodes outside those expected received the map.
         assert complete_distribution_time.total_seconds() < 20

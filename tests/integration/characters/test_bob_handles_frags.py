@@ -31,7 +31,7 @@ from tests.utils.middleware import MockRestMiddleware, NodeIsDownMiddleware
 
 def test_bob_cannot_follow_the_treasure_map_in_isolation(enacted_federated_policy, federated_bob):
     # Assume for the moment that Bob has already received a TreasureMap, perhaps via a side channel.
-    hrac, treasure_map = enacted_federated_policy.hrac(), enacted_federated_policy.treasure_map
+    hrac, treasure_map = enacted_federated_policy.hrac, enacted_federated_policy.treasure_map
 
     # Bob knows of no Ursulas.
     assert len(federated_bob.known_nodes) == 0
@@ -88,7 +88,7 @@ def test_bob_can_follow_treasure_map_even_if_he_only_knows_of_one_node(enacted_f
               federated_only=True)
 
     # Again, let's assume that he received the TreasureMap via a side channel.
-    hrac, treasure_map = enacted_federated_policy.hrac(), enacted_federated_policy.treasure_map
+    hrac, treasure_map = enacted_federated_policy.hrac, enacted_federated_policy.treasure_map
 
     # Now, let's create a scenario in which Bob knows of only one node.
     assert len(bob.known_nodes) == 0
@@ -134,7 +134,7 @@ def test_bob_can_issue_a_work_order_to_a_specific_ursula(enacted_federated_polic
     """
 
     # We pick up our story with Bob already having followed the treasure map above, ie:
-    hrac, treasure_map = enacted_federated_policy.hrac(), enacted_federated_policy.treasure_map
+    hrac, treasure_map = enacted_federated_policy.hrac, enacted_federated_policy.treasure_map
     federated_bob.start_learning_loop()
 
     federated_bob.follow_treasure_map(treasure_map=treasure_map, block=True, timeout=1)
