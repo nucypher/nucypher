@@ -148,7 +148,8 @@ def test_alice_refuses_to_make_arrangement_unless_ursula_is_valid(blockchain_ali
     vladimir.node_storage.store_node_certificate(certificate=target.certificate)
 
     with pytest.raises(vladimir.InvalidNode):
-        idle_blockchain_policy.propose_arrangement(network_middleware=blockchain_alice.network_middleware,
+        idle_blockchain_policy.propose_arrangement(ursula=vladimir,
+                                                   network_middleware=blockchain_alice.network_middleware,
                                                    arrangement=FakeArrangement()
                                                    )
 
@@ -171,15 +172,18 @@ def test_treasure_map_cannot_be_duplicated(blockchain_ursulas,
                                     expiration=policy_end_datetime)
 
     matching_ursulas = blockchain_bob.matching_nodes_among(blockchain_ursulas)
-    first_matching_ursula = matching_ursulas[0]
+    completed_ursulas = policy.publishing_mutex.block_until_success_is_reasonably_likely()
+    # Ursulas in publishing_mutex are not real Ursulas, but just some metadata of remote ones.
+    # We need a real one to access its datastore.
+    first_completed_ursula = [ursula for ursula in matching_ursulas if ursula in completed_ursulas][0]
 
-    with first_matching_ursula.datastore.describe(TreasureMap, policy.treasure_map._hrac.hex()) as saved_map_record:
+    with first_completed_ursula.datastore.describe(TreasureMap, policy.treasure_map._hrac.hex()) as saved_map_record:
         assert saved_map_record.treasure_map == bytes(policy.treasure_map)
 
     # This Ursula was actually a Vladimir.
     # Thus, he has access to the (encrypted) TreasureMap and can use its details to
     # try to store his own fake details.
-    vladimir = Vladimir.from_target_ursula(first_matching_ursula)
+    vladimir = Vladimir.from_target_ursula(first_completed_ursula)
 
     ursulas_who_probably_do_not_have_the_map = [u for u in blockchain_ursulas if not u in matching_ursulas]
     node_on_which_to_store_bad_map = ursulas_who_probably_do_not_have_the_map[0]

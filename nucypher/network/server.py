@@ -207,7 +207,7 @@ def _make_rest_app(datastore: Datastore, this_node, domain: str, log: Logger) ->
         with datastore.describe(PolicyArrangement, arrangement.id.hex(), writeable=True) as new_policy_arrangement:
             new_policy_arrangement.arrangement_id = arrangement.id.hex().encode()
             new_policy_arrangement.expiration = arrangement.expiration
-            new_policy_arrangement.alice_verifying_key = arrangement.alice.stamp.as_umbral_pubkey()
+            new_policy_arrangement.alice_verifying_key = arrangement.alice_verifying_key
 
         # TODO: Fine, we'll add the arrangement here, but if we never hear from Alice again to enact it,
         # we need to prune it at some point.  #1700

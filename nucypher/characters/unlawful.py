@@ -140,12 +140,17 @@ class Amonia(Alice):
 
     @staticmethod
     def enact_without_tabulating_responses(policy, network_middleware, *_args, **_kwargs):
-        for arrangement in policy._Policy__assign_kfrags():
-            arrangement_message_kit = arrangement.encrypt_payload_for_ursula()
+        for ursula, kfrag in zip(policy._accepted_arrangements, policy.kfrags):
+            arrangement = policy._accepted_arrangements[ursula]
+            # TODO: seems like it would be enough to just encrypt this with Ursula's public key,
+            # and not create a whole capsule.
+            # Can't change for now since it's node protocol.
+            message_kit, _signature = policy.alice.encrypt_for(ursula, policy.make_enactment_payload(kfrag))
+
             try:
-                network_middleware.enact_policy(arrangement.ursula,
+                network_middleware.enact_policy(ursula,
                                                 arrangement.id,
-                                                arrangement_message_kit.to_bytes())
+                                                message_kit.to_bytes())
             except Exception as e:
                 # I don't care what went wrong - I will keep trying to ram arrangements through.
                 continue

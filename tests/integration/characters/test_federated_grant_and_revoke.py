@@ -51,11 +51,11 @@ def test_federated_grant(federated_alice, federated_bob):
     assert len(policy._enacted_arrangements) == n
 
     # Let's look at the enacted arrangements.
-    for kfrag in policy.kfrags:
-        arrangement = policy._enacted_arrangements[kfrag]
+    for ursula, kfrag in policy._enacted_arrangements.items():
+        arrangement = policy._accepted_arrangements[ursula]
 
         # Get the Arrangement from Ursula's datastore, looking up by the Arrangement ID.
-        with arrangement.ursula.datastore.describe(PolicyArrangement, arrangement.id.hex()) as policy_arrangement:
+        with ursula.datastore.describe(PolicyArrangement, arrangement.id.hex()) as policy_arrangement:
             retrieved_kfrag = policy_arrangement.kfrag
         assert kfrag == retrieved_kfrag
 
