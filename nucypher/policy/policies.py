@@ -343,13 +343,14 @@ class Policy(ABC):
                             arrangements: Dict[Ursula, Arrangement],
                             publication_transaction: Optional[HexBytes] = None,
                             publish_treasure_map: bool = True,
+                            timeout: int = 10,
                             ):
         """
         Attempts to distribute kfrags to Ursulas that accepted arrangements earlier.
         """
 
-        statuses = {}
-        for ursula, kfrag in zip(arrangements, self.kfrags):
+        def worker(ursula_and_kfrag):
+            ursula, kfrag = ursula_and_kfrag
             arrangement = arrangements[ursula]
 
             # TODO: seems like it would be enough to just encrypt this with Ursula's public key,
@@ -368,10 +369,27 @@ class Policy(ABC):
             else:
                 status = response.status_code
 
-            statuses[ursula.checksum_address] = status
+            return status
+
+        value_factory = AllAtOnceFactory(list(zip(arrangements, self.kfrags)))
+        worker_pool = WorkerPool(worker=worker,
+                                 value_factory=value_factory,
+                                 target_successes=self.n,
+                                 timeout=timeout,
+                                 threadpool_size=self.n)
+
+        worker_pool.start()
+
+        # Block until everything is complete. We need all the workers to finish.
+        worker_pool.join()
+
+        successes = worker_pool.get_successes()
+
+        if len(successes) != self.n:
+            raise Policy.EnactmentError()
 
         # TODO: Enable re-tries?
-
+        statuses = {ursula_and_kfrag[0].checksum_address: status for ursula_and_kfrag, status in successes.items()}
         if not all(status == 200 for status in statuses.values()):
             report = "\n".join(f"{address}: {status}" for address, status in statuses.items())
             self.log.debug(f"Policy enactment failed. Request statuses:\n{report}")
