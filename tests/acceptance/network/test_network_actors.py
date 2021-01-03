@@ -168,8 +168,8 @@ def test_treasure_map_cannot_be_duplicated(blockchain_ursulas,
                                     expiration=policy_end_datetime)
 
     matching_ursulas = blockchain_bob.matching_nodes_among(blockchain_ursulas)
-    completed_ursulas = policy.publishing_mutex.block_until_success_is_reasonably_likely()
-    # Ursulas in publishing_mutex are not real Ursulas, but just some metadata of remote ones.
+    completed_ursulas = policy.treasure_map_publisher.block_until_success_is_reasonably_likely()
+    # Ursulas in `treasure_map_publisher` are not real Ursulas, but just some metadata of remote ones.
     # We need a real one to access its datastore.
     first_completed_ursula = [ursula for ursula in matching_ursulas if ursula in completed_ursulas][0]
 

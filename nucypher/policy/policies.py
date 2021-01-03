@@ -47,6 +47,7 @@ from nucypher.crypto.powers import DecryptingPower, SigningPower, TransactingPow
 from nucypher.crypto.utils import construct_policy_id
 from nucypher.network.exceptions import NodeSeemsToBeDown
 from nucypher.network.middleware import RestMiddleware
+from nucypher.utilities.concurrency import WorkerPool, AllAtOnceFactory
 from nucypher.utilities.logging import Logger
 
 
@@ -90,151 +91,48 @@ class Arrangement:
         return f"Arrangement(client_key={self.alice_verifying_key})"
 
 
-class NodeEngagementMutex:
-    """
-    TODO: Does this belong on middleware?
+class TreasureMapPublisher:
 
-    TODO: There are a couple of ways this can break.  If one fo the jobs hangs, the whole thing will hang.  Also,
-       if there are fewer successfully completed than percent_to_complete_before_release, the partial queue will never
-       release.
-
-    TODO: Make registry per... I guess Policy?  It's weird to be able to accidentally enact again.
-    """
-    log = Logger("Policy")
+    log = Logger('TreasureMapPublisher')
 
     def __init__(self,
-                 callable_to_engage,  # TODO: typing.Protocol
+                 worker,
                  nodes,
-                 network_middleware,
                  percent_to_complete_before_release=5,
-                 note=None,
                  threadpool_size=120,
-                 timeout=20,
-                 *args,
-                 **kwargs):
-        self.f = callable_to_engage
-        self.nodes = nodes
-        self.network_middleware = network_middleware
-        self.args = args
-        self.kwargs = kwargs
+                 timeout=20):
 
-        self.completed = {}
-        self.failed = {}
+        self._total = len(nodes)
+        self._block_until_this_many_are_complete = math.ceil(len(nodes) * percent_to_complete_before_release / 100)
+        self._worker_pool = WorkerPool(worker=worker,
+                                       value_factory=AllAtOnceFactory(nodes),
+                                       target_successes=self._block_until_this_many_are_complete,
+                                       timeout=timeout,
+                                       stagger_timeout=0,
+                                       threadpool_size=threadpool_size)
 
-        self._started = False
-        self._finished = False
-        self.timeout = timeout
-
-        self.percent_to_complete_before_release = percent_to_complete_before_release
-        self._partial_queue = Queue()
-        self._completion_queue = Queue()
-        self._block_until_this_many_are_complete = math.ceil(
-            len(nodes) * self.percent_to_complete_before_release / 100)
-        self.nodes_contacted_during_partial_block = False
-        self.when_complete = Deferred()  # TODO: Allow cancelling via KB Interrupt or some other way?
-
-        if note is None:
-            self._repr = f"{callable_to_engage} to {len(nodes)} nodes"
-        else:
-            self._repr = f"{note}: {callable_to_engage} to {len(nodes)} nodes"
-
-        self._threadpool = ThreadPool(minthreads=threadpool_size, maxthreads=threadpool_size, name=self._repr)
-        self.log.info(f"NEM spinning up {self._threadpool}")
-        self._threadpool.callInThread(self._bail_on_timeout)
-
-    def __repr__(self):
-        return self._repr
-
-    def _bail_on_timeout(self):
-        while True:
-            if self.when_complete.called:
-                return
-            duration = datetime.datetime.now() - self._started
-            if duration.seconds >= self.timeout:
-                try:
-                    self._threadpool.stop()
-                except AlreadyQuit:
-                    raise RuntimeError("Is there a race condition here?  If this line is being hit, it's a bug.")
-                raise RuntimeError(f"Timed out.  Nodes completed: {self.completed}")
-            time.sleep(.5)
-
-    def block_until_success_is_reasonably_likely(self):
-        """
-        https://www.youtube.com/watch?v=OkSLswPSq2o
-        """
-        if len(self.completed) < self._block_until_this_many_are_complete:
-            try:
-                completed_for_reasonable_likelihood_of_success = self._partial_queue.get(timeout=self.timeout) # TODO: Shorter timeout here?
-            except Empty:
-                raise RuntimeError(f"Timed out.  Nodes completed: {self.completed}")
-            self.log.debug(f"{len(self.completed)} nodes were contacted while blocking for a little while.")
-            return completed_for_reasonable_likelihood_of_success
-        else:
-            return self.completed
-
-
-    def block_until_complete(self):
-        if self.total_disposed() < len(self.nodes):
-            try:
-                _ = self._completion_queue.get(timeout=self.timeout)  # Interesting opportuntiy to pass some data, like the list of contacted nodes above.
-            except Empty:
-                raise RuntimeError(f"Timed out.  Nodes completed: {self.completed}")
-        if not reactor.running and not self._threadpool.joined:
-            # If the reactor isn't running, the user *must* call this, because this is where we stop.
-            self._threadpool.stop()
-
-    def _handle_success(self, response, node):
-        if response.status_code == 201:
-            self.completed[node] = response
-        else:
-            assert False  # TODO: What happens if this is a 300 or 400 level response?  (A 500 response will propagate as an error and be handled in the errback chain.)
-        if self.nodes_contacted_during_partial_block:
-            self._consider_finalizing()
-        else:
-            if len(self.completed) >= self._block_until_this_many_are_complete:
-                contacted = tuple(self.completed.keys())
-                self.nodes_contacted_during_partial_block = contacted
-                self.log.debug(f"Blocked for a little while, completed {contacted} nodes")
-                self._partial_queue.put(contacted)
-        return response
-
-    def _handle_error(self, failure, node):
-        self.failed[node] = failure  # TODO: Add a failfast mode?
-        self._consider_finalizing()
-        self.log.warn(f"{node} failed: {failure}")
-
-    def total_disposed(self):
-        return len(self.completed) + len(self.failed)
-
-    def _consider_finalizing(self):
-        if not self._finished:
-            if self.total_disposed() == len(self.nodes):
-                # TODO: Consider whether this can possibly hang.
-                self._finished = True
-                if reactor.running:
-                    reactor.callInThread(self._threadpool.stop)
-                self._completion_queue.put(self.completed)
-                self.when_complete.callback(self.completed)
-                self.log.info(f"{self} finished.")
-        else:
-            raise RuntimeError("Already finished.")
-
-    def _engage_node(self, node):
-        maybe_coro = self.f(node, network_middleware=self.network_middleware, *self.args, **self.kwargs)
-
-        d = ensureDeferred(maybe_coro)
-        d.addCallback(self._handle_success, node)
-        d.addErrback(self._handle_error, node)
-        return d
+    @property
+    def completed(self):
+        # TODO: lock dict before copying?
+        return self._worker_pool.get_successes()
 
     def start(self):
-        if self._started:
-            raise RuntimeError("Already started.")
-        self._started = datetime.datetime.now()
-        self.log.info(f"NEM Starting {self._threadpool}")
-        for node in self.nodes:
-             self._threadpool.callInThread(self._engage_node, node)
-        self._threadpool.start()
+        self.log.info(f"TreasureMapPublisher starting")
+        self._worker_pool.start()
+        if reactor.running:
+            reactor.callInThread(self.block_until_complete)
+
+    def block_until_success_is_reasonably_likely(self):
+        # Note: `OutOfValues`/`TimedOut` may be raised here, which means we didn't even get to
+        # `percent_to_complete_before_release` successes. For now just letting it fire.
+        self._worker_pool.block_until_target_successes()
+        completed = self.completed
+        self.log.debug(f"The minimal amount of nodes ({len(completed)}) was contacted "
+                       "while blocking for treasure map publication.")
+        return completed
+
+    def block_until_complete(self):
+        self._worker_pool.join()
 
 
 class MergedReservoir:
@@ -534,23 +432,34 @@ class Policy(ABC):
 
         return treasure_map
 
-    def _make_publishing_mutex(self,
-                               treasure_map: 'TreasureMap',
-                               network_middleware: RestMiddleware,
-                               ) -> NodeEngagementMutex:
-
-        async def put_treasure_map_on_node(node, network_middleware):
-            response = network_middleware.put_treasure_map_on_node(node=node,
-                                                                   map_payload=bytes(treasure_map))
-            return response
+    def _make_publisher(self,
+                        treasure_map: 'TreasureMap',
+                        network_middleware: RestMiddleware,
+                        ) -> TreasureMapPublisher:
 
         # TODO (#2516): remove hardcoding of 8 nodes
         self.alice.block_until_number_of_known_nodes_is(8, timeout=2, learn_on_this_thread=True)
         target_nodes = self.bob.matching_nodes_among(self.alice.known_nodes)
+        treasure_map_bytes = bytes(treasure_map) # prevent the closure from holding the reference
 
-        return NodeEngagementMutex(callable_to_engage=put_treasure_map_on_node,
-                                   nodes=target_nodes,
-                                   network_middleware=network_middleware)
+        def put_treasure_map_on_node(node):
+            try:
+                response = network_middleware.put_treasure_map_on_node(node=node,
+                                                                       map_payload=treasure_map_bytes)
+            except Exception as e:
+                self.log.warn(f"Putting treasure map on {node} failed: {e}")
+                raise
+
+            if response.status_code == 201:
+                return response
+            else:
+                message = f"Putting treasure map on {node} failed with response status: {response.status}"
+                self.log.warn(message)
+                # TODO: What happens if this is a 300 or 400 level response?
+                raise Exception(message)
+
+        return TreasureMapPublisher(worker=put_treasure_map_on_node,
+                                   nodes=target_nodes)
 
     def enact(self,
               network_middleware: RestMiddleware,
@@ -572,8 +481,8 @@ class Policy(ABC):
 
         treasure_map = self._make_treasure_map(network_middleware=network_middleware,
                                                arrangements=arrangements)
-        publishing_mutex = self._make_publishing_mutex(treasure_map=treasure_map,
-                                                       network_middleware=network_middleware)
+        treasure_map_publisher = self._make_publisher(treasure_map=treasure_map,
+                                                      network_middleware=network_middleware)
         revocation_kit = RevocationKit(treasure_map, self.alice.stamp)
 
         enacted_policy = EnactedPolicy(self._id,
@@ -581,7 +490,7 @@ class Policy(ABC):
                                        self.label,
                                        self.public_key,
                                        treasure_map,
-                                       publishing_mutex,
+                                       treasure_map_publisher,
                                        revocation_kit,
                                        self.alice.stamp)
 
@@ -730,7 +639,7 @@ class BlockchainPolicy(Policy):
     def _enact_arrangements(self,
                             network_middleware,
                             arrangements,
-                            publish_treasure_map=True) -> NodeEngagementMutex:
+                            publish_treasure_map=True) -> TreasureMapPublisher:
         transaction = self._publish_to_blockchain(list(arrangements))
         return super()._enact_arrangements(network_middleware=network_middleware,
                                            arrangements=arrangements,
@@ -756,7 +665,7 @@ class EnactedPolicy:
                  label: bytes,
                  public_key: UmbralPublicKey,
                  treasure_map: 'TreasureMap',
-                 publishing_mutex: NodeEngagementMutex,
+                 treasure_map_publisher: TreasureMapPublisher,
                  revocation_kit: RevocationKit,
                  alice_verifying_key: UmbralPublicKey,
                  ):
@@ -766,10 +675,10 @@ class EnactedPolicy:
         self.label = label
         self.public_key = public_key
         self.treasure_map = treasure_map
-        self.publishing_mutex = publishing_mutex
+        self.treasure_map_publisher = treasure_map_publisher
         self.revocation_kit = revocation_kit
         self.n = len(self.treasure_map.destinations)
         self.alice_verifying_key = alice_verifying_key
 
     def publish_treasure_map(self):
-        self.publishing_mutex.start()
+        self.treasure_map_publisher.start()

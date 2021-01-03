@@ -351,7 +351,7 @@ class Alice(Character, BlockchainPolicyAuthor):
         self.add_active_policy(enacted_policy)
 
         if publish_treasure_map and block_until_success_is_reasonably_likely:
-            enacted_policy.publishing_mutex.block_until_success_is_reasonably_likely()
+            enacted_policy.treasure_map_publisher.block_until_success_is_reasonably_likely()
         return enacted_policy
 
     def get_policy_encrypting_key_from_label(self, label: bytes) -> UmbralPublicKey:

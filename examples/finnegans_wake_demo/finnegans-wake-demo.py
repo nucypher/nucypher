@@ -102,7 +102,7 @@ policy = ALICE.grant(BOB,
                      expiration=policy_end_datetime)
 
 assert policy.public_key == policy_pubkey
-policy.publishing_mutex.block_until_complete()
+policy.treasure_map_publisher.block_until_complete()
 
 # Alice puts her public key somewhere for Bob to find later...
 alices_pubkey_bytes_saved_for_posterity = bytes(ALICE.stamp)

@@ -140,7 +140,7 @@ def test_alice_verifies_ursula_just_in_time(fleet_of_highperf_mocked_ursulas,
     _POLICY_PRESERVER.append(policy)
 
 
-# @pytest_twisted.inlineCallbacks   # TODO: Why does this, in concert with yield policy.publishing_mutex.when_complete, hang?
+# @pytest_twisted.inlineCallbacks   # TODO: Why does this, in concert with yield policy.treasure_map_publisher.when_complete, hang?
 def test_mass_treasure_map_placement(fleet_of_highperf_mocked_ursulas,
                                      highperf_mocked_alice,
                                      highperf_mocked_bob):
@@ -186,21 +186,21 @@ def test_mass_treasure_map_placement(fleet_of_highperf_mocked_ursulas,
         # defer.setDebugging(True)
 
         # PART II: We block for a little while to ensure that the distribution is going well.
-        nodes_that_have_the_map_when_we_unblock = policy.publishing_mutex.block_until_success_is_reasonably_likely()
+        nodes_that_have_the_map_when_we_unblock = policy.treasure_map_publisher.block_until_success_is_reasonably_likely()
         little_while_ended_at = datetime.now()
 
         # The number of nodes having the map is at least the minimum to have unblocked.
-        assert len(nodes_that_have_the_map_when_we_unblock) >= policy.publishing_mutex._block_until_this_many_are_complete
+        assert len(nodes_that_have_the_map_when_we_unblock) >= policy.treasure_map_publisher._block_until_this_many_are_complete
 
         # The number of nodes having the map is approximately the number you'd expect from full utilization of Alice's publication threadpool.
         # TODO: This line fails sometimes because the loop goes too fast.
-        # assert len(nodes_that_have_the_map_when_we_unblock) == pytest.approx(policy.publishing_mutex._block_until_this_many_are_complete, .2)
+        # assert len(nodes_that_have_the_map_when_we_unblock) == pytest.approx(policy.treasure_map_publisher._block_until_this_many_are_complete, .2)
 
         # PART III: Having made proper assertions about the publication call and the first block, we allow the rest to
         # happen in the background and then ensure that each phase was timely.
 
         # This will block until the distribution is complete.
-        policy.publishing_mutex.block_until_complete()
+        policy.treasure_map_publisher.block_until_complete()
         complete_distribution_time = datetime.now() - started
         partial_blocking_duration = little_while_ended_at - started
         # Before Treasure Island (1741), this process took about 3 minutes.
@@ -213,7 +213,7 @@ def test_mass_treasure_map_placement(fleet_of_highperf_mocked_ursulas,
         # But with debuggers and other processes running on laptops, we give a little leeway.
 
         # We have the same number of successful responses as nodes we expected to have the map.
-        assert len(policy.publishing_mutex.completed) == len(nodes_we_expect_to_have_the_map)
+        assert len(policy.treasure_map_publisher.completed) == len(nodes_we_expect_to_have_the_map)
         nodes_that_got_the_map = sum(
             u._its_down_there_somewhere_let_me_take_another_look is True for u in nodes_we_expect_to_have_the_map)
         assert nodes_that_got_the_map == len(nodes_we_expect_to_have_the_map)

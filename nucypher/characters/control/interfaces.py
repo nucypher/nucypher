@@ -123,7 +123,7 @@ class AliceInterface(CharacterPublicInterface):
                                           expiration=expiration,
                                           discover_on_this_thread=True)
 
-        new_policy.publishing_mutex.block_until_success_is_reasonably_likely()
+        new_policy.treasure_map_publisher.block_until_success_is_reasonably_likely()
 
         response_data = {'treasure_map': new_policy.treasure_map,
                          'policy_encrypting_key': new_policy.public_key,
