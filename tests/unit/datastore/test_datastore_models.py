@@ -23,14 +23,13 @@ from nucypher.datastore import datastore
 from nucypher.datastore.models import PolicyArrangement, TreasureMap, Workorder
 
 
-def test_policy_arrangement_model():
-    temp_path = tempfile.mkdtemp()
-    storage = datastore.Datastore(temp_path)
+def test_policy_arrangement_model(mock_or_real_datastore):
+    storage = mock_or_real_datastore
 
     arrangement_id_hex = 'beef'
     expiration = maya.now()
     alice_verifying_key = keypairs.SigningKeypair(generate_keys_if_needed=True).pubkey
- 
+
     # TODO: Leaving out KFrag for now since I don't have an easy way to grab one.
     with storage.describe(PolicyArrangement, arrangement_id_hex, writeable=True) as policy_arrangement:
         policy_arrangement.arrangement_id = bytes.fromhex(arrangement_id_hex)
@@ -49,17 +48,16 @@ def test_policy_arrangement_model():
         # Should be deleted now.
         with pytest.raises(AttributeError):
             should_error = policy_arrangement.arrangement_id
- 
- 
-def test_workorder_model():
-    temp_path = tempfile.mkdtemp()
-    storage = datastore.Datastore(temp_path)
+
+
+def test_workorder_model(mock_or_real_datastore):
+    storage = mock_or_real_datastore
     bob_keypair = keypairs.SigningKeypair(generate_keys_if_needed=True)
- 
+
     arrangement_id_hex = 'beef'
     bob_verifying_key = bob_keypair.pubkey
     bob_signature = bob_keypair.sign(b'test')
- 
+
     # Test create
     with storage.describe(Workorder, arrangement_id_hex, writeable=True) as work_order:
         work_order.arrangement_id = bytes.fromhex(arrangement_id_hex)
@@ -80,9 +78,8 @@ def test_workorder_model():
             should_error = work_order.arrangement_id
 
 
-def test_treasure_map_model():
-    temp_path = tempfile.mkdtemp()
-    storage = datastore.Datastore(temp_path)
+def test_treasure_map_model(mock_or_real_datastore):
+    storage = mock_or_real_datastore
 
     hrac = 'beef'
     fake_treasure_map_data = b'My Little TreasureMap'

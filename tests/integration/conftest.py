@@ -18,10 +18,8 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 import lmdb
 import os
 import pytest
-import threading
 from contextlib import contextmanager
 from eth_account.account import Account
-from functools import partial
 
 from nucypher.blockchain.economics import EconomicsFactory
 from nucypher.blockchain.eth.agents import (
@@ -53,42 +51,6 @@ from tests.utils.config import (
     make_ursula_test_configuration
 )
 from tests.utils.ursula import MOCK_URSULA_STARTING_PORT
-
-
-class TestLMDBEnv:
-    """
-    This class is used to have LMDB environments open just-in-time as they're
-    needed.
-
-    This is necessary in testing environments because there may be too many
-    LMDB environments open at once.
-    """
-    __test__ = False    # Prohibit pytest from collecting this
-
-    LMDB_OPEN_FUNC = lmdb.open
-    THREAD_LOCK = threading.Lock()
-
-    def __init__(self, *args, **kwargs):
-        self.db_path = args[0]
-        self.open = partial(self.LMDB_OPEN_FUNC, *args, **kwargs)
-
-    @contextmanager
-    def begin(self, *args, **kwargs):
-        try:
-            with self.THREAD_LOCK:
-                with self.open() as lmdb_env:
-                    with lmdb_env.begin(*args, **kwargs) as lmdb_tx:
-                        yield lmdb_tx
-        finally:
-            pass
-
-    def path(self):
-        return self.db_path
-
-
-@pytest.fixture(autouse=True)
-def JIT_lmdb_env(monkeypatch):
-    monkeypatch.setattr("lmdb.open", TestLMDBEnv)
 
 
 @pytest.fixture(scope='function', autouse=True)
