@@ -297,7 +297,6 @@ class Alice(Character, BlockchainPolicyAuthor):
               bob: "Bob",
               label: bytes,
               handpicked_ursulas: set = None,
-              discover_on_this_thread: bool = True,
               timeout: int = None,
               publish_treasure_map: bool = True,
               block_until_success_is_reasonably_likely: bool = True,
@@ -332,7 +331,7 @@ class Alice(Character, BlockchainPolicyAuthor):
         # If we're federated only, we need to block to make sure we have enough nodes.
         if self.federated_only and len(self.known_nodes) < policy.n:
             good_to_go = self.block_until_number_of_known_nodes_is(number_of_nodes_to_know=policy.n,
-                                                                   learn_on_this_thread=discover_on_this_thread,
+                                                                   learn_on_this_thread=True,
                                                                    timeout=timeout)
             if not good_to_go:
                 raise ValueError(
@@ -345,8 +344,7 @@ class Alice(Character, BlockchainPolicyAuthor):
         # TODO: Make it optional to publish to blockchain?  Or is this presumptive based on the `Policy` type?
         enacted_policy = policy.enact(network_middleware=self.network_middleware,
                                       handpicked_ursulas=handpicked_ursulas,
-                                      publish_treasure_map=publish_treasure_map,
-                                      discover_on_this_thread=discover_on_this_thread)
+                                      publish_treasure_map=publish_treasure_map)
 
         self.add_active_policy(enacted_policy)
 

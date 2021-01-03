@@ -120,8 +120,7 @@ class AliceInterface(CharacterPublicInterface):
                                           n=n,
                                           value=value,
                                           rate=rate,
-                                          expiration=expiration,
-                                          discover_on_this_thread=True)
+                                          expiration=expiration)
 
         new_policy.treasure_map_publisher.block_until_success_is_reasonably_likely()
 

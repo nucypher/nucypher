@@ -178,43 +178,6 @@ class PrefetchStrategy:
         return batch
 
 
-def propose_arrangements(worker, value_factory, target_successes, timeout):
-    """
-    A temporary function that calls workers sequentially.
-    To be replaced with a parallel solution.
-    """
-
-    successes = {}
-    failures = {}
-    start_time = maya.now()
-
-    while True:
-
-        value_batch = value_factory(len(successes))
-        if value_batch is None:
-            break
-
-        for value in value_batch:
-            try:
-                result = worker(value)
-                successes[value] = result
-            except Exception as e:
-                failures[value] = e
-
-            if len(successes) == target_successes:
-                break
-
-            delta = maya.now() - start_time
-            if delta.total_seconds() >= timeout:
-                raise RuntimeError(f"Proposal stage timed out after {timeout} seconds; "
-                                   f"need {target_successes - len(successes)} more.")
-
-        if len(successes) == target_successes:
-            break
-
-    return successes, failures
-
-
 class Policy(ABC):
     """
     An edict by Alice, arranged with n Ursulas, to perform re-encryption for a specific Bob.
@@ -320,7 +283,6 @@ class Policy(ABC):
     def _make_arrangements(self,
                            network_middleware: RestMiddleware,
                            handpicked_ursulas: Optional[Iterable[Ursula]] = None,
-                           discover_on_this_thread: bool = True,
                            timeout: int = 10,
                            ) -> Dict[Ursula, Arrangement]:
         """
@@ -338,18 +300,31 @@ class Policy(ABC):
         def worker(address):
             return self._propose_arrangement(address, network_middleware)
 
-        self.alice.block_until_number_of_known_nodes_is(self.n, learn_on_this_thread=discover_on_this_thread, eager=True)
+        self.alice.block_until_number_of_known_nodes_is(self.n, learn_on_this_thread=True, eager=True)
 
-        arrangements, failures = propose_arrangements(worker=worker,
-                                                      value_factory=value_factory,
-                                                      target_successes=self.n,
-                                                      timeout=timeout)
+        worker_pool = WorkerPool(worker=worker,
+                                 value_factory=value_factory,
+                                 target_successes=self.n,
+                                 timeout=timeout,
+                                 stagger_timeout=1,
+                                 threadpool_size=self.n)
+        worker_pool.start()
+        try:
+            successes = worker_pool.block_until_target_successes()
+        except (WorkerPool.OutOfValues, WorkerPool.TimedOut):
+            # It's possible to raise some other exceptions here,
+            # but we will use the logic below.
+            successes = worker_pool.get_successes()
+        finally:
+            worker_pool.cancel()
+            worker_pool.join()
 
-        accepted_arrangements = {ursula: arrangement for ursula, arrangement in arrangements.values()}
+        accepted_arrangements = {ursula: arrangement for ursula, arrangement in successes.values()}
+        failures = worker_pool.get_failures()
 
         accepted_addresses = ", ".join(ursula.checksum_address for ursula in accepted_arrangements)
 
-        if len(arrangements) < self.n:
+        if len(accepted_arrangements) < self.n:
 
             rejected_proposals = "\n".join(f"{address}: {exception}" for address, exception in failures.items())
 
@@ -464,7 +439,6 @@ class Policy(ABC):
     def enact(self,
               network_middleware: RestMiddleware,
               handpicked_ursulas: Optional[Iterable[Ursula]] = None,
-              discover_on_this_thread: bool = True,
               publish_treasure_map: bool = True,
               ) -> 'EnactedPolicy':
         """
@@ -472,8 +446,7 @@ class Policy(ABC):
         """
 
         arrangements = self._make_arrangements(network_middleware=network_middleware,
-                                               handpicked_ursulas=handpicked_ursulas,
-                                               discover_on_this_thread=discover_on_this_thread)
+                                               handpicked_ursulas=handpicked_ursulas)
 
         self._enact_arrangements(network_middleware=network_middleware,
                                  arrangements=arrangements,
