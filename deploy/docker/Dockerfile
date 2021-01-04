@@ -1,4 +1,4 @@
-FROM python:3.7.0-slim-stretch
+FROM python:3.8.7-slim
 
 # Update
 RUN apt update -y && apt upgrade -y
