@@ -265,8 +265,13 @@ def run_apidoc(_):
 
 def run_solidity_apidoc(_):
     source_dir = Path(__file__).parent.resolve()
-    script = source_dir.parent.parent / 'scripts' / 'solidity_doc' / 'generate_doc.py'
-    subprocess.call(['python', str(script)])
+    scripts_dir = source_dir.parent.parent / 'scripts'
+
+    install_script = scripts_dir / 'installation' / 'install_solc.py'
+    subprocess.call(['python', str(install_script)])
+
+    doc_script = scripts_dir / 'solidity_doc' / 'generate_doc.py'
+    subprocess.call(['python', str(doc_script)])
 
 
 def setup(app):
