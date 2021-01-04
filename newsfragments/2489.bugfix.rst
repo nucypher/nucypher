@@ -1,0 +1,1 @@
+Fix rtd build after #2477

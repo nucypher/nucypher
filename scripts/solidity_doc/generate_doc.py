@@ -14,6 +14,7 @@
  You should have received a copy of the GNU Affero General Public License
  along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
+from pathlib import Path
 from typing import Dict
 
 from jsonschema2rst.parser import _traverse_bfs, _node2rst
@@ -21,9 +22,7 @@ from jsonschema2rst.rst_utils import RST_DIRECTIVES
 from jsonschema2rst.tree_node import TreeNode
 
 from nucypher.blockchain.eth.sol.compile.compile import multiversion_compile
-from nucypher.blockchain.eth.sol.compile.constants import SOLIDITY_SOURCE_ROOT
 from nucypher.blockchain.eth.sol.compile.types import SourceBundle
-from nucypher.config.constants import BASE_DIR
 from nucypher.utilities.logging import GlobalLoggerSettings
 
 
@@ -65,11 +64,14 @@ def generate_doc() -> None:
 
     GlobalLoggerSettings.start_console_logging()
 
-    bundle = SourceBundle(base_path=SOLIDITY_SOURCE_ROOT)
+    base_dir = Path(__file__).parent.parent.parent.resolve()
+    solidity_source_root = base_dir / 'nucypher' / 'blockchain' / 'eth' / 'sol' / 'source'
+
+    bundle = SourceBundle(base_path=solidity_source_root)
     contracts = multiversion_compile(source_bundles=[bundle])
 
     # Prepare folders
-    base_path = BASE_DIR / 'docs' / 'source' / 'contracts_api'
+    base_path = base_dir / 'docs' / 'source' / 'contracts_api'
     base_path.mkdir(exist_ok=True)
     for dir in CONTRACTS.keys():
         category_path = base_path / dir
