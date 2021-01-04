@@ -18,6 +18,7 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 
 from collections import defaultdict
 
+import lmdb
 import pytest
 import tempfile
 from pathlib import Path
@@ -29,6 +30,7 @@ from nucypher.network.trackers import AvailabilityTracker
 from nucypher.policy.identity import Card
 from nucypher.utilities.logging import GlobalLoggerSettings
 from tests.constants import INSECURE_DEVELOPMENT_PASSWORD
+from tests.mock.datastore import mock_lmdb_open
 
 # Crash on server error by default
 WebEmitter._crash_on_error_default = True
@@ -77,8 +79,8 @@ def __very_pretty_and_insecure_scrypt_do_not_use():
     Scrypt.derive = original_derivation_function
 
 
-@pytest.fixture(scope='module')
-def monkeymodule():
+@pytest.fixture(scope='session')
+def monkeysession():
     from _pytest.monkeypatch import MonkeyPatch
     mpatch = MonkeyPatch()
     yield mpatch
@@ -199,3 +201,9 @@ def patch_card_directory(session_mocker):
                                 new_callable=session_mocker.PropertyMock)
     yield
     tmpdir.cleanup()
+
+
+@pytest.fixture(scope='session', autouse=True)
+def mock_datastore(monkeysession):
+    monkeysession.setattr(lmdb, 'open', mock_lmdb_open)
+    yield

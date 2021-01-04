@@ -32,12 +32,17 @@ class TestRecord(DatastoreRecord):
             decode=lambda val: datetime.fromisoformat(val.decode()))
 
 
-def test_datastore_describe():
+def test_datastore_create():
     temp_path = tempfile.mkdtemp()
     storage = datastore.Datastore(temp_path)
     assert storage.LMDB_MAP_SIZE == 1_000_000_000_000
     assert storage.db_path == temp_path
     assert storage._Datastore__db_env.path() == temp_path
+
+
+def test_datastore_describe(mock_or_real_datastore):
+
+    storage = mock_or_real_datastore
 
     #
     # Tests for `Datastore.describe`
@@ -153,9 +158,9 @@ def test_datastore_describe():
         assert new_test_record.test == b'now it exists :)'
 
 
-def test_datastore_query_by():
-    temp_path = tempfile.mkdtemp()
-    storage = datastore.Datastore(temp_path)
+def test_datastore_query_by(mock_or_real_datastore):
+
+    storage = mock_or_real_datastore
 
     # Make two test record classes
     class FooRecord(DatastoreRecord):
@@ -251,10 +256,10 @@ def test_datastore_query_by():
     with pytest.raises(datastore.RecordNotFound):
         with storage.query_by(NoRecord, writeable=True) as records:
             assert len(records) == 'this never gets executed'
-            
 
-def test_datastore_record_read():
-    db_env = lmdb.open(tempfile.mkdtemp())
+
+def test_datastore_record_read(mock_or_real_lmdb_env):
+    db_env = mock_or_real_lmdb_env
     with db_env.begin() as db_tx:
         # Check the default attrs.
         test_rec = TestRecord(db_tx, 'testing', writeable=False)
@@ -276,9 +281,9 @@ def test_datastore_record_read():
             test_rec.test = b'should error'
 
 
-def test_datastore_record_write():
+def test_datastore_record_write(mock_or_real_lmdb_env):
     # Test writing
-    db_env = lmdb.open(tempfile.mkdtemp())
+    db_env = mock_or_real_lmdb_env
     with db_env.begin(write=True) as db_tx:
         test_rec = TestRecord(db_tx, 'testing', writeable=True)
         assert test_rec._DatastoreRecord__writeable == True
@@ -305,6 +310,9 @@ def test_datastore_record_write():
         # TODO: Mock a `DBWriteError`
 
     # Test abort
+    # Transaction context manager attempts to commit the transaction at `__exit__()`,
+    # since there were no errors caught, but it's already been aborted,
+    # so `lmdb.Error` is raised.
     with pytest.raises(lmdb.Error):
         with db_env.begin(write=True) as db_tx:
             test_rec = TestRecord(db_tx, 'testing', writeable=True)

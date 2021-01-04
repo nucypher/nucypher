@@ -168,9 +168,10 @@ class NotARestApp:
     _actual_rest_apps = []
     _replaced_routes = {}
 
-    def __init__(self, this_node, *args, **kwargs):
+    def __init__(self, this_node, db_filepath, *args, **kwargs):
         self._actual_rest_app = None
         self.this_node = this_node
+        self.db_filepath = db_filepath
 
     @classmethod
     def create_with_not_a_datastore(cls, *args, **kwargs):
@@ -195,7 +196,7 @@ class NotARestApp:
 
     def actual_rest_app(self):
         if self._actual_rest_app is None:
-            self._actual_rest_app, self._datastore = make_rest_app(db_filepath=tempfile.mkdtemp(),
+            self._actual_rest_app, self._datastore = make_rest_app(db_filepath=self.db_filepath,
                                                                    this_node=self.this_node,
                                                                    domain=None)
             _new_view_functions = self._ViewFunctions(self._actual_rest_app.view_functions)
