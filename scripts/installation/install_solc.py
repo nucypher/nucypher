@@ -31,7 +31,7 @@ from pathlib import Path
 
 
 def get_solc_config_path() -> Path:
-    nucypher = Path('nucypher').absolute()
+    nucypher = Path(__file__).parent.parent.parent.resolve() / 'nucypher'
     config_path = nucypher / 'blockchain' / 'eth' / 'sol' / '__conf__.py'
     return config_path
 
