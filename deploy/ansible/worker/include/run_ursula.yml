@@ -76,7 +76,7 @@
           max-file: "5"
         image: "{{ nucypher_image | default('nucypher/nucypher:latest') }}"
         restart_policy: "unless-stopped"
-        command: "nucypher ursula run {{nucypher_ursula_run_options | default('')}} --lonely {{prometheus | default('')}} {{gas_strategy | default('')}} --network {{network_name}}"
+        command: "nucypher ursula run {{nucypher_ursula_run_options}} --lonely"
         volumes:
           - /home/nucypher:/root/.local/share/
         ports:
@@ -85,14 +85,14 @@
         env: "{{runtime_envvars}}"
 
     - name: "wait a few seconds for the seed node to become available"
-      when: SEED_NODE_URI is not undefined
+      when: SEED_NODE_URI is not undefined and SEED_NODE_URI
       pause:
         seconds: 15
 
     - name: "Run Staked Ursula (non-seed)"
       become: yes
       become_user: nucypher
-      when: SEED_NODE_URI is undefined or inventory_hostname != SEED_NODE_URI
+      when: inventory_hostname != SEED_NODE_URI
       docker_container:
         recreate: yes
         name: ursula
@@ -104,7 +104,7 @@
           max-file: "5"
         image: "{{ nucypher_image | default('nucypher/nucypher:latest') }}"
         restart_policy: "unless-stopped"
-        command: "nucypher ursula run {{nucypher_ursula_run_options | default('')}} --disable-availability-check {{teacher_options}} {{prometheus | default('')}} {{gas_strategy | default('')}} --network {{network_name}}"
+        command: "nucypher ursula run {{nucypher_ursula_run_options}} {{teacher_options}}"
         volumes:
           - /home/nucypher:/root/.local/share/
         ports:
@@ -133,5 +133,5 @@
       become: yes
       wait_for:
         path: "/var/lib/docker/containers/{{ursula_container_name['stdout']}}/{{ursula_container_name['stdout']}}-json.log"
-        search_regex: "Checking worker settings:"
+        search_regex: "Awaiting worker qualification"
         timeout: 30

@@ -174,14 +174,14 @@ class BaseCloudNodeConfigurator:
                  seed_network=False,
                  sentry_dsn=None,
                  profile=None,
-                 prometheus=False,
                  pre_config=False,
                  network=None,
                  namespace=None,
                  gas_strategy=None,
                  max_gas_price=None,
                  action=None,
-                 envvars=None
+                 envvars=None,
+                 cliargs=None,
                  ):
 
         self.emitter = emitter
@@ -189,11 +189,21 @@ class BaseCloudNodeConfigurator:
         self.network = network
         self.namespace = namespace or 'local-stakeholders'
         self.action = action
+
         self.envvars = envvars or []
         if self.envvars:
             if not all([ (len(v.split('=')) == 2) for v in self.envvars]):
                 raise  ValueError("Improperly specified environment variables: --env variables must be specified in pairs as `<name>=<value>`")
             self.envvars = [v.split('=') for v in (self.envvars)]
+
+        cliargs = cliargs or []
+        self.cliargs = []
+        if cliargs:
+            for arg in cliargs:
+                if '=' in arg:
+                    self.cliargs.append(arg.split('='))
+                else:
+                    self.cliargs.append((arg, '')) # allow for --flags like '--prometheus'
 
         self.config_filename = f'{self.network}-{self.namespace}.json'
 
@@ -249,7 +259,6 @@ class BaseCloudNodeConfigurator:
             self.config.pop('seed_node', None)
         self.nodes_are_decentralized = 'geth.ipc' in self.config['blockchain_provider']
         self.config['stakeholder_config_file'] = stakeholder_config_path
-        self.config['use-prometheus'] = prometheus
 
         # add instance key as host_nickname for use in inventory
         if self.config.get('instances'):
@@ -280,6 +289,9 @@ class BaseCloudNodeConfigurator:
     def _do_setup_for_instance_creation(self):
         pass
 
+    def _format_runtime_options(self, node_options):
+        return ' '.join([f'--{name} {value}' for name, value in node_options.items()])
+
     @property
     def chain_id(self):
         return NetworksInventory.get_ethereum_chain_id(self.network)
@@ -302,37 +314,46 @@ class BaseCloudNodeConfigurator:
         if not nodes:
             raise KeyError(f"No hosts matched the supplied names: {node_names}.  Try `nucypher cloudworkers list-hosts`")
 
-        default_envvars = [
-            (NUCYPHER_ENVVAR_KEYRING_PASSWORD,  self.config['keyringpassword']),
-            (NUCYPHER_ENVVAR_WORKER_ETH_PASSWORD, self.config['ethpassword']),
-        ]
+        defaults = {
+            'envvars':
+                [
+                    (NUCYPHER_ENVVAR_KEYRING_PASSWORD,  self.config['keyringpassword']),
+                    (NUCYPHER_ENVVAR_WORKER_ETH_PASSWORD, self.config['ethpassword']),
+                ],
+            'cliargs': [
+            ]
+        }
 
-        input_envvars = [(k, v) for k, v in self.envvars]
+        for datatype in ['envvars', 'cliargs']:
 
-        # populate the specified environment variables as well as the
-        # defaults that are only used in the inventory
-        for key, node in nodes.items():
-            node_vars = nodes[key].get('runtime_envvars', {})
-            for k, v in input_envvars:
-                node_vars.update({k: v})
-            nodes[key]['runtime_envvars'] = node_vars
+            data_key = f'runtime_{datatype}'
 
-            # we want to update the config with the specified envvars
-            # so they will persist in future invocations
-            self.config['instances'][key] = copy.deepcopy(nodes[key])
+            input_data = [(k, v) for k, v in getattr(self, datatype)]
 
-        # we don't want to save the default_envvars to the config file
-        # but we do want them to be specified to the inventory template
-        # but overridden on a per node basis if previously specified
-        for key, node in nodes.items():
-            for k, v in default_envvars:
-                if not k in nodes[key]['runtime_envvars']:
-                    nodes[key]['runtime_envvars'][k] = v
+            # populate the specified environment variables as well as the
+            # defaults that are only used in the inventory
+            for key, node in nodes.items():
+                node_vars = nodes[key].get(data_key, {})
+                for k, v in input_data:
+                    node_vars.update({k: v})
+                nodes[key][data_key] = node_vars
+
+                # we want to update the config with the specified values
+                # so they will persist in future invocations
+                self.config['instances'][key] = copy.deepcopy(nodes[key])
+
+            # we don't want to save the default_envvars to the config file
+            # but we do want them to be specified to the inventory template
+            # but overridden on a per node basis if previously specified
+            for key, node in nodes.items():
+                for k, v in defaults[datatype]:
+                    if not k in nodes[key][data_key]:
+                        nodes[key][data_key][k] = v
 
         inventory_content = self._inventory_template.render(
             deployer=self,
             nodes=nodes.values(),
-            extra=kwargs
+            extra=kwargs,
         )
 
         with open(self.inventory_path, 'w') as outfile:
