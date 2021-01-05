@@ -33,7 +33,7 @@ to keep your Nucypher Ursula nodes working and up to date.
 +----------------------+-------------------------------------------------------------------------------+
 |  ``destroy``         | Shut down and cleanup resources deployed on AWS or Digital Ocean              |
 +----------------------+-------------------------------------------------------------------------------+
-|  ``stop``            | Stop the selected nodes.         |
+|  ``stop``            | Stop the selected nodes.                                                      |
 +----------------------+-------------------------------------------------------------------------------+
 |  ``status``          | Prints a formatted status of selected managed hosts.                          |
 +----------------------+-------------------------------------------------------------------------------+
