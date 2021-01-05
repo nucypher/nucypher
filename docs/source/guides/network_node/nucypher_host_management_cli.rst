@@ -112,3 +112,6 @@ Some examples:
     # backup all your worker's critical data
     # note: this is also done after any update or deploy operations
     for ns in $(nucypher cloudworkers list-namespaces); do nucypher cloudworkers backup --namespace $ns; done
+
+    # show some info about your hosts
+    nucypher cloudworkers list-hosts -v
