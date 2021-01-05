@@ -313,7 +313,7 @@ def logs(general_config, namespace, network, include_hosts):
 @cloudworkers.command('backup')
 @click.option('--namespace', help="Namespace for these operations.  Used to address hosts and data locally and name hosts on cloud platforms.", type=click.STRING, default='local-stakeholders')
 @click.option('--network', help="The Nucypher network name these hosts will run on.", type=click.STRING, default='mainnet')
-@click.option('--include-host', 'include_hosts', help="Query status on only the named hosts", multiple=True, type=click.STRING)
+@click.option('--include-host', 'include_hosts', help="backup only the named hosts", multiple=True, type=click.STRING)
 @group_general_config
 def backup(general_config, namespace, network, include_hosts):
     """Creates backups of important data from selected remote workers"""
@@ -329,6 +329,27 @@ def backup(general_config, namespace, network, include_hosts):
     if include_hosts:
         hostnames = include_hosts
     deployer.backup_remote_data(hostnames)
+
+
+@cloudworkers.command('stop')
+@click.option('--namespace', help="Namespace for these operations.  Used to address hosts and data locally and name hosts on cloud platforms.", type=click.STRING, default='local-stakeholders')
+@click.option('--network', help="The Nucypher network name these hosts will run on.", type=click.STRING, default='mainnet')
+@click.option('--include-host', 'include_hosts', help="stop only the named hosts", multiple=True, type=click.STRING)
+@group_general_config
+def stop(general_config, namespace, network, include_hosts):
+    """Stops the Ursula on selected remote workers"""
+
+    emitter = setup_emitter(general_config)
+    if not CloudDeployers:
+        emitter.echo("Ansible is required to use `nucypher cloudworkers *` commands.  (Please run 'pip install ansible'.)", color="red")
+        return
+
+    deployer = CloudDeployers.get_deployer('generic')(emitter, None, None, namespace=namespace, network=network)
+
+    hostnames = deployer.config['instances'].keys()
+    if include_hosts:
+        hostnames = include_hosts
+    deployer.stop_worker_process(hostnames)
 
 
 @cloudworkers.command('destroy')

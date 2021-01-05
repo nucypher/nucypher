@@ -33,6 +33,8 @@ to keep your Nucypher Ursula nodes working and up to date.
 +----------------------+-------------------------------------------------------------------------------+
 |  ``destroy``         | Shut down and cleanup resources deployed on AWS or Digital Ocean              |
 +----------------------+-------------------------------------------------------------------------------+
+|  ``stop``            | Stop the selected nodes.         |
++----------------------+-------------------------------------------------------------------------------+
 |  ``status``          | Prints a formatted status of selected managed hosts.                          |
 +----------------------+-------------------------------------------------------------------------------+
 |  ``logs``            | Download and display the accumulated stdout logs of selected hosts            |
@@ -72,6 +74,9 @@ Some examples:
 
     # update all your existing hosts to the latest code
     $ nucypher cloudworkers update --nucypher-image nucypher/nucypher:latest
+
+    # stop the running Ursula on your hosts
+    $ nucypher cloudworkers stop
 
     # change two of your existing hosts to use alchemy instead of infura as a delegated blockchain
     # note: hosts created for local stakers will have the staker's checksum address as their nickname by default
