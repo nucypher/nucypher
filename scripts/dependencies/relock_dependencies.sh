@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-# can change output file names with rebuild_pipenv.sh <prefix>
+# can change output file names with relock_dependencies.sh <prefix>
 PREFIX=${1:-requirements}
 
 # these steps might fail, but that's okay.
