@@ -666,6 +666,15 @@ jobs:
       - run:
           name: Run Requirements comparison
           command: ./scripts/circle/compare_reqs.sh
+      - run:
+          name: Prepare Requirement Files for Storage as Artifacts
+          command: |
+            mkdir -p /tmp/reqs
+            cp *requirements.txt /tmp/reqs
+          when: on_fail
+      - store_artifacts:
+          path: /tmp/reqs
+          destination: reqs
 
   estimate_gas:
     <<: *python_37_base
