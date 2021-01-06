@@ -3,7 +3,7 @@ ENV PYTHONUNBUFFERED 1
 ENV PYTHONPATH /code
 
 # Update
-RUN apt-get update -y && apt-get upgrade -y && apt-get install gcc libffi-dev wget git -y
+RUN apt-get update -y && apt-get upgrade -y && apt-get install patch gcc libffi-dev wget git -y
 
 # make an install directory
 RUN mkdir /install
