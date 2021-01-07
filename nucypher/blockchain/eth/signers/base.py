@@ -50,7 +50,7 @@ class Signer(ABC):
             self.message = f'Unknown account {account}.'
             super().__init__(self.message)
 
-    class AccessDenied(SignerError):
+    class AuthenticationFailed(SignerError):
         """Raised when ACCESS DENIED"""
 
     @classmethod

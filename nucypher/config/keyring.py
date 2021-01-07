@@ -438,7 +438,10 @@ class NucypherKeyring:
         key_data = _read_keyfile(key_path, deserializer=_deserialize_private_key)
         wrap_key = _derive_wrapping_key_from_key_material(salt=key_data['wrap_salt'],
                                                           key_material=self.__derived_key_material)
-        plain_umbral_key = UmbralPrivateKey.from_bytes(key_bytes=key_data['key'], wrapping_key=wrap_key)
+        try:
+            plain_umbral_key = UmbralPrivateKey.from_bytes(key_bytes=key_data['key'], wrapping_key=wrap_key)
+        except CryptoError:
+            raise self.AuthenticationFailed('Invalid or incorrect nucypher keyring password.')
         return plain_umbral_key
 
     #
