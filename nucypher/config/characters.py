@@ -40,14 +40,15 @@ class UrsulaConfiguration(CharacterConfiguration):
     NAME = CHARACTER_CLASS.__name__.lower()
 
     DEFAULT_REST_PORT = 9151
+    DEFAULT_DEVELOPMENT_REST_HOST = '127.0.0.1'
     DEFAULT_DEVELOPMENT_REST_PORT = 10151
     __DEFAULT_TLS_CURVE = ec.SECP384R1
-    DEFAULT_DB_NAME = '{}.db'.format(NAME)
+    DEFAULT_DB_NAME = f'{NAME}.db'
     DEFAULT_AVAILABILITY_CHECKS = False
     LOCAL_SIGNERS_ALLOWED = True
 
     def __init__(self,
-                 rest_host: str,
+                 rest_host: str = None,
                  worker_address: str = None,
                  dev_mode: bool = False,
                  db_filepath: str = None,
@@ -57,11 +58,16 @@ class UrsulaConfiguration(CharacterConfiguration):
                  availability_check: bool = None,
                  *args, **kwargs) -> None:
 
-        if not rest_port:
-            if dev_mode:
+        if dev_mode:
+            rest_host = self.DEFAULT_DEVELOPMENT_REST_HOST
+            if not rest_port:
                 rest_port = self.DEFAULT_DEVELOPMENT_REST_PORT
-            else:
+        else:
+            if not rest_host:
+                raise ValueError('rest_host is required for live workers.')
+            if not rest_port:
                 rest_port = self.DEFAULT_REST_PORT
+
         self.rest_port = rest_port
         self.rest_host = rest_host
         self.tls_curve = tls_curve or self.__DEFAULT_TLS_CURVE

@@ -1270,12 +1270,14 @@ class Ursula(Teacher, Character, Worker):
             interactive: bool = False,
             hendrix: bool = True,
             start_reactor: bool = True,
-            prometheus_config: 'PrometheusMetricsConfig' = None
+            prometheus_config: 'PrometheusMetricsConfig' = None,
+            preflight: bool = True
             ) -> None:
 
         """Schedule and start select ursula services, then optionally start the reactor."""
 
-        self.__preflight()
+        if preflight:
+            self.__preflight()
 
         #
         # Async loops ordered by schedule priority

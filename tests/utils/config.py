@@ -17,6 +17,7 @@
 
 from typing import List
 
+from tests.constants import MOCK_IP_ADDRESS
 from nucypher.blockchain.eth.registry import BaseContractRegistry
 from nucypher.characters.lawful import Ursula
 from nucypher.config.characters import AliceConfiguration, BobConfiguration, UrsulaConfiguration
@@ -66,7 +67,7 @@ def assemble(federated: bool,
 
 def make_ursula_test_configuration(rest_port: int = MOCK_URSULA_STARTING_PORT, **assemble_kwargs) -> UrsulaConfiguration:
     test_params = assemble(**assemble_kwargs)
-    ursula_config = UrsulaConfiguration(**test_params, rest_port=rest_port)
+    ursula_config = UrsulaConfiguration(**test_params, rest_host=MOCK_IP_ADDRESS, rest_port=rest_port)
     return ursula_config
 
 

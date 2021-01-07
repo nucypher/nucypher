@@ -387,7 +387,8 @@ def run(general_config, character_options, config_file, interactive, dry_run, pr
         URSULA.run(emitter=emitter,
                    start_reactor=not dry_run,
                    interactive=interactive,
-                   prometheus_config=prometheus_config)
+                   prometheus_config=prometheus_config,
+                   preflight=not dev_mode)
     finally:
         if dry_run:
             URSULA.stop()
