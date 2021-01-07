@@ -18,8 +18,10 @@
 
 import click
 
+from nucypher.blockchain.economics import EconomicsFactory
 from nucypher.blockchain.eth.networks import NetworksInventory
 from nucypher.blockchain.eth.signers.software import ClefSigner
+from nucypher.blockchain.eth.utils import datetime_at_period
 from nucypher.cli.actions.auth import get_client_password, get_nucypher_password
 from nucypher.cli.actions.configure import (
     destroy_configuration,
@@ -34,7 +36,9 @@ from nucypher.cli.config import group_general_config
 from nucypher.cli.literature import (
     DEVELOPMENT_MODE_WARNING,
     FORCE_MODE_WARNING,
-    SUCCESSFUL_MANUALLY_SAVE_METADATA
+    SUCCESSFUL_MANUALLY_SAVE_METADATA,
+    SUCCESSFUL_CONFIRM_ACTIVITY,
+    CONFIRMING_ACTIVITY_NOW
 )
 from nucypher.cli.options import (
     group_options,
@@ -57,6 +61,7 @@ from nucypher.cli.options import (
     option_max_gas_price
 )
 from nucypher.cli.painting.help import paint_new_installation_help
+from nucypher.cli.painting.transactions import paint_receipt_summary
 from nucypher.cli.types import EIP55_CHECKSUM_ADDRESS, NETWORK_PORT, WORKER_IP
 from nucypher.cli.utils import make_cli_character, setup_emitter
 from nucypher.config.characters import UrsulaConfiguration
