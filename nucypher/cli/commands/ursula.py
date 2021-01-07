@@ -27,12 +27,8 @@ from nucypher.cli.actions.configure import (
     get_or_update_configuration,
     collect_worker_ip_address
 )
-from nucypher.cli.actions.configure import forget as forget_nodes, perform_ip_checkup
-from nucypher.cli.actions.select import (
-    select_client_account,
-    select_config_file,
-    select_network
-)
+from nucypher.cli.actions.configure import forget as forget_nodes, perform_startup_ip_check
+from nucypher.cli.actions.select import select_client_account, select_config_file, select_network
 from nucypher.cli.commands.deploy import option_gas_strategy
 from nucypher.cli.config import group_general_config
 from nucypher.cli.literature import (
@@ -383,7 +379,7 @@ def run(general_config, character_options, config_file, interactive, dry_run, pr
                                                                json_ipc=general_config.json_ipc)
 
     if ip_checkup and not dev_mode:
-        perform_ip_checkup(emitter=emitter, ursula=URSULA, force=force)
+        perform_startup_ip_check(emitter=emitter, ursula=URSULA, force=force)
 
     # TODO: should we just not call run at all for "dry_run"
     # RE: That might make the some tests less accurate

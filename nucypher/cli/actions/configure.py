@@ -148,7 +148,7 @@ def collect_worker_ip_address(emitter: StdoutEmitter, network: str, force: bool 
     return ip
 
 
-def perform_ip_checkup(emitter: StdoutEmitter, ursula: Ursula, force: bool = False) -> None:
+def perform_startup_ip_check(emitter: StdoutEmitter, ursula: Ursula, force: bool = False) -> None:
     """
     Used on ursula startup to determine if the external
     IP address is consistent with the configuration's values.
