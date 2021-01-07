@@ -1,0 +1,1 @@
+Deprecated manual worker commitments using the CLI.
