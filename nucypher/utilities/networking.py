@@ -139,8 +139,8 @@ def get_external_ip_from_known_nodes(known_nodes: FleetSensor,
     for node in sample:
         ip = __request(url=node.rest_url())
         if ip:
-            log.info(f'Fetched external IP address from randomly selected known node(s).')
-    return ip
+            log.info(f'Fetched external IP address ({ip}) from randomly selected known node(s).')
+            return ip
 
 
 def get_external_ip_from_centralized_source(log: Logger = IP_DETECTION_LOGGER) -> Union[str, None]:
@@ -148,7 +148,7 @@ def get_external_ip_from_centralized_source(log: Logger = IP_DETECTION_LOGGER) -
     endpoint = 'https://ifconfig.me/'
     ip = __request(url=endpoint)
     if ip:
-        log.info(f'Fetched external IP address from centralized source ({endpoint}).')
+        log.info(f'Fetched external IP address ({ip}) from centralized source ({endpoint}).')
     return ip
 
 

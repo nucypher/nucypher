@@ -359,6 +359,7 @@ def run(general_config, character_options, config_file, interactive, dry_run, pr
     dev_mode = character_options.config_options.dev
 
     if prometheus and not metrics_port:
+        # Require metrics port when using prometheus
         raise click.BadOptionUsage(option_name='metrics-port',
                                    message='--metrics-port is required when using --prometheus')
 
@@ -371,7 +372,6 @@ def run(general_config, character_options, config_file, interactive, dry_run, pr
 
     prometheus_config: 'PrometheusMetricsConfig' = None
     if prometheus and not dev_mode:
-        # ensure metrics port is provided
         # Locally scoped to prevent import without prometheus explicitly installed
         from nucypher.utilities.prometheus.metrics import PrometheusMetricsConfig
         prometheus_config = PrometheusMetricsConfig(port=metrics_port,
@@ -386,8 +386,6 @@ def run(general_config, character_options, config_file, interactive, dry_run, pr
     if ip_checkup and not dev_mode:
         perform_startup_ip_check(emitter=emitter, ursula=URSULA, force=force)
 
-    # TODO: should we just not call run at all for "dry_run"
-    # RE: That might make the some tests less accurate
     try:
         URSULA.run(emitter=emitter,
                    start_reactor=not dry_run,
