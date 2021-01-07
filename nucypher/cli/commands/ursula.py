@@ -19,26 +19,20 @@
 import click
 import os
 
-from constant_sorrow.constants import NO_BLOCKCHAIN_CONNECTION
-
-from nucypher.cli.actions.configure import forget as forget_nodes
-from nucypher.blockchain.economics import EconomicsFactory
 from nucypher.blockchain.eth.signers.software import ClefSigner
-from nucypher.blockchain.eth.utils import datetime_at_period
 from nucypher.cli.actions.auth import get_client_password, get_nucypher_password
 from nucypher.cli.actions.configure import (
     destroy_configuration,
     handle_missing_configuration_file,
     get_or_update_configuration
 )
+from nucypher.cli.actions.configure import forget as forget_nodes
 from nucypher.cli.actions.select import select_client_account, select_config_file, select_network
 from nucypher.cli.commands.deploy import option_gas_strategy
 from nucypher.cli.config import group_general_config
 from nucypher.cli.literature import (
-    CONFIRMING_ACTIVITY_NOW,
     DEVELOPMENT_MODE_WARNING,
     FORCE_MODE_WARNING,
-    SUCCESSFUL_CONFIRM_ACTIVITY,
     SUCCESSFUL_MANUALLY_SAVE_METADATA
 )
 from nucypher.cli.options import (
@@ -58,10 +52,10 @@ from nucypher.cli.options import (
     option_registry_filepath,
     option_signer_uri,
     option_teacher_uri,
-    option_lonely, option_max_gas_price
+    option_lonely,
+    option_max_gas_price
 )
 from nucypher.cli.painting.help import paint_new_installation_help
-from nucypher.cli.painting.transactions import paint_receipt_summary
 from nucypher.cli.types import EIP55_CHECKSUM_ADDRESS, NETWORK_PORT
 from nucypher.cli.utils import make_cli_character, setup_emitter
 from nucypher.config.characters import UrsulaConfiguration
@@ -428,35 +422,6 @@ def config(general_config, config_options, config_file):
                                 config_class=UrsulaConfiguration,
                                 filepath=config_file,
                                 updates=updates)
-
-
-@ursula.command(name='commit-next', hidden=True)
-@group_character_options
-@option_config_file
-@group_general_config
-def commit_to_next_period(general_config, character_options, config_file):
-    """Manually make a commitment to the next period."""
-
-    # Setup
-    emitter = setup_emitter(general_config, character_options.config_options.worker_address)
-    _pre_launch_warnings(emitter, dev=character_options.config_options.dev, force=None)
-    _, URSULA = character_options.create_character(emitter, config_file, general_config.json_ipc, load_seednodes=False)
-
-    committed_period = URSULA.staking_agent.get_current_period() + 1
-    click.echo(CONFIRMING_ACTIVITY_NOW.format(committed_period=committed_period), color='blue')
-    receipt = URSULA.commit_to_next_period(fire_and_forget=False)
-
-    economics = EconomicsFactory.get_economics(registry=URSULA.registry)
-    date = datetime_at_period(period=committed_period, seconds_per_period=economics.seconds_per_period)
-
-    # TODO: Double-check dates here
-    message = SUCCESSFUL_CONFIRM_ACTIVITY.format(committed_period=committed_period, date=date)
-    emitter.echo(message, bold=True, color='blue')
-    paint_receipt_summary(emitter=emitter,
-                          receipt=receipt,
-                          chain_name=URSULA.staking_agent.blockchain.client.chain_name)
-
-    # TODO: Check CommitmentMade event (see #1193)
 
 
 def _pre_launch_warnings(emitter, dev, force):
