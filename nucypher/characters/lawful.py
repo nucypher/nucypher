@@ -17,7 +17,7 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 
 
 import json
-from collections import OrderedDict
+from collections import OrderedDict, defaultdict
 
 import contextlib
 import maya
@@ -39,7 +39,6 @@ from constant_sorrow.constants import (
     READY,
     INVALIDATED
 )
-from collections import OrderedDict, defaultdict
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives.asymmetric.ec import EllipticCurve
 from cryptography.hazmat.primitives.serialization import Encoding
@@ -59,7 +58,6 @@ from typing import Dict, Iterable, List, Tuple, Union, Optional, Sequence, Set
 from umbral import pre
 from umbral.keys import UmbralPublicKey
 from umbral.kfrags import KFrag
-from umbral.pre import UmbralCorrectnessError
 from umbral.signing import Signature
 
 import nucypher
@@ -101,6 +99,7 @@ from nucypher.network.protocols import InterfaceInfo, parse_node_uri
 from nucypher.network.server import ProxyRESTServer, TLSHostingPower, make_rest_app
 from nucypher.network.trackers import AvailabilityTracker
 from nucypher.utilities.logging import Logger
+from nucypher.utilities.networking import validate_worker_ip
 
 
 class Alice(Character, BlockchainPolicyAuthor):
@@ -1258,9 +1257,13 @@ class Ursula(Teacher, Character, Worker):
             if result > 0:
                 self.log.debug(f"Pruned {result} treasure maps.")
 
+    def __preflight(self) -> None:
+        """Called immediately before running services"""
+        validate_worker_ip(worker_ip=self.rest_interface.host)
+
     def run(self,
             emitter: StdoutEmitter = None,
-            discovery: bool = True,
+            discovery: bool = True,  # TODO: see below
             availability: bool = True,
             worker: bool = True,
             pruning: bool = True,
@@ -1271,6 +1274,8 @@ class Ursula(Teacher, Character, Worker):
             ) -> None:
 
         """Schedule and start select ursula services, then optionally start the reactor."""
+
+        self.__preflight()
 
         #
         # Async loops ordered by schedule priority

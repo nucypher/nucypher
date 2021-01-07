@@ -245,8 +245,7 @@ class Learner:
 
         from nucypher.characters.lawful import Ursula
         self.node_class = node_class or Ursula
-        self.node_class.set_cert_storage_function(
-            node_storage.store_node_certificate)  # TODO: Fix this temporary workaround for on-disk cert storage.  #1481
+        self.node_class.set_cert_storage_function(node_storage.store_node_certificate)  # TODO: Fix this temporary workaround for on-disk cert storage.  #1481
 
         known_nodes = known_nodes or tuple()
         self.unresponsive_startup_nodes = list()  # TODO: Buckets - Attempt to use these again later  #567

@@ -16,22 +16,25 @@
 """
 
 
-from ipaddress import ip_address
-
 import random
 import requests
+from ipaddress import ip_address
 from requests.exceptions import RequestException, HTTPError
 from typing import Union
 
-from nucypher.blockchain.eth.registry import BaseContractRegistry, InMemoryContractRegistry
+from nucypher.config.storages import LocalFileBasedNodeStorage
 from nucypher.acumen.perception import FleetSensor
-from nucypher.characters.lawful import Ursula
+from nucypher.blockchain.eth.registry import BaseContractRegistry, InMemoryContractRegistry
 from nucypher.network.middleware import RestMiddleware, NucypherMiddlewareClient
 from nucypher.utilities.logging import Logger
 
 
 class UnknownIPAddress(RuntimeError):
     pass
+
+
+class InvalidWorkerIP(RuntimeError):
+    """Raised when an Ursula is using an invalid IP address for it's server."""
 
 
 RequestErrors = (
@@ -42,7 +45,20 @@ RequestErrors = (
     HTTPError
 )
 
+RESERVED_IP_ADDRESSES = (
+    '0.0.0.0',
+    '127.0.0.1',
+    '1.2.3.4'
+)
+
 IP_DETECTION_LOGGER = Logger('external-ip-detection')
+
+
+
+def validate_worker_ip(worker_ip: str) -> None:
+    if worker_ip in RESERVED_IP_ADDRESSES:
+        raise InvalidWorkerIP(f'{worker_ip} is not a valid or permitted worker IP address.  '
+                              f'Verify the rest_host is set to the external IPV4 address')
 
 
 def __request(url: str, certificate=None) -> Union[str, None]:
@@ -65,6 +81,8 @@ def get_external_ip_from_default_teacher(network: str,
                                          log: Logger = IP_DETECTION_LOGGER,
                                          registry: BaseContractRegistry = None
                                          ) -> Union[str, None]:
+    from nucypher.characters.lawful import Ursula
+
     if federated_only and registry:
         raise ValueError('Federated mode must not be true if registry is provided.')
     base_error = 'Cannot determine IP using default teacher'
@@ -76,13 +94,19 @@ def get_external_ip_from_default_teacher(network: str,
     except KeyError:
         log.debug(f'{base_error}: Unknown network "{network}".')
         return
-    if not registry:
-        # Registry is needed to perform on-chain staking verification.
-        registry = InMemoryContractRegistry.from_latest_publication(network=network)
+
+    ####
+    # TODO: Clean this mess #1481
+    node_storage = LocalFileBasedNodeStorage(federated_only=federated_only)
+    Ursula.set_cert_storage_function(node_storage.store_node_certificate)
+    Ursula.set_federated_mode(federated_only)
+    #####
+
     teacher = Ursula.from_teacher_uri(teacher_uri=top_teacher_url,
-                                      registry=registry,
                                       federated_only=federated_only,
                                       min_stake=0)  # TODO: Handle customized min stake here.
+
+    # TODO: Pass registry here to verify stake (not essential here since it's a hardcoded node)
     client = NucypherMiddlewareClient()
     try:
         response = client.get(node_or_sprout=teacher, path=f"ping", timeout=2)  # TLS certificate logic within
@@ -97,6 +121,8 @@ def get_external_ip_from_default_teacher(network: str,
             raise UnknownIPAddress(error)
         log.info(f'Fetched external IP address from default teacher ({top_teacher_url} reported {ip}).')
         return ip
+    else:
+        log.debug(f'Failed to get external IP from teacher node ({response.status_code})')
 
 
 def get_external_ip_from_known_nodes(known_nodes: FleetSensor,

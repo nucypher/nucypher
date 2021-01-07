@@ -18,12 +18,14 @@
 
 import click
 
+from nucypher.blockchain.eth.networks import NetworksInventory
 from nucypher.blockchain.eth.signers.software import ClefSigner
 from nucypher.cli.actions.auth import get_client_password, get_nucypher_password
 from nucypher.cli.actions.configure import (
     destroy_configuration,
     handle_missing_configuration_file,
-    get_or_update_configuration, collect_external_ip_address
+    get_or_update_configuration,
+    collect_worker_ip_address
 )
 from nucypher.cli.actions.configure import forget as forget_nodes, perform_ip_checkup
 from nucypher.cli.actions.select import (
@@ -59,7 +61,7 @@ from nucypher.cli.options import (
     option_max_gas_price
 )
 from nucypher.cli.painting.help import paint_new_installation_help
-from nucypher.cli.types import EIP55_CHECKSUM_ADDRESS, NETWORK_PORT
+from nucypher.cli.types import EIP55_CHECKSUM_ADDRESS, NETWORK_PORT, WORKER_IP
 from nucypher.cli.utils import make_cli_character, setup_emitter
 from nucypher.config.characters import UrsulaConfiguration
 from nucypher.config.constants import (
@@ -176,7 +178,7 @@ class UrsulaConfigOptions:
 
         # Resolve rest host
         if not self.rest_host:
-            self.rest_host = collect_external_ip_address(emitter, network=self.domain, force=force)
+            self.rest_host = collect_worker_ip_address(emitter, network=self.domain, force=force)
 
         return UrsulaConfiguration.generate(password=get_nucypher_password(confirm=True),
                                             config_root=config_root,
@@ -223,10 +225,10 @@ group_config_options = group_options(
     max_gas_price=option_max_gas_price,
     worker_address=click.option('--worker-address', help="Run the worker-ursula with a specified address", type=EIP55_CHECKSUM_ADDRESS),
     federated_only=option_federated_only,
-    rest_host=click.option('--rest-host', help="The host IP address to run Ursula network services on", type=click.STRING),
+    rest_host=click.option('--rest-host', help="The host IP address to run Ursula network services on", type=WORKER_IP),
     rest_port=click.option('--rest-port', help="The host port to run Ursula network services on", type=NETWORK_PORT),
     db_filepath=option_db_filepath,
-    network=option_network(),
+    network=option_network(default=NetworksInventory.DEFAULT),
     registry_filepath=option_registry_filepath,
     poa=option_poa,
     light=option_light,
@@ -422,7 +424,7 @@ def config(general_config, config_options, config_file, force, action):
                                          checksum_address=config_options.worker_address,
                                          config_class=UrsulaConfiguration)
     if action == 'ip-address':
-        rest_host = collect_external_ip_address(emitter=emitter, network=config_options.domain, force=force)
+        rest_host = collect_worker_ip_address(emitter=emitter, network=config_options.domain, force=force)
         config_options.rest_host = rest_host
     updates = config_options.get_updates()
     get_or_update_configuration(emitter=emitter,

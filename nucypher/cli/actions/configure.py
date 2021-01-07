@@ -37,10 +37,11 @@ from nucypher.cli.literature import (
     COLLECT_URSULA_IPV4_ADDRESS,
     CONFIRM_URSULA_IPV4_ADDRESS
 )
-from nucypher.cli.types import IPV4_ADDRESS
+from nucypher.cli.types import IPV4_ADDRESS, WORKER_IP
 from nucypher.config.characters import StakeHolderConfiguration
 from nucypher.config.constants import NUCYPHER_ENVVAR_WORKER_IP_ADDRESS
 from nucypher.config.node import CharacterConfiguration
+from nucypher.utilities.networking import InvalidWorkerIP, validate_worker_ip
 from nucypher.utilities.networking import determine_external_ip_address, UnknownIPAddress
 
 
@@ -119,12 +120,12 @@ def handle_invalid_configuration_file(emitter: StdoutEmitter,
         raise  # crash :-(
 
 
-def collect_external_ip_address(emitter: StdoutEmitter, network: str, force: bool = False) -> str:
+def collect_worker_ip_address(emitter: StdoutEmitter, network: str, force: bool = False) -> str:
 
     # From environment variable  # TODO: remove this environment variable?
     ip = os.environ.get(NUCYPHER_ENVVAR_WORKER_IP_ADDRESS)
     if ip:
-        message = f'Using IP address from {NUCYPHER_ENVVAR_WORKER_IP_ADDRESS} environment variable'
+        message = f'Using IP address ({ip}) from {NUCYPHER_ENVVAR_WORKER_IP_ADDRESS} environment variable'
         emitter.message(message, verbosity=2)
         return ip
 
@@ -141,8 +142,9 @@ def collect_external_ip_address(emitter: StdoutEmitter, network: str, force: boo
     # Confirmation
     if not force:
         if not click.confirm(CONFIRM_URSULA_IPV4_ADDRESS.format(rest_host=ip)):
-            ip = click.prompt(COLLECT_URSULA_IPV4_ADDRESS, type=IPV4_ADDRESS)
+            ip = click.prompt(COLLECT_URSULA_IPV4_ADDRESS, type=WORKER_IP)
 
+    validate_worker_ip(worker_ip=ip)
     return ip
 
 
@@ -157,7 +159,17 @@ def perform_ip_checkup(emitter: StdoutEmitter, ursula: Ursula, force: bool = Fal
         message = 'Cannot automatically determine external IP address'
         emitter.message(message)
         return  # TODO: crash, or not to crash... that is the question
-    ip_mismatch = external_ip != ursula.rest_interface.host
+    rest_host = ursula.rest_interface.host
+    try:
+        validate_worker_ip(worker_ip=rest_host)
+    except InvalidWorkerIP:
+        message = f'{rest_host} is not a valid or permitted worker IP address.  Set the correct external IP then try again\n' \
+                  f'automatic configuration -> nucypher ursula config ip-address\n' \
+                  f'manual configuration    -> nucypher ursula config --rest-host <IP ADDRESS>'
+        emitter.message(message)
+        return
+
+    ip_mismatch = external_ip != rest_host
     if ip_mismatch and not force:
         error = f'\nX External IP address ({external_ip}) does not match configuration ({ursula.rest_interface.host}).\n'
         hint = f"Run 'nucypher ursula config ip-address' to reconfigure the IP address then try " \

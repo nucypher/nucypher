@@ -39,7 +39,6 @@ class UrsulaConfiguration(CharacterConfiguration):
     CHARACTER_CLASS = Ursula
     NAME = CHARACTER_CLASS.__name__.lower()
 
-    DEFAULT_REST_HOST = '127.0.0.1'
     DEFAULT_REST_PORT = 9151
     DEFAULT_DEVELOPMENT_REST_PORT = 10151
     __DEFAULT_TLS_CURVE = ec.SECP384R1
@@ -48,10 +47,10 @@ class UrsulaConfiguration(CharacterConfiguration):
     LOCAL_SIGNERS_ALLOWED = True
 
     def __init__(self,
+                 rest_host: str,
                  worker_address: str = None,
                  dev_mode: bool = False,
                  db_filepath: str = None,
-                 rest_host: str = None,
                  rest_port: int = None,
                  tls_curve: EllipticCurve = None,
                  certificate: Certificate = None,
@@ -64,7 +63,7 @@ class UrsulaConfiguration(CharacterConfiguration):
             else:
                 rest_port = self.DEFAULT_REST_PORT
         self.rest_port = rest_port
-        self.rest_host = rest_host or self.DEFAULT_REST_HOST
+        self.rest_host = rest_host
         self.tls_curve = tls_curve or self.__DEFAULT_TLS_CURVE
         self.certificate = certificate
         self.db_filepath = db_filepath or UNINITIALIZED_CONFIGURATION
