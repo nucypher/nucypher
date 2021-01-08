@@ -628,9 +628,9 @@ class WorkTracker:
             # the effect of this is that we get one immediate retry.
             # After that, the random_interval will be honored until
             # success is achieved
-            act_now = self._consecutive_fails < 1
+            commit_now = self._consecutive_fails < 1
             self._consecutive_fails += 1
-            self.start(act_now=act_now)
+            self.start(commit_now=commit_now)
 
 
     def __work_requirement_is_satisfied(self) -> bool:

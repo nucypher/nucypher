@@ -14,6 +14,8 @@
  You should have received a copy of the GNU Affero General Public License
  along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
+
+
 import pytest
 import pytest_twisted
 from twisted.internet import task
@@ -167,7 +169,6 @@ class WorkTrackerThatFailsFor12HoursThenSucceeds(WorkTrackerArbitraryFailureCond
         return cls.INTERVAL_FLOOR
 
 
-@pytest.mark.skip('Damon ... send help')
 @pytest_twisted.inlineCallbacks
 def test_worker_rate_limiting():
     """
