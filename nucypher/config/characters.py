@@ -59,7 +59,7 @@ class UrsulaConfiguration(CharacterConfiguration):
                  *args, **kwargs) -> None:
 
         if dev_mode:
-            rest_host = self.DEFAULT_DEVELOPMENT_REST_HOST
+            rest_host = rest_host or self.DEFAULT_DEVELOPMENT_REST_HOST
             if not rest_port:
                 rest_port = self.DEFAULT_DEVELOPMENT_REST_PORT
         else:
