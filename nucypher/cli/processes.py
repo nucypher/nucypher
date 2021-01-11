@@ -47,7 +47,7 @@ class UrsulaCommandProtocol(LineReceiver):
         # Expose Ursula functional entry points
         self.__commands = {
 
-             # Help
+            # Help
             '?': self.paintHelp,
             'help': self.paintHelp,
 
@@ -55,9 +55,6 @@ class UrsulaCommandProtocol(LineReceiver):
             'status': self.paintStatus,
             'known_nodes': self.paintKnownNodes,
             'fleet_state': self.paintFleetState,
-
-            # Blockchain Control
-            'commit_next': self.commit_to_next_period,  # hidden
 
             # Learning Control
             'cycle_teacher': self.cycle_teacher,
@@ -69,6 +66,8 @@ class UrsulaCommandProtocol(LineReceiver):
 
         }
 
+        self._hidden_commands = ('?',)
+
     @property
     def commands(self):
         return self.__commands.keys()
@@ -79,7 +78,7 @@ class UrsulaCommandProtocol(LineReceiver):
         """
         self.emitter.echo("\nUrsula Command Help\n===================\n")
         for command, func in self.__commands.items():
-            if command not in ('?', 'commit_next'):
+            if command not in self._hidden_commands:
                 try:
                     self.emitter.echo(f'{command}\n{"-"*len(command)}\n{func.__doc__.lstrip()}')
                 except AttributeError:
@@ -165,12 +164,6 @@ class UrsulaCommandProtocol(LineReceiver):
         Manually stop the attached Ursula's node learning protocol.
         """
         return self.ursula.stop_learning_loop()
-
-    def commit_to_next_period(self):
-        """
-        manually make a commitment to the next period
-        """
-        return self.ursula.commit_to_next_period(fire_and_forget=False)
 
     def stop(self):
         """
