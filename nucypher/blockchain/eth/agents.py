@@ -1719,14 +1719,13 @@ class ContractAgency:
         if not issubclass(agent_class, EthereumContractAgent):
             raise TypeError(f"Only agent subclasses can be used from the agency.")
 
-        registry_id = None
         if not registry:
             if len(cls.__agents) == 1:
                 registry_id = list(cls.__agents.keys()).pop()
             else:
                 raise ValueError("Need to specify a registry in order to get an agent from the ContractAgency")
-
-        registry_id = registry_id or registry.id
+        else:
+            registry_id = registry.id
         try:
             return cast(Agent, cls.__agents[registry_id][agent_class])
         except KeyError:

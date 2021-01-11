@@ -125,7 +125,7 @@ def _make_rest_app(datastore: Datastore, this_node, domain: str, log: Logger) ->
         """
 
         if request.method == 'GET':
-            requester_ip_address = request.environ['REMOTE_ADDR']
+            requester_ip_address = request.remote_addr
             return Response(requester_ip_address, status=200)
 
         elif request.method == 'POST':
@@ -138,9 +138,10 @@ def _make_rest_app(datastore: Datastore, this_node, domain: str, log: Logger) ->
                 initiator_address, initiator_port = tuple(requesting_ursula.rest_interface)
 
             # Compare requester and posted Ursula information
-            request_address = request.environ['REMOTE_ADDR']
+            request_address = request.remote_addr
             if request_address != initiator_address:
-                return Response({'error': 'Origin address mismatch'}, status=400)
+                message = f'Origin address mismatch: Request origin is {request_address} but metadata claims {initiator_address}.'
+                return Response({'error': message}, status=400)
 
             #
             # Make a Sandwich

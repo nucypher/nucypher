@@ -119,7 +119,7 @@ def get_external_ip_from_default_teacher(network: str,
         except ValueError:
             error = f'Default teacher at {top_teacher_url} returned an invalid IP response; Got {response.text}'
             raise UnknownIPAddress(error)
-        log.info(f'Fetched external IP address from default teacher ({top_teacher_url} reported {ip}).')
+        log.info(f'Fetched external IP address ({ip}) from default teacher ({top_teacher_url}).')
         return ip
     else:
         log.debug(f'Failed to get external IP from teacher node ({response.status_code})')

@@ -385,11 +385,10 @@ class Learner:
         with suppress(KeyError):
             already_known_node = self.known_nodes[node.checksum_address]
             if not node.timestamp > already_known_node.timestamp:
-                # self.log.debug("Skipping already known node {}".format(already_known_node))  # FIXME: ""OMG, enough with the learning already!" – @vepkenez  (#1712)
                 # This node is already known.  We can safely return.
                 return False
 
-        self.known_nodes[node.checksum_address] = node
+        self.known_nodes[node.checksum_address] = node  # FIXME - dont always remember nodes, bucket them.
 
         if self.save_metadata:
             self.node_storage.store_node_metadata(node=node)
