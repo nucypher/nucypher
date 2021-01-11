@@ -15,19 +15,27 @@
  along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
-import binascii
-import random
-
-import maya
-
-from bytestring_splitter import BytestringSplitter
-from constant_sorrow.constants import NO_KNOWN_NODES
-from collections import namedtuple, defaultdict
 from collections import OrderedDict
+from collections import namedtuple, defaultdict
+from typing import Iterator
 
-from .nicknames import Nickname
+import binascii
+import maya
+import random
+from bytestring_splitter import BytestringSplitter
+from constant_sorrow.constants import (
+    NO_KNOWN_NODES,
+    UNVERIFIED,
+    VERIFIED,
+    UNAVAILABLE,
+    SUSPICIOUS,
+    UNSTAKED,
+    INVALID
+)
+
 from nucypher.crypto.api import keccak_digest
 from nucypher.utilities.logging import Logger
+from .nicknames import Nickname
 
 
 class FleetSensor:
@@ -42,8 +50,21 @@ class FleetSensor:
     log = Logger("Learning")
     FleetState = namedtuple("FleetState", ("nickname", "icon", "nodes", "updated", "checksum"))
 
-    def __init__(self, domain: str):
+    BUCKETS = (
+        UNVERIFIED,
+        VERIFIED,
+        UNAVAILABLE,
+        SUSPICIOUS,
+        UNSTAKED,
+        INVALID,
+    )
+
+    class UnknownLabel(KeyError):
+        pass
+
+    def __init__(self, domain: str, discovery_labels = None):
         self.domain = domain
+        self.discovery_labels = discovery_labels  # TODO: Only track certain labels?
         self.additional_nodes_to_track = []
         self.updated = maya.now()
         self._nodes = OrderedDict()
@@ -168,8 +189,28 @@ class FleetSensor:
                 "updated": state.updated.rfc2822(),
                 }
 
-    def mark_as(self, label: Exception, node: "Teacher"):
-        self._marked[label].append(node)
+    def get_nodes(self, label=None) -> Iterator["Teacher"]:
+        if not label:
+            return iter(self)
+        if label not in self.BUCKETS:
+            raise self.UnknownLabel(f'{label} is not a valid node label')
+        try:
+            nodes = self._marked[label]
+        except KeyError:
+            return iter(dict())  # empty
+        return iter(nodes)
+
+    def mark_as(self, label, node: "Teacher") -> None:
+        if label not in self.BUCKETS:
+            raise ValueError(f'Unknown label {label}')
 
         if self._nodes.get(node):
-            del self._nodes[node]
+            # Remove any existing labels...
+            for _label in self.BUCKETS:
+                if node in self._marked[_label]:
+                    self._marked[_label].remove(node)
+            # Set the new label
+            self._marked[label].append(node)
+
+        else:
+            raise ValueError(f'Cannot mark an unknown node ({node}).')

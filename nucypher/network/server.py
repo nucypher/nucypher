@@ -15,10 +15,11 @@ You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
+import weakref
+
 import binascii
 import os
 import uuid
-import weakref
 from bytestring_splitter import BytestringSplitter
 from constant_sorrow import constants
 from constant_sorrow.constants import FLEET_STATES_MATCH, NO_BLOCKCHAIN_CONNECTION, NO_KNOWN_NODES, RELAX
@@ -32,8 +33,8 @@ from umbral.kfrags import KFrag
 from web3.exceptions import TimeExhausted
 
 import nucypher
-from nucypher.crypto.api import InvalidNodeCertificate
 from nucypher.config.constants import MAX_UPLOAD_CONTENT_LENGTH
+from nucypher.crypto.api import MissingCertificatePseudonym
 from nucypher.crypto.keypairs import HostingKeypair
 from nucypher.crypto.kits import UmbralMessageKit
 from nucypher.crypto.powers import KeyPairBasedPower, PowerUpError
@@ -45,6 +46,7 @@ from nucypher.network import LEARNING_LOOP_VERSION
 from nucypher.network.exceptions import NodeSeemsToBeDown
 from nucypher.network.protocols import InterfaceInfo
 from nucypher.utilities.logging import Logger
+
 
 HERE = BASE_DIR = os.path.abspath(os.path.dirname(__file__))
 TEMPLATES_DIR = os.path.join(HERE, "templates")
@@ -157,7 +159,7 @@ def _make_rest_app(datastore: Datastore, this_node, domain: str, log: Logger) ->
             except NodeSeemsToBeDown:
                 return Response({'error': 'Unreachable node'}, status=400)  # ... toasted
 
-            except InvalidNodeCertificate:
+            except MissingCertificatePseudonym:
                 return Response({'error': 'Invalid TLS certificate - missing checksum address'}, status=400)  # ... invalid
 
             # Compare the results of the outer POST with the inner GET... yum
@@ -169,6 +171,7 @@ def _make_rest_app(datastore: Datastore, this_node, domain: str, log: Logger) ->
     @rest_app.route('/node_metadata', methods=["GET"])
     def all_known_nodes():
         headers = {'Content-Type': 'application/octet-stream'}
+
         if this_node._learning_deferred is not RELAX and not this_node._learning_task.running:
             # TODO: Is this every something we don't want to do?
             this_node.start_learning_loop()
@@ -176,7 +179,8 @@ def _make_rest_app(datastore: Datastore, this_node, domain: str, log: Logger) ->
         if this_node.known_nodes.checksum is NO_KNOWN_NODES:
             return Response(b"", headers=headers, status=204)
 
-        known_nodes_bytestring = this_node.bytestring_of_known_nodes()
+        label = request.args.get('label')
+        known_nodes_bytestring = this_node.bytestring_of_known_nodes(label=label)
         signature = this_node.stamp(known_nodes_bytestring)
         return Response(bytes(signature) + known_nodes_bytestring, headers=headers)
 
@@ -191,14 +195,12 @@ def _make_rest_app(datastore: Datastore, this_node, domain: str, log: Logger) ->
             payload = this_node.known_nodes.snapshot() + bytes(FLEET_STATES_MATCH)
             signature = this_node.stamp(payload)
             return Response(bytes(signature) + payload, headers=headers)
-
-        sprouts = _node_class.batch_from_bytes(request.data)
-
-        for node in sprouts:
-            this_node.remember_node(node)
-
-        # TODO: What's the right status code here?  202?  Different if we already knew about the node(s)?
-        return all_known_nodes()
+        else:
+            sprouts = _node_class.batch_from_bytes(request.data)
+            for node in sprouts:
+                this_node.remember_node(node)
+            # TODO: What's the right status code here?  202?  Different if we already knew about the node(s)?
+            return all_known_nodes()
 
     @rest_app.route('/consider_arrangement', methods=['POST'])
     def consider_arrangement():

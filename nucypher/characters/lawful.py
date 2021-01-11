@@ -37,7 +37,8 @@ from constant_sorrow.constants import (
     STRANGER_ALICE,
     UNKNOWN_VERSION,
     READY,
-    INVALIDATED
+    INVALIDATED,
+    VERIFIED
 )
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives.asymmetric.ec import EllipticCurve
@@ -103,6 +104,9 @@ from nucypher.utilities.networking import validate_worker_ip
 
 
 class Alice(Character, BlockchainPolicyAuthor):
+
+    DISCOVERY_LABELS = (VERIFIED, )
+
     banner = ALICE_BANNER
     _interface_class = AliceInterface
     _default_crypto_powerups = [SigningPower, DecryptingPower, DelegatingPower]
@@ -160,6 +164,7 @@ class Alice(Character, BlockchainPolicyAuthor):
                            federated_only=federated_only,
                            checksum_address=checksum_address,
                            network_middleware=network_middleware,
+                           discovery_labels=self.DISCOVERY_LABELS  # TODO: Unhardcode?
                            *args, **kwargs)
 
         if is_me and not federated_only:  # TODO: #289
