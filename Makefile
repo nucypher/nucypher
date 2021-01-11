@@ -69,7 +69,7 @@ smoke-test: clean
 
 lock: clean
     # Relock dependencies
-	scripts/installation/relock_dependencies.sh
+	scripts/dependencies/relock_dependencies.sh
 
 env: lock
     # Relock dependencies and generate a pipenv virtualenv from the result

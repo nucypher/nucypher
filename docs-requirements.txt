@@ -1,22 +1,41 @@
 -i https://pypi.python.org/simple
 alabaster==0.7.12
+apipkg==1.5; python_version >= '2.7' and python_version not in '3.0, 3.1, 3.2, 3.3'
+attrs==20.3.0; python_version >= '2.7' and python_version not in '3.0, 3.1, 3.2, 3.3'
+autosemver==0.5.5
 babel==2.9.0; python_version >= '2.7' and python_version not in '3.0, 3.1, 3.2, 3.3'
 certifi==2020.12.5
 chardet==4.0.0; python_version >= '2.7' and python_version not in '3.0, 3.1, 3.2, 3.3, 3.4'
 click==7.1.2; python_version >= '2.7' and python_version not in '3.0, 3.1, 3.2, 3.3, 3.4'
+coverage==5.3.1; python_version >= '2.7' and python_version not in '3.0, 3.1, 3.2, 3.3, 3.4' and python_version < '4'
 docutils==0.16; python_version >= '2.7' and python_version not in '3.0, 3.1, 3.2, 3.3, 3.4'
+dulwich==0.19.16
+execnet==1.7.1; python_version >= '2.7' and python_version not in '3.0, 3.1, 3.2, 3.3'
+git+git://github.com/inspirehep/jsonschema2rst.git@d211d9709046431a6b6a4594c97c22d8713d854b#egg=jsonschema2rst
 idna==2.10; python_version >= '2.7' and python_version not in '3.0, 3.1, 3.2, 3.3'
 imagesize==1.2.0; python_version >= '2.7' and python_version not in '3.0, 3.1, 3.2, 3.3'
+importlib-metadata==3.3.0; python_version < '3.8' and python_version < '3.8'
 incremental==17.5.0
+iniconfig==1.1.1
+isort==5.7.0; python_version >= '3.6' and python_version < '4'
 jinja2==2.11.2; python_version >= '2.7' and python_version not in '3.0, 3.1, 3.2, 3.3, 3.4'
-git+git://github.com/inspirehep/jsonschema2rst@d211d9709046431a6b6a4594c97c22d8713d854b#egg=jsonschema2rst
 markupsafe==1.1.1; python_version >= '2.7' and python_version not in '3.0, 3.1, 3.2, 3.3'
-py-solc-x==0.10.1
+mock==4.0.3; python_version >= '3.6'
 packaging==20.8; python_version >= '2.7' and python_version not in '3.0, 3.1, 3.2, 3.3'
+pep8==1.7.1
+pluggy==0.13.1; python_version >= '2.7' and python_version not in '3.0, 3.1, 3.2, 3.3'
+py-solc-x==0.10.1
+py==1.10.0; python_version >= '2.7' and python_version not in '3.0, 3.1, 3.2, 3.3'
 pygments==2.7.3; python_version >= '3.5'
 pyparsing==2.4.7; python_version >= '2.6' and python_version not in '3.0, 3.1, 3.2'
+pytest-cache==1.0
+pytest-cov==2.10.1; python_version >= '2.7' and python_version not in '3.0, 3.1, 3.2, 3.3, 3.4'
+pytest-pep8==1.0.6
+pytest==6.2.1; python_version >= '3.6'
 pytz==2020.5
+pyyaml==5.3.1
 requests==2.25.1; python_version >= '2.7' and python_version not in '3.0, 3.1, 3.2, 3.3, 3.4'
+semantic-version==2.8.5; python_version >= '2.7' and python_version not in '3.0, 3.1, 3.2, 3.3'
 snowballstemmer==2.0.0
 sphinx-rtd-theme==0.5.1
 sphinx==3.0.1
@@ -26,6 +45,8 @@ sphinxcontrib-htmlhelp==1.0.3; python_version >= '3.5'
 sphinxcontrib-jsmath==1.0.1; python_version >= '3.5'
 sphinxcontrib-qthelp==1.0.3; python_version >= '3.5'
 sphinxcontrib-serializinghtml==1.1.4; python_version >= '3.5'
-toml==0.10.2
+toml==0.10.2; python_version >= '2.6' and python_version not in '3.0, 3.1, 3.2'
 towncrier==19.2.0
+typing-extensions==3.7.4.3; python_version < '3.8'
 urllib3==1.26.2; python_version >= '2.7' and python_version not in '3.0, 3.1, 3.2, 3.3, 3.4' and python_version < '4'
+zipp==3.4.0; python_version >= '3.6'
