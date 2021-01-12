@@ -62,7 +62,7 @@ def cloudworkers():
 @click.option('--env', '-e', 'envvars', help="environment variables (ENVVAR=VALUE)", multiple=True, type=click.STRING, default=[])
 @click.option('--cli', '-c', 'cliargs', help="cli arguments for 'nucypher run': eg.'--max-gas-price 50'/'--c max-gas-price=50'", multiple=True, type=click.STRING, default=[])
 @group_general_config
-def up(general_config, staker_options, config_file, cloudprovider, aws_profile, remote_provider, nucypher_image, seed_network, stakes, wipe, prometheus, namespace, envvars, cliargs):
+def up(general_config, staker_options, config_file, cloudprovider, aws_profile, remote_provider, nucypher_image, seed_network, stakes, wipe, namespace, envvars, cliargs):
     """Creates workers for all stakes owned by the user for the given network."""
 
     emitter = setup_emitter(general_config)
@@ -82,7 +82,7 @@ def up(general_config, staker_options, config_file, cloudprovider, aws_profile, 
     config_file = config_file or StakeHolderConfiguration.default_filepath()
 
     deployer = CloudDeployers.get_deployer(cloudprovider)(emitter, STAKEHOLDER, config_file, remote_provider,
-        nucypher_image, seed_network, aws_profile, prometheus, namespace=namespace, network=STAKEHOLDER.network, envvars=envvars, cliargs=cliargs)
+        nucypher_image, seed_network, aws_profile, namespace=namespace, network=STAKEHOLDER.network, envvars=envvars, cliargs=cliargs)
     if staker_addresses:
         config = deployer.create_nodes(staker_addresses)
 
@@ -103,7 +103,7 @@ def up(general_config, staker_options, config_file, cloudprovider, aws_profile, 
 @click.option('--env', '-e', 'envvars', help="environment variables (ENVVAR=VALUE)", multiple=True, type=click.STRING, default=[])
 @click.option('--cli', '-c', 'cliargs', help="cli arguments for 'nucypher run': eg.'--max-gas-price 50'/'--c max-gas-price=50'", multiple=True, type=click.STRING, default=[])
 @group_general_config
-def create(general_config, cloudprovider, aws_profile, remote_provider, nucypher_image, seed_network, prometheus, count, namespace, network, envvars, cliargs):
+def create(general_config, cloudprovider, aws_profile, remote_provider, nucypher_image, seed_network, count, namespace, network, envvars, cliargs):
     """Creates the required number of workers to be staked later under a namespace"""
 
     emitter = setup_emitter(general_config)
@@ -113,7 +113,7 @@ def create(general_config, cloudprovider, aws_profile, remote_provider, nucypher
         return
 
     deployer = CloudDeployers.get_deployer(cloudprovider)(emitter, None, None, remote_provider, nucypher_image, seed_network,
-        aws_profile, prometheus, namespace=namespace, network=network, envvars=envvars, cliargs=cliargs)
+        aws_profile, namespace=namespace, network=network, envvars=envvars, cliargs=cliargs)
 
     names = []
     i = 1

@@ -177,8 +177,6 @@ class BaseCloudNodeConfigurator:
                  pre_config=False,
                  network=None,
                  namespace=None,
-                 gas_strategy=None,
-                 max_gas_price=None,
                  action=None,
                  envvars=None,
                  cliargs=None,
@@ -245,14 +243,10 @@ class BaseCloudNodeConfigurator:
         self.host_level_overrides = {
             'blockchain_provider': blockchain_provider,
             'nucypher_image': nucypher_image,
-            'gas_strategy': f'--gas-strategy {gas_strategy}' if gas_strategy else '',
-            'max_gas_price': f'--max-gas-price {max_gas_price}' if max_gas_price else '',
         }
 
         self.config['blockchain_provider'] = blockchain_provider or self.config.get('blockchain_provider') or f'/root/.local/share/geth/.ethereum/{self.chain_name}/geth.ipc' # the default for nodes that run their own geth container
         self.config['nucypher_image'] = nucypher_image or self.config.get('nucypher_image') or 'nucypher/nucypher:latest'
-        self.config['gas_strategy'] = f'--gas-strategy {gas_strategy}' if gas_strategy else self.config.get('gas-strategy', '')
-        self.config['max_gas_price'] = f'--max-gas-price {max_gas_price}' if max_gas_price else self.config.get('max-gas-price', '')
 
         self.config['seed_network'] = seed_network if seed_network is not None else self.config.get('seed_network')
         if not self.config['seed_network']:

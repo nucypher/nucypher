@@ -92,9 +92,6 @@ Some examples:
     # deploy nucypher on all your managed hosts
     $ nucypher cloudworkers deploy --remote-provider http://mainnet.infura..3epifj3rfioj
 
-    # set some environment variables to configure Ursula workers on all your hosts
-    $ nucypher cloudworkers deploy -e DONT_PERFORM_WORK_ON_SUNDAY=true
-
     # print the current status of all workers across all namespaces (in bash)
     $ for ns in $(nucypher cloudworkers list-namespaces); do nucypher cloudworkers status --namespace $ns; done
     > local nickname: Project11-mainnet-2
@@ -112,11 +109,22 @@ Some examples:
     .....
 
     # see if all your managed hosts successfully committed to the next period
-    for ns in $(nucypher cloudworkers list-namespaces); do nucypher cloudworkers status --namespace $ns; done | grep "last committed period: \|last log line: \|local nickname:"
+    $ for ns in $(nucypher cloudworkers list-namespaces); do nucypher cloudworkers status --namespace $ns; done | grep "last committed period: \|last log line: \|local nickname:"
 
     # backup all your worker's critical data
     # note: this is also done after any update or deploy operations
-    for ns in $(nucypher cloudworkers list-namespaces); do nucypher cloudworkers backup --namespace $ns; done
+    $ for ns in $(nucypher cloudworkers list-namespaces); do nucypher cloudworkers backup --namespace $ns; done
 
     # show some info about your hosts
-    nucypher cloudworkers list-hosts -v
+    $ nucypher cloudworkers list-hosts -v
+
+    # set a max-gas-price for existing hosts
+    $ nucypher cloudworkers update --cli max-gas-price=50
+
+    # NB: environment variables and cli args function identically for both update and deploy
+
+    # set some environment variables to configure Ursula workers on all your hosts
+    $ nucypher cloudworkers deploy -e DONT_PERFORM_WORK_ON_SUNDAY=true
+
+    # set a max gas price and gas strategy for existing hosts
+    $ nucypher cloudworkers update --cli max-gas-price=50 --cli gas-strategy=slow
