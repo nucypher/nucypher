@@ -12,4 +12,6 @@ recursive-include nucypher/blockchain/eth/aragon_artifacts *.json
 recursive-include nucypher/blockchain/eth/contract_registry *.json *.md
 prune nucypher/blockchain/eth/contract_registry/historical
 recursive-include nucypher/network/templates *.html *.mako
+recursive-include nucypher/utilities/templates *.html *.mako
+recursive-include deploy/ansible/worker *.yml
 recursive-include nucypher/acumen/ *json

@@ -18,8 +18,6 @@
 import click
 import os
 
-from nucypher.cli.options import option_gas_strategy, option_max_gas_price
-
 try:
     from nucypher.utilities.clouddeploy import CloudDeployers
 except ImportError:
@@ -60,11 +58,11 @@ def cloudworkers():
 @click.option('--seed-network', help="Do you want the 1st node to be --lonely and act as a seed node for this network", default=False, is_flag=True)
 @click.option('--include-stakeholder', 'stakes', help="limit worker to specified stakeholder addresses", multiple=True)
 @click.option('--wipe', help="Clear nucypher configs on existing nodes and start a fresh node with new keys.", default=False, is_flag=True)
-@click.option('--prometheus', help="Run Prometheus on workers.", default=False, is_flag=True)
 @click.option('--namespace', help="Namespace for these operations.  Used to address hosts and data locally and name hosts on cloud platforms.", type=click.STRING, default='local-stakeholders')
 @click.option('--env', '-e', 'envvars', help="environment variables (ENVVAR=VALUE)", multiple=True, type=click.STRING, default=[])
+@click.option('--cli', '-c', 'cliargs', help="cli arguments for 'nucypher run': eg.'--max-gas-price 50'/'--c max-gas-price=50'", multiple=True, type=click.STRING, default=[])
 @group_general_config
-def up(general_config, staker_options, config_file, cloudprovider, aws_profile, remote_provider, nucypher_image, seed_network, stakes, wipe, prometheus, namespace, envvars):
+def up(general_config, staker_options, config_file, cloudprovider, aws_profile, remote_provider, nucypher_image, seed_network, stakes, wipe, namespace, envvars, cliargs):
     """Creates workers for all stakes owned by the user for the given network."""
 
     emitter = setup_emitter(general_config)
@@ -84,7 +82,7 @@ def up(general_config, staker_options, config_file, cloudprovider, aws_profile, 
     config_file = config_file or StakeHolderConfiguration.default_filepath()
 
     deployer = CloudDeployers.get_deployer(cloudprovider)(emitter, STAKEHOLDER, config_file, remote_provider,
-        nucypher_image, seed_network, aws_profile, prometheus, namespace=namespace, network=STAKEHOLDER.network, envvars=envvars)
+        nucypher_image, seed_network, aws_profile, namespace=namespace, network=STAKEHOLDER.network, envvars=envvars, cliargs=cliargs)
     if staker_addresses:
         config = deployer.create_nodes(staker_addresses)
 
@@ -99,13 +97,13 @@ def up(general_config, staker_options, config_file, cloudprovider, aws_profile, 
 @click.option('--remote-provider', help="The blockchain provider for the remote node, if not provided, nodes will run geth.", default=None)
 @click.option('--nucypher-image', help="The docker image containing the nucypher code to run on the remote nodes. (default is nucypher/nucypher:latest)", default=None)
 @click.option('--seed-network', help="Do you want the 1st node to be --lonely and act as a seed node for this network", default=False, is_flag=True)
-@click.option('--prometheus', help="Run Prometheus on workers.", default=False, is_flag=True)
 @click.option('--count', help="Create this many nodes.", type=click.INT, default=1)
 @click.option('--namespace', help="Namespace for these operations.  Used to address hosts and data locally and name hosts on cloud platforms.", type=click.STRING, default='local-stakeholders')
 @click.option('--network', help="The Nucypher network name these hosts will run on.", type=click.STRING, default='mainnet')
 @click.option('--env', '-e', 'envvars', help="environment variables (ENVVAR=VALUE)", multiple=True, type=click.STRING, default=[])
+@click.option('--cli', '-c', 'cliargs', help="cli arguments for 'nucypher run': eg.'--max-gas-price 50'/'--c max-gas-price=50'", multiple=True, type=click.STRING, default=[])
 @group_general_config
-def create(general_config, cloudprovider, aws_profile, remote_provider, nucypher_image, seed_network, prometheus, count, namespace, network, envvars):
+def create(general_config, cloudprovider, aws_profile, remote_provider, nucypher_image, seed_network, count, namespace, network, envvars, cliargs):
     """Creates the required number of workers to be staked later under a namespace"""
 
     emitter = setup_emitter(general_config)
@@ -115,7 +113,7 @@ def create(general_config, cloudprovider, aws_profile, remote_provider, nucypher
         return
 
     deployer = CloudDeployers.get_deployer(cloudprovider)(emitter, None, None, remote_provider, nucypher_image, seed_network,
-        aws_profile, prometheus, namespace=namespace, network=network, envvars=envvars)
+        aws_profile, namespace=namespace, network=network, envvars=envvars, cliargs=cliargs)
 
     names = []
     i = 1
@@ -190,16 +188,14 @@ def add_for_stake(general_config, staker_options, config_file, staker_address, h
 @click.option('--nucypher-image', help="The docker image containing the nucypher code to run on the remote nodes.", default=None)
 @click.option('--seed-network', help="Do you want the 1st node to be --lonely and act as a seed node for this network", default=False, is_flag=True)
 @click.option('--wipe', help="Clear your nucypher config and start a fresh node with new keys", default=False, is_flag=True)
-@click.option('--prometheus', help="Run Prometheus on workers.", default=False, is_flag=True)
 @click.option('--namespace', help="Namespace for these operations.  Used to address hosts and data locally and name hosts on cloud platforms.", type=click.STRING, default='local-stakeholders')
 @click.option('--network', help="The Nucypher network name these hosts will run on.", type=click.STRING, default='mainnet')
-@option_gas_strategy
-@option_max_gas_price
 @click.option('--include-host', 'include_hosts', help="specify hosts to update", multiple=True, type=click.STRING)
 @click.option('--env', '-e', 'envvars', help="environment variables (ENVVAR=VALUE)", multiple=True, type=click.STRING, default=[])
+@click.option('--cli', '-c', 'cliargs', help="cli arguments for 'nucypher run': eg.'--max-gas-price 50'/'--c max-gas-price=50'", multiple=True, type=click.STRING, default=[])
 @group_general_config
-def deploy(general_config, remote_provider, nucypher_image, seed_network, sentry_dsn, wipe, prometheus,
-           namespace, network, gas_strategy, max_gas_price, include_hosts, envvars):
+def deploy(general_config, remote_provider, nucypher_image, seed_network, wipe,
+           namespace, network, include_hosts, envvars, cliargs):
     """Deploys NuCypher on managed hosts."""
 
     emitter = setup_emitter(general_config)
@@ -214,13 +210,10 @@ def deploy(general_config, remote_provider, nucypher_image, seed_network, sentry
                                                       remote_provider,
                                                       nucypher_image,
                                                       seed_network,
-                                                      sentry_dsn,
-                                                      prometheus=prometheus,
                                                       namespace=namespace,
                                                       network=network,
-                                                      gas_strategy=gas_strategy,
-                                                      max_gas_price=max_gas_price,
-                                                      envvars=envvars)
+                                                      envvars=envvars,
+                                                      cliargs=cliargs)
 
     hostnames = deployer.config['instances'].keys()
     if include_hosts:
@@ -235,16 +228,14 @@ def deploy(general_config, remote_provider, nucypher_image, seed_network, sentry
 @click.option('--nucypher-image', help="The docker image containing the nucypher code to run on the remote nodes.", default=None)
 @click.option('--seed-network', help="Do you want the 1st node to be --lonely and act as a seed node for this network", default=False, is_flag=True)
 @click.option('--wipe', help="Clear your nucypher config and start a fresh node with new keys", default=False, is_flag=True)
-@click.option('--prometheus', help="Run Prometheus on workers.", default=False, is_flag=True)
 @click.option('--namespace', help="Namespace for these operations.  Used to address hosts and data locally and name hosts on cloud platforms.", type=click.STRING, default='local-stakeholders')
 @click.option('--network', help="The Nucypher network name these hosts will run on.", type=click.STRING, default='mainnet')
 @click.option('--include-host', 'include_hosts', help="specify hosts to update", multiple=True, type=click.STRING)
 @click.option('--env', '-e', 'envvars', help="environment variables (ENVVAR=VALUE)", multiple=True, type=click.STRING, default=[])
-@option_gas_strategy
-@option_max_gas_price
+@click.option('--cli', '-c', 'cliargs', help="cli arguments for 'nucypher run': eg.'--max-gas-price 50'/'--c max-gas-price=50'", multiple=True, type=click.STRING, default=[])
 @group_general_config
-def update(general_config, remote_provider, nucypher_image, seed_network, sentry_dsn, wipe, prometheus,
-           namespace, network, gas_strategy, max_gas_price, include_hosts, envvars):
+def update(general_config, remote_provider, nucypher_image, seed_network, wipe,
+           namespace, network, include_hosts, envvars, cliargs):
     """Updates existing installations of Nucypher on existing managed remote hosts."""
 
     emitter = setup_emitter(general_config)
@@ -260,13 +251,10 @@ def update(general_config, remote_provider, nucypher_image, seed_network, sentry
         remote_provider,
         nucypher_image,
         seed_network,
-        sentry_dsn,
-        prometheus=prometheus,
         namespace=namespace,
         network=network,
-        gas_strategy=gas_strategy,
-        max_gas_price=max_gas_price,
-        envvars=envvars
+        envvars=envvars,
+        cliargs=cliargs,
     )
 
     emitter.echo(f"updating the following existing hosts:")
@@ -325,7 +313,7 @@ def logs(general_config, namespace, network, include_hosts):
 @cloudworkers.command('backup')
 @click.option('--namespace', help="Namespace for these operations.  Used to address hosts and data locally and name hosts on cloud platforms.", type=click.STRING, default='local-stakeholders')
 @click.option('--network', help="The Nucypher network name these hosts will run on.", type=click.STRING, default='mainnet')
-@click.option('--include-host', 'include_hosts', help="Query status on only the named hosts", multiple=True, type=click.STRING)
+@click.option('--include-host', 'include_hosts', help="backup only the named hosts", multiple=True, type=click.STRING)
 @group_general_config
 def backup(general_config, namespace, network, include_hosts):
     """Creates backups of important data from selected remote workers"""
@@ -341,6 +329,27 @@ def backup(general_config, namespace, network, include_hosts):
     if include_hosts:
         hostnames = include_hosts
     deployer.backup_remote_data(hostnames)
+
+
+@cloudworkers.command('stop')
+@click.option('--namespace', help="Namespace for these operations.  Used to address hosts and data locally and name hosts on cloud platforms.", type=click.STRING, default='local-stakeholders')
+@click.option('--network', help="The Nucypher network name these hosts will run on.", type=click.STRING, default='mainnet')
+@click.option('--include-host', 'include_hosts', help="stop only the named hosts", multiple=True, type=click.STRING)
+@group_general_config
+def stop(general_config, namespace, network, include_hosts):
+    """Stops the Ursula on selected remote workers"""
+
+    emitter = setup_emitter(general_config)
+    if not CloudDeployers:
+        emitter.echo("Ansible is required to use `nucypher cloudworkers *` commands.  (Please run 'pip install ansible'.)", color="red")
+        return
+
+    deployer = CloudDeployers.get_deployer('generic')(emitter, None, None, namespace=namespace, network=network)
+
+    hostnames = deployer.config['instances'].keys()
+    if include_hosts:
+        hostnames = include_hosts
+    deployer.stop_worker_process(hostnames)
 
 
 @cloudworkers.command('destroy')
@@ -395,9 +404,8 @@ def list_namespaces(general_config, network):
 @cloudworkers.command('list-hosts')
 @click.option('--network', help="The network whose hosts you want to see.", type=click.STRING, default='mainnet')
 @click.option('--namespace', help="The network whose hosts you want to see.", type=click.STRING, default='local-stakeholders')
-@click.option('--include-data', help="Print the full config data for each node.", is_flag=True, default=False)
 @group_general_config
-def list_hosts(general_config, network, namespace, include_data):
+def list_hosts(general_config, network, namespace):
     """Prints local config info about known hosts"""
 
     emitter = setup_emitter(general_config)
@@ -408,7 +416,7 @@ def list_hosts(general_config, network, namespace, include_data):
     deployer = CloudDeployers.get_deployer('generic')(emitter, None, None, network=network, namespace=namespace)
     for name, data in deployer.get_all_hosts():
         emitter.echo(name)
-        if include_data:
+        if general_config.verbosity >= 2:
             for k, v in data.items():
                 emitter.echo(f"\t{k}: {v}")
 

@@ -15,14 +15,8 @@ all:
                 ansible_python_interpreter: /usr/bin/python3
                 ansible_connection: ssh
                 nucypher_image: ${deployer.config['nucypher_image']}
-                gas_strategy: ${deployer.config['gas_strategy']}
                 blockchain_provider: ${deployer.config['blockchain_provider']}
                 node_is_decentralized: ${deployer.nodes_are_decentralized}
-                %if deployer.config.get('use-prometheus'):
-                prometheus: --prometheus --metrics-port ${deployer.PROMETHEUS_PORT}
-                %else:
-                prometheus:
-                %endif
                 %if deployer.config.get('seed_node'):
                 SEED_NODE_URI: ${deployer.config['seed_node']}
                 teacher_options: --teacher ${deployer.config['seed_node']}
@@ -46,11 +40,9 @@ all:
                   %if node.get('nucypher_image'):
                   nucypher_image: ${node['nucypher_image']}
                   %endif
-                  %if node.get('gas_strategy'):
-                  gas_strategy: ${node['gas_strategy']}
-                  %endif
                   runtime_envvars:
                   %for key, val in node['runtime_envvars'].items():
                     ${key}: "${val}"
                   %endfor
+                  nucypher_ursula_run_options: ${deployer._format_runtime_options(node['runtime_cliargs'])}
                 %endfor

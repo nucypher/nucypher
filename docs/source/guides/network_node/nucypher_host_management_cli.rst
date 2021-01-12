@@ -33,6 +33,8 @@ to keep your Nucypher Ursula nodes working and up to date.
 +----------------------+-------------------------------------------------------------------------------+
 |  ``destroy``         | Shut down and cleanup resources deployed on AWS or Digital Ocean              |
 +----------------------+-------------------------------------------------------------------------------+
+|  ``stop``            | Stop the selected nodes.                                                      |
++----------------------+-------------------------------------------------------------------------------+
 |  ``status``          | Prints a formatted status of selected managed hosts.                          |
 +----------------------+-------------------------------------------------------------------------------+
 |  ``logs``            | Download and display the accumulated stdout logs of selected hosts            |
@@ -73,6 +75,9 @@ Some examples:
     # update all your existing hosts to the latest code
     $ nucypher cloudworkers update --nucypher-image nucypher/nucypher:latest
 
+    # stop the running Ursula on your hosts
+    $ nucypher cloudworkers stop
+
     # change two of your existing hosts to use alchemy instead of infura as a delegated blockchain
     # note: hosts created for local stakers will have the staker's checksum address as their nickname by default
     $ nucypher cloudworkers update --remote-provider wss://eth-mainnet.ws.alchemyapi.io/v2/aodfh298fh2398fh2398hf3924f... --include-host 0x9a92354D3811938A1f35644825188cAe3103bA8e --include-host 0x1Da644825188cAe3103bA8e92354D3811938A1f35
@@ -86,9 +91,6 @@ Some examples:
 
     # deploy nucypher on all your managed hosts
     $ nucypher cloudworkers deploy --remote-provider http://mainnet.infura..3epifj3rfioj
-
-    # set some environment variables to configure Ursula workers on all your hosts
-    $ nucypher cloudworkers deploy -e DONT_PERFORM_WORK_ON_SUNDAY=true
 
     # print the current status of all workers across all namespaces (in bash)
     $ for ns in $(nucypher cloudworkers list-namespaces); do nucypher cloudworkers status --namespace $ns; done
@@ -107,8 +109,22 @@ Some examples:
     .....
 
     # see if all your managed hosts successfully committed to the next period
-    for ns in $(nucypher cloudworkers list-namespaces); do nucypher cloudworkers status --namespace $ns; done | grep "last committed period: \|last log line: \|local nickname:"
+    $ for ns in $(nucypher cloudworkers list-namespaces); do nucypher cloudworkers status --namespace $ns; done | grep "last committed period: \|last log line: \|local nickname:"
 
     # backup all your worker's critical data
     # note: this is also done after any update or deploy operations
-    for ns in $(nucypher cloudworkers list-namespaces); do nucypher cloudworkers backup --namespace $ns; done
+    $ for ns in $(nucypher cloudworkers list-namespaces); do nucypher cloudworkers backup --namespace $ns; done
+
+    # show some info about your hosts
+    $ nucypher cloudworkers list-hosts -v
+
+    # set a max-gas-price for existing hosts
+    $ nucypher cloudworkers update --cli max-gas-price=50
+
+    # NB: environment variables and cli args function identically for both update and deploy
+
+    # set some environment variables to configure Ursula workers on all your hosts
+    $ nucypher cloudworkers deploy -e DONT_PERFORM_WORK_ON_SUNDAY=true
+
+    # set a max gas price and gas strategy for existing hosts
+    $ nucypher cloudworkers update --cli max-gas-price=50 --cli gas-strategy=slow
