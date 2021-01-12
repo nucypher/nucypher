@@ -21,13 +21,13 @@ import os
 from eth_tester.exceptions import TransactionFailed
 from eth_utils import to_canonical_address
 from hexbytes import HexBytes
-from typing import List, Tuple, Union
+from typing import List, Tuple, Union, Optional
 from web3 import Web3
 
 from nucypher.blockchain.economics import BaseEconomics, StandardTokenEconomics
 from nucypher.blockchain.eth.actors import ContractAdministrator
 from nucypher.blockchain.eth.interfaces import BlockchainDeployerInterface, BlockchainInterfaceFactory
-from nucypher.blockchain.eth.registry import InMemoryContractRegistry
+from nucypher.blockchain.eth.registry import InMemoryContractRegistry, BaseContractRegistry
 from nucypher.blockchain.eth.sol.compile.constants import TEST_SOLIDITY_SOURCE_ROOT, SOLIDITY_SOURCE_ROOT
 from nucypher.blockchain.eth.sol.compile.types import SourceBundle
 from nucypher.blockchain.eth.token import NU
@@ -40,7 +40,8 @@ from tests.constants import (
     INSECURE_DEVELOPMENT_PASSWORD,
     NUMBER_OF_ETH_TEST_ACCOUNTS,
     NUMBER_OF_STAKERS_IN_BLOCKCHAIN_TESTS,
-    NUMBER_OF_URSULAS_IN_BLOCKCHAIN_TESTS, PYEVM_DEV_URI
+    NUMBER_OF_URSULAS_IN_BLOCKCHAIN_TESTS,
+    PYEVM_DEV_URI
 )
 
 
@@ -207,24 +208,33 @@ class TesterBlockchain(BlockchainDeployerInterface):
                       f"| epoch {end_timestamp}")
 
     @classmethod
-    def bootstrap_network(cls, economics: BaseEconomics = None) -> Tuple['TesterBlockchain', 'InMemoryContractRegistry']:
+    def bootstrap_network(cls,
+                          registry: Optional[BaseContractRegistry] = None,
+                          economics: BaseEconomics = None
+                          ) -> Tuple['TesterBlockchain', 'InMemoryContractRegistry']:
         """For use with metric testing scripts"""
 
-        registry = InMemoryContractRegistry()
+        if registry is None:
+            registry = InMemoryContractRegistry()
         testerchain = cls()
-        BlockchainInterfaceFactory.register_interface(testerchain)
-        power = TransactingPower(password=INSECURE_DEVELOPMENT_PASSWORD,
-                                 account=testerchain.etherbase_account)
+        if not BlockchainInterfaceFactory.is_interface_initialized(provider_uri=testerchain.provider_uri):
+            BlockchainInterfaceFactory.register_interface(interface=testerchain)
+        power = TransactingPower(password=INSECURE_DEVELOPMENT_PASSWORD, account=testerchain.etherbase_account)
         power.activate()
         testerchain.transacting_power = power
 
         origin = testerchain.client.etherbase
-        deployer = ContractAdministrator(deployer_address=origin,
-                                         registry=registry,
-                                         economics=economics or cls.DEFAULT_ECONOMICS,
-                                         staking_escrow_test_mode=True)
+        admin = ContractAdministrator(deployer_address=origin,
+                                      registry=registry,
+                                      economics=economics or cls.DEFAULT_ECONOMICS,
+                                      staking_escrow_test_mode=True)
 
-        _receipts = deployer.deploy_network_contracts(interactive=False)
+        gas_limit = None  # TODO: Gas management - #842
+        for deployer_class in admin.primary_deployer_classes:
+            if deployer_class in ContractAdministrator.standard_deployer_classes:
+                admin.deploy_contract(contract_name=deployer_class.contract_name, gas_limit=gas_limit)
+            else:
+                admin.deploy_contract(contract_name=deployer_class.contract_name, gas_limit=gas_limit)
         return testerchain, registry
 
     @property

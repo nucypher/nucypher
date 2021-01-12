@@ -15,15 +15,16 @@ You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
+
 import json
 
 import pytest
 import random
 
 from nucypher.blockchain.eth.actors import ContractAdministrator
-from nucypher.characters.control.emitters import StdoutEmitter
 from nucypher.crypto.powers import TransactingPower
 from tests.constants import INSECURE_DEVELOPMENT_PASSWORD, NUMBER_OF_ALLOCATIONS_IN_TESTS
+
 # Prevents TesterBlockchain to be picked up by py.test as a test class
 from tests.utils.blockchain import TesterBlockchain as _TesterBlockchain
 
@@ -40,10 +41,8 @@ def test_rapid_deployment(token_economics, test_registry, tmpdir, get_random_che
     blockchain.transacting_power.activate()
     deployer_address = blockchain.etherbase_account
 
-    administrator = ContractAdministrator(deployer_address=deployer_address,
-                                          registry=test_registry)
-
-    administrator.deploy_network_contracts(emitter=StdoutEmitter(), interactive=False)
+    administrator = ContractAdministrator(deployer_address=deployer_address, registry=test_registry)
+    blockchain.bootstrap_network(registry=test_registry)
 
     all_yall = blockchain.unassigned_accounts
 

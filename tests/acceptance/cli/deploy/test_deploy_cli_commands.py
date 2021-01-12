@@ -293,7 +293,9 @@ def test_manual_deployment_of_idle_network(click_runner):
         os.remove(ALTERNATE_REGISTRY_FILEPATH_2)
     assert not os.path.exists(ALTERNATE_REGISTRY_FILEPATH_2)
     registry = LocalContractRegistry(filepath=ALTERNATE_REGISTRY_FILEPATH_2)
-    registry.write(InMemoryContractRegistry().read())  # FIXME: Manual deployments from scratch require an existing but empty registry (i.e., a json file just with "[]")
+    registry.write(InMemoryContractRegistry().read())  # TODO: Manual deployments from scratch require an existing but empty registry (i.e., a json file just with "[]")
+
+    user_input = '0\n' + YES_ENTER + 'DEPLOY'
 
     # 1. Deploy NuCypherToken
     command = ('contracts',
@@ -302,9 +304,8 @@ def test_manual_deployment_of_idle_network(click_runner):
                '--network', TEMPORARY_DOMAIN,
                '--registry-infile', ALTERNATE_REGISTRY_FILEPATH_2)
 
-    user_input = '0\n' + YES_ENTER + INSECURE_DEVELOPMENT_PASSWORD
     result = click_runner.invoke(deploy, command, input=user_input, catch_exceptions=False)
-    assert result.exit_code == 0
+    assert result.exit_code == 0, result.output
 
     assert os.path.exists(ALTERNATE_REGISTRY_FILEPATH_2)
     new_registry = LocalContractRegistry(filepath=ALTERNATE_REGISTRY_FILEPATH_2)
@@ -320,7 +321,6 @@ def test_manual_deployment_of_idle_network(click_runner):
                '--network', TEMPORARY_DOMAIN,
                '--registry-infile', ALTERNATE_REGISTRY_FILEPATH_2)
 
-    user_input = '0\n' + YES_ENTER + INSECURE_DEVELOPMENT_PASSWORD
     result = click_runner.invoke(deploy, command, input=user_input, catch_exceptions=False)
     assert result.exit_code == 0
 
@@ -334,7 +334,6 @@ def test_manual_deployment_of_idle_network(click_runner):
                '--network', TEMPORARY_DOMAIN,
                '--registry-infile', ALTERNATE_REGISTRY_FILEPATH_2)
 
-    user_input = '0\n' + YES_ENTER + INSECURE_DEVELOPMENT_PASSWORD
     result = click_runner.invoke(deploy, command, input=user_input, catch_exceptions=False)
     assert result.exit_code == 0
 
@@ -348,7 +347,6 @@ def test_manual_deployment_of_idle_network(click_runner):
                '--network', TEMPORARY_DOMAIN,
                '--registry-infile', ALTERNATE_REGISTRY_FILEPATH_2)
 
-    user_input = '0\n' + YES_ENTER + INSECURE_DEVELOPMENT_PASSWORD
     result = click_runner.invoke(deploy, command, input=user_input, catch_exceptions=False)
     assert result.exit_code == 0
 

@@ -18,21 +18,21 @@ You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
-import io
+
 import json
+from os.path import abspath, dirname
+
+import io
 import os
 import re
-import time
-from os.path import abspath, dirname
-from unittest.mock import Mock
-
 import tabulate
+import time
 from twisted.logger import ILogObserver, globalLogPublisher, jsonFileLogObserver
 from umbral.keys import UmbralPrivateKey
 from umbral.signing import Signer
+from unittest.mock import Mock
 from zope.interface import provider
 
-from nucypher.exceptions import DevelopmentInstallationRequired
 from nucypher.blockchain.economics import StandardTokenEconomics
 from nucypher.blockchain.eth.agents import (
     AdjudicatorAgent,
@@ -42,6 +42,7 @@ from nucypher.blockchain.eth.agents import (
 )
 from nucypher.blockchain.eth.constants import NUCYPHER_CONTRACT_NAMES
 from nucypher.crypto.signing import SignatureStamp
+from nucypher.exceptions import DevelopmentInstallationRequired
 from nucypher.policy.policies import Policy
 from nucypher.utilities.logging import Logger
 from tests.utils.blockchain import TesterBlockchain
