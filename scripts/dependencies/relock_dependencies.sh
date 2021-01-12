@@ -1,17 +1,33 @@
 #!/usr/bin/env bash
 
-# can change output file names with rebuild_pipenv.sh <prefix>
+# Parse optional flag -k, to be used when we want to base the process on an existing Pipfile.lock
+KEEP_LOCK=false
+OPTIND=1
+while getopts 'k' opt; do
+    case $opt in
+        k) KEEP_LOCK=true ;;
+        *) echo 'Error in command line parsing' >&2
+           exit 1
+    esac
+done
+shift "$(( OPTIND - 1 ))"
+
+# can change output file names with relock_dependencies.sh <prefix>
 PREFIX=${1:-requirements}
 
 # these steps might fail, but that's okay.
-echo "Removing existing lock files..."
+if ! "$KEEP_LOCK"; then
+    echo "Removing existing Pipfile.lock file"
+    rm -f Pipfile.lock
+fi
+
+echo "Removing existing requirement files"
 pipenv --rm
-rm -f Pipfile.lock
 rm -f $PREFIX.txt
 rm -f dev-$PREFIX.txt
 rm -f docs-$PREFIX.txt
 
-echo "Removing pip and pipenv system cache..."
+echo "Removing pip and pipenv system cache"
 rm -r ~/.cache/pip ~/.cache/pipenv
 
 # start enforcing failures
