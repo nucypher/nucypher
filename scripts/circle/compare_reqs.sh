@@ -3,7 +3,7 @@
 set -e
 
 # update lock and build requirements files
-yes | ./scripts/installation/relock_dependencies.sh circle-requirements
+yes | ./scripts/dependencies/relock_dependencies.sh circle-requirements
 
 echo "---- validating requirements.txt ----"
 REQSHASH=$(md5sum requirements.txt | cut -d ' ' -f1)
@@ -16,7 +16,7 @@ if [ $REQSHASH == $TESTHASH ]; then
 
 else
     echo "- requirements.txt contains inconsistencies ...."
-    echo "- you may want to run `pipenv sync --dev` and then ./scripts/installation/relock_dependencies.sh ...."
+    echo "- you may want to run `pipenv sync --dev` and then ./scripts/dependencies/relock_dependencies.sh ...."
     echo "- which will rebuild your *requirements.txt files ...."
     diff requirements.txt circle-requirements.txt
     exit 2
@@ -34,7 +34,7 @@ if [ $REQSHASH == $TESTHASH ]; then
 
 else
     echo "- dev-requirements.txt contains inconsistencies ...."
-    echo "- you may want to run `pipenv sync --dev` and then ./scripts/installation/relock_dependencies.sh ...."
+    echo "- you may want to run `pipenv sync --dev` and then ./scripts/dependencies/relock_dependencies.sh ...."
     echo "- which will rebuild your *requirements.txt files ...."
     diff dev-requirements.txt dev-circle-requirements.txt
     exit 2
