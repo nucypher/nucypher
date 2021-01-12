@@ -357,6 +357,7 @@ def run(general_config, character_options, config_file, interactive, dry_run, pr
     worker_address = character_options.config_options.worker_address
     emitter = setup_emitter(general_config)
     dev_mode = character_options.config_options.dev
+    lonely = character_options.config_options.lonely
 
     if prometheus and not metrics_port:
         # Require metrics port when using prometheus
@@ -383,7 +384,9 @@ def run(general_config, character_options, config_file, interactive, dry_run, pr
                                                                config_file=config_file,
                                                                json_ipc=general_config.json_ipc)
 
-    if ip_checkup and not dev_mode:
+
+    if ip_checkup and not (dev_mode or lonely):
+        # Always skip startup IP checks for dev and lonely modes.
         perform_startup_ip_check(emitter=emitter, ursula=URSULA, force=force)
 
     try:
