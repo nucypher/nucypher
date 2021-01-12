@@ -133,5 +133,5 @@
       become: yes
       wait_for:
         path: "/var/lib/docker/containers/{{ursula_container_name['stdout']}}/{{ursula_container_name['stdout']}}-json.log"
-        search_regex: "Awaiting worker qualification"
+        search_regex: "External IP matches configuration"
         timeout: 30
