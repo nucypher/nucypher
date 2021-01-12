@@ -62,7 +62,10 @@ class FleetSensor:
     class UnknownLabel(KeyError):
         pass
 
-    def __init__(self, domain: str, discovery_labels = None):
+    class UnknownNode(ValueError):
+        pass
+
+    def __init__(self, domain: str, discovery_labels=None):
         self.domain = domain
         self.discovery_labels = discovery_labels  # TODO: Only track certain labels?
         self.additional_nodes_to_track = []
@@ -202,7 +205,7 @@ class FleetSensor:
 
     def mark_as(self, label, node: "Teacher") -> None:
         if label not in self.BUCKETS:
-            raise ValueError(f'Unknown label {label}')
+            raise self.UnknownLabel(f'{label} is not a valid node label')
 
         if self._nodes.get(node):
             # Remove any existing labels...
@@ -211,6 +214,5 @@ class FleetSensor:
                     self._marked[_label].remove(node)
             # Set the new label
             self._marked[label].append(node)
-
         else:
-            raise ValueError(f'Cannot mark an unknown node ({node}).')
+            raise self.UnknownNode(f'Cannot mark an unknown node ({node}).')

@@ -38,6 +38,8 @@ from constant_sorrow.constants import (
     UNKNOWN_FLEET_STATE,
     UNKNOWN_VERSION,
     RELAX,
+
+    # Node Labels
     UNVERIFIED,
     VERIFIED,
     UNAVAILABLE,
@@ -451,7 +453,6 @@ class Learner:
             self.known_nodes.mark_as(node=node, label=INVALID)
             return False
 
-
         #
         # Generic
         #
@@ -464,8 +465,7 @@ class Learner:
             return False
 
         except node.SuspiciousActivity:
-            message = f"Suspicious Activity: Discovered sprout with bad signature: {node}."
-            self.log.warn(message)
+            self.log.warn(f"Suspicious Activity: node with bad signature: {node}.")
             self.known_nodes.mark_as(node=node, label=SUSPICIOUS)
 
         else:
@@ -498,7 +498,7 @@ class Learner:
 
         self._remember_essential(node=node)
         if not node.verified_node:
-            # dont label already verified nodes as unverified
+            # don't label already verified nodes as unverified
             self.known_nodes.mark_as(node=node, label=UNVERIFIED)
 
         if eager:
@@ -585,7 +585,7 @@ class Learner:
     def select_teacher_nodes(self):
         nodes_we_know_about = self.known_nodes.shuffled()  # FIXME: Something more granular
 
-        # What kind of node/teacher? Buckets.
+        # TODO: What kind of node/teacher? Buckets.
 
         if not nodes_we_know_about:
             raise self.NotEnoughTeachers("Need some nodes to start learning from.")
