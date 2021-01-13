@@ -51,12 +51,13 @@ class FleetSensor:
     FleetState = namedtuple("FleetState", ("nickname", "icon", "nodes", "updated", "checksum"))
 
     BUCKETS = (
+        # NUCYPHER / SUPERNODE / SEEDNODE,
         UNVERIFIED,
         VERIFIED,
         UNAVAILABLE,
         SUSPICIOUS,
         UNSTAKED,
-        INVALID,
+        INVALID
     )
 
     class UnknownLabel(KeyError):
@@ -204,6 +205,7 @@ class FleetSensor:
         return iter(nodes)
 
     def mark_as(self, label, node: "Teacher") -> None:
+
         if label not in self.BUCKETS:
             raise self.UnknownLabel(f'{label} is not a valid node label')
 

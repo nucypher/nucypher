@@ -55,7 +55,7 @@ from random import shuffle
 from twisted.internet import reactor, stdio, threads
 from twisted.internet.task import LoopingCall
 from twisted.logger import Logger
-from typing import Dict, Iterable, List, Tuple, Union, Optional, Sequence, Set
+from typing import Dict, Iterable, List, Tuple, Union, Optional, Sequence, Set, Callable
 from umbral import pre
 from umbral.keys import UmbralPublicKey
 from umbral.kfrags import KFrag
@@ -1019,6 +1019,41 @@ class Bob(Character):
         return controller
 
 
+#TODO: Move me to new module
+from constant_sorrow.constants import UNAVAILABLE
+
+
+def example_pruning_strategy(node) -> bool:
+    """Return True to keep a node or False to Erase"""
+    return True
+
+
+def reject_node(node) -> bool:
+    return False
+
+
+def construct_node_stalecheck(seconds: int, start_time: Optional[maya.MayaDT] = None) -> Callable:
+    start_time = start_time or maya.now()
+    # TODO: Validate tim
+    def check(node) -> bool:
+        now = maya.now()
+        delta = - start_time
+        return node.last_seen > max_duration  # TODO
+    return check
+
+
+def construct_node_max_attempts(max_attempts: int):
+    attempts = 0
+    def check(node) -> bool:
+        attempts += 1
+        if attempts > max_attempts:
+            return False
+
+
+def construct_node_min_():
+ pass
+
+
 class Ursula(Teacher, Character, Worker):
     banner = URSULA_BANNER
     _alice_class = Alice
@@ -1027,7 +1062,14 @@ class Ursula(Teacher, Character, Worker):
     # TLSHostingPower still can enjoy default status, but on a different class  NRN
     _default_crypto_powerups = [SigningPower, DecryptingPower]
 
-    _pruning_interval = 60  # seconds
+    _datastore_pruning_interval = 60  # seconds
+    _node_pruning_interval = 600  # seconds
+
+    _pruning_strategies = {
+        UNAVAILABLE: construct_node_stalecheck(max_duration=24),
+        SUSPICIOUS: reject_node,
+
+    }
 
     class NotEnoughUrsulas(Learner.NotEnoughTeachers, StakingEscrowAgent.NotEnoughStakers):
         """
@@ -1067,6 +1109,7 @@ class Ursula(Teacher, Character, Worker):
                  abort_on_learning_error: bool = False,
                  federated_only: bool = False,
                  start_learning_now: bool = None,
+                 node_garbage_collection: bool = True,
                  crypto_power=None,
                  tls_curve: EllipticCurve = None,
                  known_nodes: Iterable = None,
@@ -1109,9 +1152,13 @@ class Ursula(Teacher, Character, Worker):
             self._availability_tracker = AvailabilityTracker(ursula=self)
 
             # Datastore Pruning
-            self.__pruning_task = None
             self._prune_datastore = prune_datastore
             self._datastore_pruning_task = LoopingCall(f=self.__prune_datastore)
+
+            # Known nodes pruning
+            self._node_garbage_collection = node_garbage_collection
+            self.__setup_node_pruning()  # TODO: Inject custom node pruning strategies here?
+            self._node_pruning_task = LoopingCall(f=self.__prune_nodes)
 
         #
         # Ursula the Decentralized Worker (Self)
@@ -1265,12 +1312,22 @@ class Ursula(Teacher, Character, Worker):
         """Called immediately before running services"""
         validate_worker_ip(worker_ip=self.rest_interface.host)
 
+    def __prune_nodes(self) -> None:
+        for bucket, strategy in self.__pruning_strategies.items():
+            for node in self.known_nodes.get_nodes(label=bucket):
+                keep = strategy(node=node)
+                if not keep:
+                    del self.known_nodes[node.checksum_address]
+                    # TODO: removed from marked as
+                    # TODO: Trash can label?
+
     def run(self,
             emitter: StdoutEmitter = None,
             discovery: bool = True,  # TODO: see below
             availability: bool = True,
             worker: bool = True,
-            pruning: bool = True,
+            datastore_pruning: bool = True,
+            node_pruning: bool = True,
             interactive: bool = False,
             hendrix: bool = True,
             start_reactor: bool = True,
@@ -1290,16 +1347,22 @@ class Ursula(Teacher, Character, Worker):
         if emitter:
             emitter.message(f"Starting services", color='yellow')
 
-        if pruning:
-            self.__pruning_task = self._datastore_pruning_task.start(interval=self._pruning_interval, now=True)
-            if emitter:
-                emitter.message(f"✓ Database Pruning", color='green')
-
-        # TODO: Startup node discovery here with the rest of Ursula's services.
+        # TODO: block until specific nodes are known here?
+        # TODO: Include learning startup here with the rest of the services
         # if discovery and not self.lonely:
         #     self.start_learning_loop(now=self._start_learning_now)
         #     if emitter:
         #         emitter.message(f"✓ Node Discovery - {self.domain}", color='green')
+
+        if datastore_pruning:
+            self._datastore_pruning_task.start(interval=self._datastore_pruning_interval, now=True)
+            if emitter:
+                emitter.message(f"✓ Database pruning", color='green')
+
+        if node_pruning:
+            self._node_pruning_task.start(interval=self._node_pruning_interval, now=False)  # lazy
+            if emitter:
+                emitter.message(f"✓ Node pruning", color='green')
 
         if self._availability_check and availability:
             self._availability_tracker.start(now=False)  # wait...
@@ -1323,7 +1386,7 @@ class Ursula(Teacher, Character, Worker):
             if emitter:
                 emitter.message(f"✓ Prometheus Exporter", color='green')
 
-        if interactive and emitter:
+        if interactive and emitter:  # TODO Deprecate?
             stdio.StandardIO(UrsulaCommandProtocol(ursula=self, emitter=emitter))
 
         if hendrix:

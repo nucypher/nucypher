@@ -456,6 +456,7 @@ class Learner:
         #
         # Generic
         #
+
         # TODO: Consider which of these exception belong, and the inheritance they implement
 
         except node.InvalidNode as e:
@@ -467,6 +468,7 @@ class Learner:
         except node.SuspiciousActivity:
             self.log.warn(f"Suspicious Activity: node with bad signature: {node}.")
             self.known_nodes.mark_as(node=node, label=SUSPICIOUS)
+            return False
 
         else:
             if node.verified_node:
@@ -593,7 +595,10 @@ class Learner:
         self.teacher_nodes.extend(nodes_we_know_about)
 
     def cycle_teacher_node(self):
+        """
         # TODO: Configurable selection algo for drawing from node buckets
+        #
+        """
         if not self.teacher_nodes:
             self.select_teacher_nodes()
         try:
