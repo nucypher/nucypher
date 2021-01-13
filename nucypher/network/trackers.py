@@ -188,7 +188,7 @@ class AvailabilityTracker:
                     return
 
     def sample(self, quantity: int) -> list:
-        population = tuple(self._ursula.known_nodes._nodes.values())
+        population = tuple(self._ursula.known_nodes.get_nodes().values())
         ursulas = random.sample(population=population, k=quantity)
         return ursulas
 

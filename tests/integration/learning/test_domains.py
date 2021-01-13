@@ -114,7 +114,7 @@ def test_learner_ignores_stored_nodes_from_other_domains(lonely_ursula_maker, tm
 
     # Once pest made its way into learner, learner taught passed it to other mainnet nodes.
 
-    learner.known_nodes._nodes[pest.checksum_address] = pest  # This used to happen anyway.
+    learner.known_nodes.get_nodes()[pest.checksum_address] = pest  # This used to happen anyway.
     other_staker._current_teacher_node = learner
     other_staker.learn_from_teacher_node()  # And once it did, the node from the wrong domain spread.
     assert pest not in other_staker.known_nodes  # But not anymore.

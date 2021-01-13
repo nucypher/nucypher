@@ -954,7 +954,7 @@ def fleet_of_highperf_mocked_ursulas(ursula_federated_test_config, request):
                 all_ursulas = {u.checksum_address: u for u in _ursulas}
 
                 for ursula in _ursulas:
-                    ursula.known_nodes._nodes = all_ursulas
+                    ursula.known_nodes._FleetSensor__nodes = all_ursulas
                     ursula.known_nodes.checksum = b"This is a fleet state checksum..".hex()
     yield _ursulas
 

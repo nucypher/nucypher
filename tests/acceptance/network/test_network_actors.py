@@ -27,6 +27,7 @@ from nucypher.config.constants import TEMPORARY_DOMAIN
 from nucypher.crypto.powers import SigningPower
 from nucypher.datastore.models import TreasureMap
 from tests.utils.middleware import MockRestMiddleware
+from constant_sorrow.constants import INVALID
 
 
 def test_all_blockchain_ursulas_know_about_all_other_ursulas(blockchain_ursulas, agency):
@@ -119,7 +120,7 @@ def test_vladimir_illegal_interface_key_does_not_propagate(blockchain_ursulas):
     vladimir in other_ursula.suspicious_activities_witnessed['vladimirs']
 
     # She marked him as Invalid...
-    vladimir in other_ursula.known_nodes._marked[vladimir.InvalidNode]
+    vladimir in other_ursula.known_nodes.get_nodes(label=INVALID)
 
     # ...and booted him from known_nodes
     vladimir not in other_ursula.known_nodes

@@ -31,7 +31,7 @@ from constant_sorrow.constants import (
     UNSTAKED,
     INVALID
 )
-from typing import Iterator, Callable, List, Dict
+from typing import Iterator, Callable, List, Dict, Type, Optional
 
 from nucypher.crypto.api import keccak_digest
 from nucypher.utilities.logging import Logger
@@ -64,12 +64,12 @@ class FleetSensor:
     # Buckets that do not need pruning
     # UNVERIFIED
     # VERIFIED
+    # SEEDNODE
 
-    # _pruning_strategies = defaultdict(list)
-    three_days = 60*60*72
-    _pruning_strategies = {
+    __three_days = 60*60*72
+    __pruning_strategies = {
         UNAVAILABLE: [
-            construct_node_stalecheck(max_seconds=three_days),
+            construct_node_stalecheck(max_seconds=__three_days),
             construct_node_max_attempts(max_attempts=20)
         ],
         SUSPICIOUS: [reject_node],
@@ -84,17 +84,21 @@ class FleetSensor:
         pass
 
     def __init__(self, domain: str, discovery_labels=None):
+
+        # Public
         self.domain = domain
         self.discovery_labels = discovery_labels  # TODO: Only track certain labels?
         self.additional_nodes_to_track = []
         self.updated = maya.now()
-        self._nodes = OrderedDict()
-        self._marked = defaultdict(list)  # Beginning of bucketing.
-        self.states = OrderedDict()
+
+        # Private
+        self.__states = OrderedDict()
+        self.__nodes = OrderedDict()       # memory.  # TODO: keep both collections or reduce to use one?
+        self.__marked = defaultdict(list)  # bucketing.
 
     def __setitem__(self, checksum_address, node_or_sprout):
         if node_or_sprout.domain == self.domain:
-            self._nodes[checksum_address] = node_or_sprout
+            self.__nodes[checksum_address] = node_or_sprout
 
             if self._tracking:
                 self.log.info("Updating fleet state after saving node {}".format(node_or_sprout))
@@ -104,28 +108,32 @@ class FleetSensor:
             self.log.warn(msg)
 
     def __getitem__(self, checksum_address):
-        return self._nodes[checksum_address]
+        return self.__nodes[checksum_address]
 
     def __bool__(self):
-        return bool(self._nodes)
+        return bool(self.__nodes)
 
     def __contains__(self, item):
-        return item in self._nodes.keys() or item in self._nodes.values()
+        return item in self.__nodes.keys() or item in self.__nodes.values()
 
     def __iter__(self):
-        yield from self._nodes.values()
+        yield from self.__nodes.values()
 
     def __len__(self):
-        return len(self._nodes)
+        return len(self.__nodes)
 
     def __eq__(self, other):
-        return self._nodes == other._nodes
+        return self.__nodes == other.__nodes
 
     def __repr__(self):
-        return self._nodes.__repr__()
+        return self.__nodes.__repr__()
 
     def population(self):
         return len(self) + len(self.additional_nodes_to_track)
+
+    @property
+    def states(self):
+        return self.__states
 
     @property
     def checksum(self):
@@ -147,7 +155,7 @@ class FleetSensor:
         return self.nickname.icon
 
     def addresses(self):
-        return self._nodes.keys()
+        return self.__nodes.keys()
 
     def snapshot(self):
         fleet_state_checksum_bytes = binascii.unhexlify(self.checksum)
@@ -158,7 +166,7 @@ class FleetSensor:
         if additional_nodes_to_track:
             self.additional_nodes_to_track.extend(additional_nodes_to_track)
 
-        if not self._nodes:
+        if not self.__nodes:
             # No news here.
             return
         sorted_nodes = self.sorted()
@@ -186,11 +194,11 @@ class FleetSensor:
         self.update_fleet_state()
 
     def sorted(self):
-        nodes_to_consider = list(self._nodes.values()) + self.additional_nodes_to_track
+        nodes_to_consider = list(self.__nodes.values()) + self.additional_nodes_to_track
         return sorted(nodes_to_consider, key=lambda n: n.checksum_address)
 
     def shuffled(self):
-        nodes_we_know_about = list(self._nodes.values())
+        nodes_we_know_about = list(self.__nodes.values())
         random.shuffle(nodes_we_know_about)
         return nodes_we_know_about
 
