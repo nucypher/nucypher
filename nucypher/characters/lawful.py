@@ -166,7 +166,7 @@ class Alice(Character, BlockchainPolicyAuthor):
                            federated_only=federated_only,
                            checksum_address=checksum_address,
                            network_middleware=network_middleware,
-                           discovery_labels=self.DISCOVERY_LABELS  # TODO: Unhardcode?
+                           discovery_labels=self.DISCOVERY_LABELS,  # TODO: Unhardcode?
                            *args, **kwargs)
 
         if is_me and not federated_only:  # TODO: #289

@@ -218,41 +218,91 @@ class FleetSensor:
                 "updated": state.updated.rfc2822(),
                 }
 
+    def __reset_node_label_tracking(self, node: "Teacher"):
+        for strategy in self.__pruning_strategies:
+            strategy(node=node, reset=True)
+
+    def register_node_pruning_strategy(self,
+                                       label,
+                                       strategy: Callable,
+                                       layer: Optional[int] = None
+                                       ) -> None:
+        if label not in self.BUCKETS:
+            raise self.UnknownLabel
+        try:
+            existing_strategies = self.__pruning_strategies[label]
+        except KeyError:
+            raise ValueError(f"{label} is not a prunable node bucket.")
+        if strategy in existing_strategies:
+            raise ValueError(f"Strategy is already registered for bucket '{label}'.")
+        if layer is None:
+            existing_strategies.append(strategy)
+        else:
+            existing_strategies.insert(strategy, index=layer)
+
     def get_nodes(self, label=None) -> Iterator["Teacher"]:
-        """If label is None return all"""
+        """If label is None return all know nodes"""
         if not label:
             return iter(self)
         if label not in self.BUCKETS:
             raise self.UnknownLabel(f'{label} is not a valid node label')
         try:
-            nodes = self._marked[label]
+            nodes = self.__marked[label]
         except KeyError:
             return iter(dict())  # empty
         return iter(nodes)
 
-    def mark_as(self, label, node: "Teacher") -> None:
-
+    def label(self, label, node: "Teacher") -> None:
+        """
+        Apply a label to a known node.  Removes any exiting labels before adding the new one.
+        If the provided label is not valid UnknownLabel is raised.
+        If the provided node is not known UnknownNode is raised.
+        """
         if label not in self.BUCKETS:
             raise self.UnknownLabel(f'{label} is not a valid node label')
-
-        if self._nodes.get(node):
-            # Remove any existing labels...
-            for _label in self.BUCKETS:
-                if node in self._marked[_label]:
-                    self._marked[_label].remove(node)
-            # Set the new label
-            self._marked[label].append(node)
+        if self.__nodes.get(node.checksum_address):
+            self.unlabel(node=node)            # Remove any existing labels...
+            self.__marked[label].append(node)  # Set the new label
         else:
-            raise self.UnknownNode(f'Cannot mark an unknown node ({node}).')
+            raise self.UnknownNode(f'Cannot label an unknown node ({node}).')
 
-    def prune_nodes(self, pruning_strategies: Dict[List[Callable]]) -> None:
-        """Apply node pruning strategies to known nodes once"""
-        for bucket, strategies in pruning_strategies.items():
-            for node in self.get_nodes(label=bucket):
-                for strategy in strategies:
-                    keep = strategy(node=node)
-                    if not keep:
-                        del self[node.checksum_address]    # prune node
-                        self._marked[bucket].remove(node)  # prune corresponding label
-                        # TODO: Trash can label?
-                        break  # this node is already doomed anyways
+    def unlabel(self, node: "Teacher", label=None) -> None:
+        """Removes a label from a node, or if label is None, all labels are removed."""
+
+        # Remove one label
+        if label:
+            if node in self.__marked[label]:
+                self.__marked[label].remove(node)
+                return
+
+        # Remove all labels
+        for _label in self.BUCKETS:
+            if node in self.__marked[_label]:
+                self.__marked[_label].remove(node)
+
+    def prune_bucket(self, label):
+        """Apply pruning strategies to a single node bucket once"""
+        try:
+            strategies = self.__pruning_strategies[label]
+        except KeyError:
+            raise self.UnknownLabel
+        for node in self.get_nodes(label=label):
+            for strategy in strategies:
+                keep = strategy(node=node)
+                if not keep:
+                    del self.__nodes[node.checksum_address]  # prune node
+                    self.unlabel(node=node, label=label)     # prune corresponding label
+                    break  # this node is already doomed anyways
+                    # TODO: forget node from disk too
+                    # TODO: Trash can label?
+            else:
+                # Reinstate this node to good standing by un/relabeling
+                if label in self.__pruning_strategies:
+                    self.unlabel(node=node, label=label)
+                    self.__reset_node_label_tracking(node=node)
+
+    def prune_nodes(self) -> None:
+        """Apply node pruning strategies to all marked nodes once"""
+        self._pruning_strategies: Dict[type, List[Callable]]
+        for label in self._pruning_strategies:
+            self.prune_bucket(label=label)

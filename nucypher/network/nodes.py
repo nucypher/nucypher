@@ -393,7 +393,7 @@ class Learner:
         try:
             certificate_filepath = self.node_storage.store_node_certificate(certificate=stranger_certificate)
         except MissingCertificatePseudonym:
-            self.known_nodes.mark_as(node=node, label=SUSPICIOUS)
+            self.known_nodes.label(node=node, label=SUSPICIOUS)
             return False
 
         # In some cases (seed nodes or other temp stored certs),
@@ -414,20 +414,20 @@ class Learner:
                              registry=registry)  # composed on character subclass, determines operating mode
 
         except SSLError as e:
-            self.known_nodes.mark_as(node=node, label=SUSPICIOUS)
+            self.known_nodes.label(node=node, label=SUSPICIOUS)
             # self.log.debug(f"({str(node)}) \n {bytes(node)}:{e}.")  TODO: log or not to log...
             return False
 
         except NodeSeemsToBeDown:
             self.log.info("No Response while trying to verify node {}|{}".format(node.rest_interface, node))
             # TODO: Buckets - Attempt to use these again later  #567
-            self.known_nodes.mark_as(node=node, label=UNAVAILABLE)
+            self.known_nodes.label(node=node, label=UNAVAILABLE)
             return False
 
         except node.UnbondedWorker:
             self.log.warn(f'Verification Failed - '
                           f'{node} is not bonded to a Staker.')
-            self.known_nodes.mark_as(node=node, label=INVALID)
+            self.known_nodes.label(node=node, label=INVALID)
             return False
 
         #
@@ -435,7 +435,7 @@ class Learner:
         #
 
         except node.NotStaking:
-            self.known_nodes.mark_as(node=node, label=UNSTAKED)
+            self.known_nodes.label(node=node, label=UNSTAKED)
             self.log.warn(f'Verification Failed - '
                           f'{node} has no active stakes in the current period '
                           f'({self.staking_agent.get_current_period()}')
@@ -444,13 +444,13 @@ class Learner:
         except node.InvalidWorkerSignature:
             self.log.warn(f'Verification Failed - '
                           f'{node} has an invalid wallet signature for {node.decentralized_identity_evidence}')
-            self.known_nodes.mark_as(node=node, label=INVALID)
+            self.known_nodes.label(node=node, label=INVALID)
             return False
 
         except node.StampNotSigned:
             self.log.warn(f'Verification Failed - '
                           f'{node} stamp is unsigned.')
-            self.known_nodes.mark_as(node=node, label=INVALID)
+            self.known_nodes.label(node=node, label=INVALID)
             return False
 
         #
@@ -461,18 +461,18 @@ class Learner:
 
         except node.InvalidNode as e:
             # Ugh.  The teacher is invalid.  Rough.
-            self.known_nodes.mark_as(node=node, label=INVALID)
+            self.known_nodes.label(node=node, label=INVALID)
             self.log.warn(f"Invalid Node ({str(node)}) \n {bytes(node)}:{e}.")
             return False
 
         except node.SuspiciousActivity:
             self.log.warn(f"Suspicious Activity: node with bad signature: {node}.")
-            self.known_nodes.mark_as(node=node, label=SUSPICIOUS)
+            self.known_nodes.label(node=node, label=SUSPICIOUS)
             return False
 
         else:
             if node.verified_node:
-                self.known_nodes.mark_as(node=node, label=VERIFIED)
+                self.known_nodes.label(node=node, label=VERIFIED)
             return True
 
     def remember_node(self,
@@ -481,6 +481,7 @@ class Learner:
                       record_fleet_state=True,
                       eager: bool = False):
 
+        # TODO: Remove this comment or implement these labels
         # UNPARSED
         # PARSED
         # METADATA_CHECKED
@@ -500,8 +501,9 @@ class Learner:
 
         self._remember_essential(node=node)
         if not node.verified_node:
-            # don't label already verified nodes as unverified
-            self.known_nodes.mark_as(node=node, label=UNVERIFIED)
+            # set UNVERIFED bucket as default, but don't relabel
+            # already verified nodes as unverified.
+            self.known_nodes.label(node=node, label=UNVERIFIED)
 
         if eager:
             node.mature()
@@ -585,7 +587,16 @@ class Learner:
         reactor.stop()
 
     def select_teacher_nodes(self):
-        nodes_we_know_about = self.known_nodes.shuffled()  # FIXME: Something more granular
+
+        """"
+        # TODO: Use this method as the canonical source of the next teacher even during bootstrap
+        If there are no known nodes, select a seednode.
+        Most of the time select a valid node (every other?).
+        Occasionally select an unavailable node in case they have come back online.
+
+        """
+
+        nodes_we_know_about = self.known_nodes.shuffled()
 
         # TODO: What kind of node/teacher? Buckets.
 
@@ -869,12 +880,12 @@ class Learner:
 
         # TODO: Use remember_node (duplicated error and marking logic)?
         except NodeSeemsToBeDown as e:
-            self.log.info(f"Teacher {str(current_teacher)} is perhaps down:{e}.")  # FIXME: This was printing the node bytestring. Is this really necessary?  #1712
-            self.known_nodes.mark_as(node=current_teacher, label=UNAVAILABLE)
+            self.log.info(f"Teacher {str(current_teacher)} is unavailable: {str(e)}.")
+            self.known_nodes.label(node=current_teacher, label=UNAVAILABLE)
             return
-        except current_teacher.InvalidNode as e:
+        except Teacher.InvalidNode as e:
             # Ugh.  The teacher is invalid.  Rough.
-            self.known_nodes.mark_as(node=current_teacher, label=INVALID)
+            self.known_nodes.label(node=current_teacher, label=INVALID)  # TODO: Use the SUSPICIOUS label?
             self.log.warn(f"Teacher {str(current_teacher)} is invalid: {bytes(current_teacher)}:{e}.")
             self.suspicious_activities_witnessed['vladimirs'].append(current_teacher)
             return
@@ -893,7 +904,7 @@ class Learner:
             # Is cycling happening in the right order?
             self.cycle_teacher_node()
 
-        #############################3
+        #############################
 
         # Before we parse the response, let's handle some edge cases.
         if response.status_code == 204:
