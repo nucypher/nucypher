@@ -40,11 +40,7 @@ from constant_sorrow.constants import (
     INVALIDATED
 )
 from constant_sorrow.constants import (
-    VERIFIED,
-    UNAVAILABLE,
-    SUSPICIOUS,
-    UNSTAKED,
-    INVALID
+    VERIFIED
 )
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives.asymmetric.ec import EllipticCurve
@@ -68,7 +64,6 @@ from umbral.kfrags import KFrag
 from umbral.signing import Signature
 
 import nucypher
-from acumen.pruning import construct_node_stalecheck, construct_node_max_attempts
 from nucypher.acumen.nicknames import Nickname
 from nucypher.acumen.perception import FleetSensor
 from nucypher.blockchain.eth.actors import BlockchainPolicyAuthor, Worker
@@ -1037,20 +1032,6 @@ class Ursula(Teacher, Character, Worker):
     _datastore_pruning_interval = 60  # seconds
     _node_pruning_interval = 600  # seconds
 
-    # Buckets that do not need pruning
-    # UNVERIFIED
-    # VERIFIED
-
-    # TODO: Multiple strategies per bucket?
-    # _pruning_startgies = defaultdict(list)
-    three_days = 60*60*72
-    _pruning_strategies = {
-        UNAVAILABLE: [construct_node_stalecheck(max_seconds=three_days), construct_node_max_attempts(max_attempts=20)],
-        SUSPICIOUS: [reject_node],
-        UNSTAKED: [accept_node],
-        INVALID: [accept_node],
-    }
-
     class NotEnoughUrsulas(Learner.NotEnoughTeachers, StakingEscrowAgent.NotEnoughStakers):
         """
         All Characters depend on knowing about enough Ursulas to perform their role.
@@ -1137,7 +1118,6 @@ class Ursula(Teacher, Character, Worker):
 
             # Known nodes pruning
             self._node_garbage_collection = node_garbage_collection
-            self.__setup_node_pruning()  # TODO: Inject custom node pruning strategies here?
             self._node_pruning_task = LoopingCall(f=self.__prune_nodes)
 
         #
@@ -1255,6 +1235,7 @@ class Ursula(Teacher, Character, Worker):
 
     def __prune_datastore(self) -> None:
         """Deletes all expired arrangements, kfrags, and treasure maps in the datastore."""
+        # TODO: Relocate this method to datastore class
         now = maya.MayaDT.from_datetime(datetime.fromtimestamp(self._datastore_pruning_task.clock.seconds()))
         try:
             with self.datastore.query_by(PolicyArrangement,
@@ -1293,16 +1274,8 @@ class Ursula(Teacher, Character, Worker):
         validate_worker_ip(worker_ip=self.rest_interface.host)
 
     def __prune_nodes(self) -> None:
-        """Apply node pruning strategies to known nodes"""
-        for bucket, strategies in self.__pruning_strategies.items():
-            for node in self.known_nodes.get_nodes(label=bucket):
-                for strategy in strategies:
-                    keep = strategy(node=node)
-                    if not keep:
-                        del self.known_nodes[node.checksum_address]    # prune node
-                        self.known_nodes._marked[bucket].remove(node)  # prune corresponding label
-                        # TODO: Trash can label?
-                        break  # this node is already doomed anyways
+        # TODO: Inject custom node pruning strategies here (think configuration)
+        self.known_nodes.prune_nodes()
 
     def run(self,
             emitter: StdoutEmitter = None,

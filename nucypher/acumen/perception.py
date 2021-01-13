@@ -17,7 +17,6 @@
 
 from collections import OrderedDict
 from collections import namedtuple, defaultdict
-from typing import Iterator
 
 import binascii
 import maya
@@ -32,10 +31,12 @@ from constant_sorrow.constants import (
     UNSTAKED,
     INVALID
 )
+from typing import Iterator, Callable, List, Dict
 
 from nucypher.crypto.api import keccak_digest
 from nucypher.utilities.logging import Logger
 from .nicknames import Nickname
+from .pruning import construct_node_stalecheck, reject_node, accept_node, construct_node_max_attempts
 
 
 class FleetSensor:
@@ -59,6 +60,22 @@ class FleetSensor:
         UNSTAKED,
         INVALID
     )
+
+    # Buckets that do not need pruning
+    # UNVERIFIED
+    # VERIFIED
+
+    # _pruning_strategies = defaultdict(list)
+    three_days = 60*60*72
+    _pruning_strategies = {
+        UNAVAILABLE: [
+            construct_node_stalecheck(max_seconds=three_days),
+            construct_node_max_attempts(max_attempts=20)
+        ],
+        SUSPICIOUS: [reject_node],
+        UNSTAKED: [accept_node],
+        INVALID: [accept_node],
+    }
 
     class UnknownLabel(KeyError):
         pass
@@ -218,3 +235,15 @@ class FleetSensor:
             self._marked[label].append(node)
         else:
             raise self.UnknownNode(f'Cannot mark an unknown node ({node}).')
+
+    def prune_nodes(self, pruning_strategies: Dict[List[Callable]]) -> None:
+        """Apply node pruning strategies to known nodes once"""
+        for bucket, strategies in pruning_strategies.items():
+            for node in self.get_nodes(label=bucket):
+                for strategy in strategies:
+                    keep = strategy(node=node)
+                    if not keep:
+                        del self[node.checksum_address]    # prune node
+                        self._marked[bucket].remove(node)  # prune corresponding label
+                        # TODO: Trash can label?
+                        break  # this node is already doomed anyways
