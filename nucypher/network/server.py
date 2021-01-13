@@ -424,6 +424,7 @@ def _make_rest_app(datastore: Datastore, this_node, domain: str, log: Logger) ->
 
     @rest_app.route('/status/', methods=['GET'])
     def status():
+        label = request.args.get('label')
         if request.args.get('json'):
             payload = this_node.abridged_node_details(raise_invalid=False)
             response = jsonify(payload)
@@ -438,7 +439,7 @@ def _make_rest_app(datastore: Datastore, this_node, domain: str, log: Logger) ->
 
             try:
                 content = status_template.render(this_node=this_node,
-                                                 known_nodes=this_node.known_nodes,
+                                                 known_nodes=this_node.known_nodes.get_nodes(label=label),
                                                  previous_states=previous_states,
                                                  domain=domain,
                                                  version=nucypher.__version__,

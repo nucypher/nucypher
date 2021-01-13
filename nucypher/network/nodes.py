@@ -1387,6 +1387,7 @@ class Teacher:
 
     def known_nodes_details(self, raise_invalid=True) -> dict:
         abridged_nodes = {}
+        # TODO: Unify with other node validity checks
         for checksum_address, node in self.known_nodes._nodes.items():
             try:
                 abridged_nodes[checksum_address] = self.node_details(node=node)
@@ -1394,7 +1395,6 @@ class Teacher:
                 if raise_invalid:
                     raise
                 self.log.error(f"encountered unsigned stamp for node with checksum: {checksum_address}")
-        return abridged_nodes
 
     @staticmethod
     def node_details(node):
@@ -1426,11 +1426,11 @@ class Teacher:
                    }
         return payload
 
-    def abridged_node_details(self, raise_invalid=True) -> dict:
+    def abridged_node_details(self, label=None, raise_invalid=True) -> dict:
         """Self-Reporting"""
         payload = self.node_details(node=self)
         states = self.known_nodes.abridged_states_dict()
-        known = self.known_nodes_details(raise_invalid=raise_invalid)
+        known = self.known_nodes_details(label=label, raise_invalid=raise_invalid)
         payload.update({'states': states, 'known_nodes': known})
         if not self.federated_only:
             payload.update({

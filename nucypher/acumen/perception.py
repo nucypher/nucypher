@@ -211,6 +211,7 @@ class FleetSensor:
                 }
 
     def get_nodes(self, label=None) -> Iterator["Teacher"]:
+        """If label is None return all"""
         if not label:
             return iter(self)
         if label not in self.BUCKETS:
