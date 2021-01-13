@@ -161,7 +161,7 @@ contract WorkLockForStakingContractMock {
         compensationValue = msg.value;
     }
 
-    function compensation(address) public returns (uint256) {
+    function compensation(address) public view returns (uint256) {
         return compensationValue;
     }
 
