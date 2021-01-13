@@ -425,8 +425,6 @@ DISPLAY_SENDER_TOKEN_BALANCE_BEFORE_TRANSFER = "Deployer NU balance: {token_bala
 
 PROMPT_FOR_ALLOCATION_DATA_FILEPATH = "Enter allocations data filepath"
 
-SUCCESSFUL_SAVE_BATCH_DEPOSIT_RECEIPTS = "Saved batch deposits receipts to {receipts_filepath}"
-
 SUCCESSFUL_SAVE_DEPLOY_RECEIPTS = "Saved deployment receipts to {receipts_filepath}"
 
 SUCCESSFUL_REGISTRY_CREATION = 'Wrote to registry {registry_outfile}'

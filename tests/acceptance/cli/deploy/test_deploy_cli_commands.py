@@ -260,33 +260,6 @@ def test_manual_proxy_retargeting(monkeypatch, testerchain, click_runner, token_
     assert proxy_deployer.target_contract.address == untargeted_deployment.address
 
 
-def test_batch_deposits(click_runner,
-                        testerchain,
-                        agency_local_registry,
-                        mock_allocation_infile,
-                        token_economics):
-    #
-    # Main
-    #
-
-    deploy_command = ('allocations',
-                      '--registry-infile', agency_local_registry.filepath,
-                      '--allocation-infile', mock_allocation_infile,
-                      '--network', TEMPORARY_DOMAIN,
-                      '--provider', TEST_PROVIDER_URI)
-
-    account_index = '0\n'
-    user_input = account_index + YES_ENTER + YES_ENTER
-
-    result = click_runner.invoke(deploy,
-                                 deploy_command,
-                                 input=user_input,
-                                 catch_exceptions=False)
-    assert result.exit_code == 0, result.output
-    for allocation_address in testerchain.unassigned_accounts:
-        assert allocation_address in result.output
-
-
 def test_manual_deployment_of_idle_network(click_runner):
 
     if os.path.exists(ALTERNATE_REGISTRY_FILEPATH_2):

@@ -36,7 +36,6 @@ For a guide of how to deploy these contracts automatically, see the :doc:`Deploy
 #. Approve tokens transfer to the ``StakingEscrow`` contract. These tokens are future staking rewards
 #. Run the ``initialize(uint256)`` method to initialize the ``StakingEscrow`` contract
 #. Approve tokens transfer for distribution to the ``WorkLock`` contract and call ``tokenDeposit(uint256)`` method
-#. Pre-deposit tokens to the ``StakingEscrow`` using ``batchDeposit(address[], uint256[], uint256[], uint16[])``
 
 Alice's Contract Interaction
 ----------------------------

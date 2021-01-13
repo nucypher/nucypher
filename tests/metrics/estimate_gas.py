@@ -183,6 +183,7 @@ def estimate_gas(analyzer: AnalyzeGas = None) -> None:
         compiled_contract = testerchain._raw_contract_cache[contract_name]
 
         version = list(compiled_contract).pop()
+        # FIXME this value includes constructor code size but should not
         bin_runtime = compiled_contract[version]['evm']['bytecode']['object']
         bin_length_in_bytes = len(bin_runtime) // 2
         percentage = int(100 * bin_length_in_bytes / MAX_SIZE)
@@ -224,6 +225,11 @@ def estimate_gas(analyzer: AnalyzeGas = None) -> None:
         tx = function.transact(transaction)
         testerchain.wait_for_receipt(tx)
 
+    # First deposit ever is the most expensive, make it to remove unusual gas spending
+    transact(token_functions.approve(staking_agent.contract_address, MIN_ALLOWED_LOCKED * 10), {'from': origin})
+    transact(staker_functions.deposit(everyone_else[0], MIN_ALLOWED_LOCKED, MIN_LOCKED_PERIODS), {'from': origin})
+    testerchain.time_travel(periods=1)
+
     #
     # Give Ursula and Alice some coins
     #
@@ -239,34 +245,6 @@ def estimate_gas(analyzer: AnalyzeGas = None) -> None:
                      {'from': staker1})
     transact(token_functions.approve(staking_agent.contract_address, MIN_ALLOWED_LOCKED * 6), {'from': staker2})
     transact(token_functions.approve(staking_agent.contract_address, MIN_ALLOWED_LOCKED * 6), {'from': staker3})
-
-    #
-    # Batch deposit tokens
-    #
-    current_period = staking_agent.get_current_period()
-    transact(token_functions.approve(staking_agent.contract_address, MIN_ALLOWED_LOCKED * 10), {'from': origin})
-    transact_and_log("Batch deposit tokens for 5 owners x 2 sub-stakes",
-                     staker_functions.batchDeposit(everyone_else[0:5],
-                                                   [2] * 5,
-                                                   [MIN_ALLOWED_LOCKED] * 10,
-                                                   [MIN_LOCKED_PERIODS] * 10),
-                     {'from': origin})
-
-    transact(token_functions.approve(staking_agent.contract_address, MIN_ALLOWED_LOCKED * 24), {'from': origin})
-    transact_and_log("Batch deposit tokens for 1 owners x 24 sub-stakes",
-                     staker_functions.batchDeposit([everyone_else[6]],
-                                                   [24],
-                                                   [MIN_ALLOWED_LOCKED] * 24,
-                                                   [MIN_LOCKED_PERIODS] * 24),
-                     {'from': origin})
-
-    transact(token_functions.approve(staking_agent.contract_address, MIN_ALLOWED_LOCKED * 24 * 5), {'from': origin})
-    transact_and_log("Batch deposit tokens for 5 owners x 24 sub-stakes",
-                     staker_functions.batchDeposit(everyone_else[7:12],
-                                                   [24]*5,
-                                                   [MIN_ALLOWED_LOCKED] * (24 * 5),
-                                                   [MIN_LOCKED_PERIODS] * (24 * 5)),
-                     {'from': origin})
 
     #
     # Ursula and Alice transfer some tokens to the escrow and lock them
@@ -587,13 +565,12 @@ def estimate_gas(analyzer: AnalyzeGas = None) -> None:
 
     # Large number of sub-stakes
     number_of_sub_stakes = 24
+    transact(token_functions.approve(staking_agent.contract_address, 0), {'from': origin})
     transact(token_functions.approve(staking_agent.contract_address, MIN_ALLOWED_LOCKED * number_of_sub_stakes),
              {'from': origin})
-    transact(staker_functions.batchDeposit([staker4],
-                                           [number_of_sub_stakes],
-                                           [MIN_ALLOWED_LOCKED] * number_of_sub_stakes,
-                                           [MIN_LOCKED_PERIODS] * number_of_sub_stakes),
-             {'from': origin})
+    for i in range(number_of_sub_stakes):
+        transact(staker_functions.deposit(staker4, MIN_ALLOWED_LOCKED, MIN_LOCKED_PERIODS),
+                 {'from': origin})
     transact(staker_functions.bondWorker(staker4), {'from': staker4})
     transact(staker_functions.setWindDown(True), {'from': staker4})
 

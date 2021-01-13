@@ -46,7 +46,7 @@ interface WorkLockInterface {
 * @title StakingEscrow
 * @notice Contract holds and locks stakers tokens.
 * Each staker that locks their tokens will receive some compensation
-* @dev |v5.5.1|
+* @dev |v5.6.1|
 */
 contract StakingEscrow is Issuer, IERC900History {
 
@@ -631,63 +631,6 @@ contract StakingEscrow is Issuer, IERC900History {
             uint256 lastGlobalBalance = uint256(balanceHistory.lastValue());
             balanceHistory.addSnapshot(lastGlobalBalance.addSigned(_addition));
         }
-    }
-
-
-    /**
-    * @notice Batch deposit. Allowed only initial deposit for each staker
-    * @param _stakers Stakers
-    * @param _numberOfSubStakes Number of sub-stakes which belong to staker in _values and _periods arrays
-    * @param _values Amount of tokens to deposit for each staker
-    * @param _periods Amount of periods during which tokens will be locked for each staker
-    */
-    function batchDeposit(
-        address[] calldata _stakers,
-        uint256[] calldata _numberOfSubStakes,
-        uint256[] calldata _values,
-        uint16[] calldata _periods
-    )
-        external
-    {
-        uint256 subStakesLength = _values.length;
-        require(_stakers.length != 0 &&
-            _stakers.length == _numberOfSubStakes.length &&
-            subStakesLength >= _stakers.length &&
-            _periods.length == subStakesLength);
-        uint16 previousPeriod = getCurrentPeriod() - 1;
-        uint16 nextPeriod = previousPeriod + 2;
-        uint256 sumValue = 0;
-
-        uint256 j = 0;
-        for (uint256 i = 0; i < _stakers.length; i++) {
-            address staker = _stakers[i];
-            uint256 numberOfSubStakes = _numberOfSubStakes[i];
-            uint256 endIndex = j + numberOfSubStakes;
-            require(numberOfSubStakes > 0 && subStakesLength >= endIndex);
-            StakerInfo storage info = stakerInfo[staker];
-            require(info.subStakes.length == 0 && !info.flags.bitSet(SNAPSHOTS_DISABLED_INDEX));
-            // A staker can't be a worker for another staker
-            require(stakerFromWorker[staker] == address(0));
-            stakers.push(staker);
-            policyManager.register(staker, previousPeriod);
-
-            for (; j < endIndex; j++) {
-                uint256 value =  _values[j];
-                uint16 periods = _periods[j];
-                require(value >= minAllowableLockedTokens && periods >= minLockedPeriods);
-                info.value = info.value.add(value);
-                info.subStakes.push(SubStakeInfo(nextPeriod, 0, periods, uint128(value)));
-                sumValue = sumValue.add(value);
-                emit Deposited(staker, value, periods);
-                emit Locked(staker, value, nextPeriod, periods);
-            }
-            require(info.value <= maxAllowableLockedTokens);
-            info.history.addSnapshot(info.value);
-        }
-        require(j == subStakesLength);
-        uint256 lastGlobalBalance = uint256(balanceHistory.lastValue());
-        balanceHistory.addSnapshot(lastGlobalBalance + sumValue);
-        token.safeTransferFrom(msg.sender, address(this), sumValue);
     }
 
     /**

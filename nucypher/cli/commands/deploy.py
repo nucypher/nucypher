@@ -66,8 +66,6 @@ from nucypher.cli.literature import (
     SUCCESSFUL_REGISTRY_DOWNLOAD,
     SUCCESSFUL_RETARGET,
     SUCCESSFUL_RETARGET_TX_BUILT,
-    SUCCESSFUL_SAVE_BATCH_DEPOSIT_RECEIPTS,
-    SUCCESSFUL_SAVE_DEPLOY_RECEIPTS,
     SUCCESSFUL_SAVE_MULTISIG_TX_PROPOSAL,
     SUCCESSFUL_UPGRADE,
     UNKNOWN_CONTRACT_NAME,
@@ -540,26 +538,6 @@ def contracts(general_config, actor_options, mode, activate, gas, ignore_deploye
     # Save transaction metadata
     # receipts_filepath = ADMINISTRATOR.save_deployment_receipts(receipts=receipts)
     # emitter.echo(SUCCESSFUL_SAVE_DEPLOY_RECEIPTS.format(receipts_filepath=receipts_filepath), color='blue', bold=True)
-
-
-@deploy.command()
-@group_general_config
-@group_actor_options
-@click.option('--allocation-infile', help="Input path for token allocation JSON file", type=EXISTING_READABLE_FILE)
-@option_gas
-def allocations(general_config, actor_options, allocation_infile, gas):
-    """Deposit stake allocations in batches"""
-    emitter = general_config.emitter
-    ADMINISTRATOR, _, deployer_interface, local_registry = actor_options.create_actor(emitter)
-    if not allocation_infile:
-        allocation_infile = click.prompt(PROMPT_FOR_ALLOCATION_DATA_FILEPATH)
-    receipts = ADMINISTRATOR.batch_deposits(allocation_data_filepath=allocation_infile,
-                                            emitter=emitter,
-                                            gas_limit=gas,
-                                            interactive=not actor_options.force)
-    receipts_filepath = ADMINISTRATOR.save_deployment_receipts(receipts=receipts, filename_prefix='batch_deposits')
-    if emitter:
-        emitter.echo(SUCCESSFUL_SAVE_BATCH_DEPOSIT_RECEIPTS.format(receipts_filepath=receipts_filepath), color='blue', bold=True)
 
 
 @deploy.command("transfer-ownership")
