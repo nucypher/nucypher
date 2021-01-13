@@ -37,8 +37,14 @@ from constant_sorrow.constants import (
     STRANGER_ALICE,
     UNKNOWN_VERSION,
     READY,
-    INVALIDATED,
-    VERIFIED
+    INVALIDATED
+)
+from constant_sorrow.constants import (
+    VERIFIED,
+    UNAVAILABLE,
+    SUSPICIOUS,
+    UNSTAKED,
+    INVALID
 )
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives.asymmetric.ec import EllipticCurve
@@ -55,13 +61,14 @@ from random import shuffle
 from twisted.internet import reactor, stdio, threads
 from twisted.internet.task import LoopingCall
 from twisted.logger import Logger
-from typing import Dict, Iterable, List, Tuple, Union, Optional, Sequence, Set, Callable
+from typing import Dict, Iterable, List, Tuple, Union, Optional, Sequence, Set
 from umbral import pre
 from umbral.keys import UmbralPublicKey
 from umbral.kfrags import KFrag
 from umbral.signing import Signature
 
 import nucypher
+from acumen.pruning import construct_node_stalecheck, construct_node_max_attempts
 from nucypher.acumen.nicknames import Nickname
 from nucypher.acumen.perception import FleetSensor
 from nucypher.blockchain.eth.actors import BlockchainPolicyAuthor, Worker
@@ -1019,41 +1026,6 @@ class Bob(Character):
         return controller
 
 
-#TODO: Move me to new module
-from constant_sorrow.constants import UNAVAILABLE
-
-
-def example_pruning_strategy(node) -> bool:
-    """Return True to keep a node or False to Erase"""
-    return True
-
-
-def reject_node(node) -> bool:
-    return False
-
-
-def construct_node_stalecheck(seconds: int, start_time: Optional[maya.MayaDT] = None) -> Callable:
-    start_time = start_time or maya.now()
-    # TODO: Validate tim
-    def check(node) -> bool:
-        now = maya.now()
-        delta = - start_time
-        return node.last_seen > max_duration  # TODO
-    return check
-
-
-def construct_node_max_attempts(max_attempts: int):
-    attempts = 0
-    def check(node) -> bool:
-        attempts += 1
-        if attempts > max_attempts:
-            return False
-
-
-def construct_node_min_():
- pass
-
-
 class Ursula(Teacher, Character, Worker):
     banner = URSULA_BANNER
     _alice_class = Alice
@@ -1065,10 +1037,18 @@ class Ursula(Teacher, Character, Worker):
     _datastore_pruning_interval = 60  # seconds
     _node_pruning_interval = 600  # seconds
 
-    _pruning_strategies = {
-        UNAVAILABLE: construct_node_stalecheck(max_duration=24),
-        SUSPICIOUS: reject_node,
+    # Buckets that do not need pruning
+    # UNVERIFIED
+    # VERIFIED
 
+    # TODO: Multiple strategies per bucket?
+    # _pruning_startgies = defaultdict(list)
+    three_days = 60*60*72
+    _pruning_strategies = {
+        UNAVAILABLE: [construct_node_stalecheck(max_seconds=three_days), construct_node_max_attempts(max_attempts=20)],
+        SUSPICIOUS: [reject_node],
+        UNSTAKED: [accept_node],
+        INVALID: [accept_node],
     }
 
     class NotEnoughUrsulas(Learner.NotEnoughTeachers, StakingEscrowAgent.NotEnoughStakers):
@@ -1313,13 +1293,16 @@ class Ursula(Teacher, Character, Worker):
         validate_worker_ip(worker_ip=self.rest_interface.host)
 
     def __prune_nodes(self) -> None:
-        for bucket, strategy in self.__pruning_strategies.items():
+        """Apply node pruning strategies to known nodes"""
+        for bucket, strategies in self.__pruning_strategies.items():
             for node in self.known_nodes.get_nodes(label=bucket):
-                keep = strategy(node=node)
-                if not keep:
-                    del self.known_nodes[node.checksum_address]
-                    # TODO: removed from marked as
-                    # TODO: Trash can label?
+                for strategy in strategies:
+                    keep = strategy(node=node)
+                    if not keep:
+                        del self.known_nodes[node.checksum_address]    # prune node
+                        self.known_nodes._marked[bucket].remove(node)  # prune corresponding label
+                        # TODO: Trash can label?
+                        break  # this node is already doomed anyways
 
     def run(self,
             emitter: StdoutEmitter = None,
@@ -1357,12 +1340,12 @@ class Ursula(Teacher, Character, Worker):
         if datastore_pruning:
             self._datastore_pruning_task.start(interval=self._datastore_pruning_interval, now=True)
             if emitter:
-                emitter.message(f"✓ Database pruning", color='green')
+                emitter.message(f"✓ Database pruning ({self._datastore_pruning_interval}s)", color='green')
 
         if node_pruning:
             self._node_pruning_task.start(interval=self._node_pruning_interval, now=False)  # lazy
             if emitter:
-                emitter.message(f"✓ Node pruning", color='green')
+                emitter.message(f"✓ Node pruning ({self._node_pruning_interval}s)", color='green')
 
         if self._availability_check and availability:
             self._availability_tracker.start(now=False)  # wait...
