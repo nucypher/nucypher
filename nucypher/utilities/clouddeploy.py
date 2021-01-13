@@ -171,7 +171,7 @@ class BaseCloudNodeConfigurator:
                  stakeholder_config_path,
                  blockchain_provider=None,
                  nucypher_image=None,
-                 seed_network=False,
+                 seed_network=None,
                  sentry_dsn=None,
                  profile=None,
                  pre_config=False,
