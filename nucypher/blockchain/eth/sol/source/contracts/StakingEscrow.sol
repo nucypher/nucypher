@@ -137,7 +137,6 @@ contract StakingEscrow is Issuer, IERC900History {
     uint16 public immutable minWorkerPeriods;
     uint256 public immutable minAllowableLockedTokens;
     uint256 public immutable maxAllowableLockedTokens;
-    bool public immutable isTestContract;
 
     mapping (address => StakerInfo) public stakerInfo;
     address[] public stakers;
@@ -176,7 +175,6 @@ contract StakingEscrow is Issuer, IERC900History {
     * @param _minAllowableLockedTokens Min amount of tokens that can be locked
     * @param _maxAllowableLockedTokens Max amount of tokens that can be locked
     * @param _minWorkerPeriods Min amount of periods while a worker can't be changed
-    * @param _isTestContract True if contract is only for tests
     */
     constructor(
         NuCypherToken _token,
@@ -190,8 +188,7 @@ contract StakingEscrow is Issuer, IERC900History {
         uint16 _minLockedPeriods,
         uint256 _minAllowableLockedTokens,
         uint256 _maxAllowableLockedTokens,
-        uint16 _minWorkerPeriods,
-        bool _isTestContract
+        uint16 _minWorkerPeriods
     )
         Issuer(
             _token,
@@ -210,7 +207,6 @@ contract StakingEscrow is Issuer, IERC900History {
         minAllowableLockedTokens = _minAllowableLockedTokens;
         maxAllowableLockedTokens = _maxAllowableLockedTokens;
         minWorkerPeriods = _minWorkerPeriods;
-        isTestContract = _isTestContract;
     }
 
     /**
@@ -251,7 +247,7 @@ contract StakingEscrow is Issuer, IERC900History {
     */
     function setWorkLock(WorkLockInterface _workLock) external onlyOwner {
         // WorkLock can be set only once
-        require(address(workLock) == address(0) || isTestContract);
+        require(address(workLock) == address(0));
         // This escrow must be the escrow for the new worklock
         require(_workLock.escrow() == address(this));
         workLock = _workLock;

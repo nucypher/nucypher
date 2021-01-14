@@ -227,8 +227,7 @@ class TesterBlockchain(BlockchainDeployerInterface):
         origin = testerchain.client.etherbase
         admin = ContractAdministrator(deployer_address=origin,
                                       registry=registry,
-                                      economics=economics or cls.DEFAULT_ECONOMICS,
-                                      staking_escrow_test_mode=True)
+                                      economics=economics or cls.DEFAULT_ECONOMICS)
 
         gas_limit = None  # TODO: Gas management - #842
         for deployer_class in admin.primary_deployer_classes:

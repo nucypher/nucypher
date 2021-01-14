@@ -36,7 +36,7 @@ def test_upgrading(testerchain, token, token_economics, deploy_contract):
 
     # Deploy contract
     contract_library_v1, _ = deploy_contract(
-        'StakingEscrow', token.address, *token_economics.staking_deployment_parameters, True
+        'StakingEscrow', token.address, *token_economics.staking_deployment_parameters
     )
     dispatcher, _ = deploy_contract('Dispatcher', contract_library_v1.address)
 
@@ -55,7 +55,6 @@ def test_upgrading(testerchain, token, token_economics, deploy_contract):
         _minAllowableLockedTokens=2,
         _maxAllowableLockedTokens=2,
         _minWorkerPeriods=2,
-        _isTestContract=False,
         _valueToCheck=2
     )
 
@@ -64,7 +63,6 @@ def test_upgrading(testerchain, token, token_economics, deploy_contract):
         address=dispatcher.address,
         ContractFactoryClass=Contract)
     assert token_economics.maximum_allowed_locked == contract.functions.maxAllowableLockedTokens().call()
-    assert contract.functions.isTestContract().call()
 
     # Can't call `finishUpgrade` and `verifyState` methods outside upgrade lifecycle
     with pytest.raises((TransactionFailed, ValueError)):
@@ -118,10 +116,6 @@ def test_upgrading(testerchain, token, token_economics, deploy_contract):
     tx = contract.functions.commitToNextPeriod().transact({'from': worker})
     testerchain.wait_for_receipt(tx)
 
-    # Can set WorkLock twice, because isTestContract == True
-    tx = contract.functions.setWorkLock(worklock.address).transact()
-    testerchain.wait_for_receipt(tx)
-
     # Upgrade to the second version
     tx = dispatcher.functions.upgrade(contract_library_v2.address).transact({'from': creator})
     testerchain.wait_for_receipt(tx)
@@ -130,10 +124,6 @@ def test_upgrading(testerchain, token, token_economics, deploy_contract):
     assert 2 == contract.functions.maxAllowableLockedTokens().call()
     assert policy_manager.address == contract.functions.policyManager().call()
     assert 2 == contract.functions.valueToCheck().call()
-    assert not contract.functions.isTestContract().call()
-    with pytest.raises((TransactionFailed, ValueError)):
-        tx = contract.functions.setWorkLock(worklock.address).transact()
-        testerchain.wait_for_receipt(tx)
     # Check new ABI
     tx = contract.functions.setValueToCheck(3).transact({'from': creator})
     testerchain.wait_for_receipt(tx)
@@ -153,8 +143,7 @@ def test_upgrading(testerchain, token, token_economics, deploy_contract):
         _minLockedPeriods=2,
         _minAllowableLockedTokens=2,
         _maxAllowableLockedTokens=2,
-        _minWorkerPeriods=2,
-        _isTestContract=False
+        _minWorkerPeriods=2
     )
     with pytest.raises((TransactionFailed, ValueError)):
         tx = dispatcher.functions.upgrade(contract_library_v1.address).transact({'from': creator})
@@ -168,9 +157,6 @@ def test_upgrading(testerchain, token, token_economics, deploy_contract):
     testerchain.wait_for_receipt(tx)
     assert contract_library_v1.address == dispatcher.functions.target().call()
     assert policy_manager.address == contract.functions.policyManager().call()
-    assert contract.functions.isTestContract().call()
-    tx = contract.functions.setWorkLock(worklock.address).transact()
-    testerchain.wait_for_receipt(tx)
     # After rollback new ABI is unavailable
     with pytest.raises((TransactionFailed, ValueError)):
         tx = contract.functions.setValueToCheck(2).transact({'from': creator})

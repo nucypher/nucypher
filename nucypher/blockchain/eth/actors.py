@@ -215,7 +215,6 @@ class ContractAdministrator(NucypherTokenActor):
                  deployer_address: str = None,
                  client_password: str = None,
                  signer: Signer = None,
-                 staking_escrow_test_mode: bool = False,
                  is_transacting: bool = True,  # FIXME: Workaround to be able to build MultiSig TXs
                  economics: BaseEconomics = None):
         """
@@ -226,7 +225,6 @@ class ContractAdministrator(NucypherTokenActor):
         self.deployer_address = deployer_address
         self.checksum_address = self.deployer_address
         self.economics = economics or StandardTokenEconomics()
-        self.staking_escrow_test_mode = staking_escrow_test_mode
 
         self.registry = registry
         self.preallocation_escrow_deployers = dict()
@@ -296,9 +294,6 @@ class ContractAdministrator(NucypherTokenActor):
         deployment_parameters = deployment_parameters or {}
 
         Deployer = self.__get_deployer(contract_name=contract_name)
-        if Deployer is StakingEscrowDeployer:
-            kwargs.update({"test_mode": self.staking_escrow_test_mode})
-
         deployer = Deployer(registry=self.registry,
                             deployer_address=self.deployer_address,
                             economics=self.economics,

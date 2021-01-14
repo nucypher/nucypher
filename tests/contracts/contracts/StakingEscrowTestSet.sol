@@ -24,8 +24,7 @@ contract EnhancedStakingEscrow is StakingEscrow {
         uint16 _minLockedPeriods,
         uint256 _minAllowableLockedTokens,
         uint256 _maxAllowableLockedTokens,
-        uint16 _minWorkerPeriods,
-        bool _isTestContract
+        uint16 _minWorkerPeriods
     )
         StakingEscrow(
             _token,
@@ -39,8 +38,7 @@ contract EnhancedStakingEscrow is StakingEscrow {
             _minLockedPeriods,
             _minAllowableLockedTokens,
             _maxAllowableLockedTokens,
-            _minWorkerPeriods,
-            _isTestContract
+            _minWorkerPeriods
         )
     {
     }
@@ -80,8 +78,7 @@ contract StakingEscrowBad is StakingEscrow {
         uint16 _minLockedPeriods,
         uint256 _minAllowableLockedTokens,
         uint256 _maxAllowableLockedTokens,
-        uint16 _minWorkerPeriods,
-        bool _isTestContract
+        uint16 _minWorkerPeriods
     )
         StakingEscrow(
             _token,
@@ -95,8 +92,7 @@ contract StakingEscrowBad is StakingEscrow {
             _minLockedPeriods,
             _minAllowableLockedTokens,
             _maxAllowableLockedTokens,
-            _minWorkerPeriods,
-            _isTestContract
+            _minWorkerPeriods
         )
     {
     }
@@ -126,7 +122,6 @@ contract StakingEscrowV2Mock is StakingEscrow {
         uint256 _minAllowableLockedTokens,
         uint256 _maxAllowableLockedTokens,
         uint16 _minWorkerPeriods,
-        bool _isTestContract,
         uint256 _valueToCheck
     )
         StakingEscrow(
@@ -141,8 +136,7 @@ contract StakingEscrowV2Mock is StakingEscrow {
             _minLockedPeriods,
             _minAllowableLockedTokens,
             _maxAllowableLockedTokens,
-            _minWorkerPeriods,
-            _isTestContract
+            _minWorkerPeriods
         )
     {
         valueToCheck = _valueToCheck;

@@ -83,7 +83,9 @@ CONSTRUCTOR_OVERRIDES = {
                                                      "_firstPhaseMaxIssuance": None,
                                                      "_miningCoefficient": 2,
                                                      "_lockedPeriodsCoefficient": 1,
-                                                     "_rewardedPeriods": 1}}
+                                                     "_rewardedPeriods": 1},
+                                          "v5.6.1": {"_isTestContract": True}
+                                          }
 }
 
 

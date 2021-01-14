@@ -127,7 +127,6 @@ class ActorOptions:
                  poa: bool,
                  config_root: str,
                  etherscan: bool,
-                 se_test_mode,
                  ignore_solidity_check,
                  gas_strategy: str,
                  max_gas_price: int,  # gwei
@@ -149,7 +148,6 @@ class ActorOptions:
         self.config_root = config_root
         self.etherscan = etherscan
         self.poa = poa
-        self.se_test_mode = se_test_mode
         self.ignore_solidity_check = ignore_solidity_check
         self.network = network
 
@@ -213,8 +211,7 @@ class ActorOptions:
                                               client_password=password,
                                               deployer_address=deployer_address,
                                               is_transacting=is_transacting,
-                                              signer=signer,
-                                              staking_escrow_test_mode=self.se_test_mode)
+                                              signer=signer)
         # Verify ETH Balance
         emitter.echo(DEPLOYER_BALANCE.format(eth_balance=ADMINISTRATOR.eth_balance))
         if is_transacting and ADMINISTRATOR.eth_balance == 0:
@@ -237,7 +234,6 @@ group_actor_options = group_options(
     registry_infile=option_registry_infile,
     registry_outfile=option_registry_outfile,
     dev=click.option('--dev', '-d', help="Forcibly use the development registry filepath.", is_flag=True),
-    se_test_mode=click.option('--se-test-mode', help="Enable test mode for StakingEscrow in deployment.", is_flag=True),
     config_root=option_config_root,
     etherscan=option_etherscan,
     ignore_solidity_check=option_ignore_solidity_version,

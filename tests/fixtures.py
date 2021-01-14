@@ -557,8 +557,7 @@ def _make_agency(testerchain,
 
     staking_escrow_deployer = StakingEscrowDeployer(deployer_address=origin,
                                                     economics=token_economics,
-                                                    registry=test_registry,
-                                                    test_mode=True)
+                                                    registry=test_registry)
     staking_escrow_deployer.deploy()
 
     policy_manager_deployer = PolicyManagerDeployer(deployer_address=origin,

@@ -754,11 +754,6 @@ class StakingEscrowAgent(EthereumContractAgent):
 
     @property  # type: ignore
     @contract_api(CONTRACT_ATTRIBUTE)
-    def is_test_contract(self) -> bool:
-        return self.contract.functions.isTestContract().call()
-
-    @property  # type: ignore
-    @contract_api(CONTRACT_ATTRIBUTE)
     def worklock(self) -> ChecksumAddress:
         return self.contract.functions.workLock().call()
 

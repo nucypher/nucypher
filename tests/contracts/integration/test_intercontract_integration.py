@@ -73,7 +73,7 @@ def token(token_economics, deploy_contract):
 def escrow_bare(testerchain, token, token_economics, deploy_contract):
     # Creator deploys the escrow
     contract, _ = deploy_contract(
-        'EnhancedStakingEscrow', token.address, *token_economics.staking_deployment_parameters, True
+        'EnhancedStakingEscrow', token.address, *token_economics.staking_deployment_parameters
     )
     return contract
 
@@ -914,7 +914,7 @@ def test_upgrading_and_rollback(testerchain,
     policy_manager_v1 = policy_manager.functions.target().call()
     # Creator deploys the contracts as the second versions
     escrow_v2, _ = deploy_contract(
-        'StakingEscrow', token.address, *token_economics.staking_deployment_parameters, False
+        'StakingEscrow', token.address, *token_economics.staking_deployment_parameters
     )
     policy_manager_v2, _ = deploy_contract('PolicyManager', escrow.address)
     # Staker and Alice can't upgrade contracts, only owner can

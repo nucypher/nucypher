@@ -512,14 +512,13 @@ class StakingEscrowDeployer(BaseContractDeployer, UpgradeableContractMixin, Owna
     deployment_steps = preparation_steps + activation_steps
     _proxy_deployer = DispatcherDeployer
 
-    def __init__(self, test_mode: bool = False, *args, **kwargs):
+    def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.__dispatcher_contract = None
 
         token_contract_name = NucypherTokenDeployer.contract_name
         self.token_contract = self.blockchain.get_contract_by_name(registry=self.registry,
                                                                    contract_name=token_contract_name)
-        self.test_mode = test_mode
 
     def _deploy_essential(self, contract_version: str, gas_limit: int = None, confirmations: int = 0, **overrides):
         args = self.economics.staking_deployment_parameters
@@ -534,8 +533,7 @@ class StakingEscrowDeployer(BaseContractDeployer, UpgradeableContractMixin, Owna
             "_minLockedPeriods": args[7],
             "_minAllowableLockedTokens": args[8],
             "_maxAllowableLockedTokens": args[9],
-            "_minWorkerPeriods": args[10],
-            "_isTestContract": self.test_mode
+            "_minWorkerPeriods": args[10]
         }
         constructor_kwargs.update(overrides)
         constructor_kwargs = {k: v for k, v in constructor_kwargs.items() if v is not None}
@@ -1226,7 +1224,7 @@ class WorklockDeployer(BaseContractDeployer):
             raise self.ContractDeploymentError(f"{self.contract_name} cannot be deployed in {deployment_mode} mode")
 
         staking_escrow_rule = [
-            (self.staking_agent.worklock == NULL_ADDRESS or self.staking_agent.is_test_contract,
+            (self.staking_agent.worklock == NULL_ADDRESS,
              f"StakingEscrow already has a WorkLock reference ({self.staking_agent.worklock})")
         ]
         self.check_deployment_readiness(ignore_deployed=ignore_deployed, additional_rules=staking_escrow_rule)
