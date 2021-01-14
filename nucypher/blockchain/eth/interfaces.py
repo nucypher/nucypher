@@ -403,17 +403,13 @@ class BlockchainInterface:
         # TODO: #1504 - Additional Handling of validation failures (gas limits, invalid fields, etc.)
         """
 
-        try:
-            response = exception.args[0]
-        except (AttributeError, TypeError):
-            # Python exceptions must have the 'args' attribute which must be a sequence (i.e. indexable)
-            raise ValueError(f'{exception} is not a valid Exception instance')
+        response = exception.args[0]
 
         # Assume this error is formatted as an RPC response
         try:
             code = int(response['code'])
             message = response['message']
-        except (KeyError, ValueError):
+        except Exception:
             # TODO: #1504 - Try even harder to determine if this is insufficient funds causing the issue,
             #               This may be best handled at the agent or actor layer for registry and token interactions.
             # Worst case scenario - raise the exception held in context implicitly
