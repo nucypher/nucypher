@@ -1,0 +1,1 @@
+Restore the re-raising behavior in ``BlockchainInterface._handle_failed_transaction()``
