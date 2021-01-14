@@ -421,7 +421,7 @@ def _make_rest_app(datastore: Datastore, this_node, domain: str, log: Logger) ->
     @rest_app.route('/status/', methods=['GET'])
     def status():
         if request.args.get('json'):
-            payload = this_node.abridged_node_details()
+            payload = this_node.abridged_node_details(raise_invalid=False)
             response = jsonify(payload)
             return response
 
