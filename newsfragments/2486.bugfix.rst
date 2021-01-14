@@ -1,0 +1,1 @@
+Ignore pending Ethereum transactions for purposes of gas estimation.

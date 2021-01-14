@@ -404,28 +404,33 @@ class BlockchainInterface:
         """
 
         try:
-            # Assume this error is formatted as an IPC response
-            code, message = exception.args[0].values()
+            response = exception.args[0]
+        except (AttributeError, TypeError):
+            # Python exceptions must have the 'args' attribute which must be a sequence (i.e. indexable)
+            raise ValueError(f'{exception} is not a valid Exception instance')
 
-        except (ValueError, IndexError, AttributeError):
+        # Assume this error is formatted as an RPC response
+        try:
+            code = int(response['code'])
+            message = response['message']
+        except (KeyError, ValueError):
             # TODO: #1504 - Try even harder to determine if this is insufficient funds causing the issue,
             #               This may be best handled at the agent or actor layer for registry and token interactions.
             # Worst case scenario - raise the exception held in context implicitly
             raise exception
 
-        else:
-            if int(code) != cls.TransactionFailed.IPC_CODE:
-                # Only handle client-specific exceptions
-                # https://www.jsonrpc.org/specification Section 5.1
-                raise exception
+        if code != cls.TransactionFailed.IPC_CODE:
+            # Only handle client-specific exceptions
+            # https://www.jsonrpc.org/specification Section 5.1
+            raise exception
 
-            if logger:
-                logger.critical(message)  # simple context
+        if logger:
+            logger.critical(message)  # simple context
 
-            transaction_failed = cls.TransactionFailed(message=message,  # rich error (best case)
-                                                       contract_function=contract_function,
-                                                       transaction_dict=transaction_dict)
-            raise transaction_failed from exception
+        transaction_failed = cls.TransactionFailed(message=message,  # rich error (best case)
+                                                   contract_function=contract_function,
+                                                   transaction_dict=transaction_dict)
+        raise transaction_failed from exception
 
     def __log_transaction(self, transaction_dict: dict, contract_function: ContractFunction):
         """
@@ -496,7 +501,12 @@ class BlockchainInterface:
                                      use_pending_nonce=use_pending_nonce)
         self.__log_transaction(transaction_dict=payload, contract_function=contract_function)
         try:
-            transaction_dict = contract_function.buildTransaction(payload)  # Gas estimation occurs here
+            if 'gas' not in payload:
+                # As web3 buildTransaction() will estimate gas with block identifier "pending" by default,
+                # explicitly estimate gas here with block identifier 'latest' if not otherwise specified
+                # as a pending transaction can cause gas estimation to fail, notably in case of worklock refunds.
+                payload['gas'] = contract_function.estimateGas(payload, 'latest')
+            transaction_dict = contract_function.buildTransaction(payload)
         except (TestTransactionFailed, ValidationError, ValueError) as error:
             # Note: Geth raises ValueError in the same condition that pyevm raises ValidationError here.
             # Treat this condition as "Transaction Failed" during gas estimation.
