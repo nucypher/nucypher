@@ -1,0 +1,1 @@
+Gentler handling of unsigned stamps from stranger Ursulas on status endpoint
