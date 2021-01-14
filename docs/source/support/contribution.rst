@@ -16,7 +16,7 @@ Before continuing, ensure you have ``git`` installed (\ `Git Documentation <http
 Acquire NuCypher Codebase
 ^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Fork the nucypher repository on GitHub, as explained in the :doc:`Contribution Guide </guides/contribution>`,
+Fork the nucypher repository on GitHub, as explained in the :doc:`Contribution Guide </support/contribution>`,
 then clone your fork's repository to your local machine:
 
 .. code-block::
@@ -41,7 +41,8 @@ Alternately, you can install the development dependencies with pip:
 Development Docker Installation
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-The intention of the Docker configurations in this directory is to enable anyone to develop and test NuCypher on all major operating systems with minimal prerequisites and installation hassle (tested on Ubuntu 16, MacOS 10.14, Windows 10).
+The intention of the Docker configurations in this directory is to enable anyone to develop and test
+NuCypher on all major operating systems with minimal prerequisites and installation hassle (tested on Ubuntu 16, MacOS 10.14, Windows 10).
 
 Standard Docker Installation
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -112,7 +113,7 @@ contributing proposed changes:
 
    $ git remote update
 
-.. _`Developer Installation Guide`: https://docs.nucypher.com/en/latest/guides/installation.html
+.. _`Developer Installation Guide`: https://docs.nucypher.com/en/latest/installation.html
 
 6. Install the project dependencies: see the `Developer Installation Guide`_
 

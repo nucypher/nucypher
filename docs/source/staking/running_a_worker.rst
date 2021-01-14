@@ -1,8 +1,8 @@
 .. _ursula-config-guide:
 
-===================================
-Worker (Ursula) Configuration Guide
-===================================
+================
+Running a Worker
+================
 
 NuCypher staking operations are divided into two roles "Staker" and "Worker" - This Guide is for Workers.
 
@@ -51,7 +51,7 @@ Working Procedure:
 
 1) Ensure that a `Stake` is available (see :ref:`staking-guide`)
 2) Run an ethereum node on the Worker's machine eg. geth, parity, etc. (see :ref:`Running an Ethereum node for Ursula <running-worker-eth-node>`)
-3) Install ``nucypher`` on Worker node (see :doc:`/guides/installation`)
+3) Install ``nucypher`` on Worker node (see :doc:`/installation`)
 4) Create and fund worker's ethereum address (see :ref:`Fund Worker Account with ETH <fund-worker-account>`)
 5) Bond the Worker to a Staker (see :ref:`bond-worker`)
 6) Configure and run a Worker node (see :ref:`Configure and Run Ursula <configure-run-ursula>`)
@@ -278,8 +278,8 @@ During the Technical Contributor Phase of our testnet, *P2P Validator*
 contributed a `self-hosted node monitoring suite <https://economy.p2p.org/nucypher-worker-node-monitoring-suite/amp/>`_
 that uses a Grafana dashboard to visualize and monitor the metrics produced by the prometheus endpoint.
 
-.. image:: ../../.static/img/p2p_validator_dashboard.png
-    :target: ../../.static/img/p2p_validator_dashboard.png
+.. image:: ../.static/img/p2p_validator_dashboard.png
+    :target: ../.static/img/p2p_validator_dashboard.png
 
 .. note::
 

@@ -118,7 +118,7 @@ POST_STAKING_ADVICE = """
 View your stakes by running 'nucypher stake list'
 or set your Ursula worker node address by running 'nucypher stake bond-worker'.
 
-See https://docs.nucypher.com/en/latest/guides/network_node/staking_guide.html
+See https://docs.nucypher.com/en/latest/staking/running_a_worker.html
 """
 
 #

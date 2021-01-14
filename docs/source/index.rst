@@ -68,7 +68,6 @@ More detailed information:
 - GitHub https://www.github.com/nucypher/nucypher
 - Website https://www.nucypher.com/
 
-
 Whitepapers
 -----------
 
@@ -110,40 +109,42 @@ Whitepapers
    :maxdepth: 1
    :caption: Staking
 
-   guides/network_node/running_a_node
-   guides/network_node/stake_initialization
-   guides/network_node/stake_management
-   guides/network_node/ursula_configuration
-   guides/dao
+   staking/overview
+   staking/stake_initialization
+   staking/stake_management
+   staking/running_a_worker
+   staking/worklock
 
 .. toctree::
    :maxdepth: 1
    :caption: Application Development
 
-   guides/development/getting_started
-   guides/development/character_control
-
+   getting_started
+   http_character_control
    demos/local_fleet_demo
-   demos/finnegans_wake_demo
-   demos/heartbeat_demo
 
 .. toctree::
    :maxdepth: 1
-   :caption: Guides
+   :caption: References
 
-   guides/installation
-   guides/worklock
-   guides/signers
-   guides/environment_variables
+   installation
+   signers
+   environment_variables
 
+.. toctree::
+   :maxdepth: 1
+   :caption: Demos
+
+   demos/finnegans_wake_demo
+   demos/heartbeat_demo
+   cli/cli_examples
 
 .. toctree::
    :maxdepth: 1
    :caption: CLI
 
    cli/staking_cli
-   cli/remote_worker_management_cli
-   cli/cli_examples
+   cli/remote_worker_cli
 
 .. toctree::
    :maxdepth: 1
@@ -160,7 +161,7 @@ Whitepapers
 
 .. toctree::
    :maxdepth: 1
-   :caption: API
+   :caption: Python API
 
    api/nucypher.blockchain
    api/nucypher.characters
@@ -186,12 +187,11 @@ Whitepapers
    release_notes/pre_release_epics
    release_notes/releases.rst
 
-
 .. toctree::
    :maxdepth: 1
    :caption: Support
 
-   guides/contribution
+   support/contribution
    support/node_providers
    support/community
    support/troubleshooting

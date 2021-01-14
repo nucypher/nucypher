@@ -26,7 +26,7 @@ Staking Procedure
 -----------------
 
 #. Obtain and Secure NU
-#. Install ``nucypher`` on Staker's system (:doc:`/guides/installation`)
+#. Install ``nucypher`` on Staker's system (:doc:`/installation`)
 #. Configure nucypher CLI for staking (`3. Configure nucypher for staking`_)
 #. Bond a Worker to your Staker using the worker's ethereum address (see `6. Bond a worker`_)
 #. Manage active stakes (:doc:`stake_management`)
@@ -140,6 +140,14 @@ configuration values.  No new keys or secrets are created in this step, it's jus
 Once you have configured nucypher for staking, you can proceed with stake initiation.
 This operation will transfer NU to nucypher's staking escrow contract, locking it for
 the commitment period.
+
+
+.. important::
+
+    Before proceeding it is important to understand that you will need to spend ETH to unlock staked NU.
+    Once tokens are staked, the only way for them to become unlocked to by running a bonded worker node.
+    Currently, Worker nodes must perform one automated transaction every 24 hours costing ~200 gas.
+
 
 .. code:: bash
 

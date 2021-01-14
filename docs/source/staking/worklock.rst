@@ -1,8 +1,8 @@
 .. _worklock-guide:
 
-==============
-WorkLock Guide
-==============
+========
+WorkLock
+========
 
 Overview
 --------

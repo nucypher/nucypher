@@ -1,5 +1,5 @@
-Installation Guide
-==================
+Installation Reference
+======================
 
 Contents
 --------
@@ -137,7 +137,7 @@ Display network stats:
 
     docker run -it -v ~/.local/share/nucypher:/root/.local/share/nucypher -v ~/.ethereum/:/root/.ethereum -p 9151:9151 nucypher/nucypher:latest nucypher status network --provider `<PROVIDER URI>` --network `<NETWORK NAME>`
 
-Running a pre-configured Worker as a daemon (See :doc:`Configuration Guide </guides/network_node/ursula_configuration>`):
+Running a pre-configured Worker as a daemon (See :doc:`Configuration Guide </staking/running_a_worker>`):
 
 .. code-block::
 

@@ -31,24 +31,16 @@ The worker's ethereum account must remain unlocked to send automated work confir
 ether to pay for transaction gas; however, it is *not* necessary (and potentially risky) to hold NU tokens on a worker's
 account for any reason.
 
-Operational Strategies
-----------------------
+Staker and Worker Delegation
+-----------------------------
 
-There are several strategies for running and amintaining a staking node:
+There are several strategies for running and maintaining a staking node:
 
 * Delegate custody of NU and work to a third-party custodian.
 * Delegate work via a staking pool or `Node-as-a-Service provider <https://github.com/nucypher/validator-profiles>`_.
-* Run your own node:
-
-    .. toctree::
-       :maxdepth: 1
-
-       stake_initialization
-       stake_management
-       ursula_configuration
-       ../../cli/remote_worker_management_cli
+* Run your own node
 
 Here is a simple heuristic to help decide on a course of action:
 
-.. image:: ../../.static/img/running_a_node_decision.svg
-    :target: ../../.static/img/running_a_node_decision.svg
+.. image:: ../.static/img/running_a_node_decision.svg
+    :target: ../.static/img/running_a_node_decision.svg
