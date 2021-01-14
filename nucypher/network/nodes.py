@@ -500,9 +500,8 @@ class Learner:
                 return False
 
         self._remember_essential(node=node)
-        if not node.verified_node:
-            # set UNVERIFED bucket as default, but don't relabel
-            # already verified nodes as unverified.
+        if not self.known_nodes.get_node_label(node=node):
+            # set UNVERIFIED bucket as default for new nodes, but don't relabel prior nodes
             self.known_nodes.label(node=node, label=UNVERIFIED)
 
         if eager:

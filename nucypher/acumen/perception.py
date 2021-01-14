@@ -252,6 +252,13 @@ class FleetSensor:
             return iter(dict())  # empty
         return iter(nodes)
 
+    def get_node_label(self, node: "Teacher"):
+        for _label in self.BUCKETS:
+            if node in self.__marked[_label]:
+                return _label
+
+        return None
+
     def label(self, label, node: "Teacher") -> None:
         """
         Apply a label to a known node.  Removes any exiting labels before adding the new one.
@@ -273,12 +280,19 @@ class FleetSensor:
         if label:
             if node in self.__marked[label]:
                 self.__marked[label].remove(node)
-                return
+            return
 
         # Remove all labels
+        node_labels = []
         for _label in self.BUCKETS:
             if node in self.__marked[_label]:
                 self.__marked[_label].remove(node)
+                node_labels.append(_label)
+
+        # extra check to ensure that nodes only ever have one label
+        if len(node_labels) > 1:
+            # well this is unexpected :(
+            self.log.warn(f"Unlabelled node ({node}), but it had multiple labels: {node_labels}")
 
     def prune_bucket(self, label):
         """Apply pruning strategies to a single node bucket once"""
