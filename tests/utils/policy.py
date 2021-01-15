@@ -15,71 +15,8 @@ You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
-
 import random
-from collections import OrderedDict
-
-import maya
 import os
-from typing import Set
-
-from nucypher.characters.lawful import Ursula
-from nucypher.network.middleware import RestMiddleware
-from nucypher.policy.policies import Arrangement, Policy
-
-
-class MockArrangement(Arrangement):
-    _arrangements = OrderedDict()
-
-    def publish_treasure_map(self) -> None:
-        self._arrangements[self.id()] = self
-
-    def revoke(self):
-        del self._arrangements[self.id()]
-
-
-class MockPolicy(Policy):
-    def make_arrangements(self,
-                          network_middleware: RestMiddleware,
-                          deposit: int,
-                          expiration: maya.MayaDT,
-                          ursulas: Set[Ursula] = None
-                          ) -> None:
-        """
-        Create and consider n Arangement objects from all known nodes.
-        """
-
-        for ursula in self.alice.known_nodes:
-            arrangement = MockArrangement(alice=self.alice, ursula=ursula,
-                                          hrac=self.hrac(),
-                                          expiration=expiration)
-
-            self.propose_arrangement(network_middleware=network_middleware,
-                                     ursula=ursula,
-                                     arrangement=arrangement)
-
-# TODO: Remove. Seems unused
-class MockPolicyCreation:
-    """
-    Simple mock logic to avoid repeated hammering of blockchain policies.
-    """
-    waited_for_receipt = False
-    _ether_address = None
-    tx_hash = "THIS HAS BEEN A TRANSACTION!"
-
-    def __init__(self, *args, **kwargs):
-        # TODO: Test that proper arguments are passed here once 316 is closed.
-        pass
-
-    def transact(self, payload):
-        # TODO: Make a meaningful assertion regarding the value.
-        assert payload['from'] == self._ether_address
-        return self.tx_hash
-
-    @classmethod
-    def wait_for_receipt(cls, tx_hash):
-        assert tx_hash == cls.tx_hash
-        cls.waited_for_receipt = True
 
 
 def generate_random_label() -> bytes:

@@ -19,8 +19,8 @@
 from pathlib import Path
 
 """
-WARNING: This script makes automatic transactions.  
-Do not use this script unless you know what you 
+WARNING: This script makes automatic transactions.
+Do not use this script unless you know what you
 are doing and intend to spend ETH measuring live
 policy availability.
 """
@@ -136,7 +136,7 @@ def collect(alice: Alice,
         else:
             success += 1
             policies[policy.public_key.hex()] = policy  # track
-            print(f"PEK:{policy.public_key.hex()} | HRAC {policy.hrac().hex()}")
+            print(f"PEK:{policy.public_key.hex()} | HRAC {policy.hrac.hex()}")
 
         # timeit
         end = maya.now()

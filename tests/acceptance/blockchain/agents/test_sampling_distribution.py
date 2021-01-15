@@ -166,8 +166,8 @@ def test_weighted_sampler(sample_size):
     weighted_elements = {element: weight for element, weight in zip(elements, weights)}
 
     samples = 100000
-    sampler = WeightedSampler(weighted_elements)
     for i in range(samples):
+        sampler = WeightedSampler(weighted_elements)
         sample_set = sampler.sample_no_replacement(rng, sample_size)
         counter.update({tuple(sample_set): 1})
 

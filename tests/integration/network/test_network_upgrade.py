@@ -27,16 +27,16 @@ from nucypher.datastore.models import PolicyArrangement
 from tests.utils.ursula import make_federated_ursulas
 
 
-def test_alice_enacts_policies_in_policy_group_via_rest(enacted_federated_policy):
+def test_alice_enacts_policies_in_policy_group_via_rest(enacted_federated_policy, federated_ursulas):
     """
     Now that Alice has made a PolicyGroup, she can enact its policies, using Ursula's Public Key to encrypt each offer
     and transmitting them via REST.
     """
-    arrangement = list(enacted_federated_policy._accepted_arrangements)[0]
-    ursula = arrangement.ursula
-    with ursula.datastore.describe(PolicyArrangement, arrangement.id.hex()) as policy_arrangement:
-        the_kfrag = policy_arrangement.kfrag
-    assert bool(the_kfrag)  # TODO: This can be a more poignant assertion.
+    for ursula in federated_ursulas:
+        arrangement_id = enacted_federated_policy.treasure_map.destinations[ursula.checksum_address]
+        with ursula.datastore.describe(PolicyArrangement, arrangement_id.hex()) as policy_arrangement:
+            the_kfrag = policy_arrangement.kfrag
+        assert bool(the_kfrag)  # TODO: This can be a more poignant assertion.
 
 
 @pytest_twisted.inlineCallbacks

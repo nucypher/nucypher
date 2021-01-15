@@ -19,8 +19,7 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 import datetime
 from collections import OrderedDict
 from queue import Queue, Empty
-from typing import Callable, Tuple
-from typing import Generator, Set, Optional
+from typing import Callable, Tuple, Sequence, Set, Optional, Iterable, List, Dict, Type
 
 import math
 import maya
@@ -28,7 +27,9 @@ import random
 import time
 from abc import ABC, abstractmethod
 from bytestring_splitter import BytestringSplitter, VariableLengthBytestring
-from constant_sorrow.constants import NOT_SIGNED, UNKNOWN_KFRAG
+from constant_sorrow.constants import NOT_SIGNED
+from eth_typing.evm import ChecksumAddress
+from hexbytes import HexBytes
 from twisted._threads import AlreadyQuit
 from twisted.internet import reactor
 from twisted.internet.defer import ensureDeferred, Deferred
@@ -37,7 +38,7 @@ from umbral.keys import UmbralPublicKey
 from umbral.kfrags import KFrag
 
 from nucypher.blockchain.eth.actors import BlockchainPolicyAuthor
-from nucypher.blockchain.eth.agents import PolicyManagerAgent
+from nucypher.blockchain.eth.agents import PolicyManagerAgent, StakersReservoir, StakingEscrowAgent
 from nucypher.characters.lawful import Alice, Ursula
 from nucypher.crypto.api import keccak_digest, secure_random
 from nucypher.crypto.constants import HRAC_LENGTH, PUBLIC_KEY_LENGTH
@@ -46,356 +47,186 @@ from nucypher.crypto.powers import DecryptingPower, SigningPower, TransactingPow
 from nucypher.crypto.utils import construct_policy_id
 from nucypher.network.exceptions import NodeSeemsToBeDown
 from nucypher.network.middleware import RestMiddleware
-from nucypher.policy.identity import PolicyCredential
+from nucypher.utilities.concurrency import WorkerPool, AllAtOnceFactory
 from nucypher.utilities.logging import Logger
 
 
 class Arrangement:
     """
-    A Policy must be implemented by arrangements with n Ursulas.  This class tracks the status of that implementation.
+    A contract between Alice and a single Ursula.
     """
-    federated = True
     ID_LENGTH = 32
 
-    splitter = BytestringSplitter((UmbralPublicKey, PUBLIC_KEY_LENGTH),  # alice.stamp
-                                  (bytes, ID_LENGTH),  # arrangement_ID
+    splitter = BytestringSplitter((UmbralPublicKey, PUBLIC_KEY_LENGTH),  # alive_verifying_key
+                                  (bytes, ID_LENGTH),  # arrangement_id
                                   (bytes, VariableLengthBytestring))  # expiration
 
+    @classmethod
+    def from_alice(cls, alice: Alice, expiration: maya.MayaDT) -> 'Arrangement':
+        arrangement_id = secure_random(cls.ID_LENGTH)
+        alice_verifying_key = alice.stamp.as_umbral_pubkey()
+        return cls(alice_verifying_key, expiration, arrangement_id)
+
     def __init__(self,
-                 alice: Alice,
+                 alice_verifying_key: UmbralPublicKey,
                  expiration: maya.MayaDT,
-                 ursula: Ursula = None,
-                 arrangement_id: bytes = None,
-                 kfrag: KFrag = UNKNOWN_KFRAG
+                 arrangement_id: bytes,
                  ) -> None:
-        """
-        :param value: Funds which will pay for the timeframe  of this Arrangement (not the actual re-encryptions);
-                      a portion will be locked for each Ursula that accepts.
-        :param expiration: The moment which Alice wants the Arrangement to end.
-
-        Other params are hopefully self-evident.
-        """
-        if arrangement_id:
-            if len(arrangement_id) != self.ID_LENGTH:
-                raise ValueError(f"Arrangement ID must be of length {self.ID_LENGTH}.")
-            self.id = arrangement_id
-        else:
-            self.id = secure_random(self.ID_LENGTH)
+        if len(arrangement_id) != self.ID_LENGTH:
+            raise ValueError(f"Arrangement ID must be of length {self.ID_LENGTH}.")
+        self.id = arrangement_id
         self.expiration = expiration
-        self.alice = alice
-        self.status = None
-
-        """
-        These will normally not be set if Alice is drawing up this arrangement - she hasn't assigned a kfrag yet
-        (because she doesn't know if this Arrangement will be accepted).  She doesn't have an Ursula, for the same reason.
-        """
-        self.kfrag = kfrag
-        self.ursula = ursula
+        self.alice_verifying_key = alice_verifying_key
 
     def __bytes__(self):
-        return bytes(self.alice.stamp) + self.id + bytes(VariableLengthBytestring(self.expiration.iso8601().encode()))
+        return bytes(self.alice_verifying_key) + self.id + bytes(VariableLengthBytestring(self.expiration.iso8601().encode()))
 
     @classmethod
-    def from_bytes(cls, arrangement_as_bytes):
+    def from_bytes(cls, arrangement_as_bytes: bytes) -> 'Arrangement':
         alice_verifying_key, arrangement_id, expiration_bytes = cls.splitter(arrangement_as_bytes)
         expiration = maya.MayaDT.from_iso8601(iso8601_string=expiration_bytes.decode())
-        alice = Alice.from_public_keys(verifying_key=alice_verifying_key)
-        return cls(alice=alice, arrangement_id=arrangement_id, expiration=expiration)
-
-    def encrypt_payload_for_ursula(self):
-        """Craft an offer to send to Ursula."""
-        # We don't need the signature separately.
-        return self.alice.encrypt_for(self.ursula, self.payload())[0]
-
-    def payload(self):
-        return bytes(self.kfrag)
-
-    @abstractmethod
-    def revoke(self):
-        """
-        Revoke arrangement.
-        """
-        raise NotImplementedError
-
-
-class BlockchainArrangement(Arrangement):
-    """
-    A relationship between Alice and a single Ursula as part of Blockchain Policy
-    """
-    federated = False
-
-    class InvalidArrangement(Exception):
-        pass
-
-    def __init__(self,
-                 alice: Alice,
-                 ursula: Ursula,
-                 rate: int,
-                 expiration: maya.MayaDT,
-                 duration_periods: int,
-                 *args, **kwargs):
-        super().__init__(alice=alice, ursula=ursula, expiration=expiration, *args, **kwargs)
-
-        # The relationship exists between two addresses
-        self.author = alice  # type: BlockchainPolicyAuthor
-        self.policy_agent = alice.policy_agent  # type: PolicyManagerAgent
-        self.staker = ursula  # type: Ursula
-
-        # Arrangement rate and duration in periods
-        self.rate = rate
-        self.duration_periods = duration_periods
-
-        # Status
-        self.is_published = False
-        self.publish_transaction = None
-        self.is_revoked = False
-        self.revoke_transaction = None
+        return cls(alice_verifying_key=alice_verifying_key, arrangement_id=arrangement_id, expiration=expiration)
 
     def __repr__(self):
-        class_name = self.__class__.__name__
-        r = "{}(client={}, node={})"
-        r = r.format(class_name, self.author, self.staker)
-        return r
-
-    def revoke(self) -> str:
-        """Revoke this arrangement and return the transaction hash as hex."""
-        # TODO: #1355 - Revoke arrangements only
-        txhash = self.policy_agent.revoke_policy(self.id, author_address=self.author.checksum_address)
-        self.revoke_transaction = txhash
-        self.is_revoked = True
-        return txhash
-
-    def payload(self):
-        partial_payload = super().payload()
-        return bytes(self.publish_transaction) + partial_payload
+        return f"Arrangement(client_key={self.alice_verifying_key})"
 
 
-class NodeEngagementMutex:
-    """
-    TODO: Does this belong on middleware?
+class TreasureMapPublisher:
 
-    TODO: There are a couple of ways this can break.  If one fo the jobs hangs, the whole thing will hang.  Also,
-       if there are fewer successfully completed than percent_to_complete_before_release, the partial queue will never
-       release.
-
-    TODO: Make registry per... I guess Policy?  It's weird to be able to accidentally enact again.
-    """
-    log = Logger("Policy")
+    log = Logger('TreasureMapPublisher')
 
     def __init__(self,
-                 callable_to_engage,  # TODO: typing.Protocol
+                 worker,
                  nodes,
-                 network_middleware,
                  percent_to_complete_before_release=5,
-                 note=None,
                  threadpool_size=120,
-                 timeout=20,
-                 *args,
-                 **kwargs):
-        self.f = callable_to_engage
-        self.nodes = nodes
-        self.network_middleware = network_middleware
-        self.args = args
-        self.kwargs = kwargs
+                 timeout=20):
 
-        self.completed = {}
-        self.failed = {}
+        self._total = len(nodes)
+        self._block_until_this_many_are_complete = math.ceil(len(nodes) * percent_to_complete_before_release / 100)
+        self._worker_pool = WorkerPool(worker=worker,
+                                       value_factory=AllAtOnceFactory(nodes),
+                                       target_successes=self._block_until_this_many_are_complete,
+                                       timeout=timeout,
+                                       stagger_timeout=0,
+                                       threadpool_size=threadpool_size)
 
-        self._started = False
-        self._finished = False
-        self.timeout = timeout
-
-        self.percent_to_complete_before_release = percent_to_complete_before_release
-        self._partial_queue = Queue()
-        self._completion_queue = Queue()
-        self._block_until_this_many_are_complete = math.ceil(
-            len(nodes) * self.percent_to_complete_before_release / 100)
-        self.nodes_contacted_during_partial_block = False
-        self.when_complete = Deferred()  # TODO: Allow cancelling via KB Interrupt or some other way?
-
-        if note is None:
-            self._repr = f"{callable_to_engage} to {len(nodes)} nodes"
-        else:
-            self._repr = f"{note}: {callable_to_engage} to {len(nodes)} nodes"
-
-        self._threadpool = ThreadPool(minthreads=threadpool_size, maxthreads=threadpool_size, name=self._repr)
-        self.log.info(f"NEM spinning up {self._threadpool}")
-        self._threadpool.callInThread(self._bail_on_timeout)
-
-    def __repr__(self):
-        return self._repr
-
-    def _bail_on_timeout(self):
-        while True:
-            if self.when_complete.called:
-                return
-            duration = datetime.datetime.now() - self._started
-            if duration.seconds >= self.timeout:
-                try:
-                    self._threadpool.stop()
-                except AlreadyQuit:
-                    raise RuntimeError("Is there a race condition here?  If this line is being hit, it's a bug.")
-                raise RuntimeError(f"Timed out.  Nodes completed: {self.completed}")
-            time.sleep(.5)
-
-    def block_until_success_is_reasonably_likely(self):
-        """
-        https://www.youtube.com/watch?v=OkSLswPSq2o
-        """
-        if len(self.completed) < self._block_until_this_many_are_complete:
-            try:
-                completed_for_reasonable_likelihood_of_success = self._partial_queue.get(timeout=self.timeout) # TODO: Shorter timeout here?
-            except Empty:
-                raise RuntimeError(f"Timed out.  Nodes completed: {self.completed}")
-            self.log.debug(f"{len(self.completed)} nodes were contacted while blocking for a little while.")
-            return completed_for_reasonable_likelihood_of_success
-        else:
-            return self.completed
-
-
-    def block_until_complete(self):
-        if self.total_disposed() < len(self.nodes):
-            try:
-                _ = self._completion_queue.get(timeout=self.timeout)  # Interesting opportuntiy to pass some data, like the list of contacted nodes above.
-            except Empty:
-                raise RuntimeError(f"Timed out.  Nodes completed: {self.completed}")
-        if not reactor.running and not self._threadpool.joined:
-            # If the reactor isn't running, the user *must* call this, because this is where we stop.
-            self._threadpool.stop()
-
-    def _handle_success(self, response, node):
-        if response.status_code == 201:
-            self.completed[node] = response
-        else:
-            assert False  # TODO: What happens if this is a 300 or 400 level response?  (A 500 response will propagate as an error and be handled in the errback chain.)
-        if self.nodes_contacted_during_partial_block:
-            self._consider_finalizing()
-        else:
-            if len(self.completed) >= self._block_until_this_many_are_complete:
-                contacted = tuple(self.completed.keys())
-                self.nodes_contacted_during_partial_block = contacted
-                self.log.debug(f"Blocked for a little while, completed {contacted} nodes")
-                self._partial_queue.put(contacted)
-        return response
-
-    def _handle_error(self, failure, node):
-        self.failed[node] = failure  # TODO: Add a failfast mode?
-        self._consider_finalizing()
-        self.log.warn(f"{node} failed: {failure}")
-
-    def total_disposed(self):
-        return len(self.completed) + len(self.failed)
-
-    def _consider_finalizing(self):
-        if not self._finished:
-            if self.total_disposed() == len(self.nodes):
-                # TODO: Consider whether this can possibly hang.
-                self._finished = True
-                if reactor.running:
-                    reactor.callInThread(self._threadpool.stop)
-                self._completion_queue.put(self.completed)
-                self.when_complete.callback(self.completed)
-                self.log.info(f"{self} finished.")
-        else:
-            raise RuntimeError("Already finished.")
-
-    def _engage_node(self, node):
-        maybe_coro = self.f(node, network_middleware=self.network_middleware, *self.args, **self.kwargs)
-
-        d = ensureDeferred(maybe_coro)
-        d.addCallback(self._handle_success, node)
-        d.addErrback(self._handle_error, node)
-        return d
+    @property
+    def completed(self):
+        # TODO: lock dict before copying?
+        return self._worker_pool.get_successes()
 
     def start(self):
-        if self._started:
-            raise RuntimeError("Already started.")
-        self._started = datetime.datetime.now()
-        self.log.info(f"NEM Starting {self._threadpool}")
-        for node in self.nodes:
-             self._threadpool.callInThread(self._engage_node, node)
-        self._threadpool.start()
+        self.log.info(f"TreasureMapPublisher starting")
+        self._worker_pool.start()
+        if reactor.running:
+            reactor.callInThread(self.block_until_complete)
+
+    def block_until_success_is_reasonably_likely(self):
+        # Note: `OutOfValues`/`TimedOut` may be raised here, which means we didn't even get to
+        # `percent_to_complete_before_release` successes. For now just letting it fire.
+        self._worker_pool.block_until_target_successes()
+        completed = self.completed
+        self.log.debug(f"The minimal amount of nodes ({len(completed)}) was contacted "
+                       "while blocking for treasure map publication.")
+        return completed
+
+    def block_until_complete(self):
+        self._worker_pool.join()
+
+
+class MergedReservoir:
+    """
+    A reservoir made of a list of addresses and a StakersReservoir.
+    Draws the values from the list first, then from StakersReservoir,
+    then returns None on subsequent calls.
+    """
+
+    def __init__(self, values: Iterable, reservoir: StakersReservoir):
+        self.values = list(values)
+        self.reservoir = reservoir
+
+    def __call__(self) -> Optional[ChecksumAddress]:
+        if self.values:
+            return self.values.pop(0)
+        elif len(self.reservoir) > 0:
+            return self.reservoir.draw(1)[0]
+        else:
+            return None
+
+
+class PrefetchStrategy:
+    """
+    Encapsulates the batch draw strategy from a reservoir.
+    Determines how many values to draw based on the number of values
+    that have already led to successes.
+    """
+
+    def __init__(self, reservoir: MergedReservoir, need_successes: int):
+        self.reservoir = reservoir
+        self.need_successes = need_successes
+
+    def __call__(self, successes: int) -> Optional[List[ChecksumAddress]]:
+        batch = []
+        for i in range(self.need_successes - successes):
+            value = self.reservoir()
+            if value is None:
+                break
+            batch.append(value)
+        if not batch:
+            return None
+        return batch
 
 
 class Policy(ABC):
     """
-    An edict by Alice, arranged with n Ursulas, to perform re-encryption for a specific Bob
-    for a specific path.
-
-    Once Alice is ready to enact a Policy, she generates KFrags, which become part of the Policy.
-
-    Each Ursula is offered a Arrangement (see above) for a given Policy by Alice.
-
-    Once Alice has secured agreement with n Ursulas to enact a Policy, she sends each a KFrag,
-    and generates a TreasureMap for the Policy, recording which Ursulas got a KFrag.
+    An edict by Alice, arranged with n Ursulas, to perform re-encryption for a specific Bob.
     """
 
     POLICY_ID_LENGTH = 16
-    _arrangement_class = NotImplemented
 
     log = Logger("Policy")
 
-    class Rejected(RuntimeError):
-        """Too many Ursulas rejected"""
-
-    def __init__(self,
-                 alice: Alice,
-                 label: bytes,
-                 expiration: maya.MayaDT,
-                 bob: 'Bob' = None,
-                 kfrags: Tuple[KFrag, ...] = (UNKNOWN_KFRAG,),
-                 public_key=None,
-                 m: int = None,
-                 alice_signature=NOT_SIGNED) -> None:
-
-        """
-        :param kfrags:  A list of KFrags to distribute per this Policy.
-        :param label: The identity of the resource to which Bob is granted access.
-        """
-        self.alice = alice
-        self.label = label
-        self.bob = bob
-        self.kfrags = kfrags
-        self.public_key = public_key
-        self._id = construct_policy_id(self.label, bytes(self.bob.stamp))
-        self.treasure_map = self._treasure_map_class(m=m)
-        self.expiration = expiration
-
-        self._accepted_arrangements = set()    # type: Set[Arrangement]
-        self._rejected_arrangements = set()    # type: Set[Arrangement]
-        self._spare_candidates = set()         # type: Set[Ursula]
-
-        self._enacted_arrangements = OrderedDict()
-        self._published_arrangements = OrderedDict()
-
-        self.alice_signature = alice_signature  # TODO: This is unused / To Be Implemented?
-
-        self.publishing_mutex = None
-
-    class MoreKFragsThanArrangements(TypeError):
+    class NotEnoughUrsulas(Exception):
         """
         Raised when a Policy has been used to generate Arrangements with Ursulas insufficient number
         such that we don't have enough KFrags to give to each Ursula.
         """
 
-    @property
-    def n(self) -> int:
-        return len(self.kfrags)
-
-    @property
-    def id(self) -> bytes:
-        return self._id
-
-    def __repr__(self):
-        return f"{self.__class__.__name__}:{self.id.hex()[:6]}"
-
-    @property
-    def accepted_ursulas(self) -> Set[Ursula]:
-        return {arrangement.ursula for arrangement in self._accepted_arrangements}
-
-    def hrac(self) -> bytes:
+    class EnactmentError(Exception):
         """
-        # TODO: #180 - This function is hanging on for dear life.  After 180 is closed, it can be completely deprecated.
+        Raised if one or more Ursulas failed to enact the policy.
+        """
+
+    def __init__(self,
+                 alice: Alice,
+                 label: bytes,
+                 expiration: maya.MayaDT,
+                 bob: 'Bob',
+                 kfrags: Sequence[KFrag],
+                 public_key: UmbralPublicKey,
+                 m: int,
+                 ):
+
+        """
+        :param kfrags:  A list of KFrags to distribute per this Policy.
+        :param label: The identity of the resource to which Bob is granted access.
+        """
+
+        self.m = m
+        self.n = len(kfrags)
+        self.alice = alice
+        self.label = label
+        self.bob = bob
+        self.kfrags = kfrags
+        self.public_key = public_key
+        self.expiration = expiration
+
+        self._id = construct_policy_id(self.label, bytes(self.bob.stamp))
+
+        """
+        # TODO: #180 - This attribute is hanging on for dear life.
+        After 180 is closed, it can be completely deprecated.
 
         The "hashed resource authentication code".
 
@@ -407,288 +238,326 @@ class Policy(ABC):
         Alice and Bob have all the information they need to construct this.
         Ursula does not, so we share it with her.
         """
-        return keccak_digest(bytes(self.alice.stamp) + bytes(self.bob.stamp) + self.label)[:HRAC_LENGTH]
+        self.hrac = keccak_digest(bytes(self.alice.stamp) + bytes(self.bob.stamp) + self.label)[:HRAC_LENGTH]
 
-    async def put_treasure_map_on_node(self, node, network_middleware):
-        response = network_middleware.put_treasure_map_on_node(
-            node=node,
-            map_payload=bytes(self.treasure_map))
-        return response
+    def __repr__(self):
+        return f"{self.__class__.__name__}:{self._id.hex()[:6]}"
 
-    def publish_treasure_map(self, network_middleware: RestMiddleware,
-                             blockchain_signer: Callable = None) -> NodeEngagementMutex:
-        self.treasure_map.prepare_for_publication(self.bob.public_keys(DecryptingPower),
-                                                  self.bob.public_keys(SigningPower),
-                                                  self.alice.stamp,
-                                                  self.label)
-        if blockchain_signer is not None:
-            self.treasure_map.include_blockchain_signature(blockchain_signer)
-
-        self.alice.block_until_number_of_known_nodes_is(8, timeout=2, learn_on_this_thread=True)
-
-        target_nodes = self.bob.matching_nodes_among(self.alice.known_nodes)
-        self.publishing_mutex = NodeEngagementMutex(callable_to_engage=self.put_treasure_map_on_node,
-                                                    nodes=target_nodes,
-                                                    network_middleware=network_middleware)
-
-        self.publishing_mutex.start()
-
-    def credential(self, with_treasure_map=True):
+    def _propose_arrangement(self,
+                             address: ChecksumAddress,
+                             network_middleware: RestMiddleware,
+                             ) -> Tuple[Ursula, Arrangement]:
         """
-        Creates a PolicyCredential for portable access to the policy via
-        Alice or Bob. By default, it will include the treasure_map for the
-        policy unless `with_treasure_map` is False.
+        Attempt to propose an arrangement to the node with the given address.
         """
 
-        treasure_map = self.treasure_map
-        if not with_treasure_map:
-            treasure_map = None
-        credential = PolicyCredential(alice_verifying_key=self.alice.stamp,
-                                      label=self.label,
-                                      expiration=self.expiration,
-                                      policy_pubkey=self.public_key,
-                                      treasure_map=treasure_map)
-        return credential
+        if address not in self.alice.known_nodes:
+            raise RuntimeError(f"{address} is not known")
 
-    def __assign_kfrags(self) -> Generator[Arrangement, None, None]:
+        ursula = self.alice.known_nodes[address]
+        arrangement = Arrangement.from_alice(alice=self.alice, expiration=self.expiration)
 
-        if len(self._accepted_arrangements) < self.n:
-            raise self.MoreKFragsThanArrangements("Not enough candidate arrangements. "
-                                                  "Call make_arrangements to make more.")
+        self.log.debug(f"Proposing arrangement {arrangement} to {ursula}")
+        negotiation_response = network_middleware.propose_arrangement(ursula, arrangement)
+        status = negotiation_response.status_code
 
-        for kfrag in self.kfrags:
-            for arrangement in self._accepted_arrangements:
-                if not arrangement in self._enacted_arrangements.values():
-                    arrangement.kfrag = kfrag
-                    self._enacted_arrangements[kfrag] = arrangement
-                    yield arrangement
-                    break  # This KFrag is now assigned; break the inner loop and go back to assign other kfrags.
-            else:
-                # We didn't assign that KFrag.  Trouble.
-                # This is ideally an impossible situation, because we don't typically
-                # enter this method unless we've already had n or more Arrangements accepted.
-                raise self.MoreKFragsThanArrangements("Not enough accepted arrangements to assign all KFrags.")
-        return
+        if status == 200:
+            self.log.debug(f"Arrangement accepted by {ursula}")
+        else:
+            message = f"Proposing arrangement to {ursula} failed with {status}"
+            self.log.debug(message)
+            raise RuntimeError(message)
 
-    def enact(self, network_middleware, publish_treasure_map=True) -> dict:
+        # We could just return the arrangement and get the Ursula object
+        # from `known_nodes` later, but when we introduce slashing in FleetSensor,
+        # the address can already disappear from `known_nodes` by that time.
+        return (ursula, arrangement)
+
+    @abstractmethod
+    def _make_reservoir(self, handpicked_addresses: Sequence[ChecksumAddress]) -> MergedReservoir:
         """
-        Assign kfrags to ursulas_on_network, and distribute them via REST,
-        populating enacted_arrangements
+        Builds a `MergedReservoir` to use for drawing addresses to send proposals to.
         """
-        for arrangement in self.__assign_kfrags():
-            arrangement_message_kit = arrangement.encrypt_payload_for_ursula()
+        raise NotImplementedError
+
+    def _make_arrangements(self,
+                           network_middleware: RestMiddleware,
+                           handpicked_ursulas: Optional[Iterable[Ursula]] = None,
+                           timeout: int = 10,
+                           ) -> Dict[Ursula, Arrangement]:
+        """
+        Pick some Ursula addresses and send them arrangement proposals.
+        Returns a dictionary of Ursulas to Arrangements if it managed to get `n` responses.
+        """
+
+        if handpicked_ursulas is None:
+            handpicked_ursulas = []
+        handpicked_addresses = [ursula.checksum_address for ursula in handpicked_ursulas]
+
+        reservoir = self._make_reservoir(handpicked_addresses)
+        value_factory = PrefetchStrategy(reservoir, self.n)
+
+        def worker(address):
+            return self._propose_arrangement(address, network_middleware)
+
+        self.alice.block_until_number_of_known_nodes_is(self.n, learn_on_this_thread=True, eager=True)
+
+        worker_pool = WorkerPool(worker=worker,
+                                 value_factory=value_factory,
+                                 target_successes=self.n,
+                                 timeout=timeout,
+                                 stagger_timeout=1,
+                                 threadpool_size=self.n)
+        worker_pool.start()
+        try:
+            successes = worker_pool.block_until_target_successes()
+        except (WorkerPool.OutOfValues, WorkerPool.TimedOut):
+            # It's possible to raise some other exceptions here,
+            # but we will use the logic below.
+            successes = worker_pool.get_successes()
+        finally:
+            worker_pool.cancel()
+            worker_pool.join()
+
+        accepted_arrangements = {ursula: arrangement for ursula, arrangement in successes.values()}
+        failures = worker_pool.get_failures()
+
+        accepted_addresses = ", ".join(ursula.checksum_address for ursula in accepted_arrangements)
+
+        if len(accepted_arrangements) < self.n:
+
+            rejected_proposals = "\n".join(f"{address}: {exception}" for address, exception in failures.items())
+
+            self.log.debug(
+                "Could not find enough Ursulas to accept proposals.\n"
+                f"Accepted: {accepted_addresses}\n"
+                f"Rejected:\n{rejected_proposals}")
+            raise self._not_enough_ursulas_exception()
+        else:
+            self.log.debug(f"Finished proposing arrangements; accepted: {accepted_addresses}")
+
+        return accepted_arrangements
+
+    def _enact_arrangements(self,
+                            network_middleware: RestMiddleware,
+                            arrangements: Dict[Ursula, Arrangement],
+                            publication_transaction: Optional[HexBytes] = None,
+                            publish_treasure_map: bool = True,
+                            timeout: int = 10,
+                            ):
+        """
+        Attempts to distribute kfrags to Ursulas that accepted arrangements earlier.
+        """
+
+        def worker(ursula_and_kfrag):
+            ursula, kfrag = ursula_and_kfrag
+            arrangement = arrangements[ursula]
+
+            # TODO: seems like it would be enough to just encrypt this with Ursula's public key,
+            # and not create a whole capsule.
+            # Can't change for now since it's node protocol.
+            payload = self._make_enactment_payload(publication_transaction, kfrag)
+            message_kit, _signature = self.alice.encrypt_for(ursula, payload)
 
             try:
                 # TODO: Concurrency
-                response = network_middleware.enact_policy(arrangement.ursula,
+                response = network_middleware.enact_policy(ursula,
                                                            arrangement.id,
-                                                           arrangement_message_kit.to_bytes())
+                                                           message_kit.to_bytes())
             except network_middleware.UnexpectedResponse as e:
-                arrangement.status = e.status
+                status = e.status
             else:
-                arrangement.status = response.status_code
+                status = response.status_code
 
-            # TODO: Handle problem here - if the arrangement is bad, deal with it.
-            self.treasure_map.add_arrangement(arrangement)
+            return status
 
-        else:
+        value_factory = AllAtOnceFactory(list(zip(arrangements, self.kfrags)))
+        worker_pool = WorkerPool(worker=worker,
+                                 value_factory=value_factory,
+                                 target_successes=self.n,
+                                 timeout=timeout,
+                                 threadpool_size=self.n)
+
+        worker_pool.start()
+
+        # Block until everything is complete. We need all the workers to finish.
+        worker_pool.join()
+
+        successes = worker_pool.get_successes()
+
+        if len(successes) != self.n:
+            raise Policy.EnactmentError()
+
+        # TODO: Enable re-tries?
+        statuses = {ursula_and_kfrag[0].checksum_address: status for ursula_and_kfrag, status in successes.items()}
+        if not all(status == 200 for status in statuses.values()):
+            report = "\n".join(f"{address}: {status}" for address, status in statuses.items())
+            self.log.debug(f"Policy enactment failed. Request statuses:\n{report}")
+
             # OK, let's check: if two or more Ursulas claimed we didn't pay,
             # we need to re-evaulate our situation here.
-            arrangement_statuses = [a.status for a in self._accepted_arrangements]
-            number_of_claims_of_freeloading = sum(status == 402 for status in arrangement_statuses)
+            number_of_claims_of_freeloading = sum(status == 402 for status in statuses.values())
 
+            # TODO: a better exception here?
             if number_of_claims_of_freeloading > 2:
-                raise self.alice.NotEnoughNodes  # TODO: Clean this up and enable re-tries.
+                raise self.alice.NotEnoughNodes
 
-            self.treasure_map.check_for_sufficient_destinations()
+            # otherwise just raise a more generic error
+            raise Policy.EnactmentError()
 
-            # TODO: Leave a note to try any failures later.
-            pass
+    def _make_treasure_map(self,
+                           network_middleware: RestMiddleware,
+                           arrangements: Dict[Ursula, Arrangement],
+                           ) -> 'TreasureMap':
+        """
+        Creates a treasure map for given arrangements.
+        """
 
-            # ...After *all* the arrangements are enacted
-            # Create Alice's revocation kit
-            self.revocation_kit = RevocationKit(self, self.alice.stamp)
-            self.alice.add_active_policy(self)
+        treasure_map = self._treasure_map_class(m=self.m)
 
-            if publish_treasure_map is True:
-                return self.publish_treasure_map(network_middleware=network_middleware)  # TODO: blockchain_signer?
+        for ursula, arrangement in arrangements.items():
+            treasure_map.add_arrangement(ursula, arrangement)
 
-    def propose_arrangement(self, network_middleware, arrangement) -> bool:
-        negotiation_response = network_middleware.propose_arrangement(arrangement=arrangement)  # Wow, we aren't even passing node here.
+        treasure_map.prepare_for_publication(bob_encrypting_key=self.bob.public_keys(DecryptingPower),
+                                             bob_verifying_key=self.bob.public_keys(SigningPower),
+                                             alice_stamp=self.alice.stamp,
+                                             label=self.label)
 
-        # TODO: check out the response: need to assess the result and see if we're actually good to go.
-        arrangement_is_accepted = negotiation_response.status_code == 200
+        return treasure_map
 
-        bucket = self._accepted_arrangements if arrangement_is_accepted else self._rejected_arrangements
-        bucket.add(arrangement)
+    def _make_publisher(self,
+                        treasure_map: 'TreasureMap',
+                        network_middleware: RestMiddleware,
+                        ) -> TreasureMapPublisher:
 
-        return arrangement_is_accepted
+        # TODO (#2516): remove hardcoding of 8 nodes
+        self.alice.block_until_number_of_known_nodes_is(8, timeout=2, learn_on_this_thread=True)
+        target_nodes = self.bob.matching_nodes_among(self.alice.known_nodes)
+        treasure_map_bytes = bytes(treasure_map) # prevent the closure from holding the reference
 
-    def make_arrangements(self,
-                          network_middleware: RestMiddleware,
-                          handpicked_ursulas: Optional[Set[Ursula]] = None,
-                          discover_on_this_thread: bool = True,
-                          *args, **kwargs,
-                          ) -> None:
-
-        sampled_ursulas = self.sample(handpicked_ursulas=handpicked_ursulas,
-                                      discover_on_this_thread=discover_on_this_thread)
-
-        if len(sampled_ursulas) < self.n:
-            raise self.MoreKFragsThanArrangements(
-                "To make a Policy in federated mode, you need to designate *all* '  \
-                 the Ursulas you need (in this case, {}); there's no other way to ' \
-                 know which nodes to use.  Either pass them here or when you make ' \
-                 the Policy.".format(self.n))
-
-        # TODO: One of these layers needs to add concurrency.
-        self._propose_arrangements(network_middleware=network_middleware,
-                                   candidate_ursulas=sampled_ursulas,
-                                   *args, **kwargs)
-
-        if len(self._accepted_arrangements) < self.n:
-            formatted_offenders = '\n'.join(f'{u.checksum_address}@{u.rest_url()}' for u in sampled_ursulas)
-            raise self.Rejected(f'Selected Ursulas rejected too many arrangements'
-                                f'- only {len(self._accepted_arrangements)} of {self.n} accepted.\n'
-                                f'Offending nodes: \n{formatted_offenders}\n')
-
-    @abstractmethod
-    def make_arrangement(self, ursula: Ursula, *args, **kwargs):
-        raise NotImplementedError
-
-    @abstractmethod
-    def sample_essential(self, *args, **kwargs) -> Set[Ursula]:
-        raise NotImplementedError
-
-    def sample(self,
-               handpicked_ursulas: Optional[Set[Ursula]] = None,
-               discover_on_this_thread: bool = False,
-               ) -> Set[Ursula]:
-        selected_ursulas = set(handpicked_ursulas) if handpicked_ursulas else set()
-
-        # Calculate the target sample quantity
-        if self.n - len(selected_ursulas) > 0:
-            sampled_ursulas = self.sample_essential(handpicked_ursulas=selected_ursulas,
-                                                    discover_on_this_thread=discover_on_this_thread)
-            selected_ursulas.update(sampled_ursulas)
-
-        return selected_ursulas
-
-    def _propose_arrangements(self,
-                              network_middleware: RestMiddleware,
-                              candidate_ursulas: Set[Ursula],
-                              consider_everyone: bool = False,
-                              *args,
-                              **kwargs) -> None:
-
-        for index, selected_ursula in enumerate(candidate_ursulas):
-            arrangement = self.make_arrangement(ursula=selected_ursula, *args, **kwargs)
+        def put_treasure_map_on_node(node):
             try:
-                is_accepted = self.propose_arrangement(arrangement=arrangement,
-                                                       network_middleware=network_middleware)
+                response = network_middleware.put_treasure_map_on_node(node=node,
+                                                                       map_payload=treasure_map_bytes)
+            except Exception as e:
+                self.log.warn(f"Putting treasure map on {node} failed: {e}")
+                raise
 
-            except NodeSeemsToBeDown as e:  # TODO: #355 Also catch InvalidNode here?
-                # This arrangement won't be added to the accepted bucket.
-                # If too many nodes are down, it will fail in make_arrangements.
-                # Also TODO: Prolly log this or something at this stage.
-                continue
-
+            if response.status_code == 201:
+                return response
             else:
-                # Bucket the arrangements
-                if is_accepted:
-                    self.log.debug(f"Arrangement accepted by {selected_ursula}")
-                    self._accepted_arrangements.add(arrangement)
-                    accepted = len(self._accepted_arrangements)
-                    if accepted == self.n and not consider_everyone:
-                        try:
-                            spares = set(list(candidate_ursulas)[index + 1::])
-                            self._spare_candidates.update(spares)
-                        except IndexError:
-                            self._spare_candidates = set()
-                        break
-                else:
-                    self.log.debug(f"Arrangement failed with {selected_ursula}")
-                    self._rejected_arrangements.add(arrangement)
+                message = f"Putting treasure map on {node} failed with response status: {response.status}"
+                self.log.warn(message)
+                # TODO: What happens if this is a 300 or 400 level response?
+                raise Exception(message)
+
+        return TreasureMapPublisher(worker=put_treasure_map_on_node,
+                                   nodes=target_nodes)
+
+    def enact(self,
+              network_middleware: RestMiddleware,
+              handpicked_ursulas: Optional[Iterable[Ursula]] = None,
+              publish_treasure_map: bool = True,
+              ) -> 'EnactedPolicy':
+        """
+        Attempts to enact the policy, returns an `EnactedPolicy` object on success.
+        """
+
+        arrangements = self._make_arrangements(network_middleware=network_middleware,
+                                               handpicked_ursulas=handpicked_ursulas)
+
+        self._enact_arrangements(network_middleware=network_middleware,
+                                 arrangements=arrangements,
+                                 publish_treasure_map=publish_treasure_map)
+
+        treasure_map = self._make_treasure_map(network_middleware=network_middleware,
+                                               arrangements=arrangements)
+        treasure_map_publisher = self._make_publisher(treasure_map=treasure_map,
+                                                      network_middleware=network_middleware)
+        revocation_kit = RevocationKit(treasure_map, self.alice.stamp)
+
+        enacted_policy = EnactedPolicy(self._id,
+                                       self.hrac,
+                                       self.label,
+                                       self.public_key,
+                                       treasure_map,
+                                       treasure_map_publisher,
+                                       revocation_kit,
+                                       self.alice.stamp)
+
+        if publish_treasure_map is True:
+            enacted_policy.publish_treasure_map()
+
+        return enacted_policy
+
+    @abstractmethod
+    def _not_enough_ursulas_exception(self) -> Type[Exception]:
+        """
+        Returns an exception to raise when there were not enough Ursulas
+        to distribute arrangements to.
+        """
+        raise NotImplementedError
+
+    @abstractmethod
+    def _make_enactment_payload(self, publication_transaction: Optional[HexBytes], kfrag: KFrag) -> bytes:
+        """
+        Serializes a given kfrag and policy publication transaction to send to Ursula.
+        """
+        raise NotImplementedError
 
 
 class FederatedPolicy(Policy):
-    _arrangement_class = Arrangement
+
     from nucypher.policy.collections import TreasureMap as _treasure_map_class  # TODO: Circular Import
 
-    def make_arrangements(self, *args, **kwargs) -> None:
-        try:
-            return super().make_arrangements(*args, **kwargs)
-        except self.MoreKFragsThanArrangements:
-            error = "To make a Policy in federated mode, you need to designate *all* '  \
-                     the Ursulas you need (in this case, {}); there's no other way to ' \
-                     know which nodes to use.  " \
-                    "Pass them here as handpicked_ursulas.".format(self.n)
-            raise self.MoreKFragsThanArrangements(error)  # TODO: NotEnoughUrsulas where in the exception tree is this?
+    def _not_enough_ursulas_exception(self):
+        return Policy.NotEnoughUrsulas
 
-    def sample_essential(self,
-                         handpicked_ursulas: Set[Ursula],
-                         discover_on_this_thread: bool = True) -> Set[Ursula]:
+    def _make_reservoir(self, handpicked_addresses):
+        addresses = {
+            ursula.checksum_address: 1 for ursula in self.alice.known_nodes
+            if ursula.checksum_address not in handpicked_addresses}
 
-        self.alice.block_until_specific_nodes_are_known(set(ursula.checksum_address for ursula in handpicked_ursulas))
-        self.alice.block_until_number_of_known_nodes_is(self.n, learn_on_this_thread=discover_on_this_thread)
-        known_nodes = self.alice.known_nodes
-        if handpicked_ursulas:
-            # Prevent re-sampling of handpicked ursulas.
-            known_nodes = set(known_nodes) - handpicked_ursulas
-        sampled_ursulas = set(random.sample(k=self.n - len(handpicked_ursulas),
-                                            population=list(known_nodes)))
-        return sampled_ursulas
+        return MergedReservoir(handpicked_addresses, StakersReservoir(addresses))
 
-    def make_arrangement(self, ursula: Ursula, *args, **kwargs):
-        return self._arrangement_class(alice=self.alice,
-                                       expiration=self.expiration,
-                                       ursula=ursula,
-                                       *args, **kwargs)
+    def _make_enactment_payload(self, publication_transaction, kfrag):
+        assert publication_transaction is None # sanity check; should not ever be hit
+        return bytes(kfrag)
 
 
 class BlockchainPolicy(Policy):
     """
-    A collection of n BlockchainArrangements representing a single Policy
+    A collection of n Arrangements representing a single Policy
     """
-    _arrangement_class = BlockchainArrangement
+
     from nucypher.policy.collections import SignedTreasureMap as _treasure_map_class  # TODO: Circular Import
-
-    class NoSuchPolicy(Exception):
-        pass
-
-    class InvalidPolicy(Exception):
-        pass
 
     class InvalidPolicyValue(ValueError):
         pass
 
-    class NotEnoughBlockchainUrsulas(Policy.MoreKFragsThanArrangements):
+    class NotEnoughBlockchainUrsulas(Policy.NotEnoughUrsulas):
         pass
 
     def __init__(self,
-                 alice: Alice,
                  value: int,
                  rate: int,
                  duration_periods: int,
-                 expiration: maya.MayaDT,
-                 *args, **kwargs):
+                 *args,
+                 **kwargs,
+                 ):
+
+        super().__init__(*args, **kwargs)
 
         self.duration_periods = duration_periods
-        self.expiration = expiration
         self.value = value
         self.rate = rate
-        self.author = alice
 
-        # Initial State
-        self.publish_transaction = None
-        self.is_published = False
-        self.receipt = None
+        self._validate_fee_value()
 
-        super().__init__(alice=alice, expiration=expiration, *args, **kwargs)
+    def _not_enough_ursulas_exception(self):
+        return BlockchainPolicy.NotEnoughBlockchainUrsulas
 
-        self.validate_fee_value()
-
-    def validate_fee_value(self) -> None:
+    def _validate_fee_value(self) -> None:
         rate_per_period = self.value // self.n // self.duration_periods  # wei
         recalculated_value = self.duration_periods * rate_per_period * self.n
         if recalculated_value != self.value:
@@ -729,120 +598,78 @@ class BlockchainPolicy(Policy):
         params = dict(rate=rate, value=value)
         return params
 
-    def sample_essential(self,
-                         handpicked_ursulas: Set[Ursula],
-                         learner_timeout: int = 1,
-                         timeout: int = 10,
-                         discover_on_this_thread: bool = False) -> Set[Ursula]: # TODO #843: Make timeout configurable
+    def _make_reservoir(self, handpicked_addresses):
+        try:
+            reservoir = self.alice.get_stakers_reservoir(duration=self.duration_periods,
+                                                         without=handpicked_addresses)
+        except StakingEscrowAgent.NotEnoughStakers:
+            # TODO: do that in `get_stakers_reservoir()`?
+            reservoir = StakersReservoir({})
 
-        handpicked_addresses = [ursula.checksum_address for ursula in handpicked_ursulas]
-        reservoir = self.alice.get_stakers_reservoir(duration=self.duration_periods,
-                                                     without=handpicked_addresses)
+        return MergedReservoir(handpicked_addresses, reservoir)
 
-        quantity_remaining = self.n - len(handpicked_ursulas)
-        if len(reservoir) < quantity_remaining:
-            error = f"Cannot create policy with {self.n} arrangements"
-            raise self.NotEnoughBlockchainUrsulas(error)
+    def _publish_to_blockchain(self, ursulas) -> dict:
 
-        # Handpicked Ursulas are not necessarily known
-        to_check = list(handpicked_ursulas) + reservoir.draw(quantity_remaining)
-        checked = []
-
-        # Sample stakers in a loop and feed them to the learner to check
-        # until we have enough in `selected_ursulas`.
-
-        start_time = maya.now()
-
-        while True:
-
-            # Check if the sampled addresses are already known.
-            # If we're lucky, we won't have to wait for the learner iteration to finish.
-            checked += [x for x in to_check if x in self.alice.known_nodes]
-            to_check = [x for x in to_check if x not in self.alice.known_nodes]
-
-            if len(checked) >= self.n:
-                break
-
-            # The number of new nodes to draw on each iteration.
-            # The choice of this depends on how expensive it is to check a node for validity,
-            # and how likely is it for a picked node to be offline.
-            # We assume here that it is unlikely, and be conservative.
-            drawing_step = self.n - len(checked)
-
-            # Draw a little bit more nodes, if there are any
-            to_check += reservoir.draw_at_most(drawing_step)
-
-            delta = maya.now() - start_time
-            if delta.total_seconds() >= timeout:
-                still_checking = ', '.join(to_check)
-                quantity_remaining = self.n - len(checked)
-                raise RuntimeError(f"Timed out after {timeout} seconds; "
-                                   f"need {quantity_remaining} more, still checking {still_checking}.")
-
-            self.alice.block_until_specific_nodes_are_known(to_check,
-                                                            learn_on_this_thread=discover_on_this_thread,
-                                                            allow_missing=len(to_check),
-                                                            timeout=learner_timeout)
-
-        # We only need `n` nodes. Pick the first `n` ones,
-        # since they were the first drawn, and hence have the priority.
-        found_ursulas = [self.alice.known_nodes[address] for address in checked[:self.n]]
-
-        # Randomize the output to avoid the largest stakers always being the first in the list
-        system_random = random.SystemRandom()
-        system_random.shuffle(found_ursulas) # inplace
-
-        return set(found_ursulas)
-
-    def publish_to_blockchain(self) -> dict:
-
-        prearranged_ursulas = list(a.ursula.checksum_address for a in self._accepted_arrangements)
+        addresses = [ursula.checksum_address for ursula in ursulas]
 
         # Transact  # TODO: Move this logic to BlockchainPolicyActor
-        receipt = self.author.policy_agent.create_policy(
-            policy_id=self.hrac(),  # bytes16 _policyID
-            author_address=self.author.checksum_address,
+        receipt = self.alice.policy_agent.create_policy(
+            policy_id=self.hrac,  # bytes16 _policyID
+            author_address=self.alice.checksum_address,
             value=self.value,
             end_timestamp=self.expiration.epoch,  # uint16 _numberOfPeriods
-            node_addresses=prearranged_ursulas  # address[] memory _nodes
+            node_addresses=addresses  # address[] memory _nodes
         )
 
         # Capture Response
-        self.receipt = receipt
-        self.publish_transaction = receipt['transactionHash']
-        self.is_published = True  # TODO: For real: TX / Swarm confirmations needed?
+        return receipt['transactionHash']
 
-        return receipt
+    def _make_enactment_payload(self, publication_transaction, kfrag):
+        return bytes(publication_transaction) + bytes(kfrag)
 
-    def make_arrangement(self, ursula: Ursula, *args, **kwargs):
-        return self._arrangement_class(alice=self.alice,
-                                       expiration=self.expiration,
-                                       ursula=ursula,
-                                       rate=self.rate,
-                                       duration_periods=self.duration_periods,
-                                       *args, **kwargs)
+    def _enact_arrangements(self,
+                            network_middleware,
+                            arrangements,
+                            publish_treasure_map=True) -> TreasureMapPublisher:
+        transaction = self._publish_to_blockchain(list(arrangements))
+        return super()._enact_arrangements(network_middleware=network_middleware,
+                                           arrangements=arrangements,
+                                           publish_treasure_map=publish_treasure_map,
+                                           publication_transaction=transaction)
 
-    def enact(self, network_middleware, publish_to_blockchain=True, publish_treasure_map=True) -> NodeEngagementMutex:
-        """
-        Assign kfrags to ursulas_on_network, and distribute them via REST,
-        populating enacted_arrangements
-        """
-        if publish_to_blockchain is True:
-            self.publish_to_blockchain()
+    def _make_treasure_map(self,
+                           network_middleware: RestMiddleware,
+                           arrangements: Dict[Ursula, Arrangement],
+                           ) -> 'TreasureMap':
 
-            # Not in love with this block here, but I want 121 closed.
-            for arrangement in self._accepted_arrangements:
-                arrangement.publish_transaction = self.publish_transaction
+        treasure_map = super()._make_treasure_map(network_middleware, arrangements)
+        transacting_power = self.alice._crypto_power.power_ups(TransactingPower)
+        treasure_map.include_blockchain_signature(transacting_power.sign_message)
+        return treasure_map
 
-        publisher = super().enact(network_middleware, publish_treasure_map=False)
 
-        if publish_treasure_map is True:
-            self.treasure_map.prepare_for_publication(bob_encrypting_key=self.bob.public_keys(DecryptingPower),
-                                                      bob_verifying_key=self.bob.public_keys(SigningPower),
-                                                      alice_stamp=self.alice.stamp,
-                                                      label=self.label)
-            # Sign the map.
-            transacting_power = self.alice._crypto_power.power_ups(TransactingPower)
-            publisher = self.publish_treasure_map(network_middleware=network_middleware,
-                                                  blockchain_signer=transacting_power.sign_message)
-        return publisher
+class EnactedPolicy:
+
+    def __init__(self,
+                 id: bytes,
+                 hrac: bytes,
+                 label: bytes,
+                 public_key: UmbralPublicKey,
+                 treasure_map: 'TreasureMap',
+                 treasure_map_publisher: TreasureMapPublisher,
+                 revocation_kit: RevocationKit,
+                 alice_verifying_key: UmbralPublicKey,
+                 ):
+
+        self.id = id # TODO: is it even used anywhere?
+        self.hrac = hrac
+        self.label = label
+        self.public_key = public_key
+        self.treasure_map = treasure_map
+        self.treasure_map_publisher = treasure_map_publisher
+        self.revocation_kit = revocation_kit
+        self.n = len(self.treasure_map.destinations)
+        self.alice_verifying_key = alice_verifying_key
+
+    def publish_treasure_map(self):
+        self.treasure_map_publisher.start()

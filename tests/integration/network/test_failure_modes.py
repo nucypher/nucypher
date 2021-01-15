@@ -69,7 +69,7 @@ def test_alice_can_grant_even_when_the_first_nodes_she_tries_are_down(federated_
 
     for node in more_nodes:
         federated_alice.remember_node(node)
-    with pytest.raises(Policy.Rejected):
+    with pytest.raises(Policy.NotEnoughUrsulas):
         alice_grant_action()
 
     # Now let's let a few of them come up.
@@ -87,11 +87,8 @@ def test_alice_can_grant_even_when_the_first_nodes_she_tries_are_down(federated_
     #       are among those still down.
     # policy = alice_grant_action()
 
-    # The number of accepted arrangements at least the number of Ursulas we're using (n)
-    assert len(policy._accepted_arrangements) >= n
-
     # The number of actually enacted arrangements is exactly equal to n.
-    assert len(policy._enacted_arrangements) == n
+    assert len(policy.treasure_map.destinations) == n
 
 
 def test_node_has_changed_cert(federated_alice, federated_ursulas):

@@ -139,13 +139,16 @@ class Amonia(Alice):
         return alice_clone
 
     @staticmethod
-    def enact_without_tabulating_responses(policy, network_middleware, *_args, **_kwargs):
-        for arrangement in policy._Policy__assign_kfrags():
-            arrangement_message_kit = arrangement.encrypt_payload_for_ursula()
+    def enact_without_tabulating_responses(policy, network_middleware, arrangements, publication_transaction, **_kwargs):
+        for ursula, kfrag in zip(arrangements, policy.kfrags):
+            arrangement = arrangements[ursula]
+            payload = policy._make_enactment_payload(publication_transaction, kfrag)
+            message_kit, _signature = policy.alice.encrypt_for(ursula, payload)
+
             try:
-                network_middleware.enact_policy(arrangement.ursula,
+                network_middleware.enact_policy(ursula,
                                                 arrangement.id,
-                                                arrangement_message_kit.to_bytes())
+                                                message_kit.to_bytes())
             except Exception as e:
                 # I don't care what went wrong - I will keep trying to ram arrangements through.
                 continue
@@ -156,9 +159,9 @@ class Amonia(Alice):
         """
 
         def what_do_you_mean_you_dont_tip(policy, *args, **kwargs):
-            policy.publish_transaction = b"He convinced me, gimme back my $"
+            return b"He convinced me, gimme back my $"
 
-        with patch("nucypher.policy.policies.BlockchainPolicy.publish_to_blockchain", what_do_you_mean_you_dont_tip):
+        with patch("nucypher.policy.policies.BlockchainPolicy._publish_to_blockchain", what_do_you_mean_you_dont_tip):
             return super().grant(*args, **kwargs)
 
     def circumvent_safegaurds_and_grant_without_paying(self, *args, **kwargs):
@@ -167,7 +170,7 @@ class Amonia(Alice):
 
         Can I grant for free if I change the client code to my liking?
         """
-        with patch("nucypher.policy.policies.Policy.enact", self.enact_without_tabulating_responses):
+        with patch("nucypher.policy.policies.Policy._enact_arrangements", self.enact_without_tabulating_responses):
             return self.grant_without_paying(*args, **kwargs)
 
     def grant_while_paying_the_wrong_nodes(self,
@@ -180,28 +183,23 @@ class Amonia(Alice):
         an on-chain Policy using PolicyManager, I'm hoping Ursula won't notice.
         """
 
-        def publish_wrong_payee_address_to_blockchain(policy, *args, **kwargs):
-            receipt = policy.author.policy_agent.create_policy(
-                policy_id=policy.hrac()[:HRAC_LENGTH],  # bytes16 _policyID
-                author_address=policy.author.checksum_address,
+        def publish_wrong_payee_address_to_blockchain(policy, _ursulas):
+            receipt = policy.alice.policy_agent.create_policy(
+                policy_id=policy.hrac,  # bytes16 _policyID
+                author_address=policy.alice.checksum_address,
                 value=policy.value,
                 end_timestamp=policy.expiration.epoch,  # uint16 _numberOfPeriods
                 node_addresses=[f.checksum_address for f in ursulas_to_pay_instead]  # address[] memory _nodes
             )
 
-            # Capture Response
-            policy.receipt = receipt
-            policy.publish_transaction = receipt['transactionHash']
-            policy.is_published = True
+            return receipt['transactionHash']
 
-            return receipt
-
-        with patch("nucypher.policy.policies.BlockchainPolicy.publish_to_blockchain",
+        with patch("nucypher.policy.policies.BlockchainPolicy._publish_to_blockchain",
                    publish_wrong_payee_address_to_blockchain):
-            with patch("nucypher.policy.policies.Policy.enact", self.enact_without_tabulating_responses):
+            with patch("nucypher.policy.policies.Policy._enact_arrangements", self.enact_without_tabulating_responses):
                 return super().grant(handpicked_ursulas=ursulas_to_trick_into_working_for_free, *args, **kwargs)
 
-    def use_ursula_as_an_involuntary_and_unbeknownst_cdn(self, policy, sucker_ursula):
+    def use_ursula_as_an_involuntary_and_unbeknownst_cdn(self, policy, bob, sucker_ursula):
         """
         Ursula is a sucker.
 
@@ -223,7 +221,7 @@ class Amonia(Alice):
             # I'll include a small portion of this awful film in a new message kit.  We don't care about the signature for bob.
             not_the_bees = b"Not the bees!" + int(i).to_bytes(length=4, byteorder="big")
             like_a_map_but_awful.message_kit, _signature_for_bob_which_is_never_Used = encrypt_and_sign(
-                policy.bob.public_keys(DecryptingPower),
+                bob.public_keys(DecryptingPower),
                 plaintext=not_the_bees,
                 signer=self.stamp,
             )

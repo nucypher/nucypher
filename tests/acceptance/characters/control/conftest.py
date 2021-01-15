@@ -118,18 +118,18 @@ def grant_control_request(blockchain_bob):
 
 
 @pytest.fixture(scope='module')
-def join_control_request(blockchain_bob, enacted_blockchain_policy):
+def join_control_request(blockchain_alice, blockchain_bob, enacted_blockchain_policy):
     method_name = 'join_policy'
 
     params = {
         'label': enacted_blockchain_policy.label.decode(),
-        'alice_verifying_key': bytes(enacted_blockchain_policy.alice.stamp).hex(),
+        'alice_verifying_key': bytes(enacted_blockchain_policy.alice_verifying_key).hex(),
     }
     return method_name, params
 
 
 @pytest.fixture(scope='function')
-def retrieve_control_request(blockchain_bob, enacted_blockchain_policy, capsule_side_channel_blockchain):
+def retrieve_control_request(blockchain_alice, blockchain_bob, enacted_blockchain_policy, capsule_side_channel_blockchain):
     capsule_side_channel_blockchain.reset()
     method_name = 'retrieve'
     message_kit = capsule_side_channel_blockchain()
@@ -137,7 +137,7 @@ def retrieve_control_request(blockchain_bob, enacted_blockchain_policy, capsule_
     params = {
         'label': enacted_blockchain_policy.label.decode(),
         'policy_encrypting_key': bytes(enacted_blockchain_policy.public_key).hex(),
-        'alice_verifying_key': bytes(enacted_blockchain_policy.alice.stamp).hex(),
+        'alice_verifying_key': bytes(enacted_blockchain_policy.alice_verifying_key).hex(),
         'message_kit': b64encode(message_kit.to_bytes()).decode(),
     }
     return method_name, params

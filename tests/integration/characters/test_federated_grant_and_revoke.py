@@ -26,8 +26,7 @@ from nucypher.datastore.models import PolicyArrangement
 from nucypher.policy.collections import Revocation
 
 
-@pytest.mark.usefixtures('federated_ursulas')
-def test_federated_grant(federated_alice, federated_bob):
+def test_federated_grant(federated_alice, federated_bob, federated_ursulas):
     # Setup the policy details
     m, n = 2, 3
     policy_end_datetime = maya.now() + datetime.timedelta(days=5)
@@ -37,27 +36,25 @@ def test_federated_grant(federated_alice, federated_bob):
     policy = federated_alice.grant(federated_bob, label, m=m, n=n, expiration=policy_end_datetime)
 
     # Check the policy ID
-    policy_id = keccak_digest(policy.label + bytes(policy.bob.stamp))
+    policy_id = keccak_digest(policy.label + bytes(federated_bob.stamp))
     assert policy_id == policy.id
 
     # Check Alice's active policies
     assert policy_id in federated_alice.active_policies
     assert federated_alice.active_policies[policy_id] == policy
 
-    # The number of accepted arrangements at least the number of Ursulas we're using (n)
-    assert len(policy._accepted_arrangements) >= n
-
     # The number of actually enacted arrangements is exactly equal to n.
-    assert len(policy._enacted_arrangements) == n
+    assert len(policy.treasure_map.destinations) == n
 
     # Let's look at the enacted arrangements.
-    for kfrag in policy.kfrags:
-        arrangement = policy._enacted_arrangements[kfrag]
+    for ursula in federated_ursulas:
+        if ursula.checksum_address in policy.treasure_map.destinations:
+            arrangement_id = policy.treasure_map.destinations[ursula.checksum_address]
 
-        # Get the Arrangement from Ursula's datastore, looking up by the Arrangement ID.
-        with arrangement.ursula.datastore.describe(PolicyArrangement, arrangement.id.hex()) as policy_arrangement:
-            retrieved_kfrag = policy_arrangement.kfrag
-        assert kfrag == retrieved_kfrag
+            # Get the Arrangement from Ursula's datastore, looking up by the Arrangement ID.
+            with ursula.datastore.describe(PolicyArrangement, arrangement_id.hex()) as policy_arrangement:
+                retrieved_kfrag = policy_arrangement.kfrag
+            assert bool(retrieved_kfrag) # TODO: try to assemble them back?
 
 
 def test_federated_alice_can_decrypt(federated_alice, federated_bob):

@@ -176,10 +176,10 @@ class TreasureMap:
                 nodes_as_bytes += to_canonical_address(ursula_id) + arrangement_id
             return nodes_as_bytes
 
-    def add_arrangement(self, arrangement):
+    def add_arrangement(self, ursula, arrangement):
         if self.destinations == NO_DECRYPTION_PERFORMED:
             raise TypeError("This TreasureMap is encrypted.  You can't add another node without decrypting it.")
-        self.destinations[arrangement.ursula.checksum_address] = arrangement.id  # TODO: 1995
+        self.destinations[ursula.checksum_address] = arrangement.id  # TODO: 1995
 
     def public_id(self) -> str:
         """

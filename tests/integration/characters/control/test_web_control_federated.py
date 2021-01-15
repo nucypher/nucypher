@@ -168,14 +168,20 @@ def test_alice_character_control_decrypt(alice_web_controller_test_client,
     assert response.status_code == 405
 
 
-def test_bob_character_control_join_policy(bob_web_controller_test_client, enacted_federated_policy):
+def test_bob_character_control_join_policy(bob_web_controller_test_client, federated_bob, federated_ursulas, enacted_federated_policy):
     request_data = {
         'label': enacted_federated_policy.label.decode(),
-        'alice_verifying_key': bytes(enacted_federated_policy.alice.stamp).hex(),
+        'alice_verifying_key': bytes(enacted_federated_policy.alice_verifying_key).hex(),
     }
 
-    # Simulate passing in a teacher-uri
-    enacted_federated_policy.bob.remember_node(list(enacted_federated_policy.accepted_ursulas)[0])
+    for ursula in federated_ursulas:
+        if ursula.checksum_address in enacted_federated_policy.treasure_map.destinations:
+            # Simulate passing in a teacher-uri
+            federated_bob.remember_node(ursula)
+            break
+    else:
+        # Shouldn't happen
+        raise Exception("No known Ursulas present in the treasure map destinations")
 
     response = bob_web_controller_test_client.post('/join_policy', data=json.dumps(request_data))
     assert b'{"result": {"policy_encrypting_key": "OK"}' in response.data  # TODO

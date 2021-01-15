@@ -26,9 +26,15 @@ from nucypher.policy.collections import SignedTreasureMap
 from tests.utils.controllers import get_fields, validate_json_rpc_response_data
 
 
-def test_bob_rpc_character_control_join_policy(bob_rpc_controller, join_control_request, enacted_blockchain_policy):
-    # Simulate passing in a teacher-uri
-    enacted_blockchain_policy.bob.remember_node(list(enacted_blockchain_policy.accepted_ursulas)[0])
+def test_bob_rpc_character_control_join_policy(bob_rpc_controller, join_control_request, enacted_blockchain_policy, blockchain_bob, blockchain_ursulas):
+    for ursula in blockchain_ursulas:
+        if ursula.checksum_address in enacted_blockchain_policy.treasure_map.destinations:
+            # Simulate passing in a teacher-uri
+            blockchain_bob.remember_node(ursula)
+            break
+    else:
+        # Shouldn't happen
+        raise Exception("No known Ursulas present in the treasure map destinations")
 
     method_name, params = join_control_request
     request_data = {'method': method_name, 'params': params}
