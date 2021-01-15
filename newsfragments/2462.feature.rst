@@ -1,1 +1,0 @@
-Compare Ursula IP address with configuration values on startup to help ensure node availability.

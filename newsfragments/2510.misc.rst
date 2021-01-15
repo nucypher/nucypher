@@ -1,1 +1,0 @@
-Ensure that documentation dependencies are updated when standard/development dependencies are updated.

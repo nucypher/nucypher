@@ -1,1 +1,0 @@
-Add pricing protocol & economics paper to main repo readme and docs homepage.

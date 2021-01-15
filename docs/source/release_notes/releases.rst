@@ -4,6 +4,52 @@ Releases
 
 .. towncrier release notes start
 
+v4.5.0 (2021-01-14)
+-------------------
+
+Features
+~~~~~~~~
+
+- Compare Ursula IP address with configuration values on startup to help ensure node availability. (`#2462 <https://github.com/nucypher/nucypher/issues/2462>`__)
+- Arrangement proposals and policy enactment are performed in parallel, with more nodes being considered as some of the requests fail. This improves granting reliability. (`#2482 <https://github.com/nucypher/nucypher/issues/2482>`__)
+
+
+Bugfixes
+~~~~~~~~
+
+- More logging added for arrangement proposal failures, and more suitable exceptions thrown. (`#2479 <https://github.com/nucypher/nucypher/issues/2479>`__)
+- Ignore pending Ethereum transactions for purposes of gas estimation. (`#2486 <https://github.com/nucypher/nucypher/issues/2486>`__)
+- Fix rtd build after #2477 (`#2489 <https://github.com/nucypher/nucypher/issues/2489>`__)
+-  (`#2491 <https://github.com/nucypher/nucypher/issues/2491>`__, `#2498 <https://github.com/nucypher/nucypher/issues/2498>`__)
+- Fix rtd build after #2477 and #2489 (`#2492 <https://github.com/nucypher/nucypher/issues/2492>`__)
+- cloudworkers bugfixes, cli args refactor and new "cloudworkers stop" feature. (`#2494 <https://github.com/nucypher/nucypher/issues/2494>`__)
+- Gentler handling of unsigned stamps from stranger Ursulas on status endpoint (`#2515 <https://github.com/nucypher/nucypher/issues/2515>`__)
+- Restore the re-raising behavior in ``BlockchainInterface._handle_failed_transaction()`` (`#2521 <https://github.com/nucypher/nucypher/issues/2521>`__)
+
+
+Improved Documentation
+~~~~~~~~~~~~~~~~~~~~~~
+
+- Auto docs generation for smart contracts (`#2477 <https://github.com/nucypher/nucypher/issues/2477>`__)
+- Add pricing protocol & economics paper to main repo readme and docs homepage. (`#2520 <https://github.com/nucypher/nucypher/issues/2520>`__)
+
+
+Deprecations and Removals
+~~~~~~~~~~~~~~~~~~~~~~~~~
+
+-  (`#2470 <https://github.com/nucypher/nucypher/issues/2470>`__)
+- Deprecated manual worker commitments using the CLI. (`#2507 <https://github.com/nucypher/nucypher/issues/2507>`__)
+
+
+Misc
+~~~~
+
+- Relock dependencies and update relock script. (`#2440 <https://github.com/nucypher/nucypher/issues/2440>`__)
+- Fixed failing readthedocs build due to dependency mismatches in docs requirements. (`#2496 <https://github.com/nucypher/nucypher/issues/2496>`__)
+-  (`#2499 <https://github.com/nucypher/nucypher/issues/2499>`__)
+- Ensure that documentation dependencies are updated when standard/development dependencies are updated. (`#2510 <https://github.com/nucypher/nucypher/issues/2510>`__)
+
+
 v4.4.0 (2020-12-24)
 -------------------
 

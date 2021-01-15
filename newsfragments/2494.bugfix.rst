@@ -1,1 +1,0 @@
-cloudworkers bugfixes, cli args refactor and new "cloudworkers stop" feature.
