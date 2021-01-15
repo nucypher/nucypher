@@ -727,7 +727,7 @@ jobs:
           command: |
             python -m pip install pip==20.2.4
             pip3 --version
-            pip3 install --user .[docs]
+            pip3 install --user -r docs-requirements.txt .
       - run:
           name: Build Sphinx Documentation
           command: make docs
