@@ -76,19 +76,30 @@ def test_upgrading(testerchain, token, token_economics, deploy_contract):
     policy_manager, _ = deploy_contract(
         'PolicyManagerForStakingEscrowMock', token.address, contract.address
     )
-    # Can't set wrong address
-    with pytest.raises((TransactionFailed, ValueError)):
-        tx = contract.functions.setPolicyManager(NULL_ADDRESS).transact()
-        testerchain.wait_for_receipt(tx)
-    with pytest.raises((TransactionFailed, ValueError)):
-        tx = contract.functions.setPolicyManager(contract_library_v1.address).transact()
-        testerchain.wait_for_receipt(tx)
-    tx = contract.functions.setPolicyManager(policy_manager.address).transact()
-    testerchain.wait_for_receipt(tx)
     worklock, _ = deploy_contract(
         'WorkLockForStakingEscrowMock', token.address, contract.address
     )
-    tx = contract.functions.setWorkLock(worklock.address).transact()
+    adjudicator, _ = deploy_contract(
+        'AdjudicatorForStakingEscrowMock', contract.address
+    )
+    # Can't set wrong addresses
+    with pytest.raises((TransactionFailed, ValueError)):
+        tx = contract.functions.setContracts(NULL_ADDRESS, NULL_ADDRESS, NULL_ADDRESS).transact()
+        testerchain.wait_for_receipt(tx)
+    with pytest.raises((TransactionFailed, ValueError)):
+        tx = contract.functions.setContracts(contract_library_v1.address, adjudicator.address, worklock.address)\
+            .transact()
+        testerchain.wait_for_receipt(tx)
+    with pytest.raises((TransactionFailed, ValueError)):
+        tx = contract.functions.setContracts(policy_manager.address, contract_library_v1.address, worklock.address)\
+            .transact()
+        testerchain.wait_for_receipt(tx)
+    with pytest.raises((TransactionFailed, ValueError)):
+        tx = contract.functions.setContracts(policy_manager.address, adjudicator.address, contract_library_v1.address)\
+            .transact()
+        testerchain.wait_for_receipt(tx)
+
+    tx = contract.functions.setContracts(policy_manager.address, adjudicator.address, worklock.address).transact()
     testerchain.wait_for_receipt(tx)
 
     tx = token.functions.approve(contract.address, token_economics.erc20_reward_supply).transact({'from': creator})
@@ -783,7 +794,7 @@ def test_worker(testerchain, token, escrow_contract, deploy_contract):
         testerchain.wait_for_receipt(tx)
 
 
-def test_measure_work(testerchain, token, escrow_contract, deploy_contract):
+def test_measure_work(testerchain, token, escrow_contract):
     escrow = escrow_contract(10000)
     creator, staker, *everyone_else = testerchain.w3.eth.accounts
     work_measurement_log = escrow.events.WorkMeasurementSet.createFilter(fromBlock='latest')
@@ -795,10 +806,11 @@ def test_measure_work(testerchain, token, escrow_contract, deploy_contract):
     tx = escrow.functions.initialize(reward, creator).transact({'from': creator})
     testerchain.wait_for_receipt(tx)
 
-    # Deploy WorkLock mock
-    worklock, _ = deploy_contract('WorkLockForStakingEscrowMock', token.address, escrow.address)
-    tx = escrow.functions.setWorkLock(worklock.address).transact()
-    testerchain.wait_for_receipt(tx)
+    worklock_interface = testerchain.get_contract_factory('WorkLockForStakingEscrowMock')
+    worklock = testerchain.client.get_contract(
+        abi=worklock_interface.abi,
+        address=escrow.functions.workLock().call(),
+        ContractFactoryClass=Contract)
 
     # Prepare Ursula
     stake = 1000

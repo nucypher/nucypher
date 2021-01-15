@@ -438,18 +438,19 @@ def test_minting(testerchain, token, escrow_contract, token_economics):
     assert 5 == escrow.functions.findIndexOfPastDowntime(staker2, current_period + 100).call()
 
 
-def test_slashing(testerchain, token, escrow_contract, token_economics, deploy_contract):
+def test_slashing(testerchain, token, escrow_contract, token_economics):
     escrow = escrow_contract(1500)
-    adjudicator, _ = deploy_contract(
-        'AdjudicatorForStakingEscrowMock', escrow.address
-    )
-    tx = escrow.functions.setAdjudicator(adjudicator.address).transact()
-    testerchain.wait_for_receipt(tx)
     creator = testerchain.client.accounts[0]
     staker = testerchain.client.accounts[1]
     investigator = testerchain.client.accounts[2]
 
     slashing_log = escrow.events.Slashed.createFilter(fromBlock='latest')
+
+    adjudicator_interface = testerchain.get_contract_factory('AdjudicatorForStakingEscrowMock')
+    adjudicator = testerchain.client.get_contract(
+        abi=adjudicator_interface.abi,
+        address=escrow.functions.adjudicator().call(),
+        ContractFactoryClass=Contract)
 
     # Give Escrow tokens for reward and initialize contract
     tx = token.functions.approve(escrow.address, token_economics.erc20_reward_supply).transact({'from': creator})

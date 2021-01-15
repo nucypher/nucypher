@@ -19,6 +19,7 @@ import pytest
 from web3.contract import Contract
 
 from nucypher.blockchain.economics import BaseEconomics
+from nucypher.blockchain.eth.constants import NULL_ADDRESS
 
 VALUE_FIELD = 0
 
@@ -65,12 +66,13 @@ def escrow_contract(testerchain, token, token_economics, request, deploy_contrac
                 address=dispatcher.address,
                 ContractFactoryClass=Contract)
 
-        policy_manager, _ = deploy_contract(
-            'PolicyManagerForStakingEscrowMock', token.address, contract.address
-        )
-        tx = contract.functions.setPolicyManager(policy_manager.address).transact()
+        policy_manager, _ = deploy_contract('PolicyManagerForStakingEscrowMock', token.address, contract.address)
+        adjudicator, _ = deploy_contract('AdjudicatorForStakingEscrowMock', contract.address)
+        worklock, _ = deploy_contract('WorkLockForStakingEscrowMock', token.address, contract.address)
+        tx = contract.functions.setContracts(policy_manager.address, adjudicator.address, worklock.address).transact()
         testerchain.wait_for_receipt(tx)
         assert policy_manager.address == contract.functions.policyManager().call()
+        assert adjudicator.address == contract.functions.adjudicator().call()
 
         # Travel to the start of the next period to prevent problems with unexpected overflow first period
         testerchain.time_travel(hours=1)

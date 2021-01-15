@@ -188,7 +188,10 @@ contract StakingEscrow is Issuer, IERC900History {
         uint16 _minLockedPeriods,
         uint256 _minAllowableLockedTokens,
         uint256 _maxAllowableLockedTokens,
-        uint16 _minWorkerPeriods
+        uint16 _minWorkerPeriods,
+        PolicyManagerInterface _policyManager,
+        AdjudicatorInterface _adjudicator,
+        WorkLockInterface _workLock
     )
         Issuer(
             _token,
@@ -221,35 +224,27 @@ contract StakingEscrow is Issuer, IERC900History {
 
     //------------------------Initialization------------------------
     /**
-    * @notice Set policy manager address
+    * @notice Set policy manager, worklock and adjudicator addresses
     */
-    function setPolicyManager(PolicyManagerInterface _policyManager) external onlyOwner {
+    function setContracts(
+        PolicyManagerInterface _policyManager,
+        AdjudicatorInterface _adjudicator,
+        WorkLockInterface _workLock
+    )
+        external onlyOwner
+    {
         // Policy manager can be set only once
-        require(address(policyManager) == address(0));
+        require(address(policyManager) == address(0) &&
+            address(adjudicator) == address(0) &&
+            address(workLock) == address(0)
+        );
         // This escrow must be the escrow for the new policy manager
-        require(_policyManager.escrow() == address(this));
+        require(_policyManager.escrow() == address(this) &&
+            _adjudicator.escrow() == address(this) &&
+            (address(_workLock) == address(0) || _workLock.escrow() == address(this))
+        );
         policyManager = _policyManager;
-    }
-
-    /**
-    * @notice Set adjudicator address
-    */
-    function setAdjudicator(AdjudicatorInterface _adjudicator) external onlyOwner {
-        // Adjudicator can be set only once
-        require(address(adjudicator) == address(0));
-        // This escrow must be the escrow for the new adjudicator
-        require(_adjudicator.escrow() == address(this));
         adjudicator = _adjudicator;
-    }
-
-    /**
-    * @notice Set worklock address
-    */
-    function setWorkLock(WorkLockInterface _workLock) external onlyOwner {
-        // WorkLock can be set only once
-        require(address(workLock) == address(0));
-        // This escrow must be the escrow for the new worklock
-        require(_workLock.escrow() == address(this));
         workLock = _workLock;
     }
 
