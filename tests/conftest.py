@@ -25,7 +25,7 @@ from nucypher.crypto.powers import TransactingPower
 from nucypher.network.nodes import Learner
 from nucypher.network.trackers import AvailabilityTracker
 from nucypher.utilities.logging import GlobalLoggerSettings
-from tests.constants import INSECURE_DEVELOPMENT_PASSWORD
+from tests.constants import INSECURE_DEVELOPMENT_PASSWORD, MOCK_IP_ADDRESS
 from tests.mock.datastore import mock_lmdb_open
 
 # Crash on server error by default
@@ -34,9 +34,6 @@ WebEmitter._crash_on_error_default = True
 # Dont re-lock account in background while making commitments
 LOCK_FUNCTION = TransactingPower.lock_account
 TransactingPower.lock_account = lambda *a, **k: True
-
-# Disable any hardcoded preferred teachers during tests.
-TEACHER_NODES = dict()
 
 # Prevent halting the reactor via health checks during tests
 AvailabilityTracker._halt_reactor = lambda *a, **kw: True
@@ -146,7 +143,7 @@ def pytest_collection_modifyitems(config, items):
     GlobalLoggerSettings.start_json_file_logging()
 
 
-# global_mutable_where_everybody = defaultdict(list)
+# global_mutable_where_everybody = defaultdict(list)  # TODO: cleanup
 
 @pytest.fixture(scope='module', autouse=True)
 def check_character_state_after_test(request):
@@ -188,7 +185,16 @@ def check_character_state_after_test(request):
             tracker.work_tracker.stop()
 
 
+
+
 @pytest.fixture(scope='session', autouse=True)
 def mock_datastore(monkeysession):
     monkeysession.setattr(lmdb, 'open', mock_lmdb_open)
     yield
+    
+
+
+@pytest.fixture(scope='session', autouse=True)
+def mock_get_external_ip_from_url_source(session_mocker):
+    target = 'nucypher.cli.actions.configure.determine_external_ip_address'
+    session_mocker.patch(target, return_value=MOCK_IP_ADDRESS)

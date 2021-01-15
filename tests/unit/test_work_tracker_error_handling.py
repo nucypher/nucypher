@@ -15,6 +15,8 @@
  along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
+
+import pytest
 import pytest_twisted
 from twisted.internet import task
 from twisted.internet import threads

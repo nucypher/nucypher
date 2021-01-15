@@ -17,6 +17,7 @@
 
 from typing import List
 
+from tests.constants import MOCK_IP_ADDRESS
 from nucypher.blockchain.eth.registry import BaseContractRegistry
 from nucypher.characters.lawful import Ursula
 from nucypher.config.characters import AliceConfiguration, BobConfiguration, UrsulaConfiguration

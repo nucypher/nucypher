@@ -15,6 +15,7 @@ You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
+
 import csv
 import json
 import os
@@ -1436,7 +1437,7 @@ class Worker(NucypherTokenActor):
                  is_me: bool,
                  work_tracker: WorkTracker = None,
                  worker_address: str = None,
-                 start_working_now: bool = True,
+                 commit_now: bool = False,
                  block_until_ready: bool = True,
                  *args, **kwargs):
 
@@ -1459,16 +1460,14 @@ class Worker(NucypherTokenActor):
         self.__start_time = WORKER_NOT_RUNNING
         self.__uptime_period = WORKER_NOT_RUNNING
 
-        # Workers cannot be started without being assigned a stake first.
         if is_me:
             if block_until_ready:
+                # Workers cannot be started before bonding.
                 self.block_until_ready()
-
-            if start_working_now:
-                self.stakes = StakeList(registry=self.registry, checksum_address=self.checksum_address)
-                self.stakes.refresh()
-                self.work_tracker = work_tracker or WorkTracker(worker=self)
-                self.work_tracker.start(act_now=start_working_now)
+            self.stakes = StakeList(registry=self.registry, checksum_address=self.checksum_address)
+            self.stakes.refresh()
+            self.work_tracker = work_tracker or WorkTracker(worker=self)
+            self.work_tracker.start(commit_now=commit_now)
 
     def block_until_ready(self, poll_rate: int = None, timeout: int = None, feedback_rate: int = None):
         """
@@ -1487,9 +1486,7 @@ class Worker(NucypherTokenActor):
         last_provided_feedback = start
 
         emitter = StdoutEmitter()
-        message = f"Awaiting worker qualification\n" \
-                  f"Startup will resume when {self.__worker_address} is funded and bonded to a staking account."
-        emitter.message(message, color='yellow')
+        emitter.message("Qualifying worker", color='yellow')
 
         funded, bonded = False, False
         while True:
@@ -1501,12 +1498,12 @@ class Worker(NucypherTokenActor):
             # Bonding
             if (not bonded) and (staking_address != NULL_ADDRESS):
                 bonded = True
-                emitter.message(f"✓ Worker is bonded to ({staking_address})!", color='green', bold=True)
+                emitter.message(f"✓ Worker is bonded to {staking_address}", color='green')
 
             # Balance
             if ether_balance and (not funded):
                 funded, balance = True, Web3.fromWei(ether_balance, 'ether')
-                emitter.message(f"✓ Worker is funded with {balance} ETH!", color='green', bold=True)
+                emitter.message(f"✓ Worker is funded with {balance} ETH", color='green')
 
             # Success and Escape
             if staking_address != NULL_ADDRESS and ether_balance:
@@ -1525,7 +1522,8 @@ class Worker(NucypherTokenActor):
                         waiting_for = "bonding and funding"
                     else:
                         waiting_for = "bonding" if not bonded else "funding"
-                    emitter.message(f"ⓘ  Worker not fully started - awaiting {waiting_for} ...", color='blue', bold=True)
+                    message = f"ⓘ  Worker startup is paused. Waiting for {waiting_for} ..."
+                    emitter.message(message, color='blue', bold=True)
                     last_provided_feedback = now
 
             # Crash on Timeout
@@ -1542,8 +1540,6 @@ class Worker(NucypherTokenActor):
 
             # Increment
             time.sleep(poll_rate)
-
-        emitter.message("✓ Worker settings confirmed", color='green')
 
     @property
     def eth_balance(self) -> Decimal:

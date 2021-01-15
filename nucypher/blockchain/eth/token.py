@@ -585,7 +585,7 @@ class WorkTracker:
             self._tracking_task.stop()
             self.log.info(f"STOPPED WORK TRACKING")
 
-    def start(self, act_now: bool = True, requirement_func: Callable = None, force: bool = False) -> None:
+    def start(self, commit_now: bool = True, requirement_func: Callable = None, force: bool = False) -> None:
         """
         High-level stake tracking initialization, this function aims
         to be safely called at any time - For example, it is okay to call
@@ -602,8 +602,8 @@ class WorkTracker:
         self.__uptime_period = self.staking_agent.get_current_period()
         self.__current_period = self.__uptime_period
 
-        self.log.info(f"START WORK TRACKING (immediate action: {act_now})")
-        d = self._tracking_task.start(interval=self.random_interval(fails=self._consecutive_fails), now=act_now)
+        self.log.info(f"START WORK TRACKING (immediate action: {commit_now})")
+        d = self._tracking_task.start(interval=self.random_interval(fails=self._consecutive_fails), now=commit_now)
         d.addErrback(self.handle_working_errors)
 
     def _crash_gracefully(self, failure=None) -> None:
@@ -628,9 +628,9 @@ class WorkTracker:
             # the effect of this is that we get one immediate retry.
             # After that, the random_interval will be honored until
             # success is achieved
-            act_now = self._consecutive_fails < 1
+            commit_now = self._consecutive_fails < 1
             self._consecutive_fails += 1
-            self.start(act_now=act_now)
+            self.start(commit_now=commit_now)
 
 
     def __work_requirement_is_satisfied(self) -> bool:

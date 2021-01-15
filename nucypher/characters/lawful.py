@@ -17,7 +17,7 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 
 
 import json
-from collections import OrderedDict
+from collections import OrderedDict, defaultdict
 
 import contextlib
 import maya
@@ -39,7 +39,6 @@ from constant_sorrow.constants import (
     READY,
     INVALIDATED
 )
-from collections import OrderedDict, defaultdict
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives.asymmetric.ec import EllipticCurve
 from cryptography.hazmat.primitives.serialization import Encoding
@@ -59,7 +58,6 @@ from typing import Dict, Iterable, List, Tuple, Union, Optional, Sequence, Set
 from umbral import pre
 from umbral.keys import UmbralPublicKey
 from umbral.kfrags import KFrag
-from umbral.pre import UmbralCorrectnessError
 from umbral.signing import Signature
 
 import nucypher
@@ -101,6 +99,7 @@ from nucypher.network.protocols import InterfaceInfo, parse_node_uri
 from nucypher.network.server import ProxyRESTServer, TLSHostingPower, make_rest_app
 from nucypher.network.trackers import AvailabilityTracker
 from nucypher.utilities.logging import Logger
+from nucypher.utilities.networking import validate_worker_ip
 
 
 class Alice(Character, BlockchainPolicyAuthor):
@@ -1053,7 +1052,7 @@ class Ursula(Teacher, Character, Worker):
                  block_until_ready: bool = True,
                  # TODO: Must be true in order to set staker address - Allow for manual staker addr to be passed too!
                  work_tracker: WorkTracker = None,
-                 start_working_now: bool = True,
+                 commit_now: bool = True,
                  client_password: str = None,
 
                  # Character
@@ -1135,7 +1134,7 @@ class Ursula(Teacher, Character, Worker):
                                 checksum_address=checksum_address,
                                 worker_address=worker_address,
                                 work_tracker=work_tracker,
-                                start_working_now=start_working_now,
+                                commit_now=commit_now,
                                 block_until_ready=block_until_ready)
             except (Exception, self.WorkerError):  # FIXME
                 # TODO: Do not announce self to "other nodes" until this init is finished.
@@ -1254,37 +1253,45 @@ class Ursula(Teacher, Character, Worker):
             if result > 0:
                 self.log.debug(f"Pruned {result} treasure maps.")
 
+    def __preflight(self) -> None:
+        """Called immediately before running services"""
+        validate_worker_ip(worker_ip=self.rest_interface.host)
+
     def run(self,
             emitter: StdoutEmitter = None,
-            hendrix: bool = True,
-            learning: bool = True,
+            discovery: bool = True,  # TODO: see below
             availability: bool = True,
             worker: bool = True,
             pruning: bool = True,
             interactive: bool = False,
+            hendrix: bool = True,
             start_reactor: bool = True,
             prometheus_config: 'PrometheusMetricsConfig' = None,
+            preflight: bool = True
             ) -> None:
 
         """Schedule and start select ursula services, then optionally start the reactor."""
+
+        if preflight:
+            self.__preflight()
 
         #
         # Async loops ordered by schedule priority
         #
 
         if emitter:
-            emitter.message(f"Starting services...", color='yellow')
+            emitter.message(f"Starting services", color='yellow')
 
         if pruning:
             self.__pruning_task = self._datastore_pruning_task.start(interval=self._pruning_interval, now=True)
             if emitter:
-                emitter.message(f"✓ Database pruning", color='green')
+                emitter.message(f"✓ Database Pruning", color='green')
 
-        # TODO: block until specific nodes are known here?
-        # if learning:  # TODO: Include learning startup here with the rest of the services?
+        # TODO: Startup node discovery here with the rest of Ursula's services.
+        # if discovery and not self.lonely:
         #     self.start_learning_loop(now=self._start_learning_now)
         #     if emitter:
-        #         emitter.message(f"✓ Node Discovery ({','.join(self.domain)})", color='green')
+        #         emitter.message(f"✓ Node Discovery - {self.domain}", color='green')
 
         if self._availability_check and availability:
             self._availability_tracker.start(now=False)  # wait...
@@ -1292,7 +1299,7 @@ class Ursula(Teacher, Character, Worker):
                 emitter.message(f"✓ Availability Checks", color='green')
 
         if worker and not self.federated_only:
-            self.work_tracker.start(act_now=True)  # requirement_func=self._availability_tracker.status)  # TODO: #2277
+            self.work_tracker.start(commit_now=True)  # requirement_func=self._availability_tracker.status)  # TODO: #2277
             if emitter:
                 emitter.message(f"✓ Work Tracking", color='green')
 
@@ -1312,9 +1319,8 @@ class Ursula(Teacher, Character, Worker):
             stdio.StandardIO(UrsulaCommandProtocol(ursula=self, emitter=emitter))
 
         if hendrix:
-
             if emitter:
-                emitter.message(f"Starting Ursula on {self.rest_interface}", color='green', bold=True)
+                emitter.message(f"✓ Rest Server https://{self.rest_interface}", color='green')
 
             deployer = self.get_deployer()
             deployer.addServices()

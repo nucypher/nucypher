@@ -26,6 +26,7 @@ from nucypher.blockchain.economics import StandardTokenEconomics
 from nucypher.blockchain.eth.interfaces import BlockchainInterface
 from nucypher.blockchain.eth.networks import NetworksInventory
 from nucypher.blockchain.eth.token import NU
+from nucypher.utilities.networking import validate_worker_ip, InvalidWorkerIP
 
 
 class ChecksumAddress(click.ParamType):
@@ -46,10 +47,22 @@ class IPv4Address(click.ParamType):
     def convert(self, value, param, ctx):
         try:
             _address = ip_address(value)
-        except ValueError as e:
+        except ValueError:
             self.fail("Invalid IP Address")
         else:
             return value
+
+
+class WorkerIPAddress(IPv4Address):
+    name = 'worker_ip'
+
+    def convert(self, value, param, ctx):
+        _ip = super().convert(value, param, ctx)
+        try:
+            validate_worker_ip(worker_ip=_ip)
+        except InvalidWorkerIP as e:
+            self.fail(str(e))
+        return value
 
 
 class DecimalType(click.ParamType):
@@ -136,6 +149,7 @@ EXISTING_READABLE_FILE = click.Path(exists=True, dir_okay=False, file_okay=True,
 # Network
 NETWORK_PORT = click.IntRange(min=0, max=65535, clamp=False)
 IPV4_ADDRESS = IPv4Address()
+WORKER_IP = WorkerIPAddress()
 
 GAS_STRATEGY_CHOICES = click.Choice(list(BlockchainInterface.GAS_STRATEGIES.keys()))
 UMBRAL_PUBLIC_KEY_HEX = UmbralPublicKeyHex()

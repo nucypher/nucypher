@@ -50,3 +50,4 @@ docs/source/api/
 docs/source/contracts_api/
 
 tests/unit/.hypothesis/
+.hypothesis/

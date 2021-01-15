@@ -104,6 +104,8 @@ class Character(Learner):
 
         #
         # Operating Mode
+        #
+
         if hasattr(self, '_interface_class'):  # TODO: have argument about meaning of 'lawful'
             #                                         and whether maybe only Lawful characters have an interface
             self.interface = self._interface_class(character=self)

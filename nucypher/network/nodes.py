@@ -245,8 +245,7 @@ class Learner:
 
         from nucypher.characters.lawful import Ursula
         self.node_class = node_class or Ursula
-        self.node_class.set_cert_storage_function(
-            node_storage.store_node_certificate)  # TODO: Fix this temporary workaround for on-disk cert storage.  #1481
+        self.node_class.set_cert_storage_function(node_storage.store_node_certificate)  # TODO: Fix this temporary workaround for on-disk cert storage.  #1481
 
         known_nodes = known_nodes or tuple()
         self.unresponsive_startup_nodes = list()  # TODO: Buckets - Attempt to use these again later  #567
@@ -386,11 +385,10 @@ class Learner:
         with suppress(KeyError):
             already_known_node = self.known_nodes[node.checksum_address]
             if not node.timestamp > already_known_node.timestamp:
-                # self.log.debug("Skipping already known node {}".format(already_known_node))  # FIXME: ""OMG, enough with the learning already!" – @vepkenez  (#1712)
                 # This node is already known.  We can safely return.
                 return False
 
-        self.known_nodes[node.checksum_address] = node
+        self.known_nodes[node.checksum_address] = node  # FIXME - dont always remember nodes, bucket them.
 
         if self.save_metadata:
             self.node_storage.store_node_metadata(node=node)

@@ -377,7 +377,7 @@ DECRYPTING_CHARACTER_KEYRING = 'Authenticating {name}'
 
 CONFIRM_URSULA_IPV4_ADDRESS = "Detected IPv4 address ({rest_host}) - Is this the public-facing address of Ursula?"
 
-COLLECT_URSULA_IPV4_ADDRESS = "Enter Ursula's public-facing IPv4 address:"
+COLLECT_URSULA_IPV4_ADDRESS = "Enter Ursula's public-facing IPv4 address"
 
 
 #
@@ -387,8 +387,6 @@ COLLECT_URSULA_IPV4_ADDRESS = "Enter Ursula's public-facing IPv4 address:"
 START_LOADING_SEEDNODES = "Connecting to preferred teacher nodes..."
 
 UNREADABLE_SEEDNODE_ADVISORY = "Failed to connect to teacher: {uri}"
-
-FORCE_DETECT_URSULA_IP_WARNING = "WARNING: --force is set, using auto-detected IP '{rest_host}'"
 
 NO_DOMAIN_PEERS = "WARNING: No Peers Available for domain: {domain}"
 

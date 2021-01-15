@@ -38,7 +38,7 @@ services:
     image: dev:nucypher
     depends_on:
       - ursula1
-    command: nucypher ursula run --dev --federated-only --rest-host 172.28.1.2 --rest-port 11500 --teacher 172.28.1.1:11500
+    command: nucypher ursula run --dev --federated-only --rest-host 172.28.1.2 --rest-port 11500 --teacher 172.28.1.1:11500 
     networks:
       nucypher_net:
         ipv4_address: 172.28.1.2
@@ -121,6 +121,7 @@ services:
       nucypher_net:
         ipv4_address: 172.28.1.8
     container_name: ursula8
+
 networks:
   nucypher_net:
     ipam:

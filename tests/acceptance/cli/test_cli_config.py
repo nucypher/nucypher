@@ -27,7 +27,7 @@ from nucypher.config.constants import NUCYPHER_ENVVAR_KEYRING_PASSWORD, NUCYPHER
     TEMPORARY_DOMAIN
 from tests.constants import (FAKE_PASSWORD_CONFIRMED, INSECURE_DEVELOPMENT_PASSWORD, MOCK_CUSTOM_INSTALLATION_PATH,
                              MOCK_IP_ADDRESS,
-                             TEST_PROVIDER_URI)
+                             TEST_PROVIDER_URI, YES)
 
 CONFIG_CLASSES = (AliceConfiguration, BobConfiguration, UrsulaConfiguration)
 
@@ -51,7 +51,7 @@ def test_initialize_via_cli(config_class, custom_filepath, click_runner, monkeyp
 
     result = click_runner.invoke(nucypher_cli,
                                  init_args,
-                                 input=FAKE_PASSWORD_CONFIRMED,
+                                 input=FAKE_PASSWORD_CONFIRMED + YES,
                                  catch_exceptions=False,
                                  env=ENV)
     assert result.exit_code == 0, result.output

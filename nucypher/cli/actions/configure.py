@@ -19,11 +19,12 @@
 import json
 
 import click
+import os
 from json.decoder import JSONDecodeError
 from typing import Optional, Type
 
-from nucypher.config.characters import StakeHolderConfiguration
 from nucypher.characters.control.emitters import StdoutEmitter
+from nucypher.characters.lawful import Ursula
 from nucypher.cli.actions.confirm import confirm_destroy_configuration
 from nucypher.cli.literature import (
     CONFIRM_FORGET_NODES,
@@ -32,9 +33,16 @@ from nucypher.cli.literature import (
     MISSING_CONFIGURATION_FILE,
     SUCCESSFUL_DESTRUCTION,
     SUCCESSFUL_FORGET_NODES,
-    SUCCESSFUL_UPDATE_CONFIGURATION_VALUES
+    SUCCESSFUL_UPDATE_CONFIGURATION_VALUES,
+    COLLECT_URSULA_IPV4_ADDRESS,
+    CONFIRM_URSULA_IPV4_ADDRESS
 )
+from nucypher.cli.types import IPV4_ADDRESS, WORKER_IP
+from nucypher.config.characters import StakeHolderConfiguration
+from nucypher.config.constants import NUCYPHER_ENVVAR_WORKER_IP_ADDRESS
 from nucypher.config.node import CharacterConfiguration
+from nucypher.utilities.networking import InvalidWorkerIP, validate_worker_ip
+from nucypher.utilities.networking import determine_external_ip_address, UnknownIPAddress
 
 
 def forget(emitter: StdoutEmitter, configuration: CharacterConfiguration) -> None:
@@ -50,7 +58,7 @@ def get_or_update_configuration(emitter: StdoutEmitter,
                                 updates: Optional[dict] = None) -> None:
     """
     Utility for writing updates to an existing configuration file then displaying the result.
-    If the config file is invalid, trey very hard to display the problem.  If there are no updates,
+    If the config file is invalid, try very hard to display the problem.  If there are no updates,
     the config file will be displayed without changes.
     """
     try:
@@ -110,3 +118,64 @@ def handle_invalid_configuration_file(emitter: StdoutEmitter,
         emitter.message(INVALID_JSON_IN_CONFIGURATION_WARNING.format(filepath=filepath))
         # ... sorry.. we tried as hard as we could
         raise  # crash :-(
+
+
+def collect_worker_ip_address(emitter: StdoutEmitter, network: str, force: bool = False) -> str:
+
+    # From environment variable  # TODO: remove this environment variable?
+    ip = os.environ.get(NUCYPHER_ENVVAR_WORKER_IP_ADDRESS)
+    if ip:
+        message = f'Using IP address ({ip}) from {NUCYPHER_ENVVAR_WORKER_IP_ADDRESS} environment variable'
+        emitter.message(message, verbosity=2)
+        return ip
+
+    # From node swarm
+    try:
+        message = f'Detecting external IP address automatically'
+        emitter.message(message, verbosity=2)
+        ip = determine_external_ip_address(network=network)
+    except UnknownIPAddress:
+        if force:
+            raise
+        emitter.message('Cannot automatically determine external IP address - input required')
+
+    # Confirmation
+    if not force:
+        if not click.confirm(CONFIRM_URSULA_IPV4_ADDRESS.format(rest_host=ip)):
+            ip = click.prompt(COLLECT_URSULA_IPV4_ADDRESS, type=WORKER_IP)
+
+    validate_worker_ip(worker_ip=ip)
+    return ip
+
+
+def perform_startup_ip_check(emitter: StdoutEmitter, ursula: Ursula, force: bool = False) -> None:
+    """
+    Used on ursula startup to determine if the external
+    IP address is consistent with the configuration's values.
+    """
+    try:
+        external_ip = determine_external_ip_address(network=ursula.domain, known_nodes=ursula.known_nodes)
+    except UnknownIPAddress:
+        message = 'Cannot automatically determine external IP address'
+        emitter.message(message)
+        return  # TODO: crash, or not to crash... that is the question
+    rest_host = ursula.rest_interface.host
+    try:
+        validate_worker_ip(worker_ip=rest_host)
+    except InvalidWorkerIP:
+        message = f'{rest_host} is not a valid or permitted worker IP address.  Set the correct external IP then try again\n' \
+                  f'automatic configuration -> nucypher ursula config ip-address\n' \
+                  f'manual configuration    -> nucypher ursula config --rest-host <IP ADDRESS>'
+        emitter.message(message)
+        return
+
+    ip_mismatch = external_ip != rest_host
+    if ip_mismatch and not force:
+        error = f'\nX External IP address ({external_ip}) does not match configuration ({ursula.rest_interface.host}).\n'
+        hint = f"Run 'nucypher ursula config ip-address' to reconfigure the IP address then try " \
+               f"again or use --no-ip-checkup to bypass this check (not recommended).\n"
+        emitter.message(error, color='red')
+        emitter.message(hint, color='yellow')
+        raise click.Abort()
+    else:
+        emitter.message('✓ External IP matches configuration', 'green')

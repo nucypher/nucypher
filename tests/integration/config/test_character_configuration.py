@@ -20,6 +20,7 @@ import pytest
 import tempfile
 from constant_sorrow.constants import CERTIFICATE_NOT_SAVED, NO_KEYRING_ATTACHED
 
+from tests.constants import MOCK_IP_ADDRESS
 from nucypher.blockchain.eth.actors import StakeHolder
 from nucypher.characters.chaotic import Felix
 from nucypher.characters.lawful import Alice, Bob, Ursula
@@ -54,7 +55,11 @@ all_configurations = tuple(configurations + blockchain_only_configurations)
 @pytest.mark.parametrize("character,configuration", characters_and_configurations)
 def test_federated_development_character_configurations(character, configuration):
 
-    config = configuration(dev_mode=True, federated_only=True, lonely=True, domain=TEMPORARY_DOMAIN)
+    config = configuration(dev_mode=True,
+                           federated_only=True,
+                           lonely=True,
+                           domain=TEMPORARY_DOMAIN)
+
     assert config.is_me is True
     assert config.dev_mode is True
     assert config.keyring == NO_KEYRING_ATTACHED
@@ -116,6 +121,11 @@ def test_default_character_configuration_preservation(configuration_class, teste
     if configuration_class == StakeHolderConfiguration:
         # special case for defaults
         character_config = StakeHolderConfiguration(provider_uri=testerchain.provider_uri, domain=network)
+
+    elif configuration_class == UrsulaConfiguration:
+        # special case for rest_host & dev mode
+        character_config = configuration_class(checksum_address=fake_address, domain=network, rest_host=MOCK_IP_ADDRESS)
+
     else:
         character_config = configuration_class(checksum_address=fake_address, domain=network)
 
