@@ -120,7 +120,6 @@ def read_requirements(path):
 
 
 INSTALL_REQUIRES = read_requirements('requirements.txt')
-DOCS_REQUIRE = read_requirements('docs-requirements.txt')
 DEV_REQUIRES = read_requirements('dev-requirements.txt')
 
 BENCHMARK_REQUIRES = [
@@ -140,10 +139,9 @@ BOB_REQUIRES = ['qrcode']
 EXTRAS = {
 
     # Admin
-    'docs': DOCS_REQUIRE,
-    'dev': DEV_REQUIRES + DOCS_REQUIRE + URSULA_REQUIRES + ALICE_REQUIRES,
+    'dev': DEV_REQUIRES + URSULA_REQUIRES + ALICE_REQUIRES,
     'benchmark': DEV_REQUIRES + BENCHMARK_REQUIRES,
-    'deploy': DOCS_REQUIRE + DEPLOY_REQUIRES,
+    'deploy': DEPLOY_REQUIRES,
 
     # User
     'ursula': URSULA_REQUIRES,
