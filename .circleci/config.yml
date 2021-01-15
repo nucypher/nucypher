@@ -752,6 +752,10 @@ jobs:
     steps:
       - checkout
       - setup_remote_docker
+      - run:
+          name: Set permissions for docker image cache
+          command: |
+            sudo chown -R circleci:circleci ~/docker
       - restore_cache:
           keys:
             - v1-{{ .Branch }}
@@ -810,6 +814,10 @@ jobs:
     steps:
       - checkout
       - setup_remote_docker
+      - run:
+          name: Set permissions for docker image cache
+          command: |
+            sudo chown -R circleci:circleci ~/docker
       - restore_cache:
           keys:
             - v1-{{ .Branch }}
