@@ -754,7 +754,7 @@ jobs:
       - setup_remote_docker
       - restore_cache:
           keys:
-            - v1-{{ .Branch }}
+            - v2-{{ .Branch }}-{{ arch }}
           paths:
             - ~/docker/nucypher.tar
       - run:
@@ -772,7 +772,7 @@ jobs:
             mkdir -p ~/docker
             docker save -o ~/docker/nucypher.tar nucypher/nucypher:circle
       - save_cache:
-          key: v1-{{ .Branch }}-{{ epoch }}
+          key: v2-{{ .Branch }}-{{ arch }}-{{ epoch }}
           paths:
             - ~/docker/nucypher.tar
 
@@ -812,7 +812,7 @@ jobs:
       - setup_remote_docker
       - restore_cache:
           keys:
-            - v1-{{ .Branch }}
+            - v2-{{ .Branch }}-{{ arch }}
           paths:
             - ~/docker/nucypher.tar
       - run:
@@ -836,7 +836,7 @@ jobs:
       - setup_remote_docker
       - restore_cache:
           keys:
-            - v1-{{ .Branch }}
+            - v2-{{ .Branch }}-{{ arch }}
           paths:
             - ~/docker/nucypher.tar
       - run:
