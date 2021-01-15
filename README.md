@@ -80,6 +80,10 @@ More detailed information:
 *by Michael Egorov, MacLane Wilkison, Arjun Hassard - NuCypher*
 
 
+[*"NuCypher - Pricing Protocol & Economics"*](https://github.com/nucypher/whitepaper/blob/master/economics/pricing_protocol/NuCypher_Network__Pricing_Protocol_Economics.pdf)
+
+*by Arjun Hassard - NuCypher*
+
 ### Cryptography
 
 [*"Umbral: A Threshold Proxy Re-Encryption Scheme"*](https://github.com/nucypher/umbral-doc/blob/master/umbral-doc.pdf)
