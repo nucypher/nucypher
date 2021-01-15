@@ -4,6 +4,12 @@ Releases
 
 .. towncrier release notes start
 
+v4.5.1 (2021-01-15)
+-------------------
+
+No significant changes.
+
+
 v4.5.0 (2021-01-14)
 -------------------
 
