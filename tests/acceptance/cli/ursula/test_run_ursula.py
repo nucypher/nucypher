@@ -162,14 +162,16 @@ def test_federated_ursula_learns_via_cli(click_runner, federated_ursulas):
     assert teacher.checksum_address in result.output
     assert f"Saved TLS certificate for {teacher.nickname}" in result.output
 
+    federated_ursulas.clear()
 
-@pytest.mark.skip("Let's put this on ice until we get 2099 and Treasure Island working together.")
+
 @pt.inlineCallbacks
 def test_persistent_node_storage_integration(click_runner,
                                              custom_filepath,
                                              testerchain,
                                              blockchain_ursulas,
                                              agency_local_registry):
+
     alice, ursula, another_ursula, felix, staker, *all_yall = testerchain.unassigned_accounts
     filename = UrsulaConfiguration.generate_filename()
     another_ursula_configuration_file_location = os.path.join(custom_filepath, filename)
@@ -226,3 +228,47 @@ def test_persistent_node_storage_integration(click_runner,
                                              input=user_input,
                                              env=envvars)
     assert result.exit_code == 0
+
+
+def test_ursula_run_ip_checkup(testerchain, custom_filepath, click_runner, mocker, blockchain_ursulas, monkeypatch):
+
+    # Mock IP determination
+    target = 'nucypher.cli.actions.configure.determine_external_ip_address'
+    mocker.patch(target, return_value=MOCK_IP_ADDRESS)
+
+    # Mock Teacher Resolution
+    from nucypher.characters.lawful import Ursula
+    teacher = blockchain_ursulas.pop()
+    mocker.patch.object(Ursula, 'from_teacher_uri', return_value=teacher)
+
+    # Mock worker qualification
+    staker = blockchain_ursulas.pop()
+
+    def set_staker_address(worker, *args, **kwargs):
+        worker._checksum_address = staker.checksum_address
+        return True
+    monkeypatch.setattr(Worker, 'block_until_ready', set_staker_address)
+
+    # Setup
+    teacher = blockchain_ursulas.pop()
+    filename = UrsulaConfiguration.generate_filename()
+    another_ursula_configuration_file_location = os.path.join(custom_filepath, filename)
+
+    # manual teacher
+    run_args = ('ursula', 'run',
+                '--dry-run',
+                '--debug',
+                '--config-file', another_ursula_configuration_file_location,
+                '--teacher', teacher.rest_url())
+    result = click_runner.invoke(nucypher_cli, run_args, catch_exceptions=False, input=FAKE_PASSWORD_CONFIRMED)
+    assert result.exit_code == 0, result.output
+
+    # default teacher
+    run_args = ('ursula', 'run',
+                '--dry-run',
+                '--debug',
+                '--config-file', another_ursula_configuration_file_location)
+    result = click_runner.invoke(nucypher_cli, run_args, catch_exceptions=False, input=FAKE_PASSWORD_CONFIRMED)
+    assert result.exit_code == 0, result.output
+
+    blockchain_ursulas.clear()

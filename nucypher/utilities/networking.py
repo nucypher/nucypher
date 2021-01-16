@@ -65,7 +65,7 @@ def validate_worker_ip(worker_ip: str) -> None:
                               f'Verify the rest_host is set to the external IPV4 address')
 
 
-def __request(url: str, certificate=None) -> Union[str, None]:
+def _request(url: str, certificate=None) -> Union[str, None]:
     """
     Utility function to send a GET request to a URL returning it's
     text content or None, suppressing all errors. Certificate is
@@ -138,10 +138,11 @@ def get_external_ip_from_known_nodes(known_nodes: FleetSensor,
     of this host. The first node to reply successfully will be used.
     # TODO: Parallelize the requests and compare results.
     """
-    ip = None
-    sample = random.sample(known_nodes, sample_size)
+    if not known_nodes:
+        return
+    sample = random.sample(list(known_nodes), sample_size)
     for node in sample:
-        ip = __request(url=node.rest_url())
+        ip = _request(url=node.rest_url())
         if ip:
             log.info(f'Fetched external IP address ({ip}) from randomly selected known node(s).')
             return ip
