@@ -370,17 +370,21 @@ def blockchain_bob(bob_blockchain_test_config, testerchain):
 @pytest.fixture(scope="module")
 def federated_ursulas(ursula_federated_test_config):
     if MOCK_KNOWN_URSULAS_CACHE:
-        raise RuntimeError("Ursulas cache was unclear at fixture loading time.  Did you use one of the ursula maker functions without cleaning up?")
+        # raise RuntimeError("Ursulas cache was unclear at fixture loading time.  Did you use one of the ursula maker functions without cleaning up?")
+        MOCK_KNOWN_URSULAS_CACHE.clear()
+
     _ursulas = make_federated_ursulas(ursula_config=ursula_federated_test_config,
                                       quantity=NUMBER_OF_URSULAS_IN_DEVELOPMENT_NETWORK)
+
     # Since we mutate this list in some tests, it's not enough to remember and remove the Ursulas; we have to remember them by port.
     # The same is true of blockchain_ursulas below.
     _ports_to_remove = [ursula.rest_interface.port for ursula in _ursulas]
     yield _ursulas
 
     for port in _ports_to_remove:
-        test_logger.debug(f"Removing {port} ({MOCK_KNOWN_URSULAS_CACHE[port]}).")
-        del MOCK_KNOWN_URSULAS_CACHE[port]
+        if port in MOCK_KNOWN_URSULAS_CACHE:
+            test_logger.debug(f"Removing {port} ({MOCK_KNOWN_URSULAS_CACHE[port]}).")
+            del MOCK_KNOWN_URSULAS_CACHE[port]
 
     for u in _ursulas:
         u.stop()
@@ -680,7 +684,10 @@ def stakers(testerchain, agency, token_economics, test_registry):
 @pytest.fixture(scope="module")
 def blockchain_ursulas(testerchain, stakers, ursula_decentralized_test_config):
     if MOCK_KNOWN_URSULAS_CACHE:
-        raise RuntimeError("Ursulas cache was unclear at fixture loading time.  Did you use one of the ursula maker functions without cleaning up?")
+        # TODO: Is this a safe assumption / test behaviour?
+        # raise RuntimeError("Ursulas cache was unclear at fixture loading time.  Did you use one of the ursula maker functions without cleaning up?")
+        MOCK_KNOWN_URSULAS_CACHE.clear()
+
     _ursulas = make_decentralized_ursulas(ursula_config=ursula_decentralized_test_config,
                                           stakers_addresses=testerchain.stakers_accounts,
                                           workers_addresses=testerchain.ursulas_accounts,
