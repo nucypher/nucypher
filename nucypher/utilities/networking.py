@@ -29,12 +29,16 @@ from nucypher.network.middleware import RestMiddleware, NucypherMiddlewareClient
 from nucypher.utilities.logging import Logger
 
 
+
 class UnknownIPAddress(RuntimeError):
     pass
 
 
 class InvalidWorkerIP(RuntimeError):
     """Raised when an Ursula is using an invalid IP address for it's server."""
+
+
+CENTRALIZED_IP_ORACLE_URL = 'https://ifconfig.me/'
 
 
 RequestErrors = (
@@ -145,10 +149,9 @@ def get_external_ip_from_known_nodes(known_nodes: FleetSensor,
 
 def get_external_ip_from_centralized_source(log: Logger = IP_DETECTION_LOGGER) -> Union[str, None]:
     """Use hardcoded URL to determine the external IP address of this host."""
-    endpoint = 'https://ifconfig.me/'
-    ip = __request(url=endpoint)
+    ip = _request(url=CENTRALIZED_IP_ORACLE_URL)
     if ip:
-        log.info(f'Fetched external IP address ({ip}) from centralized source ({endpoint}).')
+        log.info(f'Fetched external IP address ({ip}) from centralized source ({CENTRALIZED_IP_ORACLE_URL}).')
     return ip
 
 
