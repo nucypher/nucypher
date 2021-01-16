@@ -415,7 +415,15 @@ def save_metadata(general_config, character_options, config_file):
 @group_general_config
 @option_force
 def config(general_config, config_options, config_file, force, action):
-    """View and optionally update the Ursula node's configuration."""
+    """
+    View and optionally update the Ursula node's configuration.
+
+    \b
+    Sub-Commands
+    ~~~~~~~~~~~~~
+    ip-address - automatically detect and configure the external IP address.
+
+    """
     emitter = setup_emitter(general_config, config_options.worker_address)
     if not config_file:
         config_file = select_config_file(emitter=emitter,
@@ -424,6 +432,9 @@ def config(general_config, config_options, config_file, force, action):
     if action == 'ip-address':
         rest_host = collect_worker_ip_address(emitter=emitter, network=config_options.domain, force=force)
         config_options.rest_host = rest_host
+    elif action:
+        emitter.echo(f'"{action}" is not a valid command.', color='red')
+        raise click.Abort()
     updates = config_options.get_updates()
     get_or_update_configuration(emitter=emitter,
                                 config_class=UrsulaConfiguration,
