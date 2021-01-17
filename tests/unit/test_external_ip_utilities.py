@@ -35,9 +35,14 @@ from tests.constants import MOCK_IP_ADDRESS
 class Dummy:  # Teacher
     certificate_filepath = None
 
-    class Response:
+    class GoodResponse:
         status_code = 200
         text = MOCK_IP_ADDRESS
+
+    class BadResponse:
+        status_code = 404
+        text = None
+        content = 'DUMMY 404'
 
     def mature(self):
         return Dummy()
@@ -54,6 +59,11 @@ def mock_requests(mocker):
     """prevents making live HTTP requests from this module"""
     make_request = 'nucypher.utilities.networking._request'
     yield mocker.patch(make_request, return_value=None)
+
+
+@pytest.fixture(autouse=True)
+def mock_client(mocker):
+    yield mocker.patch.object(NucypherMiddlewareClient, 'invoke_method', return_value=Dummy.GoodResponse)
 
 
 @pytest.fixture()
@@ -89,17 +99,47 @@ def test_get_external_ip_from_known_nodes_with_one_known_node(mock_requests, moc
     mock_requests.assert_not_called()
 
 
-def test_get_external_ip_from_known_nodes(mock_requests, mock_network):
-    sensor = FleetSensor(domain=mock_network)
+def test_get_external_ip_from_known_nodes(mock_client, mock_network):
 
+    # Setup FleetSensor
+    sensor = FleetSensor(domain=mock_network)
+    sample_size = 3
     sensor._nodes['0xdeadbeef'] = Dummy()
     sensor._nodes['0xdeadllama'] = Dummy()
     sensor._nodes['0xdeadmouse'] = Dummy()
-
-    sample_size = 3
     assert len(sensor) == sample_size
+
+    # First sampled node replies
     get_external_ip_from_known_nodes(known_nodes=sensor, sample_size=sample_size)
-    mock_requests.call_count == sample_size
+    assert mock_client.call_count == 1
+    mock_client.call_count = 0  # reset
+
+    # All sampled nodes dont respond
+    mock_client.return_value = Dummy.BadResponse
+    get_external_ip_from_known_nodes(known_nodes=sensor, sample_size=sample_size)
+    assert mock_client.call_count == sample_size
+
+
+def test_get_external_ip_from_known_nodes_client(mocker, mock_client, mock_network):
+
+    # Setup FleetSensor
+    sensor = FleetSensor(domain=mock_network)
+    sample_size = 3
+    sensor._nodes['0xdeadbeef'] = Dummy()
+    sensor._nodes['0xdeadllama'] = Dummy()
+    sensor._nodes['0xdeadmouse'] = Dummy()
+    assert len(sensor) == sample_size
+
+    # Setup HTTP Client
+    mocker.patch.object(Ursula, 'from_teacher_uri', return_value=Dummy())
+    teacher_uri = RestMiddleware.TEACHER_NODES[mock_network][0]
+
+    get_external_ip_from_known_nodes(known_nodes=sensor, sample_size=sample_size)
+    assert mock_client.call_count == 1  # first node responded
+
+    function, endpoint = mock_client.call_args[0]
+    assert function.__name__ == 'get'
+    assert endpoint == f'https://{teacher_uri}/ping'
 
 
 def test_get_external_ip_default_teacher_unreachable(mocker, mock_network):
@@ -110,10 +150,10 @@ def test_get_external_ip_default_teacher_unreachable(mocker, mock_network):
         assert ip is None
 
 
-def test_get_external_ip_from_default_teacher(mock_requests, mocker, mock_network):
-    teacher_uri = RestMiddleware.TEACHER_NODES[mock_network][0]
+def test_get_external_ip_from_default_teacher(mocker, mock_client, mock_requests, mock_network):
 
-    mock_client = mocker.patch.object(NucypherMiddlewareClient, 'invoke_method', return_value=Dummy.Response)
+    mock_client.return_value = Dummy.GoodResponse
+    teacher_uri = RestMiddleware.TEACHER_NODES[mock_network][0]
     mocker.patch.object(Ursula, 'from_teacher_uri', return_value=Dummy())
 
     # "Success"

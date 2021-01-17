@@ -20,7 +20,7 @@ import random
 import requests
 from ipaddress import ip_address
 from requests.exceptions import RequestException, HTTPError
-from typing import Union
+from typing import Union, Optional
 
 from nucypher.acumen.perception import FleetSensor
 from nucypher.blockchain.eth.registry import BaseContractRegistry
@@ -80,11 +80,41 @@ def _request(url: str, certificate=None) -> Union[str, None]:
         return response.text
 
 
+def _request_from_node(teacher,
+                       client: Optional[NucypherMiddlewareClient] = None,
+                       timeout: int = 2,
+                       log: Logger = IP_DETECTION_LOGGER
+                       ) -> Union[str, None]:
+    if not client:
+        client = NucypherMiddlewareClient()
+    try:
+        response = client.get(node_or_sprout=teacher, path=f"ping", timeout=timeout)  # TLS certificate logic within
+    except RestMiddleware.UnexpectedResponse:
+        # 404, 405, 500, All server response codes handled by will be caught here.
+        return  # Default teacher does not support this request - just move on.
+    except NodeSeemsToBeDown:
+        # This node is unreachable.  Move on.
+        return
+    if response.status_code == 200:
+        try:
+            ip = str(ip_address(response.text))
+        except ValueError:
+            error = f'Default teacher at {teacher.rest_url()} returned an invalid IP response; Got {response.text}'
+            raise UnknownIPAddress(error)
+        log.info(f'Fetched external IP address ({ip}) from default teacher ({teacher.rest_url()}).')
+        return ip
+    else:
+        # Something strange happened... move on anyways.
+        log.debug(f'Failed to get external IP from teacher node ({response.status_code})')
+
+
 def get_external_ip_from_default_teacher(network: str,
                                          federated_only: bool = False,
-                                         log: Logger = IP_DETECTION_LOGGER,
-                                         registry: BaseContractRegistry = None
+                                         registry: Optional[BaseContractRegistry] = None,
+                                         log: Logger = IP_DETECTION_LOGGER
                                          ) -> Union[str, None]:
+
+    # Prevents circular import
     from nucypher.characters.lawful import Ursula
 
     if federated_only and registry:
@@ -100,7 +130,7 @@ def get_external_ip_from_default_teacher(network: str,
         return
 
     ####
-    # TODO: Clean this mess #1481
+    # TODO: Clean this mess #1481 (Federated Mode)
     node_storage = LocalFileBasedNodeStorage(federated_only=federated_only)
     Ursula.set_cert_storage_function(node_storage.store_node_certificate)
     Ursula.set_federated_mode(federated_only)
@@ -115,28 +145,11 @@ def get_external_ip_from_default_teacher(network: str,
         return
 
     # TODO: Pass registry here to verify stake (not essential here since it's a hardcoded node)
-    client = NucypherMiddlewareClient()
-    try:
-        response = client.get(node_or_sprout=teacher, path=f"ping", timeout=2)  # TLS certificate logic within
-    except RestMiddleware.UnexpectedResponse:
-        # 404, 405, 500, All server response codes handled by will be caught here.
-        return  # Default teacher does not support this request - just move on.
-    if response.status_code == 200:
-        try:
-            ip = str(ip_address(response.text))
-        except ValueError:
-            error = f'Default teacher at {top_teacher_url} returned an invalid IP response; Got {response.text}'
-            raise UnknownIPAddress(error)
-        log.info(f'Fetched external IP address ({ip}) from default teacher ({top_teacher_url}).')
-        return ip
-    else:
-        log.debug(f'Failed to get external IP from teacher node ({response.status_code})')
+    result = _request_from_node(teacher=teacher)
+    return result
 
 
-def get_external_ip_from_known_nodes(known_nodes: FleetSensor,
-                                     sample_size: int = 3,
-                                     log: Logger = IP_DETECTION_LOGGER
-                                     ) -> Union[str, None]:
+def get_external_ip_from_known_nodes(known_nodes: FleetSensor, sample_size: int = 3) -> Union[str, None]:
     """
     Randomly select a sample of peers to determine the external IP address
     of this host. The first node to reply successfully will be used.
@@ -145,10 +158,10 @@ def get_external_ip_from_known_nodes(known_nodes: FleetSensor,
     if len(known_nodes) < sample_size:
         return  # There are too few known nodes
     sample = random.sample(list(known_nodes), sample_size)
+    client = NucypherMiddlewareClient()
     for node in sample:
-        ip = _request(url=node.rest_url())
+        ip = _request_from_node(teacher=node, client=client)
         if ip:
-            log.info(f'Fetched external IP address ({ip}) from randomly selected known node(s).')
             return ip
 
 
