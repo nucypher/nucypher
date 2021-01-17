@@ -142,8 +142,8 @@ def get_external_ip_from_known_nodes(known_nodes: FleetSensor,
     of this host. The first node to reply successfully will be used.
     # TODO: Parallelize the requests and compare results.
     """
-    if not known_nodes:
-        return
+    if len(known_nodes) < sample_size:
+        return  # There are too few known nodes
     sample = random.sample(list(known_nodes), sample_size)
     for node in sample:
         ip = _request(url=node.rest_url())
