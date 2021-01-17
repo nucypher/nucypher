@@ -145,8 +145,8 @@ class RestMiddleware:
     _client_class = NucypherMiddlewareClient
 
     TEACHER_NODES = {
-        'ibex': ('ibex.nucypher.network:9151',),
-        'mainnet': ('mainnet.nucypher.network:9151',),
+        'ibex': ('https://ibex.nucypher.network:9151',),
+        'mainnet': ('https://mainnet.nucypher.network:9151',),
     }
 
     class UnexpectedResponse(Exception):
