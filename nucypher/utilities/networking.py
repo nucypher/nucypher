@@ -22,12 +22,12 @@ from ipaddress import ip_address
 from requests.exceptions import RequestException, HTTPError
 from typing import Union
 
-from nucypher.config.storages import LocalFileBasedNodeStorage
 from nucypher.acumen.perception import FleetSensor
-from nucypher.blockchain.eth.registry import BaseContractRegistry, InMemoryContractRegistry
+from nucypher.blockchain.eth.registry import BaseContractRegistry
+from nucypher.config.storages import LocalFileBasedNodeStorage
+from nucypher.network.exceptions import NodeSeemsToBeDown
 from nucypher.network.middleware import RestMiddleware, NucypherMiddlewareClient
 from nucypher.utilities.logging import Logger
-
 
 
 class UnknownIPAddress(RuntimeError):
@@ -106,9 +106,13 @@ def get_external_ip_from_default_teacher(network: str,
     Ursula.set_federated_mode(federated_only)
     #####
 
-    teacher = Ursula.from_teacher_uri(teacher_uri=top_teacher_url,
-                                      federated_only=federated_only,
-                                      min_stake=0)  # TODO: Handle customized min stake here.
+    try:
+        teacher = Ursula.from_teacher_uri(teacher_uri=top_teacher_url,
+                                          federated_only=federated_only,
+                                          min_stake=0)  # TODO: Handle customized min stake here.
+    except NodeSeemsToBeDown:
+        # Teacher is unreachable.  Move on.
+        return
 
     # TODO: Pass registry here to verify stake (not essential here since it's a hardcoded node)
     client = NucypherMiddlewareClient()
