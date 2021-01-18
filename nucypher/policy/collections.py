@@ -39,6 +39,7 @@ from nucypher.crypto.api import encrypt_and_sign, keccak_digest
 from nucypher.crypto.api import verify_eip_191
 from nucypher.crypto.constants import HRAC_LENGTH
 from nucypher.crypto.kits import UmbralMessageKit
+from nucypher.crypto.powers import DecryptingPower
 from nucypher.crypto.signing import InvalidSignature, Signature, signature_splitter, SignatureStamp
 from nucypher.crypto.splitters import capsule_splitter, key_splitter
 from nucypher.crypto.splitters import cfrag_splitter
@@ -63,7 +64,8 @@ class TreasureMap:
         leaves Bob disoriented.
         """
 
-    node_id_splitter = BytestringSplitter((to_checksum_address, ETH_ADDRESS_BYTE_LENGTH), ID_LENGTH)  # FIXME: The latter is supposed to be arrangement ID length
+    ursula_and_kfrag_splitter = BytestringSplitter((to_checksum_address, ETH_ADDRESS_BYTE_LENGTH),
+                                                   (UmbralMessageKit, VariableLengthBytestring))
 
     from nucypher.crypto.signing import \
         InvalidSignature  # Raised when the public signature (typically intended for Ursula) is not valid.
@@ -174,14 +176,21 @@ class TreasureMap:
             return NO_DECRYPTION_PERFORMED
         else:
             nodes_as_bytes = b""
-            for ursula_id, arrangement_id in self.destinations.items():
-                nodes_as_bytes += to_canonical_address(ursula_id) + arrangement_id
+            for ursula_id, encrypted_kfrag in self.destinations.items():
+                nodes_as_bytes += to_canonical_address(ursula_id) + bytes(VariableLengthBytestring(bytes(encrypted_kfrag)))
             return nodes_as_bytes
 
     def add_arrangement(self, ursula, arrangement):
         if self.destinations == NO_DECRYPTION_PERFORMED:
             raise TypeError("This TreasureMap is encrypted.  You can't add another node without decrypting it.")
         self.destinations[ursula.checksum_address] = arrangement.id  # TODO: 1995
+
+    def add_kfrag(self, ursula, kfrag, signer_stamp: SignatureStamp):
+        if self.destinations == NO_DECRYPTION_PERFORMED:
+            raise TypeError("This TreasureMap is encrypted.  You can't add another node without decrypting it.")
+        self.destinations[ursula.checksum_address] = encrypt_and_sign(ursula.public_keys(DecryptingPower),
+                                                                      plaintext=bytes(kfrag),
+                                                                      signer=signer_stamp)[0]
 
     def public_id(self) -> str:
         """
@@ -223,7 +232,7 @@ class TreasureMap:
         else:
             self._m = map_in_the_clear[0]
             try:
-                self._destinations = dict(self.node_id_splitter.repeat(map_in_the_clear[1:]))
+                self._destinations = dict(self.ursula_and_kfrag_splitter.repeat(map_in_the_clear[1:]))
             except BytestringSplittingError:
                 self._destinations = {}
             self.check_for_sufficient_destinations()
