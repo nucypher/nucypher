@@ -50,6 +50,7 @@ from nucypher.network.middleware import RestMiddleware
 
 class TreasureMap:
     ID_LENGTH = 32
+    version = bytes.fromhex("42")  # FIXME: This is a placeholder versioning, while we devise a better data serialization format
 
     class NowhereToBeFound(RestMiddleware.NotFound):
         """
@@ -62,7 +63,7 @@ class TreasureMap:
         leaves Bob disoriented.
         """
 
-    node_id_splitter = BytestringSplitter((to_checksum_address, ETH_ADDRESS_BYTE_LENGTH), ID_LENGTH)
+    node_id_splitter = BytestringSplitter((to_checksum_address, ETH_ADDRESS_BYTE_LENGTH), ID_LENGTH)  # FIXME: The latter is supposed to be arrangement ID length
 
     from nucypher.crypto.signing import \
         InvalidSignature  # Raised when the public signature (typically intended for Ursula) is not valid.
@@ -72,7 +73,11 @@ class TreasureMap:
                  destinations=None,
                  message_kit: UmbralMessageKit = None,
                  public_signature: Signature = None,
-                 hrac: Optional[bytes] = None) -> None:
+                 hrac: Optional[bytes] = None,
+                 version: bytes = None) -> None:
+
+        if version is not None:
+            self.version = version
 
         if m is not None:
             if m > 255:
@@ -100,16 +105,17 @@ class TreasureMap:
     @classmethod
     def splitter(cls):
         return BytestringKwargifier(cls,
+                                    version=(bytes, 1),
                                     public_signature=Signature,
                                     hrac=(bytes, HRAC_LENGTH),
-                                    message_kit=(UmbralMessageKit, VariableLengthBytestring)
+                                    message_kit=(UmbralMessageKit, VariableLengthBytestring),
                                     )
 
     def prepare_for_publication(self,
                                 bob_encrypting_key,
                                 bob_verifying_key,
                                 alice_stamp,
-                                label):
+                                label: bytes):
 
         plaintext = self._m.to_bytes(1, "big") + self.nodes_as_bytes()
 
@@ -138,7 +144,7 @@ class TreasureMap:
         self._id = keccak_digest(bytes(self._verifying_key) + bytes(self._hrac)).hex()
 
     def _set_payload(self):
-        self._payload = self._public_signature + self._hrac + bytes(
+        self._payload = self.version + self._public_signature + self._hrac + bytes(
             VariableLengthBytestring(self.message_kit.to_bytes()))
 
     def __bytes__(self):
@@ -252,12 +258,7 @@ class SignedTreasureMap(TreasureMap):
 
     @classmethod
     def splitter(cls):
-        return BytestringKwargifier(cls,
-                                    blockchain_signature=65,
-                                    public_signature=Signature,
-                                    hrac=(bytes, HRAC_LENGTH),
-                                    message_kit=(UmbralMessageKit, VariableLengthBytestring)
-                                    )
+        return super().splitter() + BytestringKwargifier(cls, blockchain_signature=65)
 
     def include_blockchain_signature(self, blockchain_signer):
         self._blockchain_signature = blockchain_signer(super().__bytes__())
