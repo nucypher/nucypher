@@ -99,9 +99,9 @@ def _request_from_node(teacher,
         try:
             ip = str(ip_address(response.text))
         except ValueError:
-            error = f'Teacher at {teacher.rest_url()} returned an invalid IP response; Got {response.text}'
+            error = f'Teacher {teacher} returned an invalid IP response; Got {response.text}'
             raise UnknownIPAddress(error)
-        log.info(f'Fetched external IP address ({ip}) from teacher ({teacher.rest_url()}).')
+        log.info(f'Fetched external IP address ({ip}) from teacher ({teacher}).')
         return ip
     else:
         # Something strange happened... move on anyways.
