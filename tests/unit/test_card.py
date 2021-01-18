@@ -23,7 +23,6 @@ from nucypher.policy.identity import Card
 from tests.utils.middleware import MockRestMiddleware
 
 
-@pytest.mark.skip('Skip until qrcode module is added as dependency in 2440')
 @pytest.mark.parametrize('character_class', (Bob, Alice))
 def test_character_card(character_class):
     character = character_class(federated_only=True,
