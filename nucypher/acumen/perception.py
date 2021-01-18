@@ -222,24 +222,6 @@ class FleetSensor:
         for strategy in self.__pruning_strategies:
             strategy(node=node, reset=True)
 
-    def register_node_pruning_strategy(self,
-                                       label,
-                                       strategy: Callable,
-                                       layer: Optional[int] = None
-                                       ) -> None:
-        if label not in self.BUCKETS:
-            raise self.UnknownLabel
-        try:
-            existing_strategies = self.__pruning_strategies[label]
-        except KeyError:
-            raise ValueError(f"{label} is not a prunable node bucket.")
-        if strategy in existing_strategies:
-            raise ValueError(f"Strategy is already registered for bucket '{label}'.")
-        if layer is None:
-            existing_strategies.append(strategy)
-        else:
-            existing_strategies.insert(strategy, index=layer)
-
     def get_nodes(self, label=None) -> Iterator["Teacher"]:
         """If label is None return all know nodes"""
         if not label:
@@ -299,7 +281,7 @@ class FleetSensor:
         try:
             strategies = self.__pruning_strategies[label]
         except KeyError:
-            raise self.UnknownLabel
+            raise self.UnknownLabel(f'"{label}" is not a known node label.')
         for node in self.get_nodes(label=label):
             for strategy in strategies:
                 keep = strategy(node=node)
@@ -318,5 +300,5 @@ class FleetSensor:
     def prune_nodes(self) -> None:
         """Apply node pruning strategies to all marked nodes once"""
         self._pruning_strategies: Dict[type, List[Callable]]
-        for label in self._pruning_strategies:
+        for label in self.__pruning_strategies:
             self.prune_bucket(label=label)
