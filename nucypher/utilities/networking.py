@@ -20,11 +20,12 @@ import random
 import requests
 from ipaddress import ip_address
 from requests.exceptions import RequestException, HTTPError
-from typing import Union
+from typing import Union, Optional
 
-from nucypher.config.storages import LocalFileBasedNodeStorage
 from nucypher.acumen.perception import FleetSensor
-from nucypher.blockchain.eth.registry import BaseContractRegistry, InMemoryContractRegistry
+from nucypher.blockchain.eth.registry import BaseContractRegistry
+from nucypher.config.storages import LocalFileBasedNodeStorage
+from nucypher.network.exceptions import NodeSeemsToBeDown
 from nucypher.network.middleware import RestMiddleware, NucypherMiddlewareClient
 from nucypher.utilities.logging import Logger
 
@@ -35,6 +36,9 @@ class UnknownIPAddress(RuntimeError):
 
 class InvalidWorkerIP(RuntimeError):
     """Raised when an Ursula is using an invalid IP address for it's server."""
+
+
+CENTRALIZED_IP_ORACLE_URL = 'https://ifconfig.me/'
 
 
 RequestErrors = (
@@ -61,7 +65,7 @@ def validate_worker_ip(worker_ip: str) -> None:
                               f'Verify the rest_host is set to the external IPV4 address')
 
 
-def __request(url: str, certificate=None) -> Union[str, None]:
+def _request(url: str, certificate=None) -> Union[str, None]:
     """
     Utility function to send a GET request to a URL returning it's
     text content or None, suppressing all errors. Certificate is
@@ -76,11 +80,41 @@ def __request(url: str, certificate=None) -> Union[str, None]:
         return response.text
 
 
+def _request_from_node(teacher,
+                       client: Optional[NucypherMiddlewareClient] = None,
+                       timeout: int = 2,
+                       log: Logger = IP_DETECTION_LOGGER
+                       ) -> Union[str, None]:
+    if not client:
+        client = NucypherMiddlewareClient()
+    try:
+        response = client.get(node_or_sprout=teacher, path=f"ping", timeout=timeout)  # TLS certificate logic within
+    except RestMiddleware.UnexpectedResponse:
+        # 404, 405, 500, All server response codes handled by will be caught here.
+        return  # Default teacher does not support this request - just move on.
+    except NodeSeemsToBeDown:
+        # This node is unreachable.  Move on.
+        return
+    if response.status_code == 200:
+        try:
+            ip = str(ip_address(response.text))
+        except ValueError:
+            error = f'Teacher {teacher} returned an invalid IP response; Got {response.text}'
+            raise UnknownIPAddress(error)
+        log.info(f'Fetched external IP address ({ip}) from teacher ({teacher}).')
+        return ip
+    else:
+        # Something strange happened... move on anyways.
+        log.debug(f'Failed to get external IP from teacher node ({teacher} returned {response.status_code})')
+
+
 def get_external_ip_from_default_teacher(network: str,
                                          federated_only: bool = False,
-                                         log: Logger = IP_DETECTION_LOGGER,
-                                         registry: BaseContractRegistry = None
+                                         registry: Optional[BaseContractRegistry] = None,
+                                         log: Logger = IP_DETECTION_LOGGER
                                          ) -> Union[str, None]:
+
+    # Prevents circular import
     from nucypher.characters.lawful import Ursula
 
     if federated_only and registry:
@@ -96,33 +130,23 @@ def get_external_ip_from_default_teacher(network: str,
         return
 
     ####
-    # TODO: Clean this mess #1481
+    # TODO: Clean this mess #1481 (Federated Mode)
     node_storage = LocalFileBasedNodeStorage(federated_only=federated_only)
     Ursula.set_cert_storage_function(node_storage.store_node_certificate)
     Ursula.set_federated_mode(federated_only)
     #####
 
-    teacher = Ursula.from_teacher_uri(teacher_uri=top_teacher_url,
-                                      federated_only=federated_only,
-                                      min_stake=0)  # TODO: Handle customized min stake here.
+    try:
+        teacher = Ursula.from_teacher_uri(teacher_uri=top_teacher_url,
+                                          federated_only=federated_only,
+                                          min_stake=0)  # TODO: Handle customized min stake here.
+    except NodeSeemsToBeDown:
+        # Teacher is unreachable.  Move on.
+        return
 
     # TODO: Pass registry here to verify stake (not essential here since it's a hardcoded node)
-    client = NucypherMiddlewareClient()
-    try:
-        response = client.get(node_or_sprout=teacher, path=f"ping", timeout=2)  # TLS certificate logic within
-    except RestMiddleware.UnexpectedResponse:
-        # 404, 405, 500, All server response codes handled by will be caught here.
-        return  # Default teacher does not support this request - just move on.
-    if response.status_code == 200:
-        try:
-            ip = str(ip_address(response.text))
-        except ValueError:
-            error = f'Default teacher at {top_teacher_url} returned an invalid IP response; Got {response.text}'
-            raise UnknownIPAddress(error)
-        log.info(f'Fetched external IP address ({ip}) from default teacher ({top_teacher_url}).')
-        return ip
-    else:
-        log.debug(f'Failed to get external IP from teacher node ({response.status_code})')
+    result = _request_from_node(teacher=teacher)
+    return result
 
 
 def get_external_ip_from_known_nodes(known_nodes: FleetSensor,
@@ -134,21 +158,22 @@ def get_external_ip_from_known_nodes(known_nodes: FleetSensor,
     of this host. The first node to reply successfully will be used.
     # TODO: Parallelize the requests and compare results.
     """
-    ip = None
-    sample = random.sample(known_nodes, sample_size)
+    if len(known_nodes) < sample_size:
+        return  # There are too few known nodes
+    sample = random.sample(list(known_nodes), sample_size)
+    client = NucypherMiddlewareClient()
     for node in sample:
-        ip = __request(url=node.rest_url())
+        ip = _request_from_node(teacher=node, client=client)
         if ip:
-            log.info(f'Fetched external IP address ({ip}) from randomly selected known node(s).')
+            log.info(f'Fetched external IP address ({ip}) from randomly selected known nodes.')
             return ip
 
 
 def get_external_ip_from_centralized_source(log: Logger = IP_DETECTION_LOGGER) -> Union[str, None]:
     """Use hardcoded URL to determine the external IP address of this host."""
-    endpoint = 'https://ifconfig.me/'
-    ip = __request(url=endpoint)
+    ip = _request(url=CENTRALIZED_IP_ORACLE_URL)
     if ip:
-        log.info(f'Fetched external IP address ({ip}) from centralized source ({endpoint}).')
+        log.info(f'Fetched external IP address ({ip}) from centralized source ({CENTRALIZED_IP_ORACLE_URL}).')
     return ip
 
 

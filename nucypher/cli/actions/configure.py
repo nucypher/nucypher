@@ -37,7 +37,7 @@ from nucypher.cli.literature import (
     COLLECT_URSULA_IPV4_ADDRESS,
     CONFIRM_URSULA_IPV4_ADDRESS
 )
-from nucypher.cli.types import IPV4_ADDRESS, WORKER_IP
+from nucypher.cli.types import WORKER_IP
 from nucypher.config.characters import StakeHolderConfiguration
 from nucypher.config.constants import NUCYPHER_ENVVAR_WORKER_IP_ADDRESS
 from nucypher.config.node import CharacterConfiguration
