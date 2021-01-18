@@ -98,11 +98,11 @@ Output:
 
 .. code::
 
-    cleartexts ...... ['TGxhbWEncyBhc3M=']
+    cleartexts ...... ['UGVhY2UgYXQgRGF3bg==']
 
 The resulting cleartext is ``"Peace at Dawn"`` in base64:
 
 .. code::
 
-    (nucypher)$ echo TGxhbWEncyBhc3M= | base64 -d
+    (nucypher)$ echo UGVhY2UgYXQgRGF3bg== | base64 -d
     Peace at Dawn

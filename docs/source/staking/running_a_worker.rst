@@ -36,7 +36,7 @@ power requirements listed above.
 
 .. note::
 
-    Additional requirements are needed to run local Ethereum node on the same system
+    Additional requirements are needed to run a local Ethereum node on the same system
     `additional requirements <https://docs.ethhub.io/using-ethereum/running-an-ethereum-node/>`_ are needed.
 
 
