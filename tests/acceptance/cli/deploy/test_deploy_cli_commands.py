@@ -286,21 +286,7 @@ def test_manual_deployment_of_idle_network(click_runner):
     deployed_contracts = [NUCYPHER_TOKEN_CONTRACT_NAME]
     assert list(new_registry.enrolled_names) == deployed_contracts
 
-    # 2. Deploy StakingEscrow in IDLE mode
-    command = ('contracts',
-               '--contract-name', STAKING_ESCROW_CONTRACT_NAME,
-               '--mode', 'idle',
-               '--provider', TEST_PROVIDER_URI,
-               '--network', TEMPORARY_DOMAIN,
-               '--registry-infile', ALTERNATE_REGISTRY_FILEPATH_2)
-
-    result = click_runner.invoke(deploy, command, input=user_input, catch_exceptions=False)
-    assert result.exit_code == 0
-
-    deployed_contracts.extend([STAKING_ESCROW_CONTRACT_NAME, DISPATCHER_CONTRACT_NAME])
-    assert list(new_registry.enrolled_names) == deployed_contracts
-
-    # 3. Deploy PolicyManager
+    # 2. Deploy PolicyManager
     command = ('contracts',
                '--contract-name', POLICY_MANAGER_CONTRACT_NAME,
                '--provider', TEST_PROVIDER_URI,
@@ -313,7 +299,7 @@ def test_manual_deployment_of_idle_network(click_runner):
     deployed_contracts.extend([POLICY_MANAGER_CONTRACT_NAME, DISPATCHER_CONTRACT_NAME])
     assert list(new_registry.enrolled_names) == deployed_contracts
 
-    # 4. Deploy Adjudicator
+    # 3. Deploy Adjudicator
     command = ('contracts',
                '--contract-name', ADJUDICATOR_CONTRACT_NAME,
                '--provider', TEST_PROVIDER_URI,
@@ -324,6 +310,20 @@ def test_manual_deployment_of_idle_network(click_runner):
     assert result.exit_code == 0
 
     deployed_contracts.extend([ADJUDICATOR_CONTRACT_NAME, DISPATCHER_CONTRACT_NAME])
+    assert list(new_registry.enrolled_names) == deployed_contracts
+
+    # 4. Deploy StakingEscrow in IDLE mode
+    command = ('contracts',
+               '--contract-name', STAKING_ESCROW_CONTRACT_NAME,
+               '--mode', 'idle',
+               '--provider', TEST_PROVIDER_URI,
+               '--network', TEMPORARY_DOMAIN,
+               '--registry-infile', ALTERNATE_REGISTRY_FILEPATH_2)
+
+    result = click_runner.invoke(deploy, command, input=user_input, catch_exceptions=False)
+    assert result.exit_code == 0
+
+    deployed_contracts.extend([STAKING_ESCROW_CONTRACT_NAME, DISPATCHER_CONTRACT_NAME])
     assert list(new_registry.enrolled_names) == deployed_contracts
 
     # 5. Activate StakingEscrow

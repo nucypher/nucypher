@@ -37,14 +37,14 @@ def test_staking_interface_deployer(testerchain, deployment_progress, test_regis
     token_deployer = NucypherTokenDeployer(deployer_address=origin, registry=test_registry)
     token_deployer.deploy()
 
-    staking_escrow_deployer = StakingEscrowDeployer(deployer_address=origin, registry=test_registry)
-    staking_escrow_deployer.deploy()
-
     policy_manager_deployer = PolicyManagerDeployer(deployer_address=origin, registry=test_registry)
     policy_manager_deployer.deploy()
 
     adjudicator_deployer = AdjudicatorDeployer(deployer_address=origin, registry=test_registry)
     adjudicator_deployer.deploy()
+
+    staking_escrow_deployer = StakingEscrowDeployer(deployer_address=origin, registry=test_registry)
+    staking_escrow_deployer.deploy()
 
     #
     # Test

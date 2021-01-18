@@ -507,9 +507,13 @@ class StakingEscrowDeployer(BaseContractDeployer, UpgradeableContractMixin, Owna
     contract_name = agency.contract_name
 
     can_be_idle = True
-    preparation_steps = ('contract_deployment', 'dispatcher_deployment')
+    preparation_steps = ('contract_deployment',
+                         'dispatcher_deployment',
+                         'set_on_policy_manager',
+                         'set_on_adjudicator')
+    worklock_preparation_step = ('set_on_worklock',)
     activation_steps = ('approve_reward_transfer', 'initialize')
-    deployment_steps = preparation_steps + activation_steps
+    deployment_steps = preparation_steps + worklock_preparation_step + activation_steps
     _proxy_deployer = DispatcherDeployer
 
     def __init__(self, *args, **kwargs):
@@ -517,8 +521,24 @@ class StakingEscrowDeployer(BaseContractDeployer, UpgradeableContractMixin, Owna
         self.__dispatcher_contract = None
 
         token_contract_name = NucypherTokenDeployer.contract_name
+        policy_manager_proxy_name = PolicyManagerDeployer._proxy_deployer.contract_name
+        policy_manager_contract_name = PolicyManagerDeployer.contract_name
+        adjudicator_proxy_name = AdjudicatorDeployer._proxy_deployer.contract_name
+        adjudicator_contract_name = AdjudicatorDeployer.contract_name
+        worklock_contract_name = WorklockDeployer.contract_name
         self.token_contract = self.blockchain.get_contract_by_name(registry=self.registry,
                                                                    contract_name=token_contract_name)
+        self.policy_manager = self.blockchain.get_contract_by_name(registry=self.registry,
+                                                                   contract_name=policy_manager_contract_name,
+                                                                   proxy_name=policy_manager_proxy_name)
+        self.adjudicator = self.blockchain.get_contract_by_name(registry=self.registry,
+                                                                contract_name=adjudicator_contract_name,
+                                                                proxy_name=adjudicator_proxy_name)
+        try:
+            self.worklock = self.blockchain.get_contract_by_name(registry=self.registry,
+                                                                 contract_name=worklock_contract_name)
+        except self.registry.UnknownContract:
+            self.worklock = None
 
     def _deploy_essential(self, contract_version: str, gas_limit: int = None, confirmations: int = 0, **overrides):
         args = self.economics.staking_deployment_parameters
@@ -538,7 +558,10 @@ class StakingEscrowDeployer(BaseContractDeployer, UpgradeableContractMixin, Owna
         constructor_kwargs.update(overrides)
         constructor_kwargs = {k: v for k, v in constructor_kwargs.items() if v is not None}
         # Force use of the token address from the registry
-        constructor_kwargs.update({"_token": self.token_contract.address})
+        constructor_kwargs.update({"_token": self.token_contract.address,
+                                   "_policyManager": self.policy_manager.address,
+                                   "_adjudicator": self.adjudicator.address,
+                                   "_workLock": self.worklock.address if self.worklock is not None else NULL_ADDRESS})
         the_escrow_contract, deploy_receipt = self.blockchain.deploy_contract(
             self.deployer_address,
             self.registry,
@@ -622,11 +645,54 @@ class StakingEscrowDeployer(BaseContractDeployer, UpgradeableContractMixin, Owna
         wrapped_escrow_contract = self.blockchain._wrap_contract(dispatcher_contract,
                                                                  target_contract=the_escrow_contract)
 
+        # Configure the PolicyManager, Adjudicator, WorkLock contracts by setting the StakingEscrow
+        tx_args = {}
+        if gas_limit:
+            tx_args.update({'gas': gas_limit})  # TODO: #842
+
+        if emitter:
+            emitter.message(f"\nNext Transaction: Set StakingEscrow on {self.policy_manager.address}", color='blue', bold=True)
+        set_on_policy_manager_function = self.policy_manager.functions.setStakingEscrow(wrapped_escrow_contract.address)
+        set_on_policy_manager_receipt = self.blockchain.send_transaction(contract_function=set_on_policy_manager_function,
+                                                                         sender_address=self.deployer_address,
+                                                                         confirmations=confirmations,
+                                                                         payload=tx_args)
+        if progress:
+            progress.update(1)
+
+        if emitter:
+            emitter.message(f"\nNext Transaction: Set StakingEscrow on {self.adjudicator.address}", color='blue', bold=True)
+        set_on_adjudicator_function = self.adjudicator.functions.setStakingEscrow(wrapped_escrow_contract.address)
+        set_on_adjudicator_receipt = self.blockchain.send_transaction(contract_function=set_on_adjudicator_function,
+                                                                      sender_address=self.deployer_address,
+                                                                      confirmations=confirmations,
+                                                                      payload=tx_args)
+        if progress:
+            progress.update(1)
+
+        preparation_receipts = dict(zip(self.preparation_steps,
+                                        (deploy_receipt,
+                                         dispatcher_deploy_receipt,
+                                         set_on_policy_manager_receipt,
+                                         set_on_adjudicator_receipt)))
+        self.deployment_receipts = preparation_receipts
+
+        if self.worklock is not None:
+            if emitter:
+                emitter.message(f"\nNext Transaction: Set StakingEscrow on {self.worklock.address}", color='blue', bold=True)
+            set_on_worklock_function = self.worklock.functions.setStakingEscrow(wrapped_escrow_contract.address)
+            set_on_worklock_receipt = self.blockchain.send_transaction(contract_function=set_on_worklock_function,
+                                                                       sender_address=self.deployer_address,
+                                                                       confirmations=confirmations,
+                                                                       payload=tx_args)
+            receipts = dict(zip(self.worklock_preparation_step, (set_on_worklock_receipt,)))
+            self.deployment_receipts.update(receipts)
+
+            if progress:
+                progress.update(1)
+
         # Switch the contract for the wrapped one
         self._contract = wrapped_escrow_contract
-
-        preparation_receipts = dict(zip(self.preparation_steps, (deploy_receipt, dispatcher_deploy_receipt)))
-        self.deployment_receipts = preparation_receipts
 
         # 3 & 4 - Activation
         if deployment_mode is IDLE:
@@ -710,27 +776,36 @@ class PolicyManagerDeployer(BaseContractDeployer, UpgradeableContractMixin, Owna
 
     agency = PolicyManagerAgent
     contract_name = agency.contract_name
-    deployment_steps = ('deployment', 'dispatcher_deployment', 'set_policy_manager')
+    deployment_steps = ('deployment', 'dispatcher_deployment')
     _proxy_deployer = DispatcherDeployer
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         proxy_name = StakingEscrowDeployer._proxy_deployer.contract_name
         staking_contract_name = StakingEscrowDeployer.contract_name
-        self.staking_contract = self.blockchain.get_contract_by_name(registry=self.registry,
-                                                                     contract_name=staking_contract_name,
-                                                                     proxy_name=proxy_name)
+        try:
+            self.staking_contract = self.blockchain.get_contract_by_name(registry=self.registry,
+                                                                         contract_name=staking_contract_name,
+                                                                         proxy_name=proxy_name)
+        except self.registry.UnknownContract:
+            self.staking_contract = None
 
     def check_deployment_readiness(self, *args, **kwargs) -> Tuple[bool, list]:
-        staking_escrow_owner = self.staking_contract.functions.owner().call()
-        policy_manager_deployment_rules = [
-            (self.deployer_address == staking_escrow_owner,
-             f'{self.contract_name} must be deployed by the owner of {STAKING_ESCROW_CONTRACT_NAME} ({staking_escrow_owner})')
-        ]
+        policy_manager_deployment_rules = []
+        if self.staking_contract is not None:
+            staking_escrow_owner = self.staking_contract.functions.owner().call()
+            policy_manager_deployment_rules.append(
+                (self.deployer_address == staking_escrow_owner,
+                 f'{self.contract_name} must be deployed by the owner of {STAKING_ESCROW_CONTRACT_NAME} ({staking_escrow_owner})')
+            )
         return super().check_deployment_readiness(additional_rules=policy_manager_deployment_rules, *args, **kwargs)
 
-    def _deploy_essential(self, contract_version: str, gas_limit: int = None, confirmations: int = 0) -> tuple:
-        constructor_kwargs = {"_escrow": self.staking_contract.address}
+    def _deploy_essential(self, contract_version: str, gas_limit: int = None, confirmations: int = 0, **overrides) -> tuple:
+        escrow_address = self.staking_contract.address if self.staking_contract is not None else NULL_ADDRESS
+        constructor_kwargs = {"_secondsPerPeriod": self.economics.seconds_per_period}
+        constructor_kwargs.update(overrides)
+        constructor_kwargs = {k: v for k, v in constructor_kwargs.items() if v is not None}
+        constructor_kwargs.update({"_escrow": escrow_address})
         policy_manager_contract, deploy_receipt = self.blockchain.deploy_contract(self.deployer_address,
                                                                                   self.registry,
                                                                                   self.contract_name,
@@ -748,6 +823,7 @@ class PolicyManagerDeployer(BaseContractDeployer, UpgradeableContractMixin, Owna
                ignore_deployed: bool = False,
                confirmations: int = 0,
                emitter=None,
+               **overrides,
                ) -> Dict[str, dict]:
 
         if deployment_mode not in (BARE, IDLE, FULL):
@@ -760,7 +836,8 @@ class PolicyManagerDeployer(BaseContractDeployer, UpgradeableContractMixin, Owna
             emitter.message(f"\nNext Transaction: {self.contract_name} Contract Creation", color='blue', bold=True)
         policy_manager_contract, deploy_receipt = self._deploy_essential(contract_version=contract_version,
                                                                          gas_limit=gas_limit,
-                                                                         confirmations=confirmations)
+                                                                         confirmations=confirmations,
+                                                                         **overrides)
 
         # This is the end of bare deployment.
         if deployment_mode is BARE:
@@ -790,23 +867,8 @@ class PolicyManagerDeployer(BaseContractDeployer, UpgradeableContractMixin, Owna
         wrapped_contract = self.blockchain._wrap_contract(wrapper_contract=proxy_contract,
                                                           target_contract=policy_manager_contract)
 
-        # Configure the StakingEscrow contract by setting the PolicyManager
-        tx_args = {}
-        if gas_limit:
-            tx_args.update({'gas': gas_limit})  # TODO: #842
-
-        if emitter:
-            emitter.message(f"\nNext Transaction: Set Policy Manager on {self.staking_contract.address}", color='blue', bold=True)
-        set_policy_manager_function = self.staking_contract.functions.setPolicyManager(wrapped_contract.address)
-        set_policy_manager_receipt = self.blockchain.send_transaction(contract_function=set_policy_manager_function,
-                                                                      sender_address=self.deployer_address,
-                                                                      confirmations=confirmations,
-                                                                      payload=tx_args)
-        if progress:
-            progress.update(1)
-
         # Gather the transaction receipts
-        ordered_receipts = (deploy_receipt, proxy_deploy_receipt, set_policy_manager_receipt)
+        ordered_receipts = (deploy_receipt, proxy_deploy_receipt)
         deployment_receipts = dict(zip(self.deployment_steps, ordered_receipts))
 
         self.deployment_receipts = deployment_receipts
@@ -1066,23 +1128,28 @@ class AdjudicatorDeployer(BaseContractDeployer, UpgradeableContractMixin, Ownabl
 
     agency = AdjudicatorAgent
     contract_name = agency.contract_name
-    deployment_steps = ('contract_deployment', 'dispatcher_deployment', 'set_adjudicator')
+    deployment_steps = ('contract_deployment', 'dispatcher_deployment')
     _proxy_deployer = DispatcherDeployer
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         staking_contract_name = StakingEscrowDeployer.contract_name
         proxy_name = StakingEscrowDeployer._proxy_deployer.contract_name
-        self.staking_contract = self.blockchain.get_contract_by_name(registry=self.registry,
-                                                                     contract_name=staking_contract_name,
-                                                                     proxy_name=proxy_name)
+        try:
+            self.staking_contract = self.blockchain.get_contract_by_name(registry=self.registry,
+                                                                         contract_name=staking_contract_name,
+                                                                         proxy_name=proxy_name)
+        except self.registry.UnknownContract:
+            self.staking_contract = None
 
     def check_deployment_readiness(self, *args, **kwargs) -> Tuple[bool, list]:
-        staking_escrow_owner = self.staking_contract.functions.owner().call()
-        adjudicator_deployment_rules = [
-            (self.deployer_address == staking_escrow_owner,
-             f'{self.contract_name} must be deployed by the owner of {STAKING_ESCROW_CONTRACT_NAME} ({staking_escrow_owner})')
-        ]
+        adjudicator_deployment_rules = []
+        if self.staking_contract is not None:
+            staking_escrow_owner = self.staking_contract.functions.owner().call()
+            adjudicator_deployment_rules.append(
+                (self.deployer_address == staking_escrow_owner,
+                 f'{self.contract_name} must be deployed by the owner of {STAKING_ESCROW_CONTRACT_NAME} ({staking_escrow_owner})')
+            )
         return super().check_deployment_readiness(additional_rules=adjudicator_deployment_rules, *args, **kwargs)
 
     def _deploy_essential(self, contract_version: str, gas_limit: int = None, confirmations: int = 0, **overrides):
@@ -1097,7 +1164,8 @@ class AdjudicatorDeployer(BaseContractDeployer, UpgradeableContractMixin, Ownabl
         constructor_kwargs.update(overrides)
         constructor_kwargs = {k: v for k, v in constructor_kwargs.items() if v is not None}
         # Force use of the escrow address from the registry
-        constructor_kwargs.update({"_escrow": self.staking_contract.address})
+        escrow_address = self.staking_contract.address if self.staking_contract is not None else NULL_ADDRESS
+        constructor_kwargs.update({"_escrow": escrow_address})
         adjudicator_contract, deploy_receipt = self.blockchain.deploy_contract(self.deployer_address,
                                                                                self.registry,
                                                                                self.contract_name,
@@ -1161,19 +1229,8 @@ class AdjudicatorDeployer(BaseContractDeployer, UpgradeableContractMixin, Ownabl
         # Switch the contract for the wrapped one
         adjudicator_contract = wrapped
 
-        # 3 - Configure the StakingEscrow contract by setting the Adjudicator
-        if emitter:
-            emitter.message(f"\nNext Transaction: SetAdjudicator on {self.staking_contract.address}", color='blue', bold=True)
-        set_adjudicator_function = self.staking_contract.functions.setAdjudicator(adjudicator_contract.address)
-        set_adjudicator_receipt = self.blockchain.send_transaction(contract_function=set_adjudicator_function,
-                                                                   sender_address=self.deployer_address,
-                                                                   confirmations=confirmations,
-                                                                   transaction_gas_limit=gas_limit)
-        if progress:
-            progress.update(1)
-
         # Gather the transaction receipts
-        ordered_receipts = (deploy_receipt, proxy_deploy_receipt, set_adjudicator_receipt)
+        ordered_receipts = (deploy_receipt, proxy_deploy_receipt)
         deployment_receipts = dict(zip(self.deployment_steps, ordered_receipts))
 
         self.deployment_receipts = deployment_receipts
@@ -1186,19 +1243,17 @@ class WorklockDeployer(BaseContractDeployer):
 
     agency = WorkLockAgent
     contract_name = agency.contract_name
-    deployment_steps = ('contract_deployment', 'bond_escrow', 'approve_funding', 'fund_worklock')
+    deployment_steps = ('contract_deployment', 'approve_funding', 'fund_worklock')
     _upgradeable = False
 
     def __init__(self, *args, **kwargs):
 
         super().__init__(*args, **kwargs)
         self.token_agent = ContractAgency.get_agent(NucypherTokenAgent, registry=self.registry)  # type: NucypherTokenAgent
-        self.staking_agent = ContractAgency.get_agent(StakingEscrowAgent, registry=self.registry)  # type: StakingEscrowAgent
 
     def _deploy_essential(self, gas_limit: int = None, confirmations: int = 0):
         # Deploy
         constructor_args = (self.token_agent.contract_address,
-                            self.staking_agent.contract_address,
                             *self.economics.worklock_deployment_parameters)
 
         worklock_contract, receipt = self.blockchain.deploy_contract(self.deployer_address,
@@ -1223,26 +1278,16 @@ class WorklockDeployer(BaseContractDeployer):
         if deployment_mode != FULL:
             raise self.ContractDeploymentError(f"{self.contract_name} cannot be deployed in {deployment_mode} mode")
 
-        staking_escrow_rule = [
-            (self.staking_agent.worklock == NULL_ADDRESS,
-             f"StakingEscrow already has a WorkLock reference ({self.staking_agent.worklock})")
-        ]
-        self.check_deployment_readiness(ignore_deployed=ignore_deployed, additional_rules=staking_escrow_rule)
+        # staking_escrow_rule = [
+        #     (self.staking_agent.worklock == NULL_ADDRESS,
+        #      f"StakingEscrow already has a WorkLock reference ({self.staking_agent.worklock})")
+        # ]
+        self.check_deployment_readiness(ignore_deployed=ignore_deployed)#, additional_rules=staking_escrow_rule)
 
         # Essential
         if emitter:
             emitter.message(f"\nNext Transaction: {self.contract_name} Contract Creation", color='blue', bold=True)
         worklock_contract, deployment_receipt = self._deploy_essential(gas_limit=gas_limit, confirmations=confirmations)
-        if progress:
-            progress.update(1)
-
-        # Bonding
-        if emitter:
-            emitter.message(f"\nNext Transaction: Set Work Lock on {self.staking_agent.contract_address}", color='blue', bold=True)
-        bonding_function = self.staking_agent.contract.functions.setWorkLock(worklock_contract.address)
-        bonding_receipt = self.blockchain.send_transaction(sender_address=self.deployer_address,
-                                                           contract_function=bonding_function,
-                                                           confirmations=confirmations)
         if progress:
             progress.update(1)
 
@@ -1254,7 +1299,6 @@ class WorklockDeployer(BaseContractDeployer):
 
         # Gather the transaction hashes
         self.deployment_receipts = dict(zip(self.deployment_steps, (deployment_receipt,
-                                                                    bonding_receipt,
                                                                     approve_receipt,
                                                                     funding_receipt)))
         return self.deployment_receipts

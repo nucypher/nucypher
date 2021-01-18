@@ -35,16 +35,11 @@ def test_adjudicator_deployer(testerchain,
     token_deployer = NucypherTokenDeployer(deployer_address=origin, registry=test_registry)
     token_deployer.deploy()
 
-    staking_escrow_deployer = StakingEscrowDeployer(deployer_address=origin, registry=test_registry)
-
-    staking_escrow_deployer.deploy()
-    staking_agent = staking_escrow_deployer.make_agent()  # 2 Staker Escrow
-
     deployer = AdjudicatorDeployer(deployer_address=origin, registry=test_registry)
     deployment_receipts = deployer.deploy(progress=deployment_progress)
 
     # deployment steps must match expected number of steps
-    assert deployment_progress.num_steps == len(deployer.deployment_steps) == len(deployment_receipts) == 3
+    assert deployment_progress.num_steps == len(deployer.deployment_steps) == len(deployment_receipts) == 2
 
     for step in deployer.deployment_steps:
         assert deployment_receipts[step]['status'] == 1
@@ -53,8 +48,6 @@ def test_adjudicator_deployer(testerchain,
     adjudicator_agent = deployer.make_agent()
 
     # Check default Adjudicator deployment parameters
-    assert staking_escrow_deployer.deployer_address != staking_agent.contract_address
-    assert adjudicator_agent.staking_escrow_contract == staking_agent.contract_address
     assert adjudicator_agent.hash_algorithm == token_economics.hash_algorithm
     assert adjudicator_agent.base_penalty == token_economics.base_penalty
     assert adjudicator_agent.penalty_history_coefficient == token_economics.penalty_history_coefficient

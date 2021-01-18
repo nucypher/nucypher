@@ -555,11 +555,6 @@ def _make_agency(testerchain,
                                            registry=test_registry)
     token_deployer.deploy()
 
-    staking_escrow_deployer = StakingEscrowDeployer(deployer_address=origin,
-                                                    economics=token_economics,
-                                                    registry=test_registry)
-    staking_escrow_deployer.deploy()
-
     policy_manager_deployer = PolicyManagerDeployer(deployer_address=origin,
                                                     economics=token_economics,
                                                     registry=test_registry)
@@ -570,15 +565,20 @@ def _make_agency(testerchain,
                                                registry=test_registry)
     adjudicator_deployer.deploy()
 
-    staking_interface_deployer = StakingInterfaceDeployer(deployer_address=origin,
-                                                          economics=token_economics,
-                                                          registry=test_registry)
-    staking_interface_deployer.deploy()
-
     worklock_deployer = WorklockDeployer(deployer_address=origin,
                                          economics=token_economics,
                                          registry=test_registry)
     worklock_deployer.deploy()
+
+    staking_escrow_deployer = StakingEscrowDeployer(deployer_address=origin,
+                                                    economics=token_economics,
+                                                    registry=test_registry)
+    staking_escrow_deployer.deploy()
+
+    staking_interface_deployer = StakingInterfaceDeployer(deployer_address=origin,
+                                                          economics=token_economics,
+                                                          registry=test_registry)
+    staking_interface_deployer.deploy()
 
     token_agent = token_deployer.make_agent()                           # 1 Token
     staking_agent = staking_escrow_deployer.make_agent()                # 2 Staking Escrow

@@ -24,52 +24,22 @@ from nucypher.blockchain.eth.constants import WORKLOCK_CONTRACT_NAME
 from nucypher.blockchain.eth.deployers import WorklockDeployer
 
 
-@pytest.fixture(scope='module')
-def baseline_deployment(adjudicator_deployer):
-    adjudicator_deployer.deploy()
-
-
-@pytest.fixture(scope="module")
-def worklock_deployer(baseline_deployment,
-                      testerchain,
-                      test_registry,
-                      token_economics):
-    worklock_deployer = WorklockDeployer(registry=test_registry,
-                                         economics=token_economics,
-                                         deployer_address=testerchain.etherbase_account)
-    return worklock_deployer
-
-
 def test_worklock_deployment(worklock_deployer,
-                             baseline_deployment,
-                             staking_escrow_deployer,
                              deployment_progress,
                              test_registry,
                              testerchain):
-
-    # Ensure nucypher APIs implementing economics are usable without a worklock deployment.
-    economics = EconomicsFactory.retrieve_from_blockchain(registry=test_registry)
-    assert economics.bidding_start_date == BaseEconomics._default_bidding_start_date
 
     # Deploy
     assert worklock_deployer.contract_name == WORKLOCK_CONTRACT_NAME
     deployment_receipts = worklock_deployer.deploy(progress=deployment_progress)    # < ---- DEPLOY
 
-    # Verify economics are updated
-    economics = EconomicsFactory.retrieve_from_blockchain(registry=test_registry)
-    assert economics.bidding_start_date != BaseEconomics._default_bidding_start_date
-
     # deployment steps must match expected number of steps
     steps = worklock_deployer.deployment_steps
-    assert deployment_progress.num_steps == len(steps) == len(deployment_receipts) == 4
+    assert deployment_progress.num_steps == len(steps) == len(deployment_receipts) == 3
 
     # Ensure every step is successful
     for step_title in steps:
         assert deployment_receipts[step_title]['status'] == 1
-
-    # Ensure the correct staking escrow address is set
-    staking_escrow_address = worklock_deployer.contract.functions.escrow().call()
-    assert staking_escrow_deployer.contract_address == staking_escrow_address
 
 
 def test_make_agent(worklock_deployer, test_registry):

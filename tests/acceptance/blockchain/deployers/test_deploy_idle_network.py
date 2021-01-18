@@ -51,26 +51,6 @@ def test_deploy_idle_network(testerchain, deployment_progress, test_registry):
     assert another_token_agent.contract_address == token_deployer.contract_address == token_agent.contract_address
 
     #
-    # StakingEscrow - in IDLE mode, i.e. without activation steps (approve_funding and initialize)
-    #
-    staking_escrow_deployer = StakingEscrowDeployer(registry=test_registry, deployer_address=origin)
-    assert staking_escrow_deployer.deployer_address == origin
-
-    with pytest.raises(BaseContractDeployer.ContractDeploymentError):
-        assert staking_escrow_deployer.contract_address is constants.CONTRACT_NOT_DEPLOYED
-    assert not staking_escrow_deployer.is_deployed()
-
-    staking_escrow_deployer.deploy(progress=deployment_progress,
-                                   deployment_mode=constants.IDLE)
-    assert staking_escrow_deployer.is_deployed()
-
-    staking_agent = ContractAgency.get_agent(StakingEscrowAgent, registry=test_registry)
-    assert staking_agent.contract_address == staking_escrow_deployer.contract_address
-
-    # The contract has no tokens yet
-    assert token_agent.get_balance(staking_agent.contract_address) == 0
-
-    #
     # Policy Manager
     #
     policy_manager_deployer = PolicyManagerDeployer(registry=test_registry, deployer_address=origin)
@@ -103,6 +83,26 @@ def test_deploy_idle_network(testerchain, deployment_progress, test_registry):
 
     adjudicator_agent = adjudicator_deployer.make_agent()
     assert adjudicator_agent.contract_address == adjudicator_deployer.contract_address
+
+    #
+    # StakingEscrow - in IDLE mode, i.e. without activation steps (approve_funding and initialize)
+    #
+    staking_escrow_deployer = StakingEscrowDeployer(registry=test_registry, deployer_address=origin)
+    assert staking_escrow_deployer.deployer_address == origin
+
+    with pytest.raises(BaseContractDeployer.ContractDeploymentError):
+        assert staking_escrow_deployer.contract_address is constants.CONTRACT_NOT_DEPLOYED
+    assert not staking_escrow_deployer.is_deployed()
+
+    staking_escrow_deployer.deploy(progress=deployment_progress,
+                                   deployment_mode=constants.IDLE)
+    assert staking_escrow_deployer.is_deployed()
+
+    staking_agent = ContractAgency.get_agent(StakingEscrowAgent, registry=test_registry)
+    assert staking_agent.contract_address == staking_escrow_deployer.contract_address
+
+    # The contract has no tokens yet
+    assert token_agent.get_balance(staking_agent.contract_address) == 0
 
 
 def test_stake_in_idle_network(testerchain, token_economics, test_registry):

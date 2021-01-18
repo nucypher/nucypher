@@ -25,7 +25,7 @@ def test_staking_escrow_deployment(staking_escrow_deployer, deployment_progress)
     deployment_receipts = staking_escrow_deployer.deploy(progress=deployment_progress)
 
     # deployment steps must match expected number of steps
-    assert deployment_progress.num_steps == len(staking_escrow_deployer.deployment_steps) == len(deployment_receipts) == 4
+    assert deployment_progress.num_steps == len(staking_escrow_deployer.deployment_steps) == len(deployment_receipts) == 7
 
     for step in staking_escrow_deployer.deployment_steps:
         assert deployment_receipts[step]['status'] == 1

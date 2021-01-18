@@ -1256,7 +1256,7 @@ def test_allowable_locked_tokens(testerchain, token_economics, token, escrow_con
     testerchain.wait_for_receipt(tx)
 
 
-def test_staking_from_worklock(testerchain, token, escrow_contract, token_economics):
+def test_staking_from_worklock(testerchain, token, worklock, escrow_contract, token_economics):
     """
     Tests for staking method: depositFromWorkLock
     """
@@ -1267,12 +1267,6 @@ def test_staking_from_worklock(testerchain, token, escrow_contract, token_econom
     deposit_log = escrow.events.Deposited.createFilter(fromBlock='latest')
     lock_log = escrow.events.Locked.createFilter(fromBlock='latest')
     wind_down_log = escrow.events.WindDownSet.createFilter(fromBlock='latest')
-
-    worklock_interface = testerchain.get_contract_factory('WorkLockForStakingEscrowMock')
-    worklock = testerchain.client.get_contract(
-        abi=worklock_interface.abi,
-        address=escrow.functions.workLock().call(),
-        ContractFactoryClass=Contract)
 
     # Give WorkLock and Staker some coins
     tx = token.functions.transfer(staker1, maximum_allowed_locked).transact({'from': creator})

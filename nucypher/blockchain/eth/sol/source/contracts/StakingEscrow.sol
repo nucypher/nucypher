@@ -15,8 +15,8 @@ import "zeppelin/token/ERC20/SafeERC20.sol";
 * @notice PolicyManager interface
 */
 interface PolicyManagerInterface {
+    function secondsPerPeriod() external view returns (uint32);
     function register(address _node, uint16 _period) external;
-    function escrow() external view returns (address);
     function ping(
         address _node,
         uint16 _processedPeriod1,
@@ -30,7 +30,7 @@ interface PolicyManagerInterface {
 * @notice Adjudicator interface
 */
 interface AdjudicatorInterface {
-    function escrow() external view returns (address);
+    function rewardCoefficient() external view returns (uint32);
 }
 
 
@@ -38,7 +38,7 @@ interface AdjudicatorInterface {
 * @notice WorkLock interface
 */
 interface WorkLockInterface {
-    function escrow() external view returns (address);
+    function token() external view returns (NuCypherToken);
 }
 
 
@@ -138,6 +138,10 @@ contract StakingEscrow is Issuer, IERC900History {
     uint256 public immutable minAllowableLockedTokens;
     uint256 public immutable maxAllowableLockedTokens;
 
+    PolicyManagerInterface public immutable policyManager;
+    AdjudicatorInterface public immutable adjudicator;
+    WorkLockInterface public immutable workLock;
+
     mapping (address => StakerInfo) public stakerInfo;
     address[] public stakers;
     mapping (address => address) public stakerFromWorker;
@@ -145,9 +149,9 @@ contract StakingEscrow is Issuer, IERC900History {
     mapping (uint16 => uint256) public lockedPerPeriod;
     uint128[] public balanceHistory;
 
-    PolicyManagerInterface public policyManager;
-    AdjudicatorInterface public adjudicator;
-    WorkLockInterface public workLock;
+    address stub1; // former slot for PolicyManager
+    address stub2; // former slot for Adjudicator
+    address stub3; // former slot for WorkLock
 
     /**
     * @notice Constructor sets address of token contract and coefficients for minting
@@ -175,6 +179,9 @@ contract StakingEscrow is Issuer, IERC900History {
     * @param _minAllowableLockedTokens Min amount of tokens that can be locked
     * @param _maxAllowableLockedTokens Max amount of tokens that can be locked
     * @param _minWorkerPeriods Min amount of periods while a worker can't be changed
+    * @param _policyManager Policy Manager contract
+    * @param _adjudicator Adjudicator contract
+    * @param _workLock WorkLock contract. Zero address if there is no WorkLock
     */
     constructor(
         NuCypherToken _token,
@@ -210,6 +217,13 @@ contract StakingEscrow is Issuer, IERC900History {
         minAllowableLockedTokens = _minAllowableLockedTokens;
         maxAllowableLockedTokens = _maxAllowableLockedTokens;
         minWorkerPeriods = _minWorkerPeriods;
+
+        require(_policyManager.secondsPerPeriod() == _hoursPerPeriod * (1 hours) &&
+            _adjudicator.rewardCoefficient() != 0 &&
+            (address(_workLock) == address(0) || _workLock.token() == _token));
+        policyManager = _policyManager;
+        adjudicator = _adjudicator;
+        workLock = _workLock;
     }
 
     /**
@@ -226,27 +240,27 @@ contract StakingEscrow is Issuer, IERC900History {
     /**
     * @notice Set policy manager, worklock and adjudicator addresses
     */
-    function setContracts(
-        PolicyManagerInterface _policyManager,
-        AdjudicatorInterface _adjudicator,
-        WorkLockInterface _workLock
-    )
-        external onlyOwner
-    {
-        // Policy manager can be set only once
-        require(address(policyManager) == address(0) &&
-            address(adjudicator) == address(0) &&
-            address(workLock) == address(0)
-        );
-        // This escrow must be the escrow for the new policy manager
-        require(_policyManager.escrow() == address(this) &&
-            _adjudicator.escrow() == address(this) &&
-            (address(_workLock) == address(0) || _workLock.escrow() == address(this))
-        );
-        policyManager = _policyManager;
-        adjudicator = _adjudicator;
-        workLock = _workLock;
-    }
+//    function setContracts(
+//        PolicyManagerInterface _policyManager,
+//        AdjudicatorInterface _adjudicator,
+//        WorkLockInterface _workLock
+//    )
+//        external onlyOwner
+//    {
+//        // Policy manager can be set only once
+//        require(address(policyManager) == address(0) &&
+//            address(adjudicator) == address(0) &&
+//            address(workLock) == address(0)
+//        );
+//        // This escrow must be the escrow for the new policy manager
+//        require(_policyManager.escrow() == address(this) &&
+//            _adjudicator.escrow() == address(this) &&
+//            (address(_workLock) == address(0) || _workLock.escrow() == address(this))
+//        );
+//        policyManager = _policyManager;
+//        adjudicator = _adjudicator;
+//        workLock = _workLock;
+//    }
 
     //------------------------Main getters------------------------
     /**
@@ -1564,9 +1578,6 @@ contract StakingEscrow is Issuer, IERC900History {
     /// @dev the `onlyWhileUpgrading` modifier works through a call to the parent `verifyState`
     function verifyState(address _testTarget) public override virtual {
         super.verifyState(_testTarget);
-        require(address(delegateGet(_testTarget, this.policyManager.selector)) == address(policyManager));
-        require(address(delegateGet(_testTarget, this.adjudicator.selector)) == address(adjudicator));
-        require(address(delegateGet(_testTarget, this.workLock.selector)) == address(workLock));
         require(delegateGet(_testTarget, this.lockedPerPeriod.selector,
             bytes32(bytes2(RESERVED_PERIOD))) == lockedPerPeriod[RESERVED_PERIOD]);
         require(address(delegateGet(_testTarget, this.stakerFromWorker.selector, bytes32(0))) ==

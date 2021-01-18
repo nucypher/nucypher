@@ -34,9 +34,21 @@ def test_upgrading(testerchain, token, token_economics, deploy_contract):
     staker = testerchain.client.accounts[1]
     worker = testerchain.client.accounts[2]
 
+    # Initialize contract and staker
+    policy_manager, _ = deploy_contract(
+        'PolicyManagerForStakingEscrowMock', NULL_ADDRESS, token_economics.seconds_per_period
+    )
+    worklock, _ = deploy_contract('WorkLockForStakingEscrowMock', token.address)
+    adjudicator, _ = deploy_contract('AdjudicatorForStakingEscrowMock', token_economics.reward_coefficient)
+
     # Deploy contract
     contract_library_v1, _ = deploy_contract(
-        'StakingEscrow', token.address, *token_economics.staking_deployment_parameters
+        'StakingEscrow',
+        token.address,
+        *token_economics.staking_deployment_parameters,
+        policy_manager.address,
+        adjudicator.address,
+        worklock.address
     )
     dispatcher, _ = deploy_contract('Dispatcher', contract_library_v1.address)
 
@@ -44,7 +56,7 @@ def test_upgrading(testerchain, token, token_economics, deploy_contract):
     contract_library_v2, _ = deploy_contract(
         contract_name='StakingEscrowV2Mock',
         _token=token.address,
-        _hoursPerPeriod=2,
+        _hoursPerPeriod=token_economics.hours_per_period,
         _issuanceDecayCoefficient=2,
         _lockDurationCoefficient1=2,
         _lockDurationCoefficient2=4,
@@ -55,6 +67,9 @@ def test_upgrading(testerchain, token, token_economics, deploy_contract):
         _minAllowableLockedTokens=2,
         _maxAllowableLockedTokens=2,
         _minWorkerPeriods=2,
+        _policyManager=policy_manager.address,
+        _adjudicator=adjudicator.address,
+        _workLock=worklock.address,
         _valueToCheck=2
     )
 
@@ -63,6 +78,8 @@ def test_upgrading(testerchain, token, token_economics, deploy_contract):
         address=dispatcher.address,
         ContractFactoryClass=Contract)
     assert token_economics.maximum_allowed_locked == contract.functions.maxAllowableLockedTokens().call()
+    tx = worklock.functions.setStakingEscrow(contract.address).transact()
+    testerchain.wait_for_receipt(tx)
 
     # Can't call `finishUpgrade` and `verifyState` methods outside upgrade lifecycle
     with pytest.raises((TransactionFailed, ValueError)):
@@ -71,36 +88,6 @@ def test_upgrading(testerchain, token, token_economics, deploy_contract):
     with pytest.raises((TransactionFailed, ValueError)):
         tx = contract_library_v1.functions.verifyState(contract.address).transact({'from': creator})
         testerchain.wait_for_receipt(tx)
-
-    # Initialize contract and staker
-    policy_manager, _ = deploy_contract(
-        'PolicyManagerForStakingEscrowMock', token.address, contract.address
-    )
-    worklock, _ = deploy_contract(
-        'WorkLockForStakingEscrowMock', token.address, contract.address
-    )
-    adjudicator, _ = deploy_contract(
-        'AdjudicatorForStakingEscrowMock', contract.address
-    )
-    # Can't set wrong addresses
-    with pytest.raises((TransactionFailed, ValueError)):
-        tx = contract.functions.setContracts(NULL_ADDRESS, NULL_ADDRESS, NULL_ADDRESS).transact()
-        testerchain.wait_for_receipt(tx)
-    with pytest.raises((TransactionFailed, ValueError)):
-        tx = contract.functions.setContracts(contract_library_v1.address, adjudicator.address, worklock.address)\
-            .transact()
-        testerchain.wait_for_receipt(tx)
-    with pytest.raises((TransactionFailed, ValueError)):
-        tx = contract.functions.setContracts(policy_manager.address, contract_library_v1.address, worklock.address)\
-            .transact()
-        testerchain.wait_for_receipt(tx)
-    with pytest.raises((TransactionFailed, ValueError)):
-        tx = contract.functions.setContracts(policy_manager.address, adjudicator.address, contract_library_v1.address)\
-            .transact()
-        testerchain.wait_for_receipt(tx)
-
-    tx = contract.functions.setContracts(policy_manager.address, adjudicator.address, worklock.address).transact()
-    testerchain.wait_for_receipt(tx)
 
     tx = token.functions.approve(contract.address, token_economics.erc20_reward_supply).transact({'from': creator})
     testerchain.wait_for_receipt(tx)
@@ -144,7 +131,7 @@ def test_upgrading(testerchain, token, token_economics, deploy_contract):
     contract_library_bad, _ = deploy_contract(
         contract_name='StakingEscrowBad',
         _token=token.address,
-        _hoursPerPeriod=2,
+        _hoursPerPeriod=token_economics.hours_per_period,
         _issuanceDecayCoefficient=2,
         _lockDurationCoefficient1=2,
         _lockDurationCoefficient2=4,
@@ -154,7 +141,10 @@ def test_upgrading(testerchain, token, token_economics, deploy_contract):
         _minLockedPeriods=2,
         _minAllowableLockedTokens=2,
         _maxAllowableLockedTokens=2,
-        _minWorkerPeriods=2
+        _minWorkerPeriods=2,
+        _policyManager=policy_manager.address,
+        _adjudicator=adjudicator.address,
+        _workLock=worklock.address
     )
     with pytest.raises((TransactionFailed, ValueError)):
         tx = dispatcher.functions.upgrade(contract_library_v1.address).transact({'from': creator})
@@ -794,7 +784,7 @@ def test_worker(testerchain, token, escrow_contract, deploy_contract):
         testerchain.wait_for_receipt(tx)
 
 
-def test_measure_work(testerchain, token, escrow_contract):
+def test_measure_work(testerchain, token, worklock, escrow_contract):
     escrow = escrow_contract(10000)
     creator, staker, *everyone_else = testerchain.w3.eth.accounts
     work_measurement_log = escrow.events.WorkMeasurementSet.createFilter(fromBlock='latest')
@@ -805,12 +795,6 @@ def test_measure_work(testerchain, token, escrow_contract):
     testerchain.wait_for_receipt(tx)
     tx = escrow.functions.initialize(reward, creator).transact({'from': creator})
     testerchain.wait_for_receipt(tx)
-
-    worklock_interface = testerchain.get_contract_factory('WorkLockForStakingEscrowMock')
-    worklock = testerchain.client.get_contract(
-        abi=worklock_interface.abi,
-        address=escrow.functions.workLock().call(),
-        ContractFactoryClass=Contract)
 
     # Prepare Ursula
     stake = 1000

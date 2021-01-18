@@ -20,7 +20,7 @@ from nucypher.blockchain.eth.constants import POLICY_MANAGER_CONTRACT_NAME
 from nucypher.blockchain.eth.deployers import (DispatcherDeployer, PolicyManagerDeployer)
 
 
-def test_policy_manager_deployment(policy_manager_deployer, staking_escrow_deployer, deployment_progress):
+def test_policy_manager_deployment(policy_manager_deployer, deployment_progress):
 
     assert policy_manager_deployer.contract_name == POLICY_MANAGER_CONTRACT_NAME
 
@@ -28,13 +28,10 @@ def test_policy_manager_deployment(policy_manager_deployer, staking_escrow_deplo
 
     # deployment steps must match expected number of steps
     steps = policy_manager_deployer.deployment_steps
-    assert deployment_progress.num_steps == len(steps) == len(deployment_receipts) == 3
+    assert deployment_progress.num_steps == len(steps) == len(deployment_receipts) == 2
 
     for step_title in steps:
         assert deployment_receipts[step_title]['status'] == 1
-
-    staking_escrow_address = policy_manager_deployer.contract.functions.escrow().call()
-    assert staking_escrow_deployer.contract_address == staking_escrow_address
 
 
 def test_make_agent(policy_manager_deployer, test_registry):
@@ -50,13 +47,8 @@ def test_make_agent(policy_manager_deployer, test_registry):
     assert policy_agent.contract_address == some_policy_agent.contract_address
 
 
-def test_deployment_parameters(policy_manager_deployer, staking_escrow_deployer, test_registry):
-
-    escrow_address = policy_manager_deployer.contract.functions.escrow().call()
-    assert staking_escrow_deployer.contract_address == escrow_address
-
-    staking_agent = ContractAgency.get_agent(StakingEscrowAgent, registry=test_registry)
-    seconds_per_period = staking_agent.staking_parameters()[0]
+def test_deployment_parameters(policy_manager_deployer, token_economics):
+    seconds_per_period = token_economics.seconds_per_period
     assert seconds_per_period == policy_manager_deployer.contract.functions.secondsPerPeriod().call()
 
 

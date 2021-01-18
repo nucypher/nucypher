@@ -12,8 +12,7 @@ import "contracts/StakingEscrow.sol";
 */
 contract PolicyManagerBad is PolicyManager {
 
-    constructor(StakingEscrow _escrow) PolicyManager(_escrow) {
-    }
+    constructor(StakingEscrow _escrow, uint32 _secondsPerPeriod) PolicyManager(_escrow, _secondsPerPeriod) {}
 
     function getNodeFeeDelta(address, uint16) public view override returns (int256) {}
 
@@ -27,8 +26,7 @@ contract PolicyManagerV2Mock is PolicyManager {
 
     uint256 public valueToCheck;
 
-    constructor(StakingEscrow _escrow) PolicyManager(_escrow) {
-    }
+    constructor(StakingEscrow _escrow, uint32 _secondsPerPeriod) PolicyManager(_escrow, _secondsPerPeriod) {}
 
     function setValueToCheck(uint256 _valueToCheck) public {
         valueToCheck = _valueToCheck;
@@ -144,8 +142,7 @@ contract StakingEscrowForPolicyMock {
 */
 contract ExtendedPolicyManager is PolicyManager {
 
-    constructor(StakingEscrow _escrow) PolicyManager(_escrow) {
-    }
+    constructor(StakingEscrow _escrow, uint32 _secondsPerPeriod) PolicyManager(_escrow, _secondsPerPeriod) {}
 
     function setNodeFeeDelta(address _node, uint16 _period, int256 _value) external {
         NodeInfo storage node = nodes[_node];

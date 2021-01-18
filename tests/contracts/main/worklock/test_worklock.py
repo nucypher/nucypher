@@ -59,7 +59,6 @@ def worklock_factory(testerchain, token, escrow, token_economics, deploy_contrac
         contract, _ = deploy_contract(
             contract_name='WorkLock',
             _token=token.address,
-            _escrow=escrow.address,
             _startBidDate=start_bid_date,
             _endBidDate=end_bid_date,
             _endCancellationDate=end_cancellation_date,
@@ -67,6 +66,9 @@ def worklock_factory(testerchain, token, escrow, token_economics, deploy_contrac
             _stakingPeriods=staking_periods,
             _minAllowedBid=MIN_ALLOWED_BID
         )
+
+        tx = contract.functions.setStakingEscrow(escrow.address).transact()
+        testerchain.wait_for_receipt(tx)
 
         if supply > 0:
             tx = token.functions.approve(contract.address, supply).transact()
@@ -861,7 +863,7 @@ def test_verifying_correctness(testerchain, token_economics, escrow, deploy_cont
 
     # Set gas only for one check
     tx = worklock.functions.verifyBiddingCorrectness(gas_to_save_state)\
-        .transact({'gas': gas_to_save_state + 30000, 'gas_price': 0})
+        .transact({'gas': gas_to_save_state + 32000, 'gas_price': 0})
     testerchain.wait_for_receipt(tx)
     assert worklock.functions.nextBidderToCheck().call() == 1
 
@@ -1051,7 +1053,7 @@ def test_force_refund(testerchain, token_economics, deploy_contract, worklock_fa
     # But can verify only one of them
     assert worklock.functions.nextBidderToCheck().call() == 0
     tx = worklock.functions.verifyBiddingCorrectness(gas_to_save_state)\
-        .transact({'gas': gas_to_save_state + 30000, 'gas_price': 0})
+        .transact({'gas': gas_to_save_state + 32000, 'gas_price': 0})
     testerchain.wait_for_receipt(tx)
     assert worklock.functions.nextBidderToCheck().call() == 1
 

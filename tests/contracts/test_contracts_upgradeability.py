@@ -85,7 +85,8 @@ CONSTRUCTOR_OVERRIDES = {
                                                      "_lockedPeriodsCoefficient": 1,
                                                      "_rewardedPeriods": 1},
                                           "v5.6.1": {"_isTestContract": True}
-                                          }
+                                          },
+    PolicyManagerDeployer.contract_name: {"v6.2.1": {"_secondsPerPeriod": None}}
 }
 
 
@@ -144,38 +145,35 @@ def test_upgradeability(temp_dir_path):
                                                economics=economics)
         token_deployer.deploy()
 
+        policy_manager_deployer = PolicyManagerDeployer(registry=registry,
+                                                        deployer_address=origin,
+                                                        economics=economics)
+        deploy_earliest_contract(blockchain_interface, policy_manager_deployer)
+
+        adjudicator_deployer = AdjudicatorDeployer(registry=registry,
+                                                   deployer_address=origin,
+                                                   economics=economics)
+        deploy_earliest_contract(blockchain_interface, adjudicator_deployer)
+
+        worklock_deployer = WorklockDeployer(registry=registry,
+                                             deployer_address=origin,
+                                             economics=economics)
+        worklock_deployer.deploy()
+
         staking_escrow_deployer = StakingEscrowDeployer(registry=registry,
                                                         deployer_address=origin,
                                                         economics=economics)
         deploy_earliest_contract(blockchain_interface, staking_escrow_deployer)
-
-        policy_manager_deployer = None
-        if test_staking_escrow or test_policy_manager:
-            policy_manager_deployer = PolicyManagerDeployer(registry=registry,
-                                                            deployer_address=origin,
-                                                            economics=economics)
-            deploy_earliest_contract(blockchain_interface, policy_manager_deployer)
-
-        adjudicator_deployer = None
-        if test_staking_escrow or test_adjudicator:
-            adjudicator_deployer = AdjudicatorDeployer(registry=registry,
-                                                       deployer_address=origin,
-                                                       economics=economics)
-            deploy_earliest_contract(blockchain_interface, adjudicator_deployer)
-
-        if test_staking_escrow:
-            worklock_deployer = WorklockDeployer(registry=registry,
-                                                 deployer_address=origin,
-                                                 economics=economics)
-            worklock_deployer.deploy()
-            # TODO prepare at least one staker before calling upgrade
-            staking_escrow_deployer.upgrade(contract_version="latest", confirmations=0)
 
         if test_policy_manager:
             policy_manager_deployer.upgrade(contract_version="latest", confirmations=0)
 
         if test_adjudicator:
             adjudicator_deployer.upgrade(contract_version="latest", confirmations=0)
+
+        if test_staking_escrow:
+            # TODO prepare at least one staker before calling upgrade
+            staking_escrow_deployer.upgrade(contract_version="latest", confirmations=0)
 
     finally:
         # Unregister interface  # TODO: Move to method?
