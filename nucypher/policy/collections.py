@@ -24,8 +24,7 @@ from bytestring_splitter import (
     BytestringSplittingError,
     VariableLengthBytestring
 )
-from constant_sorrow.constants import CFRAG_NOT_RETAINED, NO_DECRYPTION_PERFORMED
-from constant_sorrow.constants import NOT_SIGNED
+from constant_sorrow.constants import CFRAG_NOT_RETAINED, NO_DECRYPTION_PERFORMED, NOT_SIGNED
 from cryptography.hazmat.backends.openssl import backend
 from cryptography.hazmat.primitives import hashes
 from eth_utils import to_canonical_address, to_checksum_address
@@ -226,7 +225,8 @@ class TreasureMap:
     def check_for_sufficient_destinations(self):
         if len(self._destinations) < self._m or self._m == 0:
             raise self.IsDisorienting(
-                f"TreasureMap lists only {len(self._destinations)} destination, but requires interaction with {self._m} nodes.")
+                f"TreasureMap lists only {len(self._destinations)} destination, "
+                f"but requires interaction with {self._m} nodes.")
 
     def __eq__(self, other):
         try:
@@ -271,8 +271,10 @@ class SignedTreasureMap(TreasureMap):
     def __bytes__(self):
         if self._blockchain_signature is NOT_SIGNED:
             raise self.InvalidSignature(
-                "Can't cast a DecentralizedTreasureMap to bytes until it has a blockchain signature (otherwise, is it really a 'DecentralizedTreasureMap'?")
+                "Can't cast a SignedTreasureMap to bytes until it has a blockchain signature "
+                "(otherwise, is it really a 'SignedTreasureMap'?")
         return self._blockchain_signature + super().__bytes__()
+
 
 class WorkOrder:
     class PRETask:
