@@ -4,6 +4,15 @@ Releases
 
 .. towncrier release notes start
 
+v4.5.3 (2021-01-18)
+-------------------
+
+Bugfixes
+~~~~~~~~
+
+- Ensure minimum number of available peers for fleet-sourced IP determination and better handling of default teacher unavailability scenarios on startup (`#2527 <https://github.com/nucypher/nucypher/issues/2527>`__)
+
+
 v4.5.2 (2021-01-15)
 -------------------
 

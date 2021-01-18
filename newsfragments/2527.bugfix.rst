@@ -1,1 +1,0 @@
-Ensure minimum number of available peers for fleet-sourced IP determination and better handling of default teacher unavailability scenarios on startup
