@@ -16,23 +16,25 @@
 """
 import os
 
+from umbral.kfrags import KFrag
+
 from nucypher.crypto.powers import DecryptingPower, SigningPower
 from nucypher.policy.collections import TreasureMap
 
 
-def test_complete_treasure_map_journey(federated_alice, federated_bob, federated_ursulas, mocker):
+def test_complete_treasure_map_journey(federated_alice, federated_bob, federated_ursulas):
 
     treasure_map = TreasureMap(m=1)
 
-    mock_arrangement_id = os.urandom(TreasureMap.ID_LENGTH)
-    mock_arrangement = mocker.Mock(id=mock_arrangement_id)
+    mock_kfrag = os.urandom(KFrag.expected_bytes_length())
     for ursula in federated_ursulas:
-        treasure_map.add_arrangement(ursula, mock_arrangement)
+        treasure_map.add_kfrag(ursula, mock_kfrag, federated_alice.stamp)
 
-    ursula_addresses = [u.checksum_address for u in federated_ursulas]
-    for ursula, arrangement_id in treasure_map.destinations.items():
-        assert ursula in ursula_addresses
-        assert arrangement_id == mock_arrangement_id
+    ursula_rolodex = {u.checksum_address: u for u in federated_ursulas}
+    for ursula_address, encrypted_kfrag in treasure_map.destinations.items():
+        assert ursula_address in ursula_rolodex
+        ursula = ursula_rolodex[ursula_address]
+        assert mock_kfrag == ursula.verify_from(federated_alice, encrypted_kfrag, decrypt=True)  # FIXME: 2203
 
     bob_encrypting_key = federated_bob.public_keys(DecryptingPower)
     bob_verifying_key = federated_bob.public_keys(SigningPower)
@@ -40,7 +42,7 @@ def test_complete_treasure_map_journey(federated_alice, federated_bob, federated
     treasure_map.prepare_for_publication(bob_encrypting_key=bob_encrypting_key,
                                          bob_verifying_key=bob_verifying_key,
                                          alice_stamp=federated_alice.stamp,
-                                         label=b"chili")
+                                         label="chili con carne 🔥".encode('utf-8'))
 
     serialized_map = bytes(treasure_map)
 
