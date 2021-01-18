@@ -15,18 +15,18 @@ You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
+
 from collections import OrderedDict
 from typing import Optional
 
 import maya
-from bytestring_splitter import BytestringKwargifier
 from bytestring_splitter import (
     BytestringSplitter,
     BytestringSplittingError,
-    VariableLengthBytestring
+    VariableLengthBytestring,
+    BytestringKwargifier
 )
-from constant_sorrow.constants import CFRAG_NOT_RETAINED, NO_DECRYPTION_PERFORMED
-from constant_sorrow.constants import NOT_SIGNED
+from constant_sorrow.constants import CFRAG_NOT_RETAINED, NO_DECRYPTION_PERFORMED, NOT_SIGNED
 from eth_utils import to_canonical_address, to_checksum_address
 
 from nucypher.blockchain.eth.constants import ETH_ADDRESS_BYTE_LENGTH, ETH_HASH_BYTE_LENGTH
@@ -222,7 +222,8 @@ class TreasureMap:
     def check_for_sufficient_destinations(self):
         if len(self._destinations) < self._m or self._m == 0:
             raise self.IsDisorienting(
-                f"TreasureMap lists only {len(self._destinations)} destination, but requires interaction with {self._m} nodes.")
+                f"TreasureMap lists only {len(self._destinations)} destination, "
+                f"but requires interaction with {self._m} nodes.")
 
     def __eq__(self, other):
         try:
@@ -267,7 +268,8 @@ class SignedTreasureMap(TreasureMap):
     def __bytes__(self):
         if self._blockchain_signature is NOT_SIGNED:
             raise self.InvalidSignature(
-                "Can't cast a DecentralizedTreasureMap to bytes until it has a blockchain signature (otherwise, is it really a 'DecentralizedTreasureMap'?")
+                "Can't cast a SignedTreasureMap to bytes until it has a blockchain signature "
+                "(otherwise, is it really a 'SignedTreasureMap'?")
         return self._blockchain_signature + super().__bytes__()
 
 
