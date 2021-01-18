@@ -105,7 +105,7 @@ def _request_from_node(teacher,
         return ip
     else:
         # Something strange happened... move on anyways.
-        log.debug(f'Failed to get external IP from teacher node ({response.status_code})')
+        log.debug(f'Failed to get external IP from teacher node ({teacher} returned {response.status_code})')
 
 
 def get_external_ip_from_default_teacher(network: str,
