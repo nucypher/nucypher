@@ -20,25 +20,24 @@ import binascii
 import os
 import uuid
 import weakref
+from datetime import datetime, timedelta
+from typing import Tuple
+
 from bytestring_splitter import BytestringSplitter
 from constant_sorrow import constants
 from constant_sorrow.constants import (
     FLEET_STATES_MATCH,
     NO_BLOCKCHAIN_CONNECTION,
-    NO_KNOWN_NODES,
     RELAX
 )
-from datetime import datetime, timedelta
 from flask import Flask, Response, jsonify, request
 from mako import exceptions as mako_exceptions
 from mako.template import Template
 from maya import MayaDT
-from typing import Tuple
 from web3.exceptions import TimeExhausted
 
-import nucypher
-from nucypher.crypto.api import InvalidNodeCertificate
 from nucypher.config.constants import MAX_UPLOAD_CONTENT_LENGTH
+from nucypher.crypto.api import InvalidNodeCertificate
 from nucypher.crypto.keypairs import HostingKeypair
 from nucypher.crypto.kits import UmbralMessageKit
 from nucypher.crypto.powers import KeyPairBasedPower, PowerUpError
@@ -302,19 +301,20 @@ def _make_rest_app(datastore: Datastore, this_node, domain: str, log: Logger) ->
             log.info("KeyFrag successfully removed.")
             return Response(response='KeyFrag deleted!', status=200)
 
-    @rest_app.route('/kFrag/<id_as_hex>/reencrypt', methods=["POST"])
-    def reencrypt_via_rest(id_as_hex):
+    @rest_app.route('/reencrypt/<id_as_hex>/', methods=["POST"])
+    def reencrypt(id_as_hex):
 
         # Get Policy Arrangement
         try:
             arrangement_id = binascii.unhexlify(id_as_hex)
         except (binascii.Error, TypeError):
             return Response(response=b'Invalid arrangement ID', status=405)
+
+        # TODO: Verify payment
         try:
             # Get KeyFrag
             # TODO: Yeah, well, what if this arrangement hasn't been enacted?  1702
             with datastore.describe(PolicyArrangement, id_as_hex) as policy_arrangement:
-                kfrag = policy_arrangement.kfrag
                 alice_verifying_key = policy_arrangement.alice_verifying_key
         except RecordNotFound:
             return Response(response=arrangement_id, status=404)
@@ -328,6 +328,12 @@ def _make_rest_app(datastore: Datastore, this_node, domain: str, log: Logger) ->
                                                  ursula=this_node,
                                                  alice_address=alice_address)
         log.info(f"Work Order from {work_order.bob}, signed {work_order.receipt_signature}")
+
+        # Get KFrag
+        encrypted_kfrag = work_order.kfrag
+        kfrag = this_node.verify_from(alice_verifying_key, encrypted_kfrag, decrypt=True)
+        if not kfrag.verify(signing_pubkey=alice_verifying_key):  # TODO: Maybe this check is redundant?
+            return Response(response="{} is invalid".format(kfrag), status=422)  # TODO: Maybe good, ol' 400 is OK.
 
         # Re-encrypt
         response = this_node._reencrypt(kfrag=kfrag,
