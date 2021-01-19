@@ -238,7 +238,7 @@ class RestMiddleware:
         id_as_hex = work_order.arrangement_id.hex()
         response = self.client.post(
             node_or_sprout=work_order.ursula,
-            path=f"kFrag/{id_as_hex}/reencrypt",
+            path=f"reencrypt/{id_as_hex}",
             data=payload,
             timeout=2
         )

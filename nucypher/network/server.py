@@ -300,19 +300,19 @@ def _make_rest_app(datastore: Datastore, this_node, domain: str, log: Logger) ->
             log.info("KFrag successfully removed.")
             return Response(response='KFrag deleted!', status=200)
 
-    @rest_app.route('/kFrag/<id_as_hex>/reencrypt', methods=["POST"])
-    def reencrypt_via_rest(id_as_hex):
+    @rest_app.route('/reencrypt/<id_as_hex>/', methods=["POST"])
+    def reencrypt(id_as_hex):
 
         # Get Policy Arrangement
         try:
             arrangement_id = binascii.unhexlify(id_as_hex)
         except (binascii.Error, TypeError):
             return Response(response=b'Invalid arrangement ID', status=405)
+
+        # TODO: Verify payment
         try:
-            # Get KFrag
             # TODO: Yeah, well, what if this arrangement hasn't been enacted?  1702
             with datastore.describe(PolicyArrangement, id_as_hex) as policy_arrangement:
-                kfrag = policy_arrangement.kfrag
                 alice_verifying_key = policy_arrangement.alice_verifying_key
         except RecordNotFound:
             return Response(response=arrangement_id, status=404)
@@ -326,6 +326,12 @@ def _make_rest_app(datastore: Datastore, this_node, domain: str, log: Logger) ->
                                                  ursula=this_node,
                                                  alice_address=alice_address)
         log.info(f"Work Order from {work_order.bob}, signed {work_order.receipt_signature}")
+
+        # Get KFrag
+        encrypted_kfrag = work_order.kfrag
+        kfrag = this_node.verify_from(alice_verifying_key, encrypted_kfrag, decrypt=True)
+        if not kfrag.verify(signing_pubkey=alice_verifying_key):  # TODO: Maybe this check is redundant?
+            return Response(response="{} is invalid".format(kfrag), status=422)  # TODO: Maybe good, ol' 400 is OK.
 
         # Re-encrypt
         response = this_node._reencrypt(kfrag=kfrag,
