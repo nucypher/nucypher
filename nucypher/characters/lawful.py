@@ -686,27 +686,19 @@ class Bob(Character):
     def work_orders_for_capsules(self,
                                  *capsules,
                                  alice_verifying_key: UmbralPublicKey,
-                                 treasure_map: 'TreasureMap' = None,
+                                 treasure_map: 'TreasureMap',
                                  num_ursulas: int = None,
                                  ) -> Tuple[Dict[ChecksumAddress, 'WorkOrder'], Dict['Capsule', 'WorkOrder']]:
 
         from nucypher.policy.collections import WorkOrder  # Prevent circular import
 
-        if treasure_map:
-            treasure_map_to_use = treasure_map
-        else:
-            try:
-                treasure_map_to_use = self.treasure_maps[map_id]
-            except KeyError:
-                raise KeyError(f"Bob doesn't have the TreasureMap {map_id}; can't generate work orders.")
+        if not treasure_map:
+            raise ValueError(f"Bob doesn't have a TreasureMap; can't generate work orders.")
 
         incomplete_work_orders = OrderedDict()
         complete_work_orders = defaultdict(list)
 
-        if not treasure_map_to_use:
-            raise ValueError(f"Bob doesn't have a TreasureMap to match any of these capsules: {capsules}")
-
-        random_walk = list(treasure_map_to_use)
+        random_walk = list(treasure_map)
         shuffle(random_walk)  # Mutates list in-place
         for node_id, arrangement_id in random_walk:
 
