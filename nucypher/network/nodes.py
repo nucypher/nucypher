@@ -382,11 +382,14 @@ class Learner:
 
         return restored_from_disk
 
-    def _remember_essential(self, node) -> None:
+    def _remember_essential(self, node) -> bool:
+        """Returns True if the node is retained and False if is Forgotten."""
         self.known_nodes[node.checksum_address] = node
-        if self.save_metadata:
+        retained = node.checksum_address in self.known_nodes
+        if retained and self.save_metadata:
             # TODO: Persist all classifications of nodes?
             self.node_storage.store_node_metadata(node=node)
+        return retained
 
     def store_node_certificate(self, node) -> bool:
         stranger_certificate = node.certificate
@@ -499,8 +502,9 @@ class Learner:
                 # This node is already known.  We can safely return.
                 return False
 
-        self._remember_essential(node=node)
-        if not self.known_nodes.get_node_label(node=node):
+        retained = self._remember_essential(node=node)
+        unlabeled = self.known_nodes.get_label(node=node) is None
+        if retained and unlabeled:
             # set UNVERIFIED bucket as default for new nodes, but don't relabel prior nodes
             self.known_nodes.label(node=node, label=UNVERIFIED)
 

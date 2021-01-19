@@ -15,6 +15,7 @@
  along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
+
 from collections import OrderedDict
 from collections import namedtuple, defaultdict
 
@@ -22,60 +23,28 @@ import binascii
 import maya
 import random
 from bytestring_splitter import BytestringSplitter
-from constant_sorrow.constants import (
-    NO_KNOWN_NODES,
-    UNVERIFIED,
-    VERIFIED,
-    UNAVAILABLE,
-    SUSPICIOUS,
-    UNSTAKED,
-    INVALID
-)
-from typing import Iterator, Callable, List, Dict, Type, Optional
+from constant_sorrow.constants import NO_KNOWN_NODES
+from typing import Iterator, Callable, List, Dict, Union
 
 from nucypher.crypto.api import keccak_digest
 from nucypher.utilities.logging import Logger
+from .comprehension import reset_node_label_tracking, PRUNING_STRATEGIES, BUCKETS
 from .nicknames import Nickname
-from .pruning import construct_node_stalecheck, reject_node, accept_node, construct_node_max_attempts
+
+NO_KNOWN_NODES.bool_value(False)
 
 
 class FleetSensor:
     """
     A representation of a fleet of NuCypher nodes.
     """
-    _checksum = NO_KNOWN_NODES.bool_value(False)
+    _checksum = NO_KNOWN_NODES
     _nickname = NO_KNOWN_NODES
     _tracking = False
     most_recent_node_change = NO_KNOWN_NODES
     snapshot_splitter = BytestringSplitter(32, 4)
     log = Logger("Learning")
     FleetState = namedtuple("FleetState", ("nickname", "icon", "nodes", "updated", "checksum"))
-
-    BUCKETS = (
-        # NUCYPHER / SUPERNODE / SEEDNODE,
-        UNVERIFIED,
-        VERIFIED,
-        UNAVAILABLE,
-        SUSPICIOUS,
-        UNSTAKED,
-        INVALID
-    )
-
-    # Buckets that do not need pruning
-    # UNVERIFIED
-    # VERIFIED
-    # SEEDNODE
-
-    __three_days = 60*60*72
-    __pruning_strategies = {
-        UNAVAILABLE: [
-            construct_node_stalecheck(max_seconds=__three_days),
-            construct_node_max_attempts(max_attempts=20)
-        ],
-        SUSPICIOUS: [reject_node],
-        UNSTAKED: [accept_node],
-        INVALID: [accept_node],
-    }
 
     class UnknownLabel(KeyError):
         pass
@@ -218,27 +187,22 @@ class FleetSensor:
                 "updated": state.updated.rfc2822(),
                 }
 
-    def __reset_node_label_tracking(self, node: "Teacher"):
-        for strategy in self.__pruning_strategies:
-            strategy(node=node, reset=True)
-
     def get_nodes(self, label=None) -> Iterator["Teacher"]:
         """If label is None return all know nodes"""
         if not label:
             return iter(self)
-        if label not in self.BUCKETS:
+        if label not in BUCKETS:
             raise self.UnknownLabel(f'{label} is not a valid node label')
         try:
             nodes = self.__marked[label]
         except KeyError:
-            return iter(dict())  # empty
+            return iter(list())  # empty
         return iter(nodes)
 
-    def get_node_label(self, node: "Teacher"):
-        for _label in self.BUCKETS:
+    def get_label(self, node: "Teacher") -> Union["Teacher", None]:
+        for _label in BUCKETS:
             if node in self.__marked[_label]:
                 return _label
-
         return None
 
     def label(self, label, node: "Teacher") -> None:
@@ -247,7 +211,7 @@ class FleetSensor:
         If the provided label is not valid UnknownLabel is raised.
         If the provided node is not known UnknownNode is raised.
         """
-        if label not in self.BUCKETS:
+        if label not in BUCKETS:
             raise self.UnknownLabel(f'{label} is not a valid node label')
         if self.__nodes.get(node.checksum_address):
             self.unlabel(node=node)            # Remove any existing labels...
@@ -266,7 +230,7 @@ class FleetSensor:
 
         # Remove all labels
         node_labels = []
-        for _label in self.BUCKETS:
+        for _label in BUCKETS:
             if node in self.__marked[_label]:
                 self.__marked[_label].remove(node)
                 node_labels.append(_label)
@@ -279,7 +243,7 @@ class FleetSensor:
     def prune_bucket(self, label):
         """Apply pruning strategies to a single node bucket once"""
         try:
-            strategies = self.__pruning_strategies[label]
+            strategies = PRUNING_STRATEGIES[label]
         except KeyError:
             raise self.UnknownLabel(f'"{label}" is not a known node label.')
         for node in self.get_nodes(label=label):
@@ -293,12 +257,12 @@ class FleetSensor:
                     # TODO: Trash can label?
             else:
                 # Reinstate this node to good standing by un/relabeling
-                if label in self.__pruning_strategies:
+                if label in PRUNING_STRATEGIES:
                     self.unlabel(node=node, label=label)
-                    self.__reset_node_label_tracking(node=node)
+                    reset_node_label_tracking(node=node)
 
     def prune_nodes(self) -> None:
         """Apply node pruning strategies to all marked nodes once"""
         self._pruning_strategies: Dict[type, List[Callable]]
-        for label in self.__pruning_strategies:
+        for label in PRUNING_STRATEGIES:
             self.prune_bucket(label=label)
