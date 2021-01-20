@@ -37,7 +37,7 @@ from umbral.keys import UmbralPrivateKey
 from web3.main import Web3
 from web3.types import Wei
 
-from network.middleware import RestMiddleware
+from nucypher.network.middleware import RestMiddleware
 from nucypher.characters.lawful import Bob, Ursula, Alice
 from nucypher.config.characters import AliceConfiguration
 from nucypher.policy.policies import Policy
