@@ -179,10 +179,6 @@ class GethClientTestBlockchain(BlockchainInterfaceTestBase):
     def _attach_provider(self, *args, **kwargs) -> None:
         super()._attach_provider(provider=MockGethProvider())
 
-    @property
-    def is_local(self):
-        return int(self.w3.net.version) not in PUBLIC_CHAINS
-
 
 class ParityClientTestInterface(BlockchainInterfaceTestBase):
 
