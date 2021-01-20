@@ -28,10 +28,10 @@ def test_complete_treasure_map_journey(federated_alice, federated_bob, federated
 
     mock_kfrag = os.urandom(KFrag.expected_bytes_length())
     for ursula in federated_ursulas:
-        treasure_map.add_kfrag(ursula, mock_kfrag, federated_alice.stamp)
+        treasure_map.add_kfrag(ursula, mock_kfrag, federated_alice.stamp, arrangement_id=os.urandom(32))
 
     ursula_rolodex = {u.checksum_address: u for u in federated_ursulas}
-    for ursula_address, encrypted_kfrag in treasure_map.destinations.items():
+    for ursula_address, (encrypted_kfrag, _) in treasure_map.destinations.items():
         assert ursula_address in ursula_rolodex
         ursula = ursula_rolodex[ursula_address]
         assert mock_kfrag == ursula.verify_from(federated_alice, encrypted_kfrag, decrypt=True)  # FIXME: 2203
