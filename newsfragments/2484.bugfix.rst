@@ -1,0 +1,1 @@
+Fix wrong usage of net_version to identify the EthereumClient client chain.
