@@ -343,6 +343,8 @@ class WorkOrder:
             self.cfrag_signature = cfrag_signature
 
     HEADER = b"wo:"
+    payload_splitter = BytestringSplitter(Signature) + key_splitter + BytestringSplitter(ETH_HASH_BYTE_LENGTH) + \
+                       BytestringSplitter((bytes, VariableLengthBytestring))
 
     def __init__(self,
                  bob: Bob,
@@ -356,6 +358,7 @@ class WorkOrder:
                  ) -> None:
         self.bob = bob
         self.arrangement_id = arrangement_id
+        self.encrypted_kfrag = encrypted_kfrag
         self.alice_address = alice_address
         self.tasks = tasks
         self.receipt_signature = receipt_signature
@@ -388,6 +391,7 @@ class WorkOrder:
         if ursula._stamp_has_valid_signature_by_worker():
             ursula_identity_evidence = ursula.decentralized_identity_evidence
 
+        # FIXME: Include encrypted_kfrag in task specification
         tasks = OrderedDict()
         for capsule in capsules:
             task = cls.PRETask(capsule, signature=None)
@@ -396,6 +400,7 @@ class WorkOrder:
             tasks[capsule] = task
 
         # TODO: What's the goal of the receipt? Should it include only the capsules?
+        # FIXME: Include encrypted KFrag in the receipt
         capsules = b''.join(map(bytes, tasks.keys()))
         receipt_bytes = cls.HEADER + bytes(ursula.stamp) + capsules
         receipt_signature = bob.stamp(receipt_bytes)
@@ -409,14 +414,22 @@ class WorkOrder:
                    ursula=ursula,
                    blockhash=blockhash)
 
+    def payload(self):
+        """
+        Creates a serialized WorkOrder. Called by Bob requesting reencryption tasks
+        """
+        tasks_bytes = b''.join(bytes(item) for item in self.tasks.values())
+        return bytes(self.receipt_signature) + self.bob.stamp + self.blockhash + \
+               bytes(VariableLengthBytestring(self.encrypted_kfrag)) + tasks_bytes
+
     @classmethod
     def from_rest_payload(cls, arrangement_id, rest_payload, ursula, alice_address):
-
-        payload_splitter = BytestringSplitter(Signature) + key_splitter + BytestringSplitter(ETH_HASH_BYTE_LENGTH)
-
-        signature, bob_verifying_key, blockhash, remainder = payload_splitter(rest_payload, return_remainder=True)
+        signature, bob_verifying_key, blockhash, kfrag, remainder = cls.payload_splitter(rest_payload,
+                                                                                         return_remainder=True)
         tasks = {capsule: cls.PRETask(capsule, sig) for capsule, sig in cls.PRETask.input_splitter.repeat(remainder)}
         # TODO: check freshness of blockhash? #259
+
+        # FIXME: Include kfrag in checks
 
         ursula_identity_evidence = b''
         if ursula._stamp_has_valid_signature_by_worker():
@@ -441,19 +454,12 @@ class WorkOrder:
         bob = Bob.from_public_keys(verifying_key=bob_verifying_key)
         return cls(bob=bob,
                    ursula=ursula,
-                   encrypted_kfrag=None,
+                   encrypted_kfrag=kfrag,
                    arrangement_id=arrangement_id,
                    tasks=tasks,
                    alice_address=alice_address,
                    blockhash=blockhash,
                    receipt_signature=signature)
-
-    def payload(self):
-        """
-        Creates a serialized WorkOrder. Called by Bob requesting reencryption tasks
-        """
-        tasks_bytes = b''.join(bytes(item) for item in self.tasks.values())
-        return bytes(self.receipt_signature) + self.bob.stamp + self.blockhash + tasks_bytes
 
     def complete(self, cfrags_and_signatures):
         good_cfrags = []

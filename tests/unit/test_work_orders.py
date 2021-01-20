@@ -106,13 +106,14 @@ def test_work_order_with_multiple_capsules(mock_ursula_reencrypts,
     capsules, signatures, cfrags, cfrag_signatures = zip(*material)
 
     arrangement_id = os.urandom(Arrangement.ID_LENGTH)
+    mock_kfrag = os.urandom(42)
     alice_address = canonical_address_from_umbral_key(federated_alice.stamp)
     blockhash = b'\0' * ETH_HASH_BYTE_LENGTH  # TODO: Prove freshness of work order - #259
     identity_evidence = ursula.decentralized_identity_evidence
 
     # Test construction of WorkOrders by Bob
     work_order = WorkOrder.construct_by_bob(arrangement_id=arrangement_id,
-                                            encrypted_kfrag=None,  # FIXME
+                                            encrypted_kfrag=mock_kfrag,
                                             bob=federated_bob,
                                             alice_verifying=federated_alice.stamp.as_umbral_pubkey(),
                                             ursula=ursula,
@@ -137,7 +138,8 @@ def test_work_order_with_multiple_capsules(mock_ursula_reencrypts,
 
     # Test WorkOrders' payload serialization and deserialization
     tasks_bytes = b''.join(map(bytes, work_order.tasks.values()))
-    expected_payload = bytes(work_order.receipt_signature) + bytes(federated_bob.stamp) + blockhash + tasks_bytes
+    expected_payload = bytes(work_order.receipt_signature) + bytes(federated_bob.stamp) + blockhash + \
+                       bytes(VariableLengthBytestring(mock_kfrag)) + tasks_bytes
 
     payload = work_order.payload()
     assert expected_payload == payload
@@ -149,6 +151,7 @@ def test_work_order_with_multiple_capsules(mock_ursula_reencrypts,
 
     assert same_work_order.bob == federated_bob
     assert same_work_order.arrangement_id == arrangement_id
+    assert same_work_order.encrypted_kfrag == mock_kfrag
     assert same_work_order.alice_address == alice_address
     assert len(same_work_order.tasks) == len(same_work_order) == number
     for capsule in capsules:
