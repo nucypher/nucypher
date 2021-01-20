@@ -55,10 +55,12 @@ def test_trying_to_extract_too_many_bytes_raises_typeerror():
         rebuilt_signature, rebuilt_bytes = splitter(signature + some_bytes, return_remainder=True)
 
 
-def test_message_kit_serialization_via_enrico(enacted_federated_policy, federated_alice):
+def test_message_kit_serialization_via_enrico(federated_alice):
+
+    mock_label = b'this is a label'
 
     # Enrico
-    enrico = Enrico.from_alice(federated_alice, label=enacted_federated_policy.label)
+    enrico = Enrico.from_alice(federated_alice, label=mock_label)
 
     # Plaintext
     message = 'this is a message'
