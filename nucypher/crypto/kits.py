@@ -139,7 +139,7 @@ class RevocationKit:
     def __init__(self, treasure_map, signer: 'SignatureStamp'):
         from nucypher.policy.collections import Revocation
         self.revocations = dict()
-        for node_id, arrangement_id in treasure_map:
+        for node_id, (_, arrangement_id) in treasure_map:  # FIXME: Revocations will likely change
             self.revocations[node_id] = Revocation(arrangement_id, signer=signer)
 
     def __iter__(self):
