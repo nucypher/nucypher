@@ -700,13 +700,13 @@ class Bob(Character):
 
         random_walk = list(treasure_map)
         shuffle(random_walk)  # Mutates list in-place
-        for node_id, arrangement_id in random_walk:
+        for ursula_address, arrangement_id in random_walk:
 
             capsules_to_include = []
             for capsule in capsules:
                 try:
-                    precedent_work_order = self._completed_work_orders.most_recent_replete(capsule)[node_id]
-                    self.log.debug(f"{capsule} already has a saved WorkOrder for this Node:{node_id}.")
+                    precedent_work_order = self._completed_work_orders.most_recent_replete(capsule)[ursula_address]
+                    self.log.debug(f"{capsule} already has a saved WorkOrder for this Node:{ursula_address}.")
                     complete_work_orders[capsule].append(precedent_work_order)
                 except KeyError:
                     # Don't have a precedent completed WorkOrder for this Ursula for this Capsule.
@@ -714,7 +714,7 @@ class Bob(Character):
                     capsules_to_include.append(capsule)
 
             # TODO: Bob crashes if he hasn't learned about this Ursula #999
-            ursula = self.known_nodes[node_id]
+            ursula = self.known_nodes[ursula_address]
 
             if capsules_to_include:
                 work_order = WorkOrder.construct_by_bob(arrangement_id=arrangement_id,
@@ -722,9 +722,9 @@ class Bob(Character):
                                                         capsules=capsules_to_include,
                                                         ursula=ursula,
                                                         bob=self)
-                incomplete_work_orders[node_id] = work_order
+                incomplete_work_orders[ursula_address] = work_order
             else:
-                self.log.debug(f"All of these Capsules already have WorkOrders for this node: {node_id}")
+                self.log.debug(f"All of these Capsules already have WorkOrders for this node: {ursula_address}")
             if num_ursulas == len(incomplete_work_orders):
                 # TODO: Presently, the order here is haphazard .  Do we want to do the complete or incomplete specifically first? NRN
                 break
