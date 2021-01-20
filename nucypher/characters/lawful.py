@@ -715,13 +715,14 @@ class Bob(Character):
 
             # TODO: Bob crashes if he hasn't learned about this Ursula #999
             ursula = self.known_nodes[ursula_address]
-
+            encrypted_kfrag = bytes(treasure_map[ursula_address])
             if capsules_to_include:
                 work_order = WorkOrder.construct_by_bob(arrangement_id=arrangement_id,
                                                         alice_verifying=alice_verifying_key,
                                                         capsules=capsules_to_include,
                                                         ursula=ursula,
-                                                        bob=self)
+                                                        bob=self,
+                                                        encrypted_kfrag=encrypted_kfrag)
                 incomplete_work_orders[ursula_address] = work_order
             else:
                 self.log.debug(f"All of these Capsules already have WorkOrders for this node: {ursula_address}")
