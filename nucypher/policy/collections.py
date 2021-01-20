@@ -176,7 +176,7 @@ class TreasureMap:
             return NO_DECRYPTION_PERFORMED
         else:
             nodes_as_bytes = b""
-            for ursula_id, encrypted_kfrag in self.destinations.items():
+            for ursula_id, (encrypted_kfrag, _) in self.destinations.items():  # FIXME: What about the arrangement ID?
                 nodes_as_bytes += to_canonical_address(ursula_id) + bytes(VariableLengthBytestring(bytes(encrypted_kfrag)))
             return nodes_as_bytes
 
@@ -185,12 +185,13 @@ class TreasureMap:
             raise TypeError("This TreasureMap is encrypted.  You can't add another node without decrypting it.")
         self.destinations[ursula.checksum_address] = arrangement.id  # TODO: 1995
 
-    def add_kfrag(self, ursula, kfrag, signer_stamp: SignatureStamp):
+    def add_kfrag(self, ursula, kfrag, signer_stamp: SignatureStamp, arrangement_id):
         if self.destinations == NO_DECRYPTION_PERFORMED:
             raise TypeError("This TreasureMap is encrypted.  You can't add another node without decrypting it.")
-        self.destinations[ursula.checksum_address] = encrypt_and_sign(ursula.public_keys(DecryptingPower),
-                                                                      plaintext=bytes(kfrag),
-                                                                      signer=signer_stamp)[0]
+        encrypted_kfrag = encrypt_and_sign(ursula.public_keys(DecryptingPower),
+                                           plaintext=bytes(kfrag),
+                                           signer=signer_stamp)[0]
+        self.destinations[ursula.checksum_address] = (encrypted_kfrag, arrangement_id)
 
     def public_id(self) -> str:
         """
