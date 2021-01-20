@@ -341,6 +341,7 @@ class WorkOrder:
     def __init__(self,
                  bob: Bob,
                  arrangement_id,
+                 encrypted_kfrag: bytes,
                  alice_address: bytes,
                  tasks: dict,
                  receipt_signature,
@@ -370,7 +371,7 @@ class WorkOrder:
         return len(self.tasks)
 
     @classmethod
-    def construct_by_bob(cls, arrangement_id, alice_verifying, capsules, ursula, bob):
+    def construct_by_bob(cls, arrangement_id, alice_verifying, capsules, ursula, bob, encrypted_kfrag):
         ursula.mature()
         alice_address = canonical_address_from_umbral_key(alice_verifying)
 
@@ -393,10 +394,14 @@ class WorkOrder:
         receipt_bytes = cls.HEADER + bytes(ursula.stamp) + capsules
         receipt_signature = bob.stamp(receipt_bytes)
 
-        return cls(bob=bob, arrangement_id=arrangement_id, tasks=tasks,
+        return cls(bob=bob,
+                   arrangement_id=arrangement_id,
+                   encrypted_kfrag=encrypted_kfrag,
+                   tasks=tasks,
                    receipt_signature=receipt_signature,
                    alice_address=alice_address,
-                   ursula=ursula, blockhash=blockhash)
+                   ursula=ursula,
+                   blockhash=blockhash)
 
     @classmethod
     def from_rest_payload(cls, arrangement_id, rest_payload, ursula, alice_address):
@@ -430,6 +435,7 @@ class WorkOrder:
         bob = Bob.from_public_keys(verifying_key=bob_verifying_key)
         return cls(bob=bob,
                    ursula=ursula,
+                   encrypted_kfrag=None,
                    arrangement_id=arrangement_id,
                    tasks=tasks,
                    alice_address=alice_address,
