@@ -347,64 +347,10 @@ class Policy(ABC):
                             timeout: int = 10,
                             ):
         """
-        Attempts to distribute kfrags to Ursulas that accepted arrangements earlier.
+        Nothing to do here  (FIXME)
         """
 
-        def worker(ursula_and_kfrag):
-            ursula, kfrag = ursula_and_kfrag
-            arrangement = arrangements[ursula]
-
-            # TODO: seems like it would be enough to just encrypt this with Ursula's public key,
-            # and not create a whole capsule.
-            # Can't change for now since it's node protocol.
-            payload = self._make_enactment_payload(publication_transaction, kfrag)
-            message_kit, _signature = self.alice.encrypt_for(ursula, payload)
-
-            try:
-                # TODO: Concurrency
-                response = network_middleware.enact_policy(ursula,
-                                                           arrangement.id,
-                                                           message_kit.to_bytes())
-            except network_middleware.UnexpectedResponse as e:
-                status = e.status
-            else:
-                status = response.status_code
-
-            return status
-
-        value_factory = AllAtOnceFactory(list(zip(arrangements, self.kfrags)))
-        worker_pool = WorkerPool(worker=worker,
-                                 value_factory=value_factory,
-                                 target_successes=self.n,
-                                 timeout=timeout,
-                                 threadpool_size=self.n)
-
-        worker_pool.start()
-
-        # Block until everything is complete. We need all the workers to finish.
-        worker_pool.join()
-
-        successes = worker_pool.get_successes()
-
-        if len(successes) != self.n:
-            raise Policy.EnactmentError()
-
-        # TODO: Enable re-tries?
-        statuses = {ursula_and_kfrag[0].checksum_address: status for ursula_and_kfrag, status in successes.items()}
-        if not all(status == 200 for status in statuses.values()):
-            report = "\n".join(f"{address}: {status}" for address, status in statuses.items())
-            self.log.debug(f"Policy enactment failed. Request statuses:\n{report}")
-
-            # OK, let's check: if two or more Ursulas claimed we didn't pay,
-            # we need to re-evaulate our situation here.
-            number_of_claims_of_freeloading = sum(status == 402 for status in statuses.values())
-
-            # TODO: a better exception here?
-            if number_of_claims_of_freeloading > 2:
-                raise self.alice.NotEnoughNodes
-
-            # otherwise just raise a more generic error
-            raise Policy.EnactmentError()
+        pass
 
     def _make_treasure_map(self,
                            network_middleware: RestMiddleware,
