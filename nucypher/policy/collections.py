@@ -65,7 +65,8 @@ class TreasureMap:
         """
 
     ursula_and_kfrag_splitter = BytestringSplitter((to_checksum_address, ETH_ADDRESS_BYTE_LENGTH),
-                                                   (UmbralMessageKit, VariableLengthBytestring))
+                                                   (UmbralMessageKit, VariableLengthBytestring),
+                                                   (bytes, ID_LENGTH))  # FIXME: Include the arrangement for the moment
 
     from nucypher.crypto.signing import \
         InvalidSignature  # Raised when the public signature (typically intended for Ursula) is not valid.
@@ -176,8 +177,10 @@ class TreasureMap:
             return NO_DECRYPTION_PERFORMED
         else:
             nodes_as_bytes = b""
-            for ursula_id, (encrypted_kfrag, _) in self.destinations.items():  # FIXME: What about the arrangement ID?
-                nodes_as_bytes += to_canonical_address(ursula_id) + bytes(VariableLengthBytestring(bytes(encrypted_kfrag)))
+            for ursula_address, (encrypted_kfrag, arrangement_id) in self.destinations.items():
+                node_id = to_canonical_address(ursula_address)
+                kfrag = bytes(VariableLengthBytestring(bytes(encrypted_kfrag)))
+                nodes_as_bytes += node_id + kfrag + arrangement_id
             return nodes_as_bytes
 
     def add_arrangement(self, ursula, arrangement):
@@ -233,7 +236,8 @@ class TreasureMap:
         else:
             self._m = map_in_the_clear[0]
             try:
-                self._destinations = dict(self.ursula_and_kfrag_splitter.repeat(map_in_the_clear[1:]))
+                ursula_and_kfrags = self.ursula_and_kfrag_splitter.repeat(map_in_the_clear[1:])
+                self._destinations = {u: (k, a) for u, k, a in ursula_and_kfrags}
             except BytestringSplittingError:
                 self._destinations = {}
             self.check_for_sufficient_destinations()
