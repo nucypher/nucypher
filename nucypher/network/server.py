@@ -23,25 +23,17 @@ import weakref
 from datetime import datetime, timedelta
 from typing import Tuple
 
-from bytestring_splitter import BytestringSplitter
 from constant_sorrow import constants
-from constant_sorrow.constants import (
-    FLEET_STATES_MATCH,
-    NO_BLOCKCHAIN_CONNECTION,
-    RELAX
-)
+from constant_sorrow.constants import FLEET_STATES_MATCH, RELAX
 from flask import Flask, Response, jsonify, request
 from mako import exceptions as mako_exceptions
 from mako.template import Template
 from maya import MayaDT
-from web3.exceptions import TimeExhausted
 
 from nucypher.config.constants import MAX_UPLOAD_CONTENT_LENGTH
 from nucypher.crypto.keypairs import HostingKeypair
-from nucypher.crypto.kits import UmbralMessageKit
 from nucypher.crypto.powers import KeyPairBasedPower, PowerUpError
 from nucypher.crypto.signing import InvalidSignature
-from nucypher.crypto.umbral_adapter import KeyFrag, VerificationError
 from nucypher.crypto.utils import canonical_address_from_umbral_key
 from nucypher.datastore.datastore import Datastore, RecordNotFound, DatastoreTransactionError
 from nucypher.datastore.models import PolicyArrangement, TreasureMap, Workorder
@@ -218,58 +210,6 @@ def _make_rest_app(datastore: Datastore, this_node, domain: str, log: Logger) ->
         headers = {'Content-Type': 'application/octet-stream'}
         # TODO: Make this a legit response #234.
         return Response(b"This will eventually be an actual acceptance of the arrangement.", headers=headers)
-
-    @rest_app.route("/kFrag/<id_as_hex>", methods=['POST'])
-    def set_policy(id_as_hex):
-        """
-        REST endpoint for setting a kFrag.
-        """
-        policy_message_kit = UmbralMessageKit.from_bytes(request.data)
-
-        alices_verifying_key = policy_message_kit.sender_verifying_key
-        alice = _alice_class.from_public_keys(verifying_key=alices_verifying_key)
-
-        try:
-            cleartext = this_node.verify_from(alice, policy_message_kit, decrypt=True)
-        except InvalidSignature:
-            # TODO: Perhaps we log this?  Essentially 355.
-            return Response("Invalid Signature", status_code=400)
-
-        if not this_node.federated_only:
-            # This splitter probably belongs somewhere canonical.
-            transaction_splitter = BytestringSplitter(32)
-            tx, kfrag_bytes = transaction_splitter(cleartext, return_remainder=True)
-
-            try:
-                # Get all of the arrangements and verify that we'll be paid.
-                # TODO: We'd love for this part to be impossible to reduce the risk of collusion.  #1274
-                arranged_addresses = this_node.policy_agent.fetch_arrangement_addresses_from_policy_txid(tx, timeout=this_node.synchronous_query_timeout)
-            except TimeExhausted:
-                # Alice didn't pay.  Return response with that weird status code.
-                this_node.suspicious_activities_witnessed['freeriders'].append((alice, f"No transaction matching {tx}."))
-                return Response(f"No paid transaction matching {tx} for this node", status=402)
-
-            this_node_has_been_arranged = this_node.checksum_address in arranged_addresses
-            if not this_node_has_been_arranged:
-                this_node.suspicious_activities_witnessed['freeriders'].append((alice, f"The transaction {tx} does not list me as a Worker - it lists {arranged_addresses}."))
-                return Response(f"This node was not listed as servicing the policy in transaction {tx}", status=402)
-        else:
-            _tx = NO_BLOCKCHAIN_CONNECTION
-            kfrag_bytes = cleartext
-        kfrag = KeyFrag.from_bytes(kfrag_bytes)
-
-        try:
-            verified_kfrag = kfrag.verify(verifying_pk=alices_verifying_key)
-        except VerificationError:
-            return Response(f"Signature on {kfrag} is invalid", status=403)
-
-        with datastore.describe(PolicyArrangement, id_as_hex, writeable=True) as policy_arrangement:
-            if not policy_arrangement.alice_verifying_key == alice.stamp.as_umbral_pubkey():
-                return Response("Policy arrangement's signing key does not match sender's", status=403)
-            policy_arrangement.kfrag = verified_kfrag
-
-        # TODO: Sign the arrangement here.  #495
-        return ""  # TODO: Return A 200, with whatever policy metadata.
 
     @rest_app.route('/kFrag/<id_as_hex>', methods=["DELETE"])
     def revoke_arrangement(id_as_hex):
