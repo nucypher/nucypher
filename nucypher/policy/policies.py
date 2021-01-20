@@ -416,8 +416,9 @@ class Policy(ABC):
 
         treasure_map = self._treasure_map_class(m=self.m)
 
-        for ursula, arrangement in arrangements.items():
-            treasure_map.add_arrangement(ursula, arrangement)
+        for ursula, kfrag in zip(arrangements, self.kfrags):
+            arrangement = arrangements[ursula]
+            treasure_map.add_kfrag(ursula, kfrag, self.alice.stamp, arrangement.id)
 
         treasure_map.prepare_for_publication(bob_encrypting_key=self.bob.public_keys(DecryptingPower),
                                              bob_verifying_key=self.bob.public_keys(SigningPower),

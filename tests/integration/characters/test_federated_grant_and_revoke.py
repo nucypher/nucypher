@@ -49,12 +49,12 @@ def test_federated_grant(federated_alice, federated_bob, federated_ursulas):
     # Let's look at the enacted arrangements.
     for ursula in federated_ursulas:
         if ursula.checksum_address in policy.treasure_map.destinations:
-            arrangement_id = policy.treasure_map.destinations[ursula.checksum_address]
+            _, arrangement_id = policy.treasure_map.destinations[ursula.checksum_address]  # FIXME:
 
             # Get the Arrangement from Ursula's datastore, looking up by the Arrangement ID.
             with ursula.datastore.describe(PolicyArrangement, arrangement_id.hex()) as policy_arrangement:
-                retrieved_kfrag = policy_arrangement.kfrag
-            assert bool(retrieved_kfrag) # TODO: try to assemble them back?
+                alice_verifying_key = policy_arrangement.alice_verifying_key
+            assert bool(alice_verifying_key)
 
 
 def test_federated_alice_can_decrypt(federated_alice, federated_bob):
@@ -106,7 +106,7 @@ def test_revocation(federated_alice, federated_bob):
     policy = federated_alice.grant(federated_bob, label, m=m, n=n, expiration=policy_end_datetime)
 
     # Test that all arrangements are included in the RevocationKit
-    for node_id, arrangement_id in policy.treasure_map:
+    for node_id, (_, arrangement_id) in policy.treasure_map:  # FIXME:
         assert policy.revocation_kit[node_id].arrangement_id == arrangement_id
 
     # Test revocation kit's signatures
