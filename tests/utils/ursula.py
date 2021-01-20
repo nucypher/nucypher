@@ -207,7 +207,14 @@ def _mock_ursula_reencrypts(ursula, corrupt_cfrag: bool = False):
 
     bob = Bob.from_public_keys(verifying_key=pub_key_bob)
     task = WorkOrder.PRETask(capsule, task_signature, cfrag, cfrag_signature)
-    work_order = WorkOrder(bob, None, alice_address, {capsule: task}, None, ursula, blockhash)
+    work_order = WorkOrder(bob=bob,
+                           encrypted_kfrag=None,  # FIXME
+                           arrangement_id=None,
+                           alice_address=alice_address,
+                           tasks={capsule: task},
+                           receipt_signature=None,
+                           ursula=ursula,
+                           blockhash=blockhash)
 
     evidence = IndisputableEvidence(task, work_order)
     return evidence

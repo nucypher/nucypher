@@ -112,6 +112,7 @@ def test_work_order_with_multiple_capsules(mock_ursula_reencrypts,
 
     # Test construction of WorkOrders by Bob
     work_order = WorkOrder.construct_by_bob(arrangement_id=arrangement_id,
+                                            encrypted_kfrag=None,  # FIXME
                                             bob=federated_bob,
                                             alice_verifying=federated_alice.stamp.as_umbral_pubkey(),
                                             ursula=ursula,
