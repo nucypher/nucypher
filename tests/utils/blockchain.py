@@ -106,6 +106,7 @@ class TesterBlockchain(BlockchainDeployerInterface):
                  light: bool = False,
                  eth_airdrop: bool = False,
                  free_transactions: bool = False,
+                 compile_now: bool = True,
                  *args, **kwargs):
 
         self.free_transactions = free_transactions
@@ -118,7 +119,7 @@ class TesterBlockchain(BlockchainDeployerInterface):
                          *args, **kwargs)
 
         self.log = Logger("test-blockchain")
-        self.connect()
+        self.connect(compile_now=compile_now)
 
         # Generate additional ethereum accounts for testing
         population = test_accounts

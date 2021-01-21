@@ -163,7 +163,7 @@ Clef is typically installed alongside geth.
 
 .. important::
 
-    Geth version 1.9.0 or higher is required.
+    Geth version 1.9.22 or higher is required.
 
 If you already have geth installed on your system you may already have Clef installed.  To check for an
 existing installation run:

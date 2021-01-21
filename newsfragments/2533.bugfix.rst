@@ -1,0 +1,1 @@
+Use eth_chainId instead of net_version to maintain compatibility with geth.

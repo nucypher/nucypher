@@ -15,16 +15,16 @@ You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
-import maya
 import os
 import time
+from typing import Union
+
 from constant_sorrow.constants import UNKNOWN_DEVELOPMENT_CHAIN_ID
 from cytoolz.dicttoolz import dissoc
 from eth_account import Account
 from eth_account.messages import encode_defunct
 from eth_typing.evm import BlockNumber, ChecksumAddress
 from eth_utils import to_canonical_address, to_checksum_address
-from typing import Union
 from web3 import Web3
 from web3.contract import Contract
 from web3.types import Wei, TxReceipt
@@ -409,8 +409,7 @@ class GethClient(EthereumClient):
 
     @property
     def is_local(self):
-        # TODO: #1505  -- rethink this metaphor
-        return int(self.w3.net.version) not in PUBLIC_CHAINS
+        return self.chain_id not in PUBLIC_CHAINS
 
     @property
     def peers(self):

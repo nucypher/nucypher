@@ -260,14 +260,14 @@ Issuing a New Release
 1. Decide what part of the version to bump.
 The version string follows the format ``{major}.{minor}.{patch}-{stage}.{devnum}``,
 so the options are ``major``, ``minor``, ``patch``, ``stage``, or ``devnum``.
-We usually issue new releases increasing the ``devnum`` version.
+We usually issue new releases increasing the ``patch`` version.
 
 2. Use the ``make release`` script, specifying the version increment with the ``bump`` parameter.
-For example, for a new ``devnum`` release, we would do:
+For example, for a new ``patch`` release, we would do:
 
 .. code:: bash
 
-  (nucypher)$ make release bump=devnum
+  (nucypher)$ make release bump=patch
 
 3. The previous step triggers the publication webhooks on CircleCI.
 Monitor the triggered deployment build for manual approval.

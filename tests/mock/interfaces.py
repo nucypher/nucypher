@@ -76,7 +76,7 @@ class MockBlockchain(TesterBlockchain):
     PROVIDER_URI = MOCK_PROVIDER_URI
 
     def __init__(self):
-        super().__init__()
+        super().__init__(compile_now=False)
 
 
 class MockEthereumClient(EthereumClient):
