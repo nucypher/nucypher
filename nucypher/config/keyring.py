@@ -14,13 +14,15 @@ GNU Affero General Public License for more details.
 You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
-import base64
-import contextlib
+
+
 import json
 import stat
 from json import JSONDecodeError
 from os.path import abspath
 
+import base64
+import contextlib
 import os
 from constant_sorrow.constants import FEDERATED_ADDRESS, KEYRING_LOCKED
 from cryptography import x509
@@ -30,7 +32,7 @@ from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric import ec
 from cryptography.hazmat.primitives.asymmetric.ec import EllipticCurve
 from cryptography.hazmat.primitives.kdf.hkdf import HKDF
-from cryptography.hazmat.primitives.serialization import Encoding
+from cryptography.hazmat.primitives.serialization import Encoding, load_pem_private_key
 from cryptography.x509 import Certificate
 from eth_account import Account
 from eth_keys import KeyAPI as EthKeyAPI
@@ -40,6 +42,7 @@ from nacl.secret import SecretBox
 from typing import Callable, ClassVar, Dict, List, Tuple, Union
 from umbral.keys import UmbralKeyingMaterial, UmbralPrivateKey, UmbralPublicKey, derive_key_from_password
 
+from nucypher.crypto.keypairs import HostingKeypair
 from nucypher.config.constants import DEFAULT_CONFIG_ROOT
 from nucypher.crypto.api import generate_teacher_certificate
 from nucypher.crypto.constants import BLAKE2B
@@ -469,7 +472,7 @@ class NucypherKeyring:
         return self.is_unlocked
 
     @unlock_required
-    def derive_crypto_power(self, power_class: ClassVar) -> Union[KeyPairBasedPower, DerivedKeyBasedPower]:
+    def derive_crypto_power(self, power_class: ClassVar, host = None) -> Union[KeyPairBasedPower, DerivedKeyBasedPower]:
         """
         Takes either a SigningPower or a DecryptingPower and returns
         either a SigningPower or DecryptingPower with the coinciding
@@ -484,11 +487,25 @@ class NucypherKeyring:
                      DecryptingPower: self.__root_keypath,
                      TLSHostingPower: self.__tls_keypath}
 
-            # Create Power
+            path = codex[power_class]
             try:
-                umbral_privkey = self.__decrypt_keyfile(codex[power_class])
-                keypair = power_class._keypair_class(umbral_privkey)
-                new_cryptopower = power_class(keypair=keypair)
+                if power_class is TLSHostingPower:  # TODO: something more elegant
+                    if not host:
+                        raise ValueError('Host is required to derive a TLSHostingPower')
+                    pem = _read_keyfile(keypath=path, deserializer=None)
+                    privkey = load_pem_private_key(data=pem, password=self.__derived_key_material)
+
+                    keypair: HostingKeypair
+                    keypair = power_class._keypair_class(private_key=privkey,
+                                                         checksum_address=self.checksum_address,
+                                                         host=host)
+                    new_cryptopower = power_class(keypair=keypair, host=host)
+
+                else:
+                    privkey = self.__decrypt_keyfile(key_path=path)
+                    keypair = power_class._keypair_class(privkey)
+                    new_cryptopower = power_class(keypair=keypair)
+
             except KeyError:
                 failure_message = "{} is an invalid type for deriving a CryptoPower".format(power_class.__name__)
                 raise TypeError(failure_message)

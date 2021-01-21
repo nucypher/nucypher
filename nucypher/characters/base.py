@@ -128,17 +128,9 @@ class Character(Learner):
         #
 
         # Derive powers from keyring
-        if keyring_root and keyring:
-            if keyring_root != keyring.keyring_root:
-                raise ValueError("Inconsistent keyring root directory path")
-        if keyring:
-            keyring_root, checksum_address = keyring.keyring_root, keyring.checksum_address
-            crypto_power_ups = list()
-            for power_up in self._default_crypto_powerups:
-                power = keyring.derive_crypto_power(power_class=power_up)
-                crypto_power_ups.append(power)
         self.keyring_root = keyring_root
         self.keyring = keyring
+        self.derive_powers()  # depends on keyring and keyring_root being set
 
         if crypto_power and crypto_power_ups:
             raise ValueError("Pass crypto_power or crypto_power_ups (or neither), but not both.")
@@ -261,6 +253,19 @@ class Character(Learner):
         except (NoSigningPower, TypeError):  # TODO: ....yeah?  We can probably do better for a repr here.
             r = f"({self.__class__.__name__})⇀{self.nickname}↽"
         return r
+
+    def derive_powers(self):
+        if self.keyring_root and self.keyring:
+            if self.keyring_root != self.keyring.keyring_root:
+                raise ValueError("Inconsistent keyring root directory path")
+
+        if self.keyring:
+            # FIXME
+            # keyring_root, checksum_address = self.keyring.keyring_root, self.keyring.checksum_address
+            crypto_power_ups = list()
+            for power_up in self._default_crypto_powerups:
+                power = self.keyring.derive_crypto_power(power_class=power_up)
+                crypto_power_ups.append(power)
 
     @property
     def name(self):
