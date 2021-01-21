@@ -1146,10 +1146,9 @@ class Ursula(Teacher, Character, Worker):
                 self.stop(halt_reactor=False)
                 raise
 
-        if not crypto_power or (TLSHostingPower not in crypto_power):
+        if not crypto_power or (TLSHostingPower not in crypto_power):  # FIXME: Is this line relevant?
 
             if is_me:
-
                 self.suspicious_activities_witnessed = {'vladimirs': [],
                                                         'bad_treasure_maps': [],
                                                         'freeriders': []}
@@ -1161,11 +1160,15 @@ class Ursula(Teacher, Character, Worker):
                     domain=domain,
                 )
 
-                # TLSHostingPower (Ephemeral Powers and Private Keys)
-                tls_hosting_keypair = HostingKeypair(curve=tls_curve,
-                                                     host=rest_host,
-                                                     checksum_address=self.checksum_address)
-                tls_hosting_power = TLSHostingPower(keypair=tls_hosting_keypair, host=rest_host)
+                try:
+                    # Restored from private keys
+                    tls_hosting_power = self._crypto_power.power_ups(TLSHostingPower)
+                except TLSHostingPower.not_found_error:
+                    # "Dev Mode" - Generate ephemeral private Keys
+                    tls_hosting_keypair = HostingKeypair(curve=tls_curve,
+                                                         host=rest_host,
+                                                         checksum_address=self.checksum_address)
+                    tls_hosting_power = TLSHostingPower(keypair=tls_hosting_keypair, host=rest_host)
 
 
                 self.rest_server = ProxyRESTServer(rest_host=rest_host, rest_port=rest_port,
@@ -1173,6 +1176,8 @@ class Ursula(Teacher, Character, Worker):
                                                    hosting_power=tls_hosting_power)
 
             else:
+
+                # FEEL LIKE A STRANGER
 
                 # TLSHostingPower
                 if certificate or certificate_filepath:
