@@ -456,6 +456,7 @@ class CharacterConfiguration(BaseConfiguration):
                             known_nodes=self.known_nodes,
                             node_storage=self.node_storage,
                             crypto_power_ups=self.derive_node_power_ups()))
+
         return payload
 
     def generate_filepath(self, filepath: str = None, modifier: str = None, override: bool = False) -> str:
