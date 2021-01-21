@@ -1039,8 +1039,12 @@ class Ursula(Teacher, Character, Worker):
     _alice_class = Alice
 
     # TODO: Maybe this wants to be a registry, so that, for example,  NRN
-    # TLSHostingPower still can enjoy default status, but on a different class  NRN
-    _default_crypto_powerups = [SigningPower, DecryptingPower]
+    # TODO: TLSHostingPower still can enjoy default status, but on a different class  NRN
+    _default_crypto_powerups = [
+        SigningPower,
+        DecryptingPower,
+        TLSHostingPower
+    ]
 
     _pruning_interval = 60  # seconds
 
@@ -1168,11 +1172,8 @@ class Ursula(Teacher, Character, Worker):
 
         if not crypto_power or (TLSHostingPower not in crypto_power):
 
-            #
-            # Development Ursula
-            #
-
             if is_me:
+
                 self.suspicious_activities_witnessed = {'vladimirs': [],
                                                         'bad_treasure_maps': [],
                                                         'freeriders': []}
@@ -1185,16 +1186,15 @@ class Ursula(Teacher, Character, Worker):
                 )
 
                 # TLSHostingPower (Ephemeral Powers and Private Keys)
-                tls_hosting_keypair = HostingKeypair(curve=tls_curve, host=rest_host,
+                tls_hosting_keypair = HostingKeypair(curve=tls_curve,
+                                                     host=rest_host,
                                                      checksum_address=self.checksum_address)
                 tls_hosting_power = TLSHostingPower(keypair=tls_hosting_keypair, host=rest_host)
+
+
                 self.rest_server = ProxyRESTServer(rest_host=rest_host, rest_port=rest_port,
                                                    rest_app=rest_app, datastore=datastore,
                                                    hosting_power=tls_hosting_power)
-
-            #
-            # Stranger-Ursula
-            #
 
             else:
 
@@ -1239,6 +1239,16 @@ class Ursula(Teacher, Character, Worker):
         else:
             message = "Initialized Stranger {} | {}".format(self.__class__.__name__, self)
             self.log.debug(message)
+
+    def derive_powers(self):
+        if self.keyring_root and self.keyring:
+            if self.keyring_root != self.keyring.keyring_root:
+                raise ValueError("Inconsistent keyring root directory path")
+        if self.keyring:
+            crypto_power_ups = list()
+            for power_up in self._default_crypto_powerups:
+                power = self.keyring.derive_crypto_power(power_class=power_up, host=self.interface.host)
+                crypto_power_ups.append(power)
 
     def __prune_datastore(self) -> None:
         """Deletes all expired arrangements, kfrags, and treasure maps in the datastore."""

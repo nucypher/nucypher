@@ -122,6 +122,14 @@ class UrsulaConfiguration(CharacterConfiguration):
 
         return ursula
 
+    def derive_node_power_ups(self):
+        power_ups = list()
+        if self.is_me and not self.dev_mode:
+            for power_class in self.CHARACTER_CLASS._default_crypto_powerups:
+                power_up = self.keyring.derive_crypto_power(power_class, host=self.rest_host)
+                power_ups.append(power_up)
+        return power_ups
+
     def attach_keyring(self, checksum_address: str = None, *args, **kwargs) -> None:
         if self.federated_only:
             account = checksum_address or self.checksum_address
