@@ -29,6 +29,7 @@ from nucypher.crypto.api import encrypt_and_sign
 from nucypher.crypto.powers import CryptoPower, SigningPower, DecryptingPower, TransactingPower
 from nucypher.exceptions import DevelopmentInstallationRequired
 from nucypher.policy.collections import SignedTreasureMap
+from tests.constants import MOCK_PROVIDER_URI
 
 try:
     from tests.utils.middleware import EvilMiddleWare
@@ -81,7 +82,6 @@ class Vladimir(Ursula):
                        crypto_power=crypto_power,
                        db_filepath=db_filepath,
                        domain=TEMPORARY_DOMAIN,
-                       block_until_ready=False,
                        rest_host=target_ursula.rest_interface.host,
                        rest_port=target_ursula.rest_interface.port,
                        certificate=target_ursula.certificate,
@@ -89,6 +89,7 @@ class Vladimir(Ursula):
                        checksum_address=cls.fraud_address,
                        worker_address=cls.fraud_address,
                        signer=Web3Signer(blockchain.client),
+                       provider_uri=blockchain.provider_uri,
                        ######### Asshole.
                        timestamp=target_ursula._timestamp,
                        interface_signature=target_ursula._interface_signature,

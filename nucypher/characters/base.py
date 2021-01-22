@@ -138,7 +138,12 @@ class Character(Learner):
         #
 
         if keyring:
-            keyring_root, checksum_address = keyring.keyring_root, keyring.checksum_address
+            keyring_root, keyring_checksum_address = keyring.keyring_root, keyring.checksum_address
+            if checksum_address and keyring_checksum_address != checksum_address:
+                raise ValueError(f"Provided checksum address {checksum_address} "
+                                 f"does not match character's keyring checksum address {keyring_checksum_address}")
+            checksum_address = keyring_checksum_address
+
             crypto_power_ups = list()
             for power_up in self._default_crypto_powerups:
                 power = keyring.derive_crypto_power(power_class=power_up)
@@ -194,9 +199,15 @@ class Character(Learner):
 
             if self.federated_only:
                 try:
-                    checksum_address = self.derive_federated_address()
+                    derived_federated_address = self.derive_federated_address()
                 except NoSigningPower:
-                    checksum_address = NO_SIGNING_POWER.bool_value(False)
+                    derived_federated_address = NO_SIGNING_POWER.bool_value(False)
+
+                if checksum_address and checksum_address != derived_federated_address:
+                    raise ValueError(f"Provided checksum address {checksum_address} "
+                                     f"does not match federated character's verifying key {derived_federated_address}")
+                checksum_address = derived_federated_address
+
             self.checksum_address = checksum_address
 
         #
