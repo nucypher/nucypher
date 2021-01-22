@@ -29,8 +29,9 @@ from tests.utils.middleware import MockRestMiddleware
 
 def test_alices_powers_are_persistent(federated_ursulas, tmpdir):
     # Create a non-learning AliceConfiguration
+    config_root = os.path.join(tmpdir, 'nucypher-custom-alice-config')
     alice_config = AliceConfiguration(
-        config_root=os.path.join(tmpdir, 'nucypher-custom-alice-config'),
+        config_root=config_root,
         network_middleware=MockRestMiddleware(),
         domain=TEMPORARY_DOMAIN,
         start_learning_now=False,
@@ -94,6 +95,7 @@ def test_alices_powers_are_persistent(federated_ursulas, tmpdir):
         network_middleware=MockRestMiddleware(),
         known_nodes=federated_ursulas,
         start_learning_now=False,
+        config_root=config_root
     )
 
     # Alice unlocks her restored keyring from disk
