@@ -14,50 +14,55 @@ GNU Affero General Public License for more details.
 You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
+
+
+from collections import defaultdict
+
 import contextlib
-from contextlib import suppress
-from typing import ClassVar, Dict, List, Optional, Set, Union
-
-from cryptography.exceptions import InvalidSignature
-from eth_keys import KeyAPI as EthKeyAPI
-from eth_utils import to_canonical_address, to_checksum_address
-
 from constant_sorrow import default_constant_splitter
 from constant_sorrow.constants import (DO_NOT_SIGN, NO_BLOCKCHAIN_CONNECTION, NO_CONTROL_PROTOCOL,
                                        NO_DECRYPTION_PERFORMED, NO_NICKNAME, NO_SIGNING_POWER,
                                        SIGNATURE_IS_ON_CIPHERTEXT, SIGNATURE_TO_FOLLOW, STRANGER)
+from contextlib import suppress
+from cryptography.exceptions import InvalidSignature
+from eth_keys import KeyAPI as EthKeyAPI
+from eth_utils import to_canonical_address, to_checksum_address
+from typing import ClassVar, Dict, List, Optional, Union
+from umbral.keys import UmbralPublicKey
+from umbral.signing import Signature
 
-from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
 from nucypher.acumen.nicknames import Nickname
+from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
 from nucypher.blockchain.eth.registry import BaseContractRegistry, InMemoryContractRegistry
 from nucypher.blockchain.eth.signers.base import Signer
 from nucypher.characters.control.controllers import CLIController, JSONRPCController
 from nucypher.config.keyring import NucypherKeyring
 from nucypher.crypto.api import encrypt_and_sign
 from nucypher.crypto.kits import UmbralMessageKit
-from nucypher.crypto.powers import (CryptoPower, CryptoPowerUp, DecryptingPower, DelegatingPower, NoSigningPower,
-                                    SigningPower)
 from nucypher.crypto.powers import (
-    TransactingPower, NoTransactingPower
+    CryptoPower,
+    CryptoPowerUp,
+    DecryptingPower,
+    DelegatingPower,
+    NoSigningPower,
+    SigningPower
 )
-from nucypher.crypto.signing import SignatureStamp, StrangerStamp, signature_splitter
+from nucypher.crypto.signing import (
+    SignatureStamp,
+    StrangerStamp,
+    signature_splitter
+)
 from nucypher.network.middleware import RestMiddleware
 from nucypher.network.nodes import Learner
-from umbral.keys import UmbralPublicKey
-from umbral.signing import Signature
 
 
 class Character(Learner):
-    """
-    A base-class for any character in our cryptography protocol narrative.
-    """
+    """A base-class for any character in our cryptography protocol narrative."""
 
     _display_name_template = "({})⇀{}↽ ({})"  # Used in __repr__ and in cls.from_bytes
     _default_crypto_powerups = None
     _stamp = None
     _crashed = False
-
-    from nucypher.network.protocols import SuspiciousActivity  # Ship this exception with every Character.
 
     def __init__(self,
                  domain: str = None,
@@ -112,15 +117,10 @@ class Character(Learner):
         # Operating Mode
         #
 
-        if hasattr(self, '_interface_class'):  # TODO: have argument about meaning of 'lawful'
-            #                                         and whether maybe only Lawful characters have an interface
-            self.interface = self._interface_class(character=self)
-
         if is_me:
             self._set_known_node_class(known_node_class, federated_only)
         else:
-            # What an awful hack.  The last convulsions of #466.
-            # TODO: Anything else.
+            # What an awful hack.  The last convulsions of #466.  # TODO: Anything else.
             with suppress(AttributeError):
                 federated_only = known_node_class._federated_only_instances
 
@@ -154,9 +154,8 @@ class Character(Learner):
         #
 
         if is_me:
-            #
+
             # Signing Power
-            #
             self.signer = signer
             try:
                 signing_power = self._crypto_power.power_ups(SigningPower)  # type: SigningPower
@@ -175,9 +174,8 @@ class Character(Learner):
             # REST
             self.network_middleware = network_middleware or RestMiddleware(registry=self.registry)
 
-            #
             # Learner
-            #
+            self.suspicious_activities_witnessed = defaultdict(list)  # TODO: Combine with buckets / node labeling
             Learner.__init__(self,
                              domain=domain,
                              network_middleware=self.network_middleware,
@@ -192,10 +190,10 @@ class Character(Learner):
             self.checksum_address = checksum_address
 
         #
-        # Stranger-Character
+        # Stranger
         #
 
-        else:  # Feel like a stranger
+        else:
             if network_middleware is not None:
                 raise TypeError("Network middleware cannot be attached to a Stranger-Character.")
 
@@ -206,46 +204,41 @@ class Character(Learner):
             self._stamp = StrangerStamp(verifying_key)
             self.keyring_root = STRANGER
             self.network_middleware = STRANGER
-
-        # TODO: Figure out when to do this.
-        try:
-            _transacting_power = self._crypto_power.power_ups(TransactingPower)
-        except NoTransactingPower:
-            self._checksum_address = checksum_address
-        else:
-            self._set_checksum_address(checksum_address)
+            self.checksum_address = checksum_address
 
         #
         # Nicknames
         #
-        if self._checksum_address is NO_BLOCKCHAIN_CONNECTION and not self.federated_only and not is_me:
+
+        # TODO: The heck is happening in this block?!?
+
+        if not self.checksum_address and not self.federated_only and not is_me:
             # Sometimes we don't care about the nickname.  For example, if Alice is granting to Bob, she usually
             # doesn't know or care about his wallet.  Maybe this needs to change?
             # Currently, if this is a stranger and there's no blockchain connection, we assign NO_NICKNAME:
             self.nickname = NO_NICKNAME
         else:
             try:
-                # TODO: It's possible that this is NO_BLOCKCHAIN_CONNECTION.
-                if self.checksum_address is NO_BLOCKCHAIN_CONNECTION:
+                if not self.checksum_address:
                     self.nickname = NO_NICKNAME
                 else:
                     # This can call _set_checksum_address.
                     self.nickname = Nickname.from_seed(self.checksum_address)
-            except SigningPower.not_found_error:  # TODO: Handle NO_BLOCKCHAIN_CONNECTION more coherently - #1547
+            except SigningPower.not_found_error:
                 if self.federated_only:
                     self.nickname = NO_NICKNAME
                 else:
                     raise
 
-        #
         # Fleet state
-        #
-        if is_me is True:
+        if is_me:
             self.known_nodes.record_fleet_state()
 
-        #
         # Character Control
-        #
+        # TODO: have argument about meaning of 'lawful' and whether maybe only Lawful characters have an interface
+        if hasattr(self, '_interface_class'):
+            # Controller Interface
+            self.interface = self._interface_class(character=self)
         self.controller = NO_CONTROL_PROTOCOL
 
     def __eq__(self, other) -> bool:

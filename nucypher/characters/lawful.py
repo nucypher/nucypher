@@ -70,7 +70,7 @@ from nucypher.blockchain.eth.constants import ETH_ADDRESS_BYTE_LENGTH
 from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
 from nucypher.blockchain.eth.registry import BaseContractRegistry
 from nucypher.blockchain.eth.signers.software import Web3Signer
-from nucypher.blockchain.eth.token import WorkTracker
+from nucypher.blockchain.eth.token import WorkTracker, StakeList
 from nucypher.characters.banners import ALICE_BANNER, BOB_BANNER, ENRICO_BANNER, URSULA_BANNER
 from nucypher.characters.base import Character, Learner
 from nucypher.characters.control.controllers import WebController
@@ -1036,15 +1036,14 @@ class Bob(Character):
 
 
 class Ursula(Teacher, Character, Worker):
+
     banner = URSULA_BANNER
     _alice_class = Alice
 
-    # TODO: Maybe this wants to be a registry, so that, for example,  NRN
-    # TODO: TLSHostingPower still can enjoy default status, but on a different class  NRN
     _default_crypto_powerups = [
         SigningPower,
         DecryptingPower,
-        TLSHostingPower
+        # TLSHostingPower  # Still considered a default for Ursula, but needs the host context
     ]
 
     _pruning_interval = 60  # seconds
@@ -1063,56 +1062,36 @@ class Ursula(Teacher, Character, Worker):
                  # Ursula
                  rest_host: str,
                  rest_port: int,
-                 domain: str = None,  # For now, serving and learning domain will be the same.
+                 domain: str,
+                 is_me: bool = True,
+
                  certificate: Certificate = None,
                  certificate_filepath: str = None,
+
                  db_filepath: str = None,
-                 is_me: bool = True,
                  interface_signature=None,
                  timestamp=None,
-                 availability_check: bool = False,
-                 prune_datastore: bool = True,
+                 availability_check: bool = False,  # TODO: Remove from init
 
                  # Blockchain
-                 decentralized_identity_evidence: bytes = constants.NOT_SIGNED,
                  checksum_address: str = None,
                  worker_address: str = None,  # TODO: deprecate, and rename to "checksum_address"
-                 block_until_ready: bool = True,
-                 # TODO: Must be true in order to set staker address - Allow for manual staker addr to be passed too!
-                 work_tracker: WorkTracker = None,
-                 commit_now: bool = True,
                  client_password: str = None,
+                 decentralized_identity_evidence=NOT_SIGNED,
 
                  # Character
                  abort_on_learning_error: bool = False,
                  federated_only: bool = False,
-                 start_learning_now: bool = None,
                  crypto_power=None,
-                 tls_curve: EllipticCurve = None,
-                 known_nodes: Iterable = None,
+                 known_nodes: Iterable[Teacher] = None,
 
                  **character_kwargs
                  ) -> None:
 
-        #
-        # Character
-        #
-
-        if domain is None:
-            # TODO: Move defaults to configuration, Off character.
-            from nucypher.config.node import CharacterConfiguration
-            domain = CharacterConfiguration.DEFAULT_DOMAIN
-
-        if is_me:
-            # If we're federated only, we assume that all other nodes in our domain are as well.
-            self.set_federated_mode(federated_only)
-
         Character.__init__(self,
                            is_me=is_me,
                            checksum_address=checksum_address,
-                           start_learning_now=start_learning_now,
-                           federated_only=self._federated_only_instances,
-                           # TODO: 'Ursula' object has no attribute '_federated_only_instances' if an is_me Ursula is not inited prior to this moment  NRN
+                           federated_only=federated_only,
                            crypto_power=crypto_power,
                            abort_on_learning_error=abort_on_learning_error,
                            known_nodes=known_nodes,
@@ -1121,114 +1100,66 @@ class Ursula(Teacher, Character, Worker):
                            **character_kwargs)
 
         if is_me:
-            # Learner
-            self._start_learning_now = start_learning_now
 
-            # Self-Health Checks
+            # Operating Mode
+            self.known_node_class.set_federated_mode(federated_only)
+
+            # Health Checks
             self._availability_check = availability_check
             self._availability_tracker = AvailabilityTracker(ursula=self)
 
             # Datastore Pruning
-            self.__pruning_task = None
-            self._prune_datastore = prune_datastore
+            self.__pruning_task: Union[Deferred, None] = None
             self._datastore_pruning_task = LoopingCall(f=self.__prune_datastore)
 
-        #
-        # Ursula the Decentralized Worker (Self)
-        #
+            # Decentralized Worker
+            if not federated_only:
 
-        if is_me and not federated_only:  # TODO: #429
+                # Prepare a TransactingPower from worker node's transacting keys
+                transacting_power = TransactingPower(account=worker_address,
+                                                     password=client_password,
+                                                     signer=self.signer,
+                                                     cache=True)
+                self.transacting_power = transacting_power
+                self._crypto_power.consume_power_up(transacting_power)
+                self._checksum_address = transacting_power.account
 
-            # Prepare a TransactingPower from worker node's transacting keys
-            _transacting_power = TransactingPower(account=worker_address,
-                                                  password=client_password,
-                                                  signer=self.signer,
-                                                  cache=True)
-
-            self.transacting_power = _transacting_power
-            self._crypto_power.consume_power_up(_transacting_power)
-            self._set_checksum_address(checksum_address)
-
-            # Use this power to substantiate the stamp
-            self.substantiate_stamp()
-            self.log.debug(
-                f"Created decentralized identity evidence: {self.decentralized_identity_evidence[:10].hex()}")
-            decentralized_identity_evidence = self.decentralized_identity_evidence
-
-            try:
-                Worker.__init__(self,
-                                is_me=is_me,
-                                registry=self.registry,
-                                checksum_address=checksum_address,
-                                worker_address=worker_address,
-                                work_tracker=work_tracker,
-                                commit_now=commit_now,
-                                block_until_ready=block_until_ready)
-            except (Exception, self.WorkerError):  # FIXME
-                # TODO: Do not announce self to "other nodes" until this init is finished.
-                # It's not possible to finish constructing this node.
-                self.stop(halt_reactor=False)
-                raise
-
-        if not crypto_power or (TLSHostingPower not in crypto_power):  # FIXME: Is this line relevant?
-
-            if is_me:
-                self.suspicious_activities_witnessed = {'vladimirs': [],
-                                                        'bad_treasure_maps': [],
-                                                        'freeriders': []}
-
-                # REST Server (Ephemeral Self-Ursula)
-                rest_app, datastore = make_rest_app(
-                    this_node=self,
-                    db_filepath=db_filepath,
-                    domain=domain,
-                )
+                # Use this power to substantiate the stamp
+                self.__substantiate_stamp()
+                decentralized_identity_evidence = self.__decentralized_identity_evidence
 
                 try:
-                    # Restored from private keys
-                    tls_hosting_power = self._crypto_power.power_ups(TLSHostingPower)
-                except TLSHostingPower.not_found_error:
-                    # "Dev Mode" - Generate ephemeral private Keys
-                    tls_hosting_keypair = HostingKeypair(curve=tls_curve,
-                                                         host=rest_host,
-                                                         checksum_address=self.checksum_address)
-                    tls_hosting_power = TLSHostingPower(keypair=tls_hosting_keypair, host=rest_host)
+                    Worker.__init__(self,
+                                    is_me=is_me,
+                                    registry=self.registry,
+                                    checksum_address=checksum_address,
+                                    worker_address=worker_address)
+                except (Exception, self.WorkerError):
+                    # TODO: Do not announce self to "other nodes" until this init is finished.
+                    # It's not possible to finish constructing this node.
+                    self.stop(halt_reactor=False)
+                    raise
 
+            self.rest_server = self._make_local_server(host=rest_host,
+                                                       port=rest_port,
+                                                       db_filepath=db_filepath,
+                                                       domain=domain)
 
-                self.rest_server = ProxyRESTServer(rest_host=rest_host, rest_port=rest_port,
-                                                   rest_app=rest_app, datastore=datastore,
-                                                   hosting_power=tls_hosting_power)
+            # Self-signed TLS certificate of self for Teacher.__init__
+            certificate_filepath = self._crypto_power.power_ups(TLSHostingPower).keypair.certificate_filepath
+            certificate = self._crypto_power.power_ups(TLSHostingPower).keypair.certificate
 
-            else:
+            # Initial Impression
+            self.known_nodes.record_fleet_state(additional_nodes_to_track=[self])
+            message = "THIS IS YOU: {}: {}".format(self.__class__.__name__, self)
+            self.log.info(message)
+            self.log.info(self.banner.format(self.nickname))
 
-                # FEEL LIKE A STRANGER
+        else:
+            # Stranger HTTP Server
+            self.rest_server = ProxyRESTServer(rest_host=rest_host, rest_port=rest_port)
 
-                # TLSHostingPower
-                if certificate or certificate_filepath:
-                    tls_hosting_power = TLSHostingPower(host=rest_host,
-                                                        public_certificate_filepath=certificate_filepath,
-                                                        public_certificate=certificate)
-                else:
-                    tls_hosting_keypair = HostingKeypair(curve=tls_curve, host=rest_host, generate_certificate=False)
-                    tls_hosting_power = TLSHostingPower(host=rest_host, keypair=tls_hosting_keypair)
-
-                # REST Server
-                # Unless the caller passed a crypto power we'll make our own TLSHostingPower for this stranger.
-                self.rest_server = ProxyRESTServer(
-                    rest_host=rest_host,
-                    rest_port=rest_port,
-                    hosting_power=tls_hosting_power
-                )
-
-            # OK - Now we have a ProxyRestServer and a TLSHostingPower for some Ursula
-            self._crypto_power.consume_power_up(tls_hosting_power)  # Consume!
-
-        #
-        # Teacher (Verifiable Node)
-        #
-
-        certificate_filepath = self._crypto_power.power_ups(TLSHostingPower).keypair.certificate_filepath
-        certificate = self._crypto_power.power_ups(TLSHostingPower).keypair.certificate
+        # Teacher (All Modes)
         Teacher.__init__(self,
                          domain=domain,
                          certificate=certificate,
@@ -1237,25 +1168,42 @@ class Ursula(Teacher, Character, Worker):
                          timestamp=timestamp,
                          decentralized_identity_evidence=decentralized_identity_evidence)
 
-        if is_me:
-            self.known_nodes.record_fleet_state(additional_nodes_to_track=[self])  # Initial Impression
+    def __get_hosting_power(self, host: str) -> TLSHostingPower:
+        try:
+            # Pre-existing or injected power
+            tls_hosting_power = self._crypto_power.power_ups(TLSHostingPower)
+        except TLSHostingPower.not_found_error:
+            if self.keyring:
+                # Restore from TLS private key on-disk
+                tls_hosting_power = self.keyring.derive_crypto_power(TLSHostingPower, host=host)
+            else:
+                # Generate ephemeral private key ("Dev Mode")
+                tls_hosting_keypair = HostingKeypair(host=host, checksum_address=self.checksum_address)
+                tls_hosting_power = TLSHostingPower(keypair=tls_hosting_keypair, host=host)
 
-            message = "THIS IS YOU: {}: {}".format(self.__class__.__name__, self)
-            self.log.info(message)
-            self.log.info(self.banner.format(self.nickname))
-        else:
-            message = "Initialized Stranger {} | {}".format(self.__class__.__name__, self)
-            self.log.debug(message)
+        self._crypto_power.consume_power_up(tls_hosting_power)  # Consume!
+        return tls_hosting_power
 
-    def derive_powers(self):
-        if self.keyring_root and self.keyring:
-            if self.keyring_root != self.keyring.keyring_root:
-                raise ValueError("Inconsistent keyring root directory path")
-        if self.keyring:
-            crypto_power_ups = list()
-            for power_up in self._default_crypto_powerups:
-                power = self.keyring.derive_crypto_power(power_class=power_up, host=self.interface.host)
-                crypto_power_ups.append(power)
+    def _make_local_server(self, host, port, domain, db_filepath) -> ProxyRESTServer:
+        rest_app, datastore = make_rest_app(
+            this_node=self,
+            db_filepath=db_filepath,
+            domain=domain,
+        )
+        rest_server = ProxyRESTServer(rest_host=host,
+                                      rest_port=port,
+                                      rest_app=rest_app,
+                                      datastore=datastore,
+                                      hosting_power=self.__get_hosting_power(host=host))
+        return rest_server
+
+    def __substantiate_stamp(self):
+        transacting_power = self._crypto_power.power_ups(TransactingPower)
+        signature = transacting_power.sign_message(message=bytes(self.stamp))
+        self.__decentralized_identity_evidence = signature
+        self.__worker_address = transacting_power.account
+        message = f"Created decentralized identity evidence: {self.__decentralized_identity_evidence[:10].hex()}"
+        self.log.debug(message)
 
     def __prune_datastore(self) -> None:
         """Deletes all expired arrangements, kfrags, and treasure maps in the datastore."""
@@ -1436,17 +1384,11 @@ class Ursula(Teacher, Character, Worker):
         deployer = self._crypto_power.power_ups(TLSHostingPower).get_deployer(rest_app=self.rest_app, port=port)
         return deployer
 
-    def rest_server_certificate(self):
-        return self._crypto_power.power_ups(TLSHostingPower).keypair.certificate
-
     def __bytes__(self):
 
         version = self.TEACHER_VERSION.to_bytes(2, "big")
         interface_info = VariableLengthBytestring(bytes(self.rest_interface))
-
-        certificate = self.rest_server_certificate()
-        cert_vbytes = VariableLengthBytestring(certificate.public_bytes(Encoding.PEM))
-
+        certificate_vbytes = VariableLengthBytestring(self.certificate.public_bytes(Encoding.PEM))
         as_bytes = bytes().join((version,
                                  self.canonical_public_address,
                                  bytes(VariableLengthBytestring(self.domain.encode('utf-8'))),
@@ -1455,7 +1397,7 @@ class Ursula(Teacher, Character, Worker):
                                  bytes(VariableLengthBytestring(self.decentralized_identity_evidence)),  # FIXME: Fixed length doesn't work with federated
                                  bytes(self.public_keys(SigningPower)),
                                  bytes(self.public_keys(DecryptingPower)),
-                                 bytes(cert_vbytes),
+                                 bytes(certificate_vbytes),  # TLSHostingPower
                                  bytes(interface_info))
                                 )
         return as_bytes

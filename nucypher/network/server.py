@@ -15,13 +15,19 @@ You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
+
 import binascii
 import os
 import uuid
 import weakref
 from bytestring_splitter import BytestringSplitter
 from constant_sorrow import constants
-from constant_sorrow.constants import FLEET_STATES_MATCH, NO_BLOCKCHAIN_CONNECTION, NO_KNOWN_NODES, RELAX
+from constant_sorrow.constants import (
+    FLEET_STATES_MATCH,
+    NO_BLOCKCHAIN_CONNECTION,
+    NO_KNOWN_NODES,
+    RELAX
+)
 from datetime import datetime, timedelta
 from flask import Flask, Response, jsonify, request
 from mako import exceptions as mako_exceptions
