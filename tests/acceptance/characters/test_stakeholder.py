@@ -126,7 +126,6 @@ def test_collect_inflation_rewards(software_stakeholder, manual_worker, testerch
     worker = Worker(is_me=True,
                     worker_address=manual_worker,
                     checksum_address=stake.staker_address,
-                    commit_now=False,
                     registry=test_registry)
 
     mock_transacting_power_activation(account=manual_worker, password=INSECURE_DEVELOPMENT_PASSWORD)

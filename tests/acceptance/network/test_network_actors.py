@@ -136,7 +136,7 @@ def test_alice_refuses_to_make_arrangement_unless_ursula_is_valid(blockchain_ali
     message = vladimir._signable_interface_info_message()
     signature = vladimir._crypto_power.power_ups(SigningPower).sign(message)
 
-    vladimir.substantiate_stamp()
+    vladimir.__substantiate_stamp()
     vladimir._Teacher__interface_signature = signature
     vladimir.node_storage.store_node_certificate(certificate=target.certificate)
 

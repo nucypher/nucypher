@@ -14,7 +14,7 @@ GNU Affero General Public License for more details.
 You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
-
+from collections import Iterable
 
 import os
 from constant_sorrow.constants import (
@@ -42,7 +42,6 @@ class UrsulaConfiguration(CharacterConfiguration):
     DEFAULT_REST_PORT = 9151
     DEFAULT_DEVELOPMENT_REST_HOST = '127.0.0.1'
     DEFAULT_DEVELOPMENT_REST_PORT = 10151
-    __DEFAULT_TLS_CURVE = ec.SECP384R1
     DEFAULT_DB_NAME = f'{NAME}.db'
     DEFAULT_AVAILABILITY_CHECKS = False
     LOCAL_SIGNERS_ALLOWED = True
@@ -53,7 +52,6 @@ class UrsulaConfiguration(CharacterConfiguration):
                  dev_mode: bool = False,
                  db_filepath: str = None,
                  rest_port: int = None,
-                 tls_curve: EllipticCurve = None,
                  certificate: Certificate = None,
                  availability_check: bool = None,
                  *args, **kwargs) -> None:
@@ -70,7 +68,6 @@ class UrsulaConfiguration(CharacterConfiguration):
 
         self.rest_port = rest_port
         self.rest_host = rest_host
-        self.tls_curve = tls_curve or self.__DEFAULT_TLS_CURVE
         self.certificate = certificate
         self.db_filepath = db_filepath or UNINITIALIZED_CONFIGURATION
         self.worker_address = worker_address
@@ -101,7 +98,6 @@ class UrsulaConfiguration(CharacterConfiguration):
     def dynamic_payload(self) -> dict:
         payload = dict(
             network_middleware=self.network_middleware,
-            tls_curve=self.tls_curve,  # TODO: Needs to be in static payload with [str -> curve] mapping
             certificate=self.certificate,
             interface_signature=self.interface_signature,
             timestamp=None
@@ -122,14 +118,6 @@ class UrsulaConfiguration(CharacterConfiguration):
 
         return ursula
 
-    def derive_node_power_ups(self):
-        power_ups = list()
-        if self.is_me and not self.dev_mode:
-            for power_class in self.CHARACTER_CLASS._default_crypto_powerups:
-                power_up = self.keyring.derive_crypto_power(power_class, host=self.rest_host)
-                power_ups.append(power_up)
-        return power_ups
-
     def attach_keyring(self, checksum_address: str = None, *args, **kwargs) -> None:
         if self.federated_only:
             account = checksum_address or self.checksum_address
@@ -142,7 +130,6 @@ class UrsulaConfiguration(CharacterConfiguration):
                                         encrypting=True,
                                         rest=True,
                                         host=self.rest_host,
-                                        curve=self.tls_curve,
                                         checksum_address=self.worker_address,
                                         **generation_kwargs)
         return keyring
@@ -305,6 +292,11 @@ class StakeHolderConfiguration(CharacterConfiguration):
 
     NAME = 'stakeholder'
     CHARACTER_CLASS = StakeHolder
+
+    _CONFIG_FIELDS = (
+        *CharacterConfiguration._CONFIG_FIELDS,
+        'provider_uri'
+    )
 
     def __init__(self, checksum_addresses: set = None, *args, **kwargs):
         super().__init__(*args, **kwargs)
