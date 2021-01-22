@@ -114,8 +114,8 @@ def _read_keyfile(keypath: str,
     with open(keypath, 'rb') as keyfile:
         key_data = keyfile.read()
         if deserializer:
-            key_metadata = deserializer(key_data)
-    return key_metadata
+            key_data = deserializer(key_data)
+    return key_data
 
 
 def _write_private_keyfile(keypath: str,
