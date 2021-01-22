@@ -14,6 +14,8 @@
  You should have received a copy of the GNU Affero General Public License
  along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
+
+
 import pytest
 import tempfile
 from constant_sorrow.constants import FEDERATED_ADDRESS

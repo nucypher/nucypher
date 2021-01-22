@@ -409,7 +409,6 @@ class CharacterConfiguration(BaseConfiguration):
             # Identity
             federated_only=self.federated_only,
             checksum_address=self.checksum_address,
-            keyring_root=self.keyring_root,
 
             # Behavior
             domain=self.domain,
@@ -455,6 +454,7 @@ class CharacterConfiguration(BaseConfiguration):
         payload.update(dict(network_middleware=self.network_middleware or self.DEFAULT_NETWORK_MIDDLEWARE(),
                             known_nodes=self.known_nodes,
                             node_storage=self.node_storage,
+                            keyring=self.keyring,
                             crypto_power_ups=self.derive_node_power_ups()))
 
         return payload
