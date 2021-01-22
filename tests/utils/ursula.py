@@ -98,7 +98,6 @@ def make_federated_ursulas(ursula_config: UrsulaConfiguration,
 def make_decentralized_ursulas(ursula_config: UrsulaConfiguration,
                                stakers_addresses: Iterable[str],
                                workers_addresses: Iterable[str],
-                               commit_now: bool = True,
                                **ursula_overrides) -> List[Ursula]:
 
     if not MOCK_KNOWN_URSULAS_CACHE:
@@ -114,7 +113,6 @@ def make_decentralized_ursulas(ursula_config: UrsulaConfiguration,
                                        worker_address=worker_address,
                                        db_filepath=MOCK_DB,
                                        rest_port=port + 100,
-                                       commit_now=commit_now,
                                        **ursula_overrides)
 
         ursulas.append(ursula)
@@ -131,7 +129,6 @@ def make_ursula_for_staker(staker: Staker,
                            blockchain: BlockchainInterface,
                            ursula_config: UrsulaConfiguration,
                            ursulas_to_learn_about: Optional[List[Ursula]] = None,
-                           commit_now: bool = True,
                            **ursula_overrides) -> Ursula:
 
     # Assign worker to this staker
@@ -141,7 +138,6 @@ def make_ursula_for_staker(staker: Staker,
                                         blockchain=blockchain,
                                         stakers_addresses=[staker.checksum_address],
                                         workers_addresses=[worker_address],
-                                        commit_now=commit_now,
                                         **ursula_overrides).pop()
 
     for ursula_to_learn_about in (ursulas_to_learn_about or []):

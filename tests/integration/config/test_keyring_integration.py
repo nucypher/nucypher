@@ -23,6 +23,7 @@ from umbral.keys import UmbralPrivateKey
 from umbral.signing import Signer
 
 from nucypher.characters.lawful import Alice, Bob, Ursula
+from nucypher.config.constants import TEMPORARY_DOMAIN
 from nucypher.config.keyring import NucypherKeyring
 from nucypher.crypto.powers import DecryptingPower, DelegatingPower
 from tests.constants import INSECURE_DEVELOPMENT_PASSWORD
@@ -73,11 +74,17 @@ def test_characters_use_keyring(tmpdir):
         checksum_address=FEDERATED_ADDRESS,
         password=INSECURE_DEVELOPMENT_PASSWORD,
         encrypting=True,
-        rest=False,
+        rest=True,
+        host='127.0.0.1',
         keyring_root=tmpdir)
     keyring.unlock(password=INSECURE_DEVELOPMENT_PASSWORD)
-    a = Alice(federated_only=True, start_learning_now=False, keyring=keyring)
+    alice = Alice(federated_only=True, start_learning_now=False, keyring=keyring)
     Bob(federated_only=True, start_learning_now=False, keyring=keyring)
-    Ursula(federated_only=True, start_learning_now=False, keyring=keyring,
-           rest_host='127.0.0.1', rest_port=12345, db_filepath=tempfile.mkdtemp())
-    a.disenchant()  # To stop Alice's publication threadpool.  TODO: Maybe only start it at first enactment?
+    Ursula(federated_only=True,
+           start_learning_now=False,
+           keyring=keyring,
+           rest_host='127.0.0.1',
+           rest_port=12345,
+           db_filepath=tempfile.mkdtemp(),
+           domain=TEMPORARY_DOMAIN)
+    alice.disenchant()  # To stop Alice's publication threadpool.  TODO: Maybe only start it at first enactment?

@@ -82,7 +82,6 @@ class Vladimir(Ursula):
                        db_filepath=db_filepath,
                        domain=TEMPORARY_DOMAIN,
                        block_until_ready=False,
-                       commit_now=False,
                        rest_host=target_ursula.rest_interface.host,
                        rest_port=target_ursula.rest_interface.port,
                        certificate=target_ursula.rest_server_certificate(),

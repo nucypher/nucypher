@@ -293,6 +293,11 @@ class StakeHolderConfiguration(CharacterConfiguration):
     NAME = 'stakeholder'
     CHARACTER_CLASS = StakeHolder
 
+    _CONFIG_FIELDS = (
+        *CharacterConfiguration._CONFIG_FIELDS,
+        'provider_uri'
+    )
+
     def __init__(self, checksum_addresses: set = None, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.checksum_addresses = checksum_addresses

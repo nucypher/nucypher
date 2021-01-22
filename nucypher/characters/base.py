@@ -166,12 +166,14 @@ class Character(Learner):
                 self._stamp = NO_SIGNING_POWER
 
             # Blockchain
-            #
-            self.provider_uri = provider_uri
             if not self.federated_only:
                 self.registry = registry or InMemoryContractRegistry.from_latest_publication(network=domain)  # See #1580
             else:
                 self.registry = NO_BLOCKCHAIN_CONNECTION.bool_value(False)
+
+            if not federated_only and not provider_uri:
+                raise ValueError('Provider URI is required to init a decentralized character.')
+            self.provider_uri = provider_uri
 
             # REST
             self.network_middleware = network_middleware or RestMiddleware(registry=self.registry)

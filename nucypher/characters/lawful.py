@@ -1247,17 +1247,24 @@ class Ursula(Teacher, Character, Worker):
     def run(self,
             emitter: StdoutEmitter = None,
             discovery: bool = True,  # TODO: see below
-            availability: bool = True,
+            availability: bool = False,
             worker: bool = True,
             pruning: bool = True,
             interactive: bool = False,
             hendrix: bool = True,
             start_reactor: bool = True,
             prometheus_config: 'PrometheusMetricsConfig' = None,
-            preflight: bool = True
+            preflight: bool = True,
+            block_until_ready: bool = True,
+            eager: bool = False
             ) -> None:
 
         """Schedule and start select ursula services, then optionally start the reactor."""
+
+        # Connect to Provider
+        if not self.federated_only:
+            if not BlockchainInterfaceFactory.is_interface_initialized(provider_uri=self.provider_uri):
+                BlockchainInterfaceFactory.initialize_interface(provider_uri=self.provider_uri)
 
         if preflight:
             self.__preflight()
@@ -1270,18 +1277,17 @@ class Ursula(Teacher, Character, Worker):
             emitter.message(f"Starting services", color='yellow')
 
         if pruning:
-            self.__pruning_task = self._datastore_pruning_task.start(interval=self._pruning_interval, now=True)
+            self.__pruning_task = self._datastore_pruning_task.start(interval=self._pruning_interval, now=eager)
             if emitter:
                 emitter.message(f"✓ Database Pruning", color='green')
 
-        # TODO: Startup node discovery here with the rest of Ursula's services.
-        # if discovery and not self.lonely:
-        #     self.start_learning_loop(now=self._start_learning_now)
-        #     if emitter:
-        #         emitter.message(f"✓ Node Discovery - {self.domain}", color='green')
+        if discovery and not self.lonely:
+            self.start_learning_loop(now=eager)
+            if emitter:
+                emitter.message(f"✓ Node Discovery ({self.domain.capitalize()})", color='green')
 
-        if self._availability_check and availability:
-            self._availability_tracker.start(now=False)  # wait...
+        if self._availability_check or availability:
+            self._availability_tracker.start(now=eager)
             if emitter:
                 emitter.message(f"✓ Availability Checks", color='green')
 
