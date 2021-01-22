@@ -16,11 +16,11 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
 
-from copy import copy
-
 import tempfile
-from eth_tester.exceptions import ValidationError
+from copy import copy
 from unittest.mock import patch
+
+from eth_tester.exceptions import ValidationError
 
 from nucypher.blockchain.eth.signers.software import Web3Signer
 from nucypher.characters.lawful import Alice, Ursula
@@ -29,7 +29,6 @@ from nucypher.crypto.api import encrypt_and_sign
 from nucypher.crypto.powers import CryptoPower, SigningPower, DecryptingPower, TransactingPower
 from nucypher.exceptions import DevelopmentInstallationRequired
 from nucypher.policy.collections import SignedTreasureMap
-from tests.constants import MOCK_PROVIDER_URI
 
 try:
     from tests.utils.middleware import EvilMiddleWare

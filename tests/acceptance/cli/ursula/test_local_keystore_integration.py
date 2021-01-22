@@ -36,7 +36,7 @@ from tests.constants import (
     MOCK_IP_ADDRESS,
     TEST_PROVIDER_URI
 )
-from tests.utils.ursula import MOCK_URSULA_STARTING_PORT, select_test_port
+from tests.utils.ursula import select_test_port
 
 
 @pytest.fixture(scope='module')
@@ -147,7 +147,6 @@ def test_ursula_and_local_keystore_signer_integration(click_runner,
     mocker.patch.object(StakeList, 'refresh', autospec=True)
     ursula = ursula_config.produce(commit_now=False, block_until_ready=False)
     ursula.signer.unlock_account(account=worker_account.address, password=password)
-
 
     try:
         # Verify the keystore path is still preserved
