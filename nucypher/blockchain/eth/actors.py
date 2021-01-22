@@ -1183,8 +1183,6 @@ class Worker(NucypherTokenActor):
                  is_me: bool,
                  work_tracker: WorkTracker = None,
                  worker_address: str = None,
-                 commit_now: bool = False,
-                 block_until_ready: bool = True,
                  *args, **kwargs):
 
         super().__init__(*args, **kwargs)
@@ -1207,13 +1205,8 @@ class Worker(NucypherTokenActor):
         self.__uptime_period = WORKER_NOT_RUNNING
 
         if is_me:
-            if block_until_ready:
-                # Workers cannot be started before bonding.
-                self.block_until_ready()
             self.stakes = StakeList(registry=self.registry, checksum_address=self.checksum_address)
-            self.stakes.refresh()
             self.work_tracker = work_tracker or WorkTracker(worker=self)
-            self.work_tracker.start(commit_now=commit_now)
 
     def block_until_ready(self, poll_rate: int = None, timeout: int = None, feedback_rate: int = None):
         """
@@ -1232,7 +1225,6 @@ class Worker(NucypherTokenActor):
         last_provided_feedback = start
 
         emitter = StdoutEmitter()
-        emitter.message("Qualifying worker", color='yellow')
 
         funded, bonded = False, False
         while True:
