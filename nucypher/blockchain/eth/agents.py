@@ -689,8 +689,11 @@ class StakingEscrowAgent(EthereumContractAgent):
 
     def get_stakers_reservoir(self,
                               duration: int,
-                              without: Iterable[ChecksumAddress] = [],
+                              without: Iterable[ChecksumAddress] = None,
                               pagination_size: Optional[int] = None) -> 'StakersReservoir':
+
+        if not without:
+            without = list()
 
         n_tokens, stakers_map = self.get_all_active_stakers(periods=duration,
                                                             pagination_size=pagination_size)

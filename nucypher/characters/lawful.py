@@ -1243,7 +1243,10 @@ class Ursula(Teacher, Character, Worker):
                 self.log.debug(f"Pruned {result} treasure maps.")
 
     def __preflight(self) -> None:
-        """Called immediately before running services"""
+        """Called immediately before running services
+        If an exception is raised, Ursula startup will be interrupted.
+
+        """
         validate_worker_ip(worker_ip=self.rest_interface.host)
 
     def run(self,

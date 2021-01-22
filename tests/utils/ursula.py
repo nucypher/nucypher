@@ -114,6 +114,7 @@ def make_decentralized_ursulas(ursula_config: UrsulaConfiguration,
                                        db_filepath=MOCK_DB,
                                        rest_port=port + 100,
                                        **ursula_overrides)
+        ursula.commit_to_next_period()
 
         ursulas.append(ursula)
 
