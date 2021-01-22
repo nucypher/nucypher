@@ -16,14 +16,16 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
 
-import json
-import stat
-from json import JSONDecodeError
-from os.path import abspath
-
 import base64
 import contextlib
+import json
 import os
+import stat
+from functools import partial
+from json import JSONDecodeError
+from os.path import abspath
+from typing import Callable, ClassVar, Dict, List, Tuple, Union, Optional
+
 from constant_sorrow.constants import FEDERATED_ADDRESS, KEYRING_LOCKED
 from cryptography import x509
 from cryptography.hazmat.backends import default_backend
@@ -39,13 +41,12 @@ from eth_keys import KeyAPI as EthKeyAPI
 from eth_utils import to_checksum_address
 from nacl.exceptions import CryptoError
 from nacl.secret import SecretBox
-from typing import Callable, ClassVar, Dict, List, Tuple, Union, Optional
 from umbral.keys import UmbralKeyingMaterial, UmbralPrivateKey, UmbralPublicKey, derive_key_from_password
 
-from nucypher.crypto.keypairs import HostingKeypair
 from nucypher.config.constants import DEFAULT_CONFIG_ROOT
 from nucypher.crypto.api import generate_teacher_certificate
 from nucypher.crypto.constants import BLAKE2B
+from nucypher.crypto.keypairs import HostingKeypair
 from nucypher.crypto.powers import (DecryptingPower, DerivedKeyBasedPower, KeyPairBasedPower, SigningPower)
 from nucypher.network.server import TLSHostingPower
 from nucypher.utilities.logging import Logger
@@ -67,6 +68,11 @@ __PUBLIC_MODE = stat.S_IRUSR | stat.S_IWUSR | stat.S_IRGRP | stat.S_IROTH  # 0o6
 __WRAPPING_KEY_LENGTH = 32
 __WRAPPING_KEY_INFO = b'NuCypher-KeyWrap'
 __HKDF_HASH_ALGORITHM = BLAKE2B
+
+PrivateKeyData = Union[
+    Dict[str, bytes],
+    bytes,
+    _EllipticCurvePrivateKey]
 
 
 class PrivateKeyExistsError(RuntimeError):
@@ -100,21 +106,21 @@ def _assemble_key_data(key_data: bytes,
 
 
 def _read_keyfile(keypath: str,
-                  deserializer: Union[Callable, None]
-                  ) -> Union[Dict[str, bytes], bytes, str]:
+                  deserializer: Union[Callable[[bytes], Union[PrivateKeyData, bytes, str]], None]
+                  ) -> Union[PrivateKeyData, bytes, str]:
     """
-    Parses a keyfile and return decoded, deserialized key metadata.
+    Parses a keyfile and return decoded, deserialized key data.
     """
     with open(keypath, 'rb') as keyfile:
-        key_metadata = keyfile.read()
+        key_data = keyfile.read()
         if deserializer:
-            key_metadata = deserializer(key_metadata)
+            key_metadata = deserializer(key_data)
     return key_metadata
 
 
 def _write_private_keyfile(keypath: str,
-                           key_data: Dict[str, bytes],
-                           serializer: Union[Callable, None],
+                           key_data: PrivateKeyData,
+                           serializer: Union[Callable[[PrivateKeyData], bytes], None],
                            ) -> str:
     """
     Creates a permissioned keyfile and save it to the local filesystem.
@@ -252,53 +258,53 @@ def _generate_tls_keys(host: str, checksum_address: str, curve: EllipticCurve) -
     return private_key, cert
 
 
+class _TLSPrivateKeySerializer:
+    @staticmethod
+    def serialize(key_data: PrivateKeyData, password: bytes) -> bytes:
+        # TODO: Can we skip this check - below function will fail anyway, this is more informative though
+        if not isinstance(key_data, _EllipticCurvePrivateKey):
+            raise TypeError("Only _EllipticCurvePrivateKey is a valid type for serialization. Got {}".format(type(key_data)))
+        return key_data.private_bytes(
+            encoding=serialization.Encoding.PEM,
+            format=serialization.PrivateFormat.TraditionalOpenSSL,
+            encryption_algorithm=serialization.BestAvailableEncryption(password=password)
+        )
+
+    @staticmethod
+    def deserialize(key_data: bytes, password: bytes) -> PrivateKeyData:
+        private_key = load_pem_private_key(data=key_data, password=password)
+        return private_key
+
+
 class _PrivateKeySerializer:
 
-    def __serialize(self,
-                    key_metadata: Dict[str, bytes],
-                    encoding: str,
-                    nested_serializer: Callable = KEY_ENCODER,
-                    ) -> bytes:
+    @staticmethod
+    def serialize(key_data: PrivateKeyData) -> bytes:
+        # TODO: Can we skip this check - below function will fail anyway, this is more informative though
+        if not isinstance(key_data, dict):
+            raise TypeError("Only dict is a valid type for serialization. Got {}".format(type(key_data)))
 
-        if nested_serializer:
-            metadata = dict()
-            for field, value in key_metadata.items():
-                metadata[field] = nested_serializer(bytes(value)).decode()
+        metadata = dict()
+        for field, value in key_data.items():
+            metadata[field] = KEY_ENCODER(bytes(value)).decode()
         try:
             metadata = json.dumps(metadata, indent=4)
         except JSONDecodeError:
             raise NucypherKeyring.KeyringError("Invalid or corrupted key data")
         except TypeError:
             raise
-        return bytes(metadata, encoding=encoding)
+        return bytes(metadata, encoding=FILE_ENCODING)
 
-    def __deserialize(self,
-                      key_metadata: bytes,
-                      encoding: str,
-                      nested_deserializer: Callable = KEY_DECODER
-                      ) -> Dict[str, bytes]:
-
-        key_metadata = key_metadata.decode(encoding=encoding)
+    @staticmethod
+    def deserialize(key_data: bytes) -> PrivateKeyData:
+        key_metadata = key_data.decode(encoding=FILE_ENCODING)
         try:
             key_metadata = json.loads(key_metadata)
         except JSONDecodeError:
             raise NucypherKeyring.KeyringError("Invalid or corrupted key data")
-        if nested_deserializer:
-            key_metadata = {field: nested_deserializer(value.encode())
-                            for field, value in key_metadata.items()}
+        key_metadata = {field: KEY_DECODER(value.encode())
+                        for field, value in key_metadata.items()}
         return key_metadata
-
-    def __call__(self, data: Union[bytes, dict]):
-        if isinstance(data, bytes):
-            return self.__deserialize(key_metadata=data,
-                                      encoding=FILE_ENCODING,
-                                      nested_deserializer=KEY_DECODER)
-        elif isinstance(data, dict):
-            return self.__serialize(key_metadata=data,
-                                    encoding=FILE_ENCODING,
-                                    nested_serializer=KEY_ENCODER)
-        else:
-            raise TypeError("Only bytes or dict are valid types for serialization. Got {}".format(type(data)))
 
 
 class NucypherKeyring:
@@ -434,7 +440,7 @@ class NucypherKeyring:
     @unlock_required
     def __decrypt_keyfile(self, key_path: str) -> UmbralPrivateKey:
         """Returns plaintext version of decrypting key."""
-        key_data = _read_keyfile(key_path, deserializer=self._private_key_serializer)
+        key_data = _read_keyfile(key_path, deserializer=_PrivateKeySerializer.deserialize)
         wrap_key = _derive_wrapping_key_from_key_material(salt=key_data['wrap_salt'],
                                                           key_material=self.__derived_key_material)
         plain_umbral_key = UmbralPrivateKey.from_bytes(key_bytes=key_data['key'], wrapping_key=wrap_key)
@@ -459,7 +465,7 @@ class NucypherKeyring:
     def unlock(self, password: str) -> bool:
         if self.is_unlocked:
             return self.is_unlocked
-        key_data = _read_keyfile(keypath=self.__root_keypath, deserializer=self._private_key_serializer)
+        key_data = _read_keyfile(keypath=self.__root_keypath, deserializer=_PrivateKeySerializer.deserialize)
         self.log.info("Unlocking keyring.")
         try:
             derived_key = derive_key_from_password(password=password.encode(), salt=key_data['master_salt'])
@@ -494,8 +500,8 @@ class NucypherKeyring:
             if power_class is TLSHostingPower:  # TODO: something more elegant
                 if not host:
                     raise ValueError('Host is required to derive a TLSHostingPower')
-                pem = _read_keyfile(keypath=path, deserializer=None)
-                private_key = load_pem_private_key(data=pem, password=self.__derived_key_material)
+                tls_key_deserializer = partial(_TLSPrivateKeySerializer.deserialize, password=self.__derived_key_material)
+                private_key = _read_keyfile(keypath=path, deserializer=tls_key_deserializer)
                 keypair = HostingKeypair(host=host,
                                          private_key=private_key,
                                          checksum_address=self.checksum_address,
@@ -510,7 +516,7 @@ class NucypherKeyring:
 
         # Derived
         elif issubclass(power_class, DerivedKeyBasedPower):
-            key_data = _read_keyfile(self.__delegating_keypath, deserializer=self._private_key_serializer)
+            key_data = _read_keyfile(self.__delegating_keypath, deserializer=_PrivateKeySerializer.deserialize)
             wrap_key = _derive_wrapping_key_from_key_material(salt=key_data['wrap_salt'], key_material=self.__derived_key_material)
             keying_material = SecretBox(wrap_key).decrypt(key_data['key'])
             new_cryptopower = power_class(keying_material=keying_material)
@@ -628,15 +634,15 @@ class NucypherKeyring:
             try:
                 rootkey_path = _write_private_keyfile(keypath=__key_filepaths['root'],
                                                       key_data=encrypting_key_metadata,
-                                                      serializer=cls._private_key_serializer)
+                                                      serializer=_PrivateKeySerializer.serialize)
 
                 sigkey_path = _write_private_keyfile(keypath=__key_filepaths['signing'],
                                                      key_data=signing_key_metadata,
-                                                     serializer=cls._private_key_serializer)
+                                                     serializer=_PrivateKeySerializer.serialize)
 
                 delegating_key_path = _write_private_keyfile(keypath=__key_filepaths['delegating'],
                                                              key_data=delegating_key_metadata,
-                                                             serializer=cls._private_key_serializer)
+                                                             serializer=_PrivateKeySerializer.serialize)
 
                 # Write Public Keys
                 root_keypath = _write_public_keyfile(__key_filepaths['root_pub'], encrypting_public_key.to_bytes())
@@ -659,15 +665,12 @@ class NucypherKeyring:
                 raise ValueError("host, checksum_address and curve are required to make a new keyring TLS certificate. Got {}, {}".format(host, curve))
             private_key, cert = _generate_tls_keys(host=host, checksum_address=checksum_address, curve=curve)
 
-            def __serialize_pem(pk):
-                return pk.private_bytes(
-                    encoding=serialization.Encoding.PEM,
-                    format=serialization.PrivateFormat.TraditionalOpenSSL,
-                    encryption_algorithm=serialization.BestAvailableEncryption(password=derived_key_material)
-                )
-
-            tls_key_path = _write_private_keyfile(keypath=__key_filepaths['tls'], key_data=__serialize_pem(pk=private_key), serializer=None)
-            certificate_filepath = _write_tls_certificate(full_filepath=__key_filepaths['tls_certificate'], certificate=cert)
+            tls_key_serializer = partial(_TLSPrivateKeySerializer.serialize, password=derived_key_material)
+            tls_key_path = _write_private_keyfile(keypath=__key_filepaths['tls'],
+                                                  key_data=private_key,
+                                                  serializer=tls_key_serializer)
+            certificate_filepath = _write_tls_certificate(full_filepath=__key_filepaths['tls_certificate'],
+                                                          certificate=cert)
             keyring_args.update(tls_certificate_path=certificate_filepath, tls_key_path=tls_key_path)
 
         keyring_instance = cls(account=checksum_address, **keyring_args)
