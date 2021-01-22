@@ -1077,7 +1077,6 @@ class Ursula(Teacher, Character, Worker):
                            known_node_class=Ursula,
                            **character_kwargs)
 
-        # excuse me... can I speak to the manager?
         if is_me:
 
             # Operating Mode
@@ -1288,7 +1287,6 @@ class Ursula(Teacher, Character, Worker):
         if prometheus_config:
             # Locally scoped to prevent import without prometheus explicitly installed
             from nucypher.utilities.prometheus.metrics import start_prometheus_exporter
-            # TODO: Integrate with Hendrix TLS Deploy?
             start_prometheus_exporter(ursula=self, prometheus_config=prometheus_config)
             if emitter:
                 emitter.message(f"✓ Prometheus Exporter", color='green')
@@ -1318,7 +1316,7 @@ class Ursula(Teacher, Character, Worker):
                     emitter.message(f"{e.__class__.__name__} {e}", color='red', bold=True)
                 raise  # Crash :-(
 
-        elif start_reactor:  # ... without hendrix
+        if start_reactor:  # ... without hendrix
             reactor.run()  # <--- Blocking Call (Reactor)
 
     def stop(self, halt_reactor: bool = False) -> None:

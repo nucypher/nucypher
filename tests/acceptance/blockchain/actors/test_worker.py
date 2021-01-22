@@ -68,7 +68,7 @@ def test_worker_auto_commitments(mocker,
                                         workers_addresses=[worker_address],
                                         registry=test_registry).pop()
 
-    ursula.run()  # start services
+    ursula.run(preflight=False, start_reactor=False)  # "start" services
 
     initial_period = staker.staking_agent.get_current_period()
 

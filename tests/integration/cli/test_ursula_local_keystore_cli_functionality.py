@@ -90,7 +90,7 @@ def test_ursula_init_with_local_keystore_signer(click_runner,
             "Keystore URI was not correctly included in configuration file"
 
     # Recreate a configuration with the signer URI preserved
-    ursula_config = UrsulaConfiguration.from_configuration_file(custom_config_filepath)
+    ursula_config = UrsulaConfiguration.from_configuration_file(custom_config_filepath, config_root=custom_filepath)
     assert ursula_config.signer_uri == mock_signer_uri
 
     # Mock decryption of web3 client keyring
