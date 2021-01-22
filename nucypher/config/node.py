@@ -74,11 +74,11 @@ class CharacterConfiguration(BaseConfiguration):
     _CONFIG_FIELDS = ('config_root',
                       'poa',
                       'light',
-                      'provider_uri',
                       'registry_filepath',
                       'gas_strategy',
                       'max_gas_price',  # gwei
-                      'signer_uri')
+                      'signer_uri'
+                      )
 
     def __init__(self,
 

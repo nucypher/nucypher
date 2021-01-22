@@ -103,7 +103,6 @@ def test_ursula_init_with_local_keystore_signer(click_runner,
     ursula = ursula_config.produce(block_until_ready=False)
     ursula.signer.unlock_account(account=worker_account.address, password=password)
 
-
     # Verify the keystore path is still preserved
     assert isinstance(ursula.signer, KeystoreSigner)
     assert isinstance(ursula.signer.path, str), "Use str"
