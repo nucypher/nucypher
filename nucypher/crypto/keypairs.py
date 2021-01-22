@@ -149,10 +149,12 @@ class HostingKeypair(Keypair):
                  private_key: Union[UmbralPrivateKey, UmbralPublicKey] = None,
                  certificate=None,
                  certificate_filepath: str = None,
-                 generate_certificate=True,
+                 generate_certificate=False,
                  ) -> None:
 
-        if private_key and certificate_filepath:
+        if private_key:
+            if not certificate_filepath:
+                raise ValueError('public certificate required to load a hosting keypair.')
             from nucypher.config.keyring import _read_tls_public_certificate
             certificate = _read_tls_public_certificate(filepath=certificate_filepath)
             super().__init__(private_key=private_key)
@@ -189,8 +191,7 @@ class HostingKeypair(Keypair):
                                 key=self._privkey,
                                 cert=X509.from_cryptography(self.certificate),
                                 context_factory=ExistingKeyTLSContextFactory,
-                                context_factory_kwargs={"curve_name": _TLS_CURVE.name,
-                                                        "sslmethod": TLSv1_2_METHOD},
+                                context_factory_kwargs={"curve_name": _TLS_CURVE.name, "sslmethod": TLSv1_2_METHOD},
                                 options={
                                     "wsgi": rest_app,
                                     "https_port": port,

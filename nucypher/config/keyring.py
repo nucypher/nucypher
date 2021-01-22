@@ -371,7 +371,7 @@ class NucypherKeyring:
         # Public
         self.__root_pub_keypath = pub_root_key_path or __default_key_filepaths['root_pub']
         self.__signing_pub_keypath = pub_signing_key_path or __default_key_filepaths['signing_pub']
-        self.__tls_certificate = tls_certificate_path or __default_key_filepaths['tls_certificate']
+        self.__tls_certificate_path = tls_certificate_path or __default_key_filepaths['tls_certificate']
 
         # Set Initial State
         self.__derived_key_material = KEYRING_LOCKED
@@ -400,7 +400,7 @@ class NucypherKeyring:
 
     @property
     def certificate_filepath(self) -> str:
-        return self.__tls_certificate
+        return self.__tls_certificate_path
 
     @property
     def keyring_root(self) -> str:
@@ -496,7 +496,11 @@ class NucypherKeyring:
                     raise ValueError('Host is required to derive a TLSHostingPower')
                 pem = _read_keyfile(keypath=path, deserializer=None)
                 private_key = load_pem_private_key(data=pem, password=self.__derived_key_material)
-                keypair = HostingKeypair(private_key=private_key, checksum_address=self.checksum_address, host=host)
+                keypair = HostingKeypair(host=host,
+                                         private_key=private_key,
+                                         checksum_address=self.checksum_address,
+                                         generate_certificate=False,
+                                         certificate_filepath=self.__tls_certificate_path)
                 new_cryptopower = TLSHostingPower(keypair=keypair, host=host)
 
             else:
