@@ -1337,7 +1337,12 @@ class Ursula(Teacher, Character, Worker):
                 emitter.message(f"✓ Availability Checks", color='green')
 
         if worker and not self.federated_only:
-            self.work_tracker.start(commit_now=True)  # requirement_func=self._availability_tracker.status)  # TODO: #2277
+            if block_until_ready:
+                # Sets (staker's) checksum address; Prevent worker startup before bonding
+                self.block_until_ready()
+            self.stakes.checksum_address = self.checksum_address
+            self.stakes.refresh()
+            self.work_tracker.start(commit_now=eager)  # requirement_func=self._availability_tracker.status)  # TODO: #2277
             if emitter:
                 emitter.message(f"✓ Work Tracking", color='green')
 
