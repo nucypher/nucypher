@@ -1178,10 +1178,11 @@ class Ursula(Teacher, Character, Worker):
                 tls_hosting_power = self.keyring.derive_crypto_power(TLSHostingPower, host=host)
             else:
                 # Generate ephemeral private key ("Dev Mode")
-                tls_hosting_keypair = HostingKeypair(host=host, checksum_address=self.checksum_address)
+                tls_hosting_keypair = HostingKeypair(host=host,
+                                                     checksum_address=self.checksum_address,
+                                                     generate_certificate=True)
                 tls_hosting_power = TLSHostingPower(keypair=tls_hosting_keypair, host=host)
-
-        self._crypto_power.consume_power_up(tls_hosting_power)  # Consume!
+            self._crypto_power.consume_power_up(tls_hosting_power)  # Consume!
         return tls_hosting_power
 
     def _make_local_server(self, host, port, domain, db_filepath) -> ProxyRESTServer:
