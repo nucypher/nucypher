@@ -15,6 +15,7 @@ You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
+
 import datetime
 
 import maya
@@ -116,10 +117,13 @@ def test_vladimir_illegal_interface_key_does_not_propagate(blockchain_ursulas):
     result = other_ursula.learn_from_teacher_node()
 
     # Indeed, Ursula noticed that something was up.
-    vladimir in other_ursula.suspicious_activities_witnessed['vladimirs']
+    assert vladimir in other_ursula.suspicious_activities_witnessed['vladimirs']
+
+    # She marked him as Invalid...
+    assert vladimir in other_ursula.known_nodes._marked[vladimir.InvalidNode]
 
     # ...and booted him from known_nodes
-    vladimir not in other_ursula.known_nodes
+    assert vladimir not in other_ursula.known_nodes
 
 
 def test_alice_refuses_to_make_arrangement_unless_ursula_is_valid(blockchain_alice,
@@ -133,7 +137,7 @@ def test_alice_refuses_to_make_arrangement_unless_ursula_is_valid(blockchain_ali
     message = vladimir._signable_interface_info_message()
     signature = vladimir._crypto_power.power_ups(SigningPower).sign(message)
 
-    vladimir.substantiate_stamp()
+    vladimir._Ursula__substantiate_stamp()
     vladimir._Teacher__interface_signature = signature
     vladimir.node_storage.store_node_certificate(certificate=target.certificate)
 
