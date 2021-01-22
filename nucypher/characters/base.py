@@ -114,10 +114,12 @@ class Character(Learner):
                 BlockchainInterfaceFactory.initialize_interface(provider_uri=provider_uri)
 
         #
-        # Operating Mode
+        # Prologue of the federation
         #
 
+        # FIXME: excuse me... can I speak to the manager?
         if is_me:
+            # If this is a federated-is_me-character, assume everyone else is too.
             self._set_known_node_class(known_node_class, federated_only)
         else:
             # What an awful hack.  The last convulsions of #466.  # TODO: Anything else.
@@ -128,6 +130,8 @@ class Character(Learner):
             if registry or provider_uri:
                 raise ValueError(f"Cannot init federated-only character with {registry or provider_uri}.")
         self.federated_only: bool = federated_only
+
+        ##########################################
 
         #
         # Keys & Powers
@@ -153,7 +157,7 @@ class Character(Learner):
             self._crypto_power = CryptoPower(power_ups=self._default_crypto_powerups)
 
         #
-        # Self-Character
+        # Self
         #
 
         if is_me:
@@ -212,31 +216,7 @@ class Character(Learner):
             self.network_middleware = STRANGER
             self.checksum_address = checksum_address
 
-        #
-        # Nicknames
-        #
-
-        # TODO: The heck is happening in this block?!?
-
-        if not self.checksum_address and not self.federated_only and not is_me:
-            # Sometimes we don't care about the nickname.  For example, if Alice is granting to Bob, she usually
-            # doesn't know or care about his wallet.  Maybe this needs to change?
-            # Currently, if this is a stranger and there's no blockchain connection, we assign NO_NICKNAME:
-            self.nickname = NO_NICKNAME
-        else:
-            try:
-                if not self.checksum_address:
-                    self.nickname = NO_NICKNAME
-                else:
-                    # This can call _set_checksum_address.
-                    self.nickname = Nickname.from_seed(self.checksum_address)
-            except SigningPower.not_found_error:
-                if self.federated_only:
-                    self.nickname = NO_NICKNAME
-                else:
-                    raise
-
-        # Fleet state
+        self.__setup_nickname(is_me=is_me)
         if is_me:
             self.known_nodes.record_fleet_state()
         # Character Control
@@ -263,6 +243,25 @@ class Character(Learner):
         except (NoSigningPower, TypeError):  # TODO: ....yeah?  We can probably do better for a repr here.
             r = f"({self.__class__.__name__})⇀{self.nickname}↽"
         return r
+
+    def __setup_nickname(self, is_me: bool):
+        if not self.checksum_address and not self.federated_only and not is_me:
+            # Sometimes we don't care about the nickname.  For example, if Alice is granting to Bob, she usually
+            # doesn't know or care about his wallet.  Maybe this needs to change?
+            # Currently, if this is a stranger and there's no blockchain connection, we assign NO_NICKNAME:
+            self.nickname = NO_NICKNAME
+        else:
+            try:
+                if not self.checksum_address:
+                    self.nickname = NO_NICKNAME
+                else:
+                    # This can call _set_checksum_address.
+                    self.nickname = Nickname.from_seed(self.checksum_address)
+            except SigningPower.not_found_error:
+                if self.federated_only:
+                    self.nickname = NO_NICKNAME
+                else:
+                    raise
 
     @property
     def name(self):

@@ -176,7 +176,7 @@ def _make_rest_app(datastore: Datastore, this_node, domain: str, log: Logger) ->
     def all_known_nodes():
         headers = {'Content-Type': 'application/octet-stream'}
         if this_node._learning_deferred is not RELAX and not this_node._learning_task.running:
-            # TODO: Is this every something we don't want to do?
+            # Learn when learned about
             this_node.start_learning_loop()
 
         if not this_node.known_nodes:

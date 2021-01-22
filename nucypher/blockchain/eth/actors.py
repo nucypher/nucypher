@@ -1246,7 +1246,6 @@ class Worker(NucypherTokenActor):
             # Success and Escape
             if staking_address != NULL_ADDRESS and ether_balance:
                 self.checksum_address = staking_address
-
                 # TODO: #1823 - Workaround for new nickname every restart
                 self.nickname = Nickname.from_seed(self.checksum_address)
                 break
