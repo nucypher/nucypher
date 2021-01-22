@@ -64,7 +64,7 @@ class Character(Learner):
                  known_node_class: object = None,
                  is_me: bool = True,
                  federated_only: bool = False,
-                 checksum_address: str = NO_BLOCKCHAIN_CONNECTION.bool_value(False),
+                 checksum_address: str = None,
                  network_middleware: RestMiddleware = None,
                  keyring: NucypherKeyring = None,
                  keyring_root: str = None,
@@ -164,7 +164,6 @@ class Character(Learner):
             except NoSigningPower:
                 self._stamp = NO_SIGNING_POWER
 
-            #
             # Blockchain
             #
             self.provider_uri = provider_uri
@@ -184,6 +183,13 @@ class Character(Learner):
                              network_middleware=self.network_middleware,
                              node_class=known_node_class,
                              *args, **kwargs)
+
+            if self.federated_only:
+                try:
+                    checksum_address = self.derive_federated_address()
+                except NoSigningPower:
+                    checksum_address = NO_SIGNING_POWER.bool_value(False)
+            self.checksum_address = checksum_address
 
         #
         # Stranger-Character
@@ -289,17 +295,11 @@ class Character(Learner):
     @property
     def canonical_public_address(self):
         # TODO: This is wasteful.  #1995
-        return to_canonical_address(self._checksum_address)
+        return to_canonical_address(self.checksum_address)
 
     @canonical_public_address.setter
     def canonical_public_address(self, address_bytes):
         self._checksum_address = to_checksum_address(address_bytes)
-
-    @property
-    def checksum_address(self):
-        if not self._checksum_address:
-            self._set_checksum_address()
-        return self._checksum_address
 
     @classmethod
     def from_config(cls, config, **overrides) -> 'Character':
@@ -505,49 +505,16 @@ class Character(Learner):
         power_up = self._crypto_power.power_ups(power_up_class)
         return power_up.public_key()
 
-    def _set_checksum_address(self, checksum_address=None):
-
-        if checksum_address is not None:
-
-            #
-            # Decentralized
-            #
-            if not self.federated_only:
-                # TODO: And why not return here then?
-                self._checksum_address = checksum_address  # TODO: Check that this matches TransactingPower
-
-            #
-            # Federated
-            #
-            elif self.federated_only:  # TODO: What are we doing here?
-                try:
-                    self._set_checksum_address()  # type: str
-                except NoSigningPower:
-                    self._checksum_address = NO_BLOCKCHAIN_CONNECTION
-                if checksum_address:
-                    # We'll take a checksum address, as long as it matches their signing key
-                    if not checksum_address == self.checksum_address:
-                        error = "Federated-only Characters derive their address from their Signing key; got {} instead."
-                        raise self.SuspiciousActivity(error.format(checksum_address))
-
+    def derive_federated_address(self):
         if self.federated_only:
             verifying_key = self.public_keys(SigningPower)
             uncompressed_bytes = verifying_key.to_bytes(is_compressed=False)
             without_prefix = uncompressed_bytes[1:]
             verifying_key_as_eth_key = EthKeyAPI.PublicKey(without_prefix)
-            public_address = verifying_key_as_eth_key.to_checksum_address()
+            federated_address = verifying_key_as_eth_key.to_checksum_address()
         else:
-            try:
-                # TODO: Some circular logic here if we haven't set the canonical address.
-                public_address = to_checksum_address(self.canonical_public_address)
-            except TypeError:
-                public_address = NO_BLOCKCHAIN_CONNECTION
-                # raise TypeError("You can't use a decentralized character without a _checksum_address.")
-            except NotImplementedError:
-                raise TypeError(
-                    "You can't use a plain Character in federated mode - you need to implement ether_address.")  # TODO: update comment
-
-        self._checksum_address = public_address
+            raise RuntimeError('Federated address can only be derived for federated characters.')
+        return federated_address
 
     def make_rpc_controller(self, crash_on_error: bool = False):
         app_name = bytes(self.stamp).hex()[:6]
