@@ -77,7 +77,8 @@ class CharacterConfiguration(BaseConfiguration):
                       'registry_filepath',
                       'gas_strategy',
                       'max_gas_price',  # gwei
-                      'signer_uri'
+                      'signer_uri',
+                      'keyring_root'
                       )
 
     def __init__(self,
@@ -134,6 +135,8 @@ class CharacterConfiguration(BaseConfiguration):
                  ):
 
         self.log = Logger(self.__class__.__name__)
+
+        # This constant is used to signal that a path can be generated if one is not provided.
         UNINITIALIZED_CONFIGURATION.bool_value(False)
 
         # Identity
@@ -409,6 +412,7 @@ class CharacterConfiguration(BaseConfiguration):
             # Identity
             federated_only=self.federated_only,
             checksum_address=self.checksum_address,
+            keyring_root=self.keyring_root,
 
             # Behavior
             domain=self.domain,

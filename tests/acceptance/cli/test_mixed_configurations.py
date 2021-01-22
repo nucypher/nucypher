@@ -181,13 +181,14 @@ def test_coexisting_configurations(click_runner,
     # Run an Ursula amidst the other configuration files
     run_args = ('ursula', 'run',
                 '--dry-run',
+                '--no-ip-checkup',
                 '--config-file', another_ursula_configuration_file_location)
 
     user_input = f'{INSECURE_DEVELOPMENT_PASSWORD}\n' * 2
 
     Worker.READY_POLL_RATE = 1
     Worker.READY_TIMEOUT = 1
-    with pytest.raises(Teacher.UnbondedWorker):  # TODO: Why is this being checked here?
+    with pytest.raises(Teacher.UnbondedWorker):
         # Worker init success, but not bonded.
         result = click_runner.invoke(nucypher_cli, run_args, input=user_input, catch_exceptions=False)
     assert result.exit_code == 0

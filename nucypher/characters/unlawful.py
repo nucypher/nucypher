@@ -19,6 +19,7 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 from copy import copy
 
 import tempfile
+from tests.constants import MOCK_PROVIDER_URI
 from eth_tester.exceptions import ValidationError
 from unittest.mock import patch
 
@@ -79,6 +80,7 @@ class Vladimir(Ursula):
         db_filepath = tempfile.mkdtemp(prefix='Vladimir')
 
         vladimir = cls(is_me=True,
+                       provider_uri=MOCK_PROVIDER_URI,
                        crypto_power=crypto_power,
                        db_filepath=db_filepath,
                        domain=TEMPORARY_DOMAIN,
