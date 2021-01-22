@@ -41,7 +41,6 @@ from constant_sorrow.constants import (
     NOT_SIGNED
 )
 from cryptography.hazmat.backends import default_backend
-from cryptography.hazmat.primitives.asymmetric.ec import EllipticCurve
 from cryptography.hazmat.primitives.serialization import Encoding
 from cryptography.x509 import Certificate, NameOID, load_pem_x509_certificate
 from datetime import datetime
@@ -53,6 +52,7 @@ from json.decoder import JSONDecodeError
 from queue import Queue
 from random import shuffle
 from twisted.internet import reactor, stdio, threads
+from twisted.internet.defer import Deferred
 from twisted.internet.task import LoopingCall
 from twisted.logger import Logger
 from typing import Dict, Iterable, List, Tuple, Union, Optional, Sequence, Set

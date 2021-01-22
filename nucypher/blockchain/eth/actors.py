@@ -1281,8 +1281,8 @@ class Worker(NucypherTokenActor):
 
     @property
     def eth_balance(self) -> Decimal:
-        """Return this workers's current ETH balance"""
-        blockchain = BlockchainInterfaceFactory.get_interface()  # TODO: EthAgent?  #1509
+        """Return this worker's current ETH balance"""
+        blockchain = BlockchainInterfaceFactory.get_interface()  # TODO: EthAgent #1509
         balance = blockchain.client.get_balance(self.__worker_address)
         return blockchain.client.w3.fromWei(balance, 'ether')
 

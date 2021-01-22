@@ -39,7 +39,7 @@ from eth_keys import KeyAPI as EthKeyAPI
 from eth_utils import to_checksum_address
 from nacl.exceptions import CryptoError
 from nacl.secret import SecretBox
-from typing import Callable, ClassVar, Dict, List, Tuple, Union
+from typing import Callable, ClassVar, Dict, List, Tuple, Union, Optional
 from umbral.keys import UmbralKeyingMaterial, UmbralPrivateKey, UmbralPublicKey, derive_key_from_password
 
 from nucypher.crypto.keypairs import HostingKeypair
@@ -473,13 +473,11 @@ class NucypherKeyring:
         return self.is_unlocked
 
     @unlock_required
-    def derive_crypto_power(self, power_class: ClassVar, host = None) -> Union[KeyPairBasedPower, DerivedKeyBasedPower]:
+    def derive_crypto_power(self, power_class: ClassVar, host: Optional[str] = None) -> Union[KeyPairBasedPower, DerivedKeyBasedPower]:
         """
         Takes either a SigningPower or a DecryptingPower and returns
         either a SigningPower or DecryptingPower with the coinciding
         private key.
-
-        TODO: Derive a key from the root_key.
         """
         # Keypair-Based
         if issubclass(power_class, KeyPairBasedPower):
@@ -488,28 +486,24 @@ class NucypherKeyring:
                      DecryptingPower: self.__root_keypath,
                      TLSHostingPower: self.__tls_keypath}
 
-            path = codex[power_class]
             try:
-                if power_class is TLSHostingPower:  # TODO: something more elegant
-                    if not host:
-                        raise ValueError('Host is required to derive a TLSHostingPower')
-                    pem = _read_keyfile(keypath=path, deserializer=None)
-                    privkey = load_pem_private_key(data=pem, password=self.__derived_key_material)
-
-                    keypair: HostingKeypair
-                    keypair = power_class._keypair_class(private_key=privkey,
-                                                         checksum_address=self.checksum_address,
-                                                         host=host)
-                    new_cryptopower = power_class(keypair=keypair, host=host)
-
-                else:
-                    privkey = self.__decrypt_keyfile(key_path=path)
-                    keypair = power_class._keypair_class(privkey)
-                    new_cryptopower = power_class(keypair=keypair)
-
+                path = codex[power_class]
             except KeyError:
                 failure_message = "{} is an invalid type for deriving a CryptoPower".format(power_class.__name__)
                 raise TypeError(failure_message)
+
+            if power_class is TLSHostingPower:  # TODO: something more elegant
+                if not host:
+                    raise ValueError('Host is required to derive a TLSHostingPower')
+                pem = _read_keyfile(keypath=path, deserializer=None)
+                private_key = load_pem_private_key(data=pem, password=self.__derived_key_material)
+                keypair = HostingKeypair(private_key=private_key, checksum_address=self.checksum_address, host=host)
+                new_cryptopower = TLSHostingPower(keypair=keypair, host=host)
+
+            else:
+                privkey = self.__decrypt_keyfile(key_path=path)
+                keypair = power_class._keypair_class(privkey)
+                new_cryptopower = power_class(keypair=keypair)
 
         # Derived
         elif issubclass(power_class, DerivedKeyBasedPower):
