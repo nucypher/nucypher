@@ -1122,12 +1122,6 @@ class Ursula(Teacher, Character, Worker):
                                                      cache=True)
                 self.transacting_power = transacting_power
                 self._crypto_power.consume_power_up(transacting_power)
-                if checksum_address and (checksum_address != transacting_power.account):
-                    raise ValueError(f"Provided checksum address {checksum_address} does not match "
-                                     f"worker's transaction account {transacting_power.account}")
-                # TODO should we set checksum_address to transacting_power.account if checksum_address is None?
-                #  It subsequently gets passed to Worker.__init__()
-                self.checksum_address = transacting_power.account
 
                 # Use this power to substantiate the stamp
                 self.__substantiate_stamp()
