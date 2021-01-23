@@ -15,20 +15,21 @@
  along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
-import binascii
-from collections.abc import KeysView
-import itertools
-import random
-from typing import Optional, Dict, Iterable, List, Tuple
-import weakref
 
+import random
+import weakref
+from collections.abc import KeysView
+from typing import Optional, Dict, Iterable, List, Tuple
+
+import binascii
+import itertools
+import maya
 from bytestring_splitter import BytestringSplitter
 from eth_typing import ChecksumAddress
-import maya
 
-from .nicknames import Nickname
 from nucypher.crypto.api import keccak_digest
 from nucypher.utilities.logging import Logger
+from .nicknames import Nickname
 
 
 class ArchivedFleetState:
