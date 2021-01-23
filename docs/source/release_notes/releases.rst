@@ -4,6 +4,17 @@ Releases
 
 .. towncrier release notes start
 
+v4.5.4 (2021-01-22)
+-------------------
+
+Bugfixes
+~~~~~~~~
+
+- Fix wrong usage of net_version to identify the EthereumClient client chain. (`#2484 <https://github.com/nucypher/nucypher/issues/2484>`__)
+- Use eth_chainId instead of net_version to maintain compatibility with geth. (`#2533 <https://github.com/nucypher/nucypher/issues/2533>`__)
+- Fixed infinite loop during learning when timing out but known nodes exceeds target. (`#2534 <https://github.com/nucypher/nucypher/issues/2534>`__)
+
+
 v4.5.3 (2021-01-18)
 -------------------
 
