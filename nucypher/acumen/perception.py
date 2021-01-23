@@ -171,5 +171,14 @@ class FleetSensor:
     def mark_as(self, label: Exception, node: "Teacher"):
         self._marked[label].append(node)
 
-        if self._nodes.get(node):
-            del self._nodes[node]
+        checksum_address = node.checksum_address
+        if self._nodes.get(checksum_address) != node:
+            # TODO If this is Vladimir, the sneaky devil, then could the checksum address be modified? -
+            #  is this even possible?
+            # make sure the correct node is being deleted
+            for node_checksum, known_node in self._nodes.items():
+                if known_node == node:
+                    del self._nodes[node_checksum]
+                    break
+        else:
+            del self._nodes[checksum_address]
