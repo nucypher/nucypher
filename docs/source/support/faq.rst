@@ -16,10 +16,14 @@ The answers in the FAQ regularly reference the network characters "**Alice**," "
 General
 -------
 
+.. _faq_testnet:
 Q: What is the network name for NuCypher's testnet?
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-The network name for testnet is ``ibex``.
+NuCypher currently has two testnets available, each of them with different goals:
+
+* ``lynx``: Public Long-Term Support testnet, intended as a stable playground for network users (e.g., Alices wishing to create sharing policies). Running on Ethereum Goerli testnet.
+* ``ibex``: Public testnet, intended as a playground for stakers and node operators (e.g., learning how to create and manage stakes, setting up a node), as well as for internal development purposes. Running on Ethereun Rinkeby testnet.
 
 Q: How long is a period?
 ~~~~~~~~~~~~~~~~~~~~~~~~
@@ -256,7 +260,9 @@ or `systemd <https://docs.nucypher.com/en/latest/guides/installation_guide.html#
 Q: When installing on Docker, what do I input for <NETWORK NAME>?
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-The network name for testnet is ``ibex``.
+Use ``mainnet`` if you want to interact with the main NuCypher network,
+and either ``lynx`` or ``ibex`` in case you want to use one of our testnets.
+Go :ref:`here <faq-testnet>` to read more about the difference between both testnets.
 
 Q: How can I check for currently available staking rewards?
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
