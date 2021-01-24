@@ -20,6 +20,7 @@ import os
 from pathlib import Path
 
 import requests
+from constant_sorrow import constants
 from web3.exceptions import ValidationError
 
 from nucypher.blockchain.eth.deployers import AdjudicatorDeployer, BaseContractDeployer, NucypherTokenDeployer, \
@@ -83,25 +84,41 @@ CONSTRUCTOR_OVERRIDES = {
                                                      "_firstPhaseMaxIssuance": None,
                                                      "_miningCoefficient": 2,
                                                      "_lockedPeriodsCoefficient": 1,
-                                                     "_rewardedPeriods": 1},
-                                          "v5.6.1": {"_isTestContract": True}
-                                          },
-    PolicyManagerDeployer.contract_name: {"v6.2.1": {"_secondsPerPeriod": None}}
+                                                     "_rewardedPeriods": 1}
+                                          }
+}
+
+FORCE_SKIP = {
+    StakingEscrowDeployer.contract_name: ["v5.6.1"]
 }
 
 
-def deploy_earliest_contract(blockchain_interface: BlockchainDeployerInterface,
-                             deployer: BaseContractDeployer):
+def deploy_base_contract(blockchain_interface: BlockchainDeployerInterface,
+                         deployer: BaseContractDeployer,
+                         skipt_test: bool):
     contract_name = deployer.contract_name
     latest_version, _data = blockchain_interface.find_raw_contract_data(contract_name, "latest")
     try:
         overrides = CONSTRUCTOR_OVERRIDES[contract_name][latest_version]
     except KeyError:
         overrides = dict()
+
+    version = "latest" if skipt_test else "earliest"
     try:
-        deployer.deploy(contract_version="earliest", **overrides)
+        deployer.deploy(contract_version=version, deployment_mode=constants.FULL, **overrides)
     except ValidationError:
         pass  # Skip errors related to initialization
+
+
+def skip_test(blockchain_interface: BlockchainDeployerInterface, contract_name: str):
+    latest_version, _data = blockchain_interface.find_raw_contract_data(contract_name, "latest")
+    raw_contracts = blockchain_interface._raw_contract_cache
+    try:
+        force_skip = latest_version in FORCE_SKIP[contract_name]
+    except KeyError:
+        force_skip = False
+
+    return force_skip or len(raw_contracts[contract_name]) == 1
 
 
 def test_upgradeability(temp_dir_path):
@@ -126,15 +143,14 @@ def test_upgradeability(temp_dir_path):
         economics = make_token_economics(blockchain_interface)
 
         # Check contracts with multiple versions
-        raw_contracts = blockchain_interface._raw_contract_cache
         contract_name = AdjudicatorDeployer.contract_name
-        test_adjudicator = len(raw_contracts[contract_name]) > 1
+        skip_adjudicator_test = skip_test(blockchain_interface, contract_name)
         contract_name = StakingEscrowDeployer.contract_name
-        test_staking_escrow = len(raw_contracts[contract_name]) > 1
+        skip_staking_escrow_test = skip_test(blockchain_interface, contract_name)
         contract_name = PolicyManagerDeployer.contract_name
-        test_policy_manager = len(raw_contracts[contract_name]) > 1
+        skip_policy_manager_test = skip_test(blockchain_interface, contract_name)
 
-        if not test_adjudicator and not test_staking_escrow and not test_policy_manager:
+        if not skip_adjudicator_test and not skip_staking_escrow_test and not skip_policy_manager_test:
             return
 
         # Prepare master version of contracts and upgrade to the latest
@@ -145,35 +161,41 @@ def test_upgradeability(temp_dir_path):
                                                economics=economics)
         token_deployer.deploy()
 
+        staking_escrow_deployer = StakingEscrowDeployer(registry=registry,
+                                                        deployer_address=origin,
+                                                        economics=economics)
+        staking_escrow_deployer.deploy(deployment_mode=constants.INIT)
+
         policy_manager_deployer = PolicyManagerDeployer(registry=registry,
                                                         deployer_address=origin,
                                                         economics=economics)
-        deploy_earliest_contract(blockchain_interface, policy_manager_deployer)
+        deploy_base_contract(blockchain_interface, policy_manager_deployer, skipt_test=skip_policy_manager_test)
 
         adjudicator_deployer = AdjudicatorDeployer(registry=registry,
                                                    deployer_address=origin,
                                                    economics=economics)
-        deploy_earliest_contract(blockchain_interface, adjudicator_deployer)
+        deploy_base_contract(blockchain_interface, adjudicator_deployer, skipt_test=skip_adjudicator_test)
 
-        worklock_deployer = WorklockDeployer(registry=registry,
-                                             deployer_address=origin,
-                                             economics=economics)
-        worklock_deployer.deploy()
+        if skip_staking_escrow_test:
+            worklock_deployer = WorklockDeployer(registry=registry,
+                                                 deployer_address=origin,
+                                                 economics=economics)
+            worklock_deployer.deploy()
 
         staking_escrow_deployer = StakingEscrowDeployer(registry=registry,
                                                         deployer_address=origin,
                                                         economics=economics)
-        deploy_earliest_contract(blockchain_interface, staking_escrow_deployer)
+        deploy_base_contract(blockchain_interface, staking_escrow_deployer, skipt_test=skip_staking_escrow_test)
 
-        if test_policy_manager:
-            policy_manager_deployer.upgrade(contract_version="latest", confirmations=0)
-
-        if test_adjudicator:
-            adjudicator_deployer.upgrade(contract_version="latest", confirmations=0)
-
-        if test_staking_escrow:
+        if not skip_staking_escrow_test:
             # TODO prepare at least one staker before calling upgrade
             staking_escrow_deployer.upgrade(contract_version="latest", confirmations=0)
+
+        if not skip_policy_manager_test:
+            policy_manager_deployer.upgrade(contract_version="latest", confirmations=0)
+
+        if not skip_adjudicator_test:
+            adjudicator_deployer.upgrade(contract_version="latest", confirmations=0)
 
     finally:
         # Unregister interface  # TODO: Move to method?

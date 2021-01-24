@@ -454,8 +454,9 @@ def rollback(general_config, actor_options):
 @option_confirmations
 @click.option('--mode',
               help="Deploy a contract following all steps ('full'), up to idle status ('idle'), "
+                   "just initialization step ('init', only for StakingEscrow) "
                    "or just the bare contract ('bare'). Defaults to 'full'",
-              type=click.Choice(['full', 'idle', 'bare'], case_sensitive=False),
+              type=click.Choice(['full', 'idle', 'bare', 'init'], case_sensitive=False),
               default='full'
               )
 @click.option('--activate', help="Activate a contract that is in idle mode", is_flag=True)

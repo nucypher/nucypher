@@ -13,7 +13,7 @@ import "zeppelin/math/Math.sol";
 /**
 * @title Adjudicator
 * @notice Supervises stakers' behavior and punishes when something's wrong.
-* @dev |v2.2.1|
+* @dev |v2.1.2|
 */
 contract Adjudicator is Upgradeable {
 
@@ -35,6 +35,7 @@ contract Adjudicator is Upgradeable {
     bytes32 constant RESERVED_CAPSULE_AND_CFRAG_BYTES = bytes32(0);
     address constant RESERVED_ADDRESS = address(0);
 
+    StakingEscrow public immutable escrow;
     SignatureVerifier.HashAlgorithm public immutable hashAlgorithm;
     uint256 public immutable basePenalty;
     uint256 public immutable penaltyHistoryCoefficient;
@@ -43,10 +44,9 @@ contract Adjudicator is Upgradeable {
 
     mapping (address => uint256) public penaltyHistory;
     mapping (bytes32 => bool) public evaluatedCFrags;
-    StakingEscrow public escrow;
 
     /**
-    * @param _escrow Escrow contract. Zero address if not yet deployed
+    * @param _escrow Escrow contract
     * @param _hashAlgorithm Hashing algorithm
     * @param _basePenalty Base for the penalty calculation
     * @param _penaltyHistoryCoefficient Coefficient for calculating the penalty depending on the history
@@ -62,8 +62,7 @@ contract Adjudicator is Upgradeable {
         uint256 _rewardCoefficient
     ) {
         // Sanity checks.
-        require(// This contract has an escrow if it's not the null address.
-            (address(_escrow) == address(0) || _escrow.secondsPerPeriod() > 0) &&
+        require(_escrow.secondsPerPeriod() > 0 &&  // This contract has an escrow, and it's not the null address.
             // The reward and penalty coefficients are set.
             _percentagePenaltyCoefficient != 0 &&
             _rewardCoefficient != 0);
@@ -73,17 +72,6 @@ contract Adjudicator is Upgradeable {
         percentagePenaltyCoefficient = _percentagePenaltyCoefficient;
         penaltyHistoryCoefficient = _penaltyHistoryCoefficient;
         rewardCoefficient = _rewardCoefficient;
-    }
-
-    /**
-    * @notice Sets address of the escrow contract
-    * @param _escrow Escrow contract
-    */
-    function setStakingEscrow(StakingEscrow _escrow) external onlyOwner {
-        // StakingEscrow can be set only once
-        require(address(escrow) == address(0));
-        require(_escrow.secondsPerPeriod() > 0); // This contract has an escrow, and it's not the null address.
-        escrow = _escrow;
     }
 
     /**
@@ -203,7 +191,6 @@ contract Adjudicator is Upgradeable {
     /// @dev the `onlyWhileUpgrading` modifier works through a call to the parent `verifyState`
     function verifyState(address _testTarget) public override virtual {
         super.verifyState(_testTarget);
-        require(address(delegateGet(_testTarget, this.escrow.selector)) == address(escrow));
         bytes32 evaluationCFragHash = SignatureVerifier.hash(
             abi.encodePacked(RESERVED_CAPSULE_AND_CFRAG_BYTES), SignatureVerifier.HashAlgorithm.SHA256);
         require(delegateGet(_testTarget, this.evaluatedCFrags.selector, evaluationCFragHash) ==
@@ -215,10 +202,6 @@ contract Adjudicator is Upgradeable {
     /// @dev the `onlyWhileUpgrading` modifier works through a call to the parent `finishUpgrade`
     function finishUpgrade(address _target) public override virtual {
         super.finishUpgrade(_target);
-        StakingEscrow escrowAddress = Adjudicator(_target).escrow();
-        if (address(escrowAddress) != address(0)) {
-            escrow = escrowAddress;
-        }
         // preparation for the verifyState method
         bytes32 evaluationCFragHash = SignatureVerifier.hash(
             abi.encodePacked(RESERVED_CAPSULE_AND_CFRAG_BYTES), SignatureVerifier.HashAlgorithm.SHA256);

@@ -70,8 +70,20 @@ def token(token_economics, deploy_contract):
 
 
 @pytest.fixture(scope='module')
-def policy_manager_bare(testerchain, token_economics, deploy_contract):
-    contract, _ = deploy_contract('PolicyManager', NULL_ADDRESS, token_economics.seconds_per_period)
+def escrow_dispatcher(testerchain, token, token_economics, deploy_contract):
+    escrow_stub, _ = deploy_contract('StakingEscrowStub',
+                                     token.address,
+                                     token_economics.hours_per_period,
+                                     token_economics.minimum_locked_periods,
+                                     token_economics.minimum_allowed_locked,
+                                     token_economics.maximum_allowed_locked)
+    dispatcher, _ = deploy_contract('Dispatcher', escrow_stub.address)
+    return dispatcher
+
+
+@pytest.fixture(scope='module')
+def policy_manager_bare(testerchain, escrow_dispatcher, deploy_contract):
+    contract, _ = deploy_contract('PolicyManager', escrow_dispatcher.address)
     return contract
 
 
@@ -89,14 +101,15 @@ def policy_manager(testerchain, policy_manager_bare, policy_manager_dispatcher):
         abi=policy_manager_bare.abi,
         address=policy_manager_dispatcher.address,
         ContractFactoryClass=Contract)
+
     return contract
 
 
 @pytest.fixture(scope='module')
-def adjudicator_bare(testerchain, token_economics, deploy_contract):
+def adjudicator_bare(testerchain, token_economics, escrow_dispatcher, deploy_contract):
     contract, _ = deploy_contract(
         'Adjudicator',
-        NULL_ADDRESS,
+        escrow_dispatcher.address,
         *token_economics.slashing_deployment_parameters)
     return contract
 
@@ -114,11 +127,12 @@ def adjudicator(testerchain, adjudicator_bare, adjudicator_dispatcher):
         abi=adjudicator_bare.abi,
         address=adjudicator_dispatcher.address,
         ContractFactoryClass=Contract)
+
     return contract
 
 
 @pytest.fixture(scope='module')
-def worklock(testerchain, token, token_economics, deploy_contract):
+def worklock(testerchain, token, escrow_dispatcher, token_economics, deploy_contract):
     # Creator deploys the worklock using test values
     now = testerchain.w3.eth.getBlock('latest').timestamp
     start_bid_date = ((now + 3600) // 3600 + 1) * 3600  # beginning of the next hour plus 1 hour
@@ -130,6 +144,7 @@ def worklock(testerchain, token, token_economics, deploy_contract):
     contract, _ = deploy_contract(
         contract_name='WorkLock',
         _token=token.address,
+        _escrow=escrow_dispatcher.address,
         _startBidDate=start_bid_date,
         _endBidDate=end_bid_date,
         _endCancellationDate=end_cancellation_date,
@@ -137,44 +152,42 @@ def worklock(testerchain, token, token_economics, deploy_contract):
         _stakingPeriods=staking_periods,
         _minAllowedBid=min_allowed_bid
     )
+
     return contract
 
 
 @pytest.fixture(scope='module')
-def escrow_bare(testerchain, token, token_economics, policy_manager, adjudicator, worklock, deploy_contract):
+def escrow_bare(testerchain,
+                token,
+                policy_manager,
+                adjudicator,
+                worklock,
+                token_economics,
+                escrow_dispatcher,
+                deploy_contract):
     # Creator deploys the escrow
     contract, _ = deploy_contract(
         'EnhancedStakingEscrow',
         token.address,
-        *token_economics.staking_deployment_parameters,
         policy_manager.address,
         adjudicator.address,
-        worklock.address
+        worklock.address,
+        *token_economics.staking_deployment_parameters
     )
+
+    tx = escrow_dispatcher.functions.upgrade(contract.address).transact()
+    testerchain.wait_for_receipt(tx)
+
     return contract
 
 
 @pytest.fixture(scope='module')
-def escrow_dispatcher(testerchain, escrow_bare, deploy_contract):
-    dispatcher, _ = deploy_contract('Dispatcher', escrow_bare.address)
-    return dispatcher
-
-
-@pytest.fixture(scope='module')
-def escrow(testerchain, escrow_bare, policy_manager, adjudicator, worklock, escrow_dispatcher):
+def escrow(testerchain, escrow_bare, escrow_dispatcher):
     # Wrap dispatcher contract
     contract = testerchain.client.get_contract(
         abi=escrow_bare.abi,
         address=escrow_dispatcher.address,
         ContractFactoryClass=Contract)
-
-    tx = policy_manager.functions.setStakingEscrow(contract.address).transact()
-    testerchain.wait_for_receipt(tx)
-    tx = adjudicator.functions.setStakingEscrow(contract.address).transact()
-    testerchain.wait_for_receipt(tx)
-    tx = worklock.functions.setStakingEscrow(contract.address).transact()
-    testerchain.wait_for_receipt(tx)
-
     return contract
 
 
@@ -903,8 +916,8 @@ def test_upgrading_and_rollback(testerchain,
                                 policy_manager_dispatcher,
                                 staking_interface_router,
                                 multisig,
-                                worklock,
                                 adjudicator,
+                                worklock,
                                 deploy_contract):
     creator, staker1, staker2, staker3, staker4, alice1, alice2, *contracts_owners =\
         testerchain.client.accounts
@@ -917,12 +930,12 @@ def test_upgrading_and_rollback(testerchain,
     escrow_v2, _ = deploy_contract(
         'StakingEscrow',
         token.address,
-        *token_economics.staking_deployment_parameters,
         policy_manager.address,
         adjudicator.address,
-        worklock.address
+        worklock.address,
+        *token_economics.staking_deployment_parameters
     )
-    policy_manager_v2, _ = deploy_contract('PolicyManager', escrow.address, 0)
+    policy_manager_v2, _ = deploy_contract('PolicyManager', escrow.address)
     # Staker and Alice can't upgrade contracts, only owner can
     with pytest.raises((TransactionFailed, ValueError)):
         tx = escrow_dispatcher.functions.upgrade(escrow_v2.address).transact({'from': alice1})

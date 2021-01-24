@@ -179,9 +179,9 @@ class ContractAdministrator(NucypherTokenActor):
     )
 
     dispatched_upgradeable_deployer_classes = (
+        StakingEscrowDeployer,
         PolicyManagerDeployer,
         AdjudicatorDeployer,
-        StakingEscrowDeployer,
     )
 
     upgradeable_deployer_classes = (

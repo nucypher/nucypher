@@ -14,6 +14,7 @@ GNU Affero General Public License for more details.
 You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
+from constant_sorrow import constants
 
 from constant_sorrow.constants import BARE
 
@@ -22,10 +23,10 @@ from nucypher.blockchain.eth.deployers import (DispatcherDeployer, StakingEscrow
 
 
 def test_staking_escrow_deployment(staking_escrow_deployer, deployment_progress):
-    deployment_receipts = staking_escrow_deployer.deploy(progress=deployment_progress)
+    deployment_receipts = staking_escrow_deployer.deploy(progress=deployment_progress, deployment_mode=constants.FULL)
 
     # deployment steps must match expected number of steps
-    assert deployment_progress.num_steps == len(staking_escrow_deployer.deployment_steps) == len(deployment_receipts) == 7
+    assert deployment_progress.num_steps == len(staking_escrow_deployer.deployment_steps) == len(deployment_receipts) == 4
 
     for step in staking_escrow_deployer.deployment_steps:
         assert deployment_receipts[step]['status'] == 1

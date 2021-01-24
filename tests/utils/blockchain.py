@@ -26,6 +26,7 @@ from web3 import Web3
 
 from nucypher.blockchain.economics import BaseEconomics, StandardTokenEconomics
 from nucypher.blockchain.eth.actors import ContractAdministrator
+from nucypher.blockchain.eth.deployers import StakingEscrowDeployer
 from nucypher.blockchain.eth.interfaces import BlockchainDeployerInterface, BlockchainInterfaceFactory
 from nucypher.blockchain.eth.registry import InMemoryContractRegistry, BaseContractRegistry
 from nucypher.blockchain.eth.sol.compile.constants import TEST_SOLIDITY_SOURCE_ROOT, SOLIDITY_SOURCE_ROOT
@@ -43,6 +44,7 @@ from tests.constants import (
     NUMBER_OF_URSULAS_IN_BLOCKCHAIN_TESTS,
     PYEVM_DEV_URI
 )
+from constant_sorrow.constants import (INIT)
 
 
 def token_airdrop(token_agent, amount: NU, origin: str, addresses: List[str]):
@@ -231,10 +233,13 @@ class TesterBlockchain(BlockchainDeployerInterface):
 
         gas_limit = None  # TODO: Gas management - #842
         for deployer_class in admin.primary_deployer_classes:
-            if deployer_class in ContractAdministrator.standard_deployer_classes:
-                admin.deploy_contract(contract_name=deployer_class.contract_name, gas_limit=gas_limit)
+            if deployer_class is StakingEscrowDeployer:
+                admin.deploy_contract(contract_name=deployer_class.contract_name,
+                                      gas_limit=gas_limit,
+                                      deployment_mode=INIT)
             else:
                 admin.deploy_contract(contract_name=deployer_class.contract_name, gas_limit=gas_limit)
+        admin.deploy_contract(contract_name=StakingEscrowDeployer.contract_name, gas_limit=gas_limit)
         return testerchain, registry
 
     @property

@@ -227,11 +227,8 @@ class StakingEscrowAgent(EthereumContractAgent):
     contract_name: str = STAKING_ESCROW_CONTRACT_NAME
     _proxy_name: str = DISPATCHER_CONTRACT_NAME
     _excluded_interfaces = (
-        'setPolicyManager',
         'verifyState',
-        'finishUpgrade',
-        'setAdjudicator',
-        'setWorkLock'
+        'finishUpgrade'
     )
 
     DEFAULT_PAGINATION_SIZE: int = 30    # TODO: Use dynamic pagination size (see #1424)

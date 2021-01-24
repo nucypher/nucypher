@@ -41,6 +41,58 @@ interface WorkLockInterface {
     function token() external view returns (NuCypherToken);
 }
 
+/**
+* @title StakingEscrowStub
+* @notice Stub is used to deploy main StakingEscrow after all other contract and make some variables immutable
+*/
+contract StakingEscrowStub is Upgradeable {
+    using AdditionalMath for uint32;
+
+    NuCypherToken public immutable token;
+    uint32 public immutable secondsPerPeriod;
+    uint16 public immutable minLockedPeriods;
+    uint256 public immutable minAllowableLockedTokens;
+    uint256 public immutable maxAllowableLockedTokens;
+
+    /**
+    * @notice Predefines some variables for use when deploying other contracts
+    * @param _token Token contract
+    * @param _minLockedPeriods Min amount of periods during which tokens can be locked
+    * @param _minAllowableLockedTokens Min amount of tokens that can be locked
+    * @param _maxAllowableLockedTokens Max amount of tokens that can be locked
+    */
+    constructor(
+        NuCypherToken _token,
+        uint32 _hoursPerPeriod,
+        uint16 _minLockedPeriods,
+        uint256 _minAllowableLockedTokens,
+        uint256 _maxAllowableLockedTokens
+    ) {
+        require(_token.totalSupply() > 0 &&
+            _hoursPerPeriod != 0 &&
+            _minLockedPeriods > 1 &&
+            _maxAllowableLockedTokens != 0);
+
+        token = _token;
+        secondsPerPeriod = _hoursPerPeriod.mul32(1 hours);
+        minLockedPeriods = _minLockedPeriods;
+        minAllowableLockedTokens = _minAllowableLockedTokens;
+        maxAllowableLockedTokens = _maxAllowableLockedTokens;
+    }
+
+    /// @dev the `onlyWhileUpgrading` modifier works through a call to the parent `verifyState`
+    function verifyState(address _testTarget) public override virtual {
+        super.verifyState(_testTarget);
+
+        // we have to use real values even though this is a stub
+        require(address(delegateGet(_testTarget, this.token.selector)) == address(token));
+        require(uint32(delegateGet(_testTarget, this.secondsPerPeriod.selector)) == secondsPerPeriod);
+        require(uint16(delegateGet(_testTarget, this.minLockedPeriods.selector)) == minLockedPeriods);
+        require(delegateGet(_testTarget, this.minAllowableLockedTokens.selector) == minAllowableLockedTokens);
+        require(delegateGet(_testTarget, this.maxAllowableLockedTokens.selector) == maxAllowableLockedTokens);
+    }
+}
+
 
 /**
 * @title StakingEscrow
@@ -156,6 +208,9 @@ contract StakingEscrow is Issuer, IERC900History {
     /**
     * @notice Constructor sets address of token contract and coefficients for minting
     * @param _token Token contract
+    * @param _policyManager Policy Manager contract
+    * @param _adjudicator Adjudicator contract
+    * @param _workLock WorkLock contract. Zero address if there is no WorkLock
     * @param _hoursPerPeriod Size of period in hours
     * @param _issuanceDecayCoefficient (d) Coefficient which modifies the rate at which the maximum issuance decays,
     * only applicable to Phase 2. d = 365 * half-life / LOG2 where default half-life = 2.
@@ -179,12 +234,12 @@ contract StakingEscrow is Issuer, IERC900History {
     * @param _minAllowableLockedTokens Min amount of tokens that can be locked
     * @param _maxAllowableLockedTokens Max amount of tokens that can be locked
     * @param _minWorkerPeriods Min amount of periods while a worker can't be changed
-    * @param _policyManager Policy Manager contract
-    * @param _adjudicator Adjudicator contract
-    * @param _workLock WorkLock contract. Zero address if there is no WorkLock
     */
     constructor(
         NuCypherToken _token,
+        PolicyManagerInterface _policyManager,
+        AdjudicatorInterface _adjudicator,
+        WorkLockInterface _workLock,
         uint32 _hoursPerPeriod,
         uint256 _issuanceDecayCoefficient,
         uint256 _lockDurationCoefficient1,
@@ -195,10 +250,7 @@ contract StakingEscrow is Issuer, IERC900History {
         uint16 _minLockedPeriods,
         uint256 _minAllowableLockedTokens,
         uint256 _maxAllowableLockedTokens,
-        uint16 _minWorkerPeriods,
-        PolicyManagerInterface _policyManager,
-        AdjudicatorInterface _adjudicator,
-        WorkLockInterface _workLock
+        uint16 _minWorkerPeriods
     )
         Issuer(
             _token,
@@ -235,32 +287,6 @@ contract StakingEscrow is Issuer, IERC900History {
         require(info.value > 0 || info.nextCommittedPeriod != 0);
         _;
     }
-
-    //------------------------Initialization------------------------
-    /**
-    * @notice Set policy manager, worklock and adjudicator addresses
-    */
-//    function setContracts(
-//        PolicyManagerInterface _policyManager,
-//        AdjudicatorInterface _adjudicator,
-//        WorkLockInterface _workLock
-//    )
-//        external onlyOwner
-//    {
-//        // Policy manager can be set only once
-//        require(address(policyManager) == address(0) &&
-//            address(adjudicator) == address(0) &&
-//            address(workLock) == address(0)
-//        );
-//        // This escrow must be the escrow for the new policy manager
-//        require(_policyManager.escrow() == address(this) &&
-//            _adjudicator.escrow() == address(this) &&
-//            (address(_workLock) == address(0) || _workLock.escrow() == address(this))
-//        );
-//        policyManager = _policyManager;
-//        adjudicator = _adjudicator;
-//        workLock = _workLock;
-//    }
 
     //------------------------Main getters------------------------
     /**

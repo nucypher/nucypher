@@ -93,7 +93,7 @@ def test_upgrade_contracts(click_runner, test_registry_source_manager, test_regi
     #
 
     # Check the existing state of the registry before the meat and potatoes
-    expected_enrollments = 10
+    expected_enrollments = 11
     with open(registry_filepath, 'r') as file:
         raw_registry_data = file.read()
         registry_data = json.loads(raw_registry_data)

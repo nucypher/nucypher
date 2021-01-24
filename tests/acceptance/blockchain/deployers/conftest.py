@@ -18,7 +18,8 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 import pytest
 
 from nucypher.blockchain.eth.deployers import (AdjudicatorDeployer, NucypherTokenDeployer, PolicyManagerDeployer,
-                                               StakingEscrowDeployer, StakingInterfaceDeployer, WorklockDeployer)
+                                               StakingEscrowDeployer, StakingInterfaceDeployer)
+from constant_sorrow.constants import (FULL, INIT)
 
 
 @pytest.fixture(scope="module")
@@ -29,20 +30,16 @@ def token_deployer(testerchain, test_registry):
 
 
 @pytest.fixture(scope="module")
-def worklock_deployer(token_deployer,
-                      testerchain,
-                      test_registry,
-                      token_economics):
+def staking_escrow_stub_deployer(testerchain, token_deployer, test_registry):
     token_deployer.deploy()
-    worklock_deployer = WorklockDeployer(registry=test_registry,
-                                         economics=token_economics,
-                                         deployer_address=testerchain.etherbase_account)
-    return worklock_deployer
+    staking_escrow_deployer = StakingEscrowDeployer(registry=test_registry,
+                                                    deployer_address=testerchain.etherbase_account)
+    return staking_escrow_deployer
 
 
 @pytest.fixture(scope="module")
-def policy_manager_deployer(worklock_deployer, testerchain, test_registry):
-    worklock_deployer.deploy()
+def policy_manager_deployer(staking_escrow_stub_deployer, testerchain, test_registry):
+    staking_escrow_stub_deployer.deploy(deployment_mode=INIT)
     policy_manager_deployer = PolicyManagerDeployer(registry=test_registry,
                                                     deployer_address=testerchain.etherbase_account)
     return policy_manager_deployer
@@ -66,7 +63,6 @@ def staking_escrow_deployer(testerchain, adjudicator_deployer, test_registry):
 
 @pytest.fixture(scope="module")
 def staking_interface_deployer(staking_escrow_deployer, testerchain, test_registry):
-    staking_escrow_deployer.deploy()
     staking_interface_deployer = StakingInterfaceDeployer(registry=test_registry,
                                                           deployer_address=testerchain.etherbase_account)
     return staking_interface_deployer

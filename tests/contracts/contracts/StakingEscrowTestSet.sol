@@ -14,6 +14,9 @@ contract EnhancedStakingEscrow is StakingEscrow {
 
     constructor(
         NuCypherToken _token,
+        PolicyManagerInterface _policyManager,
+        AdjudicatorInterface _adjudicator,
+        WorkLockInterface _workLock,
         uint32 _hoursPerPeriod,
         uint256 _issuanceDecayCoefficient,
         uint256 _lockDurationCoefficient1,
@@ -24,13 +27,13 @@ contract EnhancedStakingEscrow is StakingEscrow {
         uint16 _minLockedPeriods,
         uint256 _minAllowableLockedTokens,
         uint256 _maxAllowableLockedTokens,
-        uint16 _minWorkerPeriods,
-        PolicyManagerInterface _policyManager,
-        AdjudicatorInterface _adjudicator,
-        WorkLockInterface _workLock
+        uint16 _minWorkerPeriods
     )
         StakingEscrow(
             _token,
+            _policyManager,
+            _adjudicator,
+            _workLock,
             _hoursPerPeriod,
             _issuanceDecayCoefficient,
             _lockDurationCoefficient1,
@@ -41,10 +44,7 @@ contract EnhancedStakingEscrow is StakingEscrow {
             _minLockedPeriods,
             _minAllowableLockedTokens,
             _maxAllowableLockedTokens,
-            _minWorkerPeriods,
-            _policyManager,
-            _adjudicator,
-            _workLock
+            _minWorkerPeriods
         )
     {
     }
@@ -74,6 +74,9 @@ contract StakingEscrowBad is StakingEscrow {
 
     constructor(
         NuCypherToken _token,
+        PolicyManagerInterface _policyManager,
+        AdjudicatorInterface _adjudicator,
+        WorkLockInterface _workLock,
         uint32 _hoursPerPeriod,
         uint256 _issuanceDecayCoefficient,
         uint256 _lockDurationCoefficient1,
@@ -84,13 +87,13 @@ contract StakingEscrowBad is StakingEscrow {
         uint16 _minLockedPeriods,
         uint256 _minAllowableLockedTokens,
         uint256 _maxAllowableLockedTokens,
-        uint16 _minWorkerPeriods,
-        PolicyManagerInterface _policyManager,
-        AdjudicatorInterface _adjudicator,
-        WorkLockInterface _workLock
+        uint16 _minWorkerPeriods
     )
         StakingEscrow(
             _token,
+            _policyManager,
+            _adjudicator,
+            _workLock,
             _hoursPerPeriod,
             _issuanceDecayCoefficient,
             _lockDurationCoefficient1,
@@ -101,10 +104,7 @@ contract StakingEscrowBad is StakingEscrow {
             _minLockedPeriods,
             _minAllowableLockedTokens,
             _maxAllowableLockedTokens,
-            _minWorkerPeriods,
-            _policyManager,
-            _adjudicator,
-            _workLock
+            _minWorkerPeriods
         )
     {
     }
@@ -123,6 +123,9 @@ contract StakingEscrowV2Mock is StakingEscrow {
 
     constructor(
         NuCypherToken _token,
+        PolicyManagerInterface _policyManager,
+        AdjudicatorInterface _adjudicator,
+        WorkLockInterface _workLock,
         uint32 _hoursPerPeriod,
         uint256 _issuanceDecayCoefficient,
         uint256 _lockDurationCoefficient1,
@@ -134,13 +137,13 @@ contract StakingEscrowV2Mock is StakingEscrow {
         uint256 _minAllowableLockedTokens,
         uint256 _maxAllowableLockedTokens,
         uint16 _minWorkerPeriods,
-        PolicyManagerInterface _policyManager,
-        AdjudicatorInterface _adjudicator,
-        WorkLockInterface _workLock,
         uint256 _valueToCheck
     )
         StakingEscrow(
             _token,
+            _policyManager,
+            _adjudicator,
+            _workLock,
             _hoursPerPeriod,
             _issuanceDecayCoefficient,
             _lockDurationCoefficient1,
@@ -151,10 +154,7 @@ contract StakingEscrowV2Mock is StakingEscrow {
             _minLockedPeriods,
             _minAllowableLockedTokens,
             _maxAllowableLockedTokens,
-            _minWorkerPeriods,
-            _policyManager,
-            _adjudicator,
-            _workLock
+            _minWorkerPeriods
         )
     {
         valueToCheck = _valueToCheck;

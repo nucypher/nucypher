@@ -45,10 +45,10 @@ def test_upgrading(testerchain, token, token_economics, deploy_contract):
     contract_library_v1, _ = deploy_contract(
         'StakingEscrow',
         token.address,
-        *token_economics.staking_deployment_parameters,
         policy_manager.address,
         adjudicator.address,
-        worklock.address
+        worklock.address,
+        *token_economics.staking_deployment_parameters
     )
     dispatcher, _ = deploy_contract('Dispatcher', contract_library_v1.address)
 

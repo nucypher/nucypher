@@ -14,13 +14,14 @@ GNU Affero General Public License for more details.
 You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
+from constant_sorrow import constants
 
 from nucypher.blockchain.eth.agents import ContractAgency, PolicyManagerAgent, StakingEscrowAgent
 from nucypher.blockchain.eth.constants import POLICY_MANAGER_CONTRACT_NAME
 from nucypher.blockchain.eth.deployers import (DispatcherDeployer, PolicyManagerDeployer)
 
 
-def test_policy_manager_deployment(policy_manager_deployer, deployment_progress):
+def test_policy_manager_deployment(policy_manager_deployer, staking_escrow_stub_deployer, deployment_progress):
 
     assert policy_manager_deployer.contract_name == POLICY_MANAGER_CONTRACT_NAME
 
@@ -32,6 +33,9 @@ def test_policy_manager_deployment(policy_manager_deployer, deployment_progress)
 
     for step_title in steps:
         assert deployment_receipts[step_title]['status'] == 1
+
+    staking_escrow_address = policy_manager_deployer.contract.functions.escrow().call()
+    assert staking_escrow_stub_deployer.contract_address == staking_escrow_address
 
 
 def test_make_agent(policy_manager_deployer, test_registry):
@@ -45,11 +49,6 @@ def test_make_agent(policy_manager_deployer, test_registry):
 
     # Compare the contract address for equality
     assert policy_agent.contract_address == some_policy_agent.contract_address
-
-
-def test_deployment_parameters(policy_manager_deployer, token_economics):
-    seconds_per_period = token_economics.seconds_per_period
-    assert seconds_per_period == policy_manager_deployer.contract.functions.secondsPerPeriod().call()
 
 
 def test_policy_manager_has_dispatcher(policy_manager_deployer, testerchain, test_registry):

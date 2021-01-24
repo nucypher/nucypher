@@ -43,6 +43,7 @@ contract WorkLock is Ownable {
     uint256 private constant MAX_ETH_SUPPLY = 2e10 ether;
 
     NuCypherToken public immutable token;
+    StakingEscrow public immutable escrow;
 
     /*
     * @dev WorkLock calculations:
@@ -56,6 +57,9 @@ contract WorkLock is Ownable {
     uint256 public immutable boostingRefund;
     uint256 public immutable minAllowedBid;
     uint16 public immutable stakingPeriods;
+    // copy from the escrow contract
+    uint256 public immutable maxAllowableLockedTokens;
+    uint256 public immutable minAllowableLockedTokens;
 
     uint256 public tokenSupply;
     uint256 public startBidDate;
@@ -70,11 +74,6 @@ contract WorkLock is Ownable {
     // if value == bidders.length then WorkLock is fully checked
     uint256 public nextBidderToCheck;
 
-    StakingEscrow public escrow;
-    // copy from the escrow contract
-    uint256 public maxAllowableLockedTokens;
-    uint256 public minAllowableLockedTokens;
-
     /**
     * @dev Checks timestamp regarding cancellation window
     */
@@ -87,6 +86,7 @@ contract WorkLock is Ownable {
 
     /**
     * @param _token Token contract
+    * @param _escrow Escrow contract
     * @param _startBidDate Timestamp when bidding starts
     * @param _endBidDate Timestamp when bidding will end
     * @param _endCancellationDate Timestamp when cancellation will ends
@@ -96,6 +96,7 @@ contract WorkLock is Ownable {
     */
     constructor(
         NuCypherToken _token,
+        StakingEscrow _escrow,
         uint256 _startBidDate,
         uint256 _endBidDate,
         uint256 _endCancellationDate,
@@ -105,38 +106,27 @@ contract WorkLock is Ownable {
     ) {
         uint256 totalSupply = _token.totalSupply();
         require(totalSupply > 0 &&                              // token contract is deployed and accessible
-            _stakingPeriods > 0 &&                              // staking periods was set
+            _escrow.secondsPerPeriod() > 0 &&                   // escrow contract is deployed and accessible
+            _escrow.token() == _token &&                        // same token address for worklock and escrow
             _endBidDate > _startBidDate &&                      // bidding period lasts some time
             _endBidDate > block.timestamp &&                    // there is time to make a bid
             _endCancellationDate >= _endBidDate &&              // cancellation window includes bidding
             _minAllowedBid > 0 &&                               // min allowed bid was set
-            _boostingRefund > 0);                               // boosting coefficient was set
+            _boostingRefund > 0 &&                              // boosting coefficient was set
+            _stakingPeriods >= _escrow.minLockedPeriods());     // staking duration is consistent with escrow contract
         // worst case for `ethToWork()` and `workToETH()`,
         // when ethSupply == MAX_ETH_SUPPLY and tokenSupply == totalSupply
         require(MAX_ETH_SUPPLY * totalSupply * SLOWING_REFUND / MAX_ETH_SUPPLY / totalSupply == SLOWING_REFUND &&
             MAX_ETH_SUPPLY * totalSupply * _boostingRefund / MAX_ETH_SUPPLY / totalSupply == _boostingRefund);
 
         token = _token;
+        escrow = _escrow;
         startBidDate = _startBidDate;
         endBidDate = _endBidDate;
         endCancellationDate = _endCancellationDate;
         boostingRefund = _boostingRefund;
         stakingPeriods = _stakingPeriods;
         minAllowedBid = _minAllowedBid;
-    }
-
-    /**
-    * @notice Sets address of the escrow contract
-    * @param _escrow Escrow contract
-    */
-    function setStakingEscrow(StakingEscrow _escrow) external onlyOwner {
-        // StakingEscrow can be set only once
-        require(address(escrow) == address(0));
-        require(_escrow.secondsPerPeriod() > 0 &&               // escrow contract is deployed and accessible
-            _escrow.token() == token &&                         // same token address for worklock and escrow
-            stakingPeriods >= _escrow.minLockedPeriods()        // staking duration is consistent with escrow contract
-        );
-        escrow = _escrow;
         maxAllowableLockedTokens = _escrow.maxAllowableLockedTokens();
         minAllowableLockedTokens = _escrow.minAllowableLockedTokens();
     }

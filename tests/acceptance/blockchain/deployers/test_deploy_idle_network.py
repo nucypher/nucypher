@@ -51,6 +51,20 @@ def test_deploy_idle_network(testerchain, deployment_progress, test_registry):
     assert another_token_agent.contract_address == token_deployer.contract_address == token_agent.contract_address
 
     #
+    # StakingEscrow - in INIT mode, i.e. stub for StakingEscrow
+    #
+    staking_escrow_deployer = StakingEscrowDeployer(registry=test_registry, deployer_address=origin)
+    assert staking_escrow_deployer.deployer_address == origin
+
+    with pytest.raises(BaseContractDeployer.ContractDeploymentError):
+        assert staking_escrow_deployer.contract_address is constants.CONTRACT_NOT_DEPLOYED
+    assert not staking_escrow_deployer.is_deployed()
+
+    staking_escrow_deployer.deploy(progress=deployment_progress,
+                                   deployment_mode=constants.INIT)
+    assert not staking_escrow_deployer.is_deployed()
+
+    #
     # Policy Manager
     #
     policy_manager_deployer = PolicyManagerDeployer(registry=test_registry, deployer_address=origin)

@@ -17,7 +17,7 @@ import "contracts/proxy/Upgradeable.sol";
 /**
 * @title PolicyManager
 * @notice Contract holds policy data and locks accrued policy fees
-* @dev |v6.2.1|
+* @dev |v6.1.3|
 */
 contract PolicyManager is Upgradeable {
     using SafeERC20 for NuCypherToken;
@@ -108,34 +108,22 @@ contract PolicyManager is Upgradeable {
     // controlled overflow to get max int256
     int256 public constant DEFAULT_FEE_DELTA = int256((uint256(0) - 1) >> 1);
 
+    StakingEscrow public immutable escrow;
     uint32 public immutable secondsPerPeriod;
 
     mapping (bytes16 => Policy) public policies;
     mapping (address => NodeInfo) public nodes;
     Range public feeRateRange;
-    StakingEscrow public escrow;
 
     /**
-    * @notice Constructor sets either address of the escrow contract or seconds per period directly
+    * @notice Constructor sets address of the escrow contract
     * @param _escrow Escrow contract
-    * @param _secondsPerPeriod Seconds per period from StakingEscrow contract
     */
-    constructor(StakingEscrow _escrow, uint32 _secondsPerPeriod) {
-        uint32 localSecondsPerPeriod = address(_escrow) != address(0) ? _escrow.secondsPerPeriod() : _secondsPerPeriod;
+    constructor(StakingEscrow _escrow) {
+        // if the input address is not the StakingEscrow then calling `secondsPerPeriod` will throw error
+        uint32 localSecondsPerPeriod = _escrow.secondsPerPeriod();
         require(localSecondsPerPeriod > 0);
         secondsPerPeriod = localSecondsPerPeriod;
-        escrow = _escrow;
-    }
-
-    /**
-    * @notice Sets address of the escrow contract
-    * @param _escrow Escrow contract
-    */
-    function setStakingEscrow(StakingEscrow _escrow) external onlyOwner {
-        // StakingEscrow can be set only once
-        require(address(escrow) == address(0));
-        // if the input address is not the StakingEscrow then calling `secondsPerPeriod` will throw error
-        require(secondsPerPeriod == _escrow.secondsPerPeriod());
         escrow = _escrow;
     }
 
@@ -731,7 +719,6 @@ contract PolicyManager is Upgradeable {
     /// @dev the `onlyWhileUpgrading` modifier works through a call to the parent `verifyState`
     function verifyState(address _testTarget) public override virtual {
         super.verifyState(_testTarget);
-        require(address(delegateGet(_testTarget, this.escrow.selector)) == address(escrow));
         Range memory rangeToCheck = delegateGetFeeRateRange(_testTarget);
         require(feeRateRange.min == rangeToCheck.min &&
             feeRateRange.defaultValue == rangeToCheck.defaultValue &&
@@ -770,10 +757,6 @@ contract PolicyManager is Upgradeable {
     /// @dev the `onlyWhileUpgrading` modifier works through a call to the parent `finishUpgrade`
     function finishUpgrade(address _target) public override virtual {
         super.finishUpgrade(_target);
-        StakingEscrow escrowAddress = PolicyManager(_target).escrow();
-        if (address(escrowAddress) != address(0)) {
-            escrow = escrowAddress;
-        }
         // Create fake Policy and NodeInfo to use them in verifyState(address)
         Policy storage policy = policies[RESERVED_POLICY_ID];
         policy.sponsor = msg.sender;

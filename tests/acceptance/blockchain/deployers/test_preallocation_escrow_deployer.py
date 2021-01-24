@@ -17,6 +17,7 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 
 
 import pytest
+from constant_sorrow import constants
 
 from nucypher.blockchain.eth.deployers import (AdjudicatorDeployer, NucypherTokenDeployer, PolicyManagerDeployer,
                                                PreallocationEscrowDeployer, StakingEscrowDeployer,
@@ -37,6 +38,9 @@ def test_staking_interface_deployer(testerchain, deployment_progress, test_regis
     token_deployer = NucypherTokenDeployer(deployer_address=origin, registry=test_registry)
     token_deployer.deploy()
 
+    staking_escrow_deployer = StakingEscrowDeployer(deployer_address=origin, registry=test_registry)
+    staking_escrow_deployer.deploy()
+
     policy_manager_deployer = PolicyManagerDeployer(deployer_address=origin, registry=test_registry)
     policy_manager_deployer.deploy()
 
@@ -44,7 +48,7 @@ def test_staking_interface_deployer(testerchain, deployment_progress, test_regis
     adjudicator_deployer.deploy()
 
     staking_escrow_deployer = StakingEscrowDeployer(deployer_address=origin, registry=test_registry)
-    staking_escrow_deployer.deploy()
+    staking_escrow_deployer.deploy(deployment_mode=constants.FULL)
 
     #
     # Test

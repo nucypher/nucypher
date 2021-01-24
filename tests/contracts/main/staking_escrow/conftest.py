@@ -84,11 +84,12 @@ def escrow_contract(testerchain,
             deploy_parameters[5] = 0
             deploy_parameters[6] = 0
 
-        deploy_parameters.append(policy_manager.address)
-        deploy_parameters.append(adjudicator.address)
-        deploy_parameters.append(worklock.address)
-
-        contract, _ = deploy_contract('EnhancedStakingEscrow', token.address, *deploy_parameters)
+        contract, _ = deploy_contract('EnhancedStakingEscrow',
+                                      token.address,
+                                      policy_manager.address,
+                                      adjudicator.address,
+                                      worklock.address,
+                                      *deploy_parameters)
 
         if request.param:
             dispatcher, _ = deploy_contract('Dispatcher', contract.address)

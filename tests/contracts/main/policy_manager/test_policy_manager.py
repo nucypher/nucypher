@@ -522,18 +522,18 @@ def test_upgrading(testerchain, deploy_contract):
 
     # Only escrow contract is allowed in PolicyManager constructor
     with pytest.raises((TransactionFailed, ValueError)):
-        deploy_contract('PolicyManager', creator, 0)
+        deploy_contract('PolicyManager', creator)
 
     # Deploy contracts
     escrow1, _ = deploy_contract('StakingEscrowForPolicyMock', 1)
     escrow2, _ = deploy_contract('StakingEscrowForPolicyMock', 1)
     address1 = escrow1.address
     address2 = escrow2.address
-    contract_library_v1, _ = deploy_contract('PolicyManager', address1, 0)
+    contract_library_v1, _ = deploy_contract('PolicyManager', address1)
     dispatcher, _ = deploy_contract('Dispatcher', contract_library_v1.address)
 
     # Deploy second version of the contract
-    contract_library_v2, _ = deploy_contract('PolicyManagerV2Mock', address2, 0)
+    contract_library_v2, _ = deploy_contract('PolicyManagerV2Mock', address2)
     contract = testerchain.client.get_contract(
         abi=contract_library_v2.abi,
         address=dispatcher.address,
@@ -562,7 +562,7 @@ def test_upgrading(testerchain, deploy_contract):
     assert 3 == contract.functions.valueToCheck().call()
 
     # Can't upgrade to the previous version or to the bad version
-    contract_library_bad, _ = deploy_contract('PolicyManagerBad', address2, 0)
+    contract_library_bad, _ = deploy_contract('PolicyManagerBad', address2)
     with pytest.raises((TransactionFailed, ValueError)):
         tx = dispatcher.functions.upgrade(contract_library_v1.address).transact({'from': creator})
         testerchain.wait_for_receipt(tx)
@@ -616,7 +616,7 @@ def test_handling_wrong_state(testerchain, deploy_contract):
 
     # Prepare enhanced version of contract
     escrow, _ = deploy_contract('StakingEscrowForPolicyMock', 1)
-    policy_manager, _ = deploy_contract('ExtendedPolicyManager', escrow.address, 0)
+    policy_manager, _ = deploy_contract('ExtendedPolicyManager', escrow.address)
     tx = escrow.functions.setPolicyManager(policy_manager.address).transact({'from': creator})
     testerchain.wait_for_receipt(tx)
 

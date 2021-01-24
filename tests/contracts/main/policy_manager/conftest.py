@@ -32,7 +32,7 @@ def policy_manager(testerchain, escrow, request, deploy_contract):
     creator, client, bad_node, node1, node2, node3, *everyone_else = testerchain.client.accounts
 
     # Creator deploys the policy manager
-    contract, _ = deploy_contract('PolicyManager', escrow.address, 0)
+    contract, _ = deploy_contract('PolicyManager', escrow.address)
 
     # Give client some ether
     tx = testerchain.client.send_transaction(
