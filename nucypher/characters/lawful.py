@@ -1115,6 +1115,7 @@ class Ursula(Teacher, Character, Worker):
             # Decentralized Worker
             if not federated_only:
 
+                # TODO: Move to method
                 # Prepare a TransactingPower from worker node's transacting keys
                 transacting_power = TransactingPower(account=worker_address,
                                                      password=client_password,
@@ -1148,14 +1149,14 @@ class Ursula(Teacher, Character, Worker):
             certificate_filepath = self._crypto_power.power_ups(TLSHostingPower).keypair.certificate_filepath
             certificate = self._crypto_power.power_ups(TLSHostingPower).keypair.certificate
 
-            # Initial Impression
-            self.known_nodes.record_fleet_state(additional_nodes_to_track=[self])
+            # only you can prevent forest fires
             message = "THIS IS YOU: {}: {}".format(self.__class__.__name__, self)
             self.log.info(message)
             self.log.info(self.banner.format(self.nickname))
 
         else:
             # Stranger HTTP Server
+            # TODO: Use InterfaceInfo only
             self.rest_server = ProxyRESTServer(rest_host=rest_host, rest_port=rest_port)
 
         # Teacher (All Modes)
@@ -1166,6 +1167,10 @@ class Ursula(Teacher, Character, Worker):
                          interface_signature=interface_signature,
                          timestamp=timestamp,
                          decentralized_identity_evidence=decentralized_identity_evidence)
+
+        if is_me:
+            # TODO: relocate
+            self.known_nodes.record_fleet_state(additional_nodes_to_track=[self])
 
     def __get_hosting_power(self, host: str) -> TLSHostingPower:
         try:
