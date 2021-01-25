@@ -23,6 +23,7 @@ from nucypher.characters.lawful import Ursula
 from nucypher.config.constants import TEMPORARY_DOMAIN
 from nucypher.config.storages import ForgetfulNodeStorage, NodeStorage, TemporaryFileBasedNodeStorage
 from nucypher.network.nodes import Learner
+from nucypher.utilities.networking import LOOPBACK_ADDRESS
 from tests.utils.ursula import MOCK_URSULA_STARTING_PORT
 
 ADDITIONAL_NODES_TO_LEARN_ABOUT = 10
@@ -33,7 +34,7 @@ class BaseTestNodeStorageBackends:
 
     @pytest.fixture(scope='class')
     def light_ursula(temp_dir_path):
-        node = Ursula(rest_host='127.0.0.1',
+        node = Ursula(rest_host=LOOPBACK_ADDRESS,
                       rest_port=MOCK_URSULA_STARTING_PORT,
                       db_filepath=MOCK_URSULA_DB_FILEPATH,
                       federated_only=True,
@@ -56,7 +57,7 @@ class BaseTestNodeStorageBackends:
         # Save more nodes
         all_known_nodes = set()
         for port in range(MOCK_URSULA_STARTING_PORT, MOCK_URSULA_STARTING_PORT + ADDITIONAL_NODES_TO_LEARN_ABOUT):
-            node = Ursula(rest_host='127.0.0.1',
+            node = Ursula(rest_host=LOOPBACK_ADDRESS,
                           db_filepath=MOCK_URSULA_DB_FILEPATH,
                           rest_port=port,
                           federated_only=True,
