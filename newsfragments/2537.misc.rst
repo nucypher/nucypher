@@ -1,1 +1,1 @@
-Introduces the Lynx testnet, a more stable environment to learn how to use NuCypher and integrate it to other apps.
+Introduces the Lynx testnet, a more stable environment to learn how to use NuCypher and integrate it into other apps.
