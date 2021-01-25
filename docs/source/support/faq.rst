@@ -16,7 +16,8 @@ The answers in the FAQ regularly reference the network characters "**Alice**," "
 General
 -------
 
-.. _faq_testnet:
+.. _faq-testnet:
+
 Q: What is the network name for NuCypher's testnet?
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
