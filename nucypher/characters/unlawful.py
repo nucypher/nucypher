@@ -17,11 +17,9 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 
 
 from copy import copy
-
-import tempfile
-from tests.constants import MOCK_PROVIDER_URI
-from eth_tester.exceptions import ValidationError
 from unittest.mock import patch
+
+from eth_tester.exceptions import ValidationError
 
 from nucypher.blockchain.eth.signers.software import Web3Signer
 from nucypher.characters.lawful import Alice, Ursula

@@ -40,6 +40,7 @@ class InvalidWorkerIP(RuntimeError):
 
 CENTRALIZED_IP_ORACLE_URL = 'https://ifconfig.me/'
 
+LOOPBACK_ADDRESS = '127.0.0.1'  # TODO use across code base - #2538
 
 RequestErrors = (
     # https://requests.readthedocs.io/en/latest/user/quickstart/#errors-and-exceptions
@@ -51,12 +52,11 @@ RequestErrors = (
 
 RESERVED_IP_ADDRESSES = (
     '0.0.0.0',
-    '127.0.0.1',
+    LOOPBACK_ADDRESS,
     '1.2.3.4'
 )
 
 IP_DETECTION_LOGGER = Logger('external-ip-detection')
-
 
 
 def validate_worker_ip(worker_ip: str) -> None:
