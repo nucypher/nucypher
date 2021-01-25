@@ -574,6 +574,7 @@ def test_collect_rewards_integration(click_runner,
                     registry=agency_local_registry,
                     rest_host='127.0.0.1',
                     rest_port=ursula_port,
+                    provider_uri=TEST_PROVIDER_URI,
                     network_middleware=MockRestMiddleware(),
                     db_filepath=tempfile.mkdtemp(),
                     domain=TEMPORARY_DOMAIN)
