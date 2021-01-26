@@ -20,6 +20,7 @@ class NetworksInventory:  # TODO: See #1564
 
     MAINNET = 'mainnet'
     IBEX = 'ibex'
+    LYNX = 'lynx'
 
     UNKNOWN = 'unknown'  # TODO: Is there a better way to signal an unknown network?
     DEFAULT = MAINNET
@@ -27,6 +28,7 @@ class NetworksInventory:  # TODO: See #1564
     __to_ethereum_chain_id = {
         MAINNET: 1,  # Ethereum Mainnet
         IBEX: 4,  # Rinkeby
+        LYNX: 5,  # Goerli
     }
 
     NETWORKS = tuple(__to_ethereum_chain_id.keys())

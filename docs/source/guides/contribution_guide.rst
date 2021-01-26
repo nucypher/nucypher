@@ -201,8 +201,8 @@ Building Documentation
 
 .. note::
 
-  ``sphinx`` and ``sphinx_rtd_theme`` are non-standard dependencies that can be installed
-  by running ``pip install -e .[docs]`` from the project directory.
+  ``sphinx`` and ``sphinx_rtd_theme`` are non-standard dependencies required to build the documentation locally.
+  You can install them by running ``pip install -e . -r docs-requirements.txt``.
 
 
 .. _Read The Docs: https://nucypher.readthedocs.io/en/latest/

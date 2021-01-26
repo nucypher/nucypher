@@ -183,13 +183,12 @@ def initialize_deployer_interface(emitter: StdoutEmitter,
     if not BlockchainInterfaceFactory.is_interface_initialized(provider_uri=provider_uri):
         deployer_interface = BlockchainDeployerInterface(provider_uri=provider_uri,
                                                          poa=poa,
-                                                         ignore_solidity_check=ignore_solidity_check,
                                                          gas_strategy=gas_strategy,
                                                          max_gas_price=max_gas_price)
         BlockchainInterfaceFactory.register_interface(interface=deployer_interface, emitter=emitter)
     else:
         deployer_interface = BlockchainInterfaceFactory.get_interface(provider_uri=provider_uri)
-    deployer_interface.connect()
+    deployer_interface.connect(ignore_solidity_check=ignore_solidity_check)
     return deployer_interface
 
 
