@@ -4,6 +4,15 @@ Releases
 
 .. towncrier release notes start
 
+v4.6.0 (2021-01-26)
+-------------------
+
+Misc
+~~~~
+
+- Introduces the Lynx testnet, a more stable environment to learn how to use NuCypher and integrate it into other apps. (`#2537 <https://github.com/nucypher/nucypher/issues/2537>`__)
+
+
 v4.5.4 (2021-01-22)
 -------------------
 
