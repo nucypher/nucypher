@@ -593,10 +593,6 @@ class StakingEscrowAgent(EthereumContractAgent):
         flags = self.get_flags(staker_address)
         return flags.restake_flag
 
-    @contract_api(CONTRACT_CALL)
-    def is_restaking_locked(self, staker_address: ChecksumAddress) -> bool:
-        return self.contract.functions.isReStakeLocked(staker_address).call()
-
     @contract_api(TRANSACTION)
     def set_restaking(self, staker_address: ChecksumAddress, value: bool) -> TxReceipt:
         """
@@ -608,20 +604,6 @@ class StakingEscrowAgent(EthereumContractAgent):
                                                               sender_address=staker_address)
         # TODO: Handle ReStakeSet event (see #1193)
         return receipt
-
-    @contract_api(TRANSACTION)
-    def lock_restaking(self, staker_address: ChecksumAddress, release_period: Period) -> TxReceipt:
-        contract_function: ContractFunction = self.contract.functions.lockReStake(release_period)
-        receipt: TxReceipt = self.blockchain.send_transaction(contract_function=contract_function,
-                                                              sender_address=staker_address)
-        # TODO: Handle ReStakeLocked event (see #1193)
-        return receipt
-
-    @contract_api(CONTRACT_CALL)
-    def get_restake_unlock_period(self, staker_address: ChecksumAddress) -> Period:
-        staker_info: StakerInfo = self.get_staker_info(staker_address)
-        restake_unlock_period: int = int(staker_info.lock_restake_until_period)
-        return Period(restake_unlock_period)
 
     @contract_api(CONTRACT_CALL)
     def is_winding_down(self, staker_address: ChecksumAddress) -> bool:

@@ -357,14 +357,6 @@ def test_staking_before_initialization(testerchain,
     _wind_down, re_stake, _measure_work, _snapshots = escrow.functions.getFlags(preallocation_escrow_1.address).call()
     assert re_stake
     current_period = escrow.functions.getCurrentPeriod().call()
-    tx = preallocation_escrow_interface_1.functions.lockReStake(current_period + 25).transact({'from': staker3})
-    testerchain.wait_for_receipt(tx)
-    _wind_down, re_stake, _measure_work, _snapshots = escrow.functions.getFlags(preallocation_escrow_1.address).call()
-    assert re_stake
-    # Can't unlock re-stake parameter now
-    with pytest.raises((TransactionFailed, ValueError)):
-        tx = preallocation_escrow_interface_1.functions.setReStake(False).transact({'from': staker3})
-        testerchain.wait_for_receipt(tx)
 
     # Deposit some tokens to the preallocation escrow and lock them
     tx = token.functions.approve(preallocation_escrow_1.address, 10000).transact({'from': creator})
@@ -598,7 +590,6 @@ def test_worklock_phases(testerchain,
     execute_multisig_transaction(testerchain, multisig, [contracts_owners[0], contracts_owners[1]], tx)
     pytest.escrow_supply += token_economics.erc20_reward_supply
 
-    assert not escrow.functions.isReStakeLocked(staker1).call()
     tx = worklock.functions.claim().transact({'from': staker1, 'gas_price': 0})
     testerchain.wait_for_receipt(tx)
     assert worklock.functions.workInfo(staker1).call()[2]
@@ -1222,11 +1213,6 @@ def test_withdraw(testerchain,
         tx = escrow.functions.commitToNextPeriod().transact({'from': staker3})
         testerchain.wait_for_receipt(tx)
         testerchain.time_travel(hours=1)
-
-    # Can't unlock re-stake parameter yet
-    with pytest.raises((TransactionFailed, ValueError)):
-        tx = preallocation_escrow_interface_1.functions.setReStake(False).transact({'from': staker3})
-        testerchain.wait_for_receipt(tx)
 
     testerchain.time_travel(hours=1)
     # Now can turn off re-stake

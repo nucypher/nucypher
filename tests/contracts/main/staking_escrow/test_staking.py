@@ -150,9 +150,10 @@ def test_minting(testerchain, token, escrow_contract, token_economics):
     assert policy_manager.functions.getPeriod(staker1, 5).call() == 0
     assert policy_manager.functions.getPeriod(staker1, 6).call() == current_period + 1
 
-    # Checks that no error from repeated method call
-    tx = escrow.functions.commitToNextPeriod().transact({'from': staker1})
-    testerchain.wait_for_receipt(tx)
+    # Can't commit more than once
+    with pytest.raises((TransactionFailed, ValueError)):
+        tx = escrow.functions.commitToNextPeriod().transact({'from': staker1})
+        testerchain.wait_for_receipt(tx)
     assert policy_manager.functions.getPeriodsLength(staker1).call() == 7
 
     # Staker and Staker(2) mint tokens for last periods

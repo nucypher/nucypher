@@ -125,9 +125,6 @@ def test_staker(testerchain, token, escrow, staking_contract, staking_contract_i
         tx = staking_interface.functions.setReStake(True).transact({'from': owner})
         testerchain.wait_for_receipt(tx)
     with pytest.raises((TransactionFailed, ValueError)):
-        tx = staking_interface.functions.lockReStake(0).transact({'from': owner})
-        testerchain.wait_for_receipt(tx)
-    with pytest.raises((TransactionFailed, ValueError)):
         tx = staking_interface.functions.bondWorker(owner).transact({'from': owner})
         testerchain.wait_for_receipt(tx)
     with pytest.raises((TransactionFailed, ValueError)):
@@ -147,7 +144,6 @@ def test_staker(testerchain, token, escrow, staking_contract, staking_contract_i
     mints = staking_contract_interface.events.Minted.createFilter(fromBlock='latest')
     staker_withdraws = staking_contract_interface.events.WithdrawnAsStaker.createFilter(fromBlock='latest')
     re_stakes = staking_contract_interface.events.ReStakeSet.createFilter(fromBlock='latest')
-    re_stake_locks = staking_contract_interface.events.ReStakeLocked.createFilter(fromBlock='latest')
     worker_logs = staking_contract_interface.events.WorkerBonded.createFilter(fromBlock='latest')
     prolong_logs = staking_contract_interface.events.Prolonged.createFilter(fromBlock='latest')
     wind_down_logs = staking_contract_interface.events.WindDownSet.createFilter(fromBlock='latest')
@@ -206,9 +202,6 @@ def test_staker(testerchain, token, escrow, staking_contract, staking_contract_i
     tx = staking_contract_interface.functions.setReStake(True).transact({'from': owner})
     testerchain.wait_for_receipt(tx)
     assert escrow.functions.reStake().call()
-    tx = staking_contract_interface.functions.lockReStake(123).transact({'from': owner})
-    testerchain.wait_for_receipt(tx)
-    assert 123 == escrow.functions.lockReStakeUntilPeriod().call()
 
     # Test setting worker
     tx = staking_contract_interface.functions.bondWorker(owner).transact({'from': owner})
@@ -273,12 +266,6 @@ def test_staker(testerchain, token, escrow, staking_contract, staking_contract_i
     event_args = events[0]['args']
     assert owner == event_args['sender']
     assert event_args['reStake']
-
-    events = re_stake_locks.get_all_entries()
-    assert 1 == len(events)
-    event_args = events[0]['args']
-    assert owner == event_args['sender']
-    assert 123 == event_args['lockUntilPeriod']
 
     events = worker_logs.get_all_entries()
     assert 1 == len(events)

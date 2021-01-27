@@ -23,7 +23,6 @@ from web3.contract import Contract
 
 MAX_SUB_STAKES = 30
 MAX_UINT16 = 65535
-LOCK_RE_STAKE_UNTIL_PERIOD_FIELD = 4
 
 
 def test_staking(testerchain, token, escrow_contract):

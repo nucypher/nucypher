@@ -125,7 +125,6 @@ contract StakingEscrow is Issuer, IERC900History {
     event Minted(address indexed staker, uint16 indexed period, uint256 value);
     event Slashed(address indexed staker, uint256 penalty, address indexed investigator, uint256 reward);
     event ReStakeSet(address indexed staker, bool reStake);
-    event ReStakeLocked(address indexed staker, uint16 lockUntilPeriod);
     event WorkerBonded(address indexed staker, address indexed worker, uint16 indexed startPeriod);
     event WorkMeasurementSet(address indexed staker, bool measureWork);
     event WindDownSet(address indexed staker, bool windDown);
@@ -154,7 +153,7 @@ contract StakingEscrow is Issuer, IERC900History {
         uint16 currentCommittedPeriod;
         uint16 nextCommittedPeriod;
         uint16 lastCommittedPeriod;
-        uint16 lockReStakeUntilPeriod;
+        uint16 stub1; // former slot for lockReStakeUntilPeriod
         uint256 completedWork;
         uint16 workerStartPeriod; // period when worker was bonded
         address worker;
@@ -454,14 +453,6 @@ contract StakingEscrow is Issuer, IERC900History {
     }
 
     /**
-    * @notice Checks if `reStake` parameter is available for changing
-    * @param _staker Staker
-    */
-    function isReStakeLocked(address _staker) public view returns (bool) {
-        return getCurrentPeriod() < stakerInfo[_staker].lockReStakeUntilPeriod;
-    }
-
-    /**
     * @notice Get worker using staker's address
     */
     function getWorkerFromStaker(address _staker) external view returns (address) {
@@ -541,28 +532,15 @@ contract StakingEscrow is Issuer, IERC900History {
 
     /**
     * @notice Set `reStake` parameter. If true then all staking rewards will be added to locked stake
-    * Only if this parameter is not locked
     * @param _reStake Value for parameter
     */
     function setReStake(bool _reStake) external {
-        require(!isReStakeLocked(msg.sender));
         StakerInfo storage info = stakerInfo[msg.sender];
         if (info.flags.bitSet(RE_STAKE_DISABLED_INDEX) == !_reStake) {
             return;
         }
         info.flags = info.flags.toggleBit(RE_STAKE_DISABLED_INDEX);
         emit ReStakeSet(msg.sender, _reStake);
-    }
-
-    /**
-    * @notice Lock `reStake` parameter. Only if this parameter is not locked
-    * @param _lockReStakeUntilPeriod Can't change `reStake` value until this period
-    */
-    function lockReStake(uint16 _lockReStakeUntilPeriod) external {
-        require(!isReStakeLocked(msg.sender) &&
-            _lockReStakeUntilPeriod > getCurrentPeriod());
-        stakerInfo[msg.sender].lockReStakeUntilPeriod = _lockReStakeUntilPeriod;
-        emit ReStakeLocked(msg.sender, _lockReStakeUntilPeriod);
     }
 
     /**
@@ -1088,15 +1066,13 @@ contract StakingEscrow is Issuer, IERC900History {
         // Only worker with real address can make a commitment
         require(msg.sender == tx.origin);
 
-        uint16 lastCommittedPeriod = getLastCommittedPeriod(staker);
-        (uint16 processedPeriod1, uint16 processedPeriod2) = mint(staker);
         uint16 currentPeriod = getCurrentPeriod();
         uint16 nextPeriod = currentPeriod + 1;
-
         // the period has already been committed
-        if (info.nextCommittedPeriod == nextPeriod) {
-            return;
-        }
+        require(info.nextCommittedPeriod != nextPeriod);
+
+        uint16 lastCommittedPeriod = getLastCommittedPeriod(staker);
+        (uint16 processedPeriod1, uint16 processedPeriod2) = mint(staker);
 
         uint256 lockedTokens = getLockedTokens(info, currentPeriod, nextPeriod);
         require(lockedTokens > 0);
@@ -1622,7 +1598,6 @@ contract StakingEscrow is Issuer, IERC900History {
             infoToCheck.currentCommittedPeriod == info.currentCommittedPeriod &&
             infoToCheck.nextCommittedPeriod == info.nextCommittedPeriod &&
             infoToCheck.flags == info.flags &&
-            infoToCheck.lockReStakeUntilPeriod == info.lockReStakeUntilPeriod &&
             infoToCheck.lastCommittedPeriod == info.lastCommittedPeriod &&
             infoToCheck.completedWork == info.completedWork &&
             infoToCheck.worker == info.worker &&

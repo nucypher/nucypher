@@ -263,22 +263,6 @@ def test_deposit_and_increase(agency, testerchain, test_registry, token_economic
     assert staking_agent.get_locked_tokens(staker_account, 1) == locked_tokens + amount
 
 
-def test_lock_restaking(agency, testerchain, test_registry):
-    staker_account, worker_account, *other = testerchain.unassigned_accounts
-    staking_agent = ContractAgency.get_agent(StakingEscrowAgent, registry=test_registry)
-    current_period = staking_agent.get_current_period()
-    terminal_period = current_period + 2
-
-    assert staking_agent.is_restaking(staker_account)
-    assert not staking_agent.is_restaking_locked(staker_account)
-    receipt = staking_agent.lock_restaking(staker_account, release_period=terminal_period)
-    assert receipt['status'] == 1, "Transaction Rejected"
-    assert staking_agent.is_restaking_locked(staker_account)
-
-    testerchain.time_travel(periods=2)  # Wait for re-staking lock to be released.
-    assert not staking_agent.is_restaking_locked(staker_account)
-
-
 def test_disable_restaking(agency, testerchain, test_registry):
     staker_account, worker_account, *other = testerchain.unassigned_accounts
     staking_agent = ContractAgency.get_agent(StakingEscrowAgent, registry=test_registry)
@@ -295,6 +279,7 @@ def test_collect_staking_reward(agency, testerchain, mock_transacting_power_acti
     staker_account, worker_account, *other = testerchain.unassigned_accounts
 
     # Commit to next period
+    testerchain.time_travel(periods=1)
     staking_agent.commit_to_next_period(worker_address=worker_account)
     testerchain.time_travel(periods=2)
 

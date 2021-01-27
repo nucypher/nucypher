@@ -169,15 +169,6 @@ SUCCESSFUL_DISABLE_WIND_DOWN = 'Successfully disabled winding down for {staking_
 # Restaking
 #
 
-RESTAKING_LOCK_AGREEMENT = """
-By enabling the re-staking lock for {staking_address}, you are committing to automatically
-re-stake all rewards until a future period.  You will not be able to disable re-staking until {release_period}.
-"""
-
-CONFIRM_RESTAKING_LOCK = "Confirm enable re-staking lock for staker {staking_address} until {release_period}?"
-
-SUCCESSFUL_ENABLE_RESTAKE_LOCK = 'Successfully enabled re-staking lock for {staking_address} until {lock_until}'
-
 RESTAKING_AGREEMENT = """
 By enabling the re-staking for {staking_address}, all staking rewards will be automatically added to your existing stake.
 """

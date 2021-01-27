@@ -33,10 +33,8 @@ from nucypher.cli.literature import (
     CONFIRM_ENABLE_WINDING_DOWN,
     CONFIRM_LARGE_STAKE_DURATION,
     CONFIRM_LARGE_STAKE_VALUE,
-    CONFIRM_RESTAKING_LOCK,
     CONFIRM_STAGED_STAKE,
     RESTAKING_AGREEMENT,
-    RESTAKING_LOCK_AGREEMENT,
     WINDING_DOWN_AGREEMENT,
     SNAPSHOTS_DISABLING_AGREEMENT,
     CONFIRM_DISABLE_SNAPSHOTS
@@ -58,13 +56,6 @@ def confirm_deployment(emitter: StdoutEmitter, deployer_interface: BlockchainDep
     if click.prompt(f"Type '{expected_chain_name.upper()}' to continue") != expected_chain_name.upper():
         emitter.echo(ABORT_DEPLOYMENT, color='red', bold=True)
         raise click.Abort(ABORT_DEPLOYMENT)
-    return True
-
-
-def confirm_enable_restaking_lock(emitter: StdoutEmitter, staking_address: str, release_period: int) -> bool:
-    """Interactively confirm enabling of the staking lock with user agreements."""
-    emitter.message(RESTAKING_LOCK_AGREEMENT.format(staking_address=staking_address, release_period=release_period))
-    click.confirm(CONFIRM_RESTAKING_LOCK.format(staking_address=staking_address, release_period=release_period), abort=True)
     return True
 
 

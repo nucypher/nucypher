@@ -34,7 +34,6 @@ from nucypher.cli.actions.auth import get_client_password
 from nucypher.cli.actions.configure import get_or_update_configuration, handle_missing_configuration_file
 from nucypher.cli.actions.confirm import (
     confirm_enable_restaking,
-    confirm_enable_restaking_lock,
     confirm_enable_winding_down,
     confirm_large_stake,
     confirm_staged_stake,
@@ -63,7 +62,6 @@ from nucypher.cli.literature import (
     PROMPT_WORKER_ADDRESS,
     SUCCESSFUL_DETACH_WORKER,
     SUCCESSFUL_DISABLE_RESTAKING, SUCCESSFUL_DISABLE_WIND_DOWN,
-    SUCCESSFUL_ENABLE_RESTAKE_LOCK,
     SUCCESSFUL_ENABLE_RESTAKING,
     SUCCESSFUL_ENABLE_WIND_DOWN,
     SUCCESSFUL_NEW_STAKEHOLDER_CONFIG,
@@ -696,12 +694,11 @@ def increase(general_config: GroupGeneralConfig,
 @group_transacting_staker_options
 @option_config_file
 @click.option('--enable/--disable', help="Used to enable and disable re-staking", is_flag=True, default=True)
-@click.option('--lock-until', help="Period to release re-staking lock", type=click.IntRange(min=0))
 @option_force
 @group_general_config
 def restake(general_config: GroupGeneralConfig,
             transacting_staker_options: TransactingStakerOptions,
-            config_file, enable, lock_until, force):
+            config_file, enable, force):
     """Manage re-staking with --enable or --disable."""
 
     # Setup
@@ -717,21 +714,7 @@ def restake(general_config: GroupGeneralConfig,
         force=force)
 
     # Inner Exclusive Switch
-    if lock_until:
-        if not force:
-            confirm_enable_restaking_lock(emitter, staking_address=staking_address, release_period=lock_until)
-
-        # Authenticate and Execute
-        password = get_password(stakeholder=STAKEHOLDER,
-                                blockchain=blockchain,
-                                client_account=client_account,
-                                hw_wallet=transacting_staker_options.hw_wallet)
-        STAKEHOLDER.assimilate(password=password)
-
-        receipt = STAKEHOLDER.enable_restaking_lock(release_period=lock_until)
-        emitter.echo(SUCCESSFUL_ENABLE_RESTAKE_LOCK.format(staking_address=staking_address, lock_until=lock_until),
-                     color='green', verbosity=1)
-    elif enable:
+    if enable:
         if not force:
             confirm_enable_restaking(emitter, staking_address=staking_address)
 

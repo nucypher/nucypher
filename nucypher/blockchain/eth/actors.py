@@ -912,30 +912,6 @@ class Staker(NucypherTokenActor):
         receipt = self._set_restaking(value=True)
         return receipt
 
-    @only_me
-    @save_receipt
-    def enable_restaking_lock(self, release_period: int) -> TxReceipt:
-        current_period = self.staking_agent.get_current_period()
-        if release_period < current_period:
-            raise ValueError(f"Release period for re-staking lock must be in the future.  "
-                             f"Current period is {current_period}, got '{release_period}'.")
-        if self.is_contract:
-            receipt = self.preallocation_escrow_agent.lock_restaking(release_period=release_period)
-        else:
-            receipt = self.staking_agent.lock_restaking(staker_address=self.checksum_address,
-                                                        release_period=release_period)
-        return receipt
-
-    @property
-    def restaking_lock_enabled(self) -> bool:
-        status = self.staking_agent.is_restaking_locked(staker_address=self.checksum_address)
-        return status
-
-    @property
-    def restake_unlock_period(self) -> int:
-        period = self.staking_agent.get_restake_unlock_period(staker_address=self.checksum_address)
-        return period
-
     def disable_restaking(self) -> TxReceipt:
         receipt = self._set_restaking(value=False)
         return receipt

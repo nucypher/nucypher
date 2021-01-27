@@ -70,7 +70,7 @@ contract BaseStakingInterface {
 /**
 * @notice Interface for accessing main contracts from a staking contract
 * @dev All methods must be stateless because this code will be executed by delegatecall call, use immutable fields.
-* @dev |v1.6.1|
+* @dev |v1.7.1|
 */
 contract StakingInterface is BaseStakingInterface {
 
@@ -85,7 +85,6 @@ contract StakingInterface is BaseStakingInterface {
     event PolicyFeeWithdrawn(address indexed sender, uint256 value);
     event MinFeeRateSet(address indexed sender, uint256 value);
     event ReStakeSet(address indexed sender, bool reStake);
-    event ReStakeLocked(address indexed sender, uint16 lockUntilPeriod);
     event WorkerBonded(address indexed sender, address worker);
     event Prolonged(address indexed sender, uint256 index, uint16 periods);
     event WindDownSet(address indexed sender, bool windDown);
@@ -129,15 +128,6 @@ contract StakingInterface is BaseStakingInterface {
     function setReStake(bool _reStake) public onlyDelegateCall {
         escrow.setReStake(_reStake);
         emit ReStakeSet(msg.sender, _reStake);
-    }
-
-    /**
-    * @notice Lock `reStake` parameter in the staking escrow
-    * @param _lockReStakeUntilPeriod Can't change `reStake` value until this period
-    */
-    function lockReStake(uint16 _lockReStakeUntilPeriod) public onlyDelegateCall {
-        escrow.lockReStake(_lockReStakeUntilPeriod);
-        emit ReStakeLocked(msg.sender, _lockReStakeUntilPeriod);
     }
 
     /**

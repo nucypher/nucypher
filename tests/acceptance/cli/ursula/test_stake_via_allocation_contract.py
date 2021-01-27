@@ -312,34 +312,6 @@ def test_stake_restake(click_runner,
     assert not staker.is_restaking
     assert "Successfully disabled" in result.output
 
-    staking_agent = ContractAgency.get_agent(StakingEscrowAgent, registry=agency_local_registry)
-    current_period = staking_agent.get_current_period()
-    release_period = current_period + 1
-    lock_args = ('stake', 'restake',
-                 '--lock-until', release_period,
-                 '--config-file', stakeholder_configuration_file_location,
-                 '--allocation-filepath', MOCK_INDIVIDUAL_ALLOCATION_FILEPATH,
-                 '--force')
-
-    result = click_runner.invoke(nucypher_cli,
-                                 lock_args,
-                                 input=INSECURE_DEVELOPMENT_PASSWORD,
-                                 catch_exceptions=False)
-    assert result.exit_code == 0
-
-    # Still not staking and the lock is enabled
-    assert not staker.is_restaking
-    assert staker.restaking_lock_enabled
-
-    # CLI Output includes success message
-    assert "Successfully enabled" in result.output
-    assert str(release_period) in result.output
-
-    # Wait until release period
-    testerchain.time_travel(periods=1)
-    assert not staker.restaking_lock_enabled
-    assert not staker.is_restaking
-
     disable_args = ('stake', 'restake',
                     '--enable',
                     '--config-file', stakeholder_configuration_file_location,
@@ -353,6 +325,7 @@ def test_stake_restake(click_runner,
     assert result.exit_code == 0
 
     allocation_contract_address = preallocation_escrow_agent.principal_contract.address
+    staking_agent = ContractAgency.get_agent(StakingEscrowAgent, registry=agency_local_registry)
     assert staking_agent.is_restaking(allocation_contract_address)
 
     staker = Staker(is_me=True,
@@ -536,6 +509,7 @@ def test_collect_rewards_integration(click_runner,
     mock_transacting_power_activation(account=worker_address, password=INSECURE_DEVELOPMENT_PASSWORD)
 
     # Make a commitment for half the first stake duration
+    testerchain.time_travel(periods=1)
     for _ in range(half_stake_time):
         logger.debug(f">>>>>>>>>>> TEST PERIOD {current_period} <<<<<<<<<<<<<<<<")
         ursula.commit_to_next_period()

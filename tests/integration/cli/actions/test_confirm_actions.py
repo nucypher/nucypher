@@ -20,9 +20,9 @@ import pytest
 
 from nucypher.blockchain.eth.clients import EthereumTesterClient, PUBLIC_CHAINS
 from nucypher.blockchain.eth.token import NU
-from nucypher.cli.actions.confirm import (confirm_deployment, confirm_enable_restaking, confirm_enable_restaking_lock,
+from nucypher.cli.actions.confirm import (confirm_deployment, confirm_enable_restaking,
                                           confirm_enable_winding_down, confirm_large_stake, confirm_staged_stake)
-from nucypher.cli.literature import (ABORT_DEPLOYMENT, RESTAKING_AGREEMENT, RESTAKING_LOCK_AGREEMENT,
+from nucypher.cli.literature import (ABORT_DEPLOYMENT, RESTAKING_AGREEMENT,
                                      WINDING_DOWN_AGREEMENT, CONFIRM_STAGED_STAKE,
                                      CONFIRM_LARGE_STAKE_VALUE, CONFIRM_LARGE_STAKE_DURATION)
 
@@ -81,36 +81,6 @@ def test_confirm_deployment_cli_action(mocker, mock_stdin, test_emitter, capsys,
     assert mock_stdin.empty()
     captured = capsys.readouterr()
     assert f"Type '{llamanet.upper()}' to continue: " in captured.out
-
-
-def test_confirm_enable_restaking_lock_cli_action(mock_stdin, test_emitter, capsys):
-
-    # Test data
-    staking_address, release_period = '0xdeadbeef', 1
-
-    # Positive Case
-    mock_stdin.line(YES)
-    result = confirm_enable_restaking_lock(emitter=test_emitter,
-                                           release_period=release_period,
-                                           staking_address=staking_address)
-    assert result
-    captured = capsys.readouterr()
-    assert mock_stdin.empty()
-    restake_agreement = RESTAKING_LOCK_AGREEMENT.format(staking_address=staking_address, release_period=release_period)
-    assert restake_agreement in captured.out
-
-    # Negative case
-    mock_stdin.line(NO)
-
-    with pytest.raises(click.Abort):
-        confirm_enable_restaking_lock(emitter=test_emitter,
-                                      release_period=release_period,
-                                      staking_address=staking_address)
-    captured = capsys.readouterr()
-    assert mock_stdin.empty()
-    restake_agreement = RESTAKING_LOCK_AGREEMENT.format(staking_address=staking_address,
-                                                        release_period=release_period)
-    assert restake_agreement in captured.out
 
 
 def test_confirm_enable_restaking_cli_action(test_emitter, mock_stdin, capsys):

@@ -72,8 +72,7 @@ def paint_stakes(emitter: StdoutEmitter,
         missing_info = f'Missing {missing} commitments{"s" if missing > 1 else ""}' if missing else f'Committed #{last_committed}'
 
     staker_data = [missing_info,
-                   f'{"Yes" if staker.is_restaking else "No"} '
-                   f'({"Locked" if staker.restaking_lock_enabled else "Unlocked"})',
+                   "Yes" if staker.is_restaking else "No",
                    "Yes" if bool(staker.is_winding_down) else "No",
                    "Yes" if bool(staker.is_taking_snapshots) else "No",
                    pretty_fees,

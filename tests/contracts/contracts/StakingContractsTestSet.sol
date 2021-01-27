@@ -20,7 +20,6 @@ contract StakingEscrowForStakingContractMock {
     uint16 public periods;
     uint256 public index;
     bool public reStake;
-    uint16 public lockReStakeUntilPeriod;
     address public worker;
     bool public windDown;
     bool public snapshots;
@@ -75,10 +74,6 @@ contract StakingEscrowForStakingContractMock {
 
     function setReStake(bool _reStake) external {
         reStake = _reStake;
-    }
-
-    function lockReStake(uint16 _lockReStakeUntilPeriod) external {
-        lockReStakeUntilPeriod = _lockReStakeUntilPeriod;
     }
 
     function bondWorker(address _worker) external {

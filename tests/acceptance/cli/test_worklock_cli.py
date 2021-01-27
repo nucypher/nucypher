@@ -244,6 +244,7 @@ def test_refund(click_runner, testerchain, agency_local_registry, token_economic
     transacting_power.activate(password=INSECURE_DEVELOPMENT_PASSWORD)
 
     # Do some work
+    testerchain.time_travel(periods=1)
     for i in range(3):
         txhash = worker.commit_to_next_period()
         testerchain.wait_for_receipt(txhash)

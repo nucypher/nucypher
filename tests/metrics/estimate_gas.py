@@ -499,7 +499,6 @@ def estimate_gas(analyzer: AnalyzeGas = None) -> None:
     #
     # Slashing tests
     #
-    transact(staker_functions.commitToNextPeriod(), {'from': staker1})
     testerchain.time_travel(periods=1)
 
     #
