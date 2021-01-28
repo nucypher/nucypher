@@ -702,7 +702,7 @@ class NucypherKeyring:
                                                 public_key_dir=public_key_dir,
                                                 private_key_dir=private_key_dir)
 
-        # Remove the parsed paths from the disk, weather they exist or not.
+        # Remove the parsed paths from the disk, whether they exist or not.
         for filepath in keypaths.values():
             with contextlib.suppress(FileNotFoundError):
                 os.remove(filepath)
