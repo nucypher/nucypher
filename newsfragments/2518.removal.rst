@@ -1,1 +1,2 @@
-Deprecated StakingEscrow features to reduce code size: batch deposits, testContract flag, separate setters for related contracts.
+Deprecated StakingEscrow features to reduce code size: batch deposits, testContract flag, locking reStake.
+Deployment StakingEscrow is split in two steps: initial step with stub and final step after all contracts.
