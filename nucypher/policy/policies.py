@@ -515,7 +515,7 @@ class FederatedPolicy(Policy):
 
     def _make_reservoir(self, handpicked_addresses):
         addresses = {
-            ursula.checksum_address: 1 for ursula in self.alice.known_nodes
+            ursula.checksum_address: 1 for ursula in self.alice.known_nodes.get_nodes()
             if ursula.checksum_address not in handpicked_addresses}
 
         return MergedReservoir(handpicked_addresses, StakersReservoir(addresses))

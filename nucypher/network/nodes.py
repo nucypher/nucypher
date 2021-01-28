@@ -382,9 +382,9 @@ class Learner:
 
         return restored_from_disk
 
-    def _remember_essential(self, node) -> bool:
+    def __save_node(self, node) -> bool:
         """Returns True if the node is retained and False if is Forgotten."""
-        self.known_nodes[node.checksum_address] = node
+        self.known_nodes.track(node_or_sprout=node)
         retained = node.checksum_address in self.known_nodes
         if retained and self.save_metadata:
             # TODO: Persist all classifications of nodes?
@@ -392,6 +392,7 @@ class Learner:
         return retained
 
     def store_node_certificate(self, node) -> bool:
+        """Returns True if the certificate is valid and stored on disk."""
         stranger_certificate = node.certificate
         try:
             certificate_filepath = self.node_storage.store_node_certificate(certificate=stranger_certificate)
@@ -408,7 +409,7 @@ class Learner:
 
         # Use this to control whether or not this node performs
         # blockchain calls to determine if stranger nodes are bonded.
-        # Note: self.registry is composed on blockchainy character subclasses.
+        # Note: self.registry is composed on blockchain character subclasses.
         registry = self.registry if self._verify_node_bonding else None  # TODO: Federated mode?
 
         try:
@@ -478,31 +479,44 @@ class Learner:
                 self.known_nodes.label(node=node, label=VERIFIED)
             return True
 
+    def __is_known(self, node) -> bool:
+        """Returns True if this node is already known and is the latest version"""
+        try:
+            already_known_node = self.known_nodes.get_nodes(node.checksum_address)
+        except KeyError:
+            return False
+        else:
+            if not node.timestamp > already_known_node.timestamp:
+                # This node is already known.  We can safely return.
+                return True
+            return False
+
     def remember_node(self,
                       node,
                       force_verification_recheck=False,
                       record_fleet_state=True,
                       eager: bool = False):
+        """
+        Returns True if the node is stored
 
-        # TODO: Remove this comment or implement these labels
+        # TODO: Remove this comment or implement these labels / signals
         # UNPARSED
         # PARSED
         # METADATA_CHECKED
         # VERIFIED_CERT
         # VERIFIED_STAKE
+        """
 
-        if node == self:  # No need to remember self.
+        # No need to remember self.
+        if node == self:
             return False
 
-        # First, determine if this is an outdated representation of an already known node.
-        # TODO: #1032 or, since it's closed and will never re-opened, i am the :=
-        with suppress(KeyError):
-            already_known_node = self.known_nodes[node.checksum_address]
-            if not node.timestamp > already_known_node.timestamp:
-                # This node is already known.  We can safely return.
-                return False
+        # Determine if this is an outdated representation of an already known node.
+        node_is_known = self.__is_known(node)
+        if node_is_known:
+            return False
 
-        retained = self._remember_essential(node=node)
+        retained = self.__save_node(node=node)
         unlabeled = self.known_nodes.get_label(node=node) is None
         if retained and unlabeled:
             # set UNVERIFIED bucket as default for new nodes, but don't relabel prior nodes
@@ -518,7 +532,6 @@ class Learner:
                 return False
 
         listeners = self._learning_listeners.pop(node.checksum_address, tuple())
-
         for listener in listeners:
             listener.add(node.checksum_address)
         self._node_ids_to_learn_about_immediately.discard(node.checksum_address)
@@ -1444,7 +1457,7 @@ class Teacher:
         """Self-Reporting"""
         payload = self.node_details(node=self)
         states = self.known_nodes.abridged_states_dict()
-        known = self.known_nodes_details(label=label, raise_invalid=raise_invalid)
+        known = self.known_nodes_details(raise_invalid=raise_invalid)
         payload.update({'states': states, 'known_nodes': known})
         if not self.federated_only:
             payload.update({

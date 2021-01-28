@@ -24,7 +24,7 @@ import maya
 import random
 from bytestring_splitter import BytestringSplitter
 from constant_sorrow.constants import NO_KNOWN_NODES
-from typing import Iterator, Callable, List, Dict, Union
+from typing import Iterator, Callable, List, Dict, Union, Optional
 
 from nucypher.crypto.api import keccak_digest
 from nucypher.utilities.logging import Logger
@@ -65,10 +65,9 @@ class FleetSensor:
         self.__nodes = OrderedDict()       # memory.  # TODO: keep both collections or reduce to use one?
         self.__marked = defaultdict(list)  # bucketing.
 
-    def __setitem__(self, checksum_address, node_or_sprout):
+    def track(self, node_or_sprout):
         if node_or_sprout.domain == self.domain:
-            self.__nodes[checksum_address] = node_or_sprout
-
+            self.__nodes[node_or_sprout.checksum_address] = node_or_sprout
             if self._tracking:
                 self.log.info("Updating fleet state after saving node {}".format(node_or_sprout))
                 self.record_fleet_state()
@@ -76,17 +75,11 @@ class FleetSensor:
             msg = f"Rejected node {node_or_sprout} because its domain is '{node_or_sprout.domain}' but we're only tracking '{self.domain}'"
             self.log.warn(msg)
 
-    def __getitem__(self, checksum_address):
-        return self.__nodes[checksum_address]
-
     def __bool__(self):
         return bool(self.__nodes)
 
     def __contains__(self, item):
         return item in self.__nodes.keys() or item in self.__nodes.values()
-
-    def __iter__(self):
-        yield from self.__nodes.values()
 
     def __len__(self):
         return len(self.__nodes)
@@ -188,16 +181,28 @@ class FleetSensor:
                 }
 
     def get_nodes(self, label=None) -> Iterator["Teacher"]:
-        """If label is None return all know nodes"""
+        """If label is None return all known nodes"""
         if not label:
-            return iter(self)
+            return iter(self.__nodes.values())
         if label not in BUCKETS:
             raise self.UnknownLabel(f'{label} is not a valid node label')
         try:
-            nodes = self.__marked[label]
+            nodes = iter(self.__marked[label])
         except KeyError:
             return iter(list())  # empty
-        return iter(nodes)
+        return nodes
+
+    def get_node(self, checksum_address: str, label: Optional[str] = None) -> "Teacher":
+        try:
+            node = self.__nodes[checksum_address]
+        except KeyError:
+            raise self.UnknownNode
+        if label:
+            existing_label = self.get_label(node=node)
+            if label == existing_label:
+                return node
+            else:
+                raise self.UnknownNode
 
     def get_label(self, node: "Teacher") -> Union["Teacher", None]:
         for _label in BUCKETS:
