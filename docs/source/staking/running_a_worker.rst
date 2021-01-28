@@ -61,8 +61,8 @@ Working Procedure:
 
 .. _running-worker-eth-node:
 
-1. Run an Ethereum node for Worker
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+1. Run an Ethereum node for Workers
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Worker Ursula transactions can be broadcasted using either a local or remote ethereum node.
 
@@ -87,85 +87,15 @@ it may forgo subsidies (inflationary rewards).
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Ensure that the worker's ethereum account is bonded to the Staker. See :ref:`bond-worker`.
 
-
 .. _configure-run-ursula:
 
 4. Run Worker
 ^^^^^^^^^^^^^
 
-Run Ursula via CLI (Interactive)
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-.. code:: bash
-
-    (nucypher)$ nucypher ursula init --provider <YOUR PROVIDER URI> --network <NETWORK_NAME>
-
-
-Replace ``<YOUR PROVIDER URI>`` with a valid node web3 node provider string, for example:
-
-    - ``ipc:///home/<username>/.ethereum/geth.ipc`` - IPC Socket-based JSON-RPC server
-    - ``https://<host>`` - HTTP(S)-based JSON-RPC server
-    - ``wss://<host>:8080`` - Websocket(Secure)-based JSON-RPC server
-
-``<NETWORK_NAME>`` is the name of the NuCypher network domain where the node will run.
-
-.. note:: If you are using NuCypher's testnet, this name is ``ibex``.
-
-Create a password when prompted
-
-.. code:: bash
-
-    Enter a password to encrypt your keyring: <YOUR PASSWORD HERE>
-
-
-.. important::::
-    Save your password as you will need it to relaunch the node, and please note:
-
-    - Minimum password length is 16 characters
-    - Do not use a password that you use anywhere else
-
-Run the Ursula!
-
-.. code:: bash
-
-    (nucypher)$ nucypher ursula run --interactive
-
-
-Verify Ursula Blockchain Connection (Interactive)
-
-This will drop your terminal session into the “Ursula Interactive Console” indicated by the ``>>>``.
-Verify that the node setup was successful by running the ``status`` command.
-
-.. code:: bash
-
-    Ursula >>> status
-
-
-To view a list of known Ursulas, execute the ``known_nodes`` command
-
-.. code:: bash
-
-    Ursula >>> known_nodes
-
-
-You can also view your node’s network status webpage by navigating your web browser to ``https://<your-node-ip-address>:9151/status``.
-Ensure that this URL can be accessed publicly: it means that your node can be seen by other NuCypher nodes.
-
-.. NOTE::
-    Since Ursulas self-sign TLS certificates, you may receive a warning from your web browser.
-
-
-To stop your node from the interactive console and return to the terminal session:
-
-.. code:: bash
-
-    Ursula >>> stop
-
-
 .. _run-ursula-with-docker:
 
-Run Ursula with Docker
-~~~~~~~~~~~~~~~~~~~~~~
+Run Ursula with Docker (Recommended)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Assuming geth is running locally, configure and run an Ursula using port and volume bindings:
 

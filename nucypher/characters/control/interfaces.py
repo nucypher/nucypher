@@ -220,7 +220,6 @@ class BobInterface(CharacterPublicInterface):
 
         self.character.join_policy(label=label, alice_verifying_key=alice_verifying_key)
 
-
         plaintexts = self.character.retrieve(message_kit,
                                              enrico=enrico,
                                              alice_verifying_key=alice_verifying_key,
