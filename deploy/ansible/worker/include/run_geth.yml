@@ -29,7 +29,7 @@
       become: yes
       until: job_result.finished
       retries: 10000
-      when: geth_running.stat.exists == False and restarting_geth is undefined
+      when: geth_sync_status is not undefined
       register: job_result
       async_status:
         jid: "{{ geth_sync_status['ansible_job_id'] }}"

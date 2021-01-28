@@ -113,7 +113,7 @@ def create(general_config, cloudprovider, aws_profile, remote_provider, nucypher
         return
 
     deployer = CloudDeployers.get_deployer(cloudprovider)(emitter, None, None, remote_provider, nucypher_image, seed_network,
-        aws_profile, namespace=namespace, network=network, envvars=envvars, cliargs=cliargs)
+        profile=aws_profile, namespace=namespace, network=network, envvars=envvars, cliargs=cliargs)
 
     names = []
     i = 1
