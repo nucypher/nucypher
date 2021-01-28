@@ -215,8 +215,8 @@ class BobInterface(CharacterPublicInterface):
             message_kit)  # TODO #846: May raise UnknownOpenSSLError and InvalidTag.
 
         enrico = Enrico.from_public_keys(verifying_key=message_kit.sender_verifying_key,
-                                              policy_encrypting_key=policy_encrypting_key,
-                                              label=label)
+                                         policy_encrypting_key=policy_encrypting_key,
+                                         label=label)
 
         self.character.join_policy(label=label, alice_verifying_key=alice_verifying_key)
 

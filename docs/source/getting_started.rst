@@ -240,12 +240,15 @@ Setup Bob
    alice = Alice.from_public_keys(verifying_key=alice_verifying_key)
    enrico = Enrico(policy_encrypting_key=policy_encrypting_key)
 
-   # Generate and unlock Bob's keyring
+   # Generate Bob's keyring
    keyring = NucypherKeyring.generate(checksum_address='0xC080708026a3A280894365Efd51Bb64521c45147', password=PASSWORD)
-   keyring.unlock(PASSWORD)
 
-   # Make Bob
-   bob = Bob(known_nodes=[ursula], checksum_address="0xC080708026a3A280894365Efd51Bb64521c45147")
+   # Restore Existing Keyring
+   # keyring = NucypherKeyring(account='0xC080708026a3A280894365Efd51Bb64521c45147')
+
+   # Unlock keyring and make Bob
+   keyring.unlock(PASSWORD)
+   bob = Bob(keyring=keyring, known_nodes=[ursula])
 
 
 Join a Policy
@@ -255,17 +258,18 @@ Next, Bob needs to join the policy:
 
 .. code-block:: python
 
-   bob.join_policy(label=label, alice_verifying_key=alice.public_keys(SigningPower), block=True)
+   alice_public_key = alice.public_keys(SigningPower)
+   bob.join_policy(label=label, alice_verifying_key=alice_public_key, block=True)
 
 
 Retrieve and Decrypt
 ^^^^^^^^^^^^^^^^^^^^
 
-Then Bob can retrieve, and decrypt the ciphertext:
+Then Bob can retrieve and decrypt the ciphertext:
 
 .. code-block:: python
 
    cleartexts = bob.retrieve(label=label,
                              message_kit=ciphertext,
                              data_source=enrico,
-                             alice_verifying_key=alice.public_keys(SigningPower))
+                             alice_verifying_key=alice_public_key)
