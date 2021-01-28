@@ -16,9 +16,13 @@
 """
 
 
-import pytest
 import tempfile
+from unittest.mock import ANY
+
+import pytest
 from constant_sorrow.constants import FEDERATED_ADDRESS
+from cryptography.hazmat.primitives.serialization.base import Encoding
+from flask import Flask
 from umbral.keys import UmbralPrivateKey
 from umbral.signing import Signer
 
@@ -26,7 +30,11 @@ from nucypher.characters.lawful import Alice, Bob, Ursula
 from nucypher.config.constants import TEMPORARY_DOMAIN
 from nucypher.config.keyring import NucypherKeyring
 from nucypher.crypto.powers import DecryptingPower, DelegatingPower
+from nucypher.datastore.datastore import Datastore
+from nucypher.network.server import TLSHostingPower, ProxyRESTServer
+from nucypher.utilities.networking import LOOPBACK_ADDRESS
 from tests.constants import INSECURE_DEVELOPMENT_PASSWORD
+from tests.utils.matchers import IsType
 
 
 def test_generate_alice_keyring(tmpdir):
@@ -75,7 +83,7 @@ def test_characters_use_keyring(tmpdir):
         password=INSECURE_DEVELOPMENT_PASSWORD,
         encrypting=True,
         rest=True,
-        host='127.0.0.1',
+        host=LOOPBACK_ADDRESS,
         keyring_root=tmpdir)
     keyring.unlock(password=INSECURE_DEVELOPMENT_PASSWORD)
     alice = Alice(federated_only=True, start_learning_now=False, keyring=keyring)
@@ -83,8 +91,57 @@ def test_characters_use_keyring(tmpdir):
     Ursula(federated_only=True,
            start_learning_now=False,
            keyring=keyring,
-           rest_host='127.0.0.1',
+           rest_host=LOOPBACK_ADDRESS,
            rest_port=12345,
            db_filepath=tempfile.mkdtemp(),
            domain=TEMPORARY_DOMAIN)
     alice.disenchant()  # To stop Alice's publication threadpool.  TODO: Maybe only start it at first enactment?
+
+
+def test_tls_hosting_certificate_remains_the_same(tmpdir, mocker):
+    keyring = NucypherKeyring.generate(
+        checksum_address=FEDERATED_ADDRESS,
+        password=INSECURE_DEVELOPMENT_PASSWORD,
+        encrypting=True,
+        rest=True,
+        host=LOOPBACK_ADDRESS,
+        keyring_root=tmpdir)
+    keyring.unlock(password=INSECURE_DEVELOPMENT_PASSWORD)
+
+    rest_port = 12345
+    db_filepath = tempfile.mkdtemp()
+
+    ursula = Ursula(federated_only=True,
+                    start_learning_now=False,
+                    keyring=keyring,
+                    rest_host=LOOPBACK_ADDRESS,
+                    rest_port=rest_port,
+                    db_filepath=db_filepath,
+                    domain=TEMPORARY_DOMAIN)
+
+    assert ursula.keyring is keyring
+    assert ursula.certificate == ursula._crypto_power.power_ups(TLSHostingPower).keypair.certificate
+
+    original_certificate_bytes = ursula.certificate.public_bytes(encoding=Encoding.PEM)
+    ursula.disenchant()
+    del ursula
+
+    spy_rest_server_init = mocker.spy(ProxyRESTServer, '__init__')
+    recreated_ursula = Ursula(federated_only=True,
+                              start_learning_now=False,
+                              keyring=keyring,
+                              rest_host=LOOPBACK_ADDRESS,
+                              rest_port=rest_port,
+                              db_filepath=db_filepath,
+                              domain=TEMPORARY_DOMAIN)
+
+    assert recreated_ursula.keyring is keyring
+    assert recreated_ursula.certificate.public_bytes(encoding=Encoding.PEM) == original_certificate_bytes
+    tls_hosting_power = recreated_ursula._crypto_power.power_ups(TLSHostingPower)
+    spy_rest_server_init.assert_called_once_with(ANY,  # self
+                                                 rest_host=LOOPBACK_ADDRESS,
+                                                 rest_port=rest_port,
+                                                 rest_app=IsType(Flask),
+                                                 datastore=IsType(Datastore),
+                                                 hosting_power=tls_hosting_power)
+    recreated_ursula.disenchant()
