@@ -75,7 +75,7 @@ def test_bob_joins_policy_and_retrieves(federated_alice,
               )
 
     # Bob has only connected to - at most - 2 nodes.
-    assert sum(node.verified_node for node in bob.known_nodes) <= 2
+    assert sum(node.verified_node for node in bob.known_nodes.get_nodes()) <= 2
 
     # Alice creates a policy granting access to Bob
     # Just for fun, let's assume she distributes KFrags among Ursulas unknown to Bob

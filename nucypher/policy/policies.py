@@ -254,7 +254,7 @@ class Policy(ABC):
         if address not in self.alice.known_nodes:
             raise RuntimeError(f"{address} is not known")
 
-        ursula = self.alice.known_nodes[address]
+        ursula = self.alice.known_nodes.get_node(checksum_address=address)
         arrangement = Arrangement.from_alice(alice=self.alice, expiration=self.expiration)
 
         self.log.debug(f"Proposing arrangement {arrangement} to {ursula}")

@@ -110,7 +110,7 @@ def test_vladimir_illegal_interface_key_does_not_propagate(blockchain_ursulas):
 
     # ...but now, Ursula will now try to learn about Vladimir on a different thread.
     other_ursula.block_until_specific_nodes_are_known([vladimir.checksum_address])
-    vladimir_as_learned = other_ursula.known_nodes[vladimir.checksum_address]
+    vladimir_as_learned = other_ursula.known_nodes.get_node(vladimir.checksum_address)
 
     # OK, so cool, let's see what happens when Ursula tries to learn with Vlad as the teacher.
     other_ursula._current_teacher_node = vladimir_as_learned
@@ -144,7 +144,7 @@ def test_alice_refuses_to_make_arrangement_unless_ursula_is_valid(blockchain_ali
     # Ideally, a fishy node shouldn't be present in `known_nodes`,
     # but I guess we're testing the case when it became fishy somewhere between we learned about it
     # and the proposal arrangement.
-    blockchain_alice.known_nodes[vladimir.checksum_address] = vladimir
+    blockchain_alice.known_nodes.track(vladimir)
 
     with pytest.raises(vladimir.InvalidNode):
         idle_blockchain_policy._propose_arrangement(address=vladimir.checksum_address,

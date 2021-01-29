@@ -1414,14 +1414,14 @@ class Teacher:
 
     def known_nodes_details(self, raise_invalid=True) -> dict:
         abridged_nodes = {}
-        # TODO: Unify with other node validity checks
-        for checksum_address, node in self.known_nodes._nodes.items():
+        for node in self.known_nodes.get_nodes():
             try:
-                abridged_nodes[checksum_address] = self.node_details(node=node)
+                abridged_nodes[node.checksum_address] = self.node_details(node=node)
             except self.StampNotSigned:
                 if raise_invalid:
-                    raise
-                self.log.error(f"encountered unsigned stamp for node with checksum: {checksum_address}")
+                    raise  # TODO: Unify with other node validity checks
+                self.log.error(f"encountered unsigned stamp for node with checksum: {node.checksum_address}")
+        return abridged_nodes
 
     @staticmethod
     def node_details(node):

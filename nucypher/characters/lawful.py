@@ -386,7 +386,7 @@ class Alice(Character, BlockchainPolicyAuthor):
         else:
             failed_revocations = dict()
             for node_id in policy.revocation_kit.revokable_addresses:
-                ursula = self.known_nodes[node_id]
+                ursula = self.known_nodes.get_node(checksum_address=node_id)
                 revocation = policy.revocation_kit[node_id]
                 try:
                     response = self.network_middleware.revoke_arrangement(ursula, revocation)
@@ -708,7 +708,7 @@ class Bob(Character):
                     capsules_to_include.append(capsule)
 
             # TODO: Bob crashes if he hasn't learned about this Ursula #999
-            ursula = self.known_nodes[node_id]
+            ursula = self.known_nodes.get_node(checksum_address=node_id)
 
             if capsules_to_include:
                 work_order = WorkOrder.construct_by_bob(arrangement_id=arrangement_id,
@@ -954,28 +954,26 @@ class Bob(Character):
         # store a TreasureMap.  And then... ???... profit?
 
         # Sanity check - do we even have enough nodes?
-        if len(nodes) < no_less_than:
+        if len(list(nodes.get_nodes())) < no_less_than:
             raise ValueError(f"Can't select {no_less_than} from {len(nodes)} (Fleet state: {nodes.FleetState})")
 
         search_boundary = 2
         target_nodes = []
         target_hex_match = self.public_keys(DecryptingPower).hex()[1]
         while len(target_nodes) < no_less_than:
-            target_nodes = []
             search_boundary += 2
-
             if search_boundary > 42:  # We've searched the entire string and can't match any.  TODO: Portable learning is a nice idea here.
                 # Not enough matching nodes.  Fine, we'll just publish to the first few.
                 try:
                     # TODO: This is almost certainly happening in a test.  If it does happen in production, it's a bit of a problem.  Need to fix #2124 to mitigate.
-                    target_nodes = list(nodes.__nodes.values())[0:6]
+                    target_nodes = list(nodes.get_nodes())[0:6]
                     return target_nodes
                 except IndexError:
                     raise self.NotEnoughNodes("There aren't enough nodes on the network to enact this policy.  Unless this is day one of the network and nodes are still getting spun up, something is bonkers.")
 
             # TODO: 1995 all throughout here (we might not (need to) know the checksum address yet; canonical will do.)
             # This might be a performance issue above a few thousand nodes.
-            target_nodes = [node for node in nodes if target_hex_match in node.checksum_address[2:search_boundary]]
+            target_nodes = [node for node in nodes.get_nodes() if target_hex_match in node.checksum_address[2:search_boundary]]
         return target_nodes
 
     def make_web_controller(drone_bob, crash_on_error: bool = False):

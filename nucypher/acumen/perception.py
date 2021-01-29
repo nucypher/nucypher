@@ -36,7 +36,7 @@ NO_KNOWN_NODES.bool_value(False)
 
 class FleetSensor:
     """
-    A representation of a fleet of NuCypher nodes.
+    A representation of a fleet of NuCypher nodes, and more!.
     """
     _checksum = NO_KNOWN_NODES
     _nickname = NO_KNOWN_NODES
@@ -203,6 +203,7 @@ class FleetSensor:
                 return node
             else:
                 raise self.UnknownNode
+        return node
 
     def get_label(self, node: "Teacher") -> Union["Teacher", None]:
         for _label in BUCKETS:
