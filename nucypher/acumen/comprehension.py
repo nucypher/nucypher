@@ -66,7 +66,7 @@ class StaleCheck(PruningStrategy):
 
     def __call__(self, node: "Teacher") -> bool:
         delta = maya.now() - node.last_seen
-        return delta.seconds() > self.max_seconds
+        return delta.seconds() < self.max_seconds
 
 
 class MaxAttempts(PruningStrategy):
@@ -79,7 +79,7 @@ class MaxAttempts(PruningStrategy):
     def __call__(self, node: "Teacher") -> bool:
         self.attempts[node.checksum_address] += 1
         if self.attempts[node.checksum_address] > self.max_attempts:
-            del self.attempts[node.checksum_address]  # stop tracking.
+            self.reset(node)  # stop tracking.
             return False
         return True
 

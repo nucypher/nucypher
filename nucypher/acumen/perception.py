@@ -153,7 +153,7 @@ class FleetSensor:
             additional_nodes_to_track = list()
         self.additional_nodes_to_track.extend(additional_nodes_to_track)
         self._tracking = True
-        self.update_fleet_state()
+        self.record_fleet_state(additional_nodes_to_track)
 
     def sorted(self):
         nodes_to_consider = list(self.__nodes.values()) + self.additional_nodes_to_track
@@ -173,11 +173,11 @@ class FleetSensor:
     @staticmethod
     def abridged_state_details(state):
         return {"nickname": str(state.nickname),
-                # FIXME: generalize in case we want to extend the number of symbols in the state nickname
+                # TODO: generalize in case we want to extend the number of symbols in the state nickname
                 "symbol": state.nickname.characters[0].symbol,
                 "color_hex": state.nickname.characters[0].color_hex,
                 "color_name": state.nickname.characters[0].color_name,
-                "updated": state.updated.rfc2822(),
+                "updated": state.updated.rfc2822()
                 }
 
     def get_nodes(self, label=None) -> Iterator["Teacher"]:
@@ -251,7 +251,7 @@ class FleetSensor:
         try:
             strategies = PRUNING_STRATEGIES[label]
         except KeyError:
-            raise self.UnknownLabel(f'"{label}" is not a known node label.')
+            raise ValueError(f'"{label}" does not have a pruning strategy.')
         for node in self.get_nodes(label=label):
             for strategy in strategies:
                 keep = strategy(node=node)

@@ -945,8 +945,8 @@ class Bob(Character):
     def matching_nodes_among(self,
                              nodes: FleetSensor,
                              no_less_than=7):  # Somewhat arbitrary floor here.
-        # Look for nodes whose checksum address has the second character of Bob's encrypting key in the first
-        # few characters.
+        # Look for nodes whose checksum address has the second character of Bob's
+        # encrypting key in the first few characters.
         # Think of it as a cheap knockoff hamming distance.
         # The good news is that Bob can construct the list easily.
         # And - famous last words incoming - there's no cognizable attack surface.

@@ -271,7 +271,7 @@ class Policy(ABC):
         # We could just return the arrangement and get the Ursula object
         # from `known_nodes` later, but when we introduce slashing in FleetSensor,
         # the address can already disappear from `known_nodes` by that time.
-        return (ursula, arrangement)
+        return ursula, arrangement
 
     @abstractmethod
     def _make_reservoir(self, handpicked_addresses: Sequence[ChecksumAddress]) -> MergedReservoir:

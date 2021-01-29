@@ -482,14 +482,13 @@ class Learner:
     def __is_known(self, node) -> bool:
         """Returns True if this node is already known and is the latest version"""
         try:
-            already_known_node = self.known_nodes.get_nodes(node.checksum_address)
-        except KeyError:
+            already_known_node = self.known_nodes.get_node(node.checksum_address)
+        except FleetSensor.UnknownNode:
             return False
-        else:
-            if not node.timestamp > already_known_node.timestamp:
-                # This node is already known.  We can safely return.
-                return True
-            return False
+        if not node.timestamp > already_known_node.timestamp:
+            # This node is already the latest.  We can safely return.
+            return True
+        return False
 
     def remember_node(self,
                       node,
