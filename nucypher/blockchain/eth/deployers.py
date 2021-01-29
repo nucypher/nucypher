@@ -519,32 +519,24 @@ class StakingEscrowDeployer(BaseContractDeployer, UpgradeableContractMixin, Owna
         self.__dispatcher_contract = None
 
         token_contract_name = NucypherTokenDeployer.contract_name
-        policy_manager_proxy_name = PolicyManagerDeployer._proxy_deployer.contract_name
-        policy_manager_contract_name = PolicyManagerDeployer.contract_name
-        adjudicator_proxy_name = AdjudicatorDeployer._proxy_deployer.contract_name
-        adjudicator_contract_name = AdjudicatorDeployer.contract_name
-        worklock_contract_name = WorklockDeployer.contract_name
         self.token_contract = self.blockchain.get_contract_by_name(registry=self.registry,
                                                                    contract_name=token_contract_name)
-        try:
-            self.policy_manager = self.blockchain.get_contract_by_name(registry=self.registry,
-                                                                       contract_name=policy_manager_contract_name,
-                                                                       proxy_name=policy_manager_proxy_name)
-        except self.registry.UnknownContract:
-            self.policy_manager = None
+        self.policy_manager = self._get_contract(deployer_class=PolicyManagerDeployer)
+        self.adjudicator = self._get_contract(deployer_class=AdjudicatorDeployer)
+        self.worklock = self._get_contract(deployer_class=WorklockDeployer)
 
+    def _get_contract(self, deployer_class) -> VersionedContract:
+        contract_name = deployer_class.contract_name
         try:
-            self.adjudicator = self.blockchain.get_contract_by_name(registry=self.registry,
-                                                                    contract_name=adjudicator_contract_name,
-                                                                    proxy_name=adjudicator_proxy_name)
-        except self.registry.UnknownContract:
-            self.adjudicator = None
-
+            proxy_name = deployer_class._proxy_deployer.contract_name
+        except AttributeError:
+            proxy_name = None
         try:
-            self.worklock = self.blockchain.get_contract_by_name(registry=self.registry,
-                                                                 contract_name=worklock_contract_name)
+            return self.blockchain.get_contract_by_name(registry=self.registry,
+                                                        contract_name=contract_name,
+                                                        proxy_name=proxy_name)
         except self.registry.UnknownContract:
-            self.worklock = None
+            return None
 
     def _deploy_stub(self, gas_limit: int = None, confirmations: int = 0, **overrides):
         constructor_kwargs = {
@@ -636,17 +628,17 @@ class StakingEscrowDeployer(BaseContractDeployer, UpgradeableContractMixin, Owna
         if gas_limit:
             origin_args.update({'gas': gas_limit})  # TODO: Gas Management - #842
 
+        if emitter:
+            contract_name = self.contract_name_stub if deployment_mode is INIT else self.contract_name
+            emitter.message(f"\nNext Transaction: {contract_name} Contract Creation", color='blue', bold=True)
+
         if deployment_mode is INIT:
             # 1 - Deploy Stub
-            if emitter:
-                emitter.message(f"\nNext Transaction: {self.contract_name_stub} Contract Creation", color='blue', bold=True)
             the_escrow_contract, deploy_receipt = self._deploy_stub(gas_limit=gas_limit,
                                                                     confirmations=confirmations,
                                                                     **overrides)
         else:
             # 1 - Deploy StakingEscrow
-            if emitter:
-                emitter.message(f"\nNext Transaction: {self.contract_name} Contract Creation", color='blue', bold=True)
             the_escrow_contract, deploy_receipt = self._deploy_essential(contract_version=contract_version,
                                                                          gas_limit=gas_limit,
                                                                          confirmations=confirmations,
@@ -661,12 +653,13 @@ class StakingEscrowDeployer(BaseContractDeployer, UpgradeableContractMixin, Owna
         if progress:
             progress.update(1)
 
+        if emitter:
+            emitter.message(f"\nNext Transaction: {DispatcherDeployer.contract_name} "
+                            f"Contract {'Creation' if deployment_mode is INIT else 'Upgrade'} for {self.contract_name}",
+                            color='blue', bold=True)
+
         if deployment_mode is INIT:
             # 2 - Deploy the dispatcher used for updating this contract #
-            if emitter:
-                emitter.message(f"\nNext Transaction: {DispatcherDeployer.contract_name} "
-                                f"Contract Creation for {self.contract_name}",
-                                color='blue', bold=True)
             dispatcher_deployer = DispatcherDeployer(registry=self.registry,
                                                      target_contract=the_escrow_contract,
                                                      deployer_address=self.deployer_address)
@@ -675,10 +668,6 @@ class StakingEscrowDeployer(BaseContractDeployer, UpgradeableContractMixin, Owna
             dispatcher_deploy_receipt = dispatcher_receipts[dispatcher_deployer.deployment_steps[0]]
         else:
             # 2 - Upgrade dispatcher to the real contract
-            if emitter:
-                emitter.message(f"\nNext Transaction: {DispatcherDeployer.contract_name} "
-                                f"Contract Upgrade for {self.contract_name}",
-                                color='blue', bold=True)
             the_stub_contract = self.blockchain.get_contract_by_name(registry=self.registry,
                                                                      contract_name=self.contract_name_stub)
             dispatcher_deployer = DispatcherDeployer(registry=self.registry,
@@ -711,7 +700,7 @@ class StakingEscrowDeployer(BaseContractDeployer, UpgradeableContractMixin, Owna
         self.deployment_receipts = preparation_receipts
 
         # 3 & 4 - Activation
-        if deployment_mode is IDLE or deployment_mode is INIT:
+        if deployment_mode in (IDLE, INIT):
             # This is the end of deployment without activation: the contract is now idle, waiting for activation
             return preparation_receipts
         else:  # deployment_mode is FULL

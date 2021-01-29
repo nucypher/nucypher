@@ -30,7 +30,7 @@ For a guide of how to deploy these contracts automatically, see the :doc:`Deploy
 #. Deploy ``Adjudicator`` with a dispatcher
 #. Deploy ``StakingInterface`` with ``StakingInterfaceRouter`` targeting it
 #. Deploy ``WorkLock`` contract
-#. Deploy ``StakingEscrow`` and upgrade dispatcher targeting it by using the ``upgrade(address)``
+#. Deploy ``StakingEscrow`` and retarget its dispatcher by using the ``upgrade(address)`` function
 #. Approve tokens transfer to the ``StakingEscrow`` contract. These tokens are future staking rewards
 #. Run the ``initialize(uint256)`` method to initialize the ``StakingEscrow`` contract
 #. Approve tokens transfer for distribution to the ``WorkLock`` contract and call ``tokenDeposit(uint256)`` method

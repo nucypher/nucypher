@@ -146,4 +146,4 @@ def test_deploy_ethereum_contracts(testerchain,
     all_deployment_transactions = token_deployer.deployment_steps + staking_escrow_deployer.init_steps + \
                                   staking_escrow_deployer.deployment_steps + \
                                   policy_manager_deployer.deployment_steps + adjudicator_deployer.deployment_steps
-    assert deployment_progress.num_steps == len(all_deployment_transactions)    #
+    assert deployment_progress.num_steps == len(all_deployment_transactions)

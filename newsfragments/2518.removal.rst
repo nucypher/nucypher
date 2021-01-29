@@ -1,2 +1,2 @@
 Deprecated StakingEscrow features to reduce code size: batch deposits, testContract flag, locking reStake.
-Deployment StakingEscrow is split in two steps: initial step with stub and final step after all contracts.
+Deployment of StakingEscrow is split in two steps: initial step with stub and final step after all contracts.

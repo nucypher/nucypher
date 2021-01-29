@@ -54,7 +54,7 @@ def __execute(compiler_version: VersionString, input_config: Dict, allow_paths: 
     errors = compiler_output.get('errors')
     if errors:
         formatted = '\n'.join([error['formattedMessage'] for error in errors])
-        print(f"Errors during compilation: \n{formatted}")
+        SOLC_LOGGER.warn(f"Errors during compilation: \n{formatted}")
 
     SOLC_LOGGER.info(f"Successfully compiled {len(compiler_output)} sources with {OPTIMIZER_RUNS} optimization runs")
     return compiler_output

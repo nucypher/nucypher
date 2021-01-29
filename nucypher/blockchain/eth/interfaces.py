@@ -351,7 +351,7 @@ class BlockchainInterface:
         if not provider_uri and not provider:
             raise self.NoProvider("No URI or provider instances supplied.")
 
-        if provider_uri and (provider is None or provider is NO_BLOCKCHAIN_CONNECTION):
+        if provider_uri and not provider:
             uri_breakdown = urlparse(provider_uri)
 
             if uri_breakdown.scheme == 'tester':

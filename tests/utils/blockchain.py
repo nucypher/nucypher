@@ -44,7 +44,7 @@ from tests.constants import (
     NUMBER_OF_URSULAS_IN_BLOCKCHAIN_TESTS,
     PYEVM_DEV_URI
 )
-from constant_sorrow.constants import (INIT)
+from constant_sorrow.constants import INIT
 
 
 def token_airdrop(token_agent, amount: NU, origin: str, addresses: List[str]):
