@@ -1169,10 +1169,6 @@ class Ursula(Teacher, Character, Worker):
                          timestamp=timestamp,
                          decentralized_identity_evidence=decentralized_identity_evidence)
 
-        if is_me:
-            # TODO: relocate
-            self.known_nodes.record_fleet_state(additional_nodes_to_track=[self])
-
     def __get_hosting_power(self, host: str) -> TLSHostingPower:
         try:
             # Pre-existing or injected power

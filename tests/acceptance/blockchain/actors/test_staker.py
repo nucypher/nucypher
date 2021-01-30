@@ -276,7 +276,8 @@ def test_staker_collects_staking_reward(testerchain,
     ursula = make_decentralized_ursulas(ursula_config=ursula_decentralized_test_config,
                                         stakers_addresses=[staker.checksum_address],
                                         workers_addresses=[worker_address],
-                                        registry=test_registry).pop()
+                                        registry=test_registry,
+                                        commit_now=False).pop()
 
     # ...mint few tokens...
     for _ in range(2):
