@@ -1,0 +1,1 @@
+Update the call to ``estimateGas()`` according to the new ``web3`` API
