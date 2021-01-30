@@ -15,9 +15,13 @@ You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
-from collections import defaultdict, deque
 
 import contextlib
+from collections import defaultdict, deque
+from queue import Queue
+from typing import Iterable, List, Optional
+from typing import Set, Tuple, Union
+
 import maya
 import requests
 import time
@@ -47,15 +51,11 @@ from constant_sorrow.constants import (
     UNSTAKED,
     INVALID,
 )
-from contextlib import suppress
 from cryptography.x509 import Certificate
 from eth_utils import to_checksum_address
-from queue import Queue
 from requests.exceptions import SSLError
 from twisted.internet import reactor, task
 from twisted.internet.defer import Deferred
-from typing import Iterable, List
-from typing import Set, Tuple, Union
 from umbral.signing import Signature
 
 import nucypher
@@ -67,9 +67,18 @@ from nucypher.blockchain.eth.constants import NULL_ADDRESS
 from nucypher.blockchain.eth.registry import BaseContractRegistry
 from nucypher.config.constants import SeednodeMetadata
 from nucypher.config.storages import ForgetfulNodeStorage
-from nucypher.crypto.api import recover_address_eip_191, verify_eip_191, MissingCertificatePseudonym
+from nucypher.crypto.api import (
+    recover_address_eip_191,
+    verify_eip_191,
+    MissingCertificatePseudonym
+)
 from nucypher.crypto.kits import UmbralMessageKit
-from nucypher.crypto.powers import DecryptingPower, NoSigningPower, SigningPower, TransactingPower
+from nucypher.crypto.powers import (
+    DecryptingPower,
+    NoSigningPower,
+    SigningPower,
+    TransactingPower
+)
 from nucypher.crypto.signing import signature_splitter
 from nucypher.network import LEARNING_LOOP_VERSION
 from nucypher.network.exceptions import NodeSeemsToBeDown
@@ -77,6 +86,7 @@ from nucypher.network.middleware import RestMiddleware
 from nucypher.network.protocols import SuspiciousActivity
 from nucypher.network.server import TLSHostingPower
 from nucypher.utilities.logging import Logger
+from nucypher.utilities.networking import RESERVED_IP_ADDRESSES
 
 
 class NodeSprout(PartiallyKwargifiedBytes):
@@ -90,8 +100,7 @@ class NodeSprout(PartiallyKwargifiedBytes):
         self._checksum_address = None
         self._nickname = None
         self._hash = None
-        self.timestamp = maya.MayaDT(
-            self.timestamp)  # Weird for this to be in init. maybe this belongs in the splitter also.
+        self.timestamp = maya.MayaDT(self.timestamp)  # Weird for this to be in init. maybe this belongs in the splitter also.
         self._repr = None
         self._is_finishing = False
         self._finishing_mutex = Queue()
@@ -269,11 +278,13 @@ class Learner:
 
         known_nodes = known_nodes or tuple()
         self.unresponsive_startup_nodes = list()
+
+        # TODO: Get this network I/O out of init
         for node in known_nodes:
             self.remember_node(node, eager=True)
 
         self.teacher_nodes = deque()
-        self._current_teacher_node = None  # type: Teacher
+        self._current_teacher_node: Optional[Teacher] = None
         self._learning_task = task.LoopingCall(self.keep_learning_about_nodes)
 
         if self._DEBUG_MODE:
@@ -411,7 +422,6 @@ class Learner:
         # blockchain calls to determine if stranger nodes are bonded.
         # Note: self.registry is composed on blockchain character subclasses.
         registry = self.registry if self._verify_node_bonding else None  # TODO: Federated mode?
-
         try:
             node.verify_node(force=force,
                              network_middleware_client=self.network_middleware.client,

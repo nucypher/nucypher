@@ -94,13 +94,15 @@ BUCKETS = (
     UNAVAILABLE,
     SUSPICIOUS,
     UNSTAKED,
-    INVALID
+    INVALID,
+    # TRASH  # TODO
 )
 
 # Buckets that do not need pruning
 # UNVERIFIED
 # VERIFIED
 # SEEDNODE
+# TRASH  # TODO
 
 PRUNING_STRATEGIES = {
     UNAVAILABLE: [
@@ -108,14 +110,14 @@ PRUNING_STRATEGIES = {
         MaxAttempts(max_attempts=20)
     ],
     SUSPICIOUS: [
-        Reject()
+        Reject()  # TODO: Persist rejection to prevent re-entry
     ],
     UNSTAKED: [
         Accept()
     ],
     INVALID: [
         Accept()
-    ],
+    ]
 }
 
 

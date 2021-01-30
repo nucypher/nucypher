@@ -16,15 +16,15 @@
 """
 
 
+import random
 from collections import OrderedDict
 from collections import namedtuple, defaultdict
+from typing import Iterator, Callable, List, Dict, Union, Optional
 
 import binascii
 import maya
-import random
 from bytestring_splitter import BytestringSplitter
 from constant_sorrow.constants import NO_KNOWN_NODES
-from typing import Iterator, Callable, List, Dict, Union, Optional
 
 from nucypher.crypto.api import keccak_digest
 from nucypher.utilities.logging import Logger
