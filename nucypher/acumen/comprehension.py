@@ -65,8 +65,10 @@ class StaleCheck(PruningStrategy):
         super().__init__()
 
     def __call__(self, node: "Teacher") -> bool:
-        delta = maya.now() - node.last_seen
-        return delta.seconds() < self.max_seconds
+        if node.last_seen:
+            delta = maya.now().epoch - node.last_seen.epoch
+            return delta < self.max_seconds
+        return True
 
 
 class MaxAttempts(PruningStrategy):
@@ -88,21 +90,26 @@ class MaxAttempts(PruningStrategy):
 
 
 BUCKETS = (
+
+    #
+    # Static buckets
+    #
+
     # NUCYPHER / SUPERNODE / SEEDNODE,
     UNVERIFIED,
     VERIFIED,
+    # TRASH  # TODO: Consider using a TRASH label.
+
+
+    #
+    # Pruned buckets
+    #
+
     UNAVAILABLE,
     SUSPICIOUS,
     UNSTAKED,
     INVALID,
-    # TRASH  # TODO
 )
-
-# Buckets that do not need pruning
-# UNVERIFIED
-# VERIFIED
-# SEEDNODE
-# TRASH  # TODO
 
 PRUNING_STRATEGIES = {
     UNAVAILABLE: [
@@ -110,17 +117,19 @@ PRUNING_STRATEGIES = {
         MaxAttempts(max_attempts=20)
     ],
     SUSPICIOUS: [
-        Reject()  # TODO: Persist rejection to prevent re-entry
+        Reject()  # TODO: Persist rejection to prevent re-entry?
     ],
     UNSTAKED: [
-        Accept()
+        Accept()  # TODO: Criteria for removal?
     ],
     INVALID: [
-        Accept()
+        Accept()  # TODO: Reject instead?
     ]
 }
 
 
-def reset_node_label_tracking(node: "Teacher"):
-    for strategy in PRUNING_STRATEGIES:
-        strategy.reset(node=node)
+def reset_node_label_tracking(node: "Teacher") -> None:
+    """Resets the removal criteria for a single node across all pruning trackers."""
+    for bucket in PRUNING_STRATEGIES:
+        for strategy in bucket:
+            strategy.reset(node=node)
