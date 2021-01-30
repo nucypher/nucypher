@@ -690,20 +690,19 @@ class StakingEscrowAgent(EthereumContractAgent):
     def get_stakers_reservoir(self,
                               duration: int,
                               without: Iterable[ChecksumAddress] = None,
-                              pagination_size: Optional[int] = None) -> 'StakersReservoir':
-
-        if not without:
-            without = list()
+                              pagination_size: Optional[int] = None
+                              ) -> 'StakersReservoir':
 
         n_tokens, stakers_map = self.get_all_active_stakers(periods=duration,
                                                             pagination_size=pagination_size)
 
         filtered_out = 0
-        for address in without:
-            if address in stakers_map:
-                n_tokens -= stakers_map[address]
-                del stakers_map[address]
-                filtered_out += 1
+        if without:
+            for address in without:
+                if address in stakers_map:
+                    n_tokens -= stakers_map[address]
+                    del stakers_map[address]
+                    filtered_out += 1
 
         self.log.debug(f"Got {len(stakers_map)} stakers with {n_tokens} total tokens "
                        f"({filtered_out} filtered out)")
