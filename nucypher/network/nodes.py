@@ -1249,6 +1249,7 @@ class Teacher:
         try:
             self.validate_worker(registry=registry)
         except self.WrongMode:
+            self.verified_node = False
             if bool(registry):
                 raise
 
@@ -1285,14 +1286,11 @@ class Teacher:
             self.log.debug("No registry provided for decentralized stranger node verification - "
                            "on-chain Staking verification will not be performed.")
 
-        # This is both the stamp's client signature and interface metadata check; May raise InvalidNode
-        try:
-            self.validate_metadata(registry=registry)
-        except self.UnbondedWorker:  # TODO: Why are we specifically catching this and not other reasons for invalidity, eg StampNotSigned?
-            self.verified_node = False
-            return False
+        # This is both the stamp's client signature and interface metadata check
+        # May raise InvalidNode or UnbondedWorker
+        self.validate_metadata(registry=registry)
 
-        # The node's metadata is valid; let's be sure the interface is in order.
+        # Next ensure there is a local copy of the node's certificate
         if not certificate_filepath:
             if self.certificate_filepath is CERTIFICATE_NOT_SAVED:
                 self.certificate_filepath = self._cert_store_function(self.certificate)
@@ -1352,6 +1350,13 @@ class Teacher:
         """
         Checks that the interface info is valid for this node's canonical address.
         """
+
+        # Prohibit reserved IP addresses
+        if self.rest_interface.host in RESERVED_IP_ADDRESSES:
+            self.verified_node = False
+            raise self.InvalidNode(f"Peer claimed reserved IP address '{self.rest_interface.host}'")
+
+        # If the IP is okay verify the interface signature
         interface_info_message = self._signable_interface_info_message()  # Contains canonical address.
         message = self.timestamp_bytes() + interface_info_message
         interface_is_valid = self._interface_signature.verify(message, self.public_keys(SigningPower))

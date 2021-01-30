@@ -119,6 +119,12 @@ test_logger = Logger("test-logger")
 #
 
 
+@pytest.fixture(scope="session", autouse=True)
+def mock_reserved_ip(session_mocker):
+    session_mocker.patch('nucypher.network.nodes.RESERVED_IP_ADDRESSES', return_value=tuple())
+    yield
+
+
 @pytest.fixture(scope="function")
 def tempfile_path():
     fd, path = tempfile.mkstemp()
