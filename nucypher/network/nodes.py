@@ -396,7 +396,7 @@ class Learner:
     def __save_node(self, node) -> bool:
         """Returns True if the node is retained and False if is Forgotten."""
         self.known_nodes.track(node_or_sprout=node)
-        retained = node.checksum_address in self.known_nodes
+        retained = node in self.known_nodes
         if retained and self.save_metadata:
             # TODO: Persist all classifications of nodes?
             self.node_storage.store_node_metadata(node=node)
@@ -504,20 +504,25 @@ class Learner:
                       node,
                       force_verification_recheck=False,
                       record_fleet_state=True,
-                      eager: bool = False):
-        """
-        Returns True if the node is stored
-
-        # TODO: Remove this comment or implement these labels / signals
-        # UNPARSED
-        # PARSED
-        # METADATA_CHECKED
-        # VERIFIED_CERT
-        # VERIFIED_STAKE
-        """
+                      eager: bool = False
+                      ) -> bool:
+        """Returns True if the fleet state was updated in this call."""
 
         # No need to remember self.
         if node == self:
+            return False
+
+        # Track and label: Only remember nodes from the active domain.
+        wrong_domain = f"Rejected node {node} because its domain is '{node.domain}' but only tracking '{self.domain}'"
+        if node.domain != self.domain:
+            self.log.info(wrong_domain)
+            return False
+
+        try:
+            self.__save_node(node=node)
+        except FleetSensor.WrongDomain:
+            # TODO: Somehow this block is still possible despite the above check
+            self.log.info(wrong_domain)
             return False
 
         # Determine if this is an outdated representation of an already known node.
@@ -525,30 +530,32 @@ class Learner:
         if node_is_known:
             return False
 
-        retained = self.__save_node(node=node)
+        # Set UNVERIFIED bucket as default for new nodes, but don't relabel prior nodes.
         unlabeled = self.known_nodes.get_label(node=node) is None
-        if retained and unlabeled:
-            # set UNVERIFIED bucket as default for new nodes, but don't relabel prior nodes
+        if unlabeled:
             self.known_nodes.label(node=node, label=UNVERIFIED)
 
+        # Handle eager verification.
         if eager:
             node.mature()
             valid_cert = self.store_node_certificate(node=node)
             if not valid_cert:
+                self.known_nodes.label(node=node, label=INVALID)
                 return False
             valid_node = self.verify_and_sort(node=node, force=force_verification_recheck)
             if not valid_node:
                 return False
 
+        # Fire learning tasks.
         listeners = self._learning_listeners.pop(node.checksum_address, tuple())
         for listener in listeners:
             listener.add(node.checksum_address)
         self._node_ids_to_learn_about_immediately.discard(node.checksum_address)
 
+        # Snapshot the latest fleet state.
         if record_fleet_state:
             self.known_nodes.record_fleet_state()
-
-        return node
+            return True
 
     def start_learning_loop(self, now=False):
         if self._learning_task.running:
@@ -745,11 +752,10 @@ class Learner:
                 time.sleep(.1)
 
     def block_until_specific_nodes_are_known(self,
-                                             addresses: Set,
+                                             addresses: Set[str],
                                              timeout=LEARNING_TIMEOUT,
                                              allow_missing=0,
-                                             learn_on_this_thread=False,
-                                             verify_now=False):
+                                             learn_on_this_thread=False):
         start = maya.now()
         starting_round = self._learning_round
 
@@ -987,16 +993,9 @@ class Learner:
         sprouts = self.node_class.batch_from_bytes(node_payload)
 
         for sprout in sprouts:
-            node_or_false = self.remember_node(sprout,
-                                               record_fleet_state=False,
-                                               # Do we want both of these to be decided by `eager`?
-                                               eager=eager)
-            if node_or_false is not False:
-                remembered.append(node_or_false)
-
-            # TODO: Handle invalid sprouts
-            # except sprout.Invalidsprout:
-            #     self.log.warn(sprout.invalid_metadata_message.format(sprout))
+            updated = self.remember_node(sprout, record_fleet_state=False, eager=eager)
+            if updated:
+                remembered.append(sprout)
 
         # Is cycling happening in the right order?
         current_teacher.update_snapshot(checksum=checksum,

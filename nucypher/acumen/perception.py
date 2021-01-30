@@ -52,6 +52,9 @@ class FleetSensor:
     class UnknownNode(ValueError):
         pass
 
+    class WrongDomain(ValueError):
+        pass
+
     def __init__(self, domain: str, discovery_labels=None):
 
         # Public
@@ -65,15 +68,13 @@ class FleetSensor:
         self.__nodes = OrderedDict()       # memory.  # TODO: keep both collections or reduce to use one?
         self.__marked = defaultdict(list)  # bucketing.
 
-    def track(self, node_or_sprout):
-        if node_or_sprout.domain == self.domain:
-            self.__nodes[node_or_sprout.checksum_address] = node_or_sprout
-            if self._tracking:
-                self.log.info("Updating fleet state after saving node {}".format(node_or_sprout))
-                self.record_fleet_state()
-        else:
-            msg = f"Rejected node {node_or_sprout} because its domain is '{node_or_sprout.domain}' but we're only tracking '{self.domain}'"
-            self.log.warn(msg)
+    def track(self, node_or_sprout) -> None:
+        if node_or_sprout.domain != self.domain:
+            raise self.WrongDomain(f'Learning about {self.domain} but node is on {node_or_sprout.domain}')
+        self.__nodes[node_or_sprout.checksum_address] = node_or_sprout
+        if self._tracking:
+            self.log.info("Updating fleet state after saving node {}".format(node_or_sprout))
+            self.record_fleet_state()
 
     def __bool__(self):
         return bool(self.__nodes)
