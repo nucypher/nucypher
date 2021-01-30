@@ -28,7 +28,7 @@ from constant_sorrow.constants import NO_KNOWN_NODES
 
 from nucypher.crypto.api import keccak_digest
 from nucypher.utilities.logging import Logger
-from .comprehension import reset_node_label_tracking, PRUNING_STRATEGIES, BUCKETS
+from .comprehension import PRUNING_STRATEGIES, BUCKETS
 from .nicknames import Nickname
 
 NO_KNOWN_NODES.bool_value(False)
@@ -261,11 +261,6 @@ class FleetSensor:
                     break  # this node is already doomed anyways
                     # TODO: forget node from disk too
                     # TODO: Trash can label?
-            else:
-                # Reinstate this node to good standing by un/relabeling
-                if label in PRUNING_STRATEGIES:
-                    self.unlabel(node=node, label=label)
-                    reset_node_label_tracking(node=node)
 
     def prune_nodes(self) -> None:
         """Apply node pruning strategies to all marked nodes once"""

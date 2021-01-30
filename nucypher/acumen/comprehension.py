@@ -126,10 +126,3 @@ PRUNING_STRATEGIES = {
         Accept()  # TODO: Reject instead?
     ]
 }
-
-
-def reset_node_label_tracking(node: "Teacher") -> None:
-    """Resets the removal criteria for a single node across all pruning trackers."""
-    for bucket in PRUNING_STRATEGIES:
-        for strategy in bucket:
-            strategy.reset(node=node)
