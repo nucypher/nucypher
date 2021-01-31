@@ -2,8 +2,48 @@
 Lynx Testnet
 =============
 
-NuCypher provides a public Long-Term Support testnet as a stable playground for network users
-(e.g., Alices wishing to create sharing policies). Running on Ethereum Goerli testnet.
+NuCypher provides a public Long-Term Support testnet running on the ethereum Goerli testnet as a stable playground
+for application development and network users (e.g., Alices wishing to create sharing policies, grant & Retrieve, etc.).
+
+.. note::
+
+    Lynx testnet tokens can are not needed to use nucypher as Alie, Bob, or Enrico.  If you'd like to
+    volunteer to run an Lynx testnet node, reach out to the team on our `Discord server <https://discord.gg/7rmXa3S>`_.
+
+.. note::
+
+    Goerli ETH is required to use the Lynx testnet.
+
+
+Alice and Bob can be configured to use the lynx testnet using the command line:
+
+.. code::
+
+    #
+    # Alice
+    #
+
+    # While creating a new alice
+    $ nucypher alice init --network lynx --provider <GOERLI PROVIDER URI>
+
+    # Update an existing alice
+    $ nucypher alice config --network lynx --provider <GOERLI PROVIDER URI>
+
+
+    #
+    # Bob
+    #
+
+    # While creating a new bob
+    $ nucypher bob init --network lynx --provider <GOERLI PROVIDER URI>
+
+    # Update an existing bob
+    $ nucypher bob config --network lynx --provider <GOERLI PROVIDER URI>
+
+
+
+Deployments
+-----------
 
 * `NuCypherToken 0x02B50E38E5872068F325B1A7ca94D90ce2bfff63 <https://goerli.etherscan.io/address/0x02B50E38E5872068F325B1A7ca94D90ce2bfff63>`_
 * `StakingEscrow (Dispatcher) 0x40Ca356d8180Ddc21C82263F9EbCeaAc6Cad7250 <https://goerli.etherscan.io/address/0x40Ca356d8180Ddc21C82263F9EbCeaAc6Cad7250>`_
