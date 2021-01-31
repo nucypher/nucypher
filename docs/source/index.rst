@@ -114,6 +114,7 @@ Whitepapers
    staking/stake_management
    staking/running_a_worker
    staking/worklock
+   staking/testnet
 
 .. toctree::
    :maxdepth: 1
@@ -122,6 +123,7 @@ Whitepapers
    application_development/getting_started
    application_development/http_character_control
    application_development/local_fleet_demo
+   application_development/testnet
 
 .. toctree::
    :maxdepth: 1
@@ -130,6 +132,7 @@ Whitepapers
    references/pip-installation
    references/signers
    references/environment_variables
+   references/networks
 
 .. toctree::
    :maxdepth: 1
@@ -142,7 +145,12 @@ Whitepapers
    :maxdepth: 1
    :caption: CLI
 
+   cli/alice_cli
+   cli/bob_cli
+   cli/enrico_cli
+   cli/status_cli
    cli/staking_cli
+   cli/ursula_cli
    cli/remote_worker_cli
    cli/cli_examples
 
