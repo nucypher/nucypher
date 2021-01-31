@@ -206,6 +206,11 @@ Run Worker with systemd (Alternate)
 
 Instead of using docker, the nucypher worker can be run as a systemd service.
 
+.. note::
+
+    Running a worker with systemd required a local installation of nucypher.
+    See :doc:`/references/pip-installation`
+
 #. Install nucypher into a virtual environment.
 
     .. code-block::
@@ -283,7 +288,7 @@ To start Ursula services using systemd
    $ sudo systemctl restart ursula
 
 4. Qualify Worker
-^^^^^^^^^^^^^^^^^
+-----------------
 
 Workers must be fully qualified (funded and bonded) in order to fully start.  Workers
 that are launched before qualification will pause until they are have a balance greater than 0 ETH,

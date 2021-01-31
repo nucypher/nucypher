@@ -1,5 +1,5 @@
-CLI Examples
-============
+CLI Command Reference
+=====================
 
 Overview
 --------

@@ -68,14 +68,12 @@ For more detailed information see :doc:`/references/signers`
 
 .. note::
 
-    Currently Only trezor hardware wallets are supported by the CLI directly.  Ledger functionality can be achieved
-    through clef.
+    Currently Only trezor hardware wallets are supported by the CLI directly.
+    Ledger functionality can be achieved through clef.
 
 
 Trezor Signer (Recommended)
 ++++++++++++++++++++++++++++
-
-This is currently the top recommendation.
 
 .. code:: bash
 
@@ -84,11 +82,14 @@ This is currently the top recommendation.
 Keystore File Signer
 ++++++++++++++++++++
 
-Not recommended for mainnet, but useful for testnet.
-
 .. code:: bash
 
     $ nucypher <COMMAND> <ACTION> --signer keystore://<ABSOLUTE PATH TO KEYFILE>
+
+.. important::
+
+    For best operational security, the Keystore signer is not recommended for :ref:`Staker operations <staking-guide>`.
+    An exception can be made for testnets. Staker operations are most secure using a hardware wallet.
 
 
 Clef Signer
