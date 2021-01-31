@@ -31,7 +31,7 @@ Staking Procedure
 #. Bond a Worker to your Staker using the worker's ethereum address (see `6. Bond a worker`_)
 #. Manage active stakes (:doc:`stake_management`)
 
-.. important::
+.. caution::
 
     Once NU is locked in the staking escrow contract, a worker node must be run to unlock it.  Worker's make
     periodic automated commitments which spend ~200k gas each transaction.  Be sure to consider this operational
@@ -86,11 +86,10 @@ Keystore File Signer
 
     $ nucypher <COMMAND> <ACTION> --signer keystore://<ABSOLUTE PATH TO KEYFILE>
 
-.. important::
+.. danger::
 
-    For best operational security, the Keystore signer is not recommended for :ref:`Staker operations <staking-guide>`.
-    An exception can be made for testnets. Staker operations are most secure using a hardware wallet.
-
+    The Keystore signer is not safe to use for mainnet :ref:`Staker operations <staking-guide>`
+    (An exception can be made for testnets).  For staking operations use a hardware wallet.
 
 Clef Signer
 +++++++++++
@@ -134,7 +133,7 @@ configuration values.  No new keys or secrets are created in this step, it's jus
 
     (nucypher)$ nucypher stake init-stakeholder --signer <SIGNER URI> --provider <PROVIDER>
 
-.. note:: If you are using NuCypher's Rinkeby testnet, passing the network name is rquired ``--network ibex``.
+.. note:: If you are using NuCypher's Rinkeby testnet, passing the network name is required ``--network ibex``.
 
 
 4. Create a new stake
@@ -145,10 +144,11 @@ This operation will transfer NU to nucypher's staking escrow contract, locking i
 the commitment period.
 
 
-.. important::
+.. caution::
 
-    Before proceeding it is important to understand that you will need to spend ETH to unlock staked NU.
+    Before proceeding it is important to know that you will need to spend ETH to unlock staked NU.
     Once tokens are staked, the only way for them to become unlocked to by running a bonded worker node.
+
     Currently, Worker nodes must perform one automated transaction every 24 hours costing ~200 gas.
 
 

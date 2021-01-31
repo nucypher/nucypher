@@ -1,7 +1,7 @@
 .. _managing-cloud-workers:
 
-Remote Worker Management CLI
-============================
+Remote Worker Management
+========================
 
 Nucypher maintains some simple tools leveraging open source tools such as Ansible,
 to make it easy to keep your Nucypher Ursula nodes working and up to date.

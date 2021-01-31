@@ -7,32 +7,45 @@ for application development and network users (e.g., Alices wishing to create sh
 
 .. note::
 
-    Lynx testnet tokens can are not needed to use nucypher as Alie, Bob, or Enrico.  If you'd like to
-    volunteer to run an Lynx testnet node, reach out to the team on our `Discord server <https://discord.gg/7rmXa3S>`_.
+    Lynx testnet tokens are not needed to use nucypher as Alie, Bob, or Enrico.
+    If you'd like to volunteer to run an Lynx testnet node, reach out to the
+    team on our `Discord server <https://discord.gg/7rmXa3S>`_.
 
-.. note::
+
+.. important::
 
     Goerli ETH is required to use the Lynx testnet.
 
 
-Alice and Bob can be configured to use the lynx testnet using the command line:
+Alice and Bob work support the lynx testnet using the python API:
+
+.. code:: python
+
+    # CharacterConfiguration API
+    alice_factory = AliceConfiguration(domain='lynx', ...)
+    alice_factory == 'lynx'
+    True
+
+    alice = alice_factory.produce()
+    alice.domain == 'lynx'
+    True
+
+    # Character API
+    alice = Alice(domain='lynx', ...)
+    print(alice.domain)
+    alice.domain == 'lynx'
+    True
+
+
+Alice and Bob can also be configured to use the lynx testnet using the command line:
 
 .. code::
-
-    #
-    # Alice
-    #
 
     # While creating a new alice
     $ nucypher alice init --network lynx --provider <GOERLI PROVIDER URI>
 
     # Update an existing alice
     $ nucypher alice config --network lynx --provider <GOERLI PROVIDER URI>
-
-
-    #
-    # Bob
-    #
 
     # While creating a new bob
     $ nucypher bob init --network lynx --provider <GOERLI PROVIDER URI>

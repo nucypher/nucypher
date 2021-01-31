@@ -5,23 +5,16 @@ Ibex Testnet
 NuCypher provides a Public testnet running on the ethereum Rinkeby testnet meant for stakers & node operators learning how to
 create and manage stakes, setting up a node), as well as for internal development purposes.
 
-.. note::
+.. attention::
 
-    Testnet tokens can be obtained by joining the `Discord server <https://discord.gg/7rmXa3S>`_ and typing
-    ``.getfunded <YOUR_STAKER_ETH_ADDRESS>`` in the #testnet-faucet channel.
-
-.. note::
-
-    Rinkeby ETH is required to use the Ibex testnet.
+    Ibex Testnet NU can be obtained by joining the `Discord server <https://discord.gg/7rmXa3S>`_ and typing
+    ``.getfunded <YOUR_STAKER_ETH_ADDRESS>`` in the #testnet-faucet channel. Note that Rinkeby ETH is
+    also required to use the Ibex testnet.
 
 
 Stakers and Workers can be configured to use the ibex testnet using the command line:
 
 .. code::
-
-    #
-    # Staker
-    #
 
     # While creating a new staker
     $ nucypher stake init-stakeholder --network ibex --provider <RINKEBY PROVIDER URI>
@@ -30,10 +23,6 @@ Stakers and Workers can be configured to use the ibex testnet using the command 
     $ nucypher stake config --network ibex --provider <RINKEBY PROVIDER URI>
 
 
-    #
-    # Worker
-    #
-
     # While creating a new worker
     $ nucypher ursula init --network ibex --provider <RINKEBY PROVIDER URI>
 
@@ -41,10 +30,8 @@ Stakers and Workers can be configured to use the ibex testnet using the command 
     $ nucypher ursula config --network ibex --provider <RINKEBY PROVIDER URI>
 
 
-
 Deployments
 -----------
-
 
 * `NuCypherToken 0x78D591D90a4a768B9D2790deA465D472b6Fe0f18 <https://rinkeby.etherscan.io/address/0x78D591D90a4a768B9D2790deA465D472b6Fe0f18>`_
 * `StakingEscrow (Dispatcher) 0x6A6F917a3FF3d33d26BB4743140F205486cD6B4B <https://rinkeby.etherscan.io/address/0x6A6F917a3FF3d33d26BB4743140F205486cD6B4B>`_

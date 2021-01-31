@@ -1,5 +1,5 @@
-CLI Command Reference
-=====================
+Alice & Bob CLI
+=================
 
 Overview
 --------
@@ -19,6 +19,7 @@ To better understand the commands and their options, use the ``--help`` option.
 
 Initialize Testnet Alice and Bob
 ---------------------------------
+
 .. code::
 
     # Create a new Alice
@@ -31,6 +32,7 @@ Replace ``<YOUR PROVIDER URI>`` with a valid node web3 node provider string on t
 
     - ``ipc:///home/<username>/.ethereum/geth.ipc`` - IPC Socket-based JSON-RPC server (Geth)
     - ``https://<host>`` - HTTP(S)-based JSON-RPC server
+
 
 Get Bob's Public Keys
 ---------------------
