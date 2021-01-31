@@ -6,33 +6,64 @@ Running a Worker
 
 NuCypher staking operations are divided into two roles "Staker" and "Worker" - This Guide is for Workers.
 
+Overview
+----------
 
-Worker Requirements
--------------------
+Worker's role in the network
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-In order to be a successful Ursula operator, you will need a machine (physical or virtual) which is kept
-online. As a frame of reference, maintaining an Ursula is similar to the deployment and maintenance of a
-high-availability web service, with the addition of Ethereum accounts management. The worker must be tolerant
-of internet connectivity problems, and power outages via a redundant power supply. However, short temporary
-service disruptions such as upgrades are understandable.
+Worker nodes perform periodic automated transactions to signal continued commitment to providing service.
+The worker's ethereum account must remain unlocked while the node is running. Worker ethereum accounts do not need NU
+and only need enough ETH to pay for gas fees.  The average cost of a commitment is ~200k gas.
 
-Aside from the :ref:`base requirements <base-requirements>` for installation of the ``nucypher`` library:
 
-* Dedicated physical/virtual machine
-* Physical or SSH access
-* 2GB RAM (minimum)
+Workers nodes have three core components
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+* Ethereum software wallet (keystore)
+* Local or hosted ethereum provider
+* Worker node; Local or cloud server
+
+
+Minimum system requirements
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+* 20GB storage
+* 2GB RAM
 * x86 architecture
-* 20GB HDD free storage - backups are required since data loss results in a malfunctioning worker
-* Publicly available IP address - static where possible, NAT management where applicable
-* TCP Port 9151 opened for network communication - firewall rules where applicable
-* Access to a fully synced Ethereum provider e.g. local node, Infura, Alchemy etc.
+* Static IP address
+* Exposed TCP port 9151
+
+Workers can be run on cloud infrastructure – for example,
+`Digital Ocean 4GB Basic Droplet <https://www.digitalocean.com/pricing/>`_ satisfies requirements listed above.
+
+
+Best Practices
+^^^^^^^^^^^^^^
+
+**Three core areas of responsibility**
+
+#. Keystore Diligence
+#. Datastore Diligence
+#. Network Participation
+
+Here are some best practices:
+
+- Backup and secure the worker's private keys (ethereum and nucypher keystores).
+- Maintain a regular backup of the worker's database.
+- Maintain high uptime; Keep downtime brief when required by updates or reconfiguration.
+- Update when a new version is available.
 
 ..
     TODO: separate section on backups and data (#2285)
 
-Workers can be run on cloud infrastructure – for example,
-`Digital Ocean 4GB Basic Droplet <https://www.digitalocean.com/pricing/>`_ satisfies the memory and processing
-power requirements listed above.
+1. Establish Ethereum Provider
+-------------------------------
+
+Worker Ursula transactions can be broadcasted using either a local or remote ethereum node.
+
+For general background information about choosing a node technology and operation,
+see https://web3py.readthedocs.io/en/stable/node.html.
 
 .. note::
 
@@ -40,48 +71,64 @@ power requirements listed above.
     `additional requirements <https://docs.ethhub.io/using-ethereum/running-an-ethereum-node/>`_ are needed.
 
 
-Worker Configuration Procedure
--------------------------------
+2. Establish Worker Ethereum Account
+-------------------------------------
 
-.. _configure-run-ursula:
+By default, all transaction and message signing requests are forwarded to the configured ethereum provider.
+To use another ethereum provider (e.g. Infura, Alchemy, Another Hosted/Remote Node) a local transaction signer must
+be configured in addition to the broadcasting node.  For workers this can be a software wallet, or clef.
+For more detailed information see :doc:`/references/signers`
 
-.. References are needed for links because of the numbers in the section names
+Because worker nodes perform periodic automated transactions to signal continued commitment to providing service,
+The worker's ethereum account must remain unlocked while the node is running. While there are several types of accounts
+workers can use, a software based wallet is easiest method.
 
-1) Configure and run a Worker node (see :ref:`Configure and Run Ursula <configure-run-ursula>`)
-4) Create and fund worker's ethereum address (see :ref:`Fund Worker Account with ETH <fund-worker-account>`)
-5) Bond the Worker to a Staker (see :ref:`bond-worker`)
+To create a new ethereum software account using the geth CLI run follow the instructions:
 
-.. _running-worker-eth-node:
+.. code:: bash
 
+    geth account new
+    ...
 
-1. Establish Ethereum Provider
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.. important::
 
-Worker Ursula transactions can be broadcasted using either a local or remote ethereum node.
+    - Do not keep NU on the worker account: Workers **do not** need NU for any reason.
+    - Only keep enough ETH to pay for gas fees (The average cost of a commitment is ~200k gas).
+    - Store the ethereum account password in a password manager
+    - Backup the worker's private keys
 
-For general background information about choosing a node technology and operation,
-see https://web3py.readthedocs.io/en/stable/node.html.
+.. important::  If the worker's ethereum private key is lost or compromised
 
+    #. Create a new ethereum keypiar
+    #. Reconfigure the worker to use the new account ``nucypher ursula config --worker-address <ADDRESS>``
+    #. Bond the new address from the staking account (or inform the staking party).
 
-2. Establish Ethereum Account
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-Worker nodes perform periodic automated transactions to signal continued commitment to providing service.
-The worker's ethereum account must remain unlocked while the node is running. Worker ethereum accounts do not need NU
-and only need enough ETH to pay for gas fees.  The average cost of a commitment is ~200k gas.
-
-While there are several types of accounts to use, a software based wallet is the easiest to use with Ursula.
+    Note that stakers can only be rebond once every two periods.
 
 
 3. Run Worker
-^^^^^^^^^^^^^
+-------------
 
 .. _run-ursula-with-docker:
 
-Run Worker with Docker (Recommended)
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Export required worker environment variables
+Run Worker with Docker (Recommended)
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Setup Docker
+~~~~~~~~~~~~~
+
+#. Install `Docker <https://docs.docker.com/install/>`_
+#. (Optional) Follow these post install instructions: `https://docs.docker.com/install/linux/linux-postinstall/ <https://docs.docker.com/install/linux/linux-postinstall/>`_
+#. Get the latest nucypher image:
+
+.. code:: bash
+
+    docker pull nucypher/nucypher:latest
+
+
+Export worker environment variables
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 .. code:: bash
 
@@ -89,13 +136,8 @@ Export required worker environment variables
     export NUCYPHER_KEYRING_PASSWORD=<YOUR KEYRING_PASSWORD>
     export NUCYPHER_WORKER_ETH_PASSWORD=<YOUR WORKER ETH ACCOUNT PASSWORD>
 
-Pull the latest nucypher docker image
-
-.. code:: bash
-
-    docker pull nucypher/nucypher:latest
-
 Initialize a new Worker
+~~~~~~~~~~~~~~~~~~~~~~~
 
 .. code:: bash
 
@@ -120,6 +162,7 @@ Replace the following values with your own:
 
 
 Launch the worker
+~~~~~~~~~~~~~~~~~
 
 .. code:: bash
 
@@ -139,12 +182,14 @@ Replace the following values with your own:
    * ``<NETWORK NAME>`` - The name of a nucypher network (mainnet, ibex, or lynx)
 
 View worker logs
+~~~~~~~~~~~~~~~~
 
 .. code:: bash
 
     docker logs -f ursula
 
 Upgrading to a newer version
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 When a new version is available a docker-launched worker can be updated by stopping the worker,
 running docker pull, then start the worker.
@@ -153,43 +198,44 @@ running docker pull, then start the worker.
 
     docker stop ursula
     docker pull nucypher/nucypher:latest
+    docker run ...
 
 
 Run Worker with systemd (Alternate)
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Instead of using docker, nucypher can be run as a systemd service.
+Instead of using docker, the nucypher worker can be run as a systemd service.
 
-Install nucypher into a virtual environment.
+#. Install nucypher into a virtual environment.
 
     .. code-block::
 
         $(nucypher) pip install -U nucypher
 
 
-Configure the worker using the nucypher CLI.
+#. Configure the worker using the nucypher CLI.
 
     .. code-block::
 
-        $(nucypher) nucypher ursula init --provider <PROVIDER URI> --network <NETWORK NAME>
+        $(nucypher) nucypher ursula init --provider <PROVIDER URI> --network <NETWORK NAME> --signer <SIGNER URI>
 
 
-Use this template to create a file named ``ursula.service`` and place it in ``/etc/systemd/system/``.
+#. Use this template to create a file named ``ursula.service`` and place it in ``/etc/systemd/system/``.
 
-   .. code-block::
+.. code-block::
 
-       [Unit]
-       Description="Ursula, a NuCypher Worker."
+   [Unit]
+   Description="Ursula, a NuCypher Worker."
 
-       [Service]
-       User=<YOUR USER>
-       Type=simple
-       Environment="NUCYPHER_WORKER_ETH_PASSWORD=<YOUR WORKER ADDRESS PASSWORD>"
-       Environment="NUCYPHER_KEYRING_PASSWORD=<YOUR PASSWORD>"
-       ExecStart=<VIRTUALENV PATH>/bin/nucypher ursula run
+   [Service]
+   User=<YOUR USER>
+   Type=simple
+   Environment="NUCYPHER_WORKER_ETH_PASSWORD=<YOUR WORKER ADDRESS PASSWORD>"
+   Environment="NUCYPHER_KEYRING_PASSWORD=<YOUR PASSWORD>"
+   ExecStart=<VIRTUALENV PATH>/bin/nucypher ursula run
 
-       [Install]
-       WantedBy=multi-user.target
+   [Install]
+   WantedBy=multi-user.target
 
 
 Replace the following values with your own:
@@ -200,48 +246,44 @@ Replace the following values with your own:
    * ``<VIRTUALENV PATH>`` - The absolute path to the python virtual environment containing the ``nucypher`` executable
 
 
-Enable Ursula System Service
+#. Enable Ursula System Service
 
-   .. code-block::
+.. code-block::
 
-       $ sudo systemctl enable ursula
-
-
-Run Ursula System Service
-
-   To start Ursula services using systemd
-
-   .. code-block::
-
-       $ sudo systemctl start ursula
+   $ sudo systemctl enable ursula
 
 
-Check Ursula service status
+#. Run Ursula System Service
 
-   .. code-block::
+To start Ursula services using systemd
 
-       $ sudo systemctl status ursula
+.. code-block::
+
+   $ sudo systemctl start ursula
 
 
-Logs can be viewed from the command line using ``tail`` and `journatctl`:
+#. Check Ursula service status
 
-    .. code:: bash
+.. code-block::
 
-        # Application Logs
-        tail -f ~/.local/share/nucypher/nucypher.log
+    # Application Logs
+    $ tail -f ~/.local/share/nucypher/nucypher.log
 
-        # Systemd Logs
-        journalctl -f -t ursula
+    # Systemd status
+    $ systemctl status ursula
+
+    # Systemd Logs
+    $ journalctl -f -t ursula
 
 
 #. To restart your node service
 
-   .. code-block:: bash
+.. code-block:: bash
 
-       $ sudo systemctl restart ursula
+   $ sudo systemctl restart ursula
 
 4. Qualify Worker
-^^^^^^^^^^^^^^^^^^
+^^^^^^^^^^^^^^^^^
 
 Workers must be fully qualified (funded and bonded) in order to fully start.  Workers
 that are launched before qualification will pause until they are have a balance greater than 0 ETH,
@@ -278,10 +320,10 @@ Resuming startup after funding and bonding:
 
 
 5. Monitor Worker
-^^^^^^^^^^^^^^^^^
+------------------
 
 Ursula's Logs
-~~~~~~~~~~~~~~
+^^^^^^^^^^^^^
 
 A reliable way to check the status of a worker node is to view the logs.
 
@@ -303,14 +345,14 @@ View logs for a CLI-launched or systemd Ursula:
 
 
 Status Webpage
-~~~~~~~~~~~~~~
+^^^^^^^^^^^^^^
 
 Once Ursula is running, you can view its public status page at ``https://<node_ip>:9151/status``.
 It should eventually be listed on the `Status Monitor Page <https://status.nucypher.network>`_ (this can take a few minutes).
 
 
 Prometheus Endpoint
-~~~~~~~~~~~~~~~~~~~
+^^^^^^^^^^^^^^^^^^^
 
 Ursula can optionally provide a `Prometheus <https://prometheus.io>`_ metrics endpoint to be used for as a data source
 for real-time monitoring.  For docker users, the Prometheus client library is installed by default.

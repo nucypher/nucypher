@@ -117,14 +117,12 @@ sets of keys separate.
 Q: How can I get help integrating nucypher into my application?
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-See :doc:`/getting_started`. To chat directly with our team, please join our `Discord <http://discord.nucypher.com>`_.
+See :doc:`/application_development/getting_started`. To chat directly with our team, please join our `Discord <http://discord.nucypher.com>`_.
 
 Q: How do I integrate nucypher if my application is not written in Python?
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Nucypher also provides REST-like HTTP endpoints for working with characters. See :ref:`character-control-guide`.
-
-
 
 
 Running a Node

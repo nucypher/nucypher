@@ -119,17 +119,17 @@ Whitepapers
    :maxdepth: 1
    :caption: Application Development
 
-   getting_started
-   http_character_control
-   demos/local_fleet_demo
+   application_development/getting_started
+   application_development/http_character_control
+   application_development/local_fleet_demo
 
 .. toctree::
    :maxdepth: 1
    :caption: References
 
-   installation
-   signers
-   environment_variables
+   references/pip-installation
+   references/signers
+   references/environment_variables
 
 .. toctree::
    :maxdepth: 1
@@ -137,7 +137,6 @@ Whitepapers
 
    demos/finnegans_wake_demo
    demos/heartbeat_demo
-   cli/cli_examples
 
 .. toctree::
    :maxdepth: 1
@@ -145,6 +144,7 @@ Whitepapers
 
    cli/staking_cli
    cli/remote_worker_cli
+   cli/cli_examples
 
 .. toctree::
    :maxdepth: 1

@@ -34,8 +34,16 @@ without revealing data keys to intermediary entities.
 Install NuCypher
 ----------------
 
-    Acquire the ``nucypher`` application code and install the dependencies.
-    For a full installation guide see the :doc:`../installation`.
+Acquire the ``nucypher`` application code and install the dependencies:
+
+.. code::
+
+    $ git clone https://github.com/nucypher/nucypher.git
+    ...
+    $ python -m venv nucypher-venv
+    $ source nucypher-venv/bin/activate
+    (nucypher-venv)$ cd nucypher
+    (nucypher-venv)$ pip install -e .
 
 
 Run a fleet of federated Ursulas

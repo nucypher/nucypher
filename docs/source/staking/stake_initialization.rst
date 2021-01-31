@@ -26,18 +26,20 @@ Staking Procedure
 -----------------
 
 #. Obtain and Secure NU
-#. Install ``nucypher`` on Staker's system (:doc:`/installation`)
+#. Install ``nucypher`` on Staker's system (pip :doc:`/references/pip-installation` and docker are supported)
 #. Configure nucypher CLI for staking (`3. Configure nucypher for staking`_)
 #. Bond a Worker to your Staker using the worker's ethereum address (see `6. Bond a worker`_)
 #. Manage active stakes (:doc:`stake_management`)
 
 .. important::
 
-    Once NU is locked in the staking escrow contract, a worker node must be run to unlock it.
+    Once NU is locked in the staking escrow contract, a worker node must be run to unlock it.  Worker's make
+    periodic automated commitments which spend ~200k gas each transaction.  Be sure to consider this operational
+    cost when locking NU.
 
 .. note::
 
-    If you are running a testnet node, Testnet tokens can be obtained by joining the
+    If you are running an Ibex testnet node, Testnet tokens can be obtained by joining the
     `Discord server <https://discord.gg/7rmXa3S>`_ and typing ``.getfunded <YOUR_STAKER_ETH_ADDRESS>``
     in the #testnet-faucet channel.
 
@@ -55,10 +57,10 @@ see https://web3py.readthedocs.io/en/stable/node.html.
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 By default, all transaction and message signing requests are forwarded to the configured ethereum provider.
-To use a remote ethereum provider (e.g. Infura, Alchemy, Another Remote Node) a local transaction signer must
+To use another ethereum provider (e.g. Infura, Alchemy, Another Hosted/Remote Node) a local transaction signer must
 be configured in addition to the broadcasting node.  This can be a hardware wallet, software wallet, or clef.
 
-For more detailed information see :doc:`../signers`
+For more detailed information see :doc:`/references/signers`
 
 .. code:: bash
 
@@ -70,10 +72,10 @@ For more detailed information see :doc:`../signers`
     through clef.
 
 
-Trezor Signer
-+++++++++++++
+Trezor Signer (Recommended)
+++++++++++++++++++++++++++++
 
-This is the top recommendation.
+This is currently the top recommendation.
 
 .. code:: bash
 
@@ -82,7 +84,7 @@ This is the top recommendation.
 Keystore File Signer
 ++++++++++++++++++++
 
-Not recommended for mainnet.
+Not recommended for mainnet, but useful for testnet.
 
 .. code:: bash
 

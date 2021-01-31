@@ -55,10 +55,19 @@ The actors in this example can be mapped naturally to :doc:`Characters </api/nuc
   This is modelled by the :class:`~nucypher.characters.lawful.Bob` character.
 
 Install NuCypher
------------------
+----------------
 
-Acquire the ``nucypher`` application code and install the dependencies.
-For a full installation guide see the :doc:`/installation`.
+Acquire the ``nucypher`` application code and install the dependencies:
+
+.. code::
+
+    $ git clone https://github.com/nucypher/nucypher.git
+    ...
+    $ python -m venv nucypher-venv
+    $ source nucypher-venv/bin/activate
+    (nucypher-venv)$ cd nucypher
+    (nucypher-venv)$ pip install -e .
+
 
 Run the Demo
 ------------
