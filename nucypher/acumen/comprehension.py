@@ -126,3 +126,11 @@ PRUNING_STRATEGIES = {
         Accept()  # TODO: Reject instead?
     ]
 }
+
+VERIFICATION_SORTING_WEIGHTS = {
+    VERIFIED: 2,
+    UNVERIFIED: 4,
+    UNAVAILABLE: 3,
+    SUSPICIOUS: 1,
+    UNSTAKED: 1
+}

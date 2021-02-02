@@ -65,6 +65,7 @@ from umbral.kfrags import KFrag
 from umbral.signing import Signature
 
 import nucypher
+from nucypher.acumen.comprehension import VERIFICATION_SORTING_WEIGHTS
 from nucypher.acumen.nicknames import Nickname
 from nucypher.acumen.perception import FleetSensor
 from nucypher.blockchain.eth.actors import BlockchainPolicyAuthor, Worker
@@ -104,6 +105,7 @@ from nucypher.network.server import ProxyRESTServer, TLSHostingPower, make_rest_
 from nucypher.network.trackers import AvailabilityTracker
 from nucypher.utilities.logging import Logger
 from nucypher.utilities.networking import validate_worker_ip
+from nucypher.utilities.sampler import WeightedSampler
 
 
 class Alice(Character, BlockchainPolicyAuthor):
@@ -1029,7 +1031,7 @@ class Ursula(Teacher, Character, Worker):
     _default_crypto_powerups = [SigningPower, DecryptingPower]
 
     _datastore_pruning_interval = 60  # seconds
-    _node_pruning_interval = 2  # seconds # TODO: reduce or callback instead
+    _node_pruning_interval = 20  # seconds # TODO: reduce or callback instead
 
     class NotEnoughUrsulas(Learner.NotEnoughTeachers, StakingEscrowAgent.NotEnoughStakers):
         """
@@ -1277,16 +1279,34 @@ class Ursula(Teacher, Character, Worker):
         return self._learning_task.interval is self._SHORT_LEARNING_DELAY
 
     def __prune_nodes(self) -> None:
+        """
         # TODO: Inject custom node pruning strategies here (think configuration)
-        # Verify some unverified node
-        # TODO: How to select the next node?
-        if self.slow_mode:
-            reservoir = list(self.known_nodes.get_nodes(label=UNVERIFIED))
-            if reservoir:
-                node = random.choice(reservoir)
-                node.mature()
-                self.verify_and_sort(node, force=False)
-            self.known_nodes.prune_nodes()
+        """
+
+        # Take advantage of otherwise idle time.
+        if not self.slow_mode:
+            return
+
+        # TODO: hmmm...
+        bucket_quantity = 3
+        node_quantity = 3
+
+        # Select a bucket
+        sampler = WeightedSampler(weighted_elements=VERIFICATION_SORTING_WEIGHTS)
+        buckets = sampler.sample_no_replacement(rng=random.SystemRandom(), quantity=bucket_quantity)
+
+        # Process
+        for bucket in buckets:
+            reservoir = list(self.known_nodes.get_nodes(label=bucket))
+            if len(reservoir) >= node_quantity:
+                # Verify some node from the bucket
+                nodes = random.sample(reservoir, node_quantity)
+                for node in nodes:
+                    node.mature()
+                    self.verify_and_sort(node, force=False)
+
+        # Finally, Pune
+        self.known_nodes.prune_nodes()
 
     def run(self,
             emitter: StdoutEmitter = None,
