@@ -19,8 +19,8 @@ Mainnet
 Lynx
 ****
 
-Public Long-Term Support testnet, A stable playground for network users (e.g., Alices wishing to create sharing
-policies). Running on Ethereum Goerli testnet.
+Public Long-Term Support testnet to provide a stable playground for network users (e.g., Alices wishing to create sharing
+policies). Running on Ethereum Goerli testnet (see :ref:`lynx-testnet`).
 
 * `NuCypherToken 0x02B50E38E5872068F325B1A7ca94D90ce2bfff63 <https://goerli.etherscan.io/address/0x02B50E38E5872068F325B1A7ca94D90ce2bfff63>`_
 * `StakingEscrow (Dispatcher) 0x40Ca356d8180Ddc21C82263F9EbCeaAc6Cad7250 <https://goerli.etherscan.io/address/0x40Ca356d8180Ddc21C82263F9EbCeaAc6Cad7250>`_
@@ -31,8 +31,8 @@ policies). Running on Ethereum Goerli testnet.
 Ibex
 ****
 
-Public testnet, intended as a playground for stakers & node operators (e.g., learning how to create and manage
-stakes, setting up a node), as well as for internal development purposes. Running on Ethereun Rinkeby testnet.
+Public testnet, intended as a playground for stakers and node operators (e.g., learning how to create and manage
+stakes, setting up a node, as well as for internal development purposes. Running on Ethereun Rinkeby testnet (see :ref:`ibex-testnet`).
 
 * `NuCypherToken 0x78D591D90a4a768B9D2790deA465D472b6Fe0f18 <https://rinkeby.etherscan.io/address/0x78D591D90a4a768B9D2790deA465D472b6Fe0f18>`_
 * `StakingEscrow (Dispatcher) 0x6A6F917a3FF3d33d26BB4743140F205486cD6B4B <https://rinkeby.etherscan.io/address/0x6A6F917a3FF3d33d26BB4743140F205486cD6B4B>`_

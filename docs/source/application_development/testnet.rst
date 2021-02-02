@@ -1,9 +1,11 @@
+.. _lynx-testnet:
+
 =============
 Lynx Testnet
 =============
 
-NuCypher provides a public Long-Term Support testnet running on the ethereum Goerli testnet as a stable playground
-for application development and network users (e.g., Alices wishing to create sharing policies, grant & Retrieve, etc.).
+NuCypher provides a public Long-Term Support testnet running on the Ethereum Goerli testnet as a stable playground
+for application development and network users (e.g., Alices wishing to create sharing policies, grant and retrieve, etc.).
 
 .. note::
 
@@ -14,7 +16,8 @@ for application development and network users (e.g., Alices wishing to create sh
 
 .. important::
 
-    Goerli ETH is required to use the Lynx testnet.
+    Goerli ETH is required to use the Lynx testnet, and can be obtained from its `standard faucet <https://goerli-faucet.slock.it/>`_
+    or `authenticated faucet <https://faucet.goerli.mudit.blog/>`_.
 
 
 Alice and Bob can use the lynx testnet using the python API:

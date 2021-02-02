@@ -15,8 +15,8 @@ For example, external signers can be used with:
 The following signers are currently supported:
 
 #. :ref:`Hardware Wallet <signing-with-hardware>` (recommended for :ref:`Stakers <staking-guide>`)
-#. :ref:`Clef <signing-with-clef>`
 #. :ref:`Local Keystore <signing-with-local-keystore>` (recommended for :ref:`Workers <ursula-config-guide>`)
+#. :ref:`Clef <signing-with-clef>`
 
 .. _signing-with-hardware:
 
@@ -37,6 +37,31 @@ Trezor
 
 A `Trezor <https://trezor.io/>`_ signer can be specified either through the CLI (``--signer``) or
 API (``nucypher.blockchain.eth.signers.Signer.from_signer_uri``), using the URI ``trezor``.
+
+
+.. _signing-with-local-keystore:
+
+Signing with Local Keystore
+***************************
+
+.. important::
+
+    For operational security, the Keystore signer is not recommended for :ref:`Staker operations <staking-guide>`.
+    An exception can be made for testnets, but Staker operations should be performed using a hardware wallet.
+
+Local keystore signing utilizes `eth-account <https://github.com/ethereum/eth-account>`_ to sign ethereum transactions
+using local ethereum keystore files. By default on Linux, the keystore directory path is ``~/.ethereum/keystore``
+(on MacOS for Rinkeby testnet, ``/Users/<username>/Library/Ethereum/rinkeby/keystore``).
+
+
+Usage
++++++
+
+Specify the local keystore signer either through the CLI (``--signer``) or API (``nucypher.blockchain.eth.signers.Signer.from_signer_uri``),
+using the URI ``keystore://<PATH TO LOCAL KEYSTORE>``.
+
+The path provided can either be a directory of keystore files or an individual keystore file. In the case of a
+directory, it is scanned and each of the keystore files contained are processed.
 
 
 .. _signing-with-clef:
@@ -167,28 +192,3 @@ Usage
 
 Once ``clef`` is running, specify the Clef signer either through the CLI (``--signer``) or
 API (``nucypher.blockchain.eth.signers.Signer.from_signer_uri``), using the URI ``clef://<CLEF IPC PATH>``.
-
-
-.. _signing-with-local-keystore:
-
-Signing with Local Keystore
-***************************
-
-.. important::
-
-    For operational security, the Keystore signer is not recommended for :ref:`Staker operations <staking-guide>`.
-    An exception can be made for testnets, but Staker operations should be performed using a hardware wallet.
-
-Local keystore signing utilizes `eth-account <https://github.com/ethereum/eth-account>`_ to sign ethereum transactions
-using local ethereum keystore files. By default on Linux, the keystore directory path is ``~/.ethereum/keystore``
-(on MacOS for Rinkeby testnet, ``/Users/<username>/Library/Ethereum/rinkeby/keystore``).
-
-
-Usage
-+++++
-
-Specify the local keystore signer either through the CLI (``--signer``) or API (``nucypher.blockchain.eth.signers.Signer.from_signer_uri``),
-using the URI ``keystore://<PATH TO LOCAL KEYSTORE>``.
-
-The path provided can either be a directory of keystore files or an individual keystore file. In the case of a
-directory, it is scanned and each of the keystore files contained are processed.

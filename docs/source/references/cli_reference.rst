@@ -70,51 +70,6 @@ Bob
 +--------------------------+-------------------------------------------------------------------------------+
 
 
-Cloudworkers
-------------
-
-Manage worker and other staker-related operations on cloud infrastructure.
-
-
-.. code:: bash
-
-    (nucypher)$ nucypher cloudworkers ACTION [OPTIONS]
-
-**Cloudworkers Command Actions**
-
-+----------------------+-------------------------------------------------------------------------------+
-| Action               |  Description                                                                  |
-+======================+===============================================================================+
-|  ``up``              | Creates and deploys hosts for all active local stakers.                       |
-+----------------------+-------------------------------------------------------------------------------+
-|  ``create``          | Creates and deploys the given number of hosts independent of stakes           |
-+----------------------+-------------------------------------------------------------------------------+
-|  ``add``             | Add an existing host to be managed by cloudworkers CLI tools                  |
-+----------------------+-------------------------------------------------------------------------------+
-|  ``add_for_stake``   | Add an existing host to be managed for a specified local staker address       |
-+----------------------+-------------------------------------------------------------------------------+
-|  ``deploy``          | Install and run Ursula on existing managed hosts.                             |
-+----------------------+-------------------------------------------------------------------------------+
-|  ``update``          | Update or manage existing installed Ursula.                                   |
-+----------------------+-------------------------------------------------------------------------------+
-|  ``destroy``         | Shut down and cleanup resources deployed on AWS or Digital Ocean              |
-+----------------------+-------------------------------------------------------------------------------+
-|  ``stop``            | Stop the selected nodes.                                                      |
-+----------------------+-------------------------------------------------------------------------------+
-|  ``status``          | Prints a formatted status of selected managed hosts.                          |
-+----------------------+-------------------------------------------------------------------------------+
-|  ``logs``            | Download and display the accumulated stdout logs of selected hosts            |
-+----------------------+-------------------------------------------------------------------------------+
-|  ``backup``          | Download local copies of critical data from selected installed Ursulas        |
-+----------------------+-------------------------------------------------------------------------------+
-|  ``restore``         | Reconstitute and deploy an operating Ursula from backed up data               |
-+----------------------+-------------------------------------------------------------------------------+
-|  ``list_hosts``      | Print local nicknames of all managed hosts under a given namespace            |
-+----------------------+-------------------------------------------------------------------------------+
-|  ``list_namespaces`` | Print namespaces under a given network                                        |
-+----------------------+-------------------------------------------------------------------------------+
-
-
 Enrico
 -------
 
@@ -210,34 +165,6 @@ Manage stakes and other staker-related operations.
 +-------------------------+---------------------------------------------+
 
 
-Status
-------
-
-Echo a snapshot of live NuCypher Network metadata.
-
-.. code:: bash
-
-    (nucypher)$ nucypher status ACTION [OPTIONS]
-
-
-**Status Command Actions**
-
-
-+--------------------------+---------------------------------------------------------------------+
-| Action                   | Description                                                         |
-+==========================+=====================================================================+
-| ``events``               | Show events associated to NuCypher contracts.                       |
-+--------------------------+---------------------------------------------------------------------+
-| ``fee-range``            | Provide information on the global fee range.                        |
-+--------------------------+---------------------------------------------------------------------+
-| ``locked-tokens``        | Display a graph of the number of locked tokens over time.           |
-+--------------------------+---------------------------------------------------------------------+
-| ``network``              | Overall information of the NuCypher Network.                        |
-+--------------------------+---------------------------------------------------------------------+
-| ``stakers``              | Show relevant information about stakers.                            |
-+--------------------------+---------------------------------------------------------------------+
-
-
 Ursula
 ------
 
@@ -266,4 +193,76 @@ Ursula
 | ``save-metadata``        | Manually write node metadata to disk without running.               |
 +--------------------------+---------------------------------------------------------------------+
 | ``run``                  | Start Ursula.                                                       |
++--------------------------+---------------------------------------------------------------------+
+
+
+Cloudworkers
+------------
+
+Manage worker and other staker-related operations on cloud infrastructure.
+
+.. code:: bash
+
+    (nucypher)$ nucypher cloudworkers ACTION [OPTIONS]
+
+**Cloudworkers Command Actions**
+
++----------------------+-------------------------------------------------------------------------------+
+| Action               |  Description                                                                  |
++======================+===============================================================================+
+|  ``up``              | Creates and deploys hosts for all active local stakers.                       |
++----------------------+-------------------------------------------------------------------------------+
+|  ``create``          | Creates and deploys the given number of hosts independent of stakes           |
++----------------------+-------------------------------------------------------------------------------+
+|  ``add``             | Add an existing host to be managed by cloudworkers CLI tools                  |
++----------------------+-------------------------------------------------------------------------------+
+|  ``add_for_stake``   | Add an existing host to be managed for a specified local staker address       |
++----------------------+-------------------------------------------------------------------------------+
+|  ``deploy``          | Install and run Ursula on existing managed hosts.                             |
++----------------------+-------------------------------------------------------------------------------+
+|  ``update``          | Update or manage existing installed Ursula.                                   |
++----------------------+-------------------------------------------------------------------------------+
+|  ``destroy``         | Shut down and cleanup resources deployed on AWS or Digital Ocean              |
++----------------------+-------------------------------------------------------------------------------+
+|  ``stop``            | Stop the selected nodes.                                                      |
++----------------------+-------------------------------------------------------------------------------+
+|  ``status``          | Prints a formatted status of selected managed hosts.                          |
++----------------------+-------------------------------------------------------------------------------+
+|  ``logs``            | Download and display the accumulated stdout logs of selected hosts            |
++----------------------+-------------------------------------------------------------------------------+
+|  ``backup``          | Download local copies of critical data from selected installed Ursulas        |
++----------------------+-------------------------------------------------------------------------------+
+|  ``restore``         | Reconstitute and deploy an operating Ursula from backed up data               |
++----------------------+-------------------------------------------------------------------------------+
+|  ``list_hosts``      | Print local nicknames of all managed hosts under a given namespace            |
++----------------------+-------------------------------------------------------------------------------+
+|  ``list_namespaces`` | Print namespaces under a given network                                        |
++----------------------+-------------------------------------------------------------------------------+
+
+
+Status
+------
+
+Echo a snapshot of live NuCypher Network metadata.
+
+.. code:: bash
+
+    (nucypher)$ nucypher status ACTION [OPTIONS]
+
+
+**Status Command Actions**
+
+
++--------------------------+---------------------------------------------------------------------+
+| Action                   | Description                                                         |
++==========================+=====================================================================+
+| ``events``               | Show events associated to NuCypher contracts.                       |
++--------------------------+---------------------------------------------------------------------+
+| ``fee-range``            | Provide information on the global fee range.                        |
++--------------------------+---------------------------------------------------------------------+
+| ``locked-tokens``        | Display a graph of the number of locked tokens over time.           |
++--------------------------+---------------------------------------------------------------------+
+| ``network``              | Overall information of the NuCypher Network.                        |
++--------------------------+---------------------------------------------------------------------+
+| ``stakers``              | Show relevant information about stakers.                            |
 +--------------------------+---------------------------------------------------------------------+

@@ -16,13 +16,19 @@ Several administrative operations can be performed on active stakes:
 +----------------------+-------------------------------------------------------------------------------+
 |  ``increase``        | Increase an existing stake's value                                            |
 +----------------------+-------------------------------------------------------------------------------+
+|  ``merge``           | Merge two stakes into one                                                     |
++----------------------+-------------------------------------------------------------------------------+
+|  ``remove-unused``   | Remove unused/inactive stakes                                                 |
++----------------------+-------------------------------------------------------------------------------+
+|  ``collect-rewards`` | Collect earned staking rewards and/or policy fees                             |
++----------------------+-------------------------------------------------------------------------------+
 
 
 Re-staking
 ~~~~~~~~~~~
 
 As your Ursula performs work, all rewards are automatically added to your existing stake to optimize earnings.
-This feature, called `re-staking`, is *enabled* by default.
+This feature, called `re-staking`, is **enabled** by default.
 
 To disable re-staking:
 
@@ -61,9 +67,9 @@ in reduced staking yield. When disabled, the stake's locked duration remains
 constant and improves staking yield.
 See :ref:`sub-stake-winddown` for more information.
 
-Wind down is *disabled* by default.
+Wind down is **disabled** by default.
 
-.. note:: WorkLock participants have wind down *enabled* by default.
+.. note:: WorkLock participants have wind down **enabled** by default.
 
 To start winding down an existing stake:
 

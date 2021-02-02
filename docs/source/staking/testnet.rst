@@ -1,18 +1,20 @@
+.. _ibex-testnet:
+
 =============
 Ibex Testnet
 =============
 
-NuCypher provides a Public testnet running on the ethereum Rinkeby testnet meant for stakers & node operators learning how to
-create and manage stakes, setting up a node), as well as for internal development purposes.
+NuCypher provides a public testnet running on the Ethereum Rinkeby testnet meant for stakers and node operators to learn how to
+create and manage stakes, set up a node, as well as for internal development purposes.
 
 .. attention::
 
-    Ibex Testnet NU can be obtained by joining the `Discord server <https://discord.gg/7rmXa3S>`_ and typing
+    Ibex Testnet NU can be obtained by joining the `Discord Server <https://discord.gg/7rmXa3S>`_ and typing
     ``.getfunded <YOUR_STAKER_ETH_ADDRESS>`` in the #testnet-faucet channel. Note that Rinkeby ETH is
-    also required to use the Ibex testnet.
+    also required to use the Ibex testnet, and can be obtained from its `faucet <https://faucet.rinkeby.io/>`_.
 
 
-Stakers and Workers can be configured to use the ibex testnet using the command line:
+Stakers and Workers can be configured to use the Ibex testnet using the command line:
 
 .. code::
 
@@ -21,7 +23,6 @@ Stakers and Workers can be configured to use the ibex testnet using the command 
 
     # Update an existing staker
     $ nucypher stake config --network ibex --provider <RINKEBY PROVIDER URI>
-
 
     # While creating a new worker
     $ nucypher ursula init --network ibex --provider <RINKEBY PROVIDER URI>

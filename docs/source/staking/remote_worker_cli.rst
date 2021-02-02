@@ -1,10 +1,10 @@
 .. _managing-cloud-workers:
 
-Remote Worker Management
-========================
+Cloud Worker Management
+=======================
 
-NuCypher maintains an CLI to assist with the management of multiple remote Nucypher Ursula nodes, leveraging
-automation tools like Ansible and Docker.
+NuCypher maintains a CLI to assist with the management of multiple Nucypher Ursula nodes deployed in the cloud,
+that leverages automation tools such as Ansible and Docker.
 
 .. code:: bash
 

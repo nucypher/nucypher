@@ -246,7 +246,7 @@ bonded a Worker node to your Staker.
 After initiating a stake, the staker must delegate access to a work address through *bonding*.
 There is a 1:1 relationship between the roles: A Staker may have multiple substakes but only ever has one Worker at a time.
 
-.. important:: The Worker cannot be changed for a minimum of 2 periods (48 Hours) once bonded.
+.. important:: The Worker cannot be changed for a minimum of 2 periods (48 hours) once bonded.
 
 .. code:: bash
 
