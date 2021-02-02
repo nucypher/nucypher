@@ -183,14 +183,16 @@ class FleetSensor:
 
     def get_nodes(self, label=None) -> Iterator["Teacher"]:
         """If label is None return all known nodes"""
-        if not label:
+        if label is None:
             return iter(self.__nodes.values())
+
         if label not in BUCKETS:
             raise self.UnknownLabel(f'{label} is not a valid node label')
+
         try:
             nodes = iter(self.__marked[label])
         except KeyError:
-            return iter(list())  # empty
+            return list()  # empty
         return nodes
 
     def get_node(self, checksum_address: str, label: Optional[str] = None) -> "Teacher":
@@ -266,5 +268,6 @@ class FleetSensor:
     def prune_nodes(self) -> None:
         """Apply node pruning strategies to all marked nodes once"""
         self._pruning_strategies: Dict[type, List[Callable]]
-        for label in PRUNING_STRATEGIES:
-            self.prune_bucket(label=label)
+        for label in BUCKETS:
+            if label in PRUNING_STRATEGIES:
+                self.prune_bucket(label=label)

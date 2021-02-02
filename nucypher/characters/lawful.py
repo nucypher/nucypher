@@ -40,7 +40,8 @@ from constant_sorrow.constants import (
     INVALIDATED
 )
 from constant_sorrow.constants import (
-    VERIFIED
+    VERIFIED,
+    UNVERIFIED
 )
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives.asymmetric.ec import EllipticCurve
@@ -1028,7 +1029,7 @@ class Ursula(Teacher, Character, Worker):
     _default_crypto_powerups = [SigningPower, DecryptingPower]
 
     _datastore_pruning_interval = 60  # seconds
-    _node_pruning_interval = 600  # seconds
+    _node_pruning_interval = 2  # seconds # TODO: reduce or callback instead
 
     class NotEnoughUrsulas(Learner.NotEnoughTeachers, StakingEscrowAgent.NotEnoughStakers):
         """
@@ -1271,9 +1272,21 @@ class Ursula(Teacher, Character, Worker):
         """Called immediately before running services"""
         validate_worker_ip(worker_ip=self.rest_interface.host)
 
+    @property
+    def slow_mode(self) -> bool:
+        return self._learning_task.interval is self._SHORT_LEARNING_DELAY
+
     def __prune_nodes(self) -> None:
         # TODO: Inject custom node pruning strategies here (think configuration)
-        self.known_nodes.prune_nodes()
+        # Verify some unverified node
+        # TODO: How to select the next node?
+        if self.slow_mode:
+            reservoir = list(self.known_nodes.get_nodes(label=UNVERIFIED))
+            if reservoir:
+                node = random.choice(reservoir)
+                node.mature()
+                self.verify_and_sort(node, force=False)
+            self.known_nodes.prune_nodes()
 
     def run(self,
             emitter: StdoutEmitter = None,

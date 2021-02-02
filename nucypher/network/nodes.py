@@ -416,7 +416,7 @@ class Learner:
         node.certificate_filepath = certificate_filepath
         return True
 
-    def verify_and_sort(self, node, force):
+    def verify_and_sort(self, node, force: bool = False):
 
         # Use this to control whether or not this node performs
         # blockchain calls to determine if stranger nodes are bonded.
@@ -426,7 +426,6 @@ class Learner:
             node.verify_node(force=force,
                              network_middleware_client=self.network_middleware.client,
                              registry=registry)  # composed on character subclass, determines operating mode
-
         except SSLError as e:
             self.known_nodes.label(node=node, label=SUSPICIOUS)
             # self.log.debug(f"({str(node)}) \n {bytes(node)}:{e}.")  TODO: log or not to log...
@@ -494,11 +493,10 @@ class Learner:
         try:
             already_known_node = self.known_nodes.get_node(node.checksum_address)
         except FleetSensor.UnknownNode:
-            return False
-        if not node.timestamp > already_known_node.timestamp:
-            # This node is already the latest.  We can safely return.
-            return True
-        return False
+            result = False
+        else:
+            result = node.timestamp <= already_known_node.timestamp
+        return result
 
     def remember_node(self,
                       node,
@@ -506,7 +504,7 @@ class Learner:
                       record_fleet_state=True,
                       eager: bool = False
                       ) -> bool:
-        """Returns True if the fleet state was updated in this call."""
+        """TODO Returns True if the fleet state was updated in this call?"""
 
         # No need to remember self.
         if node == self:
@@ -518,16 +516,16 @@ class Learner:
             self.log.info(wrong_domain)
             return False
 
+        # Determine if this is an outdated representation of an already known node.
+        node_is_known = self.__is_known(node)
+        if node_is_known:
+            return False
+
         try:
             self.__save_node(node=node)
         except FleetSensor.WrongDomain:
             # TODO: Somehow this block is still possible despite the above check
             self.log.info(wrong_domain)
-            return False
-
-        # Determine if this is an outdated representation of an already known node.
-        node_is_known = self.__is_known(node)
-        if node_is_known:
             return False
 
         # Set UNVERIFIED bucket as default for new nodes, but don't relabel prior nodes.
