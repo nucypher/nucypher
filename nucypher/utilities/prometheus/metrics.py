@@ -14,6 +14,7 @@
  You should have received a copy of the GNU Affero General Public License
  along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
+from nucypher.blockchain.eth.networks import NetworksInventory
 from nucypher.exceptions import DevelopmentInstallationRequired
 
 try:
@@ -193,10 +194,6 @@ def create_metrics_collectors(ursula: 'Ursula', metrics_prefix: str) -> List[Met
         collectors.append(WorkerMetricsCollector(worker_address=ursula.worker_address,
                                                  contract_registry=ursula.registry))
 
-        # WorkLock prometheus
-        collectors.append(WorkLockMetricsCollector(staker_address=ursula.checksum_address,
-                                                   contract_registry=ursula.registry))
-
         #
         # Events
         #
@@ -206,15 +203,23 @@ def create_metrics_collectors(ursula: 'Ursula', metrics_prefix: str) -> List[Met
                                                                             metrics_prefix=metrics_prefix)
         collectors.extend(staking_events_collectors)
 
-        # WorkLock Events
-        worklock_events_collectors = create_worklock_events_metric_collectors(ursula=ursula,
-                                                                              metrics_prefix=metrics_prefix)
-        collectors.extend(worklock_events_collectors)
-
         # Policy Events
         policy_events_collectors = create_policy_events_metric_collectors(ursula=ursula,
                                                                           metrics_prefix=metrics_prefix)
         collectors.extend(policy_events_collectors)
+
+        #
+        # WorkLock information - only collected for mainnet
+        #
+        if ursula.domain == NetworksInventory.MAINNET:
+            # WorkLock metrics
+            collectors.append(WorkLockMetricsCollector(staker_address=ursula.checksum_address,
+                                                       contract_registry=ursula.registry))
+
+            # WorkLock Events
+            worklock_events_collectors = create_worklock_events_metric_collectors(ursula=ursula,
+                                                                                  metrics_prefix=metrics_prefix)
+            collectors.extend(worklock_events_collectors)
 
     return collectors
 
