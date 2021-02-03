@@ -14,8 +14,7 @@
  You should have received a copy of the GNU Affero General Public License
  along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
-
-
+import csv
 from decimal import Decimal
 
 import click
@@ -128,6 +127,7 @@ from nucypher.cli.utils import setup_emitter
 from nucypher.config.characters import StakeHolderConfiguration
 from nucypher.utilities.gas_strategies import construct_fixed_price_gas_strategy
 
+option_csv_file = click.option('--csv-file', help="Filepath for CSV output", type=click.Path(dir_okay=False))
 option_value = click.option('--value', help="Token value of stake", type=DecimalRange(min=0))
 option_lock_periods = click.option('--lock-periods', help="Duration of stake in periods.", type=click.INT)
 option_worker_address = click.option('--worker-address', help="Address to bond as an Ursula-Worker", type=EIP55_CHECKSUM_ADDRESS)
@@ -1276,8 +1276,9 @@ def preallocation(general_config: GroupGeneralConfig,
 @group_staker_options
 @option_config_file
 @option_event_name
+@option_csv_file
 @group_general_config
-def events(general_config, staker_options, config_file, event_name):
+def events(general_config, staker_options, config_file, event_name, csv_file):
     """See blockchain events associated to a staker"""
 
     # Setup
@@ -1291,10 +1292,8 @@ def events(general_config, staker_options, config_file, event_name):
         individual_allocation=STAKEHOLDER.individual_allocation,
         force=True)
 
-    title = f" {STAKEHOLDER.staking_agent.contract_name} Events ".center(40, "-")
-    emitter.echo(f"\n{title}\n", bold=True, color='green')
     if event_name:
-        events = [STAKEHOLDER.staking_agent.contract.events[event_name]]
+        event_type = STAKEHOLDER.staking_agent.contract.events[event_name]
     else:
         raise click.BadOptionUsage(message="You must specify an event name with --event-name")
         # TODO: Doesn't work for the moment
@@ -1302,11 +1301,32 @@ def events(general_config, staker_options, config_file, event_name):
         # events = [STAKEHOLDER.staking_agent.contract.events[e] for e in event_names]
         # events = [e for e in events if 'staker' in e.argument_names]
 
-    for event in events:
-        emitter.echo(f"{event.event_name}:", bold=True, color='yellow')
-        entries = event.getLogs(fromBlock=0, toBlock='latest', argument_filters={'staker': staking_address})
+    argument_filters = {'staker': staking_address}
+    contract_name = STAKEHOLDER.staking_agent.contract_name
+    if csv_file:
+        _write_events_csv_file(csv_file, argument_filters, event_type)
+        emitter.echo(f"\n{contract_name}::{event_name} events written to {csv_file}", bold=True, color='green')
+    else:
+        title = f" {contract_name} Events ".center(40, "-")
+        emitter.echo(f"\n{title}\n", bold=True, color='green')
+        emitter.echo(f"{event_type.event_name}:", bold=True, color='yellow')
+        entries = event_type.getLogs(fromBlock=0, toBlock='latest', argument_filters=argument_filters)
         for event_record in entries:
             emitter.echo(f"  - {EventRecord(event_record)}")
+
+
+def _write_events_csv_file(csv_file, event_args_filter, event_type):
+    with open(csv_file, mode='w') as events_file:
+        events_writer = None
+        entries = event_type.getLogs(fromBlock=0, toBlock='latest', argument_filters=event_args_filter)
+        for event_record in entries:
+            event_record = EventRecord(event_record)
+            event_row = dict(event_record.args.items())
+            event_row['block_number'] = event_record.block_number
+            if events_writer is None:
+                events_writer = csv.DictWriter(events_file, fieldnames=event_row.keys())
+                events_writer.writeheader()
+            events_writer.writerow(event_row)
 
 
 @stake.command('set-min-rate')
