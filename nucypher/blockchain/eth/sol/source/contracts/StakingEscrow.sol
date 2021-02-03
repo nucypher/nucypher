@@ -15,8 +15,8 @@ import "zeppelin/token/ERC20/SafeERC20.sol";
 * @notice PolicyManager interface
 */
 interface PolicyManagerInterface {
+    function secondsPerPeriod() external view returns (uint32);
     function register(address _node, uint16 _period) external;
-    function escrow() external view returns (address);
     function ping(
         address _node,
         uint16 _processedPeriod1,
@@ -30,7 +30,7 @@ interface PolicyManagerInterface {
 * @notice Adjudicator interface
 */
 interface AdjudicatorInterface {
-    function escrow() external view returns (address);
+    function rewardCoefficient() external view returns (uint32);
 }
 
 
@@ -38,7 +38,59 @@ interface AdjudicatorInterface {
 * @notice WorkLock interface
 */
 interface WorkLockInterface {
-    function escrow() external view returns (address);
+    function token() external view returns (NuCypherToken);
+}
+
+/**
+* @title StakingEscrowStub
+* @notice Stub is used to deploy main StakingEscrow after all other contract and make some variables immutable
+*/
+contract StakingEscrowStub is Upgradeable {
+    using AdditionalMath for uint32;
+
+    NuCypherToken public immutable token;
+    uint32 public immutable secondsPerPeriod;
+    uint16 public immutable minLockedPeriods;
+    uint256 public immutable minAllowableLockedTokens;
+    uint256 public immutable maxAllowableLockedTokens;
+
+    /**
+    * @notice Predefines some variables for use when deploying other contracts
+    * @param _token Token contract
+    * @param _minLockedPeriods Min amount of periods during which tokens can be locked
+    * @param _minAllowableLockedTokens Min amount of tokens that can be locked
+    * @param _maxAllowableLockedTokens Max amount of tokens that can be locked
+    */
+    constructor(
+        NuCypherToken _token,
+        uint32 _hoursPerPeriod,
+        uint16 _minLockedPeriods,
+        uint256 _minAllowableLockedTokens,
+        uint256 _maxAllowableLockedTokens
+    ) {
+        require(_token.totalSupply() > 0 &&
+            _hoursPerPeriod != 0 &&
+            _minLockedPeriods > 1 &&
+            _maxAllowableLockedTokens != 0);
+
+        token = _token;
+        secondsPerPeriod = _hoursPerPeriod.mul32(1 hours);
+        minLockedPeriods = _minLockedPeriods;
+        minAllowableLockedTokens = _minAllowableLockedTokens;
+        maxAllowableLockedTokens = _maxAllowableLockedTokens;
+    }
+
+    /// @dev the `onlyWhileUpgrading` modifier works through a call to the parent `verifyState`
+    function verifyState(address _testTarget) public override virtual {
+        super.verifyState(_testTarget);
+
+        // we have to use real values even though this is a stub
+        require(address(delegateGet(_testTarget, this.token.selector)) == address(token));
+        require(uint32(delegateGet(_testTarget, this.secondsPerPeriod.selector)) == secondsPerPeriod);
+        require(uint16(delegateGet(_testTarget, this.minLockedPeriods.selector)) == minLockedPeriods);
+        require(delegateGet(_testTarget, this.minAllowableLockedTokens.selector) == minAllowableLockedTokens);
+        require(delegateGet(_testTarget, this.maxAllowableLockedTokens.selector) == maxAllowableLockedTokens);
+    }
 }
 
 
@@ -46,7 +98,7 @@ interface WorkLockInterface {
 * @title StakingEscrow
 * @notice Contract holds and locks stakers tokens.
 * Each staker that locks their tokens will receive some compensation
-* @dev |v5.5.1|
+* @dev |v5.6.1|
 */
 contract StakingEscrow is Issuer, IERC900History {
 
@@ -73,7 +125,6 @@ contract StakingEscrow is Issuer, IERC900History {
     event Minted(address indexed staker, uint16 indexed period, uint256 value);
     event Slashed(address indexed staker, uint256 penalty, address indexed investigator, uint256 reward);
     event ReStakeSet(address indexed staker, bool reStake);
-    event ReStakeLocked(address indexed staker, uint16 lockUntilPeriod);
     event WorkerBonded(address indexed staker, address indexed worker, uint16 indexed startPeriod);
     event WorkMeasurementSet(address indexed staker, bool measureWork);
     event WindDownSet(address indexed staker, bool windDown);
@@ -102,7 +153,7 @@ contract StakingEscrow is Issuer, IERC900History {
         uint16 currentCommittedPeriod;
         uint16 nextCommittedPeriod;
         uint16 lastCommittedPeriod;
-        uint16 lockReStakeUntilPeriod;
+        uint16 stub1; // former slot for lockReStakeUntilPeriod
         uint256 completedWork;
         uint16 workerStartPeriod; // period when worker was bonded
         address worker;
@@ -137,7 +188,10 @@ contract StakingEscrow is Issuer, IERC900History {
     uint16 public immutable minWorkerPeriods;
     uint256 public immutable minAllowableLockedTokens;
     uint256 public immutable maxAllowableLockedTokens;
-    bool public immutable isTestContract;
+
+    PolicyManagerInterface public immutable policyManager;
+    AdjudicatorInterface public immutable adjudicator;
+    WorkLockInterface public immutable workLock;
 
     mapping (address => StakerInfo) public stakerInfo;
     address[] public stakers;
@@ -146,13 +200,16 @@ contract StakingEscrow is Issuer, IERC900History {
     mapping (uint16 => uint256) public lockedPerPeriod;
     uint128[] public balanceHistory;
 
-    PolicyManagerInterface public policyManager;
-    AdjudicatorInterface public adjudicator;
-    WorkLockInterface public workLock;
+    address stub1; // former slot for PolicyManager
+    address stub2; // former slot for Adjudicator
+    address stub3; // former slot for WorkLock
 
     /**
     * @notice Constructor sets address of token contract and coefficients for minting
     * @param _token Token contract
+    * @param _policyManager Policy Manager contract
+    * @param _adjudicator Adjudicator contract
+    * @param _workLock WorkLock contract. Zero address if there is no WorkLock
     * @param _hoursPerPeriod Size of period in hours
     * @param _issuanceDecayCoefficient (d) Coefficient which modifies the rate at which the maximum issuance decays,
     * only applicable to Phase 2. d = 365 * half-life / LOG2 where default half-life = 2.
@@ -176,10 +233,12 @@ contract StakingEscrow is Issuer, IERC900History {
     * @param _minAllowableLockedTokens Min amount of tokens that can be locked
     * @param _maxAllowableLockedTokens Max amount of tokens that can be locked
     * @param _minWorkerPeriods Min amount of periods while a worker can't be changed
-    * @param _isTestContract True if contract is only for tests
     */
     constructor(
         NuCypherToken _token,
+        PolicyManagerInterface _policyManager,
+        AdjudicatorInterface _adjudicator,
+        WorkLockInterface _workLock,
         uint32 _hoursPerPeriod,
         uint256 _issuanceDecayCoefficient,
         uint256 _lockDurationCoefficient1,
@@ -190,8 +249,7 @@ contract StakingEscrow is Issuer, IERC900History {
         uint16 _minLockedPeriods,
         uint256 _minAllowableLockedTokens,
         uint256 _maxAllowableLockedTokens,
-        uint16 _minWorkerPeriods,
-        bool _isTestContract
+        uint16 _minWorkerPeriods
     )
         Issuer(
             _token,
@@ -210,7 +268,13 @@ contract StakingEscrow is Issuer, IERC900History {
         minAllowableLockedTokens = _minAllowableLockedTokens;
         maxAllowableLockedTokens = _maxAllowableLockedTokens;
         minWorkerPeriods = _minWorkerPeriods;
-        isTestContract = _isTestContract;
+
+        require(_policyManager.secondsPerPeriod() == _hoursPerPeriod * (1 hours) &&
+            _adjudicator.rewardCoefficient() != 0 &&
+            (address(_workLock) == address(0) || _workLock.token() == _token));
+        policyManager = _policyManager;
+        adjudicator = _adjudicator;
+        workLock = _workLock;
     }
 
     /**
@@ -221,40 +285,6 @@ contract StakingEscrow is Issuer, IERC900History {
         StakerInfo storage info = stakerInfo[msg.sender];
         require(info.value > 0 || info.nextCommittedPeriod != 0);
         _;
-    }
-
-    //------------------------Initialization------------------------
-    /**
-    * @notice Set policy manager address
-    */
-    function setPolicyManager(PolicyManagerInterface _policyManager) external onlyOwner {
-        // Policy manager can be set only once
-        require(address(policyManager) == address(0));
-        // This escrow must be the escrow for the new policy manager
-        require(_policyManager.escrow() == address(this));
-        policyManager = _policyManager;
-    }
-
-    /**
-    * @notice Set adjudicator address
-    */
-    function setAdjudicator(AdjudicatorInterface _adjudicator) external onlyOwner {
-        // Adjudicator can be set only once
-        require(address(adjudicator) == address(0));
-        // This escrow must be the escrow for the new adjudicator
-        require(_adjudicator.escrow() == address(this));
-        adjudicator = _adjudicator;
-    }
-
-    /**
-    * @notice Set worklock address
-    */
-    function setWorkLock(WorkLockInterface _workLock) external onlyOwner {
-        // WorkLock can be set only once
-        require(address(workLock) == address(0) || isTestContract);
-        // This escrow must be the escrow for the new worklock
-        require(_workLock.escrow() == address(this));
-        workLock = _workLock;
     }
 
     //------------------------Main getters------------------------
@@ -423,14 +453,6 @@ contract StakingEscrow is Issuer, IERC900History {
     }
 
     /**
-    * @notice Checks if `reStake` parameter is available for changing
-    * @param _staker Staker
-    */
-    function isReStakeLocked(address _staker) public view returns (bool) {
-        return getCurrentPeriod() < stakerInfo[_staker].lockReStakeUntilPeriod;
-    }
-
-    /**
     * @notice Get worker using staker's address
     */
     function getWorkerFromStaker(address _staker) external view returns (address) {
@@ -510,28 +532,15 @@ contract StakingEscrow is Issuer, IERC900History {
 
     /**
     * @notice Set `reStake` parameter. If true then all staking rewards will be added to locked stake
-    * Only if this parameter is not locked
     * @param _reStake Value for parameter
     */
     function setReStake(bool _reStake) external {
-        require(!isReStakeLocked(msg.sender));
         StakerInfo storage info = stakerInfo[msg.sender];
         if (info.flags.bitSet(RE_STAKE_DISABLED_INDEX) == !_reStake) {
             return;
         }
         info.flags = info.flags.toggleBit(RE_STAKE_DISABLED_INDEX);
         emit ReStakeSet(msg.sender, _reStake);
-    }
-
-    /**
-    * @notice Lock `reStake` parameter. Only if this parameter is not locked
-    * @param _lockReStakeUntilPeriod Can't change `reStake` value until this period
-    */
-    function lockReStake(uint16 _lockReStakeUntilPeriod) external {
-        require(!isReStakeLocked(msg.sender) &&
-            _lockReStakeUntilPeriod > getCurrentPeriod());
-        stakerInfo[msg.sender].lockReStakeUntilPeriod = _lockReStakeUntilPeriod;
-        emit ReStakeLocked(msg.sender, _lockReStakeUntilPeriod);
     }
 
     /**
@@ -631,63 +640,6 @@ contract StakingEscrow is Issuer, IERC900History {
             uint256 lastGlobalBalance = uint256(balanceHistory.lastValue());
             balanceHistory.addSnapshot(lastGlobalBalance.addSigned(_addition));
         }
-    }
-
-
-    /**
-    * @notice Batch deposit. Allowed only initial deposit for each staker
-    * @param _stakers Stakers
-    * @param _numberOfSubStakes Number of sub-stakes which belong to staker in _values and _periods arrays
-    * @param _values Amount of tokens to deposit for each staker
-    * @param _periods Amount of periods during which tokens will be locked for each staker
-    */
-    function batchDeposit(
-        address[] calldata _stakers,
-        uint256[] calldata _numberOfSubStakes,
-        uint256[] calldata _values,
-        uint16[] calldata _periods
-    )
-        external
-    {
-        uint256 subStakesLength = _values.length;
-        require(_stakers.length != 0 &&
-            _stakers.length == _numberOfSubStakes.length &&
-            subStakesLength >= _stakers.length &&
-            _periods.length == subStakesLength);
-        uint16 previousPeriod = getCurrentPeriod() - 1;
-        uint16 nextPeriod = previousPeriod + 2;
-        uint256 sumValue = 0;
-
-        uint256 j = 0;
-        for (uint256 i = 0; i < _stakers.length; i++) {
-            address staker = _stakers[i];
-            uint256 numberOfSubStakes = _numberOfSubStakes[i];
-            uint256 endIndex = j + numberOfSubStakes;
-            require(numberOfSubStakes > 0 && subStakesLength >= endIndex);
-            StakerInfo storage info = stakerInfo[staker];
-            require(info.subStakes.length == 0 && !info.flags.bitSet(SNAPSHOTS_DISABLED_INDEX));
-            // A staker can't be a worker for another staker
-            require(stakerFromWorker[staker] == address(0));
-            stakers.push(staker);
-            policyManager.register(staker, previousPeriod);
-
-            for (; j < endIndex; j++) {
-                uint256 value =  _values[j];
-                uint16 periods = _periods[j];
-                require(value >= minAllowableLockedTokens && periods >= minLockedPeriods);
-                info.value = info.value.add(value);
-                info.subStakes.push(SubStakeInfo(nextPeriod, 0, periods, uint128(value)));
-                sumValue = sumValue.add(value);
-                emit Deposited(staker, value, periods);
-                emit Locked(staker, value, nextPeriod, periods);
-            }
-            require(info.value <= maxAllowableLockedTokens);
-            info.history.addSnapshot(info.value);
-        }
-        require(j == subStakesLength);
-        uint256 lastGlobalBalance = uint256(balanceHistory.lastValue());
-        balanceHistory.addSnapshot(lastGlobalBalance + sumValue);
-        token.safeTransferFrom(msg.sender, address(this), sumValue);
     }
 
     /**
@@ -1114,15 +1066,13 @@ contract StakingEscrow is Issuer, IERC900History {
         // Only worker with real address can make a commitment
         require(msg.sender == tx.origin);
 
-        uint16 lastCommittedPeriod = getLastCommittedPeriod(staker);
-        (uint16 processedPeriod1, uint16 processedPeriod2) = mint(staker);
         uint16 currentPeriod = getCurrentPeriod();
         uint16 nextPeriod = currentPeriod + 1;
-
         // the period has already been committed
-        if (info.nextCommittedPeriod == nextPeriod) {
-            return;
-        }
+        require(info.nextCommittedPeriod != nextPeriod);
+
+        uint16 lastCommittedPeriod = getLastCommittedPeriod(staker);
+        (uint16 processedPeriod1, uint16 processedPeriod2) = mint(staker);
 
         uint256 lockedTokens = getLockedTokens(info, currentPeriod, nextPeriod);
         require(lockedTokens > 0);
@@ -1630,9 +1580,6 @@ contract StakingEscrow is Issuer, IERC900History {
     /// @dev the `onlyWhileUpgrading` modifier works through a call to the parent `verifyState`
     function verifyState(address _testTarget) public override virtual {
         super.verifyState(_testTarget);
-        require(address(delegateGet(_testTarget, this.policyManager.selector)) == address(policyManager));
-        require(address(delegateGet(_testTarget, this.adjudicator.selector)) == address(adjudicator));
-        require(address(delegateGet(_testTarget, this.workLock.selector)) == address(workLock));
         require(delegateGet(_testTarget, this.lockedPerPeriod.selector,
             bytes32(bytes2(RESERVED_PERIOD))) == lockedPerPeriod[RESERVED_PERIOD]);
         require(address(delegateGet(_testTarget, this.stakerFromWorker.selector, bytes32(0))) ==
@@ -1651,7 +1598,6 @@ contract StakingEscrow is Issuer, IERC900History {
             infoToCheck.currentCommittedPeriod == info.currentCommittedPeriod &&
             infoToCheck.nextCommittedPeriod == info.nextCommittedPeriod &&
             infoToCheck.flags == info.flags &&
-            infoToCheck.lockReStakeUntilPeriod == info.lockReStakeUntilPeriod &&
             infoToCheck.lastCommittedPeriod == info.lastCommittedPeriod &&
             infoToCheck.completedWork == info.completedWork &&
             infoToCheck.worker == info.worker &&

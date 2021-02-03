@@ -19,6 +19,7 @@ import pytest
 from web3.contract import Contract
 
 from nucypher.blockchain.economics import BaseEconomics
+from nucypher.blockchain.eth.constants import NULL_ADDRESS
 
 VALUE_FIELD = 0
 
@@ -47,17 +48,48 @@ def token(deploy_contract, token_economics):
     return token
 
 
+@pytest.fixture()
+def policy_manager(deploy_contract, token_economics):
+    policy_manager, _ = deploy_contract(
+        'PolicyManagerForStakingEscrowMock', NULL_ADDRESS, token_economics.seconds_per_period)
+    return policy_manager
+
+
+@pytest.fixture()
+def adjudicator(deploy_contract, token_economics):
+    adjudicator, _ = deploy_contract('AdjudicatorForStakingEscrowMock', token_economics.reward_coefficient)
+    return adjudicator
+
+
+@pytest.fixture()
+def worklock(deploy_contract, token):
+    worklock, _ = deploy_contract('WorkLockForStakingEscrowMock', token.address)
+    return worklock
+
+
 @pytest.fixture(params=[False, True])
-def escrow_contract(testerchain, token, token_economics, request, deploy_contract):
+def escrow_contract(testerchain,
+                    token,
+                    policy_manager,
+                    adjudicator,
+                    worklock,
+                    token_economics,
+                    request,
+                    deploy_contract):
     def make_escrow(max_allowed_locked_tokens, disable_reward: bool = False):
         # Creator deploys the escrow
         deploy_parameters = list(token_economics.staking_deployment_parameters)
         deploy_parameters[-2] = max_allowed_locked_tokens
-        deploy_parameters.append(True)
         if disable_reward:
             deploy_parameters[5] = 0
             deploy_parameters[6] = 0
-        contract, _ = deploy_contract('EnhancedStakingEscrow', token.address, *deploy_parameters)
+
+        contract, _ = deploy_contract('EnhancedStakingEscrow',
+                                      token.address,
+                                      policy_manager.address,
+                                      adjudicator.address,
+                                      worklock.address,
+                                      *deploy_parameters)
 
         if request.param:
             dispatcher, _ = deploy_contract('Dispatcher', contract.address)
@@ -66,12 +98,16 @@ def escrow_contract(testerchain, token, token_economics, request, deploy_contrac
                 address=dispatcher.address,
                 ContractFactoryClass=Contract)
 
-        policy_manager, _ = deploy_contract(
-            'PolicyManagerForStakingEscrowMock', token.address, contract.address
-        )
-        tx = contract.functions.setPolicyManager(policy_manager.address).transact()
+        tx = policy_manager.functions.setStakingEscrow(contract.address).transact()
         testerchain.wait_for_receipt(tx)
+        tx = adjudicator.functions.setStakingEscrow(contract.address).transact()
+        testerchain.wait_for_receipt(tx)
+        tx = worklock.functions.setStakingEscrow(contract.address).transact()
+        testerchain.wait_for_receipt(tx)
+
         assert policy_manager.address == contract.functions.policyManager().call()
+        assert adjudicator.address == contract.functions.adjudicator().call()
+        assert worklock.address == contract.functions.workLock().call()
 
         # Travel to the start of the next period to prevent problems with unexpected overflow first period
         testerchain.time_travel(hours=1)

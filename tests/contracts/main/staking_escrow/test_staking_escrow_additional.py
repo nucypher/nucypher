@@ -26,17 +26,27 @@ from nucypher.blockchain.eth.constants import NULL_ADDRESS
 from nucypher.blockchain.eth.token import NU
 from nucypher.utilities.ethereum import get_array_data_location, get_mapping_entry_location, to_bytes32
 
-LOCK_RE_STAKE_UNTIL_PERIOD_FIELD = 4
-
 
 def test_upgrading(testerchain, token, token_economics, deploy_contract):
     creator = testerchain.client.accounts[0]
     staker = testerchain.client.accounts[1]
     worker = testerchain.client.accounts[2]
 
+    # Initialize contract and staker
+    policy_manager, _ = deploy_contract(
+        'PolicyManagerForStakingEscrowMock', NULL_ADDRESS, token_economics.seconds_per_period
+    )
+    worklock, _ = deploy_contract('WorkLockForStakingEscrowMock', token.address)
+    adjudicator, _ = deploy_contract('AdjudicatorForStakingEscrowMock', token_economics.reward_coefficient)
+
     # Deploy contract
     contract_library_v1, _ = deploy_contract(
-        'StakingEscrow', token.address, *token_economics.staking_deployment_parameters, True
+        'StakingEscrow',
+        token.address,
+        policy_manager.address,
+        adjudicator.address,
+        worklock.address,
+        *token_economics.staking_deployment_parameters
     )
     dispatcher, _ = deploy_contract('Dispatcher', contract_library_v1.address)
 
@@ -44,7 +54,7 @@ def test_upgrading(testerchain, token, token_economics, deploy_contract):
     contract_library_v2, _ = deploy_contract(
         contract_name='StakingEscrowV2Mock',
         _token=token.address,
-        _hoursPerPeriod=2,
+        _hoursPerPeriod=token_economics.hours_per_period,
         _issuanceDecayCoefficient=2,
         _lockDurationCoefficient1=2,
         _lockDurationCoefficient2=4,
@@ -55,7 +65,9 @@ def test_upgrading(testerchain, token, token_economics, deploy_contract):
         _minAllowableLockedTokens=2,
         _maxAllowableLockedTokens=2,
         _minWorkerPeriods=2,
-        _isTestContract=False,
+        _policyManager=policy_manager.address,
+        _adjudicator=adjudicator.address,
+        _workLock=worklock.address,
         _valueToCheck=2
     )
 
@@ -64,7 +76,8 @@ def test_upgrading(testerchain, token, token_economics, deploy_contract):
         address=dispatcher.address,
         ContractFactoryClass=Contract)
     assert token_economics.maximum_allowed_locked == contract.functions.maxAllowableLockedTokens().call()
-    assert contract.functions.isTestContract().call()
+    tx = worklock.functions.setStakingEscrow(contract.address).transact()
+    testerchain.wait_for_receipt(tx)
 
     # Can't call `finishUpgrade` and `verifyState` methods outside upgrade lifecycle
     with pytest.raises((TransactionFailed, ValueError)):
@@ -73,25 +86,6 @@ def test_upgrading(testerchain, token, token_economics, deploy_contract):
     with pytest.raises((TransactionFailed, ValueError)):
         tx = contract_library_v1.functions.verifyState(contract.address).transact({'from': creator})
         testerchain.wait_for_receipt(tx)
-
-    # Initialize contract and staker
-    policy_manager, _ = deploy_contract(
-        'PolicyManagerForStakingEscrowMock', token.address, contract.address
-    )
-    # Can't set wrong address
-    with pytest.raises((TransactionFailed, ValueError)):
-        tx = contract.functions.setPolicyManager(NULL_ADDRESS).transact()
-        testerchain.wait_for_receipt(tx)
-    with pytest.raises((TransactionFailed, ValueError)):
-        tx = contract.functions.setPolicyManager(contract_library_v1.address).transact()
-        testerchain.wait_for_receipt(tx)
-    tx = contract.functions.setPolicyManager(policy_manager.address).transact()
-    testerchain.wait_for_receipt(tx)
-    worklock, _ = deploy_contract(
-        'WorkLockForStakingEscrowMock', token.address, contract.address
-    )
-    tx = contract.functions.setWorkLock(worklock.address).transact()
-    testerchain.wait_for_receipt(tx)
 
     tx = token.functions.approve(contract.address, token_economics.erc20_reward_supply).transact({'from': creator})
     testerchain.wait_for_receipt(tx)
@@ -106,8 +100,6 @@ def test_upgrading(testerchain, token, token_economics, deploy_contract):
     testerchain.wait_for_receipt(tx)
     tx = contract.functions.setReStake(True).transact({'from': staker})
     testerchain.wait_for_receipt(tx)
-    tx = contract.functions.lockReStake(contract.functions.getCurrentPeriod().call() + 1).transact({'from': staker})
-    testerchain.wait_for_receipt(tx)
     tx = worklock.functions.setWorkMeasurement(staker, True).transact()
     testerchain.wait_for_receipt(tx)
     tx = contract.functions.bondWorker(worker).transact({'from': staker})
@@ -118,10 +110,6 @@ def test_upgrading(testerchain, token, token_economics, deploy_contract):
     tx = contract.functions.commitToNextPeriod().transact({'from': worker})
     testerchain.wait_for_receipt(tx)
 
-    # Can set WorkLock twice, because isTestContract == True
-    tx = contract.functions.setWorkLock(worklock.address).transact()
-    testerchain.wait_for_receipt(tx)
-
     # Upgrade to the second version
     tx = dispatcher.functions.upgrade(contract_library_v2.address).transact({'from': creator})
     testerchain.wait_for_receipt(tx)
@@ -130,10 +118,6 @@ def test_upgrading(testerchain, token, token_economics, deploy_contract):
     assert 2 == contract.functions.maxAllowableLockedTokens().call()
     assert policy_manager.address == contract.functions.policyManager().call()
     assert 2 == contract.functions.valueToCheck().call()
-    assert not contract.functions.isTestContract().call()
-    with pytest.raises((TransactionFailed, ValueError)):
-        tx = contract.functions.setWorkLock(worklock.address).transact()
-        testerchain.wait_for_receipt(tx)
     # Check new ABI
     tx = contract.functions.setValueToCheck(3).transact({'from': creator})
     testerchain.wait_for_receipt(tx)
@@ -143,7 +127,7 @@ def test_upgrading(testerchain, token, token_economics, deploy_contract):
     contract_library_bad, _ = deploy_contract(
         contract_name='StakingEscrowBad',
         _token=token.address,
-        _hoursPerPeriod=2,
+        _hoursPerPeriod=token_economics.hours_per_period,
         _issuanceDecayCoefficient=2,
         _lockDurationCoefficient1=2,
         _lockDurationCoefficient2=4,
@@ -154,7 +138,9 @@ def test_upgrading(testerchain, token, token_economics, deploy_contract):
         _minAllowableLockedTokens=2,
         _maxAllowableLockedTokens=2,
         _minWorkerPeriods=2,
-        _isTestContract=False
+        _policyManager=policy_manager.address,
+        _adjudicator=adjudicator.address,
+        _workLock=worklock.address
     )
     with pytest.raises((TransactionFailed, ValueError)):
         tx = dispatcher.functions.upgrade(contract_library_v1.address).transact({'from': creator})
@@ -168,9 +154,6 @@ def test_upgrading(testerchain, token, token_economics, deploy_contract):
     testerchain.wait_for_receipt(tx)
     assert contract_library_v1.address == dispatcher.functions.target().call()
     assert policy_manager.address == contract.functions.policyManager().call()
-    assert contract.functions.isTestContract().call()
-    tx = contract.functions.setWorkLock(worklock.address).transact()
-    testerchain.wait_for_receipt(tx)
     # After rollback new ABI is unavailable
     with pytest.raises((TransactionFailed, ValueError)):
         tx = contract.functions.setValueToCheck(2).transact({'from': creator})
@@ -286,7 +269,6 @@ def test_re_stake(testerchain, token, escrow_contract):
     staker2 = testerchain.client.accounts[2]
 
     re_stake_log = escrow.events.ReStakeSet.createFilter(fromBlock='latest')
-    re_stake_lock_log = escrow.events.ReStakeLocked.createFilter(fromBlock='latest')
 
     # Give Escrow tokens for reward and initialize contract
     reward = 10 ** 9
@@ -326,21 +308,6 @@ def test_re_stake(testerchain, token, escrow_contract):
     event_args = events[2]['args']
     assert staker == event_args['staker']
     assert not event_args['reStake']
-
-    # Lock re-stake parameter during 1 period
-    period = escrow.functions.getCurrentPeriod().call()
-    tx = escrow.functions.lockReStake(period + 1).transact({'from': staker})
-    testerchain.wait_for_receipt(tx)
-    # Can't set re-stake parameter in the current period
-    with pytest.raises((TransactionFailed, ValueError)):
-        tx = escrow.functions.setReStake(True).transact({'from': staker})
-        testerchain.wait_for_receipt(tx)
-
-    events = re_stake_lock_log.get_all_entries()
-    assert 1 == len(events)
-    event_args = events[0]['args']
-    assert staker == event_args['staker']
-    assert period + 1 == event_args['lockUntilPeriod']
 
     # Ursula deposits some tokens and makes a commitment
     tx = token.functions.transfer(staker, 10000).transact({'from': creator})
@@ -384,28 +351,11 @@ def test_re_stake(testerchain, token, escrow_contract):
     testerchain.wait_for_receipt(tx)
     assert sub_stake == escrow.functions.getAllTokens(staker).call()
 
-    # Set re-stake and lock parameter
+    # Set re-stake
     tx = escrow.functions.setReStake(True).transact({'from': staker})
     testerchain.wait_for_receipt(tx)
     _wind_down, re_stake, _measure_work, _snapshots = escrow.functions.getFlags(staker).call()
     assert re_stake
-    tx = escrow.functions.lockReStake(period + 6).transact({'from': staker})
-    testerchain.wait_for_receipt(tx)
-    # Can't set re-stake parameter during 6 periods
-    with pytest.raises((TransactionFailed, ValueError)):
-        tx = escrow.functions.setReStake(False).transact({'from': staker})
-        testerchain.wait_for_receipt(tx)
-
-    events = re_stake_log.get_all_entries()
-    assert 4 == len(events)
-    event_args = events[3]['args']
-    assert staker == event_args['staker']
-    assert event_args['reStake']
-    events = re_stake_lock_log.get_all_entries()
-    assert 2 == len(events)
-    event_args = events[1]['args']
-    assert staker == event_args['staker']
-    assert period + 6 == event_args['lockUntilPeriod']
 
     # Make a commitment and try to mint with re-stake
     tx = escrow.functions.commitToNextPeriod().transact({'from': staker})
@@ -515,11 +465,6 @@ def test_re_stake(testerchain, token, escrow_contract):
     assert 2 * stake == escrow.functions.lockedPerPeriod(period - 2).call()
     assert 2 * stake + reward_for_first_period == escrow.functions.lockedPerPeriod(period - 1).call()
     assert 0 == escrow.functions.lockedPerPeriod(period).call()
-
-    # Can't turn off re-stake parameter during one more period
-    with pytest.raises((TransactionFailed, ValueError)):
-        tx = escrow.functions.setReStake(False).transact({'from': staker})
-        testerchain.wait_for_receipt(tx)
 
     # Make a commitment and try to mint without re-stake
     tx = escrow.functions.commitToNextPeriod().transact({'from': staker})
@@ -797,7 +742,7 @@ def test_worker(testerchain, token, escrow_contract, deploy_contract):
         testerchain.wait_for_receipt(tx)
 
 
-def test_measure_work(testerchain, token, escrow_contract, deploy_contract):
+def test_measure_work(testerchain, token, worklock, escrow_contract):
     escrow = escrow_contract(10000)
     creator, staker, *everyone_else = testerchain.w3.eth.accounts
     work_measurement_log = escrow.events.WorkMeasurementSet.createFilter(fromBlock='latest')
@@ -807,11 +752,6 @@ def test_measure_work(testerchain, token, escrow_contract, deploy_contract):
     tx = token.functions.approve(escrow.address, int(NU(reward, 'NuNit'))).transact({'from': creator})
     testerchain.wait_for_receipt(tx)
     tx = escrow.functions.initialize(reward, creator).transact({'from': creator})
-    testerchain.wait_for_receipt(tx)
-
-    # Deploy WorkLock mock
-    worklock, _ = deploy_contract('WorkLockForStakingEscrowMock', token.address, escrow.address)
-    tx = escrow.functions.setWorkLock(worklock.address).transact()
     testerchain.wait_for_receipt(tx)
 
     # Prepare Ursula

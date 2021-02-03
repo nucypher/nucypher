@@ -227,11 +227,8 @@ class StakingEscrowAgent(EthereumContractAgent):
     contract_name: str = STAKING_ESCROW_CONTRACT_NAME
     _proxy_name: str = DISPATCHER_CONTRACT_NAME
     _excluded_interfaces = (
-        'setPolicyManager',
         'verifyState',
-        'finishUpgrade',
-        'setAdjudicator',
-        'setWorkLock'
+        'finishUpgrade'
     )
 
     DEFAULT_PAGINATION_SIZE: int = 30    # TODO: Use dynamic pagination size (see #1424)
@@ -461,58 +458,6 @@ class StakingEscrowAgent(EthereumContractAgent):
                                                               sender_address=staker_address)
         return receipt
 
-    @contract_api(CONTRACT_CALL)
-    def construct_batch_deposit_parameters(self, deposits: Dict[ChecksumAddress, List[Tuple[int, int]]]) -> Tuple[list, list, list, list]:
-        max_substakes: int = self.contract.functions.MAX_SUB_STAKES().call()
-        stakers: List[ChecksumAddress] = list()
-        number_of_substakes: List[int] = list()
-        amounts: List[NuNits] = list()
-        lock_periods: List[int] = list()
-        for staker, substakes in deposits.items():
-            if not 0 < len(substakes) <= max_substakes:
-                raise self.RequirementError(f"Number of substakes for staker {staker} must be >0 and ≤{max_substakes}")
-            # require(value >= minAllowableLockedTokens & & periods >= minLockedPeriods);
-            # require(info.value <= maxAllowableLockedTokens);
-            # require(info.subStakes.length == 0);
-            stakers.append(staker)
-            number_of_substakes.append(len(substakes))
-            staker_amounts, staker_periods = zip(*substakes)
-            amounts.extend(staker_amounts)
-            lock_periods.extend(staker_periods)
-
-        return stakers, number_of_substakes, amounts, lock_periods
-
-    @contract_api(TRANSACTION)
-    def batch_deposit(self,
-                      stakers: List[ChecksumAddress],
-                      number_of_substakes: List[int],
-                      amounts: List[NuNits],
-                      lock_periods: List[PeriodDelta],
-                      sender_address: ChecksumAddress,
-                      dry_run: bool = False,
-                      gas_limit: Optional[Wei] = None
-                      ) -> Union[TxReceipt, Wei]:
-
-        min_gas_batch_deposit: Wei = Wei(250_000)  # TODO: move elsewhere?
-        if gas_limit and gas_limit < min_gas_batch_deposit:
-            raise ValueError(f"{gas_limit} is not enough gas for any batch deposit")
-
-        contract_function: ContractFunction = self.contract.functions.batchDeposit(
-            stakers, number_of_substakes, amounts, lock_periods)
-        if dry_run:
-            payload: TxParams = {'from': sender_address}
-            if gas_limit:
-                payload['gas'] = gas_limit
-            estimated_gas: Wei = Wei(contract_function.estimateGas(payload))  # If TX is not correct, or there's not enough gas, this will fail.
-            if gas_limit and estimated_gas > gas_limit:
-                raise ValueError(f"Estimated gas for transaction exceeds gas limit {gas_limit}")
-            return estimated_gas
-        else:
-            receipt = self.blockchain.send_transaction(contract_function=contract_function,
-                                                       sender_address=sender_address,
-                                                       transaction_gas_limit=gas_limit)
-            return receipt
-
     @contract_api(TRANSACTION)
     def divide_stake(self,
                      staker_address: ChecksumAddress,
@@ -648,10 +593,6 @@ class StakingEscrowAgent(EthereumContractAgent):
         flags = self.get_flags(staker_address)
         return flags.restake_flag
 
-    @contract_api(CONTRACT_CALL)
-    def is_restaking_locked(self, staker_address: ChecksumAddress) -> bool:
-        return self.contract.functions.isReStakeLocked(staker_address).call()
-
     @contract_api(TRANSACTION)
     def set_restaking(self, staker_address: ChecksumAddress, value: bool) -> TxReceipt:
         """
@@ -663,20 +604,6 @@ class StakingEscrowAgent(EthereumContractAgent):
                                                               sender_address=staker_address)
         # TODO: Handle ReStakeSet event (see #1193)
         return receipt
-
-    @contract_api(TRANSACTION)
-    def lock_restaking(self, staker_address: ChecksumAddress, release_period: Period) -> TxReceipt:
-        contract_function: ContractFunction = self.contract.functions.lockReStake(release_period)
-        receipt: TxReceipt = self.blockchain.send_transaction(contract_function=contract_function,
-                                                              sender_address=staker_address)
-        # TODO: Handle ReStakeLocked event (see #1193)
-        return receipt
-
-    @contract_api(CONTRACT_CALL)
-    def get_restake_unlock_period(self, staker_address: ChecksumAddress) -> Period:
-        staker_info: StakerInfo = self.get_staker_info(staker_address)
-        restake_unlock_period: int = int(staker_info.lock_restake_until_period)
-        return Period(restake_unlock_period)
 
     @contract_api(CONTRACT_CALL)
     def is_winding_down(self, staker_address: ChecksumAddress) -> bool:
@@ -803,11 +730,6 @@ class StakingEscrowAgent(EthereumContractAgent):
         else:
             result = missing_commitments
         return result
-
-    @property  # type: ignore
-    @contract_api(CONTRACT_ATTRIBUTE)
-    def is_test_contract(self) -> bool:
-        return self.contract.functions.isTestContract().call()
 
     @property  # type: ignore
     @contract_api(CONTRACT_ATTRIBUTE)

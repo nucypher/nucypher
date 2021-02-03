@@ -19,6 +19,7 @@ import pytest
 
 from nucypher.blockchain.eth.deployers import (AdjudicatorDeployer, NucypherTokenDeployer, PolicyManagerDeployer,
                                                StakingEscrowDeployer, StakingInterfaceDeployer)
+from constant_sorrow.constants import (FULL, INIT)
 
 
 @pytest.fixture(scope="module")
@@ -29,7 +30,7 @@ def token_deployer(testerchain, test_registry):
 
 
 @pytest.fixture(scope="module")
-def staking_escrow_deployer(testerchain, token_deployer, test_registry):
+def staking_escrow_stub_deployer(testerchain, token_deployer, test_registry):
     token_deployer.deploy()
     staking_escrow_deployer = StakingEscrowDeployer(registry=test_registry,
                                                     deployer_address=testerchain.etherbase_account)
@@ -37,18 +38,11 @@ def staking_escrow_deployer(testerchain, token_deployer, test_registry):
 
 
 @pytest.fixture(scope="module")
-def policy_manager_deployer(staking_escrow_deployer, testerchain, test_registry):
-    staking_escrow_deployer.deploy()
+def policy_manager_deployer(staking_escrow_stub_deployer, testerchain, test_registry):
+    staking_escrow_stub_deployer.deploy(deployment_mode=INIT)
     policy_manager_deployer = PolicyManagerDeployer(registry=test_registry,
                                                     deployer_address=testerchain.etherbase_account)
     return policy_manager_deployer
-
-
-@pytest.fixture(scope="module")
-def staking_interface_deployer(staking_escrow_deployer, testerchain, test_registry):
-    staking_interface_deployer = StakingInterfaceDeployer(registry=test_registry,
-                                                          deployer_address=testerchain.etherbase_account)
-    return staking_interface_deployer
 
 
 @pytest.fixture(scope="module")
@@ -57,6 +51,21 @@ def adjudicator_deployer(policy_manager_deployer, testerchain, test_registry):
     adjudicator_deployer = AdjudicatorDeployer(registry=test_registry,
                                                deployer_address=testerchain.etherbase_account)
     return adjudicator_deployer
+
+
+@pytest.fixture(scope="module")
+def staking_escrow_deployer(testerchain, adjudicator_deployer, test_registry):
+    adjudicator_deployer.deploy()
+    staking_escrow_deployer = StakingEscrowDeployer(registry=test_registry,
+                                                    deployer_address=testerchain.etherbase_account)
+    return staking_escrow_deployer
+
+
+@pytest.fixture(scope="module")
+def staking_interface_deployer(staking_escrow_deployer, testerchain, test_registry):
+    staking_interface_deployer = StakingInterfaceDeployer(registry=test_registry,
+                                                          deployer_address=testerchain.etherbase_account)
+    return staking_interface_deployer
 
 
 @pytest.fixture(scope="function")

@@ -150,9 +150,10 @@ def test_minting(testerchain, token, escrow_contract, token_economics):
     assert policy_manager.functions.getPeriod(staker1, 5).call() == 0
     assert policy_manager.functions.getPeriod(staker1, 6).call() == current_period + 1
 
-    # Checks that no error from repeated method call
-    tx = escrow.functions.commitToNextPeriod().transact({'from': staker1})
-    testerchain.wait_for_receipt(tx)
+    # Can't commit more than once
+    with pytest.raises((TransactionFailed, ValueError)):
+        tx = escrow.functions.commitToNextPeriod().transact({'from': staker1})
+        testerchain.wait_for_receipt(tx)
     assert policy_manager.functions.getPeriodsLength(staker1).call() == 7
 
     # Staker and Staker(2) mint tokens for last periods
@@ -438,13 +439,8 @@ def test_minting(testerchain, token, escrow_contract, token_economics):
     assert 5 == escrow.functions.findIndexOfPastDowntime(staker2, current_period + 100).call()
 
 
-def test_slashing(testerchain, token, escrow_contract, token_economics, deploy_contract):
+def test_slashing(testerchain, token, adjudicator, escrow_contract, token_economics):
     escrow = escrow_contract(1500)
-    adjudicator, _ = deploy_contract(
-        'AdjudicatorForStakingEscrowMock', escrow.address
-    )
-    tx = escrow.functions.setAdjudicator(adjudicator.address).transact()
-    testerchain.wait_for_receipt(tx)
     creator = testerchain.client.accounts[0]
     staker = testerchain.client.accounts[1]
     investigator = testerchain.client.accounts[2]

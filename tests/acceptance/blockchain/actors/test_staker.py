@@ -242,24 +242,8 @@ def test_staker_manages_restaking(testerchain, test_registry, staker):
     receipt = staker.enable_restaking()
     assert receipt['status'] == 1
 
-    # Enable Restaking Lock
-    staking_agent = ContractAgency.get_agent(StakingEscrowAgent, registry=test_registry)
-    current_period = staking_agent.get_current_period()
-    terminal_period = current_period + 2
-
-    assert not staker.restaking_lock_enabled
-    receipt = staker.enable_restaking_lock(release_period=terminal_period)
-    assert receipt['status'] == 1
-    assert staker.restaking_lock_enabled
-
-    with pytest.raises((TransactionFailed, ValueError)):
-        staker.disable_restaking()
-
-    # Wait until terminal period
-    testerchain.time_travel(periods=2)
     receipt = staker.disable_restaking()
     assert receipt['status'] == 1
-    assert not staker.restaking_lock_enabled
 
 
 def test_staker_collects_staking_reward(testerchain,

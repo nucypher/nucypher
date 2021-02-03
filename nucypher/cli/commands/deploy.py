@@ -66,8 +66,6 @@ from nucypher.cli.literature import (
     SUCCESSFUL_REGISTRY_DOWNLOAD,
     SUCCESSFUL_RETARGET,
     SUCCESSFUL_RETARGET_TX_BUILT,
-    SUCCESSFUL_SAVE_BATCH_DEPOSIT_RECEIPTS,
-    SUCCESSFUL_SAVE_DEPLOY_RECEIPTS,
     SUCCESSFUL_SAVE_MULTISIG_TX_PROPOSAL,
     SUCCESSFUL_UPGRADE,
     UNKNOWN_CONTRACT_NAME,
@@ -129,7 +127,6 @@ class ActorOptions:
                  poa: bool,
                  config_root: str,
                  etherscan: bool,
-                 se_test_mode,
                  ignore_solidity_check,
                  gas_strategy: str,
                  max_gas_price: int,  # gwei
@@ -151,7 +148,6 @@ class ActorOptions:
         self.config_root = config_root
         self.etherscan = etherscan
         self.poa = poa
-        self.se_test_mode = se_test_mode
         self.ignore_solidity_check = ignore_solidity_check
         self.network = network
 
@@ -215,8 +211,7 @@ class ActorOptions:
                                               client_password=password,
                                               deployer_address=deployer_address,
                                               is_transacting=is_transacting,
-                                              signer=signer,
-                                              staking_escrow_test_mode=self.se_test_mode)
+                                              signer=signer)
         # Verify ETH Balance
         emitter.echo(DEPLOYER_BALANCE.format(eth_balance=ADMINISTRATOR.eth_balance))
         if is_transacting and ADMINISTRATOR.eth_balance == 0:
@@ -239,7 +234,6 @@ group_actor_options = group_options(
     registry_infile=option_registry_infile,
     registry_outfile=option_registry_outfile,
     dev=click.option('--dev', '-d', help="Forcibly use the development registry filepath.", is_flag=True),
-    se_test_mode=click.option('--se-test-mode', help="Enable test mode for StakingEscrow in deployment.", is_flag=True),
     config_root=option_config_root,
     etherscan=option_etherscan,
     ignore_solidity_check=option_ignore_solidity_version,
@@ -460,8 +454,9 @@ def rollback(general_config, actor_options):
 @option_confirmations
 @click.option('--mode',
               help="Deploy a contract following all steps ('full'), up to idle status ('idle'), "
+                   "just initialization step ('init', only for StakingEscrow) "
                    "or just the bare contract ('bare'). Defaults to 'full'",
-              type=click.Choice(['full', 'idle', 'bare'], case_sensitive=False),
+              type=click.Choice(['full', 'idle', 'bare', 'init'], case_sensitive=False),
               default='full'
               )
 @click.option('--activate', help="Activate a contract that is in idle mode", is_flag=True)
@@ -540,26 +535,6 @@ def contracts(general_config, actor_options, mode, activate, gas, ignore_deploye
     # Save transaction metadata
     # receipts_filepath = ADMINISTRATOR.save_deployment_receipts(receipts=receipts)
     # emitter.echo(SUCCESSFUL_SAVE_DEPLOY_RECEIPTS.format(receipts_filepath=receipts_filepath), color='blue', bold=True)
-
-
-@deploy.command()
-@group_general_config
-@group_actor_options
-@click.option('--allocation-infile', help="Input path for token allocation JSON file", type=EXISTING_READABLE_FILE)
-@option_gas
-def allocations(general_config, actor_options, allocation_infile, gas):
-    """Deposit stake allocations in batches"""
-    emitter = general_config.emitter
-    ADMINISTRATOR, _, deployer_interface, local_registry = actor_options.create_actor(emitter)
-    if not allocation_infile:
-        allocation_infile = click.prompt(PROMPT_FOR_ALLOCATION_DATA_FILEPATH)
-    receipts = ADMINISTRATOR.batch_deposits(allocation_data_filepath=allocation_infile,
-                                            emitter=emitter,
-                                            gas_limit=gas,
-                                            interactive=not actor_options.force)
-    receipts_filepath = ADMINISTRATOR.save_deployment_receipts(receipts=receipts, filename_prefix='batch_deposits')
-    if emitter:
-        emitter.echo(SUCCESSFUL_SAVE_BATCH_DEPOSIT_RECEIPTS.format(receipts_filepath=receipts_filepath), color='blue', bold=True)
 
 
 @deploy.command("transfer-ownership")

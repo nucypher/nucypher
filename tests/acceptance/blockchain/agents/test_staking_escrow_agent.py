@@ -263,22 +263,6 @@ def test_deposit_and_increase(agency, testerchain, test_registry, token_economic
     assert staking_agent.get_locked_tokens(staker_account, 1) == locked_tokens + amount
 
 
-def test_lock_restaking(agency, testerchain, test_registry):
-    staker_account, worker_account, *other = testerchain.unassigned_accounts
-    staking_agent = ContractAgency.get_agent(StakingEscrowAgent, registry=test_registry)
-    current_period = staking_agent.get_current_period()
-    terminal_period = current_period + 2
-
-    assert staking_agent.is_restaking(staker_account)
-    assert not staking_agent.is_restaking_locked(staker_account)
-    receipt = staking_agent.lock_restaking(staker_account, release_period=terminal_period)
-    assert receipt['status'] == 1, "Transaction Rejected"
-    assert staking_agent.is_restaking_locked(staker_account)
-
-    testerchain.time_travel(periods=2)  # Wait for re-staking lock to be released.
-    assert not staking_agent.is_restaking_locked(staker_account)
-
-
 def test_disable_restaking(agency, testerchain, test_registry):
     staker_account, worker_account, *other = testerchain.unassigned_accounts
     staking_agent = ContractAgency.get_agent(StakingEscrowAgent, registry=test_registry)
@@ -295,6 +279,7 @@ def test_collect_staking_reward(agency, testerchain, mock_transacting_power_acti
     staker_account, worker_account, *other = testerchain.unassigned_accounts
 
     # Commit to next period
+    testerchain.time_travel(periods=1)
     staking_agent.commit_to_next_period(worker_address=worker_account)
     testerchain.time_travel(periods=2)
 
@@ -452,59 +437,3 @@ def test_remove_unused_stake(agency, testerchain, test_registry):
     assert stakes[3] == original_stakes[3]
     assert staking_agent.get_locked_tokens(staker_account, 1) == next_locked_tokens
     assert staking_agent.get_locked_tokens(staker_account, 0) == current_locked_tokens
-
-
-def test_batch_deposit(testerchain,
-                       agency,
-                       token_economics,
-                       mock_transacting_power_activation,
-                       get_random_checksum_address):
-
-    token_agent, staking_agent, _policy_agent = agency
-
-    amount = token_economics.minimum_allowed_locked
-    lock_periods = token_economics.minimum_locked_periods
-
-    stakers = [get_random_checksum_address() for _ in range(4)]
-
-    N = 5
-    substakes = [(amount, lock_periods)] * N
-    deposits = {staker: substakes for staker in stakers}
-
-    batch_parameters = staking_agent.construct_batch_deposit_parameters(deposits=deposits)
-
-    assert batch_parameters[0] == stakers
-    assert batch_parameters[1] == [N] * len(stakers)
-    assert batch_parameters[2] == [amount] * (N * len(stakers))
-    assert batch_parameters[3] == [lock_periods] * (N * len(stakers))
-
-    mock_transacting_power_activation(account=testerchain.etherbase_account, password=INSECURE_DEVELOPMENT_PASSWORD)
-
-    tokens_in_batch = sum(batch_parameters[2])
-
-    _receipt = token_agent.approve_transfer(amount=tokens_in_batch,
-                                            spender_address=staking_agent.contract_address,
-                                            sender_address=testerchain.etherbase_account)
-
-    not_enough_gas = 800_000
-    with pytest.raises((TransactionFailed, ValueError)):
-        staking_agent.batch_deposit(*batch_parameters,
-                                    sender_address=testerchain.etherbase_account,
-                                    dry_run=True,
-                                    gas_limit=not_enough_gas)
-
-    staking_agent.batch_deposit(*batch_parameters,
-                                sender_address=testerchain.etherbase_account,
-                                dry_run=True)
-
-    staking_agent.batch_deposit(*batch_parameters,
-                                sender_address=testerchain.etherbase_account)
-
-    for staker in stakers:
-        assert staking_agent.owned_tokens(staker_address=staker) == amount * N
-        staker_substakes = list(staking_agent.get_all_stakes(staker_address=staker))
-        assert N == len(staker_substakes)
-        for substake in staker_substakes:
-            first_period, last_period, locked_value = substake
-            assert last_period == first_period + lock_periods - 1
-            assert locked_value == amount

@@ -14,6 +14,9 @@ contract EnhancedStakingEscrow is StakingEscrow {
 
     constructor(
         NuCypherToken _token,
+        PolicyManagerInterface _policyManager,
+        AdjudicatorInterface _adjudicator,
+        WorkLockInterface _workLock,
         uint32 _hoursPerPeriod,
         uint256 _issuanceDecayCoefficient,
         uint256 _lockDurationCoefficient1,
@@ -24,11 +27,13 @@ contract EnhancedStakingEscrow is StakingEscrow {
         uint16 _minLockedPeriods,
         uint256 _minAllowableLockedTokens,
         uint256 _maxAllowableLockedTokens,
-        uint16 _minWorkerPeriods,
-        bool _isTestContract
+        uint16 _minWorkerPeriods
     )
         StakingEscrow(
             _token,
+            _policyManager,
+            _adjudicator,
+            _workLock,
             _hoursPerPeriod,
             _issuanceDecayCoefficient,
             _lockDurationCoefficient1,
@@ -39,8 +44,7 @@ contract EnhancedStakingEscrow is StakingEscrow {
             _minLockedPeriods,
             _minAllowableLockedTokens,
             _maxAllowableLockedTokens,
-            _minWorkerPeriods,
-            _isTestContract
+            _minWorkerPeriods
         )
     {
     }
@@ -70,6 +74,9 @@ contract StakingEscrowBad is StakingEscrow {
 
     constructor(
         NuCypherToken _token,
+        PolicyManagerInterface _policyManager,
+        AdjudicatorInterface _adjudicator,
+        WorkLockInterface _workLock,
         uint32 _hoursPerPeriod,
         uint256 _issuanceDecayCoefficient,
         uint256 _lockDurationCoefficient1,
@@ -80,11 +87,13 @@ contract StakingEscrowBad is StakingEscrow {
         uint16 _minLockedPeriods,
         uint256 _minAllowableLockedTokens,
         uint256 _maxAllowableLockedTokens,
-        uint16 _minWorkerPeriods,
-        bool _isTestContract
+        uint16 _minWorkerPeriods
     )
         StakingEscrow(
             _token,
+            _policyManager,
+            _adjudicator,
+            _workLock,
             _hoursPerPeriod,
             _issuanceDecayCoefficient,
             _lockDurationCoefficient1,
@@ -95,8 +104,7 @@ contract StakingEscrowBad is StakingEscrow {
             _minLockedPeriods,
             _minAllowableLockedTokens,
             _maxAllowableLockedTokens,
-            _minWorkerPeriods,
-            _isTestContract
+            _minWorkerPeriods
         )
     {
     }
@@ -115,6 +123,9 @@ contract StakingEscrowV2Mock is StakingEscrow {
 
     constructor(
         NuCypherToken _token,
+        PolicyManagerInterface _policyManager,
+        AdjudicatorInterface _adjudicator,
+        WorkLockInterface _workLock,
         uint32 _hoursPerPeriod,
         uint256 _issuanceDecayCoefficient,
         uint256 _lockDurationCoefficient1,
@@ -126,11 +137,13 @@ contract StakingEscrowV2Mock is StakingEscrow {
         uint256 _minAllowableLockedTokens,
         uint256 _maxAllowableLockedTokens,
         uint16 _minWorkerPeriods,
-        bool _isTestContract,
         uint256 _valueToCheck
     )
         StakingEscrow(
             _token,
+            _policyManager,
+            _adjudicator,
+            _workLock,
             _hoursPerPeriod,
             _issuanceDecayCoefficient,
             _lockDurationCoefficient1,
@@ -141,8 +154,7 @@ contract StakingEscrowV2Mock is StakingEscrow {
             _minLockedPeriods,
             _minAllowableLockedTokens,
             _maxAllowableLockedTokens,
-            _minWorkerPeriods,
-            _isTestContract
+            _minWorkerPeriods
         )
     {
         valueToCheck = _valueToCheck;
@@ -170,10 +182,15 @@ contract StakingEscrowV2Mock is StakingEscrow {
 */
 contract PolicyManagerForStakingEscrowMock {
 
-    StakingEscrow public immutable escrow;
+    uint32 public secondsPerPeriod;
+    StakingEscrow public escrow;
     mapping (address => uint16[]) public nodes;
 
-    constructor(address, StakingEscrow _escrow) {
+    constructor(address, uint32 _secondsPerPeriod) {
+        secondsPerPeriod = _secondsPerPeriod;
+    }
+
+    function setStakingEscrow(StakingEscrow _escrow) external {
         escrow = _escrow;
     }
 
@@ -208,9 +225,14 @@ contract PolicyManagerForStakingEscrowMock {
 */
 contract AdjudicatorForStakingEscrowMock {
 
-    StakingEscrow public immutable escrow;
+    StakingEscrow public escrow;
+    uint256 public rewardCoefficient;
 
-    constructor(StakingEscrow _escrow) {
+    constructor(uint256 _rewardCoefficient) {
+        rewardCoefficient = _rewardCoefficient;
+    }
+
+    function setStakingEscrow(StakingEscrow _escrow) external {
         escrow = _escrow;
     }
 
@@ -261,10 +283,13 @@ contract Intermediary {
 contract WorkLockForStakingEscrowMock {
 
     NuCypherToken public immutable token;
-    StakingEscrow public immutable escrow;
+    StakingEscrow public escrow;
 
-    constructor(NuCypherToken _token, StakingEscrow _escrow) {
+    constructor(NuCypherToken _token) {
         token = _token;
+    }
+
+    function setStakingEscrow(StakingEscrow _escrow) external {
         escrow = _escrow;
     }
 

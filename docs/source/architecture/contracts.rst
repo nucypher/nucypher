@@ -25,18 +25,15 @@ This section provides a step-by-step guide of how NuCypher contracts are deploye
 For a guide of how to deploy these contracts automatically, see the :doc:`Deployment Guide </guides/deployment_guide>`.
 
 #. Deploy ``NuCypherToken`` with all future supply tokens
-#. Deploy ``StakingEscrow`` with a dispatcher targeting it
+#. Deploy stub for ``StakingEscrow`` with a dispatcher targeting it
 #. Deploy ``PolicyManager`` with its own dispatcher, also targeting it
-#. Set the address of the ``PolicyManager`` contract  in the ``StakingEscrow`` by using the ``setPolicyManager(address)``
 #. Deploy ``Adjudicator`` with a dispatcher
-#. Set the address of the ``Adjudicator`` contract  in the ``StakingEscrow`` by using the ``setAdjudicator(address)``
 #. Deploy ``StakingInterface`` with ``StakingInterfaceRouter`` targeting it
 #. Deploy ``WorkLock`` contract
-#. Set the address of the ``WorkLock`` contract  in the ``StakingEscrow`` by using the ``setWorkLock(address)``
+#. Deploy ``StakingEscrow`` and retarget its dispatcher by using the ``upgrade(address)`` function
 #. Approve tokens transfer to the ``StakingEscrow`` contract. These tokens are future staking rewards
 #. Run the ``initialize(uint256)`` method to initialize the ``StakingEscrow`` contract
 #. Approve tokens transfer for distribution to the ``WorkLock`` contract and call ``tokenDeposit(uint256)`` method
-#. Pre-deposit tokens to the ``StakingEscrow`` using ``batchDeposit(address[], uint256[], uint256[], uint16[])``
 
 Alice's Contract Interaction
 ----------------------------

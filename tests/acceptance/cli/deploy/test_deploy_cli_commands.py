@@ -30,7 +30,7 @@ from nucypher.blockchain.eth.constants import (
     DISPATCHER_CONTRACT_NAME,
     NUCYPHER_TOKEN_CONTRACT_NAME,
     POLICY_MANAGER_CONTRACT_NAME,
-    STAKING_ESCROW_CONTRACT_NAME
+    STAKING_ESCROW_CONTRACT_NAME, STAKING_ESCROW_STUB_CONTRACT_NAME
 )
 from nucypher.blockchain.eth.deployers import StakingEscrowDeployer, StakingInterfaceDeployer
 from nucypher.blockchain.eth.registry import InMemoryContractRegistry, LocalContractRegistry
@@ -260,33 +260,6 @@ def test_manual_proxy_retargeting(monkeypatch, testerchain, click_runner, token_
     assert proxy_deployer.target_contract.address == untargeted_deployment.address
 
 
-def test_batch_deposits(click_runner,
-                        testerchain,
-                        agency_local_registry,
-                        mock_allocation_infile,
-                        token_economics):
-    #
-    # Main
-    #
-
-    deploy_command = ('allocations',
-                      '--registry-infile', agency_local_registry.filepath,
-                      '--allocation-infile', mock_allocation_infile,
-                      '--network', TEMPORARY_DOMAIN,
-                      '--provider', TEST_PROVIDER_URI)
-
-    account_index = '0\n'
-    user_input = account_index + YES_ENTER + YES_ENTER
-
-    result = click_runner.invoke(deploy,
-                                 deploy_command,
-                                 input=user_input,
-                                 catch_exceptions=False)
-    assert result.exit_code == 0, result.output
-    for allocation_address in testerchain.unassigned_accounts:
-        assert allocation_address in result.output
-
-
 def test_manual_deployment_of_idle_network(click_runner):
 
     if os.path.exists(ALTERNATE_REGISTRY_FILEPATH_2):
@@ -313,10 +286,10 @@ def test_manual_deployment_of_idle_network(click_runner):
     deployed_contracts = [NUCYPHER_TOKEN_CONTRACT_NAME]
     assert list(new_registry.enrolled_names) == deployed_contracts
 
-    # 2. Deploy StakingEscrow in IDLE mode
+    # 2. Deploy StakingEscrow in INIT mode
     command = ('contracts',
                '--contract-name', STAKING_ESCROW_CONTRACT_NAME,
-               '--mode', 'idle',
+               '--mode', 'init',
                '--provider', TEST_PROVIDER_URI,
                '--network', TEMPORARY_DOMAIN,
                '--registry-infile', ALTERNATE_REGISTRY_FILEPATH_2)
@@ -324,7 +297,7 @@ def test_manual_deployment_of_idle_network(click_runner):
     result = click_runner.invoke(deploy, command, input=user_input, catch_exceptions=False)
     assert result.exit_code == 0
 
-    deployed_contracts.extend([STAKING_ESCROW_CONTRACT_NAME, DISPATCHER_CONTRACT_NAME])
+    deployed_contracts.extend([STAKING_ESCROW_STUB_CONTRACT_NAME, DISPATCHER_CONTRACT_NAME])
     assert list(new_registry.enrolled_names) == deployed_contracts
 
     # 3. Deploy PolicyManager
@@ -353,7 +326,21 @@ def test_manual_deployment_of_idle_network(click_runner):
     deployed_contracts.extend([ADJUDICATOR_CONTRACT_NAME, DISPATCHER_CONTRACT_NAME])
     assert list(new_registry.enrolled_names) == deployed_contracts
 
-    # 5. Activate StakingEscrow
+    # 5. Deploy StakingEscrow in IDLE mode
+    command = ('contracts',
+               '--contract-name', STAKING_ESCROW_CONTRACT_NAME,
+               '--mode', 'idle',
+               '--provider', TEST_PROVIDER_URI,
+               '--network', TEMPORARY_DOMAIN,
+               '--registry-infile', ALTERNATE_REGISTRY_FILEPATH_2)
+
+    result = click_runner.invoke(deploy, command, input=user_input, catch_exceptions=False)
+    assert result.exit_code == 0
+
+    deployed_contracts.extend([STAKING_ESCROW_CONTRACT_NAME])
+    assert list(new_registry.enrolled_names) == deployed_contracts
+
+    # 6. Activate StakingEscrow
     command = ('contracts',
                '--contract-name', STAKING_ESCROW_CONTRACT_NAME,
                '--activate',

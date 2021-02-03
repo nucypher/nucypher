@@ -42,26 +42,18 @@ def worklock_deployer(baseline_deployment,
 
 def test_worklock_deployment(worklock_deployer,
                              baseline_deployment,
-                             staking_escrow_deployer,
+                             staking_escrow_stub_deployer,
                              deployment_progress,
                              test_registry,
                              testerchain):
-
-    # Ensure nucypher APIs implementing economics are usable without a worklock deployment.
-    economics = EconomicsFactory.retrieve_from_blockchain(registry=test_registry)
-    assert economics.bidding_start_date == BaseEconomics._default_bidding_start_date
 
     # Deploy
     assert worklock_deployer.contract_name == WORKLOCK_CONTRACT_NAME
     deployment_receipts = worklock_deployer.deploy(progress=deployment_progress)    # < ---- DEPLOY
 
-    # Verify economics are updated
-    economics = EconomicsFactory.retrieve_from_blockchain(registry=test_registry)
-    assert economics.bidding_start_date != BaseEconomics._default_bidding_start_date
-
     # deployment steps must match expected number of steps
     steps = worklock_deployer.deployment_steps
-    assert deployment_progress.num_steps == len(steps) == len(deployment_receipts) == 4
+    assert deployment_progress.num_steps == len(steps) == len(deployment_receipts) == 3
 
     # Ensure every step is successful
     for step_title in steps:
@@ -69,7 +61,7 @@ def test_worklock_deployment(worklock_deployer,
 
     # Ensure the correct staking escrow address is set
     staking_escrow_address = worklock_deployer.contract.functions.escrow().call()
-    assert staking_escrow_deployer.contract_address == staking_escrow_address
+    assert staking_escrow_stub_deployer.contract_address == staking_escrow_address
 
 
 def test_make_agent(worklock_deployer, test_registry):
