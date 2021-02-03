@@ -134,22 +134,9 @@ Whitepapers
 
 .. toctree::
    :maxdepth: 1
-   :caption: Python API
+   :caption: APIS
 
-   api/nucypher.blockchain
-   api/nucypher.characters
-   api/nucypher.config
-   api/nucypher.policy
-   api/nucypher.network
-   api/nucypher.datastore
-   api/nucypher.crypto
-   api/nucypher.acumen
-
-.. toctree::
-   :maxdepth: 1
-   :glob:
-   :caption: Contracts API
-
+   api/modules
    contracts_api/index
 
 .. toctree::
