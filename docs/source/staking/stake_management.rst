@@ -1,5 +1,7 @@
+.. _stake-management:
+
 Stake Management
------------------
+----------------
 
 Several administrative operations can be performed on active stakes:
 

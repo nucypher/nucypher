@@ -10,14 +10,16 @@ The Worker is bonded to a Staker and performs work on behalf of the Staker.
 Staker Overview
 ----------------
 
-A nucypher staker is a holder of NU and manager of one or more stakes.  Stakes are initiated by locking NU into
+A nucypher staker is a holder of NU and manager of one or more stakes. NU is an ERC-20 token that underpins the network. Stakes are initiated by locking NU into
 the *"Staking Escrow "* contract for a fixed duration of time. Staked NU earns two income streams: inflation
 rewards (NU) and policy fees (ETH). Staked NU gradually unlocks with each period of completed,
-depending on *re-stake* and *wind-down* options.
+depending on *re-stake* and *wind-down* configuration options.
 
 Active network participation (work) is delegated to a *Worker* node through *bonding*.
 There is a 1:1 relationship between the roles; One Staker to one Worker. A Staker controls a single Ethereum
-account and may have multiple substakes, but only ever has one Worker bonded at a time.
+account and may have multiple substakes, but only ever has one Worker bonded at a time. To ensure the integrity of the network and its service quality,
+staked NU can be :ref:`slashed <slashing-protocol>` due to misbehaviour, deliberate or unintentional, by the
+corresponding worker.
 
 Worker Overview
 ----------------
