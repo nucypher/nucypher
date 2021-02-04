@@ -153,7 +153,10 @@ Every Ursula that is “online” and “available” will receive a cut based o
 Q: How/Where can I acquire NU tokens?
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-NU tokens can be acquired via the "*WorkLock*" mechanism developed by NuCypher - more information is available in our `original blog post <https://blog.nucypher.com/the-worklock/>`_ and :ref:`worklock-guide`.
+The initial distribution of NU was done via the "*WorkLock*" mechanism developed by NuCypher -
+more information is available in our `original blog post <https://blog.nucypher.com/the-worklock/>`_ and :ref:`worklock-guide`.
+
+Participation in WorkLock is now closed, but since NU is an ERC-20 token, it can be purchased through exchanges.
 
 Q: When/Why does a node operator need to use ``mint`` command?
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -366,15 +369,6 @@ of staking and running a node and/or are concerned about gas costs relative to s
 
 If you are comfortable with technical requirements of staking or wish to implement a sophisticated staking configuration
 (e.g. restake toggles,  stake extensions, sub-stakes, adding stake, etc.) it may not be the right option.
-
-
-Q: Can I manage my own stake settings when participating in WorkLock through CoinList?
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-You do not have the ability to change staking configs with CoinList.
-There is one setting only – 6 month duration, restake on, winddown on – for all CoinList participants.
-
-See NuCypher coinlist for more details: `CoinList <https://coinlist.co/asset/nucypher>`_
 
 
 Q: How does my worker node choose what price to use for transactions? Can I control this?
