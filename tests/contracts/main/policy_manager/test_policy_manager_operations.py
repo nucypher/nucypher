@@ -617,3 +617,36 @@ def test_reentrancy(testerchain, escrow, policy_manager, deploy_contract):
     assert 0 == len(policy_revoked_log.get_all_entries())
     assert 0 == len(arrangement_refund_log.get_all_entries())
     assert 0 == len(policy_refund_log.get_all_entries())
+
+
+def test_revoke_and_default_state(testerchain, escrow, policy_manager):
+    creator, policy_sponsor, bad_node, node1, node2, node3, *everyone_else = testerchain.client.accounts
+
+    current_timestamp = testerchain.w3.eth.getBlock('latest').timestamp
+    end_timestamp = current_timestamp + one_period
+    current_period = policy_manager.functions.getCurrentPeriod().call()
+    target_period = current_period + 2
+
+    # Create policy
+    tx = policy_manager.functions.createPolicy(policy_id, policy_sponsor, end_timestamp, [node1])\
+        .transact({'from': policy_sponsor, 'value': 2 * rate, 'gas_price': 0})
+    testerchain.wait_for_receipt(tx)
+    assert policy_manager.functions.getNodeFeeDelta(node1, target_period).call() == -rate
+
+    testerchain.time_travel(hours=2)
+    current_period = policy_manager.functions.getCurrentPeriod().call()
+    assert current_period == target_period
+
+    # Create new policy where start is the target period (current)
+    assert policy_manager.functions.getNodeFeeDelta(node1, current_period).call() == -rate
+    current_timestamp = testerchain.w3.eth.getBlock('latest').timestamp
+    end_timestamp = current_timestamp + one_period
+    tx = policy_manager.functions.createPolicy(policy_id_2, policy_sponsor, end_timestamp, [node1])\
+        .transact({'from': policy_sponsor, 'value': 4 * rate, 'gas_price': 0})
+    testerchain.wait_for_receipt(tx)
+    assert policy_manager.functions.getNodeFeeDelta(node1, current_period).call() == rate
+
+    # Revoke first policy
+    tx = policy_manager.functions.revokePolicy(policy_id).transact({'from': policy_sponsor, 'gas_price': 0})
+    testerchain.wait_for_receipt(tx)
+    assert policy_manager.functions.getNodeFeeDelta(node1, current_period).call() == rate
