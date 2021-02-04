@@ -12,9 +12,10 @@ Overview
 Worker's role in the network
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Worker nodes perform periodic automated transactions to signal continued commitment to providing service.
-The worker's ethereum account must remain unlocked while the node is running. Worker ethereum accounts do not need NU
-and only need enough ETH to pay for gas fees.  The average cost of a commitment is ~200k gas.
+The Worker is the bonded delegate of a Staker and an active network node.  Each staking account
+or "Staker" is bonded to exactly one Worker.  Workers must remain online to provide uninterrupted
+re-encryption services to network users on-demand and perform periodic automated transactions to
+signal continued commitment to availability.
 
 
 Workers nodes have three core components
@@ -41,18 +42,54 @@ Workers can be run on cloud infrastructure – for example,
 Best Practices
 ^^^^^^^^^^^^^^
 
-**Three core areas of responsibility**
+**The state of worker diligence**
 
-#. Keystore Diligence
-#. Datastore Diligence
-#. Network Participation
+Workers can demonstrate a vested interest in the success of the network by adhering to
+three core areas of responsibility (in order of importance):
 
-Here are some best practices:
+#1 Keystore Diligence
 
-- Backup and secure the worker's private keys (ethereum and nucypher keystores).
-- Maintain a regular backup of the worker's database.
+Requires that the custodian keep track of a secret seed which can be used to generate the entire keystore.
+
+    - Keep an offline backup up mnemonic seed phrases.
+    - Use a password manager to generate a strong password when one is required.
+
+#2 Datastore Diligence
+
+Requires that material observed during the runtime be stored.
+A running worker stores peer metadata, re-encryption key fragments ("Kfrags"), and "treasure maps".
+
+Loss of stored re-encryption key fragments will indicate slashing on the bonded stake.
+If a worker node has already agreed to enforce a policy, then loses a Kfrag, network users
+can issue a challenge which is verified onchain by the Adjudicator contract.
+
+As a civic matter, datastore diligence is important for Ursula for several reasons
+Including storing node validity status (and thus refraining from pestering nodes
+with unnecessary additional verification requests). Loss of peer metadata means that the worker
+must rediscover and validate peers, slowly rebuilding it's network view contributing to
+lessened availability.
+
+    - Maintain regular backups of the worker's filesystem and database.
+
+#3 Runtime Diligence
+
+Requires active and security-conscious participation in the network.
+
+A bonded node that is unreachable or otherwise invalid will be unable to accept new
+policies, and miss out on inflation rewards.  The bonded stake will remain locked until
+the entre commitment is completed.
+
+.. important::
+
+    The worker's ethereum account must have enough ether to pay for transaction gas;
+    however, it is *not* necessary (and potentially risky) to hold NU tokens on a worker's
+    account for any reason.
+
+- Secure the worker's keystore used in deployment.
+- Keep enough ETH on the worker to pay for gas.
 - Maintain high uptime; Keep downtime brief when required by updates or reconfiguration.
 - Update when a new version is available.
+- Monitor a running ursula for nominal behaviour and period confirmations.
 
 ..
     TODO: separate section on backups and data (#2285)
