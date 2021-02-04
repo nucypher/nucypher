@@ -17,7 +17,7 @@ import "contracts/proxy/Upgradeable.sol";
 /**
 * @title PolicyManager
 * @notice Contract holds policy data and locks accrued policy fees
-* @dev |v6.1.3|
+* @dev |v6.1.4|
 */
 contract PolicyManager is Upgradeable {
     using SafeERC20 for NuCypherToken;
@@ -450,7 +450,7 @@ contract PolicyManager is Upgradeable {
                     nodeInfo.feeDelta[lastRefundedPeriod] -= int256(policy.feeRate);
                 }
                 if (nodeInfo.feeDelta[endPeriod] == DEFAULT_FEE_DELTA) {
-                    nodeInfo.feeDelta[endPeriod] = -int256(policy.feeRate);
+                    nodeInfo.feeDelta[endPeriod] = int256(policy.feeRate);
                 } else {
                     nodeInfo.feeDelta[endPeriod] += int256(policy.feeRate);
                 }
