@@ -138,17 +138,6 @@ workers can use, a software based wallet is the easiest method.
     - Do not store ETH on the worker - Keep only enough to pay for gas fees.
     - Store the ethereum account password in a password manager when using a keystore.
 
-.. important::
-
-    If the worker's ethereum private key is lost or compromised:
-
-    #. Inform the Staking operator/party.
-    #. Create a new ethereum account
-    #. Reconfigure the worker to use the new account ``nucypher ursula config --worker-address <ADDRESS> --signer <SIGNER URI>``
-    #. Bond the new address from the staking account (or inform the staking party).
-
-    Note that stakers can only rebond to a new worker once every two periods.
-
 
 3. Run Worker
 -------------
@@ -338,7 +327,7 @@ Run Worker Manually
 If you'd like to use another own method of running the worker process in the background, or are
 using one of the testnets, here is how to run Ursula using the CLI directly.
 
-.. code
+.. code::
 
     # Initialize Ursula
     nucypher ursula init --provider <PROVIDER URI> --network <NETWORK NAME> --signer <SIGNER URI>
