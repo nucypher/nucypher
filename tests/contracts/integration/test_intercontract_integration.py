@@ -354,7 +354,7 @@ def test_staking_before_initialization(testerchain,
     testerchain.wait_for_receipt(tx)
 
     # Set and lock re-stake parameter in first preallocation escrow
-    _wind_down, re_stake, _measure_work, _snapshots = escrow.functions.getFlags(preallocation_escrow_1.address).call()
+    _wind_down, re_stake, _measure_work, _snapshots, _migrated = escrow.functions.getFlags(preallocation_escrow_1.address).call()
     assert re_stake
     current_period = escrow.functions.getCurrentPeriod().call()
 
@@ -558,7 +558,7 @@ def test_worklock_phases(testerchain,
     tx = worklock.functions.claim().transact({'from': staker2, 'gas_price': 0})
     testerchain.wait_for_receipt(tx)
     assert worklock.functions.workInfo(staker2).call()[2]
-    wind_down, _re_stake, _measure_work, _snapshots = escrow.functions.getFlags(staker2).call()
+    wind_down, _re_stake, _measure_work, _snapshots, _migrated = escrow.functions.getFlags(staker2).call()
     assert wind_down
 
     assert token.functions.balanceOf(staker2).call() == 0
@@ -576,7 +576,7 @@ def test_worklock_phases(testerchain,
     pytest.escrow_supply += staker2_tokens
     assert escrow.functions.getAllTokens(staker2).call() == staker2_tokens
     assert escrow.functions.getCompletedWork(staker2).call() == 0
-    wind_down, _re_stake, _measure_work, _snapshots = escrow.functions.getFlags(staker2).call()
+    wind_down, _re_stake, _measure_work, _snapshots, _migrated = escrow.functions.getFlags(staker2).call()
     assert wind_down
 
     # Initialize escrow
@@ -597,7 +597,7 @@ def test_worklock_phases(testerchain,
     pytest.staker1_tokens += staker1_claims
     assert escrow.functions.getLockedTokens(staker1, 1).call() == pytest.staker1_tokens
     pytest.escrow_supply += staker1_claims
-    wind_down, _re_stake, _measure_work, _snapshots = escrow.functions.getFlags(staker1).call()
+    wind_down, _re_stake, _measure_work, _snapshots, _migrated = escrow.functions.getFlags(staker1).call()
     assert not wind_down
 
     # Staker prolongs lock duration
@@ -643,7 +643,7 @@ def test_staking_after_worklock(testerchain,
     testerchain.wait_for_receipt(tx)
     tx = escrow.functions.setWindDown(True).transact({'from': staker1})
     testerchain.wait_for_receipt(tx)
-    wind_down, _re_stake, _measure_work, _snapshots = escrow.functions.getFlags(staker1).call()
+    wind_down, _re_stake, _measure_work, _snapshots, _migrated = escrow.functions.getFlags(staker1).call()
     assert wind_down
     tx = escrow.functions.commitToNextPeriod().transact({'from': staker1})
     testerchain.wait_for_receipt(tx)
@@ -701,7 +701,7 @@ def test_policy(testerchain,
     testerchain.wait_for_receipt(tx)
     tx = preallocation_escrow_interface_1.functions.setWindDown(True).transact({'from': staker3})
     testerchain.wait_for_receipt(tx)
-    wind_down, _re_stake, _measure_work, _snapshots = escrow.functions.getFlags(preallocation_escrow_interface_1.address).call()
+    wind_down, _re_stake, _measure_work, _snapshots, _migrated = escrow.functions.getFlags(preallocation_escrow_interface_1.address).call()
     assert wind_down
     tx = escrow.functions.commitToNextPeriod().transact({'from': staker3})
     testerchain.wait_for_receipt(tx)
@@ -1218,7 +1218,7 @@ def test_withdraw(testerchain,
     # Now can turn off re-stake
     tx = preallocation_escrow_interface_1.functions.setReStake(False).transact({'from': staker3})
     testerchain.wait_for_receipt(tx)
-    _wind_down, re_stake, _measure_work, _snapshots = escrow.functions.getFlags(preallocation_escrow_1.address).call()
+    _wind_down, re_stake, _measure_work, _snapshots, _migrated = escrow.functions.getFlags(preallocation_escrow_1.address).call()
     assert not re_stake
 
     tx = escrow.functions.mint().transact({'from': staker1})

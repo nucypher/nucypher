@@ -598,17 +598,18 @@ class StakingEscrowDeployer(BaseContractDeployer, UpgradeableContractMixin, Owna
                           **overrides):
         args = self.economics.staking_deployment_parameters
         constructor_kwargs = {
-            "_hoursPerPeriod": args[0],
-            "_issuanceDecayCoefficient": args[1],
-            "_lockDurationCoefficient1": args[2],
-            "_lockDurationCoefficient2": args[3],
-            "_maximumRewardedPeriods": args[4],
-            "_firstPhaseTotalSupply": args[5],
-            "_firstPhaseMaxIssuance": args[6],
-            "_minLockedPeriods": args[7],
-            "_minAllowableLockedTokens": args[8],
-            "_maxAllowableLockedTokens": args[9],
-            "_minWorkerPeriods": args[10]
+            "_formerHoursPerPeriod": args[0],
+            "_hoursPerPeriod": args[1],
+            "_issuanceDecayCoefficient": args[2],
+            "_lockDurationCoefficient1": args[3],
+            "_lockDurationCoefficient2": args[4],
+            "_maximumRewardedPeriods": args[5],
+            "_firstPhaseTotalSupply": args[6],
+            "_firstPhaseMaxIssuance": args[7],
+            "_minLockedPeriods": args[8],
+            "_minAllowableLockedTokens": args[9],
+            "_maxAllowableLockedTokens": args[10],
+            "_minWorkerPeriods": args[11]
         }
         constructor_kwargs.update(overrides)
         constructor_kwargs = {k: v for k, v in constructor_kwargs.items() if v is not None}
