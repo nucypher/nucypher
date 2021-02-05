@@ -17,6 +17,7 @@ contract EnhancedStakingEscrow is StakingEscrow {
         PolicyManagerInterface _policyManager,
         AdjudicatorInterface _adjudicator,
         WorkLockInterface _workLock,
+        uint32 _formerHoursPerPeriod,
         uint32 _hoursPerPeriod,
         uint256 _issuanceDecayCoefficient,
         uint256 _lockDurationCoefficient1,
@@ -34,6 +35,7 @@ contract EnhancedStakingEscrow is StakingEscrow {
             _policyManager,
             _adjudicator,
             _workLock,
+            _formerHoursPerPeriod,
             _hoursPerPeriod,
             _issuanceDecayCoefficient,
             _lockDurationCoefficient1,
@@ -77,6 +79,7 @@ contract StakingEscrowBad is StakingEscrow {
         PolicyManagerInterface _policyManager,
         AdjudicatorInterface _adjudicator,
         WorkLockInterface _workLock,
+        uint32 _formerHoursPerPeriod,
         uint32 _hoursPerPeriod,
         uint256 _issuanceDecayCoefficient,
         uint256 _lockDurationCoefficient1,
@@ -94,6 +97,7 @@ contract StakingEscrowBad is StakingEscrow {
             _policyManager,
             _adjudicator,
             _workLock,
+            _formerHoursPerPeriod,
             _hoursPerPeriod,
             _issuanceDecayCoefficient,
             _lockDurationCoefficient1,
@@ -126,6 +130,7 @@ contract StakingEscrowV2Mock is StakingEscrow {
         PolicyManagerInterface _policyManager,
         AdjudicatorInterface _adjudicator,
         WorkLockInterface _workLock,
+        uint32 _formerHoursPerPeriod,
         uint32 _hoursPerPeriod,
         uint256 _issuanceDecayCoefficient,
         uint256 _lockDurationCoefficient1,
@@ -136,14 +141,14 @@ contract StakingEscrowV2Mock is StakingEscrow {
         uint16 _minLockedPeriods,
         uint256 _minAllowableLockedTokens,
         uint256 _maxAllowableLockedTokens,
-        uint16 _minWorkerPeriods,
-        uint256 _valueToCheck
+        uint16 _minWorkerPeriods
     )
         StakingEscrow(
             _token,
             _policyManager,
             _adjudicator,
             _workLock,
+            _formerHoursPerPeriod,
             _hoursPerPeriod,
             _issuanceDecayCoefficient,
             _lockDurationCoefficient1,
@@ -157,7 +162,7 @@ contract StakingEscrowV2Mock is StakingEscrow {
             _minWorkerPeriods
         )
     {
-        valueToCheck = _valueToCheck;
+        valueToCheck = _minWorkerPeriods;
     }
 
     function setValueToCheck(uint256 _valueToCheck) public {

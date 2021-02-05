@@ -17,7 +17,7 @@ import "contracts/proxy/Upgradeable.sol";
 /**
 * @title PolicyManager
 * @notice Contract holds policy data and locks accrued policy fees
-* @dev |v6.1.4|
+* @dev |v6.2.1|
 */
 contract PolicyManager is Upgradeable {
     using SafeERC20 for NuCypherToken;
@@ -109,6 +109,7 @@ contract PolicyManager is Upgradeable {
     int256 public constant DEFAULT_FEE_DELTA = int256((uint256(0) - 1) >> 1);
 
     StakingEscrow public immutable escrow;
+    uint32 public immutable formerSecondsPerPeriod;
     uint32 public immutable secondsPerPeriod;
 
     mapping (bytes16 => Policy) public policies;
@@ -125,6 +126,9 @@ contract PolicyManager is Upgradeable {
         require(localSecondsPerPeriod > 0);
         secondsPerPeriod = localSecondsPerPeriod;
         escrow = _escrow;
+        uint32 localFormerSecondsPerPeriod = _escrow.secondsPerPeriod();
+        require(localFormerSecondsPerPeriod > 0);
+        formerSecondsPerPeriod = localFormerSecondsPerPeriod;
     }
 
     /**
@@ -144,6 +148,13 @@ contract PolicyManager is Upgradeable {
     }
 
     /**
+    * @return Recalculate period value using new basis
+    */
+    function recalculatePeriod(uint16 _period) internal view returns (uint16) {
+        return uint16(uint256(_period) * formerSecondsPerPeriod / secondsPerPeriod);
+    }
+
+    /**
     * @notice Register a node
     * @param _node Node address
     * @param _period Initial period
@@ -152,6 +163,16 @@ contract PolicyManager is Upgradeable {
         NodeInfo storage nodeInfo = nodes[_node];
         require(nodeInfo.previousFeePeriod == 0 && _period < getCurrentPeriod());
         nodeInfo.previousFeePeriod = _period;
+    }
+
+    /**
+    * @notice Migrate from the old period length to the new one
+    * @param _node Node address
+    */
+    function migrate(address _node) external onlyEscrowContract {
+        NodeInfo storage nodeInfo = nodes[_node];
+        require(nodeInfo.previousFeePeriod >= getCurrentPeriod());
+        nodeInfo.previousFeePeriod = recalculatePeriod(nodeInfo.previousFeePeriod);
     }
 
     /**

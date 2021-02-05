@@ -15,6 +15,7 @@ contract IssuerMock is Issuer {
 
     constructor(
         NuCypherToken _token,
+        uint32 _formerHoursPerPeriod,
         uint32 _hoursPerPeriod,
         uint256 _issuanceDecayCoefficient,
         uint256 _lockDurationCoefficient1,
@@ -25,6 +26,7 @@ contract IssuerMock is Issuer {
     )
         Issuer(
             _token,
+            _formerHoursPerPeriod,
             _hoursPerPeriod,
             _issuanceDecayCoefficient,
             _lockDurationCoefficient1,
@@ -76,6 +78,7 @@ contract IssuerV2Mock is Issuer {
 
     constructor(
         NuCypherToken _token,
+        uint32 _formerHoursPerPeriod,
         uint32 _hoursPerPeriod,
         uint256 _issuanceDecayCoefficient,
         uint256 _lockDurationCoefficient1,
@@ -86,6 +89,7 @@ contract IssuerV2Mock is Issuer {
     )
         Issuer(
             _token,
+            _formerHoursPerPeriod,
             _hoursPerPeriod,
             _issuanceDecayCoefficient,
             _lockDurationCoefficient1,
