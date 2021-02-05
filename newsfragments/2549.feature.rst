@@ -1,0 +1,1 @@
+Period increasing and nodes migration in contracts

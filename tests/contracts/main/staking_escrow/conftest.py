@@ -81,8 +81,8 @@ def escrow_contract(testerchain,
         deploy_parameters = list(token_economics.staking_deployment_parameters)
         deploy_parameters[-2] = max_allowed_locked_tokens
         if disable_reward:
-            deploy_parameters[5] = 0
             deploy_parameters[6] = 0
+            deploy_parameters[7] = 0
 
         contract, _ = deploy_contract('EnhancedStakingEscrow',
                                       token.address,

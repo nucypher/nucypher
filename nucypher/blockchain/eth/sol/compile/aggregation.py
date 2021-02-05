@@ -142,12 +142,14 @@ def merge_contract_outputs(*compiled_versions) -> VersionedContractOutputs:
 
             except KeyError:
                 # New Version Entry
-                bytecode = contract_outputs['evm']['bytecode']['object']
-                for existing_version, existing_contract_outputs in versioned_outputs.items():
-                    existing_bytecode = existing_contract_outputs['evm']['bytecode']['object']
-                    if bytecode == existing_bytecode:
-                        raise CompilationError(f"Two solidity sources compiled identical bytecode for version {version}. "
-                                               "Ensure the correct solidity paths are targeted for compilation.")
+                bytecode = METADATA_HASH_PATTERN.sub('', contract_outputs['evm']['bytecode']['object'])
+                if len(bytecode) > 0:
+                    for existing_version, existing_contract_outputs in versioned_outputs.items():
+                        existing_bytecode = METADATA_HASH_PATTERN.sub('', existing_contract_outputs['evm']['bytecode']['object'])
+                        if bytecode == existing_bytecode:
+                            raise CompilationError(
+                                f"Two solidity sources compiled identical bytecode for versions {version} and {existing_version}. "
+                                "Ensure the correct solidity paths are targeted for compilation.")
                 versioned_outputs[version] = contract_outputs
 
             else:

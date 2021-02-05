@@ -17,6 +17,7 @@ import "zeppelin/token/ERC20/SafeERC20.sol";
 interface PolicyManagerInterface {
     function secondsPerPeriod() external view returns (uint32);
     function register(address _node, uint16 _period) external;
+    function migrate(address _node) external;
     function ping(
         address _node,
         uint16 _processedPeriod1,
@@ -98,7 +99,7 @@ contract StakingEscrowStub is Upgradeable {
 * @title StakingEscrow
 * @notice Contract holds and locks stakers tokens.
 * Each staker that locks their tokens will receive some compensation
-* @dev |v5.6.1|
+* @dev |v5.7.1|
 */
 contract StakingEscrow is Issuer, IERC900History {
 
@@ -220,6 +221,7 @@ contract StakingEscrow is Issuer, IERC900History {
     * @param snapshotsEnabled Updated parameter value
     */
     event SnapshotSet(address indexed staker, bool snapshotsEnabled);
+    event Migrated(address indexed staker);
 
     /// internal event
     event WorkMeasurementSet(address indexed staker, bool measureWork);
@@ -277,6 +279,7 @@ contract StakingEscrow is Issuer, IERC900History {
     uint8 internal constant WIND_DOWN_INDEX = 1;
     uint8 internal constant MEASURE_WORK_INDEX = 2;
     uint8 internal constant SNAPSHOTS_DISABLED_INDEX = 3;
+    uint8 internal constant MIGRATED_INDEX = 4;
 
     uint16 public immutable minLockedPeriods;
     uint16 public immutable minWorkerPeriods;
@@ -291,12 +294,14 @@ contract StakingEscrow is Issuer, IERC900History {
     address[] public stakers;
     mapping (address => address) public stakerFromWorker;
 
-    mapping (uint16 => uint256) public lockedPerPeriod;
+    mapping (uint16 => uint256) stub4; // former lockedPerPeriod
     uint128[] public balanceHistory;
 
     address stub1; // former slot for PolicyManager
     address stub2; // former slot for Adjudicator
     address stub3; // former slot for WorkLock
+
+    mapping (uint16 => uint256) public lockedPerPeriod; // TODO rename or make custom public getter to make verifyState() work
 
     /**
     * @notice Constructor sets address of token contract and coefficients for minting
@@ -304,6 +309,7 @@ contract StakingEscrow is Issuer, IERC900History {
     * @param _policyManager Policy Manager contract
     * @param _adjudicator Adjudicator contract
     * @param _workLock WorkLock contract. Zero address if there is no WorkLock
+    * @param _formerHoursPerPeriod Former size of period in hours
     * @param _hoursPerPeriod Size of period in hours
     * @param _issuanceDecayCoefficient (d) Coefficient which modifies the rate at which the maximum issuance decays,
     * only applicable to Phase 2. d = 365 * half-life / LOG2 where default half-life = 2.
@@ -333,6 +339,7 @@ contract StakingEscrow is Issuer, IERC900History {
         PolicyManagerInterface _policyManager,
         AdjudicatorInterface _adjudicator,
         WorkLockInterface _workLock,
+        uint32 _formerHoursPerPeriod,
         uint32 _hoursPerPeriod,
         uint256 _issuanceDecayCoefficient,
         uint256 _lockDurationCoefficient1,
@@ -347,6 +354,7 @@ contract StakingEscrow is Issuer, IERC900History {
     )
         Issuer(
             _token,
+            _formerHoursPerPeriod,
             _hoursPerPeriod,
             _issuanceDecayCoefficient,
             _lockDurationCoefficient1,
@@ -377,7 +385,8 @@ contract StakingEscrow is Issuer, IERC900History {
     modifier onlyStaker()
     {
         StakerInfo storage info = stakerInfo[msg.sender];
-        require(info.value > 0 || info.nextCommittedPeriod != 0);
+        require((info.value > 0 || info.nextCommittedPeriod != 0) &&
+            info.flags.bitSet(MIGRATED_INDEX));
         _;
     }
 
@@ -397,7 +406,8 @@ contract StakingEscrow is Issuer, IERC900History {
             bool windDown,
             bool reStake,
             bool measureWork,
-            bool snapshots
+            bool snapshots,
+            bool migrated
         )
     {
         StakerInfo storage info = stakerInfo[_staker];
@@ -405,6 +415,7 @@ contract StakingEscrow is Issuer, IERC900History {
         reStake = !info.flags.bitSet(RE_STAKE_DISABLED_INDEX);
         measureWork = info.flags.bitSet(MEASURE_WORK_INDEX);
         snapshots = !info.flags.bitSet(SNAPSHOTS_DISABLED_INDEX);
+        migrated = !info.flags.bitSet(MIGRATED_INDEX);
     }
 
     /**
@@ -656,6 +667,7 @@ contract StakingEscrow is Issuer, IERC900History {
             info.flags = info.flags.toggleBit(WIND_DOWN_INDEX);
             emit WindDownSet(_staker, true);
         }
+        _periods = recalculatePeriod(_periods); // TODO rounding or ceiling
         deposit(_staker, msg.sender, MAX_SUB_STAKES, _value, _periods);
     }
 
@@ -816,7 +828,9 @@ contract StakingEscrow is Issuer, IERC900History {
         if (info.subStakes.length == 0) {
             stakers.push(_staker);
             policyManager.register(_staker, getCurrentPeriod() - 1);
+            info.flags = info.flags.toggleBit(MIGRATED_INDEX);
         }
+        require(info.flags.bitSet(MIGRATED_INDEX));
         token.safeTransferFrom(_payer, address(this), _value);
         info.value += _value;
         lock(_staker, _index, _value, _periods);
@@ -1160,6 +1174,8 @@ contract StakingEscrow is Issuer, IERC900History {
         // Only worker with real address can make a commitment
         require(msg.sender == tx.origin);
 
+        migrate(staker);
+
         uint16 currentPeriod = getCurrentPeriod();
         uint16 nextPeriod = currentPeriod + 1;
         // the period has already been committed
@@ -1184,6 +1200,50 @@ contract StakingEscrow is Issuer, IERC900History {
 
         policyManager.ping(staker, processedPeriod1, processedPeriod2, nextPeriod);
         emit CommitmentMade(staker, nextPeriod, lockedTokens);
+    }
+
+    /**
+    * @notice Migrate from the old period length to the new one
+    */
+    // TODO docs
+    function migrate(address _staker) public {
+        StakerInfo storage info = stakerInfo[_staker];
+        // TODO allow only for staker
+        if (info.flags.bitSet(MIGRATED_INDEX)) {
+            return;
+        }
+
+        info.currentCommittedPeriod = 0;
+        info.nextCommittedPeriod = 0;
+//        info.lastCommittedPeriod = getCurrentPeriod(); // TODO not sure
+        info.lastCommittedPeriod = 0;
+        info.workerStartPeriod = recalculatePeriod(info.workerStartPeriod);
+        delete info.pastDowntime;
+
+//        if (info.pastDowntime.length > 0) { // TODO slippery way
+//            uint16 temp = info.pastDowntime[0].endPeriod;
+//            delete info.pastDowntime;
+//            info.pastDowntime.push(1, recalculatePeriod(temp));
+//        }
+
+        // TODO rounding or ceiling
+        for (uint256 i = 0; i < info.subStakes.length; i++) {
+            SubStakeInfo storage subStake = info.subStakes[i];
+            subStake.firstPeriod = recalculatePeriod(subStake.firstPeriod);
+            if (subStake.lastPeriod != 0) {
+                subStake.lastPeriod = recalculatePeriod(subStake.lastPeriod);
+                subStake.periods = 0;
+            } else {
+                subStake.periods = recalculatePeriod(subStake.periods);
+//                if (subStake.periods == 0) { // TODO not sure
+//                    subStake.periods == 1;
+//                }
+            }
+        }
+
+        policyManager.migrate(_staker);
+        info.flags = info.flags.toggleBit(MIGRATED_INDEX);
+        emit Migrated(_staker);
     }
 
     /**
@@ -1323,6 +1383,7 @@ contract StakingEscrow is Issuer, IERC900History {
         require(msg.sender == address(adjudicator));
         require(_penalty > 0);
         StakerInfo storage info = stakerInfo[_staker];
+        require(info.flags.bitSet(MIGRATED_INDEX));
         if (info.value <= _penalty) {
             _penalty = info.value;
         }
