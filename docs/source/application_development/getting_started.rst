@@ -28,9 +28,11 @@ A Note about Side Channels
 The NuCypher network does not store or handle an application's data; instead - it manages access *to* application data.
 Management of encrypted secrets and public keys tends to be highly domain-specific - The surrounding architecture
 will vary greatly depending on the throughput, sensitivity, and sharing cadence of application secrets.
+
 In all cases, NuCypher must be integrated with a storage and transport layer in order to function properly.
 Along with the transport of ciphertexts, a nucypher application also needs to include channels for Alice and Bob
 to discover each other's public keys, and provide policy encrypting information to Bob and Enrico.
+
 
 Side Channel Application Data
 -----------------------------
@@ -108,6 +110,21 @@ the role of a ``Teacher``\ , or "seednode":
    another_ursula = Ursula.from_seed_and_stake_info(seed_uri=seed_uri2)
 
 
+.. note::
+
+    While any nucypher worker node can be used to seed your peers, NuCypher maintains
+    workers that can be used as seed nodes:
+
+    - mainnet: ``https://mainnet.nucypher.network:9151``
+    - lynx: ``https://lynx.nucypher.network:9151``
+    - ibex: ``https://ibex.nucypher.network:9151``
+
+    .. code::
+
+        seed_uri = 'https://lynx.nucypher.network:9151'
+        ursula = Ursula.from_seed_and_stake_info(seed_uri=seed_uri)
+
+
 Stranger ``Ursula``\ s can be created by invoking the ``from_seed_and_stake_info`` method, then a ``list`` of ``known_nodes``
 can be passed into any ``Character``\ 's init. The ``known_nodes`` will inform your character of all of the nodes
 they know about network-wide, then kick-off the automated node-discovery loop:
@@ -140,6 +157,7 @@ Create a NuCypher Keyring
 
    from nucypher.characters.lawful import Alice, Ursula
 
+   # Instantiate the default teacher (only needed for initial run)
    ursula = Ursula.from_seed_and_stake_info(seed_uri=<SEEDNODE URI>)
 
    # Unlock Alice's Keyring
@@ -167,7 +185,7 @@ the application side channel:
 Grant
 ^^^^^
 
-Then, Alice can grant access to Bob:
+Then, Alice can grant access to Bob using his public keys:
 
 .. code-block:: python
 
@@ -175,11 +193,10 @@ Then, Alice can grant access to Bob:
    from datetime import timedelta
    import maya
 
-
    bob = Bob.from_public_keys(verifying_key=bob_verifying_key,  encrypting_key=bob_encrypting_key)
    policy_end_datetime = maya.now() + timedelta(days=5)  # Five days from now
    policy = alice.grant(bob,
-                        label=b'my-secret-stuff',  # Sent to Bob via side channel
+                        label=b'my-secret-stuff',  # Send to Bob via side channel
                         m=2, n=3,
                         expiration=policy_end_datetime)
 
@@ -240,10 +257,10 @@ Setup Bob
    alice = Alice.from_public_keys(verifying_key=alice_verifying_key)
    enrico = Enrico(policy_encrypting_key=policy_encrypting_key)
 
-   # Generate Bob's keyring
+   # Generate a new Bob keyring
    keyring = NucypherKeyring.generate(checksum_address='0xC080708026a3A280894365Efd51Bb64521c45147', password=PASSWORD)
 
-   # Restore Existing Keyring
+   # Restore Existing Bob keyring
    # keyring = NucypherKeyring(account='0xC080708026a3A280894365Efd51Bb64521c45147')
 
    # Unlock keyring and make Bob
