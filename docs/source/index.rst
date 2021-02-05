@@ -80,10 +80,6 @@ Whitepapers
     *by David Nuñez - NuCypher*
 
 
-.. warning::
-
-   NuCypher is currently in the *Beta* development stage and is **not** intended for use in production.
-
 .. toctree::
    :maxdepth: 1
    :caption: Staking

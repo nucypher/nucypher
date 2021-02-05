@@ -13,32 +13,30 @@ Staker Overview
 A nucypher staker is a holder of NU and manager of one or more stakes.  Stakes are initiated by locking NU into
 the *"Staking Escrow "* contract for a fixed duration of time. Staked NU earns two income streams: inflation
 rewards (NU) and policy fees (ETH). Staked NU gradually unlocks with each period of completed,
-depending on *re-stake* and *wind-down* options (more on this later).
+depending on *re-stake* and *wind-down* options.
 
-Active network participation (work) is delegated to a *Worker* node through *bonding*. There is a 1:1 relationship
-between the roles; One Staker to one Worker. A Staker controls a single Ethereum account and may have multiple stakes,
-but only ever has one Worker bonded at a time. Once the stake is bonded to a Worker node, it can only
-be *rebonded* once every 2 periods (48 Hours).
+Active network participation (work) is delegated to a *Worker* node through *bonding*.
+There is a 1:1 relationship between the roles; One Staker to one Worker. A Staker controls a single Ethereum
+account and may have multiple substakes, but only ever has one Worker bonded at a time.
 
 Worker Overview
 ----------------
 
 *Worker* - (aka "Ursula") Active network participant who carries out threshold cryptography operations.
 
-The Worker is the bonded delegate of a Staker and an active network node. Workers must remain online to provide
-uninterrupted re-encryption services on-demand. Each staking account or Staker is bonded to exactly one Worker.
-The Worker's Ethereum account must remain unlocked to send automated work confirmation transactions and have enough
-ether to pay for transaction gas; however, it is *not* necessary (and potentially risky) to hold NU tokens on a worker's
-account for any reason.
+The Worker is the bonded delegate of a Staker and an active network node, performing work on behalf of a staker.
+Workers must remain online to provide uninterrupted services on-demand, signalling their availability with
+commitment transactions.
+
 
 Staker and Worker Delegation
 -----------------------------
 
-There are several strategies for running and maintaining a staking node:
+There are several strategies for running and maintaining a stake:
 
-* Delegate custody of NU and work to a third-party custodian.
-* Delegate work via a staking pool or `Node-as-a-Service provider <https://github.com/nucypher/validator-profiles>`_.
-* Run your own node.
+* Delegate custody of NU and work to a third-party custodian (Staker Delegation).
+* Delegate work via a staking pool or `Node-as-a-Service provider <https://github.com/nucypher/validator-profiles>`_ (Worker Delegation).
+* Control the staker yourself and run your own worker (Self Directed).
 
 Here is a simple heuristic to help decide on a course of action:
 
