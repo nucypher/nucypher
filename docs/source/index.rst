@@ -2,7 +2,7 @@ Introduction
 =============
 
 
-.. _Umbral: https://github.com/nucypher/pyUmbralruntimes
+.. _Umbral: https://github.com/nucypher/pyUmbral
 
 
 The NuCypher network is a decentralized network of nodes that perform threshold

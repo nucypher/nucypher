@@ -62,7 +62,7 @@ For full documentation on virtualenv see: https://virtualenv.pypa.io/en/latest/:
 
        user@ubuntu$ source /your/path/nucypher-venv/bin/activate
 
-    Next, verify nucypher is importable.  No response is successful. silence is golden:
+    Next, verify ``nucypher`` is importable.  No response is successful, silence is golden:
 
     .. code-block:: python
 
@@ -76,11 +76,11 @@ For full documentation on virtualenv see: https://virtualenv.pypa.io/en/latest/:
        ...
 
     If successful you will see a list of possible usage options (\ ``--version``\ , ``-v``\ , ``--dev``\ , etc.) and
-    commands (\ ``status``\ , ``ursula``\ , etc.). For example, you can use ``nucypher ursula init`` initialize a new worker node.
+    commands (\ ``status``\ , ``ursula``\ , etc.). For example, you can use ``nucypher ursula init`` to initialize a new worker node.
 
 
 
-Docker installation and Update
+Docker Installation and Update
 ------------------------------
 
 #. Install `Docker <https://docs.docker.com/install/>`_

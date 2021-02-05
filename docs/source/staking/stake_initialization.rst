@@ -25,7 +25,7 @@ of security than software wallets or keyfiles.
 Staking Procedure
 -----------------
 
-#. Obtain and Secure NU
+#. Obtain and secure NU
 #. Install ``nucypher`` on Staker's system (pip :doc:`/references/pip-installation` and docker are supported)
 #. Configure nucypher CLI for staking (`3. Configure nucypher for staking`_)
 #. Bond a Worker to your Staker using the worker's ethereum address (see `6. Bond a worker`_)
@@ -34,12 +34,12 @@ Staking Procedure
 .. caution::
 
     Once NU is locked in the staking escrow contract, a worker node must be run to unlock it.  Worker's make
-    periodic automated commitments which spend ~200k gas each transaction.  Be sure to consider this operational
+    periodic automated commitments which spend ~200k gas each transaction. Be sure to consider this operational
     cost when locking NU.
 
 .. note::
 
-    If you are running an Ibex testnet node, Testnet tokens can be obtained by joining the
+    If you are running an Ibex testnet node, testnet tokens can be obtained by joining the
     `Discord server <https://discord.gg/7rmXa3S>`_ and typing ``.getfunded <YOUR_STAKER_ETH_ADDRESS>``
     in the #testnet-faucet channel.
 
@@ -58,7 +58,7 @@ see https://web3py.readthedocs.io/en/stable/node.html.
 
 By default, all transaction and message signing requests are forwarded to the configured ethereum provider.
 To use another ethereum provider (e.g. Infura, Alchemy, Another Hosted/Remote Node) a local transaction signer must
-be configured in addition to the broadcasting node.  This can be a hardware wallet, software wallet, or clef.
+be configured in addition to the broadcasting node. This can be a hardware wallet, software wallet, or clef.
 
 For more detailed information see :doc:`/references/signers`
 
@@ -68,7 +68,7 @@ For more detailed information see :doc:`/references/signers`
 
 .. note::
 
-    Currently Only trezor hardware wallets are supported by the CLI directly.
+    Currently only trezor hardware wallets are supported by the CLI directly.
     Ledger functionality can be achieved through clef.
 
 
@@ -89,7 +89,7 @@ Keystore File Signer
 .. danger::
 
     The Keystore signer is not safe to use for mainnet :ref:`Staker operations <staking-guide>`
-    (An exception can be made for testnets).  For staking operations use a hardware wallet.
+    (An exception can be made for testnets). For staking operations use a hardware wallet.
 
 Clef Signer
 +++++++++++
@@ -147,9 +147,9 @@ the commitment period.
 .. caution::
 
     Before proceeding it is important to know that you will need to spend ETH to unlock staked NU.
-    Once tokens are staked, the only way for them to become unlocked to by running a bonded worker node.
+    Once tokens are staked, the only way for them to become unlocked is by running a bonded worker node.
 
-    Currently, Worker nodes must perform one automated transaction every 24 hours costing ~200 gas.
+    Currently, Worker nodes must perform one automated transaction every 24 hours costing ~200k gas.
 
 
 .. code:: bash
@@ -209,7 +209,7 @@ You will need to confirm two transactions here.
 5. List existing stakes
 ~~~~~~~~~~~~~~~~~~~~~~~
 
-Once you have created one or more stakes, you can view all active stake for connected wallets:
+Once you have created one or more stakes, you can view all active stakes for connected wallets:
 
 .. code:: bash
 
@@ -244,7 +244,7 @@ bonded a Worker node to your Staker.
 ~~~~~~~~~~~~~~~~~
 
 After initiating a stake, the staker must delegate access to a work address through *bonding*.
-There is a 1:1 relationship between the roles: A Staker may have multiple Stakes but only ever has one Worker at a time.
+There is a 1:1 relationship between the roles: A Staker may have multiple substakes but only ever has one Worker at a time.
 
 .. important:: The Worker cannot be changed for a minimum of 2 periods (48 Hours) once bonded.
 
@@ -265,7 +265,7 @@ There is a 1:1 relationship between the roles: A Staker may have multiple Stakes
 .. note::
 
     The worker's address must be EIP-55 checksum valid, however, geth shows addresses in the lowercase
-    normalized format.  You can convert the normalized address to checksum format on etherscan or using the geth console:
+    normalized format. You can convert the normalized address to checksum format on etherscan or using the geth console:
 
     .. code:: bash
 

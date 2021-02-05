@@ -7,8 +7,8 @@ for application development and network users (e.g., Alices wishing to create sh
 
 .. note::
 
-    Lynx testnet tokens are not needed to use nucypher as Alie, Bob, or Enrico.
-    If you'd like to volunteer to run an Lynx testnet node, reach out to the
+    Lynx testnet tokens are not needed to use nucypher as Alice, Bob, or Enrico.
+    If you'd like to volunteer to run a Lynx testnet node, reach out to the
     team on our `Discord server <https://discord.gg/7rmXa3S>`_.
 
 

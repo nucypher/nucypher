@@ -9,16 +9,16 @@ NuCypher staking operations are divided into two roles "Staker" and "Worker" - T
 Overview
 ----------
 
-Worker's role in the network
+Workers' role in the network
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 The Worker is the bonded delegate of a Staker and an active network node.  Each staking account
-or "Staker" is bonded to exactly one Worker.  Workers must remain online to provide uninterrupted
+or "Staker" is bonded to exactly one Worker. Workers must remain online to provide uninterrupted
 re-encryption services to network users on-demand and perform periodic automated transactions to
 signal continued commitment to availability.
 
 
-Workers nodes have three core components
+Worker nodes have three core components
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 * Ethereum software wallet (keystore)
@@ -66,7 +66,7 @@ can issue a challenge which is verified onchain by the Adjudicator contract.
 As a civic matter, datastore diligence is important for Ursula for several reasons
 Including storing node validity status (and thus refraining from pestering nodes
 with unnecessary additional verification requests). Loss of peer metadata means that the worker
-must rediscover and validate peers, slowly rebuilding it's network view contributing to
+must rediscover and validate peers, slowly rebuilding its network view contributing to
 lessened availability.
 
     - Maintain regular backups of the worker's filesystem and database.
@@ -114,13 +114,13 @@ see https://web3py.readthedocs.io/en/stable/node.html.
 By default, all transaction and message signing requests are forwarded to the configured ethereum provider.
 To use another ethereum provider (e.g. Infura, Alchemy, Another Hosted/Remote Node) a local transaction signer must
 be configured in addition to the broadcasting node.  For workers this can be a software wallet, or clef.
-For more detailed information see :doc:`/references/signers`
+For more detailed information see :doc:`/references/signers`.
 
 Because worker nodes perform periodic automated transactions to signal continued commitment to providing service,
 The worker's ethereum account must remain unlocked while the node is running. While there are several types of accounts
-workers can use, a software based wallet is easiest method.
+workers can use, a software based wallet is the easiest method.
 
-To create a new ethereum software account using the geth CLI run follow the instructions:
+To create a new ethereum software account using the geth CLI run the following instructions:
 
 .. code:: bash
 
@@ -140,7 +140,7 @@ To create a new ethereum software account using the geth CLI run follow the inst
     #. Reconfigure the worker to use the new account ``nucypher ursula config --worker-address <ADDRESS>``
     #. Bond the new address from the staking account (or inform the staking party).
 
-    Note that stakers can only be rebond once every two periods.
+    Note that stakers can only rebond once every two periods.
 
 
 3. Run Worker
@@ -329,7 +329,7 @@ To start Ursula services using systemd
 
 Workers must be fully qualified (funded and bonded) in order to fully start.  Workers
 that are launched before qualification will pause until they are have a balance greater than 0 ETH,
-and are bonded to a staking account.  Once both of these requirements are met, thw worker will automatically
+and are bonded to a staking account.  Once both of these requirements are met, the worker will automatically
 resume startup.
 
 Waiting for qualification:
