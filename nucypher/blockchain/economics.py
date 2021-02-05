@@ -217,6 +217,7 @@ class BaseEconomics:
         deploy_parameters = (
 
             # Period
+            self.hours_per_period,  # Former hours in single period
             self.hours_per_period,  # Hours in single period
 
             # Coefficients
@@ -461,6 +462,7 @@ class EconomicsFactory:
 
         # Staking Escrow
         staking_parameters = list(staking_agent.staking_parameters())
+        staking_parameters.pop(0)  # FIXME
         seconds_per_period = staking_parameters.pop(0)
         staking_parameters.insert(6, seconds_per_period // 60 // 60)  # hours_per_period
         minting_coefficient = staking_parameters[0]
