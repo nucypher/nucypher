@@ -3,8 +3,8 @@
 Remote Worker Management
 ========================
 
-Nucypher maintains some simple tools leveraging open source tools such as Ansible,
-to make it easy to keep your Nucypher Ursula nodes working and up to date.
+NuCypher maintains an CLI to assist with the management of multiple remote Nucypher Ursula nodes, leveraging
+automation tools like Ansible and Docker.
 
 .. code:: bash
 

@@ -47,16 +47,17 @@ Best Practices
 Workers can demonstrate a vested interest in the success of the network by adhering to
 three core areas of responsibility (in order of importance):
 
-#1 Keystore Diligence
+**#1 Keystore Diligence**
 
 Requires that the custodian keep track of a secret seed which can be used to generate the entire keystore.
 
-    - Keep an offline backup up mnemonic seed phrases.
-    - Use a password manager to generate a strong password when one is required.
+- Keep an offline backup up mnemonic seed phrases.
+- Use a password manager to generate a strong password when one is required.
 
-#2 Datastore Diligence
+**#2 Datastore Diligence**
 
 Requires that material observed during the runtime be stored.
+
 A running worker stores peer metadata, re-encryption key fragments ("Kfrags"), and "treasure maps".
 
 Loss of stored re-encryption key fragments will indicate slashing on the bonded stake.
@@ -66,12 +67,13 @@ can issue a challenge which is verified onchain by the Adjudicator contract.
 As a civic matter, datastore diligence is important for Ursula for several reasons
 Including storing node validity status (and thus refraining from pestering nodes
 with unnecessary additional verification requests). Loss of peer metadata means that the worker
-must rediscover and validate peers, slowly rebuilding its network view contributing to
-lessened availability.
+must rediscover and validate peers, slowly rebuilding it's network view while contributing to
+lessened availability and higher network traffic.
 
-    - Maintain regular backups of the worker's filesystem and database.
+- Maintain regular backups of the worker's filesystem and database.
 
-#3 Runtime Diligence
+
+**#3 Runtime Diligence**
 
 Requires active and security-conscious participation in the network.
 
@@ -79,17 +81,16 @@ A bonded node that is unreachable or otherwise invalid will be unable to accept 
 policies, and miss out on inflation rewards.  The bonded stake will remain locked until
 the entre commitment is completed.
 
-.. important::
-
-    The worker's ethereum account must have enough ether to pay for transaction gas;
-    however, it is *not* necessary (and potentially risky) to hold NU tokens on a worker's
-    account for any reason.
-
 - Secure the worker's keystore used in deployment.
 - Keep enough ETH on the worker to pay for gas.
 - Maintain high uptime; Keep downtime brief when required by updates or reconfiguration.
 - Update when a new version is available.
 - Monitor a running ursula for nominal behaviour and period confirmations.
+
+.. caution::
+    The worker's ethereum account must have enough ether to pay for transaction gas;
+    however, it is *not* necessary (and potentially risky) to hold NU tokens on a worker's
+    account for any reason.
 
 ..
     TODO: separate section on backups and data (#2285)
@@ -120,27 +121,33 @@ Because worker nodes perform periodic automated transactions to signal continued
 The worker's ethereum account must remain unlocked while the node is running. While there are several types of accounts
 workers can use, a software based wallet is the easiest method.
 
-To create a new ethereum software account using the geth CLI run the following instructions:
+.. note::
 
-.. code:: bash
+    To create a new ethereum software account using the ``geth`` CLI:
 
-    geth account new
-    ...
+    .. code:: bash
+
+        geth account new
+        ...
+
+.. caution::
+
+    Stay safe handling ETH and NU:
+
+    - Workers **do not** need NU for any reason: Do not keep NU on the worker's account.
+    - Do not store ETH on the worker - Keep only enough to pay for gas fees.
+    - Store the ethereum account password in a password manager when using a keystore.
 
 .. important::
 
-    - Do not keep NU on the worker account: Workers **do not** need NU for any reason.
-    - Only keep enough ETH to pay for gas fees (The average cost of a commitment is ~200k gas).
-    - Store the ethereum account password in a password manager
-    - Backup the worker's private keys
+    If the worker's ethereum private key is lost or compromised:
 
-.. important::  If the worker's ethereum private key is lost or compromised
-
-    #. Create a new ethereum keypiar
-    #. Reconfigure the worker to use the new account ``nucypher ursula config --worker-address <ADDRESS>``
+    #. Inform the Staking operator/party.
+    #. Create a new ethereum account
+    #. Reconfigure the worker to use the new account ``nucypher ursula config --worker-address <ADDRESS> --signer <SIGNER URI>``
     #. Bond the new address from the staking account (or inform the staking party).
 
-    Note that stakers can only rebond once every two periods.
+    Note that stakers can only rebond to a new worker once every two periods.
 
 
 3. Run Worker
@@ -228,8 +235,8 @@ View worker logs
 Upgrading to a newer version
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-When a new version is available a docker-launched worker can be updated by stopping the worker,
-running docker pull, then start the worker.
+When a new version is available a docker-launched worker can be updated by
+stopping the worker, running docker pull, then restarting the worker.
 
 .. code:: bash
 
@@ -323,6 +330,29 @@ To start Ursula services using systemd
 .. code-block:: bash
 
    $ sudo systemctl restart ursula
+
+
+Run Worker Manually
+^^^^^^^^^^^^^^^^^^^
+
+If you'd like to use another own method of running the worker process in the background, or are
+using one of the testnets, here is how to run Ursula using the CLI directly.
+
+.. code
+
+    # Initialize Ursula
+    nucypher ursula init --provider <PROVIDER URI> --network <NETWORK NAME> --signer <SIGNER URI>
+
+    # Run Worker
+    nucypher ursula run
+
+
+Replace the following values with your own:
+
+   * ``<PROVIDER URI>`` - The URI of a local or hosted ethereum node
+   * ``<NETWORK NAME>`` - The name of a nucypher network (mainnet, ibex, or lynx)
+   * ``<SIGNER URI>`` - The URI to an ethereum keystore or signer: `keystore:///root/.ethereum/keystore`
+
 
 4. Qualify Worker
 -----------------

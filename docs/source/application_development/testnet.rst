@@ -17,7 +17,7 @@ for application development and network users (e.g., Alices wishing to create sh
     Goerli ETH is required to use the Lynx testnet.
 
 
-Alice and Bob work support the lynx testnet using the python API:
+Alice and Bob can use the lynx testnet using the python API:
 
 .. code:: python
 

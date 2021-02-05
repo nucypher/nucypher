@@ -37,17 +37,6 @@ To enable re-staking again:
     (nucypher)$ nucypher stake restake --enable
 
 
-Additionally, you can enable **re-stake locking**, an on-chain commitment to continue re-staking
-until a future period. Once enabled, the ``StakingEscrow`` contract will not
-allow **re-staking** to be disabled until the release period begins, even if you are the stake owner.
-
-.. code:: bash
-
-    (nucypher)$ nucypher stake restake --lock-until 12345
-
-No action is needed to release the re-staking lock once the release period begins.
-
-
 .. _staking-prolong:
 
 Prolong

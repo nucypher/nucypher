@@ -10,27 +10,6 @@ cryptography operations serving users with secrets management and dynamic access
 ``nucypher`` is the python library and CLI for interacting with the
 decentralized threshold cryptography network.
 
-Decentralized - The network is permissionless and censorship-resistant.
-There are no gate-keepers and anyone can use it.
-
-Intuitive - The network leverages the classic cryptological narrative of Alice and Bob
-(with additional characters where appropriate). This character-based narrative
-permeates the code-base and helps developers write safe, misuse-resistant code.
-
-Extensible - The network supports proxy re-encryption but can be
-extended to provide support for other cryptographic primitives.
-
-Trustless - Data is never decrypted nor can the underlying private keys be
-determined by the NuCypher network nodes.
-
-Secure - Access permissions are baked into the underlying encryption.
-Under the hood the network implements the Umbral_ threshold
-proxy re-encryption scheme to provide cryptographic access control.
-
-Privacy-Preserving - Access can only be explicitly granted by the data owner via
-sharing policies so that the data owner has ultimate control over access
-to their data.
-
 
 How does NuCypher work?
 -----------------------

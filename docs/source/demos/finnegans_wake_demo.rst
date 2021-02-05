@@ -48,8 +48,8 @@ Acquire the ``nucypher`` application code and install the dependencies:
 
 Run a fleet of federated Ursulas
 --------------------------------
-    Run the local fleet of federated Ursulas in a separate terminal. This provides a network of 12 federated
-    Ursulas.
+    Run the local fleet of federated Ursulas in a separate terminal.
+    This provides a network of 12 federated Ursulas.
 
 .. code::
 
