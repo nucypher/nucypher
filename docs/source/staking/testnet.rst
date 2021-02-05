@@ -10,8 +10,8 @@ create and manage stakes, set up a node, as well as for internal development pur
 .. attention::
 
     Ibex Testnet NU can be obtained by joining the `Discord Server <https://discord.gg/7rmXa3S>`_ and typing
-    ``.getfunded <YOUR_STAKER_ETH_ADDRESS>`` in the #testnet-faucet channel. Note that Rinkeby ETH is
-    also required to use the Ibex testnet, and can be obtained from its `faucet <https://faucet.rinkeby.io/>`_.
+    ``.getfunded <YOUR_STAKER_ETH_ADDRESS>`` in the #testnet-faucet channel. Some ETH is also provided via
+    the ``.getfunded`` command, but additional Rinkeby ETH can be obtained from the `Rinkeby faucet <https://faucet.rinkeby.io/>`_.
 
 
 Stakers and Workers can be configured to use the Ibex testnet using the command line:

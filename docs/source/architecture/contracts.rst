@@ -105,6 +105,8 @@ Ursula Makes a Commitment
 In order to make a commitment to the next period, workers call ``StakingEscrow.commitToNextPeriod()`` wherein activities for the next period are registered.
 The staker gets a reward for every commitment period.
 
+.. _ursula-generates-staking-rewards:
+
 Ursula Generates Staking Rewards
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 

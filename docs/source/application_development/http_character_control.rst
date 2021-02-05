@@ -37,11 +37,10 @@ This tells you that the server successfully completed the call.
 If you are returned a 400, check the data that you're sending to the server.
 See below for what the character control API expects.
 
-.. _`Contribution Guide`: https://docs.nucypher.com/en/latest/support/contribution.html
 .. _`Discord`: https://discord.gg/7rmXa3S
 
 If you are ever given a 500 status code, we'd like to know about it!
-You can see our `Contribution Guide`_ for getting involved.
+You can see our :ref:`Contribution Guide <contribution-guide>` for getting involved.
 Ideally, you can share some information with us about what you were doing when you encountered the 500 in the form of a GitHub issue, or just tell us in our `Discord`_.
 
 HTTP Methods

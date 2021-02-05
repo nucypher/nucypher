@@ -76,7 +76,7 @@ For full documentation on virtualenv see: https://virtualenv.pypa.io/en/latest/:
        ...
 
     If successful you will see a list of possible usage options (\ ``--version``\ , ``-v``\ , ``--dev``\ , etc.) and
-    commands (\ ``status``\ , ``ursula``\ , etc.). For example, you can use ``nucypher ursula init`` to initialize a new worker node.
+    commands (\ ``status``\ , ``ursula``\ , etc.).
 
 
 

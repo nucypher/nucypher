@@ -26,7 +26,7 @@ A Note about Side Channels
 --------------------------
 
 The NuCypher network does not store or handle an application's data; instead - it manages access *to* application data.
-Management of encrypted secrets and public keys tends to be highly domain-specific - The surrounding architecture
+Management of encrypted secrets and public keys tends to be highly domain-specific - the surrounding architecture
 will vary greatly depending on the throughput, sensitivity, and sharing cadence of application secrets.
 
 In all cases, NuCypher must be integrated with a storage and transport layer in order to function properly.

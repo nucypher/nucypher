@@ -16,7 +16,7 @@ for application development and network users (e.g., Alices wishing to create sh
 
 .. important::
 
-    Goerli ETH is required to use the Lynx testnet, and can be obtained from its `standard faucet <https://goerli-faucet.slock.it/>`_
+    Goerli ETH is required for the Lynx testnet, and can be obtained from Goerli's `standard faucet <https://goerli-faucet.slock.it/>`_
     or `authenticated faucet <https://faucet.goerli.mudit.blog/>`_.
 
 

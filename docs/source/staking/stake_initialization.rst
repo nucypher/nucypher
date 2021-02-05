@@ -18,7 +18,7 @@ specific minimum system constraints, there are some basic requirements for stake
 #. Small amount of ether to pay for transaction gas
 
 Using a hardware wallet is *highly* recommended. They are ideal for stakers since they hold NU and
-only temporary access to private keys is required during stake management while providing a higher standard
+temporary access to private keys is required during stake management, while providing a higher standard
 of security than software wallets or keyfiles.
 
 
@@ -44,7 +44,7 @@ Staking Procedure
     in the #testnet-faucet channel.
 
 
-1. Establish an ethereum provider
+1. Establish an Ethereum Provider
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Staking transactions can be broadcasted using either a local or remote ethereum node.
@@ -53,11 +53,11 @@ For general background information about choosing a node technology and operatio
 see https://web3py.readthedocs.io/en/stable/node.html.
 
 
-2. Select transaction signer
+2. Select Transaction Signer
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 By default, all transaction and message signing requests are forwarded to the configured ethereum provider.
-To use another ethereum provider (e.g. Infura, Alchemy, Another Hosted/Remote Node) a local transaction signer must
+When using an external ethereum provider (e.g. Infura, Alchemy, other hosted/remote node), a local transaction signer must
 be configured in addition to the broadcasting node. This can be a hardware wallet, software wallet, or clef.
 
 For more detailed information see :doc:`/references/signers`
@@ -68,7 +68,7 @@ For more detailed information see :doc:`/references/signers`
 
 .. note::
 
-    Currently only trezor hardware wallets are supported by the CLI directly.
+    For hardware wallets, only trezor is currently supported by the CLI directly.
     Ledger functionality can be achieved through clef.
 
 
@@ -94,13 +94,13 @@ Keystore File Signer
 Clef Signer
 +++++++++++
 
-Clef can be used as an external transaction signer with nucypher supporting both hardware (ledger & trezor)
+Clef can be used as an external transaction signer with nucypher and supports both hardware (ledger & trezor)
 and software wallets. See :ref:`signing-with-clef` for setting up Clef. By default, all requests to the clef
 signer require manual confirmation.
 
 This includes not only transactions but also more innocuous requests such as listing the accounts
 that the signer is handling. This means, for example, that a command like ``nucypher stake accounts`` will first ask
-for user confirmation in the clef CLI before showing the staker accounts. You can automate this confirmation by
+for user confirmation in the clef CLI before showing the Staker accounts. You can automate this confirmation by
 using :ref:`clef-rules`.
 
 .. note::
@@ -125,15 +125,15 @@ using :ref:`clef-rules`.
 3. Configure nucypher for staking
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Before continuing with stake initiation, A setup step is required to configure nucypher for staking.
+Before initiating a stake, a setup step is required to configure nucypher for staking.
 This will create a JSON configuration file (`~/.local/share/nucypher/stakeholder.json`) containing editable
-configuration values.  No new keys or secrets are created in this step, it's just for configuration.
+configuration values.  No new keys or secrets are created in this step, it is just for configuration.
 
 .. code:: bash
 
     (nucypher)$ nucypher stake init-stakeholder --signer <SIGNER URI> --provider <PROVIDER>
 
-.. note:: If you are using NuCypher's Rinkeby testnet, passing the network name is required ``--network ibex``.
+.. note:: If you are using NuCypher's Ibex testnet, passing the network name is required ``--network ibex``.
 
 
 4. Create a new stake
@@ -147,7 +147,7 @@ the commitment period.
 .. caution::
 
     Before proceeding it is important to know that the worker must spend ETH to unlock staked NU.
-    Once tokens are locked, the only way for them to become unlocked is by running a bonded worker node.
+    Once tokens are locked, the only way for them to become unlocked is by running a bonded Worker node.
 
     Currently, Worker nodes must perform one automated transaction every 24 hours costing ~200k gas.
 

@@ -4,6 +4,10 @@
 WorkLock
 ========
 
+.. important::
+
+    Participation in WorkLock is now closed, but since NU is an ERC-20 token, it can be purchased through exchanges.
+
 Overview
 --------
 

@@ -9,8 +9,8 @@ NuCypher staking operations are divided into two roles "Staker" and "Worker" - T
 Overview
 ----------
 
-Workers' role in the network
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Role in the Network
+^^^^^^^^^^^^^^^^^^^
 
 The Worker is the bonded delegate of a Staker and an active network node.  Each staking account
 or "Staker" is bonded to exactly one Worker. Workers must remain online to provide uninterrupted
@@ -18,20 +18,22 @@ re-encryption services to network users on-demand and perform periodic automated
 signal continued commitment to availability.
 
 
-Worker nodes have three core components
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Core Components
+^^^^^^^^^^^^^^^
+
+Worker nodes have three core components:
 
 * Ethereum software wallet (keystore)
 * Local or hosted ethereum provider
 * Worker node; Local or cloud server
 
 
-Minimum system requirements
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Minimum System Requirements
+^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 * Debian/Ubuntu (Recommended)
 * 20GB storage
-* 2GB RAM
+* 4GB RAM
 * x86 architecture
 * Static IP address
 * Exposed TCP port 9151
@@ -48,43 +50,43 @@ Best Practices
 Workers can demonstrate a vested interest in the success of the network by adhering to
 three core areas of responsibility (in order of importance):
 
-**#1 Keystore Diligence**
+**1. Keystore Diligence**
 
 Requires that the custodian keep track of a secret seed which can be used to generate the entire keystore.
 
 - Keep an offline backup up mnemonic seed phrases.
 - Use a password manager to generate a strong password when one is required.
 
-**#2 Datastore Diligence**
+**2. Datastore Diligence**
 
 Requires that material observed during the runtime be stored.
 
 A running worker stores peer metadata, re-encryption key fragments ("Kfrags"), and "treasure maps".
 
-Loss of stored re-encryption key fragments will indicate slashing on the bonded stake.
+Loss of stored re-encryption key fragments will lead to slashing of the bonded stake.
 If a worker node has already agreed to enforce a policy, then loses a Kfrag, network users
 can issue a challenge which is verified onchain by the Adjudicator contract.
 
 As a civic matter, datastore diligence is important for Ursula for several reasons
-Including storing node validity status (and thus refraining from pestering nodes
+including storing node validity status (and thus refraining from pestering nodes
 with unnecessary additional verification requests). Loss of peer metadata means that the worker
-must rediscover and validate peers, slowly rebuilding it's network view while contributing to
+must rediscover and validate peers, slowly rebuilding its network view while contributing to
 lessened availability and higher network traffic.
 
 - Maintain regular backups of the worker's filesystem and database.
 
 
-**#3 Runtime Diligence**
+**3. Runtime Diligence**
 
 Requires active and security-conscious participation in the network.
 
 A bonded node that is unreachable or otherwise invalid will be unable to accept new
 policies, and miss out on inflation rewards.  The bonded stake will remain locked until
-the entre commitment is completed.
+the entire commitment is completed.
 
 - Secure the worker's keystore used in deployment.
 - Keep enough ETH on the worker to pay for gas.
-- Maintain high uptime; Keep downtime brief when required by updates or reconfiguration.
+- Maintain high uptime; keep downtime brief when required by updates or reconfiguration.
 - Update when a new version is available.
 - Monitor a running ursula for nominal behaviour and period confirmations.
 
@@ -106,29 +108,29 @@ see https://web3py.readthedocs.io/en/stable/node.html.
 
 .. note::
 
-    Additional requirements are needed to run a local Ethereum node on the same system
-    `additional requirements <https://docs.ethhub.io/using-ethereum/running-an-ethereum-node/>`_ are needed.
+    `Additional requirements <https://docs.ethhub.io/using-ethereum/running-an-ethereum-node/>`_
+    are needed to run a local Ethereum node on the same system.
 
 
 2. Establish Worker Ethereum Account
 -------------------------------------
 
 By default, all transaction and message signing requests are forwarded to the configured ethereum provider.
-To use another ethereum provider (e.g. Infura, Alchemy, Another Hosted/Remote Node) a local transaction signer must
-be configured in addition to the broadcasting node.  For workers this can be a software wallet, or clef.
+When using a remote ethereum provider (e.g. Infura, Alchemy, other hosted node), a local transaction signer must
+be configured in addition to the broadcasting node. For workers this can be a software wallet, or clef.
 For more detailed information see :doc:`/references/signers`.
 
 .. caution::
 
     Stay safe handling ETH and NU:
 
-    - Workers **do not** need NU for any reason: Do not keep NU on the worker's account.
-    - Do not store ETH on the worker - Keep only enough to pay for gas fees.
+    - Workers **do not** need NU for any reason; **do not** keep NU on the worker's account.
+    - Do not store large amounts of ETH on the worker; keep only enough to pay for gas fees.
     - Store the ethereum account password in a password manager when using a keystore.
 
 Because worker nodes perform periodic automated transactions to signal continued commitment to providing service,
 The worker's ethereum account must remain unlocked while the node is running. While there are several types of accounts
-workers can use, a software based wallet is the easiest method.
+workers can use, a software based wallet is the easiest.
 
 .. note::
 
@@ -149,7 +151,7 @@ workers can use, a software based wallet is the easiest method.
     nodes must perform one commitment transaction every 24 hours each costing ~200k gas.
 
     Use the `--max-gas-price` option to set the maximum commitment gas price you are willing to spend.
-    Workers will automatically retry and replace any previous commitment attempts.  Too low of a gas price
+    Workers will automatically retry and replace any previous commitment attempts. Too low of a gas price
     may result in missed commitments.
 
 
@@ -171,7 +173,7 @@ Setup Docker
     docker pull nucypher/nucypher:latest
 
 
-Export worker environment variables
+Export Worker Environment Variables
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 .. code:: bash
@@ -232,10 +234,10 @@ View worker logs
     docker logs -f ursula
 
 
-Upgrading to a newer version
+Upgrading to a Newer Version
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-When a new version is available a docker-launched worker can be updated by
+When a new version is available, a docker-launched worker can be updated by
 stopping the worker, running docker pull, then restarting the worker.
 
 .. code:: bash
@@ -253,7 +255,7 @@ Instead of using docker, the nucypher worker can be run as a systemd service.
 .. note::
 
     Running a worker with systemd required a local installation of nucypher.
-    See :doc:`/references/pip-installation`
+    See :doc:`/references/pip-installation`.
 
 1. Install nucypher into a virtual environment.
 
@@ -382,6 +384,9 @@ Replace the following values with your own:
         # Update the max gas price setting
         nucypher ursula config --provider <PROVIDER URI>
 
+        # View the current configuration
+        nucypher ursula config
+
 
 2. Start the worker
 
@@ -401,9 +406,9 @@ Replace the following values with your own:
 4. Qualify Worker
 -----------------
 
-Workers must be fully qualified (funded and bonded) in order to fully start.  Workers
+Workers must be fully qualified (funded and bonded) in order to fully start. Workers
 that are launched before qualification will pause until they are have a balance greater than 0 ETH,
-and are bonded to a staking account.  Once both of these requirements are met, the worker will automatically
+and are bonded to a staking account. Once both of these requirements are met, the worker will automatically
 resume startup.
 
 Waiting for qualification:
@@ -488,8 +493,8 @@ parameters to the ``nucypher ursula run`` command:
 The corresponding endpoint, ``http://<node_ip>:<METRICS PORT>/metrics``, can be used as a Prometheus data source for
 monitoring including the creation of alert criteria.
 
-By default metrics will be collected every 90 seconds but this can be modified using the ``--metrics-interval`` option.
-Collection of metrics will increase the number of RPC requests made to your web3 endpoint; increasing the frequency
+By default, metrics will be collected every 90 seconds but this can be modified using the ``--metrics-interval`` option.
+Collection of metrics will increase the number of RPC requests made to your provider endpoint; increasing the frequency
 of metrics collection will further increase this number.
 
 During the Technical Contributor Phase of our testnet, *P2P Validator*

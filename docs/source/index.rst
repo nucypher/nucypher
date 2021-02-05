@@ -22,7 +22,7 @@ anyone she wants by creating a policy and uploading it to
 the NuCypher network.
 
 2. A group of Ursulas, which are nodes on the NuCypher network,
-receive information about the policy, called a PolicyArrangement that include
+receive information about the policy, called a ``PolicyArrangement`` that include
 a re-encryption key share. The Ursulas stand ready to re-encrypt data in exchange for payment
 in fees and token rewards. Thanks to the use of proxy re-encryption,
 Ursulas and the storage layer never have access to Alice's plaintext data.

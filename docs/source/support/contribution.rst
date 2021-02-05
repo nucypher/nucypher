@@ -1,3 +1,5 @@
+.. _contribution-guide:
+
 Contributing
 ============
 
@@ -16,16 +18,48 @@ Before continuing, ensure you have ``git`` installed (\ `Git Documentation <http
 Acquire NuCypher Codebase
 ^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Fork the nucypher repository on GitHub, as explained in the :doc:`Contribution Guide </support/contribution>`,
-then clone your fork's repository to your local machine:
+.. _`NuCypher GitHub`: https://github.com/nucypher/nucypher
 
-.. code-block::
+In order to contribute new code or documentation changes, you will need a local copy
+of the source code which is located on the `NuCypher GitHub`_.
 
-    $ git clone https://github.com/<YOUR_GITHUB_USERNAME>/nucypher.git
+.. note::
 
+   NuCypher uses ``git`` for version control. Be sure you have it installed.
+
+Here is the recommended procedure for acquiring the code in preparation for
+contributing proposed changes:
+
+
+1. Use GitHub to fork the ``nucypher/nucypher`` repository
+
+2. Clone your fork's repository to your local machine
+
+.. code-block:: bash
+
+   $ git clone https://github.com/<YOUR-GITHUB-USERNAME>/nucypher.git
+
+3. Change directory to ``nucypher``
+
+.. code-block:: bash
+
+   $ cd nucypher
+
+4. Add ``nucypher/nucypher`` as an upstream remote
+
+.. code-block:: bash
+
+   $ git remote add upstream https://github.com/nucypher/nucypher.git
+
+5. Update your remote tracking branches
+
+.. code-block:: bash
+
+   $ git remote update
 
 After acquiring a local copy of the application code, you will need to
-install the project dependencies, we recommend using either ``pip`` or ``pipenv``
+install the project dependencies, we recommend using either ``pip`` or ``pipenv``.
+
 
 Pip Development Installation
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -69,53 +103,6 @@ Other cases:
 * Run a network of 8 independent Ursulas: ``docker-compose -f 8-federated-ursulas.yml up``
 * Get the local ports these ursulas will be exposed on: ``docker ps``
 * To stop them... ``docker-compose -f 8-federated-ursulas.yml stop``
-
-
-Acquiring the Codebase
-----------------------
-
-.. _`NuCypher GitHub`: https://github.com/nucypher/nucypher
-
-In order to contribute new code or documentation changes, you will need a local copy
-of the source code which is located on the `NuCypher GitHub`_.
-
-.. note::
-
-   NuCypher uses ``git`` for version control. Be sure you have it installed.
-
-Here is the recommended procedure for acquiring the code in preparation for
-contributing proposed changes:
-
-
-1. Use GitHub to fork the ``nucypher/nucypher`` repository
-
-2. Clone your fork's repository to your local machine
-
-.. code-block:: bash
-
-   $ git clone https://github.com/<YOUR-GITHUB-USERNAME>/nucypher.git
-
-3. Change directory to ``nucypher``
-
-.. code-block:: bash
-
-   $ cd nucypher
-
-4. Add ``nucypher/nucypher`` as an upstream remote
-
-.. code-block:: bash
-
-   $ git remote add upstream https://github.com/nucypher/nucypher.git
-
-5. Update your remote tracking branches
-
-.. code-block:: bash
-
-   $ git remote update
-
-.. _`Developer Installation Guide`: https://docs.nucypher.com/en/latest/installation.html
-
-6. Install the project dependencies: see the `Developer Installation Guide`_
 
 
 Running the Tests
@@ -230,7 +217,7 @@ Generally speaking the preferred process of doing so is with an `interactive reb
 .. note::
 
    This example specifies the remote name ``upstream`` for the NuCypher organizational repository as
-   used in the `Acquiring the Codebase`_ section.
+   used in the `Acquire NuCypher Codebase`_ section.
 
 .. code-block:: bash
 

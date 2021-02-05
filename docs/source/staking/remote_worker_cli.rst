@@ -3,7 +3,7 @@
 Cloud Worker Management
 =======================
 
-NuCypher maintains a CLI to assist with the management of multiple Nucypher Ursula nodes deployed in the cloud,
+NuCypher maintains a CLI to assist with the management of multiple Nucypher Ursula nodes deployed on cloud infrastructure,
 that leverages automation tools such as Ansible and Docker.
 
 .. code:: bash

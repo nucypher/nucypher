@@ -143,7 +143,7 @@ Inflation Rewards (NU) and Policy Fees (ETH).
 Q: How are Policy Fees (ETH) determined?
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-The amount of fees a staker can earn in a given period is determined by multiple factors, including (1) the minimum fee rate set by the staker, (2) the number of active policies issued by users of the network to that staker, and (3) whether the staker has previously committed to being available for that period. See `Service Fees (Pricing) <https://docs.nucypher.com/en/latest/architecture/service_fees.html>`_ for details.
+The amount of fees a staker can earn in a given period is determined by multiple factors, including (1) the minimum fee rate set by the staker, (2) the number of active policies issued by users of the network to that staker, and (3) whether the staker has previously committed to being available for that period. See :doc:`/architecture/service_fees` for details.
 
 Q: How many Ursulas per period collect Inflation rewards (NU)?
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -166,10 +166,7 @@ The period following stake termination or later, but before withdrawing escrowed
 Q: What are the recommended specifications for running a nucypher node?
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Worker nodes need to run ``nucypher`` and a local ethereum node. In total, you will
-require at least 4GB for RAM. Nodes also need 24/7 uptime and a static, public IPv4 address.
-
-For ``nucypher`` specific requirements, see `System Requirements and Dependencies <https://docs.nucypher.com/en/latest/guides/installation.html#system-requirements-and-dependencies/>`_.
+See :ref:`ursula-config-guide`.
 
 Q: How do I set up a network node?
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -200,7 +197,7 @@ the worker address to the stake.
 Q: How do I maximize the inflation-based rewards I will receive?
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-    * Lock your stake for a year or more - stakes with tokens locked for a year or more will be afforded the maximum time coefficient for the calculation of inflation rewards - see `Ursula Generates Staking Rewards <https://docs.nucypher.com/en/latest/architecture/contracts.html#ursula-generates-staking-rewards>`_
+    * Lock your stake for a year or more - stakes with tokens locked for a year or more will be afforded the maximum time coefficient for the calculation of inflation rewards - see :ref:`ursula-generates-staking-rewards`.
     * Enable :ref:`sub-stake-restaking` to relock inflation rewards and increase your stake size and consequently your proportion of future inflation rewards
     * Disable :ref:`sub-stake-winddown` to maintain locked stake duration
 
