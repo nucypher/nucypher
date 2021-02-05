@@ -88,9 +88,10 @@ Whitepapers
    staking/stake_initialization
    staking/stake_management
    staking/running_a_worker
-   staking/remote_worker_cli
+   staking/best_practices
    staking/worklock
    staking/testnet
+   staking/remote_worker_cli
 
 .. toctree::
    :maxdepth: 1
