@@ -146,8 +146,8 @@ the commitment period.
 
 .. caution::
 
-    Before proceeding it is important to know that you will need to spend ETH to unlock staked NU.
-    Once tokens are staked, the only way for them to become unlocked is by running a bonded worker node.
+    Before proceeding it is important to know that the worker must spend ETH to unlock staked NU.
+    Once tokens are locked, the only way for them to become unlocked is by running a bonded worker node.
 
     Currently, Worker nodes must perform one automated transaction every 24 hours costing ~200k gas.
 

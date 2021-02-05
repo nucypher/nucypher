@@ -29,6 +29,7 @@ Worker nodes have three core components
 Minimum system requirements
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+* Debian/Ubuntu (Recommended)
 * 20GB storage
 * 2GB RAM
 * x86 architecture
@@ -117,19 +118,6 @@ To use another ethereum provider (e.g. Infura, Alchemy, Another Hosted/Remote No
 be configured in addition to the broadcasting node.  For workers this can be a software wallet, or clef.
 For more detailed information see :doc:`/references/signers`.
 
-Because worker nodes perform periodic automated transactions to signal continued commitment to providing service,
-The worker's ethereum account must remain unlocked while the node is running. While there are several types of accounts
-workers can use, a software based wallet is the easiest method.
-
-.. note::
-
-    To create a new ethereum software account using the ``geth`` CLI:
-
-    .. code:: bash
-
-        geth account new
-        ...
-
 .. caution::
 
     Stay safe handling ETH and NU:
@@ -138,9 +126,32 @@ workers can use, a software based wallet is the easiest method.
     - Do not store ETH on the worker - Keep only enough to pay for gas fees.
     - Store the ethereum account password in a password manager when using a keystore.
 
+Because worker nodes perform periodic automated transactions to signal continued commitment to providing service,
+The worker's ethereum account must remain unlocked while the node is running. While there are several types of accounts
+workers can use, a software based wallet is the easiest method.
+
+.. note::
+
+    To create a new ethereum software account using the ``geth`` CLI
+
+    .. code::
+
+        geth account new
+
 
 3. Run Worker
 -------------
+
+.. important::
+
+    Before proceeding it is important to know that the worker must spend ETH to unlock staked NU.
+    Periodic automated commitments are required to signal continued availability. Currently, Worker
+    nodes must perform one commitment transaction every 24 hours each costing ~200k gas.
+
+    Use the `--max-gas-price` option to set the maximum commitment gas price you are willing to spend.
+    Workers will automatically retry and replace any previous commitment attempts.  Too low of a gas price
+    may result in missed commitments.
+
 
 .. _run-ursula-with-docker:
 
@@ -184,7 +195,8 @@ Initialize a new Worker
     nucypher ursula init            \
     --provider <PROVIDER URI>       \
     --network <NETWORK NAME>        \
-    --signer <SIGNER URI>
+    --signer <SIGNER URI>           \
+    --max-gas-price <GWEI>
 
 
 Replace the following values with your own:
@@ -192,6 +204,7 @@ Replace the following values with your own:
    * ``<PROVIDER URI>`` - The URI of a local or hosted ethereum node
    * ``<NETWORK NAME>`` - The name of a nucypher network (mainnet, ibex, or lynx)
    * ``<SIGNER URI>`` - The URI to an ethereum keystore or signer: `keystore:///root/.ethereum/keystore`
+   * ``<GWEI>`` - The maximum price of gas to spend on commitment transactions
 
 
 Launch the worker
@@ -208,18 +221,16 @@ Launch the worker
     -e NUCYPHER_WORKER_ETH_PASSWORD  \
     nucypher/nucypher:latest         \
     nucypher ursula run              \
-    --network <NETWORK NAME>
 
-Replace the following values with your own:
-
-   * ``<NETWORK NAME>`` - The name of a nucypher network (mainnet, ibex, or lynx)
 
 View worker logs
 ~~~~~~~~~~~~~~~~
 
 .. code:: bash
 
+    # docker logs
     docker logs -f ursula
+
 
 Upgrading to a newer version
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -244,21 +255,33 @@ Instead of using docker, the nucypher worker can be run as a systemd service.
     Running a worker with systemd required a local installation of nucypher.
     See :doc:`/references/pip-installation`
 
-#. Install nucypher into a virtual environment.
+1. Install nucypher into a virtual environment.
 
-    .. code-block::
+.. code-block::
 
-        $(nucypher) pip install -U nucypher
-
-
-#. Configure the worker using the nucypher CLI.
-
-    .. code-block::
-
-        $(nucypher) nucypher ursula init --provider <PROVIDER URI> --network <NETWORK NAME> --signer <SIGNER URI>
+    $(nucypher) pip install -U nucypher
 
 
-#. Use this template to create a file named ``ursula.service`` and place it in ``/etc/systemd/system/``.
+2. Configure the worker using the nucypher CLI.
+
+.. code-block::
+
+    $(nucypher) nucypher ursula init \
+    --provider <PROVIDER URI>        \
+    --network <NETWORK NAME>         \
+    --signer <SIGNER URI>            \
+    --max-gas-price <GWEI>
+
+
+Replace the following values with your own:
+
+   * ``<PROVIDER URI>`` - The URI of a local or hosted ethereum node
+   * ``<NETWORK NAME>`` - The name of a nucypher network (mainnet, ibex, or lynx)
+   * ``<SIGNER URI>`` - The URI to an ethereum keystore or signer: `keystore:///root/.ethereum/keystore`
+   * ``<GWEI>`` - The maximum price of gas to spend on commitment transactions
+
+
+3. Use this template to create a file named ``ursula.service`` and place it in ``/etc/systemd/system/``.
 
 .. code-block::
 
@@ -284,14 +307,14 @@ Replace the following values with your own:
    * ``<VIRTUALENV PATH>`` - The absolute path to the python virtual environment containing the ``nucypher`` executable
 
 
-#. Enable Ursula System Service
+4. Enable Ursula System Service
 
 .. code-block::
 
    $ sudo systemctl enable ursula
 
 
-#. Run Ursula System Service
+5. Run Ursula System Service
 
 To start Ursula services using systemd
 
@@ -300,7 +323,7 @@ To start Ursula services using systemd
    $ sudo systemctl start ursula
 
 
-#. Check Ursula service status
+**Check Ursula service status**
 
 .. code-block::
 
@@ -314,7 +337,7 @@ To start Ursula services using systemd
     $ journalctl -f -t ursula
 
 
-#. To restart your node service
+**To restart your node service**
 
 .. code-block:: bash
 
@@ -324,13 +347,45 @@ To start Ursula services using systemd
 Run Worker Manually
 ^^^^^^^^^^^^^^^^^^^
 
+1. Configure the Worker
+
 If you'd like to use another own method of running the worker process in the background, or are
 using one of the testnets, here is how to run Ursula using the CLI directly.
 
-.. code::
+.. code-block::
 
-    # Initialize Ursula
-    nucypher ursula init --provider <PROVIDER URI> --network <NETWORK NAME> --signer <SIGNER URI>
+    $(nucypher) nucypher ursula init \
+    --provider <PROVIDER URI>        \
+    --network <NETWORK NAME>         \
+    --signer <SIGNER URI>            \
+    --max-gas-price <GWEI>
+
+Replace the following values with your own:
+
+   * ``<PROVIDER URI>`` - The URI of a local or hosted ethereum node
+   * ``<NETWORK NAME>`` - The name of a nucypher network (mainnet, ibex, or lynx)
+   * ``<SIGNER URI>`` - The URI to an ethereum keystore or signer: `keystore:///root/.ethereum/keystore`
+   * ``<GWEI>`` - The maximum price of gas to spend on commitment transactions
+
+.. note::
+
+    All worker configuration values can be changed using the `config` command
+    (Note that the worker must be restarted for new changes to take effect):
+
+    .. code::
+
+        nucypher ursula config --<OPTION> <NEW VALUE>
+
+        # Update the max gas price setting
+        nucypher ursula config --max-gas-price <GWEI>
+
+        # Update the max gas price setting
+        nucypher ursula config --provider <PROVIDER URI>
+
+
+2. Start the worker
+
+.. code-block::
 
     # Run Worker
     nucypher ursula run
