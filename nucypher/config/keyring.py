@@ -315,8 +315,9 @@ class NucypherKeyring:
 
     MINIMUM_PASSWORD_LENGTH = 16
 
-    __default_keyring_root = os.path.join(DEFAULT_CONFIG_ROOT, 'keyring')
+    _default_keyring_root = os.path.join(DEFAULT_CONFIG_ROOT, 'keyring')
     _private_key_serializer = _PrivateKeySerializer()
+
     __DEFAULT_TLS_CURVE = ec.SECP384R1
 
     log = Logger("keys")
@@ -347,7 +348,7 @@ class NucypherKeyring:
 
         # Identity
         self.__account = account
-        self.__keyring_root = keyring_root or self.__default_keyring_root
+        self.__keyring_root = keyring_root or self._default_keyring_root
 
         # Generate base filepaths
         __default_base_filepaths = self._generate_base_filepaths(keyring_root=self.__keyring_root)
@@ -518,12 +519,15 @@ class NucypherKeyring:
                  host: str = None,
                  curve: EllipticCurve = None,
                  keyring_root: str = None,
+                 force: bool = False,
                  ) -> 'NucypherKeyring':
         """
         Generates new encrypting, signing, and wallet keys encrypted with the password,
         respectively saving keyfiles on the local filesystem from *default* paths,
         returning the corresponding Keyring instance.
         """
+
+        keyring_root = keyring_root or cls._default_keyring_root
 
         failures = cls.validate_password(password)
         if failures:
@@ -627,17 +631,18 @@ class NucypherKeyring:
                 root_keypath = _write_public_keyfile(__key_filepaths['root_pub'], encrypting_public_key.to_bytes())
                 signing_keypath = _write_public_keyfile(__key_filepaths['signing_pub'], signing_public_key.to_bytes())
             except (PrivateKeyExistsError, FileExistsError):
-                raise ExistingKeyringError(f"There is an existing keyring for address '{checksum_address}'")
-
-            # Commit
-            keyring_args.update(
-                keyring_root=keyring_root or cls.__default_keyring_root,
-                root_key_path=rootkey_path,
-                pub_root_key_path=root_keypath,
-                signing_key_path=sigkey_path,
-                pub_signing_key_path=signing_keypath,
-                delegating_key_path=delegating_key_path,
-            )
+                if not force:
+                    raise ExistingKeyringError(f"There is an existing keyring for address '{checksum_address}'")
+            else:
+                # Commit
+                keyring_args.update(
+                    keyring_root=keyring_root,
+                    root_key_path=rootkey_path,
+                    pub_root_key_path=root_keypath,
+                    signing_key_path=sigkey_path,
+                    pub_signing_key_path=signing_keypath,
+                    delegating_key_path=delegating_key_path,
+                )
 
         if rest is True:
             if not all((host, curve, checksum_address)):  # TODO: Do we want to allow showing up with an old wallet and generating a new cert?  Probably.

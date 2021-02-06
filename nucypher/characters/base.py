@@ -26,6 +26,8 @@ from constant_sorrow import default_constant_splitter
 from constant_sorrow.constants import (DO_NOT_SIGN, NO_BLOCKCHAIN_CONNECTION, NO_CONTROL_PROTOCOL,
                                        NO_DECRYPTION_PERFORMED, NO_NICKNAME, NO_SIGNING_POWER,
                                        SIGNATURE_IS_ON_CIPHERTEXT, SIGNATURE_TO_FOLLOW, STRANGER)
+
+from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
 from nucypher.acumen.nicknames import Nickname
 from nucypher.blockchain.eth.registry import BaseContractRegistry, InMemoryContractRegistry
 from nucypher.blockchain.eth.signers.base import Signer
@@ -101,6 +103,10 @@ class Character(Learner):
             represented by zero Characters or by more than one Character.
 
         """
+
+        if provider_uri:
+            if not BlockchainInterfaceFactory.is_interface_initialized(provider_uri=provider_uri):
+                BlockchainInterfaceFactory.initialize_interface(provider_uri=provider_uri)
 
         #
         # Operating Mode
