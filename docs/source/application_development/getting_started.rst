@@ -117,16 +117,16 @@ Here are some examples of usage:
 .. code-block:: python
 
     from nucypher.blockchain.eth.signers import Signer
-    wallet = Signer.from_uri('<YOUR SIGNER URI>')
+    wallet = Signer.from_signer_uri('<YOUR SIGNER URI>')
 
     # Trezor Wallet
-    trezor = Signer.from_uri('trezor')
+    trezor = Signer.from_signer_uri('trezor')
 
     # Local Geth Wallet
-    geth_signer = Signer.from_uri('web3:///home/user/.ethereum/geth.ipc')
+    geth_signer = Signer.from_signer_uri('web3:///home/user/.ethereum/geth.ipc')
 
     # Keyfile Wallet
-    software_wallet = Signer.from_uri('keystore:///home/user/.ethereum/keystore/<KEY FILENAME>')
+    software_wallet = Signer.from_signer_uri('keystore:///home/user/.ethereum/keystore/<KEY FILENAME>')
 
 If you are using a software wallet, be sure to unlock it:
 
