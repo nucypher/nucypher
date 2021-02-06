@@ -1,10 +1,9 @@
 Transaction Signing
 ===================
 
-In conjunction with an ethereum provider, an external transaction signer can operate
-independently of the provider/broadcaster. This separation allows pre-signed transactions to be sent to an
-external (possibly remote) ethereum node and is particularly desirable when interacting with an untrusted
-ethereum node.
+In conjunction with an ethereum provider, an transaction signer operates independently of the provider/broadcaster.
+This separation allows pre-signed transactions to be sent to an external (possibly remote) ethereum node
+and is particularly desirable when interacting with an untrusted ethereum node.
 
 For example, external signers can be used with:
 

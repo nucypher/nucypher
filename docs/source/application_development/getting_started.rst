@@ -1,25 +1,10 @@
 Getting Started with Characters
 ===============================
 
-
 * `A Note about Side Channels`_
-* `Running an Ethereum Node`_
-* `Connecting to The NuCypher Network`_
 * `Alice: Grant Access to a Secret`_
-
-    * `Setup Alice`_
-    * `Grant`_
-
 * `Enrico: Encrypt a Secret`_
-
-    * `Setup Enrico`_
-    * `Encrypt`_
-
 * `Bob: Decrypt a Secret`_
-
-    * `Setup Bob`_
-    * `Join a Policy`_
-    * `Retrieve and Decrypt`_
 
 
 A Note about Side Channels
@@ -34,7 +19,7 @@ Along with the transport of ciphertexts, a nucypher application also needs to in
 to discover each other's public keys, and provide policy encrypting information to Bob and Enrico.
 
 
-Side Channel Application Data
+The Application Side Channel
 -----------------------------
 
 * Secrets:
@@ -53,8 +38,8 @@ Side Channel Application Data
     * Labels - A label for specifying a Policy's target, like a filepath
 
 
-Running an Ethereum Node
-------------------------
+Choosing an Ethereum Provider
+-----------------------------
 
 Operation of a decentralized NuCypher character [\ ``Alice``\ , ``Bob``\ , ``Ursula``\ ] requires
 a connection to an Ethereum node and wallet to interact with :doc:`smart contracts </architecture/contracts>`.
@@ -62,39 +47,9 @@ a connection to an Ethereum node and wallet to interact with :doc:`smart contrac
 For general background information about choosing a node technology and node operation,
 see https://web3py.readthedocs.io/en/stable/node.html.
 
-Connecting to The NuCypher Network
-----------------------------------
-
-Provider URI
-^^^^^^^^^^^^
-
-This example uses a local ethereum geth node's IPC-File specified by ``provider_uri``.
-By default on ubuntu, the path is ``~/.ethereum/geth.ipc`` - this path
-will also be logged to the geth-running console on startup.
-
-.. important::
-
-    While the example provided uses Ethereum mainnet, these steps can be followed for the Rinkeby Testnet with
-    updated `geth` (``~/.ethereum/rinkeby/geth.ipc``) and `seed` URI (``https://ibex.nucypher.network:9151``).
-
-
-Nucypher also supports alternative web3 node providers such as:
-
-    * HTTP(S)-based JSON-RPC server e.g. ``https://<host>``
-    * Websocket(Secure)-based JSON-RPC server e.g. ``ws://<host>:8080``, ``wss://<host>:8080``
-
-
-Connecting Nucypher to an Ethereum Provider
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-.. code-block:: python
-
-   from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
-   BlockchainInterfaceFactory.initialize_interface(provider_uri='~/.ethereum/geth.ipc')
-
 
 Ursula: Untrusted Re-Encryption Proxies
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+----------------------------------------
 
 When initializing an ``Alice``\ , ``Bob``\ , or ``Ursula``\ , an initial "Stranger-\ ``Ursula``\ " is needed to perform
 the role of a ``Teacher``\ , or "seednode":
@@ -142,72 +97,154 @@ see :doc:`Running a Worker </staking/running_a_worker>`.
 Alice: Grant Access to a Secret
 -------------------------------
 
-Setup Alice
-^^^^^^^^^^^
+Setup Alice Keys
+^^^^^^^^^^^^^^^^
 
-Create a NuCypher Keyring
+Alice uses an ethereum wallet to create publish access control policies to the ethereum blockchain,
+and a set of related keys called a *"nucypher keyring"*.
+
+First, instantiate a ``Signer`` to use for signing transactions. This is an API for Alice's ethereum
+wallet, which can be an keystore file, trezor, ethereum node, or clef.  The signer type and address
+are specified using a ``signer_uri``:
+
+- Trezor Hardware Wallet: ``'trezor'``
+- Keystore directory or keyfile: ``'keystore://<ABSOLUTE PATH TO KEYSTORE>'``
+- Local geth node: ``'web3://<ABSOLUTE PATH TO IPC ENDPOINT>'``
+- Clef external signer: ``'clef'``
+
+Here are some examples of usage:
 
 .. code-block:: python
 
-   from nucypher.config import NucypherKeyring
-   keyring = NucypherKeyring.generate(checksum_address='0x287A817426DD1AE78ea23e9918e2273b6733a43D', password=PASSWORD)
+    from nucypher.blockchain.eth.signers import Signer
+    wallet = Signer.from_uri('<YOUR SIGNER URI>')
+
+    # Trezor Wallet
+    trezor = Signer.from_uri('trezor')
+
+    # Local Geth Wallet
+    geth_signer = Signer.from_uri('web3:///home/user/.ethereum/geth.ipc')
+
+    # Keyfile Wallet
+    software_wallet = Signer.from_uri('keystore:///home/user/.ethereum/keystore/<KEY FILENAME>')
+
+If you are using a software wallet, be sure to unlock it:
+
+.. code-block:: python
+
+    # Unlocking a software wallet
+    >>> software_wallet.unlock_account(account='0x287A817426DD1AE78ea23e9918e2273b6733a43D', password=<ETH_PASSWORD>)
+
+
+Next, create a NuCypher Keyring. This step will generate a new set of related private keys used for nucypher cryptography operations,
+which can be integrated into your application's user on-boarding or setup logic. These keys will be stored on the disk,
+encrypted-at-rest using the supplied password. Use the same account as the signer; Keyrings are labeled and associated
+with ethereum accounts, so be sure to specify an account you control with a ``Signer``.
+
+.. code-block:: python
+
+   from nucypher.config.keyring import NucypherKeyring
+
+   keyring = NucypherKeyring.generate(
+       checksum_address='0x287A817426DD1AE78ea23e9918e2273b6733a43D',
+       password=NEW_PASSWORD  # used to encrypt nucypher private keys
+   )
+
+   # The keyring identifier
+   >>> keyring.checksum_address
+   0x287A817426DD1AE78ea23e9918e2273b6733a43D
+
+   # Be sure to use an address controlled by your signer!
+   >>> keyring.checksum_address in signer.accounts
+   True
+
+   # The root directory containing the private keys
+   >>> keyring.keyring_root
+   '/home/user/.local/share/nucypher/keyring'
+
+
+After generating a keyring, any future usage can decrypt the keys from the disk:
+
+.. code-block:: python
+
+   from nucypher.config.keyring import NucypherKeyring
+
+   # Restore an existing Alice keyring
+   keyring = NucypherKeyring(account='0x287A817426DD1AE78ea23e9918e2273b6733a43D')
+
+   # Unlock Alice's keyring
+   keyring.unlock(password=NUCYPHER_PASSWORD)
 
 
 .. code-block:: python
 
    from nucypher.characters.lawful import Alice, Ursula
 
-   # Instantiate the default teacher (only needed for initial run)
+   # Instantiate a default peer (optional)
    ursula = Ursula.from_seed_and_stake_info(seed_uri=<SEEDNODE URI>)
 
-   # Unlock Alice's Keyring
-   keyring = NucypherKeyring(account='0x287A817426DD1AE78ea23e9918e2273b6733a43D')
-   keyring.unlock(password=PASSWORD)
-
    # Instantiate Alice
-   alice = Alice(keyring=keyring, known_nodes=[ursula], provider_uri='~/.ethereum/geth.ipc')
+   alice = Alice(
+       keyring=keyring,              # NuCypher Keyring
+       known_nodes=[ursula],         # Peers (Optional)
+       signer=signer,                # Alice Wallet
+       provider_uri=<RPC ENDPOINT>,  # Ethereum RPC endpoint
+       domain='lynx'                 # NuCypher network (mainnet, lynx, ibex)
+   )
 
-   # Start Node Discovery
+   # Alice is identified by her ethereum address
+   alice.checksum_address
+   '0x287A817426DD1AE78ea23e9918e2273b6733a43D'
+
+   # Start node discovery
    alice.start_learning_loop(now=True)
 
 
-Alice needs to know about Bob in order to grant access by acquiring Bob's public key's through
-the application side channel:
+Alice needs to know Bob's public keys in order to grant him access. Alice's are expected to acquiring Bob's public
+keys through the application side channel.  Umbral public keys used in NuCypher's proxy re-encryption can be restored
+from hex for API usage:
 
 .. code-block:: python
 
    from umbral.keys import UmbralPublicKey
 
-   verifying_key = UmbralPublicKey.from_hex(verifying_key),
-   encrypting_key = UmbralPublicKey.from_hex(encryption_key)
+   verifying_key = UmbralPublicKey.from_hex(verifying_key_as_hex),
+   encrypting_key = UmbralPublicKey.from_hex(encryption_key_as_hex)
 
 
 Grant
 ^^^^^
 
-Then, Alice can grant access to Bob using his public keys:
+Alice can grant access to Bob using his public keys:
 
 .. code-block:: python
 
+   from umbral.keys import UmbralPublicKey
    from nucypher.characters.lawful import Bob
    from datetime import timedelta
    import maya
 
-   bob = Bob.from_public_keys(verifying_key=bob_verifying_key,  encrypting_key=bob_encrypting_key)
-   policy_end_datetime = maya.now() + timedelta(days=5)  # Five days from now
-   policy = alice.grant(bob,
-                        label=b'my-secret-stuff',  # Send to Bob via side channel
-                        m=2, n=3,
-                        expiration=policy_end_datetime)
+   # Deserialize bob's public keys from the application side-channel
+   verifying_key = UmbralPublicKey.from_hex(verifying_key_as_hex),
+   encrypting_key = UmbralPublicKey.from_hex(encryption_key_as_hex)
 
+   # Make a representation of Bob
+   bob = Bob.from_public_keys(verifying_key=bob_verifying_key,  encrypting_key=bob_encrypting_key)
+
+   policy = alice.grant(
+       bob,
+       label=b'my-secret-stuff',   # Send to Bob via side channel
+       m=2,                        # Threshold shares for access
+       n=3,                        # Total nodes with shares
+       expiration= maya.now() + timedelta(days=5)  # Five days from now
+    )
+
+   # The policy's public key
    policy_encrypting_key = policy.public_key
 
 
 Enrico: Encrypt a Secret
 ------------------------
-
-Setup Enrico
-^^^^^^^^^^^^
 
 First, a ``policy_encrypting_key`` must be retrieved from the application side channel, then
 to encrypt a secret using Enrico:
@@ -241,6 +278,8 @@ be fetched from the application side channel.  Then, Bob constructs his perspect
 Setup Bob
 ^^^^^^^^^
 
+Bob's setup is similar to Alice's above.
+
 .. code-block:: python
 
    from nucypher.characters.lawful import Alice, Bob, Enrico, Ursula
@@ -257,26 +296,35 @@ Setup Bob
    alice = Alice.from_public_keys(verifying_key=alice_verifying_key)
    enrico = Enrico(policy_encrypting_key=policy_encrypting_key)
 
-   # Generate a new Bob keyring
-   keyring = NucypherKeyring.generate(checksum_address='0xC080708026a3A280894365Efd51Bb64521c45147', password=PASSWORD)
-
    # Restore Existing Bob keyring
-   # keyring = NucypherKeyring(account='0xC080708026a3A280894365Efd51Bb64521c45147')
+   keyring = NucypherKeyring(account='0xC080708026a3A280894365Efd51Bb64521c45147')
 
    # Unlock keyring and make Bob
    keyring.unlock(PASSWORD)
-   bob = Bob(keyring=keyring, known_nodes=[ursula])
+   bob = Bob(
+       keyring=keyring,
+       known_nodes=[ursula],
+       domain='lynx'
+   )
 
 
 Join a Policy
 ^^^^^^^^^^^^^
 
-Next, Bob needs to join the policy:
+Next, Bob needs to join the policy using the policy label and alice's public key.  Bob needs
+to retrieve both of these from the application side channel first.
 
 .. code-block:: python
 
+   # Make alice from known public key (from application side channel)
+   alice = Alice.from_public_keys(verifying_key=alice_verifying_key)
+
+   # Use alice's public key and the label to join the access policy
    alice_public_key = alice.public_keys(SigningPower)
-   bob.join_policy(label=label, alice_verifying_key=alice_public_key, block=True)
+   bob.join_policy(
+       label=label,
+       alice_verifying_key=alice_public_key,
+   )
 
 
 Retrieve and Decrypt
@@ -286,7 +334,9 @@ Then Bob can retrieve and decrypt the ciphertext:
 
 .. code-block:: python
 
-   cleartexts = bob.retrieve(label=label,
-                             message_kit=ciphertext,
-                             data_source=enrico,
-                             alice_verifying_key=alice_public_key)
+   cleartexts = bob.retrieve(
+       label=label,
+       message_kit=ciphertext,
+       data_source=enrico,
+       alice_verifying_key=alice_public_key
+   )
