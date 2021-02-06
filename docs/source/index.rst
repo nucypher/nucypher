@@ -1,53 +1,15 @@
-NuCypher
-========
-*A decentralized cryptological network offering accessible, intuitive, and extensible runtimes and interfaces for secrets management and dynamic access control.*
+Introduction
+=============
 
-
-----
-
-.. image:: https://img.shields.io/pypi/v/nucypher.svg?style=flat
-    :target: https://pypi.org/project/nucypher/
-
-.. image:: https://img.shields.io/pypi/pyversions/nucypher.svg
-    :target: https://pypi.org/project/nucypher/
-
-.. image:: https://img.shields.io/circleci/project/github/nucypher/nucypher.svg?logo=circleci
-    :target: https://circleci.com/gh/nucypher/nucypher/tree/main
-    :alt: CircleCI build status
-
-.. image:: https://codecov.io/gh/nucypher/nucypher/branch/main/graph/badge.svg
-    :target: https://codecov.io/gh/nucypher/nucypher
-
-.. image:: https://img.shields.io/discord/411401661714792449.svg?logo=discord
-    :target: https://discord.gg/7rmXa3S
-    :alt: Discord
-
-.. image:: https://readthedocs.org/projects/nucypher/badge/?version=latest
-    :target: https://nucypher.readthedocs.io/en/latest/
-    :alt: Documentation Status
-
-.. image:: https://img.shields.io/pypi/l/nucypher.svg
-    :target: https://www.gnu.org/licenses/gpl-3.0.html
 
 .. _Umbral: https://github.com/nucypher/pyUmbral
 
-The NuCypher network provides accessible, intuitive, and extensible runtimes and interfaces for secrets management and dynamic access control.
 
-* Accessible - The network is permissionless and censorship-resistant.
-  There are no gate-keepers and anyone can use it.
-* Intuitive - The network leverages the classic cryptological narrative of Alice and Bob
-  (with additional characters where appropriate). This character-based narrative permeates the code-base and helps
-  developers write safe, misuse-resistant code.
-* Extensible - The network currently supports proxy re-encryption but can be extended to provide support for other cryptographic primitives.
+The NuCypher network is a decentralized network of nodes that perform threshold
+cryptography operations serving users with secrets management and dynamic access control.
+``nucypher`` is the python library and CLI for interacting with the
+decentralized threshold cryptography network.
 
-Access permissions are baked into the underlying encryption,
-and access can only be explicitly granted by the data owner via sharing policies.
-Consequently, the data owner has ultimate control over access to their data.
-At no point is the data decrypted nor can the underlying private keys be
-determined by the NuCypher network.
-
-Under the hood, the NuCypher network uses the Umbral_
-threshold proxy re-encryption scheme to provide cryptographic access control.
 
 How does NuCypher work?
 -----------------------
@@ -60,7 +22,7 @@ anyone she wants by creating a policy and uploading it to
 the NuCypher network.
 
 2. A group of Ursulas, which are nodes on the NuCypher network,
-receive information about the policy, called a PolicyArrangement that include
+receive information about the policy, called a ``PolicyArrangement`` that include
 a re-encryption key share. The Ursulas stand ready to re-encrypt data in exchange for payment
 in fees and token rewards. Thanks to the use of proxy re-encryption,
 Ursulas and the storage layer never have access to Alice's plaintext data.
@@ -84,7 +46,6 @@ More detailed information:
 
 - GitHub https://www.github.com/nucypher/nucypher
 - Website https://www.nucypher.com/
-
 
 Whitepapers
 -----------
@@ -119,29 +80,43 @@ Whitepapers
     *by David Nuñez - NuCypher*
 
 
-.. warning::
+.. toctree::
+   :maxdepth: 1
+   :caption: Staking
 
-   NuCypher is currently in the *Beta* development stage and is **not** intended for use in production.
-
+   staking/overview
+   staking/stake_initialization
+   staking/stake_management
+   staking/running_a_worker
+   staking/best_practices
+   staking/worklock
+   staking/testnet
+   staking/remote_worker_cli
 
 .. toctree::
    :maxdepth: 1
-   :caption: Guides
+   :caption: Application Development
 
-   guides/installation_guide
-   guides/network_node/network_node
-   guides/development/development
-   guides/ethereum_node
-   guides/worklock_guide
-   guides/dao_guide
-   guides/environment_variables
-   guides/contribution_guide
+   application_development/getting_started
+   application_development/http_character_control
+   application_development/cli_examples
+   application_development/local_fleet_demo
+   application_development/testnet
+
+.. toctree::
+   :maxdepth: 2
+   :caption: References
+
+   references/pip-installation
+   references/cli_reference
+   references/signers
+   references/environment_variables
+   references/networks
 
 .. toctree::
    :maxdepth: 1
    :caption: Demos
 
-   demos/local_fleet_demo
    demos/finnegans_wake_demo
    demos/heartbeat_demo
 
@@ -160,22 +135,9 @@ Whitepapers
 
 .. toctree::
    :maxdepth: 1
-   :caption: API
+   :caption: APIS
 
-   api/nucypher.blockchain
-   api/nucypher.characters
-   api/nucypher.config
-   api/nucypher.policy
-   api/nucypher.network
-   api/nucypher.datastore
-   api/nucypher.crypto
-   api/nucypher.acumen
-
-.. toctree::
-   :maxdepth: 1
-   :glob:
-   :caption: Contracts API
-
+   api/modules
    contracts_api/index
 
 .. toctree::
@@ -188,18 +150,16 @@ Whitepapers
 
 .. toctree::
    :maxdepth: 1
-   :caption: Glossary
-
-   glossary
-
-.. toctree::
-   :maxdepth: 1
    :caption: Support
 
+   support/contribution
    support/node_providers
    support/community
    support/troubleshooting
    support/faq
+   glossary
+
+
 
 
 Indices and Tables

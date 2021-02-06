@@ -1,3 +1,7 @@
+=============
+Contracts API
+=============
+
 Token contracts
 ===============
 

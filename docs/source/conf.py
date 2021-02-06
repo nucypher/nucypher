@@ -89,11 +89,7 @@ language = None
 # List of patterns, relative to source directory, that match files and
 # directories to ignore when looking for source files.
 # This pattern also affects html_static_path and html_extra_path.
-exclude_patterns = [
-    'api/nucypher.rst',
-    'api/modules.rst',
-    'api/nucypher.cli*'
-]
+exclude_patterns = []
 
 # The name of the Pygments (syntax highlighting) style to use.
 pygments_style = None
@@ -239,6 +235,7 @@ def run_apidoc(_):
     apidoc_command.extend(['-fME',
                            '-t', f'{source_dir / "apidoc"}',
                            '-o', f'{source_dir / "api"}',
+                           '-H', 'Python API',
                            f'{nucypher_module_dir}'])
 
     # ---- exclusion patterns (*must be last to be added*) ----
@@ -255,6 +252,7 @@ def run_apidoc(_):
         Path('nucypher', 'utilities'),
         Path('nucypher', 'blockchain', 'eth', 'sol'),
         Path('nucypher', 'blockchain', 'eth', 'economics.py'),
+        Path('nucypher', 'cli')
     ]
     for exclusion_item in exclusion_items:
         apidoc_command.append(f'{nucypher_module_dir / exclusion_item}')

@@ -22,7 +22,6 @@ Deployment Procedure
 --------------------
 
 This section provides a step-by-step guide of how NuCypher contracts are deployed.
-For a guide of how to deploy these contracts automatically, see the :doc:`Deployment Guide </guides/deployment_guide>`.
 
 #. Deploy ``NuCypherToken`` with all future supply tokens
 #. Deploy stub for ``StakingEscrow`` with a dispatcher targeting it
@@ -105,6 +104,8 @@ Ursula Makes a Commitment
 
 In order to make a commitment to the next period, workers call ``StakingEscrow.commitToNextPeriod()`` wherein activities for the next period are registered.
 The staker gets a reward for every commitment period.
+
+.. _ursula-generates-staking-rewards:
 
 Ursula Generates Staking Rewards
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^

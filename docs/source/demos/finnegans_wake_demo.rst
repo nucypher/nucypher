@@ -34,14 +34,22 @@ without revealing data keys to intermediary entities.
 Install NuCypher
 ----------------
 
-    Acquire the ``nucypher`` application code and install the dependencies.
-    For a full installation guide see the :doc:`/guides/installation_guide`.
+Acquire the ``nucypher`` application code and install the dependencies:
+
+.. code::
+
+    $ git clone https://github.com/nucypher/nucypher.git
+    ...
+    $ python -m venv nucypher-venv
+    $ source nucypher-venv/bin/activate
+    (nucypher-venv)$ cd nucypher
+    (nucypher-venv)$ pip install -e .
 
 
 Run a fleet of federated Ursulas
 --------------------------------
-    Run the local fleet of federated Ursulas in a separate terminal. This provides a network of 12 federated
-    Ursulas.
+    Run the local fleet of federated Ursulas in a separate terminal.
+    This provides a network of 12 federated Ursulas.
 
 .. code::
 

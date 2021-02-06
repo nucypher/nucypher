@@ -117,14 +117,12 @@ sets of keys separate.
 Q: How can I get help integrating nucypher into my application?
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-See :ref:`application-development`. To chat directly with our team, please join our `Discord <http://discord.nucypher.com>`_.
+See :doc:`/application_development/getting_started`. To chat directly with our team, please join our `Discord <http://discord.nucypher.com>`_.
 
 Q: How do I integrate nucypher if my application is not written in Python?
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Nucypher also provides REST-like HTTP endpoints for working with characters. See :ref:`character-control-guide`.
-
-
 
 
 Running a Node
@@ -145,7 +143,7 @@ Inflation Rewards (NU) and Policy Fees (ETH).
 Q: How are Policy Fees (ETH) determined?
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-The amount of fees a staker can earn in a given period is determined by multiple factors, including (1) the minimum fee rate set by the staker, (2) the number of active policies issued by users of the network to that staker, and (3) whether the staker has previously committed to being available for that period. See `Service Fees (Pricing) <https://docs.nucypher.com/en/latest/architecture/service_fees.html>`_ for details.
+The amount of fees a staker can earn in a given period is determined by multiple factors, including (1) the minimum fee rate set by the staker, (2) the number of active policies issued by users of the network to that staker, and (3) whether the staker has previously committed to being available for that period. See :doc:`/architecture/service_fees` for details.
 
 Q: How many Ursulas per period collect Inflation rewards (NU)?
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -155,7 +153,10 @@ Every Ursula that is “online” and “available” will receive a cut based o
 Q: How/Where can I acquire NU tokens?
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-NU tokens can be acquired via the "*WorkLock*" mechanism developed by NuCypher - more information is available in our `original blog post <https://blog.nucypher.com/the-worklock/>`_ and :ref:`worklock-guide`.
+The initial distribution of NU was done via the "*WorkLock*" mechanism developed by NuCypher -
+more information is available in our `original blog post <https://blog.nucypher.com/the-worklock/>`_ and :ref:`worklock-guide`.
+
+Participation in WorkLock is now closed, but since NU is an ERC-20 token, it can be purchased through exchanges.
 
 Q: When/Why does a node operator need to use ``mint`` command?
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -165,10 +166,7 @@ The period following stake termination or later, but before withdrawing escrowed
 Q: What are the recommended specifications for running a nucypher node?
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Worker nodes need to run ``nucypher`` and a local ethereum node. In total, you will
-require at least 4GB for RAM. Nodes also need 24/7 uptime and a static, public IPv4 address.
-
-For ``nucypher`` specific requirements, see `System Requirements and Dependencies <https://docs.nucypher.com/en/latest/guides/installation_guide.html#system-requirements-and-dependencies/>`_.
+See :ref:`ursula-config-guide`.
 
 Q: How do I set up a network node?
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -199,7 +197,7 @@ the worker address to the stake.
 Q: How do I maximize the inflation-based rewards I will receive?
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-    * Lock your stake for a year or more - stakes with tokens locked for a year or more will be afforded the maximum time coefficient for the calculation of inflation rewards - see `Ursula Generates Staking Rewards <https://docs.nucypher.com/en/latest/architecture/contracts.html#ursula-generates-staking-rewards>`_
+    * Lock your stake for a year or more - stakes with tokens locked for a year or more will be afforded the maximum time coefficient for the calculation of inflation rewards - see :ref:`ursula-generates-staking-rewards`.
     * Enable :ref:`sub-stake-restaking` to relock inflation rewards and increase your stake size and consequently your proportion of future inflation rewards
     * Disable :ref:`sub-stake-winddown` to maintain locked stake duration
 
@@ -255,8 +253,7 @@ This is **ONLY** a heuristic to ensure that your node is running correctly, it d
 Q: What's the best way to run Ursula in the background?
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Either through :ref:`Docker <run-ursula-with-docker>`
-or `systemd <https://docs.nucypher.com/en/latest/guides/installation_guide.html#systemd-service-installation>`_.
+Using docker :ref:`Docker <run-ursula-with-docker>`
 
 Q: When installing on Docker, what do I input for <NETWORK NAME>?
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -369,15 +366,6 @@ of staking and running a node and/or are concerned about gas costs relative to s
 
 If you are comfortable with technical requirements of staking or wish to implement a sophisticated staking configuration
 (e.g. restake toggles,  stake extensions, sub-stakes, adding stake, etc.) it may not be the right option.
-
-
-Q: Can I manage my own stake settings when participating in WorkLock through CoinList?
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-You do not have the ability to change staking configs with CoinList.
-There is one setting only – 6 month duration, restake on, winddown on – for all CoinList participants.
-
-See NuCypher coinlist for more details: `CoinList <https://coinlist.co/asset/nucypher>`_
 
 
 Q: How does my worker node choose what price to use for transactions? Can I control this?

@@ -1,14 +1,10 @@
 .. _managing-cloud-workers:
 
-===================================================
-Nucypher CLI tools for running and managing workers
-===================================================
+Cloud Worker Management
+=======================
 
-Cloudworkers CLI
-----------------
-
-Nucypher maintains some simple tools leveraging open source tools such as Ansible, to make it easy
-to keep your Nucypher Ursula nodes working and up to date.
+NuCypher maintains a CLI to assist with the management of multiple Nucypher Ursula nodes deployed on cloud infrastructure,
+that leverages automation tools such as Ansible and Docker.
 
 .. code:: bash
 

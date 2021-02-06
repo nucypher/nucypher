@@ -1,13 +1,12 @@
-=========
-CLI Guide
-=========
+Alice & Bob CLI
+=================
 
 Overview
 --------
 
 This guide is an example of NuCypher's decentralized network allowing Alice to share a secret
 with Bob using the NuCypher Network via the ``nucypher`` CLI. It is analogous to the ``python`` example
-in :doc:`getting_started`.
+in :doc:`/application_development/getting_started`.
 
 .. note::
 
@@ -18,19 +17,21 @@ in :doc:`getting_started`.
 To better understand the commands and their options, use the ``--help`` option.
 
 
-Initialize Alice and Bob
-------------------------
+Initialize Testnet Alice and Bob
+---------------------------------
+
 .. code::
 
-    (nucypher)$ nucypher alice init --provider <YOUR PROVIDER URI>
+    # Create a new Alice
+    (nucypher)$ nucypher alice init --provider <PROVIDER URI> --signer <SIGNER URI> --network lynx
 
-    (nucypher)$ nucypher bob init --provider <YOUR PROVIDER URI>
+    # Create a new Bob
+    (nucypher)$ nucypher bob init --provider <PROVIDER URI> --signer <SIGNER URI> --network lynx
 
-Replace ``<YOUR PROVIDER URI>`` with a valid node web3 node provider string, for example:
+Replace ``<YOUR PROVIDER URI>`` with a valid node web3 node provider string on the goerli ethereum network, for example:
 
-    - ``ipc:///home/<username>/.ethereum/geth.ipc`` - IPC Socket-based JSON-RPC server
+    - ``ipc:///home/<username>/.ethereum/geth.ipc`` - IPC Socket-based JSON-RPC server (Geth)
     - ``https://<host>`` - HTTP(S)-based JSON-RPC server
-    - ``wss://<host>:8080`` - Websocket(Secure)-based JSON-RPC server
 
 
 Get Bob's Public Keys
@@ -74,7 +75,7 @@ Enrico Encrypts Secret
 
     (nucypher)$ nucypher enrico encrypt \
     >     --policy-encrypting-key 021664726f939a8e79df4f4b737da2dd78d1c0fea106d19d6fce4df678e552c561 \
-    >     --message "Llama's ass"
+    >     --message "Peace at Dawn"
 
 Output:
 
@@ -99,11 +100,11 @@ Output:
 
 .. code::
 
-    cleartexts ...... ['TGxhbWEncyBhc3M=']
+    cleartexts ...... ['UGVhY2UgYXQgRGF3bg==']
 
-The resulting cleartext is ``"Llama's ass"`` in base64:
+The resulting cleartext is ``"Peace at Dawn"`` in base64:
 
 .. code::
 
-    (nucypher)$ echo TGxhbWEncyBhc3M= | base64 -d
-    Llama's ass
+    (nucypher)$ echo UGVhY2UgYXQgRGF3bg== | base64 -d
+    Peace at Dawn

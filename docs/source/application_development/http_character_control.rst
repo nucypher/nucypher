@@ -1,8 +1,7 @@
 .. _character-control-guide:
 
-=======================
-Character Control Guide
-=======================
+HTTP Character Control
+======================
 
 The `Character Control` is a module that contains useful REST-like HTTP endpoints for working with NuCypher characters.
 
@@ -20,10 +19,10 @@ The `Character Control` is a module that contains useful REST-like HTTP endpoint
 
 
 API Request/Response Structure Overview
-=======================================
+---------------------------------------
 
 Status Codes
-------------
+~~~~~~~~~~~~
 All documented API endpoints use JSON and are REST-like.
 
 Some common returned status codes you may encounter are:
@@ -38,15 +37,14 @@ This tells you that the server successfully completed the call.
 If you are returned a 400, check the data that you're sending to the server.
 See below for what the character control API expects.
 
-.. _`Contribution Guide`: https://docs.nucypher.com/en/latest/guides/contribution_guide.html
 .. _`Discord`: https://discord.gg/7rmXa3S
 
 If you are ever given a 500 status code, we'd like to know about it!
-You can see our `Contribution Guide`_ for getting involved.
+You can see our :ref:`Contribution Guide <contribution-guide>` for getting involved.
 Ideally, you can share some information with us about what you were doing when you encountered the 500 in the form of a GitHub issue, or just tell us in our `Discord`_.
 
 HTTP Methods
-------------
+~~~~~~~~~~~~
 Currently, the character control API only uses the following HTTP methods:
 
 - ``POST``
@@ -56,7 +54,7 @@ We don't exactly follow RESTful methodology precisely.
 Take careful note following the API endpoints to see what to send and what to expect as a response.
 
 Request Format
---------------
+~~~~~~~~~~~~~~
 The character control API uses JSON for all its endpoints. A request may look like:
 
 .. code::
@@ -82,7 +80,7 @@ A datetime, like ``expiration``, must be passed in as an ISO-8601 formatted date
 If you are missing a required argument in your request, you will be returned a 400 status code.
 
 Response Format
----------------
+~~~~~~~~~~~~~~~
 Like we determined above, the character control API uses JSON for all its endpoints.
 The same goes for our API's responses. One may look like:
 
@@ -102,13 +100,13 @@ Be sure to also check the returned status code of the request. All successful ca
 See the above "Status Codes" section on what to do in the event of a 400 or 500.
 
 Character Control Endpoints
-===========================
+---------------------------
 
 Alice
------
+~~~~~
 
 derive_policy_encrypting_key
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+****************************
 
 This endpoint controls the ``Alice.get_policy_encrypting_key_from_label`` method.
 
@@ -117,7 +115,7 @@ This endpoint controls the ``Alice.get_policy_encrypting_key_from_label`` method
 - Returns: a hex-encoded ``policy_encrypting_key``
 
 grant
-~~~~~
+*****
 
 This endpoint controls the ``Alice.grant`` method.
 
@@ -139,10 +137,10 @@ This endpoint controls the ``Alice.grant`` method.
 For more details on these arguments, see the nucypher documentation on the ``Alice.grant`` Python API method.
 
 Bob
----
+~~~
 
 retrieve
-~~~~~~~~
+********
 
 This endpoint controls the ``Bob.retrieve`` method.
 
@@ -158,10 +156,10 @@ This endpoint controls the ``Bob.retrieve`` method.
 For more details on these arguments, see the nucypher documentation on the ``Bob.retrieve`` Python API method.
 
 Enrico (DataSource)
--------------------
+~~~~~~~~~~~~~~~~~~~
 
 encrypt_message
-~~~~~~~~~~~~~~~
+***************
 
 This endpoint controls the ``Enrico.encrypt_message`` method.
 
