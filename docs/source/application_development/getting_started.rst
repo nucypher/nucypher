@@ -222,7 +222,9 @@ Alice can grant access to Bob using his public keys:
    from umbral.keys import UmbralPublicKey
    from nucypher.characters.lawful import Bob
    from datetime import timedelta
+   from web3 import Web3
    import maya
+
 
    # Deserialize bob's public keys from the application side-channel
    verifying_key = UmbralPublicKey.from_hex(verifying_key_as_hex),
@@ -236,11 +238,60 @@ Alice can grant access to Bob using his public keys:
        label=b'my-secret-stuff',   # Send to Bob via side channel
        m=2,                        # Threshold shares for access
        n=3,                        # Total nodes with shares
+       rate=Web3.toWei(50, 'gwei'),  # 50 Gwei is the minimum rate (per node per period)
        expiration= maya.now() + timedelta(days=5)  # Five days from now
     )
 
    # The policy's public key
    policy_encrypting_key = policy.public_key
+
+
+Putting it all together, here's an example starter script for granting access using a
+software wallet and an existing keyring:
+
+.. code-block:: python
+
+    from nucypher.blockchain.eth.signers import Signer
+    from nucypher.config.keyring import NucypherKeyring
+    from nucypher.characters.lawful import Alice, Bob
+    from umbral.keys import UmbralPublicKey
+    from datetime import timedelta
+    from web3 import Web3
+    import maya
+
+
+    # Restore Existing NuCypher Keyring
+    keyring = NucypherKeyring(account='0xdeadbeef')
+    keyring.unlock('KEYRING PASSWORD')
+
+    # Ethereum Software Wallet
+    wallet = Signer.from_signer_uri("keystore:///home/user/.ethereum/keystore/UTC--2021...')
+    wallet.unlock_account('0xdeadbeef', 'SOFTWARE WALLET PASSWORD')
+
+    # Make Alice
+    alice = Alice(
+        domain='lynx',  # testnet
+        keyring=keyring,
+        provider_uri='GOERLI RPC ENDPOINT',
+        signer=wallet,
+    )
+
+    # From Public Key Side Channel
+    verifying_key = UmbralPublicKey.from_hex('0278ad02da8083aea357a8ed675dcc0b6e9c78557c506ea10b102b4b282c006b12')
+    encrypting_key = UmbralPublicKey.from_hex('03ec6b4e1f2b7d06ac544dde86730f9a4047e80a0a4d3c1566e88afe4bb449bdd9')
+
+    # Make Stranger-Bob
+    bob = Bob.from_public_keys(verifying_key=verifying_key, encrypting_key=encrypting_key)
+
+    # Grant Bob Access
+    policy = alice.grant(
+        bob,
+        label=b'my-secret-stuff',     # Send to Bob via side channel
+        m=2,                          # Threshold shares for access
+        n=3,                          # Total nodes with shares
+        rate=Web3.toWei(50, 'gwei'),  # 50 Gwei is the minimum rate (per node per period)
+        expiration= maya.now() + timedelta(days=5)  # Five days from now
+     )
 
 
 Enrico: Encrypt a Secret

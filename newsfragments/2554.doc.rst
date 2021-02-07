@@ -1,0 +1,1 @@
+Expands example granting script for Alice using the python API.
