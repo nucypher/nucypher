@@ -483,9 +483,12 @@ def grant(general_config,
             click.confirm('Is this the correct grantee (Bob)?', abort=True)
         bob_encrypting_key = card.encrypting_key.hex()
         bob_verifying_key = card.verifying_key.hex()
-    else:
+
+    if not bob_encrypting_key or bob_verifying_key:
         emitter.message("*Caution: Only enter public keys*")
+    if not bob_encrypting_key:
         bob_encrypting_key = click.prompt("Enter Bob's encrypting key")
+    if not bob_verifying_key:
         bob_verifying_key = click.prompt("Enter Bob verifying key")
 
     # Interactive collection follows:

@@ -147,4 +147,4 @@ def confirm_staged_grant(emitter, grant_request: Dict) -> None:
     table = [[field, value] for field, value in pretty_request.items()]
     table.append(['policy value', f'{total_gwei} gwei'])
     emitter.echo(tabulate(table, tablefmt="simple"))
-    click.confirm('\nGrant access and sign transaction?', abort=True, bold=True)
+    click.confirm('\nGrant access and sign transaction?', abort=True)
