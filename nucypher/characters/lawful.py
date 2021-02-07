@@ -292,6 +292,14 @@ class Alice(Character, BlockchainPolicyAuthor):
             raise TypeError("For a federated policy, you must specify expiration (duration_periods don't count).")
         return base_payload
 
+    def _check_grant_requirements(self, policy):
+        """Called immediately before granting."""
+
+        # TODO: Remove when the time is right.
+        if policy.expiration > END_OF_POLICIES_PROBATIONARY_PERIOD:
+            raise self.ActorError(f"The requested duration for this policy (until {policy.expiration}) exceeds the "
+                                  f"probationary period ({END_OF_POLICIES_PROBATIONARY_PERIOD}).")
+
     def grant(self,
               bob: "Bob",
               label: bytes,
@@ -313,12 +321,7 @@ class Alice(Character, BlockchainPolicyAuthor):
                 self.remember_node(node=handpicked_ursula)
 
         policy = self.create_policy(bob=bob, label=label, **policy_params)
-
-        # TODO: Remove when the time is right.
-        if policy.expiration > END_OF_POLICIES_PROBATIONARY_PERIOD:
-            raise self.ActorError(f"The requested duration for this policy (until {policy.expiration}) exceeds the "
-                                  f"probationary period ({END_OF_POLICIES_PROBATIONARY_PERIOD}).")
-
+        self._check_grant_requirements(policy=policy)
         self.log.debug(f"Generated new policy proposal {policy} ... ")
 
         #

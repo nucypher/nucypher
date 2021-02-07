@@ -185,16 +185,19 @@ def check_character_state_after_test(request):
             tracker.work_tracker.stop()
 
 
-
-
 @pytest.fixture(scope='session', autouse=True)
 def mock_datastore(monkeysession):
     monkeysession.setattr(lmdb, 'open', mock_lmdb_open)
     yield
-    
 
 
 @pytest.fixture(scope='session', autouse=True)
 def mock_get_external_ip_from_url_source(session_mocker):
     target = 'nucypher.cli.actions.configure.determine_external_ip_address'
+    session_mocker.patch(target, return_value=MOCK_IP_ADDRESS)
+
+
+@pytest.fixture(scope='session', autouse=True)
+def disable_check_grant_requirements(session_mocker):
+    target = 'nucypher.characters.lawful.Alice._check_grant_requirements'
     session_mocker.patch(target, return_value=MOCK_IP_ADDRESS)
