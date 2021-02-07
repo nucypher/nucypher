@@ -63,25 +63,38 @@ def run(general_config, policy_encrypting_key, dry_run, http_port):
 def encrypt(general_config, policy_encrypting_key, message, file, ipfs):
     """Encrypt a message under a given policy public key."""
 
-    # Setup
     emitter = setup_emitter(general_config=general_config, banner=policy_encrypting_key)
+
+    if ipfs:
+        try:
+            import ipfshttpclient
+        except ImportError:
+            raise ImportError("IPFS HTTP client not installed.  Run pip install ipfshttpclient then try again.")
+
+        # Connect to IPFS before proceeding
+        ipfs_client = ipfshttpclient.connect(ipfs)
+        emitter.message(f"Connected to IPFS Gateway {ipfs}")
+
+    if not policy_encrypting_key:
+        policy_encrypting_key = click.prompt("Enter policy public key", type=click.STRING)
+
     ENRICO = _create_enrico(emitter, policy_encrypting_key)
-    if not (bool(message) ^ bool(file)):
-        emitter.error(f'Pass either --message or --file. Got {message}, {file}.')
+    if message and file:
+        emitter.error(f'Pass either --message or --file, not both.')
         raise click.Abort
+
+    if not message:
+        message = click.prompt('Enter plaintext to encrypt', type=click.STRING)
 
     # Encryption Request
     encryption_request = {'policy_encrypting_key': policy_encrypting_key, 'message': message, 'file': file}
     response = ENRICO.controller.encrypt_message(request=encryption_request)
 
-    # Handle Ciphertext
-    # TODO: This might be crossing the bridge of being application code
+    # Handle ciphertext upload to sidechannel
     if ipfs:
-        import ipfshttpclient
-        emitter.message(f"Connecting to IPFS Gateway {ipfs}")
-        ipfs_client = ipfshttpclient.connect(ipfs)
         cid = ipfs_client.add_str(response['message_kit'])
         emitter.message(f"Uploaded message kit to IPFS (CID {cid})", color='green')
+
     return response
 
 

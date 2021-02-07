@@ -291,11 +291,11 @@ class AliceCharacterOptions:
                                        client_password=client_password,
                                        start_learning_now=load_seednodes,
                                        lonely=self.config_options.lonely)
-
             return ALICE
         except NucypherKeyring.AuthenticationFailed as e:
             emitter.echo(str(e), color='red', bold=True)
             click.get_current_context().exit(1)
+
 
 
 group_character_options = group_options(
@@ -473,6 +473,7 @@ def grant(general_config,
         raise click.BadOptionUsage(option_name='--bob', message=message)
 
     if bob:
+        emitter.message(f"Searching contacts for {bob}\n", color='yellow')
         card = Card.load(identifier=bob)
         if card.character is not Bob:
             emitter.error('Grantee card is not a Bob.')
@@ -482,6 +483,10 @@ def grant(general_config,
             click.confirm('Is this the correct grantee (Bob)?', abort=True)
         bob_encrypting_key = card.encrypting_key.hex()
         bob_verifying_key = card.verifying_key.hex()
+    else:
+        emitter.message("*Caution: Only enter public keys*")
+        bob_encrypting_key = click.prompt("Enter Bob's encrypting key")
+        bob_verifying_key = click.prompt("Enter Bob verifying key")
 
     # Interactive collection follows:
     # TODO: Extricate to support modules
@@ -500,14 +505,12 @@ def grant(general_config,
         label = click.prompt(f'Enter label to grant Bob {bob_verifying_key[:8]}', type=click.STRING)
 
     if not force and not expiration:
-        if ALICE.duration_periods:
-            # TODO: use a default in days or periods?
-            expiration = maya.now() + timedelta(days=ALICE.duration_periods)  # default
-            if not click.confirm(f'Use default policy duration (expires {expiration})?'):
-                expiration = click.prompt('Enter policy expiration datetime', type=click.DateTime())
-        else:
-            # No policy duration default default available; Go interactive
-            expiration = click.prompt('Enter policy expiration datetime', type=click.DateTime())
+        expiration_prompt = 'Enter policy expiration (Y-M-D H:M:S)'
+        expiration = click.prompt(expiration_prompt, type=click.DateTime())
+        # TODO: use a default expiration in periods?
+        # if ALICE.duration_periods:
+            # expiration = maya.now() + timedelta(days=ALICE.duration_periods)  # default
+            # expiration = click.prompt(expiration_prompt, type=click.DateTime())
 
     # TODO: Remove this line when the time is right.
     enforce_probationary_period(emitter=emitter, expiration=expiration)
@@ -525,14 +528,15 @@ def grant(general_config,
     # Policy Value
     policy_value_provided = bool(value) or bool(rate)
     if not ALICE.federated_only and not policy_value_provided:
-        rate = ALICE.default_rate  # TODO #1709 - Fine tuning and selection of default rates
+        # TODO #1709 - Fine tuning and selection of default rates
+        rate = ALICE.default_rate or Web3.toWei(50, 'gwei')  # TODO: Unhardcode, workaround for lynx/ibex testnet.
         if not force:
             default_gwei = Web3.fromWei(rate, 'gwei')
-            prompt = "Confirm rate of {node_rate} gwei ({total_rate} gwei per period)?"
-            if not click.confirm(prompt.format(node_rate=default_gwei, total_rate=default_gwei*n), default=True):
+            prompt = "Confirm rate of {node_rate} gwei * {n} ({total_rate} gwei per period)?"
+            if not click.confirm(prompt.format(node_rate=default_gwei, total_rate=default_gwei*n, n=n), default=True):
                 interactive_rate = click.prompt('Enter rate per period in gwei', type=GWEI)
                 # TODO: Validate interactively collected rate (#1709)
-                click.confirm(prompt.format(node_rate=rate, total_rate=rate*n), default=True, abort=True)
+                click.confirm(prompt.format(node_rate=rate, total_rate=rate*n, n=n), default=True, abort=True)
                 rate = Web3.toWei(interactive_rate, 'gwei')
 
     # Request

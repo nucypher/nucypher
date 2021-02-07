@@ -19,6 +19,7 @@ from typing import Type, Union, Dict
 
 import click
 from constant_sorrow.constants import UNKNOWN_DEVELOPMENT_CHAIN_ID
+from web3.main import Web3
 
 from nucypher.blockchain.eth.deployers import BaseContractDeployer
 from nucypher.blockchain.eth.registry import LocalContractRegistry, InMemoryContractRegistry
@@ -139,8 +140,11 @@ def verify_upgrade_details(blockchain: Union[BlockchainDeployerInterface, Blockc
 
 
 def confirm_staged_grant(emitter, grant_request: Dict) -> None:
-    # TODO: Expand and detail
-    emitter.echo("Successfully staged grant.  Please review the details:\n", color='green')
-    table = ([field, value] for field, value in grant_request.items())
+    pretty_request = grant_request.copy()      # Do not mutate
+    total_gwei = Web3.fromWei(pretty_request['n'] * pretty_request['rate'], 'gwei')
+    pretty_request['rate'] = f"{pretty_request['rate']} wei/period * n"
+    emitter.echo("\nSuccessfully staged grant, Please review the details:\n", color='green')
+    table = [[field, value] for field, value in pretty_request.items()]
+    table.append(['policy value', f'{total_gwei} gwei'])
     emitter.echo(tabulate(table, tablefmt="simple"))
-    click.confirm('\nGrant access and sign transaction?', abort=True)
+    click.confirm('\nGrant access and sign transaction?', abort=True, bold=True)

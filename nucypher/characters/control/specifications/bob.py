@@ -42,23 +42,30 @@ class JoinPolicy(BaseSchema):  #TODO:  this doesn't have a cli implementation
 
 class Retrieve(BaseSchema):
     label = fields.Label(
-        required=True, load_only=True,
-        click=options.option_label(required=True))
+        required=True,
+        load_only=True,
+        click=options.option_label(required=False)
+    )
     policy_encrypting_key = fields.Key(
         required=True,
         load_only=True,
-        click=options.option_policy_encrypting_key(required=True))
+        click=options.option_policy_encrypting_key(required=False)
+    )
     alice_verifying_key = fields.Key(
-        required=True, load_only=True,
+        required=False,
+        load_only=True,
         click=click.option(
             '--alice-verifying-key',
             '-avk',
             help="Alice's verifying key as a hexadecimal string",
             type=click.STRING,
-            required=False))
+            required=False)
+    )
     message_kit = fields.UmbralMessageKit(
-        required=True, load_only=True,
-        click=options.option_message_kit(required=True))
+        required=True,
+        load_only=True,
+        click=options.option_message_kit(required=False)
+    )
 
     cleartexts = fields.List(fields.Cleartext(), dump_only=True)
 

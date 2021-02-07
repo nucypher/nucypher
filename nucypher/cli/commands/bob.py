@@ -343,6 +343,13 @@ def retrieve(general_config,
     emitter = setup_emitter(general_config)
     BOB = character_options.create_character(emitter, config_file)
 
+    if not message_kit:
+        if ipfs:
+            prompt = "Enter IPFS CID for encrypted data"
+        else:
+            prompt = "Enter encrypted data (base64)"
+        message_kit = click.prompt(prompt, type=click.STRING)
+
     if ipfs:
         import ipfshttpclient
         # TODO: #2108
@@ -366,7 +373,14 @@ def retrieve(general_config,
             if not force:
                 click.confirm('Is this the correct Granter (Alice)?', abort=True)
         else:  # interactive
-            alice_verifying_key = click.prompt("Enter Alice's verifying key")
+            alice_verifying_key = click.prompt("Enter Alice's verifying key", click.STRING)
+
+    if not force:
+        if not policy_encrypting_key:
+            policy_encrypting_key = click.prompt("Enter policy public key", type=click.STRING)
+
+        if not label:
+            label = click.prompt("Enter label to retrieve", type=click.STRING)
 
     # Request
     bob_request_data = {
