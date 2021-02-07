@@ -21,7 +21,6 @@ from threading import Thread, Event, Lock, Timer, get_ident
 from typing import Callable, List, Any, Optional, Dict
 
 from constant_sorrow.constants import PRODUCER_STOPPED, TIMEOUT_TRIGGERED
-from twisted._threads import AlreadyQuit
 from twisted.python.threadpool import ThreadPool
 
 
@@ -124,7 +123,8 @@ class WorkerPool:
         self._target_value = SetOnce()
         self._unexpected_error = SetOnce()
         self._results_lock = Lock()
-        self._stopped = False
+        self._threadpool_stop_lock = Lock()
+        self._threadpool_stopped = False
 
     def start(self):
         # TODO: check if already started?
@@ -139,29 +139,35 @@ class WorkerPool:
         """
         self._cancel_event.set()
 
+    def _stop_threadpool(self):
+        # This can be called from multiple threads
+        # (`join()` itself can be called from multiple threads,
+        # and we also attempt to stop the pool from the `_process_results()` thread).
+        with self._threadpool_stop_lock:
+            if not self._threadpool_stopped:
+                self._threadpool.stop()
+                self._threadpool_stopped = True
+
+    def _check_for_unexpected_error(self):
+        if self._unexpected_error.is_set():
+            e = self._unexpected_error.get()
+            raise RuntimeError(f"Unexpected error in the producer thread: {e}")
+
     def join(self):
         """
         Waits for all the threads to finish.
         Can be called several times.
         """
-
-        if self._stopped:
-            return # or raise AlreadyStopped?
-
         self._produce_values_thread.join()
         self._process_results_thread.join()
         self._bail_on_timeout_thread.join()
 
-        # protect from a possible race
-        try:
-            self._threadpool.stop()
-        except AlreadyQuit:
-            pass
-        self._stopped = True
+        # In most cases `_threadpool` will be stopped by the `_process_results()` thread.
+        # But in case there's some unexpected bug in its code, we're making sure the pool is stopped
+        # to avoid the whole process hanging.
+        self._stop_threadpool()
 
-        if self._unexpected_error.is_set():
-            e = self._unexpected_error.get()
-            raise RuntimeError(f"Unexpected error in the producer thread: {e}")
+        self._check_for_unexpected_error()
 
     def _sleep(self, timeout):
         """
@@ -176,10 +182,7 @@ class WorkerPool:
         Returns a dictionary of values matched to results.
         Can be called several times.
         """
-        if self._unexpected_error.is_set():
-            # So that we don't raise it again when join() is called
-            e = self._unexpected_error.get_and_clear()
-            raise RuntimeError(f"Unexpected error in the producer thread: {e}")
+        self._check_for_unexpected_error()
 
         result = self._target_value.get()
         if result == TIMEOUT_TRIGGERED:
@@ -257,6 +260,8 @@ class WorkerPool:
                 self.cancel() # to cancel the timeout thread
                 self._target_value.set(PRODUCER_STOPPED)
                 break
+
+        self._stop_threadpool()
 
     def _produce_values(self):
         while True:
