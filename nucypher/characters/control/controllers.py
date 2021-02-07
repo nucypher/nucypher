@@ -31,8 +31,9 @@ from nucypher.characters.control.specifications.exceptions import SpecificationE
 from nucypher.cli.processes import JSONRPCLineReceiver
 from nucypher.config.constants import MAX_UPLOAD_CONTENT_LENGTH
 from nucypher.exceptions import DevelopmentInstallationRequired
-from nucypher.utilities.logging import Logger
 from nucypher.network.resources import get_static_resources
+from nucypher.utilities.logging import Logger
+
 
 class CharacterControllerBase(ABC):
     """
@@ -142,9 +143,8 @@ class CLIController(CharacterControlServer):
         return
 
     def handle_request(self, method_name, request) -> dict:
-        start = maya.now()
         response = self._perform_action(action=method_name, request=request)
-        self.emitter.ipc(response=response, request_id=start.epoch, duration=maya.now() - start)
+        self.emitter.pretty(response)
         return response
 
     def _perform_action(self, *args, **kwargs) -> dict:
