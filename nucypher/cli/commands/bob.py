@@ -14,7 +14,7 @@
  You should have received a copy of the GNU Affero General Public License
  along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
-
+from base64 import b64decode
 
 import click
 
@@ -391,4 +391,9 @@ def retrieve(general_config,
     }
 
     response = BOB.controller.retrieve(request=bob_request_data)
+
+    # TODO: Uncomment for Demo. Fix Cleartext Deserialization.
+    # for cleartext in response['cleartexts']:
+    #     print(b64decode(cleartext))
+        
     return response
