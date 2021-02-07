@@ -569,10 +569,11 @@ class BlockchainInterface:
         #
         # Broadcast
         #
-        emitter.message(f'Broadcasting {transaction_name} Transaction ({cost} ETH @ {price_gwei} gwei)...',
+        emitter.message(f'Broadcasting {transaction_name} Transaction ({cost} ETH @ {price_gwei} gwei)',
                         color='yellow')
         try:
             txhash = self.client.send_raw_transaction(signed_raw_transaction)  # <--- BROADCAST
+            emitter.message(f'TXHASH {txhash.hex()}', color='yellow')
         except (TestTransactionFailed, ValueError):
             raise  # TODO: Unify with Transaction failed handling -- Entry point for _handle_failed_transaction
         else:
@@ -584,6 +585,10 @@ class BlockchainInterface:
         #
 
         try:  # TODO: Handle block confirmation exceptions
+            if confirmations:
+                emitter.message(f'Waiting for {confirmations} confirmations', color='yellow')
+            else:
+                emitter.message(f'Waiting {self.TIMEOUT} seconds for receipt', color='yellow')
             receipt = self.client.wait_for_receipt(txhash, timeout=self.TIMEOUT, confirmations=confirmations)
         except TimeExhausted:
             # TODO: #1504 - Handle transaction timeout
