@@ -72,7 +72,7 @@ Datastore diligence can be exercised by maintain regular backups of the worker's
 
         $ nucypher --config-path
 
-    The worker database and peer metadata can be
+    The worker database and peer metadata can be found in the nucypher configuration root
 
     .. code-block:: bash
 

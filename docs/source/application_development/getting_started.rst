@@ -181,7 +181,7 @@ After generating a keyring, any future usage can decrypt the keys from the disk:
    from nucypher.characters.lawful import Alice, Ursula
 
    # Instantiate a default peer (optional)
-   ursula = Ursula.from_seed_and_stake_info(seed_uri=<SEEDNODE URI>)
+   ursula = Ursula.from_seed_and_stake_info(seed_uri='https://lynx.nucypher.network:9151')
 
    # Instantiate Alice
    alice = Alice(
@@ -271,8 +271,8 @@ software wallet and an existing keyring:
     # Make Alice
     alice = Alice(
         domain='lynx',  # testnet
-        keyring=keyring,
         provider_uri='GOERLI RPC ENDPOINT',
+        keyring=keyring,
         signer=wallet,
     )
 
@@ -343,7 +343,7 @@ Bob's setup is similar to Alice's above.
    # alice_verifying_key = <Side Channel>
 
    # Everyone!
-   ursula = Ursula.from_seed_and_stake_info(seed_uri=<SEEDNODE URI>)
+   ursula = Ursula.from_seed_and_stake_info(seed_uri='https://lynx.nucypher.network:9151')
    alice = Alice.from_public_keys(verifying_key=alice_verifying_key)
    enrico = Enrico(policy_encrypting_key=policy_encrypting_key)
 
