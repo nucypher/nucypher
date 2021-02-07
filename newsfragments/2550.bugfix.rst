@@ -1,0 +1,1 @@
+Ensure remote ethereum provider connection is automatically established with characters. Fixes default keyring filepath generation.
