@@ -261,12 +261,12 @@ software wallet and an existing keyring:
 
 
     # Restore Existing NuCypher Keyring
-    keyring = NucypherKeyring(account='0xdeadbeef')
+    keyring = NucypherKeyring(account='0x287A817426DD1AE78ea23e9918e2273b6733a43D')
     keyring.unlock('KEYRING PASSWORD')
 
     # Ethereum Software Wallet
-    wallet = Signer.from_signer_uri("keystore:///home/user/.ethereum/keystore/UTC--2021...')
-    wallet.unlock_account('0xdeadbeef', 'SOFTWARE WALLET PASSWORD')
+    wallet = Signer.from_signer_uri("keystore:///home/user/.ethereum/goerli/keystore/UTC--2021...0278ad02...')
+    wallet.unlock_account('0x287A817426DD1AE78ea23e9918e2273b6733a43D', 'SOFTWARE WALLET PASSWORD')
 
     # Make Alice
     alice = Alice(
