@@ -32,7 +32,7 @@ from nucypher.cli.processes import JSONRPCLineReceiver
 from nucypher.config.constants import MAX_UPLOAD_CONTENT_LENGTH
 from nucypher.exceptions import DevelopmentInstallationRequired
 from nucypher.network.resources import get_static_resources
-from nucypher.utilities.logging import Logger
+from nucypher.utilities.logging import Logger, GlobalLoggerSettings
 
 
 class CharacterControllerBase(ABC):
@@ -144,7 +144,12 @@ class CLIController(CharacterControlServer):
 
     def handle_request(self, method_name, request) -> dict:
         response = self._perform_action(action=method_name, request=request)
-        self.emitter.pretty(response)
+        if GlobalLoggerSettings._json_ipc:
+            # support for --json-ipc flag, for JSON *responses* from CLI commands-as-requests.
+            start = maya.now()
+            self.emitter.ipc(response=response, request_id=start.epoch, duration=maya.now() - start)
+        else:
+            self.emitter.pretty(response)
         return response
 
     def _perform_action(self, *args, **kwargs) -> dict:

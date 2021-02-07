@@ -130,7 +130,7 @@ def run_entire_cli_lifecycle(click_runner,
     alice_init_response = click_runner.invoke(nucypher_cli, alice_init_args, catch_exceptions=False, env=envvars)
     assert alice_init_response.exit_code == 0
 
-    # Prevent previous global logger settings set by aboce command from writing non-IPC messages to stdout
+    # Prevent previous global logger settings set by above command from writing non-IPC messages to stdout
     GlobalLoggerSettings.stop_console_logging()
 
     # Alice uses her configuration file to run the character "view" command
