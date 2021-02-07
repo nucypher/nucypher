@@ -52,6 +52,7 @@ def token_economics():
         lock_duration_coefficient_1=4,
         lock_duration_coefficient_2=8,
         maximum_rewarded_periods=4,
+        former_hours_per_period=1,
         hours_per_period=1,
         minimum_locked_periods=6,
         minimum_allowed_locked=200,

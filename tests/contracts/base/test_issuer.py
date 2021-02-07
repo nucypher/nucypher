@@ -41,6 +41,7 @@ def test_issuer(testerchain, token, deploy_contract):
                               lock_duration_coefficient_1=10 ** 4,
                               lock_duration_coefficient_2=2 * 10 ** 4,
                               maximum_rewarded_periods=10 ** 4,
+                              former_hours_per_period=1,
                               hours_per_period=1)
 
     def calculate_first_phase_reward(locked, total_locked, locked_periods):
@@ -59,7 +60,7 @@ def test_issuer(testerchain, token, deploy_contract):
 
     # Only token contract is allowed in Issuer constructor
     bad_args = dict(_token=staker,
-                    _formerHoursPerPeriod=economics.hours_per_period,
+                    _formerHoursPerPeriod=economics.former_hours_per_period,
                     _hoursPerPeriod=economics.hours_per_period,
                     _issuanceDecayCoefficient=economics.issuance_decay_coefficient,
                     _lockDurationCoefficient1=economics.lock_duration_coefficient_1,
@@ -203,6 +204,7 @@ def test_issuance_first_phase(testerchain, token, deploy_contract):
                               lock_duration_coefficient_1=1,
                               lock_duration_coefficient_2=2,
                               maximum_rewarded_periods=1,
+                              former_hours_per_period=1,
                               hours_per_period=1)
 
     creator = testerchain.client.accounts[0]
@@ -211,7 +213,7 @@ def test_issuance_first_phase(testerchain, token, deploy_contract):
     # Creator deploys the contract
     issuer, _ = deploy_contract(contract_name='IssuerMock',
                                 _token=token.address,
-                                _formerHoursPerPeriod=economics.hours_per_period,
+                                _formerHoursPerPeriod=economics.former_hours_per_period,
                                 _hoursPerPeriod=economics.hours_per_period,
                                 _issuanceDecayCoefficient=economics.issuance_decay_coefficient,
                                 _lockDurationCoefficient1=economics.lock_duration_coefficient_1,
@@ -307,6 +309,7 @@ def test_issuance_second_phase(testerchain, token, deploy_contract):
                               lock_duration_coefficient_1=1,
                               lock_duration_coefficient_2=2,
                               maximum_rewarded_periods=1,
+                              former_hours_per_period=1,
                               hours_per_period=1)
 
     creator = testerchain.client.accounts[0]
@@ -315,7 +318,7 @@ def test_issuance_second_phase(testerchain, token, deploy_contract):
     # Creator deploys the contract
     issuer, _ = deploy_contract(contract_name='IssuerMock',
                                 _token=token.address,
-                                _formerHoursPerPeriod=economics.hours_per_period,
+                                _formerHoursPerPeriod=economics.former_hours_per_period,
                                 _hoursPerPeriod=economics.hours_per_period,
                                 _issuanceDecayCoefficient=economics.issuance_decay_coefficient,
                                 _lockDurationCoefficient1=economics.lock_duration_coefficient_1,
