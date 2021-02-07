@@ -54,7 +54,7 @@ def test_upgrading(testerchain, token, token_economics, deploy_contract):
     contract_library_v2, _ = deploy_contract(
         contract_name='StakingEscrowV2Mock',
         _token=token.address,
-        _formerHoursPerPeriod=token_economics.hours_per_period,
+        _formerHoursPerPeriod=token_economics.former_hours_per_period,
         _hoursPerPeriod=token_economics.hours_per_period,
         _issuanceDecayCoefficient=2,
         _lockDurationCoefficient1=2,
@@ -127,7 +127,7 @@ def test_upgrading(testerchain, token, token_economics, deploy_contract):
     contract_library_bad, _ = deploy_contract(
         contract_name='StakingEscrowBad',
         _token=token.address,
-        _formerHoursPerPeriod=token_economics.hours_per_period,
+        _formerHoursPerPeriod=token_economics.former_hours_per_period,
         _hoursPerPeriod=token_economics.hours_per_period,
         _issuanceDecayCoefficient=2,
         _lockDurationCoefficient1=2,
