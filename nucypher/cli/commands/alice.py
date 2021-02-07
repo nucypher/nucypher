@@ -538,8 +538,8 @@ def grant(general_config,
             prompt = "Confirm rate of {node_rate} gwei * {n} ({total_rate} gwei per period)?"
             if not click.confirm(prompt.format(node_rate=default_gwei, total_rate=default_gwei*n, n=n), default=True):
                 interactive_rate = click.prompt('Enter rate per period in gwei', type=GWEI)
-                # TODO: Validate interactively collected rate (#1709)
-                click.confirm(prompt.format(node_rate=rate, total_rate=rate*n, n=n), default=True, abort=True)
+                # TODO: Interactive rate sampling & validation (#1709)
+                click.confirm(prompt.format(node_rate=interactive_rate, total_rate=interactive_rate*n, n=n), default=True, abort=True)
                 rate = Web3.toWei(interactive_rate, 'gwei')
 
     # Request

@@ -14,17 +14,18 @@
  You should have received a copy of the GNU Affero General Public License
  along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
-from tabulate import tabulate
-from typing import Type, Union, Dict
+
 
 import click
 from constant_sorrow.constants import UNKNOWN_DEVELOPMENT_CHAIN_ID
+from datetime import datetime
+from tabulate import tabulate
+from typing import Type, Union, Dict
 from web3.main import Web3
 
 from nucypher.blockchain.eth.deployers import BaseContractDeployer
-from nucypher.blockchain.eth.registry import LocalContractRegistry, InMemoryContractRegistry
-from nucypher.cli.literature import CONFIRM_VERSIONED_UPGRADE
 from nucypher.blockchain.eth.interfaces import BlockchainDeployerInterface, VersionedContract, BlockchainInterface
+from nucypher.blockchain.eth.registry import LocalContractRegistry
 from nucypher.blockchain.eth.token import NU
 from nucypher.characters.control.emitters import StdoutEmitter
 from nucypher.cli.literature import (
@@ -40,6 +41,7 @@ from nucypher.cli.literature import (
     SNAPSHOTS_DISABLING_AGREEMENT,
     CONFIRM_DISABLE_SNAPSHOTS
 )
+from nucypher.cli.literature import CONFIRM_VERSIONED_UPGRADE
 from nucypher.config.node import CharacterConfiguration
 
 
@@ -143,8 +145,19 @@ def confirm_staged_grant(emitter, grant_request: Dict) -> None:
     pretty_request = grant_request.copy()      # Do not mutate
     total_gwei = Web3.fromWei(pretty_request['n'] * pretty_request['rate'], 'gwei')
     pretty_request['rate'] = f"{pretty_request['rate']} wei/period * n"
+
+    expiration = pretty_request['expiration']
+    periods = (expiration - datetime.now()).days
+    pretty_request['expiration'] = f"{pretty_request['expiration']} ({periods} periods)"
+
     emitter.echo("\nSuccessfully staged grant, Please review the details:\n", color='green')
-    table = [[field, value] for field, value in pretty_request.items()]
-    table.append(['policy value', f'{total_gwei} gwei'])
+    table = [[field.capitalize(), value] for field, value in pretty_request.items()]
+    table.append(['Period Rate', f'{total_gwei} gwei'])
+
+    # TODO: Use period calculation utilities instead of days
+    # periods = calculate_period_duration(future_time=maya.MayaDT(pretty_request['expiration']),
+    #                                     seconds_per_period=StandardTokenEconomics().seconds_per_period)
+
+    table.append(['Policy Value', f'{total_gwei * periods} gwei'])
     emitter.echo(tabulate(table, tablefmt="simple"))
     click.confirm('\nGrant access and sign transaction?', abort=True)
