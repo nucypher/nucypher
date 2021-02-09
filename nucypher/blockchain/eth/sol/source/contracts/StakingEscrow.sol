@@ -152,10 +152,10 @@ contract StakingEscrow is Issuer, IERC900History {
     event Merged(address indexed staker, uint256 value1, uint256 value2, uint16 lastPeriod);
 
     /**
-    * @notice Signals that a sub-stakes was prolonged
+    * @notice Signals that a sub-stake was prolonged
     * @param staker Staker address
     * @param value Value of sub-stake
-    * @param lastPeriod Final locked period of sub-stake
+    * @param lastPeriod Final locked period of old sub-stake
     * @param periods Number of periods sub-stake was extended
     */
     event Prolonged(address indexed staker, uint256 value, uint16 lastPeriod, uint16 periods);
@@ -168,7 +168,7 @@ contract StakingEscrow is Issuer, IERC900History {
     event Withdrawn(address indexed staker, uint256 value);
 
     /**
-    * @notice Signals that the Worker associated with the Staker made a commitment to next period
+    * @notice Signals that the worker associated with the staker made a commitment to next period
     * @param staker Staker address
     * @param period Period committed to
     * @param value Amount of tokens staked for the committed period
@@ -184,7 +184,7 @@ contract StakingEscrow is Issuer, IERC900History {
     event Minted(address indexed staker, uint16 indexed period, uint256 value);
 
     /**
-    * @notice Signals that the Staker was slashed
+    * @notice Signals that the staker was slashed
     * @param staker Staker address
     * @param penalty Slashing penalty
     * @param investigator Investigator address
@@ -200,7 +200,7 @@ contract StakingEscrow is Issuer, IERC900History {
     event ReStakeSet(address indexed staker, bool reStake);
 
     /**
-    * @notice Signals that a Worker was bonded to the Staker
+    * @notice Signals that a worker was bonded to the staker
     * @param staker Staker address
     * @param worker Worker address
     * @param startPeriod Period bonding occurred
@@ -214,9 +214,15 @@ contract StakingEscrow is Issuer, IERC900History {
     */
     event WindDownSet(address indexed staker, bool windDown);
 
-    // undocumented
-    event WorkMeasurementSet(address indexed staker, bool measureWork);
+    /**
+    * @notice Signals that the snapshot parameter was activated/deactivated
+    * @param staker Staker address
+    * @param snapshotsEnabled Updated parameter value
+    */
     event SnapshotSet(address indexed staker, bool snapshotsEnabled);
+
+    /// internal event
+    event WorkMeasurementSet(address indexed staker, bool measureWork);
 
     struct SubStakeInfo {
         uint16 firstPeriod;
