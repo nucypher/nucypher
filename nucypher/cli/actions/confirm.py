@@ -141,23 +141,41 @@ def verify_upgrade_details(blockchain: Union[BlockchainDeployerInterface, Blockc
                                                    new_version=new_version), abort=True)
 
 
-def confirm_staged_grant(emitter, grant_request: Dict) -> None:
-    pretty_request = grant_request.copy()      # Do not mutate
-    total_gwei = Web3.fromWei(pretty_request['n'] * pretty_request['rate'], 'gwei')
-    pretty_request['rate'] = f"{pretty_request['rate']} wei/period * n"
+def confirm_staged_grant(emitter, grant_request: Dict, federated: bool) -> None:
+
+    pretty_request = grant_request.copy()  # WARNING: Do not mutate
+
+    if federated:  # Boring
+        table = [[field.capitalize(), value] for field, value in pretty_request.items()]
+        emitter.echo(tabulate(table, tablefmt="simple"))
+        return
+
+    period_rate = Web3.fromWei(pretty_request['n'] * pretty_request['rate'], 'gwei')
+    pretty_request['rate'] = f"{pretty_request['rate']} wei/period * {pretty_request['n']} nodes"
 
     expiration = pretty_request['expiration']
     periods = (expiration - datetime.now()).days
     pretty_request['expiration'] = f"{pretty_request['expiration']} ({periods} periods)"
 
-    emitter.echo("\nSuccessfully staged grant, Please review the details:\n", color='green')
-    table = [[field.capitalize(), value] for field, value in pretty_request.items()]
-    table.append(['Period Rate', f'{total_gwei} gwei'])
+    # M of N
+    pretty_request['Threshold Shares'] = f"{pretty_request['m']} of {pretty_request['n']}"
+    del pretty_request['m']
+    del pretty_request['n']
+
+    def prettify_field(field):
+        field_words = [word.capitalize() for word in field.split('_')]
+        field = ' '.join(field_words)
+        return field
+
+    table = [[prettify_field(field), value] for field, value in pretty_request.items()]
+    table.append(['Period Rate', f'{period_rate} gwei'])
+    table.append(['Policy Value', f'{period_rate * periods} gwei'])
 
     # TODO: Use period calculation utilities instead of days
     # periods = calculate_period_duration(future_time=maya.MayaDT(pretty_request['expiration']),
     #                                     seconds_per_period=StandardTokenEconomics().seconds_per_period)
 
-    table.append(['Policy Value', f'{total_gwei * periods} gwei'])
+
+    emitter.echo("\nSuccessfully staged grant, Please review the details:\n", color='green')
     emitter.echo(tabulate(table, tablefmt="simple"))
     click.confirm('\nGrant access and sign transaction?', abort=True)

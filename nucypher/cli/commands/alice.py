@@ -17,17 +17,14 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 
 
 import click
-import maya
 import os
 from constant_sorrow.constants import NO_PASSWORD
-from datetime import timedelta
-from web3.main import Web3
 
 from nucypher.blockchain.eth.signers.software import ClefSigner
 from nucypher.characters.control.emitters import StdoutEmitter
 from nucypher.characters.control.interfaces import AliceInterface
-from nucypher.characters.lawful import Bob
 from nucypher.cli.actions.auth import get_client_password, get_nucypher_password
+from nucypher.cli.actions.collect import collect_bob_public_keys, collect_policy_parameters
 from nucypher.cli.actions.configure import (
     destroy_configuration,
     handle_missing_configuration_file,
@@ -35,6 +32,7 @@ from nucypher.cli.actions.configure import (
 )
 from nucypher.cli.actions.confirm import confirm_staged_grant
 from nucypher.cli.actions.select import select_client_account, select_config_file
+from nucypher.cli.actions.validate import validate_grant_command
 from nucypher.cli.commands.deploy import option_gas_strategy
 from nucypher.cli.config import group_general_config
 from nucypher.cli.options import (
@@ -62,13 +60,8 @@ from nucypher.cli.options import (
     option_lonely, option_max_gas_price
 )
 from nucypher.cli.painting.help import paint_new_installation_help
-from nucypher.cli.painting.help import (
-    paint_probationary_period_disclaimer,
-    enforce_probationary_period
-)
 from nucypher.cli.painting.policies import paint_single_card
 from nucypher.cli.types import EIP55_CHECKSUM_ADDRESS
-from nucypher.cli.types import GWEI
 from nucypher.cli.utils import make_cli_character, setup_emitter
 from nucypher.config.characters import AliceConfiguration
 from nucypher.config.constants import (
@@ -453,113 +446,69 @@ def grant(general_config,
           character_options,
           config_file,
           force):
-    """Create and enact an access policy for some Bob. """
+    """Create and enact an access policy for Bob."""
 
     # Setup
     emitter = setup_emitter(general_config)
-    ALICE = character_options.create_character(emitter, config_file, general_config.json_ipc)
+    ALICE = character_options.create_character(
+        emitter=emitter,
+        config_file=config_file,
+        json_ipc=general_config.json_ipc
+    )
+    validate_grant_command(
+        emitter=emitter,
+        alice=ALICE,
+        force=force,
+        bob=bob,
+        label=label,
+        rate=rate,
+        value=value,
+        expiration=expiration,
+        bob_encrypting_key=bob_encrypting_key,
+        bob_verifying_key=bob_verifying_key
+    )
 
-    # Policy option validation
-    if ALICE.federated_only:
-        if any((value, rate)):
-            message = "Can't use --value or --rate with a federated Alice."
-            raise click.BadOptionUsage(option_name="--value, --rate", message=message)
-    elif bool(value) and bool(rate):
-        raise click.BadOptionUsage(option_name="--rate", message="Can't use --value if using --rate")
+    # Collect
+    bob_public_keys = collect_bob_public_keys(
+        emitter=emitter,
+        force=force,
+        card_identifier=bob,
+        bob_encrypting_key=bob_encrypting_key,
+        bob_verifying_key=bob_verifying_key
+    )
 
-    # Grantee selection
-    if bob and any((bob_encrypting_key, bob_verifying_key)):
-        message = '--bob cannot be used with --bob-encrypting-key or --bob-veryfying key'
-        raise click.BadOptionUsage(option_name='--bob', message=message)
+    policy = collect_policy_parameters(
+            emitter=emitter,
+            alice=ALICE,
+            force=force,
+            bob_identifier=bob_public_keys.verifying_key[:8],
+            label=label,
+            m=m,
+            n=n,
+            rate=rate,
+            value=value,
+            expiration=expiration
+    )
 
-    if bob:
-        emitter.message(f"Searching contacts for {bob}\n", color='yellow')
-        card = Card.load(identifier=bob)
-        if card.character is not Bob:
-            emitter.error('Grantee card is not a Bob.')
-            raise click.Abort
-        paint_single_card(emitter=emitter, card=card)
-        if not force:
-            click.confirm('Is this the correct grantee (Bob)?', abort=True)
-        bob_encrypting_key = card.encrypting_key.hex()
-        bob_verifying_key = card.verifying_key.hex()
-
-    if not bob_encrypting_key or bob_verifying_key:
-        emitter.message("*Caution: Only enter public keys*")
-    if not bob_encrypting_key:
-        bob_encrypting_key = click.prompt("Enter Bob's encrypting key")
-    if not bob_verifying_key:
-        bob_verifying_key = click.prompt("Enter Bob verifying key")
-
-    # Interactive collection follows:
-    # TODO: Extricate to support modules
-    # - Disclaimer
-    # - Label
-    # - Expiration Date & Time
-    # - M of N
-    # - Policy Value (ETH)
-
-    # Policy Expiration
-    # TODO: Remove this line when the time is right.
-    paint_probationary_period_disclaimer(emitter)
-
-    # Label
-    if not label:
-        label = click.prompt(f'Enter label to grant Bob {bob_verifying_key[:8]}', type=click.STRING)
-
-    if not force and not expiration:
-        expiration_prompt = 'Enter policy expiration (Y-M-D H:M:S)'
-        expiration = click.prompt(expiration_prompt, type=click.DateTime())
-        # TODO: use a default expiration in periods?
-        # if ALICE.duration_periods:
-            # expiration = maya.now() + timedelta(days=ALICE.duration_periods)  # default
-            # expiration = click.prompt(expiration_prompt, type=click.DateTime())
-
-    # TODO: Remove this line when the time is right.
-    enforce_probationary_period(emitter=emitter, expiration=expiration)
-
-    # Policy Threshold and Shares
-    if not n:
-        n = ALICE.n
-        if not force and not click.confirm(f'Use default value for N ({n})?', default=True):
-            n = click.prompt('Enter total number of shares (N)', type=click.INT)
-    if not m:
-        m = ALICE.m
-        if not force and not click.confirm(f'Use default value for M ({m})?', default=True):
-            m = click.prompt('Enter threshold (M)', type=click.IntRange(1, n))
-
-    # Policy Value
-    policy_value_provided = bool(value) or bool(rate)
-    if not ALICE.federated_only and not policy_value_provided:
-        # TODO #1709 - Fine tuning and selection of default rates
-        rate = ALICE.default_rate or Web3.toWei(50, 'gwei')  # TODO: Unhardcode, workaround for lynx/ibex testnet.
-        if not force:
-            default_gwei = Web3.fromWei(rate, 'gwei')
-            prompt = "Confirm rate of {node_rate} gwei * {n} ({total_rate} gwei per period)?"
-            if not click.confirm(prompt.format(node_rate=default_gwei, total_rate=default_gwei*n, n=n), default=True):
-                interactive_rate = click.prompt('Enter rate per period in gwei', type=GWEI)
-                # TODO: Interactive rate sampling & validation (#1709)
-                click.confirm(prompt.format(node_rate=interactive_rate, total_rate=interactive_rate*n, n=n), default=True, abort=True)
-                rate = Web3.toWei(interactive_rate, 'gwei')
-
-    # Request
     grant_request = {
-        'bob_encrypting_key': bob_encrypting_key,
-        'bob_verifying_key': bob_verifying_key,
-        'label': label,
-        'm': m,
-        'n': n,
-        'expiration': expiration,
+        'bob_encrypting_key': bob_public_keys.encrypting_key,
+        'bob_verifying_key': bob_public_keys.verifying_key,
+        'label': policy.label,
+        'm': policy.m,
+        'n': policy.n,
+        'expiration': policy.expiration,
     }
     if not ALICE.federated_only:
-        if value:
-            grant_request['value'] = value
-        elif rate:
-            grant_request['rate'] = rate  # in wei
+        # These values can be 0
+        if policy.value is not None:
+            grant_request['value'] = policy.value
+        elif policy.rate is not None:
+            grant_request['rate'] = policy.rate  # in wei
 
+    # Grant
     if not force and not general_config.json_ipc:
-        confirm_staged_grant(emitter=emitter, grant_request=grant_request)
-    emitter.echo(f'Granting Access to {bob_verifying_key[:8]}', color='yellow')
+        confirm_staged_grant(emitter=emitter, grant_request=grant_request, federated=ALICE.federated_only)
+    emitter.echo(f'Granting Access to {bob_public_keys.verifying_key[:8]}', color='yellow')
     return ALICE.controller.grant(request=grant_request)
 
 
