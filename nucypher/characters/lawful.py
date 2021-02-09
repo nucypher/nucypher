@@ -164,12 +164,12 @@ class Alice(Character, BlockchainPolicyAuthor):
 
         if is_me and not federated_only:  # TODO: #289
             blockchain = BlockchainInterfaceFactory.get_interface(provider_uri=self.provider_uri)
-            transacting_power = TransactingPower(account=self.checksum_address,
-                                                 password=client_password,
-                                                 cache=cache_password,
-                                                 signer=signer or Web3Signer(blockchain.client))
+            self.transacting_power = TransactingPower(account=self.checksum_address,
+                                                      password=client_password,
+                                                      cache=cache_password,
+                                                      signer=signer or Web3Signer(blockchain.client))
 
-            self._crypto_power.consume_power_up(transacting_power)
+            self._crypto_power.consume_power_up(self.transacting_power)
             BlockchainPolicyAuthor.__init__(self,
                                             registry=self.registry,
                                             rate=rate,
