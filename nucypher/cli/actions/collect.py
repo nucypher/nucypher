@@ -62,24 +62,12 @@ def collect_bob_public_keys(
         ) -> PublicKeys:
     """helper function for collecting Bob's public keys interactively in the Alice CLI."""
 
-    # From Bob card
-    if card_identifier and any((bob_encrypting_key, bob_verifying_key)):
-        message = '--bob cannot be used with --bob-encrypting-key or --bob-verifying key'
-        raise click.BadOptionUsage(option_name='--bob', message=message)
-
     if card_identifier:
         public_keys = collect_keys_from_card(
             emitter=emitter,
             card_identifier=card_identifier,
             force=force)
         return public_keys
-
-    # From hex public keys
-    if not bob_encrypting_key or bob_verifying_key:
-        if force:
-            emitter.message('Missing options in force mode: --bob or --bob-encrypting-key and --bob-verifying-key.')
-            click.Abort()
-        emitter.message("*Caution: Only enter public keys*")
 
     if not bob_encrypting_key:
         bob_encrypting_key = click.prompt("Enter Bob's encrypting key")
@@ -90,20 +78,14 @@ def collect_bob_public_keys(
     return public_keys
 
 
-def collect_label(emitter: StdoutEmitter, label: str, bob_identifier: str, force: bool):
-    if force:
-        emitter.error('--label is required is force mode.')
-        click.Abort()
+def collect_label(label: str, bob_identifier: str):
     if not label:
         label = click.prompt(f'Enter label to grant Bob {bob_identifier}', type=click.STRING)
     return label
 
 
-def collect_expiration(emitter: StdoutEmitter, alice: Alice, expiration: maya.MayaDT, force: bool) -> maya.MayaDT:
+def collect_expiration(alice: Alice, expiration: maya.MayaDT, force: bool) -> maya.MayaDT:
     # TODO: Support interactive expiration periods?
-    if force:
-        emitter.error('--expiration is required is force mode.')
-        click.Abort()
     if not force and not expiration:
         default_expiration = None
         expiration_prompt = 'Enter policy expiration (Y-M-D H:M:S)'
@@ -168,11 +150,11 @@ def collect_policy_parameters(
     # - M of N
     # - Policy Value (ETH)
 
-    label = collect_label(emitter=emitter, label=label, bob_identifier=bob_identifier, force=force)
+    label = collect_label(label=label, bob_identifier=bob_identifier)
 
     # TODO: Remove this line when the time is right.
     paint_probationary_period_disclaimer(emitter)
-    expiration = collect_expiration(emitter=emitter, alice=alice, expiration=expiration, force=force)
+    expiration = collect_expiration(alice=alice, expiration=expiration, force=force)
     enforce_probationary_period(emitter=emitter, expiration=expiration)
 
     m, n = collect_m_and_n(alice=alice, m=m, n=n, force=force)

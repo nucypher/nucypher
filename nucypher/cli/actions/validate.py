@@ -14,12 +14,15 @@
  You should have received a copy of the GNU Affero General Public License
  along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
+from collections import namedtuple
 
 import click
 import maya
 
 from nucypher.characters.control.emitters import StdoutEmitter
 from nucypher.characters.lawful import Alice
+
+Precondition = namedtuple('Precondition', 'options condition')
 
 
 def validate_grant_command(
@@ -35,7 +38,28 @@ def validate_grant_command(
         value: int
 ):
 
-    # Policy option validation
+    # Force mode validation
+    if force:
+        required = (
+            Precondition(
+                options='--bob or --bob-encrypting-key and --bob-verifying-key.',
+                condition=bob or all((bob_verifying_key, bob_encrypting_key))
+             ),
+
+            Precondition(options='--label', condition=bool(label)),
+
+            Precondition(options='--expiration', condition=bool(expiration))
+        )
+        triggered = False
+        for condition in required:
+            # see what condition my condition was in.
+            if not condition.condition:
+                triggered = True
+                emitter.error(f'Missing options in force mode: {condition.options}')
+        if triggered:
+            raise click.Abort()
+
+    # Handle federated
     if alice.federated_only:
         if any((value, rate)):
             message = "Can't use --value or --rate with a federated Alice."
@@ -43,13 +67,16 @@ def validate_grant_command(
     elif bool(value) and bool(rate):
         raise click.BadOptionUsage(option_name="--rate", message="Can't use --value if using --rate")
 
-    # Force mode validation
-    if force:
-        required = (
-            (bob or (bob_verifying_key and bob_encrypting_key)),
-            label,
-            expiration
-        )
-        if not all(required):
-            emitter.error('--label, --expiration, and --bob is required in force mode.')
-            raise click.Abort()
+    # From Bob card
+    if bob:
+        if any((bob_encrypting_key, bob_verifying_key)):
+            message = '--bob cannot be used with --bob-encrypting-key or --bob-verifying key'
+            raise click.BadOptionUsage(option_name='--bob', message=message)
+
+    # From hex public keys
+    else:
+        if not all((bob_encrypting_key, bob_verifying_key)):
+            if force:
+                emitter.message('Missing options in force mode: --bob or --bob-encrypting-key and --bob-verifying-key.')
+                click.Abort()
+            emitter.message("*Caution: Only enter public keys*")
