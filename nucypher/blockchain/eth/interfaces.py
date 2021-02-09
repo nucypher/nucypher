@@ -585,10 +585,10 @@ class BlockchainInterface:
         #
 
         try:  # TODO: Handle block confirmation exceptions
+            waiting_for = 'receipt'
             if confirmations:
-                emitter.message(f'Waiting for {confirmations} confirmations', color='yellow')
-            else:
-                emitter.message(f'Waiting {self.TIMEOUT} seconds for receipt', color='yellow')
+                waiting_for = f'{confirmations} confirmations'
+            emitter.message(f'Waiting {self.TIMEOUT} seconds for {waiting_for}', color='yellow')
             receipt = self.client.wait_for_receipt(txhash, timeout=self.TIMEOUT, confirmations=confirmations)
         except TimeExhausted:
             # TODO: #1504 - Handle transaction timeout

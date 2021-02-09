@@ -83,7 +83,7 @@ def encrypt(general_config, policy_encrypting_key, message, file, ipfs):
         emitter.error(f'Pass either --message or --file, not both.')
         raise click.Abort
 
-    if not message:
+    if not message or file:
         message = click.prompt('Enter plaintext to encrypt', type=click.STRING)
 
     # Encryption Request
