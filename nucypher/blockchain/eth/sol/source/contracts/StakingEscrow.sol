@@ -109,8 +109,31 @@ contract StakingEscrow is Issuer, IERC900History {
     using Snapshot for uint128[];
     using SafeERC20 for NuCypherToken;
 
+    /**
+    * @notice Signals that tokens were deposited
+    * @param staker Staker address
+    * @param value Amount deposited (in NuNits)
+    * @param periods Number of periods tokens will be locked
+    */
     event Deposited(address indexed staker, uint256 value, uint16 periods);
+
+    /**
+    * @notice Signals that tokens were stake locked
+    * @param staker Staker address
+    * @param value Amount locked (in NuNits)
+    * @param firstPeriod Starting lock period
+    * @param periods Number of periods tokens will be locked
+    */
     event Locked(address indexed staker, uint256 value, uint16 firstPeriod, uint16 periods);
+
+    /**
+    * @notice Signals that a sub-stake was divided
+    * @param staker Staker address
+    * @param oldValue Old sub-stake value (in NuNits)
+    * @param lastPeriod Final locked period of old sub-stake
+    * @param newValue New sub-stake value (in NuNits)
+    * @param periods Number of periods to extend sub-stake
+    */
     event Divided(
         address indexed staker,
         uint256 oldValue,
@@ -118,16 +141,81 @@ contract StakingEscrow is Issuer, IERC900History {
         uint256 newValue,
         uint16 periods
     );
+
+    /**
+    * @notice Signals that two sub-stakes were merged
+    * @param staker Staker address
+    * @param value1 Value of first sub-stake (in NuNits)
+    * @param value2 Value of second sub-stake (in NuNits)
+    * @param lastPeriod Final locked period of merged sub-stake
+    */
     event Merged(address indexed staker, uint256 value1, uint256 value2, uint16 lastPeriod);
+
+    /**
+    * @notice Signals that a sub-stakes was prolonged
+    * @param staker Staker address
+    * @param value Value of sub-stake
+    * @param lastPeriod Final locked period of sub-stake
+    * @param periods Number of periods sub-stake was extended
+    */
     event Prolonged(address indexed staker, uint256 value, uint16 lastPeriod, uint16 periods);
+
+    /**
+    * @notice Signals that tokens were withdrawn to the staker
+    * @param staker Staker address
+    * @param value Amount withdraws (in NuNits)
+    */
     event Withdrawn(address indexed staker, uint256 value);
+
+    /**
+    * @notice Signals that the Worker associated with the Staker made a commitment to next period
+    * @param staker Staker address
+    * @param period Period committed to
+    * @param value Amount of tokens staked for the committed period
+    */
     event CommitmentMade(address indexed staker, uint16 indexed period, uint256 value);
+
+    /**
+    * @notice Signals that tokens were minted for previous periods
+    * @param staker Staker address
+    * @param period Previous period tokens minted for
+    * @param value Amount minted (in NuNits)
+    */
     event Minted(address indexed staker, uint16 indexed period, uint256 value);
+
+    /**
+    * @notice Signals that the Staker was slashed
+    * @param staker Staker address
+    * @param penalty Slashing penalty
+    * @param investigator Investigator address
+    * @param reward Value of reward provided to investigator (in NuNits)
+    */
     event Slashed(address indexed staker, uint256 penalty, address indexed investigator, uint256 reward);
+
+    /**
+    * @notice Signals that the restake parameter was activated/deactivated
+    * @param staker Staker address
+    * @param reStake Updated parameter value
+    */
     event ReStakeSet(address indexed staker, bool reStake);
+
+    /**
+    * @notice Signals that a Worker was bonded to the Staker
+    * @param staker Staker address
+    * @param worker Worker address
+    * @param startPeriod Period bonding occurred
+    */
     event WorkerBonded(address indexed staker, address indexed worker, uint16 indexed startPeriod);
-    event WorkMeasurementSet(address indexed staker, bool measureWork);
+
+    /**
+    * @notice Signals that the winddown parameter was activated/deactivated
+    * @param staker Staker address
+    * @param windDown Updated parameter value
+    */
     event WindDownSet(address indexed staker, bool windDown);
+
+    // undocumented
+    event WorkMeasurementSet(address indexed staker, bool measureWork);
     event SnapshotSet(address indexed staker, bool snapshotsEnabled);
 
     struct SubStakeInfo {

@@ -129,8 +129,11 @@ from nucypher.config.characters import StakeHolderConfiguration
 from nucypher.utilities.events import write_events_to_csv_file
 from nucypher.utilities.gas_strategies import construct_fixed_price_gas_strategy
 
-option_csv = click.option('--csv', help="Output event data to CSV file using default filepath", default=False, is_flag=True)
-option_csv_file = click.option('--csv-file', help="Output event data to CSV file at specified filepath", type=click.Path(dir_okay=False))
+option_csv = click.option('--csv', help="Write event data to a CSV file using a default filename in the current directory",
+                          default=False,
+                          is_flag=True)
+option_csv_file = click.option('--csv-file', help="Write event data to the CSV file at specified filepath",
+                               type=click.Path(dir_okay=False))
 option_value = click.option('--value', help="Token value of stake", type=DecimalRange(min=0))
 option_lock_periods = click.option('--lock-periods', help="Duration of stake in periods.", type=click.INT)
 option_worker_address = click.option('--worker-address', help="Address to bond as an Ursula-Worker", type=EIP55_CHECKSUM_ADDRESS)
@@ -1283,7 +1286,7 @@ def preallocation(general_config: GroupGeneralConfig,
 @option_csv_file
 @group_general_config
 def events(general_config, staker_options, config_file, event_name, csv, csv_file):
-    """See blockchain events associated to a staker"""
+    """View blockchain events associated with a staker"""
 
     # Setup
     emitter = setup_emitter(general_config)

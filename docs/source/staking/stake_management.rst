@@ -24,6 +24,8 @@ Several administrative operations can be performed on active stakes:
 +----------------------+-------------------------------------------------------------------------------+
 |  ``collect-rewards`` | Collect earned staking rewards and/or policy fees                             |
 +----------------------+-------------------------------------------------------------------------------+
+|  ``events``          | View blockchain events associated with a staker                               |
++----------------------+-------------------------------------------------------------------------------+
 
 
 Re-staking
@@ -228,8 +230,8 @@ occupied by the currently inactive one, so you will notice a slight
 re-ordering of your sub-stakes. This is normal and doesn't have any negative implications.
 
 
-Collect rewards earned by the staker
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Collect Staker Rewards
+~~~~~~~~~~~~~~~~~~~~~~
 
 NuCypher nodes earn two types of rewards: staking rewards (in NU) and policy fees (i.e., service fees in ETH).
 To collect these rewards use ``nucypher stake collect-reward`` with flags ``--staking-reward`` and ``--policy-fee``
@@ -265,3 +267,49 @@ staking compensation if you use a hardware wallet.
 
 .. note:: If you want to withdraw all tokens when all of them are unlocked -
           make sure to call ``nucypher stake mint`` first to ensure the last reward is included
+
+
+View Staker Blockchain Events
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+As the Staker and its associated Worker interact with the StakingEscrow smart contract, various on-chain events
+are emitted. These events are outlined :doc:`here </contracts_api/main/StakingEscrow>`, and are made accessible via the
+``nucypher stake events`` CLI command.
+
+For simple Staker accounting, events such as ``CommitmentMade``, ``Withdrawn``, and ``Minted`` can
+be used. The output of each can be correlated using the period number.
+
+For example, to view all of the staking rewards received by a specific Staker thus far, run:
+
+.. code::
+
+    $ nucypher stake events --staking-address <STAKER ADDRESS> --provider <PROVIDER URI> --event-name Minted
+
+    --------- StakingEscrow Events ---------
+
+    Minted:
+      - (EventRecord) staker: <STAKER ADDRESS>, period: 18551, value: 1234567890123456789012, block_number: 11070103
+      - (EventRecord) staker: <STAKER ADDRESS>, period: 18552, value: 1234567890123456789012, block_number: 11076964
+      ...
+
+``1234567890123456789012`` is in NuNits and equates to approximately 1234.57 NU (1 NU = 10\ :sup:`18` NuNits).
+
+To aid with management of this information, instead of outputting the information to the CLI, the event data can
+be written to a CSV file using either of the following command-line options:
+
+* ``--csv`` - flag to write event information to a CSV file with a default filename in the current directory
+* ``--csv-file <FILEPATH>`` - write event information to a CSV file at the provided filepath
+
+For example,
+
+.. code::
+
+    $ nucypher stake events --staking-address <STAKER ADDRESS> --provider <PROVIDER URI> --event-name Minted --csv
+
+    StakingEscrow::Minted events written to ./Minted_2021-02-09_15-23-25.csv
+
+.. code::
+
+    $ nucypher stake events --staking-address <STAKER ADDRESS> --provider <PROVIDER URI> --event-name Minted --csv-file ~/Minted_Events.csv
+
+    StakingEscrow::Minted events written to /<HOME DIRECTORY>/Minted_Events.csv
