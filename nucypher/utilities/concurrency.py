@@ -29,6 +29,7 @@ class Success:
         self.value = value
         self.result = result
 
+
 class Failure:
     def __init__(self, value, exception):
         self.value = value
@@ -39,10 +40,10 @@ class Cancelled(Exception):
     pass
 
 
-class SetOnce:
+class Future:
     """
-    A convenience wrapper for a value that can be set once (which can be waited on),
-    and cannot be overwritten (unless cleared).
+    A simplified future object. Can be set to some value (all further sets are ignored),
+    can be waited on.
     """
 
     def __init__(self):
@@ -58,13 +59,6 @@ class SetOnce:
 
     def is_set(self):
         return self._set_event.is_set()
-
-    def get_and_clear(self):
-        with self._lock:
-            value = self._value
-            self._value = None
-            self._set_event.clear()
-            return value
 
     def get(self):
         self._set_event.wait()
@@ -120,8 +114,8 @@ class WorkerPool:
 
         self._cancel_event = Event()
         self._result_queue = Queue()
-        self._target_value = SetOnce()
-        self._unexpected_error = SetOnce()
+        self._target_value = Future()
+        self._unexpected_error = Future()
         self._results_lock = Lock()
         self._threadpool_stop_lock = Lock()
         self._threadpool_stopped = False
