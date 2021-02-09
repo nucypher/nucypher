@@ -576,11 +576,12 @@ class BlockchainPolicy(Policy):
             raise BlockchainPolicy.InvalidPolicyValue(f"Negative policy parameters are not allowed. Be positive.")
 
         # Check for policy params
-        if not bool(value) ^ bool(rate):
-            # TODO: Review this suggestion
-            raise BlockchainPolicy.InvalidPolicyValue(f"Either 'value' or 'rate'  must be provided for policy.")
+        if not (bool(value) ^ bool(rate)):
+            if not (value == 0 or rate == 0):  # Support a min fee rate of 0
+                raise BlockchainPolicy.InvalidPolicyValue(f"Either 'value' or 'rate'  must be provided for policy. "
+                                                          f"Got value: {value} and rate: {rate}")
 
-        if not value:
+        if value is None:
             value = rate * duration_periods * n
 
         else:
