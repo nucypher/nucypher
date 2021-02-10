@@ -258,7 +258,7 @@ def _make_rest_app(datastore: Datastore, this_node, domain: str, log: Logger) ->
         kfrag = KFrag.from_bytes(kfrag_bytes)
 
         if not kfrag.verify(signing_pubkey=alices_verifying_key):
-            raise InvalidSignature("{} is invalid".format(kfrag))
+            return Response(f"Signature on {kfrag} is invalid", status=403)
 
         with datastore.describe(PolicyArrangement, id_as_hex, writeable=True) as policy_arrangement:
             if not policy_arrangement.alice_verifying_key == alice.stamp.as_umbral_pubkey():
