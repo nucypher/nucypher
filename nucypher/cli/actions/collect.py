@@ -72,7 +72,7 @@ def collect_bob_public_keys(
     if not bob_encrypting_key:
         bob_encrypting_key = click.prompt("Enter Bob's encrypting key")
     if not bob_verifying_key:
-        bob_verifying_key = click.prompt("Enter Bob verifying key")
+        bob_verifying_key = click.prompt("Enter Bob's verifying key")
 
     public_keys = PublicKeys(encrypting_key=bob_encrypting_key, verifying_key=bob_verifying_key)
     return public_keys

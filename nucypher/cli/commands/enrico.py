@@ -69,14 +69,14 @@ def encrypt(general_config, policy_encrypting_key, message, file, ipfs):
         try:
             import ipfshttpclient
         except ImportError:
-            raise ImportError("IPFS HTTP client not installed.  Run pip install ipfshttpclient then try again.")
+            raise ImportError("IPFS HTTP client not installed.  Run 'pip install ipfshttpclient' then try again.")
 
         # Connect to IPFS before proceeding
         ipfs_client = ipfshttpclient.connect(ipfs)
         emitter.message(f"Connected to IPFS Gateway {ipfs}")
 
     if not policy_encrypting_key:
-        policy_encrypting_key = click.prompt("Enter policy public key", type=click.STRING)
+        policy_encrypting_key = click.prompt("Enter policy encrypting key", type=click.STRING)
 
     ENRICO = _create_enrico(emitter, policy_encrypting_key)
     if message and file:
