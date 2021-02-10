@@ -32,9 +32,9 @@ class Success:
 
 
 class Failure:
-    def __init__(self, value, exception):
+    def __init__(self, value, exc_info):
         self.value = value
-        self.exception = exception
+        self.exc_info = exc_info
 
 
 class Cancelled(Exception):
@@ -246,7 +246,7 @@ class WorkerPool:
         except Cancelled as e:
             self._result_queue.put(e)
         except BaseException as e:
-            self._result_queue.put(Failure(value, str(e)))
+            self._result_queue.put(Failure(value, sys.exc_info()))
 
     def _process_results(self):
         """
@@ -273,7 +273,7 @@ class WorkerPool:
                         self._target_value.set(self.get_successes())
                 if isinstance(result, Failure):
                     with self._results_lock:
-                        self._failures[result.value] = result.exception
+                        self._failures[result.value] = result.exc_info
 
             if producer_stopped and self._finished_tasks == self._started_tasks:
                 self.cancel() # to cancel the timeout thread
