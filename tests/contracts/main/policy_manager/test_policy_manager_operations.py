@@ -66,7 +66,7 @@ def test_fee(testerchain, escrow, policy_manager):
 
     # Can't ping directly (only through mint/commitToNextPeriod methods in the escrow contract)
     with pytest.raises((TransactionFailed, ValueError)):
-        tx = policy_manager.functions.ping(node1, period + 1, 0, period).transact({'from': node1})
+        tx = policy_manager.functions.ping(node1, period - 1, 0, period).transact({'from': node1})
         testerchain.wait_for_receipt(tx)
     # Can't register directly (only through deposit method in the escrow contract)
     with pytest.raises((TransactionFailed, ValueError)):
@@ -77,6 +77,7 @@ def test_fee(testerchain, escrow, policy_manager):
     for minting_period in range(period - 1, period + 4):
         tx = escrow.functions.ping(node1, minting_period, 0, 0).transact()
         testerchain.wait_for_receipt(tx)
+        testerchain.time_travel(hours=1)
     period += 4
     assert 80 == policy_manager.functions.nodes(node1).call()[FEE_FIELD]
 
@@ -101,17 +102,22 @@ def test_fee(testerchain, escrow, policy_manager):
     tx = escrow.functions.ping(node1, 0, 0, period + 2).transact()
     testerchain.wait_for_receipt(tx)
 
+    testerchain.time_travel(hours=2)
     tx = escrow.functions.ping(node1, period, period + 1, period + 3).transact()
     testerchain.wait_for_receipt(tx)
+    testerchain.time_travel(hours=1)
     tx = escrow.functions.ping(node1, period + 2, 0, period + 4).transact()
     testerchain.wait_for_receipt(tx)
+    testerchain.time_travel(hours=1)
     tx = escrow.functions.ping(node1, 0, period + 3, period + 5).transact()
     testerchain.wait_for_receipt(tx)
+    testerchain.time_travel(hours=2)
     tx = escrow.functions.ping(node1, period + 4, period + 5, 0).transact()
     testerchain.wait_for_receipt(tx)
 
     period += 6
     assert 120 == policy_manager.functions.nodes(node1).call()[FEE_FIELD]
+    testerchain.time_travel(hours=1)
     tx = escrow.functions.ping(node1, period, 0, 0).transact()
     testerchain.wait_for_receipt(tx)
     assert 120 == policy_manager.functions.nodes(node1).call()[FEE_FIELD]
@@ -133,12 +139,15 @@ def test_fee(testerchain, escrow, policy_manager):
     period = escrow.functions.getCurrentPeriod().call()
     tx = escrow.functions.ping(node1, 0, 0, period).transact()
     testerchain.wait_for_receipt(tx)
+    current_timestamp = testerchain.w3.eth.getBlock('latest').timestamp
+    end_timestamp = current_timestamp + (number_of_periods - 1) * one_period
     tx = policy_manager.functions.createPolicy(policy_id_2, policy_sponsor, end_timestamp, [node2, node3]) \
         .transact({'from': policy_sponsor, 'value': int(2 * value)})
     testerchain.wait_for_receipt(tx)
 
     # Mint some periods
     for minting_period in range(period, period + 5):
+        testerchain.time_travel(hours=1)
         tx = escrow.functions.ping(node2, 0, minting_period, 0).transact()
         testerchain.wait_for_receipt(tx)
     period += 5
@@ -146,6 +155,7 @@ def test_fee(testerchain, escrow, policy_manager):
 
     # Mint more periods
     for minting_period in range(period, period + 6):
+        testerchain.time_travel(hours=1)
         tx = escrow.functions.ping(node2, 0, minting_period, 0).transact()
         testerchain.wait_for_receipt(tx)
     period += 6
@@ -336,24 +346,30 @@ def test_refund(testerchain, escrow, policy_manager):
         policy_manager.functions.calculateRefundValue(policy_id_2).call({'from': node1})
 
     # Mint some periods and mark others as downtime periods
+    testerchain.time_travel(hours=1)
     tx = escrow.functions.ping(node1, 0, period, 0).transact()
     testerchain.wait_for_receipt(tx)
     period += 1
+    testerchain.time_travel(hours=2)
     tx = escrow.functions.ping(node1, period, period + 1, 0).transact()
     testerchain.wait_for_receipt(tx)
+    testerchain.time_travel(hours=2)
     tx = escrow.functions.pushDowntimePeriod(period + 2, period + 3).transact({'from': creator})
     testerchain.wait_for_receipt(tx)
+    testerchain.time_travel(hours=1)
     tx = escrow.functions.ping(node1, period + 4, 0, 0).transact()
     testerchain.wait_for_receipt(tx)
+    testerchain.time_travel(hours=2)
     tx = escrow.functions.pushDowntimePeriod(period + 5, period + 7).transact({'from': creator})
     testerchain.wait_for_receipt(tx)
+    testerchain.time_travel(hours=1)
     tx = escrow.functions.ping(node1, period + 8, 0, 0).transact()
     testerchain.wait_for_receipt(tx)
     tx = escrow.functions.setLastCommittedPeriod(period + 8).transact({'from': creator})
     testerchain.wait_for_receipt(tx)
     assert 100 == policy_manager.functions.nodes(node1).call()[FEE_FIELD]
 
-    testerchain.time_travel(hours=10)
+    testerchain.time_travel(hours=1)
     assert 300 == policy_manager.functions.calculateRefundValue(policy_id_2).call({'from': policy_creator})
     assert 100 == policy_manager.functions.calculateRefundValue(policy_id_2, node1).call({'from': policy_creator})
 
@@ -438,8 +454,10 @@ def test_refund(testerchain, escrow, policy_manager):
     period += 1
     tx = escrow.functions.pushDowntimePeriod(period - 1, period).transact({'from': creator})
     testerchain.wait_for_receipt(tx)
+    testerchain.time_travel(hours=2)
     tx = escrow.functions.ping(node1, period + 1, period + 2, 0).transact()
     testerchain.wait_for_receipt(tx)
+    testerchain.time_travel(hours=2)
     tx = escrow.functions.ping(node1, period + 3, 0, 0).transact()
     testerchain.wait_for_receipt(tx)
     period += 3
@@ -448,12 +466,12 @@ def test_refund(testerchain, escrow, policy_manager):
     assert 160 == policy_manager.functions.nodes(node1).call()[FEE_FIELD]
 
     # Policy owner revokes policy
-    testerchain.time_travel(hours=4)
     assert 40 == policy_manager.functions.calculateRefundValue(policy_id_3).call({'from': policy_creator})
     assert 40 == policy_manager.functions.calculateRefundValue(policy_id_3, node1).call({'from': policy_creator})
 
     policy_manager_balance = testerchain.client.get_balance(policy_manager.address)
     creator_balance = testerchain.client.get_balance(policy_creator)
+    testerchain.time_travel(hours=1)
     period = escrow.functions.getCurrentPeriod().call()
     for period_to_set_default in range(period + 1, period + number_of_periods):
         tx = escrow.functions.ping(node1, 0, 0, period_to_set_default).transact()
@@ -487,6 +505,7 @@ def test_refund(testerchain, escrow, policy_manager):
 
     # Minting is useless after policy is revoked
     for minting_period in range(period + 1, period + number_of_periods + 1):
+        testerchain.time_travel(hours=1)
         tx = escrow.functions.ping(node1, 0, minting_period, 0).transact()
         testerchain.wait_for_receipt(tx)
     period += 20
