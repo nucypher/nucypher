@@ -1371,7 +1371,7 @@ class BlockchainPolicyAuthor(NucypherTokenActor):
             raise ValueError("Policy end time must be specified as 'expiration' or 'duration_periods', got neither.")
 
         # Merge injected and default params.
-        rate = rate or self.rate  # TODO conflict with CLI default value, see #1709
+        rate = rate if rate is not None else self.rate  # TODO conflict with CLI default value, see #1709
         duration_periods = duration_periods or self.duration_periods
 
         # Calculate duration in periods and expiration datetime
@@ -1394,7 +1394,7 @@ class BlockchainPolicyAuthor(NucypherTokenActor):
                                                                          value=value,
                                                                          rate=rate)
 
-        # These values may have been recalculated in this block.
+        # These values may have been recalculated in this blocktime.
         policy_end_time = dict(duration_periods=duration_periods, expiration=expiration)
         payload = {**blockchain_payload, **policy_end_time}
         return payload

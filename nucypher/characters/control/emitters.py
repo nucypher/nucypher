@@ -82,6 +82,14 @@ class StdoutEmitter:
             for k, v in response.items():
                 click.secho(message=f'{k} ...... {v}', fg=self.default_color)
 
+    def pretty(self, response):
+        if self.verbosity >= 1:
+            click.secho("-" * 90, fg='cyan')
+            for k, v in response.items():
+                click.secho(k, bold=True)
+                click.secho(message=str(v), fg=self.default_color)
+                click.secho("-"*90, fg='cyan')
+
     def error(self, e):
         if self.verbosity >= 1:
             e_str = str(e)

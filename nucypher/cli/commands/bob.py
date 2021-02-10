@@ -14,7 +14,7 @@
  You should have received a copy of the GNU Affero General Public License
  along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
-
+from base64 import b64decode
 
 import click
 
@@ -343,6 +343,13 @@ def retrieve(general_config,
     emitter = setup_emitter(general_config)
     BOB = character_options.create_character(emitter, config_file)
 
+    if not message_kit:
+        if ipfs:
+            prompt = "Enter IPFS CID for encrypted data"
+        else:
+            prompt = "Enter encrypted data (base64)"
+        message_kit = click.prompt(prompt, type=click.STRING)
+
     if ipfs:
         import ipfshttpclient
         # TODO: #2108
@@ -366,7 +373,14 @@ def retrieve(general_config,
             if not force:
                 click.confirm('Is this the correct Granter (Alice)?', abort=True)
         else:  # interactive
-            alice_verifying_key = click.prompt("Enter Alice's verifying key")
+            alice_verifying_key = click.prompt("Enter Alice's verifying key", click.STRING)
+
+    if not force:
+        if not policy_encrypting_key:
+            policy_encrypting_key = click.prompt("Enter policy public key", type=click.STRING)
+
+        if not label:
+            label = click.prompt("Enter label to retrieve", type=click.STRING)
 
     # Request
     bob_request_data = {
@@ -377,4 +391,9 @@ def retrieve(general_config,
     }
 
     response = BOB.controller.retrieve(request=bob_request_data)
+
+    # TODO: Uncomment for Demo. Fix Cleartext Deserialization.
+    # for cleartext in response['cleartexts']:
+    #     print(b64decode(cleartext))
+        
     return response
