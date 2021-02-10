@@ -318,14 +318,14 @@ def test_buggy_factory_raises_on_block():
 
     pool.start()
     time.sleep(2) # wait for the stagger timeout to finish
-    with pytest.raises(RuntimeError, match="Unexpected error in the producer thread"):
+    with pytest.raises(Exception, match="Buggy factory"):
         pool.block_until_target_successes()
     # Further calls to `block_until_target_successes()` or `join()` don't throw the error.
-    with pytest.raises(RuntimeError, match="Unexpected error in the producer thread"):
+    with pytest.raises(Exception, match="Buggy factory"):
         pool.block_until_target_successes()
     pool.cancel()
 
-    with pytest.raises(RuntimeError, match="Unexpected error in the producer thread"):
+    with pytest.raises(Exception, match="Buggy factory"):
         pool.join()
 
 
@@ -344,7 +344,7 @@ def test_buggy_factory_raises_on_join():
 
     pool.start()
     pool.cancel()
-    with pytest.raises(RuntimeError, match="Unexpected error in the producer thread"):
+    with pytest.raises(Exception, match="Buggy factory"):
         pool.join()
-    with pytest.raises(RuntimeError, match="Unexpected error in the producer thread"):
+    with pytest.raises(Exception, match="Buggy factory"):
         pool.join()
