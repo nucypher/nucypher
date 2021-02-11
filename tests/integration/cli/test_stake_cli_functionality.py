@@ -248,7 +248,7 @@ def test_collecting_token_reward(click_runner, surrogate_stakers, mock_staking_a
     assert COLLECTING_TOKEN_REWARD.format(reward_amount=reward) in result.output
 
     mock_staking_agent.calculate_staking_reward.assert_called_once_with(staker_address=surrogate_stakers[0])
-    mock_staking_agent.collect_staking_reward.assert_called_once_with(transacting_power=surrogate_transacting_power)
+    mock_staking_agent.collect_staking_reward.assert_called_once_with(transacting_power=surrogate_transacting_power, replace=False)
     mock_staking_agent.non_withdrawable_stake.assert_called_once_with(staker_address=surrogate_stakers[0])
     mock_mintable_periods.assert_not_called()
     mock_staking_agent.assert_only_transactions([mock_staking_agent.collect_staking_reward])
@@ -280,7 +280,7 @@ def test_collecting_whole_reward_with_warning(click_runner, surrogate_stakers, m
     assert CONFIRM_COLLECTING_WITHOUT_MINTING in result.output
 
     mock_staking_agent.calculate_staking_reward.assert_called_once_with(staker_address=surrogate_stakers[0])
-    mock_staking_agent.collect_staking_reward.assert_called_once_with(transacting_power=surrogate_transacting_power)
+    mock_staking_agent.collect_staking_reward.assert_called_once_with(transacting_power=surrogate_transacting_power, replace=False)
     mock_staking_agent.non_withdrawable_stake.assert_called_once_with(staker_address=surrogate_stakers[0])
     mock_staking_agent.get_current_period.assert_called()
     mock_staking_agent.get_current_committed_period.assert_called_once_with(staker_address=surrogate_stakers[0])
@@ -314,7 +314,7 @@ def test_collecting_whole_reward_without_warning(click_runner, surrogate_stakers
     assert CONFIRM_COLLECTING_WITHOUT_MINTING not in result.output
 
     mock_staking_agent.calculate_staking_reward.assert_called_once_with(staker_address=surrogate_stakers[0])
-    mock_staking_agent.collect_staking_reward.assert_called_once_with(transacting_power=surrogate_transacting_power)
+    mock_staking_agent.collect_staking_reward.assert_called_once_with(transacting_power=surrogate_transacting_power, replace=False)
     mock_staking_agent.non_withdrawable_stake.assert_called_once_with(staker_address=surrogate_stakers[0])
     mock_staking_agent.get_current_period.assert_called()
     mock_staking_agent.get_current_committed_period.assert_called_once_with(staker_address=surrogate_stakers[0])

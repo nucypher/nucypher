@@ -1097,6 +1097,7 @@ def remove_unused(general_config: GroupGeneralConfig,
 @stake.command('collect-reward')
 @group_transacting_staker_options
 @option_config_file
+@click.option('--replace', help="replace the existing pending transaction", is_flag=True)
 @click.option('--staking-reward/--no-staking-reward', is_flag=True, default=False)
 @click.option('--policy-fee/--no-policy-fee', is_flag=True, default=False)
 @click.option('--withdraw-address', help="Send fee collection to an alternate address", type=EIP55_CHECKSUM_ADDRESS)
@@ -1108,6 +1109,7 @@ def collect_reward(general_config: GroupGeneralConfig,
                    staking_reward,
                    policy_fee,
                    withdraw_address,
+                   replace,
                    force):
     """Withdraw staking reward."""
 
@@ -1146,7 +1148,7 @@ def collect_reward(general_config: GroupGeneralConfig,
                                 hw_wallet=transacting_staker_options.hw_wallet)
         STAKEHOLDER.assimilate(checksum_address=client_account, password=password)
 
-        staking_receipt = STAKEHOLDER.staker.collect_staking_reward()
+        staking_receipt = STAKEHOLDER.staker.collect_staking_reward(replace=replace)
         paint_receipt_summary(receipt=staking_receipt,
                               chain_name=blockchain.client.chain_name,
                               emitter=emitter)

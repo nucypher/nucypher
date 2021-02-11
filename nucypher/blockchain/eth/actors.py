@@ -974,9 +974,9 @@ class Staker(NucypherTokenActor):
 
     @only_me
     @save_receipt
-    def collect_staking_reward(self) -> TxReceipt:
+    def collect_staking_reward(self, replace: bool = False) -> TxReceipt:
         """Withdraw tokens rewarded for staking"""
-        receipt = self.staking_agent.collect_staking_reward(transacting_power=self.transacting_power)
+        receipt = self.staking_agent.collect_staking_reward(transacting_power=self.transacting_power, replace=replace)
         return receipt
 
     @only_me
