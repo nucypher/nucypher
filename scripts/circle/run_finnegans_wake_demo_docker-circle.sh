@@ -11,7 +11,7 @@ cd "${0%/*}"
 echo "working in directory: $PWD"
 
 # run some ursulas
-docker-compose up -d
+docker-compose up -d --build
 
 # Wait to ensure Ursulas are up.
 echo "War... watisit good for?"
