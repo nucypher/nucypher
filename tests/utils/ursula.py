@@ -98,6 +98,7 @@ def make_federated_ursulas(ursula_config: UrsulaConfiguration,
 def make_decentralized_ursulas(ursula_config: UrsulaConfiguration,
                                stakers_addresses: Iterable[str],
                                workers_addresses: Iterable[str],
+                               commit_now=True,
                                **ursula_overrides) -> List[Ursula]:
 
     if not MOCK_KNOWN_URSULAS_CACHE:
@@ -114,7 +115,9 @@ def make_decentralized_ursulas(ursula_config: UrsulaConfiguration,
                                        db_filepath=MOCK_DB,
                                        rest_port=port + 100,
                                        **ursula_overrides)
-        ursula.commit_to_next_period()
+
+        if commit_now:
+            ursula.commit_to_next_period()
 
         ursulas.append(ursula)
 

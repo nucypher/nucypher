@@ -108,10 +108,6 @@ class Character(Learner):
 
         """
 
-        if provider_uri:
-            if not BlockchainInterfaceFactory.is_interface_initialized(provider_uri=provider_uri):
-                BlockchainInterfaceFactory.initialize_interface(provider_uri=provider_uri)
-
         #
         # Prologue of the federation
         #
@@ -174,15 +170,19 @@ class Character(Learner):
             except NoSigningPower:
                 self._stamp = NO_SIGNING_POWER
 
-            # Blockchain
+            # Blockchainy
             if not self.federated_only:
+                if not provider_uri:
+                    raise ValueError('Provider URI is required to init a decentralized character.')
+                self.provider_uri = provider_uri
+
+                # TODO: Remove this after fixing signer caching
+                # if not BlockchainInterfaceFactory.is_interface_initialized(provider_uri=provider_uri):
+                #     BlockchainInterfaceFactory.initialize_interface(provider_uri=provider_uri)
+
                 self.registry = registry or InMemoryContractRegistry.from_latest_publication(network=domain)  # See #1580
             else:
                 self.registry = NO_BLOCKCHAIN_CONNECTION.bool_value(False)
-
-            if not federated_only and not provider_uri:
-                raise ValueError('Provider URI is required to init a decentralized character.')
-            self.provider_uri = provider_uri
 
             # REST
             self.network_middleware = network_middleware or RestMiddleware(registry=self.registry)
