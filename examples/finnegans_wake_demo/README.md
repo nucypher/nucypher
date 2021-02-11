@@ -1,4 +1,4 @@
-# Ursula exchange example over live network
+# Ursula exchange example over local network
 
 This illustrates Alice sharing data with Bob over the NuCypher network using proxy re-encryption,
 without revealing private keys to intermediary entities.
@@ -14,10 +14,6 @@ without revealing private keys to intermediary entities.
 
 ### Run a fleet of federated Ursulas
 `python ../run_demo_ursula_fleet.py`
-
-
-### Download the Book!
-`./download_finnegans_wake.sh` 
 
 
 ### Run

@@ -15,122 +15,87 @@
  along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
+
 import datetime
 import maya
-import os
+import sys
+from pathlib import Path
 from umbral.keys import UmbralPublicKey
-from web3.main import Web3
 
-from nucypher.blockchain.eth.signers.base import Signer
 from nucypher.characters.lawful import Alice, Bob, Ursula
 from nucypher.characters.lawful import Enrico as Enrico
-from nucypher.crypto.powers import SigningPower, DecryptingPower
+from nucypher.config.constants import TEMPORARY_DOMAIN
 from nucypher.utilities.logging import GlobalLoggerSettings
-
-# Twisted Logger
-GlobalLoggerSettings.set_log_level(log_level_name='debug')
-GlobalLoggerSettings.start_console_logging()
-
-# Execute the download script (download_finnegans_wake.sh) to retrieve the book
-BOOK_PATH = os.path.join('.', 'finnegans-wake.txt')
-
-# Change this value to to perform more or less total re-encryptions
-# in order to avoid processing the entire book's text. (it's long)
-NUMBER_OF_LINES_TO_REENCRYPT = 25
-
-# Seednode
-SEEDNODE_URI = "https://lynx.nucypher.network:9151"
-SEEDNODE = Ursula.from_seed_and_stake_info(SEEDNODE_URI)
 
 ######################
 # Boring setup stuff #
 ######################
 
-# Configuration
-DOMAIN = 'lynx'  # testnet
+BOOK_PATH = Path('finnegans-wake-excerpt.txt')
 
-# Replace with ethereum RPC endpoint
-ETH_PROVIDER = ''
-PROVIDER_URI = os.environ.get('NUCYPHER_PROVIDER_URI', ETH_PROVIDER)
+# Twisted Logger
+GlobalLoggerSettings.set_log_level(log_level_name='debug')
+GlobalLoggerSettings.start_console_logging()
 
-# Replace with signer URI
-WALLET_FILEPATH = ''
-ETH_WALLET = f'keystore://{WALLET_FILEPATH}'
-SIGNER_URI = os.environ.get('NUCYPHER_SIGNER_URI', ETH_WALLET)
+# if your ursulas are NOT running on your current host,
+# run like this: python finnegans-wake-demo.py 172.28.1.3:11500
+# otherwise the default will be fine.
 
-# Replace with alice's ethereum address
-ETH_ADDRESS = ''
-ALICE_ETH_ADDRESS = os.environ.get('ALICE_ETH_ADDRESS', ETH_ADDRESS)
+try:
+    SEEDNODE_URI = sys.argv[1]
+except IndexError:
+    SEEDNODE_URI = "localhost:11500"
 
+##############################################
+# Ursula, the Untrusted Re-Encryption Proxy  #
+##############################################
+ursula = Ursula.from_seed_and_stake_info(seed_uri=SEEDNODE_URI,
+                                         federated_only=True,
+                                         minimum_stake=0)
 
-#####################
-# Bob the BUIDLer  ##
-#####################
-
-# First there was Bob.
-BOB = Bob(
-    known_nodes=[SEEDNODE],
-    domain=DOMAIN,
-    provider_uri=PROVIDER_URI
-)
-
-# Bob gives his public keys to alice.
-verifying_key = BOB.public_keys(SigningPower)
-encrypting_key = BOB.public_keys(DecryptingPower)
+# Here are our Policy details.
+policy_end_datetime = maya.now() + datetime.timedelta(days=1)
+m, n = 2, 3
+label = b"secret/files/and/stuff"
 
 ######################################
 # Alice, the Authority of the Policy #
 ######################################
 
-# Alice ethereum wallet
-wallet = Signer.from_signer_uri(SIGNER_URI)
-password = input(f'Enter password to unlock {ALICE_ETH_ADDRESS}: ')
-wallet.unlock_account(account=ALICE_ETH_ADDRESS, password=password)
-
-ALICE = Alice(
-
-    # Connection details
-    domain=DOMAIN,
-    known_nodes=[SEEDNODE],
-    provider_uri=PROVIDER_URI,
-
-    # Wallet details
-    checksum_address=ALICE_ETH_ADDRESS,
-    signer=wallet,
-    client_password=password
-)
-
-# Here are the Policy details.
-policy_end_datetime = maya.now() + datetime.timedelta(days=5)
-m, n = 2, 3
-label = b"secret/files/and/stuff"
+ALICE = Alice(domain=TEMPORARY_DOMAIN,
+              known_nodes=[ursula],
+              learn_on_same_thread=True,
+              federated_only=True)
 
 # Alice can get the public key even before creating the policy.
 # From this moment on, any Data Source that knows the public key
 # can encrypt data originally intended for Alice, but that can be shared with
 # any Bob that Alice grants access.
-policy_pubkey = ALICE.get_policy_encrypting_key_from_label(label)
+policy_public_key = ALICE.get_policy_encrypting_key_from_label(label)
 
-# Alice already knows Bob's public keys from a side-channel.
-bob = Bob.from_public_keys(encrypting_key=encrypting_key, verifying_key=verifying_key)
+BOB = Bob(known_nodes=[ursula],
+          domain=TEMPORARY_DOMAIN,
+          federated_only=True,
+          start_learning_now=True,
+          learn_on_same_thread=True)
 
-# Alice grants access to bob.
-policy = ALICE.grant(
-    bob=bob,
-    label=label,
-    m=m,
-    n=n,
-    rate=Web3.toWei(50, 'gwei'),
-    expiration=policy_end_datetime
-)
+ALICE.start_learning_loop(now=True)
+ALICE.block_until_number_of_known_nodes_is(8, timeout=30, learn_on_this_thread=True)  # In case the fleet isn't fully spun up yet, as sometimes happens on CI.
+
+policy = ALICE.grant(BOB,
+                     label,
+                     m=m, n=n,
+                     expiration=policy_end_datetime)
+
+assert policy.public_key == policy_public_key
+policy.treasure_map_publisher.block_until_complete()
 
 # Alice puts her public key somewhere for Bob to find later...
-alices_pubkey_bytes_saved_for_posterity = bytes(ALICE.stamp)
+alice_public_key = bytes(ALICE.stamp)
 
 # ...and then disappears from the internet.
 ALICE.disenchant()
 del ALICE
-del bob
 
 #####################
 # some time passes. #
@@ -140,16 +105,20 @@ del bob
 # And now for Bob.  #
 #####################
 
-BOB.join_policy(label, alices_pubkey_bytes_saved_for_posterity)
+#####################
+# Bob the BUIDLer  ##
+#####################
+
+BOB.join_policy(label, alice_public_key)
 
 # Now that Bob has joined the Policy, let's show how Enrico the Encryptor
 # can share data with the members of this Policy and then how Bob retrieves it.
 # In order to avoid re-encrypting the entire book in this demo, we only read some lines.
 with open(BOOK_PATH, 'rb') as file:
-    finnegans_wake = file.readlines()[:NUMBER_OF_LINES_TO_REENCRYPT]
+    finnegans_wake = file.readlines()
 
 print()
-print("**************James Joyce's Finnegan's Wake**************")
+print("**************James Joyce's Finnegan's Wake (Excerpt)**************")
 print()
 print("---------------------------------------------------------")
 
@@ -158,7 +127,7 @@ for counter, plaintext in enumerate(finnegans_wake):
     #########################
     # Enrico, the Encryptor #
     #########################
-    enrico = Enrico(policy_encrypting_key=policy_pubkey)
+    enrico = Enrico(policy_encrypting_key=policy_public_key)
 
     # In this case, the plaintext is a
     # single passage from James Joyce's Finnegan's Wake.
@@ -174,11 +143,11 @@ for counter, plaintext in enumerate(finnegans_wake):
 
     enrico_as_understood_by_bob = Enrico.from_public_keys(
         verifying_key=data_source_public_key,
-        policy_encrypting_key=policy_pubkey
+        policy_encrypting_key=policy_public_key
     )
 
     # Now Bob can retrieve the original message.
-    alice_pubkey_restored_from_ancient_scroll = UmbralPublicKey.from_bytes(alices_pubkey_bytes_saved_for_posterity)
+    alice_pubkey_restored_from_ancient_scroll = UmbralPublicKey.from_bytes(alice_public_key)
     delivered_cleartexts = BOB.retrieve(single_passage_ciphertext,
                                         enrico=enrico_as_understood_by_bob,
                                         alice_verifying_key=alice_pubkey_restored_from_ancient_scroll,

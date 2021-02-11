@@ -1451,6 +1451,18 @@ class Ursula(Teacher, Character, Worker):
         return cls.from_seed_and_stake_info(seed_uri=seed_uri, *args, **kwargs)
 
     @classmethod
+    def seednode_for_network(cls, network: str) -> 'Ursula':
+        """Returns a default seednode ursula for a given network."""
+        try:
+            url = RestMiddleware.TEACHER_NODES[network][0]
+        except KeyError:
+            raise ValueError(f'"{network}" is not a known network.')
+        except IndexError:
+            raise ValueError(f'No default seednodes available for "{network}".')
+        ursula = cls.from_seed_and_stake_info(seed_uri=url)
+        return ursula
+
+    @classmethod
     def from_teacher_uri(cls,
                          federated_only: bool,
                          teacher_uri: str,
