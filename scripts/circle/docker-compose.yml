@@ -1,7 +1,6 @@
 version: '3'
 
 # USAGE
-# docker-compose run nucypher-circle-dev bash download_finnegans_wake.sh
 # docker-compose run nucypher-circle-dev python finnegans-wake-demo.py 172.29.1.3:11500
 
 services:
@@ -147,8 +146,6 @@ services:
       nucypher_circle_net:
         ipv4_address: 172.29.1.12
     container_name: circleursula12
-
-
 
 networks:
   nucypher_circle_net:

@@ -111,11 +111,11 @@ label = b"secret/files/and/stuff"
 policy_public_key = ALICE.get_policy_encrypting_key_from_label(label)
 
 # Alice already knows Bob's public keys from a side-channel.
-stranger_bob = Bob.from_public_keys(encrypting_key=encrypting_key, verifying_key=verifying_key)
+remote_bob = Bob.from_public_keys(encrypting_key=encrypting_key, verifying_key=verifying_key)
 
 # Alice grants access to bob.
 policy = ALICE.grant(
-    bob=stranger_bob,
+    bob=remote_bob,
     label=label,
     m=m,
     n=n,
@@ -127,6 +127,10 @@ policy = ALICE.grant(
 alice_public_key = bytes(ALICE.stamp)
 
 # ...and then disappears from the internet.
+#
+# Note that local characters (alice and bob), as opposed to objects representing
+# remote characters constructed from public data (remote_alice and remote_bob)
+# run a learning loop in a background thread and need to be stopped explicitly.
 ALICE.disenchant()
 del ALICE
 

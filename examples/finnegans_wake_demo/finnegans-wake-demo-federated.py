@@ -93,7 +93,12 @@ policy.treasure_map_publisher.block_until_complete()
 # Alice puts her public key somewhere for Bob to find later...
 alice_public_key = bytes(ALICE.stamp)
 
+
 # ...and then disappears from the internet.
+#
+# Note that local characters (alice and bob), as opposed to objects representing
+# remote characters constructed from public data (remote_alice and remote_bob)
+# run a learning loop in a background thread and need to be stopped explicitly.
 ALICE.disenchant()
 del ALICE
 
