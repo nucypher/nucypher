@@ -251,7 +251,7 @@ def _make_rest_app(datastore: Datastore, this_node, domain: str, log: Logger) ->
             this_node_has_been_arranged = this_node.checksum_address in arranged_addresses
             if not this_node_has_been_arranged:
                 this_node.suspicious_activities_witnessed['freeriders'].append((alice, f"The transaction {tx} does not list me as a Worker - it lists {arranged_addresses}."))
-                return Response(f"No transaction arrangement matching {tx} for this node", status=402)
+                return Response(f"This node was not listed as servicing the policy in transaction {tx}", status=402)
         else:
             _tx = NO_BLOCKCHAIN_CONNECTION
             kfrag_bytes = cleartext
@@ -262,7 +262,7 @@ def _make_rest_app(datastore: Datastore, this_node, domain: str, log: Logger) ->
 
         with datastore.describe(PolicyArrangement, id_as_hex, writeable=True) as policy_arrangement:
             if not policy_arrangement.alice_verifying_key == alice.stamp.as_umbral_pubkey():
-                return Response(f"Policy key does not match Alice stamp.", status=403)
+                return Response("Policy arrangement's signing key does not match sender's", status=403)
             policy_arrangement.kfrag = kfrag
 
         # TODO: Sign the arrangement here.  #495
