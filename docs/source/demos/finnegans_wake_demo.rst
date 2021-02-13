@@ -31,6 +31,10 @@ without revealing data keys to intermediary entities.
 +------+-----------+----------------------------------------------------------------------------------------------+
 
 
+There are two version of the example, one federated example using a local federated network
+and another example using the nucypher application development tesnet on Goerli: "Lynx".
+
+
 Install NuCypher
 ----------------
 
@@ -45,32 +49,34 @@ Acquire the ``nucypher`` application code and install the dependencies:
     (nucypher-venv)$ cd nucypher
     (nucypher-venv)$ pip install -e .
 
+Federated Demo
+--------------
 
-Run a fleet of federated Ursulas
---------------------------------
-    Run the local fleet of federated Ursulas in a separate terminal.
-    This provides a network of 12 federated Ursulas.
-
-.. code::
-
-    (nucypher)$ python examples/run_demo_ursula_fleet.py
-
-Download the Book Text
-----------------------
-    For your convenience we have provided a bash script to acquire the "Finnegan's Wake" text. However,
-    feel free to use any text of your choice, as long you you edit the demo code accordingly.
-
-    To run the script from the ``examples/finnegans_wake_demo`` directory:
+First run the local federated network:
 
 .. code::
 
-    (nucypher)$ ./download_finnegans_wake.sh
+    python ../run_demo_ursula_fleet.py
 
-Run the Demo
----------------
-
-    After acquiring a text file to re-encrypt, execute the demo from the ``examples/finnegans_wake_demo`` by running:
+Then run the demo:
 
 .. code::
 
-    (nucypher)$ python finnegans-wake-demo.py
+    python finnegans-wake-demo-federated.py
+
+Testnet Demo
+------------
+
+First, configure the demo.  Be sure tat alice's address has some Goerli ETH.
+
+.. code::
+
+    export DEMO_PROVIDER_URI=<GOERLI RPC ENDPOINT>
+    export DEMO_ALICE_ETH_ADDRESS=<ETH ADDRESS>
+    export DEMO_SIGNER_URI=keystore://<PATH TO KEYSTORE>
+
+Then run the demo:
+
+.. code::
+
+    python finnegans-wake-demo-testnet.py
