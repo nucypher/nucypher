@@ -158,12 +158,10 @@ def test_collect_policy_fee(testerchain, agency, policy_meta, token_economics, m
     worker = staking_agent.get_worker_from_staker(staker)
 
     mock_transacting_power_activation(account=worker, password=INSECURE_DEVELOPMENT_PASSWORD)
-
     old_eth_balance = token_agent.blockchain.client.get_balance(staker)
-
     for _ in range(token_economics.minimum_locked_periods):
-        staking_agent.commit_to_next_period(worker_address=worker)
         testerchain.time_travel(periods=1)
+        staking_agent.commit_to_next_period(worker_address=worker)
 
     mock_transacting_power_activation(account=staker, password=INSECURE_DEVELOPMENT_PASSWORD)
     receipt = agent.collect_policy_fee(collector_address=staker, staker_address=staker)

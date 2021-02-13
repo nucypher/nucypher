@@ -237,7 +237,6 @@ class Learner:
         self._discovery_canceller = DiscoveryCanceller()
 
         if not node_storage:
-            # Fallback storage backend
             node_storage = self.__DEFAULT_NODE_STORAGE(federated_only=self.federated_only)
         self.node_storage = node_storage
         if save_metadata and node_storage is NO_STORAGE_AVAILIBLE:

@@ -265,11 +265,8 @@ def test_staker_collects_staking_reward(testerchain,
                   amount=DEVELOPMENT_TOKEN_AIRDROP_AMOUNT)
 
     mock_transacting_power_activation(account=staker.checksum_address, password=INSECURE_DEVELOPMENT_PASSWORD)
-
-    staker.initialize_stake(amount=NU(token_economics.minimum_allowed_locked, 'NuNit'),
-                            # Lock the minimum amount of tokens
-                            lock_periods=int(
-                                token_economics.minimum_locked_periods))  # ... for the fewest number of periods
+    staker.initialize_stake(amount=NU(token_economics.minimum_allowed_locked, 'NuNit'),  # Lock the minimum amount of tokens
+                            lock_periods=int(token_economics.minimum_locked_periods))    # ... for the fewest number of periods
 
     # Get an unused address for a new worker
     worker_address = testerchain.unassigned_accounts[-1]

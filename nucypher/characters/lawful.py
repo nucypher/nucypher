@@ -172,11 +172,12 @@ class Alice(Character, BlockchainPolicyAuthor):
                                             duration_periods=duration_periods,
                                             checksum_address=checksum_address)
 
-        if is_me and controller:
-            self.make_cli_controller()
 
         self.log = Logger(self.__class__.__name__)
-        self.log.info(self.banner)
+        if is_me:
+            if controller:
+                self.make_cli_controller()
+            self.log.info(self.banner)
 
         self.active_policies = dict()
         self.revocation_kits = dict()
@@ -489,8 +490,18 @@ class Bob(Character):
         def __init__(self, evidence: List):
             self.evidence = evidence
 
-    def __init__(self, treasure_maps: Optional[Dict] = None, controller: bool = True, *args, **kwargs) -> None:
-        Character.__init__(self, known_node_class=Ursula, *args, **kwargs)
+    def __init__(self,
+                 is_me: bool = True,
+                 treasure_maps: Optional[Dict] = None,
+                 controller: bool = True,
+                 verify_node_bonding: bool = False,
+                 *args, **kwargs) -> None:
+
+        Character.__init__(self,
+                           is_me=is_me,
+                           known_node_class=Ursula,
+                           verify_node_bonding=verify_node_bonding,
+                           *args, **kwargs)
 
         if controller:
             self.make_cli_controller()
@@ -503,7 +514,8 @@ class Bob(Character):
         self._completed_work_orders = WorkOrderHistory()
 
         self.log = Logger(self.__class__.__name__)
-        self.log.info(self.banner)
+        if is_me:
+            self.log.info(self.banner)
 
     def get_card(self) -> 'Card':
         from nucypher.policy.identity import Card
@@ -797,15 +809,23 @@ class Bob(Character):
             return True, cfrags
 
     def retrieve(self,
+
+                 # Policy
                  *message_kits: UmbralMessageKit,
-                 alice_verifying_key: UmbralPublicKey,
+                 alice_verifying_key: Union[UmbralPublicKey, bytes],
                  label: bytes,
+
+                 # Source Authentication
                  enrico: "Enrico" = None,
+                 policy_encrypting_key: UmbralPublicKey = None,
+
+                 # Retrieval Behaviour
                  retain_cfrags: bool = False,
                  use_attached_cfrags: bool = False,
                  use_precedent_work_orders: bool = False,
-                 policy_encrypting_key: UmbralPublicKey = None,
-                 treasure_map: Union['TreasureMap', bytes] = None):
+                 treasure_map: Union['TreasureMap', bytes] = None
+
+                 ) -> List[bytes]:
 
         # Try our best to get an UmbralPublicKey from input
         alice_verifying_key = UmbralPublicKey.from_bytes(bytes(alice_verifying_key))
@@ -838,8 +858,7 @@ class Bob(Character):
 
         # Normalization
         for message in message_kits:
-            message.ensure_correct_sender(enrico=enrico,
-                                          policy_encrypting_key=policy_encrypting_key)
+            message.ensure_correct_sender(enrico=enrico, policy_encrypting_key=policy_encrypting_key)
 
         # Sanity check: If we're not using attached cfrags, we don't want a Capsule which has them.
         if not use_attached_cfrags and any(len(message.capsule) > 0 for message in message_kits):
@@ -1549,7 +1568,7 @@ class Ursula(Teacher, Character, Worker):
         return potential_seed_node
 
     @classmethod
-    def payload_splitter(cls, splittable, partial=False):
+    def payload_splitter(cls, splittable, partial: bool = False):
         splitter = BytestringKwargifier(
             _receiver=cls.from_processed_bytes,
             _partial_receiver=NodeSprout,
@@ -1557,7 +1576,10 @@ class Ursula(Teacher, Character, Worker):
             domain=VariableLengthBytestring,
             timestamp=(int, 4, {'byteorder': 'big'}),
             interface_signature=Signature,
-            decentralized_identity_evidence=VariableLengthBytestring,  # FIXME: Fixed length doesn't work with federated. It was LENGTH_ECDSA_SIGNATURE_WITH_RECOVERY,
+
+            # FIXME: Fixed length doesn't work with federated. It was LENGTH_ECDSA_SIGNATURE_WITH_RECOVERY,
+            decentralized_identity_evidence=VariableLengthBytestring,
+
             verifying_key=(UmbralPublicKey, PUBLIC_KEY_LENGTH),
             encrypting_key=(UmbralPublicKey, PUBLIC_KEY_LENGTH),
             certificate=(load_pem_x509_certificate, VariableLengthBytestring, {"backend": default_backend()}),
@@ -1744,19 +1766,25 @@ class Enrico(Character):
     _interface_class = EnricoInterface
     _default_crypto_powerups = [SigningPower]
 
-    def __init__(self, policy_encrypting_key=None, controller: bool = True, *args, **kwargs):
+    def __init__(self,
+                 is_me: bool = True,
+                 policy_encrypting_key: Optional[UmbralPublicKey] = None,
+                 controller: bool = True,
+                 *args, **kwargs):
+
         self._policy_pubkey = policy_encrypting_key
 
-        # Enrico never uses the blockchain, hence federated_only)
+        # Enrico never uses the blockchain (hence federated_only)
         kwargs['federated_only'] = True
         kwargs['known_node_class'] = None
-        super().__init__(*args, **kwargs)
+        super().__init__(is_me=is_me, *args, **kwargs)
 
         if controller:
             self.make_cli_controller()
 
         self.log = Logger(f'{self.__class__.__name__}-{bytes(self.public_keys(SigningPower)).hex()[:6]}')
-        self.log.info(self.banner.format(policy_encrypting_key))
+        if is_me:
+            self.log.info(self.banner.format(policy_encrypting_key))
 
     def encrypt_message(self, plaintext: bytes) -> Tuple[UmbralMessageKit, Signature]:
         # TODO: #2107 Rename to "encrypt"
