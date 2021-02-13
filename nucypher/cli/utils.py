@@ -55,7 +55,7 @@ def make_cli_character(character_config,
                        emitter,
                        unlock_keyring: bool = True,
                        teacher_uri: str = None,
-                       min_stake: int = 0,  # We not using this anymore?  Where is it hooked up?
+                       min_stake: int = 0,
                        **config_args) -> Character:
 
     #
@@ -79,11 +79,13 @@ def make_cli_character(character_config,
 
     # Produce Character
     if teacher_uri:
-        maybe_sage_node = character_config.known_node_class.from_teacher_uri(teacher_uri=teacher_uri,
-                         min_stake=0,  # TODO: Where to get this?
-                         federated_only=character_config.federated_only,
-                         network_middleware=character_config.network_middleware,
-                         registry=character_config.registry)
+        maybe_sage_node = character_config.known_node_class.from_teacher_uri(
+            teacher_uri=teacher_uri,
+            min_stake=min_stake,
+            federated_only=character_config.federated_only,
+            network_middleware=character_config.network_middleware,
+            registry=character_config.registry
+        )
         sage_nodes.append(maybe_sage_node)
 
     CHARACTER = character_config(known_nodes=sage_nodes,

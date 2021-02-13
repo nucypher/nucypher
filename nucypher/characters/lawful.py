@@ -1530,7 +1530,7 @@ class Ursula(Teacher, Character, Worker):
         #
 
         # Parse node URI
-        host, port, checksum_address = parse_node_uri(seed_uri)
+        host, port, staker_address = parse_node_uri(seed_uri)
 
         # Fetch the hosts TLS certificate and read the common name
         try:
@@ -1556,12 +1556,11 @@ class Ursula(Teacher, Character, Worker):
         )
 
         # Check the node's stake (optional)
-        if minimum_stake > 0 and not federated_only:
+        if minimum_stake > 0 and staker_address and not federated_only:
             staking_agent = ContractAgency.get_agent(StakingEscrowAgent, registry=registry)
-            seednode_stake = staking_agent.get_locked_tokens(staker_address=checksum_address)
+            seednode_stake = staking_agent.get_locked_tokens(staker_address=staker_address)
             if seednode_stake < minimum_stake:
-                raise Learner.NotATeacher(
-                    f"{checksum_address} is staking less than the specified minimum stake value ({minimum_stake}).")
+                raise Learner.NotATeacher(f"{staker_address} is staking less than the specified minimum stake value ({minimum_stake}).")
 
         # OK - everyone get out
         temp_node_storage.forget()
