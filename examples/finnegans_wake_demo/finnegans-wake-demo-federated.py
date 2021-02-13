@@ -22,6 +22,7 @@ import sys
 from pathlib import Path
 from umbral.keys import UmbralPublicKey
 
+from crypto.powers import SigningPower, DecryptingPower
 from nucypher.characters.lawful import Alice, Bob, Ursula
 from nucypher.characters.lawful import Enrico as Enrico
 from nucypher.config.constants import TEMPORARY_DOMAIN
@@ -49,58 +50,63 @@ except IndexError:
 ##############################################
 # Ursula, the Untrusted Re-Encryption Proxy  #
 ##############################################
-ursula = Ursula.from_seed_and_stake_info(seed_uri=SEEDNODE_URI,
-                                         federated_only=True,
-                                         minimum_stake=0)
+ursula = Ursula.from_seed_and_stake_info(seed_uri=SEEDNODE_URI, federated_only=True)
 
 # Here are our Policy details.
 policy_end_datetime = maya.now() + datetime.timedelta(days=1)
 m, n = 2, 3
 label = b"secret/files/and/stuff"
 
+
+#####################
+# Bob the BUIDLer  ##
+#####################
+
+# First there was Bob.
+LOCAL_BOB = Bob(federated_only=True,
+                domain=TEMPORARY_DOMAIN,
+                known_nodes=[ursula])
+
+# Bob gives his public keys to alice.
+verifying_key = LOCAL_BOB.public_keys(SigningPower)
+encrypting_key = LOCAL_BOB.public_keys(DecryptingPower)
+
 ######################################
 # Alice, the Authority of the Policy #
 ######################################
 
-ALICE = Alice(domain=TEMPORARY_DOMAIN,
-              known_nodes=[ursula],
-              learn_on_same_thread=True,
-              federated_only=True)
+LOCAL_ALICE = Alice(federated_only=True,
+                    domain=TEMPORARY_DOMAIN,
+                    known_nodes=[ursula])
 
 # Alice can get the public key even before creating the policy.
 # From this moment on, any Data Source that knows the public key
 # can encrypt data originally intended for Alice, but that can be shared with
 # any Bob that Alice grants access.
-policy_public_key = ALICE.get_policy_encrypting_key_from_label(label)
+policy_public_key = LOCAL_ALICE.get_policy_encrypting_key_from_label(label)
 
-BOB = Bob(known_nodes=[ursula],
-          domain=TEMPORARY_DOMAIN,
-          federated_only=True,
-          start_learning_now=True,
-          learn_on_same_thread=True)
+# Alice already knows Bob's public keys from a side-channel.
+remote_bob = Bob.from_public_keys(encrypting_key=encrypting_key, verifying_key=verifying_key)
 
-ALICE.start_learning_loop(now=True)
-ALICE.block_until_number_of_known_nodes_is(8, timeout=30, learn_on_this_thread=True)  # In case the fleet isn't fully spun up yet, as sometimes happens on CI.
-
-policy = ALICE.grant(BOB,
-                     label,
-                     m=m, n=n,
-                     expiration=policy_end_datetime)
+policy = LOCAL_ALICE.grant(remote_bob,
+                           label,
+                           m=m,  # threshold
+                           n=n,  # shares
+                           expiration=policy_end_datetime)
 
 assert policy.public_key == policy_public_key
 policy.treasure_map_publisher.block_until_complete()
 
 # Alice puts her public key somewhere for Bob to find later...
-alice_public_key = bytes(ALICE.stamp)
-
+alice_verifying_key = bytes(LOCAL_ALICE.stamp)
 
 # ...and then disappears from the internet.
 #
 # Note that local characters (alice and bob), as opposed to objects representing
 # remote characters constructed from public data (remote_alice and remote_bob)
 # run a learning loop in a background thread and need to be stopped explicitly.
-ALICE.disenchant()
-del ALICE
+LOCAL_ALICE.disenchant()
+del LOCAL_ALICE
 
 #####################
 # some time passes. #
@@ -114,7 +120,7 @@ del ALICE
 # Bob the BUIDLer  ##
 #####################
 
-BOB.join_policy(label, alice_public_key)
+LOCAL_BOB.join_policy(label, alice_verifying_key)
 
 # Now that Bob has joined the Policy, let's show how Enrico the Encryptor
 # can share data with the members of this Policy and then how Bob retrieves it.
@@ -146,20 +152,14 @@ for counter, plaintext in enumerate(finnegans_wake):
     # Back to Bob #
     ###############
 
-    enrico_as_understood_by_bob = Enrico.from_public_keys(
-        verifying_key=data_source_public_key,
-        policy_encrypting_key=policy_public_key
-    )
-
     # Now Bob can retrieve the original message.
-    alice_pubkey_restored_from_ancient_scroll = UmbralPublicKey.from_bytes(alice_public_key)
-    delivered_cleartexts = BOB.retrieve(single_passage_ciphertext,
-                                        enrico=enrico_as_understood_by_bob,
-                                        alice_verifying_key=alice_pubkey_restored_from_ancient_scroll,
-                                        label=label)
+    delivered_cleartexts = LOCAL_BOB.retrieve(single_passage_ciphertext,
+                                              policy_encrypting_key=policy_public_key,
+                                              alice_verifying_key=alice_verifying_key,
+                                              label=label)
 
     # We show that indeed this is the passage originally encrypted by Enrico.
     assert plaintext == delivered_cleartexts[0]
     print("Retrieved: {}".format(delivered_cleartexts[0]))
 
-BOB.disenchant()
+LOCAL_BOB.disenchant()
