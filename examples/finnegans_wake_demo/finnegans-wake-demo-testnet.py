@@ -70,11 +70,11 @@ SEEDNODE = Ursula.seednode_for_network(DOMAIN)
 
 # Then, there was bob. Bob learns about the
 # rest of the network from the seednode.
-LOCAL_BOB = Bob(domain=DOMAIN, known_nodes=[SEEDNODE])
+bob = Bob(domain=DOMAIN, known_nodes=[SEEDNODE])
 
 # Bob puts his public keys somewhere alice can find them.
-verifying_key = LOCAL_BOB.public_keys(SigningPower)
-encrypting_key = LOCAL_BOB.public_keys(DecryptingPower)
+verifying_key = bob.public_keys(SigningPower)
+encrypting_key = bob.public_keys(DecryptingPower)
 print(verifying_key.hex())
 print(encrypting_key.hex())
 
@@ -96,7 +96,7 @@ password = getpass(f"Enter password to unlock alice's wallet {ALICE_ETH_ADDRESS[
 wallet.unlock_account(account=ALICE_ETH_ADDRESS, password=password)
 print(f'Unlocked {ALICE_ETH_ADDRESS[:8]}')
 
-LOCAL_ALICE = Alice(
+alice = Alice(
     domain=DOMAIN,
     known_nodes=[SEEDNODE],
     checksum_address=ALICE_ETH_ADDRESS,
@@ -109,7 +109,7 @@ label = b"secret/files/and/stuff"
 m, n = 2, 3  # threshold, shares
 
 # Alice can get the policy's public key even before creating the policy.
-policy_public_key = LOCAL_ALICE.get_policy_encrypting_key_from_label(label)
+policy_public_key = alice.get_policy_encrypting_key_from_label(label)
 
 # From this moment on, anyone that knows the public key
 # can encrypt data originally intended for Alice, but that
@@ -123,7 +123,7 @@ remote_bob = Bob.from_public_keys(encrypting_key=encrypting_key,
 # and publishing the policy.  In this example Alice
 # pays each node 50 gwei per period.
 input('Press RETURN to grant ')
-policy = LOCAL_ALICE.grant(
+policy = alice.grant(
     bob=remote_bob,
     label=label,
     m=m,
@@ -134,15 +134,15 @@ policy = LOCAL_ALICE.grant(
 print(f"Granted Bob access to policy {policy.public_key}")
 
 # Alice puts her public key somewhere for Bob to find later...
-alice_verifying_key = bytes(LOCAL_ALICE.stamp)
+alice_verifying_key = bytes(alice.stamp)
 
 # ...and then disappears from the internet.
 #
 # Note that local characters (alice and bob), as opposed to objects representing
 # remote characters constructed from public data (remote_alice and remote_bob)
 # run a learning loop in a background thread and need to be stopped explicitly.
-LOCAL_ALICE.disenchant()
-del LOCAL_ALICE
+alice.disenchant()
+del alice
 
 #####################
 # some time passes. #
@@ -152,7 +152,7 @@ del LOCAL_ALICE
 # And now for Bob.  #
 #####################
 
-LOCAL_BOB.join_policy(label, alice_verifying_key)
+bob.join_policy(label, alice_verifying_key)
 
 # Now that Bob has joined the Policy, let's show how Enrico the Encryptor
 # can share data with the members of this Policy and then how Bob retrieves it.
@@ -185,7 +185,7 @@ for counter, plaintext in enumerate(finnegans_wake):
     ###############
 
     # Now Bob can retrieve the original message by requesting re-encryption from nodes.
-    delivered_cleartexts = LOCAL_BOB.retrieve(single_passage_ciphertext,
+    delivered_cleartexts = bob.retrieve(single_passage_ciphertext,
                                               policy_encrypting_key=policy_public_key,
                                               alice_verifying_key=alice_verifying_key,
                                               label=label)
@@ -194,4 +194,4 @@ for counter, plaintext in enumerate(finnegans_wake):
     assert plaintext == delivered_cleartexts[0]
     print(f"Retrieved: {delivered_cleartexts[0]}")
 
-LOCAL_BOB.disenchant()
+bob.disenchant()

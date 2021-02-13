@@ -17,17 +17,17 @@
 
 
 import datetime
-import os
 import maya
+import os
 import sys
 from pathlib import Path
-from umbral.keys import UmbralPublicKey
 
-from crypto.powers import SigningPower, DecryptingPower
 from nucypher.characters.lawful import Alice, Bob, Ursula
 from nucypher.characters.lawful import Enrico as Enrico
 from nucypher.config.constants import TEMPORARY_DOMAIN
+from nucypher.crypto.powers import SigningPower, DecryptingPower
 from nucypher.utilities.logging import GlobalLoggerSettings
+
 
 ######################
 # Boring setup stuff #
@@ -79,6 +79,12 @@ encrypting_key = LOCAL_BOB.public_keys(DecryptingPower)
 LOCAL_ALICE = Alice(federated_only=True,
                     domain=TEMPORARY_DOMAIN,
                     known_nodes=[ursula])
+
+
+# Start node discovery and wait until 8 nodes are known in case
+# the fleet isn't fully spun up yet, as sometimes happens on CI.
+LOCAL_ALICE.start_learning_loop(now=True)
+LOCAL_ALICE.block_until_number_of_known_nodes_is(8, timeout=30, learn_on_this_thread=True)
 
 # Alice can get the public key even before creating the policy.
 # From this moment on, any Data Source that knows the public key
