@@ -23,6 +23,7 @@ import pytest
 from eth_utils import to_wei
 from web3 import Web3
 
+from nucypher.blockchain.eth.signers.software import Web3Signer
 from nucypher.crypto.powers import TransactingPower
 from nucypher.blockchain.eth.actors import Bidder, Staker
 from nucypher.blockchain.eth.agents import (
@@ -73,6 +74,7 @@ def test_bid(click_runner, testerchain, agency_local_registry, token_economics, 
     base_command = ('escrow',
                     '--registry-filepath', agency_local_registry.filepath,
                     '--provider', TEST_PROVIDER_URI,
+                    '--signer', TEST_PROVIDER_URI,
                     '--network', TEMPORARY_DOMAIN,
                     '--force')
 
@@ -107,6 +109,7 @@ def test_cancel_bid(click_runner, testerchain, agency_local_registry, token_econ
                '--participant-address', bidder,
                '--registry-filepath', agency_local_registry.filepath,
                '--provider', TEST_PROVIDER_URI,
+               '--signer', TEST_PROVIDER_URI,
                '--network', TEMPORARY_DOMAIN,
                '--force')
 
@@ -123,6 +126,7 @@ def test_cancel_bid(click_runner, testerchain, agency_local_registry, token_econ
                '--participant-address', bidder,
                '--registry-filepath', agency_local_registry.filepath,
                '--provider', TEST_PROVIDER_URI,
+               '--signer', TEST_PROVIDER_URI,
                '--network', TEMPORARY_DOMAIN,
                '--force')
 
@@ -146,6 +150,7 @@ def test_enable_claiming(click_runner, testerchain, agency_local_registry, token
                '--participant-address', bidder,
                '--registry-filepath', agency_local_registry.filepath,
                '--provider', TEST_PROVIDER_URI,
+               '--signer', TEST_PROVIDER_URI,
                '--force',
                '--network', TEMPORARY_DOMAIN,
                '--gas-limit', 100000)
@@ -165,6 +170,7 @@ def test_claim(click_runner, testerchain, agency_local_registry, token_economics
                '--participant-address', bidder,
                '--registry-filepath', agency_local_registry.filepath,
                '--provider', TEST_PROVIDER_URI,
+               '--signer', TEST_PROVIDER_URI,
                '--network', TEMPORARY_DOMAIN,
                '--force')
 
@@ -178,6 +184,7 @@ def test_claim(click_runner, testerchain, agency_local_registry, token_economics
                '--participant-address', whale,
                '--registry-filepath', agency_local_registry.filepath,
                '--provider', TEST_PROVIDER_URI,
+               '--signer', TEST_PROVIDER_URI,
                '--network', TEMPORARY_DOMAIN,
                '--force')
 
@@ -201,6 +208,7 @@ def test_remaining_work(click_runner, testerchain, agency_local_registry, token_
                '--participant-address', bidder,
                '--registry-filepath', agency_local_registry.filepath,
                '--provider', TEST_PROVIDER_URI,
+               '--signer', TEST_PROVIDER_URI,
                '--network', TEMPORARY_DOMAIN)
 
     result = click_runner.invoke(worklock, command, catch_exceptions=False)
@@ -230,6 +238,7 @@ def test_refund(click_runner, testerchain, agency_local_registry, token_economic
     worker = Ursula(is_me=True,
                     registry=agency_local_registry,
                     checksum_address=bidder,
+                    signer=Web3Signer(testerchain.client),
                     worker_address=worker_address,
                     rest_host=MOCK_IP_ADDRESS,
                     rest_port=select_test_port(),
@@ -255,6 +264,7 @@ def test_refund(click_runner, testerchain, agency_local_registry, token_economic
                '--participant-address', bidder,
                '--registry-filepath', agency_local_registry.filepath,
                '--provider', TEST_PROVIDER_URI,
+               '--signer', TEST_PROVIDER_URI,
                '--network', TEMPORARY_DOMAIN,
                '--force')
 
@@ -268,12 +278,15 @@ def test_refund(click_runner, testerchain, agency_local_registry, token_economic
 
 
 def test_participant_status(click_runner, testerchain, agency_local_registry, token_economics):
-    bidder = Bidder(checksum_address=testerchain.client.accounts[2], registry=agency_local_registry)
+    bidder = Bidder(checksum_address=testerchain.client.accounts[2],
+                    signer=Web3Signer(testerchain.client),
+                    registry=agency_local_registry)
 
     command = ('status',
                '--registry-filepath', agency_local_registry.filepath,
                '--participant-address', bidder.checksum_address,
                '--provider', TEST_PROVIDER_URI,
+               '--signer', TEST_PROVIDER_URI,
                '--network', TEMPORARY_DOMAIN)
 
     result = click_runner.invoke(worklock, command, catch_exceptions=False)

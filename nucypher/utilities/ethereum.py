@@ -14,11 +14,14 @@
  You should have received a copy of the GNU Affero General Public License
  along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
+
+
 from eth_typing import HexStr
 from web3 import Web3
 from web3._utils.abi import get_constructor_abi, merge_args_and_kwargs
 from web3._utils.contracts import encode_abi
 from web3.contract import ContractConstructor
+
 
 
 def to_bytes32(value=None, hexstr=None) -> bytes:

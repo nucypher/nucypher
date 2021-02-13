@@ -21,6 +21,7 @@ import json
 import pytest
 import random
 
+from nucypher.blockchain.eth.signers.software import Web3Signer
 from nucypher.blockchain.eth.actors import ContractAdministrator
 from nucypher.crypto.powers import TransactingPower
 from tests.constants import INSECURE_DEVELOPMENT_PASSWORD, NUMBER_OF_ALLOCATIONS_IN_TESTS
@@ -37,11 +38,14 @@ def test_rapid_deployment(token_economics, test_registry, tmpdir, get_random_che
 
     # TODO: #1092 - TransactingPower
     blockchain.transacting_power = TransactingPower(password=INSECURE_DEVELOPMENT_PASSWORD,
+                                                    signer=Web3Signer(blockchain.client),
                                                     account=blockchain.etherbase_account)
     blockchain.transacting_power.activate()
     deployer_address = blockchain.etherbase_account
 
-    administrator = ContractAdministrator(deployer_address=deployer_address, registry=test_registry)
+    administrator = ContractAdministrator(deployer_address=deployer_address,
+                                          signer=Web3Signer(blockchain.client),
+                                          registry=test_registry)
     blockchain.bootstrap_network(registry=test_registry)
 
     all_yall = blockchain.unassigned_accounts

@@ -161,7 +161,7 @@ class FelixCharacterOptions:
                                                   envvar=NUCYPHER_ENVVAR_WORKER_ETH_PASSWORD)
 
             # Produce Felix
-            FELIX = felix_config.produce(domain=self.config_options.domain, client_password=client_password)
+            FELIX = felix_config.produce(domain=self.config_options.domain)
             FELIX.make_web_app()  # attach web application, but dont start service
 
             return FELIX

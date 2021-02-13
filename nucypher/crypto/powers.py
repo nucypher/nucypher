@@ -112,7 +112,7 @@ class TransactingPower(CryptoPowerUp):
     @validate_checksum_address
     def __init__(self,
                  account: str,
-                 signer: Signer = None,
+                 signer: Signer,
                  password: str = None,
                  cache: bool = False):
         """
@@ -121,9 +121,7 @@ class TransactingPower(CryptoPowerUp):
 
         # Auth
         if not signer:
-            # TODO: Consider making this required
-            blockchain = BlockchainInterfaceFactory.get_interface()
-            signer = Web3Signer(client=blockchain.client)
+            raise ValueError('signer is required to init a TransactingPower.')
         self._signer = signer
         self.__account = account
         self.__password = password
@@ -186,6 +184,8 @@ class TransactingPower(CryptoPowerUp):
 
     def unlock_account(self, password: str = None, duration: int = None) -> bool:
         """Unlocks the account with provided or cached password."""
+        if self.is_unlocked:
+            return True
         password = password or self.__password
         result = self._signer.unlock_account(self.__account,
                                              password=password,

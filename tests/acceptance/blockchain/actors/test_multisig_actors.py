@@ -15,11 +15,10 @@ You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
-import pytest
 from unittest.mock import patch
 
+from nucypher.blockchain.eth.signers.software import Web3Signer
 from nucypher.blockchain.eth.actors import Trustee
-from nucypher.blockchain.eth.agents import MultiSigAgent
 from nucypher.blockchain.eth.deployers import MultiSigDeployer
 
 
@@ -33,10 +32,13 @@ def test_trustee_proposes_multisig_management_operations(testerchain, test_regis
     for step in multisig_deployer.deployment_steps:
         assert receipts[step]['status'] == 1
 
-    multisig_agent = multisig_deployer.make_agent()  # type: MultiSigAgent
+    multisig_agent = multisig_deployer.make_agent()
 
     trustee_address = testerchain.unassigned_accounts[-1]
-    trustee = Trustee(checksum_address=trustee_address, registry=test_registry)
+    trustee = Trustee(checksum_address=trustee_address,
+                      signer=Web3Signer(testerchain.client),
+                      registry=test_registry,
+                      is_transacting=True)
 
     # Propose changing threshold
     free_payload = {'nonce': 0, 'from': multisig_agent.contract_address, 'gasPrice': 0}

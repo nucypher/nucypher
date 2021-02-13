@@ -213,9 +213,8 @@ class ContractAdministrator(NucypherTokenActor):
     def __init__(self,
                  registry: BaseContractRegistry,
                  deployer_address: str = None,
-                 client_password: str = None,
                  signer: Signer = None,
-                 is_transacting: bool = True,  # FIXME: Workaround to be able to build MultiSig TXs
+                 is_transacting: bool = True,
                  economics: BaseEconomics = None):
         """
         Note: super() is not called here to avoid setting the token agent.  TODO: call super but use "bare mode" without token agent.  #1510
@@ -232,10 +231,10 @@ class ContractAdministrator(NucypherTokenActor):
 
         # Powers
         if is_transacting:
-            self.deployer_power = TransactingPower(signer=signer,
-                                                   password=client_password,
-                                                   account=deployer_address,
-                                                   cache=True)
+            if not signer:
+                raise ValueError('signer is required to make a transacting ContractAdministrator.')
+            self.deployer_power = TransactingPower(signer=signer, account=deployer_address)
+
             self.transacting_power = self.deployer_power
             self.transacting_power.activate()
         else:
@@ -253,7 +252,7 @@ class ContractAdministrator(NucypherTokenActor):
     def recruit_sidekick(self, sidekick_address: str, sidekick_password: str):
         self.sidekick_power = TransactingPower(account=sidekick_address, password=sidekick_password, cache=True)
         if self.sidekick_power.is_device:
-            raise ValueError("Holy Wallet! Sidekicks can only be SW accounts")
+            raise ValueError("Holy Wallet! Sidekicks can only be SW accounts.")
         self.sidekick_address = sidekick_address
 
     def activate_deployer(self, refresh: bool = True):
@@ -404,15 +403,16 @@ class Trustee(MultiSigActor):
 
     def __init__(self,
                  checksum_address: str,
-                 client_password: str = None,
+                 is_transacting: bool,
+                 signer: Optional[Signer] = None,
                  *args, **kwargs):
         super().__init__(checksum_address=checksum_address, *args, **kwargs)
         self.authorizations = dict()
-        self.executive_addresses = tuple(
-            self.multisig_agent.owners)  # TODO: Investigate unresolved reference to .owners (linter)
-        if client_password:  # TODO: Consider an is_transacting parameter
-            self.transacting_power = TransactingPower(password=client_password,
-                                                      account=checksum_address)
+        self.executive_addresses = tuple(self.multisig_agent.owners)
+        if is_transacting:
+            if not signer:
+                raise ValueError('signer is required to create a transacting Trustee.')
+            self.transacting_power = TransactingPower(account=checksum_address, signer=signer)
             self.transacting_power.activate()
 
     def add_authorization(self, authorization, proposal: Proposal) -> str:
@@ -495,7 +495,6 @@ class Executive(MultiSigActor):
     def __init__(self,
                  checksum_address: str,
                  signer: Signer = None,
-                 client_password: str = None,
                  *args, **kwargs):
         super().__init__(checksum_address=checksum_address, *args, **kwargs)
 
@@ -504,9 +503,7 @@ class Executive(MultiSigActor):
                                         f"Current owners are {self.multisig_agent.owners}")
         self.signer = signer
         if signer:
-            self.transacting_power = TransactingPower(signer=signer,
-                                                      password=client_password,
-                                                      account=checksum_address)
+            self.transacting_power = TransactingPower(signer=signer, account=checksum_address)
             self.transacting_power.activate()
 
     def authorize_proposal(self, proposal) -> Authorization:
@@ -1645,7 +1642,6 @@ class Bidder(NucypherTokenActor):
                  checksum_address: str,
                  transacting: bool = True,
                  signer: Signer = None,
-                 client_password: str = None,
                  *args, **kwargs):
 
         super().__init__(checksum_address=checksum_address, *args, **kwargs)
@@ -1655,9 +1651,9 @@ class Bidder(NucypherTokenActor):
         self.economics = EconomicsFactory.get_economics(registry=self.registry)
 
         if transacting:
-            self.transacting_power = TransactingPower(signer=signer,
-                                                      password=client_password,
-                                                      account=checksum_address)
+            if not signer:
+                raise ValueError('signer is required to init a transacting Bidder.')
+            self.transacting_power = TransactingPower(signer=signer, account=checksum_address)
             self.transacting_power.activate()
 
         self._all_bonus_bidders = None
@@ -1908,14 +1904,11 @@ class DaoActor(BaseActor):
                  checksum_address: ChecksumAddress,
                  registry=None,
                  signer: Signer = None,
-                 client_password: str = None,
                  transacting: bool = True):
         super().__init__(registry=registry, domain=network, checksum_address=checksum_address)
         self.dao_registry = DAORegistry(network=network)
         if transacting:  # TODO: This logic is repeated in Bidder and possible others.
-            self.transacting_power = TransactingPower(signer=signer,
-                                                      password=client_password,
-                                                      account=checksum_address)
+            self.transacting_power = TransactingPower(signer=signer, account=checksum_address)
             self.transacting_power.activate()
 
 

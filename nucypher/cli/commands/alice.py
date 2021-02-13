@@ -281,7 +281,6 @@ class AliceCharacterOptions:
                                        unlock_keyring=not config.dev_mode,
                                        teacher_uri=self.teacher_uri,
                                        min_stake=self.min_stake,
-                                       client_password=client_password,
                                        start_learning_now=load_seednodes,
                                        lonely=self.config_options.lonely)
             return ALICE

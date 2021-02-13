@@ -256,6 +256,8 @@ def test_staker_collects_staking_reward(testerchain,
                                         ursula_decentralized_test_config):
     token_agent, staking_agent, policy_agent = agency
 
+    testerchain.transacting_power.activate()
+
     # Give more tokens to staker
     token_airdrop(token_agent=token_agent,
                   origin=testerchain.etherbase_account,

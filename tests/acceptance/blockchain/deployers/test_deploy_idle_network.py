@@ -19,6 +19,7 @@ import pytest
 from constant_sorrow import constants
 from eth_tester.exceptions import TransactionFailed
 
+from nucypher.blockchain.eth.signers.software import Web3Signer
 from nucypher.blockchain.eth.actors import Staker
 from nucypher.blockchain.eth.agents import ContractAgency, NucypherTokenAgent, StakingEscrowAgent
 from nucypher.blockchain.eth.deployers import (AdjudicatorDeployer, BaseContractDeployer, NucypherTokenDeployer,
@@ -131,7 +132,9 @@ def test_stake_in_idle_network(testerchain, token_economics, test_registry):
     staker = Staker(is_me=True, checksum_address=account, registry=test_registry)
 
     # Mock TransactingPower consumption
-    staker.transacting_power = TransactingPower(password=INSECURE_DEVELOPMENT_PASSWORD, account=staker.checksum_address)
+    staker.transacting_power = TransactingPower(password=INSECURE_DEVELOPMENT_PASSWORD, 
+                                                signer=Web3Signer(testerchain.client),
+                                                account=staker.checksum_address)
     staker.transacting_power.activate()
 
     # Since StakingEscrow hasn't been activated yet, deposit should work but making a commitment must fail

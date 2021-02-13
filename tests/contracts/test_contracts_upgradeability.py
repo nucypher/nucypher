@@ -14,19 +14,26 @@ GNU Affero General Public License for more details.
 You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
+
+
 import contextlib
-
 import os
-from pathlib import Path
-
 import requests
 from constant_sorrow import constants
+from pathlib import Path
 from web3.exceptions import ValidationError
 
-from nucypher.blockchain.eth.deployers import AdjudicatorDeployer, BaseContractDeployer, NucypherTokenDeployer, \
-    PolicyManagerDeployer, StakingEscrowDeployer, WorklockDeployer
+from nucypher.blockchain.eth.deployers import (
+    AdjudicatorDeployer,
+    BaseContractDeployer,
+    NucypherTokenDeployer,
+    PolicyManagerDeployer,
+    StakingEscrowDeployer,
+    WorklockDeployer
+)
 from nucypher.blockchain.eth.interfaces import BlockchainDeployerInterface, BlockchainInterfaceFactory
 from nucypher.blockchain.eth.registry import InMemoryContractRegistry
+from nucypher.blockchain.eth.signers.software import Web3Signer
 from nucypher.blockchain.eth.sol.compile.constants import SOLIDITY_SOURCE_ROOT
 from nucypher.blockchain.eth.sol.compile.types import SourceBundle
 from nucypher.crypto.powers import TransactingPower
@@ -137,7 +144,9 @@ def test_upgradeability(temp_dir_path):
         blockchain_interface.connect()
         origin = blockchain_interface.client.accounts[0]
         BlockchainInterfaceFactory.register_interface(interface=blockchain_interface)
-        blockchain_interface.transacting_power = TransactingPower(password=INSECURE_DEVELOPMENT_PASSWORD, account=origin)
+        blockchain_interface.transacting_power = TransactingPower(password=INSECURE_DEVELOPMENT_PASSWORD,
+                                                                  signer=Web3Signer(blockchain_interface.client),
+                                                                  account=origin)
         blockchain_interface.transacting_power.activate()
 
         economics = make_token_economics(blockchain_interface)

@@ -149,7 +149,6 @@ def test_set_min_fee_rate(testerchain, test_registry, agency, policy_meta):
     assert policy_agent.get_min_fee_rate(staker) == minimum + 1
 
 
-
 @pytest.mark.usefixtures('blockchain_ursulas')
 def test_collect_policy_fee(testerchain, agency, policy_meta, token_economics, mock_transacting_power_activation):
     token_agent, staking_agent, policy_agent = agency

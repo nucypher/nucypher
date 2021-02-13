@@ -20,6 +20,7 @@ import random
 import pytest
 from eth_tester.exceptions import TransactionFailed
 
+from nucypher.blockchain.eth.signers.software import Web3Signer
 from nucypher.blockchain.eth.actors import Bidder
 from nucypher.blockchain.eth.agents import ContractAgency, StakingEscrowAgent, WorkLockAgent
 from nucypher.blockchain.eth.constants import NULL_ADDRESS
@@ -27,7 +28,7 @@ from nucypher.blockchain.eth.constants import NULL_ADDRESS
 
 def test_create_bidder(testerchain, test_registry, agency, token_economics):
     bidder_address = testerchain.unassigned_accounts[0]
-    bidder = Bidder(checksum_address=bidder_address, registry=test_registry)
+    bidder = Bidder(checksum_address=bidder_address, registry=test_registry, signer=Web3Signer(testerchain.client))
     assert bidder.checksum_address == bidder_address
     assert bidder.registry == test_registry
 
@@ -48,7 +49,7 @@ def test_bidding(testerchain, agency, token_economics, test_registry):
 
     for i, bid in enumerate(initial_bids):
         bidder_address = testerchain.client.accounts[i]
-        bidder = Bidder(checksum_address=bidder_address, registry=test_registry)
+        bidder = Bidder(checksum_address=bidder_address, registry=test_registry, signer=Web3Signer(testerchain.client))
 
         assert bidder.get_deposited_eth == 0
         receipt = bidder.place_bid(value=bid)
@@ -61,7 +62,7 @@ def test_cancel_bid(testerchain, agency, token_economics, test_registry):
     testerchain.time_travel(seconds=token_economics.bidding_duration+1)
 
     bidder_address = testerchain.client.accounts[1]
-    bidder = Bidder(checksum_address=bidder_address, registry=test_registry)
+    bidder = Bidder(checksum_address=bidder_address, registry=test_registry, signer=Web3Signer(testerchain.client))
     assert bidder.get_deposited_eth        # Bid
     receipt = bidder.cancel_bid()    # Cancel
     assert receipt['status'] == 1
@@ -74,14 +75,14 @@ def test_cancel_bid(testerchain, agency, token_economics, test_registry):
 
 def test_get_remaining_work(testerchain, agency, token_economics, test_registry):
     bidder_address = testerchain.client.accounts[0]
-    bidder = Bidder(checksum_address=bidder_address, registry=test_registry)
+    bidder = Bidder(checksum_address=bidder_address, registry=test_registry, signer=Web3Signer(testerchain.client))
     remaining = bidder.remaining_work
     assert remaining
 
 
 def test_verify_correctness_before_refund(testerchain, agency, token_economics, test_registry):
     bidder_address = testerchain.client.accounts[0]
-    bidder = Bidder(checksum_address=bidder_address, registry=test_registry)
+    bidder = Bidder(checksum_address=bidder_address, registry=test_registry, signer=Web3Signer(testerchain.client))
     worklock_agent = ContractAgency.get_agent(WorkLockAgent, registry=test_registry)
 
     with pytest.raises(Bidder.CancellationWindowIsOpen):
@@ -99,7 +100,7 @@ def test_verify_correctness_before_refund(testerchain, agency, token_economics, 
 
 def test_force_refund(testerchain, agency, token_economics, test_registry):
     bidder_address = testerchain.client.accounts[0]
-    bidder = Bidder(checksum_address=bidder_address, registry=test_registry)
+    bidder = Bidder(checksum_address=bidder_address, registry=test_registry, signer=Web3Signer(testerchain.client))
     whales = bidder.get_whales()
 
     # Simulate force refund
@@ -110,7 +111,7 @@ def test_force_refund(testerchain, agency, token_economics, test_registry):
         new_whales = bidder.get_whales()
 
     bidder_address = testerchain.client.accounts[1]
-    bidder = Bidder(checksum_address=bidder_address, registry=test_registry)
+    bidder = Bidder(checksum_address=bidder_address, registry=test_registry, signer=Web3Signer(testerchain.client))
     worklock_agent = ContractAgency.get_agent(WorkLockAgent, registry=test_registry)
 
     receipt = bidder.force_refund()
@@ -127,7 +128,7 @@ def test_force_refund(testerchain, agency, token_economics, test_registry):
 
 def test_verify_correctness(testerchain, agency, token_economics, test_registry):
     bidder_address = testerchain.client.accounts[0]
-    bidder = Bidder(checksum_address=bidder_address, registry=test_registry)
+    bidder = Bidder(checksum_address=bidder_address, registry=test_registry, signer=Web3Signer(testerchain.client))
     worklock_agent = ContractAgency.get_agent(WorkLockAgent, registry=test_registry)
 
     assert not worklock_agent.bidders_checked()
@@ -143,7 +144,7 @@ def test_verify_correctness(testerchain, agency, token_economics, test_registry)
 
 def test_withdraw_compensation(testerchain, agency, token_economics, test_registry):
     bidder_address = testerchain.client.accounts[12]
-    bidder = Bidder(checksum_address=bidder_address, registry=test_registry)
+    bidder = Bidder(checksum_address=bidder_address, registry=test_registry, signer=Web3Signer(testerchain.client))
     worklock_agent = ContractAgency.get_agent(WorkLockAgent, registry=test_registry)
 
     assert worklock_agent.get_available_compensation(checksum_address=bidder_address) > 0
@@ -154,7 +155,7 @@ def test_withdraw_compensation(testerchain, agency, token_economics, test_regist
 
 def test_claim(testerchain, agency, token_economics, test_registry):
     bidder_address = testerchain.client.accounts[11]
-    bidder = Bidder(checksum_address=bidder_address, registry=test_registry)
+    bidder = Bidder(checksum_address=bidder_address, registry=test_registry, signer=Web3Signer(testerchain.client))
     staking_agent = ContractAgency.get_agent(StakingEscrowAgent, registry=test_registry)
     worklock_agent = ContractAgency.get_agent(WorkLockAgent, registry=test_registry)
 

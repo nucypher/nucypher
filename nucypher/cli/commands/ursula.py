@@ -264,11 +264,11 @@ class UrsulaCharacterOptions:
         try:
             URSULA = make_cli_character(character_config=ursula_config,
                                         emitter=emitter,
+                                        client_password=client_password,
                                         min_stake=self.min_stake,
                                         teacher_uri=self.teacher_uri,
                                         unlock_keyring=not self.config_options.dev,
                                         lonely=self.config_options.lonely,
-                                        client_password=client_password,
                                         start_learning_now=load_seednodes)
             return ursula_config, URSULA
 

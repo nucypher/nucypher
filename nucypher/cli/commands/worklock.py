@@ -114,17 +114,19 @@ class WorkLockOptions:
     def __create_bidder(self,
                         registry,
                         transacting: bool = True,
-                        hw_wallet: bool = False) -> Bidder:
+                        hw_wallet: bool = False
+                        ) -> Bidder:
 
-        client_password = None
         is_clef = ClefSigner.is_valid_clef_uri(self.signer_uri)
-        if transacting and not is_clef and not hw_wallet:
-            client_password = get_client_password(checksum_address=self.bidder_address)
         testnet = self.network != NetworksInventory.MAINNET
         signer = Signer.from_signer_uri(self.signer_uri, testnet=testnet) if self.signer_uri else None
+        password_required = (not is_clef and not hw_wallet)
+        if signer and transacting and password_required:
+            client_password = get_client_password(checksum_address=self.bidder_address)
+            signer.unlock_account(account=self.bidder_address, password=client_password)
+
         bidder = Bidder(checksum_address=self.bidder_address,
                         registry=registry,
-                        client_password=client_password,
                         signer=signer,
                         transacting=transacting)
         return bidder

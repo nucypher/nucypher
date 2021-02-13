@@ -20,10 +20,10 @@ import pytest
 from nucypher.blockchain.eth.clients import EthereumClient
 from nucypher.blockchain.eth.interfaces import BlockchainDeployerInterface
 from nucypher.blockchain.eth.registry import InMemoryContractRegistry
+from nucypher.blockchain.eth.signers.software import Web3Signer
 from nucypher.blockchain.eth.sol.compile.compile import multiversion_compile
 from nucypher.blockchain.eth.sol.compile.constants import TEST_MULTIVERSION_CONTRACTS, SOLIDITY_SOURCE_ROOT
 from nucypher.blockchain.eth.sol.compile.types import SourceBundle
-from nucypher.config.constants import NUCYPHER_TEST_DIR
 from nucypher.crypto.powers import TransactingPower
 from tests.constants import (
     DEVELOPMENT_ETH_AIRDROP_AMOUNT,
@@ -112,7 +112,9 @@ def test_multiversion_contract():
     blockchain_interface._raw_contract_cache = compiled_contracts
 
     origin = blockchain_interface.client.accounts[0]
-    blockchain_interface.transacting_power = TransactingPower(password=INSECURE_DEVELOPMENT_PASSWORD, account=origin)
+    blockchain_interface.transacting_power = TransactingPower(password=INSECURE_DEVELOPMENT_PASSWORD,
+                                                              signer=Web3Signer(blockchain_interface.client),
+                                                              account=origin)
     blockchain_interface.transacting_power.activate()
 
     # Searching both contract through raw data
