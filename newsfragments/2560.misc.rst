@@ -1,0 +1,2 @@
+Sister demo for Finnegan's wake for use on lynx/goerli testnet.
+Alice and Bob API cleanup compelled by EthDenver 2021.
