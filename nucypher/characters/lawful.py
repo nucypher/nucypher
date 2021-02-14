@@ -849,7 +849,12 @@ class Bob(Character):
             # self.treasure_maps[treasure_map.public_id()] = treasure_map # TODO: Can we?
         else:
             map_id = self.construct_map_id(alice_verifying_key, label)
-            treasure_map = self.treasure_maps[map_id]
+            try:
+                treasure_map = self.treasure_maps[map_id]
+            except KeyError:
+                # If the treasure map is not known, join the policy as part of retrieval.
+                self.join_policy(label=label, alice_verifying_key=alice_verifying_key)
+                treasure_map = self.treasure_maps[map_id]
 
         _unknown_ursulas, _known_ursulas, m = self.follow_treasure_map(treasure_map=treasure_map, block=True)
 
