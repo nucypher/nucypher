@@ -570,6 +570,7 @@ class StakingEscrowDeployer(BaseContractDeployer, UpgradeableContractMixin, Owna
                      confirmations: int = 0,
                      **overrides):
         constructor_kwargs = {
+            "_formerHoursPerPeriod": self.economics.former_hours_per_period,
             "_hoursPerPeriod": self.economics.hours_per_period,
             "_minLockedPeriods": self.economics.minimum_locked_periods,
             "_minAllowableLockedTokens": self.economics.minimum_allowed_locked,
