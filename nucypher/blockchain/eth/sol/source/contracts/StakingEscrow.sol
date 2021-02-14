@@ -45,11 +45,13 @@ interface WorkLockInterface {
 /**
 * @title StakingEscrowStub
 * @notice Stub is used to deploy main StakingEscrow after all other contract and make some variables immutable
+* @dev |v1.0.0|
 */
 contract StakingEscrowStub is Upgradeable {
     using AdditionalMath for uint32;
 
     NuCypherToken public immutable token;
+    uint32 public immutable formerSecondsPerPeriod;
     uint32 public immutable secondsPerPeriod;
     uint16 public immutable minLockedPeriods;
     uint256 public immutable minAllowableLockedTokens;
@@ -58,12 +60,15 @@ contract StakingEscrowStub is Upgradeable {
     /**
     * @notice Predefines some variables for use when deploying other contracts
     * @param _token Token contract
+    * @param _formerHoursPerPeriod Former size of period in hours
+    * @param _hoursPerPeriod Size of period in hours
     * @param _minLockedPeriods Min amount of periods during which tokens can be locked
     * @param _minAllowableLockedTokens Min amount of tokens that can be locked
     * @param _maxAllowableLockedTokens Max amount of tokens that can be locked
     */
     constructor(
         NuCypherToken _token,
+        uint32 _formerHoursPerPeriod,
         uint32 _hoursPerPeriod,
         uint16 _minLockedPeriods,
         uint256 _minAllowableLockedTokens,
@@ -71,11 +76,14 @@ contract StakingEscrowStub is Upgradeable {
     ) {
         require(_token.totalSupply() > 0 &&
             _hoursPerPeriod != 0 &&
+            _formerHoursPerPeriod != 0 &&
+            _formerHoursPerPeriod <= _hoursPerPeriod &&
             _minLockedPeriods > 1 &&
             _maxAllowableLockedTokens != 0);
 
         token = _token;
         secondsPerPeriod = _hoursPerPeriod.mul32(1 hours);
+        formerSecondsPerPeriod = _formerHoursPerPeriod.mul32(1 hours);
         minLockedPeriods = _minLockedPeriods;
         minAllowableLockedTokens = _minAllowableLockedTokens;
         maxAllowableLockedTokens = _maxAllowableLockedTokens;
