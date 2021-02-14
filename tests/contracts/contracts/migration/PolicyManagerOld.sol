@@ -9,7 +9,7 @@ import "zeppelin/math/Math.sol";
 import "zeppelin/utils/Address.sol";
 import "contracts/lib/AdditionalMath.sol";
 import "contracts/lib/SignatureVerifier.sol";
-import "contracts/StakingEscrow.sol";
+import "./StakingEscrowOld.sol";
 import "contracts/NuCypherToken.sol";
 import "contracts/proxy/Upgradeable.sol";
 
@@ -17,9 +17,9 @@ import "contracts/proxy/Upgradeable.sol";
 /**
 * @title PolicyManager
 * @notice Contract holds policy data and locks accrued policy fees
-* @dev |v6.2.1|
+* @dev |v6.1.3|
 */
-contract PolicyManager is Upgradeable {
+contract PolicyManagerOld is Upgradeable {
     using SafeERC20 for NuCypherToken;
     using SafeMath for uint256;
     using AdditionalMath for uint256;
@@ -85,7 +85,6 @@ contract PolicyManager is Upgradeable {
         uint16 previousFeePeriod;
         uint256 feeRate;
         uint256 minFeeRate;
-        mapping (uint16 => int256) stub; // former slot for feeDelta
         mapping (uint16 => int256) feeDelta;
     }
 
@@ -109,28 +108,23 @@ contract PolicyManager is Upgradeable {
     // controlled overflow to get max int256
     int256 public constant DEFAULT_FEE_DELTA = int256((uint256(0) - 1) >> 1);
 
-    StakingEscrow public immutable escrow;
-    uint32 public immutable formerSecondsPerPeriod;
+    StakingEscrowOld public immutable escrow;
     uint32 public immutable secondsPerPeriod;
 
     mapping (bytes16 => Policy) public policies;
     mapping (address => NodeInfo) public nodes;
     Range public feeRateRange;
-    uint64 public resetTimestamp;
 
     /**
     * @notice Constructor sets address of the escrow contract
     * @param _escrow Escrow contract
     */
-    constructor(StakingEscrow _escrow) {
+    constructor(StakingEscrowOld _escrow) {
         // if the input address is not the StakingEscrow then calling `secondsPerPeriod` will throw error
         uint32 localSecondsPerPeriod = _escrow.secondsPerPeriod();
         require(localSecondsPerPeriod > 0);
         secondsPerPeriod = localSecondsPerPeriod;
         escrow = _escrow;
-        uint32 localFormerSecondsPerPeriod = _escrow.formerSecondsPerPeriod();
-        require(localFormerSecondsPerPeriod > 0);
-        formerSecondsPerPeriod = localFormerSecondsPerPeriod;
     }
 
     /**
@@ -150,13 +144,6 @@ contract PolicyManager is Upgradeable {
     }
 
     /**
-    * @return Recalculate period value using new basis
-    */
-    function recalculatePeriod(uint16 _period) internal view returns (uint16) {
-        return uint16(uint256(_period) * formerSecondsPerPeriod / secondsPerPeriod);
-    }
-
-    /**
     * @notice Register a node
     * @param _node Node address
     * @param _period Initial period
@@ -165,17 +152,6 @@ contract PolicyManager is Upgradeable {
         NodeInfo storage nodeInfo = nodes[_node];
         require(nodeInfo.previousFeePeriod == 0 && _period < getCurrentPeriod());
         nodeInfo.previousFeePeriod = _period;
-    }
-
-    /**
-    * @notice Migrate from the old period length to the new one
-    * @param _node Node address
-    */
-    function migrate(address _node) external onlyEscrowContract {
-        NodeInfo storage nodeInfo = nodes[_node];
-        require(nodeInfo.previousFeePeriod >= getCurrentPeriod());
-        nodeInfo.previousFeePeriod = recalculatePeriod(nodeInfo.previousFeePeriod);
-        nodeInfo.feeRate = 0;
     }
 
     /**
@@ -331,7 +307,6 @@ contract PolicyManager is Upgradeable {
         external onlyEscrowContract
     {
         NodeInfo storage node = nodes[_node];
-        require(node.previousFeePeriod < getCurrentPeriod());
         if (_processedPeriod1 != 0) {
             updateFee(node, _processedPeriod1);
         }
@@ -450,7 +425,7 @@ contract PolicyManager is Upgradeable {
     {
         refundValue = 0;
         Policy storage policy = policies[_policyId];
-        require(!policy.disabled && policy.startTimestamp >= resetTimestamp);
+        require(!policy.disabled);
         uint16 endPeriod = uint16(policy.endTimestamp / secondsPerPeriod) + 1;
         uint256 numberOfActive = policy.arrangements.length;
         uint256 i = 0;
@@ -475,7 +450,7 @@ contract PolicyManager is Upgradeable {
                     nodeInfo.feeDelta[lastRefundedPeriod] -= int256(policy.feeRate);
                 }
                 if (nodeInfo.feeDelta[endPeriod] == DEFAULT_FEE_DELTA) {
-                    nodeInfo.feeDelta[endPeriod] = int256(policy.feeRate);
+                    nodeInfo.feeDelta[endPeriod] = -int256(policy.feeRate);
                 } else {
                     nodeInfo.feeDelta[endPeriod] += int256(policy.feeRate);
                 }
@@ -674,12 +649,8 @@ contract PolicyManager is Upgradeable {
     */
     function getNodeFeeDelta(address _node, uint16 _period)
         // TODO "virtual" only for tests, probably will be removed after #1512
-        public view virtual returns (int256)
+        external view virtual returns (int256)
     {
-        // TODO remove after upgrade
-        if (_node == RESERVED_NODE && _period == 11) {
-            return 55;
-        }
         return nodes[_node].feeDelta[_period];
     }
 
@@ -748,13 +719,10 @@ contract PolicyManager is Upgradeable {
     /// @dev the `onlyWhileUpgrading` modifier works through a call to the parent `verifyState`
     function verifyState(address _testTarget) public override virtual {
         super.verifyState(_testTarget);
-        require(uint64(delegateGet(_testTarget, this.resetTimestamp.selector)) == resetTimestamp);
-
         Range memory rangeToCheck = delegateGetFeeRateRange(_testTarget);
         require(feeRateRange.min == rangeToCheck.min &&
             feeRateRange.defaultValue == rangeToCheck.defaultValue &&
             feeRateRange.max == rangeToCheck.max);
-
         Policy storage policy = policies[RESERVED_POLICY_ID];
         Policy memory policyToCheck = delegateGetPolicy(_testTarget, RESERVED_POLICY_ID);
         require(policyToCheck.sponsor == policy.sponsor &&
@@ -783,18 +751,12 @@ contract PolicyManager is Upgradeable {
             nodeInfoToCheck.minFeeRate == nodeInfo.minFeeRate);
 
         require(int256(delegateGet(_testTarget, this.getNodeFeeDelta.selector,
-            bytes32(bytes20(RESERVED_NODE)), bytes32(uint256(11)))) == getNodeFeeDelta(RESERVED_NODE, 11));
+            bytes32(bytes20(RESERVED_NODE)), bytes32(uint256(11)))) == nodeInfo.feeDelta[11]);
     }
 
     /// @dev the `onlyWhileUpgrading` modifier works through a call to the parent `finishUpgrade`
     function finishUpgrade(address _target) public override virtual {
         super.finishUpgrade(_target);
-
-        // TODO check this
-        if (resetTimestamp == 0) {
-            resetTimestamp = uint64(block.timestamp);
-        }
-
         // Create fake Policy and NodeInfo to use them in verifyState(address)
         Policy storage policy = policies[RESERVED_POLICY_ID];
         policy.sponsor = msg.sender;
