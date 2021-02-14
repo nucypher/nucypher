@@ -13,9 +13,9 @@ import "zeppelin/token/ERC20/SafeERC20.sol";
 /**
 * @title Issuer
 * @notice Contract for calculation of issued tokens
-* @dev |v3.4.1|
+* @dev |v3.3.1|
 */
-abstract contract Issuer is Upgradeable {
+abstract contract IssuerOld is Upgradeable {
     using SafeERC20 for NuCypherToken;
     using AdditionalMath for uint32;
 
@@ -34,10 +34,7 @@ abstract contract Issuer is Upgradeable {
     uint256 public immutable lockDurationCoefficient1;
     // k2
     uint256 public immutable lockDurationCoefficient2;
-
-    uint32 public immutable formerSecondsPerPeriod;
     uint32 public immutable secondsPerPeriod;
-
     // kmax
     uint16 public immutable maximumRewardedPeriods;
 
@@ -62,7 +59,6 @@ abstract contract Issuer is Upgradeable {
     (totalSupply - currentSupply) / d * (lockedValue / totalLockedValue) * (k1 + min(allLockedPeriods, kmax)) / k2
     if allLockedPeriods > maximumRewardedPeriods then allLockedPeriods = maximumRewardedPeriods
     * @param _token Token contract
-    * @param _formerHoursPerPeriod Former size of period in hours
     * @param _hoursPerPeriod Size of period in hours
     * @param _issuanceDecayCoefficient (d) Coefficient which modifies the rate at which the maximum issuance decays,
     * only applicable to Phase 2. d = 365 * half-life / LOG2 where default half-life = 2.
@@ -85,7 +81,6 @@ abstract contract Issuer is Upgradeable {
     */
     constructor(
         NuCypherToken _token,
-        uint32 _formerHoursPerPeriod,
         uint32 _hoursPerPeriod,
         uint256 _issuanceDecayCoefficient,
         uint256 _lockDurationCoefficient1,
@@ -98,8 +93,6 @@ abstract contract Issuer is Upgradeable {
         require(localTotalSupply > 0 &&
             _issuanceDecayCoefficient != 0 &&
             _hoursPerPeriod != 0 &&
-            _formerHoursPerPeriod != 0 &&
-            _formerHoursPerPeriod <= _hoursPerPeriod &&
             _lockDurationCoefficient1 != 0 &&
             _lockDurationCoefficient2 != 0 &&
             _maximumRewardedPeriods != 0);
@@ -124,7 +117,6 @@ abstract contract Issuer is Upgradeable {
 
         token = _token;
         secondsPerPeriod = _hoursPerPeriod.mul32(1 hours);
-        formerSecondsPerPeriod = _formerHoursPerPeriod.mul32(1 hours);
         lockDurationCoefficient1 = _lockDurationCoefficient1;
         lockDurationCoefficient2 = _lockDurationCoefficient2;
         maximumRewardedPeriods = _maximumRewardedPeriods;
@@ -148,17 +140,6 @@ abstract contract Issuer is Upgradeable {
     */
     function getCurrentPeriod() public view returns (uint16) {
         return uint16(block.timestamp / secondsPerPeriod);
-    }
-
-    function getBlockTimestamp() public view returns (uint256) {
-        return block.timestamp;
-    }
-
-    /**
-    * @return Recalculate period value using new basis
-    */
-    function recalculatePeriod(uint16 _period) internal view returns (uint16) {
-        return uint16(uint256(_period) * formerSecondsPerPeriod / secondsPerPeriod);
     }
 
     /**
@@ -263,15 +244,6 @@ abstract contract Issuer is Upgradeable {
         require(uint16(delegateGet(_testTarget, this.currentMintingPeriod.selector)) == currentMintingPeriod);
         require(uint128(delegateGet(_testTarget, this.previousPeriodSupply.selector)) == previousPeriodSupply);
         require(uint128(delegateGet(_testTarget, this.currentPeriodSupply.selector)) == currentPeriodSupply);
-    }
-
-    /// @dev the `onlyWhileUpgrading` modifier works through a call to the parent `finishUpgrade`
-    function finishUpgrade(address _target) public override virtual {
-        super.finishUpgrade(_target);
-        // recalculate currentMintingPeriod if needed
-        if (currentMintingPeriod > getCurrentPeriod()) {
-            currentMintingPeriod = recalculatePeriod(currentMintingPeriod);
-        }
     }
 
 }
