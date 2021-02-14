@@ -232,7 +232,7 @@ def _make_rest_app(datastore: Datastore, this_node, domain: str, log: Logger) ->
             cleartext = this_node.verify_from(alice, policy_message_kit, decrypt=True)
         except InvalidSignature:
             # TODO: Perhaps we log this?  Essentially 355.
-            return Response(status_code=400)
+            return Response("Invalid Signature", status_code=400)
 
         if not this_node.federated_only:
             # This splitter probably belongs somewhere canonical.
@@ -246,23 +246,23 @@ def _make_rest_app(datastore: Datastore, this_node, domain: str, log: Logger) ->
             except TimeExhausted:
                 # Alice didn't pay.  Return response with that weird status code.
                 this_node.suspicious_activities_witnessed['freeriders'].append((alice, f"No transaction matching {tx}."))
-                return Response(status=402)
+                return Response(f"No paid transaction matching {tx} for this node", status=402)
 
             this_node_has_been_arranged = this_node.checksum_address in arranged_addresses
             if not this_node_has_been_arranged:
                 this_node.suspicious_activities_witnessed['freeriders'].append((alice, f"The transaction {tx} does not list me as a Worker - it lists {arranged_addresses}."))
-                return Response(status=402)
+                return Response(f"This node was not listed as servicing the policy in transaction {tx}", status=402)
         else:
             _tx = NO_BLOCKCHAIN_CONNECTION
             kfrag_bytes = cleartext
         kfrag = KFrag.from_bytes(kfrag_bytes)
 
         if not kfrag.verify(signing_pubkey=alices_verifying_key):
-            raise InvalidSignature("{} is invalid".format(kfrag))
+            return Response(f"Signature on {kfrag} is invalid", status=403)
 
         with datastore.describe(PolicyArrangement, id_as_hex, writeable=True) as policy_arrangement:
             if not policy_arrangement.alice_verifying_key == alice.stamp.as_umbral_pubkey():
-                raise alice.SuspiciousActivity
+                return Response("Policy arrangement's signing key does not match sender's", status=403)
             policy_arrangement.kfrag = kfrag
 
         # TODO: Sign the arrangement here.  #495
