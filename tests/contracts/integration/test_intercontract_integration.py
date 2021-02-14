@@ -74,6 +74,7 @@ def token(token_economics, deploy_contract):
 def escrow_dispatcher(testerchain, token, token_economics, deploy_contract):
     escrow_stub, _ = deploy_contract('StakingEscrowStub',
                                      token.address,
+                                     token_economics.former_hours_per_period,
                                      token_economics.hours_per_period,
                                      token_economics.minimum_locked_periods,
                                      token_economics.minimum_allowed_locked,
