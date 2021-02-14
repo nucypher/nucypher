@@ -64,56 +64,47 @@ label = b"secret/files/and/stuff"
 #####################
 
 # First there was Bob.
-LOCAL_BOB = Bob(federated_only=True,
-                domain=TEMPORARY_DOMAIN,
-                known_nodes=[ursula])
+bob = Bob(federated_only=True, domain=TEMPORARY_DOMAIN, known_nodes=[ursula])
 
 # Bob gives his public keys to alice.
-verifying_key = LOCAL_BOB.public_keys(SigningPower)
-encrypting_key = LOCAL_BOB.public_keys(DecryptingPower)
+verifying_key = bob.public_keys(SigningPower)
+encrypting_key = bob.public_keys(DecryptingPower)
 
 ######################################
 # Alice, the Authority of the Policy #
 ######################################
 
-LOCAL_ALICE = Alice(federated_only=True,
-                    domain=TEMPORARY_DOMAIN,
-                    known_nodes=[ursula])
+alice = Alice(federated_only=True, domain=TEMPORARY_DOMAIN, known_nodes=[ursula])
 
 
 # Start node discovery and wait until 8 nodes are known in case
 # the fleet isn't fully spun up yet, as sometimes happens on CI.
-LOCAL_ALICE.start_learning_loop(now=True)
-LOCAL_ALICE.block_until_number_of_known_nodes_is(8, timeout=30, learn_on_this_thread=True)
+alice.start_learning_loop(now=True)
+alice.block_until_number_of_known_nodes_is(8, timeout=30, learn_on_this_thread=True)
 
 # Alice can get the public key even before creating the policy.
 # From this moment on, any Data Source that knows the public key
 # can encrypt data originally intended for Alice, but that can be shared with
 # any Bob that Alice grants access.
-policy_public_key = LOCAL_ALICE.get_policy_encrypting_key_from_label(label)
+policy_public_key = alice.get_policy_encrypting_key_from_label(label)
 
-# Alice already knows Bob's public keys from a side-channel.
+# Alice grant access to Bob. She already knows Bob's public keys from a side-channel.
 remote_bob = Bob.from_public_keys(encrypting_key=encrypting_key, verifying_key=verifying_key)
-
-policy = LOCAL_ALICE.grant(remote_bob,
-                           label,
-                           m=m,  # threshold
-                           n=n,  # shares
-                           expiration=policy_end_datetime)
+policy = alice.grant(remote_bob, label, m=m, n=n, expiration=policy_end_datetime)
 
 assert policy.public_key == policy_public_key
 policy.treasure_map_publisher.block_until_complete()
 
 # Alice puts her public key somewhere for Bob to find later...
-alice_verifying_key = bytes(LOCAL_ALICE.stamp)
+alice_verifying_key = bytes(alice.stamp)
 
 # ...and then disappears from the internet.
 #
 # Note that local characters (alice and bob), as opposed to objects representing
 # remote characters constructed from public data (remote_alice and remote_bob)
 # run a learning loop in a background thread and need to be stopped explicitly.
-LOCAL_ALICE.disenchant()
-del LOCAL_ALICE
+alice.disenchant()
+del alice
 
 #####################
 # some time passes. #
@@ -127,7 +118,7 @@ del LOCAL_ALICE
 # Bob the BUIDLer  ##
 #####################
 
-LOCAL_BOB.join_policy(label, alice_verifying_key)
+bob.join_policy(label, alice_verifying_key)
 
 # Now that Bob has joined the Policy, let's show how Enrico the Encryptor
 # can share data with the members of this Policy and then how Bob retrieves it.
@@ -145,6 +136,7 @@ for counter, plaintext in enumerate(finnegans_wake):
     #########################
     # Enrico, the Encryptor #
     #########################
+
     enrico = Enrico(policy_encrypting_key=policy_public_key)
 
     # In this case, the plaintext is a
@@ -160,13 +152,13 @@ for counter, plaintext in enumerate(finnegans_wake):
     ###############
 
     # Now Bob can retrieve the original message.
-    delivered_cleartexts = LOCAL_BOB.retrieve(single_passage_ciphertext,
-                                              policy_encrypting_key=policy_public_key,
-                                              alice_verifying_key=alice_verifying_key,
-                                              label=label)
+    delivered_cleartexts = bob.retrieve(single_passage_ciphertext,
+                                        policy_encrypting_key=policy_public_key,
+                                        alice_verifying_key=alice_verifying_key,
+                                        label=label)
 
     # We show that indeed this is the passage originally encrypted by Enrico.
     assert plaintext == delivered_cleartexts[0]
     print("Retrieved: {}".format(delivered_cleartexts[0]))
 
-LOCAL_BOB.disenchant()
+bob.disenchant()

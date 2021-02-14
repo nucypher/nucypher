@@ -47,22 +47,21 @@ try:
     PROVIDER_URI = os.environ['DEMO_PROVIDER_URI']
 
     # Replace with wallet filepath.
-    SIGNER_URI = os.environ['DEMO_SIGNER_URI']
+    WALLET_FILEPATH = os.environ['DEMO_WALLET_FILEPATH']
+    SIGNER_URI = f'keystore://{WALLET_FILEPATH}'
 
     # Replace with alice's ethereum address
-    ALICE_ETH_ADDRESS = os.environ['DEMO_ALICE_ETH_ADDRESS']
+    ALICE_ADDRESS = os.environ['DEMO_ALICE_ADDRESS']
 
 except KeyError:
     raise RuntimeError('Missing environment variables to run demo.')
+
 
 ####################
 # NuCypher Network #
 ####################
 
-# Ursulas are running on the testnet.
-# Get an initial 'seednode' to start discovering the network later...
-DOMAIN = 'lynx'
-SEEDNODE = Ursula.seednode_for_network(DOMAIN)
+TESTNET = 'lynx'
 
 #####################
 # Bob the BUIDLer  ##
@@ -70,45 +69,34 @@ SEEDNODE = Ursula.seednode_for_network(DOMAIN)
 
 # Then, there was bob. Bob learns about the
 # rest of the network from the seednode.
-bob = Bob(domain=DOMAIN, known_nodes=[SEEDNODE])
+bob = Bob(domain=TESTNET)
 
 # Bob puts his public keys somewhere alice can find them.
 verifying_key = bob.public_keys(SigningPower)
 encrypting_key = bob.public_keys(DecryptingPower)
-print(verifying_key.hex())
-print(encrypting_key.hex())
 
 ######################################
 # Alice, the Authority of the Policy #
 ######################################
 
-# Connect to the ethereum provider now so that
-# alice does not have to do it later.
-print("Connecting to ethereum provider...")
+# Connect to the ethereum provider.
 connect_web3_provider(provider_uri=PROVIDER_URI)
-print("Connected!")
 
-# Alice has an ethereum wallet to pay for a PRE policy.
-# In this demo a software wallet is used, but hardware
-# wallets can also be used.  Unlock it with the password.
+# Setup and unlock alice's ethereum wallet.
+# WARNING: Never give your mainnet password or mnemonic phrase to anyone.
+# Do not use mainnet keys, create a dedicated software wallet to use for this demo.
 wallet = Signer.from_signer_uri(SIGNER_URI)
-password = getpass(f"Enter password to unlock alice's wallet {ALICE_ETH_ADDRESS[:8]}: ")
-wallet.unlock_account(account=ALICE_ETH_ADDRESS, password=password)
-print(f'Unlocked {ALICE_ETH_ADDRESS[:8]}')
+password = os.environ.get('DEMO_ALICE_PASSWORD') or getpass(f"Enter password to unlock {ALICE_ADDRESS[:8]}: ")
+wallet.unlock_account(account=ALICE_ADDRESS, password=password)
 
-alice = Alice(
-    domain=DOMAIN,
-    known_nodes=[SEEDNODE],
-    checksum_address=ALICE_ETH_ADDRESS,
-    signer=wallet
-)
+# This is Alice.
+alice = Alice(checksum_address=ALICE_ADDRESS, signer=wallet, domain=TESTNET)
 
-# Here are the policy details.
-expiration = maya.now() + datetime.timedelta(days=1)
-label = b"secret/files/and/stuff"
-m, n = 2, 3  # threshold, shares
+# Alice puts her public key somewhere for Bob to find later...
+alice_verifying_key = bytes(alice.stamp)
 
 # Alice can get the policy's public key even before creating the policy.
+label = b"secret/files/42"
 policy_public_key = alice.get_policy_encrypting_key_from_label(label)
 
 # From this moment on, anyone that knows the public key
@@ -116,67 +104,47 @@ policy_public_key = alice.get_policy_encrypting_key_from_label(label)
 # can be shared with any Bob that Alice grants access.
 
 # Alice already knows Bob's public keys from a side-channel.
-remote_bob = Bob.from_public_keys(encrypting_key=encrypting_key,
-                                  verifying_key=verifying_key)
+remote_bob = Bob.from_public_keys(encrypting_key=encrypting_key, verifying_key=verifying_key)
 
-# Alice grants access to Bob by generating kfrags
-# and publishing the policy.  In this example Alice
-# pays each node 50 gwei per period.
-input('Press RETURN to grant ')
-policy = alice.grant(
-    bob=remote_bob,
-    label=label,
-    m=m,
-    n=n,
-    rate=Web3.toWei(50, 'gwei'),
-    expiration=expiration
-)
-print(f"Granted Bob access to policy {policy.public_key}")
+# These are the policy details for bob.
+# In this example bob will be granted access for 1 day,
+# trusting 2 of 3 nodes paying each of them 50 gwei per period.
+expiration = maya.now() + datetime.timedelta(days=1)
+rate = Web3.toWei(50, 'gwei')
+m, n = 2, 3
 
-# Alice puts her public key somewhere for Bob to find later...
-alice_verifying_key = bytes(alice.stamp)
+# Alice grants access to Bob...
+alice.grant(remote_bob, label, m=m, n=n, rate=rate, expiration=expiration)
 
 # ...and then disappears from the internet.
 #
 # Note that local characters (alice and bob), as opposed to objects representing
 # remote characters constructed from public data (remote_alice and remote_bob)
-# run a learning loop in a background thread and need to be stopped explicitly.
+# run node discovery in a background thread and must be stopped explicitly.
 alice.disenchant()
 del alice
 
-#####################
-# some time passes. #
-# ...               #
-#                   #
-# ...               #
-# And now for Bob.  #
-#####################
+#########################
+# Enrico, the Encryptor #
+#########################
 
-bob.join_policy(label, alice_verifying_key)
-
-# Now that Bob has joined the Policy, let's show how Enrico the Encryptor
+# Now that Bob has access to the policy, let's show how Enrico the Encryptor
 # can share data with the members of this Policy and then how Bob retrieves it.
-# In order to avoid re-encrypting the entire book in this demo, we only read some lines.
 with open(BOOK_PATH, 'rb') as file:
     finnegans_wake = file.readlines()
 
-print()
-print("**************James Joyce's Finnegan's Wake (Excerpt)**************")
-print()
-print("---------------------------------------------------------")
+print("\n**************James Joyce's Finnegan's Wake (Excerpt)**************\n")
 
 for counter, plaintext in enumerate(finnegans_wake):
 
-    #########################
-    # Enrico, the Encryptor #
-    #########################
-
+    # Enrico knows the policy's public key from a side-channel.
     enrico = Enrico(policy_encrypting_key=policy_public_key)
 
     # In this case, the plaintext is a single passage from James Joyce's Finnegan's Wake.
     # The matter of whether encryption makes the passage more or less readable
-    # is left to the reader to determine.
-    single_passage_ciphertext, _signature = enrico.encrypt_message(plaintext)
+    # is left to the reader to determine.  Many data sources (Enricos) can
+    # encrypt fot the policy's public key.
+    ciphertext, _signature = enrico.encrypt_message(plaintext)
     enrico_public_key = bytes(enrico.stamp)
     del enrico
 
@@ -185,13 +153,12 @@ for counter, plaintext in enumerate(finnegans_wake):
     ###############
 
     # Now Bob can retrieve the original message by requesting re-encryption from nodes.
-    delivered_cleartexts = bob.retrieve(single_passage_ciphertext,
-                                              policy_encrypting_key=policy_public_key,
-                                              alice_verifying_key=alice_verifying_key,
-                                              label=label)
+    cleartexts = bob.retrieve(ciphertext,
+                              label=label,
+                              policy_encrypting_key=policy_public_key,
+                              alice_verifying_key=alice_verifying_key)
 
     # We show that indeed this is the passage originally encrypted by Enrico.
-    assert plaintext == delivered_cleartexts[0]
-    print(f"Retrieved: {delivered_cleartexts[0]}")
+    assert plaintext == cleartexts[0]
 
 bob.disenchant()
