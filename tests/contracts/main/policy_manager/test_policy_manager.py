@@ -525,8 +525,8 @@ def test_upgrading(testerchain, deploy_contract):
         deploy_contract('PolicyManager', creator)
 
     # Deploy contracts
-    escrow1, _ = deploy_contract('StakingEscrowForPolicyMock', 1)
-    escrow2, _ = deploy_contract('StakingEscrowForPolicyMock', 1)
+    escrow1, _ = deploy_contract('StakingEscrowForPolicyMock', 1, 1)
+    escrow2, _ = deploy_contract('StakingEscrowForPolicyMock', 1, 1)
     address1 = escrow1.address
     address2 = escrow2.address
     contract_library_v1, _ = deploy_contract('PolicyManager', address1)
@@ -615,7 +615,7 @@ def test_handling_wrong_state(testerchain, deploy_contract):
     creator, node1, node2, *everyone_else = testerchain.client.accounts
 
     # Prepare enhanced version of contract
-    escrow, _ = deploy_contract('StakingEscrowForPolicyMock', 1)
+    escrow, _ = deploy_contract('StakingEscrowForPolicyMock', 1, 1)
     policy_manager, _ = deploy_contract('ExtendedPolicyManager', escrow.address)
     tx = escrow.functions.setPolicyManager(policy_manager.address).transact({'from': creator})
     testerchain.wait_for_receipt(tx)
