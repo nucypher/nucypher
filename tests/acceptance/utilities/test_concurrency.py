@@ -300,7 +300,7 @@ class BuggyFactory:
             raise Exception("Buggy factory")
 
 
-def test_buggy_factory_raises_on_block(join_worker_pool):
+def test_buggy_factory_raises_on_block():
     """
     Tests that if there is an exception thrown in the value factory,
     it is caught in the first call to `block_until_target_successes()`.
@@ -315,19 +315,21 @@ def test_buggy_factory_raises_on_block(join_worker_pool):
     # Non-zero stagger timeout to make BuggyFactory raise its error only in 1.5s,
     # So that we got enough successes for `block_until_target_successes()`.
     pool = WorkerPool(worker, factory, target_successes=10, timeout=10, threadpool_size=10, stagger_timeout=1.5)
-    join_worker_pool(pool)
 
     pool.start()
     time.sleep(2) # wait for the stagger timeout to finish
-    with pytest.raises(RuntimeError, match="Unexpected error in the producer thread"):
+    with pytest.raises(Exception, match="Buggy factory"):
         pool.block_until_target_successes()
     # Further calls to `block_until_target_successes()` or `join()` don't throw the error.
-    pool.block_until_target_successes()
+    with pytest.raises(Exception, match="Buggy factory"):
+        pool.block_until_target_successes()
     pool.cancel()
-    pool.join()
+
+    with pytest.raises(Exception, match="Buggy factory"):
+        pool.join()
 
 
-def test_buggy_factory_raises_on_join(join_worker_pool):
+def test_buggy_factory_raises_on_join():
     """
     Tests that if there is an exception thrown in the value factory,
     it is caught in the first call to `join()`.
@@ -339,10 +341,10 @@ def test_buggy_factory_raises_on_join(join_worker_pool):
 
     factory = BuggyFactory(list(outcomes))
     pool = WorkerPool(worker, factory, target_successes=10, timeout=10, threadpool_size=10)
-    join_worker_pool(pool)
 
     pool.start()
     pool.cancel()
-    with pytest.raises(RuntimeError, match="Unexpected error in the producer thread"):
+    with pytest.raises(Exception, match="Buggy factory"):
         pool.join()
-    pool.join()
+    with pytest.raises(Exception, match="Buggy factory"):
+        pool.join()

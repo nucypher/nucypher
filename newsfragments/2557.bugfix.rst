@@ -1,0 +1,1 @@
+Prevent process hanging in the cases when the main thread finishes before the treasure map publisher

@@ -326,7 +326,7 @@ class Policy(ABC):
 
         if len(accepted_arrangements) < self.n:
 
-            rejected_proposals = "\n".join(f"{address}: {exception}" for address, exception in failures.items())
+            rejected_proposals = "\n".join(f"{address}: {value}" for address, (type_, value, traceback) in failures.items())
 
             self.log.debug(
                 "Could not find enough Ursulas to accept proposals.\n"
