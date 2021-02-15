@@ -23,7 +23,7 @@ from web3.contract import Contract
 @pytest.fixture()
 def escrow(testerchain, deploy_contract):
     # Creator deploys the escrow
-    escrow, _ = deploy_contract('StakingEscrowForPolicyMock', 1)
+    escrow, _ = deploy_contract('StakingEscrowForPolicyMock', 1, 1)
     return escrow
 
 
