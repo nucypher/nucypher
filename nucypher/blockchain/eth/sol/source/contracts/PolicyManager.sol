@@ -790,7 +790,6 @@ contract PolicyManager is Upgradeable {
     function finishUpgrade(address _target) public override virtual {
         super.finishUpgrade(_target);
 
-        // TODO check this
         if (resetTimestamp == 0) {
             resetTimestamp = uint64(block.timestamp);
         }

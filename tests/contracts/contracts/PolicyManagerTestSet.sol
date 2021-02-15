@@ -59,12 +59,12 @@ contract StakingEscrowForPolicyMock {
     Downtime[] public downtime;
 
     /**
+    * @param _formerHoursPerPeriod Former size of period in hours
     * @param _hoursPerPeriod Size of period in hours
     */
-    constructor(uint16 _hoursPerPeriod) {
-        uint32 localSecondsPerPeriod = uint32(_hoursPerPeriod * 1 hours);
-        secondsPerPeriod = localSecondsPerPeriod;
-        formerSecondsPerPeriod = localSecondsPerPeriod;
+    constructor(uint16 _formerHoursPerPeriod, uint16 _hoursPerPeriod) {
+        secondsPerPeriod = _hoursPerPeriod * uint32(1 hours);
+        formerSecondsPerPeriod = _formerHoursPerPeriod * uint32(1 hours);
     }
 
     /**
@@ -98,6 +98,13 @@ contract StakingEscrowForPolicyMock {
         uint16 _periodToSetDefault
     ) external {
         policyManager.ping(_node, _processedPeriod1, _processedPeriod2, _periodToSetDefault);
+    }
+
+    /**
+    * @notice Emulate migrate method call
+    */
+    function migrate(address _node) external {
+        policyManager.migrate(_node);
     }
 
     /**
