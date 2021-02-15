@@ -92,7 +92,6 @@ class DaoOptions:  # TODO: This class is essentially the same that WorkLock opti
         actor = EmergencyResponseManager(checksum_address=self.participant_address,  # bomberos
                                          network=self.network,
                                          registry=registry,
-                                         client_password=client_password,
                                          signer=signer,
                                          transacting=transacting)
         return actor

@@ -11,7 +11,7 @@ cd "${0%/*}"
 echo "working in directory: $PWD"
 
 # run some ursulas
-docker-compose up -d
+docker-compose up -d --build
 
 # Wait to ensure Ursulas are up.
 echo "War... watisit good for?"
@@ -21,7 +21,7 @@ sleep 3
 # Run demo
 echo "Starting Demo"
 echo "working in directory: $PWD"
-docker-compose run nucypher-circle-dev bash /code/scripts/circle/download_and_run_finnegans_wake.sh
+docker-compose run nucypher-circle-dev bash /code/scripts/circle/run_finnegans_wake.sh
 
 # spit out logs
 ./logOutput.sh

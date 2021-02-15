@@ -145,9 +145,9 @@ def test_ursula_and_local_keystore_signer_integration(click_runner,
 
     # Produce an Ursula with a Keystore signer correctly derived from the signer URI, and don't do anything else!
     mocker.patch.object(StakeList, 'refresh', autospec=True)
-    ursula = ursula_config.produce(client_password=password,
-                                   commit_now=False,
-                                   block_until_ready=False)
+    ursula = ursula_config.produce(commit_now=False, block_until_ready=False)
+    ursula.signer.unlock_account(account=worker_account.address, password=password)
+
 
     try:
         # Verify the keystore path is still preserved

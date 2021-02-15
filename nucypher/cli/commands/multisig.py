@@ -110,8 +110,7 @@ class MultiSigOptions:
             client_password = get_client_password(checksum_address=self.checksum_address)
         executive = Executive(checksum_address=self.checksum_address,
                               registry=registry,
-                              signer=ClefSigner(self.signer_uri),
-                              client_password=client_password)
+                              signer=ClefSigner(self.signer_uri))
         return executive
 
     def create_executive(self, registry) -> Executive:  # TODO: Reconsider this method: Executives don't transact, just sign.
@@ -125,7 +124,7 @@ class MultiSigOptions:
         is_clef = ClefSigner.is_valid_clef_uri(self.signer_uri)
         if transacting and not self.hw_wallet and not is_clef:
             client_password = get_client_password(checksum_address=self.checksum_address)
-        trustee = Trustee(checksum_address=self.checksum_address, registry=registry, client_password=client_password)
+        trustee = Trustee(checksum_address=self.checksum_address, registry=registry)
         return trustee
 
     def create_trustee(self, registry) -> Trustee:

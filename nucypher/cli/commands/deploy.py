@@ -200,15 +200,14 @@ class ActorOptions:
                 click.confirm(CONFIRM_SELECTED_ACCOUNT.format(address=deployer_address), abort=True)
 
             is_clef = ClefSigner.is_valid_clef_uri(self.signer_uri)
-            eth_password_is_needed = not self.hw_wallet and not deployer_interface.client.is_local and not is_clef
-            if eth_password_is_needed:
+            password_required = not self.hw_wallet and not deployer_interface.client.is_local and not is_clef
+            if password_required:
                 password = get_client_password(checksum_address=deployer_address)
 
         # Produce Actor
         testnet = deployer_interface.client.chain_name != PUBLIC_CHAINS[1]  # Mainnet
         signer = Signer.from_signer_uri(self.signer_uri, testnet=testnet) if self.signer_uri else None
         ADMINISTRATOR = ContractAdministrator(registry=local_registry,
-                                              client_password=password,
                                               deployer_address=deployer_address,
                                               is_transacting=is_transacting,
                                               signer=signer)

@@ -24,6 +24,7 @@ from hexbytes import HexBytes
 from typing import List, Tuple, Union, Optional
 from web3 import Web3
 
+from nucypher.blockchain.eth.signers.software import Web3Signer
 from nucypher.blockchain.economics import BaseEconomics, StandardTokenEconomics
 from nucypher.blockchain.eth.actors import ContractAdministrator
 from nucypher.blockchain.eth.deployers import StakingEscrowDeployer
@@ -49,6 +50,9 @@ from constant_sorrow.constants import INIT
 
 def token_airdrop(token_agent, amount: NU, origin: str, addresses: List[str]):
     """Airdrops tokens from creator address to all other addresses!"""
+
+    signer = Web3Signer(token_agent.blockchain.client)
+    signer.unlock_account(account=origin, password=INSECURE_DEVELOPMENT_PASSWORD)
 
     def txs():
         args = {'from': origin, 'gasPrice': token_agent.blockchain.client.gas_price}
@@ -222,13 +226,11 @@ class TesterBlockchain(BlockchainDeployerInterface):
         testerchain = cls()
         if not BlockchainInterfaceFactory.is_interface_initialized(provider_uri=testerchain.provider_uri):
             BlockchainInterfaceFactory.register_interface(interface=testerchain)
-        power = TransactingPower(password=INSECURE_DEVELOPMENT_PASSWORD, account=testerchain.etherbase_account)
-        power.activate()
-        testerchain.transacting_power = power
 
         origin = testerchain.client.etherbase
         admin = ContractAdministrator(deployer_address=origin,
                                       registry=registry,
+                                      signer=Web3Signer(testerchain.client),
                                       economics=economics or cls.DEFAULT_ECONOMICS)
 
         gas_limit = None  # TODO: Gas management - #842

@@ -15,10 +15,12 @@
  along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
+
 import pytest
 from eth_account._utils.transactions import Transaction
 from eth_utils import to_checksum_address
 
+from nucypher.blockchain.eth.signers.software import Web3Signer
 from nucypher.blockchain.eth.agents import NucypherTokenAgent
 from nucypher.crypto.api import verify_eip_191
 from nucypher.crypto.powers import TransactingPower
@@ -33,6 +35,7 @@ def test_transacting_power_sign_message(testerchain):
     # Manually create a TransactingPower
     eth_address = testerchain.etherbase_account
     power = TransactingPower(password=INSECURE_DEVELOPMENT_PASSWORD,
+                             signer=Web3Signer(testerchain.client),
                              account=eth_address)
 
     # The default state of the account is locked.
@@ -69,6 +72,7 @@ def test_transacting_power_sign_transaction(testerchain):
 
     eth_address = testerchain.unassigned_accounts[2]
     power = TransactingPower(password=INSECURE_DEVELOPMENT_PASSWORD,
+                             signer=Web3Signer(testerchain.client),
                              account=eth_address)
 
     assert power.is_active is False
@@ -116,6 +120,7 @@ def test_transacting_power_sign_transaction(testerchain):
 
     # Tear-Down Test
     power = TransactingPower(password=INSECURE_DEVELOPMENT_PASSWORD,
+                             signer=Web3Signer(testerchain.client),
                              account=testerchain.etherbase_account)
     power.activate(password=INSECURE_DEVELOPMENT_PASSWORD)
 
@@ -134,6 +139,7 @@ def test_transacting_power_sign_agent_transaction(testerchain, agency, test_regi
 
     # Sign with Transacting Power
     transacting_power = TransactingPower(password=INSECURE_DEVELOPMENT_PASSWORD,
+                                         signer=Web3Signer(testerchain.client),
                                          account=testerchain.etherbase_account)
     transacting_power.activate()
     signed_raw_transaction = transacting_power.sign_transaction(unsigned_transaction)

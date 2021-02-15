@@ -15,16 +15,17 @@ You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
+
 from copy import copy
+
 import tempfile
+from eth_tester.exceptions import ValidationError
 from unittest.mock import patch
 
-from eth_tester.exceptions import ValidationError
-
+from nucypher.blockchain.eth.signers.software import Web3Signer
 from nucypher.characters.lawful import Alice, Ursula
 from nucypher.config.constants import TEMPORARY_DOMAIN
 from nucypher.crypto.api import encrypt_and_sign
-from nucypher.crypto.constants import HRAC_LENGTH
 from nucypher.crypto.powers import CryptoPower, SigningPower, DecryptingPower, TransactingPower
 from nucypher.exceptions import DevelopmentInstallationRequired
 from nucypher.policy.collections import SignedTreasureMap
@@ -70,8 +71,9 @@ class Vladimir(Ursula):
         if claim_signing_key:
             crypto_power.consume_power_up(SigningPower(public_key=target_ursula.stamp.as_umbral_pubkey()))
 
+        blockchain = target_ursula.policy_agent.blockchain
         if attach_transacting_key:
-            cls.attach_transacting_key(blockchain=target_ursula.policy_agent.blockchain)
+            cls.attach_transacting_key(blockchain=blockchain)
 
         db_filepath = tempfile.mkdtemp(prefix='Vladimir')
 
@@ -87,6 +89,7 @@ class Vladimir(Ursula):
                        network_middleware=cls.network_middleware,
                        checksum_address=cls.fraud_address,
                        worker_address=cls.fraud_address,
+                       signer=Web3Signer(blockchain.client),
                        ######### Asshole.
                        timestamp=target_ursula._timestamp,
                        interface_signature=target_ursula._interface_signature,

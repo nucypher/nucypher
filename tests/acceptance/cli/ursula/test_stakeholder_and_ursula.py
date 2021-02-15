@@ -15,18 +15,20 @@ You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
+
 import json
-import os
-import random
-import tempfile
 from unittest import mock
 
 import maya
+import os
+import random
+import tempfile
 from web3 import Web3
 
 from nucypher.blockchain.eth.actors import Staker
 from nucypher.blockchain.eth.agents import ContractAgency, StakingEscrowAgent
 from nucypher.blockchain.eth.constants import NULL_ADDRESS
+from nucypher.blockchain.eth.signers.software import Web3Signer
 from nucypher.blockchain.eth.token import NU, Stake
 from nucypher.blockchain.eth.utils import prettify_eth_amount
 from nucypher.characters.lawful import Enrico, Ursula
@@ -35,11 +37,16 @@ from nucypher.cli.main import nucypher_cli
 from nucypher.config.characters import StakeHolderConfiguration, UrsulaConfiguration
 from nucypher.config.constants import TEMPORARY_DOMAIN
 from nucypher.utilities.logging import Logger
-
-from tests.constants import FAKE_PASSWORD_CONFIRMED, FEE_RATE_RANGE, INSECURE_DEVELOPMENT_PASSWORD, MOCK_IP_ADDRESS, \
-    TEST_PROVIDER_URI, YES_ENTER
+from tests.constants import (
+    FAKE_PASSWORD_CONFIRMED,
+    FEE_RATE_RANGE,
+    INSECURE_DEVELOPMENT_PASSWORD,
+    MOCK_IP_ADDRESS,
+    TEST_PROVIDER_URI,
+    YES_ENTER
+)
 from tests.utils.middleware import MockRestMiddleware
-from tests.utils.ursula import MOCK_KNOWN_URSULAS_CACHE, MOCK_URSULA_STARTING_PORT, select_test_port
+from tests.utils.ursula import MOCK_KNOWN_URSULAS_CACHE, select_test_port
 
 
 @mock.patch('nucypher.config.characters.StakeHolderConfiguration.default_filepath', return_value='/non/existent/file')
@@ -562,6 +569,7 @@ def test_collect_rewards_integration(click_runner,
     ursula_port = select_test_port()
     ursula = Ursula(is_me=True,
                     checksum_address=staker_address,
+                    signer=Web3Signer(testerchain.client),
                     worker_address=worker_address,
                     registry=agency_local_registry,
                     rest_host='127.0.0.1',

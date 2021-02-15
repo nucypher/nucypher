@@ -18,6 +18,7 @@
 
 from nucypher.blockchain.eth.interfaces import BlockchainDeployerInterface, BlockchainInterfaceFactory
 from nucypher.blockchain.eth.registry import InMemoryContractRegistry
+from nucypher.blockchain.eth.signers.software import Web3Signer
 from nucypher.blockchain.eth.sol.compile.constants import TEST_MULTIVERSION_CONTRACTS
 from nucypher.blockchain.eth.sol.compile.types import SourceBundle
 from nucypher.crypto.powers import TransactingPower
@@ -49,7 +50,9 @@ def test_deployer_interface_multiversion_contract():
     BlockchainInterfaceFactory.register_interface(interface=blockchain_interface)  # Lets this test run in isolation
 
     origin = blockchain_interface.client.accounts[0]
-    blockchain_interface.transacting_power = TransactingPower(password=INSECURE_DEVELOPMENT_PASSWORD, account=origin)
+    blockchain_interface.transacting_power = TransactingPower(password=INSECURE_DEVELOPMENT_PASSWORD,
+                                                              signer=Web3Signer(blockchain_interface.client),
+                                                              account=origin)
     blockchain_interface.transacting_power.activate()
 
     # Searching both contract through raw data

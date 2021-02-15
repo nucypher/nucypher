@@ -14,11 +14,14 @@
  You should have received a copy of the GNU Affero General Public License
  along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
+
+
 from eth_typing import HexStr
 from web3 import Web3
 from web3._utils.abi import get_constructor_abi, merge_args_and_kwargs
 from web3._utils.contracts import encode_abi
 from web3.contract import ContractConstructor
+
 
 
 def to_bytes32(value=None, hexstr=None) -> bytes:
@@ -58,3 +61,17 @@ def encode_constructor_arguments(web3: Web3,
     else:
         data = None
     return data
+
+
+def connect_web3_provider(provider_uri: str) -> None:
+    """
+    Convenience function for connecting to an ethereum provider now.
+    This may be used to optimize the startup time of some applications by
+    establishing the connection eagarly.
+    """
+    from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
+
+    if not BlockchainInterfaceFactory.is_interface_initialized(provider_uri=provider_uri):
+        BlockchainInterfaceFactory.initialize_interface(provider_uri=provider_uri)
+    interface = BlockchainInterfaceFactory.get_interface(provider_uri=provider_uri)
+    interface.connect()
