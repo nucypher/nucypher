@@ -97,7 +97,7 @@ NuCypher is a community-driven project and we're very open to outside contributi
 All our development discussions happen in our [Discord server](https://discord.gg/7rmXa3S), where we're happy to answer technical questions, discuss feature requests,
 and accept bug reports.
 
-If you're interested in contributing code, please check out our [Contribution Guide](https://docs.nucypher.com/en/latest/guides/contribution_guide.html)
+If you're interested in contributing code, please check out our [Contribution Guide](https://docs.nucypher.com/en/latest/support/contribution.html)
 and browse our [Open Issues](https://github.com/nucypher/nucypher/issues) for potential areas to contribute.
 
 Get up and running quickly by using our [docker development setup](dev/docker/README.md)
