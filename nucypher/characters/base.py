@@ -242,12 +242,6 @@ class Character(Learner):
                     raise
 
         #
-        # Fleet state
-        #
-        if is_me is True:
-            self.known_nodes.record_fleet_state()
-
-        #
         # Character Control
         #
         self.controller = NO_CONTROL_PROTOCOL

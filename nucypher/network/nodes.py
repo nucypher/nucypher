@@ -250,10 +250,12 @@ class Learner:
         self.unresponsive_startup_nodes = list()  # TODO: Buckets - Attempt to use these again later  #567
         for node in known_nodes:
             try:
-                self.remember_node(node, eager=True)
+                self.remember_node(node, eager=True, record_fleet_state=False)
             except self.UnresponsiveTeacher:
                 self.unresponsive_startup_nodes.append(node)
-        self.known_nodes.record_fleet_state()
+
+        # This node has not initialized its metadata yet.
+        self.known_nodes.record_fleet_state(skip_this_node=True)
 
         self.teacher_nodes = deque()
         self._current_teacher_node = None  # type: Teacher

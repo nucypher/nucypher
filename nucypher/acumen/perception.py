@@ -16,37 +16,24 @@
 """
 
 import binascii
+from collections.abc import KeysView
 import itertools
 import random
+from typing import Optional, Dict, Iterable, List, Tuple
 import weakref
 
-import maya
-
 from bytestring_splitter import BytestringSplitter
-from constant_sorrow.constants import NO_KNOWN_NODES
-from collections import namedtuple, defaultdict
-from collections import OrderedDict
+from eth_typing import ChecksumAddress
+import maya
 
 from .nicknames import Nickname
 from nucypher.crypto.api import keccak_digest
 from nucypher.utilities.logging import Logger
 
 
-class BaseFleetState:
+class ArchivedFleetState:
 
-    def __str__(self):
-        if len(self) != 0:
-            # TODO: draw the icon in color, similarly to the web version?
-            return '{checksum} ⇀{nickname}↽ {icon}'.format(icon=self.nickname.icon,
-                                                           nickname=self.nickname,
-                                                           checksum=self.checksum[:7])
-        else:
-            return 'No Known Nodes'
-
-
-class ArchivedFleetState(BaseFleetState):
-
-    def __init__(self, checksum, nickname, timestamp, population):
+    def __init__(self, checksum: str, nickname: Nickname, timestamp: maya.MayaDT, population: int):
         self.checksum = checksum
         self.nickname = nickname
         self.timestamp = timestamp
@@ -54,26 +41,30 @@ class ArchivedFleetState(BaseFleetState):
 
     def to_json(self):
         return dict(checksum=self.checksum,
-                    nickname=self.nickname.to_json() if self.nickname is not None else 'NO_KNOWN_NODES',
+                    nickname=self.nickname.to_json(),
                     timestamp=self.timestamp.rfc2822(),
                     population=self.population)
 
 
-# Assumptions we're based on:
-# - Every supplied node object, after its constructor has finished,
-#   has a ``.checksum_address`` and ``bytes()`` (metadata)
-# - checksum address or metadata does not change for the same Python object
-# - ``this_node`` (the owner of FleetSensor) may not have a checksum address initially
-#   (when the constructor is first called), but will have one at the time of the first
-#   `record_fleet_state()` call. This applies to its metadata as well.
-# - The metadata of ``this_node`` **can** change.
-# - For the purposes of the fleet state, nodes with different metadata are considered different,
-#   even if they have the same checksum address.
+class FleetState:
+    """
+    Fleet state as perceived by a local Ursula.
 
-class FleetState(BaseFleetState):
+    Assumptions we're based on:
+
+    - Every supplied node object, after its constructor has finished,
+      has a ``.checksum_address`` and ``bytes()`` (metadata)
+    - checksum address or metadata do not change for the same Python object
+    - ``this_node`` (the owner of FleetSensor) may not have metadata initially
+      (when the constructor is first called), but will have one at the time of the first
+      `record_fleet_state()` call.
+    - The metadata of ``this_node`` **can** change.
+    - For the purposes of the fleet state, nodes with different metadata are considered different,
+      even if they have the same checksum address.
+    """
 
     @classmethod
-    def new(cls, this_node=None):
+    def new(cls, this_node: Optional['Ursula'] = None) -> 'FleetState':
         this_node_ref = weakref.ref(this_node) if this_node is not None else None
         # Using empty checksum so that JSON library is not confused.
         # Plus, we do need some checksum anyway. It's a legitimate state after all.
@@ -82,26 +73,51 @@ class FleetState(BaseFleetState):
                    this_node_ref=this_node_ref,
                    this_node_metadata=None)
 
-    def __init__(self, checksum, nodes, this_node_ref, this_node_metadata):
+    def __init__(self,
+                 checksum: str,
+                 nodes: Dict[ChecksumAddress, 'Ursula'],
+                 this_node_ref: Optional[weakref.ReferenceType],
+                 this_node_metadata: Optional[bytes]):
+
         self.checksum = checksum
-        self.nickname = None if checksum is None else Nickname.from_seed(checksum, length=1)
+        self.nickname = Nickname.from_seed(checksum, length=1)
         self._nodes = nodes
         self.timestamp = maya.now()
         self._this_node_ref = this_node_ref
         self._this_node_metadata = this_node_metadata
 
-    def archived(self):
+    def archived(self) -> ArchivedFleetState:
         return ArchivedFleetState(checksum=self.checksum,
                                   nickname=self.nickname,
                                   timestamp=self.timestamp,
                                   population=self.population)
 
-    def with_updated_nodes(self, new_nodes, marked_nodes):
+    def _remote_nodes_updated(self,
+                              nodes_to_add: Iterable['Ursula'],
+                              nodes_to_remove: Iterable[ChecksumAddress]
+                              ) -> bool:
 
-        # Checking if the node already has a checksum address
-        # (it may be created later during the constructor)
-        # or if it mutated since the last check.
-        if self._this_node_ref is not None and getattr(self._this_node_ref(), 'finished_initializing', False):
+        for node in nodes_to_add:
+            if node.checksum_address in nodes_to_remove:
+                continue
+            if node.checksum_address not in self._nodes:
+                return True
+            if bytes(self._nodes[node.checksum_address]) != bytes(node):
+                return True
+
+        for checksum_address in nodes_to_remove:
+            if checksum_address in self._nodes:
+                return True
+
+        return False
+
+    def with_updated_nodes(self,
+                           nodes_to_add: Iterable['Ursula'],
+                           nodes_to_remove: Iterable[ChecksumAddress],
+                           skip_this_node: bool = False,
+                           ) -> 'FleetState':
+
+        if self._this_node_ref is not None and not skip_this_node:
             this_node = self._this_node_ref()
             this_node_metadata = bytes(this_node)
             this_node_changed = self._this_node_metadata != this_node_metadata
@@ -111,23 +127,16 @@ class FleetState(BaseFleetState):
             this_node_changed = False
             this_node_list = []
 
-        new_nodes = {checksum_address: node for checksum_address, node in new_nodes.items()
-                     if checksum_address not in marked_nodes}
+        remote_nodes_updated = self._remote_nodes_updated(nodes_to_add, nodes_to_remove)
 
-        remote_nodes_updated = any(
-            (checksum_address not in self._nodes or bytes(self._nodes[checksum_address]) != bytes(node))
-                and checksum_address not in marked_nodes
-            for checksum_address, node in new_nodes.items())
-
-        remote_nodes_slashed = any(checksum_address in self._nodes for checksum_address in marked_nodes)
-
-        if this_node_changed or remote_nodes_updated or remote_nodes_slashed:
+        if this_node_changed or remote_nodes_updated:
             # TODO: if nodes were kept in a Merkle tree,
             # we'd have to only recalculate log(N) checksums.
             # Is it worth it?
             nodes = dict(self._nodes)
-            nodes.update(new_nodes)
-            for checksum_address in marked_nodes:
+            for node in nodes_to_add:
+                nodes[node.checksum_address] = node
+            for checksum_address in nodes_to_remove:
                 if checksum_address in nodes:
                     del nodes[checksum_address]
 
@@ -145,14 +154,14 @@ class FleetState(BaseFleetState):
                           this_node_metadata=this_node_metadata)
 
     @property
-    def population(self):
+    def population(self) -> int:
         """Returns the number of all known nodes, including itself, if applicable."""
         return len(self) + int(self._this_node_metadata is not None)
 
     def __getitem__(self, checksum_address):
         return self._nodes[checksum_address]
 
-    def addresses(self):
+    def addresses(self) -> KeysView:
         return self._nodes.keys()
 
     def __bool__(self):
@@ -172,7 +181,7 @@ class FleetState(BaseFleetState):
 
     # TODO: we only send it along with `FLEET_STATES_MATCH`, so it is essentially useless.
     # But it's hard to change now because older nodes will be looking for it.
-    def snapshot(self):
+    def snapshot(self) -> bytes:
         checksum_bytes = binascii.unhexlify(self.checksum)
         timestamp_bytes = self.timestamp.epoch.to_bytes(4, byteorder="big")
         return checksum_bytes + timestamp_bytes
@@ -180,26 +189,23 @@ class FleetState(BaseFleetState):
     snapshot_splitter = BytestringSplitter(32, 4)
 
     @staticmethod
-    def unpack_snapshot(data):
+    def unpack_snapshot(data) -> Tuple[str, maya.MayaDT, bytes]:
         checksum_bytes, timestamp_bytes, remainder = FleetState.snapshot_splitter(data, return_remainder=True)
         checksum = checksum_bytes.hex()
         timestamp = maya.MayaDT(int.from_bytes(timestamp_bytes, byteorder="big"))
         return checksum, timestamp, remainder
 
-    def shuffled(self):
+    def shuffled(self) -> List['Ursula']:
         nodes_we_know_about = list(self._nodes.values())
         random.shuffle(nodes_we_know_about)
         return nodes_we_know_about
 
-    def to_json(self):
+    def to_json(self) -> Dict:
         return dict(nickname=self.nickname.to_json(),
                     updated=self.timestamp.rfc2822())
 
     @property
     def icon(self) -> str:
-        # FIXME: should it be called at all if there are no states recorded?
-        if len(self) == 0:
-            return str(NO_KNOWN_NODES)
         return self.nickname.icon
 
     def items(self):
@@ -207,6 +213,11 @@ class FleetState(BaseFleetState):
 
     def values(self):
         return self._nodes.values()
+
+    def __str__(self):
+        return '{checksum} ⇀{nickname}↽ {icon} '.format(icon=self.nickname.icon,
+                                                        nickname=self.nickname,
+                                                        checksum=self.checksum[:7])
 
     def __repr__(self):
         return f"FleetState({self.checksum}, {self._nodes}, {self._this_node_ref}, {self._this_node_metadata})"
@@ -221,7 +232,7 @@ class FleetSensor:
     """
     log = Logger("Learning")
 
-    def __init__(self, domain: str, this_node=None):
+    def __init__(self, domain: str, this_node: Optional['Ursula'] = None):
 
         self._domain = domain
 
@@ -230,15 +241,15 @@ class FleetSensor:
         self.remote_states = {}
 
         # temporary accumulator for new nodes to avoid updating the fleet state every time
-        self._new_nodes = {}
-        self._marked = set()  # Beginning of bucketing.
+        self._nodes_to_add = set()
+        self._nodes_to_remove = set()  # Beginning of bucketing.
 
         self._auto_update_state = False
 
-    def record_node(self, node):
+    def record_node(self, node: 'Ursula'):
 
         if node.domain == self._domain:
-            self._new_nodes[node.checksum_address] = node
+            self._nodes_to_add.add(node)
 
             if self._auto_update_state:
                 self.log.info(f"Updating fleet state after saving node {node}")
@@ -275,9 +286,6 @@ class FleetSensor:
 
     @property
     def checksum(self):
-        # FIXME: should it be called at all if there are no states recorded?
-        if self._current_state.population == 0:
-            return NO_KNOWN_NODES
         return self._current_state.checksum
 
     @property
@@ -286,14 +294,10 @@ class FleetSensor:
 
     @property
     def nickname(self):
-        # FIXME: should it be called at all if there are no states recorded?
-        if self._current_state.population == 0:
-            return NO_KNOWN_NODES
         return self._current_state.nickname
 
     @property
     def icon(self) -> str:
-        # FIXME: should it be called at all if there are no states recorded?
         return self._current_state.icon
 
     @property
@@ -306,12 +310,13 @@ class FleetSensor:
     def values(self):
         return self._current_state.values()
 
-    def latest_states(self, quantity):
+    def latest_states(self, quantity: int) -> List[ArchivedFleetState]:
         """
         Returns at most ``quantity`` latest archived states (including the current one),
         in chronological order.
         """
-        return self._archived_states[-min(len(self._archived_states), quantity):]
+        latest = self._archived_states[-min(len(self._archived_states), quantity):]
+        return latest
 
     def addresses(self):
         return self._current_state.addresses()
@@ -323,10 +328,13 @@ class FleetSensor:
     def unpack_snapshot(data):
         return FleetState.unpack_snapshot(data)
 
-    def record_fleet_state(self):
-        new_state = self._current_state.with_updated_nodes(self._new_nodes, self._marked)
-        self._new_nodes = {}
-        self._marked = set()
+    def record_fleet_state(self, skip_this_node: bool = False):
+        new_state = self._current_state.with_updated_nodes(nodes_to_add=self._nodes_to_add,
+                                                           nodes_to_remove=self._nodes_to_remove,
+                                                           skip_this_node=skip_this_node)
+
+        self._nodes_to_add = set()
+        self._nodes_to_remove = set()
         self._current_state = new_state
 
         # TODO: set a limit on the number of archived states?
@@ -340,12 +348,17 @@ class FleetSensor:
     def shuffled(self):
         return self._current_state.shuffled()
 
-    def mark_as(self, label: Exception, node: "Teacher"):
+    def mark_as(self, label: Exception, node: 'Ursula'):
         # TODO: for now we're not using `label` in any way, so we're just ignoring it
-        self._marked.add(node.checksum_address)
+        self._nodes_to_remove.add(node.checksum_address)
 
-    def record_remote_fleet_state(self, checksum_address, state_checksum, timestamp, population):
-        # TODO: really we can just create the timestamp here
-
-        nickname = Nickname.from_seed(state_checksum, length=1) # TODO: create in a single place
-        self.remote_states[checksum_address] = ArchivedFleetState(state_checksum, nickname, timestamp, population)
+    def record_remote_fleet_state(self,
+                                  checksum_address: ChecksumAddress,
+                                  state_checksum: str,
+                                  timestamp: maya.MayaDT,
+                                  population: int):
+        nickname = Nickname.from_seed(state_checksum, length=1)
+        self.remote_states[checksum_address] = ArchivedFleetState(checksum=state_checksum,
+                                                                  nickname=nickname,
+                                                                  timestamp=timestamp,
+                                                                  population=population)

@@ -105,7 +105,12 @@ def test_state_is_recorded_after_learning(federated_ursulas, lonely_ursula_maker
 
     some_ursula_in_the_fleet = list(federated_ursulas)[0]
     lonely_learner.remember_node(some_ursula_in_the_fleet)
-    assert len(states) == 2  # Saved a fleet state when we remembered this node.
+    # Archived states at this point:
+    # - inital one (empty, Ursula's metadata is not ready yet, no known nodes)
+    # - the one created in Learner.__init__(). Metadata is still not ready, so it's the same
+    #   as the previous one and is not recorded.
+    # - the one created after Ursula learned about a remote node
+    assert len(states) == 2
 
     # The first fleet state is just us and the one about whom we learned, which is part of the fleet.
     assert states[-1].population == 2
@@ -135,14 +140,14 @@ def test_teacher_records_new_fleet_state_upon_hearing_about_new_node(federated_u
     lonely_learner.learn_from_teacher_node()
     states_after = len(states)
 
-    # FIXME: some kind of a timeout is required here to wait for the learning to end
+    # TODO #2568: some kind of a timeout is required here to wait for the learning to end
     return
 
     # `some_ursula_in_the_fleet` learned about `lonely_learner`
     assert states_before + 1 == states_after
 
     # The current fleet state of the Teacher...
-    teacher_fleet_state_checksum = some_ursula_in_the_fleet.fleet_state_checksum
+    teacher_fleet_state_checksum = some_ursula_in_the_fleet.known_nodes.checksum
 
     # ...is the same as the learner, because both have learned about everybody at this point.
     assert teacher_fleet_state_checksum == states[-1].checksum

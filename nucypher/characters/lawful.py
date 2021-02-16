@@ -1233,19 +1233,12 @@ class Ursula(Teacher, Character, Worker):
                          decentralized_identity_evidence=decentralized_identity_evidence)
 
         if is_me:
-            self.known_nodes.record_fleet_state()  # Initial Impression
-
             message = "THIS IS YOU: {}: {}".format(self.__class__.__name__, self)
             self.log.info(message)
             self.log.info(self.banner.format(self.nickname))
         else:
             message = "Initialized Stranger {} | {}".format(self.__class__.__name__, self)
             self.log.debug(message)
-
-        # FIXME: we need to know when Ursula is ready to be recorded in a fleet state.
-        # The first time fleet state is updated may be still within this constructor.
-        # Any better way to solve this?
-        self.finished_initializing = True
 
     def __prune_datastore(self) -> None:
         """Deletes all expired arrangements, kfrags, and treasure maps in the datastore."""
