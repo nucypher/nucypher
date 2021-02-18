@@ -172,11 +172,11 @@ def paint_staged_stake(emitter,
                        unlock_period,
                        division_message: str = None):
     start_datetime = datetime_at_period(period=start_period,
-                                        seconds_per_period=stakeholder.economics.seconds_per_period,
+                                        seconds_per_period=stakeholder.staker.economics.seconds_per_period,
                                         start_of_period=True)
 
     unlock_datetime = datetime_at_period(period=unlock_period,
-                                         seconds_per_period=stakeholder.economics.seconds_per_period,
+                                         seconds_per_period=stakeholder.staker.economics.seconds_per_period,
                                          start_of_period=True)
 
     start_datetime_pretty = start_datetime.local_datetime().strftime("%b %d %H:%M %Z")
@@ -210,13 +210,15 @@ def paint_staking_confirmation(emitter, staker, receipt):
     emitter.echo(POST_STAKING_ADVICE, color='green')
 
 
-def paint_staking_accounts(emitter, wallet, registry):
+def paint_staking_accounts(emitter, signer, registry):
     from nucypher.blockchain.eth.actors import Staker
 
     rows = list()
-    for account in wallet.accounts:
-        eth = str(Web3.fromWei(wallet.eth_balance(account), 'ether')) + " ETH"
-        nu = str(NU.from_nunits(wallet.token_balance(account, registry)))
+    blockchain = BlockchainInterfaceFactory.get_interface()
+    token_agent = ContractAgency.get_agent(NucypherTokenAgent, registry=registry)
+    for account in signer.accounts:
+        eth = str(Web3.fromWei(blockchain.client.get_balance(account), 'ether')) + " ETH"
+        nu = str(NU.from_nunits(token_agent.get_balance(account, registry)))
 
         staker = Staker(is_me=True, checksum_address=account, registry=registry)
         staker.refresh_stakes()

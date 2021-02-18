@@ -96,28 +96,23 @@ def select_client_account(emitter,
     Note: Showing ETH and/or NU balances, causes an eager blockchain connection.
     """
 
-    if wallet and (provider_uri or signer_uri or signer):
-        raise ValueError("If a wallet is provided, don't provide a signer, provider URI, or signer URI.")
+    if signer and signer_uri:
+        raise ValueError('Pass either signer or signer_uri but not both.')
 
-    # We use Wallet internally as an account management abstraction
-    if not wallet:
+    if not any((provider_uri, signer_uri, signer)):
+        raise ValueError("At least a provider URI, signer URI or signer must be provided to select an account")
 
-        if signer and signer_uri:
-            raise ValueError('Pass either signer or signer_uri but not both.')
+    if provider_uri:
+        # Connect to the blockchain in order to select an account
+        if not BlockchainInterfaceFactory.is_interface_initialized(provider_uri=provider_uri):
+            BlockchainInterfaceFactory.initialize_interface(provider_uri=provider_uri, poa=poa, emitter=emitter)
+        signer_uri = provider_uri
 
-        if not provider_uri and not signer_uri:
-            raise ValueError("At least a provider URI or signer URI is necessary to select an account")
+    blockchain = BlockchainInterfaceFactory.get_interface(provider_uri=provider_uri)
 
-        if provider_uri:
-            # Lazy connect the blockchain interface
-            if not BlockchainInterfaceFactory.is_interface_initialized(provider_uri=provider_uri):
-                BlockchainInterfaceFactory.initialize_interface(provider_uri=provider_uri, poa=poa, emitter=emitter)
-
-        if signer_uri:
-            testnet = network != NetworksInventory.MAINNET
-            signer = Signer.from_signer_uri(signer_uri, testnet=testnet)
-
-        wallet = Wallet(provider_uri=provider_uri, signer=signer)
+    if signer_uri:
+        testnet = network != NetworksInventory.MAINNET
+        signer = Signer.from_signer_uri(signer_uri, testnet=testnet)
 
     # Display accounts info
     if show_nu_balance or show_staking:  # Lazy registry fetching
@@ -126,8 +121,7 @@ def select_client_account(emitter,
                 raise ValueError("Pass network name or registry; Got neither.")
             registry = InMemoryContractRegistry.from_latest_publication(network=network)
 
-    wallet_accounts = wallet.accounts
-    enumerated_accounts = dict(enumerate(wallet_accounts))
+    enumerated_accounts = dict(enumerate(signer.accounts))
     if len(enumerated_accounts) < 1:
         emitter.echo(NO_ETH_ACCOUNTS, color='red', bold=True)
         raise click.Abort()
