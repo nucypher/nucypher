@@ -48,6 +48,7 @@ def test_issuer_migration(testerchain, token, token_economics, deploy_contract):
     testerchain.time_travel(hours=token_economics.former_hours_per_period)
     assert contract.functions.getCurrentPeriod().call() == current_period + 1
     current_period = contract.functions.getCurrentPeriod().call()
+    current_minting_period = current_period
 
     # Give tokens for reward and initialize contract
     assert contract.functions.currentMintingPeriod().call() == 0
@@ -55,7 +56,7 @@ def test_issuer_migration(testerchain, token, token_economics, deploy_contract):
     testerchain.wait_for_receipt(tx)
     tx = contract.functions.initialize(token_economics.erc20_reward_supply, creator).transact()
     testerchain.wait_for_receipt(tx)
-    assert contract.functions.currentMintingPeriod().call() == current_period
+    assert contract.functions.currentMintingPeriod().call() == current_minting_period
 
     # We can only extend period
     with pytest.raises((TransactionFailed, ValueError)):
@@ -95,19 +96,21 @@ def test_issuer_migration(testerchain, token, token_economics, deploy_contract):
     assert contract.functions.secondsPerPeriod().call() == token_economics.seconds_per_period
     assert contract.functions.formerSecondsPerPeriod().call() == token_economics.former_seconds_per_period
     assert contract.functions.getCurrentPeriod().call() == current_period // 2
-    assert contract.functions.currentMintingPeriod().call() == current_period // 2
+    assert contract.functions.currentMintingPeriod().call() == current_minting_period // 2
 
     tx = dispatcher.functions.upgrade(issuer_library.address).transact()
     testerchain.wait_for_receipt(tx)
-    assert contract.functions.currentMintingPeriod().call() == current_period // 2
+    assert contract.functions.currentMintingPeriod().call() == current_minting_period // 2
 
+    testerchain.time_travel(periods=1, periods_base=token_economics.seconds_per_period)
+    current_period = contract.functions.getCurrentPeriod().call()
     testerchain.time_travel(hours=token_economics.former_hours_per_period)
-    assert contract.functions.getCurrentPeriod().call() == current_period // 2
+    assert contract.functions.getCurrentPeriod().call() == current_period
     testerchain.time_travel(hours=token_economics.former_hours_per_period)
-    assert contract.functions.getCurrentPeriod().call() == current_period // 2 + 1
+    assert contract.functions.getCurrentPeriod().call() == current_period + 1
     testerchain.time_travel(hours=token_economics.hours_per_period)
-    assert contract.functions.getCurrentPeriod().call() == current_period // 2 + 2
-    assert contract.functions.currentMintingPeriod().call() == current_period // 2
+    assert contract.functions.getCurrentPeriod().call() == current_period + 2
+    assert contract.functions.currentMintingPeriod().call() == current_minting_period // 2
 
     # Deploy again
     issuer_library_2, _ = deploy_contract(
@@ -127,5 +130,5 @@ def test_issuer_migration(testerchain, token, token_economics, deploy_contract):
     testerchain.wait_for_receipt(tx)
     assert contract.functions.formerSecondsPerPeriod().call() == token_economics.seconds_per_period
     assert contract.functions.secondsPerPeriod().call() == 2 * token_economics.seconds_per_period
-    assert contract.functions.getCurrentPeriod().call() == (current_period // 2 + 2) // 2
-    assert contract.functions.currentMintingPeriod().call() == current_period // 4
+    assert contract.functions.getCurrentPeriod().call() == (current_period + 2) // 2
+    assert contract.functions.currentMintingPeriod().call() == current_minting_period // 4
