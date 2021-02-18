@@ -100,8 +100,6 @@ PROMPT_STAKE_INCREASE_VALUE = "Enter stake value in NU (up to {upper_limit})"
 
 SUCCESSFUL_STAKE_INCREASE = 'Successfully increased stake'
 
-PREALLOCATION_STAKE_ADVISORY = "Beneficiary {client_account} will use preallocation contract {staking_address} to stake."
-
 NO_STAKING_ACCOUNTS = "No staking accounts found."
 
 SELECT_STAKING_ACCOUNT_INDEX = "Select index of staking account"

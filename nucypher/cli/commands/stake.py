@@ -22,7 +22,6 @@ from web3 import Web3
 from nucypher.blockchain.eth.actors import StakeHolder
 from nucypher.blockchain.eth.constants import MAX_UINT16
 from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory, BlockchainInterface
-from nucypher.blockchain.eth.registry import IndividualAllocationRegistry
 from nucypher.blockchain.eth.signers import TrezorSigner
 from nucypher.blockchain.eth.signers.software import ClefSigner
 from nucypher.blockchain.eth.token import NU, Stake
@@ -252,53 +251,15 @@ class TransactingStakerOptions:
 
     __option_name__ = 'transacting_staker_options'
 
-    def __init__(self, staker_options: StakerOptions, hw_wallet, beneficiary_address, allocation_filepath, gas_price):
+    def __init__(self, staker_options: StakerOptions, hw_wallet, gas_price):
         self.staker_options = staker_options
         self.hw_wallet = hw_wallet
-        self.beneficiary_address = beneficiary_address
-        self.allocation_filepath = allocation_filepath
         self.gas_price = gas_price
 
     def create_character(self, emitter, config_file):
-
         opts = self.staker_options
-        stakeholder_config = opts.config_options.retrieve_config(emitter, config_file)
-
-        # Now let's check whether we're dealing here with a regular staker or a preallocation staker
-        is_preallocation_staker = (self.beneficiary_address and opts.staking_address) or self.allocation_filepath
-
-        if is_preallocation_staker:
-            network = opts.config_options.network or stakeholder_config.domain
-            if self.allocation_filepath:
-                if self.beneficiary_address or opts.staking_address:
-                    message = "--allocation-filepath is incompatible with --beneficiary-address and --staking-address."
-                    raise click.BadOptionUsage(option_name="--allocation-filepath", message=message)
-
-                # This assumes the user has an individual allocation file in disk
-                individual_allocation = IndividualAllocationRegistry.from_allocation_file(self.allocation_filepath,
-                                                                                          network=network)
-                initial_address = individual_allocation.beneficiary_address
-            elif self.beneficiary_address and opts.staking_address:
-                individual_allocation = IndividualAllocationRegistry(beneficiary_address=self.beneficiary_address,
-                                                                     contract_address=opts.staking_address,
-                                                                     network=network)
-                initial_address = self.beneficiary_address
-            else:
-                option = "--beneficiary_address" if self.beneficiary_address else "--staking-address"
-                raise click.BadOptionUsage(option_name=option,
-                                           message=f"You must specify both --beneficiary-address and --staking-address. "
-                                                   f"Only {option} was provided. As an alternative, you can simply "
-                                                   f"provide an individual allocation with --allocation-file <PATH>")
-        else:
-            individual_allocation = None
-            initial_address = None
-
-        return opts.create_character(
-            emitter,
-            config_file,
-            individual_allocation=individual_allocation,
-            initial_address=initial_address,
-        )
+        stakeholder_config = opts.config_options.retrieve_config(emitter, config_file)  # TODO
+        return opts.create_character(emitter=emitter, config_file=config_file)
 
     def get_blockchain(self):
         blockchain = self.staker_options.get_blockchain()
@@ -312,8 +273,6 @@ group_transacting_staker_options = group_options(
     TransactingStakerOptions,
     staker_options=group_staker_options,
     hw_wallet=option_hw_wallet,
-    beneficiary_address=click.option('--beneficiary-address', help="Address of a pre-allocation beneficiary", type=EIP55_CHECKSUM_ADDRESS),
-    allocation_filepath=click.option('--allocation-filepath', help="Path to individual allocation file", type=EXISTING_READABLE_FILE),
     gas_price=option_gas_price,
 )
 
@@ -406,7 +365,6 @@ def bond_worker(general_config: GroupGeneralConfig,
         emitter=emitter,
         stakeholder=STAKEHOLDER,
         staking_address=transacting_staker_options.staker_options.staking_address,
-        individual_allocation=STAKEHOLDER.individual_allocation,
         force=force)
 
     if not worker_address:
@@ -520,14 +478,21 @@ def create(general_config: GroupGeneralConfig,
     emitter = setup_emitter(general_config)
     STAKEHOLDER = transacting_staker_options.create_character(emitter, config_file)
     blockchain = transacting_staker_options.get_blockchain()
-    economics = STAKEHOLDER.economics
+
 
     client_account, staking_address = select_client_account_for_staking(
         emitter=emitter,
         stakeholder=STAKEHOLDER,
-        staking_address=transacting_staker_options.staker_options.staking_address,
-        individual_allocation=STAKEHOLDER.individual_allocation,
-        force=force)
+        staking_address=transacting_staker_options.staker_options.staking_address)
+
+    # Authenticate
+    password = get_password(stakeholder=STAKEHOLDER,
+                            blockchain=blockchain,
+                            client_account=client_account,
+                            hw_wallet=transacting_staker_options.hw_wallet)
+    STAKEHOLDER.assimilate(checksum_address=staking_address, password=password)
+
+    economics = STAKEHOLDER.staker.economics
 
     # Dynamic click types (Economics)
     min_locked = economics.minimum_allowed_locked
@@ -630,9 +595,7 @@ def increase(general_config: GroupGeneralConfig,
     client_account, staking_address = select_client_account_for_staking(
         emitter=emitter,
         stakeholder=STAKEHOLDER,
-        staking_address=transacting_staker_options.staker_options.staking_address,
-        individual_allocation=STAKEHOLDER.individual_allocation,
-        force=force)
+        staking_address=transacting_staker_options.staker_options.staking_address)
 
     # Handle stake update and selection
     if index is not None:  # 0 is valid.
@@ -719,9 +682,7 @@ def restake(general_config: GroupGeneralConfig,
     client_account, staking_address = select_client_account_for_staking(
         emitter=emitter,
         stakeholder=STAKEHOLDER,
-        staking_address=transacting_staker_options.staker_options.staking_address,
-        individual_allocation=STAKEHOLDER.individual_allocation,
-        force=force)
+        staking_address=transacting_staker_options.staker_options.staking_address)
 
     # Inner Exclusive Switch
     if enable:
@@ -773,9 +734,7 @@ def winddown(general_config: GroupGeneralConfig,
     client_account, staking_address = select_client_account_for_staking(
         emitter=emitter,
         stakeholder=STAKEHOLDER,
-        staking_address=transacting_staker_options.staker_options.staking_address,
-        individual_allocation=STAKEHOLDER.individual_allocation,
-        force=force)
+        staking_address=transacting_staker_options.staker_options.staking_address)
 
     # Inner Exclusive Switch
     if enable:
@@ -827,9 +786,7 @@ def snapshots(general_config: GroupGeneralConfig,
     client_account, staking_address = select_client_account_for_staking(
         emitter=emitter,
         stakeholder=STAKEHOLDER,
-        staking_address=transacting_staker_options.staker_options.staking_address,
-        individual_allocation=STAKEHOLDER.individual_allocation,
-        force=force)
+        staking_address=transacting_staker_options.staker_options.staking_address)
 
     # Inner Exclusive Switch
     if enable:
@@ -1046,9 +1003,15 @@ def merge(general_config: GroupGeneralConfig,
     client_account, staking_address = select_client_account_for_staking(
         emitter=emitter,
         stakeholder=STAKEHOLDER,
-        staking_address=transacting_staker_options.staker_options.staking_address,
-        individual_allocation=STAKEHOLDER.individual_allocation,
-        force=force)
+        staking_address=transacting_staker_options.staker_options.staking_address)
+
+    # Authenticate
+    password = get_password(stakeholder=STAKEHOLDER,
+                            blockchain=blockchain,
+                            client_account=client_account,
+                            hw_wallet=transacting_staker_options.hw_wallet)
+    STAKEHOLDER.assimilate(checksum_address=client_account, password=password)
+    action_period = STAKEHOLDER.staker.staking_agent.get_current_period()
 
     # Handle stakes selection
     stake_1, stake_2 = None, None
@@ -1224,61 +1187,11 @@ def collect_reward(general_config: GroupGeneralConfig,
                                     blockchain=blockchain,
                                     client_account=client_account,
                                     hw_wallet=transacting_staker_options.hw_wallet)
-            STAKEHOLDER.assimilate(password=password)
+            STAKEHOLDER.assimilate(checksum_address=client_account, password=password)
 
-        policy_receipt = STAKEHOLDER.collect_policy_fee(collector_address=withdraw_address)
+        policy_receipt = STAKEHOLDER.staker.collect_policy_fee(collector_address=withdraw_address)
         paint_receipt_summary(receipt=policy_receipt,
-                              chain_name=STAKEHOLDER.wallet.blockchain.client.chain_name,
-                              emitter=emitter)
-
-
-@stake.command()
-@click.argument('action', type=click.Choice(['status', 'withdraw']))
-@group_transacting_staker_options
-@option_config_file
-@option_force
-@group_general_config
-def preallocation(general_config: GroupGeneralConfig,
-                  transacting_staker_options: TransactingStakerOptions,
-                  config_file, action, force):
-    """Claim token rewards collected by a preallocation contract."""
-
-    # Setup
-    emitter = setup_emitter(general_config)
-    STAKEHOLDER = transacting_staker_options.create_character(emitter, config_file)
-    blockchain = transacting_staker_options.get_blockchain()
-
-    # Unauthenticated actions: status
-    if action == 'status':
-        return paint_preallocation_status(emitter=emitter,
-                                          token_agent=STAKEHOLDER.token_agent,
-                                          preallocation_agent=STAKEHOLDER.preallocation_escrow_agent)
-
-    # Authenticated actions: withdraw-tokens
-    client_account, staking_address = select_client_account_for_staking(
-        emitter=emitter,
-        stakeholder=STAKEHOLDER,
-        staking_address=transacting_staker_options.staker_options.staking_address,
-        individual_allocation=STAKEHOLDER.individual_allocation,
-        force=force)
-
-    # Authenticate
-    password = get_password(stakeholder=STAKEHOLDER,
-                            blockchain=blockchain,
-                            client_account=client_account,
-                            hw_wallet=transacting_staker_options.hw_wallet)
-    STAKEHOLDER.assimilate(checksum_address=client_account, password=password)
-
-    if action == 'withdraw':
-        token_balance = NU.from_nunits(STAKEHOLDER.token_agent.get_balance(staking_address))
-        locked_tokens = NU.from_nunits(STAKEHOLDER.preallocation_escrow_agent.unvested_tokens)
-        unlocked_tokens = token_balance - locked_tokens
-
-        emitter.echo(message=COLLECTING_PREALLOCATION_REWARD.format(unlocked_tokens=unlocked_tokens,
-                                                                    staking_address=staking_address))
-        receipt = STAKEHOLDER.withdraw_preallocation_tokens(unlocked_tokens)
-        paint_receipt_summary(receipt=receipt,
-                              chain_name=STAKEHOLDER.wallet.blockchain.client.chain_name,
+                              chain_name=blockchain.client.chain_name,
                               emitter=emitter)
 
 
@@ -1317,9 +1230,7 @@ def events(general_config, staker_options, config_file, event_name, from_block, 
     _client_account, staking_address = select_client_account_for_staking(
         emitter=emitter,
         stakeholder=STAKEHOLDER,
-        staking_address=staker_options.staking_address,
-        individual_allocation=STAKEHOLDER.individual_allocation,
-        force=True)
+        staking_address=staker_options.staking_address)
 
     argument_filters = {'staker': staking_address}
     agent = STAKEHOLDER.staking_agent
@@ -1362,9 +1273,7 @@ def set_min_rate(general_config: GroupGeneralConfig,
     client_account, staking_address = select_client_account_for_staking(
         emitter=emitter,
         stakeholder=STAKEHOLDER,
-        staking_address=transacting_staker_options.staker_options.staking_address,
-        individual_allocation=STAKEHOLDER.individual_allocation,
-        force=force)
+        staking_address=transacting_staker_options.staker_options.staking_address)
 
     if not min_rate:
         paint_min_rate(emitter, STAKEHOLDER)
