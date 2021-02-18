@@ -17,15 +17,16 @@
 
 
 import glob
-import os
-from typing import Callable
-from typing import Optional, Tuple, Type
 
 import click
+import os
 from tabulate import tabulate
+from typing import Callable
+from typing import Optional, Tuple, Type
 from web3.main import Web3
 
-from nucypher.blockchain.eth.actors import StakeHolder, Staker, Wallet
+from nucypher.blockchain.eth.agents import ContractAgency, NucypherTokenAgent
+from nucypher.blockchain.eth.actors import StakeHolder, Staker
 from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
 from nucypher.blockchain.eth.networks import NetworksInventory
 from nucypher.blockchain.eth.registry import InMemoryContractRegistry, BaseContractRegistry
@@ -34,7 +35,6 @@ from nucypher.blockchain.eth.token import NU, Stake
 from nucypher.characters.control.emitters import StdoutEmitter
 from nucypher.cli.literature import (
     GENERIC_SELECT_ACCOUNT,
-    IS_THIS_CORRECT,
     NO_CONFIGURATIONS_ON_DISK,
     NO_ETH_ACCOUNTS,
     NO_STAKES_FOUND,
@@ -81,10 +81,9 @@ def select_client_account(emitter,
                           provider_uri: str = None,
                           signer: Signer = None,
                           signer_uri: str = None,
-                          wallet: Wallet = None,
                           prompt: str = None,
                           default: int = 0,
-                          registry=None,
+                          registry: BaseContractRegistry = None,
                           show_eth_balance: bool = False,
                           show_nu_balance: bool = False,
                           show_staking: bool = False,
@@ -146,15 +145,16 @@ def select_client_account(emitter,
     for index, account in enumerated_accounts.items():
         row = [account]
         if show_staking:
-            staker = Staker(is_me=True, checksum_address=account, registry=registry)
+            staker = Staker(is_me=True, domain=network, checksum_address=account, registry=registry)
             staker.refresh_stakes()
             is_staking = 'Yes' if bool(staker.stakes) else 'No'
             row.append(is_staking)
         if show_eth_balance:
-            ether_balance = Web3.fromWei(wallet.eth_balance(account), 'ether')
+            ether_balance = Web3.fromWei(blockchain.client.get_balance(account), 'ether')
             row.append(f'{ether_balance} ETH')
         if show_nu_balance:
-            token_balance = NU.from_nunits(wallet.token_balance(account, registry))
+            token_agent = ContractAgency.get_agent(NucypherTokenAgent, registry=registry)
+            token_balance = NU.from_nunits(token_agent.get_balance(account, registry))
             row.append(token_balance)
         rows.append(row)
     emitter.echo(tabulate(rows, headers=headers, showindex='always'))

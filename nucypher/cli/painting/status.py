@@ -22,9 +22,15 @@ import maya
 from typing import List
 from web3.main import Web3
 
+from nucypher.config.constants import TEMPORARY_DOMAIN
 from nucypher.blockchain.eth.actors import Staker
-from nucypher.blockchain.eth.agents import AdjudicatorAgent, ContractAgency, NucypherTokenAgent, PolicyManagerAgent, \
+from nucypher.blockchain.eth.agents import (
+    AdjudicatorAgent,
+    ContractAgency,
+    NucypherTokenAgent,
+    PolicyManagerAgent,
     StakingEscrowAgent
+)
 from nucypher.blockchain.eth.constants import NULL_ADDRESS
 from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
 from nucypher.blockchain.eth.registry import BaseContractRegistry
@@ -151,7 +157,10 @@ def paint_stakers(emitter, stakers: List[str], registry: BaseContractRegistry) -
     emitter.echo('=' * (42 + 2 + 53))
 
     for staker_address in stakers:
-        staker = Staker(is_me=False, checksum_address=staker_address, registry=registry)
+        staker = Staker(is_me=False,
+                        domain=TEMPORARY_DOMAIN,
+                        checksum_address=staker_address,
+                        registry=registry)
         nickname = Nickname.from_seed(staker_address)
         emitter.echo(f"{staker_address}  {'Nickname:':10} {nickname} {nickname.icon}")
         tab = " " * len(staker_address)
