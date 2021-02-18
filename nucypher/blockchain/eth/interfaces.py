@@ -18,6 +18,7 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 import math
 import os
 import pprint
+from eth.typing import TransactionDict
 from typing import Callable, NamedTuple, Tuple, Union, Optional
 from typing import List
 from urllib.parse import urlparse
@@ -42,6 +43,8 @@ from constant_sorrow.constants import (
     READ_ONLY_INTERFACE,
     UNKNOWN_TX_STATUS
 )
+
+from nucypher.crypto.powers import TransactingPower
 from nucypher.blockchain.eth.clients import EthereumClient, POA_CHAINS, InfuraClient
 from nucypher.blockchain.eth.decorators import validate_checksum_address
 from nucypher.blockchain.eth.providers import (
@@ -232,10 +235,9 @@ class BlockchainInterface:
         self._provider = provider
         self.w3 = NO_BLOCKCHAIN_CONNECTION
         self.client = NO_BLOCKCHAIN_CONNECTION
-        self.transacting_power = READ_ONLY_INTERFACE
         self.is_light = light
 
-        # FIXME: Not ready to give users total flexibility. Let's stick for the moment to known values. See #2447
+        # TODO: Not ready to give users total flexibility. Let's stick for the moment to known values. See #2447
         if gas_strategy not in ('slow', 'medium', 'fast', 'free', None):  # FIXME: What is 'None' doing here?
             raise ValueError(f"'{gas_strategy}' is an invalid gas strategy")
         self.gas_strategy = gas_strategy or self.DEFAULT_GAS_STRATEGY
@@ -526,7 +528,8 @@ class BlockchainInterface:
         return transaction_dict
 
     def sign_and_broadcast_transaction(self,
-                                       transaction_dict,
+                                       transacting_power: TransactingPower,
+                                       transaction_dict: TransactionDict,
                                        transaction_name: str = "",
                                        confirmations: int = 0,
                                        fire_and_forget: bool = False
@@ -550,9 +553,6 @@ class BlockchainInterface:
         else:
             emitter = StdoutEmitter()
 
-        if self.transacting_power is READ_ONLY_INTERFACE:
-            raise self.InterfaceError(str(READ_ONLY_INTERFACE))
-
         #
         # Sign
         #
@@ -563,11 +563,11 @@ class BlockchainInterface:
         cost_wei = price * transaction_dict['gas']
         cost = Web3.fromWei(cost_wei, 'ether')
 
-        if self.transacting_power.is_device:
+        if transacting_power.is_device:
             emitter.message(f'Confirm transaction {transaction_name} on hardware wallet... '
                             f'({cost} ETH @ {price_gwei} gwei)',
                             color='yellow')
-        signed_raw_transaction = self.transacting_power.sign_transaction(transaction_dict)
+        signed_raw_transaction = transacting_power.sign_transaction(transaction_dict)
 
         #
         # Broadcast
@@ -624,7 +624,7 @@ class BlockchainInterface:
     @validate_checksum_address
     def send_transaction(self,
                          contract_function: Union[ContractFunction, ContractConstructor],
-                         sender_address: str,
+                         transacting_power: TransactingPower,
                          payload: dict = None,
                          transaction_gas_limit: Optional[int] = None,
                          gas_estimation_multiplier: Optional[float] = None,
@@ -642,7 +642,7 @@ class BlockchainInterface:
             use_pending_nonce = None  # TODO: #2385
 
         transaction = self.build_contract_transaction(contract_function=contract_function,
-                                                      sender_address=sender_address,
+                                                      sender_address=transacting_power.account,
                                                       payload=payload,
                                                       transaction_gas_limit=transaction_gas_limit,
                                                       gas_estimation_multiplier=gas_estimation_multiplier,
@@ -654,7 +654,8 @@ class BlockchainInterface:
         except AttributeError:
             transaction_name = 'DEPLOY' if isinstance(contract_function, ContractConstructor) else 'UNKNOWN'
 
-        txhash_or_receipt = self.sign_and_broadcast_transaction(transaction_dict=transaction,
+        txhash_or_receipt = self.sign_and_broadcast_transaction(transacting_power=transacting_power,
+                                                                transaction_dict=transaction,
                                                                 transaction_name=transaction_name,
                                                                 confirmations=confirmations,
                                                                 fire_and_forget=fire_and_forget)
@@ -796,7 +797,7 @@ class BlockchainDeployerInterface(BlockchainInterface):
 
     @validate_checksum_address
     def deploy_contract(self,
-                        deployer_address: str,
+                        transacting_power: TransactingPower,
                         registry: BaseContractRegistry,
                         contract_name: str,
                         *constructor_args,
@@ -823,7 +824,7 @@ class BlockchainDeployerInterface(BlockchainInterface):
 
         contract_factory = self.get_contract_factory(contract_name=contract_name, version=contract_version)
         self.log.info(f"Deploying contract {contract_name}:{contract_factory.version} with "
-                      f"deployer address {deployer_address} "
+                      f"deployer address {transacting_power.account} "
                       f"and parameters {pprint_args}")
 
         constructor_function = contract_factory.constructor(*constructor_args, **constructor_kwargs)
@@ -839,7 +840,7 @@ class BlockchainDeployerInterface(BlockchainInterface):
         #
 
         receipt = self.send_transaction(contract_function=constructor_function,
-                                        sender_address=deployer_address,
+                                        transacting_power=transacting_power,
                                         payload=deploy_transaction,
                                         confirmations=confirmations)
 
