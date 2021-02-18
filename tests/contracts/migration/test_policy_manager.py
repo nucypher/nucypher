@@ -53,6 +53,12 @@ def test_policy_manager_migration(testerchain, token_economics, deploy_contract)
         ContractFactoryClass=Contract)
     assert contract.functions.secondsPerPeriod().call() == token_economics.former_seconds_per_period
 
+    current_period = contract.functions.getCurrentPeriod().call()
+    testerchain.time_travel(hours=token_economics.former_hours_per_period)
+    assert contract.functions.getCurrentPeriod().call() == current_period + 1
+    testerchain.time_travel(hours=token_economics.former_hours_per_period)
+    assert contract.functions.getCurrentPeriod().call() == current_period + 2
+
     # Register some nodes
     tx = escrow.functions.setPolicyManager(contract.address).transact()
     testerchain.wait_for_receipt(tx)
@@ -177,7 +183,7 @@ def test_policy_manager_migration(testerchain, token_economics, deploy_contract)
             .transact({'from': alice, 'value': 3 * value, 'gas_price': 0})
         testerchain.wait_for_receipt(tx)
 
-    testerchain.time_travel(periods=1)
+    testerchain.time_travel(periods=2)
     current_period = contract.functions.getCurrentPeriod().call()
     testerchain.time_travel(hours=token_economics.former_hours_per_period)
     assert contract.functions.getCurrentPeriod().call() == current_period
@@ -301,8 +307,10 @@ def test_policy_manager_migration(testerchain, token_economics, deploy_contract)
         _hoursPerPeriod=2 * token_economics.hours_per_period
     )
     policy_manager_2_library, _ = deploy_contract(contract_name='PolicyManager', _escrow=escrow.address)
+    current_period = contract.functions.getCurrentPeriod().call()
     tx = dispatcher.functions.upgrade(policy_manager_2_library.address).transact()
     testerchain.wait_for_receipt(tx)
     assert contract.functions.resetTimestamp().call() == reset_timestamp
     assert contract.functions.formerSecondsPerPeriod().call() == token_economics.seconds_per_period
     assert contract.functions.secondsPerPeriod().call() == 2 * token_economics.seconds_per_period
+    assert contract.functions.getCurrentPeriod().call() == current_period // 2
