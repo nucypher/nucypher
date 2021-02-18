@@ -71,7 +71,6 @@ from tests.constants import (
     FEE_RATE_RANGE,
     INSECURE_DEVELOPMENT_PASSWORD,
     MIN_STAKE_FOR_TESTS,
-    MOCK_ALLOCATION_INFILE,
     MOCK_CUSTOM_INSTALLATION_PATH,
     MOCK_CUSTOM_INSTALLATION_PATH_2,
     MOCK_POLICY_DEFAULT_M,
@@ -422,7 +421,6 @@ def lonely_ursula_maker(ursula_federated_test_config):
     _maker.clean()
 
 
-
 #
 # Blockchain
 #
@@ -535,83 +533,49 @@ def _mock_testerchain() -> MockBlockchain:
     yield testerchain
 
 
-def _make_agency(testerchain,
-                 test_registry,
-                 token_economics) -> Tuple[NucypherTokenAgent, StakingEscrowAgent, PolicyManagerAgent]:
+@pytest.fixture(scope='module')
+def deployer_transacting_power(testerchain):
+    transacting_power = TransactingPower(password=INSECURE_DEVELOPMENT_PASSWORD,
+                                         signer=Web3Signer(client=testerchain.client),
+                                         account=testerchain.etherbase_account)
+    transacting_power.unlock(password=INSECURE_DEVELOPMENT_PASSWORD)
+    return transacting_power
+
+
+def _make_agency(testerchain, test_registry, token_economics, deployer_transacting_power):
     """
     Launch the big three contracts on provided chain,
     make agents for each and return them.
     """
 
-    # Mock TransactingPower Consumption (Deployer)
-    testerchain.transacting_power = TransactingPower(password=INSECURE_DEVELOPMENT_PASSWORD,
-                                                     signer=Web3Signer(client=testerchain.client),
-                                                     account=testerchain.etherbase_account)
-    testerchain.transacting_power.activate()
+    transacting_power = deployer_transacting_power
 
-    origin = testerchain.etherbase_account
+    token_deployer = NucypherTokenDeployer(economics=token_economics, registry=test_registry)
+    token_deployer.deploy(transacting_power=transacting_power)
 
-    token_deployer = NucypherTokenDeployer(deployer_address=origin,
-                                           economics=token_economics,
-                                           registry=test_registry)
-    token_deployer.deploy()
+    staking_escrow_deployer = StakingEscrowDeployer(economics=token_economics, registry=test_registry)
+    staking_escrow_deployer.deploy(deployment_mode=INIT, transacting_power=transacting_power)
 
-    staking_escrow_deployer = StakingEscrowDeployer(deployer_address=origin,
-                                                    economics=token_economics,
-                                                    registry=test_registry)
-    staking_escrow_deployer.deploy(deployment_mode=INIT)
+    policy_manager_deployer = PolicyManagerDeployer(economics=token_economics, registry=test_registry)
+    policy_manager_deployer.deploy(transacting_power=transacting_power)
 
-    policy_manager_deployer = PolicyManagerDeployer(deployer_address=origin,
-                                                    economics=token_economics,
-                                                    registry=test_registry)
-    policy_manager_deployer.deploy()
+    adjudicator_deployer = AdjudicatorDeployer(economics=token_economics, registry=test_registry)
+    adjudicator_deployer.deploy(transacting_power=transacting_power)
 
-    adjudicator_deployer = AdjudicatorDeployer(deployer_address=origin,
-                                               economics=token_economics,
-                                               registry=test_registry)
-    adjudicator_deployer.deploy()
+    staking_interface_deployer = StakingInterfaceDeployer(economics=token_economics, registry=test_registry)
+    staking_interface_deployer.deploy(transacting_power=transacting_power)
 
-    staking_interface_deployer = StakingInterfaceDeployer(deployer_address=origin,
-                                                          economics=token_economics,
-                                                          registry=test_registry)
-    staking_interface_deployer.deploy()
+    worklock_deployer = WorklockDeployer(economics=token_economics, registry=test_registry)
+    worklock_deployer.deploy(transacting_power=transacting_power)
 
-    worklock_deployer = WorklockDeployer(deployer_address=origin,
-                                         economics=token_economics,
-                                         registry=test_registry)
-    worklock_deployer.deploy()
-
-    staking_escrow_deployer = StakingEscrowDeployer(deployer_address=origin,
-                                                    economics=token_economics,
-                                                    registry=test_registry)
-    staking_escrow_deployer.deploy(deployment_mode=FULL)
-
-    token_agent = token_deployer.make_agent()                           # 1 Token
-    staking_agent = staking_escrow_deployer.make_agent()                # 2 Staking Escrow
-    policy_agent = policy_manager_deployer.make_agent()                 # 3 Policy Agent
-    _adjudicator_agent = adjudicator_deployer.make_agent()              # 4 Adjudicator
-    _worklock_agent = worklock_deployer.make_agent()                    # 5 Worklock
+    staking_escrow_deployer = StakingEscrowDeployer(economics=token_economics, registry=test_registry)
+    staking_escrow_deployer.deploy(deployment_mode=FULL, transacting_power=transacting_power)
 
     # Set additional parameters
     minimum, default, maximum = FEE_RATE_RANGE
+    policy_agent = policy_manager_deployer.make_agent()
     txhash = policy_agent.contract.functions.setFeeRateRange(minimum, default, maximum).transact()
-    _receipt = testerchain.wait_for_receipt(txhash)
-
-    # TODO: Get rid of returning these agents here.
-    # What's important is deploying and creating the first agent for each contract,
-    # and since agents are singletons, in tests it's only necessary to call the agent
-    # constructor again to receive the existing agent.
-    #
-    # For example:
-    #     staking_agent = StakingEscrowAgent()
-    #
-    # This is more clear than how we currently obtain an agent instance in tests:
-    #     _, staking_agent, _ = agency
-    #
-    # Other advantages is that it's closer to how agents should be use (i.e., there
-    # are no fixtures IRL) and it's more extensible (e.g., AdjudicatorAgent)
-
-    return token_agent, staking_agent, policy_agent
+    testerchain.wait_for_receipt(txhash)
 
 
 @pytest.fixture(scope='module')
@@ -624,10 +588,12 @@ def test_registry_source_manager(testerchain, test_registry):
 def agency(testerchain,
            test_registry,
            token_economics,
-           test_registry_source_manager) -> Tuple[NucypherTokenAgent, StakingEscrowAgent, PolicyManagerAgent]:
+           test_registry_source_manager,
+           deployer_transacting_power):
     agents = _make_agency(testerchain=testerchain,
                           test_registry=test_registry,
-                          token_economics=token_economics)
+                          token_economics=token_economics,
+                          deployer_transacting_power=deployer_transacting_power)
     yield agents
 
 
