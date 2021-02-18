@@ -95,6 +95,8 @@ contract StakingEscrowStub is Upgradeable {
 
         // we have to use real values even though this is a stub
         require(address(delegateGet(_testTarget, this.token.selector)) == address(token));
+        // TODO uncomment after merging this PR
+//        require(uint32(delegateGet(_testTarget, this.formerSecondsPerPeriod.selector)) == formerSecondsPerPeriod);
         require(uint32(delegateGet(_testTarget, this.secondsPerPeriod.selector)) == secondsPerPeriod);
         require(uint16(delegateGet(_testTarget, this.minLockedPeriods.selector)) == minLockedPeriods);
         require(delegateGet(_testTarget, this.minAllowableLockedTokens.selector) == minAllowableLockedTokens);
@@ -229,6 +231,11 @@ contract StakingEscrow is Issuer, IERC900History {
     * @param snapshotsEnabled Updated parameter value
     */
     event SnapshotSet(address indexed staker, bool snapshotsEnabled);
+
+    /**
+    * @notice Signals that the staker migrated their stake to the new period length
+    * @param staker Staker address
+    */
     event Migrated(address indexed staker);
 
     /// internal event
@@ -428,7 +435,7 @@ contract StakingEscrow is Issuer, IERC900History {
         reStake = !info.flags.bitSet(RE_STAKE_DISABLED_INDEX);
         measureWork = info.flags.bitSet(MEASURE_WORK_INDEX);
         snapshots = !info.flags.bitSet(SNAPSHOTS_DISABLED_INDEX);
-        migrated = !info.flags.bitSet(MIGRATED_INDEX);
+        migrated = info.flags.bitSet(MIGRATED_INDEX);
     }
 
     /**
@@ -680,7 +687,7 @@ contract StakingEscrow is Issuer, IERC900History {
             info.flags = info.flags.toggleBit(WIND_DOWN_INDEX);
             emit WindDownSet(_staker, true);
         }
-        _periods = recalculatePeriod(_periods); // TODO rounding or ceiling
+        _periods = recalculatePeriod(_periods);
         deposit(_staker, msg.sender, MAX_SUB_STAKES, _value, _periods);
     }
 
@@ -838,7 +845,7 @@ contract StakingEscrow is Issuer, IERC900History {
         // A staker can't be a worker for another staker
         require(stakerFromWorker[_staker] == address(0) || stakerFromWorker[_staker] == info.worker);
         // initial stake of the staker
-        if (info.subStakes.length == 0) {
+        if (info.subStakes.length == 0 && info.lastCommittedPeriod == 0) {
             stakers.push(_staker);
             policyManager.register(_staker, getCurrentPeriod() - 1);
             info.flags = info.flags.toggleBit(MIGRATED_INDEX);
@@ -1216,30 +1223,24 @@ contract StakingEscrow is Issuer, IERC900History {
     }
 
     /**
-    * @notice Migrate from the old period length to the new one
+    * @notice Migrate from the old period length to the new one. Can be done only once
+    * @param _staker Staker
     */
-    // TODO docs
     function migrate(address _staker) public {
         StakerInfo storage info = stakerInfo[_staker];
-        // TODO allow only for staker
+        // check that provided address is/was a staker
+        require(info.subStakes.length != 0 || info.lastCommittedPeriod != 0);
         if (info.flags.bitSet(MIGRATED_INDEX)) {
             return;
         }
 
         info.currentCommittedPeriod = 0;
         info.nextCommittedPeriod = 0;
-//        info.lastCommittedPeriod = getCurrentPeriod(); // TODO not sure
-        info.lastCommittedPeriod = 0;
+        // maintain case when no more sub-stakes and need to avoid re-registering this staker during deposit
+        info.lastCommittedPeriod = 1;
         info.workerStartPeriod = recalculatePeriod(info.workerStartPeriod);
         delete info.pastDowntime;
 
-//        if (info.pastDowntime.length > 0) { // TODO slippery way
-//            uint16 temp = info.pastDowntime[0].endPeriod;
-//            delete info.pastDowntime;
-//            info.pastDowntime.push(1, recalculatePeriod(temp));
-//        }
-
-        // TODO rounding or ceiling
         for (uint256 i = 0; i < info.subStakes.length; i++) {
             SubStakeInfo storage subStake = info.subStakes[i];
             subStake.firstPeriod = recalculatePeriod(subStake.firstPeriod);
@@ -1247,10 +1248,12 @@ contract StakingEscrow is Issuer, IERC900History {
                 subStake.lastPeriod = recalculatePeriod(subStake.lastPeriod);
                 subStake.periods = 0;
             } else {
-                subStake.periods = recalculatePeriod(subStake.periods);
-//                if (subStake.periods == 0) { // TODO not sure
-//                    subStake.periods == 1;
-//                }
+                uint16 oldCurrentPeriod = uint16(block.timestamp / formerSecondsPerPeriod);
+                uint16 lastPeriod = recalculatePeriod(oldCurrentPeriod + subStake.periods);
+                subStake.periods = lastPeriod - getCurrentPeriod();
+                if (subStake.periods == 0) {
+                    subStake.lastPeriod = lastPeriod;
+                }
             }
         }
 

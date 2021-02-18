@@ -190,6 +190,7 @@ contract PolicyManagerForStakingEscrowMock {
     uint32 public secondsPerPeriod;
     StakingEscrow public escrow;
     mapping (address => uint16[]) public nodes;
+    mapping (address => uint256) public migratedNodes;
 
     constructor(address, uint32 _secondsPerPeriod) {
         secondsPerPeriod = _secondsPerPeriod;
@@ -201,6 +202,10 @@ contract PolicyManagerForStakingEscrowMock {
 
     function register(address _node, uint16 _period) external {
         nodes[_node].push(_period);
+    }
+
+    function migrate(address _node) external {
+        migratedNodes[_node]++;
     }
 
     function ping(
