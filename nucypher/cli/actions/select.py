@@ -28,7 +28,7 @@ from web3.main import Web3
 from nucypher.blockchain.eth.actors import StakeHolder, Staker, Wallet
 from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
 from nucypher.blockchain.eth.networks import NetworksInventory
-from nucypher.blockchain.eth.registry import InMemoryContractRegistry, IndividualAllocationRegistry
+from nucypher.blockchain.eth.registry import InMemoryContractRegistry, BaseContractRegistry
 from nucypher.blockchain.eth.signers.base import Signer
 from nucypher.blockchain.eth.token import NU, Stake
 from nucypher.characters.control.emitters import StdoutEmitter
@@ -39,7 +39,6 @@ from nucypher.cli.literature import (
     NO_ETH_ACCOUNTS,
     NO_STAKES_FOUND,
     ONLY_DISPLAYING_DIVISIBLE_STAKES_NOTE,
-    PREALLOCATION_STAKE_ADVISORY,
     SELECT_NETWORK,
     SELECT_STAKE,
     SELECT_STAKING_ACCOUNT_INDEX,
@@ -173,8 +172,6 @@ def select_client_account(emitter,
 def select_client_account_for_staking(emitter: StdoutEmitter,
                                       stakeholder: StakeHolder,
                                       staking_address: Optional[str],
-                                      individual_allocation: Optional[IndividualAllocationRegistry],
-                                      force: bool,
                                       ) -> Tuple[str, str]:
     """
     Manages client account selection for stake-related operations.
@@ -185,24 +182,16 @@ def select_client_account_for_staking(emitter: StdoutEmitter,
     then the local client account is the beneficiary, and the staking address is the address of the staking contract.
     """
 
-    if individual_allocation:
-        client_account = individual_allocation.beneficiary_address
-        staking_address = individual_allocation.contract_address
-        message = PREALLOCATION_STAKE_ADVISORY.format(client_account=client_account, staking_address=staking_address)
-        emitter.echo(message, color='yellow', verbosity=1)
-        if not force:
-            click.confirm(IS_THIS_CORRECT, abort=True)
+    if staking_address:
+        client_account = staking_address
     else:
-        if staking_address:
-            client_account = staking_address
-        else:
-            client_account = select_client_account(prompt=SELECT_STAKING_ACCOUNT_INDEX,
-                                                   emitter=emitter,
-                                                   registry=stakeholder.registry,
-                                                   network=stakeholder.network,
-                                                   wallet=stakeholder.wallet)
-            staking_address = client_account
-    stakeholder.set_staker(client_account)
+        client_account = select_client_account(prompt=SELECT_STAKING_ACCOUNT_INDEX,
+                                               emitter=emitter,
+                                               registry=stakeholder.registry,
+                                               network=stakeholder.domain,
+                                               signer=stakeholder.signer)
+        staking_address = client_account
+    stakeholder.assimilate(client_account)
 
     return client_account, staking_address
 
