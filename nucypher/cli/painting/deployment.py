@@ -18,12 +18,14 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 
 import maya
 import tabulate
-import time
 import webbrowser
 from web3.main import Web3
 
-from nucypher.blockchain.eth.agents import (ContractAgency, NucypherTokenAgent, PolicyManagerAgent,
-                                            PreallocationEscrowAgent)
+from nucypher.blockchain.eth.agents import (
+    ContractAgency,
+    NucypherTokenAgent,
+    PolicyManagerAgent,
+)
 from nucypher.blockchain.eth.constants import NUCYPHER_TOKEN_CONTRACT_NAME
 from nucypher.blockchain.eth.deployers import DispatcherDeployer, PolicyManagerDeployer, StakingInterfaceRouterDeployer
 from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
@@ -165,40 +167,6 @@ Registry  ................ {registry.filepath}
 
     try:
 
-        #
-        # StakingInterface
-        #
-
-        staking_interface_agent = PreallocationEscrowAgent.StakingInterfaceAgent(registry=registry)
-        bare_contract = blockchain.get_contract_by_name(contract_name=staking_interface_agent.contract_name,
-                                                        proxy_name=StakingInterfaceRouterDeployer.contract_name,
-                                                        use_proxy_address=False,
-                                                        registry=registry)
-
-        router_deployer = StakingInterfaceRouterDeployer(registry=registry,
-                                                         target_contract=bare_contract,
-                                                         deployer_address=deployer_address,
-                                                         bare=True)  # acquire agency for the dispatcher itself.
-
-        preallocation_escrow_payload = f"""
-{staking_interface_agent.contract_name} ......... {bare_contract.address}
-  ~ Version .............. {bare_contract.version}
-  ~ Ethers ............... {Web3.fromWei(blockchain.client.get_balance(bare_contract.address), 'ether')} ETH
-  ~ Tokens ............... {NU.from_nunits(token_agent.get_balance(bare_contract.address))}
-  ~ StakingInterfaceRouter {router_deployer.contract.address}
-        ~ Owner .......... {router_deployer.contract.functions.owner().call()}
-        ~ Target ......... {router_deployer.contract.functions.target().call()}
-        ~ Ethers ......... {Web3.fromWei(blockchain.client.get_balance(router_deployer.contract_address), 'ether')} ETH
-        ~ Tokens ......... {NU.from_nunits(token_agent.get_balance(router_deployer.contract_address))}"""
-        emitter.echo(preallocation_escrow_payload)
-        emitter.echo(sep)
-
-    except BaseContractRegistry.UnknownContract:
-        message = f"\nStakingInterface is not enrolled in {registry.filepath}"
-        emitter.echo(message, color='yellow')
-
-    try:
-
         policy_agent = ContractAgency.get_agent(PolicyManagerAgent, registry=registry)
         paint_fee_rate_range(emitter, policy_agent)
         emitter.echo(sep, nl=False)
@@ -207,18 +175,3 @@ Registry  ................ {registry.filepath}
         message = f"\n{PolicyManagerDeployer.contract_name} is not enrolled in {registry.filepath}"
         emitter.echo(message, color='yellow')
         emitter.echo(sep, nl=False)
-
-
-def paint_input_allocation_file(emitter, allocations) -> None:
-    num_allocations = len(allocations)
-    emitter.echo(f"Found {num_allocations} allocations:")
-    emitter.echo("STAGED ALLOCATIONS".center(80, "="), bold=True)
-
-    headers = ['Checksum address', 'Total staked', 'Substakes']
-    rows = list()
-    for address, substakes in allocations.items():
-        amounts, periods = zip(*list(substakes))
-        staker_deposit = NU.from_nunits(sum(amounts))
-        rows.append([address, staker_deposit, "\n".join([f"{NU.from_nunits(a)} for {p} periods" for a, p in substakes])])
-    emitter.echo(tabulate.tabulate(rows, headers=headers, tablefmt="fancy_grid"))  # newline
-    emitter.echo()

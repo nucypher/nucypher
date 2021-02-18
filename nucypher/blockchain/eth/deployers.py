@@ -25,9 +25,16 @@ from web3 import Web3
 from web3.contract import Contract
 
 from nucypher.blockchain.economics import BaseEconomics, StandardTokenEconomics
-from nucypher.blockchain.eth.agents import (AdjudicatorAgent, ContractAgency, EthereumContractAgent, MultiSigAgent,
-                                            NucypherTokenAgent, PolicyManagerAgent, PreallocationEscrowAgent,
-                                            StakingEscrowAgent, WorkLockAgent)
+from nucypher.blockchain.eth.agents import (
+    AdjudicatorAgent,
+    ContractAgency,
+    EthereumContractAgent,
+    MultiSigAgent,
+    NucypherTokenAgent,
+    PolicyManagerAgent,
+    StakingEscrowAgent,
+    WorkLockAgent
+)
 from nucypher.blockchain.eth.constants import DISPATCHER_CONTRACT_NAME, NULL_ADDRESS, STAKING_ESCROW_CONTRACT_NAME
 from nucypher.blockchain.eth.decorators import validate_checksum_address
 from nucypher.blockchain.eth.interfaces import (
@@ -1022,112 +1029,6 @@ class StakingInterfaceDeployer(BaseContractDeployer, UpgradeableContractMixin, O
 
         self._contract = staking_interface_contract
         return deployment_receipts
-
-
-class PreallocationEscrowDeployer(BaseContractDeployer, UpgradeableContractMixin, OwnableContractMixin):
-    # TODO: Why does PreallocationEscrowDeployer has an UpgradeableContractMixin?
-
-    agency = PreallocationEscrowAgent
-    contract_name = agency.contract_name
-    deployment_steps = ('contract_deployment', 'transfer_ownership', 'initial_deposit')
-    _router_deployer = StakingInterfaceRouterDeployer
-    __allocation_registry = AllocationRegistry
-
-    @validate_checksum_address
-    def __init__(self,
-                 allocation_registry: AllocationRegistry = None,
-                 sidekick_address: str = None,
-                 *args, **kwargs) -> None:
-        super().__init__(*args, **kwargs)
-        self.token_contract = self.blockchain.get_contract_by_name(registry=self.registry,
-                                                                   contract_name=NucypherTokenDeployer.contract_name)
-        dispatcher_name = StakingEscrowDeployer._proxy_deployer.contract_name
-        self.staking_escrow_contract = self.blockchain.get_contract_by_name(registry=self.registry,
-                                                                            contract_name=StakingEscrowDeployer.contract_name,
-                                                                            proxy_name=dispatcher_name)
-        self.__beneficiary_address = NO_BENEFICIARY
-        self.__allocation_registry = allocation_registry or self.__allocation_registry()
-        self.sidekick_address = sidekick_address
-
-    def make_agent(self) -> 'PreallocationEscrowAgent':
-        if self.__beneficiary_address is NO_BENEFICIARY:
-            raise self.ContractDeploymentError("No beneficiary assigned to {}".format(self.contract.address))
-        agent = self.agency(registry=self.registry,
-                            beneficiary=self.__beneficiary_address,
-                            allocation_registry=self.__allocation_registry)
-        return agent
-
-    @property
-    def allocation_registry(self):
-        return self.__allocation_registry
-
-    @validate_checksum_address
-    def assign_beneficiary(self, checksum_address: str, use_sidekick: bool = False, progress=None) -> dict:
-        """Relinquish ownership of a PreallocationEscrow deployment to the beneficiary"""
-        deployer_address = self.sidekick_address if use_sidekick else self.deployer_address
-        # TODO: #842 - Gas Management
-        payload = {'gas': 500_000}
-        transfer_owner_function = self.contract.functions.transferOwnership(checksum_address)
-        receipt = self.blockchain.send_transaction(contract_function=transfer_owner_function,
-                                                   sender_address=deployer_address,
-                                                   payload=payload)
-        self.__beneficiary_address = checksum_address
-        self.deployment_receipts.update({self.deployment_steps[1]: receipt})
-        if progress:
-            progress.update(1)
-        return receipt
-
-    def initial_deposit(self, value: int, duration_seconds: int, progress=None):
-        """Allocate an amount of tokens with lock time in seconds"""
-        # Initial deposit transfer, using NuCypherToken.approveAndCall()
-        call_data = Web3.toBytes(duration_seconds)  # Additional parameters to PreallocationEscrow.initialDeposit()
-        approve_and_call = self.token_contract.functions.approveAndCall(self.contract.address, value, call_data)
-        approve_and_call_receipt = self.blockchain.send_transaction(contract_function=approve_and_call,
-                                                                    sender_address=self.deployer_address)  # TODO: Gas  - #842
-
-        self.deployment_receipts.update({self.deployment_steps[2]: approve_and_call_receipt})
-
-        if progress:
-            progress.update(1)
-
-    def enroll_principal_contract(self):
-        if self.__beneficiary_address is NO_BENEFICIARY:
-            raise self.ContractDeploymentError("No beneficiary assigned to {}".format(self.contract.address))
-        self.__allocation_registry.enroll(beneficiary_address=self.__beneficiary_address,
-                                          contract_address=self.contract.address,
-                                          contract_abi=self.contract.abi)
-
-    def deploy(self,
-               gas_limit: int = None,
-               use_sidekick: bool = False,
-               progress=None,
-               ignore_deployed: bool = False,
-               emitter=None
-               ) -> dict:
-
-        """Deploy a new instance of PreallocationEscrow to the blockchain."""
-        self.check_deployment_readiness(ignore_deployed=ignore_deployed)
-        router_contract = self.blockchain.get_contract_by_name(registry=self.registry,
-                                                               contract_name=self._router_deployer.contract_name)
-        constructor_args = (router_contract.address,)
-
-        deployer_address = self.sidekick_address if use_sidekick else self.deployer_address
-        self._contract, deploy_receipt = self.blockchain.deploy_contract(deployer_address,
-                                                                         self.registry,
-                                                                         self.contract_name,
-                                                                         *constructor_args,
-                                                                         gas_limit=gas_limit,
-                                                                         enroll=False)
-        if progress:
-            progress.update(1)
-
-        self.deployment_receipts.update({self.deployment_steps[0]: deploy_receipt})
-        return deploy_receipt
-
-    def get_contract_abi(self):
-        contract_factory = self.blockchain.get_contract_factory(contract_name=self.contract_name)
-        abi = contract_factory.abi
-        return abi
 
 
 class AdjudicatorDeployer(BaseContractDeployer, UpgradeableContractMixin, OwnableContractMixin):

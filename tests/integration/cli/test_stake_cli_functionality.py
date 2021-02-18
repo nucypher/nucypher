@@ -135,21 +135,18 @@ def test_stakeholder_configuration(test_emitter, test_registry, mock_testerchain
     selected_account = mock_testerchain.client.accounts[selected_index]
     expected_stakeholder = StakeHolder(registry=test_registry,
                                        domain=TEMPORARY_DOMAIN,
-                                       initial_address=selected_account)
-    expected_stakeholder.refresh_stakes()
+                                       initial_address=selected_account,
+                                       signer=Web3Signer(mock_testerchain.client))
+    expected_stakeholder.staker.refresh_stakes()
 
     staker_options = StakerOptions(config_options=stakeholder_config_options, staking_address=selected_account)
     transacting_staker_options = TransactingStakerOptions(staker_options=staker_options,
                                                           hw_wallet=None,
-                                                          beneficiary_address=None,
-                                                          allocation_filepath=None,
                                                           gas_price=None)
     stakeholder_from_configuration = transacting_staker_options.create_character(emitter=test_emitter, config_file=None)
     client_account, staking_address = select_client_account_for_staking(emitter=test_emitter,
                                                                         stakeholder=stakeholder_from_configuration,
-                                                                        staking_address=selected_account,
-                                                                        individual_allocation=None,
-                                                                        force=force)
+                                                                        staking_address=selected_account)
     assert client_account == staking_address == selected_account
     assert stakeholder_from_configuration.stakes == expected_stakeholder.stakes
     assert stakeholder_from_configuration.checksum_address == client_account
@@ -157,15 +154,11 @@ def test_stakeholder_configuration(test_emitter, test_registry, mock_testerchain
     staker_options = StakerOptions(config_options=stakeholder_config_options, staking_address=None)
     transacting_staker_options = TransactingStakerOptions(staker_options=staker_options,
                                                           hw_wallet=None,
-                                                          beneficiary_address=None,
-                                                          allocation_filepath=None,
                                                           gas_price=None)
     stakeholder_from_configuration = transacting_staker_options.create_character(emitter=None, config_file=None)
     client_account, staking_address = select_client_account_for_staking(emitter=test_emitter,
                                                                         stakeholder=stakeholder_from_configuration,
-                                                                        staking_address=selected_account,
-                                                                        individual_allocation=None,
-                                                                        force=force)
+                                                                        staking_address=selected_account)
     assert client_account == staking_address == selected_account
     assert stakeholder_from_configuration.stakes == expected_stakeholder.stakes
     assert stakeholder_from_configuration.checksum_address == client_account

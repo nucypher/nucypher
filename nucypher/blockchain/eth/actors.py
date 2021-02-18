@@ -45,7 +45,6 @@ from nucypher.blockchain.eth.agents import (
     MultiSigAgent,
     NucypherTokenAgent,
     PolicyManagerAgent,
-    PreallocationEscrowAgent,
     StakersReservoir,
     StakingEscrowAgent,
     TokenManagerAgent,
@@ -247,29 +246,6 @@ class ContractAdministrator(NucypherTokenActor):
     def __repr__(self):
         r = '{name} - {deployer_address})'.format(name=self.__class__.__name__, deployer_address=self.deployer_address)
         return r
-
-    @validate_checksum_address
-    def recruit_sidekick(self, sidekick_address: str, sidekick_password: str):
-        self.sidekick_power = TransactingPower(account=sidekick_address, password=sidekick_password, cache=True)
-        if self.sidekick_power.is_device:
-            raise ValueError("Holy Wallet! Sidekicks can only be SW accounts.")
-        self.sidekick_address = sidekick_address
-
-    def activate_deployer(self, refresh: bool = True):
-        if not self.deployer_power.is_active:
-            self.transacting_power = self.deployer_power
-            self.transacting_power.activate()
-        elif refresh:
-            self.transacting_power.activate()
-
-    def activate_sidekick(self, refresh: bool = True):
-        if not self.sidekick_power:
-            raise TransactingPower.not_found_error
-        elif not self.sidekick_power.is_active:
-            self.transacting_power = self.sidekick_power
-            self.transacting_power.activate()
-        elif refresh:
-            self.transacting_power.activate()
 
     def __get_deployer(self, contract_name: str):
         try:
@@ -528,7 +504,6 @@ class Staker(NucypherTokenActor):
 
     def __init__(self,
                  is_me: bool,
-                 individual_allocation: IndividualAllocationRegistry = None,
                  *args, **kwargs) -> None:
 
         super().__init__(*args, **kwargs)
@@ -542,27 +517,11 @@ class Staker(NucypherTokenActor):
         self.staking_agent = ContractAgency.get_agent(StakingEscrowAgent, registry=self.registry)
         self.economics = EconomicsFactory.get_economics(registry=self.registry)
 
-        # Staking via contract
-        self.individual_allocation = individual_allocation
-        if self.individual_allocation:
-            self.beneficiary_address = individual_allocation.beneficiary_address
-            self.checksum_address = individual_allocation.contract_address
-            self.preallocation_escrow_agent = PreallocationEscrowAgent(registry=self.registry,
-                                                                       allocation_registry=self.individual_allocation,
-                                                                       beneficiary=self.beneficiary_address)
-        else:
-            self.beneficiary_address = None
-            self.preallocation_escrow_agent = None
-
         # Check stakes
         self.stakes = StakeList(registry=self.registry, checksum_address=self.checksum_address)
 
     def refresh_stakes(self):
         self.stakes.refresh()
-
-    @property
-    def is_contract(self) -> bool:
-        return self.preallocation_escrow_agent is not None
 
     def to_dict(self) -> dict:
         stake_info = [stake.to_stake_info() for stake in self.stakes]
@@ -812,10 +771,6 @@ class Staker(NucypherTokenActor):
 
     def _prolong_stake(self, stake_index: int, lock_periods: int) -> TxReceipt:
         """Public facing method for stake prolongation."""
-        # TODO #1497 #1358
-        # if self.is_contract:
-        #     receipt = self.preallocation_escrow_agent.prolong_stake(stake_index=stake_index, lock_periods=lock_periods)
-        # else:
         receipt = self.staking_agent.prolong_stake(stake_index=stake_index,
                                                    periods=lock_periods,
                                                    staker_address=self.checksum_address)
@@ -823,21 +778,14 @@ class Staker(NucypherTokenActor):
 
     def _deposit(self, amount: int, lock_periods: int) -> TxReceipt:
         """Public facing method for token locking."""
-        if self.is_contract:
-            receipt = self.preallocation_escrow_agent.deposit_as_staker(amount=amount, lock_periods=lock_periods)
-        else:
-            receipt = self.token_agent.approve_and_call(amount=amount,
-                                                        target_address=self.staking_agent.contract_address,
-                                                        sender_address=self.checksum_address,
-                                                        call_data=Web3.toBytes(lock_periods))
+        receipt = self.token_agent.approve_and_call(amount=amount,
+                                                    target_address=self.staking_agent.contract_address,
+                                                    transacting_power=self.transacting_power,
+                                                    call_data=Web3.toBytes(lock_periods))
         return receipt
 
     def _lock_and_create(self, amount: int, lock_periods: int) -> TxReceipt:
         """Public facing method for token locking without depositing."""
-        # TODO #1497 #1358
-        # if self.is_contract:
-        #     receipt = self.preallocation_escrow_agent...
-        # else:
         receipt = self.staking_agent.lock_and_create(amount=amount,
                                                      staker_address=self.checksum_address,
                                                      lock_periods=lock_periods)
@@ -845,11 +793,7 @@ class Staker(NucypherTokenActor):
 
     def _divide_stake(self, stake_index: int, additional_periods: int, target_value: int) -> TxReceipt:
         """Public facing method for stake dividing."""
-        # TODO #1497 #1358
-        # if self.is_contract:
-        #     receipt = self.preallocation_escrow_agent...
-        # else:
-        receipt = self.staking_agent.divide_stake(staker_address=self.checksum_address,
+        receipt = self.staking_agent.divide_stake(transacting_power=self.transacting_power,
                                                   stake_index=stake_index,
                                                   target_value=target_value,
                                                   periods=additional_periods)
@@ -857,10 +801,6 @@ class Staker(NucypherTokenActor):
 
     def _deposit_and_increase(self, stake_index: int, amount: int) -> TxReceipt:
         """Public facing method for deposit and increasing stake."""
-        # TODO #1497 #1358
-        # if self.is_contract:
-        #     receipt = self.preallocation_escrow_agent...
-        # else:
         self.token_agent.increase_allowance(increase=amount,
                                             sender_address=self.checksum_address,
                                             spender_address=self.staking_agent.contract.address)
@@ -871,21 +811,13 @@ class Staker(NucypherTokenActor):
 
     def _lock_and_increase(self, stake_index: int, amount: int) -> TxReceipt:
         """Public facing method for increasing stake."""
-        # TODO #1497 #1358
-        # if self.is_contract:
-        #     receipt = self.preallocation_escrow_agent...
-        # else:
-        receipt = self.staking_agent.lock_and_increase(staker_address=self.checksum_address,
+        receipt = self.staking_agent.lock_and_increase(transacting_power=self.transacting_power,
                                                        stake_index=stake_index,
                                                        amount=amount)
         return receipt
 
     def _merge_stakes(self, stake_index_1: int, stake_index_2: int) -> TxReceipt:
         """Public facing method for stakes merging."""
-        # TODO #1497 #1358
-        # if self.is_contract:
-        #     receipt = self.preallocation_escrow_agent.prolong_stake(stake_index=stake_index, lock_periods=lock_periods)
-        # else:
         receipt = self.staking_agent.merge_stakes(stake_index_1=stake_index_1,
                                                   stake_index_2=stake_index_2,
                                                   staker_address=self.checksum_address)
@@ -899,10 +831,7 @@ class Staker(NucypherTokenActor):
     @only_me
     @save_receipt
     def _set_restaking(self, value: bool) -> TxReceipt:
-        if self.is_contract:
-            receipt = self.preallocation_escrow_agent.set_restaking(value=value)
-        else:
-            receipt = self.staking_agent.set_restaking(staker_address=self.checksum_address, value=value)
+        receipt = self.staking_agent.set_restaking(transacting_power=self.transacting_power, value=value)
         return receipt
 
     def enable_restaking(self) -> TxReceipt:
@@ -921,10 +850,7 @@ class Staker(NucypherTokenActor):
     @only_me
     @save_receipt
     def _set_winding_down(self, value: bool) -> TxReceipt:
-        if self.is_contract:
-            receipt = self.preallocation_escrow_agent.set_winding_down(value=value)
-        else:
-            receipt = self.staking_agent.set_winding_down(staker_address=self.checksum_address, value=value)
+        receipt = self.staking_agent.set_winding_down(transacting_power=self.transacting_power, value=value)
         return receipt
 
     def enable_winding_down(self) -> TxReceipt:
@@ -943,11 +869,7 @@ class Staker(NucypherTokenActor):
     @only_me
     @save_receipt
     def _set_snapshots(self, value: bool) -> TxReceipt:
-        # TODO #1497 #1358
-        # if self.is_contract:
-        #     receipt = self.preallocation_escrow_agent.set_snapshots(activate=value)
-        # else:
-        receipt = self.staking_agent.set_snapshots(staker_address=self.checksum_address, activate=value)
+        receipt = self.staking_agent.set_snapshots(transacting_power=self.transacting_power, activate=value)
         return receipt
 
     def enable_snapshots(self) -> TxReceipt:
@@ -977,10 +899,7 @@ class Staker(NucypherTokenActor):
     @only_me
     @save_receipt
     def _remove_unused_stake(self, stake_index: int) -> TxReceipt:
-        # TODO #1497 #1358
-        # if self.is_contract:
-        # else:
-        receipt = self.staking_agent.remove_unused_stake(staker_address=self.checksum_address,
+        receipt = self.staking_agent.remove_unused_stake(transacting_power=self.transacting_power,
                                                          stake_index=stake_index)
         return receipt
 
@@ -1016,12 +935,9 @@ class Staker(NucypherTokenActor):
     @only_me
     @save_receipt
     @validate_checksum_address
-    def bond_worker(self, worker_address: str) -> TxReceipt:
-        if self.is_contract:
-            receipt = self.preallocation_escrow_agent.bond_worker(worker_address=worker_address)
-        else:
-            receipt = self.staking_agent.bond_worker(staker_address=self.checksum_address,
-                                                     worker_address=worker_address)
+    def bond_worker(self, worker_address: ChecksumAddress) -> TxReceipt:
+        receipt = self.staking_agent.bond_worker(transacting_power=self.transacting_power,
+                                                 worker_address=worker_address)
         self._worker_address = worker_address
         return receipt
 
@@ -1037,10 +953,7 @@ class Staker(NucypherTokenActor):
     @only_me
     @save_receipt
     def unbond_worker(self) -> TxReceipt:
-        if self.is_contract:
-            receipt = self.preallocation_escrow_agent.release_worker()
-        else:
-            receipt = self.staking_agent.release_worker(staker_address=self.checksum_address)
+        receipt = self.staking_agent.release_worker(transacting_power=self.transacting_power)
         self._worker_address = NULL_ADDRESS
         return receipt
 
@@ -1052,10 +965,7 @@ class Staker(NucypherTokenActor):
     @save_receipt
     def mint(self) -> TxReceipt:
         """Computes and transfers tokens to the staker's account"""
-        if self.is_contract:
-            receipt = self.preallocation_escrow_agent.mint()
-        else:
-            receipt = self.staking_agent.mint(staker_address=self.checksum_address)
+        receipt = self.staking_agent.mint(transacting_power=self.transacting_power)
         return receipt
 
     def calculate_staking_reward(self) -> NU:
@@ -1071,60 +981,24 @@ class Staker(NucypherTokenActor):
     @validate_checksum_address
     def collect_policy_fee(self, collector_address=None) -> TxReceipt:
         """Collect fees (ETH) earned since last withdrawal"""
-        if self.is_contract:
-            if collector_address and collector_address != self.beneficiary_address:
-                raise ValueError("Policy fees must be withdrawn to the beneficiary address")
-            self.preallocation_escrow_agent.collect_policy_fee()  # TODO save receipt
-            receipt = self.preallocation_escrow_agent.withdraw_eth()
-        else:
-            withdraw_address = collector_address or self.checksum_address
-            receipt = self.policy_agent.collect_policy_fee(collector_address=withdraw_address,
-                                                           staker_address=self.checksum_address)
+        withdraw_address = collector_address or self.checksum_address
+        receipt = self.policy_agent.collect_policy_fee(collector_address=withdraw_address,
+                                                       transacting_power=self.transacting_power)
         return receipt
 
     @only_me
     @save_receipt
     def collect_staking_reward(self) -> TxReceipt:
         """Withdraw tokens rewarded for staking"""
-        if self.is_contract:
-            reward_amount = self.calculate_staking_reward()
-            self.log.debug(f"Withdrawing staking reward ({reward_amount}) to {self.checksum_address}")
-            receipt = self.preallocation_escrow_agent.withdraw_as_staker(value=reward_amount.to_nunits())
-        else:
-            receipt = self.staking_agent.collect_staking_reward(staker_address=self.checksum_address)
+        receipt = self.staking_agent.collect_staking_reward(transacting_power=self.transacting_power)
         return receipt
 
     @only_me
     @save_receipt
     def withdraw(self, amount: NU) -> TxReceipt:
         """Withdraw tokens from StakingEscrow (assuming they're unlocked)"""
-        if self.is_contract:
-            receipt = self.preallocation_escrow_agent.withdraw_as_staker(value=int(amount))
-        else:
-            receipt = self.staking_agent.withdraw(staker_address=self.checksum_address,
-                                                  amount=int(amount))
-        return receipt
-
-    @only_me
-    @save_receipt
-    def withdraw_preallocation_tokens(self, amount: NU) -> TxReceipt:
-        """Withdraw tokens from PreallocationEscrow (assuming they're unlocked)"""
-        if amount <= 0:
-            raise ValueError(f"Don't try to withdraw {amount}.")
-        if self.is_contract:
-            receipt = self.preallocation_escrow_agent.withdraw_tokens(value=int(amount))
-        else:
-            raise TypeError("This method can only be used when staking via a contract")
-        return receipt
-
-    @only_me
-    @save_receipt
-    def withdraw_preallocation_eth(self) -> TxReceipt:
-        """Withdraw ETH from PreallocationEscrow"""
-        if self.is_contract:
-            receipt = self.preallocation_escrow_agent.withdraw_eth()
-        else:
-            raise TypeError("This method can only be used when staking via a contract")
+        receipt = self.staking_agent.withdraw(transacting_power=self.transacting_power,
+                                              amount=int(amount))
         return receipt
 
     @property
@@ -1140,10 +1014,7 @@ class Staker(NucypherTokenActor):
         minimum, _default, maximum = self.policy_agent.get_fee_rate_range()
         if min_rate < minimum or min_rate > maximum:
             raise ValueError(f"Minimum fee rate {min_rate} must fall within global fee range of [{minimum}, {maximum}]")
-        if self.is_contract:
-            receipt = self.preallocation_escrow_agent.set_min_fee_rate(min_rate=min_rate)
-        else:
-            receipt = self.policy_agent.set_min_fee_rate(staker_address=self.checksum_address, min_rate=min_rate)
+        receipt = self.policy_agent.set_min_fee_rate(transacting_power=self.transacting_power, min_rate=min_rate)
         return receipt
 
     @property
