@@ -207,7 +207,7 @@ def test_flags(testerchain, token, escrow_contract):
 
     # Check flag defaults
     wind_down, re_stake, measure_work, snapshots, migrated = escrow.functions.getFlags(staker).call()
-    assert all((not wind_down, re_stake, not measure_work, snapshots, migrated))
+    assert all((not wind_down, re_stake, not measure_work, snapshots, not migrated))
 
     # There should be no events so far
     assert 0 == len(wind_down_log.get_all_entries())
@@ -222,7 +222,7 @@ def test_flags(testerchain, token, escrow_contract):
     testerchain.wait_for_receipt(tx)
 
     wind_down, re_stake, measure_work, snapshots, migrated = escrow.functions.getFlags(staker).call()
-    assert all((not wind_down, re_stake, not measure_work, snapshots, migrated))
+    assert all((not wind_down, re_stake, not measure_work, snapshots, not migrated))
 
     # There should be no events so far
     assert 0 == len(wind_down_log.get_all_entries())
@@ -235,7 +235,7 @@ def test_flags(testerchain, token, escrow_contract):
     testerchain.wait_for_receipt(tx)
 
     wind_down, re_stake, measure_work, snapshots, migrated = escrow.functions.getFlags(staker).call()
-    assert all((not wind_down, not re_stake, not measure_work, snapshots, migrated))
+    assert all((not wind_down, not re_stake, not measure_work, snapshots, not migrated))
 
     assert 0 == len(wind_down_log.get_all_entries())
     assert 1 == len(restake_log.get_all_entries())
@@ -251,7 +251,7 @@ def test_flags(testerchain, token, escrow_contract):
     testerchain.wait_for_receipt(tx)
 
     wind_down, re_stake, measure_work, snapshots, migrated = escrow.functions.getFlags(staker).call()
-    assert all((not wind_down, not re_stake, not measure_work, not snapshots, migrated))
+    assert all((not wind_down, not re_stake, not measure_work, not snapshots, not migrated))
 
     assert 0 == len(wind_down_log.get_all_entries())
     assert 1 == len(restake_log.get_all_entries())
@@ -261,6 +261,16 @@ def test_flags(testerchain, token, escrow_contract):
     event_args = snapshots_log.get_all_entries()[-1]['args']
     assert staker == event_args['staker'] == staker
     assert not event_args['snapshotsEnabled']
+
+    sub_stake = 100
+    tx = token.functions.transfer(staker, sub_stake).transact({'from': creator})
+    testerchain.wait_for_receipt(tx)
+    tx = token.functions.approve(escrow.address, sub_stake).transact({'from': staker})
+    testerchain.wait_for_receipt(tx)
+    tx = escrow.functions.deposit(staker, sub_stake, 10).transact({'from': staker})
+    testerchain.wait_for_receipt(tx)
+    wind_down, re_stake, measure_work, snapshots, migrated = escrow.functions.getFlags(staker).call()
+    assert all((not wind_down, not re_stake, not measure_work, not snapshots, migrated))
 
 
 def test_re_stake(testerchain, token, escrow_contract):

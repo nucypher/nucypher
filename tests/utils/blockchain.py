@@ -182,7 +182,11 @@ class TesterBlockchain(BlockchainDeployerInterface):
 
         return tx_hashes
 
-    def time_travel(self, hours: int = None, seconds: int = None, periods: int = None):
+    def time_travel(self,
+                    hours: int = None,
+                    seconds: int = None,
+                    periods: int = None,
+                    periods_base: int = None):
         """
         Wait the specified number of wait_hours by comparing
         block timestamps and mines a single block.
@@ -193,8 +197,8 @@ class TesterBlockchain(BlockchainDeployerInterface):
             raise ValueError("Specify hours, seconds, or periods, not a combination")
 
         if periods:
-            duration = self.DEFAULT_ECONOMICS.seconds_per_period * periods
-            base = self.DEFAULT_ECONOMICS.seconds_per_period
+            base = periods_base or self.DEFAULT_ECONOMICS.seconds_per_period
+            duration = base * periods
         elif hours:
             duration = hours * (60*60)
             base = 60 * 60
