@@ -15,13 +15,17 @@
  along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
+
 import click
 import maya
 import os
 import tabulate
 from decimal import Decimal
+
+from eth_typing.evm import ChecksumAddress
 from web3 import Web3
 
+from nucypher.crypto.powers import TransactingPower
 from nucypher.blockchain.eth.actors import Bidder
 from nucypher.blockchain.eth.agents import ContractAgency, WorkLockAgent
 from nucypher.blockchain.eth.networks import NetworksInventory
@@ -83,7 +87,7 @@ class WorkLockOptions:
     __option_name__ = 'worklock_options'
 
     def __init__(self,
-                 participant_address: str,
+                 participant_address: ChecksumAddress,
                  signer_uri: str,
                  provider_uri: str,
                  registry_filepath: str,
@@ -113,8 +117,9 @@ class WorkLockOptions:
 
     def __create_bidder(self,
                         registry,
+                        domain: str,
                         transacting: bool = True,
-                        hw_wallet: bool = False
+                        hw_wallet: bool = False,
                         ) -> Bidder:
 
         is_clef = ClefSigner.is_valid_clef_uri(self.signer_uri)
@@ -125,17 +130,25 @@ class WorkLockOptions:
             client_password = get_client_password(checksum_address=self.bidder_address)
             signer.unlock_account(account=self.bidder_address, password=client_password)
 
+        transacting_power = None
+        if transacting:
+            transacting_power = TransactingPower(account=self.bidder_address, signer=signer)
+            transacting_power.unlock(password=client_password)
+
         bidder = Bidder(checksum_address=self.bidder_address,
                         registry=registry,
-                        signer=signer,
-                        transacting=transacting)
+                        transacting_power=transacting_power,
+                        domain=domain)
         return bidder
 
     def create_bidder(self, registry, hw_wallet: bool = False):
-        return self.__create_bidder(registry=registry, hw_wallet=hw_wallet, transacting=True)
+        return self.__create_bidder(registry=registry,
+                                    domain=self.network,
+                                    hw_wallet=hw_wallet,
+                                    transacting=True)
 
     def create_transactionless_bidder(self, registry):
-        return self.__create_bidder(registry, transacting=False)
+        return self.__create_bidder(registry, transacting=False, domain=self.network)
 
 
 group_worklock_options = group_options(

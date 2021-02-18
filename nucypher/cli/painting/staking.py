@@ -14,12 +14,15 @@ GNU Affero General Public License for more details.
 You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
-from typing import List
+
 
 import tabulate
+from typing import List
 from web3.main import Web3
 
+from nucypher.blockchain.eth.agents import ContractAgency, NucypherTokenAgent
 from nucypher.blockchain.eth.constants import STAKING_ESCROW_CONTRACT_NAME, NULL_ADDRESS
+from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
 from nucypher.blockchain.eth.token import NU, Stake
 from nucypher.blockchain.eth.utils import datetime_at_period, prettify_eth_amount
 from nucypher.characters.control.emitters import StdoutEmitter

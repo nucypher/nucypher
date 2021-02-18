@@ -332,6 +332,7 @@ class Policy(ABC):
                 "Could not find enough Ursulas to accept proposals.\n"
                 f"Accepted: {accepted_addresses}\n"
                 f"Rejected:\n{rejected_proposals}")
+
             raise self._not_enough_ursulas_exception()
         else:
             self.log.debug(f"Finished proposing arrangements; accepted: {accepted_addresses}")
@@ -616,7 +617,7 @@ class BlockchainPolicy(Policy):
         # Transact  # TODO: Move this logic to BlockchainPolicyActor
         receipt = self.alice.policy_agent.create_policy(
             policy_id=self.hrac,  # bytes16 _policyID
-            author_address=self.alice.checksum_address,
+            transacting_power=self.alice.transacting_power,
             value=self.value,
             end_timestamp=self.expiration.epoch,  # uint16 _numberOfPeriods
             node_addresses=addresses  # address[] memory _nodes

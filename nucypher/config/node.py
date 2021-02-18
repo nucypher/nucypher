@@ -242,13 +242,13 @@ class CharacterConfiguration(BaseConfiguration):
 
         if dev_mode:
             self.__temp_dir = UNINITIALIZED_CONFIGURATION
-            self.__setup_node_storage()
+            self._setup_node_storage()
             self.initialize(password=DEVELOPMENT_CONFIGURATION)
         else:
             self.__temp_dir = LIVE_CONFIGURATION
             self.config_root = config_root or self.DEFAULT_CONFIG_ROOT
             self._cache_runtime_filepaths()
-            self.__setup_node_storage(node_storage=node_storage)
+            self._setup_node_storage(node_storage=node_storage)
 
         # Network
         self.controller_port = controller_port or self.DEFAULT_CONTROLLER_PORT
@@ -322,7 +322,7 @@ class CharacterConfiguration(BaseConfiguration):
     def dev_mode(self) -> bool:
         return self.__dev_mode
 
-    def __setup_node_storage(self, node_storage=None) -> None:
+    def _setup_node_storage(self, node_storage=None) -> None:
         if self.dev_mode:
             node_storage = ForgetfulNodeStorage(registry=self.registry, federated_only=self.federated_only)
         elif not node_storage:

@@ -192,6 +192,7 @@ class ActorOptions:
             if not deployer_address:
                 deployer_address = select_client_account(emitter=emitter,
                                                          prompt=SELECT_DEPLOYER_ACCOUNT,
+                                                         registry=local_registry,
                                                          provider_uri=self.provider_uri,
                                                          signer_uri=self.signer_uri,
                                                          show_eth_balance=True)
@@ -476,15 +477,13 @@ def contracts(general_config, actor_options, mode, activate, gas, ignore_deploye
     try:
         contract_deployer_class = ADMINISTRATOR.deployers[contract_name]
     except KeyError:
-        message = UNKNOWN_CONTRACT_NAME.format(contract_name=contract_name,
-                                               constants=ADMINISTRATOR.deployers.keys())
+        message = UNKNOWN_CONTRACT_NAME.format(contract_name=contract_name, constants=ADMINISTRATOR.deployers.keys())
         emitter.echo(message, color='red', bold=True)
         raise click.Abort()
 
     if activate:
         # For the moment, only StakingEscrow can be activated
-        staking_escrow_deployer = contract_deployer_class(registry=ADMINISTRATOR.registry,
-                                                          deployer_address=ADMINISTRATOR.deployer_address)
+        staking_escrow_deployer = contract_deployer_class(registry=ADMINISTRATOR.registry)
         if contract_name != STAKING_ESCROW_CONTRACT_NAME or not staking_escrow_deployer.ready_to_activate:
             raise click.BadOptionUsage(option_name="--activate",
                                        message=f"You can only activate an idle instance of {STAKING_ESCROW_CONTRACT_NAME}")
@@ -494,7 +493,9 @@ def contracts(general_config, actor_options, mode, activate, gas, ignore_deploye
                                                    staking_escrow_address=escrow_address)
         click.confirm(prompt, abort=True)
 
-        receipts = staking_escrow_deployer.activate(gas_limit=gas, confirmations=confirmations)
+        receipts = staking_escrow_deployer.activate(transacting_power=ADMINISTRATOR.transacting_power,
+                                                    gas_limit=gas,
+                                                    confirmations=confirmations)
         for tx_name, receipt in receipts.items():
             paint_receipt_summary(emitter=emitter,
                                   receipt=receipt,
@@ -566,9 +567,10 @@ def transfer_ownership(general_config, actor_options, target_address, gas):
         emitter.echo(message, color='red', bold=True)
         raise click.Abort()
 
-    contract_deployer = contract_deployer_class(registry=ADMINISTRATOR.registry,
-                                                deployer_address=ADMINISTRATOR.deployer_address)
-    receipt = contract_deployer.transfer_ownership(new_owner=target_address, transaction_gas_limit=gas)
+    contract_deployer = contract_deployer_class(registry=ADMINISTRATOR.registry)
+    receipt = contract_deployer.transfer_ownership(transacting_power=ADMINISTRATOR.transacting_power,
+                                                   new_owner=target_address,
+                                                   transaction_gas_limit=gas)
     paint_receipt_summary(emitter=emitter, receipt=receipt)
 
 

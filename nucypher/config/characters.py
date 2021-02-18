@@ -308,8 +308,6 @@ class StakeHolderConfiguration(CharacterConfiguration):
                        poa=self.poa,
                        light=self.is_light,
                        domain=self.domain,
-                       # TODO: Move empty collection casting to base
-                       checksum_addresses=self.checksum_addresses or list(),
                        signer_uri=self.signer_uri,
                        worker_data=self.worker_data
                        )
@@ -325,7 +323,7 @@ class StakeHolderConfiguration(CharacterConfiguration):
         payload = dict(registry=self.registry, signer=signer)
         return payload
 
-    def __setup_node_storage(self, node_storage=None) -> None:
+    def _setup_node_storage(self, node_storage=None) -> None:
         pass
 
     @classmethod

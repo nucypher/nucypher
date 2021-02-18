@@ -141,7 +141,6 @@ Registry  ................ {registry.filepath}
 
             dispatcher_deployer = DispatcherDeployer(registry=registry,
                                                      target_contract=bare_contract,
-                                                     deployer_address=deployer_address,
                                                      bare=True)  # acquire agency for the dispatcher itself.
 
             agent = contract_deployer_class.agency(registry=registry, contract=bare_contract)

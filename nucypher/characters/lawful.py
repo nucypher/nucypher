@@ -70,7 +70,6 @@ from nucypher.blockchain.eth.constants import ETH_ADDRESS_BYTE_LENGTH
 from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
 from nucypher.blockchain.eth.registry import BaseContractRegistry
 from nucypher.blockchain.eth.signers.software import Web3Signer
-from nucypher.blockchain.eth.token import WorkTracker, StakeList
 from nucypher.characters.banners import ALICE_BANNER, BOB_BANNER, ENRICO_BANNER, URSULA_BANNER
 from nucypher.characters.base import Character, Learner
 from nucypher.characters.control.controllers import WebController
@@ -168,10 +167,12 @@ class Alice(Character, BlockchainPolicyAuthor):
 
             self._crypto_power.consume_power_up(self.transacting_power)
             BlockchainPolicyAuthor.__init__(self,
+                                            domain=self.domain,
+                                            checksum_address=checksum_address,
+                                            transacting_power=self.transacting_power,
                                             registry=self.registry,
                                             rate=rate,
-                                            duration_periods=duration_periods,
-                                            checksum_address=checksum_address)
+                                            duration_periods=duration_periods)
 
 
         self.log = Logger(self.__class__.__name__)

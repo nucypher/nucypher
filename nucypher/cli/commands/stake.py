@@ -14,9 +14,10 @@
  You should have received a copy of the GNU Affero General Public License
  along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
-from decimal import Decimal
+
 
 import click
+from decimal import Decimal
 from web3 import Web3
 
 from nucypher.blockchain.eth.actors import StakeHolder
@@ -41,7 +42,6 @@ from nucypher.cli.literature import (
     BONDING_DETAILS,
     BONDING_RELEASE_INFO,
     COLLECTING_ETH_FEE,
-    COLLECTING_PREALLOCATION_REWARD,
     COLLECTING_TOKEN_REWARD,
     CONFIRM_BROADCAST_CREATE_STAKE,
     CONFIRM_BROADCAST_STAKE_DIVIDE,
@@ -104,7 +104,8 @@ from nucypher.cli.options import (
     option_registry_filepath,
     option_signer_uri,
     option_staking_address,
-    option_gas_price)
+    option_gas_price
+)
 from nucypher.cli.painting.staking import (
     paint_min_rate, paint_staged_stake,
     paint_staged_stake_division,
@@ -112,11 +113,9 @@ from nucypher.cli.painting.staking import (
     paint_staking_accounts,
     paint_staking_confirmation, paint_all_stakes
 )
-from nucypher.cli.painting.status import paint_preallocation_status
 from nucypher.cli.painting.transactions import paint_receipt_summary
 from nucypher.cli.types import (
     EIP55_CHECKSUM_ADDRESS,
-    EXISTING_READABLE_FILE,
     GWEI,
     DecimalRange
 )
@@ -128,7 +127,8 @@ from nucypher.utilities.gas_strategies import construct_fixed_price_gas_strategy
 option_csv = click.option('--csv', help="Write event data to a CSV file using a default filename in the current directory",
                           default=False,
                           is_flag=True)
-option_csv_file = click.option('--csv-file', help="Write event data to the CSV file at specified filepath",
+option_csv_file = click.option('--csv-file',
+                               help="Write event data to the CSV file at specified filepath",
                                type=click.Path(dir_okay=False))
 option_value = click.option('--value', help="Token value of stake", type=DecimalRange(min=0))
 option_lock_periods = click.option('--lock-periods', help="Duration of stake in periods.", type=click.INT)
@@ -1323,18 +1323,16 @@ def mint(general_config: GroupGeneralConfig,
     client_account, staking_address = select_client_account_for_staking(
         emitter=emitter,
         stakeholder=STAKEHOLDER,
-        staking_address=transacting_staker_options.staker_options.staking_address,
-        individual_allocation=STAKEHOLDER.individual_allocation,
-        force=force)
+        staking_address=transacting_staker_options.staker_options.staking_address)
 
     # Nothing to mint
-    mintable_periods = STAKEHOLDER.mintable_periods()
+    mintable_periods = STAKEHOLDER.staker.mintable_periods()
     if mintable_periods == 0:
         emitter.echo(NO_MINTABLE_PERIODS, color='red')
         raise click.Abort
 
     # Still locked token
-    if STAKEHOLDER.non_withdrawable_stake() > 0:
+    if STAKEHOLDER.staker.non_withdrawable_stake() > 0:
         emitter.echo(STILL_LOCKED_TOKENS, color='yellow')
 
     if not force:
