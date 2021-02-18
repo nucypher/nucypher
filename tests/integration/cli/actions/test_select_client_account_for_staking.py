@@ -15,11 +15,10 @@
  along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
+
 from nucypher.blockchain.eth.actors import StakeHolder
 from nucypher.cli.actions.select import select_client_account_for_staking
-from nucypher.cli.literature import PREALLOCATION_STAKE_ADVISORY
 from nucypher.config.constants import TEMPORARY_DOMAIN
-from tests.constants import YES
 
 
 def test_select_client_account_for_staking_cli_action(test_emitter,
@@ -41,35 +40,12 @@ def test_select_client_account_for_staking_cli_action(test_emitter,
 
     client_account, staking_address = select_client_account_for_staking(emitter=test_emitter,
                                                                         stakeholder=stakeholder,
-                                                                        staking_address=selected_account,
-                                                                        individual_allocation=None,
-                                                                        force=force)
+                                                                        staking_address=selected_account)
     assert client_account == staking_address == selected_account
 
     mock_stdin.line(str(selected_index))
     client_account, staking_address = select_client_account_for_staking(emitter=test_emitter,
                                                                         stakeholder=stakeholder,
-                                                                        staking_address=None,
-                                                                        individual_allocation=None,
-                                                                        force=force)
+                                                                        staking_address=None)
     assert client_account == staking_address == selected_account
     assert mock_stdin.empty()
-
-    staking_contract_address = '0xFABADA'
-    mock_individual_allocation = mocker.Mock(beneficiary_address=selected_account,
-                                             contract_address=staking_contract_address)
-    mock_stdin.line(YES)
-    client_account, staking_address = select_client_account_for_staking(emitter=test_emitter,
-                                                                        stakeholder=stakeholder,
-                                                                        individual_allocation=mock_individual_allocation,
-                                                                        staking_address=None,
-                                                                        force=force)
-
-    assert client_account == selected_account
-    assert staking_address == staking_contract_address
-    assert mock_stdin.empty()
-
-    captured = capsys.readouterr()
-    message = PREALLOCATION_STAKE_ADVISORY.format(client_account=selected_account,
-                                                  staking_address=staking_contract_address)
-    assert message in captured.out
