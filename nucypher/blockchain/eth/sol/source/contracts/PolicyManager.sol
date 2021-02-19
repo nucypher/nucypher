@@ -120,17 +120,24 @@ contract PolicyManager is Upgradeable {
 
     /**
     * @notice Constructor sets address of the escrow contract
-    * @param _escrow Escrow contract
+    * @dev Put same address in both inputs variables except when migration is happening
+    * @param _escrowDispatcher Address of escrow dispatcher
+    * @param _escrowLibrary Address of escrow library
     */
-    constructor(StakingEscrow _escrow) {
+    constructor(StakingEscrow _escrowDispatcher, StakingEscrow _escrowLibrary) {
+        escrow = _escrowDispatcher;
         // if the input address is not the StakingEscrow then calling `secondsPerPeriod` will throw error
-        uint32 localSecondsPerPeriod = _escrow.secondsPerPeriod();
+        uint32 localSecondsPerPeriod = _escrowLibrary.secondsPerPeriod();
         require(localSecondsPerPeriod > 0);
         secondsPerPeriod = localSecondsPerPeriod;
-        escrow = _escrow;
-        uint32 localFormerSecondsPerPeriod = _escrow.formerSecondsPerPeriod();
+        uint32 localFormerSecondsPerPeriod = _escrowLibrary.formerSecondsPerPeriod();
         require(localFormerSecondsPerPeriod > 0);
         formerSecondsPerPeriod = localFormerSecondsPerPeriod;
+        // checks possible migration
+        if (_escrowDispatcher != _escrowLibrary) {
+            require(_escrowDispatcher.secondsPerPeriod() == localSecondsPerPeriod ||
+                _escrowDispatcher.secondsPerPeriod() == localFormerSecondsPerPeriod);
+        }
     }
 
     /**

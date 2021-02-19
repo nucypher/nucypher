@@ -169,7 +169,7 @@ def test_staking_escrow_migration(testerchain, token_economics, token, deploy_co
     assert contract.functions.getPastDowntimeLength(staker3).call() == 2
     assert contract.functions.getLastCommittedPeriod(staker3).call() == current_period + 1
 
-    # Fourth staker: just deposit before migration
+    # Fourth staker: just deposited before migration
     tx = contract.functions.deposit(staker4, 2 * stake_size, 4 * duration).transact({'from': staker4})
     testerchain.wait_for_receipt(tx)
     tx = contract.functions.bondWorker(staker4).transact({'from': staker4})
@@ -273,7 +273,7 @@ def test_staking_escrow_migration(testerchain, token_economics, token, deploy_co
 
     # Time to migrate
     ##########
-    # Staker that has no nothing
+    # Staker who has nothing
     ##########
     assert len(migration_log.get_all_entries()) == 0
     wind_down, re_stake, measure_work, snapshots, migrated = contract.functions.getFlags(staker5).call()
@@ -551,7 +551,7 @@ def test_staking_escrow_migration(testerchain, token_economics, token, deploy_co
     assert len(migration_log.get_all_entries()) == 5
 
     ##########
-    # Upgrade again and check that resetTimestamp won't change
+    # Upgrade again
     ##########
     tx = dispatcher.functions.upgrade(staking_escrow_library.address).transact()
     testerchain.wait_for_receipt(tx)

@@ -85,7 +85,7 @@ def escrow_dispatcher(testerchain, token, token_economics, deploy_contract):
 
 @pytest.fixture(scope='module')
 def policy_manager_bare(testerchain, escrow_dispatcher, deploy_contract):
-    contract, _ = deploy_contract('PolicyManager', escrow_dispatcher.address)
+    contract, _ = deploy_contract('PolicyManager', escrow_dispatcher.address, escrow_dispatcher.address)
     return contract
 
 
@@ -928,7 +928,7 @@ def test_upgrading_and_rollback(testerchain,
         worklock.address,
         *token_economics.staking_deployment_parameters
     )
-    policy_manager_v2, _ = deploy_contract('PolicyManager', escrow.address)
+    policy_manager_v2, _ = deploy_contract('PolicyManager', escrow.address, escrow.address)
     # Staker and Alice can't upgrade contracts, only owner can
     with pytest.raises((TransactionFailed, ValueError)):
         tx = escrow_dispatcher.functions.upgrade(escrow_v2.address).transact({'from': alice1})
