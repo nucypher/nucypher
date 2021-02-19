@@ -244,9 +244,7 @@ class ContractAdministrator(NucypherTokenActor):
             if not signer:
                 raise ValueError('signer is required to make a transacting ContractAdministrator.')
             self.deployer_power = TransactingPower(signer=signer, account=deployer_address)
-
             self.transacting_power = self.deployer_power
-            self.transacting_power.activate()
         else:
             self.deployer_power = None
             self.transacting_power = None
@@ -282,7 +280,6 @@ class ContractAdministrator(NucypherTokenActor):
         Deployer = self.__get_deployer(contract_name=contract_name)
         deployer = Deployer(registry=self.registry, economics=self.economics, *args, **kwargs)
 
-        self.transacting_power.activate()  # Activate the TransactingPower in case too much time has passed
         if Deployer._upgradeable:
             receipts = deployer.deploy(transacting_power=self.transacting_power,
                                        gas_limit=gas_limit,
@@ -401,7 +398,6 @@ class Trustee(MultiSigActor):
             if not signer:
                 raise ValueError('signer is required to create a transacting Trustee.')
             self.transacting_power = TransactingPower(account=checksum_address, signer=signer)
-            self.transacting_power.activate()
 
     def add_authorization(self, authorization, proposal: Proposal) -> str:
         executive_address = authorization.recover_executive_address(proposal)
@@ -492,7 +488,6 @@ class Executive(MultiSigActor):
         self.signer = signer
         if signer:
             self.transacting_power = TransactingPower(signer=signer, account=checksum_address)
-            self.transacting_power.activate()
 
     def authorize_proposal(self, proposal) -> Authorization:
         # TODO: Double-check that the digest corresponds to the real data to sign
@@ -1583,7 +1578,6 @@ class Bidder(NucypherTokenActor):
         receipts = dict()
         iteration = 1
         while not self.worklock_agent.bidders_checked():
-            self.transacting_power.activate()  # Refresh TransactingPower
             receipt = self.worklock_agent.verify_bidding_correctness(transacting_power=self.transacting_power,
                                                                      gas_limit=gas_limit)
             self.log.debug(f"Iteration {iteration}. Next bidder to check: {self.worklock_agent.next_bidder_to_check()}")
@@ -1668,7 +1662,6 @@ class DaoActor(BaseActor):
         self.dao_registry = DAORegistry(network=network)
         if transacting:  # TODO: This logic is repeated in Bidder and possible others.
             self.transacting_power = TransactingPower(signer=signer, account=checksum_address)
-            self.transacting_power.activate()
 
 
 class EmergencyResponseManager(DaoActor):
