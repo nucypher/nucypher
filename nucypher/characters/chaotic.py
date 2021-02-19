@@ -337,9 +337,6 @@ class Felix(Character, NucypherTokenActor):
     def __transfer(self, disbursement: int, recipient_address: str) -> str:
         """Perform a single token transfer transaction from one account to another."""
 
-        # Re-unlock from cache
-        self.blockchain.transacting_power.activate()
-
         self.__disbursement += 1
         receipt = self.token_agent.transfer(amount=disbursement,
                                             target_address=recipient_address,
