@@ -118,7 +118,7 @@ class UrsulaInfoMetricsCollector(BaseMetricsCollector):
                         'host': str(self.ursula.rest_interface),
                         'domain': self.ursula.domain,
                         'nickname': str(self.ursula.nickname),
-                        'nickname_icon': self.ursula.nickname_icon,
+                        'nickname_icon': self.ursula.nickname.icon,
                         'fleet_state': str(self.ursula.known_nodes.checksum),
                         'known_nodes': str(len(self.ursula.known_nodes))
                         }

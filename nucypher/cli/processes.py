@@ -114,8 +114,7 @@ class UrsulaCommandProtocol(LineReceiver):
         Display information about the network-wide fleet state as the attached Ursula node sees it.
         """
         from nucypher.cli.painting.nodes import build_fleet_state_status
-        line = '{}'.format(build_fleet_state_status(ursula=self.ursula))
-        self.emitter.echo(line)
+        self.emitter.echo(build_fleet_state_status(ursula=self.ursula))
 
     def connectionMade(self):
         self.emitter.echo("\nType 'help' or '?' for help")

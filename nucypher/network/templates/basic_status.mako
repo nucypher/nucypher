@@ -6,9 +6,6 @@ def hex_to_rgb(color_hex):
     b = int(color_hex[5:7], 16)
     return r, g, b
 
-def rgb_to_hex(r, g, b):
-    return f"#{r:02x}{g:02x}{b:02x}"
-
 def contrast_color(color_hex):
     r, g, b = hex_to_rgb(color_hex)
     # As defined in https://www.w3.org/WAI/ER/WD-AERT/#color-contrast
@@ -20,37 +17,29 @@ def contrast_color(color_hex):
         return "white"
 
 def character_span(character):
-    return f'<span class="symbol" style="color: {contrast_color(character.color_hex)}; background-color: {character.color_hex}">{character.symbol}</span>'
+    color = character['color_hex']
+    symbol = character['symbol']
+    return f'<span class="symbol" style="color: {contrast_color(color)}; background-color: {color}">{symbol}</span>'
 %>
 
-<%def name="fleet_state_icon(checksum, nickname, population)">
-%if not checksum:
-NO FLEET STATE AVAILABLE
+<%def name="fleet_state_icon(state)">
+%if not state:
+<span style="color: #CCCCCC">&mdash;</span>
 %else:
-<table class="state-info" title="${nickname}">
+<table class="state-info" title="${state['nickname']['text']}">
     <tr>
         <td>
             ## Need to compose these spans as strings to avoid introducing whitespaces
-            <span class="state-icon">${"".join(character_span(character) for character in nickname.characters)}</span>
+            <span class="state-icon">${"".join(character_span(character) for character in state['nickname']['characters'])}</span>
         </td>
         <td>
-            <span>${population} nodes</span>
+            <span>${state['population']} nodes</span>
             <br/>
-            <span class="checksum">${checksum[0:8]}</span>
+            <span class="checksum">${state['checksum'][0:8]}</span>
         </td>
     </tr>
 </table>
 %endif
-</%def>
-
-
-<%def name="fleet_state_icon_from_state(state)">
-${fleet_state_icon(state.checksum, state.nickname, len(state.nodes))}
-</%def>
-
-
-<%def name="fleet_state_icon_from_known_nodes(state)">
-${fleet_state_icon(state.checksum, state.nickname, state.population())}
 </%def>
 
 
@@ -60,14 +49,14 @@ ${fleet_state_icon(state.checksum, state.nickname, state.population())}
         <tr>
             <td>
                 ## Need to compose these spans as strings to avoid introducing whitespaces
-                <span class="node-icon">${"".join(character_span(character) for character in node.nickname.characters)}</span>
+                <span class="node-icon">${"".join(character_span(character) for character in node['nickname']['characters'])}</span>
             </td>
             <td>
-                <a href="https://${node.rest_url()}/status">
-                <span class="nickname">${ node.nickname }</span>
+                <a href="https://${node['rest_url']}/status">
+                <span class="nickname">${ node['nickname']['text'] }</span>
                 </a>
                 <br/>
-                <span class="checksum">${ node.checksum_address }</span>
+                <span class="checksum">${ node['staker_address'] }</span>
             </td>
         </tr>
     </table>
@@ -75,7 +64,7 @@ ${fleet_state_icon(state.checksum, state.nickname, state.population())}
 </%def>
 
 
-<%def name="main()">
+<%def name="main(status_info)">
 <!DOCTYPE html>
 <html>
 <head>
@@ -168,7 +157,7 @@ ${fleet_state_icon(state.checksum, state.nickname, state.population())}
     <table class="this-node-info">
         <tr>
             <td></td>
-            <td><div class="this-node">${node_info(this_node)}</div></td>
+            <td><div class="this-node">${node_info(status_info)}</div></td>
         </tr>
         <tr>
             <td><div style="margin-bottom: 1em"></div></td>
@@ -176,48 +165,54 @@ ${fleet_state_icon(state.checksum, state.nickname, state.population())}
         </tr>
         <tr>
             <td><i>Running:</i></td>
-            <td>v${ version }</td>
+            <td>v${ status_info['version'] }</td>
         </tr>
         <tr>
             <td><i>Domain:</i></td>
-            <td>${ domain }</td>
+            <td>${ status_info['domain'] }</td>
         </tr>
         <tr>
             <td><i>Fleet state:</i></td>
-            <td>${fleet_state_icon_from_known_nodes(this_node.known_nodes)}</td>
+            <td>${fleet_state_icon(status_info['fleet_state'])}</td>
         </tr>
         <tr>
             <td><i>Previous states:</i></td>
             <td>
-                %for state in previous_states:
-                    ${fleet_state_icon_from_state(state)}
+                %for state in status_info['previous_fleet_states']:
+                    ${fleet_state_icon(state)}
                 %endfor
             </td>
         </tr>
     </table>
 
-    <h3>${len(known_nodes)} ${"known node" if len(known_nodes) == 1 else "known nodes"}:</h3>
+    %if 'known_nodes' in status_info:
+    <h3>${len(status_info['known_nodes'])} ${"known node" if len(status_info['known_nodes']) == 1 else "known nodes"}:</h3>
 
     <table class="known-nodes">
         <thead>
             <td></td>
             <td>Launched</td>
-            <td>Last Seen</td>
+            <td style="padding-right: 1em">Last Learned From</td>
             <td>Fleet State</td>
         </thead>
         <tbody>
-        %for node in known_nodes:
+        %for node in status_info['known_nodes']:
             <tr>
                 <td>${node_info(node)}</td>
-                <td>${ node.timestamp }</td>
-                <td>${ node.last_seen }</td>
-                <td>${fleet_state_icon(node.fleet_state_checksum,
-                                       node.fleet_state_nickname,
-                                       node.fleet_state_population)}</td>
+                <td>${node['timestamp']}</td>
+                <td>
+                %if node['last_learned_from']:
+                ${node['last_learned_from']}
+                %else:
+                <span style="color: #CCCCCC">&mdash;</span>
+                %endif
+                </td>
+                <td>${fleet_state_icon(node['recorded_fleet_state'])}</td>
             </tr>
         %endfor
         </tbody>
     </table>
+    %endif
 </body>
 </html>
 </%def>

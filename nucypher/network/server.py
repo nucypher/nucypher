@@ -173,7 +173,7 @@ def _make_rest_app(datastore: Datastore, this_node, domain: str, log: Logger) ->
             # TODO: Is this every something we don't want to do?
             this_node.start_learning_loop()
 
-        if this_node.known_nodes.checksum is NO_KNOWN_NODES:
+        if not this_node.known_nodes:
             return Response(b"", headers=headers, status=204)
 
         known_nodes_bytestring = this_node.bytestring_of_known_nodes()
@@ -422,30 +422,28 @@ def _make_rest_app(datastore: Datastore, this_node, domain: str, log: Logger) ->
 
     @rest_app.route('/status/', methods=['GET'])
     def status():
-        if request.args.get('json'):
-            payload = this_node.abridged_node_details(raise_invalid=False)
-            response = jsonify(payload)
-            return response
+
+        return_json = request.args.get('json') == 'true'
+        omit_known_nodes = request.args.get('omit_known_nodes') == 'true'
+
+        status_info = this_node.status_info(raise_invalid=False,
+                                            omit_known_nodes=omit_known_nodes)
+
+        if return_json:
+            return jsonify(status_info)
 
         else:
             headers = {"Content-Type": "text/html", "charset": "utf-8"}
-            previous_states = list(reversed(this_node.known_nodes.states.values()))[:5]
-            # Mature every known node before rendering.
-            for node in this_node.known_nodes:
-                node.mature()
 
             try:
-                content = status_template.render(this_node=this_node,
-                                                 known_nodes=this_node.known_nodes,
-                                                 previous_states=previous_states,
-                                                 domain=domain,
-                                                 version=nucypher.__version__,
-                                                 checksum_address=this_node.checksum_address)
+                content = status_template.render(status_info)
+
             except Exception as e:
                 text_error = mako_exceptions.text_error_template().render()
                 html_error = mako_exceptions.html_error_template().render()
                 log.debug("Template Rendering Exception:\n" + text_error)
                 return Response(response=html_error, headers=headers, status=500)
+
             return Response(response=content, headers=headers)
 
     return rest_app

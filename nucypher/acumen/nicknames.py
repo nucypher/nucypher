@@ -74,7 +74,7 @@ class NicknameCharacter:
         self.color_hex = color_hex
         self._text = color_name + " " + _SYMBOLS[symbol]
 
-    def payload(self):
+    def to_json(self):
         return dict(symbol=self.symbol,
                     color_name=self.color_name,
                     color_hex=self.color_hex)
@@ -103,8 +103,9 @@ class Nickname:
         self.icon = "[" + "".join(character.symbol for character in characters) + "]"
         self.characters = characters
 
-    def payload(self):
-        return [character.payload() for character in self.characters]
+    def to_json(self):
+        return dict(text=self._text,
+                    characters=[character.to_json() for character in self.characters])
 
     def __str__(self):
         return self._text

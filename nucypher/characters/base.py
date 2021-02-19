@@ -73,6 +73,7 @@ class Character(Learner):
                  provider_uri: str = None,
                  signer: Signer = None,
                  registry: BaseContractRegistry = None,
+                 include_self_in_the_state: bool = False,
                  *args, **kwargs
                  ) -> None:
 
@@ -191,6 +192,7 @@ class Character(Learner):
                              domain=domain,
                              network_middleware=self.network_middleware,
                              node_class=known_node_class,
+                             include_self_in_the_state=include_self_in_the_state,
                              *args, **kwargs)
 
         #
@@ -238,12 +240,6 @@ class Character(Learner):
                     self.nickname = NO_NICKNAME
                 else:
                     raise
-
-        #
-        # Fleet state
-        #
-        if is_me is True:
-            self.known_nodes.record_fleet_state()
 
         #
         # Character Control
