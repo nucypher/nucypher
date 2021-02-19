@@ -391,7 +391,8 @@ contract StakingEscrow is Issuer, IERC900History {
         maxAllowableLockedTokens = _maxAllowableLockedTokens;
         minWorkerPeriods = _minWorkerPeriods;
 
-        require(_policyManager.secondsPerPeriod() == _hoursPerPeriod * (1 hours) &&
+        require((_policyManager.secondsPerPeriod() == _hoursPerPeriod * (1 hours) ||
+            _policyManager.secondsPerPeriod() == _formerHoursPerPeriod * (1 hours)) &&
             _adjudicator.rewardCoefficient() != 0 &&
             (address(_workLock) == address(0) || _workLock.token() == _token));
         policyManager = _policyManager;

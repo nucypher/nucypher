@@ -143,7 +143,9 @@ def test_policy_manager_migration(testerchain, token_economics, deploy_contract)
     testerchain.wait_for_receipt(tx)
 
     # Deploy new version of the contract
-    policy_manager_library, _ = deploy_contract(contract_name='PolicyManager', _escrow=escrow.address)
+    policy_manager_library, _ = deploy_contract(contract_name='PolicyManager',
+                                                _escrowDispatcher=escrow.address,
+                                                _escrowLibrary=escrow.address)
     contract = testerchain.client.get_contract(
         abi=policy_manager_library.abi,
         address=dispatcher.address,
@@ -183,7 +185,7 @@ def test_policy_manager_migration(testerchain, token_economics, deploy_contract)
             .transact({'from': alice, 'value': 3 * value, 'gas_price': 0})
         testerchain.wait_for_receipt(tx)
 
-    testerchain.time_travel(periods=2)
+    testerchain.time_travel(periods=1, periods_base=token_economics.seconds_per_period)
     current_period = contract.functions.getCurrentPeriod().call()
     testerchain.time_travel(hours=token_economics.former_hours_per_period)
     assert contract.functions.getCurrentPeriod().call() == current_period
@@ -306,7 +308,9 @@ def test_policy_manager_migration(testerchain, token_economics, deploy_contract)
         _formerHoursPerPeriod=token_economics.hours_per_period,
         _hoursPerPeriod=2 * token_economics.hours_per_period
     )
-    policy_manager_2_library, _ = deploy_contract(contract_name='PolicyManager', _escrow=escrow.address)
+    policy_manager_2_library, _ = deploy_contract(contract_name='PolicyManager',
+                                                  _escrowDispatcher=escrow.address,
+                                                  _escrowLibrary=escrow.address)
     current_period = contract.functions.getCurrentPeriod().call()
     tx = dispatcher.functions.upgrade(policy_manager_2_library.address).transact()
     testerchain.wait_for_receipt(tx)
