@@ -183,8 +183,14 @@ def events(general_config, registry_options, contract_name, from_block, to_block
     # csv output file
     csv_output_file = csv_file
     if csv or csv_output_file:
+        if csv and csv_file:
+            raise click.BadOptionUsage(option_name='--event-filter',
+                                       message=f'Pass either --csv or --csv-file, not both.')
+
         # ensure that event name is specified - different events would have different columns in the csv file
         if not event_name:
+            # TODO consider a single csv that just gets appended to for each event
+            #  (including headers) - report-type functionality, see #2561
             raise click.BadOptionUsage(option_name='--csv, --csv-file, --event-name',
                                        message='Event name must be specified to output events to csv file')
         if not csv_output_file:
