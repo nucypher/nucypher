@@ -141,6 +141,13 @@ option_from_unlocked = click.option('--from-unlocked',
                                     help="Only use uncollected staking rewards and unlocked sub-stakes; not tokens from staker address",
                                     default=False,
                                     is_flag=True)
+option_from_block = click.option('--from-block',
+                                 help="Collect events from this block number; defaults to 0",
+                                 default=0,
+                                 type=click.INT)
+option_to_block = click.option('--to-block',
+                               help="Collect events until this block number; defaults to 'latest' block number",
+                               type=click.INT)
 
 
 class StakeHolderConfigOptions:
@@ -1281,10 +1288,12 @@ def preallocation(general_config: GroupGeneralConfig,
 @group_staker_options
 @option_config_file
 @option_event_name
+@option_from_block
+@option_to_block
 @option_csv
 @option_csv_file
 @group_general_config
-def events(general_config, staker_options, config_file, event_name, csv, csv_file):
+def events(general_config, staker_options, config_file, from_block, to_block, event_name, csv, csv_file):
     """View blockchain events associated with a staker"""
 
     # Setup
@@ -1307,9 +1316,12 @@ def events(general_config, staker_options, config_file, event_name, csv, csv_fil
         staking_address=staker_options.staking_address,
         individual_allocation=STAKEHOLDER.individual_allocation,
         force=True)
+    if to_block is None:
+        to_block = 'latest'
 
     argument_filters = {'staker': staking_address}
     agent = STAKEHOLDER.staking_agent
+    emitter.echo(f"Obtaining events from block {from_block} to {to_block}")
     if csv or csv_file:
         csv_output_file = csv_file
         if not csv_output_file:
@@ -1321,6 +1333,8 @@ def events(general_config, staker_options, config_file, event_name, csv, csv_fil
         write_events_to_csv_file(csv_file=csv_output_file,
                                  agent=agent,
                                  event_name=event_name,
+                                 from_block=from_block,
+                                 to_block=to_block,
                                  argument_filters=argument_filters)
         emitter.echo(f"\n{agent.contract_name}::{event_name} events written to {csv_output_file}",
                      bold=True,
@@ -1330,7 +1344,7 @@ def events(general_config, staker_options, config_file, event_name, csv, csv_fil
         title = f" {agent.contract_name} Events ".center(40, "-")
         emitter.echo(f"\n{title}\n", bold=True, color='green')
         emitter.echo(f"{event_type.event_name}:", bold=True, color='yellow')
-        entries = event_type.getLogs(fromBlock=0, toBlock='latest', argument_filters=argument_filters)
+        entries = event_type.getLogs(fromBlock=from_block, toBlock=to_block, argument_filters=argument_filters)
         for event_record in entries:
             emitter.echo(f"  - {EventRecord(event_record)}")
 

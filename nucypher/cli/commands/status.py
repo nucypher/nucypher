@@ -92,6 +92,13 @@ option_event_filters = click.option('--event-filter', '-f', 'event_filters',
                                     type=click.STRING,
                                     default=[])
 
+option_from_block = click.option('--from-block',
+                                 help="Collect events from this block number; defaults to the block number of current period",
+                                 type=click.INT)
+option_to_block = click.option('--to-block',
+                               help="Collect events until this block number; defaults to 'latest' block number",
+                               type=click.INT)
+
 
 @click.group()
 def status():
@@ -135,8 +142,8 @@ def locked_tokens(general_config, registry_options, periods):
 @group_general_config
 @option_contract_name(required=False)
 @option_event_name
-@click.option('--from-block', help="Collect events from this block number; current block number by default", type=click.INT)
-@click.option('--to-block', help="Collect events until this block number; latest block number by default", type=click.INT)
+@option_from_block
+@option_to_block
 @option_csv
 @option_csv_file
 @option_event_filters
@@ -187,7 +194,7 @@ def events(general_config, registry_options, contract_name, from_block, to_block
             click.confirm(CONFIRM_OVERWRITE_EVENTS_CSV_FILE.format(csv_file=csv_output_file), abort=True)
 
     # TODO: additional input validation for block numbers
-    emitter.echo(f"Showing events from block {from_block} to {to_block}")
+    emitter.echo(f"Obtaining events from block {from_block} to {to_block}")
     for contract_name in contract_names:
         agent = ContractAgency.get_agent_by_contract_name(contract_name, registry)
         names = agent.events.names if not event_name else [event_name]
