@@ -225,20 +225,32 @@ class Alice(Character, BlockchainPolicyAuthor):
                                                 m=m or self.m,
                                                 n=n or self.n)
 
-    def create_policy(self, bob: "Bob", label: bytes, **policy_params):
+    def create_policy(self,
+                      bob: "Bob",
+                      label: bytes,
+                      alice = None,
+                      kfrags=None,
+                      public_key=None,
+                      **policy_params):
         """
         Create a Policy so that Bob has access to all resources under label.
         Generates KFrags and attaches them.
         """
+        if kfrags and not public_key:
+            raise ValueError('public_key is required when relaying KFrags.')
+
+        if not alice:
+            alice = self
 
         policy_params = self.generate_policy_parameters(**policy_params)
         N = policy_params.pop('n')
 
         # Generate KFrags
-        public_key, kfrags = self.generate_kfrags(bob=bob,
-                                                  label=label,
-                                                  m=policy_params['m'],
-                                                  n=N)
+        if not kfrags:
+            public_key, kfrags = self.generate_kfrags(bob=bob,
+                                                      label=label,
+                                                      m=policy_params['m'],
+                                                      n=N)
 
         payload = dict(label=label,
                        bob=bob,
@@ -248,15 +260,15 @@ class Alice(Character, BlockchainPolicyAuthor):
                        expiration=policy_params['expiration'])
 
         if self.federated_only:
-            # Use known nodes
+            # Samples from peers
             from nucypher.policy.policies import FederatedPolicy
-            policy = FederatedPolicy(alice=self, **payload)
+            policy = FederatedPolicy(alice=alice, **payload)
 
         else:
-            # Sample from blockchain PolicyManager
+            # Samples from PolicyManager contract
             from nucypher.policy.policies import BlockchainPolicy
             payload.update(**policy_params)
-            policy = BlockchainPolicy(alice=self, **payload)
+            policy = BlockchainPolicy(alice=alice, **payload)
 
         return policy
 
@@ -298,35 +310,25 @@ class Alice(Character, BlockchainPolicyAuthor):
             raise self.ActorError(f"The requested duration for this policy (until {policy.expiration}) exceeds the "
                                   f"probationary period ({END_OF_POLICIES_PROBATIONARY_PERIOD}).")
 
-    def grant(self,
-              bob: "Bob",
-              label: bytes,
-              handpicked_ursulas: set = None,
-              timeout: int = None,
-              publish_treasure_map: bool = True,
-              block_until_success_is_reasonably_likely: bool = True,
-              **policy_params):
-
-        timeout = timeout or self.timeout
-
-        #
-        # Policy Creation
-        #
-
-        if handpicked_ursulas:
-            # This might be the first time alice learns about the handpicked Ursulas.
-            for handpicked_ursula in handpicked_ursulas:
-                self.remember_node(node=handpicked_ursula)
-
-        policy = self.create_policy(bob=bob, label=label, **policy_params)
-        self._check_grant_requirements(policy=policy)
-        self.log.debug(f"Generated new policy proposal {policy} ... ")
-
+    def publish_policy(self,
+                       policy,
+                       timeout: int = None,
+                       handpicked_ursulas: set = None,
+                       publish_treasure_map: bool = True,
+                       block: bool = True
+                       ):
         #
         # We'll find n Ursulas by default.  It's possible to "play the field" by trying different
         # value and expiration combinations on a limited number of Ursulas;
         # Users may decide to inject some market strategies here.
         #
+
+        timeout = timeout or self.timeout
+
+        if handpicked_ursulas:
+            # This might be the first time alice learns about the handpicked Ursulas.
+            for handpicked_ursula in handpicked_ursulas:
+                self.remember_node(node=handpicked_ursula)
 
         # If we're federated only, we need to block to make sure we have enough nodes.
         if self.federated_only and len(self.known_nodes) < policy.n:
@@ -344,13 +346,65 @@ class Alice(Character, BlockchainPolicyAuthor):
         # TODO: Make it optional to publish to blockchain?  Or is this presumptive based on the `Policy` type?
         enacted_policy = policy.enact(network_middleware=self.network_middleware,
                                       handpicked_ursulas=handpicked_ursulas,
-                                      publish_treasure_map=publish_treasure_map)
+                                      publish_treasure_map=publish_treasure_map,
+                                      registry=self.registry,
+                                      alice=self)
 
+        # Track
         self.add_active_policy(enacted_policy)
 
-        if publish_treasure_map and block_until_success_is_reasonably_likely:
+        if publish_treasure_map and block:
             enacted_policy.treasure_map_publisher.block_until_success_is_reasonably_likely()
         return enacted_policy
+
+
+    def relay_policy(self,
+                     bob: "Bob",
+                     label: bytes,
+                     kfrags: List[KFrag],
+                     policy_encrypting_key: UmbralPublicKey,
+                     alice_verifying_key: [UmbralPublicKey, bytes],
+                     handpicked_ursulas: set = None,
+                     timeout: int = None,
+                     publish_treasure_map: bool = True,
+                     block: bool = True,
+                     **policy_params):
+        alice_verifying_key = UmbralPublicKey.from_bytes(bytes(alice_verifying_key))
+        alice = Alice.from_public_keys(verifying_key=alice_verifying_key)
+        policy = self.create_policy(bob=bob,
+                                    alice=alice,
+                                    label=label,
+                                    kfrags=kfrags,
+                                    public_key=policy_encrypting_key,
+                                    n=len(kfrags),
+                                    **policy_params)
+        self._check_grant_requirements(policy=policy)
+        self.log.debug(f"Generated new policy proposal {policy} ... ")
+        enacted_policy = self.publish_policy(policy,
+                                             handpicked_ursulas=handpicked_ursulas,
+                                             timeout=timeout,
+                                             publish_treasure_map=publish_treasure_map,
+                                             block=block)
+        return enacted_policy
+
+
+    def grant(self,
+              bob: "Bob",
+              label: bytes,
+              handpicked_ursulas: set = None,
+              timeout: int = None,
+              publish_treasure_map: bool = True,
+              block: bool = True,
+              **policy_params):
+        policy = self.create_policy(bob=bob, label=label, **policy_params)
+        self._check_grant_requirements(policy=policy)
+        self.log.debug(f"Generated new policy proposal {policy} ... ")
+        enacted_policy = self.publish_policy(handpicked_ursulas=handpicked_ursulas,
+                                             timeout=timeout,
+                                             publish_treasure_map=publish_treasure_map,
+                                             block_until_success_is_reasonably_likely=block)
+        return enacted_policy
+
 
     def get_policy_encrypting_key_from_label(self, label: bytes) -> UmbralPublicKey:
         alice_delegating_power = self._crypto_power.power_ups(DelegatingPower)

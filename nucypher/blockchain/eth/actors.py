@@ -1387,11 +1387,12 @@ class BlockchainPolicyAuthor(NucypherTokenActor):
         payload = {**blockchain_payload, **policy_end_time}
         return payload
 
-    def get_stakers_reservoir(self, **options) -> StakersReservoir:
+    def get_stakers_reservoir(self, registry, **options) -> StakersReservoir:
         """
         Get a sampler object containing the currently registered stakers.
         """
-        return self.staking_agent.get_stakers_reservoir(**options)
+        staking_agent = ContractAgency.get_agent(StakingEscrowAgent, registry=registry)
+        return staking_agent.get_stakers_reservoir(**options)
 
     def create_policy(self, *args, **kwargs):
         """

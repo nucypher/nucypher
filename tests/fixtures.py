@@ -353,6 +353,12 @@ def blockchain_alice(alice_blockchain_test_config, testerchain):
     yield alice
     alice.disenchant()
 
+@pytest.fixture(scope="module")
+def another_blockchain_alice(alice_blockchain_test_config, testerchain):
+    alice = alice_blockchain_test_config.produce()
+    yield alice
+    alice.disenchant()
+
 
 @pytest.fixture(scope="module")
 def federated_bob(bob_federated_test_config):

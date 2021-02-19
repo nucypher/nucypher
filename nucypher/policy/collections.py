@@ -277,6 +277,7 @@ class SignedTreasureMap(TreasureMap):
                 "Can't cast a DecentralizedTreasureMap to bytes until it has a blockchain signature (otherwise, is it really a 'DecentralizedTreasureMap'?")
         return self._blockchain_signature + super().__bytes__()
 
+
 class WorkOrder:
     class PRETask:
 

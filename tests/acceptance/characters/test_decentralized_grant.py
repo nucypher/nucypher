@@ -15,15 +15,36 @@ You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
+
 import datetime
 import maya
 import pytest
 
+from nucypher.characters.lawful import Enrico
 from nucypher.crypto.api import keccak_digest
 from nucypher.datastore.models import PolicyArrangement
 from nucypher.datastore.models import TreasureMap as DatastoreTreasureMap
 from nucypher.policy.collections import SignedTreasureMap as DecentralizedTreasureMap
-from tests.utils.middleware import MockRestMiddleware
+
+
+def assert_grant_successful(bob, policy, ursulas, label, n):
+
+    # Check the policy ID
+    policy_id = keccak_digest(label + bytes(bob.stamp))
+    assert policy_id == policy.id
+
+    # The number of actually enacted arrangements is exactly equal to n.
+    assert len(policy.treasure_map.destinations) == n
+
+    # Let's look at the enacted arrangements.
+    for ursula in ursulas:
+        if ursula.checksum_address in policy.treasure_map.destinations:
+            arrangement_id = policy.treasure_map.destinations[ursula.checksum_address]
+
+            # Get the Arrangement from Ursula's datastore, looking up by the Arrangement ID.
+            with ursula.datastore.describe(PolicyArrangement, arrangement_id.hex()) as policy_arrangement:
+                retrieved_kfrag = policy_arrangement.kfrag
+            assert bool(retrieved_kfrag)  # TODO: try to assemble them back?
 
 
 def test_decentralized_grant(blockchain_alice, blockchain_bob, blockchain_ursulas, agency):
@@ -40,22 +61,63 @@ def test_decentralized_grant(blockchain_alice, blockchain_bob, blockchain_ursula
                                     rate=int(1e18),  # one ether
                                     expiration=policy_end_datetime)
 
-    # Check the policy ID
-    policy_id = keccak_digest(label + bytes(blockchain_bob.stamp))
-    assert policy_id == policy.id
+    assert_grant_successful(bob=blockchain_bob,
+                            policy=policy,
+                            label=label,
+                            ursulas=blockchain_ursulas,
+                            n=n)
 
-    # The number of actually enacted arrangements is exactly equal to n.
-    assert len(policy.treasure_map.destinations) == n
 
-    # Let's look at the enacted arrangements.
-    for ursula in blockchain_ursulas:
-        if ursula.checksum_address in policy.treasure_map.destinations:
-            arrangement_id = policy.treasure_map.destinations[ursula.checksum_address]
+def test_decentralized_grant_with_kfrag_relayer(blockchain_alice,
+                                                another_blockchain_alice,
+                                                blockchain_bob,
+                                                blockchain_ursulas,
+                                                agency):
+    alice = another_blockchain_alice
+    relayer = blockchain_alice
 
-            # Get the Arrangement from Ursula's datastore, looking up by the Arrangement ID.
-            with ursula.datastore.describe(PolicyArrangement, arrangement_id.hex()) as policy_arrangement:
-                retrieved_kfrag = policy_arrangement.kfrag
-            assert bool(retrieved_kfrag) # TODO: try to assemble them back?
+    # Alice generates KFrags for Bob.
+    n = 3
+    policy_end_datetime = maya.now() + datetime.timedelta(days=5)
+    label = b"this will remain the label for 30 years."
+    policy_encrypting_key = alice.get_policy_encrypting_key_from_label(label=label)
+    _pek, kfrags = alice.generate_kfrags(
+        bob=blockchain_bob,
+        label=label,
+        m=2,
+        n=n
+    )
+
+    # The KFrag generator is not the same alice as the publisher.
+    assert relayer != alice
+    assert relayer.stamp != alice.stamp
+
+    # Create the Policy, Granting access to Bob
+    policy = relayer.relay_policy(bob=blockchain_bob,
+                                  label=label,
+                                  m=2,
+                                  kfrags=kfrags,
+                                  policy_encrypting_key=policy_encrypting_key,
+                                  alice_verifying_key=alice.stamp,
+                                  rate=int(1e18),  # one ether
+                                  expiration=policy_end_datetime)
+
+    assert_grant_successful(bob=blockchain_bob,
+                            policy=policy,
+                            label=label,
+                            ursulas=blockchain_ursulas,
+                            n=n)
+
+    enrico = Enrico(policy_encrypting_key=policy_encrypting_key)
+    cleartext = b'this is a very important message'
+    ciphertext, signature = enrico.encrypt_message(cleartext)
+    delivered_cleartexts = blockchain_bob.retrieve(ciphertext,
+                                                   policy_encrypting_key=policy_encrypting_key,
+                                                   alice_verifying_key=alice.stamp,
+                                                   label=label)
+
+    assert delivered_cleartexts[0] == cleartext
+
 
 
 def test_alice_sets_treasure_map_decentralized(enacted_blockchain_policy, blockchain_alice, blockchain_bob):

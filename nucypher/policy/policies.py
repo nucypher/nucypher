@@ -16,36 +16,26 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
 
-import datetime
-from collections import OrderedDict
-from queue import Queue, Empty
-from typing import Callable, Tuple, Sequence, Set, Optional, Iterable, List, Dict, Type
+from abc import ABC, abstractmethod
+from typing import Tuple, Sequence, Optional, Iterable, List, Dict, Type
 
 import math
 import maya
-import random
-import time
-from abc import ABC, abstractmethod
 from bytestring_splitter import BytestringSplitter, VariableLengthBytestring
-from constant_sorrow.constants import NOT_SIGNED
 from eth_typing.evm import ChecksumAddress
 from hexbytes import HexBytes
-from twisted._threads import AlreadyQuit
+from nucypher.crypto.signing import SignatureStamp
 from twisted.internet import reactor
-from twisted.internet.defer import ensureDeferred, Deferred
-from twisted.python.threadpool import ThreadPool
 from umbral.keys import UmbralPublicKey
 from umbral.kfrags import KFrag
 
-from nucypher.blockchain.eth.actors import BlockchainPolicyAuthor
-from nucypher.blockchain.eth.agents import PolicyManagerAgent, StakersReservoir, StakingEscrowAgent
+from nucypher.blockchain.eth.agents import StakersReservoir, StakingEscrowAgent
 from nucypher.characters.lawful import Alice, Ursula
 from nucypher.crypto.api import keccak_digest, secure_random
 from nucypher.crypto.constants import HRAC_LENGTH, PUBLIC_KEY_LENGTH
 from nucypher.crypto.kits import RevocationKit
 from nucypher.crypto.powers import DecryptingPower, SigningPower, TransactingPower
 from nucypher.crypto.utils import construct_policy_id
-from nucypher.network.exceptions import NodeSeemsToBeDown
 from nucypher.network.middleware import RestMiddleware
 from nucypher.utilities.concurrency import WorkerPool, AllAtOnceFactory
 from nucypher.utilities.logging import Logger
@@ -281,6 +271,8 @@ class Policy(ABC):
         raise NotImplementedError
 
     def _make_arrangements(self,
+                           registry,
+                           alice,
                            network_middleware: RestMiddleware,
                            handpicked_ursulas: Optional[Iterable[Ursula]] = None,
                            timeout: int = 10,
@@ -294,13 +286,18 @@ class Policy(ABC):
             handpicked_ursulas = []
         handpicked_addresses = [ursula.checksum_address for ursula in handpicked_ursulas]
 
-        reservoir = self._make_reservoir(handpicked_addresses)
+        if alice.federated_only:
+            reservoir = self._make_reservoir(handpicked_addresses)
+        else:
+            reservoir = self._make_reservoir(handpicked_addresses=handpicked_addresses,
+                                             registry=registry)
+
         value_factory = PrefetchStrategy(reservoir, self.n)
 
         def worker(address):
             return self._propose_arrangement(address, network_middleware)
 
-        self.alice.block_until_number_of_known_nodes_is(self.n, learn_on_this_thread=True, eager=True)
+        alice.block_until_number_of_known_nodes_is(self.n, learn_on_this_thread=True, eager=True)
 
         worker_pool = WorkerPool(worker=worker,
                                  value_factory=value_factory,
@@ -408,6 +405,7 @@ class Policy(ABC):
     def _make_treasure_map(self,
                            network_middleware: RestMiddleware,
                            arrangements: Dict[Ursula, Arrangement],
+                           alice_stamp: SignatureStamp
                            ) -> 'TreasureMap':
         """
         Creates a treasure map for given arrangements.
@@ -420,7 +418,7 @@ class Policy(ABC):
 
         treasure_map.prepare_for_publication(bob_encrypting_key=self.bob.public_keys(DecryptingPower),
                                              bob_verifying_key=self.bob.public_keys(SigningPower),
-                                             alice_stamp=self.alice.stamp,
+                                             alice_stamp=alice_stamp,
                                              label=self.label)
 
         return treasure_map
@@ -455,26 +453,32 @@ class Policy(ABC):
                                    nodes=target_nodes)
 
     def enact(self,
+              alice,
+              registry,
               network_middleware: RestMiddleware,
               handpicked_ursulas: Optional[Iterable[Ursula]] = None,
               publish_treasure_map: bool = True,
+              alice_stamp: SignatureStamp = None
               ) -> 'EnactedPolicy':
         """
         Attempts to enact the policy, returns an `EnactedPolicy` object on success.
         """
-
         arrangements = self._make_arrangements(network_middleware=network_middleware,
-                                               handpicked_ursulas=handpicked_ursulas)
+                                               handpicked_ursulas=handpicked_ursulas,
+                                               registry=registry,
+                                               alice=alice)
 
         self._enact_arrangements(network_middleware=network_middleware,
                                  arrangements=arrangements,
                                  publish_treasure_map=publish_treasure_map)
 
         treasure_map = self._make_treasure_map(network_middleware=network_middleware,
+                                               alice_stamp=alice_stamp,
                                                arrangements=arrangements)
+
         treasure_map_publisher = self._make_publisher(treasure_map=treasure_map,
                                                       network_middleware=network_middleware)
-        revocation_kit = RevocationKit(treasure_map, self.alice.stamp)
+        revocation_kit = RevocationKit(treasure_map, alice.stamp)
 
         enacted_policy = EnactedPolicy(self._id,
                                        self.hrac,
@@ -508,8 +512,6 @@ class Policy(ABC):
 
 class FederatedPolicy(Policy):
 
-    from nucypher.policy.collections import TreasureMap as _treasure_map_class  # TODO: Circular Import
-
     def _not_enough_ursulas_exception(self):
         return Policy.NotEnoughUrsulas
 
@@ -529,8 +531,6 @@ class BlockchainPolicy(Policy):
     """
     A collection of n Arrangements representing a single Policy
     """
-
-    from nucypher.policy.collections import SignedTreasureMap as _treasure_map_class  # TODO: Circular Import
 
     class InvalidPolicyValue(ValueError):
         pass
@@ -599,10 +599,11 @@ class BlockchainPolicy(Policy):
         params = dict(rate=rate, value=value)
         return params
 
-    def _make_reservoir(self, handpicked_addresses):
+    def _make_reservoir(self, handpicked_addresses, registry):
         try:
             reservoir = self.alice.get_stakers_reservoir(duration=self.duration_periods,
-                                                         without=handpicked_addresses)
+                                                         without=handpicked_addresses,
+                                                         registry=registry)
         except StakingEscrowAgent.NotEnoughStakers:
             # TODO: do that in `get_stakers_reservoir()`?
             reservoir = StakersReservoir({})

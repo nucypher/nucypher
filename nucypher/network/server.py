@@ -26,7 +26,9 @@ from constant_sorrow.constants import (
     FLEET_STATES_MATCH,
     NO_BLOCKCHAIN_CONNECTION,
     NO_KNOWN_NODES,
-    RELAX
+    RELAX,
+    SIGNATURE_TO_FOLLOW,
+    SIGNATURE_IS_ON_CIPHERTEXT
 )
 from datetime import datetime, timedelta
 from flask import Flask, Response, jsonify, request
@@ -43,7 +45,7 @@ from nucypher.config.constants import MAX_UPLOAD_CONTENT_LENGTH
 from nucypher.crypto.keypairs import HostingKeypair
 from nucypher.crypto.kits import UmbralMessageKit
 from nucypher.crypto.powers import KeyPairBasedPower, PowerUpError
-from nucypher.crypto.signing import InvalidSignature
+from nucypher.crypto.signing import InvalidSignature, signature_splitter
 from nucypher.crypto.utils import canonical_address_from_umbral_key
 from nucypher.datastore.datastore import Datastore, RecordNotFound, DatastoreTransactionError
 from nucypher.datastore.models import PolicyArrangement, TreasureMap, Workorder
@@ -51,6 +53,8 @@ from nucypher.network import LEARNING_LOOP_VERSION
 from nucypher.network.exceptions import NodeSeemsToBeDown
 from nucypher.network.protocols import InterfaceInfo
 from nucypher.utilities.logging import Logger
+from constant_sorrow import default_constant_splitter
+
 
 HERE = BASE_DIR = os.path.abspath(os.path.dirname(__file__))
 TEMPLATES_DIR = os.path.join(HERE, "templates")
@@ -228,17 +232,21 @@ def _make_rest_app(datastore: Datastore, this_node, domain: str, log: Logger) ->
     def set_policy(id_as_hex):
         """
         REST endpoint for setting a kFrag.
+
         """
         policy_message_kit = UmbralMessageKit.from_bytes(request.data)
 
         alices_verifying_key = policy_message_kit.sender_verifying_key
         alice = _alice_class.from_public_keys(verifying_key=alices_verifying_key)
 
-        try:
-            cleartext = this_node.verify_from(alice, policy_message_kit, decrypt=True)
-        except InvalidSignature:
-            # TODO: Perhaps we log this?  Essentially 355.
-            return Response("Invalid Signature", status_code=400)
+        # We are decrypting the message; let's do that first and see what the sig header says.
+        cleartext_with_sig_header = this_node.decrypt(message_kit=policy_message_kit)
+        sig_header, cleartext = default_constant_splitter(cleartext_with_sig_header, return_remainder=True)
+
+        if sig_header != SIGNATURE_TO_FOLLOW:
+            return Response(f"Invalid request.", status=405)
+        # The signature follows in this cleartext - split it off.
+        signature_from_kit, cleartext = signature_splitter(cleartext, return_remainder=True)
 
         if not this_node.federated_only:
             # This splitter probably belongs somewhere canonical.
@@ -262,9 +270,6 @@ def _make_rest_app(datastore: Datastore, this_node, domain: str, log: Logger) ->
             _tx = NO_BLOCKCHAIN_CONNECTION
             kfrag_bytes = cleartext
         kfrag = KFrag.from_bytes(kfrag_bytes)
-
-        if not kfrag.verify(signing_pubkey=alices_verifying_key):
-            return Response(f"Signature on {kfrag} is invalid", status=403)
 
         with datastore.describe(PolicyArrangement, id_as_hex, writeable=True) as policy_arrangement:
             if not policy_arrangement.alice_verifying_key == alice.stamp.as_umbral_pubkey():
@@ -326,6 +331,9 @@ def _make_rest_app(datastore: Datastore, this_node, domain: str, log: Logger) ->
                                                  ursula=this_node,
                                                  alice_address=alice_address)
         log.info(f"Work Order from {work_order.bob}, signed {work_order.receipt_signature}")
+
+        if not kfrag.verify(signing_pubkey=alice_verifying_key):
+            return Response(f"Signature on {kfrag} is invalid", status=403)
 
         # Re-encrypt
         response = this_node._reencrypt(kfrag=kfrag,
