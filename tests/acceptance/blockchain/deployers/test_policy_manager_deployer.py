@@ -14,18 +14,22 @@ GNU Affero General Public License for more details.
 You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
-from constant_sorrow import constants
 
-from nucypher.blockchain.eth.agents import ContractAgency, PolicyManagerAgent, StakingEscrowAgent
+
+from nucypher.blockchain.eth.agents import ContractAgency, PolicyManagerAgent
 from nucypher.blockchain.eth.constants import POLICY_MANAGER_CONTRACT_NAME
 from nucypher.blockchain.eth.deployers import (DispatcherDeployer, PolicyManagerDeployer)
 
 
-def test_policy_manager_deployment(policy_manager_deployer, staking_escrow_stub_deployer, deployment_progress):
+def test_policy_manager_deployment(policy_manager_deployer,
+                                   staking_escrow_stub_deployer,
+                                   deployment_progress,
+                                   transacting_power):
 
     assert policy_manager_deployer.contract_name == POLICY_MANAGER_CONTRACT_NAME
 
-    deployment_receipts = policy_manager_deployer.deploy(progress=deployment_progress)
+    deployment_receipts = policy_manager_deployer.deploy(progress=deployment_progress,
+                                                         transacting_power=transacting_power)
 
     # deployment steps must match expected number of steps
     steps = policy_manager_deployer.deployment_steps
@@ -69,9 +73,8 @@ def test_policy_manager_has_dispatcher(policy_manager_deployer, testerchain, tes
     assert target == existing_bare_contract.address
 
 
-def test_upgrade(testerchain, test_registry):
-    deployer = PolicyManagerDeployer(registry=test_registry,
-                                     deployer_address=testerchain.etherbase_account)
+def test_upgrade(testerchain, test_registry, transacting_power):
+    deployer = PolicyManagerDeployer(registry=test_registry)
 
     bare_contract = testerchain.get_contract_by_name(registry=test_registry,
                                                      contract_name=PolicyManagerDeployer.contract_name,
@@ -79,7 +82,7 @@ def test_upgrade(testerchain, test_registry):
                                                      use_proxy_address=False)
     old_address = bare_contract.address
 
-    receipts = deployer.upgrade(ignore_deployed=True, confirmations=0)
+    receipts = deployer.upgrade(ignore_deployed=True, confirmations=0, transacting_power=transacting_power)
 
     bare_contract = testerchain.get_contract_by_name(registry=test_registry,
                                                      contract_name=PolicyManagerDeployer.contract_name,
@@ -97,15 +100,14 @@ def test_upgrade(testerchain, test_registry):
         assert receipts[tx]['status'] == 1
 
 
-def test_rollback(testerchain, test_registry):
-    deployer = PolicyManagerDeployer(registry=test_registry,
-                                     deployer_address=testerchain.etherbase_account)
+def test_rollback(testerchain, test_registry, transacting_power):
+    deployer = PolicyManagerDeployer(registry=test_registry)
 
     policy_manager_agent = PolicyManagerAgent(registry=test_registry)
     current_target = policy_manager_agent.contract.functions.target().call()
 
     # Let's do one more upgrade
-    receipts = deployer.upgrade(ignore_deployed=True, confirmations=0)
+    receipts = deployer.upgrade(ignore_deployed=True, confirmations=0, transacting_power=transacting_power)
     for title, receipt in receipts.items():
         assert receipt['status'] == 1
 
@@ -114,7 +116,7 @@ def test_rollback(testerchain, test_registry):
     assert current_target != old_target
 
     # It's time to rollback.
-    receipt = deployer.rollback()
+    receipt = deployer.rollback(transacting_power=transacting_power)
     assert receipt['status'] == 1
 
     new_target = policy_manager_agent.contract.functions.target().call()
@@ -122,11 +124,14 @@ def test_rollback(testerchain, test_registry):
     assert new_target == old_target
 
 
-def test_set_fee_range(policy_manager_deployer, test_registry):
-    policy_agent = ContractAgency.get_agent(PolicyManagerAgent, registry=test_registry)  # type: PolicyManagerAgent
+def test_set_fee_range(policy_manager_deployer, test_registry, transacting_power):
+    policy_agent: PolicyManagerAgent = ContractAgency.get_agent(PolicyManagerAgent, registry=test_registry)
     assert policy_agent.get_fee_rate_range() == (0, 0, 0)
 
     minimum, default, maximum = 10, 20, 30
-    receipt = policy_manager_deployer.set_fee_rate_range(minimum, default, maximum)
+    receipt = policy_manager_deployer.set_fee_rate_range(minimum=minimum,
+                                                         default=default,
+                                                         maximum=maximum,
+                                                         transacting_power=transacting_power)
     assert receipt['status'] == 1
     assert policy_agent.get_fee_rate_range() == (minimum, default, maximum)

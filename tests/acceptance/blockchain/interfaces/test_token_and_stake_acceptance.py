@@ -17,15 +17,17 @@
 
 from web3 import Web3
 
+from nucypher.blockchain.eth.agents import ContractAgency, StakingEscrowAgent, NucypherTokenAgent
 from nucypher.blockchain.eth.token import NU, Stake
 from tests.constants import INSECURE_DEVELOPMENT_PASSWORD
 
 
-def test_stake(testerchain, token_economics, agency):
-    token_agent, staking_agent, _policy_agent = agency
+def test_stake(testerchain, token_economics, agency, test_registry):
+    staking_agent = ContractAgency.get_agent(StakingEscrowAgent, registry=test_registry)
 
     class FakeUrsula:
-        token_agent, staking_agent, _policy_agent = agency
+        token_agent = ContractAgency.get_agent(NucypherTokenAgent, registry=test_registry)
+        staking_agent = ContractAgency.get_agent(StakingEscrowAgent, registry=test_registry)
 
         burner_wallet = Web3().eth.account.create(INSECURE_DEVELOPMENT_PASSWORD)
         checksum_address = burner_wallet.address

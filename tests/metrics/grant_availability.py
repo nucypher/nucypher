@@ -43,7 +43,7 @@ from nucypher.config.characters import AliceConfiguration
 from nucypher.policy.policies import Policy
 from nucypher.utilities.logging import GlobalLoggerSettings
 
-# Wallet Configuration
+# Signer Configuration
 # In order to use this script, you must configure a wallet for alice
 ADDRESS_ENVVAR: str = 'NUCYPHER_GRANT_METRICS_ADDRESS'
 PASSWORD_ENVVAR: str = 'NUCYPHER_GRANT_METRICS_PASSWORD'
@@ -177,7 +177,7 @@ def make_alice(known_nodes: Optional[Set[Ursula]] = None):
     alice_config.initialize(password=INSECURE_PASSWORD)
     alice_config.keyring.unlock(password=INSECURE_PASSWORD)
     alice = alice_config.produce()
-    alice.signer.unlock_account(account=ALICE_ADDRESS, password=SIGNER_PASSWORD)
+    alice.signer.unlock(account=ALICE_ADDRESS, password=SIGNER_PASSWORD)
     alice.start_learning_loop(now=True)
     return alice
 

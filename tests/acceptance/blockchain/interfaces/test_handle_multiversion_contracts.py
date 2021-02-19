@@ -50,10 +50,9 @@ def test_deployer_interface_multiversion_contract():
     BlockchainInterfaceFactory.register_interface(interface=blockchain_interface)  # Lets this test run in isolation
 
     origin = blockchain_interface.client.accounts[0]
-    blockchain_interface.transacting_power = TransactingPower(password=INSECURE_DEVELOPMENT_PASSWORD,
-                                                              signer=Web3Signer(blockchain_interface.client),
-                                                              account=origin)
-    blockchain_interface.transacting_power.activate()
+    transacting_power = TransactingPower(password=INSECURE_DEVELOPMENT_PASSWORD,
+                                         signer=Web3Signer(blockchain_interface.client),
+                                         account=origin)
 
     # Searching both contract through raw data
     contract_name = "VersionTest"
@@ -75,32 +74,32 @@ def test_deployer_interface_multiversion_contract():
 
     # Deploy different contracts and check their versions
     registry = InMemoryContractRegistry()
-    contract, receipt = blockchain_interface.deploy_contract(deployer_address=origin,
+    contract, receipt = blockchain_interface.deploy_contract(transacting_power=transacting_power,
                                                              registry=registry,
                                                              contract_name=contract_name,
                                                              contract_version="v1.1.4")
     assert contract.version == "v1.1.4"
     assert contract.functions.VERSION().call() == 1
-    contract, receipt = blockchain_interface.deploy_contract(deployer_address=origin,
+    contract, receipt = blockchain_interface.deploy_contract(transacting_power=transacting_power,
                                                              registry=registry,
                                                              contract_name=contract_name,
                                                              contract_version="earliest")
     assert contract.version == "v1.1.4"
     assert contract.functions.VERSION().call() == 1
 
-    contract, receipt = blockchain_interface.deploy_contract(deployer_address=origin,
+    contract, receipt = blockchain_interface.deploy_contract(transacting_power=transacting_power,
                                                              registry=registry,
                                                              contract_name=contract_name,
                                                              contract_version="v1.2.3")
     assert contract.version == "v1.2.3"
     assert contract.functions.VERSION().call() == 2
-    contract, receipt = blockchain_interface.deploy_contract(deployer_address=origin,
+    contract, receipt = blockchain_interface.deploy_contract(transacting_power=transacting_power,
                                                              registry=registry,
                                                              contract_name=contract_name,
                                                              contract_version="latest")
     assert contract.version == "v1.2.3"
     assert contract.functions.VERSION().call() == 2
-    contract, receipt = blockchain_interface.deploy_contract(deployer_address=origin,
+    contract, receipt = blockchain_interface.deploy_contract(transacting_power=transacting_power,
                                                              registry=registry,
                                                              contract_name=contract_name)
     assert contract.version == "v1.2.3"

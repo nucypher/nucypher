@@ -232,8 +232,7 @@ def test_manual_proxy_retargeting(monkeypatch, testerchain, click_runner, token_
     # A local, alternate filepath registry exists
     assert os.path.exists(ALTERNATE_REGISTRY_FILEPATH)
     local_registry = LocalContractRegistry(filepath=ALTERNATE_REGISTRY_FILEPATH)
-    deployer = StakingEscrowDeployer(deployer_address=testerchain.etherbase_account,
-                                     registry=local_registry,
+    deployer = StakingEscrowDeployer(registry=local_registry,
                                      economics=token_economics)
     proxy_deployer = deployer.get_proxy_deployer()
 

@@ -18,28 +18,22 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 
 import contextlib
 import socket
-import tempfile
-
 from cryptography.x509 import Certificate
 from typing import Iterable, List, Optional, Set
-
-from nucypher.characters.lawful import Bob
-from nucypher.crypto.utils import canonical_address_from_umbral_key
-
-from nucypher.blockchain.eth.actors import Staker
-from nucypher.blockchain.eth.interfaces import BlockchainInterface
-from nucypher.characters.lawful import Ursula
-from nucypher.config.characters import UrsulaConfiguration
-from nucypher.crypto.powers import TransactingPower
-from nucypher.policy.collections import WorkOrder, IndisputableEvidence
-from tests.constants import (
-    NUMBER_OF_URSULAS_IN_DEVELOPMENT_NETWORK
-)
-from tests.mock.datastore import MOCK_DB
 from umbral import pre
 from umbral.curvebn import CurveBN
 from umbral.keys import UmbralPrivateKey
 from umbral.signing import Signer
+
+from nucypher.blockchain.eth.actors import Staker
+from nucypher.blockchain.eth.interfaces import BlockchainInterface
+from nucypher.characters.lawful import Bob
+from nucypher.characters.lawful import Ursula
+from nucypher.config.characters import UrsulaConfiguration
+from nucypher.crypto.utils import canonical_address_from_umbral_key
+from nucypher.policy.collections import WorkOrder, IndisputableEvidence
+from tests.constants import NUMBER_OF_URSULAS_IN_DEVELOPMENT_NETWORK
+from tests.mock.datastore import MOCK_DB
 
 
 def select_test_port() -> int:

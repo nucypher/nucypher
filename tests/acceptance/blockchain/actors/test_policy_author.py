@@ -14,8 +14,11 @@ GNU Affero General Public License for more details.
 You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
+
+
 import pytest
 
+from nucypher.config.constants import TEMPORARY_DOMAIN
 from nucypher.blockchain.eth.actors import BlockchainPolicyAuthor
 
 
@@ -28,5 +31,7 @@ def author(testerchain, agency, test_registry):
 
 def test_create_policy_author(testerchain, agency, test_registry):
     _origin, ursula, alice, *everybody_else = testerchain.client.accounts
-    policy_author = BlockchainPolicyAuthor(checksum_address=alice, registry=test_registry)
+    policy_author = BlockchainPolicyAuthor(checksum_address=alice,
+                                           domain=TEMPORARY_DOMAIN,
+                                           registry=test_registry)
     assert policy_author.checksum_address == alice

@@ -36,7 +36,7 @@ from web3.types import TxReceipt
 
 from nucypher.blockchain.economics import BaseEconomics, StandardTokenEconomics
 from nucypher.blockchain.eth.actors import StakeHolder, Staker
-from nucypher.blockchain.eth.agents import NucypherTokenAgent, PolicyManagerAgent, StakingEscrowAgent
+from nucypher.blockchain.eth.agents import NucypherTokenAgent, PolicyManagerAgent, StakingEscrowAgent, ContractAgency
 from nucypher.blockchain.eth.deployers import (
     AdjudicatorDeployer,
     NucypherTokenDeployer,
@@ -521,7 +521,6 @@ def testerchain(_testerchain) -> TesterBlockchain:
     testerchain.transacting_power = TransactingPower(password=INSECURE_DEVELOPMENT_PASSWORD,
                                                      signer=Web3Signer(client=testerchain.client),
                                                      account=testerchain.etherbase_account)
-    testerchain.transacting_power.activate()
     yield testerchain
 
 
@@ -607,30 +606,27 @@ def agency_local_registry(testerchain, agency, test_registry):
 
 
 @pytest.fixture(scope="module")
-def stakers(testerchain, agency, token_economics, test_registry):
-    token_agent, _staking_agent, _policy_agent = agency
+def stakers(testerchain, agency, token_economics, test_registry, deployer_transacting_power):
+    token_agent = ContractAgency.get_agent(NucypherTokenAgent, registry=test_registry)
+    staking_agent = ContractAgency.get_agent(StakingEscrowAgent, registry=test_registry)
+
     blockchain = token_agent.blockchain
 
-    # Mock Powerup consumption (Deployer)
-    blockchain.transacting_power = TransactingPower(password=INSECURE_DEVELOPMENT_PASSWORD,
-                                                    signer=Web3Signer(client=testerchain.client),
-                                                    account=blockchain.etherbase_account)
-    blockchain.transacting_power.activate()
-
-    token_airdrop(origin=blockchain.etherbase_account,
+    token_airdrop(transacting_power=deployer_transacting_power,
                   addresses=blockchain.stakers_accounts,
                   token_agent=token_agent,
                   amount=DEVELOPMENT_TOKEN_AIRDROP_AMOUNT)
 
     stakers = list()
     for index, account in enumerate(blockchain.stakers_accounts):
-        staker = Staker(is_me=True, checksum_address=account, registry=test_registry)
+        tpower = TransactingPower(account=account, signer=Web3Signer(testerchain.client))
+        tpower.unlock(password=INSECURE_DEVELOPMENT_PASSWORD)
 
-        # Mock TransactingPower consumption
-        staker.transacting_power = TransactingPower(password=INSECURE_DEVELOPMENT_PASSWORD,
-                                                    signer=Web3Signer(client=testerchain.client),
-                                                    account=account)
-        staker.transacting_power.activate()
+        staker = Staker(is_me=True,
+                        transacting_power=tpower,
+                        domain=TEMPORARY_DOMAIN,
+                        checksum_address=account,
+                        registry=test_registry)
 
         amount = MIN_STAKE_FOR_TESTS + random.randrange(BONUS_TOKENS_FOR_TESTS)
 
@@ -646,7 +642,7 @@ def stakers(testerchain, agency, token_economics, test_registry):
 
         stakers.append(staker)
 
-    # Stake starts next period (or else signature validation will fail)
+    # Stake starts next period
     blockchain.time_travel(periods=1)
 
     yield stakers
@@ -687,21 +683,20 @@ def blockchain_ursulas(testerchain, stakers, ursula_decentralized_test_config):
 
 
 @pytest.fixture(scope="module")
-def idle_staker(testerchain, agency):
-    token_agent, _staking_agent, _policy_agent = agency
-
+def idle_staker(testerchain, agency, test_registry):
+    token_agent = ContractAgency.get_agent(NucypherTokenAgent, registry=test_registry)
     idle_staker_account = testerchain.unassigned_accounts[-2]
-
-    # Mock Powerup consumption (Deployer)
-    testerchain.transacting_power = TransactingPower(account=testerchain.etherbase_account)
-
-    token_airdrop(origin=testerchain.etherbase_account,
+    transacting_power = TransactingPower(account=testerchain.etherbase_account,
+                                         signer=Web3Signer(testerchain.client))
+    token_airdrop(transacting_power=transacting_power,
                   addresses=[idle_staker_account],
                   token_agent=token_agent,
                   amount=DEVELOPMENT_TOKEN_AIRDROP_AMOUNT)
 
     # Prepare idle staker
     idle_staker = Staker(is_me=True,
+                         transacting_power=transacting_power,
+                         domain=TEMPORARY_DOMAIN,
                          checksum_address=idle_staker_account,
                          blockchain=testerchain)
     yield idle_staker
@@ -730,12 +725,15 @@ def funded_blockchain(testerchain, agency, token_economics, test_registry):
     # Who are ya'?
     deployer_address, *everyone_else, staking_participant = testerchain.client.accounts
 
+    transacting_power = TransactingPower(account=testerchain.etherbase_account,
+                                         signer=Web3Signer(testerchain.client))
+
     # Free ETH!!!
     testerchain.ether_airdrop(amount=DEVELOPMENT_ETH_AIRDROP_AMOUNT)
 
     # Free Tokens!!!
     token_airdrop(token_agent=NucypherTokenAgent(registry=test_registry),
-                  origin=deployer_address,
+                  transacting_power=transacting_power,
                   addresses=everyone_else,
                   amount=token_economics.minimum_allowed_locked * 5)
 
@@ -765,7 +763,7 @@ def stakeholder_config_file_location():
 
 @pytest.fixture(scope='module')
 def software_stakeholder(testerchain, agency, stakeholder_config_file_location, test_registry):
-    token_agent, staking_agent, policy_agent = agency
+    token_agent = ContractAgency.get_agent(NucypherTokenAgent, registry=test_registry)
 
     # Setup
     path = stakeholder_config_file_location
@@ -790,14 +788,18 @@ def software_stakeholder(testerchain, agency, stakeholder_config_file_location, 
     transacting_power = TransactingPower(account=testerchain.etherbase_account,
                                          signer=Web3Signer(testerchain.client),
                                          password=INSECURE_DEVELOPMENT_PASSWORD)
-    transacting_power.activate()
 
     token_agent.transfer(amount=NU(200_000, 'NU').to_nunits(),
-                         sender_address=testerchain.etherbase_account,
+                         transacting_power=transacting_power,
                          target_address=address)
 
     # Create stakeholder from on-chain values given accounts over a web3 provider
-    stakeholder = StakeHolder(registry=test_registry, initial_address=address)
+    signer = Web3Signer(testerchain.client)
+    signer.unlock_account(account=address, password=INSECURE_DEVELOPMENT_PASSWORD)
+    stakeholder = StakeHolder(registry=test_registry,
+                              domain=TEMPORARY_DOMAIN,
+                              signer=signer,
+                              initial_address=address)
 
     # Teardown
     yield stakeholder
@@ -813,8 +815,9 @@ def stakeholder_configuration(testerchain, agency_local_registry):
 
 
 @pytest.fixture(scope='module')
-def manual_staker(testerchain, agency):
-    token_agent, staking_agent, policy_agent = agency
+def manual_staker(testerchain, agency, test_registry):
+    token_agent = ContractAgency.get_agent(NucypherTokenAgent, registry=test_registry)
+    tpower = TransactingPower(account=testerchain.etherbase_account, signer=Web3Signer(testerchain.client))
 
     # its okay to add this key if it already exists.
     address = '0xaaa23A5c74aBA6ca5E7c09337d5317A7C4563075'
@@ -831,7 +834,7 @@ def manual_staker(testerchain, agency):
     _receipt = testerchain.wait_for_receipt(txhash)
 
     token_agent.transfer(amount=NU(200_000, 'NU').to_nunits(),
-                         sender_address=testerchain.etherbase_account,
+                         transacting_power=tpower,
                          target_address=address)
 
     yield address
@@ -865,7 +868,6 @@ def log_in_and_out_of_test(request):
     test_name = request.node.name
     module_name = request.module.__name__
 
-
     test_logger.info(f"Starting {module_name}.py::{test_name}")
     yield
     test_logger.info(f"Finalized {module_name}.py::{test_name}")
@@ -874,12 +876,13 @@ def log_in_and_out_of_test(request):
 @pytest.fixture(scope="module")
 def deploy_contract(testerchain, test_registry) -> Callable[..., Tuple[Contract, TxReceipt]]:
     def wrapped(contract_name, *args, **kwargs):
-        return testerchain.deploy_contract(testerchain.etherbase_account,
+        tpower = TransactingPower(account=testerchain.etherbase_account,
+                                  signer=Web3Signer(testerchain.client))
+        return testerchain.deploy_contract(tpower,
                                            test_registry,
                                            contract_name,
                                            *args,
                                            **kwargs)
-
     return wrapped
 
 
@@ -891,17 +894,6 @@ def get_random_checksum_address():
         return checksum_address
 
     return _get_random_checksum_address
-
-
-@pytest.fixture(scope='module')
-def mock_transacting_power_activation(testerchain):
-    def _mock_transacting_power_activation(password, account):
-        testerchain.transacting_power = TransactingPower(password=password,
-                                                         signer=Web3Signer(testerchain.client),
-                                                         account=account)
-        testerchain.transacting_power.activate()
-
-    return _mock_transacting_power_activation
 
 
 @pytest.fixture(scope="module")

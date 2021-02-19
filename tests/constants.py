@@ -90,12 +90,6 @@ DATETIME_FORMAT = "%Y-%m-%d_%H-%M-%S.%f"
 
 MOCK_CUSTOM_INSTALLATION_PATH = BASE_TEMP_DIR / f'{BASE_TEMP_PREFIX}test-custom-{datetime.now().strftime(DATETIME_FORMAT)}'
 
-MOCK_ALLOCATION_INFILE = BASE_TEMP_DIR / f'{BASE_TEMP_PREFIX}test-allocations-{datetime.now().strftime(DATETIME_FORMAT)}.json'
-
-MOCK_ALLOCATION_REGISTRY_FILEPATH = BASE_TEMP_DIR / f'{BASE_TEMP_PREFIX}test-allocation-registry-{datetime.now().strftime(DATETIME_FORMAT)}.json'
-
-MOCK_INDIVIDUAL_ALLOCATION_FILEPATH = BASE_TEMP_DIR / f'{BASE_TEMP_PREFIX}test-individual-allocation-{datetime.now().strftime(DATETIME_FORMAT)}.json'
-
 MOCK_CUSTOM_INSTALLATION_PATH_2 = BASE_TEMP_DIR / f'{BASE_TEMP_PREFIX}test-custom-2-{datetime.now().strftime(DATETIME_FORMAT)}'
 
 MOCK_REGISTRY_FILEPATH = BASE_TEMP_DIR / f'{BASE_TEMP_PREFIX}mock-registry-{datetime.now().strftime(DATETIME_FORMAT)}.json'

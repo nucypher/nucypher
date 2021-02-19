@@ -23,10 +23,9 @@ from nucypher.crypto.api import keccak_digest
 from nucypher.datastore.models import PolicyArrangement
 from nucypher.datastore.models import TreasureMap as DatastoreTreasureMap
 from nucypher.policy.collections import SignedTreasureMap as DecentralizedTreasureMap
-from tests.utils.middleware import MockRestMiddleware
 
 
-def test_decentralized_grant(blockchain_alice, blockchain_bob, blockchain_ursulas, agency):
+def test_decentralized_grant(blockchain_alice, blockchain_bob, blockchain_ursulas):
     # Setup the policy details
     n = 3
     policy_end_datetime = maya.now() + datetime.timedelta(days=5)
@@ -58,7 +57,7 @@ def test_decentralized_grant(blockchain_alice, blockchain_bob, blockchain_ursula
             assert bool(retrieved_kfrag) # TODO: try to assemble them back?
 
 
-def test_alice_sets_treasure_map_decentralized(enacted_blockchain_policy, blockchain_alice, blockchain_bob):
+def test_alice_sets_treasure_map_decentralized(enacted_blockchain_policy, blockchain_alice, blockchain_bob, blockchain_ursulas):
     """
     Same as test_alice_sets_treasure_map except with a blockchain policy.
     """

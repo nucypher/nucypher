@@ -38,13 +38,8 @@ def test_transacting_power_sign_message(testerchain):
                              signer=Web3Signer(testerchain.client),
                              account=eth_address)
 
-    # The default state of the account is locked.
-    # Test a signature without unlocking the account
-    with pytest.raises(power.AccountLocked):
-        power.sign_message(message=b'test')
-
     # Manually unlock
-    power.unlock_account(password=INSECURE_DEVELOPMENT_PASSWORD)
+    power.unlock(password=INSECURE_DEVELOPMENT_PASSWORD)
 
     # Sign
     data_to_sign = b'Premium Select Luxury Pencil Holder'
@@ -60,13 +55,6 @@ def test_transacting_power_sign_message(testerchain):
                                  signature=signature)
     assert is_verified is False
 
-    # Test lockAccount call
-    power.lock_account()
-
-    # Test a signature without unlocking the account
-    with pytest.raises(power.AccountLocked):
-        power.sign_message(message=b'test')
-
 
 def test_transacting_power_sign_transaction(testerchain):
 
@@ -74,9 +62,6 @@ def test_transacting_power_sign_transaction(testerchain):
     power = TransactingPower(password=INSECURE_DEVELOPMENT_PASSWORD,
                              signer=Web3Signer(testerchain.client),
                              account=eth_address)
-
-    assert power.is_active is False
-    assert power.is_unlocked is False
 
     transaction_dict = {'nonce': testerchain.client.w3.eth.getTransactionCount(eth_address),
                         'gasPrice': testerchain.client.w3.eth.gasPrice,
@@ -86,16 +71,8 @@ def test_transacting_power_sign_transaction(testerchain):
                         'value': 1,
                         'data': b''}
 
-    # The default state of the account is locked.
-    assert not power.is_unlocked
-
-    # Test a signature without unlocking the account
-    with pytest.raises(power.AccountLocked):
-        power.sign_transaction(transaction_dict=transaction_dict)
-
     # Sign
     power.activate()
-    assert power.is_unlocked is True
     signed_transaction = power.sign_transaction(transaction_dict=transaction_dict)
 
     # Demonstrate that the transaction is valid RLP encoded.
@@ -110,19 +87,6 @@ def test_transacting_power_sign_transaction(testerchain):
     with pytest.raises(TypeError):
         power.sign_transaction(transaction_dict=transaction_dict)
 
-    # Try signing with a re-locked account.
-    power.lock_account()
-    with pytest.raises(power.AccountLocked):
-        power.sign_transaction(transaction_dict=transaction_dict)
-
-    power.unlock_account(password=INSECURE_DEVELOPMENT_PASSWORD)
-    assert power.is_unlocked is True
-
-    # Tear-Down Test
-    power = TransactingPower(password=INSECURE_DEVELOPMENT_PASSWORD,
-                             signer=Web3Signer(testerchain.client),
-                             account=testerchain.etherbase_account)
-    power.activate(password=INSECURE_DEVELOPMENT_PASSWORD)
 
 
 def test_transacting_power_sign_agent_transaction(testerchain, agency, test_registry):
@@ -141,7 +105,6 @@ def test_transacting_power_sign_agent_transaction(testerchain, agency, test_regi
     transacting_power = TransactingPower(password=INSECURE_DEVELOPMENT_PASSWORD,
                                          signer=Web3Signer(testerchain.client),
                                          account=testerchain.etherbase_account)
-    transacting_power.activate()
     signed_raw_transaction = transacting_power.sign_transaction(unsigned_transaction)
 
     # Demonstrate that the transaction is valid RLP encoded.

@@ -26,7 +26,7 @@ MAX_PERIODS_SECOND_PHASE = 100
 
 
 @pytest.mark.nightly
-def test_reward(testerchain, agency, token_economics, mock_transacting_power_activation):
+def test_reward(testerchain, agency, token_economics):
     testerchain.time_travel(hours=1)
     token_agent, staking_agent, _policy_agent = agency
     origin = testerchain.etherbase_account
@@ -36,7 +36,6 @@ def test_reward(testerchain, agency, token_economics, mock_transacting_power_act
     _txhash = token_agent.transfer(amount=token_economics.minimum_allowed_locked,
                                    target_address=ursula,
                                    sender_address=origin)
-    mock_transacting_power_activation(account=ursula, password=INSECURE_DEVELOPMENT_PASSWORD)
     _txhash = token_agent.approve_transfer(amount=token_economics.minimum_allowed_locked,
                                            spender_address=staking_agent.contract_address,
                                            sender_address=ursula)

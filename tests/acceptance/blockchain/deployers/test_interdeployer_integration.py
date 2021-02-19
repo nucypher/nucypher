@@ -15,12 +15,25 @@ You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
+
 import pytest
 from constant_sorrow import constants
 
-from nucypher.blockchain.eth.agents import AdjudicatorAgent, ContractAgency, NucypherTokenAgent, StakingEscrowAgent
-from nucypher.blockchain.eth.deployers import (AdjudicatorDeployer, BaseContractDeployer, NucypherTokenDeployer,
-                                               PolicyManagerDeployer, StakingEscrowDeployer)
+from nucypher.blockchain.eth.signers.software import Web3Signer
+from nucypher.crypto.powers import TransactingPower
+from nucypher.blockchain.eth.agents import (
+    AdjudicatorAgent,
+    ContractAgency,
+    NucypherTokenAgent,
+    StakingEscrowAgent
+)
+from nucypher.blockchain.eth.deployers import (
+    AdjudicatorDeployer,
+    BaseContractDeployer,
+    NucypherTokenDeployer,
+    PolicyManagerDeployer,
+    StakingEscrowDeployer
+)
 
 
 def test_deploy_ethereum_contracts(testerchain,
@@ -28,18 +41,19 @@ def test_deploy_ethereum_contracts(testerchain,
                                    test_registry):
 
     origin, *everybody_else = testerchain.client.accounts
+    tpower = TransactingPower(account=origin,
+                              signer=Web3Signer(testerchain.client))
 
     #
     # Nucypher Token
     #
-    token_deployer = NucypherTokenDeployer(registry=test_registry, deployer_address=origin)
-    assert token_deployer.deployer_address == origin
+    token_deployer = NucypherTokenDeployer(registry=test_registry)
 
     with pytest.raises(BaseContractDeployer.ContractDeploymentError):
         assert token_deployer.contract_address is constants.CONTRACT_NOT_DEPLOYED
     assert not token_deployer.is_deployed()
 
-    token_deployer.deploy(progress=deployment_progress)
+    token_deployer.deploy(progress=deployment_progress, transacting_power=tpower)
     assert token_deployer.is_deployed()
     assert len(token_deployer.contract_address) == 42
 
@@ -54,16 +68,13 @@ def test_deploy_ethereum_contracts(testerchain,
     #
     # StakingEscrowStub
     #
-    staking_escrow_deployer = StakingEscrowDeployer(
-        registry=test_registry,
-        deployer_address=origin)
-    assert staking_escrow_deployer.deployer_address == origin
+    staking_escrow_deployer = StakingEscrowDeployer(registry=test_registry)
 
     with pytest.raises(BaseContractDeployer.ContractDeploymentError):
         assert staking_escrow_deployer.contract_address is constants.CONTRACT_NOT_DEPLOYED
     assert not staking_escrow_deployer.is_deployed()
 
-    staking_escrow_deployer.deploy(progress=deployment_progress)
+    staking_escrow_deployer.deploy(progress=deployment_progress, transacting_power=tpower)
     assert not staking_escrow_deployer.is_deployed()
     assert len(staking_escrow_deployer.contract_address) == 42
 
@@ -71,17 +82,13 @@ def test_deploy_ethereum_contracts(testerchain,
     #
     # Policy Manager
     #
-    policy_manager_deployer = PolicyManagerDeployer(
-        registry=test_registry,
-        deployer_address=origin)
-
-    assert policy_manager_deployer.deployer_address == origin
+    policy_manager_deployer = PolicyManagerDeployer(registry=test_registry)
 
     with pytest.raises(BaseContractDeployer.ContractDeploymentError):
         assert policy_manager_deployer.contract_address is constants.CONTRACT_NOT_DEPLOYED
     assert not policy_manager_deployer.is_deployed()
 
-    policy_manager_deployer.deploy(progress=deployment_progress)
+    policy_manager_deployer.deploy(progress=deployment_progress, transacting_power=tpower)
     assert policy_manager_deployer.is_deployed()
     assert len(policy_manager_deployer.contract_address) == 42
 
@@ -97,17 +104,13 @@ def test_deploy_ethereum_contracts(testerchain,
     #
     # Adjudicator
     #
-    adjudicator_deployer = AdjudicatorDeployer(
-        registry=test_registry,
-        deployer_address=origin)
-
-    assert adjudicator_deployer.deployer_address == origin
+    adjudicator_deployer = AdjudicatorDeployer(registry=test_registry)
 
     with pytest.raises(BaseContractDeployer.ContractDeploymentError):
         assert adjudicator_deployer.contract_address is constants.CONTRACT_NOT_DEPLOYED
     assert not adjudicator_deployer.is_deployed()
 
-    adjudicator_deployer.deploy(progress=deployment_progress)
+    adjudicator_deployer.deploy(progress=deployment_progress, transacting_power=tpower)
     assert adjudicator_deployer.is_deployed()
     assert len(adjudicator_deployer.contract_address) == 42
 
@@ -120,17 +123,15 @@ def test_deploy_ethereum_contracts(testerchain,
     assert another_adjudicator_agent.contract_address == adjudicator_deployer.contract_address == adjudicator_agent.contract_address
 
     # StakingEscrow
-    #
-    staking_escrow_deployer = StakingEscrowDeployer(
-        registry=test_registry,
-        deployer_address=origin)
-    assert staking_escrow_deployer.deployer_address == origin
+    staking_escrow_deployer = StakingEscrowDeployer(registry=test_registry)
 
     with pytest.raises(BaseContractDeployer.ContractDeploymentError):
         assert staking_escrow_deployer.contract_address is constants.CONTRACT_NOT_DEPLOYED
     assert not staking_escrow_deployer.is_deployed()
 
-    staking_escrow_deployer.deploy(progress=deployment_progress, deployment_mode=constants.FULL)
+    staking_escrow_deployer.deploy(progress=deployment_progress,
+                                   deployment_mode=constants.FULL,
+                                   transacting_power=tpower)
     assert staking_escrow_deployer.is_deployed()
     assert len(staking_escrow_deployer.contract_address) == 42
 

@@ -14,17 +14,21 @@
  You should have received a copy of the GNU Affero General Public License
  along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
-from typing import Callable, List
+
 
 import click
 import pytest
+from typing import Callable, List
 
+from tests.constants import INSECURE_DEVELOPMENT_PASSWORD
 from nucypher.blockchain.eth.actors import StakeHolder
 from nucypher.blockchain.eth.constants import NULL_ADDRESS
+from nucypher.blockchain.eth.signers.software import Web3Signer
 from nucypher.blockchain.eth.token import Stake
 from nucypher.cli.actions.select import select_stake
 from nucypher.cli.literature import NO_STAKES_FOUND, ONLY_DISPLAYING_DIVISIBLE_STAKES_NOTE
 from nucypher.cli.painting.staking import STAKER_TABLE_COLUMNS, STAKE_TABLE_COLUMNS
+from nucypher.config.constants import TEMPORARY_DOMAIN
 from nucypher.types import SubStakeInfo, StakerInfo
 
 
@@ -99,7 +103,7 @@ def current_period(mock_staking_agent):
 
 
 @pytest.fixture()
-def stakeholder(current_period, mock_staking_agent, test_registry):
+def stakeholder(current_period, mock_staking_agent, test_registry, mock_testerchain):
     mock_staking_agent.get_current_period.return_value = current_period
 
     staker_info = StakerInfo(current_committed_period=current_period-1,
@@ -113,7 +117,9 @@ def stakeholder(current_period, mock_staking_agent, test_registry):
                              flags=bytes())
     mock_staking_agent.get_staker_info.return_value = staker_info
 
-    return StakeHolder(registry=test_registry)
+    return StakeHolder(registry=test_registry,
+                       domain=TEMPORARY_DOMAIN,
+                       signer=Web3Signer(mock_testerchain.client))
 
 
 def assert_stake_table_painted(output: str) -> None:
@@ -146,11 +152,11 @@ def test_handle_selection_with_with_no_editable_stakes(test_emitter,
 
     mock_staking_agent.get_all_stakes.return_value = mock_stakes
     staker = mock_testerchain.unassigned_accounts[0]
-    stakeholder.set_staker(staker)
+    stakeholder.assimilate(staker, password=INSECURE_DEVELOPMENT_PASSWORD)
 
     # Test
     with pytest.raises(click.Abort):
-        select_stake(emitter=test_emitter, staker=stakeholder)
+        select_stake(emitter=test_emitter, staker=stakeholder.staker)
 
     # Examine
     captured = capsys.readouterr()
@@ -183,7 +189,7 @@ def test_select_editable_stake(test_emitter,
 
     mock_staking_agent.get_all_stakes.return_value = mock_stakes
     staker = mock_testerchain.unassigned_accounts[0]
-    stakeholder.set_staker(staker)
+    stakeholder.assimilate(staker, password=INSECURE_DEVELOPMENT_PASSWORD)
 
     selection = len(mock_stakes) - 1
     expected_stake = Stake.from_stake_info(stake_info=mock_stakes[selection],
@@ -194,7 +200,7 @@ def test_select_editable_stake(test_emitter,
 
     # User's selection
     mock_stdin.line(str(selection))
-    selected_stake = select_stake(emitter=test_emitter, staker=stakeholder)
+    selected_stake = select_stake(emitter=test_emitter, staker=stakeholder.staker)
 
     # Check stake accuracy
     assert isinstance(selected_stake, Stake)
@@ -222,11 +228,11 @@ def test_handle_selection_with_no_divisible_stakes(test_emitter,
 
     mock_staking_agent.get_all_stakes.return_value = mock_stakes
     staker = mock_testerchain.unassigned_accounts[0]
-    stakeholder.set_staker(staker)
+    stakeholder.assimilate(staker, password=INSECURE_DEVELOPMENT_PASSWORD)
 
     # FAILURE: Divisible only with no divisible stakes on chain
     with pytest.raises(click.Abort):
-        select_stake(emitter=test_emitter, staker=stakeholder, stakes_status=Stake.Status.DIVISIBLE)
+        select_stake(emitter=test_emitter, staker=stakeholder.staker, stakes_status=Stake.Status.DIVISIBLE)
 
     # Divisible warning was displayed, but having
     # no divisible stakes cases an expected failure
@@ -259,7 +265,7 @@ def test_select_divisible_stake(test_emitter,
 
     mock_staking_agent.get_all_stakes.return_value = mock_stakes
     staker = mock_testerchain.unassigned_accounts[0]
-    stakeholder.set_staker(staker)
+    stakeholder.assimilate(staker, password=INSECURE_DEVELOPMENT_PASSWORD)
 
     selection = len(mock_stakes) - 1
     expected_stake = Stake.from_stake_info(stake_info=mock_stakes[selection],
@@ -270,7 +276,7 @@ def test_select_divisible_stake(test_emitter,
 
     # SUCCESS: Display all divisible-only stakes and make a selection
     mock_stdin.line(str(selection))
-    selected_stake = select_stake(emitter=test_emitter, staker=stakeholder, stakes_status=Stake.Status.DIVISIBLE)
+    selected_stake = select_stake(emitter=test_emitter, staker=stakeholder.staker, stakes_status=Stake.Status.DIVISIBLE)
 
     assert isinstance(selected_stake, Stake)
     assert selected_stake == expected_stake
@@ -305,7 +311,7 @@ def test_select_using_filter_function(test_emitter,
 
     mock_staking_agent.get_all_stakes.return_value = mock_stakes
     staker = mock_testerchain.unassigned_accounts[0]
-    stakeholder.set_staker(staker)
+    stakeholder.assimilate(staker, password=INSECURE_DEVELOPMENT_PASSWORD)
 
     selection = len(mock_stakes) - 1
     expected_stake = Stake.from_stake_info(stake_info=mock_stakes[selection],
@@ -317,7 +323,7 @@ def test_select_using_filter_function(test_emitter,
     # SUCCESS: Display all editable-only stakes with specified final period
     mock_stdin.line(str(selection))
     selected_stake = select_stake(emitter=test_emitter,
-                                  staker=stakeholder,
+                                  staker=stakeholder.staker,
                                   stakes_status=Stake.Status.LOCKED,
                                   filter_function=lambda stake: stake.final_locked_period == current_period)
 
@@ -352,12 +358,12 @@ def test_no_stakes_with_filter_function(test_emitter,
 
     mock_staking_agent.get_all_stakes.return_value = mock_stakes
     staker = mock_testerchain.unassigned_accounts[0]
-    stakeholder.set_staker(staker)
+    stakeholder.assimilate(staker, password=INSECURE_DEVELOPMENT_PASSWORD)
 
     # FAILURE: no stakes with specified final period
     with pytest.raises(click.Abort):
         select_stake(emitter=test_emitter,
-                     staker=stakeholder,
+                     staker=stakeholder.staker,
                      stakes_status=Stake.Status.LOCKED,
                      filter_function=lambda stake: stake.final_locked_period == current_period)
 
