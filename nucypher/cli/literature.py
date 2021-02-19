@@ -125,7 +125,7 @@ See https://docs.nucypher.com/en/latest/staking/running_a_worker.html
 #
 # Events
 #
-CONFIRM_OVERWRITE_EVENTS_CSV_FILE = "\nOverwrite existing CSV file - {csv_file}?"
+CONFIRM_OVERWRITE_EVENTS_CSV_FILE = "\nOverwrite existing CSV events file - {csv_file}?"
 
 #
 # Minting

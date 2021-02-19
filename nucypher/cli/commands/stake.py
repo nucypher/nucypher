@@ -18,7 +18,6 @@ from decimal import Decimal
 from pathlib import Path
 
 import click
-import maya
 from web3 import Web3
 
 from nucypher.blockchain.eth.actors import StakeHolder
@@ -126,7 +125,7 @@ from nucypher.cli.types import (
 )
 from nucypher.cli.utils import setup_emitter
 from nucypher.config.characters import StakeHolderConfiguration
-from nucypher.utilities.events import write_events_to_csv_file
+from nucypher.utilities.events import write_events_to_csv_file, generate_events_csv_file
 from nucypher.utilities.gas_strategies import construct_fixed_price_gas_strategy
 
 option_csv = click.option('--csv', help="Write event data to a CSV file using a default filename in the current directory",
@@ -1315,7 +1314,7 @@ def events(general_config, staker_options, config_file, event_name, csv, csv_fil
         csv_output_file = csv_file
         if not csv_output_file:
             # use default file path if not specified
-            csv_output_file = f'./{event_name}_{maya.now().datetime().strftime("%Y-%m-%d_%H-%M-%S")}.csv'
+            csv_output_file = generate_events_csv_file(event_name)
 
         if Path(csv_output_file).exists():
             click.confirm(CONFIRM_OVERWRITE_EVENTS_CSV_FILE.format(csv_file=csv_output_file), abort=True)
