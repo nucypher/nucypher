@@ -15,8 +15,11 @@ You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
+
 import pytest
 
+from nucypher.blockchain.eth.signers.software import Web3Signer
+from nucypher.crypto.powers import TransactingPower
 from nucypher.blockchain.eth.agents import MultiSigAgent
 from nucypher.blockchain.eth.constants import NULL_ADDRESS
 from nucypher.blockchain.eth.deployers import MultiSigDeployer
@@ -26,31 +29,33 @@ def test_multisig_deployer_and_agent(testerchain,
                                      deployment_progress,
                                      test_registry):
     origin = testerchain.etherbase_account
-    multisig_deployer = MultiSigDeployer(deployer_address=origin, registry=test_registry)
+    tpower = TransactingPower(account=origin, signer=Web3Signer(testerchain.client))
+
+    multisig_deployer = MultiSigDeployer(registry=test_registry)
 
     # Can't have a threshold of 0
     with pytest.raises(ValueError):
         owners = testerchain.unassigned_accounts[0:3]
-        _ = multisig_deployer.deploy(threshold=0, owners=owners)
+        _ = multisig_deployer.deploy(threshold=0, owners=owners, transacting_power=tpower)
 
     # Can't have no owners
     with pytest.raises(ValueError):
-        _ = multisig_deployer.deploy(threshold=1, owners=[])
+        _ = multisig_deployer.deploy(threshold=1, owners=[], transacting_power=tpower)
 
     # Can't have the zero address as an owner
     with pytest.raises(ValueError):
         owners = testerchain.unassigned_accounts[0:3] + [NULL_ADDRESS]
-        _ = multisig_deployer.deploy(threshold=1, owners=owners)
+        _ = multisig_deployer.deploy(threshold=1, owners=owners, transacting_power=tpower)
 
     # Can't have repeated owners
     with pytest.raises(ValueError):
         owners = testerchain.unassigned_accounts[0] * 3
-        _ = multisig_deployer.deploy(threshold=1, owners=owners)
+        _ = multisig_deployer.deploy(threshold=1, owners=owners, transacting_power=tpower)
 
     # At last, sane initialization arguments for the MultiSig
     threshold = 2
     owners = testerchain.unassigned_accounts[0:3]
-    receipts = multisig_deployer.deploy(threshold=threshold, owners=owners)
+    receipts = multisig_deployer.deploy(threshold=threshold, owners=owners, transacting_power=tpower)
     for step in multisig_deployer.deployment_steps:
         assert receipts[step]['status'] == 1
 

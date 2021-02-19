@@ -42,9 +42,7 @@ def test_worker_auto_commitments(mocker,
                                  staker,
                                  agency,
                                  token_economics,
-                                 mock_transacting_power_activation,
                                  ursula_decentralized_test_config):
-    mock_transacting_power_activation(account=staker.checksum_address, password=INSECURE_DEVELOPMENT_PASSWORD)
 
     staker.initialize_stake(amount=NU(token_economics.minimum_allowed_locked, 'NuNit'),
                             lock_periods=int(token_economics.minimum_locked_periods))

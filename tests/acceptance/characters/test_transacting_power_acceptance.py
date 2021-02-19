@@ -45,11 +45,6 @@ def test_character_transacting_power_signing(testerchain, agency, test_registry)
     power = signer._crypto_power.power_ups(TransactingPower)
 
     assert power == transacting_power
-    assert testerchain.transacting_power == power
-
-    assert power.is_active is True
-    assert power.is_unlocked is True
-    assert testerchain.transacting_power.is_unlocked is True
 
     # Sign Message
     data_to_sign = b'Premium Select Luxury Pencil Holder'

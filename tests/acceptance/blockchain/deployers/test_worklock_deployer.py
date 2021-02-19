@@ -25,8 +25,8 @@ from nucypher.blockchain.eth.deployers import WorklockDeployer
 
 
 @pytest.fixture(scope='module')
-def baseline_deployment(adjudicator_deployer):
-    adjudicator_deployer.deploy()
+def baseline_deployment(adjudicator_deployer, transacting_power):
+    adjudicator_deployer.deploy(transacting_power=transacting_power)
 
 
 @pytest.fixture(scope="module")
@@ -34,9 +34,7 @@ def worklock_deployer(baseline_deployment,
                       testerchain,
                       test_registry,
                       token_economics):
-    worklock_deployer = WorklockDeployer(registry=test_registry,
-                                         economics=token_economics,
-                                         deployer_address=testerchain.etherbase_account)
+    worklock_deployer = WorklockDeployer(registry=test_registry, economics=token_economics)
     return worklock_deployer
 
 
@@ -45,11 +43,13 @@ def test_worklock_deployment(worklock_deployer,
                              staking_escrow_stub_deployer,
                              deployment_progress,
                              test_registry,
-                             testerchain):
+                             testerchain,
+                             transacting_power):
 
     # Deploy
     assert worklock_deployer.contract_name == WORKLOCK_CONTRACT_NAME
-    deployment_receipts = worklock_deployer.deploy(progress=deployment_progress)    # < ---- DEPLOY
+    deployment_receipts = worklock_deployer.deploy(progress=deployment_progress,
+                                                   transacting_power=transacting_power)    # < ---- DEPLOY
 
     # deployment steps must match expected number of steps
     steps = worklock_deployer.deployment_steps

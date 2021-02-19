@@ -15,6 +15,7 @@
  along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
+
 from unittest import mock
 
 import os
@@ -22,6 +23,8 @@ import pytest_twisted
 from twisted.internet import threads
 from twisted.internet.task import Clock
 
+from nucypher.blockchain.eth.signers.software import Web3Signer
+from nucypher.crypto.powers import TransactingPower
 from nucypher.blockchain.eth.actors import Staker
 from nucypher.blockchain.eth.registry import LocalContractRegistry
 from nucypher.blockchain.eth.token import NU
@@ -121,8 +124,12 @@ def test_run_felix(click_runner, testerchain, agency_local_registry):
 
     # Record starting ether balance
     recipient = testerchain.client.accounts[-1]
+    staker_power = TransactingPower(account=recipient, signer=Web3Signer(testerchain.client))
+
     staker = Staker(checksum_address=recipient,
                     registry=agency_local_registry,
+                    domain=TEMPORARY_DOMAIN,
+                    transacting_power=staker_power,
                     is_me=True)
     original_eth_balance = staker.eth_balance
 
@@ -137,6 +144,8 @@ def test_run_felix(click_runner, testerchain, agency_local_registry):
         recipient = testerchain.client.accounts[-1]
         staker = Staker(checksum_address=recipient,
                         registry=agency_local_registry,
+                        domain=TEMPORARY_DOMAIN,
+                        transacting_power=staker_power,
                         is_me=True)
 
         assert staker.token_balance == NU(45000, 'NU')

@@ -99,6 +99,7 @@ def run_entire_cli_lifecycle(click_runner,
     in it's own process using only CLI character control entry points,
     and a mock side channel that runs in the control process
     """
+
     federated = list(ursulas)[0].federated_only
 
     # Boring Setup Stuff

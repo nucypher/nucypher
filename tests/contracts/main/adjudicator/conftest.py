@@ -22,8 +22,7 @@ from tests.constants import INSECURE_DEVELOPMENT_PASSWORD
 
 
 @pytest.fixture()
-def escrow(testerchain, deploy_contract, mock_transacting_power_activation):
-    mock_transacting_power_activation(account=testerchain.etherbase_account, password=INSECURE_DEVELOPMENT_PASSWORD)
+def escrow(testerchain, deploy_contract):
     escrow, _ = deploy_contract('StakingEscrowForAdjudicatorMock')
     return escrow
 

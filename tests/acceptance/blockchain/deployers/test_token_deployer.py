@@ -14,8 +14,12 @@ GNU Affero General Public License for more details.
 You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
+
+
 import pytest
 
+from nucypher.blockchain.eth.signers.software import Web3Signer
+from nucypher.crypto.powers import TransactingPower
 from nucypher.blockchain.eth.agents import NucypherTokenAgent
 from nucypher.blockchain.eth.deployers import NucypherTokenDeployer
 from nucypher.blockchain.eth.interfaces import BaseContractRegistry
@@ -24,15 +28,16 @@ from nucypher.blockchain.eth.interfaces import BaseContractRegistry
 def test_token_deployer_and_agent(testerchain, deployment_progress, test_registry):
 
     origin = testerchain.etherbase_account
+    tpower = TransactingPower(account=origin, signer=Web3Signer(testerchain.client))
 
     # Trying to get token from blockchain before it's been published should fail
     with pytest.raises(BaseContractRegistry.UnknownContract):
         NucypherTokenAgent(registry=test_registry)
 
     # The big day...
-    deployer = NucypherTokenDeployer(registry=test_registry, deployer_address=origin)
+    deployer = NucypherTokenDeployer(registry=test_registry)
 
-    deployment_receipts = deployer.deploy(progress=deployment_progress)
+    deployment_receipts = deployer.deploy(progress=deployment_progress, transacting_power=tpower)
 
     for title, receipt in deployment_receipts.items():
         assert receipt['status'] == 1

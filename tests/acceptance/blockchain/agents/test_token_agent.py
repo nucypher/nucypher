@@ -14,20 +14,24 @@ GNU Affero General Public License for more details.
 You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
+
+
 import pytest
 from eth_tester.exceptions import TransactionFailed
 
 from nucypher.blockchain.eth.agents import NucypherTokenAgent
 from nucypher.blockchain.eth.deployers import NucypherTokenDeployer
-from tests.constants import INSECURE_DEVELOPMENT_PASSWORD
+from nucypher.blockchain.eth.signers.software import Web3Signer
+from nucypher.crypto.powers import TransactingPower
 
 
 @pytest.fixture(scope='module')
 def agent(testerchain, test_registry) -> NucypherTokenAgent:
     origin, *everybody_else = testerchain.client.accounts
-    token_deployer = NucypherTokenDeployer(registry=test_registry, deployer_address=origin)
+    token_deployer = NucypherTokenDeployer(registry=test_registry)
+    tpower = TransactingPower(account=origin, signer=Web3Signer(testerchain.client))
 
-    token_deployer.deploy()
+    token_deployer.deploy(transacting_power=tpower)
     token_agent = token_deployer.make_agent()
     return token_agent
 
@@ -62,31 +66,29 @@ def test_get_balance(agent, token_economics):
     assert balance == token_economics.erc20_total_supply
 
 
-def test_approve_transfer(agent, token_economics, mock_transacting_power_activation):
+def test_approve_transfer(agent, token_economics):
     testerchain = agent.blockchain
     deployer, someone, *everybody_else = testerchain.client.accounts
-
-    mock_transacting_power_activation(account=someone, password=INSECURE_DEVELOPMENT_PASSWORD)
+    tpower = TransactingPower(account=someone, signer=Web3Signer(testerchain.client))
 
     # Approve
     receipt = agent.approve_transfer(amount=token_economics.minimum_allowed_locked,
                                      spender_address=agent.contract_address,
-                                     sender_address=someone)
+                                     transacting_power=tpower)
 
     assert receipt['status'] == 1, "Transaction Rejected"
     assert receipt['logs'][0]['address'] == agent.contract_address
 
 
-def test_transfer(agent, token_economics, mock_transacting_power_activation):
+def test_transfer(agent, token_economics):
     testerchain = agent.blockchain
     origin, someone, *everybody_else = testerchain.client.accounts
-
-    mock_transacting_power_activation(account=origin, password=INSECURE_DEVELOPMENT_PASSWORD)
+    tpower = TransactingPower(account=origin, signer=Web3Signer(testerchain.client))
 
     old_balance = agent.get_balance(someone)
     receipt = agent.transfer(amount=token_economics.minimum_allowed_locked,
                              target_address=someone,
-                             sender_address=origin)
+                             transacting_power=tpower)
 
     assert receipt['status'] == 1, "Transaction Rejected"
     assert receipt['logs'][0]['address'] == agent.contract_address
@@ -95,19 +97,18 @@ def test_transfer(agent, token_economics, mock_transacting_power_activation):
     assert new_balance == old_balance + token_economics.minimum_allowed_locked
 
 
-def test_approve_and_call(agent, token_economics, mock_transacting_power_activation, deploy_contract):
+def test_approve_and_call(agent, token_economics, deploy_contract):
     testerchain = agent.blockchain
     deployer, someone, *everybody_else = testerchain.client.accounts
 
     mock_target, _ = deploy_contract('ReceiveApprovalMethodMock')
 
-    mock_transacting_power_activation(account=someone, password=INSECURE_DEVELOPMENT_PASSWORD)
-
     # Approve and call
+    tpower = TransactingPower(account=someone, signer=Web3Signer(testerchain.client))
     call_data = b"Good morning, that's a nice tnetennba."
     receipt = agent.approve_and_call(amount=token_economics.minimum_allowed_locked,
                                      target_address=mock_target.address,
-                                     sender_address=someone,
+                                     transacting_power=tpower,
                                      call_data=call_data)
 
     assert receipt['status'] == 1, "Transaction Rejected"

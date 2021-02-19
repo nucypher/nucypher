@@ -15,10 +15,14 @@
  along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
+
 import json
 
 import pytest
 
+from nucypher.blockchain.eth.signers.software import Web3Signer
+from nucypher.crypto.powers import TransactingPower
+from nucypher.config.constants import TEMPORARY_DOMAIN
 from nucypher.blockchain.eth.actors import Worker
 from nucypher.blockchain.eth.agents import ContractAgency, StakingEscrowAgent
 from nucypher.config.characters import StakeHolderConfiguration
@@ -63,11 +67,11 @@ def test_initialize_stake_with_existing_account(testerchain,
                                                 token_economics,
                                                 test_registry):
 
-    assert len(software_stakeholder.stakes) == 0
+    assert len(software_stakeholder.staker.stakes) == 0
 
     # No Stakes
     with pytest.raises(IndexError):
-        _stake = software_stakeholder.stakes[0]
+        _stake = software_stakeholder.staker.stakes[0]
 
     # Really... there are no stakes.
     staking_agent = ContractAgency.get_agent(StakingEscrowAgent, registry=test_registry)
@@ -76,14 +80,15 @@ def test_initialize_stake_with_existing_account(testerchain,
     # Stake, deriving a new account with a password,
     # sending tokens and ethers from the funding account
     # to the staker's account, then initializing a new stake.
-    software_stakeholder.initialize_stake(amount=stake_value, lock_periods=token_economics.minimum_locked_periods)
-    stake = software_stakeholder.stakes[0]
+    software_stakeholder.staker.initialize_stake(amount=stake_value,
+                                                 lock_periods=token_economics.minimum_locked_periods)
+    stake = software_stakeholder.staker.stakes[0]
 
     # Wait for stake to begin
     testerchain.time_travel(periods=1)
 
     # Ensure the stakeholder is tracking the new staker and stake.
-    assert len(software_stakeholder.stakes) == 1
+    assert len(software_stakeholder.staker.stakes) == 1
 
     # Ensure common stake perspective between stakeholder and stake
     assert stake.value == stake_value
@@ -94,14 +99,14 @@ def test_initialize_stake_with_existing_account(testerchain,
 
 
 def test_divide_stake(software_stakeholder, token_economics, test_registry):
-    stake = software_stakeholder.stakes[0]
+    stake = software_stakeholder.staker.stakes[0]
 
     target_value = token_economics.minimum_allowed_locked
     pre_divide_stake_value = stake.value
 
-    software_stakeholder.divide_stake(stake=stake, additional_periods=10, target_value=target_value)
-    original_stake = software_stakeholder.stakes[0]
-    new_stake = software_stakeholder.stakes[-1]
+    software_stakeholder.staker.divide_stake(stake=stake, additional_periods=10, target_value=target_value)
+    original_stake = software_stakeholder.staker.stakes[0]
+    new_stake = software_stakeholder.staker.stakes[-1]
 
     staking_agent = ContractAgency.get_agent(StakingEscrowAgent, registry=test_registry)
     stakes = list(staking_agent.get_all_stakes(staker_address=stake.staker_address))
@@ -111,34 +116,33 @@ def test_divide_stake(software_stakeholder, token_economics, test_registry):
 
 
 def test_bond_worker(software_stakeholder, manual_worker, test_registry):
-    software_stakeholder.bond_worker(worker_address=manual_worker)
+    software_stakeholder.staker.bond_worker(worker_address=manual_worker)
     staking_agent = ContractAgency.get_agent(StakingEscrowAgent, registry=test_registry)
     assert staking_agent.get_worker_from_staker(staker_address=software_stakeholder.checksum_address) == manual_worker
 
 
-def test_collect_inflation_rewards(software_stakeholder, manual_worker, testerchain, test_registry,
-                                   mock_transacting_power_activation):
+def test_collect_inflation_rewards(software_stakeholder, manual_worker, testerchain, test_registry):
 
     # Get stake
-    stake = software_stakeholder.stakes[1]
+    stake = software_stakeholder.staker.stakes[1]
 
     # Make bonded Worker
+    tpower = TransactingPower(account=manual_worker, signer=Web3Signer(testerchain.client))
+    tpower.unlock(password=INSECURE_DEVELOPMENT_PASSWORD)
     worker = Worker(is_me=True,
+                    transacting_power=tpower,
+                    domain=TEMPORARY_DOMAIN,
                     worker_address=manual_worker,
                     checksum_address=stake.staker_address,
                     registry=test_registry)
-
-    mock_transacting_power_activation(account=manual_worker, password=INSECURE_DEVELOPMENT_PASSWORD)
 
     # Wait out stake lock periods, manually make a commitment once per period.
     for period in range(stake.periods_remaining-1):
         worker.commit_to_next_period()
         testerchain.time_travel(periods=1)
 
-    mock_transacting_power_activation(account=stake.staker_address, password=INSECURE_DEVELOPMENT_PASSWORD)
-
     # Collect the staking reward in NU.
-    result = software_stakeholder.collect_staking_reward()
+    result = software_stakeholder.staker.collect_staking_reward()
 
     # TODO: Make Assertions reasonable for this layer.
     #       Consider recycling logic from test_collect_reward_integration CLI test.

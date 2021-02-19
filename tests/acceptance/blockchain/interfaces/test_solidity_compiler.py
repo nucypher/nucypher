@@ -26,7 +26,7 @@ def test_nucypher_contract_compiled(testerchain, test_registry):
     """Ensure that solidity smart contacts are available, post-compile."""
     origin, *everybody_else = testerchain.client.accounts
 
-    token_contract_identifier = NucypherTokenDeployer(registry=test_registry, deployer_address=origin).contract_name
+    token_contract_identifier = NucypherTokenDeployer(registry=test_registry).contract_name
     assert token_contract_identifier in testerchain._raw_contract_cache
     token_data = testerchain._raw_contract_cache[token_contract_identifier]
     assert len(token_data) == 1

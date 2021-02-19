@@ -193,7 +193,10 @@ def test_stake_prolong(click_runner,
                     '--staking-address', manual_staker,
                     '--force')
 
-    staker = Staker(is_me=True, checksum_address=manual_staker, registry=agency_local_registry)
+    staker = Staker(is_me=True,
+                    domain=TEMPORARY_DOMAIN,
+                    checksum_address=manual_staker,
+                    registry=agency_local_registry)
     staker.refresh_stakes()
     stake = staker.stakes[0]
     old_termination = stake.final_locked_period
@@ -342,7 +345,10 @@ def test_stake_bond_worker(click_runner,
                                  catch_exceptions=False)
     assert result.exit_code == 0
 
-    staker = Staker(is_me=True, checksum_address=manual_staker, registry=agency_local_registry)
+    staker = Staker(is_me=True,
+                    domain=TEMPORARY_DOMAIN,
+                    checksum_address=manual_staker,
+                    registry=agency_local_registry)
     assert staker.worker_address == manual_worker
 
 
@@ -414,7 +420,10 @@ def test_stake_restake(click_runner,
                        agency_local_registry,
                        stakeholder_configuration_file_location):
 
-    staker = Staker(is_me=True, checksum_address=manual_staker, registry=agency_local_registry)
+    staker = Staker(is_me=True,
+                    domain=TEMPORARY_DOMAIN,
+                    checksum_address=manual_staker,
+                    registry=agency_local_registry)
     assert staker.is_restaking
 
     restake_args = ('stake', 'restake',
@@ -466,7 +475,10 @@ def test_stake_winddown(click_runner,
                         agency_local_registry,
                         stakeholder_configuration_file_location):
 
-    staker = Staker(is_me=True, checksum_address=manual_staker, registry=agency_local_registry)
+    staker = Staker(is_me=True,
+                    domain=TEMPORARY_DOMAIN,
+                    checksum_address=manual_staker,
+                    registry=agency_local_registry)
     assert not staker.is_winding_down
 
     restake_args = ('stake', 'winddown',
@@ -505,7 +517,10 @@ def test_stake_snapshots(click_runner,
                          agency_local_registry,
                          stakeholder_configuration_file_location):
 
-    staker = Staker(is_me=True, checksum_address=manual_staker, registry=agency_local_registry)
+    staker = Staker(is_me=True,
+                    domain=TEMPORARY_DOMAIN,
+                    checksum_address=manual_staker,
+                    registry=agency_local_registry)
     assert staker.is_taking_snapshots
 
     restake_args = ('stake', 'snapshots',
@@ -547,7 +562,6 @@ def test_collect_rewards_integration(click_runner,
                                      manual_staker,
                                      manual_worker,
                                      token_economics,
-                                     mock_transacting_power_activation,
                                      policy_value,
                                      policy_rate):
 
@@ -558,7 +572,10 @@ def test_collect_rewards_integration(click_runner,
     staker_address = manual_staker
     worker_address = manual_worker
 
-    staker = Staker(is_me=True, checksum_address=staker_address, registry=agency_local_registry)
+    staker = Staker(is_me=True,
+                    domain=TEMPORARY_DOMAIN,
+                    checksum_address=staker_address,
+                    registry=agency_local_registry)
     staker.refresh_stakes()
 
     # The staker is staking.
@@ -582,8 +599,6 @@ def test_collect_rewards_integration(click_runner,
     MOCK_KNOWN_URSULAS_CACHE[ursula_port] = ursula
     assert ursula.worker_address == worker_address
     assert ursula.checksum_address == staker_address
-
-    mock_transacting_power_activation(account=worker_address, password=INSECURE_DEVELOPMENT_PASSWORD)
 
     # Make a commitment for half the first stake duration
     testerchain.time_travel(periods=1)
@@ -667,9 +682,6 @@ def test_collect_rewards_integration(click_runner,
     # At least half of the tokens are unlocked (restaking was enabled for some prior periods)
     assert staker.locked_tokens() >= token_economics.minimum_allowed_locked
 
-    # Since we are mocking the blockchain connection, manually consume the transacting power of the Staker.
-    mock_transacting_power_activation(account=staker_address, password=INSECURE_DEVELOPMENT_PASSWORD)
-
     # Collect Policy Fee
     collection_args = ('stake', 'collect-reward',
                        '--config-file', stakeholder_configuration_file_location,
@@ -728,6 +740,7 @@ def test_stake_unbond_worker(click_runner,
     testerchain.time_travel(periods=1)
 
     staker = Staker(is_me=True,
+                    domain=TEMPORARY_DOMAIN,
                     checksum_address=manual_staker,
                     registry=agency_local_registry)
 
@@ -747,6 +760,7 @@ def test_stake_unbond_worker(click_runner,
     assert result.exit_code == 0
 
     staker = Staker(is_me=True,
+                    domain=TEMPORARY_DOMAIN,
                     checksum_address=manual_staker,
                     registry=agency_local_registry)
 
@@ -761,7 +775,10 @@ def test_set_min_rate(click_runner,
 
     _minimum, _default, maximum = FEE_RATE_RANGE
     min_rate = maximum - 1
-    staker = Staker(is_me=True, checksum_address=manual_staker, registry=agency_local_registry)
+    staker = Staker(is_me=True,
+                    domain=TEMPORARY_DOMAIN,
+                    checksum_address=manual_staker,
+                    registry=agency_local_registry)
     assert staker.raw_min_fee_rate == 0
 
     min_rate_in_gwei = Web3.fromWei(min_rate, 'gwei')
@@ -796,7 +813,10 @@ def test_mint(click_runner,
               stakeholder_configuration_file_location):
 
     testerchain.time_travel(periods=2)
-    staker = Staker(is_me=True, checksum_address=manual_staker, registry=agency_local_registry)
+    staker = Staker(is_me=True,
+                    domain=TEMPORARY_DOMAIN,
+                    checksum_address=manual_staker,
+                    registry=agency_local_registry)
     assert staker.mintable_periods() > 0
     owned_tokens = staker.owned_tokens()
 

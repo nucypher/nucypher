@@ -15,13 +15,14 @@
  along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
+
 import click
 import pytest
 from eth_utils import is_checksum_address
 from unittest.mock import Mock
 from web3 import Web3
 
-from nucypher.blockchain.eth.actors import Wallet
+from nucypher.blockchain.eth.signers.software import Web3Signer
 from nucypher.blockchain.eth.clients import EthereumClient
 from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
 from nucypher.blockchain.eth.signers import KeystoreSigner
@@ -30,7 +31,7 @@ from nucypher.cli.actions.select import select_client_account
 from nucypher.cli.literature import (
     NO_ETH_ACCOUNTS,
     GENERIC_SELECT_ACCOUNT,
-    )
+)
 from nucypher.config.constants import TEMPORARY_DOMAIN
 from nucypher.types import SubStakeInfo
 from tests.constants import MOCK_PROVIDER_URI, MOCK_SIGNER_URI, NUMBER_OF_ETH_TEST_ACCOUNTS
@@ -41,7 +42,9 @@ def test_select_client_account(mock_stdin, test_emitter, mock_testerchain, selec
     """Fine-grained assertions about the return value of interactive client account selection"""
     mock_stdin.line(str(selection))
     expected_account = mock_testerchain.client.accounts[selection]
-    selected_account = select_client_account(emitter=test_emitter, provider_uri=MOCK_PROVIDER_URI)
+    selected_account = select_client_account(emitter=test_emitter,
+                                             signer=Web3Signer(mock_testerchain.client),
+                                             provider_uri=MOCK_PROVIDER_URI)
     assert selected_account, "Account selection returned Falsy instead of an address"
     assert isinstance(selected_account, str), "Selection is not a str"
     assert is_checksum_address(selected_account), "Selection is not a valid checksum address"
@@ -58,20 +61,22 @@ def test_select_client_account_with_no_accounts(mocker,
                                                 capsys):
     mocker.patch.object(EthereumClient, 'accounts', return_value=[])
     with pytest.raises(click.Abort):
-        select_client_account(emitter=test_emitter, provider_uri=MOCK_PROVIDER_URI)
+        select_client_account(emitter=test_emitter,
+                              signer=Web3Signer(mock_testerchain.client),
+                              provider_uri=MOCK_PROVIDER_URI)
     captured = capsys.readouterr()
     assert NO_ETH_ACCOUNTS in captured.out
 
 
-def test_select_client_account_ambiguous_source(mock_stdin, # used to assert the user was not prompted
+def test_select_client_account_ambiguous_source(mock_stdin,  # used to assert the user was not prompted
                                                 test_emitter,
                                                 mock_testerchain):
 
     #
-    # Implicit wallet
+    # Implicit wallet  # TODO: Are all cases covered?
     #
 
-    error_message = "At least a provider URI or signer URI is necessary to select an account"
+    error_message = "At least a provider URI, signer URI or signer must be provided to select an account"
     with pytest.raises(ValueError, match=error_message):
         select_client_account(emitter=test_emitter)
 
@@ -79,25 +84,6 @@ def test_select_client_account_ambiguous_source(mock_stdin, # used to assert the
     with pytest.raises(ValueError, match=error_message):
         select_client_account(emitter=test_emitter, signer=Mock(), signer_uri=MOCK_SIGNER_URI)
 
-    #
-    # Explicit wallet
-    #
-
-    error_message = "If a wallet is provided, don't provide a signer, provider URI, or signer URI."
-    with pytest.raises(ValueError, match=error_message):
-        select_client_account(emitter=test_emitter,
-                              signer_uri=Mock(),
-                              wallet=Mock())
-
-    with pytest.raises(ValueError, match=error_message):
-        select_client_account(emitter=test_emitter,
-                              signer=Mock(),
-                              wallet=Mock())
-
-    with pytest.raises(ValueError, match=error_message):
-        select_client_account(emitter=test_emitter,
-                              provider_uri=Mock(),
-                              wallet=Mock())
 
 
 @pytest.mark.parametrize('selection', range(NUMBER_OF_ETH_TEST_ACCOUNTS))
@@ -112,7 +98,7 @@ def test_select_client_account_valid_sources(mocker,
 
     # From External Signer
     mock_stdin.line(str(selection))
-    mock_signer = mocker.patch.object(KeystoreSigner, 'from_signer_uri')
+    mock_signer = mocker.patch.object(KeystoreSigner, 'from_signer_uri', return_value=Web3Signer(mock_testerchain.client))
     selected_account = select_client_account(emitter=test_emitter, signer_uri=MOCK_SIGNER_URI)
     expected_account = mock_testerchain.client.accounts[selection]
     assert selected_account == expected_account
@@ -124,8 +110,7 @@ def test_select_client_account_valid_sources(mocker,
     # From Wallet
     mock_stdin.line(str(selection))
     expected_account = mock_testerchain.client.accounts[selection]
-    wallet = Wallet(provider_uri=MOCK_PROVIDER_URI)
-    selected_account = select_client_account(emitter=test_emitter, wallet=wallet)
+    selected_account = select_client_account(emitter=test_emitter, signer=Web3Signer(mock_testerchain.client))
     assert selected_account == expected_account
     assert mock_stdin.empty()
     captured = capsys.readouterr()

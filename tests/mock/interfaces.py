@@ -15,19 +15,23 @@
  along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
-import json
-from contextlib import contextmanager
 
+import json
+
+from contextlib import contextmanager
 from typing import Union
 
 from nucypher.blockchain.eth.clients import EthereumClient
 from nucypher.blockchain.eth.constants import PREALLOCATION_ESCROW_CONTRACT_NAME
 from nucypher.blockchain.eth.networks import NetworksInventory
-from nucypher.blockchain.eth.registry import (BaseContractRegistry, CanonicalRegistrySource,
-                                              IndividualAllocationRegistry, RegistrySourceManager)
+from nucypher.blockchain.eth.registry import (
+    BaseContractRegistry,
+    CanonicalRegistrySource,
+    RegistrySourceManager
+)
 from nucypher.config.constants import TEMPORARY_DOMAIN
-from tests.utils.blockchain import TesterBlockchain
 from tests.constants import MOCK_PROVIDER_URI
+from tests.utils.blockchain import TesterBlockchain
 
 
 @contextmanager

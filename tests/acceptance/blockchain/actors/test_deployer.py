@@ -40,7 +40,6 @@ def test_rapid_deployment(token_economics, test_registry, tmpdir, get_random_che
     blockchain.transacting_power = TransactingPower(password=INSECURE_DEVELOPMENT_PASSWORD,
                                                     signer=Web3Signer(blockchain.client),
                                                     account=blockchain.etherbase_account)
-    blockchain.transacting_power.activate()
     deployer_address = blockchain.etherbase_account
 
     administrator = ContractAdministrator(deployer_address=deployer_address,

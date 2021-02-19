@@ -48,18 +48,18 @@ from tests.constants import (
 from constant_sorrow.constants import INIT
 
 
-def token_airdrop(token_agent, amount: NU, origin: str, addresses: List[str]):
+def token_airdrop(token_agent, amount: NU, transacting_power: TransactingPower, addresses: List[str]):
     """Airdrops tokens from creator address to all other addresses!"""
 
     signer = Web3Signer(token_agent.blockchain.client)
-    signer.unlock_account(account=origin, password=INSECURE_DEVELOPMENT_PASSWORD)
+    signer.unlock_account(account=transacting_power.account, password=INSECURE_DEVELOPMENT_PASSWORD)
 
     def txs():
-        args = {'from': origin, 'gasPrice': token_agent.blockchain.client.gas_price}
+        args = {'from': transacting_power.account, 'gasPrice': token_agent.blockchain.client.gas_price}
         for address in addresses:
             contract_function = token_agent.contract.functions.transfer(address, int(amount))
             _receipt = token_agent.blockchain.send_transaction(contract_function=contract_function,
-                                                               sender_address=origin,
+                                                               transacting_power=transacting_power,
                                                                payload=args)
             yield _receipt
 

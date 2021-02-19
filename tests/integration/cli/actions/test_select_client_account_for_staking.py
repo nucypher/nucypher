@@ -17,6 +17,7 @@
 
 
 from nucypher.blockchain.eth.actors import StakeHolder
+from nucypher.blockchain.eth.signers.software import Web3Signer
 from nucypher.cli.actions.select import select_client_account_for_staking
 from nucypher.config.constants import TEMPORARY_DOMAIN
 
@@ -27,16 +28,16 @@ def test_select_client_account_for_staking_cli_action(test_emitter,
                                                       mock_stdin,
                                                       mock_testerchain,
                                                       capsys,
-                                                      mocker,
                                                       mock_staking_agent):
     """Fine-grained assertions about the return value of interactive client account selection"""
-    force = False
     mock_staking_agent.get_all_stakes.return_value = []
 
     selected_index = 0
     selected_account = mock_testerchain.client.accounts[selected_index]
 
-    stakeholder = StakeHolder(registry=test_registry, domain=TEMPORARY_DOMAIN)
+    stakeholder = StakeHolder(registry=test_registry,
+                              domain=TEMPORARY_DOMAIN,
+                              signer=Web3Signer(mock_testerchain.client))
 
     client_account, staking_address = select_client_account_for_staking(emitter=test_emitter,
                                                                         stakeholder=stakeholder,

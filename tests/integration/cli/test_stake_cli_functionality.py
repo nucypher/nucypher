@@ -14,27 +14,59 @@
  You should have received a copy of the GNU Affero General Public License
  along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
-import re
+
 
 import pytest
+import re
 from web3 import Web3
 
+from nucypher.crypto.powers import TransactingPower
 from nucypher.blockchain.eth.actors import Staker, StakeHolder
 from nucypher.blockchain.eth.constants import MAX_UINT16, NULL_ADDRESS
+from nucypher.blockchain.eth.signers.software import Web3Signer
 from nucypher.blockchain.eth.token import NU, Stake
 from nucypher.blockchain.eth.utils import datetime_at_period
 from nucypher.cli.actions.select import select_client_account_for_staking
-from nucypher.cli.commands.stake import stake, StakeHolderConfigOptions, StakerOptions, TransactingStakerOptions
+from nucypher.cli.commands.stake import (
+    stake,
+    StakeHolderConfigOptions,
+    StakerOptions,
+    TransactingStakerOptions
+)
 from nucypher.cli.literature import (
-    NO_TOKENS_TO_WITHDRAW, COLLECTING_TOKEN_REWARD, CONFIRM_COLLECTING_WITHOUT_MINTING,
-    NO_FEE_TO_WITHDRAW, COLLECTING_ETH_FEE, NO_MINTABLE_PERIODS, STILL_LOCKED_TOKENS, CONFIRM_MINTING,
-    PROMPT_PROLONG_VALUE, CONFIRM_PROLONG, SUCCESSFUL_STAKE_PROLONG, PERIOD_ADVANCED_WARNING, PROMPT_STAKE_DIVIDE_VALUE,
-    PROMPT_STAKE_EXTEND_VALUE, CONFIRM_BROADCAST_STAKE_DIVIDE, SUCCESSFUL_STAKE_DIVIDE, SUCCESSFUL_STAKE_INCREASE,
-    PROMPT_STAKE_INCREASE_VALUE, CONFIRM_INCREASING_STAKE, PROMPT_STAKE_CREATE_VALUE,
-    PROMPT_STAKE_CREATE_LOCK_PERIODS, CONFIRM_LARGE_STAKE_VALUE, CONFIRM_LARGE_STAKE_DURATION, CONFIRM_STAGED_STAKE,
-    CONFIRM_BROADCAST_CREATE_STAKE, INSUFFICIENT_BALANCE_TO_INCREASE, MAXIMUM_STAKE_REACHED,
-    INSUFFICIENT_BALANCE_TO_CREATE, ONLY_DISPLAYING_MERGEABLE_STAKES_NOTE, CONFIRM_MERGE, SUCCESSFUL_STAKES_MERGE,
-    CONFIRM_STAKE_USE_UNLOCKED)
+    NO_TOKENS_TO_WITHDRAW,
+    COLLECTING_TOKEN_REWARD,
+    CONFIRM_COLLECTING_WITHOUT_MINTING,
+    NO_FEE_TO_WITHDRAW,
+    COLLECTING_ETH_FEE,
+    NO_MINTABLE_PERIODS,
+    STILL_LOCKED_TOKENS,
+    CONFIRM_MINTING,
+    PROMPT_PROLONG_VALUE,
+    CONFIRM_PROLONG,
+    SUCCESSFUL_STAKE_PROLONG,
+    PERIOD_ADVANCED_WARNING,
+    PROMPT_STAKE_DIVIDE_VALUE,
+    PROMPT_STAKE_EXTEND_VALUE,
+    CONFIRM_BROADCAST_STAKE_DIVIDE,
+    SUCCESSFUL_STAKE_DIVIDE,
+    SUCCESSFUL_STAKE_INCREASE,
+    PROMPT_STAKE_INCREASE_VALUE,
+    CONFIRM_INCREASING_STAKE,
+    PROMPT_STAKE_CREATE_VALUE,
+    PROMPT_STAKE_CREATE_LOCK_PERIODS,
+    CONFIRM_LARGE_STAKE_VALUE,
+    CONFIRM_LARGE_STAKE_DURATION,
+    CONFIRM_STAGED_STAKE,
+    CONFIRM_BROADCAST_CREATE_STAKE,
+    INSUFFICIENT_BALANCE_TO_INCREASE,
+    MAXIMUM_STAKE_REACHED,
+    INSUFFICIENT_BALANCE_TO_CREATE,
+    ONLY_DISPLAYING_MERGEABLE_STAKES_NOTE,
+    CONFIRM_MERGE,
+    SUCCESSFUL_STAKES_MERGE,
+    CONFIRM_STAKE_USE_UNLOCKED
+)
 from nucypher.config.constants import TEMPORARY_DOMAIN
 from nucypher.types import SubStakeInfo, StakerInfo
 from tests.constants import MOCK_PROVIDER_URI, YES, INSECURE_DEVELOPMENT_PASSWORD
@@ -55,6 +87,13 @@ def surrogate_stakers(mock_testerchain, test_registry, mock_staking_agent):
     mock_staking_agent.get_missing_commitments.side_effect = get_missing_commitments
 
     return address_1, address_2
+
+
+@pytest.fixture()
+def surrogate_transacting_power(mock_testerchain, surrogate_stakers):
+    staker = surrogate_stakers[0]
+    power = TransactingPower(account=staker, signer=Web3Signer(mock_testerchain.client))
+    return power
 
 
 @pytest.fixture()
@@ -148,7 +187,7 @@ def test_stakeholder_configuration(test_emitter, test_registry, mock_testerchain
                                                                         stakeholder=stakeholder_from_configuration,
                                                                         staking_address=selected_account)
     assert client_account == staking_address == selected_account
-    assert stakeholder_from_configuration.stakes == expected_stakeholder.stakes
+    assert stakeholder_from_configuration.staker.stakes == expected_stakeholder.staker.stakes
     assert stakeholder_from_configuration.checksum_address == client_account
 
     staker_options = StakerOptions(config_options=stakeholder_config_options, staking_address=None)
@@ -160,7 +199,7 @@ def test_stakeholder_configuration(test_emitter, test_registry, mock_testerchain
                                                                         stakeholder=stakeholder_from_configuration,
                                                                         staking_address=selected_account)
     assert client_account == staking_address == selected_account
-    assert stakeholder_from_configuration.stakes == expected_stakeholder.stakes
+    assert stakeholder_from_configuration.staker.stakes == expected_stakeholder.staker.stakes
     assert stakeholder_from_configuration.checksum_address == client_account
 
 
@@ -187,7 +226,7 @@ def test_no_token_reward(click_runner, surrogate_stakers, mock_staking_agent):
 
 
 @pytest.mark.usefixtures("test_registry_source_manager", "patch_stakeholder_configuration")
-def test_collecting_token_reward(click_runner, surrogate_stakers, mock_staking_agent, mocker):
+def test_collecting_token_reward(click_runner, surrogate_stakers, mock_staking_agent, mocker, surrogate_transacting_power):
     mock_mintable_periods = mocker.spy(Staker, 'mintable_periods')
 
     # Collect some reward
@@ -209,14 +248,14 @@ def test_collecting_token_reward(click_runner, surrogate_stakers, mock_staking_a
     assert COLLECTING_TOKEN_REWARD.format(reward_amount=reward) in result.output
 
     mock_staking_agent.calculate_staking_reward.assert_called_once_with(staker_address=surrogate_stakers[0])
-    mock_staking_agent.collect_staking_reward.assert_called_once_with(staker_address=surrogate_stakers[0])
+    mock_staking_agent.collect_staking_reward.assert_called_once_with(transacting_power=surrogate_transacting_power)
     mock_staking_agent.non_withdrawable_stake.assert_called_once_with(staker_address=surrogate_stakers[0])
     mock_mintable_periods.assert_not_called()
     mock_staking_agent.assert_only_transactions([mock_staking_agent.collect_staking_reward])
 
 
 @pytest.mark.usefixtures("test_registry_source_manager", "patch_stakeholder_configuration")
-def test_collecting_whole_reward_with_warning(click_runner, surrogate_stakers, mock_staking_agent, mocker):
+def test_collecting_whole_reward_with_warning(click_runner, surrogate_stakers, mock_staking_agent, mocker, surrogate_transacting_power):
     mock_mintable_periods = mocker.spy(Staker, 'mintable_periods')
 
     # Collect last portion of NU with warning about periods to mint
@@ -241,7 +280,7 @@ def test_collecting_whole_reward_with_warning(click_runner, surrogate_stakers, m
     assert CONFIRM_COLLECTING_WITHOUT_MINTING in result.output
 
     mock_staking_agent.calculate_staking_reward.assert_called_once_with(staker_address=surrogate_stakers[0])
-    mock_staking_agent.collect_staking_reward.assert_called_once_with(staker_address=surrogate_stakers[0])
+    mock_staking_agent.collect_staking_reward.assert_called_once_with(transacting_power=surrogate_transacting_power)
     mock_staking_agent.non_withdrawable_stake.assert_called_once_with(staker_address=surrogate_stakers[0])
     mock_staking_agent.get_current_period.assert_called()
     mock_staking_agent.get_current_committed_period.assert_called_once_with(staker_address=surrogate_stakers[0])
@@ -251,7 +290,7 @@ def test_collecting_whole_reward_with_warning(click_runner, surrogate_stakers, m
 
 
 @pytest.mark.usefixtures("test_registry_source_manager", "patch_stakeholder_configuration")
-def test_collecting_whole_reward_without_warning(click_runner, surrogate_stakers, mock_staking_agent, mocker):
+def test_collecting_whole_reward_without_warning(click_runner, surrogate_stakers, mock_staking_agent, mocker, surrogate_transacting_power):
     mock_mintable_periods = mocker.spy(Staker, 'mintable_periods')
 
     # Collect last portion of NU without warning
@@ -275,7 +314,7 @@ def test_collecting_whole_reward_without_warning(click_runner, surrogate_stakers
     assert CONFIRM_COLLECTING_WITHOUT_MINTING not in result.output
 
     mock_staking_agent.calculate_staking_reward.assert_called_once_with(staker_address=surrogate_stakers[0])
-    mock_staking_agent.collect_staking_reward.assert_called_once_with(staker_address=surrogate_stakers[0])
+    mock_staking_agent.collect_staking_reward.assert_called_once_with(transacting_power=surrogate_transacting_power)
     mock_staking_agent.non_withdrawable_stake.assert_called_once_with(staker_address=surrogate_stakers[0])
     mock_staking_agent.get_current_period.assert_called()
     mock_staking_agent.get_current_committed_period.assert_called_once_with(staker_address=surrogate_stakers[0])
@@ -412,7 +451,8 @@ def test_prolong_interactive(click_runner,
                              surrogate_stakes,
                              mock_staking_agent,
                              token_economics,
-                             mock_testerchain):
+                             mock_testerchain,
+                             surrogate_transacting_power):
     mock_refresh_stakes = mocker.spy(Staker, 'refresh_stakes')
 
     selected_index = 0
@@ -439,7 +479,7 @@ def test_prolong_interactive(click_runner,
     mock_staking_agent.get_all_stakes.assert_called()
     mock_staking_agent.get_current_period.assert_called()
     mock_refresh_stakes.assert_called()
-    mock_staking_agent.prolong_stake.assert_called_once_with(staker_address=surrogate_stakers[0],
+    mock_staking_agent.prolong_stake.assert_called_once_with(transacting_power=surrogate_transacting_power,
                                                              stake_index=sub_stake_index,
                                                              periods=lock_periods)
     mock_staking_agent.assert_only_transactions([mock_staking_agent.prolong_stake])
@@ -454,7 +494,8 @@ def test_prolong_non_interactive(click_runner,
                                  surrogate_stakes,
                                  mock_staking_agent,
                                  token_economics,
-                                 mock_testerchain):
+                                 mock_testerchain,
+                                 surrogate_transacting_power):
     mock_refresh_stakes = mocker.spy(Staker, 'refresh_stakes')
 
     selected_index = 0
@@ -481,7 +522,7 @@ def test_prolong_non_interactive(click_runner,
     mock_staking_agent.get_all_stakes.assert_called()
     mock_staking_agent.get_current_period.assert_called()
     mock_refresh_stakes.assert_called()
-    mock_staking_agent.prolong_stake.assert_called_once_with(staker_address=surrogate_stakers[0],
+    mock_staking_agent.prolong_stake.assert_called_once_with(transacting_power=surrogate_transacting_power,
                                                              stake_index=sub_stake_index,
                                                              periods=lock_periods)
     mock_staking_agent.assert_only_transactions([mock_staking_agent.prolong_stake])
@@ -496,7 +537,8 @@ def test_divide_interactive(click_runner,
                             surrogate_stakes,
                             mock_staking_agent,
                             token_economics,
-                            mock_testerchain):
+                            mock_testerchain,
+                            surrogate_transacting_power):
     mock_refresh_stakes = mocker.spy(Staker, 'refresh_stakes')
 
     selected_index = 0
@@ -528,7 +570,7 @@ def test_divide_interactive(click_runner,
     mock_staking_agent.get_all_stakes.assert_called()
     mock_staking_agent.get_current_period.assert_called()
     mock_refresh_stakes.assert_called()
-    mock_staking_agent.divide_stake.assert_called_once_with(staker_address=surrogate_stakers[0],
+    mock_staking_agent.divide_stake.assert_called_once_with(transacting_power=surrogate_transacting_power,
                                                             stake_index=sub_stake_index,
                                                             target_value=target_value,
                                                             periods=lock_periods)
@@ -544,7 +586,8 @@ def test_divide_non_interactive(click_runner,
                                 surrogate_stakes,
                                 mock_staking_agent,
                                 token_economics,
-                                mock_testerchain):
+                                mock_testerchain,
+                                surrogate_transacting_power):
     mock_refresh_stakes = mocker.spy(Staker, 'refresh_stakes')
 
     sub_stake_index = 1
@@ -575,7 +618,7 @@ def test_divide_non_interactive(click_runner,
     mock_staking_agent.get_all_stakes.assert_called()
     mock_staking_agent.get_current_period.assert_called()
     mock_refresh_stakes.assert_called()
-    mock_staking_agent.divide_stake.assert_called_once_with(staker_address=surrogate_stakers[0],
+    mock_staking_agent.divide_stake.assert_called_once_with(transacting_power=surrogate_transacting_power,
                                                             stake_index=sub_stake_index,
                                                             target_value=target_value,
                                                             periods=lock_periods)
@@ -592,7 +635,8 @@ def test_increase_interactive(click_runner,
                               mock_token_agent,
                               mock_staking_agent,
                               token_economics,
-                              mock_testerchain):
+                              mock_testerchain,
+                              surrogate_transacting_power):
     mock_refresh_stakes = mocker.spy(Staker, 'refresh_stakes')
 
     selected_index = 0
@@ -640,13 +684,13 @@ def test_increase_interactive(click_runner,
     mock_staking_agent.get_all_stakes.assert_called()
     mock_staking_agent.get_current_period.assert_called()
     mock_refresh_stakes.assert_called()
-    mock_staking_agent.deposit_and_increase.assert_called_once_with(staker_address=surrogate_stakers[0],
+    mock_staking_agent.deposit_and_increase.assert_called_once_with(transacting_power=surrogate_transacting_power,
                                                                     stake_index=sub_stake_index,
                                                                     amount=additional_value.to_nunits())
     mock_staking_agent.assert_only_transactions([mock_staking_agent.deposit_and_increase])
     mock_staking_agent.get_substake_info.assert_called_once_with(staker_address=surrogate_stakers[0],
                                                                  stake_index=sub_stake_index)
-    mock_token_agent.increase_allowance.assert_called_once_with(sender_address=surrogate_stakers[0],
+    mock_token_agent.increase_allowance.assert_called_once_with(transacting_power=surrogate_transacting_power,
                                                                 spender_address=mock_staking_agent.contract.address,
                                                                 increase=additional_value.to_nunits())
     mock_token_agent.assert_only_transactions([mock_token_agent.increase_allowance])
@@ -660,7 +704,8 @@ def test_increase_non_interactive(click_runner,
                                   mock_token_agent,
                                   mock_staking_agent,
                                   token_economics,
-                                  mock_testerchain):
+                                  mock_testerchain,
+                                  surrogate_transacting_power):
     mock_refresh_stakes = mocker.spy(Staker, 'refresh_stakes')
 
     sub_stake_index = 1
@@ -691,13 +736,13 @@ def test_increase_non_interactive(click_runner,
     mock_staking_agent.get_all_stakes.assert_called()
     mock_staking_agent.get_current_period.assert_called()
     mock_refresh_stakes.assert_called()
-    mock_staking_agent.deposit_and_increase.assert_called_once_with(staker_address=surrogate_stakers[0],
+    mock_staking_agent.deposit_and_increase.assert_called_once_with(transacting_power=surrogate_transacting_power,
                                                                     stake_index=sub_stake_index,
                                                                     amount=additional_value.to_nunits())
     mock_staking_agent.assert_only_transactions([mock_staking_agent.deposit_and_increase])
     mock_staking_agent.get_substake_info.assert_called_once_with(staker_address=surrogate_stakers[0],
                                                                  stake_index=sub_stake_index)
-    mock_token_agent.increase_allowance.assert_called_once_with(sender_address=surrogate_stakers[0],
+    mock_token_agent.increase_allowance.assert_called_once_with(transacting_power=surrogate_transacting_power,
                                                                 spender_address=mock_staking_agent.contract.address,
                                                                 increase=additional_value.to_nunits())
     mock_token_agent.assert_only_transactions([mock_token_agent.increase_allowance])
@@ -710,7 +755,8 @@ def test_increase_lock_interactive(click_runner,
                                    surrogate_stakes,
                                    mock_staking_agent,
                                    token_economics,
-                                   mock_testerchain):
+                                   mock_testerchain,
+                                   surrogate_transacting_power):
     mock_refresh_stakes = mocker.spy(Staker, 'refresh_stakes')
 
     selected_index = 0
@@ -762,7 +808,7 @@ def test_increase_lock_interactive(click_runner,
     mock_staking_agent.get_all_stakes.assert_called()
     mock_staking_agent.get_current_period.assert_called()
     mock_refresh_stakes.assert_called()
-    mock_staking_agent.lock_and_increase.assert_called_once_with(staker_address=surrogate_stakers[selected_index],
+    mock_staking_agent.lock_and_increase.assert_called_once_with(transacting_power=surrogate_transacting_power,
                                                                  stake_index=sub_stake_index,
                                                                  amount=additional_value.to_nunits())
     mock_staking_agent.assert_only_transactions([mock_staking_agent.lock_and_increase])
@@ -777,7 +823,8 @@ def test_increase_lock_non_interactive(click_runner,
                                        surrogate_stakes,
                                        mock_staking_agent,
                                        token_economics,
-                                       mock_testerchain):
+                                       mock_testerchain,
+                                       surrogate_transacting_power):
     mock_refresh_stakes = mocker.spy(Staker, 'refresh_stakes')
 
     selected_index = 0
@@ -810,7 +857,7 @@ def test_increase_lock_non_interactive(click_runner,
     mock_staking_agent.get_all_stakes.assert_called()
     mock_staking_agent.get_current_period.assert_called()
     mock_refresh_stakes.assert_called()
-    mock_staking_agent.lock_and_increase.assert_called_once_with(staker_address=surrogate_stakers[selected_index],
+    mock_staking_agent.lock_and_increase.assert_called_once_with(transacting_power=surrogate_transacting_power,
                                                                  stake_index=sub_stake_index,
                                                                  amount=additional_value.to_nunits())
     mock_staking_agent.assert_only_transactions([mock_staking_agent.lock_and_increase])
@@ -826,7 +873,8 @@ def test_create_interactive(click_runner,
                             mock_token_agent,
                             mock_staking_agent,
                             token_economics,
-                            mock_testerchain):
+                            mock_testerchain,
+                            surrogate_transacting_power):
     mock_refresh_stakes = mocker.spy(Staker, 'refresh_stakes')
 
     selected_index = 0
@@ -916,7 +964,7 @@ def test_create_interactive(click_runner,
     mock_refresh_stakes.assert_called()
     mock_token_agent.approve_and_call.assert_called_with(amount=value.to_nunits(),
                                                          target_address=mock_staking_agent.contract_address,
-                                                         sender_address=surrogate_stakers[selected_index],
+                                                         transacting_power=surrogate_transacting_power,
                                                          call_data=Web3.toBytes(lock_periods))
     mock_token_agent.assert_only_transactions([mock_token_agent.approve_and_call])
     mock_staking_agent.assert_no_transactions()
@@ -930,7 +978,8 @@ def test_create_non_interactive(click_runner,
                                 mock_token_agent,
                                 mock_staking_agent,
                                 token_economics,
-                                mock_testerchain):
+                                mock_testerchain,
+                                surrogate_transacting_power):
     mock_refresh_stakes = mocker.spy(Staker, 'refresh_stakes')
 
     selected_index = 0
@@ -975,7 +1024,7 @@ def test_create_non_interactive(click_runner,
     mock_refresh_stakes.assert_called()
     mock_token_agent.approve_and_call.assert_called_once_with(amount=value.to_nunits(),
                                                               target_address=mock_staking_agent.contract_address,
-                                                              sender_address=surrogate_stakers[selected_index],
+                                                              transacting_power=surrogate_transacting_power,
                                                               call_data=Web3.toBytes(lock_periods))
     mock_token_agent.assert_only_transactions([mock_token_agent.approve_and_call])
     mock_staking_agent.assert_no_transactions()
@@ -988,7 +1037,8 @@ def test_create_lock_interactive(click_runner,
                                  surrogate_stakes,
                                  mock_staking_agent,
                                  token_economics,
-                                 mock_testerchain):
+                                 mock_testerchain,
+                                 surrogate_transacting_power):
     mock_refresh_stakes = mocker.spy(Staker, 'refresh_stakes')
 
     selected_index = 0
@@ -1053,7 +1103,7 @@ def test_create_lock_interactive(click_runner,
     mock_refresh_stakes.assert_called()
     mock_staking_agent.lock_and_create.assert_called_once_with(amount=value.to_nunits(),
                                                                lock_periods=lock_periods,
-                                                               staker_address=surrogate_stakers[selected_index])
+                                                               transacting_power=surrogate_transacting_power)
     mock_staking_agent.assert_only_transactions([mock_staking_agent.lock_and_create])
 
 
@@ -1064,7 +1114,8 @@ def test_create_lock_non_interactive(click_runner,
                                      surrogate_stakes,
                                      mock_staking_agent,
                                      token_economics,
-                                     mock_testerchain):
+                                     mock_testerchain,
+                                     surrogate_transacting_power):
     mock_refresh_stakes = mocker.spy(Staker, 'refresh_stakes')
 
     selected_index = 0
@@ -1110,7 +1161,7 @@ def test_create_lock_non_interactive(click_runner,
     mock_refresh_stakes.assert_called()
     mock_staking_agent.lock_and_create.assert_called_once_with(amount=value.to_nunits(),
                                                                lock_periods=lock_periods,
-                                                               staker_address=surrogate_stakers[selected_index])
+                                                               transacting_power=surrogate_transacting_power)
     mock_staking_agent.assert_only_transactions([mock_staking_agent.lock_and_create])
 
 
@@ -1121,7 +1172,8 @@ def test_merge_interactive(click_runner,
                            surrogate_stakes,
                            mock_staking_agent,
                            token_economics,
-                           mock_testerchain):
+                           mock_testerchain,
+                           surrogate_transacting_power):
     mock_refresh_stakes = mocker.spy(Staker, 'refresh_stakes')
 
     selected_index = 0
@@ -1149,7 +1201,7 @@ def test_merge_interactive(click_runner,
     mock_staking_agent.get_all_stakes.assert_called()
     mock_staking_agent.get_current_period.assert_called()
     mock_refresh_stakes.assert_called()
-    mock_staking_agent.merge_stakes.assert_called_once_with(staker_address=surrogate_stakers[selected_index],
+    mock_staking_agent.merge_stakes.assert_called_once_with(transacting_power=surrogate_transacting_power,
                                                             stake_index_1=sub_stake_index_1,
                                                             stake_index_2=sub_stake_index_2)
     mock_staking_agent.assert_only_transactions([mock_staking_agent.merge_stakes])
@@ -1162,7 +1214,8 @@ def test_merge_partially_interactive(click_runner,
                                      surrogate_stakes,
                                      mock_staking_agent,
                                      token_economics,
-                                     mock_testerchain):
+                                     mock_testerchain,
+                                     surrogate_transacting_power):
     mock_refresh_stakes = mocker.spy(Staker, 'refresh_stakes')
 
     selected_index = 0
@@ -1198,7 +1251,7 @@ def test_merge_partially_interactive(click_runner,
     mock_staking_agent.get_all_stakes.assert_called()
     mock_staking_agent.get_current_period.assert_called()
     mock_refresh_stakes.assert_called()
-    mock_staking_agent.merge_stakes.assert_called_with(staker_address=surrogate_stakers[selected_index],
+    mock_staking_agent.merge_stakes.assert_called_with(transacting_power=surrogate_transacting_power,
                                                        stake_index_1=sub_stake_index_1,
                                                        stake_index_2=sub_stake_index_2)
     mock_staking_agent.assert_only_transactions([mock_staking_agent.merge_stakes])
@@ -1211,7 +1264,8 @@ def test_merge_non_interactive(click_runner,
                                surrogate_stakes,
                                mock_staking_agent,
                                token_economics,
-                               mock_testerchain):
+                               mock_testerchain,
+                               surrogate_transacting_power):
     mock_refresh_stakes = mocker.spy(Staker, 'refresh_stakes')
 
     selected_index = 0
@@ -1242,7 +1296,7 @@ def test_merge_non_interactive(click_runner,
     mock_staking_agent.get_all_stakes.assert_called()
     mock_staking_agent.get_current_period.assert_called()
     mock_refresh_stakes.assert_called()
-    mock_staking_agent.merge_stakes.assert_called_once_with(staker_address=surrogate_stakers[selected_index],
+    mock_staking_agent.merge_stakes.assert_called_once_with(transacting_power=surrogate_transacting_power,
                                                             stake_index_1=sub_stake_index_1,
                                                             stake_index_2=sub_stake_index_2)
     mock_staking_agent.assert_only_transactions([mock_staking_agent.merge_stakes])
@@ -1298,7 +1352,7 @@ def test_stake_list_active(click_runner, surrogate_stakers, surrogate_stakes, to
 
 
 @pytest.mark.usefixtures("test_registry_source_manager", "patch_stakeholder_configuration")
-def test_stake_list_all(click_runner, surrogate_stakers, surrogate_stakes, token_economics):
+def test_stake_list_all(click_runner, surrogate_stakers, surrogate_stakes, token_economics, surrogate_transacting_power):
 
     command = ('list',
                '--all',
