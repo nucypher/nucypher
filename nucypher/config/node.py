@@ -74,11 +74,12 @@ class CharacterConfiguration(BaseConfiguration):
     _CONFIG_FIELDS = ('config_root',
                       'poa',
                       'light',
-                      'provider_uri',
                       'registry_filepath',
                       'gas_strategy',
                       'max_gas_price',  # gwei
-                      'signer_uri')
+                      'signer_uri',
+                      'keyring_root'
+                      )
 
     def __init__(self,
 
@@ -134,6 +135,8 @@ class CharacterConfiguration(BaseConfiguration):
                  ):
 
         self.log = Logger(self.__class__.__name__)
+
+        # This constant is used to signal that a path can be generated if one is not provided.
         UNINITIALIZED_CONFIGURATION.bool_value(False)
 
         # Identity
@@ -455,7 +458,9 @@ class CharacterConfiguration(BaseConfiguration):
         payload.update(dict(network_middleware=self.network_middleware or self.DEFAULT_NETWORK_MIDDLEWARE(),
                             known_nodes=self.known_nodes,
                             node_storage=self.node_storage,
+                            keyring=self.keyring,
                             crypto_power_ups=self.derive_node_power_ups()))
+
         return payload
 
     def generate_filepath(self, filepath: str = None, modifier: str = None, override: bool = False) -> str:

@@ -63,11 +63,16 @@ def test_initialize_alice_defaults(click_runner, mocker, custom_filepath, monkey
     assert 'Repeat for confirmation:' in result.output, 'User was not prompted to confirm password'
 
 
-def test_alice_control_starts_with_mocked_keyring(click_runner, mocker, monkeypatch):
+def test_alice_control_starts_with_mocked_keyring(click_runner, mocker, monkeypatch, custom_filepath):
     monkeypatch.delenv(NUCYPHER_ENVVAR_KEYRING_PASSWORD, raising=False)
 
     class MockKeyring:
         is_unlocked = False
+        keyring_root = custom_filepath / 'keyring'
+        checksum_address = None
+
+        def derive_crypto_power(self, power_class, *args, **kwargs):
+            return power_class()
 
         @classmethod
         def unlock(cls, password, *args, **kwargs):
@@ -75,7 +80,7 @@ def test_alice_control_starts_with_mocked_keyring(click_runner, mocker, monkeypa
             cls.is_unlocked = True
 
     mocker.patch.object(AliceConfiguration, "attach_keyring", return_value=None)
-    good_enough_config = AliceConfiguration(dev_mode=True, federated_only=True, keyring=MockKeyring)
+    good_enough_config = AliceConfiguration(dev_mode=True, federated_only=True, keyring=MockKeyring())
     mocker.patch.object(AliceConfiguration, "from_configuration_file", return_value=good_enough_config)
     init_args = ('alice', 'run', '-x', '--lonely', '--network', TEMPORARY_DOMAIN)
     result = click_runner.invoke(nucypher_cli, init_args, input=FAKE_PASSWORD_CONFIRMED)
@@ -116,7 +121,7 @@ def test_alice_control_starts_with_preexisting_configuration(click_runner, custo
     custom_config_filepath = os.path.join(custom_filepath, AliceConfiguration.generate_filename())
     run_args = ('alice', 'run', '--dry-run', '--lonely', '--config-file', custom_config_filepath)
     result = click_runner.invoke(nucypher_cli, run_args, input=FAKE_PASSWORD_CONFIRMED)
-    assert result.exit_code == 0
+    assert result.exit_code == 0, result.exception
 
 
 def test_alice_make_card(click_runner, custom_filepath, mocker):

@@ -14,7 +14,7 @@ GNU Affero General Public License for more details.
 You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
-from random import SystemRandom
+
 
 import datetime
 import sha3
@@ -33,6 +33,7 @@ from eth_account import Account
 from eth_account.messages import encode_defunct
 from eth_utils import is_checksum_address, to_checksum_address
 from ipaddress import IPv4Address
+from random import SystemRandom
 from typing import Tuple
 from umbral import pre
 from umbral.keys import UmbralPrivateKey, UmbralPublicKey
@@ -42,6 +43,7 @@ from nucypher.crypto.constants import SHA256
 from nucypher.crypto.kits import UmbralMessageKit
 
 SYSTEM_RAND = SystemRandom()
+_TLS_CURVE = ec.SECP384R1
 
 
 class InvalidNodeCertificate(RuntimeError):
@@ -176,19 +178,17 @@ def verify_ecdsa(message: bytes,
 
 
 def __generate_self_signed_certificate(host: str,
-                                       curve: EllipticCurve,
+                                       curve: EllipticCurve = _TLS_CURVE,
                                        private_key: _EllipticCurvePrivateKey = None,
-                                       days_valid: int = 365,
+                                       days_valid: int = 365,  # TODO: Until end of stake / when to renew?
                                        checksum_address: str = None
                                        ) -> Tuple[Certificate, _EllipticCurvePrivateKey]:
 
     if not private_key:
         private_key = ec.generate_private_key(curve, default_backend())
-
     public_key = private_key.public_key()
 
     now = datetime.datetime.utcnow()
-
     fields = [
         x509.NameAttribute(NameOID.COMMON_NAME, host),
     ]

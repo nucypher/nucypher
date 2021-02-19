@@ -308,10 +308,13 @@ class BlockchainInterface:
             configuration_message += f", with a max price of {self.max_gas_price} gwei."
 
         self.client.set_gas_strategy(gas_strategy=gas_strategy)
-        gwei_gas_price = Web3.fromWei(self.client.gas_price_for_transaction(), 'gwei')
+
+        # TODO: This line must not be called prior to establishing a connection
+        #        Move it down to a lower layer, near the client.
+        # gwei_gas_price = Web3.fromWei(self.client.gas_price_for_transaction(), 'gwei')
 
         self.log.info(configuration_message)
-        self.log.debug(f"Gas strategy currently reports a gas price of {gwei_gas_price} gwei.")
+        # self.log.debug(f"Gas strategy currently reports a gas price of {gwei_gas_price} gwei.")
 
     def connect(self):
 

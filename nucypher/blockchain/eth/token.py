@@ -791,7 +791,7 @@ class StakeList(UserList):
     @validate_checksum_address
     def __init__(self,
                  registry: BaseContractRegistry,
-                 checksum_address: str = None,
+                 checksum_address: str = None,  # allow for lazy setting
                  *args, **kwargs):
 
         super().__init__(*args, **kwargs)
@@ -805,9 +805,8 @@ class StakeList(UserList):
 
         # "load-in":  Read on-chain stakes
         # Allow stake tracker to be initialized as an empty collection.
-        if checksum_address:
-            if not is_checksum_address(checksum_address):
-                raise ValueError(f'{checksum_address} is not a valid EIP-55 checksum address')
+        if checksum_address and not is_checksum_address(checksum_address):
+            raise ValueError(f'{checksum_address} is not a valid EIP-55 checksum address')
         self.checksum_address = checksum_address
         self.__updated = None
 

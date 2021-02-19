@@ -15,13 +15,19 @@ You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
+
 import binascii
 import os
 import uuid
 import weakref
 from bytestring_splitter import BytestringSplitter
 from constant_sorrow import constants
-from constant_sorrow.constants import FLEET_STATES_MATCH, NO_BLOCKCHAIN_CONNECTION, NO_KNOWN_NODES, RELAX
+from constant_sorrow.constants import (
+    FLEET_STATES_MATCH,
+    NO_BLOCKCHAIN_CONNECTION,
+    NO_KNOWN_NODES,
+    RELAX
+)
 from datetime import datetime, timedelta
 from flask import Flask, Response, jsonify, request
 from mako import exceptions as mako_exceptions
@@ -170,7 +176,7 @@ def _make_rest_app(datastore: Datastore, this_node, domain: str, log: Logger) ->
     def all_known_nodes():
         headers = {'Content-Type': 'application/octet-stream'}
         if this_node._learning_deferred is not RELAX and not this_node._learning_task.running:
-            # TODO: Is this every something we don't want to do?
+            # Learn when learned about
             this_node.start_learning_loop()
 
         if not this_node.known_nodes:

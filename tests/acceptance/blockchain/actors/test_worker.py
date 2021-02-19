@@ -66,8 +66,14 @@ def test_worker_auto_commitments(mocker,
     ursula = make_decentralized_ursulas(ursula_config=ursula_decentralized_test_config,
                                         stakers_addresses=[staker.checksum_address],
                                         workers_addresses=[worker_address],
-                                        commit_now=True,
                                         registry=test_registry).pop()
+
+    ursula.run(preflight=False,
+               discovery=False,
+               start_reactor=False,
+               worker=True,
+               eager=True,
+               block_until_ready=False)  # "start" services
 
     initial_period = staker.staking_agent.get_current_period()
 
@@ -135,6 +141,8 @@ def test_worker_auto_commitments(mocker,
     # Ursula commits on startup
     d = threads.deferToThread(start)
     d.addCallback(verify_confirmed)
+    d.addCallback(advance_one_period)
+
     d.addCallback(check_pending_commitments(1))
     d.addCallback(advance_one_cycle)
     d.addCallback(check_pending_commitments(0))

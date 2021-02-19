@@ -213,6 +213,8 @@ class Learner:
 
         self.log = Logger("learning-loop")  # type: Logger
 
+        self.suspicious_activities_witnessed = defaultdict(list)  # TODO: Combine with buckets / node labeling
+
         self.learning_deferred = Deferred()
         self.domain = domain
         if not self.federated_only:
@@ -258,7 +260,7 @@ class Learner:
         self.known_nodes.record_fleet_state(skip_this_node=True)
 
         self.teacher_nodes = deque()
-        self._current_teacher_node = None  # type: Teacher
+        self._current_teacher_node = None  # type: Union[Teacher, None]
         self._learning_task = task.LoopingCall(self.keep_learning_about_nodes)
 
         if self._DEBUG_MODE:
@@ -1008,20 +1010,12 @@ class Teacher:
         cls._cert_store_function = node_storage_function
 
     def mature(self, *args, **kwargs):
-        """
-        This is the most mature form, so we do nothing.
-        """
+        """This is the most mature form, so we do nothing."""
         return self
 
     @classmethod
     def set_federated_mode(cls, federated_only: bool):
         cls._federated_only_instances = federated_only
-
-    @classmethod
-    def from_tls_hosting_power(cls, tls_hosting_power: TLSHostingPower, *args, **kwargs) -> 'Teacher':
-        certificate_filepath = tls_hosting_power.keypair.certificate_filepath
-        certificate = tls_hosting_power.keypair.certificate
-        return cls(certificate=certificate, certificate_filepath=certificate_filepath, *args, **kwargs)
 
     #
     # Known Nodes
@@ -1238,12 +1232,6 @@ class Teacher:
             self.__worker_address = recover_address_eip_191(message=bytes(self.stamp),
                                                             signature=self.decentralized_identity_evidence)
         return self.__worker_address
-
-    def substantiate_stamp(self):
-        transacting_power = self._crypto_power.power_ups(TransactingPower)
-        signature = transacting_power.sign_message(message=bytes(self.stamp))
-        self.__decentralized_identity_evidence = signature
-        self.__worker_address = transacting_power.account
 
     #
     # Interface

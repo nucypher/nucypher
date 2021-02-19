@@ -15,7 +15,8 @@ You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 import base64
-import os
+from typing import Union
+
 import sha3
 from OpenSSL.SSL import TLSv1_2_METHOD
 from OpenSSL.crypto import X509
@@ -23,14 +24,13 @@ from constant_sorrow import constants
 from cryptography.hazmat.primitives.asymmetric import ec
 from hendrix.deploy.tls import HendrixDeployTLS
 from hendrix.facilities.services import ExistingKeyTLSContextFactory
-from typing import Union
 from umbral import pre
 from umbral.keys import UmbralPrivateKey, UmbralPublicKey
 from umbral.signing import Signature, Signer
 
 from nucypher.config.constants import MAX_UPLOAD_CONTENT_LENGTH
 from nucypher.crypto import api as API
-from nucypher.crypto.api import generate_teacher_certificate
+from nucypher.crypto.api import generate_teacher_certificate, _TLS_CURVE
 from nucypher.crypto.kits import MessageKit
 from nucypher.crypto.signing import SignatureStamp, StrangerStamp
 from nucypher.network.resources import get_static_resources
@@ -143,21 +143,18 @@ class HostingKeypair(Keypair):
     _private_key_source = ec.generate_private_key
     _public_key_method = "public_key"
 
-    _DEFAULT_CURVE = ec.SECP384R1
-
     def __init__(self,
                  host: str,
                  checksum_address: str = None,
                  private_key: Union[UmbralPrivateKey, UmbralPublicKey] = None,
-                 curve=None,
                  certificate=None,
                  certificate_filepath: str = None,
-                 generate_certificate=True,
+                 generate_certificate=False,
                  ) -> None:
 
-        self.curve = curve or self._DEFAULT_CURVE
-
-        if private_key and certificate_filepath:
+        if private_key:
+            if not certificate_filepath:
+                raise ValueError('public certificate required to load a hosting keypair.')
             from nucypher.config.keyring import _read_tls_public_certificate
             certificate = _read_tls_public_certificate(filepath=certificate_filepath)
             super().__init__(private_key=private_key)
@@ -178,8 +175,7 @@ class HostingKeypair(Keypair):
 
             certificate, private_key = generate_teacher_certificate(host=host,
                                                                     checksum_address=checksum_address,
-                                                                    private_key=private_key,
-                                                                    curve=self.curve)
+                                                                    private_key=private_key)
             super().__init__(private_key=private_key)
         else:
             raise TypeError("You didn't provide a cert, but also told us not to generate keys.  Not sure what to do.")
@@ -195,8 +191,7 @@ class HostingKeypair(Keypair):
                                 key=self._privkey,
                                 cert=X509.from_cryptography(self.certificate),
                                 context_factory=ExistingKeyTLSContextFactory,
-                                context_factory_kwargs={"curve_name": self.curve.name,
-                                                        "sslmethod": TLSv1_2_METHOD},
+                                context_factory_kwargs={"curve_name": _TLS_CURVE.name, "sslmethod": TLSv1_2_METHOD},
                                 options={
                                     "wsgi": rest_app,
                                     "https_port": port,

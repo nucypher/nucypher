@@ -16,11 +16,11 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
 
-from copy import copy
-
 import tempfile
-from eth_tester.exceptions import ValidationError
+from copy import copy
 from unittest.mock import patch
+
+from eth_tester.exceptions import ValidationError
 
 from nucypher.blockchain.eth.signers.software import Web3Signer
 from nucypher.characters.lawful import Alice, Ursula
@@ -29,11 +29,6 @@ from nucypher.crypto.api import encrypt_and_sign
 from nucypher.crypto.powers import CryptoPower, SigningPower, DecryptingPower, TransactingPower
 from nucypher.exceptions import DevelopmentInstallationRequired
 from nucypher.policy.collections import SignedTreasureMap
-
-try:
-    from tests.utils.middleware import EvilMiddleWare
-except ImportError:
-    pass  # TODO: #2000 Handle this situation with a common Exception
 
 
 class Vladimir(Ursula):
@@ -62,6 +57,7 @@ class Vladimir(Ursula):
         """
         try:
             from tests.utils.middleware import EvilMiddleWare
+            from tests.constants import MOCK_PROVIDER_URI
         except ImportError:
             raise DevelopmentInstallationRequired(importable_name='tests.utils.middleware.EvilMiddleWare')
         cls.network_middleware = EvilMiddleWare()
@@ -81,15 +77,14 @@ class Vladimir(Ursula):
                        crypto_power=crypto_power,
                        db_filepath=db_filepath,
                        domain=TEMPORARY_DOMAIN,
-                       block_until_ready=False,
-                       commit_now=False,
                        rest_host=target_ursula.rest_interface.host,
                        rest_port=target_ursula.rest_interface.port,
-                       certificate=target_ursula.rest_server_certificate(),
+                       certificate=target_ursula.certificate,
                        network_middleware=cls.network_middleware,
                        checksum_address=cls.fraud_address,
                        worker_address=cls.fraud_address,
                        signer=Web3Signer(blockchain.client),
+                       provider_uri=blockchain.provider_uri,
                        ######### Asshole.
                        timestamp=target_ursula._timestamp,
                        interface_signature=target_ursula._interface_signature,

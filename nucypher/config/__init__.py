@@ -14,3 +14,8 @@ GNU Affero General Public License for more details.
 You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
+
+
+from constant_sorrow.constants import NO_KEYRING_ATTACHED
+
+NO_KEYRING_ATTACHED.bool_value(False)

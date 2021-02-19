@@ -33,7 +33,7 @@ from nucypher.blockchain.eth.agents import (
 from nucypher.blockchain.eth.token import NU
 from nucypher.characters.lawful import Ursula
 from nucypher.cli.commands.worklock import worklock
-from tests.constants import (INSECURE_DEVELOPMENT_PASSWORD, MOCK_IP_ADDRESS, TEST_PROVIDER_URI)
+from tests.constants import (INSECURE_DEVELOPMENT_PASSWORD, MOCK_IP_ADDRESS, TEST_PROVIDER_URI, MOCK_PROVIDER_URI)
 from tests.utils.ursula import select_test_port
 from nucypher.config.constants import TEMPORARY_DOMAIN
 
@@ -236,6 +236,8 @@ def test_refund(click_runner, testerchain, agency_local_registry, token_economic
     assert receipt['status'] == 1
 
     worker = Ursula(is_me=True,
+                    domain=TEMPORARY_DOMAIN,
+                    provider_uri=MOCK_PROVIDER_URI,
                     registry=agency_local_registry,
                     checksum_address=bidder,
                     signer=Web3Signer(testerchain.client),

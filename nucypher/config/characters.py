@@ -15,18 +15,16 @@ You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
-
 import os
-from constant_sorrow.constants import (
-    UNINITIALIZED_CONFIGURATION
-)
+from tempfile import TemporaryDirectory
+
+from constant_sorrow.constants import UNINITIALIZED_CONFIGURATION
 from cryptography.hazmat.primitives.asymmetric import ec
 from cryptography.hazmat.primitives.asymmetric.ec import EllipticCurve
 from cryptography.x509 import Certificate
-from tempfile import TemporaryDirectory
 
-from nucypher.blockchain.eth.networks import NetworksInventory
 from nucypher.blockchain.eth.actors import StakeHolder
+from nucypher.blockchain.eth.networks import NetworksInventory
 from nucypher.blockchain.eth.signers import Signer
 from nucypher.config.constants import DEFAULT_CONFIG_ROOT
 from nucypher.config.keyring import NucypherKeyring
@@ -42,7 +40,6 @@ class UrsulaConfiguration(CharacterConfiguration):
     DEFAULT_REST_PORT = 9151
     DEFAULT_DEVELOPMENT_REST_HOST = '127.0.0.1'
     DEFAULT_DEVELOPMENT_REST_PORT = 10151
-    __DEFAULT_TLS_CURVE = ec.SECP384R1
     DEFAULT_DB_NAME = f'{NAME}.db'
     DEFAULT_AVAILABILITY_CHECKS = False
     LOCAL_SIGNERS_ALLOWED = True
@@ -53,7 +50,6 @@ class UrsulaConfiguration(CharacterConfiguration):
                  dev_mode: bool = False,
                  db_filepath: str = None,
                  rest_port: int = None,
-                 tls_curve: EllipticCurve = None,
                  certificate: Certificate = None,
                  availability_check: bool = None,
                  *args, **kwargs) -> None:
@@ -70,7 +66,6 @@ class UrsulaConfiguration(CharacterConfiguration):
 
         self.rest_port = rest_port
         self.rest_host = rest_host
-        self.tls_curve = tls_curve or self.__DEFAULT_TLS_CURVE
         self.certificate = certificate
         self.db_filepath = db_filepath or UNINITIALIZED_CONFIGURATION
         self.worker_address = worker_address
@@ -101,7 +96,6 @@ class UrsulaConfiguration(CharacterConfiguration):
     def dynamic_payload(self) -> dict:
         payload = dict(
             network_middleware=self.network_middleware,
-            tls_curve=self.tls_curve,  # TODO: Needs to be in static payload with [str -> curve] mapping
             certificate=self.certificate,
             interface_signature=self.interface_signature,
             timestamp=None
@@ -134,7 +128,6 @@ class UrsulaConfiguration(CharacterConfiguration):
                                         encrypting=True,
                                         rest=True,
                                         host=self.rest_host,
-                                        curve=self.tls_curve,
                                         checksum_address=self.worker_address,
                                         **generation_kwargs)
         return keyring
@@ -297,6 +290,11 @@ class StakeHolderConfiguration(CharacterConfiguration):
 
     NAME = 'stakeholder'
     CHARACTER_CLASS = StakeHolder
+
+    _CONFIG_FIELDS = (
+        *CharacterConfiguration._CONFIG_FIELDS,
+        'provider_uri'
+    )
 
     def __init__(self, checksum_addresses: set = None, *args, **kwargs):
         super().__init__(*args, **kwargs)

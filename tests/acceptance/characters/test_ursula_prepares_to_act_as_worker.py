@@ -33,8 +33,7 @@ from tests.utils.ursula import make_decentralized_ursulas
 def test_stakers_bond_to_ursulas(testerchain, test_registry, stakers, ursula_decentralized_test_config):
     ursulas = make_decentralized_ursulas(ursula_config=ursula_decentralized_test_config,
                                          stakers_addresses=testerchain.stakers_accounts,
-                                         workers_addresses=testerchain.ursulas_accounts,
-                                         commit_now=False)
+                                         workers_addresses=testerchain.ursulas_accounts)
 
     assert len(ursulas) == len(stakers)
     for ursula in ursulas:
@@ -78,7 +77,7 @@ def test_vladimir_cannot_verify_interface_with_ursulas_signing_key(blockchain_ur
     vladimir = Vladimir.from_target_ursula(his_target, claim_signing_key=True)
 
     # Vladimir can substantiate the stamp using his own ether address...
-    vladimir.substantiate_stamp()
+    vladimir._Ursula__substantiate_stamp()
     vladimir.validate_worker = lambda: True
     vladimir.validate_worker()  # lol
 
@@ -102,7 +101,7 @@ def test_vladimir_invalidity_without_stake(testerchain, blockchain_ursulas, bloc
     message = vladimir._signable_interface_info_message()
     signature = vladimir._crypto_power.power_ups(SigningPower).sign(vladimir.timestamp_bytes() + message)
     vladimir._Teacher__interface_signature = signature
-    vladimir.substantiate_stamp()
+    vladimir._Ursula__substantiate_stamp()
 
     # However, the actual handshake proves him wrong.
     with pytest.raises(vladimir.InvalidNode):
@@ -120,7 +119,7 @@ def test_vladimir_uses_his_own_signing_key(blockchain_alice, blockchain_ursulas)
     message = vladimir._signable_interface_info_message()
     signature = vladimir._crypto_power.power_ups(SigningPower).sign(vladimir.timestamp_bytes() + message)
     vladimir._Teacher__interface_signature = signature
-    vladimir.substantiate_stamp()
+    vladimir._Ursula__substantiate_stamp()
 
     vladimir._worker_is_bonded_to_staker = lambda: True
     vladimir._staker_is_really_staking = lambda: True
