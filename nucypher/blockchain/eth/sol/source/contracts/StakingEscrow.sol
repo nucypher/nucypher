@@ -1811,7 +1811,7 @@ contract StakingEscrow is Issuer, IERC900History {
     function finishUpgrade(address _target) public override virtual {
         super.finishUpgrade(_target);
         // Create fake period
-//        _lockedPerPeriod[RESERVED_PERIOD] = 111;
+        _lockedPerPeriod[RESERVED_PERIOD] = 111;
 
         // Create fake worker
         stakerFromWorker[address(0)] = address(this);
