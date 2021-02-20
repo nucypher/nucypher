@@ -88,7 +88,7 @@ def test_exact_economics():
             expected_phase2_coefficient
 
     # After sanity checking, assemble expected test deployment parameters
-    expected_deployment_parameters = (24,       # Hours in single period
+    expected_deployment_parameters = (24,       # Hours of former period duration
                                       24,       # Hours in single period
                                       1053,     # Coefficient which modifies the rate at which the maximum issuance decays (d)
                                       365,      # Numerator of the locking duration coefficient (k1)
