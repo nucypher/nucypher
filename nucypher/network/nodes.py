@@ -36,7 +36,7 @@ import nucypher
 from bytestring_splitter import BytestringSplitter, BytestringSplittingError, PartiallyKwargifiedBytes, \
     VariableLengthBytestring
 from constant_sorrow import constant_or_bytes
-from constant_sorrow.constants import (CERTIFICATE_NOT_SAVED, FLEET_STATES_MATCH, NEVER_SEEN, NOT_SIGNED,
+from constant_sorrow.constants import (CERTIFICATE_NOT_SAVED, FLEET_STATES_MATCH, NOT_SIGNED,
                                        NO_KNOWN_NODES, NO_STORAGE_AVAILIBLE, UNKNOWN_FLEET_STATE, UNKNOWN_VERSION,
                                        RELAX)
 from nucypher.acumen.nicknames import Nickname
@@ -850,8 +850,6 @@ class Learner:
 
         fleet_state_checksum, fleet_state_updated, node_payload = FleetSensor.unpack_snapshot(node_payload)
 
-        current_teacher.last_seen = maya.now()
-
         if constant_or_bytes(node_payload) is FLEET_STATES_MATCH:
             self.known_nodes.record_remote_fleet_state(
                 current_teacher.checksum_address,
@@ -947,12 +945,7 @@ class Teacher:
                  decentralized_identity_evidence=NOT_SIGNED,
                  ) -> None:
 
-        #
-        # Fleet
-        #
-
         self.domain = domain
-        self.last_seen = NEVER_SEEN("No Connection to Node")
 
         #
         # Identity
@@ -1279,68 +1272,3 @@ class Teacher:
 
     def timestamp_bytes(self):
         return self.timestamp.epoch.to_bytes(4, 'big')
-
-    #
-    # Status metadata
-    #
-
-    def _status_info_base(self, raise_invalid=True):
-
-        try:
-            worker_address = self.worker_address
-        # FIXME: how did such a node end up in `known_nodes`?
-        except self.StampNotSigned:
-            if raise_invalid:
-                raise
-            self.log.error(f"encountered unsigned stamp for node with checksum: {self.checksum_address}")
-            worker_address = 'UNSIGNED_STAMP'
-
-        return dict(
-            nickname=self.nickname.to_json(),
-            staker_address=self.checksum_address,
-            worker_address=worker_address,
-            rest_url=self.rest_url(),
-            )
-
-    def _status_info_remote(self, known_nodes, raise_invalid=True):
-        info = self._status_info_base(raise_invalid=raise_invalid)
-
-        try:
-            last_seen = self.last_seen.iso8601()
-        except AttributeError:
-            last_seen = None # In case it's the constant NEVER_SEEN
-
-        info['last_learned_from'] = last_seen
-
-        # TODO: what *is* the `timestamp`, anyway? When is it created?
-        info['timestamp'] = self.timestamp.iso8601()
-
-        # TODO: how come we know about the node but not about its fleet state? Does it ever happen?
-        if self.checksum_address in known_nodes.remote_states:
-            info['recorded_fleet_state'] = known_nodes.remote_states[self.checksum_address].to_json()
-        else:
-            info['recorded_fleet_state'] = None
-
-        return info
-
-    def status_info(self, raise_invalid=True, omit_known_nodes=False):
-        # FIXME: is anyone using `raise_invalid=True`? Or is it always `False`?
-
-        for node in self.known_nodes:
-            node.mature()
-
-        info = self._status_info_base()
-
-        info['domain'] = self.domain
-        info['version'] = nucypher.__version__
-
-        latest_states = self.known_nodes.latest_states(5)
-
-        info['fleet_state'] = latest_states[-1].to_json()
-        info['previous_fleet_states'] = [state.to_json() for state in latest_states[:-1]]
-
-        if not omit_known_nodes:
-            info['known_nodes'] = [node._status_info_remote(self.known_nodes, raise_invalid=raise_invalid)
-                                   for node in self.known_nodes.values()]
-
-        return info

@@ -105,6 +105,7 @@ class Nickname:
 
     def to_json(self):
         return dict(text=self._text,
+                    icon=self.icon,
                     characters=[character.to_json() for character in self.characters])
 
     def __str__(self):

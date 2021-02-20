@@ -17,8 +17,8 @@ def contrast_color(color_hex):
         return "white"
 
 def character_span(character):
-    color = character['color_hex']
-    symbol = character['symbol']
+    color = character.color_hex
+    symbol = character.symbol
     return f'<span class="symbol" style="color: {contrast_color(color)}; background-color: {color}">{symbol}</span>'
 %>
 
@@ -26,16 +26,16 @@ def character_span(character):
 %if not state:
 <span style="color: #CCCCCC">&mdash;</span>
 %else:
-<table class="state-info" title="${state['nickname']['text']}">
+<table class="state-info" title="${state.nickname}">
     <tr>
         <td>
             ## Need to compose these spans as strings to avoid introducing whitespaces
-            <span class="state-icon">${"".join(character_span(character) for character in state['nickname']['characters'])}</span>
+            <span class="state-icon">${"".join(character_span(character) for character in state.nickname.characters)}</span>
         </td>
         <td>
-            <span>${state['population']} nodes</span>
+            <span>${state.population} nodes</span>
             <br/>
-            <span class="checksum">${state['checksum'][0:8]}</span>
+            <span class="checksum">${state.checksum[0:8]}</span>
         </td>
     </tr>
 </table>
@@ -49,14 +49,14 @@ def character_span(character):
         <tr>
             <td>
                 ## Need to compose these spans as strings to avoid introducing whitespaces
-                <span class="node-icon">${"".join(character_span(character) for character in node['nickname']['characters'])}</span>
+                <span class="node-icon">${"".join(character_span(character) for character in node.nickname.characters)}</span>
             </td>
             <td>
-                <a href="https://${node['rest_url']}/status">
-                <span class="nickname">${ node['nickname']['text'] }</span>
+                <a href="https://${node.rest_url}/status">
+                <span class="nickname">${ node.nickname }</span>
                 </a>
                 <br/>
-                <span class="checksum">${ node['staker_address'] }</span>
+                <span class="checksum">${ node.staker_address }</span>
             </td>
         </tr>
     </table>
@@ -165,28 +165,28 @@ def character_span(character):
         </tr>
         <tr>
             <td><i>Running:</i></td>
-            <td>v${ status_info['version'] }</td>
+            <td>v${ status_info.version }</td>
         </tr>
         <tr>
             <td><i>Domain:</i></td>
-            <td>${ status_info['domain'] }</td>
+            <td>${ status_info.domain }</td>
         </tr>
         <tr>
             <td><i>Fleet state:</i></td>
-            <td>${fleet_state_icon(status_info['fleet_state'])}</td>
+            <td>${fleet_state_icon(status_info.fleet_state)}</td>
         </tr>
         <tr>
             <td><i>Previous states:</i></td>
             <td>
-                %for state in status_info['previous_fleet_states']:
+                %for state in status_info.previous_fleet_states:
                     ${fleet_state_icon(state)}
                 %endfor
             </td>
         </tr>
     </table>
 
-    %if 'known_nodes' in status_info:
-    <h3>${len(status_info['known_nodes'])} ${"known node" if len(status_info['known_nodes']) == 1 else "known nodes"}:</h3>
+    %if status_info.known_nodes is not None:
+    <h3>${len(status_info.known_nodes)} ${"known node" if len(status_info.known_nodes) == 1 else "known nodes"}:</h3>
 
     <table class="known-nodes">
         <thead>
@@ -196,18 +196,18 @@ def character_span(character):
             <td>Fleet State</td>
         </thead>
         <tbody>
-        %for node in status_info['known_nodes']:
+        %for node in status_info.known_nodes:
             <tr>
                 <td>${node_info(node)}</td>
-                <td>${node['timestamp']}</td>
+                <td>${node.timestamp.iso8601()}</td>
                 <td>
-                %if node['last_learned_from']:
-                ${node['last_learned_from']}
+                %if node.last_learned_from is not None:
+                ${node.last_learned_from.iso8601()}
                 %else:
                 <span style="color: #CCCCCC">&mdash;</span>
                 %endif
                 </td>
-                <td>${fleet_state_icon(node['recorded_fleet_state'])}</td>
+                <td>${fleet_state_icon(node.recorded_fleet_state)}</td>
             </tr>
         %endfor
         </tbody>

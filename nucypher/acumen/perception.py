@@ -19,7 +19,7 @@
 import random
 import weakref
 from collections.abc import KeysView
-from typing import Optional, Dict, Iterable, List, Tuple
+from typing import Optional, Dict, Iterable, List, Tuple, NamedTuple, Union
 
 import binascii
 import itertools
@@ -239,7 +239,8 @@ class FleetSensor:
 
         self._current_state = FleetState.new(this_node)
         self._archived_states = [self._current_state.archived()]
-        self.remote_states = {}
+        self._remote_states = {}
+        self._remote_last_seen = {}
 
         # temporary accumulator for new nodes to avoid updating the fleet state every time
         self._nodes_to_add = set()
@@ -329,7 +330,7 @@ class FleetSensor:
     def unpack_snapshot(data):
         return FleetState.unpack_snapshot(data)
 
-    def record_fleet_state(self, skip_this_node: bool = False):
+    def record_fleet_state(self, skip_this_node: bool = False) -> Optional[ArchivedFleetState]:
         new_state = self._current_state.with_updated_nodes(nodes_to_add=self._nodes_to_add,
                                                            nodes_to_remove=self._nodes_to_remove,
                                                            skip_this_node=skip_this_node)
@@ -344,7 +345,11 @@ class FleetSensor:
         # 2. (possible) keep a dictionary of known states
         #    and bump the timestamp of a previously encountered one
         if new_state.checksum != self._archived_states[-1].checksum:
-            self._archived_states.append(new_state.archived())
+            archived_state = new_state.archived()
+            self._archived_states.append(archived_state)
+            return archived_state
+        else:
+            return None
 
     def shuffled(self):
         return self._current_state.shuffled()
@@ -358,8 +363,61 @@ class FleetSensor:
                                   state_checksum: str,
                                   timestamp: maya.MayaDT,
                                   population: int):
+
+        if checksum_address not in self._current_state:
+            raise KeyError(f"A node {checksum_address} is not present in the current fleet state")
+
         nickname = Nickname.from_seed(state_checksum, length=1)
-        self.remote_states[checksum_address] = ArchivedFleetState(checksum=state_checksum,
-                                                                  nickname=nickname,
-                                                                  timestamp=timestamp,
-                                                                  population=population)
+        state = ArchivedFleetState(checksum=state_checksum,
+                                   nickname=nickname,
+                                   timestamp=timestamp,
+                                   population=population)
+
+        self._remote_last_seen[checksum_address] = maya.now()
+        self._remote_states[checksum_address] = state
+
+    def status_info(self, checksum_address_or_node: Union[ChecksumAddress, 'Ursula']) -> 'RemoteUrsulaStatus':
+
+        if isinstance(checksum_address_or_node, str):
+            node = self[checksum_address_or_node]
+        else:
+            node = checksum_address_or_node
+
+        recorded_fleet_state = self._remote_states.get(node.checksum_address, None)
+        last_learned_from = self._remote_last_seen.get(node.checksum_address, None)
+
+        return RemoteUrsulaStatus(nickname=node.nickname,
+                                  staker_address=node.checksum_address,
+                                  worker_address=node.worker_address,
+                                  rest_url=node.rest_url(),
+                                  timestamp=node.timestamp,
+                                  last_learned_from=last_learned_from,
+                                  recorded_fleet_state=recorded_fleet_state,
+                                  )
+
+
+class RemoteUrsulaStatus(NamedTuple):
+    nickname: Nickname
+    staker_address: ChecksumAddress
+    worker_address: str
+    rest_url: str
+    timestamp: maya.MayaDT
+    recorded_fleet_state: Optional[ArchivedFleetState]
+    last_learned_from: Optional[maya.MayaDT]
+
+    def to_json(self):
+        if self.recorded_fleet_state is None:
+            recorded_fleet_state_json = None
+        else:
+            recorded_fleet_state_json = recorded_fleet_state.to_json()
+        if self.last_learned_from is None:
+            last_learned_from_json = None
+        else:
+            last_learned_from_json = last_learned_from.iso8601()
+        return dict(nickname=self.nickname.to_json(),
+                    staker_address=self.staker_address,
+                    worker_address=self.worker_address,
+                    rest_url=self.rest_url,
+                    timestamp=self.timestamp.iso8601(),
+                    recorded_fleet_state=recorded_fleet_state_json,
+                    last_learned_from=last_learned_from_json)
