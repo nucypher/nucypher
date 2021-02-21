@@ -35,7 +35,7 @@ abstract contract Issuer is Upgradeable {
     // k2
     uint256 public immutable lockDurationCoefficient2;
 
-    uint32 public immutable formerSecondsPerPeriod;
+    uint32 public immutable genesisSecondsPerPeriod;
     uint32 public immutable secondsPerPeriod;
 
     // kmax
@@ -62,7 +62,7 @@ abstract contract Issuer is Upgradeable {
     (totalSupply - currentSupply) / d * (lockedValue / totalLockedValue) * (k1 + min(allLockedPeriods, kmax)) / k2
     if allLockedPeriods > maximumRewardedPeriods then allLockedPeriods = maximumRewardedPeriods
     * @param _token Token contract
-    * @param _formerHoursPerPeriod Former size of period in hours
+    * @param _genesisHoursPerPeriod Size of period in hours at genesis
     * @param _hoursPerPeriod Size of period in hours
     * @param _issuanceDecayCoefficient (d) Coefficient which modifies the rate at which the maximum issuance decays,
     * only applicable to Phase 2. d = 365 * half-life / LOG2 where default half-life = 2.
@@ -85,7 +85,7 @@ abstract contract Issuer is Upgradeable {
     */
     constructor(
         NuCypherToken _token,
-        uint32 _formerHoursPerPeriod,
+        uint32 _genesisHoursPerPeriod,
         uint32 _hoursPerPeriod,
         uint256 _issuanceDecayCoefficient,
         uint256 _lockDurationCoefficient1,
@@ -98,8 +98,8 @@ abstract contract Issuer is Upgradeable {
         require(localTotalSupply > 0 &&
             _issuanceDecayCoefficient != 0 &&
             _hoursPerPeriod != 0 &&
-            _formerHoursPerPeriod != 0 &&
-            _formerHoursPerPeriod <= _hoursPerPeriod &&
+            _genesisHoursPerPeriod != 0 &&
+            _genesisHoursPerPeriod <= _hoursPerPeriod &&
             _lockDurationCoefficient1 != 0 &&
             _lockDurationCoefficient2 != 0 &&
             _maximumRewardedPeriods != 0);
@@ -124,7 +124,7 @@ abstract contract Issuer is Upgradeable {
 
         token = _token;
         secondsPerPeriod = _hoursPerPeriod.mul32(1 hours);
-        formerSecondsPerPeriod = _formerHoursPerPeriod.mul32(1 hours);
+        genesisSecondsPerPeriod = _genesisHoursPerPeriod.mul32(1 hours);
         lockDurationCoefficient1 = _lockDurationCoefficient1;
         lockDurationCoefficient2 = _lockDurationCoefficient2;
         maximumRewardedPeriods = _maximumRewardedPeriods;
@@ -158,7 +158,7 @@ abstract contract Issuer is Upgradeable {
     * @return Recalculate period value using new basis
     */
     function recalculatePeriod(uint16 _period) internal view returns (uint16) {
-        return uint16(uint256(_period) * formerSecondsPerPeriod / secondsPerPeriod);
+        return uint16(uint256(_period) * genesisSecondsPerPeriod / secondsPerPeriod);
     }
 
     /**

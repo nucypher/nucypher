@@ -110,7 +110,7 @@ contract PolicyManager is Upgradeable {
     int256 public constant DEFAULT_FEE_DELTA = int256((uint256(0) - 1) >> 1);
 
     StakingEscrow public immutable escrow;
-    uint32 public immutable formerSecondsPerPeriod;
+    uint32 public immutable genesisSecondsPerPeriod;
     uint32 public immutable secondsPerPeriod;
 
     mapping (bytes16 => Policy) public policies;
@@ -130,13 +130,13 @@ contract PolicyManager is Upgradeable {
         uint32 localSecondsPerPeriod = _escrowLibrary.secondsPerPeriod();
         require(localSecondsPerPeriod > 0);
         secondsPerPeriod = localSecondsPerPeriod;
-        uint32 localFormerSecondsPerPeriod = _escrowLibrary.formerSecondsPerPeriod();
-        require(localFormerSecondsPerPeriod > 0);
-        formerSecondsPerPeriod = localFormerSecondsPerPeriod;
+        uint32 localgenesisSecondsPerPeriod = _escrowLibrary.genesisSecondsPerPeriod();
+        require(localgenesisSecondsPerPeriod > 0);
+        genesisSecondsPerPeriod = localgenesisSecondsPerPeriod;
         // checks possible migration
         if (_escrowDispatcher != _escrowLibrary) {
             require(_escrowDispatcher.secondsPerPeriod() == localSecondsPerPeriod ||
-                _escrowDispatcher.secondsPerPeriod() == localFormerSecondsPerPeriod);
+                _escrowDispatcher.secondsPerPeriod() == localgenesisSecondsPerPeriod);
         }
     }
 
@@ -160,7 +160,7 @@ contract PolicyManager is Upgradeable {
     * @return Recalculate period value using new basis
     */
     function recalculatePeriod(uint16 _period) internal view returns (uint16) {
-        return uint16(uint256(_period) * formerSecondsPerPeriod / secondsPerPeriod);
+        return uint16(uint256(_period) * genesisSecondsPerPeriod / secondsPerPeriod);
     }
 
     /**
