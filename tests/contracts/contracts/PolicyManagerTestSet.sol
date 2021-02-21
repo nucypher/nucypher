@@ -51,7 +51,7 @@ contract StakingEscrowForPolicyMock {
         uint16 endPeriod;
     }
 
-    uint32 public immutable formerSecondsPerPeriod;
+    uint32 public immutable genesisSecondsPerPeriod;
     uint32 public immutable secondsPerPeriod;
 
     PolicyManager public policyManager;
@@ -59,12 +59,12 @@ contract StakingEscrowForPolicyMock {
     Downtime[] public downtime;
 
     /**
-    * @param _formerHoursPerPeriod Former size of period in hours
+    * @param _genesisHoursPerPeriod Size of period in hours at genesis
     * @param _hoursPerPeriod Size of period in hours
     */
-    constructor(uint16 _formerHoursPerPeriod, uint16 _hoursPerPeriod) {
+    constructor(uint16 _genesisHoursPerPeriod, uint16 _hoursPerPeriod) {
         secondsPerPeriod = _hoursPerPeriod * uint32(1 hours);
-        formerSecondsPerPeriod = _formerHoursPerPeriod * uint32(1 hours);
+        genesisSecondsPerPeriod = _genesisHoursPerPeriod * uint32(1 hours);
     }
 
     /**

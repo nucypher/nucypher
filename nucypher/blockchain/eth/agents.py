@@ -647,7 +647,7 @@ class StakingEscrowAgent(EthereumContractAgent):
         parameter_signatures = (
 
             # Period
-            'formerSecondsPerPeriod',       # Former seconds in single period
+            'genesisSecondsPerPeriod',       # Seconds in single period at genesis
             'secondsPerPeriod',             # Seconds in single period
 
             # Coefficients

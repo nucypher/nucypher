@@ -58,7 +58,7 @@ def test_intercontract_migration(testerchain, token_economics, token, deploy_con
         abi=escrow_old_library.abi,
         address=escrow_dispatcher.address,
         ContractFactoryClass=Contract)
-    assert escrow.functions.secondsPerPeriod().call() == token_economics.former_seconds_per_period
+    assert escrow.functions.secondsPerPeriod().call() == token_economics.genesis_seconds_per_period
 
     # Deploy old PolicyManager contract
     policy_manager_old_library, _ = deploy_contract(contract_name='PolicyManagerOld', _escrow=escrow.address)
@@ -68,7 +68,7 @@ def test_intercontract_migration(testerchain, token_economics, token, deploy_con
         abi=policy_manager_old_library.abi,
         address=policy_manager_dispatcher.address,
         ContractFactoryClass=Contract)
-    assert policy_manager.functions.secondsPerPeriod().call() == token_economics.former_seconds_per_period
+    assert policy_manager.functions.secondsPerPeriod().call() == token_economics.genesis_seconds_per_period
 
     tx = adjudicator.functions.setStakingEscrow(escrow.address).transact()
     testerchain.wait_for_receipt(tx)
@@ -82,10 +82,10 @@ def test_intercontract_migration(testerchain, token_economics, token, deploy_con
     testerchain.wait_for_receipt(tx)
 
     current_period = escrow.functions.getCurrentPeriod().call()
-    testerchain.time_travel(hours=token_economics.former_hours_per_period)
+    testerchain.time_travel(hours=token_economics.genesis_hours_per_period)
     assert escrow.functions.getCurrentPeriod().call() == current_period + 1
     assert policy_manager.functions.getCurrentPeriod().call() == current_period + 1
-    testerchain.time_travel(hours=token_economics.former_hours_per_period)
+    testerchain.time_travel(hours=token_economics.genesis_hours_per_period)
     assert escrow.functions.getCurrentPeriod().call() == current_period + 2
     assert policy_manager.functions.getCurrentPeriod().call() == current_period + 2
 
@@ -105,7 +105,7 @@ def test_intercontract_migration(testerchain, token_economics, token, deploy_con
 
     first_period = escrow.functions.getCurrentPeriod().call()
     if first_period % 2 == 1:
-        testerchain.time_travel(periods=1, periods_base=token_economics.former_seconds_per_period)
+        testerchain.time_travel(periods=1, periods_base=token_economics.genesis_seconds_per_period)
         first_period = escrow.functions.getCurrentPeriod().call()
 
     # First staker: unlocked tokens, minted everything, withdrew everything, cleaned data
@@ -132,12 +132,12 @@ def test_intercontract_migration(testerchain, token_economics, token, deploy_con
     testerchain.wait_for_receipt(tx)
     tx = escrow.functions.commitToNextPeriod().transact({'from': staker1})
     testerchain.wait_for_receipt(tx)
-    testerchain.time_travel(periods=1, periods_base=token_economics.former_seconds_per_period)
+    testerchain.time_travel(periods=1, periods_base=token_economics.genesis_seconds_per_period)
 
     # Create policies before migration
     policy_first_period = policy_manager.functions.getCurrentPeriod().call()
     policy_id = os.urandom(POLICY_ID_LENGTH)
-    one_period = token_economics.former_seconds_per_period
+    one_period = token_economics.genesis_seconds_per_period
     rate = 100
     current_timestamp = testerchain.w3.eth.getBlock('latest').timestamp
     end_timestamp = current_timestamp + (duration - 1) * one_period
@@ -154,12 +154,12 @@ def test_intercontract_migration(testerchain, token_economics, token, deploy_con
     for i in range(duration):
         tx = escrow.functions.commitToNextPeriod().transact({'from': staker1})
         testerchain.wait_for_receipt(tx)
-        testerchain.time_travel(periods=1, periods_base=token_economics.former_seconds_per_period)
+        testerchain.time_travel(periods=1, periods_base=token_economics.genesis_seconds_per_period)
 
     tx = escrow.functions.commitToNextPeriod().transact({'from': staker2})
     testerchain.wait_for_receipt(tx)
 
-    testerchain.time_travel(hours=token_economics.former_hours_per_period)
+    testerchain.time_travel(hours=token_economics.genesis_hours_per_period)
     current_period = escrow.functions.getCurrentPeriod().call()
 
     # Create policies to show refund and revoke before migration
@@ -267,10 +267,10 @@ def test_intercontract_migration(testerchain, token_economics, token, deploy_con
     testerchain.wait_for_receipt(tx)
 
     assert escrow.functions.secondsPerPeriod().call() == token_economics.seconds_per_period
-    assert escrow.functions.formerSecondsPerPeriod().call() == token_economics.former_seconds_per_period
+    assert escrow.functions.genesisSecondsPerPeriod().call() == token_economics.genesis_seconds_per_period
     assert escrow.functions.getCurrentPeriod().call() == current_period // 2
     assert policy_manager.functions.secondsPerPeriod().call() == token_economics.seconds_per_period
-    assert policy_manager.functions.formerSecondsPerPeriod().call() == token_economics.former_seconds_per_period
+    assert policy_manager.functions.genesisSecondsPerPeriod().call() == token_economics.genesis_seconds_per_period
     assert policy_manager.functions.getCurrentPeriod().call() == current_period // 2
 
     reset_timestamp = testerchain.w3.eth.getBlock('latest').timestamp
@@ -492,10 +492,10 @@ def test_intercontract_migration(testerchain, token_economics, token, deploy_con
     # Time machine test
     testerchain.time_travel(periods=1, periods_base=token_economics.seconds_per_period)
     current_period = escrow.functions.getCurrentPeriod().call()
-    testerchain.time_travel(hours=token_economics.former_hours_per_period)
+    testerchain.time_travel(hours=token_economics.genesis_hours_per_period)
     assert escrow.functions.getCurrentPeriod().call() == current_period
     assert policy_manager.functions.getCurrentPeriod().call() == current_period
-    testerchain.time_travel(hours=token_economics.former_hours_per_period)
+    testerchain.time_travel(hours=token_economics.genesis_hours_per_period)
     assert escrow.functions.getCurrentPeriod().call() == current_period + 1
     assert policy_manager.functions.getCurrentPeriod().call() == current_period + 1
     testerchain.time_travel(hours=token_economics.hours_per_period)
@@ -507,13 +507,13 @@ def test_intercontract_migration(testerchain, token_economics, token, deploy_con
     ##########
     tx = escrow_dispatcher.functions.upgrade(escrow_library.address).transact()
     testerchain.wait_for_receipt(tx)
-    assert escrow.functions.formerSecondsPerPeriod().call() == token_economics.former_seconds_per_period
+    assert escrow.functions.genesisSecondsPerPeriod().call() == token_economics.genesis_seconds_per_period
     assert escrow.functions.secondsPerPeriod().call() == token_economics.seconds_per_period
 
     tx = policy_manager_dispatcher.functions.upgrade(policy_manager_library.address).transact()
     testerchain.wait_for_receipt(tx)
     assert policy_manager.functions.resetTimestamp().call() == reset_timestamp
-    assert policy_manager.functions.formerSecondsPerPeriod().call() == token_economics.former_seconds_per_period
+    assert policy_manager.functions.genesisSecondsPerPeriod().call() == token_economics.genesis_seconds_per_period
     assert policy_manager.functions.secondsPerPeriod().call() == token_economics.seconds_per_period
 
     deploy_args = token_economics.staking_deployment_parameters
@@ -537,10 +537,10 @@ def test_intercontract_migration(testerchain, token_economics, token, deploy_con
     tx = policy_manager_dispatcher.functions.upgrade(policy_manager_2_library.address).transact()
     testerchain.wait_for_receipt(tx)
 
-    assert escrow.functions.formerSecondsPerPeriod().call() == token_economics.seconds_per_period
+    assert escrow.functions.genesisSecondsPerPeriod().call() == token_economics.seconds_per_period
     assert escrow.functions.secondsPerPeriod().call() == 2 * token_economics.seconds_per_period
     assert escrow.functions.getCurrentPeriod().call() == current_period // 2
     assert policy_manager.functions.resetTimestamp().call() == reset_timestamp
-    assert policy_manager.functions.formerSecondsPerPeriod().call() == token_economics.seconds_per_period
+    assert policy_manager.functions.genesisSecondsPerPeriod().call() == token_economics.seconds_per_period
     assert policy_manager.functions.secondsPerPeriod().call() == 2 * token_economics.seconds_per_period
     assert policy_manager.functions.getCurrentPeriod().call() == current_period // 2

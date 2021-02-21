@@ -27,7 +27,7 @@ from nucypher.blockchain.eth.deployers import (StakingEscrowDeployer, PolicyMana
 
 @pytest.fixture(scope="module")
 def new_token_economics(token_economics):
-    economics = StandardTokenEconomics(former_hours_per_period=token_economics.hours_per_period,
+    economics = StandardTokenEconomics(genesis_hours_per_period=token_economics.hours_per_period,
                                        hours_per_period=2 * token_economics.hours_per_period)
     return economics
 
@@ -63,7 +63,7 @@ def test_staking_escrow_preparation(testerchain,
     # Data is still old, because there is no upgrade yet
     staking_agent = ContractAgency.get_agent(StakingEscrowAgent, registry=test_registry)
     assert staking_agent.contract.functions.secondsPerPeriod().call() == token_economics.seconds_per_period
-    assert staking_agent.contract.functions.formerSecondsPerPeriod().call() == token_economics.seconds_per_period
+    assert staking_agent.contract.functions.genesisSecondsPerPeriod().call() == token_economics.seconds_per_period
 
 
 def test_policy_manager_preparation(testerchain,
@@ -75,7 +75,7 @@ def test_policy_manager_preparation(testerchain,
     # Data is still old, because there is no upgrade yet
     policy_manager_agent = ContractAgency.get_agent(PolicyManagerAgent, registry=test_registry)
     assert policy_manager_agent.contract.functions.secondsPerPeriod().call() == token_economics.seconds_per_period
-    assert policy_manager_agent.contract.functions.formerSecondsPerPeriod().call() == token_economics.seconds_per_period
+    assert policy_manager_agent.contract.functions.genesisSecondsPerPeriod().call() == token_economics.seconds_per_period
 
 
 def test_staking_escrow_migration_upgrade(testerchain,
@@ -92,7 +92,7 @@ def test_staking_escrow_migration_upgrade(testerchain,
     # Now data must be new
     staking_agent = ContractAgency.get_agent(StakingEscrowAgent, registry=test_registry)
     assert staking_agent.contract.functions.secondsPerPeriod().call() == new_token_economics.seconds_per_period
-    assert staking_agent.contract.functions.formerSecondsPerPeriod().call() == new_token_economics.former_seconds_per_period
+    assert staking_agent.contract.functions.genesisSecondsPerPeriod().call() == new_token_economics.genesis_seconds_per_period
 
 
 def test_policy_manager_migration_upgrade(testerchain,
@@ -109,4 +109,4 @@ def test_policy_manager_migration_upgrade(testerchain,
     # Now data must be new
     policy_manager_agent = ContractAgency.get_agent(PolicyManagerAgent, registry=test_registry)
     assert policy_manager_agent.contract.functions.secondsPerPeriod().call() == new_token_economics.seconds_per_period
-    assert policy_manager_agent.contract.functions.formerSecondsPerPeriod().call() == new_token_economics.former_seconds_per_period
+    assert policy_manager_agent.contract.functions.genesisSecondsPerPeriod().call() == new_token_economics.genesis_seconds_per_period

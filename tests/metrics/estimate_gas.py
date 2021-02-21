@@ -606,7 +606,7 @@ def estimate_gas(analyzer: AnalyzeGas = None) -> None:
                                            *args,
                                            **kwargs)
 
-    token_economics = StandardTokenEconomics(former_hours_per_period=StandardTokenEconomics._default_hours_per_period,
+    token_economics = StandardTokenEconomics(genesis_hours_per_period=StandardTokenEconomics._default_hours_per_period,
                                              hours_per_period=2 * StandardTokenEconomics._default_hours_per_period)
 
     token, _ = deploy_contract('NuCypherToken', _totalSupplyOfTokens=token_economics.erc20_total_supply)
@@ -687,7 +687,7 @@ def estimate_gas(analyzer: AnalyzeGas = None) -> None:
             testerchain.wait_for_receipt(tx)
             tx = escrow.functions.commitToNextPeriod().transact({'from': staker4})
             testerchain.wait_for_receipt(tx)
-        testerchain.time_travel(periods=1, periods_base=token_economics.former_seconds_per_period)
+        testerchain.time_travel(periods=1, periods_base=token_economics.genesis_seconds_per_period)
 
     ##########
     # Deploy new version of contracts
