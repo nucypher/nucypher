@@ -63,7 +63,7 @@ class SubStakeInfo(NamedTuple):
 class RawSubStakeInfo(NamedTuple):
     first_period: Period
     last_period: Period
-    periods: int
+    unlocking_duration: int
     locked_value: NuNits
 
 
