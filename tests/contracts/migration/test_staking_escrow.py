@@ -489,6 +489,11 @@ def test_staking_escrow_migration(testerchain, token_economics, token, deploy_co
     # Fresh staker
     ##########
 
+    # Only staker can call migrate()
+    with pytest.raises((TransactionFailed, ValueError)):
+        tx = contract.functions.migrate(staker6).transact({'from': staker6})
+        testerchain.wait_for_receipt(tx)
+
     registrations = policy_manager.functions.getPeriodsLength(staker6).call()
     assert registrations == 0
     tx = contract.functions.deposit(staker6, stake_size, duration).transact({'from': staker6})
@@ -502,6 +507,8 @@ def test_staking_escrow_migration(testerchain, token_economics, token, deploy_co
     assert staker_info == [stake_size, 0, 0, 0, 0, 0, 0, NULL_ADDRESS]
     registrations = policy_manager.functions.getPeriodsLength(staker6).call()
     assert registrations == 1
+    tx = contract.functions.migrate(staker6).transact({'from': staker6})
+    testerchain.wait_for_receipt(tx)
     assert policy_manager.functions.migratedNodes(staker6).call() == 0
 
     ##########
