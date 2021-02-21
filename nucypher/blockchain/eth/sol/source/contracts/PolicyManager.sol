@@ -133,7 +133,7 @@ contract PolicyManager is Upgradeable {
         uint32 localgenesisSecondsPerPeriod = _escrowLibrary.genesisSecondsPerPeriod();
         require(localgenesisSecondsPerPeriod > 0);
         genesisSecondsPerPeriod = localgenesisSecondsPerPeriod;
-        // checks possible migration
+        // handle case when we deployed new StakingEscrow but not yet upgraded
         if (_escrowDispatcher != _escrowLibrary) {
             require(_escrowDispatcher.secondsPerPeriod() == localSecondsPerPeriod ||
                 _escrowDispatcher.secondsPerPeriod() == localgenesisSecondsPerPeriod);
@@ -180,6 +180,8 @@ contract PolicyManager is Upgradeable {
     */
     function migrate(address _node) external onlyEscrowContract {
         NodeInfo storage nodeInfo = nodes[_node];
+        // with previous period length any previousFeePeriod will be greater than current period
+        // this is a sign of not migrated node
         require(nodeInfo.previousFeePeriod >= getCurrentPeriod());
         nodeInfo.previousFeePeriod = recalculatePeriod(nodeInfo.previousFeePeriod);
         nodeInfo.feeRate = 0;
@@ -338,6 +340,7 @@ contract PolicyManager is Upgradeable {
         external onlyEscrowContract
     {
         NodeInfo storage node = nodes[_node];
+        // protection from calling not migrated node, see migrate()
         require(node.previousFeePeriod < getCurrentPeriod());
         if (_processedPeriod1 != 0) {
             updateFee(node, _processedPeriod1);
