@@ -92,7 +92,7 @@ CONSTRUCTOR_OVERRIDES = {
                                                      "_miningCoefficient": 2,
                                                      "_lockedPeriodsCoefficient": 1,
                                                      "_rewardedPeriods": 1},
-                                          "v5.7.1": {"_formerHoursPerPeriod": None}
+                                          "v5.7.1": {"_genesisHoursPerPeriod": None}
                                           }
 }
 

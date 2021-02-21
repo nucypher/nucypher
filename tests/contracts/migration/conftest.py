@@ -22,7 +22,7 @@ from nucypher.blockchain.economics import StandardTokenEconomics
 
 @pytest.fixture()
 def token_economics():
-    economics = StandardTokenEconomics(former_hours_per_period=24,
+    economics = StandardTokenEconomics(genesis_hours_per_period=24,
                                        hours_per_period=48,
                                        minimum_locked_periods=2)
     return economics
