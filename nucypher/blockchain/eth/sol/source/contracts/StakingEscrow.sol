@@ -1235,6 +1235,7 @@ contract StakingEscrow is Issuer, IERC900History {
             return;
         }
 
+        // reset state
         info.currentCommittedPeriod = 0;
         info.nextCommittedPeriod = 0;
         // maintain case when no more sub-stakes and need to avoid re-registering this staker during deposit
@@ -1242,12 +1243,15 @@ contract StakingEscrow is Issuer, IERC900History {
         info.workerStartPeriod = recalculatePeriod(info.workerStartPeriod);
         delete info.pastDowntime;
 
+        // recalculate all sub-stakes
         for (uint256 i = 0; i < info.subStakes.length; i++) {
             SubStakeInfo storage subStake = info.subStakes[i];
             subStake.firstPeriod = recalculatePeriod(subStake.firstPeriod);
+            // sub-stake has fixed last period
             if (subStake.lastPeriod != 0) {
                 subStake.lastPeriod = recalculatePeriod(subStake.lastPeriod);
                 subStake.unlockingDuration = 0;
+            // sub-stake has no fixed ending but possible that with new period length will have
             } else {
                 uint16 oldCurrentPeriod = uint16(block.timestamp / genesisSecondsPerPeriod);
                 uint16 lastPeriod = recalculatePeriod(oldCurrentPeriod + subStake.unlockingDuration);
