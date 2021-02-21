@@ -28,7 +28,7 @@ def test_issuer_migration(testerchain, token, token_economics, deploy_contract):
     issuer_old_library, _ = deploy_contract(
         contract_name='IssuerOldMock',
         _token=token.address,
-        _hoursPerPeriod=token_economics.former_hours_per_period,
+        _hoursPerPeriod=token_economics.genesis_hours_per_period,
         _issuanceDecayCoefficient=int(token_economics.issuance_decay_coefficient),
         _lockDurationCoefficient1=int(token_economics.lock_duration_coefficient_1),
         _lockDurationCoefficient2=int(token_economics.lock_duration_coefficient_2),
@@ -42,10 +42,10 @@ def test_issuer_migration(testerchain, token, token_economics, deploy_contract):
         abi=issuer_old_library.abi,
         address=dispatcher.address,
         ContractFactoryClass=Contract)
-    assert contract.functions.secondsPerPeriod().call() == token_economics.former_seconds_per_period
+    assert contract.functions.secondsPerPeriod().call() == token_economics.genesis_seconds_per_period
 
     current_period = contract.functions.getCurrentPeriod().call()
-    testerchain.time_travel(hours=token_economics.former_hours_per_period)
+    testerchain.time_travel(hours=token_economics.genesis_hours_per_period)
     assert contract.functions.getCurrentPeriod().call() == current_period + 1
     current_period = contract.functions.getCurrentPeriod().call()
     current_minting_period = current_period
@@ -63,8 +63,8 @@ def test_issuer_migration(testerchain, token, token_economics, deploy_contract):
         deploy_contract(
             contract_name='IssuerMock',
             _token=token.address,
-            _formerHoursPerPeriod=token_economics.hours_per_period,
-            _hoursPerPeriod=token_economics.former_hours_per_period,
+            _genesisHoursPerPeriod=token_economics.hours_per_period,
+            _hoursPerPeriod=token_economics.genesis_hours_per_period,
             _issuanceDecayCoefficient=int(token_economics.issuance_decay_coefficient),
             _lockDurationCoefficient1=int(token_economics.lock_duration_coefficient_1),
             _lockDurationCoefficient2=int(token_economics.lock_duration_coefficient_2),
@@ -77,7 +77,7 @@ def test_issuer_migration(testerchain, token, token_economics, deploy_contract):
     issuer_library, _ = deploy_contract(
         contract_name='IssuerMock',
         _token=token.address,
-        _formerHoursPerPeriod=token_economics.former_hours_per_period,
+        _genesisHoursPerPeriod=token_economics.genesis_hours_per_period,
         _hoursPerPeriod=token_economics.hours_per_period,
         _issuanceDecayCoefficient=int(token_economics.issuance_decay_coefficient),
         _lockDurationCoefficient1=int(token_economics.lock_duration_coefficient_1),
@@ -94,7 +94,7 @@ def test_issuer_migration(testerchain, token, token_economics, deploy_contract):
     tx = dispatcher.functions.upgrade(issuer_library.address).transact()
     testerchain.wait_for_receipt(tx)
     assert contract.functions.secondsPerPeriod().call() == token_economics.seconds_per_period
-    assert contract.functions.formerSecondsPerPeriod().call() == token_economics.former_seconds_per_period
+    assert contract.functions.genesisSecondsPerPeriod().call() == token_economics.genesis_seconds_per_period
     assert contract.functions.getCurrentPeriod().call() == current_period // 2
     assert contract.functions.currentMintingPeriod().call() == current_minting_period // 2
 
@@ -104,9 +104,9 @@ def test_issuer_migration(testerchain, token, token_economics, deploy_contract):
 
     testerchain.time_travel(periods=1, periods_base=token_economics.seconds_per_period)
     current_period = contract.functions.getCurrentPeriod().call()
-    testerchain.time_travel(hours=token_economics.former_hours_per_period)
+    testerchain.time_travel(hours=token_economics.genesis_hours_per_period)
     assert contract.functions.getCurrentPeriod().call() == current_period
-    testerchain.time_travel(hours=token_economics.former_hours_per_period)
+    testerchain.time_travel(hours=token_economics.genesis_hours_per_period)
     assert contract.functions.getCurrentPeriod().call() == current_period + 1
     testerchain.time_travel(hours=token_economics.hours_per_period)
     assert contract.functions.getCurrentPeriod().call() == current_period + 2
@@ -116,7 +116,7 @@ def test_issuer_migration(testerchain, token, token_economics, deploy_contract):
     issuer_library_2, _ = deploy_contract(
         contract_name='IssuerMock',
         _token=token.address,
-        _formerHoursPerPeriod=token_economics.hours_per_period,
+        _genesisHoursPerPeriod=token_economics.hours_per_period,
         _hoursPerPeriod=2 * token_economics.hours_per_period,
         _issuanceDecayCoefficient=int(token_economics.issuance_decay_coefficient),
         _lockDurationCoefficient1=int(token_economics.lock_duration_coefficient_1),
@@ -128,7 +128,7 @@ def test_issuer_migration(testerchain, token, token_economics, deploy_contract):
 
     tx = dispatcher.functions.upgrade(issuer_library_2.address).transact()
     testerchain.wait_for_receipt(tx)
-    assert contract.functions.formerSecondsPerPeriod().call() == token_economics.seconds_per_period
+    assert contract.functions.genesisSecondsPerPeriod().call() == token_economics.seconds_per_period
     assert contract.functions.secondsPerPeriod().call() == 2 * token_economics.seconds_per_period
     assert contract.functions.getCurrentPeriod().call() == (current_period + 2) // 2
     assert contract.functions.currentMintingPeriod().call() == current_minting_period // 4

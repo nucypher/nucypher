@@ -51,7 +51,7 @@ contract StakingEscrowStub is Upgradeable {
     using AdditionalMath for uint32;
 
     NuCypherToken public immutable token;
-    uint32 public immutable formerSecondsPerPeriod;
+    uint32 public immutable genesisSecondsPerPeriod;
     uint32 public immutable secondsPerPeriod;
     uint16 public immutable minLockedPeriods;
     uint256 public immutable minAllowableLockedTokens;
@@ -60,7 +60,7 @@ contract StakingEscrowStub is Upgradeable {
     /**
     * @notice Predefines some variables for use when deploying other contracts
     * @param _token Token contract
-    * @param _formerHoursPerPeriod Former size of period in hours
+    * @param _genesisHoursPerPeriod Size of period in hours at genesis
     * @param _hoursPerPeriod Size of period in hours
     * @param _minLockedPeriods Min amount of periods during which tokens can be locked
     * @param _minAllowableLockedTokens Min amount of tokens that can be locked
@@ -68,7 +68,7 @@ contract StakingEscrowStub is Upgradeable {
     */
     constructor(
         NuCypherToken _token,
-        uint32 _formerHoursPerPeriod,
+        uint32 _genesisHoursPerPeriod,
         uint32 _hoursPerPeriod,
         uint16 _minLockedPeriods,
         uint256 _minAllowableLockedTokens,
@@ -76,14 +76,14 @@ contract StakingEscrowStub is Upgradeable {
     ) {
         require(_token.totalSupply() > 0 &&
             _hoursPerPeriod != 0 &&
-            _formerHoursPerPeriod != 0 &&
-            _formerHoursPerPeriod <= _hoursPerPeriod &&
+            _genesisHoursPerPeriod != 0 &&
+            _genesisHoursPerPeriod <= _hoursPerPeriod &&
             _minLockedPeriods > 1 &&
             _maxAllowableLockedTokens != 0);
 
         token = _token;
         secondsPerPeriod = _hoursPerPeriod.mul32(1 hours);
-        formerSecondsPerPeriod = _formerHoursPerPeriod.mul32(1 hours);
+        genesisSecondsPerPeriod = _genesisHoursPerPeriod.mul32(1 hours);
         minLockedPeriods = _minLockedPeriods;
         minAllowableLockedTokens = _minAllowableLockedTokens;
         maxAllowableLockedTokens = _maxAllowableLockedTokens;
@@ -96,7 +96,7 @@ contract StakingEscrowStub is Upgradeable {
         // we have to use real values even though this is a stub
         require(address(delegateGet(_testTarget, this.token.selector)) == address(token));
         // TODO uncomment after merging this PR
-//        require(uint32(delegateGet(_testTarget, this.formerSecondsPerPeriod.selector)) == formerSecondsPerPeriod);
+//        require(uint32(delegateGet(_testTarget, this.genesisSecondsPerPeriod.selector)) == genesisSecondsPerPeriod);
         require(uint32(delegateGet(_testTarget, this.secondsPerPeriod.selector)) == secondsPerPeriod);
         require(uint16(delegateGet(_testTarget, this.minLockedPeriods.selector)) == minLockedPeriods);
         require(delegateGet(_testTarget, this.minAllowableLockedTokens.selector) == minAllowableLockedTokens);
@@ -309,7 +309,7 @@ contract StakingEscrow is Issuer, IERC900History {
     address[] public stakers;
     mapping (address => address) public stakerFromWorker;
 
-    mapping (uint16 => uint256) stub4; // former lockedPerPeriod
+    mapping (uint16 => uint256) stub4; // former slot for lockedPerPeriod
     uint128[] public balanceHistory;
 
     address stub1; // former slot for PolicyManager
@@ -329,7 +329,7 @@ contract StakingEscrow is Issuer, IERC900History {
     * @param _policyManager Policy Manager contract
     * @param _adjudicator Adjudicator contract
     * @param _workLock WorkLock contract. Zero address if there is no WorkLock
-    * @param _formerHoursPerPeriod Former size of period in hours
+    * @param _genesisHoursPerPeriod Size of period in hours at genesis
     * @param _hoursPerPeriod Size of period in hours
     * @param _issuanceDecayCoefficient (d) Coefficient which modifies the rate at which the maximum issuance decays,
     * only applicable to Phase 2. d = 365 * half-life / LOG2 where default half-life = 2.
@@ -359,7 +359,7 @@ contract StakingEscrow is Issuer, IERC900History {
         PolicyManagerInterface _policyManager,
         AdjudicatorInterface _adjudicator,
         WorkLockInterface _workLock,
-        uint32 _formerHoursPerPeriod,
+        uint32 _genesisHoursPerPeriod,
         uint32 _hoursPerPeriod,
         uint256 _issuanceDecayCoefficient,
         uint256 _lockDurationCoefficient1,
@@ -374,7 +374,7 @@ contract StakingEscrow is Issuer, IERC900History {
     )
         Issuer(
             _token,
-            _formerHoursPerPeriod,
+            _genesisHoursPerPeriod,
             _hoursPerPeriod,
             _issuanceDecayCoefficient,
             _lockDurationCoefficient1,
@@ -392,7 +392,7 @@ contract StakingEscrow is Issuer, IERC900History {
         minWorkerPeriods = _minWorkerPeriods;
 
         require((_policyManager.secondsPerPeriod() == _hoursPerPeriod * (1 hours) ||
-            _policyManager.secondsPerPeriod() == _formerHoursPerPeriod * (1 hours)) &&
+            _policyManager.secondsPerPeriod() == _genesisHoursPerPeriod * (1 hours)) &&
             _adjudicator.rewardCoefficient() != 0 &&
             (address(_workLock) == address(0) || _workLock.token() == _token));
         policyManager = _policyManager;
@@ -1249,7 +1249,7 @@ contract StakingEscrow is Issuer, IERC900History {
                 subStake.lastPeriod = recalculatePeriod(subStake.lastPeriod);
                 subStake.unlockingDuration = 0;
             } else {
-                uint16 oldCurrentPeriod = uint16(block.timestamp / formerSecondsPerPeriod);
+                uint16 oldCurrentPeriod = uint16(block.timestamp / genesisSecondsPerPeriod);
                 uint16 lastPeriod = recalculatePeriod(oldCurrentPeriod + subStake.unlockingDuration);
                 subStake.unlockingDuration = lastPeriod - getCurrentPeriod();
                 if (subStake.unlockingDuration == 0) {

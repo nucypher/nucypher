@@ -52,7 +52,7 @@ def token_economics():
         lock_duration_coefficient_1=4,
         lock_duration_coefficient_2=8,
         maximum_rewarded_periods=4,
-        former_hours_per_period=1,
+        genesis_hours_per_period=1,
         hours_per_period=1,
         minimum_locked_periods=6,
         minimum_allowed_locked=200,
@@ -74,7 +74,7 @@ def token(token_economics, deploy_contract):
 def escrow_dispatcher(testerchain, token, token_economics, deploy_contract):
     escrow_stub, _ = deploy_contract('StakingEscrowStub',
                                      token.address,
-                                     token_economics.former_hours_per_period,
+                                     token_economics.genesis_hours_per_period,
                                      token_economics.hours_per_period,
                                      token_economics.minimum_locked_periods,
                                      token_economics.minimum_allowed_locked,
