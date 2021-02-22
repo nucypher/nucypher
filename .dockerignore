@@ -1,0 +1,6 @@
+.env/*
+env/*
+docs/*
+newsfragments/*
+.coverage/*
+.git/*
