@@ -193,8 +193,7 @@ def test_stake_prolong(click_runner,
                     '--staking-address', manual_staker,
                     '--force')
 
-    staker = Staker(is_me=True,
-                    domain=TEMPORARY_DOMAIN,
+    staker = Staker(domain=TEMPORARY_DOMAIN,
                     checksum_address=manual_staker,
                     registry=agency_local_registry)
     staker.refresh_stakes()
@@ -345,8 +344,7 @@ def test_stake_bond_worker(click_runner,
                                  catch_exceptions=False)
     assert result.exit_code == 0
 
-    staker = Staker(is_me=True,
-                    domain=TEMPORARY_DOMAIN,
+    staker = Staker(domain=TEMPORARY_DOMAIN,
                     checksum_address=manual_staker,
                     registry=agency_local_registry)
     assert staker.worker_address == manual_worker
@@ -420,8 +418,7 @@ def test_stake_restake(click_runner,
                        agency_local_registry,
                        stakeholder_configuration_file_location):
 
-    staker = Staker(is_me=True,
-                    domain=TEMPORARY_DOMAIN,
+    staker = Staker(domain=TEMPORARY_DOMAIN,
                     checksum_address=manual_staker,
                     registry=agency_local_registry)
     assert staker.is_restaking
@@ -475,8 +472,7 @@ def test_stake_winddown(click_runner,
                         agency_local_registry,
                         stakeholder_configuration_file_location):
 
-    staker = Staker(is_me=True,
-                    domain=TEMPORARY_DOMAIN,
+    staker = Staker(domain=TEMPORARY_DOMAIN,
                     checksum_address=manual_staker,
                     registry=agency_local_registry)
     assert not staker.is_winding_down
@@ -517,8 +513,7 @@ def test_stake_snapshots(click_runner,
                          agency_local_registry,
                          stakeholder_configuration_file_location):
 
-    staker = Staker(is_me=True,
-                    domain=TEMPORARY_DOMAIN,
+    staker = Staker(domain=TEMPORARY_DOMAIN,
                     checksum_address=manual_staker,
                     registry=agency_local_registry)
     assert staker.is_taking_snapshots
@@ -572,8 +567,7 @@ def test_collect_rewards_integration(click_runner,
     staker_address = manual_staker
     worker_address = manual_worker
 
-    staker = Staker(is_me=True,
-                    domain=TEMPORARY_DOMAIN,
+    staker = Staker(domain=TEMPORARY_DOMAIN,
                     checksum_address=staker_address,
                     registry=agency_local_registry)
     staker.refresh_stakes()
@@ -739,8 +733,7 @@ def test_stake_unbond_worker(click_runner,
                              stakeholder_configuration_file_location):
     testerchain.time_travel(periods=1)
 
-    staker = Staker(is_me=True,
-                    domain=TEMPORARY_DOMAIN,
+    staker = Staker(domain=TEMPORARY_DOMAIN,
                     checksum_address=manual_staker,
                     registry=agency_local_registry)
 
@@ -759,8 +752,7 @@ def test_stake_unbond_worker(click_runner,
                                  catch_exceptions=False)
     assert result.exit_code == 0
 
-    staker = Staker(is_me=True,
-                    domain=TEMPORARY_DOMAIN,
+    staker = Staker(domain=TEMPORARY_DOMAIN,
                     checksum_address=manual_staker,
                     registry=agency_local_registry)
 
@@ -775,8 +767,7 @@ def test_set_min_rate(click_runner,
 
     _minimum, _default, maximum = FEE_RATE_RANGE
     min_rate = maximum - 1
-    staker = Staker(is_me=True,
-                    domain=TEMPORARY_DOMAIN,
+    staker = Staker(domain=TEMPORARY_DOMAIN,
                     checksum_address=manual_staker,
                     registry=agency_local_registry)
     assert staker.raw_min_fee_rate == 0
@@ -813,8 +804,7 @@ def test_mint(click_runner,
               stakeholder_configuration_file_location):
 
     testerchain.time_travel(periods=2)
-    staker = Staker(is_me=True,
-                    domain=TEMPORARY_DOMAIN,
+    staker = Staker(domain=TEMPORARY_DOMAIN,
                     checksum_address=manual_staker,
                     registry=agency_local_registry)
     assert staker.mintable_periods() > 0

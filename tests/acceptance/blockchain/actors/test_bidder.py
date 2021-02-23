@@ -32,8 +32,7 @@ from nucypher.blockchain.eth.constants import NULL_ADDRESS
 def test_create_bidder(testerchain, test_registry, agency, token_economics):
     bidder_address = testerchain.unassigned_accounts[0]
     tpower = TransactingPower(account=bidder_address, signer=Web3Signer(testerchain.client))
-    bidder = Bidder(checksum_address=bidder_address,
-                    domain=TEMPORARY_DOMAIN,
+    bidder = Bidder(domain=TEMPORARY_DOMAIN,
                     registry=test_registry,
                     transacting_power=tpower)
     assert bidder.checksum_address == bidder_address
@@ -57,8 +56,7 @@ def test_bidding(testerchain, agency, token_economics, test_registry):
     for i, bid in enumerate(initial_bids):
         bidder_address = testerchain.client.accounts[i]
         tpower = TransactingPower(account=bidder_address, signer=Web3Signer(testerchain.client))
-        bidder = Bidder(checksum_address=bidder_address,
-                        registry=test_registry,
+        bidder = Bidder(registry=test_registry,
                         domain=TEMPORARY_DOMAIN,
                         transacting_power=tpower)
 
@@ -74,8 +72,7 @@ def test_cancel_bid(testerchain, agency, token_economics, test_registry):
 
     bidder_address = testerchain.client.accounts[1]
     tpower = TransactingPower(account=bidder_address, signer=Web3Signer(testerchain.client))
-    bidder = Bidder(checksum_address=bidder_address,
-                    registry=test_registry,
+    bidder = Bidder(registry=test_registry,
                     transacting_power=tpower,
                     domain=TEMPORARY_DOMAIN)
     assert bidder.get_deposited_eth        # Bid
@@ -91,8 +88,7 @@ def test_cancel_bid(testerchain, agency, token_economics, test_registry):
 def test_get_remaining_work(testerchain, agency, token_economics, test_registry):
     bidder_address = testerchain.client.accounts[0]
     tpower = TransactingPower(account=bidder_address, signer=Web3Signer(testerchain.client))
-    bidder = Bidder(checksum_address=bidder_address,
-                    registry=test_registry,
+    bidder = Bidder(registry=test_registry,
                     transacting_power=tpower,
                     domain=TEMPORARY_DOMAIN)
     remaining = bidder.remaining_work
@@ -102,8 +98,7 @@ def test_get_remaining_work(testerchain, agency, token_economics, test_registry)
 def test_verify_correctness_before_refund(testerchain, agency, token_economics, test_registry):
     bidder_address = testerchain.client.accounts[0]
     tpower = TransactingPower(account=bidder_address, signer=Web3Signer(testerchain.client))
-    bidder = Bidder(checksum_address=bidder_address,
-                    registry=test_registry,
+    bidder = Bidder(registry=test_registry,
                     transacting_power=tpower,
                     domain=TEMPORARY_DOMAIN)
     worklock_agent = ContractAgency.get_agent(WorkLockAgent, registry=test_registry)
@@ -124,8 +119,7 @@ def test_verify_correctness_before_refund(testerchain, agency, token_economics, 
 def test_force_refund(testerchain, agency, token_economics, test_registry):
     bidder_address = testerchain.client.accounts[0]
     tpower = TransactingPower(account=bidder_address, signer=Web3Signer(testerchain.client))
-    bidder = Bidder(checksum_address=bidder_address,
-                    registry=test_registry,
+    bidder = Bidder(registry=test_registry,
                     transacting_power=tpower,
                     domain=TEMPORARY_DOMAIN)
     whales = bidder.get_whales()
@@ -139,8 +133,7 @@ def test_force_refund(testerchain, agency, token_economics, test_registry):
 
     bidder_address = testerchain.client.accounts[1]
     tpower = TransactingPower(account=bidder_address, signer=Web3Signer(testerchain.client))
-    bidder = Bidder(checksum_address=bidder_address,
-                    registry=test_registry,
+    bidder = Bidder(registry=test_registry,
                     transacting_power=tpower,
                     domain=TEMPORARY_DOMAIN)
     worklock_agent = ContractAgency.get_agent(WorkLockAgent, registry=test_registry)
@@ -160,8 +153,7 @@ def test_force_refund(testerchain, agency, token_economics, test_registry):
 def test_verify_correctness(testerchain, agency, token_economics, test_registry):
     bidder_address = testerchain.client.accounts[0]
     tpower = TransactingPower(account=bidder_address, signer=Web3Signer(testerchain.client))
-    bidder = Bidder(checksum_address=bidder_address,
-                    registry=test_registry,
+    bidder = Bidder(registry=test_registry,
                     transacting_power=tpower,
                     domain=TEMPORARY_DOMAIN)
     worklock_agent = ContractAgency.get_agent(WorkLockAgent, registry=test_registry)
@@ -180,8 +172,7 @@ def test_verify_correctness(testerchain, agency, token_economics, test_registry)
 def test_withdraw_compensation(testerchain, agency, token_economics, test_registry):
     bidder_address = testerchain.client.accounts[12]
     tpower = TransactingPower(account=bidder_address, signer=Web3Signer(testerchain.client))
-    bidder = Bidder(checksum_address=bidder_address,
-                    registry=test_registry,
+    bidder = Bidder(registry=test_registry,
                     transacting_power=tpower,
                     domain=TEMPORARY_DOMAIN)
     worklock_agent = ContractAgency.get_agent(WorkLockAgent, registry=test_registry)
@@ -195,8 +186,7 @@ def test_withdraw_compensation(testerchain, agency, token_economics, test_regist
 def test_claim(testerchain, agency, token_economics, test_registry):
     bidder_address = testerchain.client.accounts[11]
     tpower = TransactingPower(account=bidder_address, signer=Web3Signer(testerchain.client))
-    bidder = Bidder(checksum_address=bidder_address,
-                    registry=test_registry,
+    bidder = Bidder(registry=test_registry,
                     transacting_power=tpower,
                     domain=TEMPORARY_DOMAIN)
     staking_agent = ContractAgency.get_agent(StakingEscrowAgent, registry=test_registry)

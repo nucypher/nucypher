@@ -71,9 +71,7 @@ def test_adjudicator_slashes(agency,
 
     # Deposit: The staker deposits tokens in the StakingEscrow contract.
     tpower = TransactingPower(account=staker_account, signer=Web3Signer(testerchain.client))
-    staker = Staker(checksum_address=staker_account,
-                    is_me=True,
-                    domain=TEMPORARY_DOMAIN,
+    staker = Staker(domain=TEMPORARY_DOMAIN,
                     registry=test_registry,
                     transacting_power=tpower)
 

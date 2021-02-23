@@ -157,8 +157,7 @@ def paint_stakers(emitter, stakers: List[str], registry: BaseContractRegistry) -
     emitter.echo('=' * (42 + 2 + 53))
 
     for staker_address in stakers:
-        staker = Staker(is_me=False,
-                        domain=TEMPORARY_DOMAIN,
+        staker = Staker(domain=TEMPORARY_DOMAIN,
                         checksum_address=staker_address,
                         registry=registry)
         nickname = Nickname.from_seed(staker_address)

@@ -67,9 +67,7 @@ def test_investigator_requests_slashing(testerchain,
 
     # Deposit: The staker deposits tokens in the StakingEscrow contract.
     staker_tpower = TransactingPower(account=staker_account, signer=Web3Signer(testerchain.client))
-    staker = Staker(checksum_address=staker_account,
-                    is_me=True,
-                    transacting_power=staker_tpower,
+    staker = Staker(transacting_power=staker_tpower,
                     domain=TEMPORARY_DOMAIN,
                     registry=test_registry)
 
@@ -91,8 +89,7 @@ def test_investigator_requests_slashing(testerchain,
     bob_tpower = TransactingPower(account=bob_account, signer=Web3Signer(testerchain.client))
     investigator = Investigator(registry=test_registry,
                                 transacting_power=bob_tpower,
-                                domain=TEMPORARY_DOMAIN,
-                                checksum_address=bob_account)
+                                domain=TEMPORARY_DOMAIN)
     ursula = mock_ursula(testerchain, worker_account, mocker=mocker)
 
     # Let's create a bad cfrag

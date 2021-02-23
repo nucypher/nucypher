@@ -232,10 +232,8 @@ def test_refund(click_runner, testerchain, agency_local_registry, token_economic
 
     # Bidder is now STAKER. Bond a worker.
     tpower = TransactingPower(account=bidder, signer=Web3Signer(testerchain.client))
-    staker = Staker(is_me=True,
-                    transacting_power=tpower,
+    staker = Staker(transacting_power=tpower,
                     domain=TEMPORARY_DOMAIN,
-                    checksum_address=bidder,
                     registry=agency_local_registry)
     receipt = staker.bond_worker(worker_address=worker_address)
     assert receipt['status'] == 1
@@ -284,8 +282,7 @@ def test_participant_status(click_runner, testerchain, agency_local_registry, to
 
     tpower = TransactingPower(account=testerchain.client.accounts[2],
                               signer=Web3Signer(testerchain.client))
-    bidder = Bidder(checksum_address=testerchain.client.accounts[2],
-                    transacting_power=tpower,
+    bidder = Bidder(transacting_power=tpower,
                     domain=TEMPORARY_DOMAIN,
                     registry=agency_local_registry)
 

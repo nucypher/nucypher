@@ -155,9 +155,8 @@ class NucypherTokenAgent(EthereumContractAgent):
     contract_name: str = NUCYPHER_TOKEN_CONTRACT_NAME
 
     @contract_api(CONTRACT_CALL)
-    def get_balance(self, address: Optional[ChecksumAddress] = None) -> NuNits:
+    def get_balance(self, address: ChecksumAddress) -> NuNits:
         """Get the NU balance (in NuNits) of a token holder address, or of this contract address"""
-        address = address if address is not None else self.contract_address
         balance: int = self.contract.functions.balanceOf(address).call()
         return NuNits(balance)
 

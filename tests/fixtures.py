@@ -517,10 +517,6 @@ def testerchain(_testerchain) -> TesterBlockchain:
             testerchain.log.info("Airdropped {} ETH {} -> {}".format(eth_amount, tx['from'], tx['to']))
 
     BlockchainInterfaceFactory.register_interface(interface=testerchain, force=True)
-    # Mock TransactingPower Consumption (Deployer)
-    testerchain.transacting_power = TransactingPower(password=INSECURE_DEVELOPMENT_PASSWORD,
-                                                     signer=Web3Signer(client=testerchain.client),
-                                                     account=testerchain.etherbase_account)
     yield testerchain
 
 
@@ -542,10 +538,6 @@ def deployer_transacting_power(testerchain):
 
 
 def _make_agency(testerchain, test_registry, token_economics, deployer_transacting_power):
-    """
-    Launch the big three contracts on provided chain,
-    make agents for each and return them.
-    """
 
     transacting_power = deployer_transacting_power
 
@@ -608,10 +600,7 @@ def agency_local_registry(testerchain, agency, test_registry):
 @pytest.fixture(scope="module")
 def stakers(testerchain, agency, token_economics, test_registry, deployer_transacting_power):
     token_agent = ContractAgency.get_agent(NucypherTokenAgent, registry=test_registry)
-    staking_agent = ContractAgency.get_agent(StakingEscrowAgent, registry=test_registry)
-
     blockchain = token_agent.blockchain
-
     token_airdrop(transacting_power=deployer_transacting_power,
                   addresses=blockchain.stakers_accounts,
                   token_agent=token_agent,
@@ -622,10 +611,8 @@ def stakers(testerchain, agency, token_economics, test_registry, deployer_transa
         tpower = TransactingPower(account=account, signer=Web3Signer(testerchain.client))
         tpower.unlock(password=INSECURE_DEVELOPMENT_PASSWORD)
 
-        staker = Staker(is_me=True,
-                        transacting_power=tpower,
+        staker = Staker(transacting_power=tpower,
                         domain=TEMPORARY_DOMAIN,
-                        checksum_address=account,
                         registry=test_registry)
 
         amount = MIN_STAKE_FOR_TESTS + random.randrange(BONUS_TOKENS_FOR_TESTS)
@@ -694,10 +681,8 @@ def idle_staker(testerchain, agency, test_registry):
                   amount=DEVELOPMENT_TOKEN_AIRDROP_AMOUNT)
 
     # Prepare idle staker
-    idle_staker = Staker(is_me=True,
-                         transacting_power=transacting_power,
+    idle_staker = Staker(transacting_power=transacting_power,
                          domain=TEMPORARY_DOMAIN,
-                         checksum_address=idle_staker_account,
                          blockchain=testerchain)
     yield idle_staker
 

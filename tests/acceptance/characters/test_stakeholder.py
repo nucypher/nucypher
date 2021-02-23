@@ -133,7 +133,6 @@ def test_collect_inflation_rewards(software_stakeholder, manual_worker, testerch
                     transacting_power=tpower,
                     domain=TEMPORARY_DOMAIN,
                     worker_address=manual_worker,
-                    checksum_address=stake.staker_address,
                     registry=test_registry)
 
     # Wait out stake lock periods, manually make a commitment once per period.

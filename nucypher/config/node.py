@@ -14,7 +14,7 @@ GNU Affero General Public License for more details.
 You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
-from decimal import Decimal
+
 
 import os
 import re
@@ -26,11 +26,11 @@ from constant_sorrow.constants import (
     NO_KEYRING_ATTACHED,
     UNINITIALIZED_CONFIGURATION
 )
+from decimal import Decimal
 from eth_utils.address import is_checksum_address
 from tempfile import TemporaryDirectory
 from typing import Callable, List, Union, Optional
 from umbral.signing import Signature
-from web3 import Web3
 
 from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
 from nucypher.blockchain.eth.networks import NetworksInventory

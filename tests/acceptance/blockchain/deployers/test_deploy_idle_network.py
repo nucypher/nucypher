@@ -130,10 +130,8 @@ def test_stake_in_idle_network(testerchain, token_economics, test_registry):
 
     account = testerchain.stakers_accounts[0]
     tpower = TransactingPower(account=account, signer=Web3Signer(testerchain.client))
-    staker = Staker(is_me=True,
-                    transacting_power=tpower,
+    staker = Staker(transacting_power=tpower,
                     domain=TEMPORARY_DOMAIN,
-                    checksum_address=account,
                     registry=test_registry)
 
     # Since StakingEscrow hasn't been activated yet, deposit should work but making a commitment must fail

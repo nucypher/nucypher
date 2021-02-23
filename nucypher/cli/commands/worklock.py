@@ -135,9 +135,9 @@ class WorkLockOptions:
             transacting_power = TransactingPower(account=self.bidder_address, signer=signer)
             transacting_power.unlock(password=client_password)
 
-        bidder = Bidder(checksum_address=self.bidder_address,
-                        registry=registry,
+        bidder = Bidder(registry=registry,
                         transacting_power=transacting_power,
+                        checksum_address=self.bidder_address if not transacting_power else None,
                         domain=domain)
         return bidder
 

@@ -139,7 +139,7 @@ def select_client_account(emitter,
     for index, account in enumerated_accounts.items():
         row = [account]
         if show_staking:
-            staker = Staker(is_me=True, domain=network, checksum_address=account, registry=registry)
+            staker = Staker(domain=network, checksum_address=account, registry=registry)
             staker.refresh_stakes()
             is_staking = 'Yes' if bool(staker.stakes) else 'No'
             row.append(is_staking)
