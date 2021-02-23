@@ -28,10 +28,18 @@ from nucypher.blockchain.eth.interfaces import (
     BlockchainInterface,
     BlockchainInterfaceFactory
 )
-from nucypher.blockchain.eth.registry import BaseContractRegistry, InMemoryContractRegistry, LocalContractRegistry
+from nucypher.blockchain.eth.registry import (
+    BaseContractRegistry,
+    InMemoryContractRegistry,
+    LocalContractRegistry
+)
 from nucypher.characters.base import Character
 from nucypher.characters.control.emitters import StdoutEmitter
-from nucypher.cli.actions.auth import get_nucypher_password, unlock_nucypher_keyring
+from nucypher.cli.actions.auth import (
+    get_nucypher_password,
+    unlock_nucypher_keyring,
+    unlock_signer_account
+)
 from nucypher.cli.literature import (
     CONNECTING_TO_BLOCKCHAIN,
     ETHERSCAN_FLAG_DISABLED_WARNING,
@@ -54,20 +62,26 @@ def setup_emitter(general_config, banner: str = None) -> StdoutEmitter:
 def make_cli_character(character_config,
                        emitter,
                        unlock_keyring: bool = True,
+                       unlock_signer: bool = True,
                        teacher_uri: str = None,
                        min_stake: int = 0,
-                       **config_args) -> Character:
+                       json_ipc: bool = False,
+                       **config_args
+                       ) -> Character:
 
     #
     # Pre-Init
     #
 
     # Handle Keyring
-
     if unlock_keyring:
         unlock_nucypher_keyring(emitter,
                                 character_configuration=character_config,
                                 password=get_nucypher_password(confirm=False))
+
+    # Handle Signer/Wallet
+    if unlock_signer:
+        unlock_signer_account(config=character_config, json_ipc=json_ipc)
 
     # Handle Teachers
     # TODO: Is this still relevant?  Is it better to DRY this up by doing it later?
@@ -97,7 +111,7 @@ def make_cli_character(character_config,
     #
 
     if CHARACTER.controller is not NO_CONTROL_PROTOCOL:
-        CHARACTER.controller.emitter = emitter  # TODO: set it on object creation? Or not set at all?
+        CHARACTER.controller.emitter = emitter
 
     # Federated
     if character_config.federated_only:

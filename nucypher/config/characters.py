@@ -26,7 +26,12 @@ from cryptography.x509 import Certificate
 from nucypher.blockchain.eth.actors import StakeHolder
 from nucypher.blockchain.eth.networks import NetworksInventory
 from nucypher.blockchain.eth.signers import Signer
-from nucypher.config.constants import DEFAULT_CONFIG_ROOT
+from nucypher.config.constants import (
+    DEFAULT_CONFIG_ROOT,
+    NUCYPHER_ENVVAR_WORKER_ETH_PASSWORD,
+    NUCYPHER_ENVVAR_ALICE_ETH_PASSWORD,
+    NUCYPHER_ENVVAR_BOB_ETH_PASSWORD
+)
 from nucypher.config.keyring import NucypherKeyring
 from nucypher.config.node import CharacterConfiguration
 
@@ -43,6 +48,7 @@ class UrsulaConfiguration(CharacterConfiguration):
     DEFAULT_DB_NAME = f'{NAME}.db'
     DEFAULT_AVAILABILITY_CHECKS = False
     LOCAL_SIGNERS_ALLOWED = True
+    SIGNER_ENVVAR = NUCYPHER_ENVVAR_WORKER_ETH_PASSWORD
 
     def __init__(self,
                  rest_host: str = None,
@@ -153,6 +159,8 @@ class AliceConfiguration(CharacterConfiguration):
     DEFAULT_STORE_POLICIES = True
     DEFAULT_STORE_CARDS = True
 
+    SIGNER_ENVVAR = NUCYPHER_ENVVAR_ALICE_ETH_PASSWORD
+
     _CONFIG_FIELDS = (
         *CharacterConfiguration._CONFIG_FIELDS,
         'store_policies',
@@ -208,6 +216,7 @@ class BobConfiguration(CharacterConfiguration):
     DEFAULT_CONTROLLER_PORT = 7151
     DEFFAULT_STORE_POLICIES = True
     DEFAULT_STORE_CARDS = True
+    SIGNER_ENVVAR = NUCYPHER_ENVVAR_BOB_ETH_PASSWORD
 
     _CONFIG_FIELDS = (
         *CharacterConfiguration._CONFIG_FIELDS,
@@ -250,6 +259,7 @@ class FelixConfiguration(CharacterConfiguration):
     DEFAULT_LEARNER_PORT = 9151
     DEFAULT_REST_HOST = '127.0.0.1'
     __DEFAULT_TLS_CURVE = ec.SECP384R1
+
 
     def __init__(self,
                  db_filepath: str = None,

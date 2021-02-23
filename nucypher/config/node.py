@@ -62,6 +62,7 @@ class CharacterConfiguration(BaseConfiguration):
     DEFAULT_DOMAIN = NetworksInventory.DEFAULT
     DEFAULT_NETWORK_MIDDLEWARE = RestMiddleware
     TEMP_CONFIGURATION_DIR_PREFIX = 'tmp-nucypher'
+    SIGNER_ENVVAR = None
 
     # When we begin to support other threshold schemes, this will be one of the concepts that makes us want a factory.  #571
     known_node_class = Ursula
@@ -239,6 +240,9 @@ class CharacterConfiguration(BaseConfiguration):
                 else:
                     self.registry = LocalContractRegistry(filepath=self.registry_filepath)
                     self.log.info(f"Using local registry ({self.registry}).")
+
+            self.testnet = self.domain != NetworksInventory.MAINNET
+            self.signer = Signer.from_signer_uri(self.signer_uri, testnet=self.testnet)
 
         if dev_mode:
             self.__temp_dir = UNINITIALIZED_CONFIGURATION
@@ -451,9 +455,7 @@ class CharacterConfiguration(BaseConfiguration):
         """Exported dynamic configuration values for initializing Ursula"""
         payload = dict()
         if not self.federated_only:
-            testnet = self.domain != NetworksInventory.MAINNET
-            signer = Signer.from_signer_uri(self.signer_uri, testnet=testnet)
-            payload.update(dict(registry=self.registry, signer=signer))
+            payload.update(dict(registry=self.registry, signer=self.signer))
 
         payload.update(dict(network_middleware=self.network_middleware or self.DEFAULT_NETWORK_MIDDLEWARE(),
                             known_nodes=self.known_nodes,

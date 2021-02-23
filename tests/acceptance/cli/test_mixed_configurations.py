@@ -23,7 +23,8 @@ from pathlib import Path
 from nucypher.blockchain.eth.actors import Worker
 from nucypher.cli.main import nucypher_cli
 from nucypher.config.characters import AliceConfiguration, FelixConfiguration, UrsulaConfiguration
-from nucypher.config.constants import NUCYPHER_ENVVAR_KEYRING_PASSWORD, TEMPORARY_DOMAIN
+from nucypher.config.constants import NUCYPHER_ENVVAR_KEYRING_PASSWORD, TEMPORARY_DOMAIN, \
+    NUCYPHER_ENVVAR_ALICE_ETH_PASSWORD, NUCYPHER_ENVVAR_BOB_ETH_PASSWORD
 from nucypher.config.keyring import NucypherKeyring
 from nucypher.network.nodes import Teacher
 from tests.constants import (
@@ -73,7 +74,8 @@ def test_coexisting_configurations(click_runner,
     alice, ursula, another_ursula, felix, staker, *all_yall = testerchain.unassigned_accounts
 
     envvars = {NUCYPHER_ENVVAR_KEYRING_PASSWORD: INSECURE_DEVELOPMENT_PASSWORD,
-               'NUCYPHER_FELIX_DB_SECRET': INSECURE_DEVELOPMENT_PASSWORD}
+               NUCYPHER_ENVVAR_ALICE_ETH_PASSWORD: INSECURE_DEVELOPMENT_PASSWORD,
+               NUCYPHER_ENVVAR_BOB_ETH_PASSWORD: INSECURE_DEVELOPMENT_PASSWORD}
 
     # Future configuration filepaths for assertions...
     public_keys_dir = custom_filepath / 'keyring' / 'public'

@@ -164,7 +164,6 @@ class Alice(Character, BlockchainPolicyAuthor):
             blockchain = BlockchainInterfaceFactory.get_interface(provider_uri=self.provider_uri)
             signer = signer or Web3Signer(blockchain.client)  # fallback to web3 provider by default for Alice.
             self.transacting_power = TransactingPower(account=self.checksum_address, signer=signer)
-
             self._crypto_power.consume_power_up(self.transacting_power)
             BlockchainPolicyAuthor.__init__(self,
                                             domain=self.domain,

@@ -259,30 +259,17 @@ class AliceCharacterOptions:
         self.min_stake = min_stake
 
     def create_character(self, emitter, config_file, json_ipc, load_seednodes=True):
-
         config = self.config_options.create_config(emitter, config_file)
-
-        client_password = None
-        is_clef = ClefSigner.is_valid_clef_uri(self.config_options.signer_uri)
-        eth_password_is_needed = not config.federated_only and not self.hw_wallet and not config.dev_mode and not is_clef
-        if eth_password_is_needed:
-            if json_ipc:
-                client_password = os.environ.get(NUCYPHER_ENVVAR_ALICE_ETH_PASSWORD, NO_PASSWORD)
-                if client_password is NO_PASSWORD:
-                    message = f"--json-ipc implies the {NUCYPHER_ENVVAR_ALICE_ETH_PASSWORD} envvar must be set."
-                    click.BadOptionUsage(option_name='--json-ipc', message=message)
-            else:
-                client_password = get_client_password(checksum_address=config.checksum_address,
-                                                      envvar=NUCYPHER_ENVVAR_ALICE_ETH_PASSWORD)
-
         try:
             ALICE = make_cli_character(character_config=config,
                                        emitter=emitter,
                                        unlock_keyring=not config.dev_mode,
+                                       unlock_signer=not config.federated_only,
                                        teacher_uri=self.teacher_uri,
                                        min_stake=self.min_stake,
                                        start_learning_now=load_seednodes,
-                                       lonely=self.config_options.lonely)
+                                       lonely=self.config_options.lonely,
+                                       json_ipc=json_ipc)
             return ALICE
         except NucypherKeyring.AuthenticationFailed as e:
             emitter.echo(str(e), color='red', bold=True)
@@ -405,7 +392,9 @@ def public_keys(general_config, character_options, config_file):
 def make_card(general_config, character_options, config_file, nickname):
     """Create a character card file for public key sharing"""
     emitter = setup_emitter(general_config)
-    ALICE = character_options.create_character(emitter, config_file, general_config.json_ipc, load_seednodes=False)
+    ALICE = character_options.create_character(emitter, config_file,
+                                               json_ipc=general_config.json_ipc,
+                                               load_seednodes=False)
     card = Card.from_character(ALICE)
     if nickname:
         card.nickname = nickname
@@ -422,7 +411,10 @@ def make_card(general_config, character_options, config_file, nickname):
 def derive_policy_pubkey(general_config, label, character_options, config_file):
     """Get a policy public key from a policy label."""
     emitter = setup_emitter(general_config)
-    ALICE = character_options.create_character(emitter, config_file, general_config.json_ipc, load_seednodes=False)
+    ALICE = character_options.create_character(emitter,
+                                               config_file,
+                                               json_ipc=general_config.json_ipc,
+                                               load_seednodes=False)
     return ALICE.controller.derive_policy_encrypting_key(label=label)
 
 

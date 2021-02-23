@@ -18,9 +18,10 @@
 
 import click
 import os
+from constant_sorrow.constants import NO_PASSWORD
 from nacl.exceptions import CryptoError
 
-from constant_sorrow.constants import NO_PASSWORD
+from nucypher.blockchain.eth.signers.software import ClefSigner
 from nucypher.blockchain.eth.decorators import validate_checksum_address
 from nucypher.characters.control.emitters import StdoutEmitter
 from nucypher.cli.literature import (
@@ -51,6 +52,29 @@ def get_client_password(checksum_address: str, envvar: str = None, confirm: bool
                                                envvar=envvar,
                                                confirm=confirm)
     return client_password
+
+
+def unlock_signer_account(config: CharacterConfiguration, json_ipc: bool) -> None:
+
+    # TODO: Remove this block after deprecating 'worker_address'
+    from nucypher.config.characters import UrsulaConfiguration
+    if isinstance(config, UrsulaConfiguration):
+        account = config.worker_address
+    else:
+        account = config.checksum_address
+
+    is_clef = ClefSigner.is_valid_clef_uri(config.signer_uri)
+    eth_password_is_needed = all((not config.federated_only,
+                                  not config.signer.is_device(account=account),
+                                  not config.dev_mode,
+                                  not is_clef))
+
+    __password = None
+    if eth_password_is_needed:
+        if json_ipc and not os.environ.get(config.SIGNER_ENVVAR):
+            raise ValueError(f'{config.SIGNER_ENVVAR} is required to use JSON IPC mode.')
+        __password = get_client_password(checksum_address=account, envvar=config.SIGNER_ENVVAR)
+    config.signer.unlock_account(account=config.checksum_address, password=__password)
 
 
 def get_nucypher_password(confirm: bool = False, envvar=NUCYPHER_ENVVAR_KEYRING_PASSWORD) -> str:
