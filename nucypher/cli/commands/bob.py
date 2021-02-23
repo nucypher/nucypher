@@ -191,26 +191,29 @@ class BobCharacterOptions:
         self.teacher_uri = teacher_uri
         self.min_stake = min_stake
 
-    def create_character(self, emitter, config_file):
+    def create_character(self, emitter, config_file, json_ipc):
         config = self.config_options.create_config(emitter, config_file)
-        return make_cli_character(character_config=config,
-                                  emitter=emitter,
-                                  unlock_keyring=not self.config_options.dev,
-                                  teacher_uri=self.teacher_uri,
-                                  min_stake=self.min_stake)
+        BOB = make_cli_character(character_config=config,
+                                 emitter=emitter,
+                                 unlock_keyring=not self.config_options.dev,
+                                 unlock_signer=not config.federated_only and config.signer_uri,
+                                 teacher_uri=self.teacher_uri,
+                                 min_stake=self.min_stake,
+                                 json_ipc=json_ipc)
+        return BOB
 
 
 group_character_options = group_options(
     BobCharacterOptions,
     config_options=group_config_options,
     teacher_uri=option_teacher_uri,
-    min_stake=option_min_stake,
-    )
+    min_stake=option_min_stake
+)
 
 
 @click.group()
 def bob():
-    """"Bob the Data Recipient" management commands."""
+    """"Bob management commands."""
 
 
 @bob.command()
@@ -238,7 +241,9 @@ def run(general_config, character_options, config_file, controller_port, dry_run
 
     # Setup
     emitter = setup_emitter(general_config)
-    BOB = character_options.create_character(emitter, config_file)
+    BOB = character_options.create_character(emitter=emitter,
+                                             config_file=config_file,
+                                             json_ipc=general_config.json_ipc)
 
     # RPC
     if general_config.json_ipc:
@@ -298,7 +303,7 @@ def destroy(general_config, config_options, config_file, force):
 def public_keys(general_config, character_options, config_file):
     """Obtain Bob's public verification and encryption keys."""
     emitter = setup_emitter(general_config)
-    BOB = character_options.create_character(emitter, config_file)
+    BOB = character_options.create_character(emitter, config_file, json_ipc=general_config.json_ipc)
     response = BOB.controller.public_keys()
     return response
 
@@ -310,7 +315,7 @@ def public_keys(general_config, character_options, config_file):
 @click.option('--nickname', help="Human-readable nickname / alias for a card", type=click.STRING, required=False)
 def make_card(general_config, character_options, config_file, nickname):
     emitter = setup_emitter(general_config)
-    BOB = character_options.create_character(emitter, config_file)
+    BOB = character_options.create_character(emitter, config_file, json_ipc=False)
     card = Card.from_character(BOB)
     if nickname:
         card.nickname = nickname
@@ -341,7 +346,7 @@ def retrieve(general_config,
 
     # Setup
     emitter = setup_emitter(general_config)
-    BOB = character_options.create_character(emitter, config_file)
+    BOB = character_options.create_character(emitter, config_file, json_ipc=general_config.json_ipc)
 
     if not message_kit:
         if ipfs:

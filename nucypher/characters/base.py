@@ -16,13 +16,19 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
 
-from collections import defaultdict
-
 import contextlib
 from constant_sorrow import default_constant_splitter
-from constant_sorrow.constants import (DO_NOT_SIGN, NO_BLOCKCHAIN_CONNECTION, NO_CONTROL_PROTOCOL,
-                                       NO_DECRYPTION_PERFORMED, NO_NICKNAME, NO_SIGNING_POWER,
-                                       SIGNATURE_IS_ON_CIPHERTEXT, SIGNATURE_TO_FOLLOW, STRANGER)
+from constant_sorrow.constants import (
+    DO_NOT_SIGN,
+    NO_BLOCKCHAIN_CONNECTION,
+    NO_CONTROL_PROTOCOL,
+    NO_DECRYPTION_PERFORMED,
+    NO_NICKNAME,
+    NO_SIGNING_POWER,
+    SIGNATURE_IS_ON_CIPHERTEXT,
+    SIGNATURE_TO_FOLLOW,
+    STRANGER
+)
 from contextlib import suppress
 from cryptography.exceptions import InvalidSignature
 from eth_keys import KeyAPI as EthKeyAPI
@@ -177,9 +183,8 @@ class Character(Learner):
                     raise ValueError('Provider URI is required to init a decentralized character.')
                 self.provider_uri = provider_uri
 
-                # TODO: Remove this after fixing signer caching
-                # if not BlockchainInterfaceFactory.is_interface_initialized(provider_uri=provider_uri):
-                #     BlockchainInterfaceFactory.initialize_interface(provider_uri=provider_uri)
+                if not BlockchainInterfaceFactory.is_interface_initialized(provider_uri=provider_uri):
+                    BlockchainInterfaceFactory.initialize_interface(provider_uri=provider_uri)
 
                 self.registry = registry or InMemoryContractRegistry.from_latest_publication(network=domain)  # See #1580
             else:
@@ -189,7 +194,6 @@ class Character(Learner):
             self.network_middleware = network_middleware or RestMiddleware(registry=self.registry)
 
             # Learner
-            self.suspicious_activities_witnessed = defaultdict(list)  # TODO: Combine with buckets / node labeling
             Learner.__init__(self,
                              domain=domain,
                              network_middleware=self.network_middleware,

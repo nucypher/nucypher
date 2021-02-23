@@ -58,6 +58,7 @@ def test_blockchain_alice_finds_ursula_via_rest(blockchain_alice, blockchain_urs
         assert ursula in blockchain_alice.known_nodes
 
 
+@pytest.mark.skip(reason="Consider removal of this test pursuant to PR #2565")
 def test_treasure_map_cannot_be_duplicated(blockchain_ursulas, blockchain_alice, blockchain_bob, agency):
     # Setup the policy details
     n = 3
