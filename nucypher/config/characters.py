@@ -24,6 +24,7 @@ from cryptography.x509 import Certificate
 from tempfile import TemporaryDirectory
 
 from nucypher.blockchain.eth.actors import StakeHolder
+from nucypher.config.base import CharacterConfiguration
 from nucypher.config.constants import (
     DEFAULT_CONFIG_ROOT,
     NUCYPHER_ENVVAR_WORKER_ETH_PASSWORD,
@@ -31,7 +32,6 @@ from nucypher.config.constants import (
     NUCYPHER_ENVVAR_BOB_ETH_PASSWORD
 )
 from nucypher.config.keyring import NucypherKeyring
-from nucypher.config.node import CharacterConfiguration
 
 
 class UrsulaConfiguration(CharacterConfiguration):

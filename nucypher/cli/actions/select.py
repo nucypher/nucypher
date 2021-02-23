@@ -25,8 +25,8 @@ from typing import Callable
 from typing import Optional, Tuple, Type
 from web3.main import Web3
 
-from nucypher.blockchain.eth.agents import ContractAgency, NucypherTokenAgent
 from nucypher.blockchain.eth.actors import StakeHolder, Staker
+from nucypher.blockchain.eth.agents import ContractAgency, NucypherTokenAgent
 from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
 from nucypher.blockchain.eth.networks import NetworksInventory
 from nucypher.blockchain.eth.registry import InMemoryContractRegistry, BaseContractRegistry
@@ -46,8 +46,8 @@ from nucypher.cli.literature import (
 )
 from nucypher.cli.painting.policies import paint_cards
 from nucypher.cli.painting.staking import paint_stakes
+from nucypher.config.base import CharacterConfiguration
 from nucypher.config.constants import DEFAULT_CONFIG_ROOT, NUCYPHER_ENVVAR_WORKER_ADDRESS
-from nucypher.config.node import CharacterConfiguration
 from nucypher.policy.identity import Card
 
 
