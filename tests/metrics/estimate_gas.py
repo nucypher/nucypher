@@ -707,7 +707,7 @@ def estimate_gas(analyzer: AnalyzeGas = None) -> None:
 
     policy_manager_library, _ = deploy_contract(contract_name='PolicyManager',
                                                 _escrowDispatcher=escrow.address,
-                                                _escrowLibrary=escrow_library.address)
+                                                _escrowImplementation=escrow_library.address)
 
     tx = escrow_dispatcher.functions.upgrade(escrow_library.address).transact()
     testerchain.wait_for_receipt(tx)

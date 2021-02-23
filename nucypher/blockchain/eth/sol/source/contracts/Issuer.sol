@@ -150,10 +150,6 @@ abstract contract Issuer is Upgradeable {
         return uint16(block.timestamp / secondsPerPeriod);
     }
 
-    function getBlockTimestamp() public view returns (uint256) {
-        return block.timestamp;
-    }
-
     /**
     * @return Recalculate period value using new basis
     */

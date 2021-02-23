@@ -301,6 +301,7 @@ def test_staking_escrow_migration(testerchain, token_economics, token, deploy_co
     assert len(events) == 1
     event_args = events[0]['args']
     assert event_args['staker'] == staker5
+    assert event_args['period'] == current_period
 
     registrations = policy_manager.functions.getPeriodsLength(staker5).call()
     tx = contract.functions.deposit(staker5, stake_size, duration).transact({'from': staker5})
@@ -342,6 +343,7 @@ def test_staking_escrow_migration(testerchain, token_economics, token, deploy_co
     assert len(events) == 2
     event_args = events[1]['args']
     assert event_args['staker'] == staker1
+    assert event_args['period'] == current_period
 
     ##########
     # Almost finished staker
@@ -379,6 +381,7 @@ def test_staking_escrow_migration(testerchain, token_economics, token, deploy_co
     assert len(events) == 3
     event_args = events[2]['args']
     assert event_args['staker'] == staker2
+    assert event_args['period'] == current_period
 
     # Second staker can commit once in one case
     tx = contract.functions.commitToNextPeriod().transact({'from': staker2})
@@ -438,6 +441,7 @@ def test_staking_escrow_migration(testerchain, token_economics, token, deploy_co
     assert len(events) == 4
     event_args = events[3]['args']
     assert event_args['staker'] == staker3
+    assert event_args['period'] == current_period
 
     ##########
     # Semi-fresh staker
@@ -472,6 +476,7 @@ def test_staking_escrow_migration(testerchain, token_economics, token, deploy_co
     assert len(events) == 5
     event_args = events[4]['args']
     assert event_args['staker'] == staker4
+    assert event_args['period'] == current_period
 
     tx = contract.functions.divideStake(0, stake_size, 1).transact({'from': staker4})
     testerchain.wait_for_receipt(tx)
