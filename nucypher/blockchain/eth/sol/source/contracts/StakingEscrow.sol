@@ -95,7 +95,7 @@ contract StakingEscrowStub is Upgradeable {
 
         // we have to use real values even though this is a stub
         require(address(delegateGet(_testTarget, this.token.selector)) == address(token));
-        // TODO uncomment after merging this PR
+        // TODO uncomment after merging this PR #2579
 //        require(uint32(delegateGet(_testTarget, this.genesisSecondsPerPeriod.selector)) == genesisSecondsPerPeriod);
         require(uint32(delegateGet(_testTarget, this.secondsPerPeriod.selector)) == secondsPerPeriod);
         require(uint16(delegateGet(_testTarget, this.minLockedPeriods.selector)) == minLockedPeriods);
@@ -235,8 +235,9 @@ contract StakingEscrow is Issuer, IERC900History {
     /**
     * @notice Signals that the staker migrated their stake to the new period length
     * @param staker Staker address
+    * @param period Period when migration happened
     */
-    event Migrated(address indexed staker);
+    event Migrated(address indexed staker, uint16 indexed period);
 
     /// internal event
     event WorkMeasurementSet(address indexed staker, bool measureWork);
@@ -318,7 +319,7 @@ contract StakingEscrow is Issuer, IERC900History {
 
     mapping (uint16 => uint256) _lockedPerPeriod;
     // only to make verifyState from previous version work, temporary
-    // TODO remove after upgrade
+    // TODO remove after upgrade #2579
     function lockedPerPeriod(uint16 _period) public view returns (uint256) {
         return _period != RESERVED_PERIOD ? _lockedPerPeriod[_period] : 111;
     }
@@ -688,6 +689,7 @@ contract StakingEscrow is Issuer, IERC900History {
             info.flags = info.flags.toggleBit(WIND_DOWN_INDEX);
             emit WindDownSet(_staker, true);
         }
+        // WorkLock still uses the genesis period length (24h)
         _unlockingDuration = recalculatePeriod(_unlockingDuration);
         deposit(_staker, msg.sender, MAX_SUB_STAKES, _value, _unlockingDuration);
     }
@@ -1244,6 +1246,7 @@ contract StakingEscrow is Issuer, IERC900History {
         delete info.pastDowntime;
 
         // recalculate all sub-stakes
+        uint16 currentPeriod = getCurrentPeriod();
         for (uint256 i = 0; i < info.subStakes.length; i++) {
             SubStakeInfo storage subStake = info.subStakes[i];
             subStake.firstPeriod = recalculatePeriod(subStake.firstPeriod);
@@ -1255,7 +1258,7 @@ contract StakingEscrow is Issuer, IERC900History {
             } else {
                 uint16 oldCurrentPeriod = uint16(block.timestamp / genesisSecondsPerPeriod);
                 uint16 lastPeriod = recalculatePeriod(oldCurrentPeriod + subStake.unlockingDuration);
-                subStake.unlockingDuration = lastPeriod - getCurrentPeriod();
+                subStake.unlockingDuration = lastPeriod - currentPeriod;
                 if (subStake.unlockingDuration == 0) {
                     subStake.lastPeriod = lastPeriod;
                 }
@@ -1264,7 +1267,7 @@ contract StakingEscrow is Issuer, IERC900History {
 
         policyManager.migrate(_staker);
         info.flags = info.flags.toggleBit(MIGRATED_INDEX);
-        emit Migrated(_staker);
+        emit Migrated(_staker, currentPeriod);
     }
 
     /**
