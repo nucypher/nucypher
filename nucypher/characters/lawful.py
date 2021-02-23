@@ -167,7 +167,6 @@ class Alice(Character, BlockchainPolicyAuthor):
             self._crypto_power.consume_power_up(self.transacting_power)
             BlockchainPolicyAuthor.__init__(self,
                                             domain=self.domain,
-                                            checksum_address=checksum_address,
                                             transacting_power=self.transacting_power,
                                             registry=self.registry,
                                             rate=rate,
@@ -1074,8 +1073,8 @@ class Ursula(Teacher, Character, Worker):
                  availability_check: bool = False,  # TODO: Remove from init
 
                  # Blockchain
-                 checksum_address: str = None,
-                 worker_address: str = None,  # TODO: deprecate, and rename to "checksum_address"
+                 checksum_address: ChecksumAddress = None,
+                 worker_address: ChecksumAddress = None,  # TODO: deprecate, and rename to "checksum_address"
                  client_password: str = None,
                  decentralized_identity_evidence=NOT_SIGNED,
 
@@ -1132,8 +1131,9 @@ class Ursula(Teacher, Character, Worker):
                 try:
                     Worker.__init__(self,
                                     is_me=is_me,
+                                    domain=self.domain,
+                                    transacting_power=self.transacting_power,
                                     registry=self.registry,
-                                    checksum_address=checksum_address,
                                     worker_address=worker_address)
                 except (Exception, self.WorkerError):
                     # TODO: Do not announce self to "other nodes" until this init is finished.

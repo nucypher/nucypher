@@ -114,26 +114,26 @@ class BaseActor:
     def __init__(self,
                  domain: Optional[str],
                  registry: BaseContractRegistry,
-                 transacting_power: TransactingPower = None,  # support non-transacting characters
-                 checksum_address: ChecksumAddress = None):
+                 transacting_power: TransactingPower = None,
+                 checksum_address: ChecksumAddress = None
+                 ):
 
-        # TODO: Review this consistency check and simplify
-        # Note: If the base class implements multiple inheritance and already has a checksum address...
+        if not bool(checksum_address) ^ bool(transacting_power):
+            error = f'Pass transacting power or checksum address, got {checksum_address} and {transacting_power}.'
+            raise ValueError(error)
+
         try:
-            if checksum_address:
-                parent_address = self.checksum_address  # type: ChecksumAddress
+            parent_address = self.checksum_address  # type: ChecksumAddress
+            if checksum_address is not None:
                 if parent_address != checksum_address:
                     raise ValueError("Can't have two different addresses.")
         except AttributeError:
-            # This is an actor only, and not a full-fledged character.
             if transacting_power:
-                self.checksum_address = transacting_power.account  # type: ChecksumAddress
+                self.checksum_address = transacting_power.account
             else:
                 self.checksum_address = checksum_address
 
         self.transacting_power = transacting_power
-        # self.checksum_address = checksum_address  # TODO: Something better, deal with inherited addresses
-
         self.registry = registry
         self.network = domain
         self._saved_receipts = list()  # track receipts of transmitted transactions
@@ -509,14 +509,12 @@ class Staker(NucypherTokenActor):
     class InsufficientTokens(StakerError):
         pass
 
-    def __init__(self,
-                 is_me: bool,
-                 *args, **kwargs) -> None:
+    def __init__(self, transacting_power: TransactingPower = None, *args, **kwargs) -> None:
 
-        super().__init__(*args, **kwargs)
+        super().__init__(transacting_power=transacting_power, *args, **kwargs)
         self.log = Logger("staker")
 
-        self.is_me = is_me
+        self.is_me = bool(transacting_power)
         self._worker_address = None
 
         # Blockchain
@@ -1197,7 +1195,6 @@ class BlockchainPolicyAuthor(NucypherTokenActor):
     """Alice base class for blockchain operations, mocking up new policies!"""
 
     def __init__(self,
-                 checksum_address: ChecksumAddress,
                  rate: int = None,
                  duration_periods: int = None,
                  *args, **kwargs):
@@ -1207,7 +1204,7 @@ class BlockchainPolicyAuthor(NucypherTokenActor):
                              be created from default values.
 
         """
-        super().__init__(checksum_address=checksum_address, *args, **kwargs)
+        super().__init__(*args, **kwargs)
 
         # From defaults
         self.staking_agent = ContractAgency.get_agent(StakingEscrowAgent, registry=self.registry)
@@ -1291,8 +1288,8 @@ class Investigator(NucypherTokenActor):
     anyone can report CFrags.
     """
 
-    def __init__(self, checksum_address: ChecksumAddress, *args, **kwargs):
-        super().__init__(checksum_address=checksum_address, *args, **kwargs)
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
         self.adjudicator_agent = ContractAgency.get_agent(AdjudicatorAgent, registry=self.registry)
 
     @save_receipt
@@ -1300,9 +1297,9 @@ class Investigator(NucypherTokenActor):
         receipt = self.adjudicator_agent.evaluate_cfrag(evidence=evidence, transacting_power=self.transacting_power)
         return receipt
 
-    def was_this_evidence_evaluated(self, evidence) -> dict:
-        receipt = self.adjudicator_agent.was_this_evidence_evaluated(evidence=evidence)
-        return receipt
+    def was_this_evidence_evaluated(self, evidence) -> bool:
+        result = self.adjudicator_agent.was_this_evidence_evaluated(evidence=evidence)
+        return result
 
 
 class StakeHolder:
@@ -1352,9 +1349,7 @@ class StakeHolder:
         if checksum_address not in self.signer.accounts:
             raise ValueError(f"{checksum_address} is not a known client account.")
         transacting_power = TransactingPower(account=checksum_address, signer=self.signer)
-        staker = Staker(is_me=True,
-                        checksum_address=transacting_power.account,
-                        transacting_power=transacting_power,
+        staker = Staker(transacting_power=transacting_power,
                         domain=self.domain,
                         registry=self.registry)
         staker.refresh_stakes()

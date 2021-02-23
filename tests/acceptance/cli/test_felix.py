@@ -126,11 +126,9 @@ def test_run_felix(click_runner, testerchain, agency_local_registry):
     recipient = testerchain.client.accounts[-1]
     staker_power = TransactingPower(account=recipient, signer=Web3Signer(testerchain.client))
 
-    staker = Staker(checksum_address=recipient,
-                    registry=agency_local_registry,
+    staker = Staker(registry=agency_local_registry,
                     domain=TEMPORARY_DOMAIN,
-                    transacting_power=staker_power,
-                    is_me=True)
+                    transacting_power=staker_power)
     original_eth_balance = staker.eth_balance
 
     # Run the callbacks
@@ -142,11 +140,9 @@ def test_run_felix(click_runner, testerchain, agency_local_registry):
 
     def confirm_airdrop(_results):
         recipient = testerchain.client.accounts[-1]
-        staker = Staker(checksum_address=recipient,
-                        registry=agency_local_registry,
+        staker = Staker(registry=agency_local_registry,
                         domain=TEMPORARY_DOMAIN,
-                        transacting_power=staker_power,
-                        is_me=True)
+                        transacting_power=staker_power)
 
         assert staker.token_balance == NU(45000, 'NU')
 

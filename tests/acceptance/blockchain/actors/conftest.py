@@ -36,9 +36,7 @@ def staker(testerchain, agency, test_registry, deployer_transacting_power):
                   transacting_power=deployer_transacting_power,
                   addresses=[staker_account],
                   amount=DEVELOPMENT_TOKEN_AIRDROP_AMOUNT)
-    staker = Staker(checksum_address=staker_account,
-                    domain=TEMPORARY_DOMAIN,
-                    is_me=True,
+    staker = Staker(domain=TEMPORARY_DOMAIN,
                     transacting_power=staker_power,
                     registry=test_registry)
     return staker

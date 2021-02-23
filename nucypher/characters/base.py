@@ -183,8 +183,9 @@ class Character(Learner):
                     raise ValueError('Provider URI is required to init a decentralized character.')
                 self.provider_uri = provider_uri
 
-                if not BlockchainInterfaceFactory.is_interface_initialized(provider_uri=provider_uri):
-                    BlockchainInterfaceFactory.initialize_interface(provider_uri=provider_uri)
+                # TODO: Implicit / lazy blockchain connection here?
+                # if not BlockchainInterfaceFactory.is_interface_initialized(provider_uri=provider_uri):
+                #     BlockchainInterfaceFactory.initialize_interface(provider_uri=provider_uri)
 
                 self.registry = registry or InMemoryContractRegistry.from_latest_publication(network=domain)  # See #1580
             else:

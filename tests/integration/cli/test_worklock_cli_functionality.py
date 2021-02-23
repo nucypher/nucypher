@@ -60,8 +60,7 @@ def surrogate_transacting_power(mock_testerchain):
 
 @pytest.fixture()
 def surrogate_bidder(mock_testerchain, test_registry, mock_worklock_agent, surrogate_transacting_power):
-    bidder = Bidder(checksum_address=surrogate_transacting_power.account,
-                    registry=test_registry,
+    bidder = Bidder(registry=test_registry,
                     transacting_power=surrogate_transacting_power,
                     domain=TEMPORARY_DOMAIN)
     return bidder

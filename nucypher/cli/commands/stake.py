@@ -342,7 +342,10 @@ def accounts(general_config, staker_options, config_file):
     """Show ETH and NU balances for stakeholder's accounts."""
     emitter = setup_emitter(general_config)
     STAKEHOLDER = staker_options.create_character(emitter, config_file)
-    paint_staking_accounts(emitter=emitter, signer=STAKEHOLDER.signer, registry=STAKEHOLDER.registry)
+    paint_staking_accounts(emitter=emitter,
+                           signer=STAKEHOLDER.signer,
+                           registry=STAKEHOLDER.registry,
+                           domain=STAKEHOLDER.domain)
 
 
 @stake.command('bond-worker')
