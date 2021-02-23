@@ -40,7 +40,7 @@ from nucypher.cli.literature import (
 from nucypher.cli.types import WORKER_IP
 from nucypher.config.characters import StakeHolderConfiguration
 from nucypher.config.constants import NUCYPHER_ENVVAR_WORKER_IP_ADDRESS
-from nucypher.config.node import CharacterConfiguration
+from nucypher.config.base import CharacterConfiguration
 from nucypher.utilities.networking import InvalidWorkerIP, validate_worker_ip
 from nucypher.utilities.networking import determine_external_ip_address, UnknownIPAddress
 

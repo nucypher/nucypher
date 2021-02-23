@@ -42,7 +42,7 @@ from nucypher.cli.literature import (
     CONFIRM_DISABLE_SNAPSHOTS
 )
 from nucypher.cli.literature import CONFIRM_VERSIONED_UPGRADE
-from nucypher.config.node import CharacterConfiguration
+from nucypher.config.base import CharacterConfiguration
 
 
 def confirm_deployment(emitter: StdoutEmitter, deployer_interface: BlockchainDeployerInterface) -> bool:

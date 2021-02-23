@@ -34,7 +34,7 @@ from nucypher.cli.literature import (
     GENERIC_PASSWORD_PROMPT
 )
 from nucypher.config.keyring import NucypherKeyring
-from nucypher.config.node import CharacterConfiguration
+from nucypher.config.base import CharacterConfiguration
 from tests.constants import INSECURE_DEVELOPMENT_PASSWORD
 
 

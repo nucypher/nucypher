@@ -32,7 +32,7 @@ from nucypher.cli.literature import (
 )
 from nucypher.config.constants import NUCYPHER_ENVVAR_KEYRING_PASSWORD
 from nucypher.config.keyring import NucypherKeyring
-from nucypher.config.node import CharacterConfiguration
+from nucypher.config.base import CharacterConfiguration
 
 
 def get_password_from_prompt(prompt: str = GENERIC_PASSWORD_PROMPT, envvar: str = None, confirm: bool = False) -> str:
