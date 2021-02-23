@@ -1,1 +1,1 @@
-Period increasing and nodes migration in contracts
+Increase period duration in contracts and handle migration of current stakes to new format.

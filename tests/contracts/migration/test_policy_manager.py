@@ -145,7 +145,7 @@ def test_policy_manager_migration(testerchain, token_economics, deploy_contract)
     # Deploy new version of the contract
     policy_manager_library, _ = deploy_contract(contract_name='PolicyManager',
                                                 _escrowDispatcher=escrow.address,
-                                                _escrowLibrary=escrow.address)
+                                                _escrowImplementation=escrow.address)
     contract = testerchain.client.get_contract(
         abi=policy_manager_library.abi,
         address=dispatcher.address,
@@ -310,7 +310,7 @@ def test_policy_manager_migration(testerchain, token_economics, deploy_contract)
     )
     policy_manager_2_library, _ = deploy_contract(contract_name='PolicyManager',
                                                   _escrowDispatcher=escrow.address,
-                                                  _escrowLibrary=escrow.address)
+                                                  _escrowImplementation=escrow.address)
     current_period = contract.functions.getCurrentPeriod().call()
     tx = dispatcher.functions.upgrade(policy_manager_2_library.address).transact()
     testerchain.wait_for_receipt(tx)

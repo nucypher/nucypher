@@ -843,15 +843,15 @@ class PolicyManagerDeployer(BaseContractDeployer, UpgradeableContractMixin, Owna
                                                                          proxy_name=proxy_name)
             # If migration is happening then we should get latest StakingEscrow
             # but this contract is not yet targeted by Dispatcher
-            self.staking_library = self.blockchain.get_contract_by_name(registry=self.registry,
-                                                                        contract_name=staking_contract_name,
-                                                                        enrollment_version='latest')
+            self.staking_implementation = self.blockchain.get_contract_by_name(registry=self.registry,
+                                                                               contract_name=staking_contract_name,
+                                                                               enrollment_version='latest')
         except self.registry.UnknownContract:
             staking_contract_name = StakingEscrowDeployer.contract_name_stub
             self.staking_contract = self.blockchain.get_contract_by_name(registry=self.registry,
                                                                          contract_name=staking_contract_name,
                                                                          proxy_name=proxy_name)
-            self.staking_library = self.staking_contract
+            self.staking_implementation = self.staking_contract
 
     def check_deployment_readiness(self, deployer_address: ChecksumAddress, *args, **kwargs) -> Tuple[bool, list]:
         staking_escrow_owner = self.staking_contract.functions.owner().call()
@@ -870,7 +870,7 @@ class PolicyManagerDeployer(BaseContractDeployer, UpgradeableContractMixin, Owna
                           confirmations: int = 0
                           ) -> tuple:
         constructor_kwargs = {"_escrowDispatcher": self.staking_contract.address,
-                              "_escrowLibrary": self.staking_library.address}
+                              "_escrowImplementation": self.staking_implementation.address}
         policy_manager_contract, deploy_receipt = self.blockchain.deploy_contract(transacting_power,
                                                                                   self.registry,
                                                                                   self.contract_name,

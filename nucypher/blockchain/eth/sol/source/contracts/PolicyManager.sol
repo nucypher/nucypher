@@ -122,19 +122,19 @@ contract PolicyManager is Upgradeable {
     * @notice Constructor sets address of the escrow contract
     * @dev Put same address in both inputs variables except when migration is happening
     * @param _escrowDispatcher Address of escrow dispatcher
-    * @param _escrowLibrary Address of escrow library
+    * @param _escrowImplementation Address of escrow implementation
     */
-    constructor(StakingEscrow _escrowDispatcher, StakingEscrow _escrowLibrary) {
+    constructor(StakingEscrow _escrowDispatcher, StakingEscrow _escrowImplementation) {
         escrow = _escrowDispatcher;
         // if the input address is not the StakingEscrow then calling `secondsPerPeriod` will throw error
-        uint32 localSecondsPerPeriod = _escrowLibrary.secondsPerPeriod();
+        uint32 localSecondsPerPeriod = _escrowImplementation.secondsPerPeriod();
         require(localSecondsPerPeriod > 0);
         secondsPerPeriod = localSecondsPerPeriod;
-        uint32 localgenesisSecondsPerPeriod = _escrowLibrary.genesisSecondsPerPeriod();
+        uint32 localgenesisSecondsPerPeriod = _escrowImplementation.genesisSecondsPerPeriod();
         require(localgenesisSecondsPerPeriod > 0);
         genesisSecondsPerPeriod = localgenesisSecondsPerPeriod;
         // handle case when we deployed new StakingEscrow but not yet upgraded
-        if (_escrowDispatcher != _escrowLibrary) {
+        if (_escrowDispatcher != _escrowImplementation) {
             require(_escrowDispatcher.secondsPerPeriod() == localSecondsPerPeriod ||
                 _escrowDispatcher.secondsPerPeriod() == localgenesisSecondsPerPeriod);
         }
@@ -686,7 +686,7 @@ contract PolicyManager is Upgradeable {
         // TODO "virtual" only for tests, probably will be removed after #1512
         public view virtual returns (int256)
     {
-        // TODO remove after upgrade
+        // TODO remove after upgrade #2579
         if (_node == RESERVED_NODE && _period == 11) {
             return 55;
         }
