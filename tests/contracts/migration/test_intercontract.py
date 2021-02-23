@@ -254,7 +254,7 @@ def test_intercontract_migration(testerchain, token_economics, token, deploy_con
 
     policy_manager_library, _ = deploy_contract(contract_name='PolicyManager',
                                                 _escrowDispatcher=escrow.address,
-                                                _escrowLibrary=escrow_library.address)
+                                                _escrowImplementation=escrow_library.address)
     policy_manager = testerchain.client.get_contract(
         abi=policy_manager_library.abi,
         address=policy_manager_dispatcher.address,
@@ -395,6 +395,7 @@ def test_intercontract_migration(testerchain, token_economics, token, deploy_con
     assert len(events) == 1
     event_args = events[0]['args']
     assert event_args['staker'] == staker1
+    assert event_args['period'] == current_period
 
     tx = escrow.functions.deposit(staker1, stake_size, duration).transact({'from': staker1})
     testerchain.wait_for_receipt(tx)
@@ -439,6 +440,7 @@ def test_intercontract_migration(testerchain, token_economics, token, deploy_con
     assert len(events) == 2
     event_args = events[1]['args']
     assert event_args['staker'] == staker2
+    assert event_args['period'] == current_period
 
     ##########
     # Semi-fresh staker
@@ -477,6 +479,7 @@ def test_intercontract_migration(testerchain, token_economics, token, deploy_con
     assert len(events) == 3
     event_args = events[2]['args']
     assert event_args['staker'] == staker3
+    assert event_args['period'] == current_period
 
     # Now we can use stakers
     tx = policy_manager.functions.createPolicy(policy_id_4, alice, end_timestamp, [staker1, staker2, staker3]) \
@@ -529,7 +532,7 @@ def test_intercontract_migration(testerchain, token_economics, token, deploy_con
         *deploy_args)
     policy_manager_2_library, _ = deploy_contract(contract_name='PolicyManager',
                                                   _escrowDispatcher=escrow.address,
-                                                  _escrowLibrary=escrow_2_library.address)
+                                                  _escrowImplementation=escrow_2_library.address)
 
     current_period = escrow.functions.getCurrentPeriod().call()
     tx = escrow_dispatcher.functions.upgrade(escrow_2_library.address).transact()
