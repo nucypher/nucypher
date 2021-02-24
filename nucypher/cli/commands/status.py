@@ -16,7 +16,6 @@
 """
 
 import os
-from pathlib import Path
 
 import click
 
@@ -25,11 +24,9 @@ from nucypher.blockchain.eth.constants import (
     POLICY_MANAGER_CONTRACT_NAME,
     STAKING_ESCROW_CONTRACT_NAME
 )
-from nucypher.blockchain.eth.events import EventRecord
 from nucypher.blockchain.eth.networks import NetworksInventory
 from nucypher.blockchain.eth.utils import estimate_block_number_for_period
 from nucypher.cli.config import group_general_config
-from nucypher.cli.literature import CONFIRM_OVERWRITE_EVENTS_CSV_FILE
 from nucypher.cli.options import (
     group_options,
     option_contract_name,
@@ -43,11 +40,10 @@ from nucypher.cli.options import (
 )
 from nucypher.cli.painting.staking import paint_fee_rate_range
 from nucypher.cli.painting.status import paint_contract_status, paint_locked_tokens_status, paint_stakers
-from nucypher.cli.utils import connect_to_blockchain, get_registry, setup_emitter
+from nucypher.cli.utils import connect_to_blockchain, get_registry, setup_emitter, retrieve_events
 from nucypher.config.constants import NUCYPHER_ENVVAR_PROVIDER_URI
 from nucypher.utilities.events import (
     generate_events_csv_file,
-    write_events_to_csv_file,
     parse_event_filters_into_argument_filters
 )
 
@@ -149,15 +145,30 @@ def locked_tokens(general_config, registry_options, periods):
 @option_event_filters
 # TODO: Add options for number of periods in the past (default current period), or range of blocks
 def events(general_config, registry_options, contract_name, from_block, to_block, event_name, csv, csv_file, event_filters):
-    """Show events associated to NuCypher contracts."""
+    """Show events associated with NuCypher contracts."""
 
-    emitter, registry, blockchain = registry_options.setup(general_config=general_config)
+    if csv or csv_file:
+        if csv and csv_file:
+            raise click.BadOptionUsage(option_name='--event-filter',
+                                       message=f'Pass either --csv or --csv-file, not both.')
+
+        # ensure that event name is specified - different events would have different columns in the csv file
+        if csv_file and not all((event_name, contract_name)):
+            # TODO consider a single csv that just gets appended to for each event
+            #  - each appended event adds their column names first
+            #  - single report-type functionality, see #2561
+            raise click.BadOptionUsage(option_name='--csv-file, --event-name, --contract_name',
+                                       message='--event-name and --contract-name must be specified when outputting to '
+                                               'specific file using --csv-file; alternatively use --csv')
     if not contract_name:
         if event_name:
             raise click.BadOptionUsage(option_name='--event-name', message='--event-name requires --contract-name')
+        # FIXME should we force a contract name to be specified?
         contract_names = [STAKING_ESCROW_CONTRACT_NAME, POLICY_MANAGER_CONTRACT_NAME]
     else:
         contract_names = [contract_name]
+
+    emitter, registry, blockchain = registry_options.setup(general_config=general_config)
 
     if from_block is None:
         # by default, this command only shows events of the current period
@@ -169,6 +180,12 @@ def events(general_config, registry_options, contract_name, from_block, to_block
                                                       latest_block=last_block)
     if to_block is None:
         to_block = 'latest'
+    else:
+        # validate block range
+        if from_block > to_block:
+            raise click.BadOptionUsage(option_name='--to-block, --from-block',
+                                       message=f'Invalid block range provided, '
+                                               f'from-block ({from_block}) > to-block ({to_block})')
 
     # event argument filters
     argument_filters = None
@@ -180,51 +197,30 @@ def events(general_config, registry_options, contract_name, from_block, to_block
                                        message=f'Event filter must be specified as name-value pairs of '
                                                f'the form `<name>=<value>` - {str(e)}')
 
-    # csv output file
-    csv_output_file = csv_file
-    if csv or csv_output_file:
-        if csv and csv_file:
-            raise click.BadOptionUsage(option_name='--event-filter',
-                                       message=f'Pass either --csv or --csv-file, not both.')
-
-        # ensure that event name is specified - different events would have different columns in the csv file
-        if not event_name:
-            # TODO consider a single csv that just gets appended to for each event
-            #  (including headers) - report-type functionality, see #2561
-            raise click.BadOptionUsage(option_name='--csv, --csv-file, --event-name',
-                                       message='Event name must be specified to output events to csv file')
-        if not csv_output_file:
-            csv_output_file = generate_events_csv_file(event_name)  # output to one file - use generic name
-
-        if Path(csv_output_file).exists():
-            click.confirm(CONFIRM_OVERWRITE_EVENTS_CSV_FILE.format(csv_file=csv_output_file), abort=True)
-
-    # TODO: additional input validation for block numbers
-    emitter.echo(f"Obtaining events from block {from_block} to {to_block}")
+    emitter.echo(f"Retrieving events from block {from_block} to {to_block}")
     for contract_name in contract_names:
         agent = ContractAgency.get_agent_by_contract_name(contract_name, registry)
+        if event_name and event_name not in agent.events.names:
+            raise click.BadOptionUsage(option_name='--event-name, --contract_name',
+                                       message=f'{contract_name} contract does not have an event named {event_name}')
+
+        title = f" {agent.contract_name} Events ".center(40, "-")
+        emitter.echo(f"\n{title}\n", bold=True, color='green')
         names = agent.events.names if not event_name else [event_name]
-        if csv_output_file:
-            # csv output
-            for name in names:
-                write_events_to_csv_file(csv_file=csv_output_file,
-                                         agent=agent,
-                                         event_name=name,
-                                         to_block=to_block,
-                                         from_block=from_block,
-                                         argument_filters=argument_filters)
-                emitter.echo(f"\n{contract_name}::{name} events written to {csv_output_file}",
-                             bold=True,
-                             color='green')
-        else:
-            title = f" {contract_name} Events ".center(40, "-")
-            emitter.echo(f"\n{title}\n", bold=True, color='green')
-            for name in names:
-                emitter.echo(f"{name}:", bold=True, color='yellow')
-                event_method = agent.contract.events[name]
-                entries = event_method.getLogs(fromBlock=from_block, toBlock=to_block, argument_filters=argument_filters)
-                for event_record in entries:
-                    emitter.echo(f"  - {EventRecord(event_record)}")
+        for name in names:
+            # csv output file - one per (contract_name, event_name) pair
+            csv_output_file = csv_file
+            if csv or csv_output_file:
+                if not csv_output_file:
+                    csv_output_file = generate_events_csv_file(contract_name=agent.contract_name, event_name=name)
+
+            retrieve_events(emitter=emitter,
+                            agent=agent,
+                            event_name=name,  # None is fine - just means all events
+                            from_block=from_block,
+                            to_block=to_block,
+                            argument_filters=argument_filters,
+                            csv_output_file=csv_output_file)
 
 
 @status.command(name='fee-range')
