@@ -14,10 +14,10 @@ GNU Affero General Public License for more details.
 You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
-
+import csv
 import random
-
 import re
+from pathlib import Path
 
 from nucypher.blockchain.eth.agents import (
     AdjudicatorAgent,
@@ -138,3 +138,75 @@ def test_nucypher_status_locked_tokens(click_runner, testerchain, agency_local_r
         all_locked = NU.from_nunits(staking_agent.get_global_locked_tokens(at_period=current_period))
         assert re.search(f"Locked Tokens for next {periods} periods", result.output, re.MULTILINE)
         assert re.search(f"Min: {all_locked} - Max: {all_locked}", result.output, re.MULTILINE)
+
+
+def test_nucypher_status_events(click_runner, testerchain, agency_local_registry, stakers, tmpdir):
+    # All workers make a commitment
+    staking_agent = ContractAgency.get_agent(StakingEscrowAgent, registry=agency_local_registry)
+    starting_block_number = testerchain.get_block_number()
+    for ursula in testerchain.ursulas_accounts:
+        staking_agent.commit_to_next_period(worker_address=ursula, fire_and_forget=False)
+    committed_period = staking_agent.get_current_period() + 1
+
+    testerchain.time_travel(periods=1)
+
+    # Check CommitmentMade events
+
+    #
+    # CLI output
+    #
+    status_command = ('events',
+                      '--provider', TEST_PROVIDER_URI,
+                      '--network', TEMPORARY_DOMAIN,
+                      '--event-name', 'CommitmentMade',
+                      '--contract-name', 'StakingEscrow',
+                      '--from-block', starting_block_number)
+    result = click_runner.invoke(status, status_command, catch_exceptions=False)
+    for staker in stakers:
+        assert re.search(f'staker: {staker.checksum_address}, period: {committed_period}', result.output, re.MULTILINE)
+
+    # event filter output
+    first_staker = stakers[0]
+    filter_status_command = ('events',
+                             '--provider', TEST_PROVIDER_URI,
+                             '--network', TEMPORARY_DOMAIN,
+                             '--event-name', 'CommitmentMade',
+                             '--contract-name', 'StakingEscrow',
+                             '--from-block', starting_block_number,
+                             '--event-filter', f'staker={first_staker.checksum_address}')
+    result = click_runner.invoke(status, filter_status_command, catch_exceptions=False)
+    assert re.search(f'staker: {first_staker.checksum_address}, period: {committed_period}', result.output, re.MULTILINE)
+    for staker in stakers:
+        if staker != first_staker:
+            assert not re.search(f'staker: {staker.checksum_address}', result.output, re.MULTILINE), result.output
+
+    #
+    # CSV output
+    #
+    csv_file = Path(tmpdir) / 'status_events_output.csv'
+    csv_status_command = ('events',
+                          '--provider', TEST_PROVIDER_URI,
+                          '--network', TEMPORARY_DOMAIN,
+                          '--event-name', 'CommitmentMade',
+                          '--contract-name', 'StakingEscrow',
+                          '--from-block', starting_block_number,
+                          '--event-filter', f'staker={first_staker.checksum_address}',
+                          '--csv-file', csv_file)
+    result = click_runner.invoke(status, csv_status_command, catch_exceptions=False)
+    assert re.search(f'StakingEscrow::CommitmentMade events written to {csv_file}', result.output, re.MULTILINE), result.output
+    assert csv_file.exists(), 'events output to csv file'
+    with open(csv_file, mode='r') as f:
+        csv_reader = csv.reader(f, delimiter=',')
+        line_count = 0
+        for row in csv_reader:
+            if line_count == 0:
+                assert ",".join(row) == 'event_name,block_number,staker,period,value'  # specific to CommitmentMade
+            else:
+                row_data = f'{row}'
+                assert row[0] == 'CommitmentMade', row_data
+                # skip block number
+                assert row[2] == first_staker.checksum_address, row_data
+                assert row[3] == f'{committed_period}', row_data
+                # skip value
+            line_count += 1
+        assert line_count == 2, 'column names and single event row in csv file'
