@@ -40,12 +40,15 @@ from nucypher.cli.options import (
 )
 from nucypher.cli.painting.staking import paint_fee_rate_range
 from nucypher.cli.painting.status import paint_contract_status, paint_locked_tokens_status, paint_stakers
-from nucypher.cli.utils import connect_to_blockchain, get_registry, setup_emitter, retrieve_events
-from nucypher.config.constants import NUCYPHER_ENVVAR_PROVIDER_URI
-from nucypher.utilities.events import (
-    generate_events_csv_file,
+from nucypher.cli.utils import (
+    connect_to_blockchain,
+    get_registry,
+    setup_emitter,
+    retrieve_events,
     parse_event_filters_into_argument_filters
 )
+from nucypher.config.constants import NUCYPHER_ENVVAR_PROVIDER_URI
+from nucypher.utilities.events import generate_events_csv_file
 
 
 class RegistryOptions:

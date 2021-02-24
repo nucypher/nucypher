@@ -20,7 +20,7 @@ import os
 import shutil
 from distutils.util import strtobool
 from pathlib import Path
-from typing import Dict, Optional
+from typing import Dict, Optional, Tuple
 
 import click
 from constant_sorrow.constants import NO_CONTROL_PROTOCOL
@@ -227,6 +227,20 @@ def deployer_pre_launch_warnings(emitter: StdoutEmitter, etherscan: bool, hw_wal
         emitter.echo(ETHERSCAN_FLAG_DISABLED_WARNING, color='yellow')
 
 
+def parse_event_filters_into_argument_filters(event_filters: Tuple) -> Dict:
+    argument_filters = dict()
+    for event_filter in event_filters:
+        event_filter_split = event_filter.split('=')
+        if len(event_filter_split) != 2:
+            raise ValueError(f"Invalid filter format: {event_filter}")
+        key = event_filter_split[0]
+        value = event_filter_split[1]
+        if value.isnumeric():
+            value = int(value)
+        argument_filters[key] = value
+    return argument_filters
+
+
 def retrieve_events(emitter: StdoutEmitter,
                     agent: EthereumContractAgent,
                     event_name: str,
@@ -248,7 +262,7 @@ def retrieve_events(emitter: StdoutEmitter,
                          bold=True,
                          color='green')
         else:
-            emitter.echo(f'No {event_name} events found', color='yellow')
+            emitter.echo(f'No {agent.contract_name}::{event_name} events found', color='yellow')
     else:
         event = agent.contract.events[event_name]
         emitter.echo(f"{event_name}:", bold=True, color='yellow')

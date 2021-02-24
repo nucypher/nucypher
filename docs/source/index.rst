@@ -109,6 +109,7 @@ Whitepapers
 
    references/pip-installation
    references/cli_reference
+   references/network_events
    references/signers
    references/environment_variables
    references/networks

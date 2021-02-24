@@ -16,7 +16,7 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 import csv
 from collections import OrderedDict
-from typing import Dict, Optional, Tuple
+from typing import Dict, Optional
 
 import maya
 from web3.types import BlockIdentifier
@@ -28,20 +28,6 @@ from nucypher.blockchain.eth.events import EventRecord
 def generate_events_csv_file(contract_name: str, event_name: str) -> str:
     csv_output_file = f'{contract_name}_{event_name}_{maya.now().datetime().strftime("%Y-%m-%d_%H-%M-%S")}.csv'
     return csv_output_file
-
-
-def parse_event_filters_into_argument_filters(event_filters: Tuple) -> Dict:
-    argument_filters = dict()
-    for event_filter in event_filters:
-        event_filter_split = event_filter.split('=')
-        if len(event_filter_split) != 2:
-            raise ValueError(f"Invalid filter format: {event_filter}")
-        key = event_filter_split[0]
-        value = event_filter_split[1]
-        if value.isnumeric():
-            value = int(value)
-        argument_filters[key] = value
-    return argument_filters
 
 
 def write_events_to_csv_file(csv_file: str,
