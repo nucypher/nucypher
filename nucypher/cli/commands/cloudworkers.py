@@ -55,7 +55,7 @@ def cloudworkers():
 @click.option('--aws-profile', help="The cloud provider account profile you'd like to use (an aws profile)", default=None)
 @click.option('--remote-provider', help="The blockchain provider for the remote node, if not provided, nodes will run geth.", default=None)
 @click.option('--nucypher-image', help="The docker image containing the nucypher code to run on the remote nodes. (default is nucypher/nucypher:latest)", default=None)
-@click.option('--seed-network', help="Do you want the 1st node to be --lonely and act as a seed node for this network", default=False, is_flag=True)
+@click.option('--seed-network', help="Do you want the 1st node to be --lonely and act as a seed node for this network", default=None, is_flag=True)
 @click.option('--include-stakeholder', 'stakes', help="limit worker to specified stakeholder addresses", multiple=True)
 @click.option('--wipe', help="Clear nucypher configs on existing nodes and start a fresh node with new keys.", default=False, is_flag=True)
 @click.option('--namespace', help="Namespace for these operations.  Used to address hosts and data locally and name hosts on cloud platforms.", type=click.STRING, default='local-stakeholders')
@@ -96,7 +96,7 @@ def up(general_config, staker_options, config_file, cloudprovider, aws_profile, 
 @click.option('--aws-profile', help="The AWS account profile you'd like to use (option not required for DigitalOcean users)", default=None)
 @click.option('--remote-provider', help="The blockchain provider for the remote node, if not provided, nodes will run geth.", default=None)
 @click.option('--nucypher-image', help="The docker image containing the nucypher code to run on the remote nodes. (default is nucypher/nucypher:latest)", default=None)
-@click.option('--seed-network', help="Do you want the 1st node to be --lonely and act as a seed node for this network", default=False, is_flag=True)
+@click.option('--seed-network', help="Do you want the 1st node to be --lonely and act as a seed node for this network", default=None, is_flag=True)
 @click.option('--count', help="Create this many nodes.", type=click.INT, default=1)
 @click.option('--namespace', help="Namespace for these operations.  Used to address hosts and data locally and name hosts on cloud platforms.", type=click.STRING, default='local-stakeholders')
 @click.option('--network', help="The Nucypher network name these hosts will run on.", type=click.STRING, default='mainnet')
@@ -113,7 +113,7 @@ def create(general_config, cloudprovider, aws_profile, remote_provider, nucypher
         return
 
     deployer = CloudDeployers.get_deployer(cloudprovider)(emitter, None, None, remote_provider, nucypher_image, seed_network,
-        aws_profile, namespace=namespace, network=network, envvars=envvars, cliargs=cliargs)
+        profile=aws_profile, namespace=namespace, network=network, envvars=envvars, cliargs=cliargs)
 
     names = []
     i = 1
@@ -186,7 +186,7 @@ def add_for_stake(general_config, staker_options, config_file, staker_address, h
 @cloudworkers.command('deploy')
 @click.option('--remote-provider', help="The blockchain provider for the remote node, if not provided nodes will run geth.", default=None)
 @click.option('--nucypher-image', help="The docker image containing the nucypher code to run on the remote nodes.", default=None)
-@click.option('--seed-network', help="Do you want the 1st node to be --lonely and act as a seed node for this network", default=False, is_flag=True)
+@click.option('--seed-network', help="Do you want the 1st node to be --lonely and act as a seed node for this network", default=None, is_flag=True)
 @click.option('--wipe', help="Clear your nucypher config and start a fresh node with new keys", default=False, is_flag=True)
 @click.option('--namespace', help="Namespace for these operations.  Used to address hosts and data locally and name hosts on cloud platforms.", type=click.STRING, default='local-stakeholders')
 @click.option('--network', help="The Nucypher network name these hosts will run on.", type=click.STRING, default='mainnet')
@@ -226,7 +226,7 @@ def deploy(general_config, remote_provider, nucypher_image, seed_network, wipe,
 @cloudworkers.command('update')
 @click.option('--remote-provider', help="The blockchain provider for the remote node – e.g. an Infura endpoint address. If not provided nodes will run geth.", default=None)
 @click.option('--nucypher-image', help="The docker image containing the nucypher code to run on the remote nodes.", default=None)
-@click.option('--seed-network', help="Do you want the 1st node to be --lonely and act as a seed node for this network", default=False, is_flag=True)
+@click.option('--seed-network', help="Do you want the 1st node to be --lonely and act as a seed node for this network", default=None, is_flag=True)
 @click.option('--wipe', help="Clear your nucypher config and start a fresh node with new keys", default=False, is_flag=True)
 @click.option('--namespace', help="Namespace for these operations.  Used to address hosts and data locally and name hosts on cloud platforms.", type=click.STRING, default='local-stakeholders')
 @click.option('--network', help="The Nucypher network name these hosts will run on.", type=click.STRING, default='mainnet')

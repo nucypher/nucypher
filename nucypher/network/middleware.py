@@ -146,7 +146,7 @@ class RestMiddleware:
     _client_class = NucypherMiddlewareClient
 
     TEACHER_NODES = {
-        NetworksInventory.MAINNET: ('https://mainnet.nucypher.network:9151',),
+        NetworksInventory.MAINNET: ('https://seeds.nucypher.network:9151',),
         NetworksInventory.LYNX: ('https://lynx.nucypher.network:9151',),
         NetworksInventory.IBEX: ('https://ibex.nucypher.network:9151',),
     }

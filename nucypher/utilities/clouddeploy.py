@@ -233,7 +233,6 @@ class BaseCloudNodeConfigurator:
                 "keyringpassword": b64encode(os.urandom(64)).decode('utf-8'),
                 "ethpassword": b64encode(os.urandom(64)).decode('utf-8'),
             }
-
         # configure provider specific attributes
         self._configure_provider_params(profile)
 
@@ -284,6 +283,7 @@ class BaseCloudNodeConfigurator:
         pass
 
     def _format_runtime_options(self, node_options):
+        node_options.update({'network': self.network})
         return ' '.join([f'--{name} {value}' for name, value in node_options.items()])
 
     @property
@@ -843,7 +843,7 @@ class AWSNodeConfigurator(BaseCloudNodeConfigurator):
         self.keypair = self.config.get('keypair')
         if not self.keypair:
             self.keypair, keypair_path = self._create_keypair()
-            self.config['keypair_path'] = keypair_path
+            self.config['keypair_path'] = str(keypair_path)
 
         self.config['keypair'] = self.keypair
         self.config['aws-region'] = self.AWS_REGION

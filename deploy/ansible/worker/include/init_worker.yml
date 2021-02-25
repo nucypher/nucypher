@@ -58,7 +58,7 @@
     - name: "create password file"
       become: yes
       copy:
-        content: "{{NUCYPHER_WORKER_ETH_PASSWORD}}"
+        content: "{{runtime_envvars['NUCYPHER_WORKER_ETH_PASSWORD']}}"
         dest: "/home/nucypher/geth/password.txt"
         owner: nucypher
       when: WORKER_ACCT_KEYSTORE_PATH is undefined and not account_file.stat.exists

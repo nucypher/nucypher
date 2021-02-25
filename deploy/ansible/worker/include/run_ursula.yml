@@ -131,6 +131,7 @@
 
     - name: "Wait until we see that Ursula has decrypted her keyring and gotten started"
       become: yes
+      ignore_errors: yes
       wait_for:
         path: "/var/lib/docker/containers/{{ursula_container_name['stdout']}}/{{ursula_container_name['stdout']}}-json.log"
         search_regex: "External IP matches configuration"

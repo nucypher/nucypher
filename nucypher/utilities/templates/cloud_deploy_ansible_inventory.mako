@@ -19,7 +19,7 @@ all:
                 node_is_decentralized: ${deployer.nodes_are_decentralized}
                 %if deployer.config.get('seed_node'):
                 SEED_NODE_URI: ${deployer.config['seed_node']}
-                teacher_options: --teacher ${deployer.config['seed_node']}
+                teacher_options: ""
                 %else:
                 SEED_NODE_URI:
                 teacher_options: ""
