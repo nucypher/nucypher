@@ -139,7 +139,7 @@ Manage stakes and other staker-related operations.
 +----------------------+-------------------------------------------------------------------------------+
 |  ``remove-unused``   | Remove unused stake                                                           |
 +----------------------+-------------------------------------------------------------------------------+
-|  ``events``          | View blockchain events associated with a staker                               |
+|  ``events``          | View StakingEscrow blockchain events associated with a staker                 |
 +----------------------+-------------------------------------------------------------------------------+
 
 **Stake Command Options**

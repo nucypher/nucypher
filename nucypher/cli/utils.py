@@ -16,13 +16,18 @@
 """
 
 
-from distutils.util import strtobool
-
-import click
 import os
 import shutil
-from constant_sorrow.constants import NO_CONTROL_PROTOCOL
+from distutils.util import strtobool
+from pathlib import Path
+from typing import Dict, Optional, Tuple
 
+import click
+from constant_sorrow.constants import NO_CONTROL_PROTOCOL
+from web3.types import BlockIdentifier
+
+from nucypher.blockchain.eth.agents import EthereumContractAgent
+from nucypher.blockchain.eth.events import EventRecord
 from nucypher.blockchain.eth.interfaces import (
     BlockchainDeployerInterface,
     BlockchainInterface,
@@ -39,9 +44,11 @@ from nucypher.cli.literature import (
     FEDERATED_WARNING,
     LOCAL_REGISTRY_ADVISORY,
     NO_HARDWARE_WALLET_WARNING,
-    PRODUCTION_REGISTRY_ADVISORY
+    PRODUCTION_REGISTRY_ADVISORY,
+    CONFIRM_OVERWRITE_EVENTS_CSV_FILE
 )
 from nucypher.config.constants import DEFAULT_CONFIG_ROOT
+from nucypher.utilities.events import write_events_to_csv_file
 
 
 def setup_emitter(general_config, banner: str = None) -> StdoutEmitter:
@@ -218,3 +225,53 @@ def deployer_pre_launch_warnings(emitter: StdoutEmitter, etherscan: bool, hw_wal
         emitter.echo(ETHERSCAN_FLAG_ENABLED_WARNING, color='yellow')
     else:
         emitter.echo(ETHERSCAN_FLAG_DISABLED_WARNING, color='yellow')
+
+
+def parse_event_filters_into_argument_filters(event_filters: Tuple[str]) -> Dict:
+    """
+    Converts tuple of entries of the form <filter_name>=<filter_value> into a dict
+    of filter_name (key) -> filter_value (value) entries. Filter values can only be strings, but if the filter
+    value can be converted to an int, then it is converted, otherwise it remains a string.
+    """
+    argument_filters = dict()
+    for event_filter in event_filters:
+        event_filter_split = event_filter.split('=')
+        if len(event_filter_split) != 2:
+            raise ValueError(f"Invalid filter format: {event_filter}")
+        key = event_filter_split[0]
+        value = event_filter_split[1]
+        # events are only indexed by string or int values
+        if value.isnumeric():
+            value = int(value)
+        argument_filters[key] = value
+    return argument_filters
+
+
+def retrieve_events(emitter: StdoutEmitter,
+                    agent: EthereumContractAgent,
+                    event_name: str,
+                    from_block: BlockIdentifier,
+                    to_block: BlockIdentifier,
+                    argument_filters: Dict,
+                    csv_output_file: Optional[str] = None) -> None:
+    if csv_output_file:
+        if Path(csv_output_file).exists():
+            click.confirm(CONFIRM_OVERWRITE_EVENTS_CSV_FILE.format(csv_file=csv_output_file), abort=True)
+        available_events = write_events_to_csv_file(csv_file=csv_output_file,
+                                                    agent=agent,
+                                                    event_name=event_name,
+                                                    from_block=from_block,
+                                                    to_block=to_block,
+                                                    argument_filters=argument_filters)
+        if available_events:
+            emitter.echo(f"{agent.contract_name}::{event_name} events written to {csv_output_file}",
+                         bold=True,
+                         color='green')
+        else:
+            emitter.echo(f'No {agent.contract_name}::{event_name} events found', color='yellow')
+    else:
+        event = agent.contract.events[event_name]
+        emitter.echo(f"{event_name}:", bold=True, color='yellow')
+        entries = event.getLogs(fromBlock=from_block, toBlock=to_block, argument_filters=argument_filters)
+        for event_record in entries:
+            emitter.echo(f"  - {EventRecord(event_record)}")

@@ -16,17 +16,37 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 import csv
 from collections import OrderedDict
-from typing import Dict
+from typing import Dict, Optional
+
+import maya
+from web3.types import BlockIdentifier
 
 from nucypher.blockchain.eth.agents import EthereumContractAgent
 from nucypher.blockchain.eth.events import EventRecord
 
 
-def write_events_to_csv_file(csv_file: str, agent: EthereumContractAgent, event_name: str, argument_filters: Dict):
+def generate_events_csv_file(contract_name: str, event_name: str) -> str:
+    csv_output_file = f'{contract_name}_{event_name}_{maya.now().datetime().strftime("%Y-%m-%d_%H-%M-%S")}.csv'
+    return csv_output_file
+
+
+def write_events_to_csv_file(csv_file: str,
+                             agent: EthereumContractAgent,
+                             event_name: str,
+                             argument_filters: Dict = None,
+                             from_block: Optional[BlockIdentifier] = 0,
+                             to_block: Optional[BlockIdentifier] = 'latest') -> bool:
+    """
+    Write events to csv file.
+    :return: True if data written to file, False if there was no event data to write
+    """
     event_type = agent.contract.events[event_name]
+    entries = event_type.getLogs(fromBlock=from_block, toBlock=to_block, argument_filters=argument_filters)
+    if not entries:
+        return False
+
     with open(csv_file, mode='w') as events_file:
         events_writer = None
-        entries = event_type.getLogs(fromBlock=0, toBlock='latest', argument_filters=argument_filters)
         for event_record in entries:
             event_record = EventRecord(event_record)
             event_row = OrderedDict()
@@ -37,3 +57,4 @@ def write_events_to_csv_file(csv_file: str, agent: EthereumContractAgent, event_
                 events_writer = csv.DictWriter(events_file, fieldnames=event_row.keys())
                 events_writer.writeheader()
             events_writer.writerow(event_row)
+    return True

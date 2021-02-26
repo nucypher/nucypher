@@ -15,15 +15,12 @@
  along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 from decimal import Decimal
-from pathlib import Path
 
 import click
-import maya
 from web3 import Web3
 
 from nucypher.blockchain.eth.actors import StakeHolder
 from nucypher.blockchain.eth.constants import MAX_UINT16
-from nucypher.blockchain.eth.events import EventRecord
 from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory, BlockchainInterface
 from nucypher.blockchain.eth.registry import IndividualAllocationRegistry
 from nucypher.blockchain.eth.signers import TrezorSigner
@@ -92,7 +89,7 @@ from nucypher.cli.literature import (
     CONFIRM_ENABLE_SNAPSHOTS,
     CONFIRM_STAKE_USE_UNLOCKED,
     CONFIRM_REMOVE_SUBSTAKE,
-    SUCCESSFUL_STAKE_REMOVAL, CONFIRM_OVERWRITE_EVENTS_CSV_FILE
+    SUCCESSFUL_STAKE_REMOVAL
 )
 from nucypher.cli.options import (
     group_options,
@@ -124,9 +121,9 @@ from nucypher.cli.types import (
     GWEI,
     DecimalRange
 )
-from nucypher.cli.utils import setup_emitter
+from nucypher.cli.utils import setup_emitter, retrieve_events
 from nucypher.config.characters import StakeHolderConfiguration
-from nucypher.utilities.events import write_events_to_csv_file
+from nucypher.utilities.events import generate_events_csv_file
 from nucypher.utilities.gas_strategies import construct_fixed_price_gas_strategy
 
 option_csv = click.option('--csv', help="Write event data to a CSV file using a default filename in the current directory",
@@ -142,6 +139,13 @@ option_from_unlocked = click.option('--from-unlocked',
                                     help="Only use uncollected staking rewards and unlocked sub-stakes; not tokens from staker address",
                                     default=False,
                                     is_flag=True)
+option_from_block = click.option('--from-block',
+                                 help="Collect events from this block number; defaults to 0",
+                                 default=0,
+                                 type=click.INT)
+option_to_block = click.option('--to-block',
+                               help="Collect events until this block number; defaults to 'latest' block number",
+                               type=click.INT)
 
 
 class StakeHolderConfigOptions:
@@ -1282,24 +1286,32 @@ def preallocation(general_config: GroupGeneralConfig,
 @group_staker_options
 @option_config_file
 @option_event_name
+@option_from_block  # defaults to 0
+@option_to_block
 @option_csv
 @option_csv_file
 @group_general_config
-def events(general_config, staker_options, config_file, event_name, csv, csv_file):
-    """View blockchain events associated with a staker"""
+def events(general_config, staker_options, config_file, event_name, from_block, to_block, csv, csv_file):
+    """View StakingEscrow blockchain events associated with a staker"""
 
     # Setup
     emitter = setup_emitter(general_config)
 
     if not event_name:
-        raise click.BadOptionUsage(message='You must specify an event name with --event-name')
-        # TODO: Doesn't work for the moment
-        # event_names = STAKEHOLDER.staking_agent.events.names
-        # events = [STAKEHOLDER.staking_agent.contract.events[e] for e in event_names]
-        # events = [e for e in events if 'staker' in e.argument_names]
+        raise click.BadOptionUsage(option_name='--event-name',
+                                   message='You must specify an event name with --event-name')
     if csv and csv_file:
-        emitter.echo(f'Pass either --csv or --csv-file, not both.', color='red')
-        raise click.Abort()
+        raise click.BadOptionUsage(option_name='--event-filter',
+                                   message=f'Pass either --csv or --csv-file, not both.')
+
+    if to_block is None:
+        to_block = 'latest'
+    else:
+        # validate block range
+        if from_block > to_block:
+            raise click.BadOptionUsage(option_name='--to-block, --from-block',
+                                       message=f'Invalid block range provided, '
+                                               f'from-block ({from_block}) > to-block ({to_block})')
 
     STAKEHOLDER = staker_options.create_character(emitter, config_file)
     _client_account, staking_address = select_client_account_for_staking(
@@ -1311,29 +1323,24 @@ def events(general_config, staker_options, config_file, event_name, csv, csv_fil
 
     argument_filters = {'staker': staking_address}
     agent = STAKEHOLDER.staking_agent
-    if csv or csv_file:
-        csv_output_file = csv_file
+    contract_name = agent.contract_name
+
+    csv_output_file = csv_file
+    if csv or csv_output_file:
         if not csv_output_file:
             # use default file path if not specified
-            csv_output_file = f'./{event_name}_{maya.now().datetime().strftime("%Y-%m-%d_%H-%M-%S")}.csv'
+            csv_output_file = generate_events_csv_file(contract_name=contract_name, event_name=event_name)
 
-        if Path(csv_output_file).exists():
-            click.confirm(CONFIRM_OVERWRITE_EVENTS_CSV_FILE.format(csv_file=csv_output_file), abort=True)
-        write_events_to_csv_file(csv_file=csv_output_file,
-                                 agent=agent,
-                                 event_name=event_name,
-                                 argument_filters=argument_filters)
-        emitter.echo(f"\n{agent.contract_name}::{event_name} events written to {csv_output_file}",
-                     bold=True,
-                     color='green')
-    else:
-        event_type = agent.contract.events[event_name]
-        title = f" {agent.contract_name} Events ".center(40, "-")
-        emitter.echo(f"\n{title}\n", bold=True, color='green')
-        emitter.echo(f"{event_type.event_name}:", bold=True, color='yellow')
-        entries = event_type.getLogs(fromBlock=0, toBlock='latest', argument_filters=argument_filters)
-        for event_record in entries:
-            emitter.echo(f"  - {EventRecord(event_record)}")
+    emitter.echo(f"Retrieving events from block {from_block} to {to_block}")
+    title = f" {contract_name} Events ".center(40, "-")
+    emitter.echo(f"\n{title}\n", bold=True, color='green')
+    retrieve_events(emitter=emitter,
+                    agent=agent,
+                    event_name=event_name,
+                    from_block=from_block,
+                    to_block=to_block,
+                    argument_filters=argument_filters,
+                    csv_output_file=csv_output_file)
 
 
 @stake.command('set-min-rate')
