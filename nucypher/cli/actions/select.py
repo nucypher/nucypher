@@ -125,6 +125,9 @@ def select_client_account(emitter,
     if len(enumerated_accounts) < 1:
         emitter.echo(NO_ETH_ACCOUNTS, color='red', bold=True)
         raise click.Abort()
+    elif len(enumerated_accounts) == 1:
+        # There are no choices if there is only one available address.
+        return enumerated_accounts[0]
 
     # Display account info
     headers = ['Account']
