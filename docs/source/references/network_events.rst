@@ -163,7 +163,7 @@ For example,
     PolicyManager::PolicyCreated events written to /<HOME DIRECTORY>/Policy_Events.csv
 
 
-To write every PolicyManager smart contract events thus far to corresponding CSV files, run:
+To write every PolicyManager smart contract event thus far to corresponding CSV files, run:
 
 .. code::
 
@@ -185,6 +185,39 @@ To write every PolicyManager smart contract events thus far to corresponding CSV
     PolicyManager::StateVerified events written to PolicyManager_StateVerified_2021-02-24_20-47-06.csv
     PolicyManager::UpgradeFinished events written to PolicyManager_UpgradeFinished_2021-02-24_20-47-06.csv
     PolicyManager::Withdrawn events written to PolicyManager_Withdrawn_2021-02-24_20-47-06.csv
+
+
+To write StakingEscrow events for a specific Staker for the current period to corresponding CSV files, run:
+
+.. code::
+
+    $ nucypher status events --provider <PROVIDER URI> --contract-name StakingEscrow --event-filter staker=<STAKING_ADDRESS> --csv
+
+    Reading Latest Chaindata...
+    Retrieving events from block 11929449 to latest
+
+    --------- StakingEscrow Events ---------
+
+    StakingEscrow::CommitmentMade events written to StakingEscrow_CommitmentMade_2021-02-26_00-11-53.csv
+    No StakingEscrow::Deposited events found
+    No StakingEscrow::Divided events found
+    No StakingEscrow::Donated events found
+    No StakingEscrow::Initialized events found
+    No StakingEscrow::Locked events found
+    StakingEscrow::Merged events written to StakingEscrow_Merged_2021-02-26_00-12-27.csv
+    StakingEscrow::Minted events written to StakingEscrow_Minted_2021-02-26_00-12-29.csv
+    No StakingEscrow::OwnershipTransferred events found
+    No StakingEscrow::Prolonged events found
+    No StakingEscrow::ReStakeLocked events found
+    No StakingEscrow::ReStakeSet events found
+    No StakingEscrow::Slashed events found
+    No StakingEscrow::SnapshotSet events found
+    No StakingEscrow::StateVerified events found
+    No StakingEscrow::UpgradeFinished events found
+    No StakingEscrow::WindDownSet events found
+    No StakingEscrow::Withdrawn events found
+    No StakingEscrow::WorkMeasurementSet events found
+    No StakingEscrow::WorkerBonded events found
 
 
 .. note::
