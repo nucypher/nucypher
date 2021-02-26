@@ -19,8 +19,8 @@
 import json
 
 import click
-import os
 from json.decoder import JSONDecodeError
+from nucypher.config.base import CharacterConfiguration
 from typing import Optional, Type
 
 from nucypher.characters.control.emitters import StdoutEmitter
@@ -39,8 +39,6 @@ from nucypher.cli.literature import (
 )
 from nucypher.cli.types import WORKER_IP
 from nucypher.config.characters import StakeHolderConfiguration
-from nucypher.config.constants import NUCYPHER_ENVVAR_WORKER_IP_ADDRESS
-from nucypher.config.base import CharacterConfiguration
 from nucypher.utilities.networking import InvalidWorkerIP, validate_worker_ip
 from nucypher.utilities.networking import determine_external_ip_address, UnknownIPAddress
 
@@ -122,13 +120,6 @@ def handle_invalid_configuration_file(emitter: StdoutEmitter,
 
 def collect_worker_ip_address(emitter: StdoutEmitter, network: str, force: bool = False) -> str:
 
-    # From environment variable  # TODO: remove this environment variable?
-    ip = os.environ.get(NUCYPHER_ENVVAR_WORKER_IP_ADDRESS)
-    if ip:
-        message = f'Using IP address ({ip}) from {NUCYPHER_ENVVAR_WORKER_IP_ADDRESS} environment variable'
-        emitter.message(message, verbosity=2)
-        return ip
-
     # From node swarm
     try:
         message = f'Detecting external IP address automatically'
@@ -138,6 +129,7 @@ def collect_worker_ip_address(emitter: StdoutEmitter, network: str, force: bool 
         if force:
             raise
         emitter.message('Cannot automatically determine external IP address - input required')
+        ip = click.prompt(COLLECT_URSULA_IPV4_ADDRESS, type=WORKER_IP)
 
     # Confirmation
     if not force:
