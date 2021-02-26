@@ -113,7 +113,7 @@ class BaseContractDeployer:
             return True
 
     def check_deployment_readiness(self,
-                                   transacting_power: TransactingPower,
+                                   deployer_address: ChecksumAddress,
                                    contract_version: str = None,
                                    ignore_deployed=False,
                                    fail=True,
@@ -136,7 +136,8 @@ class BaseContractDeployer:
 
         # Compile rules
         rules = [
-            (ignore_deployed or not self.is_deployed(contract_version), f'Contract {self.contract_name}:{contract_version} already deployed'),
+            (ignore_deployed or not self.is_deployed(contract_version),
+             f'Contract {self.contract_name}:{contract_version} already deployed'),
         ]
         if additional_rules:
             rules.extend(additional_rules)
@@ -335,7 +336,7 @@ class UpgradeableContractMixin:
         # 1 - Raise if not all-systems-go #
         if not self._upgradeable:
             raise self.ContractNotUpgradeable(f"{self.contract_name} is not upgradeable.")
-        self.check_deployment_readiness(transacting_power=transacting_power,
+        self.check_deployment_readiness(deployer_address=transacting_power.account,
                                         contract_version=contract_version,
                                         ignore_deployed=ignore_deployed)
 
@@ -414,7 +415,7 @@ class NucypherTokenDeployer(BaseContractDeployer):
         if deployment_mode != FULL:
             raise self.ContractDeploymentError(f"{self.contract_name} cannot be deployed in {deployment_mode} mode")
 
-        self.check_deployment_readiness(transacting_power=transacting_power,
+        self.check_deployment_readiness(deployer_address=transacting_power.account,
                                         ignore_deployed=ignore_deployed)
         
         if emitter:
@@ -656,7 +657,7 @@ class StakingEscrowDeployer(BaseContractDeployer, UpgradeableContractMixin, Owna
             raise ValueError(f"Invalid deployment mode ({deployment_mode})")
 
         # Raise if not all-systems-go
-        self.check_deployment_readiness(transacting_power=transacting_power,
+        self.check_deployment_readiness(deployer_address=transacting_power.account,
                                         contract_version=contract_version,
                                         ignore_deployed=ignore_deployed)
 
@@ -844,13 +845,13 @@ class PolicyManagerDeployer(BaseContractDeployer, UpgradeableContractMixin, Owna
                                                                          contract_name=staking_contract_name,
                                                                          proxy_name=proxy_name)
 
-    def check_deployment_readiness(self, transacting_power: TransactingPower, *args, **kwargs) -> Tuple[bool, list]:
+    def check_deployment_readiness(self, deployer_address: ChecksumAddress, *args, **kwargs) -> Tuple[bool, list]:
         staking_escrow_owner = self.staking_contract.functions.owner().call()
         policy_manager_deployment_rules = [
-            (transacting_power.account == staking_escrow_owner,
+            (deployer_address == staking_escrow_owner,
              f'{self.contract_name} must be deployed by the owner of {STAKING_ESCROW_CONTRACT_NAME} ({staking_escrow_owner})')
         ]
-        return super().check_deployment_readiness(transacting_power=transacting_power,
+        return super().check_deployment_readiness(deployer_address=deployer_address,
                                                   additional_rules=policy_manager_deployment_rules,
                                                   *args, **kwargs)
 
@@ -886,7 +887,7 @@ class PolicyManagerDeployer(BaseContractDeployer, UpgradeableContractMixin, Owna
 
         self.check_deployment_readiness(contract_version=contract_version,
                                         ignore_deployed=ignore_deployed,
-                                        transacting_power=transacting_power)
+                                        deployer_address=transacting_power.account)
 
         # Creator deploys the policy manager
         if emitter:
@@ -1049,7 +1050,7 @@ class StakingInterfaceDeployer(BaseContractDeployer, UpgradeableContractMixin, O
         if deployment_mode not in (BARE, IDLE, FULL):
             raise ValueError(f"Invalid deployment mode ({deployment_mode})")
 
-        self.check_deployment_readiness(transacting_power=transacting_power,
+        self.check_deployment_readiness(deployer_address=transacting_power.account,
                                         contract_version=contract_version,
                                         ignore_deployed=ignore_deployed)
 
@@ -1108,13 +1109,13 @@ class AdjudicatorDeployer(BaseContractDeployer, UpgradeableContractMixin, Ownabl
                                                                          contract_name=staking_contract_name,
                                                                          proxy_name=proxy_name)
 
-    def check_deployment_readiness(self, transacting_power: TransactingPower, *args, **kwargs) -> Tuple[bool, list]:
+    def check_deployment_readiness(self, deployer_address: ChecksumAddress, *args, **kwargs) -> Tuple[bool, list]:
         staking_escrow_owner = self.staking_contract.functions.owner().call()
         adjudicator_deployment_rules = [
-            (transacting_power.account == staking_escrow_owner,
+            (deployer_address == staking_escrow_owner,
              f'{self.contract_name} must be deployed by the owner of {STAKING_ESCROW_CONTRACT_NAME} ({staking_escrow_owner})')
         ]
-        return super().check_deployment_readiness(transacting_power=transacting_power,
+        return super().check_deployment_readiness(deployer_address=deployer_address,
                                                   additional_rules=adjudicator_deployment_rules,
                                                   *args, **kwargs)
 
@@ -1159,7 +1160,7 @@ class AdjudicatorDeployer(BaseContractDeployer, UpgradeableContractMixin, Ownabl
         if deployment_mode not in (BARE, IDLE, FULL):
             raise ValueError(f"Invalid deployment mode ({deployment_mode})")
 
-        self.check_deployment_readiness(transacting_power=transacting_power,
+        self.check_deployment_readiness(deployer_address=transacting_power.account,
                                         contract_version=contract_version,
                                         ignore_deployed=ignore_deployed)
 
@@ -1268,7 +1269,7 @@ class WorklockDeployer(BaseContractDeployer):
         if deployment_mode != FULL:
             raise self.ContractDeploymentError(f"{self.contract_name} cannot be deployed in {deployment_mode} mode")
 
-        self.check_deployment_readiness(transacting_power=transacting_power,
+        self.check_deployment_readiness(deployer_address=transacting_power.account,
                                         ignore_deployed=ignore_deployed)
 
         # Essential
@@ -1374,7 +1375,7 @@ class MultiSigDeployer(BaseContractDeployer):
         if deployment_mode != FULL:
             raise self.ContractDeploymentError(f"{self.contract_name} cannot be deployed in {deployment_mode} mode")
 
-        self.check_deployment_readiness(transacting_power=transacting_power,
+        self.check_deployment_readiness(deployer_address=transacting_power.account,
                                         ignore_deployed=ignore_deployed)
 
         if emitter:

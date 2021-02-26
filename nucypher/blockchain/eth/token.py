@@ -784,8 +784,8 @@ class WorkTracker:
         transacting_power = self.worker.transacting_power
         with transacting_power:
             txhash = self.worker.commit_to_next_period(fire_and_forget=True)  # < --- blockchain WRITE
-            self.log.info(f"Making a commitment to period {self.current_period} - TxHash: {txhash.hex()}")
-            return txhash
+        self.log.info(f"Making a commitment to period {self.current_period} - TxHash: {txhash.hex()}")
+        return txhash
 
 
 class StakeList(UserList):

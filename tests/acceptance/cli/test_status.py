@@ -149,7 +149,8 @@ def test_nucypher_status_events(click_runner, testerchain, agency_local_registry
     staking_agent = ContractAgency.get_agent(StakingEscrowAgent, registry=agency_local_registry)
     starting_block_number = testerchain.get_block_number()
     for ursula in testerchain.ursulas_accounts:
-        staking_agent.commit_to_next_period(worker_address=ursula, fire_and_forget=False)
+        tpower = TransactingPower(signer=Web3Signer(client=testerchain.client), account=ursula)
+        staking_agent.commit_to_next_period(transacting_power=tpower, fire_and_forget=False)
     committed_period = staking_agent.get_current_period() + 1
 
     testerchain.time_travel(periods=1)

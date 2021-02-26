@@ -71,7 +71,7 @@ def test_deploy_signer_uri_testnet_check(click_runner, mocker, tempfile_path):
 
         user_input = '0\n' + YES_ENTER + 'DEPLOY'
 
-        # fail trying to deploy contract to testnet since ETH blanace is 0, signer will already have been initialized
+        # fail trying to deploy contract to testnet since ETH balance is 0, signer will already have been initialized
         result = click_runner.invoke(deploy, command, input=user_input, catch_exceptions=False)
         assert result.exit_code != 0, result.output  # expected failure given eth balance is 0
         spy_from_signer_uri.assert_called_with(TEST_PROVIDER_URI, testnet=True)

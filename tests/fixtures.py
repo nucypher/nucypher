@@ -581,11 +581,10 @@ def agency(testerchain,
            token_economics,
            test_registry_source_manager,
            deployer_transacting_power):
-    agents = _make_agency(testerchain=testerchain,
-                          test_registry=test_registry,
-                          token_economics=token_economics,
-                          deployer_transacting_power=deployer_transacting_power)
-    yield agents
+    _make_agency(testerchain=testerchain,
+                 test_registry=test_registry,
+                 token_economics=token_economics,
+                 deployer_transacting_power=deployer_transacting_power)
 
 
 @pytest.fixture(scope='module')

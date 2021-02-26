@@ -114,19 +114,19 @@ class BaseActor:
     def __init__(self,
                  domain: Optional[str],
                  registry: BaseContractRegistry,
-                 transacting_power: TransactingPower = None,
-                 checksum_address: ChecksumAddress = None
-                 ):
+                 transacting_power: Optional[TransactingPower] = None,
+                 checksum_address: Optional[ChecksumAddress] = None):
 
-        if not bool(checksum_address) ^ bool(transacting_power):
+        if not (bool(checksum_address) ^ bool(transacting_power)):
             error = f'Pass transacting power or checksum address, got {checksum_address} and {transacting_power}.'
             raise ValueError(error)
 
         try:
-            parent_address = self.checksum_address  # type: ChecksumAddress
+            parent_address = self.checksum_address
             if checksum_address is not None:
                 if parent_address != checksum_address:
-                    raise ValueError("Can't have two different addresses.")
+                    raise ValueError(f"Can't have two different ethereum addresses. "
+                                     f"Got {parent_address} and {checksum_address}.")
         except AttributeError:
             if transacting_power:
                 self.checksum_address = transacting_power.account
@@ -176,7 +176,7 @@ class NucypherTokenActor(BaseActor):
         return nu_balance
 
 
-class ContractAdministrator(NucypherTokenActor):
+class ContractAdministrator(BaseActor):
     """
     The administrator of network contracts.
     """
@@ -219,41 +219,14 @@ class ContractAdministrator(NucypherTokenActor):
     class UnknownContract(ValueError):
         pass
 
-    def __init__(self,
-                 registry: BaseContractRegistry,
-                 deployer_address: ChecksumAddress = None,
-                 signer: Signer = None,
-                 is_transacting: bool = True,
-                 economics: BaseEconomics = None):
-        """
-        Note: super() is not called here to avoid setting the token agent.
-        TODO: call super but use "bare mode" without token agent.  #1510
-        """
+    def __init__(self, economics: BaseEconomics = None, *args, **kwargs):
         self.log = Logger("Deployment-Actor")
-
-        self.deployer_address = deployer_address
-        self.checksum_address = self.deployer_address
         self.economics = economics or StandardTokenEconomics()
-
-        self.registry = registry
-        self.preallocation_escrow_deployers = dict()
         self.deployers = {d.contract_name: d for d in self.all_deployer_classes}
-
-        # Powers
-        if is_transacting:
-            if not signer:
-                raise ValueError('signer is required to make a transacting ContractAdministrator.')
-            self.deployer_power = TransactingPower(signer=signer, account=deployer_address)
-            self.transacting_power = self.deployer_power
-        else:
-            self.deployer_power = None
-            self.transacting_power = None
-
-        self.sidekick_power = None
-        self.sidekick_address = None
+        super().__init__(*args, **kwargs)
 
     def __repr__(self):
-        r = '{name} - {deployer_address})'.format(name=self.__class__.__name__, deployer_address=self.deployer_address)
+        r = '{name} - {deployer_address})'.format(name=self.__class__.__name__, deployer_address=self.checksum_address)
         return r
 
     def __get_deployer(self, contract_name: str):
@@ -274,6 +247,9 @@ class ContractAdministrator(NucypherTokenActor):
                         emitter=None,
                         *args, **kwargs,
                         ) -> Tuple[dict, BaseContractDeployer]:
+
+        if not self.transacting_power:
+            raise self.ActorError('No transacting power available for deployment.')
 
         deployment_parameters = deployment_parameters or {}
 
@@ -305,6 +281,8 @@ class ContractAdministrator(NucypherTokenActor):
                          confirmations: int,
                          ignore_deployed: bool = False,
                          ) -> dict:
+        if not self.transacting_power:
+            raise self.ActorError('No transacting power available for deployment.')
         Deployer = self.__get_deployer(contract_name=contract_name)
         deployer = Deployer(registry=self.registry)
         receipts = deployer.upgrade(transacting_power=self.transacting_power,
@@ -318,6 +296,8 @@ class ContractAdministrator(NucypherTokenActor):
                        target_address: str,
                        just_build_transaction: bool = False
                        ):
+        if not self.transacting_power:
+            raise self.ActorError('No transacting power available for deployment.')
         Deployer = self.__get_deployer(contract_name=contract_name)
         deployer = Deployer(registry=self.registry)
         result = deployer.retarget(transacting_power=self.transacting_power,
@@ -327,6 +307,8 @@ class ContractAdministrator(NucypherTokenActor):
         return result
 
     def rollback_contract(self, contract_name: str):
+        if not self.transacting_power:
+            raise self.ActorError('No transacting power available for deployment.')
         Deployer = self.__get_deployer(contract_name=contract_name)
         deployer = Deployer(registry=self.registry)
         receipts = deployer.rollback(transacting_power=self.transacting_power)
@@ -355,7 +337,8 @@ class ContractAdministrator(NucypherTokenActor):
                            default: int,
                            maximum: int,
                            transaction_gas_limit: int = None) -> TxReceipt:
-
+        if not self.transacting_power:
+            raise self.ActorError('No transacting power available.')
         policy_manager_deployer = PolicyManagerDeployer(registry=self.registry, economics=self.economics)
         receipt = policy_manager_deployer.set_fee_rate_range(transacting_power=self.transacting_power,
                                                              minimum=minimum,
@@ -509,12 +492,10 @@ class Staker(NucypherTokenActor):
     class InsufficientTokens(StakerError):
         pass
 
-    def __init__(self, transacting_power: TransactingPower = None, *args, **kwargs) -> None:
-
-        super().__init__(transacting_power=transacting_power, *args, **kwargs)
+    def __init__(self, *args, **kwargs) -> None:
+        super().__init__(*args, **kwargs)
         self.log = Logger("staker")
-
-        self.is_me = bool(transacting_power)
+        self.is_me = bool(self.transacting_power)
         self._worker_address = None
 
         # Blockchain

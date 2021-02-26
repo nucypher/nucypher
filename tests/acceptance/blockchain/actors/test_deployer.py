@@ -21,6 +21,8 @@ import json
 import pytest
 import random
 
+from nucypher.config.constants import TEMPORARY_DOMAIN
+from nucypher.crypto.powers import TransactingPower
 from nucypher.blockchain.eth.actors import ContractAdministrator
 from nucypher.blockchain.eth.signers.software import Web3Signer
 from tests.constants import NUMBER_OF_ALLOCATIONS_IN_TESTS
@@ -35,9 +37,10 @@ def test_rapid_deployment(token_economics, test_registry, tmpdir, get_random_che
     blockchain = _TesterBlockchain(eth_airdrop=False, test_accounts=4)
 
     deployer_address = blockchain.etherbase_account
+    deployer_power = TransactingPower(signer=Web3Signer(blockchain.client), account=deployer_address)
 
-    administrator = ContractAdministrator(deployer_address=deployer_address,
-                                          signer=Web3Signer(blockchain.client),
+    administrator = ContractAdministrator(transacting_power=deployer_power,
+                                          domain=TEMPORARY_DOMAIN,
                                           registry=test_registry)
     blockchain.bootstrap_network(registry=test_registry)
 

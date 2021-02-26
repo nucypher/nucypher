@@ -110,7 +110,7 @@ def select_client_account(emitter,
 
     blockchain = BlockchainInterfaceFactory.get_interface(provider_uri=provider_uri)
 
-    if signer_uri:
+    if signer_uri and not signer:
         testnet = network != NetworksInventory.MAINNET
         signer = Signer.from_signer_uri(signer_uri, testnet=testnet)
 

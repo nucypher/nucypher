@@ -509,7 +509,7 @@ class BlockchainInterface:
                 payload['gas'] = contract_function.estimateGas(payload, block_identifier='latest')
             transaction_dict = contract_function.buildTransaction(payload)
         except (TestTransactionFailed, ValidationError, ValueError) as error:
-            # Note: Geth raises ValueError in the same condition that pyevm raises ValidationError here.
+            # Note: Geth (1.9.15) raises ValueError in the same condition that pyevm raises ValidationError here.
             # Treat this condition as "Transaction Failed" during gas estimation.
             raise self._handle_failed_transaction(exception=error,
                                                   transaction_dict=payload,

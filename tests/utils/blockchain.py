@@ -24,6 +24,7 @@ from hexbytes import HexBytes
 from typing import List, Tuple, Union, Optional
 from web3 import Web3
 
+from nucypher.config.constants import TEMPORARY_DOMAIN
 from nucypher.blockchain.eth.signers.software import Web3Signer
 from nucypher.blockchain.economics import BaseEconomics, StandardTokenEconomics
 from nucypher.blockchain.eth.actors import ContractAdministrator
@@ -221,16 +222,19 @@ class TesterBlockchain(BlockchainDeployerInterface):
                           ) -> Tuple['TesterBlockchain', 'InMemoryContractRegistry']:
         """For use with metric testing scripts"""
 
+        # Provider connection
         if registry is None:
             registry = InMemoryContractRegistry()
         testerchain = cls()
         if not BlockchainInterfaceFactory.is_interface_initialized(provider_uri=testerchain.provider_uri):
             BlockchainInterfaceFactory.register_interface(interface=testerchain)
 
-        origin = testerchain.client.etherbase
-        admin = ContractAdministrator(deployer_address=origin,
-                                      registry=registry,
-                                      signer=Web3Signer(testerchain.client),
+        # Produce actor
+        deployer_power = TransactingPower(signer=Web3Signer(testerchain.client),
+                                          account=testerchain.etherbase_account)
+        admin = ContractAdministrator(registry=registry,
+                                      domain=TEMPORARY_DOMAIN,
+                                      transacting_power=deployer_power,
                                       economics=economics or cls.DEFAULT_ECONOMICS)
 
         gas_limit = None  # TODO: Gas management - #842
