@@ -356,7 +356,7 @@ class Policy(ABC):
             # TODO: seems like it would be enough to just encrypt this with Ursula's public key,
             # and not create a whole capsule.
             # Can't change for now since it's node protocol.
-            payload = self._make_enactment_payload(kfrag)
+            payload = self._make_enactment_payload(kfrag=kfrag)
             message_kit, _signature = self.alice.encrypt_for(ursula, payload)
 
             try:
@@ -395,7 +395,7 @@ class Policy(ABC):
             self.log.debug(f"Policy enactment failed. Request statuses:\n{report}")
 
             # OK, let's check: if two or more Ursulas claimed we didn't pay,
-            # we need to re-evaulate our situation here.
+            # we need to re-evaluate our situation here.
             number_of_claims_of_freeloading = sum(status == 402 for status in statuses.values())
 
             # TODO: a better exception here?
@@ -520,8 +520,7 @@ class FederatedPolicy(Policy):
 
         return MergedReservoir(handpicked_addresses, StakersReservoir(addresses))
 
-    def _make_enactment_payload(self, publication_transaction, kfrag):
-        assert publication_transaction is None  # sanity check; should not ever be hit
+    def _make_enactment_payload(self, kfrag) -> bytes:
         return bytes(kfrag)
 
 
@@ -624,7 +623,7 @@ class BlockchainPolicy(Policy):
 
         return receipt
 
-    def _make_enactment_payload(self, kfrag):
+    def _make_enactment_payload(self, kfrag) -> bytes:
         return bytes(self.hrac) + bytes(kfrag)
 
     def _enact_arrangements(self,
