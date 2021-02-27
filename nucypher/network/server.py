@@ -16,16 +16,16 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
 
+import weakref
+
 import binascii
 import os
 import uuid
-import weakref
 from bytestring_splitter import BytestringSplitter
 from constant_sorrow import constants
 from constant_sorrow.constants import (
     FLEET_STATES_MATCH,
     NO_BLOCKCHAIN_CONNECTION,
-    NO_KNOWN_NODES,
     RELAX
 )
 from datetime import datetime, timedelta
@@ -35,11 +35,9 @@ from mako.template import Template
 from maya import MayaDT
 from typing import Tuple
 from umbral.kfrags import KFrag
-from web3.exceptions import TimeExhausted
 
-import nucypher
-from nucypher.crypto.api import InvalidNodeCertificate
 from nucypher.config.constants import MAX_UPLOAD_CONTENT_LENGTH
+from nucypher.crypto.api import InvalidNodeCertificate
 from nucypher.crypto.keypairs import HostingKeypair
 from nucypher.crypto.kits import UmbralMessageKit
 from nucypher.crypto.powers import KeyPairBasedPower, PowerUpError
@@ -51,6 +49,7 @@ from nucypher.network import LEARNING_LOOP_VERSION
 from nucypher.network.exceptions import NodeSeemsToBeDown
 from nucypher.network.protocols import InterfaceInfo
 from nucypher.utilities.logging import Logger
+
 
 HERE = BASE_DIR = os.path.abspath(os.path.dirname(__file__))
 TEMPLATES_DIR = os.path.join(HERE, "templates")
@@ -241,23 +240,18 @@ def _make_rest_app(datastore: Datastore, this_node, domain: str, log: Logger) ->
             return Response("Invalid Signature", status_code=400)
 
         if not this_node.federated_only:
-            # This splitter probably belongs somewhere canonical.
-            transaction_splitter = BytestringSplitter(32)
-            tx, kfrag_bytes = transaction_splitter(cleartext, return_remainder=True)
+            # TODO: This splitter probably belongs somewhere canonical.
+            from nucypher.policy.policies import Policy
+            policy_id_splitter = BytestringSplitter(Policy.POLICY_ID_LENGTH)
+            hrac, kfrag_bytes = policy_id_splitter(cleartext, return_remainder=True)
 
             try:
-                # Get all of the arrangements and verify that we'll be paid.
-                # TODO: We'd love for this part to be impossible to reduce the risk of collusion.  #1274
-                arranged_addresses = this_node.policy_agent.fetch_arrangement_addresses_from_policy_txid(tx, timeout=this_node.synchronous_query_timeout)
-            except TimeExhausted:
+                this_node.verify_policy_payment(policy_id=hrac, timeout=this_node.synchronous_query_timeout)
+            except this_node.UnpaidPolicy:
                 # Alice didn't pay.  Return response with that weird status code.
-                this_node.suspicious_activities_witnessed['freeriders'].append((alice, f"No transaction matching {tx}."))
-                return Response(f"No paid transaction matching {tx} for this node", status=402)
-
-            this_node_has_been_arranged = this_node.checksum_address in arranged_addresses
-            if not this_node_has_been_arranged:
-                this_node.suspicious_activities_witnessed['freeriders'].append((alice, f"The transaction {tx} does not list me as a Worker - it lists {arranged_addresses}."))
-                return Response(f"This node was not listed as servicing the policy in transaction {tx}", status=402)
+                message = f"Policy {hrac.hex()} id unpaid"
+                this_node.suspicious_activities_witnessed['freeriders'].append((alice, message))
+                return Response(message, status=402)
         else:
             _tx = NO_BLOCKCHAIN_CONNECTION
             kfrag_bytes = cleartext

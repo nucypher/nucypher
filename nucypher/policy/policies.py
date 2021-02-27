@@ -342,9 +342,8 @@ class Policy(ABC):
     def _enact_arrangements(self,
                             network_middleware: RestMiddleware,
                             arrangements: Dict[Ursula, Arrangement],
-                            publication_transaction: Optional[HexBytes] = None,
                             publish_treasure_map: bool = True,
-                            timeout: int = 10,
+                            timeout: int = 10
                             ):
         """
         Attempts to distribute kfrags to Ursulas that accepted arrangements earlier.
@@ -357,7 +356,7 @@ class Policy(ABC):
             # TODO: seems like it would be enough to just encrypt this with Ursula's public key,
             # and not create a whole capsule.
             # Can't change for now since it's node protocol.
-            payload = self._make_enactment_payload(publication_transaction, kfrag)
+            payload = self._make_enactment_payload(kfrag)
             message_kit, _signature = self.alice.encrypt_for(ursula, payload)
 
             try:
@@ -389,7 +388,7 @@ class Policy(ABC):
         if len(successes) != self.n:
             raise Policy.EnactmentError()
 
-        # TODO: Enable re-tries?
+        # TODO: Enable retries?
         statuses = {ursula_and_kfrag[0].checksum_address: status for ursula_and_kfrag, status in successes.items()}
         if not all(status == 200 for status in statuses.values()):
             report = "\n".join(f"{address}: {status}" for address, status in statuses.items())
@@ -500,7 +499,7 @@ class Policy(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def _make_enactment_payload(self, publication_transaction: Optional[HexBytes], kfrag: KFrag) -> bytes:
+    def _make_enactment_payload(self, kfrag: KFrag) -> bytes:
         """
         Serializes a given kfrag and policy publication transaction to send to Ursula.
         """
@@ -522,7 +521,7 @@ class FederatedPolicy(Policy):
         return MergedReservoir(handpicked_addresses, StakersReservoir(addresses))
 
     def _make_enactment_payload(self, publication_transaction, kfrag):
-        assert publication_transaction is None # sanity check; should not ever be hit
+        assert publication_transaction is None  # sanity check; should not ever be hit
         return bytes(kfrag)
 
 
@@ -623,21 +622,21 @@ class BlockchainPolicy(Policy):
             node_addresses=addresses  # address[] memory _nodes
         )
 
-        # Capture Response
-        return receipt['transactionHash']
+        return receipt
 
-    def _make_enactment_payload(self, publication_transaction, kfrag):
-        return bytes(publication_transaction) + bytes(kfrag)
+    def _make_enactment_payload(self, kfrag):
+        return bytes(self.hrac) + bytes(kfrag)
 
     def _enact_arrangements(self,
-                            network_middleware,
-                            arrangements,
-                            publish_treasure_map=True) -> TreasureMapPublisher:
-        transaction = self._publish_to_blockchain(list(arrangements))
+                            network_middleware: RestMiddleware,
+                            arrangements: Dict[Ursula, Arrangement],
+                            publish_treasure_map=True,
+                            timeout: int = 10
+                            ) -> TreasureMapPublisher:
+        self._publish_to_blockchain(list(arrangements))
         return super()._enact_arrangements(network_middleware=network_middleware,
                                            arrangements=arrangements,
-                                           publish_treasure_map=publish_treasure_map,
-                                           publication_transaction=transaction)
+                                           publish_treasure_map=publish_treasure_map)
 
     def _make_treasure_map(self,
                            network_middleware: RestMiddleware,
