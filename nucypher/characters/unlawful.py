@@ -137,10 +137,10 @@ class Amonia(Alice):
         return alice_clone
 
     @staticmethod
-    def enact_without_tabulating_responses(policy, network_middleware, arrangements, publication_transaction, **_kwargs):
+    def enact_without_tabulating_responses(policy, network_middleware, arrangements, **_kwargs):
         for ursula, kfrag in zip(arrangements, policy.kfrags):
             arrangement = arrangements[ursula]
-            payload = policy._make_enactment_payload(publication_transaction, kfrag)
+            payload = policy._make_enactment_payload(kfrag)
             message_kit, _signature = policy.alice.encrypt_for(ursula, payload)
 
             try:

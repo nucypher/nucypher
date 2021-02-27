@@ -15,28 +15,16 @@ You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
-
-import datetime
-from collections import OrderedDict
-from queue import Queue, Empty
-from typing import Callable, Tuple, Sequence, Set, Optional, Iterable, List, Dict, Type
-
 import math
-import maya
-import random
-import time
 from abc import ABC, abstractmethod
-from bytestring_splitter import BytestringSplitter, VariableLengthBytestring
-from constant_sorrow.constants import NOT_SIGNED
-from eth_typing.evm import ChecksumAddress
-from hexbytes import HexBytes
-from twisted._threads import AlreadyQuit
-from twisted.internet import reactor
-from twisted.internet.defer import ensureDeferred, Deferred
-from twisted.python.threadpool import ThreadPool
+from typing import Tuple, Sequence, Optional, Iterable, List, Dict, Type
 
-from nucypher.blockchain.eth.actors import BlockchainPolicyAuthor
-from nucypher.blockchain.eth.agents import PolicyManagerAgent, StakersReservoir, StakingEscrowAgent
+import maya
+from bytestring_splitter import BytestringSplitter, VariableLengthBytestring
+from eth_typing.evm import ChecksumAddress
+from twisted.internet import reactor
+
+from nucypher.blockchain.eth.agents import StakersReservoir, StakingEscrowAgent
 from nucypher.characters.lawful import Alice, Ursula
 from nucypher.crypto.api import keccak_digest, secure_random
 from nucypher.crypto.constants import HRAC_LENGTH
@@ -45,7 +33,6 @@ from nucypher.crypto.powers import DecryptingPower, SigningPower, TransactingPow
 from nucypher.crypto.splitters import key_splitter
 from nucypher.crypto.umbral_adapter import PublicKey, KeyFrag
 from nucypher.crypto.utils import construct_policy_id
-from nucypher.network.exceptions import NodeSeemsToBeDown
 from nucypher.network.middleware import RestMiddleware
 from nucypher.utilities.concurrency import WorkerPool, AllAtOnceFactory
 from nucypher.utilities.logging import Logger
@@ -132,7 +119,31 @@ class TreasureMapPublisher:
         return completed
 
     def block_until_complete(self):
+
+        # Block until everything is complete. We need all the workers to finish.
         self._worker_pool.join()
+
+        successes = self.worker_pool.get_successes()
+
+        if len(successes) != self.n:
+            raise Policy.EnactmentError()
+
+        # TODO: Enable retries?
+        statuses = {ursula_and_kfrag[0].checksum_address: status for ursula_and_kfrag, status in successes.items()}
+        if not all(status == 200 for status in statuses.values()):
+            report = "\n".join(f"{address}: {status}" for address, status in statuses.items())
+            self.log.debug(f"Policy enactment failed. Request statuses:\n{report}")
+
+            # OK, let's check: if two or more Ursulas claimed we didn't pay,
+            # we need to re-evaluate our situation here.
+            number_of_claims_of_freeloading = sum(status == 402 for status in statuses.values())
+
+            # TODO: a better exception here?
+            if number_of_claims_of_freeloading > 2:
+                raise self.alice.NotEnoughNodes
+
+            # otherwise just raise a more generic error
+            raise Policy.EnactmentError()
 
 
 class MergedReservoir:
@@ -243,6 +254,16 @@ class Policy(ABC):
     def __repr__(self):
         return f"{self.__class__.__name__}:{self._id.hex()[:6]}"
 
+    @abstractmethod
+    def _make_reservoir(self, handpicked_addresses: Sequence[ChecksumAddress]) -> MergedReservoir:
+        """
+        Builds a `MergedReservoir` to use for drawing addresses to send proposals to.
+        """
+        raise NotImplementedError
+
+    def _enact_arrangements(self, arrangements: Dict[Ursula, Arrangement]):
+        pass
+
     def _propose_arrangement(self,
                              address: ChecksumAddress,
                              network_middleware: RestMiddleware,
@@ -273,13 +294,6 @@ class Policy(ABC):
         # the address can already disappear from `known_nodes` by that time.
         return (ursula, arrangement)
 
-    @abstractmethod
-    def _make_reservoir(self, handpicked_addresses: Sequence[ChecksumAddress]) -> MergedReservoir:
-        """
-        Builds a `MergedReservoir` to use for drawing addresses to send proposals to.
-        """
-        raise NotImplementedError
-
     def _make_arrangements(self,
                            network_middleware: RestMiddleware,
                            handpicked_ursulas: Optional[Iterable[Ursula]] = None,
@@ -292,7 +306,7 @@ class Policy(ABC):
 
         if handpicked_ursulas is None:
             handpicked_ursulas = []
-        handpicked_addresses = [ursula.checksum_address for ursula in handpicked_ursulas]
+        handpicked_addresses = [ChecksumAddress(ursula.checksum_address) for ursula in handpicked_ursulas]
 
         reservoir = self._make_reservoir(handpicked_addresses)
         value_factory = PrefetchStrategy(reservoir, self.n)
@@ -339,18 +353,6 @@ class Policy(ABC):
 
         return accepted_arrangements
 
-    def _enact_arrangements(self,
-                            network_middleware: RestMiddleware,
-                            arrangements: Dict[Ursula, Arrangement],
-                            publication_transaction: Optional[HexBytes] = None,
-                            publish_treasure_map: bool = True,
-                            timeout: int = 10,
-                            ):
-        """
-        Nothing to do here  (FIXME)
-        """
-
-        pass
 
     def _make_treasure_map(self,
                            network_middleware: RestMiddleware,
@@ -413,9 +415,7 @@ class Policy(ABC):
         arrangements = self._make_arrangements(network_middleware=network_middleware,
                                                handpicked_ursulas=handpicked_ursulas)
 
-        self._enact_arrangements(network_middleware=network_middleware,
-                                 arrangements=arrangements,
-                                 publish_treasure_map=publish_treasure_map)
+        self._enact_arrangements(arrangements)
 
         treasure_map = self._make_treasure_map(network_middleware=network_middleware,
                                                arrangements=arrangements)
@@ -447,7 +447,7 @@ class Policy(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def _make_enactment_payload(self, publication_transaction: Optional[HexBytes], kfrag: KeyFrag) -> bytes:
+    def _make_enactment_payload(self, kfrag: KeyFrag) -> bytes:
         """
         Serializes a given kfrag and policy publication transaction to send to Ursula.
         """
@@ -455,8 +455,6 @@ class Policy(ABC):
 
 
 class FederatedPolicy(Policy):
-
-    from nucypher.policy.collections import TreasureMap as _treasure_map_class  # TODO: Circular Import
 
     def _not_enough_ursulas_exception(self):
         return Policy.NotEnoughUrsulas
@@ -468,8 +466,7 @@ class FederatedPolicy(Policy):
 
         return MergedReservoir(handpicked_addresses, StakersReservoir(addresses))
 
-    def _make_enactment_payload(self, publication_transaction, kfrag):
-        assert publication_transaction is None # sanity check; should not ever be hit
+    def _make_enactment_payload(self, kfrag) -> bytes:
         return bytes(kfrag)
 
 
@@ -477,8 +474,6 @@ class BlockchainPolicy(Policy):
     """
     A collection of n Arrangements representing a single Policy
     """
-
-    from nucypher.policy.collections import SignedTreasureMap as _treasure_map_class  # TODO: Circular Import
 
     class InvalidPolicyValue(ValueError):
         pass
@@ -572,18 +567,11 @@ class BlockchainPolicy(Policy):
         # Capture Response
         return receipt['transactionHash']
 
-    def _make_enactment_payload(self, publication_transaction, kfrag):
-        return bytes(publication_transaction) + bytes(kfrag)
+    def _make_enactment_payload(self, kfrag) -> bytes:
+        return bytes(self.hrac) + bytes(kfrag)
 
-    def _enact_arrangements(self,
-                            network_middleware,
-                            arrangements,
-                            publish_treasure_map=True) -> TreasureMapPublisher:
-        transaction = self._publish_to_blockchain(list(arrangements))
-        return super()._enact_arrangements(network_middleware=network_middleware,
-                                           arrangements=arrangements,
-                                           publish_treasure_map=publish_treasure_map,
-                                           publication_transaction=transaction)
+    def _enact_arrangements(self, arrangements) -> None:
+        self._publish_to_blockchain(ursulas=list(arrangements))
 
     def _make_treasure_map(self,
                            network_middleware: RestMiddleware,
