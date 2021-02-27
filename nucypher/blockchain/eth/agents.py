@@ -15,9 +15,11 @@ You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
-from bisect import bisect_right
-
 import random
+from bisect import bisect_right
+from collections import namedtuple
+from typing import Dict, Iterable, List, Tuple, Type, Union, Any, Optional, cast
+
 import sys
 from constant_sorrow.constants import (  # type: ignore
     CONTRACT_CALL,
@@ -29,7 +31,6 @@ from eth_typing.evm import ChecksumAddress
 from eth_utils.address import to_checksum_address
 from hexbytes.main import HexBytes
 from itertools import accumulate
-from typing import Dict, Iterable, List, Tuple, Type, Union, Any, Optional, cast
 from web3.contract import Contract, ContractFunction
 from web3.types import Wei, Timestamp, TxReceipt, TxParams, Nonce
 
@@ -794,6 +795,8 @@ class PolicyManagerAgent(EthereumContractAgent):
         'finishUpgrade'
     )
 
+    ArrangementInfo = namedtuple('ArrangementInfo', ['node', 'downtime_index', 'last_refunded_period'])
+
     @contract_api(TRANSACTION)
     def create_policy(self,
                       policy_id: str,
@@ -832,17 +835,6 @@ class PolicyManagerAgent(EthereumContractAgent):
                         end_timestamp=record[5])
         return policy
 
-    def fetch_arrangement_addresses_from_policy_txid(self, txhash: Union[str, bytes], timeout: int = 600) -> Iterable:
-        # TODO: Won't it be great when this is impossible?  #1274
-        _receipt = self.blockchain.client.wait_for_receipt(txhash, timeout=timeout)
-        transaction = self.blockchain.client.w3.eth.getTransaction(txhash)
-        try:
-            _signature, parameters = self.contract.decode_function_input(
-                self.blockchain.client.parse_transaction_data(transaction))
-        except AttributeError:
-            raise RuntimeError(f"Eth Client incompatibility issue: {self.blockchain.client} could not extract data from {transaction}")
-        return parameters['_nodes']
-
     @contract_api(TRANSACTION)
     def revoke_policy(self, policy_id: bytes, transacting_power: TransactingPower) -> TxReceipt:
         """Revoke by arrangement ID; Only the policy's author_address can revoke the policy."""
@@ -858,11 +850,18 @@ class PolicyManagerAgent(EthereumContractAgent):
         return receipt
 
     @contract_api(CONTRACT_CALL)
-    def fetch_policy_arrangements(self, policy_id: str) -> Iterable[Tuple[ChecksumAddress, int, int]]:
+    def fetch_policy_arrangements(self, policy_id: str) -> Iterable[ArrangementInfo]:
+        """
+        struct ArrangementInfo {
+            address node;
+            uint256 indexOfDowntimePeriods;
+            uint16 lastRefundedPeriod;
+        }
+        """
         record_count = self.contract.functions.getArrangementsLength(policy_id).call()
         for index in range(record_count):
             arrangement = self.contract.functions.getArrangementInfo(policy_id, index).call()
-            yield arrangement
+            yield self.ArrangementInfo(node=arrangement[0], downtime_index=arrangement[1], last_refunded_period=arrangement[2])
 
     @contract_api(TRANSACTION)
     def revoke_arrangement(self, policy_id: str, node_address: ChecksumAddress, transacting_power: TransactingPower) -> TxReceipt:
