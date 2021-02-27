@@ -30,7 +30,7 @@ from eth_typing import ChecksumAddress
 from eth_utils import to_canonical_address
 from hexbytes import HexBytes
 from web3 import Web3
-from web3.exceptions import ValidationError
+from web3.exceptions import ValidationError, TimeExhausted
 from web3.types import TxReceipt
 
 from nucypher.acumen.nicknames import Nickname
@@ -1067,6 +1067,9 @@ class Worker(NucypherTokenActor):
         """Raised when the Worker is not bonded to a Staker in the StakingEscrow contract."""
         crash_right_now = True
 
+    class UnpaidPolicy(WorkerError):
+        """Raised when a worker expects policy payment but receives none."""
+
     def __init__(self,
                  is_me: bool,
                  work_tracker: WorkTracker = None,
@@ -1201,6 +1204,47 @@ class Worker(NucypherTokenActor):
         staker_address = self.checksum_address
         missing = self.staking_agent.get_missing_commitments(checksum_address=staker_address)
         return missing
+
+    def _verify_policy_payment_by_policy_id(self, policy_id: str) -> bool:
+        from nucypher.policy.policies import Policy
+        arrangements = self.policy_agent.fetch_policy_arrangements(policy_id=policy_id[:Policy.POLICY_ID_LENGTH])
+        for arrangement in arrangements:
+            if self.checksum_address == arrangement.node:
+                return True
+        else:
+            raise self.UnpaidPolicy(f"{policy_id} is unpaid.")
+
+    def _verify_policy_payment_by_txhash(self, txhash: bytes, timeout: int) -> bool:
+        # TODO: We'd love for this to be impossible to reduce the risk of collusion.  #1274
+
+        blockchain = self.policy_agent.blockchain
+        try:
+            blockchain.client.wait_for_receipt(txhash, timeout=timeout)
+            transaction = blockchain.client.w3.eth.getTransaction(txhash)
+        except TimeExhausted:
+            raise self.UnpaidPolicy
+
+        transaction_data = blockchain.client.parse_transaction_data(transaction)
+        _signature, parameters = self.policy_agent.contract.decode_function_input(transaction_data)
+        try:
+            # Get all of the arrangements and verify that we'll be paid.
+            arranged_addresses = parameters['_nodes']
+        except KeyError:
+            raise ValueError(f'Txhash {txhash.hex()} is not a policy creation transaction.')
+
+        this_node_has_been_arranged = self.checksum_address in arranged_addresses
+        if this_node_has_been_arranged:
+            return True
+        else:
+            raise self.UnpaidPolicy
+
+    def verify_policy_payment(self, timeout: int, policy_id: str = None, txhash: bytes = None) -> bool:
+        if not bool(policy_id) ^ bool(txhash):
+            raise ValueError(f"Pass either policy_id or txhash.  GOt {policy_id} and {txhash}.")
+        if policy_id:
+            return self._verify_policy_payment_by_policy_id(policy_id=policy_id)
+        else:
+            return self._verify_policy_payment_by_txhash(txhash=txhash, timeout=timeout)
 
 
 class BlockchainPolicyAuthor(NucypherTokenActor):
