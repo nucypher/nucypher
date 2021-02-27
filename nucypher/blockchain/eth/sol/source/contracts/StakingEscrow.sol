@@ -109,7 +109,7 @@ contract StakingEscrowStub is Upgradeable {
 * @title StakingEscrow
 * @notice Contract holds and locks stakers tokens.
 * Each staker that locks their tokens will receive some compensation
-* @dev |v5.7.1|
+* @dev |v5.7.2|
 */
 contract StakingEscrow is Issuer, IERC900History {
 
@@ -899,7 +899,9 @@ contract StakingEscrow is Issuer, IERC900History {
         if (_index < MAX_SUB_STAKES) {
             require(_value > 0);
         } else {
-            require(_value >= minAllowableLockedTokens && _unlockingDuration >= minLockedPeriods);
+            require((_value >= minAllowableLockedTokens ||
+                msg.sender == address(workLock)) &&
+                _unlockingDuration >= minLockedPeriods);
         }
 
         uint16 currentPeriod = getCurrentPeriod();

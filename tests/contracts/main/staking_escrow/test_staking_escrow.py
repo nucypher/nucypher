@@ -1262,7 +1262,7 @@ def test_staking_from_worklock(testerchain, token, worklock, escrow_contract, to
 
     maximum_allowed_locked = 1500
     escrow = escrow_contract(maximum_allowed_locked, disable_reward=True)
-    creator, staker1, staker2, staker3 = testerchain.client.accounts[0:4]
+    creator, staker1, staker2, staker3, staker4 = testerchain.client.accounts[0:5]
     deposit_log = escrow.events.Deposited.createFilter(fromBlock='latest')
     lock_log = escrow.events.Locked.createFilter(fromBlock='latest')
     wind_down_log = escrow.events.WindDownSet.createFilter(fromBlock='latest')
@@ -1404,3 +1404,10 @@ def test_staking_from_worklock(testerchain, token, worklock, escrow_contract, to
 
     events = wind_down_log.get_all_entries()
     assert len(events) == 2
+
+    # Can deposit through WorkLock even less than minimum allowed
+    tx = worklock.functions.depositFromWorkLock(staker4, value - 1, duration).transact()
+    testerchain.wait_for_receipt(tx)
+    assert escrow.functions.getLockedTokens(staker4, 1).call() == value - 1
+    assert escrow.functions.getSubStakesLength(staker4).call() == 1
+    assert escrow.functions.getSubStakeInfo(staker4, 0).call()[3] == value - 1

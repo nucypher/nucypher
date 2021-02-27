@@ -1,0 +1,1 @@
+Prevent WorkLock from failing when increasing the min sub-stake size.
