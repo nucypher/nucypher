@@ -186,7 +186,12 @@ def character_span(character):
     </table>
 
     %if status_info.known_nodes is not None:
-    <h3>${len(status_info.known_nodes)} ${"known node" if len(status_info.known_nodes) == 1 else "known nodes"}:</h3>
+    <%
+        verified_nodes = [node_status for node_status in status_info.known_nodes if node_status.verified]
+        unverified_nodes = [node_status for node_status in status_info.known_nodes if not node_status.verified]
+    %>
+    %for node_set, qualifier in [(verified_nodes, "verified"), (unverified_nodes, "unverified")]:
+    <h3>${len(node_set)} ${qualifier} ${"node" if len(node_set) == 1 else "nodes"}:</h3>
 
     <table class="known-nodes">
         <thead>
@@ -196,7 +201,7 @@ def character_span(character):
             <td>Fleet State</td>
         </thead>
         <tbody>
-        %for node in status_info.known_nodes:
+        %for node in node_set:
             <tr>
                 <td>${node_info(node)}</td>
                 <td>${node.timestamp.iso8601()}</td>
@@ -212,6 +217,7 @@ def character_span(character):
         %endfor
         </tbody>
     </table>
+    %endfor
     %endif
 </body>
 </html>
