@@ -32,13 +32,12 @@ from nucypher.utilities.logging import Logger
 from .nicknames import Nickname
 
 
-class ArchivedFleetState:
+class ArchivedFleetState(NamedTuple):
 
-    def __init__(self, checksum: str, nickname: Nickname, timestamp: maya.MayaDT, population: int):
-        self.checksum = checksum
-        self.nickname = nickname
-        self.timestamp = timestamp
-        self.population = population
+    checksum: ChecksumAddress
+    nickname: Nickname
+    timestamp: maya.MayaDT
+    population: int
 
     def to_json(self):
         return dict(checksum=self.checksum,
