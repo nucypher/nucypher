@@ -137,9 +137,7 @@ NO_INACTIVE_STAKES = "No inactive stakes found\n"
 
 CONFIRM_REMOVE_ALL_UNUSED_SUBSTAKES = """
 This action will perform a series of transactions to remove all unused sub-stakes
-(Indices {stakes}).  Verify each transaction is successful while proceeding.
-
-https://etherscan.io/tx/{staker_address}
+(Indices {stakes}).  It is recommended that you verify each staker transaction was successful (https://etherscan.io/address/{staker_address}).
 
 Confirm removal of {quantity} unused sub-stakes?"""
 
