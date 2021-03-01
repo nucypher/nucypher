@@ -15,10 +15,11 @@ You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
+
 import random
 from bisect import bisect_right
 from collections import namedtuple
-from typing import Dict, Iterable, List, Tuple, Type, Union, Any, Optional, cast
+from typing import Dict, Iterable, List, Tuple, Type, Union, Any, Optional, cast, Iterator
 
 import sys
 from constant_sorrow.constants import (  # type: ignore
@@ -850,18 +851,13 @@ class PolicyManagerAgent(EthereumContractAgent):
         return receipt
 
     @contract_api(CONTRACT_CALL)
-    def fetch_policy_arrangements(self, policy_id: str) -> Iterable[ArrangementInfo]:
-        """
-        struct ArrangementInfo {
-            address node;
-            uint256 indexOfDowntimePeriods;
-            uint16 lastRefundedPeriod;
-        }
-        """
+    def fetch_policy_arrangements(self, policy_id: str) -> Iterator[ArrangementInfo]:
         record_count = self.contract.functions.getArrangementsLength(policy_id).call()
         for index in range(record_count):
             arrangement = self.contract.functions.getArrangementInfo(policy_id, index).call()
-            yield self.ArrangementInfo(node=arrangement[0], downtime_index=arrangement[1], last_refunded_period=arrangement[2])
+            yield self.ArrangementInfo(node=arrangement[0], 
+                                       downtime_index=arrangement[1],
+                                       last_refunded_period=arrangement[2])
 
     @contract_api(TRANSACTION)
     def revoke_arrangement(self, policy_id: str, node_address: ChecksumAddress, transacting_power: TransactingPower) -> TxReceipt:
