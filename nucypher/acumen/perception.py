@@ -19,7 +19,7 @@
 import random
 import weakref
 from collections.abc import KeysView
-from typing import Optional, Dict, Iterable, List, Tuple, NamedTuple, Union
+from typing import Optional, Dict, Iterable, List, Tuple, NamedTuple, Union, Any
 
 import binascii
 import itertools
@@ -423,7 +423,7 @@ class RemoteUrsulaStatus(NamedTuple):
     recorded_fleet_state: Optional[ArchivedFleetState]
     last_learned_from: Optional[maya.MayaDT]
 
-    def to_json(self):
+    def to_json(self) -> Dict[str, Any]:
         if self.recorded_fleet_state is None:
             recorded_fleet_state_json = None
         else:

@@ -55,7 +55,7 @@ from twisted.internet import reactor, stdio, threads
 from twisted.internet.defer import Deferred
 from twisted.internet.task import LoopingCall
 from twisted.logger import Logger
-from typing import Dict, Iterable, List, NamedTuple, Tuple, Union, Optional, Sequence, Set
+from typing import Dict, Iterable, List, NamedTuple, Tuple, Union, Optional, Sequence, Set, Any
 from umbral import pre
 from umbral.keys import UmbralPublicKey
 from umbral.kfrags import KFrag
@@ -1169,9 +1169,6 @@ class Ursula(Teacher, Character, Worker):
                          timestamp=timestamp,
                          decentralized_identity_evidence=decentralized_identity_evidence)
 
-        # Only non-None when is_me=False (that is, for remote nodes).
-        self._recorded_fleet_state: Optional[ArchivedFleetState] = None
-
     def __get_hosting_power(self, host: str) -> TLSHostingPower:
         try:
             # Pre-existing or injected power
@@ -1738,7 +1735,7 @@ class Ursula(Teacher, Character, Worker):
         # ... and finally returns all the re-encrypted bytes
         return cfrag_byte_stream
 
-    def status_info(self, omit_known_nodes=False) -> 'LocalUrsulaStatus':
+    def status_info(self, omit_known_nodes: bool = False) -> 'LocalUrsulaStatus':
 
         domain = self.domain
         version = nucypher.__version__
@@ -1778,7 +1775,7 @@ class LocalUrsulaStatus(NamedTuple):
     previous_fleet_states: List[ArchivedFleetState]
     known_nodes: Optional[List[RemoteUrsulaStatus]]
 
-    def to_json(self):
+    def to_json(self) -> Dict[str, Any]:
         if self.known_nodes is None:
             known_nodes_json = None
         else:
