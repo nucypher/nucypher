@@ -332,7 +332,7 @@ def make_card(general_config, character_options, config_file, nickname):
 @BobInterface.connect_cli('retrieve')
 @click.option('--alice', type=click.STRING, help="The card id or nickname of a stored Alice card.")
 @click.option('--ipfs', help="Download an encrypted message from IPFS at the specified gateway URI")
-@click.option('--decode', help="Decode encrypted UTF-8 messages", is_flag=True)
+@click.option('--decode', help="Decode base64 plaintexts UTF-8 messages", is_flag=True)
 def retrieve(general_config,
              character_options,
              config_file,

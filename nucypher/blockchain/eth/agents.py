@@ -560,7 +560,7 @@ class StakingEscrowAgent(EthereumContractAgent):
         return NuNits(reward_amount)
 
     @contract_api(TRANSACTION)
-    def collect_staking_reward(self, transacting_power: TransactingPower, replace: bool = False) -> TxReceipt:
+    def collect_staking_reward(self, transacting_power: TransactingPower, replace: bool = False) -> TxReceipt: # TODO: Support replacement for all agent transactions
         """Withdraw tokens rewarded for staking."""
         staker_address = transacting_power.account
         reward_amount: NuNits = self.calculate_staking_reward(staker_address=staker_address)

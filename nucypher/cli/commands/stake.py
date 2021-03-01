@@ -1085,9 +1085,11 @@ def remove_unused(general_config: GroupGeneralConfig,
         if not inactive_stakes:
             emitter.message(NO_INACTIVE_STAKES, color='red')
             raise click.Abort()
-        prompt = CONFIRM_REMOVE_ALL_UNUSED_SUBSTAKES.format(stakes=", ".join(s.index for s in inactive_stakes),
-                                                            quantity=len(inactive_stakes))
-        click.confirm(prompt, abort=True)
+        if not force:
+            prompt = CONFIRM_REMOVE_ALL_UNUSED_SUBSTAKES.format(stakes=", ".join(s.index for s in inactive_stakes),
+                                                                quantity=len(inactive_stakes),
+                                                                staker_address=STAKEHOLDER.checksum_address)
+            click.confirm(prompt, abort=True)
         for inactive_stake in inactive_stakes:
             remove_unused_substake(emitter=emitter,
                                    stakeholder=STAKEHOLDER,
@@ -1113,7 +1115,7 @@ def remove_unused(general_config: GroupGeneralConfig,
 @stake.command('collect-reward')
 @group_transacting_staker_options
 @option_config_file
-@click.option('--replace', help="replace the existing pending transaction", is_flag=True)
+@click.option('--replace', help="Replace any existing pending transaction", is_flag=True)
 @click.option('--staking-reward/--no-staking-reward', is_flag=True, default=False)
 @click.option('--policy-fee/--no-policy-fee', is_flag=True, default=False)
 @click.option('--withdraw-address', help="Send fee collection to an alternate address", type=EIP55_CHECKSUM_ADDRESS)

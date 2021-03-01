@@ -974,17 +974,18 @@ class Staker(NucypherTokenActor):
 
     @only_me
     @save_receipt
-    def collect_staking_reward(self, replace: bool = False) -> TxReceipt:
+    def collect_staking_reward(self, replace: bool = False) -> TxReceipt:  # TODO: Support replacement for all actor transactions
         """Withdraw tokens rewarded for staking"""
         receipt = self.staking_agent.collect_staking_reward(transacting_power=self.transacting_power, replace=replace)
         return receipt
 
     @only_me
     @save_receipt
-    def withdraw(self, amount: NU) -> TxReceipt:
+    def withdraw(self, amount: NU, replace: bool = False) -> TxReceipt:
         """Withdraw tokens from StakingEscrow (assuming they're unlocked)"""
         receipt = self.staking_agent.withdraw(transacting_power=self.transacting_power,
-                                              amount=int(amount))
+                                              amount=int(amount),
+                                              replace=replace)
         return receipt
 
     @property
