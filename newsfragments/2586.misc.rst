@@ -1,0 +1,1 @@
+Policy ID (hrac) is now used instead of create policy transaction hash for payment verification.
