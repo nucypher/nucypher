@@ -15,8 +15,11 @@ You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
+
 from unittest.mock import patch
 
+from nucypher.config.constants import TEMPORARY_DOMAIN
+from nucypher.crypto.powers import TransactingPower
 from nucypher.blockchain.eth.signers.software import Web3Signer
 from nucypher.blockchain.eth.actors import Trustee
 from nucypher.blockchain.eth.deployers import MultiSigDeployer
@@ -24,11 +27,12 @@ from nucypher.blockchain.eth.deployers import MultiSigDeployer
 
 def test_trustee_proposes_multisig_management_operations(testerchain, test_registry):
     origin = testerchain.etherbase_account
-    multisig_deployer = MultiSigDeployer(deployer_address=origin, registry=test_registry)
+    tpower = TransactingPower(account=origin, signer=Web3Signer(testerchain.client))
+    multisig_deployer = MultiSigDeployer(registry=test_registry)
 
     threshold = 2
     owners = testerchain.unassigned_accounts[0:3]
-    receipts = multisig_deployer.deploy(threshold=threshold, owners=owners)
+    receipts = multisig_deployer.deploy(threshold=threshold, owners=owners, transacting_power=tpower)
     for step in multisig_deployer.deployment_steps:
         assert receipts[step]['status'] == 1
 
@@ -36,6 +40,7 @@ def test_trustee_proposes_multisig_management_operations(testerchain, test_regis
 
     trustee_address = testerchain.unassigned_accounts[-1]
     trustee = Trustee(checksum_address=trustee_address,
+                      domain=TEMPORARY_DOMAIN,
                       signer=Web3Signer(testerchain.client),
                       registry=test_registry,
                       is_transacting=True)

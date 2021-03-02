@@ -25,6 +25,8 @@ import time
 from constant_sorrow.constants import NOT_RUNNING, NO_DATABASE_AVAILABLE
 from datetime import datetime, timedelta
 from decimal import Decimal
+
+from eth_typing.evm import ChecksumAddress
 from flask import Flask, Response
 from hendrix.deploy.base import HendrixDeploy
 from nacl.hash import sha256
@@ -113,11 +115,11 @@ class Felix(Character, NucypherTokenActor):
         self.db_engine = create_engine(f'sqlite:///{self.db_filepath}', convert_unicode=True)
 
         # Blockchain
-        transacting_power = TransactingPower(password=client_password,
-                                             account=self.checksum_address,
-                                             signer=self.signer,
-                                             cache=True)
-        self._crypto_power.consume_power_up(transacting_power)
+        self.transacting_power = TransactingPower(password=client_password,
+                                                  account=self.checksum_address,
+                                                  signer=self.signer,
+                                                  cache=True)
+        self._crypto_power.consume_power_up(self.transacting_power)
 
         self.token_agent = ContractAgency.get_agent(NucypherTokenAgent, registry=registry)
         self.blockchain = self.token_agent.blockchain
@@ -313,7 +315,7 @@ class Felix(Character, NucypherTokenActor):
         self._distribution_task.stop()
         return True
 
-    def __calculate_disbursement(self, recipient) -> int:
+    def __calculate_disbursement(self, recipient: ChecksumAddress) -> int:
         """Calculate the next reward for a recipient once the are selected for distribution"""
 
         # Initial Reward - sets the future rates
@@ -335,13 +337,10 @@ class Felix(Character, NucypherTokenActor):
     def __transfer(self, disbursement: int, recipient_address: str) -> str:
         """Perform a single token transfer transaction from one account to another."""
 
-        # Re-unlock from cache
-        self.blockchain.transacting_power.activate()
-
         self.__disbursement += 1
         receipt = self.token_agent.transfer(amount=disbursement,
                                             target_address=recipient_address,
-                                            sender_address=self.checksum_address)
+                                            transacting_power=self.transacting_power)
         txhash = receipt['transactionHash']
         if self.distribute_ether:
             ether = self.ETHER_AIRDROP_AMOUNT
@@ -353,7 +352,9 @@ class Felix(Character, NucypherTokenActor):
             transaction_dict = self.blockchain.build_payload(sender_address=self.checksum_address,
                                                              payload=transaction,
                                                              transaction_gas_limit=22000)
-            _receipt = self.blockchain.sign_and_broadcast_transaction(transaction_dict=transaction_dict, transaction_name='transfer')
+            _receipt = self.blockchain.sign_and_broadcast_transaction(transacting_power=self.transacting_power,
+                                                                      transaction_dict=transaction_dict,
+                                                                      transaction_name='transfer')
             self.log.info(f"Disbursement #{self.__disbursement} OK | NU {txhash.hex()[-6:]}"
                           f"({str(NU(disbursement, 'NuNit'))} + {self.ETHER_AIRDROP_AMOUNT} wei) -> {recipient_address}")
         else:

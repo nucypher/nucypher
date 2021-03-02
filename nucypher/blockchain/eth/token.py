@@ -19,6 +19,8 @@ import random
 from _pydecimal import Decimal
 from collections import UserList
 from enum import Enum
+
+from eth_typing.evm import ChecksumAddress
 from typing import Callable, Dict, Union
 
 import maya
@@ -791,7 +793,7 @@ class StakeList(UserList):
     @validate_checksum_address
     def __init__(self,
                  registry: BaseContractRegistry,
-                 checksum_address: str = None,  # allow for lazy setting
+                 checksum_address: ChecksumAddress = None,  # allow for lazy setting
                  *args, **kwargs):
 
         super().__init__(*args, **kwargs)
@@ -803,10 +805,7 @@ class StakeList(UserList):
         self.__initial_period = NOT_STAKING
         self.__terminal_period = NOT_STAKING
 
-        # "load-in":  Read on-chain stakes
-        # Allow stake tracker to be initialized as an empty collection.
-        if checksum_address and not is_checksum_address(checksum_address):
-            raise ValueError(f'{checksum_address} is not a valid EIP-55 checksum address')
+        # "load-in" Read on-chain stakes
         self.checksum_address = checksum_address
         self.__updated = None
 

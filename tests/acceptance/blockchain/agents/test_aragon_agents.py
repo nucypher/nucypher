@@ -15,17 +15,17 @@ You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
+
 import os
 
 import pytest
-from eth_tester.exceptions import TransactionFailed
 
 from nucypher.blockchain.eth.agents import TokenManagerAgent
 
 
 @pytest.fixture(scope='module')
 def token_manager(testerchain, deploy_contract):  # TODO: Maybe we can mock the blockchain here
-    contract, _ = deploy_contract('TokenManagerMock')
+    contract, _ = deploy_contract(contract_name='TokenManagerMock')
     return contract
 
 

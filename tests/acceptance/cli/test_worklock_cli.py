@@ -231,7 +231,10 @@ def test_refund(click_runner, testerchain, agency_local_registry, token_economic
     worklock_agent = ContractAgency.get_agent(WorkLockAgent, registry=agency_local_registry)
 
     # Bidder is now STAKER. Bond a worker.
-    staker = Staker(is_me=True, checksum_address=bidder, registry=agency_local_registry)
+    tpower = TransactingPower(account=bidder, signer=Web3Signer(testerchain.client))
+    staker = Staker(transacting_power=tpower,
+                    domain=TEMPORARY_DOMAIN,
+                    registry=agency_local_registry)
     receipt = staker.bond_worker(worker_address=worker_address)
     assert receipt['status'] == 1
 
@@ -249,10 +252,6 @@ def test_refund(click_runner, testerchain, agency_local_registry, token_economic
     # Ensure there is work to do
     remaining_work = worklock_agent.get_remaining_work(checksum_address=bidder)
     assert remaining_work > 0
-
-    # Unlock
-    transacting_power = worker._crypto_power.power_ups(TransactingPower)
-    transacting_power.activate(password=INSECURE_DEVELOPMENT_PASSWORD)
 
     # Do some work
     testerchain.time_travel(periods=1)
@@ -280,8 +279,11 @@ def test_refund(click_runner, testerchain, agency_local_registry, token_economic
 
 
 def test_participant_status(click_runner, testerchain, agency_local_registry, token_economics):
-    bidder = Bidder(checksum_address=testerchain.client.accounts[2],
-                    signer=Web3Signer(testerchain.client),
+
+    tpower = TransactingPower(account=testerchain.client.accounts[2],
+                              signer=Web3Signer(testerchain.client))
+    bidder = Bidder(transacting_power=tpower,
+                    domain=TEMPORARY_DOMAIN,
                     registry=agency_local_registry)
 
     command = ('status',

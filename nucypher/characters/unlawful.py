@@ -184,7 +184,7 @@ class Amonia(Alice):
         def publish_wrong_payee_address_to_blockchain(policy, _ursulas):
             receipt = policy.alice.policy_agent.create_policy(
                 policy_id=policy.hrac,  # bytes16 _policyID
-                author_address=policy.alice.checksum_address,
+                transacting_power=policy.alice.transacting_power,
                 value=policy.value,
                 end_timestamp=policy.expiration.epoch,  # uint16 _numberOfPeriods
                 node_addresses=[f.checksum_address for f in ursulas_to_pay_instead]  # address[] memory _nodes

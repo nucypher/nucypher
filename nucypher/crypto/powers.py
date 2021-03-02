@@ -17,14 +17,13 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 
 
 import inspect
+from eth_typing.evm import ChecksumAddress
 from hexbytes import HexBytes
 from typing import List, Optional, Tuple
 from umbral import pre
 from umbral.keys import UmbralKeyingMaterial, UmbralPrivateKey, UmbralPublicKey
 
 from nucypher.blockchain.eth.decorators import validate_checksum_address
-from nucypher.blockchain.eth.interfaces import BlockchainInterface, BlockchainInterfaceFactory
-from nucypher.blockchain.eth.signers.software import Web3Signer
 from nucypher.blockchain.eth.signers.base import Signer
 from nucypher.crypto import keypairs
 from nucypher.crypto.keypairs import DecryptingKeypair, SigningKeypair
@@ -111,7 +110,7 @@ class TransactingPower(CryptoPowerUp):
 
     @validate_checksum_address
     def __init__(self,
-                 account: str,
+                 account: ChecksumAddress,
                  signer: Signer,
                  password: str = None,
                  cache: bool = False):
@@ -127,41 +126,29 @@ class TransactingPower(CryptoPowerUp):
         self.__password = password
 
         # Config
-        self.__is_unlocked = False
         self.__blockchain = None
         self.__cache = cache
         self.__activated = False
 
     def __enter__(self):
-        return self.unlock_account()
+        return self.unlock()
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         return self.lock_account()
+
+    def __eq__(self, other):
+        if not isinstance(other, TransactingPower):
+            return False
+        result = bool(self.account == other.account)
+        return result
 
     #
     # Properties
     #
 
     @property
-    def blockchain(self) -> BlockchainInterface:
-        """Lazy evaluation of existing connection"""
-        if self.__blockchain is None:
-            blockchain = BlockchainInterfaceFactory.get_interface()
-            self.__blockchain = blockchain
-        return self.__blockchain
-
-    @property
-    def is_active(self) -> bool:
-        """Returns True if the blockchain currently has this transacting power attached."""
-        return bool(self.blockchain.transacting_power == self)
-
-    @property
-    def account(self) -> str:
+    def account(self) -> ChecksumAddress:
         return self.__account
-
-    @property
-    def is_unlocked(self) -> bool:
-        return self.__is_unlocked
 
     @property
     def is_device(self) -> bool:
@@ -173,37 +160,27 @@ class TransactingPower(CryptoPowerUp):
 
     def activate(self, password: str = None) -> None:
         """Called during power consumption"""
-        self.unlock_account(password=password)
+        self.unlock(password=password)
         if self.__cache is False:
             self.__password = None
-        self.blockchain.transacting_power = self
 
     def lock_account(self) -> None:
         self._signer.lock_account(account=self.__account)
-        self.__is_unlocked = False
 
-    def unlock_account(self, password: str = None, duration: int = None) -> bool:
+    def unlock(self, password: str = None, duration: int = None) -> bool:
         """Unlocks the account with provided or cached password."""
-        if self.is_unlocked:
-            return True
         password = password or self.__password
         result = self._signer.unlock_account(self.__account,
                                              password=password,
                                              duration=duration)
-        if result:
-            self.__is_unlocked = True
-        return self.is_unlocked
+        return result
 
     def sign_message(self, message: bytes) -> bytes:
         """Signs the message with the private key of the TransactingPower."""
-        if not self.is_unlocked:
-            raise self.AccountLocked("Failed to unlock account {}".format(self.__account))
         return self._signer.sign_message(account=self.__account, message=message)
 
     def sign_transaction(self, transaction_dict: dict) -> HexBytes:
         """Signs the transaction with the private key of the TransactingPower."""
-        if not self.is_unlocked:
-            raise self.AccountLocked("Failed to unlock account {}".format(self.__account))
         return self._signer.sign_transaction(transaction_dict=transaction_dict)
 
 

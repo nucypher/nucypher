@@ -19,6 +19,7 @@
 from collections import namedtuple
 
 from abc import ABC, abstractmethod
+from eth_typing.evm import ChecksumAddress
 from typing import List
 from urllib.parse import urlparse
 
@@ -84,11 +85,11 @@ class Signer(ABC):
 
     @property
     @abstractmethod
-    def accounts(self) -> List[str]:
+    def accounts(self) -> List[ChecksumAddress]:
         return NotImplemented
 
     @abstractmethod
-    def unlock_account(self, account: str, password: str, duration: int = None) -> bytes:
+    def unlock_account(self, account: str, password: str, duration: int = None) -> bool:
         return NotImplemented
 
     @abstractmethod

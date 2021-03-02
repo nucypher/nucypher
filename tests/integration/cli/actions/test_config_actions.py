@@ -36,7 +36,7 @@ from nucypher.cli.literature import (
     CONFIRM_FORGET_NODES,
     SUCCESSFUL_FORGET_NODES,
 )
-from nucypher.config.node import CharacterConfiguration
+from nucypher.config.base import CharacterConfiguration
 from tests.constants import YES
 
 BAD_CONFIG_FILE_CONTENTS = (

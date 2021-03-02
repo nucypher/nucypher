@@ -27,6 +27,13 @@ Alice
     Password for Ethereum account used by Alice.
 
 
+Bob
+----
+
+* `NUCYPHER_BOB_ETH_PASSWORD`
+    Password for Ethereum account used by Bob.
+
+
 Ursula (Worker)
 ---------------
 

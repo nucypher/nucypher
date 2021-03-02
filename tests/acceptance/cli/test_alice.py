@@ -15,14 +15,14 @@
  along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
-from unittest import mock
-
 import os
+from unittest import mock
 
 from nucypher.cli.literature import SUCCESSFUL_DESTRUCTION, COLLECT_NUCYPHER_PASSWORD
 from nucypher.cli.main import nucypher_cli
 from nucypher.config.characters import AliceConfiguration
 from nucypher.config.constants import NUCYPHER_ENVVAR_KEYRING_PASSWORD, TEMPORARY_DOMAIN
+from nucypher.config.storages import LocalFileBasedNodeStorage
 from nucypher.policy.identity import Card
 from tests.constants import (
     FAKE_PASSWORD_CONFIRMED,
@@ -40,12 +40,14 @@ def test_missing_configuration_file(default_filepath_mock, click_runner):
     assert "nucypher alice init" in result.output
 
 
-def test_initialize_alice_defaults(click_runner, mocker, custom_filepath, monkeypatch):
+def test_initialize_alice_defaults(click_runner, mocker, custom_filepath, monkeypatch, blockchain_ursulas):
     monkeypatch.delenv(NUCYPHER_ENVVAR_KEYRING_PASSWORD, raising=False)
 
     # Mock out filesystem writes
     mocker.patch.object(AliceConfiguration, 'initialize', autospec=True)
     mocker.patch.object(AliceConfiguration, 'to_configuration_file', autospec=True)
+    mocker.patch.object(LocalFileBasedNodeStorage, 'all', return_value=blockchain_ursulas)
+
 
     # Use default alice init args
     init_args = ('alice', 'init',

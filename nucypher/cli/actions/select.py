@@ -17,29 +17,28 @@
 
 
 import glob
-import os
-from typing import Callable
-from typing import Optional, Tuple, Type
 
 import click
+import os
 from tabulate import tabulate
+from typing import Callable
+from typing import Optional, Tuple, Type
 from web3.main import Web3
 
-from nucypher.blockchain.eth.actors import StakeHolder, Staker, Wallet
+from nucypher.blockchain.eth.actors import StakeHolder, Staker
+from nucypher.blockchain.eth.agents import ContractAgency, NucypherTokenAgent
 from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
 from nucypher.blockchain.eth.networks import NetworksInventory
-from nucypher.blockchain.eth.registry import InMemoryContractRegistry, IndividualAllocationRegistry
+from nucypher.blockchain.eth.registry import InMemoryContractRegistry, BaseContractRegistry
 from nucypher.blockchain.eth.signers.base import Signer
 from nucypher.blockchain.eth.token import NU, Stake
 from nucypher.characters.control.emitters import StdoutEmitter
 from nucypher.cli.literature import (
     GENERIC_SELECT_ACCOUNT,
-    IS_THIS_CORRECT,
     NO_CONFIGURATIONS_ON_DISK,
     NO_ETH_ACCOUNTS,
     NO_STAKES_FOUND,
     ONLY_DISPLAYING_DIVISIBLE_STAKES_NOTE,
-    PREALLOCATION_STAKE_ADVISORY,
     SELECT_NETWORK,
     SELECT_STAKE,
     SELECT_STAKING_ACCOUNT_INDEX,
@@ -47,8 +46,8 @@ from nucypher.cli.literature import (
 )
 from nucypher.cli.painting.policies import paint_cards
 from nucypher.cli.painting.staking import paint_stakes
+from nucypher.config.base import CharacterConfiguration
 from nucypher.config.constants import DEFAULT_CONFIG_ROOT, NUCYPHER_ENVVAR_WORKER_ADDRESS
-from nucypher.config.node import CharacterConfiguration
 from nucypher.policy.identity import Card
 
 
@@ -82,10 +81,9 @@ def select_client_account(emitter,
                           provider_uri: str = None,
                           signer: Signer = None,
                           signer_uri: str = None,
-                          wallet: Wallet = None,
                           prompt: str = None,
                           default: int = 0,
-                          registry=None,
+                          registry: BaseContractRegistry = None,
                           show_eth_balance: bool = False,
                           show_nu_balance: bool = False,
                           show_staking: bool = False,
@@ -98,28 +96,23 @@ def select_client_account(emitter,
     Note: Showing ETH and/or NU balances, causes an eager blockchain connection.
     """
 
-    if wallet and (provider_uri or signer_uri or signer):
-        raise ValueError("If a wallet is provided, don't provide a signer, provider URI, or signer URI.")
+    if signer and signer_uri:
+        raise ValueError('Pass either signer or signer_uri but not both.')
 
-    # We use Wallet internally as an account management abstraction
-    if not wallet:
+    if not any((provider_uri, signer_uri, signer)):
+        raise ValueError("At least a provider URI, signer URI or signer must be provided to select an account")
 
-        if signer and signer_uri:
-            raise ValueError('Pass either signer or signer_uri but not both.')
+    if provider_uri:
+        # Connect to the blockchain in order to select an account
+        if not BlockchainInterfaceFactory.is_interface_initialized(provider_uri=provider_uri):
+            BlockchainInterfaceFactory.initialize_interface(provider_uri=provider_uri, poa=poa, emitter=emitter)
+        signer_uri = provider_uri
 
-        if not provider_uri and not signer_uri:
-            raise ValueError("At least a provider URI or signer URI is necessary to select an account")
+    blockchain = BlockchainInterfaceFactory.get_interface(provider_uri=provider_uri)
 
-        if provider_uri:
-            # Lazy connect the blockchain interface
-            if not BlockchainInterfaceFactory.is_interface_initialized(provider_uri=provider_uri):
-                BlockchainInterfaceFactory.initialize_interface(provider_uri=provider_uri, poa=poa, emitter=emitter)
-
-        if signer_uri:
-            testnet = network != NetworksInventory.MAINNET
-            signer = Signer.from_signer_uri(signer_uri, testnet=testnet)
-
-        wallet = Wallet(provider_uri=provider_uri, signer=signer)
+    if signer_uri and not signer:
+        testnet = network != NetworksInventory.MAINNET
+        signer = Signer.from_signer_uri(signer_uri, testnet=testnet)
 
     # Display accounts info
     if show_nu_balance or show_staking:  # Lazy registry fetching
@@ -128,8 +121,7 @@ def select_client_account(emitter,
                 raise ValueError("Pass network name or registry; Got neither.")
             registry = InMemoryContractRegistry.from_latest_publication(network=network)
 
-    wallet_accounts = wallet.accounts
-    enumerated_accounts = dict(enumerate(wallet_accounts))
+    enumerated_accounts = dict(enumerate(signer.accounts))
     if len(enumerated_accounts) < 1:
         emitter.echo(NO_ETH_ACCOUNTS, color='red', bold=True)
         raise click.Abort()
@@ -147,15 +139,16 @@ def select_client_account(emitter,
     for index, account in enumerated_accounts.items():
         row = [account]
         if show_staking:
-            staker = Staker(is_me=True, checksum_address=account, registry=registry)
+            staker = Staker(domain=network, checksum_address=account, registry=registry)
             staker.refresh_stakes()
             is_staking = 'Yes' if bool(staker.stakes) else 'No'
             row.append(is_staking)
         if show_eth_balance:
-            ether_balance = Web3.fromWei(wallet.eth_balance(account), 'ether')
+            ether_balance = Web3.fromWei(blockchain.client.get_balance(account), 'ether')
             row.append(f'{ether_balance} ETH')
         if show_nu_balance:
-            token_balance = NU.from_nunits(wallet.token_balance(account, registry))
+            token_agent = ContractAgency.get_agent(NucypherTokenAgent, registry=registry)
+            token_balance = NU.from_nunits(token_agent.get_balance(account, registry))
             row.append(token_balance)
         rows.append(row)
     emitter.echo(tabulate(rows, headers=headers, showindex='always'))
@@ -173,8 +166,6 @@ def select_client_account(emitter,
 def select_client_account_for_staking(emitter: StdoutEmitter,
                                       stakeholder: StakeHolder,
                                       staking_address: Optional[str],
-                                      individual_allocation: Optional[IndividualAllocationRegistry],
-                                      force: bool,
                                       ) -> Tuple[str, str]:
     """
     Manages client account selection for stake-related operations.
@@ -185,24 +176,16 @@ def select_client_account_for_staking(emitter: StdoutEmitter,
     then the local client account is the beneficiary, and the staking address is the address of the staking contract.
     """
 
-    if individual_allocation:
-        client_account = individual_allocation.beneficiary_address
-        staking_address = individual_allocation.contract_address
-        message = PREALLOCATION_STAKE_ADVISORY.format(client_account=client_account, staking_address=staking_address)
-        emitter.echo(message, color='yellow', verbosity=1)
-        if not force:
-            click.confirm(IS_THIS_CORRECT, abort=True)
+    if staking_address:
+        client_account = staking_address
     else:
-        if staking_address:
-            client_account = staking_address
-        else:
-            client_account = select_client_account(prompt=SELECT_STAKING_ACCOUNT_INDEX,
-                                                   emitter=emitter,
-                                                   registry=stakeholder.registry,
-                                                   network=stakeholder.network,
-                                                   wallet=stakeholder.wallet)
-            staking_address = client_account
-    stakeholder.set_staker(client_account)
+        client_account = select_client_account(prompt=SELECT_STAKING_ACCOUNT_INDEX,
+                                               emitter=emitter,
+                                               registry=stakeholder.registry,
+                                               network=stakeholder.domain,
+                                               signer=stakeholder.signer)
+        staking_address = client_account
+    stakeholder.assimilate(client_account)
 
     return client_account, staking_address
 

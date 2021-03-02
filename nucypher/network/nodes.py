@@ -888,7 +888,7 @@ class Learner:
             # TODO: This whole section is weird; sprouts down have any of these things.
             except sprout.StampNotSigned:
                 self.log.warn(f'Verification Failed - '
-                              f'{sprout} stamp is unsigned.')
+                              f'{sprout} {NOT_SIGNED}.')
 
             except sprout.NotStaking:
                 self.log.warn(f'Verification Failed - '

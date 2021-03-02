@@ -15,9 +15,11 @@ You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
+
 import pytest
 
-from tests.constants import INSECURE_DEVELOPMENT_PASSWORD
+from nucypher.blockchain.eth.signers.software import Web3Signer
+from nucypher.crypto.powers import TransactingPower
 
 # Experimental max error
 MAX_ERROR_FIRST_PHASE = 1e-20
@@ -26,23 +28,24 @@ MAX_PERIODS_SECOND_PHASE = 100
 
 
 @pytest.mark.nightly
-def test_reward(testerchain, agency, token_economics, mock_transacting_power_activation):
+def test_reward(testerchain, agency, token_economics):
     testerchain.time_travel(hours=1)
     token_agent, staking_agent, _policy_agent = agency
     origin = testerchain.etherbase_account
     ursula = testerchain.ursula_account(0)
+    origin_tpower = TransactingPower(signer=Web3Signer(client=testerchain.client), account=origin)
+    ursula_tpower = TransactingPower(signer=Web3Signer(client=testerchain.client), account=ursula)
 
     # Prepare one staker
     _txhash = token_agent.transfer(amount=token_economics.minimum_allowed_locked,
                                    target_address=ursula,
-                                   sender_address=origin)
-    mock_transacting_power_activation(account=ursula, password=INSECURE_DEVELOPMENT_PASSWORD)
+                                   transacting_power=origin_tpower)
     _txhash = token_agent.approve_transfer(amount=token_economics.minimum_allowed_locked,
                                            spender_address=staking_agent.contract_address,
-                                           sender_address=ursula)
+                                           transacting_power=ursula_tpower)
     _txhash = staking_agent.deposit_tokens(amount=token_economics.minimum_allowed_locked,
                                            lock_periods=100 * token_economics.maximum_rewarded_periods,
-                                           sender_address=ursula,
+                                           transacting_power=ursula_tpower,
                                            staker_address=ursula)
 
     _txhash = staking_agent.bond_worker(staker_address=ursula, worker_address=ursula)
@@ -57,7 +60,7 @@ def test_reward(testerchain, agency, token_economics, mock_transacting_power_act
     switch = token_economics.first_phase_final_period()
     for i in range(1, switch + MAX_PERIODS_SECOND_PHASE):
         testerchain.time_travel(periods=1)
-        _txhash = staking_agent.commit_to_next_period(worker_address=ursula)
+        _txhash = staking_agent.commit_to_next_period(transacting_power=ursula_tpower)
         contract_reward = staking_agent.calculate_staking_reward(staker_address=ursula)
         calculations_reward = token_economics.cumulative_rewards_at_period(i)
         error = abs((contract_reward - calculations_reward) / calculations_reward)

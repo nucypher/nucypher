@@ -249,27 +249,28 @@ class UrsulaCharacterOptions:
         self.min_stake = min_stake
 
     def create_character(self, emitter, config_file, json_ipc, load_seednodes=True):
-
-        # TODO: embed compatibility layer?
         ursula_config = self.config_options.create_config(emitter, config_file)
         is_clef = ClefSigner.is_valid_clef_uri(self.config_options.signer_uri)
-
-        # TODO: Oh
-        client_password = None
-        if not ursula_config.federated_only:
-            if not self.config_options.dev and not json_ipc and not is_clef:
-                client_password = get_client_password(checksum_address=ursula_config.worker_address,
-                                                      envvar=NUCYPHER_ENVVAR_WORKER_ETH_PASSWORD)
+        password_required = all((not ursula_config.federated_only,
+                                 not self.config_options.dev,
+                                 not json_ipc,
+                                 not is_clef))
+        __password = None
+        if password_required:
+            __password = get_client_password(checksum_address=ursula_config.worker_address,
+                                             envvar=NUCYPHER_ENVVAR_WORKER_ETH_PASSWORD)
 
         try:
             URSULA = make_cli_character(character_config=ursula_config,
                                         emitter=emitter,
-                                        client_password=client_password,
                                         min_stake=self.min_stake,
                                         teacher_uri=self.teacher_uri,
                                         unlock_keyring=not self.config_options.dev,
+                                        client_password=__password,
+                                        unlock_signer=False,  # Ursula's unlock is managed separately using client_password.
                                         lonely=self.config_options.lonely,
-                                        start_learning_now=load_seednodes)
+                                        start_learning_now=load_seednodes,
+                                        json_ipc=json_ipc)
             return ursula_config, URSULA
 
         except NucypherKeyring.AuthenticationFailed as e:

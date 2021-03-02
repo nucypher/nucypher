@@ -15,10 +15,12 @@ You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
+
 import pytest
 from constant_sorrow import constants
 from eth_tester.exceptions import TransactionFailed
 
+from nucypher.config.constants import TEMPORARY_DOMAIN
 from nucypher.blockchain.eth.signers.software import Web3Signer
 from nucypher.blockchain.eth.actors import Staker
 from nucypher.blockchain.eth.agents import ContractAgency, NucypherTokenAgent, StakingEscrowAgent
@@ -35,14 +37,14 @@ def test_deploy_idle_network(testerchain, deployment_progress, test_registry):
     #
     # Nucypher Token
     #
-    token_deployer = NucypherTokenDeployer(registry=test_registry, deployer_address=origin)
-    assert token_deployer.deployer_address == origin
+    token_deployer = NucypherTokenDeployer(registry=test_registry)
+    tpower = TransactingPower(account=origin, signer=Web3Signer(testerchain.client))
 
     with pytest.raises(BaseContractDeployer.ContractDeploymentError):
         assert token_deployer.contract_address is constants.CONTRACT_NOT_DEPLOYED
     assert not token_deployer.is_deployed()
 
-    token_deployer.deploy(progress=deployment_progress)
+    token_deployer.deploy(progress=deployment_progress, transacting_power=tpower)
     assert token_deployer.is_deployed()
 
     token_agent = NucypherTokenAgent(registry=test_registry)
@@ -54,29 +56,27 @@ def test_deploy_idle_network(testerchain, deployment_progress, test_registry):
     #
     # StakingEscrow - in INIT mode, i.e. stub for StakingEscrow
     #
-    staking_escrow_deployer = StakingEscrowDeployer(registry=test_registry, deployer_address=origin)
-    assert staking_escrow_deployer.deployer_address == origin
+    staking_escrow_deployer = StakingEscrowDeployer(registry=test_registry)
 
     with pytest.raises(BaseContractDeployer.ContractDeploymentError):
         assert staking_escrow_deployer.contract_address is constants.CONTRACT_NOT_DEPLOYED
     assert not staking_escrow_deployer.is_deployed()
 
     staking_escrow_deployer.deploy(progress=deployment_progress,
-                                   deployment_mode=constants.INIT)
+                                   deployment_mode=constants.INIT,
+                                   transacting_power=tpower)
     assert not staking_escrow_deployer.is_deployed()
 
     #
     # Policy Manager
     #
-    policy_manager_deployer = PolicyManagerDeployer(registry=test_registry, deployer_address=origin)
-
-    assert policy_manager_deployer.deployer_address == origin
+    policy_manager_deployer = PolicyManagerDeployer(registry=test_registry)
 
     with pytest.raises(BaseContractDeployer.ContractDeploymentError):
         assert policy_manager_deployer.contract_address is constants.CONTRACT_NOT_DEPLOYED
     assert not policy_manager_deployer.is_deployed()
 
-    policy_manager_deployer.deploy(progress=deployment_progress)
+    policy_manager_deployer.deploy(progress=deployment_progress, transacting_power=tpower)
     assert policy_manager_deployer.is_deployed()
 
     policy_agent = policy_manager_deployer.make_agent()
@@ -85,15 +85,13 @@ def test_deploy_idle_network(testerchain, deployment_progress, test_registry):
     #
     # Adjudicator
     #
-    adjudicator_deployer = AdjudicatorDeployer(registry=test_registry, deployer_address=origin)
-
-    assert adjudicator_deployer.deployer_address == origin
+    adjudicator_deployer = AdjudicatorDeployer(registry=test_registry)
 
     with pytest.raises(BaseContractDeployer.ContractDeploymentError):
         assert adjudicator_deployer.contract_address is constants.CONTRACT_NOT_DEPLOYED
     assert not adjudicator_deployer.is_deployed()
 
-    adjudicator_deployer.deploy(progress=deployment_progress)
+    adjudicator_deployer.deploy(progress=deployment_progress, transacting_power=tpower)
     assert adjudicator_deployer.is_deployed()
 
     adjudicator_agent = adjudicator_deployer.make_agent()
@@ -102,15 +100,15 @@ def test_deploy_idle_network(testerchain, deployment_progress, test_registry):
     #
     # StakingEscrow - in IDLE mode, i.e. without activation steps (approve_funding and initialize)
     #
-    staking_escrow_deployer = StakingEscrowDeployer(registry=test_registry, deployer_address=origin)
-    assert staking_escrow_deployer.deployer_address == origin
+    staking_escrow_deployer = StakingEscrowDeployer(registry=test_registry)
 
     with pytest.raises(BaseContractDeployer.ContractDeploymentError):
         assert staking_escrow_deployer.contract_address is constants.CONTRACT_NOT_DEPLOYED
     assert not staking_escrow_deployer.is_deployed()
 
     staking_escrow_deployer.deploy(progress=deployment_progress,
-                                   deployment_mode=constants.IDLE)
+                                   deployment_mode=constants.IDLE,
+                                   transacting_power=tpower)
     assert staking_escrow_deployer.is_deployed()
 
     staking_agent = ContractAgency.get_agent(StakingEscrowAgent, registry=test_registry)
@@ -124,18 +122,17 @@ def test_stake_in_idle_network(testerchain, token_economics, test_registry):
 
     # Let's fund a staker first
     token_agent = NucypherTokenAgent(registry=test_registry)
-    token_airdrop(origin=testerchain.etherbase_account,
+    tpower = TransactingPower(account=testerchain.etherbase_account, signer=Web3Signer(testerchain.client))
+    token_airdrop(transacting_power=tpower,
                   addresses=testerchain.stakers_accounts,
                   token_agent=token_agent,
                   amount=DEVELOPMENT_TOKEN_AIRDROP_AMOUNT)
-    account = testerchain.stakers_accounts[0]
-    staker = Staker(is_me=True, checksum_address=account, registry=test_registry)
 
-    # Mock TransactingPower consumption
-    staker.transacting_power = TransactingPower(password=INSECURE_DEVELOPMENT_PASSWORD, 
-                                                signer=Web3Signer(testerchain.client),
-                                                account=staker.checksum_address)
-    staker.transacting_power.activate()
+    account = testerchain.stakers_accounts[0]
+    tpower = TransactingPower(account=account, signer=Web3Signer(testerchain.client))
+    staker = Staker(transacting_power=tpower,
+                    domain=TEMPORARY_DOMAIN,
+                    registry=test_registry)
 
     # Since StakingEscrow hasn't been activated yet, deposit should work but making a commitment must fail
     amount = token_economics.minimum_allowed_locked
@@ -143,12 +140,13 @@ def test_stake_in_idle_network(testerchain, token_economics, test_registry):
     staker.initialize_stake(amount=amount, lock_periods=periods)
     staker.bond_worker(account)
     with pytest.raises((TransactionFailed, ValueError)):
-        staker.staking_agent.commit_to_next_period(worker_address=account)
+        staker.staking_agent.commit_to_next_period(transacting_power=tpower)
 
 
 def test_activate_network(testerchain, token_economics, test_registry):
-    staking_escrow_deployer = StakingEscrowDeployer(registry=test_registry,
-                                                    deployer_address=testerchain.etherbase_account)
+    staking_escrow_deployer = StakingEscrowDeployer(registry=test_registry)
+    tpower = TransactingPower(account=testerchain.etherbase_account,
+                              signer=Web3Signer(testerchain.client))
 
     # Let's check we're in the position of activating StakingEscrow
     assert staking_escrow_deployer.is_deployed()
@@ -156,7 +154,7 @@ def test_activate_network(testerchain, token_economics, test_registry):
     assert staking_escrow_deployer.ready_to_activate
 
     # OK, let's do it!
-    receipts = staking_escrow_deployer.activate()
+    receipts = staking_escrow_deployer.activate(transacting_power=tpower)
     for tx in receipts:
         assert receipts[tx]['status'] == 1
 
@@ -166,4 +164,4 @@ def test_activate_network(testerchain, token_economics, test_registry):
     # Trying to activate now must fail
     assert not staking_escrow_deployer.ready_to_activate
     with pytest.raises(StakingEscrowDeployer.ContractDeploymentError):
-        staking_escrow_deployer.activate()
+        staking_escrow_deployer.activate(transacting_power=tpower)

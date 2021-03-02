@@ -15,11 +15,15 @@ You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
-import pytest
+
 from umbral.keys import UmbralPrivateKey
 from umbral.signing import Signer
 
+from nucypher.config.constants import TEMPORARY_DOMAIN
+from nucypher.blockchain.eth.signers.software import Web3Signer
+from nucypher.crypto.powers import TransactingPower
 from nucypher.blockchain.eth.actors import Investigator, Staker
+from nucypher.blockchain.eth.agents import ContractAgency, NucypherTokenAgent, StakingEscrowAgent
 from nucypher.blockchain.eth.constants import NULL_ADDRESS
 from nucypher.blockchain.eth.token import NU
 from nucypher.crypto.signing import SignatureStamp
@@ -43,7 +47,6 @@ def test_investigator_requests_slashing(testerchain,
                                         agency,
                                         mock_ursula_reencrypts,
                                         token_economics,
-                                        mock_transacting_power_activation,
                                         mocker):
 
     staker_account = testerchain.staker_account(0)
@@ -51,21 +54,23 @@ def test_investigator_requests_slashing(testerchain,
 
     ##### STAKING ESCROW STUFF #####
 
-    token_agent, staking_agent, _policy_agent = agency
+    token_agent = ContractAgency.get_agent(NucypherTokenAgent, registry=test_registry)
+    staking_agent = ContractAgency.get_agent(StakingEscrowAgent, registry=test_registry)
 
     locked_tokens = token_economics.minimum_allowed_locked * 5
 
-    mock_transacting_power_activation(account=testerchain.etherbase_account, password=INSECURE_DEVELOPMENT_PASSWORD)
-
     # The staker receives an initial amount of tokens
+    tpower = TransactingPower(account=testerchain.etherbase_account, signer=Web3Signer(testerchain.client))
     _txhash = token_agent.transfer(amount=locked_tokens,
                                    target_address=staker_account,
-                                   sender_address=testerchain.etherbase_account)
-
-    mock_transacting_power_activation(account=staker_account, password=INSECURE_DEVELOPMENT_PASSWORD)
+                                   transacting_power=tpower)
 
     # Deposit: The staker deposits tokens in the StakingEscrow contract.
-    staker = Staker(checksum_address=staker_account, is_me=True, registry=test_registry)
+    staker_tpower = TransactingPower(account=staker_account, signer=Web3Signer(testerchain.client))
+    staker = Staker(transacting_power=staker_tpower,
+                    domain=TEMPORARY_DOMAIN,
+                    registry=test_registry)
+
     staker.initialize_stake(amount=NU(locked_tokens, 'NuNit'),
                             lock_periods=token_economics.minimum_locked_periods)
     assert staker.locked_tokens(periods=1) == locked_tokens
@@ -73,8 +78,7 @@ def test_investigator_requests_slashing(testerchain,
     # The staker hasn't bond a worker yet
     assert NULL_ADDRESS == staking_agent.get_worker_from_staker(staker_address=staker_account)
 
-    _txhash = staking_agent.bond_worker(staker_address=staker_account,
-                                        worker_address=worker_account)
+    _txhash = staking_agent.bond_worker(transacting_power=staker_tpower, worker_address=worker_account)
 
     assert worker_account == staking_agent.get_worker_from_staker(staker_address=staker_account)
     assert staker_account == staking_agent.get_staker_from_worker(worker_address=worker_account)
@@ -82,8 +86,10 @@ def test_investigator_requests_slashing(testerchain,
     ###### END OF STAKING ESCROW STUFF ####
 
     bob_account = testerchain.bob_account
-
-    investigator = Investigator(registry=test_registry, checksum_address=bob_account)
+    bob_tpower = TransactingPower(account=bob_account, signer=Web3Signer(testerchain.client))
+    investigator = Investigator(registry=test_registry,
+                                transacting_power=bob_tpower,
+                                domain=TEMPORARY_DOMAIN)
     ursula = mock_ursula(testerchain, worker_account, mocker=mocker)
 
     # Let's create a bad cfrag
@@ -91,8 +97,6 @@ def test_investigator_requests_slashing(testerchain,
 
     assert not investigator.was_this_evidence_evaluated(evidence)
     bobby_old_balance = investigator.token_balance
-
-    mock_transacting_power_activation(account=bob_account, password=INSECURE_DEVELOPMENT_PASSWORD)
 
     investigator.request_evaluation(evidence=evidence)
 

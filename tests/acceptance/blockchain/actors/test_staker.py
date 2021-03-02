@@ -14,11 +14,14 @@ GNU Affero General Public License for more details.
 You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
+
+
 import maya
 import pytest
 from eth_tester.exceptions import TransactionFailed
 
-from nucypher.blockchain.eth.agents import ContractAgency, StakingEscrowAgent
+from nucypher.blockchain.eth.agents import NucypherTokenAgent, StakingEscrowAgent, ContractAgency
+from nucypher.blockchain.eth.signers.software import Web3Signer
 from nucypher.blockchain.eth.token import NU, Stake
 from nucypher.blockchain.eth.utils import datetime_at_period
 from nucypher.crypto.powers import TransactingPower
@@ -27,10 +30,9 @@ from tests.utils.blockchain import token_airdrop
 from tests.utils.ursula import make_decentralized_ursulas
 
 
-def test_staker_locking_tokens(testerchain, agency, staker, token_economics, mock_transacting_power_activation):
-    token_agent, staking_agent, policy_agent = agency
-
-    mock_transacting_power_activation(account=staker.checksum_address, password=INSECURE_DEVELOPMENT_PASSWORD)
+def test_staker_locking_tokens(testerchain, agency, staker, token_economics, test_registry):
+    token_agent = ContractAgency.get_agent(NucypherTokenAgent, registry=test_registry)
+    staking_agent = ContractAgency.get_agent(StakingEscrowAgent, registry=test_registry)
 
     assert NU(token_economics.minimum_allowed_locked, 'NuNit') < staker.token_balance, "Insufficient staker balance"
 
@@ -252,19 +254,18 @@ def test_staker_collects_staking_reward(testerchain,
                                         blockchain_ursulas,
                                         agency,
                                         token_economics,
-                                        mock_transacting_power_activation,
                                         ursula_decentralized_test_config):
-    token_agent, staking_agent, policy_agent = agency
+    token_agent = ContractAgency.get_agent(NucypherTokenAgent, registry=test_registry)
 
-    testerchain.transacting_power.activate()
+    tpower = TransactingPower(account=testerchain.etherbase_account,
+                              signer=Web3Signer(testerchain.client))
 
     # Give more tokens to staker
     token_airdrop(token_agent=token_agent,
-                  origin=testerchain.etherbase_account,
+                  transacting_power=tpower,
                   addresses=[staker.checksum_address],
                   amount=DEVELOPMENT_TOKEN_AIRDROP_AMOUNT)
 
-    mock_transacting_power_activation(account=staker.checksum_address, password=INSECURE_DEVELOPMENT_PASSWORD)
     staker.initialize_stake(amount=NU(token_economics.minimum_allowed_locked, 'NuNit'),  # Lock the minimum amount of tokens
                             lock_periods=int(token_economics.minimum_locked_periods))    # ... for the fewest number of periods
 
@@ -281,22 +282,17 @@ def test_staker_collects_staking_reward(testerchain,
 
     # ...mint few tokens...
     for _ in range(2):
-        transacting_power = ursula._crypto_power.power_ups(TransactingPower)
-        transacting_power.activate(password=INSECURE_DEVELOPMENT_PASSWORD)
         ursula.commit_to_next_period()
         testerchain.time_travel(periods=1)
 
     # Check mintable periods
     assert staker.mintable_periods() == 1
-    ursula.transacting_power.activate(password=INSECURE_DEVELOPMENT_PASSWORD)
     ursula.commit_to_next_period()
 
     # ...wait more...
     assert staker.mintable_periods() == 0
     testerchain.time_travel(periods=2)
     assert staker.mintable_periods() == 2
-
-    mock_transacting_power_activation(account=staker.checksum_address, password=INSECURE_DEVELOPMENT_PASSWORD)
 
     # Capture the current token balance of the staker
     initial_balance = staker.token_balance
@@ -322,10 +318,6 @@ def test_staker_manages_winding_down(testerchain,
                                         stakers_addresses=[staker.checksum_address],
                                         workers_addresses=[staker.worker_address],
                                         registry=test_registry).pop()
-
-    # Unlock
-    transacting_power = ursula._crypto_power.power_ups(TransactingPower)
-    transacting_power.activate(password=INSECURE_DEVELOPMENT_PASSWORD)
 
     # Enable winding down
     testerchain.time_travel(periods=1)

@@ -14,12 +14,15 @@ GNU Affero General Public License for more details.
 You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
-from typing import List
+
 
 import tabulate
+from typing import List
 from web3.main import Web3
 
+from nucypher.blockchain.eth.agents import ContractAgency, NucypherTokenAgent
 from nucypher.blockchain.eth.constants import STAKING_ESCROW_CONTRACT_NAME, NULL_ADDRESS
+from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
 from nucypher.blockchain.eth.token import NU, Stake
 from nucypher.blockchain.eth.utils import datetime_at_period, prettify_eth_amount
 from nucypher.characters.control.emitters import StdoutEmitter
@@ -169,11 +172,11 @@ def paint_staged_stake(emitter,
                        unlock_period,
                        division_message: str = None):
     start_datetime = datetime_at_period(period=start_period,
-                                        seconds_per_period=stakeholder.economics.seconds_per_period,
+                                        seconds_per_period=stakeholder.staker.economics.seconds_per_period,
                                         start_of_period=True)
 
     unlock_datetime = datetime_at_period(period=unlock_period,
-                                         seconds_per_period=stakeholder.economics.seconds_per_period,
+                                         seconds_per_period=stakeholder.staker.economics.seconds_per_period,
                                          start_of_period=True)
 
     start_datetime_pretty = start_datetime.local_datetime().strftime("%b %d %H:%M %Z")
@@ -207,15 +210,19 @@ def paint_staking_confirmation(emitter, staker, receipt):
     emitter.echo(POST_STAKING_ADVICE, color='green')
 
 
-def paint_staking_accounts(emitter, wallet, registry):
+def paint_staking_accounts(emitter, signer, registry, domain):
     from nucypher.blockchain.eth.actors import Staker
 
     rows = list()
-    for account in wallet.accounts:
-        eth = str(Web3.fromWei(wallet.eth_balance(account), 'ether')) + " ETH"
-        nu = str(NU.from_nunits(wallet.token_balance(account, registry)))
+    blockchain = BlockchainInterfaceFactory.get_interface()
+    token_agent = ContractAgency.get_agent(NucypherTokenAgent, registry=registry)
+    for account in signer.accounts:
+        eth = str(Web3.fromWei(blockchain.client.get_balance(account), 'ether')) + " ETH"
+        nu = str(NU.from_nunits(token_agent.get_balance(account)))
 
-        staker = Staker(is_me=True, checksum_address=account, registry=registry)
+        staker = Staker(checksum_address=account,
+                        domain=domain,
+                        registry=registry)
         staker.refresh_stakes()
         is_staking = 'Yes' if bool(staker.stakes) else 'No'
         rows.append((is_staking, account, eth, nu))

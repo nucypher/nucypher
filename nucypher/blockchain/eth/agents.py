@@ -16,13 +16,11 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
 from bisect import bisect_right
-from itertools import accumulate
+
 import random
-import math
 import sys
 from constant_sorrow.constants import (  # type: ignore
     CONTRACT_CALL,
-    NO_CONTRACT_AVAILABLE,
     TRANSACTION,
     CONTRACT_ATTRIBUTE
 )
@@ -30,6 +28,7 @@ from eth_typing.encoding import HexStr
 from eth_typing.evm import ChecksumAddress
 from eth_utils.address import to_checksum_address
 from hexbytes.main import HexBytes
+from itertools import accumulate
 from typing import Dict, Iterable, List, Tuple, Type, Union, Any, Optional, cast
 from web3.contract import Contract, ContractFunction
 from web3.types import Wei, Timestamp, TxReceipt, TxParams, Nonce
@@ -44,28 +43,26 @@ from nucypher.blockchain.eth.constants import (
     NUCYPHER_TOKEN_CONTRACT_NAME,
     NULL_ADDRESS,
     POLICY_MANAGER_CONTRACT_NAME,
-    PREALLOCATION_ESCROW_CONTRACT_NAME,
     STAKING_ESCROW_CONTRACT_NAME,
-    STAKING_INTERFACE_CONTRACT_NAME,
-    STAKING_INTERFACE_ROUTER_CONTRACT_NAME,
     TOKEN_MANAGER_CONTRACT_NAME,
     VOTING_CONTRACT_NAME,
     VOTING_AGGREGATOR_CONTRACT_NAME,
     WORKLOCK_CONTRACT_NAME
 )
-from nucypher.blockchain.eth.decorators import contract_api, validate_checksum_address
+from nucypher.blockchain.eth.decorators import contract_api
 from nucypher.blockchain.eth.events import ContractEvents
-from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory, VersionedContract
-from nucypher.blockchain.eth.registry import AllocationRegistry, BaseContractRegistry
-from nucypher.blockchain.eth.utils import epoch_to_period
+from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
+from nucypher.blockchain.eth.registry import BaseContractRegistry
 from nucypher.crypto.api import sha256_digest
+from nucypher.crypto.powers import TransactingPower
 from nucypher.types import (
     Agent,
     NuNits,
     SubStakeInfo,
     RawSubStakeInfo,
     Period,
-    Work, WorklockParameters,
+    Work,
+    WorklockParameters,
     StakerFlags,
     StakerInfo,
     PeriodDelta,
@@ -158,9 +155,8 @@ class NucypherTokenAgent(EthereumContractAgent):
     contract_name: str = NUCYPHER_TOKEN_CONTRACT_NAME
 
     @contract_api(CONTRACT_CALL)
-    def get_balance(self, address: Optional[ChecksumAddress] = None) -> NuNits:
+    def get_balance(self, address: ChecksumAddress) -> NuNits:
         """Get the NU balance (in NuNits) of a token holder address, or of this contract address"""
-        address = address if address is not None else self.contract_address
         balance: int = self.contract.functions.balanceOf(address).call()
         return NuNits(balance)
 
@@ -172,43 +168,43 @@ class NucypherTokenAgent(EthereumContractAgent):
 
     @contract_api(TRANSACTION)
     def increase_allowance(self,
-                           sender_address: ChecksumAddress,
+                           transacting_power: TransactingPower,
                            spender_address: ChecksumAddress,
                            increase: NuNits
                            ) -> TxReceipt:
         """Increase the allowance of a spender address funded by a sender address"""
         contract_function: ContractFunction = self.contract.functions.increaseAllowance(spender_address, increase)
         receipt: TxReceipt = self.blockchain.send_transaction(contract_function=contract_function,
-                                                              sender_address=sender_address)
+                                                              transacting_power=transacting_power)
         return receipt
 
     @contract_api(TRANSACTION)
     def approve_transfer(self,
                          amount: NuNits,
                          spender_address: ChecksumAddress,
-                         sender_address: ChecksumAddress
+                         transacting_power: TransactingPower
                          ) -> TxReceipt:
         """Approve the spender address to transfer an amount of tokens on behalf of the sender address"""
         payload: TxParams = {'gas': Wei(500_000)}  # TODO #842: gas needed for use with geth! <<<< Is this still open?
         contract_function: ContractFunction = self.contract.functions.approve(spender_address, amount)
         receipt: TxReceipt = self.blockchain.send_transaction(contract_function=contract_function,
                                                               payload=payload,
-                                                              sender_address=sender_address)
+                                                              transacting_power=transacting_power)
         return receipt
 
     @contract_api(TRANSACTION)
-    def transfer(self, amount: NuNits, target_address: ChecksumAddress, sender_address: ChecksumAddress) -> TxReceipt:
+    def transfer(self, amount: NuNits, target_address: ChecksumAddress, transacting_power: TransactingPower) -> TxReceipt:
         """Transfer an amount of tokens from the sender address to the target address."""
         contract_function: ContractFunction = self.contract.functions.transfer(target_address, amount)
         receipt: TxReceipt = self.blockchain.send_transaction(contract_function=contract_function,
-                                                              sender_address=sender_address)
+                                                              transacting_power=transacting_power)
         return receipt
 
     @contract_api(TRANSACTION)
     def approve_and_call(self,
                          amount: NuNits,
                          target_address: ChecksumAddress,
-                         sender_address: ChecksumAddress,
+                         transacting_power: TransactingPower,
                          call_data: bytes = b'',
                          gas_limit: Optional[Wei] = None
                          ) -> TxReceipt:
@@ -217,7 +213,7 @@ class NucypherTokenAgent(EthereumContractAgent):
             payload = {'gas': gas_limit}
         approve_and_call: ContractFunction = self.contract.functions.approveAndCall(target_address, amount, call_data)
         approve_and_call_receipt: TxReceipt = self.blockchain.send_transaction(contract_function=approve_and_call,
-                                                                               sender_address=sender_address,
+                                                                               transacting_power=transacting_power,
                                                                                payload=payload)
         return approve_and_call_receipt
 
@@ -397,26 +393,26 @@ class StakingEscrowAgent(EthereumContractAgent):
 
     @contract_api(TRANSACTION)
     def deposit_tokens(self,
-                       staker_address: ChecksumAddress,
                        amount: NuNits,
                        lock_periods: PeriodDelta,
-                       sender_address: Optional[ChecksumAddress] = None
+                       transacting_power: TransactingPower,
+                       staker_address: Optional[ChecksumAddress] = None,
                        ) -> TxReceipt:
         """
         Send tokens to the escrow from the sender's address to be locked on behalf of the staker address.
         If the sender address is not provided, the stakers address is used.
         Note that this resolved to two separate contract function signatures.
         """
-        if not sender_address:
-            sender_address = staker_address
+        if not staker_address:
+            staker_address = transacting_power.account
         contract_function: ContractFunction = self.contract.functions.deposit(staker_address, amount, lock_periods)
         receipt: TxReceipt = self.blockchain.send_transaction(contract_function=contract_function,
-                                                              sender_address=sender_address)
+                                                              transacting_power=transacting_power)
         return receipt
 
     @contract_api(TRANSACTION)
     def deposit_and_increase(self,
-                             staker_address: ChecksumAddress,
+                             transacting_power: TransactingPower,
                              amount: NuNits,
                              stake_index: int
                              ) -> TxReceipt:
@@ -427,12 +423,12 @@ class StakingEscrowAgent(EthereumContractAgent):
         """
         contract_function: ContractFunction = self.contract.functions.depositAndIncrease(stake_index, amount)
         receipt: TxReceipt = self.blockchain.send_transaction(contract_function=contract_function,
-                                                              sender_address=staker_address)
+                                                              transacting_power=transacting_power)
         return receipt
 
     @contract_api(TRANSACTION)
     def lock_and_create(self,
-                        staker_address: ChecksumAddress,
+                        transacting_power: TransactingPower,
                         amount: NuNits,
                         lock_periods: PeriodDelta
                         ) -> TxReceipt:
@@ -441,12 +437,12 @@ class StakingEscrowAgent(EthereumContractAgent):
         """
         contract_function: ContractFunction = self.contract.functions.lockAndCreate(amount, lock_periods)
         receipt: TxReceipt = self.blockchain.send_transaction(contract_function=contract_function,
-                                                              sender_address=staker_address)
+                                                              transacting_power=transacting_power)
         return receipt
 
     @contract_api(TRANSACTION)
     def lock_and_increase(self,
-                          staker_address: ChecksumAddress,
+                          transacting_power: TransactingPower,
                           amount: NuNits,
                           stake_index: int
                           ) -> TxReceipt:
@@ -455,30 +451,30 @@ class StakingEscrowAgent(EthereumContractAgent):
         """
         contract_function: ContractFunction = self.contract.functions.lockAndIncrease(stake_index, amount)
         receipt: TxReceipt = self.blockchain.send_transaction(contract_function=contract_function,
-                                                              sender_address=staker_address)
+                                                              transacting_power=transacting_power)
         return receipt
 
     @contract_api(TRANSACTION)
     def divide_stake(self,
-                     staker_address: ChecksumAddress,
+                     transacting_power: TransactingPower,
                      stake_index: int,
                      target_value: NuNits,
                      periods: PeriodDelta
                      ) -> TxReceipt:
         contract_function: ContractFunction = self.contract.functions.divideStake(stake_index, target_value, periods)
-        receipt = self.blockchain.send_transaction(contract_function=contract_function, sender_address=staker_address)
+        receipt = self.blockchain.send_transaction(contract_function=contract_function, transacting_power=transacting_power)
         return receipt
 
     @contract_api(TRANSACTION)
-    def prolong_stake(self, staker_address: ChecksumAddress, stake_index: int, periods: PeriodDelta) -> TxReceipt:
+    def prolong_stake(self, transacting_power: TransactingPower, stake_index: int, periods: PeriodDelta) -> TxReceipt:
         contract_function: ContractFunction = self.contract.functions.prolongStake(stake_index, periods)
-        receipt = self.blockchain.send_transaction(contract_function=contract_function, sender_address=staker_address)
+        receipt = self.blockchain.send_transaction(contract_function=contract_function, transacting_power=transacting_power)
         return receipt
 
     @contract_api(TRANSACTION)
-    def merge_stakes(self, staker_address: ChecksumAddress, stake_index_1: int, stake_index_2: int) -> TxReceipt:
+    def merge_stakes(self, transacting_power: TransactingPower, stake_index_1: int, stake_index_2: int) -> TxReceipt:
         contract_function: ContractFunction = self.contract.functions.mergeStake(stake_index_1, stake_index_2)
-        receipt = self.blockchain.send_transaction(contract_function=contract_function, sender_address=staker_address)
+        receipt = self.blockchain.send_transaction(contract_function=contract_function, transacting_power=transacting_power)
         return receipt
 
     @contract_api(CONTRACT_CALL)
@@ -509,33 +505,33 @@ class StakingEscrowAgent(EthereumContractAgent):
         return to_checksum_address(staker)
 
     @contract_api(TRANSACTION)
-    def bond_worker(self, staker_address: ChecksumAddress, worker_address: ChecksumAddress) -> TxReceipt:
+    def bond_worker(self, transacting_power: TransactingPower, worker_address: ChecksumAddress) -> TxReceipt:
         contract_function: ContractFunction = self.contract.functions.bondWorker(worker_address)
         receipt: TxReceipt = self.blockchain.send_transaction(contract_function=contract_function,
-                                                              sender_address=staker_address)
+                                                              transacting_power=transacting_power)
         return receipt
 
     @contract_api(TRANSACTION)
-    def release_worker(self, staker_address: ChecksumAddress) -> TxReceipt:
-        return self.bond_worker(staker_address=staker_address, worker_address=NULL_ADDRESS)
+    def release_worker(self, transacting_power: TransactingPower) -> TxReceipt:
+        return self.bond_worker(transacting_power=transacting_power, worker_address=NULL_ADDRESS)
 
     @contract_api(TRANSACTION)
     def commit_to_next_period(self,
-                              worker_address: ChecksumAddress,
-                              fire_and_forget: bool = True,  # TODO: make fire_and_forget required? See #2385 too.
+                              transacting_power: TransactingPower,
+                              fire_and_forget: bool = True,  # TODO: rename to wait_for_receipt
                               ) -> Union[TxReceipt, HexBytes]:
         """
         For each period that the worker makes a commitment, the staker is rewarded.
         """
         contract_function: ContractFunction = self.contract.functions.commitToNextPeriod()
         txhash_or_receipt = self.blockchain.send_transaction(contract_function=contract_function,
-                                                             sender_address=worker_address,
+                                                             transacting_power=transacting_power,
                                                              gas_estimation_multiplier=1.5, # TODO: Workaround for #2337
                                                              fire_and_forget=fire_and_forget)
         return txhash_or_receipt
 
     @contract_api(TRANSACTION)
-    def mint(self, staker_address: ChecksumAddress) -> TxReceipt:
+    def mint(self, transacting_power: TransactingPower) -> TxReceipt:
         """
         Computes reward tokens for the staker's account;
         This is only used to calculate the reward for the final period of a stake,
@@ -543,7 +539,7 @@ class StakingEscrowAgent(EthereumContractAgent):
         """
         contract_function: ContractFunction = self.contract.functions.mint()
         receipt: TxReceipt = self.blockchain.send_transaction(contract_function=contract_function,
-                                                              sender_address=staker_address)
+                                                              transacting_power=transacting_power)
         return receipt
 
     @contract_api(CONTRACT_CALL)
@@ -564,22 +560,23 @@ class StakingEscrowAgent(EthereumContractAgent):
         return NuNits(reward_amount)
 
     @contract_api(TRANSACTION)
-    def collect_staking_reward(self, staker_address: ChecksumAddress) -> TxReceipt:
+    def collect_staking_reward(self, transacting_power: TransactingPower) -> TxReceipt:
         """Withdraw tokens rewarded for staking."""
+        staker_address = transacting_power.account
         reward_amount: NuNits = self.calculate_staking_reward(staker_address=staker_address)
         from nucypher.blockchain.eth.token import NU
         self.log.debug(f"Withdrawing staking reward ({NU.from_nunits(reward_amount)}) to {staker_address}")
-        receipt: TxReceipt = self.withdraw(staker_address=staker_address, amount=reward_amount)
+        receipt: TxReceipt = self.withdraw(transacting_power=transacting_power, amount=reward_amount)
         return receipt
 
     @contract_api(TRANSACTION)
-    def withdraw(self, staker_address: ChecksumAddress, amount: NuNits) -> TxReceipt:
+    def withdraw(self, transacting_power: TransactingPower, amount: NuNits) -> TxReceipt:
         """Withdraw tokens"""
         payload = {'gas': 500_000}  # TODO: #842 Gas Management
         contract_function: ContractFunction = self.contract.functions.withdraw(amount)
         receipt = self.blockchain.send_transaction(contract_function=contract_function,
                                                    payload=payload,
-                                                   sender_address=staker_address)
+                                                   transacting_power=transacting_power)
         return receipt
 
     @contract_api(CONTRACT_CALL)
@@ -594,14 +591,14 @@ class StakingEscrowAgent(EthereumContractAgent):
         return flags.restake_flag
 
     @contract_api(TRANSACTION)
-    def set_restaking(self, staker_address: ChecksumAddress, value: bool) -> TxReceipt:
+    def set_restaking(self, transacting_power: TransactingPower, value: bool) -> TxReceipt:
         """
         Enable automatic restaking for a fixed duration of lock periods.
         If set to True, then all staking rewards will be automatically added to locked stake.
         """
         contract_function: ContractFunction = self.contract.functions.setReStake(value)
         receipt: TxReceipt = self.blockchain.send_transaction(contract_function=contract_function,
-                                                              sender_address=staker_address)
+                                                              transacting_power=transacting_power)
         # TODO: Handle ReStakeSet event (see #1193)
         return receipt
 
@@ -611,14 +608,14 @@ class StakingEscrowAgent(EthereumContractAgent):
         return flags.wind_down_flag
 
     @contract_api(TRANSACTION)
-    def set_winding_down(self, staker_address: ChecksumAddress, value: bool) -> TxReceipt:
+    def set_winding_down(self, transacting_power: TransactingPower, value: bool) -> TxReceipt:
         """
         Enable wind down for stake.
         If set to True, then stakes duration will decrease in each period with `commitToNextPeriod()`.
         """
         contract_function: ContractFunction = self.contract.functions.setWindDown(value)
         receipt = self.blockchain.send_transaction(contract_function=contract_function,
-                                                   sender_address=staker_address)
+                                                   transacting_power=transacting_power)
         # TODO: Handle WindDownSet event (see #1193)
         return receipt
 
@@ -628,21 +625,21 @@ class StakingEscrowAgent(EthereumContractAgent):
         return snapshots_flag
 
     @contract_api(TRANSACTION)
-    def set_snapshots(self, staker_address: ChecksumAddress, activate: bool) -> TxReceipt:
+    def set_snapshots(self, transacting_power: TransactingPower, activate: bool) -> TxReceipt:
         """
         Activate/deactivate taking balance snapshots.
         If set to True, then each time the balance changes, a snapshot associated to current block number is stored.
         """
         contract_function: ContractFunction = self.contract.functions.setSnapshots(activate)
-        receipt = self.blockchain.send_transaction(contract_function=contract_function, sender_address=staker_address)
+        receipt = self.blockchain.send_transaction(contract_function=contract_function, transacting_power=transacting_power)
         # TODO: Handle SnapshotSet event (see #1193)
         return receipt
 
     @contract_api(TRANSACTION)
-    def remove_unused_stake(self, staker_address: ChecksumAddress, stake_index: int) -> TxReceipt:
+    def remove_unused_stake(self, transacting_power: TransactingPower, stake_index: int) -> TxReceipt:
         contract_function: ContractFunction = self.contract.functions.removeUnusedSubStake(stake_index)
         receipt: TxReceipt = self.blockchain.send_transaction(contract_function=contract_function,
-                                                              sender_address=staker_address)
+                                                              transacting_power=transacting_power)
         return receipt
 
     @contract_api(CONTRACT_CALL)
@@ -761,25 +758,26 @@ class PolicyManagerAgent(EthereumContractAgent):
     @contract_api(TRANSACTION)
     def create_policy(self,
                       policy_id: str,
-                      author_address: ChecksumAddress,
+                      transacting_power: TransactingPower,
                       value: Wei,
                       end_timestamp: Timestamp,
                       node_addresses: List[ChecksumAddress],
                       owner_address: Optional[ChecksumAddress] = None) -> TxReceipt:
 
-        owner_address = owner_address or author_address
+        owner_address = owner_address or transacting_power.account
         payload = {'value': value}
-        contract_function: ContractFunction = self.contract.functions.createPolicy(policy_id,
-                                                                 owner_address,
-                                                                 end_timestamp,
-                                                                 node_addresses)
+        contract_function: ContractFunction = self.contract.functions.createPolicy(
+            policy_id,
+            owner_address,
+            end_timestamp,
+            node_addresses)
         receipt = self.blockchain.send_transaction(contract_function=contract_function,
                                                    payload=payload,
-                                                   sender_address=author_address)  # TODO: Gas management - #842
+                                                   transacting_power=transacting_power)  # TODO: Gas management - #842
         return receipt
 
     @contract_api(CONTRACT_CALL)
-    def fetch_policy(self, policy_id: str, with_owner=False) -> list:
+    def fetch_policy(self, policy_id: str, with_owner=False) -> Union[tuple, list]:
         """
         Fetch raw stored blockchain data regarding the policy with the given policy ID.
         If `with_owner=True`, this method executes the equivalent of `getPolicyOwner`
@@ -804,17 +802,17 @@ class PolicyManagerAgent(EthereumContractAgent):
         return parameters['_nodes']
 
     @contract_api(TRANSACTION)
-    def revoke_policy(self, policy_id: bytes, author_address: ChecksumAddress) -> TxReceipt:
+    def revoke_policy(self, policy_id: bytes, transacting_power: TransactingPower) -> TxReceipt:
         """Revoke by arrangement ID; Only the policy's author_address can revoke the policy."""
         contract_function: ContractFunction = self.contract.functions.revokePolicy(policy_id)
-        receipt = self.blockchain.send_transaction(contract_function=contract_function, sender_address=author_address)
+        receipt = self.blockchain.send_transaction(contract_function=contract_function, transacting_power=transacting_power)
         return receipt
 
     @contract_api(TRANSACTION)
-    def collect_policy_fee(self, collector_address: ChecksumAddress, staker_address: ChecksumAddress) -> TxReceipt:
+    def collect_policy_fee(self, collector_address: ChecksumAddress, transacting_power: TransactingPower) -> TxReceipt:
         """Collect fees (ETH) earned since last withdrawal"""
         contract_function: ContractFunction = self.contract.functions.withdraw(collector_address)
-        receipt = self.blockchain.send_transaction(contract_function=contract_function, sender_address=staker_address)
+        receipt = self.blockchain.send_transaction(contract_function=contract_function, transacting_power=transacting_power)
         return receipt
 
     @contract_api(CONTRACT_CALL)
@@ -825,21 +823,21 @@ class PolicyManagerAgent(EthereumContractAgent):
             yield arrangement
 
     @contract_api(TRANSACTION)
-    def revoke_arrangement(self, policy_id: str, node_address: ChecksumAddress, author_address: ChecksumAddress) -> TxReceipt:
+    def revoke_arrangement(self, policy_id: str, node_address: ChecksumAddress, transacting_power: TransactingPower) -> TxReceipt:
         contract_function: ContractFunction = self.contract.functions.revokeArrangement(policy_id, node_address)
-        receipt = self.blockchain.send_transaction(contract_function=contract_function, sender_address=author_address)
+        receipt = self.blockchain.send_transaction(contract_function=contract_function, transacting_power=transacting_power)
         return receipt
 
     @contract_api(TRANSACTION)
-    def calculate_refund(self, policy_id: str, author_address: ChecksumAddress) -> TxReceipt:
+    def calculate_refund(self, policy_id: str, transacting_power: TransactingPower) -> TxReceipt:
         contract_function: ContractFunction = self.contract.functions.calculateRefundValue(policy_id)
-        receipt = self.blockchain.send_transaction(contract_function=contract_function, sender_address=author_address)
+        receipt = self.blockchain.send_transaction(contract_function=contract_function, transacting_power=transacting_power)
         return receipt
 
     @contract_api(TRANSACTION)
-    def collect_refund(self, policy_id: str, author_address: ChecksumAddress) -> TxReceipt:
+    def collect_refund(self, policy_id: str, transacting_power: TransactingPower) -> TxReceipt:
         contract_function: ContractFunction = self.contract.functions.refund(policy_id)
-        receipt = self.blockchain.send_transaction(contract_function=contract_function, sender_address=author_address)
+        receipt = self.blockchain.send_transaction(contract_function=contract_function, transacting_power=transacting_power)
         return receipt
 
     @contract_api(CONTRACT_CALL)
@@ -866,216 +864,10 @@ class PolicyManagerAgent(EthereumContractAgent):
         return min_rate
 
     @contract_api(TRANSACTION)
-    def set_min_fee_rate(self, staker_address: ChecksumAddress, min_rate: Wei) -> TxReceipt:
+    def set_min_fee_rate(self, transacting_power: TransactingPower, min_rate: Wei) -> TxReceipt:
         contract_function: ContractFunction = self.contract.functions.setMinFeeRate(min_rate)
-        receipt = self.blockchain.send_transaction(contract_function=contract_function, sender_address=staker_address)
-        return receipt
-
-
-class PreallocationEscrowAgent(EthereumContractAgent):
-
-    contract_name: str = PREALLOCATION_ESCROW_CONTRACT_NAME
-    _proxy_name: str = NotImplemented
-    _forward_address: bool = False
-    __allocation_registry_class: Type[AllocationRegistry] = AllocationRegistry
-
-    class StakingInterfaceAgent(EthereumContractAgent):
-        contract_name: str = STAKING_INTERFACE_CONTRACT_NAME
-        _proxy_name: str = STAKING_INTERFACE_ROUTER_CONTRACT_NAME
-        _forward_address: bool = False
-
-        @validate_checksum_address
-        def _generate_beneficiary_agency(self, principal_address: ChecksumAddress) -> Contract:
-            contract = self.blockchain.client.get_contract(address=principal_address, abi=self.contract.abi)
-            return contract
-
-    def __init__(self,
-                 beneficiary: ChecksumAddress,
-                 registry: BaseContractRegistry,
-                 allocation_registry: Optional[AllocationRegistry] = None,
-                 *args, **kwargs):
-
-        self.__allocation_registry = allocation_registry or PreallocationEscrowAgent.__allocation_registry_class()
-        self.__beneficiary = beneficiary
-        self.__principal_contract: Contract = NO_CONTRACT_AVAILABLE
-        self.__interface_contract = NO_CONTRACT_AVAILABLE
-
-        # Sets the above
-        self.__read_principal()
-        self.__read_interface(registry)
-
-        self.token_agent: NucypherTokenAgent = ContractAgency.get_agent(NucypherTokenAgent, registry)
-        self.staking_agent: StakingEscrowAgent = ContractAgency.get_agent(StakingEscrowAgent, registry)
-
-        super().__init__(contract=self.principal_contract, registry=registry, *args, **kwargs)
-
-    def __read_interface(self, registry: BaseContractRegistry) -> None:
-        self.__interface_contract = self.StakingInterfaceAgent(registry=registry)
-        contract = self.__interface_contract._generate_beneficiary_agency(principal_address=self.principal_contract.address)
-        self.__interface_contract = contract
-
-    @validate_checksum_address
-    def __fetch_principal_contract(self, contract_address: Optional[ChecksumAddress] = None) -> None:
-        """Fetch the PreallocationEscrow deployment directly from the AllocationRegistry."""
-        if contract_address is not None:
-            contract_data = self.__allocation_registry.search(contract_address=contract_address)
-        else:
-            contract_data = self.__allocation_registry.search(beneficiary_address=self.beneficiary)
-        address, abi = contract_data
-        blockchain = BlockchainInterfaceFactory.get_interface()
-        principal_contract: Contract = blockchain.client.get_contract(abi=abi, address=address, ContractFactoryClass=Contract)
-        self.__principal_contract = principal_contract
-
-    def __set_owner(self) -> None:
-        self.__beneficiary = self.owner
-
-    @validate_checksum_address
-    def __read_principal(self, contract_address: Optional[ChecksumAddress] = None) -> None:
-        self.__fetch_principal_contract(contract_address=contract_address)
-        self.__set_owner()
-
-    @property  # type: ignore
-    @contract_api(CONTRACT_ATTRIBUTE)
-    def owner(self) -> ChecksumAddress:
-        owner = self.principal_contract.functions.owner().call()
-        return owner
-
-    @property  # type: ignore
-    def beneficiary(self) -> ChecksumAddress:
-        return self.__beneficiary
-
-    @property  # type: ignore
-    def interface_contract(self) -> VersionedContract:
-        if self.__interface_contract is NO_CONTRACT_AVAILABLE:
-            raise RuntimeError("{} not available".format(self.contract_name))
-        return self.__interface_contract
-
-    @property  # type: ignore
-    def principal_contract(self) -> Contract:
-        """Directly reference the beneficiary's deployed contract instead of the interface contracts's ABI"""
-        if self.__principal_contract is NO_CONTRACT_AVAILABLE:
-            raise RuntimeError("{} not available".format(self.contract_name))
-        return self.__principal_contract
-
-    @property  # type: ignore
-    @contract_api(CONTRACT_ATTRIBUTE)
-    def initial_locked_amount(self) -> int:
-        return self.principal_contract.functions.lockedValue().call()
-
-    @property  # type: ignore
-    @contract_api(CONTRACT_ATTRIBUTE)
-    def available_balance(self) -> int:
-        overall_balance = self.token_agent.get_balance(self.principal_contract.address)
-        seconds_per_period = self.staking_agent.contract.functions.secondsPerPeriod().call()
-        current_period = self.staking_agent.get_current_period()
-        end_lock_period = epoch_to_period(self.end_timestamp, seconds_per_period=seconds_per_period)
-
-        available_balance = overall_balance
-        if current_period <= end_lock_period:
-            staked_tokens = self.staking_agent.get_locked_tokens(staker_address=self.principal_contract.address,
-                                                                 periods=end_lock_period - current_period)
-            if self.unvested_tokens > staked_tokens:
-                # The staked amount is deducted from the locked amount
-                available_balance -= self.unvested_tokens - staked_tokens
-
-        return available_balance
-
-    @property  # type: ignore
-    @contract_api(CONTRACT_ATTRIBUTE)
-    def unvested_tokens(self) -> int:
-        return self.principal_contract.functions.getLockedTokens().call()
-
-    @property  # type: ignore
-    @contract_api(CONTRACT_ATTRIBUTE)
-    def end_timestamp(self) -> Timestamp:
-        return self.principal_contract.functions.endLockTimestamp().call()
-
-    @contract_api(TRANSACTION)
-    def lock(self, amount: NuNits, periods: PeriodDelta) -> TxReceipt:
-        contract_function: ContractFunction = self.__interface_contract.functions.lockAndCreate(amount, periods)
-        receipt = self.blockchain.send_transaction(contract_function=contract_function, sender_address=self.__beneficiary)
-        return receipt
-
-    @contract_api(TRANSACTION)
-    def withdraw_tokens(self, value: NuNits) -> TxReceipt:
-        contract_function: ContractFunction = self.principal_contract.functions.withdrawTokens(value)
-        receipt = self.blockchain.send_transaction(contract_function=contract_function, sender_address=self.__beneficiary)
-        return receipt
-
-    @contract_api(TRANSACTION)
-    def withdraw_eth(self) -> TxReceipt:
-        contract_function: ContractFunction = self.principal_contract.functions.withdrawETH()
-        receipt = self.blockchain.send_transaction(contract_function=contract_function, sender_address=self.__beneficiary)
-        return receipt
-
-    @contract_api(TRANSACTION)
-    def deposit_as_staker(self, amount: NuNits, lock_periods: PeriodDelta) -> TxReceipt:
-        contract_function: ContractFunction = self.__interface_contract.functions.depositAsStaker(amount, lock_periods)
-        receipt = self.blockchain.send_transaction(contract_function=contract_function, sender_address=self.__beneficiary)
-        return receipt
-
-    @contract_api(TRANSACTION)
-    def withdraw_as_staker(self, value: NuNits) -> TxReceipt:
-        contract_function: ContractFunction = self.__interface_contract.functions.withdrawAsStaker(value)
-        receipt = self.blockchain.send_transaction(contract_function=contract_function, sender_address=self.__beneficiary)
-        return receipt
-
-    @contract_api(TRANSACTION)
-    def bond_worker(self, worker_address: ChecksumAddress) -> TxReceipt:
-        contract_function: ContractFunction = self.__interface_contract.functions.bondWorker(worker_address)
-        receipt = self.blockchain.send_transaction(contract_function=contract_function, sender_address=self.__beneficiary)
-        return receipt
-
-    @contract_api(TRANSACTION)
-    def release_worker(self) -> TxReceipt:
-        receipt = self.bond_worker(worker_address=NULL_ADDRESS)
-        return receipt
-
-    @contract_api(TRANSACTION)
-    def mint(self) -> TxReceipt:
-        contract_function: ContractFunction = self.__interface_contract.functions.mint()
-        receipt = self.blockchain.send_transaction(contract_function=contract_function, sender_address=self.__beneficiary)
-        return receipt
-
-    @contract_api(TRANSACTION)
-    def collect_policy_fee(self) -> TxReceipt:
-        contract_function: ContractFunction = self.__interface_contract.functions.withdrawPolicyFee()
-        receipt = self.blockchain.send_transaction(contract_function=contract_function, sender_address=self.__beneficiary)
-        return receipt
-
-    @contract_api(TRANSACTION)
-    def set_min_fee_rate(self, min_rate: Wei) -> TxReceipt:
-        contract_function: ContractFunction = self.__interface_contract.functions.setMinFeeRate(min_rate)
-        receipt = self.blockchain.send_transaction(contract_function=contract_function, sender_address=self.__beneficiary)
-        return receipt
-
-    @contract_api(TRANSACTION)
-    def set_restaking(self, value: bool) -> TxReceipt:
-        """
-        Enable automatic restaking for a fixed duration of lock periods.
-        If set to True, then all staking rewards will be automatically added to locked stake.
-        """
-        contract_function: ContractFunction = self.__interface_contract.functions.setReStake(value)
-        receipt = self.blockchain.send_transaction(contract_function=contract_function, sender_address=self.__beneficiary)
-        # TODO: Handle ReStakeSet event (see #1193)
-        return receipt
-
-    @contract_api(TRANSACTION)
-    def lock_restaking(self, release_period: Period) -> TxReceipt:
-        contract_function: ContractFunction = self.__interface_contract.functions.lockReStake(release_period)
-        receipt = self.blockchain.send_transaction(contract_function=contract_function, sender_address=self.__beneficiary)
-        # TODO: Handle ReStakeLocked event (see #1193)
-        return receipt
-
-    @contract_api(TRANSACTION)
-    def set_winding_down(self, value: bool) -> TxReceipt:
-        """
-        Enable wind down for stake.
-        If set to True, then the stake's duration will decrease each period with `commitToNextPeriod()`.
-        """
-        contract_function: ContractFunction = self.__interface_contract.functions.setWindDown(value)
-        receipt = self.blockchain.send_transaction(contract_function=contract_function, sender_address=self.__beneficiary)
-        # TODO: Handle WindDownSet event (see #1193)
+        receipt = self.blockchain.send_transaction(contract_function=contract_function,
+                                                   transacting_power=transacting_power)
         return receipt
 
 
@@ -1085,12 +877,12 @@ class AdjudicatorAgent(EthereumContractAgent):
     _proxy_name: str = DISPATCHER_CONTRACT_NAME
 
     @contract_api(TRANSACTION)
-    def evaluate_cfrag(self, evidence: Evidence, sender_address: ChecksumAddress) -> TxReceipt:
+    def evaluate_cfrag(self, evidence: Evidence, transacting_power: TransactingPower) -> TxReceipt:
         """Submits proof that a worker created wrong CFrag"""
         payload: TxParams = {'gas': Wei(500_000)}  # TODO #842: gas needed for use with geth.
         contract_function: ContractFunction = self.contract.functions.evaluateCFrag(*evidence.evaluation_arguments())
         receipt = self.blockchain.send_transaction(contract_function=contract_function,
-                                                   sender_address=sender_address,
+                                                   transacting_power=transacting_power,
                                                    payload=payload)
         return receipt
 
@@ -1161,66 +953,68 @@ class WorkLockAgent(EthereumContractAgent):
     #
 
     @contract_api(TRANSACTION)
-    def bid(self, value: Wei, checksum_address: ChecksumAddress) -> TxReceipt:
+    def bid(self, value: Wei, transacting_power: TransactingPower) -> TxReceipt:
         """Bid for NU tokens with ETH."""
         contract_function: ContractFunction = self.contract.functions.bid()
         receipt = self.blockchain.send_transaction(contract_function=contract_function,
-                                                   sender_address=checksum_address,
+                                                   transacting_power=transacting_power,
                                                    payload={'value': value})
         return receipt
 
     @contract_api(TRANSACTION)
-    def cancel_bid(self, checksum_address: ChecksumAddress) -> TxReceipt:
+    def cancel_bid(self, transacting_power: TransactingPower) -> TxReceipt:
         """Cancel bid and refund deposited ETH."""
         contract_function: ContractFunction = self.contract.functions.cancelBid()
-        receipt = self.blockchain.send_transaction(contract_function=contract_function, sender_address=checksum_address)
+        receipt = self.blockchain.send_transaction(contract_function=contract_function, 
+                                                   transacting_power=transacting_power)
         return receipt
 
     @contract_api(TRANSACTION)
-    def force_refund(self, checksum_address: ChecksumAddress, addresses: List[ChecksumAddress]) -> TxReceipt:
+    def force_refund(self, transacting_power: TransactingPower, addresses: List[ChecksumAddress]) -> TxReceipt:
         """Force refund to bidders who can get tokens more than maximum allowed."""
         addresses = sorted(addresses, key=str.casefold)
         contract_function: ContractFunction = self.contract.functions.forceRefund(addresses)
-        receipt = self.blockchain.send_transaction(contract_function=contract_function, sender_address=checksum_address)
+        receipt = self.blockchain.send_transaction(contract_function=contract_function, 
+                                                   transacting_power=transacting_power)
         return receipt
 
     @contract_api(TRANSACTION)
     def verify_bidding_correctness(self,
-                                   checksum_address: ChecksumAddress,
+                                   transacting_power: TransactingPower,
                                    gas_limit: Wei,  # TODO - #842: Gas Management
                                    gas_to_save_state: Wei = Wei(30000)) -> TxReceipt:
         """Verify all bids are less than max allowed bid"""
         contract_function: ContractFunction = self.contract.functions.verifyBiddingCorrectness(gas_to_save_state)
         receipt = self.blockchain.send_transaction(contract_function=contract_function,
-                                                   sender_address=checksum_address,
+                                                   transacting_power=transacting_power,
                                                    transaction_gas_limit=gas_limit)
         return receipt
 
     @contract_api(TRANSACTION)
-    def claim(self, checksum_address: ChecksumAddress) -> TxReceipt:
+    def claim(self, transacting_power: TransactingPower) -> TxReceipt:
         """
         Claim tokens - will be deposited and locked as stake in the StakingEscrow contract.
         """
         contract_function: ContractFunction = self.contract.functions.claim()
         receipt = self.blockchain.send_transaction(contract_function=contract_function,
-                                                   sender_address=checksum_address,
+                                                   transacting_power=transacting_power,
                                                    gas_estimation_multiplier=1.5)  # FIXME
         return receipt
 
     @contract_api(TRANSACTION)
-    def refund(self, checksum_address: ChecksumAddress) -> TxReceipt:
+    def refund(self, transacting_power: TransactingPower) -> TxReceipt:
         """Refund ETH for completed work."""
         contract_function: ContractFunction = self.contract.functions.refund()
         receipt: TxReceipt = self.blockchain.send_transaction(contract_function=contract_function,
-                                                              sender_address=checksum_address)
+                                                              transacting_power=transacting_power)
         return receipt
 
     @contract_api(TRANSACTION)
-    def withdraw_compensation(self, checksum_address: ChecksumAddress) -> TxReceipt:
+    def withdraw_compensation(self, transacting_power: TransactingPower) -> TxReceipt:
         """Withdraw compensation after force refund."""
         contract_function: ContractFunction = self.contract.functions.withdrawCompensation()
         receipt: TxReceipt = self.blockchain.send_transaction(contract_function=contract_function,
-                                                              sender_address=checksum_address)
+                                                              transacting_power=transacting_power)
         return receipt
 
     @contract_api(CONTRACT_CALL)
@@ -1519,11 +1313,11 @@ class MultiSigAgent(EthereumContractAgent):
                 destination: ChecksumAddress,
                 value: Wei,
                 data: Union[bytes, HexStr],
-                sender_address: ChecksumAddress,
+                transacting_power: TransactingPower,
                 ) -> TxReceipt:
         contract_function: ContractFunction = self.contract.functions.execute(v, r, s, destination, value, data)
         receipt: TxReceipt = self.blockchain.send_transaction(contract_function=contract_function,
-                                                              sender_address=sender_address)
+                                                              transacting_power=transacting_power)
         return receipt
 
 
@@ -1558,9 +1352,9 @@ class ForwarderAgent(AragonAgent):
         return self.contract.functions.forward(callscript)
 
     @contract_api(TRANSACTION)
-    def forward(self, callscript: bytes, sender_address: ChecksumAddress) -> TxReceipt:
+    def forward(self, callscript: bytes, transacting_power: TransactingPower) -> TxReceipt:
         receipt = self.blockchain.send_transaction(contract_function=self._forward(callscript),
-                                                   sender_address=sender_address)
+                                                   transacting_power=transacting_power)
         return TxReceipt(receipt)
 
 
@@ -1586,7 +1380,7 @@ class VotingAgent(ForwarderAgent):
     def new_vote(self,
                  callscript: bytes,
                  metadata: str,
-                 sender_address: ChecksumAddress,
+                 transacting_power: TransactingPower,
                  cast_vote: bool = None,
                  execute_if_decided: bool = None) -> TxReceipt:
         contract_function = self._new_vote(callscript, metadata, cast_vote, execute_if_decided)
@@ -1594,7 +1388,7 @@ class VotingAgent(ForwarderAgent):
         return TxReceipt(receipt)
 
     @contract_api(TRANSACTION)
-    def vote(self, vote_id: int, support_proposal: bool, execute_if_decided: bool, sender_address: ChecksumAddress):
+    def vote(self, vote_id: int, support_proposal: bool, execute_if_decided: bool, transacting_power: TransactingPower):
         contract_function = self.contract.functions.vote(vote_id, support_proposal, execute_if_decided)
         receipt = self.blockchain.send_transaction(contract_function=contract_function, sender_address=sender_address)
         return TxReceipt(receipt)
@@ -1696,7 +1490,7 @@ class WeightedSampler:
     def sample_no_replacement(self, rng, quantity: int) -> list:
         """
         Samples ``quantity`` of elements from the internal array.
-        The probablity of an element to appear is proportional
+        The probability of an element to appear is proportional
         to the weight provided to the constructor.
 
         The elements will not repeat; every time an element is sampled its weight is set to 0.

@@ -15,7 +15,6 @@ You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
-import pytest
 
 from nucypher.blockchain.eth.agents import AdjudicatorAgent
 from nucypher.blockchain.eth.deployers import (
@@ -23,6 +22,8 @@ from nucypher.blockchain.eth.deployers import (
     NucypherTokenDeployer,
     StakingEscrowDeployer,
 )
+from nucypher.blockchain.eth.signers.software import Web3Signer
+from nucypher.crypto.powers import TransactingPower
 
 
 def test_adjudicator_deployer(testerchain,
@@ -31,17 +32,18 @@ def test_adjudicator_deployer(testerchain,
                               test_registry):
 
     origin = testerchain.etherbase_account
+    tpower = TransactingPower(account=origin, signer=Web3Signer(testerchain.client))
 
-    token_deployer = NucypherTokenDeployer(deployer_address=origin, registry=test_registry)
-    token_deployer.deploy()
+    token_deployer = NucypherTokenDeployer(registry=test_registry)
+    token_deployer.deploy(transacting_power=tpower)
 
-    staking_escrow_deployer = StakingEscrowDeployer(deployer_address=origin, registry=test_registry)
+    staking_escrow_deployer = StakingEscrowDeployer(registry=test_registry)
 
-    staking_escrow_deployer.deploy()
+    staking_escrow_deployer.deploy(transacting_power=tpower)
     staking_agent = staking_escrow_deployer.make_agent()  # 2 Staker Escrow
 
-    deployer = AdjudicatorDeployer(deployer_address=origin, registry=test_registry)
-    deployment_receipts = deployer.deploy(progress=deployment_progress)
+    deployer = AdjudicatorDeployer(registry=test_registry)
+    deployment_receipts = deployer.deploy(progress=deployment_progress, transacting_power=tpower)
 
     # deployment steps must match expected number of steps
     assert deployment_progress.num_steps == len(deployer.deployment_steps) == len(deployment_receipts) == 2
@@ -53,7 +55,7 @@ def test_adjudicator_deployer(testerchain,
     adjudicator_agent = deployer.make_agent()
 
     # Check default Adjudicator deployment parameters
-    assert staking_escrow_deployer.deployer_address != staking_agent.contract_address
+    assert tpower.account != staking_agent.contract_address
     assert adjudicator_agent.staking_escrow_contract == staking_agent.contract_address
     assert adjudicator_agent.hash_algorithm == token_economics.hash_algorithm
     assert adjudicator_agent.base_penalty == token_economics.base_penalty

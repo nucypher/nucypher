@@ -24,6 +24,7 @@ from hexbytes import HexBytes
 from typing import List, Tuple, Union, Optional
 from web3 import Web3
 
+from nucypher.config.constants import TEMPORARY_DOMAIN
 from nucypher.blockchain.eth.signers.software import Web3Signer
 from nucypher.blockchain.economics import BaseEconomics, StandardTokenEconomics
 from nucypher.blockchain.eth.actors import ContractAdministrator
@@ -48,18 +49,18 @@ from tests.constants import (
 from constant_sorrow.constants import INIT
 
 
-def token_airdrop(token_agent, amount: NU, origin: str, addresses: List[str]):
+def token_airdrop(token_agent, amount: NU, transacting_power: TransactingPower, addresses: List[str]):
     """Airdrops tokens from creator address to all other addresses!"""
 
     signer = Web3Signer(token_agent.blockchain.client)
-    signer.unlock_account(account=origin, password=INSECURE_DEVELOPMENT_PASSWORD)
+    signer.unlock_account(account=transacting_power.account, password=INSECURE_DEVELOPMENT_PASSWORD)
 
     def txs():
-        args = {'from': origin, 'gasPrice': token_agent.blockchain.client.gas_price}
+        args = {'from': transacting_power.account, 'gasPrice': token_agent.blockchain.client.gas_price}
         for address in addresses:
             contract_function = token_agent.contract.functions.transfer(address, int(amount))
             _receipt = token_agent.blockchain.send_transaction(contract_function=contract_function,
-                                                               sender_address=origin,
+                                                               transacting_power=transacting_power,
                                                                payload=args)
             yield _receipt
 
@@ -221,16 +222,19 @@ class TesterBlockchain(BlockchainDeployerInterface):
                           ) -> Tuple['TesterBlockchain', 'InMemoryContractRegistry']:
         """For use with metric testing scripts"""
 
+        # Provider connection
         if registry is None:
             registry = InMemoryContractRegistry()
         testerchain = cls()
         if not BlockchainInterfaceFactory.is_interface_initialized(provider_uri=testerchain.provider_uri):
             BlockchainInterfaceFactory.register_interface(interface=testerchain)
 
-        origin = testerchain.client.etherbase
-        admin = ContractAdministrator(deployer_address=origin,
-                                      registry=registry,
-                                      signer=Web3Signer(testerchain.client),
+        # Produce actor
+        deployer_power = TransactingPower(signer=Web3Signer(testerchain.client),
+                                          account=testerchain.etherbase_account)
+        admin = ContractAdministrator(registry=registry,
+                                      domain=TEMPORARY_DOMAIN,
+                                      transacting_power=deployer_power,
                                       economics=economics or cls.DEFAULT_ECONOMICS)
 
         gas_limit = None  # TODO: Gas management - #842

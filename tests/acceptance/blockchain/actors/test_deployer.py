@@ -21,10 +21,11 @@ import json
 import pytest
 import random
 
-from nucypher.blockchain.eth.signers.software import Web3Signer
-from nucypher.blockchain.eth.actors import ContractAdministrator
+from nucypher.config.constants import TEMPORARY_DOMAIN
 from nucypher.crypto.powers import TransactingPower
-from tests.constants import INSECURE_DEVELOPMENT_PASSWORD, NUMBER_OF_ALLOCATIONS_IN_TESTS
+from nucypher.blockchain.eth.actors import ContractAdministrator
+from nucypher.blockchain.eth.signers.software import Web3Signer
+from tests.constants import NUMBER_OF_ALLOCATIONS_IN_TESTS
 
 # Prevents TesterBlockchain to be picked up by py.test as a test class
 from tests.utils.blockchain import TesterBlockchain as _TesterBlockchain
@@ -33,18 +34,13 @@ from tests.utils.blockchain import TesterBlockchain as _TesterBlockchain
 @pytest.mark.usefixtures('testerchain')
 def test_rapid_deployment(token_economics, test_registry, tmpdir, get_random_checksum_address):
 
-    blockchain = _TesterBlockchain(eth_airdrop=False,
-                                   test_accounts=4)
+    blockchain = _TesterBlockchain(eth_airdrop=False, test_accounts=4)
 
-    # TODO: #1092 - TransactingPower
-    blockchain.transacting_power = TransactingPower(password=INSECURE_DEVELOPMENT_PASSWORD,
-                                                    signer=Web3Signer(blockchain.client),
-                                                    account=blockchain.etherbase_account)
-    blockchain.transacting_power.activate()
     deployer_address = blockchain.etherbase_account
+    deployer_power = TransactingPower(signer=Web3Signer(blockchain.client), account=deployer_address)
 
-    administrator = ContractAdministrator(deployer_address=deployer_address,
-                                          signer=Web3Signer(blockchain.client),
+    administrator = ContractAdministrator(transacting_power=deployer_power,
+                                          domain=TEMPORARY_DOMAIN,
                                           registry=test_registry)
     blockchain.bootstrap_network(registry=test_registry)
 

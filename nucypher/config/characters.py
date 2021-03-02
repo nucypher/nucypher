@@ -15,20 +15,23 @@ You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
-import os
-from tempfile import TemporaryDirectory
 
+import os
 from constant_sorrow.constants import UNINITIALIZED_CONFIGURATION
 from cryptography.hazmat.primitives.asymmetric import ec
 from cryptography.hazmat.primitives.asymmetric.ec import EllipticCurve
 from cryptography.x509 import Certificate
+from tempfile import TemporaryDirectory
 
 from nucypher.blockchain.eth.actors import StakeHolder
-from nucypher.blockchain.eth.networks import NetworksInventory
-from nucypher.blockchain.eth.signers import Signer
-from nucypher.config.constants import DEFAULT_CONFIG_ROOT
+from nucypher.config.base import CharacterConfiguration
+from nucypher.config.constants import (
+    DEFAULT_CONFIG_ROOT,
+    NUCYPHER_ENVVAR_WORKER_ETH_PASSWORD,
+    NUCYPHER_ENVVAR_ALICE_ETH_PASSWORD,
+    NUCYPHER_ENVVAR_BOB_ETH_PASSWORD
+)
 from nucypher.config.keyring import NucypherKeyring
-from nucypher.config.node import CharacterConfiguration
 
 
 class UrsulaConfiguration(CharacterConfiguration):
@@ -43,6 +46,7 @@ class UrsulaConfiguration(CharacterConfiguration):
     DEFAULT_DB_NAME = f'{NAME}.db'
     DEFAULT_AVAILABILITY_CHECKS = False
     LOCAL_SIGNERS_ALLOWED = True
+    SIGNER_ENVVAR = NUCYPHER_ENVVAR_WORKER_ETH_PASSWORD
 
     def __init__(self,
                  rest_host: str = None,
@@ -153,6 +157,8 @@ class AliceConfiguration(CharacterConfiguration):
     DEFAULT_STORE_POLICIES = True
     DEFAULT_STORE_CARDS = True
 
+    SIGNER_ENVVAR = NUCYPHER_ENVVAR_ALICE_ETH_PASSWORD
+
     _CONFIG_FIELDS = (
         *CharacterConfiguration._CONFIG_FIELDS,
         'store_policies',
@@ -208,6 +214,7 @@ class BobConfiguration(CharacterConfiguration):
     DEFAULT_CONTROLLER_PORT = 7151
     DEFFAULT_STORE_POLICIES = True
     DEFAULT_STORE_CARDS = True
+    SIGNER_ENVVAR = NUCYPHER_ENVVAR_BOB_ETH_PASSWORD
 
     _CONFIG_FIELDS = (
         *CharacterConfiguration._CONFIG_FIELDS,
@@ -250,6 +257,7 @@ class FelixConfiguration(CharacterConfiguration):
     DEFAULT_LEARNER_PORT = 9151
     DEFAULT_REST_HOST = '127.0.0.1'
     __DEFAULT_TLS_CURVE = ec.SECP384R1
+
 
     def __init__(self,
                  db_filepath: str = None,
@@ -308,8 +316,6 @@ class StakeHolderConfiguration(CharacterConfiguration):
                        poa=self.poa,
                        light=self.is_light,
                        domain=self.domain,
-                       # TODO: Move empty collection casting to base
-                       checksum_addresses=self.checksum_addresses or list(),
                        signer_uri=self.signer_uri,
                        worker_data=self.worker_data
                        )
@@ -320,12 +326,10 @@ class StakeHolderConfiguration(CharacterConfiguration):
 
     @property
     def dynamic_payload(self) -> dict:
-        testnet = self.domain != NetworksInventory.MAINNET
-        signer = Signer.from_signer_uri(self.signer_uri, testnet=testnet)
-        payload = dict(registry=self.registry, signer=signer)
+        payload = dict(registry=self.registry, signer=self.signer)
         return payload
 
-    def __setup_node_storage(self, node_storage=None) -> None:
+    def _setup_node_storage(self, node_storage=None) -> None:
         pass
 
     @classmethod

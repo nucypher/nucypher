@@ -15,12 +15,11 @@ You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
+
 import json
 
 import click
-import os
 from constant_sorrow import constants
-from constant_sorrow.constants import FULL
 from typing import Tuple
 
 from nucypher.blockchain.eth.actors import ContractAdministrator, Trustee
@@ -47,7 +46,6 @@ from nucypher.cli.literature import (
     CANNOT_OVERWRITE_REGISTRY,
     CONFIRM_BEGIN_UPGRADE,
     CONFIRM_BUILD_RETARGET_TRANSACTION,
-    CONFIRM_LOCAL_REGISTRY_DESTRUCTION,
     CONFIRM_MANUAL_REGISTRY_DOWNLOAD,
     CONFIRM_NETWORK_ACTIVATION,
     CONFIRM_RETARGET,
@@ -56,9 +54,7 @@ from nucypher.cli.literature import (
     CONTRACT_IS_NOT_OWNABLE,
     DEPLOYER_ADDRESS_ZERO_ETH,
     DEPLOYER_BALANCE,
-    EXISTING_REGISTRY_FOR_DOMAIN,
     MINIMUM_POLICY_RATE_EXCEEDED_WARNING,
-    PROMPT_FOR_ALLOCATION_DATA_FILEPATH,
     PROMPT_NEW_OWNER_ADDRESS,
     REGISTRY_NOT_AVAILABLE,
     SELECT_DEPLOYER_ACCOUNT,
@@ -100,6 +96,7 @@ from nucypher.cli.utils import (
     establish_deployer_registry,
     initialize_deployer_interface
 )
+from nucypher.crypto.powers import TransactingPower
 
 option_deployer_address = click.option('--deployer-address', help="Deployer's checksum address", type=EIP55_CHECKSUM_ADDRESS)
 option_registry_infile = click.option('--registry-infile', help="Input path for contract registry file", type=EXISTING_READABLE_FILE)
@@ -180,40 +177,47 @@ class ActorOptions:
         #
         # Make Authenticated Deployment Actor
         #
+
         # Verify Address & collect password
-        password = None
         if is_multisig:
             multisig_agent = ContractAgency.get_agent(MultiSigAgent, registry=local_registry)
             deployer_address = multisig_agent.contract.address
-            is_transacting = False
+            transacting_power = None
+
         else:
-            is_transacting = True
+            testnet = deployer_interface.client.chain_name != PUBLIC_CHAINS[1]  # Mainnet
+            signer = Signer.from_signer_uri(self.signer_uri, testnet=testnet)
             deployer_address = self.deployer_address
             if not deployer_address:
                 deployer_address = select_client_account(emitter=emitter,
                                                          prompt=SELECT_DEPLOYER_ACCOUNT,
+                                                         registry=local_registry,
                                                          provider_uri=self.provider_uri,
-                                                         signer_uri=self.signer_uri,
+                                                         signer=signer,
                                                          show_eth_balance=True)
 
             if not self.force:
                 click.confirm(CONFIRM_SELECTED_ACCOUNT.format(address=deployer_address), abort=True)
 
+            # Authenticate
             is_clef = ClefSigner.is_valid_clef_uri(self.signer_uri)
-            password_required = not self.hw_wallet and not deployer_interface.client.is_local and not is_clef
+            password_required = all((not is_clef,
+                                     not signer.is_device(account=deployer_address),
+                                     not deployer_interface.client.is_local,
+                                     not self.hw_wallet))
             if password_required:
                 password = get_client_password(checksum_address=deployer_address)
+                signer.unlock_account(password=password, account=deployer_address)
+            transacting_power = TransactingPower(signer=signer, account=deployer_address)
 
         # Produce Actor
-        testnet = deployer_interface.client.chain_name != PUBLIC_CHAINS[1]  # Mainnet
-        signer = Signer.from_signer_uri(self.signer_uri, testnet=testnet) if self.signer_uri else None
         ADMINISTRATOR = ContractAdministrator(registry=local_registry,
-                                              deployer_address=deployer_address,
-                                              is_transacting=is_transacting,
-                                              signer=signer)
+                                              domain=self.network,
+                                              transacting_power=transacting_power)
+
         # Verify ETH Balance
         emitter.echo(DEPLOYER_BALANCE.format(eth_balance=ADMINISTRATOR.eth_balance))
-        if is_transacting and ADMINISTRATOR.eth_balance == 0:
+        if transacting_power and ADMINISTRATOR.eth_balance == 0:
             emitter.echo(DEPLOYER_ADDRESS_ZERO_ETH, color='red', bold=True)
             raise click.Abort()
         return ADMINISTRATOR, deployer_address, deployer_interface, local_registry
@@ -476,15 +480,13 @@ def contracts(general_config, actor_options, mode, activate, gas, ignore_deploye
     try:
         contract_deployer_class = ADMINISTRATOR.deployers[contract_name]
     except KeyError:
-        message = UNKNOWN_CONTRACT_NAME.format(contract_name=contract_name,
-                                               constants=ADMINISTRATOR.deployers.keys())
+        message = UNKNOWN_CONTRACT_NAME.format(contract_name=contract_name, constants=ADMINISTRATOR.deployers.keys())
         emitter.echo(message, color='red', bold=True)
         raise click.Abort()
 
     if activate:
         # For the moment, only StakingEscrow can be activated
-        staking_escrow_deployer = contract_deployer_class(registry=ADMINISTRATOR.registry,
-                                                          deployer_address=ADMINISTRATOR.deployer_address)
+        staking_escrow_deployer = contract_deployer_class(registry=ADMINISTRATOR.registry)
         if contract_name != STAKING_ESCROW_CONTRACT_NAME or not staking_escrow_deployer.ready_to_activate:
             raise click.BadOptionUsage(option_name="--activate",
                                        message=f"You can only activate an idle instance of {STAKING_ESCROW_CONTRACT_NAME}")
@@ -494,7 +496,9 @@ def contracts(general_config, actor_options, mode, activate, gas, ignore_deploye
                                                    staking_escrow_address=escrow_address)
         click.confirm(prompt, abort=True)
 
-        receipts = staking_escrow_deployer.activate(gas_limit=gas, confirmations=confirmations)
+        receipts = staking_escrow_deployer.activate(transacting_power=ADMINISTRATOR.transacting_power,
+                                                    gas_limit=gas,
+                                                    confirmations=confirmations)
         for tx_name, receipt in receipts.items():
             paint_receipt_summary(emitter=emitter,
                                   receipt=receipt,
@@ -566,9 +570,10 @@ def transfer_ownership(general_config, actor_options, target_address, gas):
         emitter.echo(message, color='red', bold=True)
         raise click.Abort()
 
-    contract_deployer = contract_deployer_class(registry=ADMINISTRATOR.registry,
-                                                deployer_address=ADMINISTRATOR.deployer_address)
-    receipt = contract_deployer.transfer_ownership(new_owner=target_address, transaction_gas_limit=gas)
+    contract_deployer = contract_deployer_class(registry=ADMINISTRATOR.registry)
+    receipt = contract_deployer.transfer_ownership(transacting_power=ADMINISTRATOR.transacting_power,
+                                                   new_owner=target_address,
+                                                   transaction_gas_limit=gas)
     paint_receipt_summary(emitter=emitter, receipt=receipt)
 
 

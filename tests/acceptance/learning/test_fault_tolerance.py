@@ -58,7 +58,7 @@ def test_blockchain_ursula_stamp_verification_tolerance(blockchain_ursulas, mock
     assert len(warnings) == 1
     warning = warnings[0]['log_format']
     assert str(unsigned) in warning
-    assert "stamp is unsigned" in warning  # TODO: Cleanup logging templates
+    assert "Verification Failed" in warning  # TODO: Cleanup logging templates
 
     # TODO: Buckets!  #567
     # assert unsigned not in lonely_blockchain_learner.known_nodes
@@ -102,9 +102,6 @@ def test_invalid_workers_tolerance(testerchain,
     amount = token_economics.minimum_allowed_locked
     periods = token_economics.minimum_locked_periods
 
-    # Mock Powerup consumption (Staker)
-    testerchain.transacting_power = TransactingPower(account=idle_staker.checksum_address)
-
     idle_staker.initialize_stake(amount=amount, lock_periods=periods)
 
     # Stake starts next period (or else signature validation will fail)
@@ -138,8 +135,6 @@ def test_invalid_workers_tolerance(testerchain,
     # The stake period has ended, and the staker wants her tokens back ("when lambo?").
     # She withdraws up to the last penny (well, last nunit, actually).
 
-    # Mock Powerup consumption (Staker)
-    testerchain.transacting_power = TransactingPower(account=idle_staker.checksum_address)
     idle_staker.mint()
     testerchain.time_travel(periods=1)
     i_want_it_all = staking_agent.owned_tokens(idle_staker.checksum_address)

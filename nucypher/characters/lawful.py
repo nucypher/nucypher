@@ -70,7 +70,6 @@ from nucypher.blockchain.eth.constants import ETH_ADDRESS_BYTE_LENGTH
 from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
 from nucypher.blockchain.eth.registry import BaseContractRegistry
 from nucypher.blockchain.eth.signers.software import Web3Signer
-from nucypher.blockchain.eth.token import WorkTracker, StakeList
 from nucypher.characters.banners import ALICE_BANNER, BOB_BANNER, ENRICO_BANNER, URSULA_BANNER
 from nucypher.characters.base import Character, Learner
 from nucypher.characters.control.controllers import WebController
@@ -165,13 +164,13 @@ class Alice(Character, BlockchainPolicyAuthor):
             blockchain = BlockchainInterfaceFactory.get_interface(provider_uri=self.provider_uri)
             signer = signer or Web3Signer(blockchain.client)  # fallback to web3 provider by default for Alice.
             self.transacting_power = TransactingPower(account=self.checksum_address, signer=signer)
-
             self._crypto_power.consume_power_up(self.transacting_power)
             BlockchainPolicyAuthor.__init__(self,
+                                            domain=self.domain,
+                                            transacting_power=self.transacting_power,
                                             registry=self.registry,
                                             rate=rate,
-                                            duration_periods=duration_periods,
-                                            checksum_address=checksum_address)
+                                            duration_periods=duration_periods)
 
 
         self.log = Logger(self.__class__.__name__)
@@ -1074,8 +1073,8 @@ class Ursula(Teacher, Character, Worker):
                  availability_check: bool = False,  # TODO: Remove from init
 
                  # Blockchain
-                 checksum_address: str = None,
-                 worker_address: str = None,  # TODO: deprecate, and rename to "checksum_address"
+                 checksum_address: ChecksumAddress = None,
+                 worker_address: ChecksumAddress = None,  # TODO: deprecate, and rename to "checksum_address"
                  client_password: str = None,
                  decentralized_identity_evidence=NOT_SIGNED,
 
@@ -1132,8 +1131,9 @@ class Ursula(Teacher, Character, Worker):
                 try:
                     Worker.__init__(self,
                                     is_me=is_me,
+                                    domain=self.domain,
+                                    transacting_power=self.transacting_power,
                                     registry=self.registry,
-                                    checksum_address=checksum_address,
                                     worker_address=worker_address)
                 except (Exception, self.WorkerError):
                     # TODO: Do not announce self to "other nodes" until this init is finished.

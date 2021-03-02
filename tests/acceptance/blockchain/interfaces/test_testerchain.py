@@ -112,10 +112,9 @@ def test_multiversion_contract():
     blockchain_interface._raw_contract_cache = compiled_contracts
 
     origin = blockchain_interface.client.accounts[0]
-    blockchain_interface.transacting_power = TransactingPower(password=INSECURE_DEVELOPMENT_PASSWORD,
-                                                              signer=Web3Signer(blockchain_interface.client),
-                                                              account=origin)
-    blockchain_interface.transacting_power.activate()
+    transacting_power = TransactingPower(password=INSECURE_DEVELOPMENT_PASSWORD,
+                                         signer=Web3Signer(blockchain_interface.client),
+                                         account=origin)
 
     # Searching both contract through raw data
     contract_name = "VersionTest"
@@ -137,32 +136,32 @@ def test_multiversion_contract():
 
     # Deploy different contracts and check their versions
     registry = InMemoryContractRegistry()
-    contract, receipt = blockchain_interface.deploy_contract(deployer_address=origin,
+    contract, receipt = blockchain_interface.deploy_contract(transacting_power=transacting_power,
                                                              registry=registry,
                                                              contract_name=contract_name,
                                                              contract_version="v1.1.4")
     assert contract.version == "v1.1.4"
     assert contract.functions.VERSION().call() == 1
-    contract, receipt = blockchain_interface.deploy_contract(deployer_address=origin,
+    contract, receipt = blockchain_interface.deploy_contract(transacting_power=transacting_power,
                                                              registry=registry,
                                                              contract_name=contract_name,
                                                              contract_version="earliest")
     assert contract.version == "v1.1.4"
     assert contract.functions.VERSION().call() == 1
 
-    contract, receipt = blockchain_interface.deploy_contract(deployer_address=origin,
+    contract, receipt = blockchain_interface.deploy_contract(transacting_power=transacting_power,
                                                              registry=registry,
                                                              contract_name=contract_name,
                                                              contract_version="v1.2.3")
     assert contract.version == "v1.2.3"
     assert contract.functions.VERSION().call() == 2
-    contract, receipt = blockchain_interface.deploy_contract(deployer_address=origin,
+    contract, receipt = blockchain_interface.deploy_contract(transacting_power=transacting_power,
                                                              registry=registry,
                                                              contract_name=contract_name,
                                                              contract_version="latest")
     assert contract.version == "v1.2.3"
     assert contract.functions.VERSION().call() == 2
-    contract, receipt = blockchain_interface.deploy_contract(deployer_address=origin,
+    contract, receipt = blockchain_interface.deploy_contract(transacting_power=transacting_power,
                                                              registry=registry,
                                                              contract_name=contract_name)
     assert contract.version == "v1.2.3"
@@ -172,6 +171,7 @@ def test_multiversion_contract():
 # TODO: Move to integrations tests
 def test_block_confirmations(testerchain, test_registry, mocker):
     origin = testerchain.etherbase_account
+    transacting_power = TransactingPower(account=origin, signer=Web3Signer(testerchain.client))
 
     # Mocks and test adjustments
     testerchain.TIMEOUT = 5  # Reduce timeout for tests, for the moment
@@ -182,16 +182,25 @@ def test_block_confirmations(testerchain, test_registry, mocker):
     # Let's try to deploy a simple contract (ReceiveApprovalMethodMock) with 1 confirmation.
     # Since the testerchain doesn't mine new blocks automatically, this fails.
     with pytest.raises(EthereumClient.TransactionTimeout):
-        _ = testerchain.deploy_contract(origin, test_registry, 'ReceiveApprovalMethodMock', confirmations=1)
+        _ = testerchain.deploy_contract(transacting_power=transacting_power,
+                                        registry=test_registry,
+                                        contract_name='ReceiveApprovalMethodMock',
+                                        confirmations=1)
 
     # Trying again with no confirmation succeeds.
-    contract, _ = testerchain.deploy_contract(origin, test_registry, 'ReceiveApprovalMethodMock')
+    contract, _ = testerchain.deploy_contract(transacting_power=transacting_power,
+                                              registry=test_registry,
+                                              contract_name='ReceiveApprovalMethodMock')
 
     # Trying a simple function of the contract with 1 confirmations fails too, for the same reason
     tx_function = contract.functions.receiveApproval(origin, 0, origin, b'')
     with pytest.raises(EthereumClient.TransactionTimeout):
-        _ = testerchain.send_transaction(contract_function=tx_function, sender_address=origin, confirmations=1)
+        _ = testerchain.send_transaction(contract_function=tx_function,
+                                         transacting_power=transacting_power,
+                                         confirmations=1)
 
     # Trying again with no confirmation succeeds.
-    receipt = testerchain.send_transaction(contract_function=tx_function, sender_address=origin, confirmations=0)
+    receipt = testerchain.send_transaction(contract_function=tx_function,
+                                           transacting_power=transacting_power,
+                                           confirmations=0)
     assert receipt['status'] == 1

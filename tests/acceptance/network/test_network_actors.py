@@ -21,6 +21,7 @@ import datetime
 import maya
 import pytest
 
+from nucypher.blockchain.eth.agents import ContractAgency, StakingEscrowAgent
 from nucypher.acumen.nicknames import Nickname
 from nucypher.acumen.perception import FleetSensor
 from nucypher.characters.unlawful import Vladimir
@@ -30,11 +31,12 @@ from nucypher.datastore.models import TreasureMap
 from tests.utils.middleware import MockRestMiddleware
 
 
-def test_all_blockchain_ursulas_know_about_all_other_ursulas(blockchain_ursulas, agency):
+def test_all_blockchain_ursulas_know_about_all_other_ursulas(blockchain_ursulas, agency, test_registry):
     """
     Once launched, all Ursulas know about - and can help locate - all other Ursulas in the network.
     """
-    token_agent, staking_agent, policy_agent = agency
+    staking_agent = ContractAgency.get_agent(StakingEscrowAgent, registry=test_registry)
+
     for address in staking_agent.swarm():
         for propagating_ursula in blockchain_ursulas[:1]:  # Last Ursula is not staking
             if address == propagating_ursula.checksum_address:
@@ -56,6 +58,7 @@ def test_blockchain_alice_finds_ursula_via_rest(blockchain_alice, blockchain_urs
         assert ursula in blockchain_alice.known_nodes
 
 
+@pytest.mark.skip(reason="Consider removal of this test pursuant to PR #2565")
 def test_treasure_map_cannot_be_duplicated(blockchain_ursulas, blockchain_alice, blockchain_bob, agency):
     # Setup the policy details
     n = 3
@@ -116,7 +119,7 @@ def test_vladimir_illegal_interface_key_does_not_propagate(blockchain_ursulas):
     other_ursula._current_teacher_node = vladimir_as_learned
     result = other_ursula.learn_from_teacher_node()
 
-    # FIXME: These two asserts were missing, restoring them leads to failure
+    # FIXME: These two asserts are missing, restoring them leads to failure
     # Indeed, Ursula noticed that something was up.
     # assert vladimir in other_ursula.suspicious_activities_witnessed['vladimirs']
 
@@ -150,10 +153,11 @@ def test_alice_refuses_to_make_arrangement_unless_ursula_is_valid(blockchain_ali
                                                     network_middleware=blockchain_alice.network_middleware)
 
 
-def test_treasure_map_cannot_be_duplicated(blockchain_ursulas,
-                                           blockchain_alice,
-                                           blockchain_bob,
-                                           agency):
+# FIXME: This test needs a descriptive name (was using a duplicated name)
+def test_treasure_map_cannot_be_duplicated_again(blockchain_ursulas,
+                                                 blockchain_alice,
+                                                 blockchain_bob,
+                                                 agency):
     # Setup the policy details
     n = 3
     policy_end_datetime = maya.now() + datetime.timedelta(days=5)

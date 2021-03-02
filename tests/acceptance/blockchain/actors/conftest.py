@@ -15,20 +15,28 @@
  along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
+
 import pytest
 
+from nucypher.blockchain.eth.signers.software import Web3Signer
+from nucypher.crypto.powers import TransactingPower
+from nucypher.config.constants import TEMPORARY_DOMAIN
+from nucypher.blockchain.eth.agents import NucypherTokenAgent, ContractAgency
 from nucypher.blockchain.eth.actors import Staker
 from tests.utils.blockchain import token_airdrop
 from tests.constants import DEVELOPMENT_TOKEN_AIRDROP_AMOUNT
 
 
 @pytest.fixture(scope='module')
-def staker(testerchain, agency, test_registry):
-    token_agent, staking_agent, policy_agent = agency
+def staker(testerchain, agency, test_registry, deployer_transacting_power):
+    token_agent = ContractAgency.get_agent(NucypherTokenAgent, registry=test_registry)
     origin, staker_account, *everybody_else = testerchain.client.accounts
+    staker_power = TransactingPower(account=staker_account, signer=Web3Signer(testerchain.client))
     token_airdrop(token_agent=token_agent,
-                  origin=testerchain.etherbase_account,
+                  transacting_power=deployer_transacting_power,
                   addresses=[staker_account],
                   amount=DEVELOPMENT_TOKEN_AIRDROP_AMOUNT)
-    staker = Staker(checksum_address=staker_account, is_me=True, registry=test_registry)
+    staker = Staker(domain=TEMPORARY_DOMAIN,
+                    transacting_power=staker_power,
+                    registry=test_registry)
     return staker

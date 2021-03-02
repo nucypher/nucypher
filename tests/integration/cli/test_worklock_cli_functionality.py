@@ -24,6 +24,7 @@ import pytest
 from eth_utils import to_wei
 from web3 import Web3
 
+from nucypher.crypto.powers import TransactingPower
 from nucypher.blockchain.eth.signers.software import Web3Signer
 from nucypher.blockchain.eth.actors import Bidder
 from nucypher.blockchain.eth.interfaces import BlockchainInterface
@@ -50,10 +51,18 @@ from tests.mock.agents import MockContractAgent
 
 
 @pytest.fixture()
-def surrogate_bidder(mock_testerchain, test_registry, mock_worklock_agent):
+def surrogate_transacting_power(mock_testerchain):
     address = mock_testerchain.etherbase_account
     signer = Web3Signer(mock_testerchain.client)
-    bidder = Bidder(checksum_address=address, registry=test_registry, signer=signer)
+    tpower = TransactingPower(account=address, signer=signer)
+    return tpower
+
+
+@pytest.fixture()
+def surrogate_bidder(mock_testerchain, test_registry, mock_worklock_agent, surrogate_transacting_power):
+    bidder = Bidder(registry=test_registry,
+                    transacting_power=surrogate_transacting_power,
+                    domain=TEMPORARY_DOMAIN)
     return bidder
 
 
@@ -174,7 +183,8 @@ def test_valid_bid(click_runner,
                    token_economics,
                    test_registry_source_manager,
                    surrogate_bidder,
-                   mock_testerchain):
+                   mock_testerchain,
+                   surrogate_transacting_power):
 
     now = mock_testerchain.get_blocktime()
     sometime_later = now + 100
@@ -219,7 +229,7 @@ def test_valid_bid(click_runner,
 
     # Transactions
     mock_worklock_agent.assert_only_transactions(allowed=[mock_worklock_agent.bid])
-    mock_worklock_agent.bid.assert_called_with(checksum_address=surrogate_bidder.checksum_address, value=bid_value)
+    mock_worklock_agent.bid.assert_called_with(transacting_power=surrogate_transacting_power, value=bid_value)
 
     # Calls
     expected_calls = (mock_worklock_agent.eth_to_tokens, )
@@ -234,7 +244,8 @@ def test_valid_bid(click_runner,
 def test_cancel_bid(click_runner,
                     mocker,
                     mock_worklock_agent,
-                    surrogate_bidder):
+                    surrogate_bidder,
+                    surrogate_transacting_power):
 
     # Spy on the corresponding CLI function we are testing
     mock_cancel = mocker.spy(Bidder, 'cancel_bid')
@@ -254,7 +265,7 @@ def test_cancel_bid(click_runner,
 
     # Transactions
     mock_worklock_agent.assert_only_transactions(allowed=[mock_worklock_agent.cancel_bid])
-    mock_worklock_agent.cancel_bid.called_once_with(checksum_address=surrogate_bidder.checksum_address)
+    mock_worklock_agent.cancel_bid.called_once_with(transacting_power=surrogate_transacting_power)
 
     # Calls
     mock_worklock_agent.get_deposited_eth.assert_called_once()
@@ -266,7 +277,8 @@ def test_enable_claiming(click_runner,
                          mock_worklock_agent,
                          surrogate_bidder,
                          token_economics,
-                         mock_testerchain):
+                         mock_testerchain,
+                         surrogate_transacting_power):
 
     # Spy on the corresponding CLI function we are testing
     mock_force_refund = mocker.spy(Bidder, 'force_refund')
@@ -336,13 +348,13 @@ def test_enable_claiming(click_runner,
     transaction_executions = mock_worklock_agent.force_refund.call_args_list
     assert len(transaction_executions) == 1
     _agent_args, agent_kwargs = transaction_executions[0]
-    checksum_address, addresses = agent_kwargs.values()
-    assert checksum_address == surrogate_bidder.checksum_address
+    tpower, addresses = agent_kwargs.values()
+    assert tpower.account == surrogate_bidder.checksum_address
     assert sorted(addresses) == sorted(bidders_to_check)
 
     mock_worklock_agent.verify_bidding_correctness.assert_has_calls([
-        call(checksum_address=surrogate_bidder.checksum_address, gas_limit=gas_limit_2),
-        call(checksum_address=surrogate_bidder.checksum_address, gas_limit=gas_limit_2)
+        call(transacting_power=surrogate_transacting_power, gas_limit=gas_limit_2),
+        call(transacting_power=surrogate_transacting_power, gas_limit=gas_limit_2)
     ])
     mock_worklock_agent.assert_only_transactions([mock_worklock_agent.force_refund,
                                                   mock_worklock_agent.verify_bidding_correctness])
@@ -363,7 +375,8 @@ def test_enable_claiming(click_runner,
 def test_initial_claim(click_runner,
                        mocker,
                        mock_worklock_agent,
-                       surrogate_bidder):
+                       surrogate_bidder,
+                       surrogate_transacting_power):
 
     bidder_address = surrogate_bidder.checksum_address
     command = ('claim',
@@ -406,7 +419,7 @@ def test_initial_claim(click_runner,
     assert WORKLOCK_CLAIM_ADVISORY.format(lock_duration=30) in result.output
     assert CONFIRM_WORKLOCK_CLAIM.format(bidder_address=bidder_address) in result.output
 
-    mock_worklock_agent.claim.assert_called_once_with(checksum_address=bidder_address)
+    mock_worklock_agent.claim.assert_called_once_with(transacting_power=surrogate_transacting_power)
 
     # Bidder
     mock_withdraw_compensation.assert_called_once()
@@ -414,8 +427,8 @@ def test_initial_claim(click_runner,
     assert_successful_transaction_echo(bidder_address=bidder_address, cli_output=result.output)
 
     # Transactions
-    mock_worklock_agent.withdraw_compensation.assert_called_with(checksum_address=bidder_address)
-    mock_worklock_agent.claim.assert_called_with(checksum_address=bidder_address)
+    mock_worklock_agent.withdraw_compensation.assert_called_with(transacting_power=surrogate_transacting_power)
+    mock_worklock_agent.claim.assert_called_with(transacting_power=surrogate_transacting_power)
 
     # Calls
     expected_calls = (mock_worklock_agent.get_deposited_eth,
@@ -428,7 +441,8 @@ def test_initial_claim(click_runner,
 def test_already_claimed(click_runner,
                          mocker,
                          mock_worklock_agent,
-                         surrogate_bidder):
+                         surrogate_bidder,
+                         surrogate_transacting_power):
 
     # Spy on the corresponding CLI function we are testing
     mock_withdraw_compensation = mocker.spy(Bidder, 'withdraw_compensation')
@@ -460,7 +474,7 @@ def test_already_claimed(click_runner,
     mock_claim.assert_not_called()
 
     # Transactions
-    mock_worklock_agent.withdraw_compensation.assert_called_with(checksum_address=surrogate_bidder.checksum_address)
+    mock_worklock_agent.withdraw_compensation.assert_called_with(transacting_power=surrogate_transacting_power)
     mock_worklock_agent.claim.assert_not_called()
 
 
@@ -497,7 +511,8 @@ def test_remaining_work(click_runner,
 def test_refund(click_runner,
                 mocker,
                 mock_worklock_agent,
-                surrogate_bidder):
+                surrogate_bidder,
+                surrogate_transacting_power):
 
     # Spy on the corresponding CLI function we are testing
     mock_refund = mocker.spy(Bidder, 'refund_deposit')
@@ -522,7 +537,7 @@ def test_refund(click_runner,
 
     # Transactions
     mock_worklock_agent.assert_only_transactions(allowed=[mock_worklock_agent.refund])
-    mock_worklock_agent.refund.assert_called_with(checksum_address=bidder_address)
+    mock_worklock_agent.refund.assert_called_with(transacting_power=surrogate_transacting_power)
 
 
 @pytest.mark.usefixtures("test_registry_source_manager")
