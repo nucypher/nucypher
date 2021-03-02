@@ -1,0 +1,1 @@
+Fixed missing domain parameter causing Ursulas to fail on startup when prometheus is enabled.

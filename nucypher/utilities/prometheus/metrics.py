@@ -187,11 +187,13 @@ def create_metrics_collectors(ursula: 'Ursula', metrics_prefix: str) -> List[Met
         collectors.append(BlockchainMetricsCollector(provider_uri=ursula.provider_uri))
 
         # Staker prometheus
-        collectors.append(StakerMetricsCollector(staker_address=ursula.checksum_address,
+        collectors.append(StakerMetricsCollector(domain=ursula.domain,
+                                                 staker_address=ursula.checksum_address,
                                                  contract_registry=ursula.registry))
 
         # Worker prometheus
-        collectors.append(WorkerMetricsCollector(worker_address=ursula.worker_address,
+        collectors.append(WorkerMetricsCollector(domain=ursula.domain,
+                                                 worker_address=ursula.worker_address,
                                                  contract_registry=ursula.registry))
 
         #

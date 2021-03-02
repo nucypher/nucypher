@@ -174,8 +174,9 @@ class BlockchainMetricsCollector(BaseMetricsCollector):
 
 class StakerMetricsCollector(BaseMetricsCollector):
     """Collector for Staker specific metrics."""
-    def __init__(self, staker_address: ChecksumAddress, contract_registry: BaseContractRegistry):
+    def __init__(self, domain: str, staker_address: ChecksumAddress, contract_registry: BaseContractRegistry):
         super().__init__()
+        self.domain = domain
         self.staker_address = staker_address
         self.contract_registry = contract_registry
 
@@ -205,7 +206,9 @@ class StakerMetricsCollector(BaseMetricsCollector):
         self.metrics["current_period_gauge"].set(staking_agent.get_current_period())
 
         # balances
-        nucypher_token_actor = NucypherTokenActor(self.contract_registry, checksum_address=self.staker_address)
+        nucypher_token_actor = NucypherTokenActor(registry=self.contract_registry,
+                                                  domain=self.domain,
+                                                  checksum_address=self.staker_address)
         self.metrics["eth_balance_gauge"].set(nucypher_token_actor.eth_balance)
         self.metrics["token_balance_gauge"].set(int(nucypher_token_actor.token_balance))
 
@@ -228,8 +231,9 @@ class StakerMetricsCollector(BaseMetricsCollector):
 
 class WorkerMetricsCollector(BaseMetricsCollector):
     """Collector for Worker specific metrics."""
-    def __init__(self, worker_address: ChecksumAddress, contract_registry: BaseContractRegistry):
+    def __init__(self, domain: str, worker_address: ChecksumAddress, contract_registry: BaseContractRegistry):
         super().__init__()
+        self.domain = domain
         self.worker_address = worker_address
         self.contract_registry = contract_registry
 
@@ -244,7 +248,9 @@ class WorkerMetricsCollector(BaseMetricsCollector):
         }
 
     def _collect_internal(self) -> None:
-        nucypher_worker_token_actor = NucypherTokenActor(self.contract_registry, checksum_address=self.worker_address)
+        nucypher_worker_token_actor = NucypherTokenActor(registry=self.contract_registry,
+                                                         domain=self.domain,
+                                                         checksum_address=self.worker_address)
         self.metrics["worker_eth_balance_gauge"].set(nucypher_worker_token_actor.eth_balance)
         self.metrics["worker_token_balance_gauge"].set(int(nucypher_worker_token_actor.token_balance))
 
