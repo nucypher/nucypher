@@ -4,6 +4,15 @@ Releases
 
 .. towncrier release notes start
 
+v4.7.1 (2021-03-02)
+-------------------
+
+Bugfixes
+~~~~~~~~
+
+- Fixed missing domain parameter causing Ursulas to fail on startup when prometheus is enabled. (`#2589 <https://github.com/nucypher/nucypher/issues/2589>`__)
+
+
 v4.7.0 (2021-03-02)
 -------------------
 
