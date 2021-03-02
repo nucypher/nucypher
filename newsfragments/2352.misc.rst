@@ -1,1 +1,0 @@
-Refactor FleetSensor; add "/status/?omit_known_nodes=true" argument; prevent internal constants from leaking into the status page.

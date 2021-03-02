@@ -4,6 +4,56 @@ Releases
 
 .. towncrier release notes start
 
+v4.7.0 (2021-03-02)
+-------------------
+
+Features
+~~~~~~~~
+
+- New preferable base pooling contract (`#2544 <https://github.com/nucypher/nucypher/issues/2544>`__)
+- The output of `nucypher stake events` can be written to a csv file for simpler staker accounting. (`#2548 <https://github.com/nucypher/nucypher/issues/2548>`__)
+- Simplifies CLI usage with optional interactive collection of all CLI parameters used during grant, encrypt, and retrieve. (`#2551 <https://github.com/nucypher/nucypher/issues/2551>`__)
+- Improved status codes and error messages for various PRE http endpoints (`#2562 <https://github.com/nucypher/nucypher/issues/2562>`__)
+- `nucypher status events` can now use event filters and be output to a csv file for simpler accounting. (`#2573 <https://github.com/nucypher/nucypher/issues/2573>`__)
+
+
+Bugfixes
+~~~~~~~~
+
+- Properly handles public TLS certificate restoration; Simplify Ursula construction. (`#2536 <https://github.com/nucypher/nucypher/issues/2536>`__)
+- Update the call to ``estimateGas()`` according to the new ``web3`` API (`#2543 <https://github.com/nucypher/nucypher/issues/2543>`__)
+- Ensure remote ethereum provider connection is automatically established with characters. Fixes default keyring filepath generation. (`#2550 <https://github.com/nucypher/nucypher/issues/2550>`__)
+- Cache Alice's transacting power for later activation. (`#2555 <https://github.com/nucypher/nucypher/issues/2555>`__)
+- Prevent process hanging in the cases when the main thread finishes before the treasure map publisher (`#2557 <https://github.com/nucypher/nucypher/issues/2557>`__)
+
+
+Improved Documentation
+~~~~~~~~~~~~~~~~~~~~~~
+
+- Documentation overhaul with focus on staking node operation (`#2463 <https://github.com/nucypher/nucypher/issues/2463>`__)
+- Expands Alice grant example using the python API. (`#2554 <https://github.com/nucypher/nucypher/issues/2554>`__)
+
+
+Deprecations and Removals
+~~~~~~~~~~~~~~~~~~~~~~~~~
+
+- Deprecated StakingEscrow features to reduce code size: batch deposits, testContract flag, locking reStake.
+  Deployment of StakingEscrow is split in two steps: initial step with stub and final step after all contracts. (`#2518 <https://github.com/nucypher/nucypher/issues/2518>`__)
+
+
+Misc
+~~~~
+
+- Refactor FleetSensor; add "/status/?omit_known_nodes=true" argument; prevent internal constants from leaking into the status page. (`#2352 <https://github.com/nucypher/nucypher/issues/2352>`__)
+- WorkLock prometheus metrics are only collected on mainnet. (`#2546 <https://github.com/nucypher/nucypher/issues/2546>`__)
+- Sister demo for Finnegan's wake for use on lynx/goerli testnet.
+  Alice and Bob API cleanup compelled by EthDenver 2021. (`#2560 <https://github.com/nucypher/nucypher/issues/2560>`__)
+- Rework internal transaction signing API for improved thread saftey. (`#2572 <https://github.com/nucypher/nucypher/issues/2572>`__)
+- new seed URL for mainnet seeds.nucypher.network
+  cloudworkers CLI updates (`#2576 <https://github.com/nucypher/nucypher/issues/2576>`__)
+- Extends probationary period for policy creation in the network to 2021-04-30 23:59:59 UTC. (`#2585 <https://github.com/nucypher/nucypher/issues/2585>`__)
+
+
 v4.6.0 (2021-01-26)
 -------------------
 

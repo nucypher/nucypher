@@ -1,1 +1,0 @@
-WorkLock prometheus metrics are only collected on mainnet.

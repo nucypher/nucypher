@@ -1,1 +1,0 @@
-Rework internal transaction signing API for improved thread saftey.

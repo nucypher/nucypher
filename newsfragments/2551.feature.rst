@@ -1,1 +1,0 @@
-Simplifies CLI usage with optional interactive collection of all CLI parameters used during grant, encrypt, and retrieve.

@@ -1,1 +1,0 @@
-`nucypher status events` can now use event filters and be output to a csv file for simpler accounting.
