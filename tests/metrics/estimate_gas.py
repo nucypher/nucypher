@@ -32,6 +32,8 @@ from web3.contract import Contract
 
 from nucypher.blockchain.eth.deployers import StakingEscrowDeployer, PolicyManagerDeployer
 from nucypher.blockchain.eth.registry import InMemoryContractRegistry
+from nucypher.blockchain.eth.signers.software import Web3Signer
+from nucypher.crypto.powers import TransactingPower
 from umbral.keys import UmbralPrivateKey
 from umbral.signing import Signer
 from unittest.mock import Mock
@@ -598,9 +600,11 @@ def estimate_gas(analyzer: AnalyzeGas = None) -> None:
     print("********* Estimates of migration *********")
 
     registry = InMemoryContractRegistry()
+    deployer_power = TransactingPower(signer=Web3Signer(testerchain.client),
+                                      account=testerchain.etherbase_account)
 
     def deploy_contract(contract_name, *args, **kwargs):
-        return testerchain.deploy_contract(testerchain.etherbase_account,
+        return testerchain.deploy_contract(deployer_power,
                                            registry,
                                            contract_name,
                                            *args,
