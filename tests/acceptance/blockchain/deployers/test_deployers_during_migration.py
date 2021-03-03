@@ -33,32 +33,33 @@ def new_token_economics(token_economics):
 
 
 @pytest.fixture(scope='module')
-def baseline_deployment(staking_escrow_deployer):
-    staking_escrow_deployer.deploy(deployment_mode=constants.FULL)
+def baseline_deployment(staking_escrow_deployer, transacting_power):
+    staking_escrow_deployer.deploy(deployment_mode=constants.FULL, transacting_power=transacting_power)
 
 
 @pytest.fixture(scope='module')
 def new_staking_escrow_deployer(testerchain, test_registry, new_token_economics):
     staking_escrow_deployer = StakingEscrowDeployer(registry=test_registry,
-                                                    economics=new_token_economics,
-                                                    deployer_address=testerchain.etherbase_account)
+                                                    economics=new_token_economics)
     return staking_escrow_deployer
 
 
 @pytest.fixture(scope='module')
 def new_policy_manager_deployer(testerchain, test_registry, new_token_economics):
     policy_manager_deployer = PolicyManagerDeployer(registry=test_registry,
-                                                    economics=new_token_economics,
-                                                    deployer_address=testerchain.etherbase_account)
+                                                    economics=new_token_economics)
     return policy_manager_deployer
 
 
 def test_staking_escrow_preparation(testerchain,
+                                    transacting_power,
                                     baseline_deployment,
                                     token_economics,
                                     test_registry,
                                     new_staking_escrow_deployer):
-    new_staking_escrow_deployer.deploy(deployment_mode=constants.BARE, ignore_deployed=True)
+    new_staking_escrow_deployer.deploy(deployment_mode=constants.BARE,
+                                       ignore_deployed=True,
+                                       transacting_power=transacting_power)
 
     # Data is still old, because there is no upgrade yet
     staking_agent = ContractAgency.get_agent(StakingEscrowAgent, registry=test_registry)
@@ -67,10 +68,13 @@ def test_staking_escrow_preparation(testerchain,
 
 
 def test_policy_manager_preparation(testerchain,
+                                    transacting_power,
                                     token_economics,
                                     test_registry,
                                     new_policy_manager_deployer):
-    new_policy_manager_deployer.deploy(deployment_mode=constants.BARE, ignore_deployed=True)
+    new_policy_manager_deployer.deploy(deployment_mode=constants.BARE,
+                                       ignore_deployed=True,
+                                       transacting_power=transacting_power)
 
     # Data is still old, because there is no upgrade yet
     policy_manager_agent = ContractAgency.get_agent(PolicyManagerAgent, registry=test_registry)
@@ -79,6 +83,7 @@ def test_policy_manager_preparation(testerchain,
 
 
 def test_staking_escrow_migration_upgrade(testerchain,
+                                          transacting_power,
                                           test_registry,
                                           new_token_economics,
                                           new_staking_escrow_deployer):
@@ -87,7 +92,8 @@ def test_staking_escrow_migration_upgrade(testerchain,
                                                              enrollment_version='latest')
 
     new_staking_escrow_deployer.retarget(target_address=latest_staking_escrow.address,
-                                         confirmations=0)
+                                         confirmations=0,
+                                         transacting_power=transacting_power)
 
     # Now data must be new
     staking_agent = ContractAgency.get_agent(StakingEscrowAgent, registry=test_registry)
@@ -96,6 +102,7 @@ def test_staking_escrow_migration_upgrade(testerchain,
 
 
 def test_policy_manager_migration_upgrade(testerchain,
+                                          transacting_power,
                                           test_registry,
                                           new_token_economics,
                                           new_policy_manager_deployer):
@@ -104,7 +111,8 @@ def test_policy_manager_migration_upgrade(testerchain,
                                                              enrollment_version='latest')
 
     new_policy_manager_deployer.retarget(target_address=latest_policy_manager.address,
-                                         confirmations=0)
+                                         confirmations=0,
+                                         transacting_power=transacting_power)
 
     # Now data must be new
     policy_manager_agent = ContractAgency.get_agent(PolicyManagerAgent, registry=test_registry)
