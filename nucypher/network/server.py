@@ -432,11 +432,10 @@ def _make_rest_app(datastore: Datastore, this_node, domain: str, log: Logger) ->
         return_json = request.args.get('json') == 'true'
         omit_known_nodes = request.args.get('omit_known_nodes') == 'true'
 
-        status_info = this_node.status_info(raise_invalid=False,
-                                            omit_known_nodes=omit_known_nodes)
+        status_info = this_node.status_info(omit_known_nodes=omit_known_nodes)
 
         if return_json:
-            return jsonify(status_info)
+            return jsonify(status_info.to_json())
 
         else:
             headers = {"Content-Type": "text/html", "charset": "utf-8"}

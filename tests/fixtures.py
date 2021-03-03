@@ -651,6 +651,9 @@ def blockchain_ursulas(testerchain, stakers, ursula_decentralized_test_config):
     # Bootstrap the network
     for ursula_to_teach in _ursulas:
         for ursula_to_learn_about in _ursulas:
+            # FIXME #2588: FleetSensor should not own fully-functional Ursulas.
+            # It only needs to see whatever public info we can normally get via REST.
+            # Also sharing mutable Ursulas like that can lead to unpredictable results.
             ursula_to_teach.remember_node(ursula_to_learn_about)
 
     _ports_to_remove = [ursula.rest_interface.port for ursula in _ursulas]
@@ -895,6 +898,9 @@ def fleet_of_highperf_mocked_ursulas(ursula_federated_test_config, request):
                 all_ursulas = {u.checksum_address: u for u in _ursulas}
 
                 for ursula in _ursulas:
+                    # FIXME #2588: FleetSensor should not own fully-functional Ursulas.
+                    # It only needs to see whatever public info we can normally get via REST.
+                    # Also sharing mutable Ursulas like that can lead to unpredictable results.
                     ursula.known_nodes.current_state._nodes = all_ursulas
                     ursula.known_nodes.current_state.checksum = b"This is a fleet state checksum..".hex()
     yield _ursulas

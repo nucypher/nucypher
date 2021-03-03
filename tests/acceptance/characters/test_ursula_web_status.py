@@ -53,4 +53,4 @@ def test_decentralized_json_status_endpoint(ursula, client, omit_known_nodes):
     assert response.status_code == 200
     json_status = response.get_json()
     status = ursula.status_info(omit_known_nodes=omit_known_nodes)
-    assert json_status == status
+    assert json_status == status.to_json()

@@ -1,0 +1,1 @@
+Adjust ``Ursula.status_info()`` API to make it easier for ``nucypher-monitor`` to collect data.

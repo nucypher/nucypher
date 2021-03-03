@@ -55,7 +55,7 @@ from twisted.internet import reactor, stdio, threads
 from twisted.internet.defer import Deferred
 from twisted.internet.task import LoopingCall
 from twisted.logger import Logger
-from typing import Dict, Iterable, List, Tuple, Union, Optional, Sequence, Set
+from typing import Dict, Iterable, List, NamedTuple, Tuple, Union, Optional, Sequence, Set, Any
 from umbral import pre
 from umbral.keys import UmbralPublicKey
 from umbral.kfrags import KFrag
@@ -63,7 +63,7 @@ from umbral.signing import Signature
 
 import nucypher
 from nucypher.acumen.nicknames import Nickname
-from nucypher.acumen.perception import FleetSensor
+from nucypher.acumen.perception import FleetSensor, ArchivedFleetState, RemoteUrsulaStatus
 from nucypher.blockchain.eth.actors import BlockchainPolicyAuthor, Worker
 from nucypher.blockchain.eth.agents import ContractAgency, StakingEscrowAgent
 from nucypher.blockchain.eth.constants import ETH_ADDRESS_BYTE_LENGTH
@@ -1734,6 +1734,60 @@ class Ursula(Teacher, Character, Worker):
 
         # ... and finally returns all the re-encrypted bytes
         return cfrag_byte_stream
+
+    def status_info(self, omit_known_nodes: bool = False) -> 'LocalUrsulaStatus':
+
+        domain = self.domain
+        version = nucypher.__version__
+
+        fleet_state = self.known_nodes.latest_state()
+        previous_fleet_states = self.known_nodes.previous_states(4)
+
+        if not omit_known_nodes:
+            known_nodes_info = [self.known_nodes.status_info(node) for node in self.known_nodes]
+        else:
+            known_nodes_info = None
+
+        return LocalUrsulaStatus(nickname=self.nickname,
+                                 staker_address=self.checksum_address,
+                                 worker_address=self.worker_address,
+                                 rest_url=self.rest_url(),
+                                 timestamp=self.timestamp,
+                                 domain=domain,
+                                 version=version,
+                                 fleet_state=fleet_state,
+                                 previous_fleet_states=previous_fleet_states,
+                                 known_nodes=known_nodes_info,
+                                 )
+
+
+class LocalUrsulaStatus(NamedTuple):
+    nickname: Nickname
+    staker_address: ChecksumAddress
+    worker_address: str
+    rest_url: str
+    timestamp: maya.MayaDT
+    domain: str
+    version: str
+    fleet_state: ArchivedFleetState
+    previous_fleet_states: List[ArchivedFleetState]
+    known_nodes: Optional[List[RemoteUrsulaStatus]]
+
+    def to_json(self) -> Dict[str, Any]:
+        if self.known_nodes is None:
+            known_nodes_json = None
+        else:
+            known_nodes_json = [status.to_json() for status in self.known_nodes]
+        return dict(nickname=self.nickname.to_json(),
+                    staker_address=self.staker_address,
+                    worker_address=self.worker_address,
+                    rest_url=self.rest_url,
+                    timestamp=self.timestamp.iso8601(),
+                    domain=self.domain,
+                    version=self.version,
+                    fleet_state=self.fleet_state.to_json(),
+                    previous_fleet_states=[state.to_json() for state in self.previous_fleet_states],
+                    known_nodes=known_nodes_json)
 
 
 class Enrico(Character):
