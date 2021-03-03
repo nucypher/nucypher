@@ -1740,10 +1740,8 @@ class Ursula(Teacher, Character, Worker):
         domain = self.domain
         version = nucypher.__version__
 
-        latest_states = self.known_nodes.latest_states(5)
-
-        fleet_state = latest_states[-1]
-        previous_fleet_states = [state for state in latest_states[:-1]]
+        fleet_state = self.known_nodes.latest_state()
+        previous_fleet_states = self.known_nodes.previous_states(4)
 
         if not omit_known_nodes:
             known_nodes_info = [self.known_nodes.status_info(node) for node in self.known_nodes]

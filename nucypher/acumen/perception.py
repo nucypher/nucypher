@@ -111,8 +111,8 @@ class FleetState:
         for node in nodes_to_add:
             if node.checksum_address in nodes_to_remove:
                 continue
-            if (    node.checksum_address not in self._nodes
-                    or bytes(self._nodes[node.checksum_address]) != bytes(node)):
+            unknown = node.checksum_address not in self._nodes
+            if unknown or bytes(self._nodes[node.checksum_address]) != bytes(node):
                 nodes_updated.append(node.checksum_address)
 
         nodes_removed = []
@@ -328,13 +328,18 @@ class FleetSensor:
     def values(self):
         return self._current_state.values()
 
-    def latest_states(self, quantity: int) -> List[ArchivedFleetState]:
+    def latest_state(self) -> ArchivedFleetState:
+        # `_archived_states` is never empty, one state is created in the constructor
+        return self._archived_states[-1]
+
+    def previous_states(self, quantity: int) -> List[ArchivedFleetState]:
         """
-        Returns at most ``quantity`` latest archived states (including the current one),
+        Returns at most ``quantity`` latest archived states (*not* including the current one),
         in chronological order.
         """
-        latest = self._archived_states[-min(len(self._archived_states), quantity):]
-        return latest
+        # `_archived_states` is never empty, one state is created in the constructor
+        previous_states_num = min(len(self._archived_states) - 1, quantity)
+        return self._archived_states[-previous_states_num-1:-1]
 
     def addresses(self):
         return self._current_state.addresses()
