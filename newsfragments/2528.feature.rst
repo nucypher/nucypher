@@ -1,0 +1,5 @@
+Expanded features for staker and status CLI:
+  - Support substake inspection via `nucypher status stakers --substakes`.
+  - Automated transaction series for inactive substake removal.
+  - Display unlocked NU amount from stakers status.
+  - Handle replacement of stuck withdraw transactions with --replace.
