@@ -24,7 +24,7 @@ from nucypher.cli.painting.staking import paint_stakes
 from nucypher.cli.painting.transactions import paint_receipt_summary
 
 
-def remove_unused_substake(emitter,
+def remove_inactive_substake(emitter,
                            stakeholder: StakeHolder,
                            action_period: int,
                            stake: Stake,
@@ -41,7 +41,7 @@ def remove_unused_substake(emitter,
         click.confirm(CONFIRM_REMOVE_SUBSTAKE.format(stake_index=stake.index), abort=True)
 
     # Execute
-    receipt = stakeholder.remove_unused_stake(stake=stake)
+    receipt = stakeholder.remove_inactive_stake(stake=stake)
 
     # Report
     emitter.echo(SUCCESSFUL_STAKE_REMOVAL, color='green', verbosity=1)

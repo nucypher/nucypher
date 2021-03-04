@@ -1409,7 +1409,7 @@ def test_snapshots(testerchain, token, escrow_contract):
     assert balance_staker1 + deposit_staker2 == escrow.functions.totalStakedAt(now - 1).call()
 
 
-def test_remove_unused_sub_stakes(testerchain, token, escrow_contract, token_economics):
+def test_remove_inactive_sub_stakes(testerchain, token, escrow_contract, token_economics):
     escrow = escrow_contract(token_economics.maximum_allowed_locked, disable_reward=True)
     creator = testerchain.client.accounts[0]
     staker = testerchain.client.accounts[1]
@@ -1473,7 +1473,7 @@ def test_remove_unused_sub_stakes(testerchain, token, escrow_contract, token_eco
         tx = escrow.functions.removeUnusedSubStake(0).transact({'from': staker})
         testerchain.wait_for_receipt(tx)
 
-    # Remove unused sub-stake in the middle
+    # Remove inactive sub-stake in the middle
     tx = escrow.functions.removeUnusedSubStake(2).transact({'from': staker})
     testerchain.wait_for_receipt(tx)
     assert escrow.functions.getLockedTokens(staker, 1).call() == 5 * sub_stake

@@ -37,7 +37,7 @@ from nucypher.cli.actions.confirm import (
     confirm_disable_snapshots
 )
 from nucypher.cli.actions.select import select_client_account_for_staking, select_stake
-from nucypher.cli.actions.staking import remove_unused_substake
+from nucypher.cli.actions.staking import remove_inactive_substake
 from nucypher.cli.config import group_general_config, GroupGeneralConfig
 from nucypher.cli.literature import (
     BONDING_DETAILS,
@@ -90,7 +90,7 @@ from nucypher.cli.literature import (
     SUCCESSFUL_DISABLE_SNAPSHOTS,
     CONFIRM_ENABLE_SNAPSHOTS,
     CONFIRM_STAKE_USE_UNLOCKED,
-    CONFIRM_REMOVE_ALL_UNUSED_SUBSTAKES,
+    CONFIRM_REMOVE_ALL_INACTIVE_SUBSTAKES,
     NO_INACTIVE_STAKES,
     FETCHING_INACTIVE_STAKES
 )
@@ -1052,13 +1052,13 @@ def merge(general_config: GroupGeneralConfig,
 @group_general_config
 @click.option('--index', help="Index of unused stake to remove", type=click.INT)
 @click.option('--all', 'remove_all', help="Remove all unused substakes in a series of transactions.", is_flag=True)
-def remove_unused(general_config: GroupGeneralConfig,
-                  transacting_staker_options: TransactingStakerOptions,
-                  config_file,
-                  force,
-                  index,
-                  remove_all):
-    """Remove unused substakes."""
+def remove_inactive(general_config: GroupGeneralConfig,
+                    transacting_staker_options: TransactingStakerOptions,
+                    config_file,
+                    force,
+                    index,
+                    remove_all):
+    """Remove inactive substakes."""
 
     # Setup
     emitter = setup_emitter(general_config)
@@ -1086,17 +1086,17 @@ def remove_unused(general_config: GroupGeneralConfig,
             emitter.message(NO_INACTIVE_STAKES, color='red')
             raise click.Abort()
         if not force:
-            prompt = CONFIRM_REMOVE_ALL_UNUSED_SUBSTAKES.format(stakes=", ".join(s.index for s in inactive_stakes),
-                                                                quantity=len(inactive_stakes),
-                                                                staker_address=STAKEHOLDER.checksum_address)
+            prompt = CONFIRM_REMOVE_ALL_INACTIVE_SUBSTAKES.format(stakes=", ".join(s.index for s in inactive_stakes),
+                                                                  quantity=len(inactive_stakes),
+                                                                  staker_address=STAKEHOLDER.checksum_address)
             click.confirm(prompt, abort=True)
         for inactive_stake in inactive_stakes:
-            remove_unused_substake(emitter=emitter,
-                                   stakeholder=STAKEHOLDER,
-                                   stake=inactive_stake,
-                                   chain_name=blockchain.client.chain_name,
-                                   action_period=action_period,
-                                   force=force)
+            remove_inactive_substake(emitter=emitter,
+                                     stakeholder=STAKEHOLDER,
+                                     stake=inactive_stake,
+                                     chain_name=blockchain.client.chain_name,
+                                     action_period=action_period,
+                                     force=force)
     else:
         # Handle stake update and selection
         if index is not None:  # 0 is valid.
@@ -1104,7 +1104,7 @@ def remove_unused(general_config: GroupGeneralConfig,
         else:
             selected_stake = select_stake(staker=STAKEHOLDER, emitter=emitter, stakes_status=Stake.Status.INACTIVE)
 
-        remove_unused_substake(emitter=emitter,
+        remove_inactive_substake(emitter=emitter,
                                stakeholder=STAKEHOLDER,
                                stake=selected_stake,
                                chain_name=blockchain.client.chain_name,

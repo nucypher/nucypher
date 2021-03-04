@@ -127,7 +127,7 @@ See https://docs.nucypher.com/en/latest/staking/running_a_worker.html
 CONFIRM_OVERWRITE_EVENTS_CSV_FILE = "Overwrite existing CSV events file - {csv_file}?"
 
 #
-# Remove Unused
+# Remove Inactive
 #
 
 
@@ -135,7 +135,7 @@ FETCHING_INACTIVE_STAKES = 'Fetching inactive stakes'
 
 NO_INACTIVE_STAKES = "No inactive stakes found\n"
 
-CONFIRM_REMOVE_ALL_UNUSED_SUBSTAKES = """
+CONFIRM_REMOVE_ALL_INACTIVE_SUBSTAKES = """
 This action will perform a series of transactions to remove all unused sub-stakes
 (Indices {stakes}).  It is recommended that you verify each staker transaction was successful (https://etherscan.io/address/{staker_address}).
 

@@ -20,7 +20,7 @@ Several administrative operations can be performed on active stakes:
 +----------------------+-------------------------------------------------------------------------------+
 |  ``merge``           | Merge two stakes into one                                                     |
 +----------------------+-------------------------------------------------------------------------------+
-|  ``remove-unused``   | Remove unused/inactive stakes                                                 |
+|  ``remove-inactive`` | Remove unused/inactive stakes                                                 |
 +----------------------+-------------------------------------------------------------------------------+
 |  ``collect-rewards`` | Collect earned staking rewards and/or policy fees                             |
 +----------------------+-------------------------------------------------------------------------------+
@@ -190,8 +190,8 @@ This can help to decrease gas consumption in some operations. To merge two stake
     (nucypher)$ nucypher stake merge --hw-wallet
 
 
-Remove unused sub-stake
-~~~~~~~~~~~~~~~~~~~~~~~
+Remove inactive sub-stake
+~~~~~~~~~~~~~~~~~~~~~~~~~
 
 When sub-stakes terminate, are merged or edited,
 there may be 'unused', inactive sub-stakes remaining on-chain.
@@ -221,7 +221,7 @@ of your ``INACTIVE`` sub-stake:
 
 .. code:: bash
 
-    (nucypher)$ nucypher stake remove-unused --hw-wallet
+    (nucypher)$ nucypher stake remove-inactive --hw-wallet
 
 
 In order to make the operation as simple and cheap as possible,

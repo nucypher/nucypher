@@ -868,7 +868,7 @@ class Staker(NucypherTokenActor):
 
     @only_me
     @save_receipt
-    def remove_unused_stake(self, stake: Stake) -> TxReceipt:
+    def remove_inactive_stake(self, stake: Stake) -> TxReceipt:
         self._ensure_stake_exists(stake)
 
         # Read on-chain stake and validate
@@ -876,7 +876,7 @@ class Staker(NucypherTokenActor):
         if not stake.status().is_child(Stake.Status.INACTIVE):
             raise ValueError(f"Stake with index {stake.index} is still active")
 
-        receipt = self._remove_unused_stake(stake_index=stake.index)
+        receipt = self._remove_inactive_stake(stake_index=stake.index)
 
         # Update staking cache element
         self.refresh_stakes()
@@ -884,8 +884,8 @@ class Staker(NucypherTokenActor):
 
     @only_me
     @save_receipt
-    def _remove_unused_stake(self, stake_index: int) -> TxReceipt:
-        receipt = self.staking_agent.remove_unused_stake(transacting_power=self.transacting_power,
+    def _remove_inactive_stake(self, stake_index: int) -> TxReceipt:
+        receipt = self.staking_agent.remove_inactive_stake(transacting_power=self.transacting_power,
                                                          stake_index=stake_index)
         return receipt
 

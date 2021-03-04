@@ -635,7 +635,7 @@ class StakingEscrowAgent(EthereumContractAgent):
         return receipt
 
     @contract_api(TRANSACTION)
-    def remove_unused_stake(self, transacting_power: TransactingPower, stake_index: int) -> TxReceipt:
+    def remove_inactive_stake(self, transacting_power: TransactingPower, stake_index: int) -> TxReceipt:
         contract_function: ContractFunction = self.contract.functions.removeUnusedSubStake(stake_index)
         receipt: TxReceipt = self.blockchain.send_transaction(contract_function=contract_function,
                                                               transacting_power=transacting_power)
