@@ -175,14 +175,12 @@ def paint_stakers(emitter, stakers: List[str], registry: BaseContractRegistry) -
         owned_in_nu = round(owned_tokens, 2)
         current_locked_tokens = round(staker.locked_tokens(periods=0), 2)
         next_locked_tokens = round(staker.locked_tokens(periods=1), 2)
-        reward_amount = NU.from_nunits(staking_agent.calculate_staking_reward(staker_address=staker_address))
-        unlocked = owned_in_nu - current_locked_tokens
+        reward_amount = round(NU.from_nunits(staking_agent.calculate_staking_reward(staker_address=staker_address)), 2)
 
         emitter.echo(f"{tab}  {'Owned:':10} {owned_in_nu}")
         emitter.echo(f"{tab}  Staked in current period: {current_locked_tokens}")
         emitter.echo(f"{tab}  Staked in next period: {next_locked_tokens}")
-        emitter.echo(f"{tab}  Unlocked: {unlocked}")
-        emitter.echo(f"{tab}  Reward: {reward_amount}")
+        emitter.echo(f"{tab}  Unlocked: {reward_amount}")
 
         if is_restaking:
             emitter.echo(f"{tab}  {'Re-staking:':10} Yes")

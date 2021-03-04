@@ -984,7 +984,7 @@ class Staker(NucypherTokenActor):
     def withdraw(self, amount: NU, replace: bool = False) -> TxReceipt:
         """Withdraw tokens from StakingEscrow (assuming they're unlocked)"""
         receipt = self.staking_agent.withdraw(transacting_power=self.transacting_power,
-                                              amount=int(amount),
+                                              amount=NuNits(int(amount)),
                                               replace=replace)
         return receipt
 
