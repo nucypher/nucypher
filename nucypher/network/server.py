@@ -79,7 +79,7 @@ def make_rest_app(
         db_filepath: str,
         this_node,
         domain,
-        log: Logger=Logger("http-application-layer")
+        log: Logger = Logger("http-application-layer")
         ) -> Tuple[Flask, Datastore]:
     """
     Creates a REST application and an associated ``Datastore`` object.
@@ -247,12 +247,15 @@ def _make_rest_app(datastore: Datastore, this_node, domain: str, log: Logger) ->
 
         # Get Work Order
         from nucypher.policy.collections import WorkOrder  # Avoid circular import
+
+        # TODO: Encrypt the WorkOrder payload for this Ursula?
         work_order_payload = request.data
         work_order = WorkOrder.from_rest_payload(rest_payload=work_order_payload, ursula=this_node)
         log.info(f"Work Order from {work_order.bob}, signed {work_order.receipt_signature}")
 
         # Deserialize Entities
         authorizer = Alice.from_public_keys(verifying_key=work_order.authorizer_verifying_key)
+        policy_publisher = Alice.from_public_keys(verifying_key=work_order.publisher_verifying_key)
         authorizer_verifying_key = authorizer.stamp.as_umbral_pubkey()
         kfrag_kit = PolicyMessageKit.from_bytes(work_order.encrypted_kfrag)
 
@@ -264,11 +267,19 @@ def _make_rest_app(datastore: Datastore, this_node, domain: str, log: Logger) ->
             log.info(f"Invalid KFrag detected - sender {authorizer_verifying_key.to_bytes().hex()}")
             return Response(response="{} is invalid".format(kfrag), status=401)
 
-        # TODO:
-        #  - Verify policy payment, in the worst case scenario (since this will slow things down)
-        #  - Cache the result of payment verification for optimization
-        #  - Use an async task before this even happens.
-        #  - Use the graph as an optimization?
+        # TODO: Optimize payment verification
+        #  - Cache the result of payment verification?
+        #  - Use an async task before this even happens?
+        #  - Use the graph?
+        try:
+            this_node.verify_policy_payment(policy_id=work_order.hrac)
+        except this_node.UnpaidPolicy:
+            message = f"Policy {work_order.hrac.hex()} is unpaid."
+            this_node.suspicious_activities_witnessed['freeriders'].append((policy_publisher, message))
+            return Response(message, status=402)
+        except this_node.UnknownPolicy:
+            message = f"Policy {work_order.hrac.hex()} is not a published policy."
+            return Response(message, status=404)
 
         # Re-encrypt
         response = this_node._reencrypt(kfrag=kfrag,

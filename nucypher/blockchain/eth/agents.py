@@ -851,7 +851,7 @@ class PolicyManagerAgent(EthereumContractAgent):
         return receipt
 
     @contract_api(CONTRACT_CALL)
-    def fetch_policy_arrangements(self, policy_id: str) -> Iterator[ArrangementInfo]:
+    def fetch_policy_arrangements(self, policy_id: bytes) -> Iterator[ArrangementInfo]:
         record_count = self.contract.functions.getArrangementsLength(policy_id).call()
         for index in range(record_count):
             arrangement = self.contract.functions.getArrangementInfo(policy_id, index).call()
