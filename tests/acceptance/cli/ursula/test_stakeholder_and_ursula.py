@@ -297,7 +297,7 @@ def test_merge_stakes(click_runner,
     assert stakes[selection_2].last_period == 1
 
 
-def test_remove_unused(click_runner,
+def test_remove_inactive(click_runner,
                        stakeholder_configuration_file_location,
                        token_economics,
                        testerchain,
@@ -311,7 +311,7 @@ def test_remove_unused(click_runner,
     selection = 2
     assert original_stakes[selection].last_period == 1
 
-    stake_args = ('stake', 'remove-unused',
+    stake_args = ('stake', 'remove-inactive',
                   '--config-file', stakeholder_configuration_file_location,
                   '--staking-address', manual_staker,
                   '--index', selection,

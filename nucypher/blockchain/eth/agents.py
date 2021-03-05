@@ -560,23 +560,22 @@ class StakingEscrowAgent(EthereumContractAgent):
         return NuNits(reward_amount)
 
     @contract_api(TRANSACTION)
-    def collect_staking_reward(self, transacting_power: TransactingPower) -> TxReceipt:
+    def collect_staking_reward(self, transacting_power: TransactingPower, replace: bool = False) -> TxReceipt: # TODO: Support replacement for all agent transactions
         """Withdraw tokens rewarded for staking."""
         staker_address = transacting_power.account
         reward_amount: NuNits = self.calculate_staking_reward(staker_address=staker_address)
         from nucypher.blockchain.eth.token import NU
         self.log.debug(f"Withdrawing staking reward ({NU.from_nunits(reward_amount)}) to {staker_address}")
-        receipt: TxReceipt = self.withdraw(transacting_power=transacting_power, amount=reward_amount)
+        receipt: TxReceipt = self.withdraw(transacting_power=transacting_power, amount=reward_amount, replace=replace)
         return receipt
 
     @contract_api(TRANSACTION)
-    def withdraw(self, transacting_power: TransactingPower, amount: NuNits) -> TxReceipt:
+    def withdraw(self, transacting_power: TransactingPower, amount: NuNits, replace: bool = False) -> TxReceipt:
         """Withdraw tokens"""
-        payload = {'gas': 500_000}  # TODO: #842 Gas Management
         contract_function: ContractFunction = self.contract.functions.withdraw(amount)
         receipt = self.blockchain.send_transaction(contract_function=contract_function,
-                                                   payload=payload,
-                                                   transacting_power=transacting_power)
+                                                   transacting_power=transacting_power,
+                                                   replace=replace)
         return receipt
 
     @contract_api(CONTRACT_CALL)
@@ -636,7 +635,7 @@ class StakingEscrowAgent(EthereumContractAgent):
         return receipt
 
     @contract_api(TRANSACTION)
-    def remove_unused_stake(self, transacting_power: TransactingPower, stake_index: int) -> TxReceipt:
+    def remove_inactive_stake(self, transacting_power: TransactingPower, stake_index: int) -> TxReceipt:
         contract_function: ContractFunction = self.contract.functions.removeUnusedSubStake(stake_index)
         receipt: TxReceipt = self.blockchain.send_transaction(contract_function=contract_function,
                                                               transacting_power=transacting_power)

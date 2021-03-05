@@ -226,14 +226,14 @@ def test_staker_merges_stakes(agency, staker):
         staker.merge_stakes(stake_1=staker.stakes[1], stake_2=stake)
 
 
-def test_remove_unused_stake(agency, staker):
+def test_remove_inactive_stake(agency, staker):
     stake_index = 3
     staker.refresh_stakes()
     original_stakes = list(staker.stakes)
     unused_stake = original_stakes[stake_index]
     assert unused_stake.final_locked_period == 1
 
-    staker.remove_unused_stake(stake=unused_stake)
+    staker.remove_inactive_stake(stake=unused_stake)
 
     stakes = staker.stakes
     assert stakes == original_stakes[:-1]

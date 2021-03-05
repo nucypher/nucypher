@@ -367,10 +367,10 @@ class KeystoreSigner(Signer):
                 if not password:
                     # It is possible that password is None here passed from the above layer
                     # causing Account.decrypt to crash, expecting a value for password.
-                    raise self.AccessDenied('No password supplied to unlock account.')
+                    raise self.AuthenticationFailed('No password supplied to unlock account.')
                 raise
             except ValueError as e:
-                raise self.AccessDenied("Invalid or incorrect signer password.") from e
+                raise self.AuthenticationFailed("Invalid or incorrect ethereum account password.") from e
         return True
 
     @validate_checksum_address

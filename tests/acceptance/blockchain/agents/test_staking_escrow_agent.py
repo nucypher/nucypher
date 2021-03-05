@@ -419,7 +419,7 @@ def test_merge(agency, testerchain, test_registry, token_economics):
     assert staking_agent.get_locked_tokens(staker_account, 0) == current_locked_tokens
 
 
-def test_remove_unused_stake(agency, testerchain, test_registry):
+def test_remove_inactive_stake(agency, testerchain, test_registry):
     staking_agent = ContractAgency.get_agent(StakingEscrowAgent, registry=test_registry)
     staker_account = testerchain.unassigned_accounts[0]
     staker_power = TransactingPower(account=staker_account, signer=Web3Signer(testerchain.client))
@@ -433,7 +433,7 @@ def test_remove_unused_stake(agency, testerchain, test_registry):
     current_locked_tokens = staking_agent.get_locked_tokens(staker_account, 0)
     next_locked_tokens = staking_agent.get_locked_tokens(staker_account, 1)
 
-    receipt = staking_agent.remove_unused_stake(transacting_power=staker_power, stake_index=2)
+    receipt = staking_agent.remove_inactive_stake(transacting_power=staker_power, stake_index=2)
     assert receipt['status'] == 1
 
     # Ensure stake was extended by one period.

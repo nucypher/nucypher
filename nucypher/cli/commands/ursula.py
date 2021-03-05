@@ -18,10 +18,7 @@
 
 import click
 
-from nucypher.blockchain.economics import EconomicsFactory
-from nucypher.blockchain.eth.networks import NetworksInventory
 from nucypher.blockchain.eth.signers.software import ClefSigner
-from nucypher.blockchain.eth.utils import datetime_at_period
 from nucypher.cli.actions.auth import get_client_password, get_nucypher_password
 from nucypher.cli.actions.configure import (
     destroy_configuration,
@@ -36,9 +33,7 @@ from nucypher.cli.config import group_general_config
 from nucypher.cli.literature import (
     DEVELOPMENT_MODE_WARNING,
     FORCE_MODE_WARNING,
-    SUCCESSFUL_MANUALLY_SAVE_METADATA,
-    SUCCESSFUL_CONFIRM_ACTIVITY,
-    CONFIRMING_ACTIVITY_NOW
+    SUCCESSFUL_MANUALLY_SAVE_METADATA
 )
 from nucypher.cli.options import (
     group_options,
@@ -61,7 +56,6 @@ from nucypher.cli.options import (
     option_max_gas_price
 )
 from nucypher.cli.painting.help import paint_new_installation_help
-from nucypher.cli.painting.transactions import paint_receipt_summary
 from nucypher.cli.types import EIP55_CHECKSUM_ADDRESS, NETWORK_PORT, WORKER_IP
 from nucypher.cli.utils import make_cli_character, setup_emitter
 from nucypher.config.characters import UrsulaConfiguration
@@ -229,7 +223,7 @@ group_config_options = group_options(
     rest_host=click.option('--rest-host', help="The host IP address to run Ursula network services on", type=WORKER_IP),
     rest_port=click.option('--rest-port', help="The host port to run Ursula network services on", type=NETWORK_PORT),
     db_filepath=option_db_filepath,
-    network=option_network(default=NetworksInventory.DEFAULT),
+    network=option_network(),  # Don't set defaults here or they will be applied to config updates. Use the Config API.
     registry_filepath=option_registry_filepath,
     poa=option_poa,
     light=option_light,
@@ -421,7 +415,15 @@ def save_metadata(general_config, character_options, config_file):
 @group_general_config
 @option_force
 def config(general_config, config_options, config_file, force, action):
-    """View and optionally update the Ursula node's configuration."""
+    """
+    View and optionally update the Ursula node's configuration.
+
+    \b
+    Sub-Commands
+    ~~~~~~~~~~~~~
+    ip-address - automatically detect and configure the external IP address.
+
+    """
     emitter = setup_emitter(general_config, config_options.worker_address)
     if not config_file:
         config_file = select_config_file(emitter=emitter,
@@ -430,6 +432,9 @@ def config(general_config, config_options, config_file, force, action):
     if action == 'ip-address':
         rest_host = collect_worker_ip_address(emitter=emitter, network=config_options.domain, force=force)
         config_options.rest_host = rest_host
+    elif action:
+        emitter.echo(f'"{action}" is not a valid command.', color='red')
+        raise click.Abort()
     updates = config_options.get_updates()
     get_or_update_configuration(emitter=emitter,
                                 config_class=UrsulaConfiguration,

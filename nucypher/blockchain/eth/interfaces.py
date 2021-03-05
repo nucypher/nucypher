@@ -630,6 +630,7 @@ class BlockchainInterface:
                          gas_estimation_multiplier: Optional[float] = None,
                          confirmations: int = 0,
                          fire_and_forget: bool = False,  # do not wait for receipt.  See #2385
+                         replace: bool = False,
                          ) -> Union[TxReceipt, HexBytes]:
 
         if fire_and_forget:
@@ -639,7 +640,7 @@ class BlockchainInterface:
 
             use_pending_nonce = False  # TODO: #2385
         else:
-            use_pending_nonce = None  # TODO: #2385
+            use_pending_nonce = replace  # TODO: #2385
 
         transaction = self.build_contract_transaction(contract_function=contract_function,
                                                       sender_address=transacting_power.account,
