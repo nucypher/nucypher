@@ -17,20 +17,21 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 
 
 import json
-import os
-from decimal import Decimal
-from typing import Callable, Union
-from typing import Dict, Iterable, List, Optional, Tuple
 
 import maya
+import os
 import time
+from bytestring_splitter import BytestringSplitter
 from constant_sorrow.constants import FULL, WORKER_NOT_RUNNING
+from decimal import Decimal
 from eth_tester.exceptions import TransactionFailed as TestTransactionFailed
 from eth_typing import ChecksumAddress
 from eth_utils import to_canonical_address
 from hexbytes import HexBytes
+from typing import Callable, Union
+from typing import Dict, Iterable, List, Optional, Tuple
 from web3 import Web3
-from web3.exceptions import ValidationError, TimeExhausted
+from web3.exceptions import ValidationError
 from web3.types import TxReceipt
 
 from nucypher.acumen.nicknames import Nickname
@@ -62,7 +63,8 @@ from nucypher.blockchain.eth.constants import (
     DAO_AGENT,
     POLICY_MANAGER_CONTRACT_NAME,
     DISPATCHER_CONTRACT_NAME,
-    STAKING_ESCROW_CONTRACT_NAME
+    STAKING_ESCROW_CONTRACT_NAME,
+    POLICY_ID_LENGTH
 )
 from nucypher.blockchain.eth.decorators import (
     only_me,
@@ -1060,6 +1062,8 @@ class Worker(NucypherTokenActor):
     READY_POLL_RATE = 10
     READY_CLI_FEEDBACK_RATE = 60  # provide feedback to CLI every 60s
 
+    policy_id_splitter = BytestringSplitter(POLICY_ID_LENGTH)
+
     class WorkerError(NucypherTokenActor.ActorError):
         pass
 
@@ -1069,6 +1073,9 @@ class Worker(NucypherTokenActor):
 
     class UnpaidPolicy(WorkerError):
         """Raised when a worker expects policy payment but receives none."""
+
+    class UnknownPolicy(WorkerError):
+        """Raised when a worker cannot find a published policy for a given policy ID"""
 
     def __init__(self,
                  is_me: bool,
@@ -1205,46 +1212,18 @@ class Worker(NucypherTokenActor):
         missing = self.staking_agent.get_missing_commitments(checksum_address=staker_address)
         return missing
 
-    def _verify_policy_payment_by_policy_id(self, policy_id: str) -> bool:
-        from nucypher.policy.policies import Policy
-        arrangements = self.policy_agent.fetch_policy_arrangements(policy_id=policy_id[:Policy.POLICY_ID_LENGTH])
+    def verify_policy_payment(self, policy_id: bytes) -> bool:
+        arrangements = self.policy_agent.fetch_policy_arrangements(policy_id=policy_id)
+        members = set()
         for arrangement in arrangements:
+            members.add(arrangement.node)
             if self.checksum_address == arrangement.node:
                 return True
         else:
-            raise self.UnpaidPolicy(f"{policy_id} is unpaid.")
-
-    def _verify_policy_payment_by_txhash(self, txhash: bytes, timeout: int) -> bool:
-        # TODO: We'd love for this to be impossible to reduce the risk of collusion.  #1274
-
-        blockchain = self.policy_agent.blockchain
-        try:
-            blockchain.client.wait_for_receipt(txhash, timeout=timeout)
-            transaction = blockchain.client.w3.eth.getTransaction(txhash)
-        except TimeExhausted:
-            raise self.UnpaidPolicy
-
-        transaction_data = blockchain.client.parse_transaction_data(transaction)
-        _signature, parameters = self.policy_agent.contract.decode_function_input(transaction_data)
-        try:
-            # Get all of the arrangements and verify that we'll be paid.
-            arranged_addresses = parameters['_nodes']
-        except KeyError:
-            raise ValueError(f'Txhash {txhash.hex()} is not a policy creation transaction.')
-
-        this_node_has_been_arranged = self.checksum_address in arranged_addresses
-        if this_node_has_been_arranged:
-            return True
-        else:
-            raise self.UnpaidPolicy
-
-    def verify_policy_payment(self, timeout: int, policy_id: str = None, txhash: bytes = None) -> bool:
-        if not bool(policy_id) ^ bool(txhash):
-            raise ValueError(f"Pass either policy_id or txhash.  GOt {policy_id} and {txhash}.")
-        if policy_id:
-            return self._verify_policy_payment_by_policy_id(policy_id=policy_id)
-        else:
-            return self._verify_policy_payment_by_txhash(txhash=txhash, timeout=timeout)
+            policy_id_hex = policy_id.hex()
+            if not members:
+                raise self.UnknownPolicy(f'{policy_id_hex} is not a published policy.')
+            raise self.UnpaidPolicy(f"{policy_id_hex} is unpaid.")
 
 
 class BlockchainPolicyAuthor(NucypherTokenActor):

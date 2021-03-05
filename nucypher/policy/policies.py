@@ -26,6 +26,7 @@ from eth_typing.evm import ChecksumAddress
 from twisted.internet import reactor
 
 from nucypher.blockchain.eth.agents import StakersReservoir, StakingEscrowAgent
+from nucypher.blockchain.eth.constants import POLICY_ID_LENGTH
 from nucypher.characters.lawful import Alice, Ursula
 from nucypher.crypto.constants import HRAC_LENGTH
 from nucypher.crypto.kits import RevocationKit
@@ -194,7 +195,7 @@ class Policy(ABC):
     An edict by Alice, arranged with n Ursulas, to perform re-encryption for a specific Bob.
     """
 
-    POLICY_ID_LENGTH = 16
+    ID_LENGTH = POLICY_ID_LENGTH
 
     log = Logger("Policy")
 
@@ -352,7 +353,6 @@ class Policy(ABC):
             self.log.debug(f"Finished proposing arrangements; accepted: {accepted_addresses}")
 
         return accepted_arrangements
-
 
     def _make_treasure_map(self,
                            network_middleware: RestMiddleware,
@@ -573,7 +573,7 @@ class BlockchainPolicy(Policy):
         return receipt['transactionHash']
 
     def _make_enactment_payload(self, kfrag) -> bytes:
-        return bytes(self.hrac) + bytes(kfrag)
+        return bytes(self.hrac)[:self.ID_LENGTH] + bytes(kfrag)
 
     def _enact_arrangements(self, arrangements) -> None:
         self._publish_to_blockchain(ursulas=list(arrangements))
