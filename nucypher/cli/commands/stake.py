@@ -1081,7 +1081,7 @@ def remove_inactive(general_config: GroupGeneralConfig,
 
     emitter.message(FETCHING_INACTIVE_STAKES, color='yellow')
     if remove_all:
-        inactive_stakes = list(reversed(STAKEHOLDER.sorted_stakes(parent_status=Stake.Status.INACTIVE)))
+        inactive_stakes = list(reversed(STAKEHOLDER.staker.sorted_stakes(parent_status=Stake.Status.INACTIVE)))
         if not inactive_stakes:
             emitter.message(NO_INACTIVE_STAKES, color='red')
             raise click.Abort()
@@ -1100,16 +1100,16 @@ def remove_inactive(general_config: GroupGeneralConfig,
     else:
         # Handle stake update and selection
         if index is not None:  # 0 is valid.
-            selected_stake = STAKEHOLDER.stakes[index]
+            selected_stake = STAKEHOLDER.staker.stakes[index]
         else:
             selected_stake = select_stake(staker=STAKEHOLDER, emitter=emitter, stakes_status=Stake.Status.INACTIVE)
 
         remove_inactive_substake(emitter=emitter,
-                               stakeholder=STAKEHOLDER,
-                               stake=selected_stake,
-                               chain_name=blockchain.client.chain_name,
-                               action_period=action_period,
-                               force=force)
+                                 stakeholder=STAKEHOLDER,
+                                 stake=selected_stake,
+                                 chain_name=blockchain.client.chain_name,
+                                 action_period=action_period,
+                                 force=force)
 
 
 @stake.command('collect-reward')
