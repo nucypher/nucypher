@@ -15,37 +15,24 @@ You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
-
-import datetime
-from collections import OrderedDict
-from queue import Queue, Empty
-from typing import Callable, Tuple, Sequence, Set, Optional, Iterable, List, Dict, Type
-
 import math
 import maya
-import random
-import time
 from abc import ABC, abstractmethod
 from bytestring_splitter import BytestringSplitter, VariableLengthBytestring
-from constant_sorrow.constants import NOT_SIGNED
 from eth_typing.evm import ChecksumAddress
-from hexbytes import HexBytes
-from twisted._threads import AlreadyQuit
 from twisted.internet import reactor
-from twisted.internet.defer import ensureDeferred, Deferred
-from twisted.python.threadpool import ThreadPool
+from typing import Tuple, Sequence, Optional, Iterable, List, Dict, Type
 from umbral.keys import UmbralPublicKey
 from umbral.kfrags import KFrag
 
-from nucypher.blockchain.eth.actors import BlockchainPolicyAuthor
-from nucypher.blockchain.eth.agents import PolicyManagerAgent, StakersReservoir, StakingEscrowAgent
+from nucypher.blockchain.eth.agents import StakersReservoir, StakingEscrowAgent
+from nucypher.blockchain.eth.constants import POLICY_ID_LENGTH
 from nucypher.characters.lawful import Alice, Ursula
 from nucypher.crypto.api import keccak_digest, secure_random
 from nucypher.crypto.constants import HRAC_LENGTH, PUBLIC_KEY_LENGTH
 from nucypher.crypto.kits import RevocationKit
 from nucypher.crypto.powers import DecryptingPower, SigningPower, TransactingPower
 from nucypher.crypto.utils import construct_policy_id
-from nucypher.network.exceptions import NodeSeemsToBeDown
 from nucypher.network.middleware import RestMiddleware
 from nucypher.utilities.concurrency import WorkerPool, AllAtOnceFactory
 from nucypher.utilities.logging import Logger
@@ -207,7 +194,7 @@ class Policy(ABC):
     An edict by Alice, arranged with n Ursulas, to perform re-encryption for a specific Bob.
     """
 
-    POLICY_ID_LENGTH = 16
+    ID_LENGTH = POLICY_ID_LENGTH
 
     log = Logger("Policy")
 
@@ -365,7 +352,6 @@ class Policy(ABC):
             self.log.debug(f"Finished proposing arrangements; accepted: {accepted_addresses}")
 
         return accepted_arrangements
-
 
     def _make_treasure_map(self,
                            network_middleware: RestMiddleware,
@@ -585,7 +571,7 @@ class BlockchainPolicy(Policy):
         return receipt['transactionHash']
 
     def _make_enactment_payload(self, kfrag) -> bytes:
-        return bytes(self.hrac) + bytes(kfrag)
+        return bytes(self.hrac)[:self.ID_LENGTH] + bytes(kfrag)
 
     def _enact_arrangements(self, arrangements) -> None:
         self._publish_to_blockchain(ursulas=list(arrangements))
