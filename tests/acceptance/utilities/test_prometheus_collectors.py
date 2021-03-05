@@ -16,19 +16,23 @@
 """
 
 import random
+from typing import List
 from unittest.mock import patch
 
 from prometheus_client import CollectorRegistry
 
+from nucypher.blockchain.eth.signers.software import Web3Signer
+from nucypher.crypto.powers import TransactingPower
 from nucypher.utilities.prometheus.collector import (
     UrsulaInfoMetricsCollector,
     BlockchainMetricsCollector,
     StakerMetricsCollector,
     WorkerMetricsCollector,
-    CommitmentMadeEventMetricsCollector
+    MetricsCollector
 )
-from nucypher.utilities.prometheus.metrics import create_staking_events_metric_collectors
+from nucypher.utilities.prometheus.metrics import create_staking_events_metric_collectors, create_metrics_collectors
 from tests.constants import TEST_PROVIDER_URI
+from tests.utils.blockchain import TesterBlockchain
 
 
 def test_ursula_info_metrics_collector(test_registry,
@@ -57,7 +61,7 @@ def test_ursula_info_metrics_collector(test_registry,
 
     mode = 'running' if ursula._learning_task.running else 'stopped'
     learning_mode = collector_registry.get_sample_value('test_ursula_info_metrics_collector_node_discovery',
-                                              labels={'test_ursula_info_metrics_collector_node_discovery': f'{mode}'})
+                                                        labels={'test_ursula_info_metrics_collector_node_discovery': f'{mode}'})
     assert learning_mode == 1
 
 
@@ -130,28 +134,106 @@ def test_worker_metrics_collector(test_registry, blockchain_ursulas):
     assert worker_nunits == float(int(ursula.token_balance))
 
 
-def test_create_staking_events_metric_collectors(blockchain_ursulas):
+def test_staking_events_metric_collectors(testerchain, blockchain_ursulas):
     ursula = random.choice(blockchain_ursulas)
 
     collector_registry = CollectorRegistry()
-    prefix = 'test_create_staking_events_metric_collectors'
+    prefix = 'test_staking_events_metric_collectors'
+
     event_collectors = create_staking_events_metric_collectors(ursula=ursula, metrics_prefix=prefix)
+    initialize_collectors(metrics_collectors=event_collectors,
+                          testerchain=testerchain,
+                          collector_registry=collector_registry,
+                          prefix=prefix)
 
-    for collector in event_collectors:
-        if isinstance(collector, CommitmentMadeEventMetricsCollector):
-            continue  # skip
-        collector.initialize(metrics_prefix=prefix, registry=collector_registry)
-        collector.collect()
-
-    # Restake set
+    # Since collectors only initialized, check base state i.e. current values
+    # Restake
     restake_set = collector_registry.get_sample_value(f'{prefix}_restaking')
     assert restake_set == ursula.staking_agent.is_restaking(ursula.checksum_address)
 
-    # WindDown set
-    restake_set = collector_registry.get_sample_value(f'{prefix}_wind_down')
-    assert restake_set == ursula.staking_agent.is_winding_down(ursula.checksum_address)
+    # WindDown
+    windown_set = collector_registry.get_sample_value(f'{prefix}_wind_down')
+    assert windown_set == ursula.staking_agent.is_winding_down(ursula.checksum_address)
 
-    # Worker bonded
+    # Worker
     current_worker_is_me = collector_registry.get_sample_value(f'{prefix}_current_worker_is_me')
     assert current_worker_is_me == \
            (ursula.staking_agent.get_worker_from_staker(ursula.checksum_address) == ursula.worker_address)
+
+    staker_power = TransactingPower(account=ursula.checksum_address, signer=Web3Signer(testerchain.client))
+
+    #
+    # Update some values
+    #
+
+    # Change Restake
+    ursula.staking_agent.set_restaking(staker_power, not bool(restake_set))
+
+    # Change WindingDown
+    ursula.staking_agent.set_winding_down(staker_power, not bool(windown_set))
+
+    # Subsequent commit to next period
+    testerchain.time_travel(periods=1)
+    worker_power = TransactingPower(account=ursula.worker_address, signer=Web3Signer(testerchain.client))
+    ursula.staking_agent.commit_to_next_period(transacting_power=worker_power)
+    period_committed_to = ursula.staking_agent.get_current_period() + 1
+
+    # Mint
+    testerchain.time_travel(periods=2)
+    _receipt = ursula.staking_agent.mint(transacting_power=staker_power)
+    minted_block_number = testerchain.get_block_number()
+    minted_period = ursula.staking_agent.get_current_period() - 1  # mint is for the previous period
+
+    testerchain.time_travel(periods=1)
+
+    # Force update of metrics collection
+    for collector in event_collectors:
+        collector.collect()
+
+    #
+    # Check updated values
+    #
+
+    updated_restake_set = collector_registry.get_sample_value(f'{prefix}_restaking')
+    assert updated_restake_set == ursula.staking_agent.is_restaking(ursula.checksum_address)
+    assert updated_restake_set != restake_set
+
+    updated_windown_set = collector_registry.get_sample_value(f'{prefix}_wind_down')
+    assert updated_windown_set == ursula.staking_agent.is_winding_down(ursula.checksum_address)
+    assert updated_windown_set != windown_set
+
+    committed_event_period = collector_registry.get_sample_value(f'{prefix}_activity_confirmed_period')
+    assert committed_event_period == period_committed_to
+
+    minted_event_period = collector_registry.get_sample_value(f'{prefix}_mined_period')
+    minted_event_block_number = collector_registry.get_sample_value(f'{prefix}_mined_block_number')
+    assert minted_event_period == minted_period
+    assert minted_event_block_number == minted_block_number
+
+
+def test_all_metrics_collectors_sanity_collect(testerchain, blockchain_ursulas):
+    ursula = random.choice(blockchain_ursulas)
+
+    collector_registry = CollectorRegistry()
+    prefix = 'test_all_metrics_collectors'
+
+    metrics_collectors = create_metrics_collectors(ursula=ursula, metrics_prefix=prefix)
+    initialize_collectors(metrics_collectors=metrics_collectors,
+                          testerchain=testerchain,
+                          collector_registry=collector_registry,
+                          prefix=prefix)
+
+    for collector in metrics_collectors:
+        collector.collect()
+
+
+def initialize_collectors(metrics_collectors: List[MetricsCollector],
+                          testerchain: TesterBlockchain,
+                          collector_registry:
+                          CollectorRegistry, prefix: str) -> None:
+    with patch('nucypher.utilities.prometheus.collector.estimate_block_number_for_period',
+               autospec=True,
+               return_value=testerchain.get_block_number()):
+        # patch for initial block number used by CommitmentMadeEventMetricsCollector
+        for collector in metrics_collectors:
+            collector.initialize(metrics_prefix=prefix, registry=collector_registry)
