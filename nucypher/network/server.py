@@ -225,11 +225,9 @@ def _make_rest_app(datastore: Datastore, this_node, domain: str, log: Logger) ->
 
     @rest_app.route("/kFrag/<id_as_hex>", methods=['POST'])
     def set_policy(id_as_hex):
-        """
-        REST endpoint for setting a kFrag.
-        """
-        policy_message_kit = UmbralMessageKit.from_bytes(request.data)
+        """REST endpoint for setting a kFrag."""
 
+        policy_message_kit = UmbralMessageKit.from_bytes(request.data)
         alices_verifying_key = policy_message_kit.sender_verifying_key
         alice = _alice_class.from_public_keys(verifying_key=alices_verifying_key)
 
@@ -239,24 +237,21 @@ def _make_rest_app(datastore: Datastore, this_node, domain: str, log: Logger) ->
             # TODO: Perhaps we log this?  Essentially 355.
             return Response("Invalid Signature", status_code=400)
 
-        if not this_node.federated_only:
-            # TODO: This splitter probably belongs somewhere canonical.
-            from nucypher.policy.policies import Policy
-            policy_id_splitter = BytestringSplitter(Policy.POLICY_ID_LENGTH)
-            hrac, kfrag_bytes = policy_id_splitter(cleartext, return_remainder=True)
-
+        if this_node.federated_only:
+            kfrag_bytes = cleartext
+        else:
+            policy_id, kfrag_bytes = this_node.policy_id_splitter(cleartext, return_remainder=True)
             try:
-                this_node.verify_policy_payment(policy_id=hrac, timeout=this_node.synchronous_query_timeout)
+                this_node.verify_policy_payment(policy_id=policy_id)
             except this_node.UnpaidPolicy:
-                # Alice didn't pay.  Return response with that weird status code.
-                message = f"Policy {hrac.hex()} id unpaid"
+                message = f"Policy {policy_id.hex()} is unpaid."
                 this_node.suspicious_activities_witnessed['freeriders'].append((alice, message))
                 return Response(message, status=402)
-        else:
-            _tx = NO_BLOCKCHAIN_CONNECTION
-            kfrag_bytes = cleartext
-        kfrag = KFrag.from_bytes(kfrag_bytes)
+            except this_node.UnknownPolicy:
+                message = f"Policy {policy_id.hex()} is not a published policy."
+                return Response(message, status=404)
 
+        kfrag = KFrag.from_bytes(kfrag_bytes)
         if not kfrag.verify(signing_pubkey=alices_verifying_key):
             return Response(f"Signature on {kfrag} is invalid", status=403)
 

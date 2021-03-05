@@ -20,14 +20,13 @@ import os
 import pytest
 from eth_tester.exceptions import TransactionFailed
 
-from nucypher.blockchain.eth.constants import NULL_ADDRESS
+from nucypher.blockchain.eth.constants import NULL_ADDRESS, POLICY_ID_LENGTH
 
 DISABLED_FIELD = 0
 SPONSOR_FIELD = 1
 
 FEE_FIELD = 0
 
-POLICY_ID_LENGTH = 16
 policy_id = os.urandom(POLICY_ID_LENGTH)
 policy_id_2 = os.urandom(POLICY_ID_LENGTH)
 policy_id_3 = os.urandom(POLICY_ID_LENGTH)
