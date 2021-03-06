@@ -23,6 +23,7 @@ from nucypher.characters.unlawful import Amonia
 from nucypher.datastore.models import PolicyArrangement, TreasureMap as DatastoreTreasureMap
 from nucypher.datastore.datastore import RecordNotFound
 from nucypher.network.middleware import RestMiddleware
+from nucypher.policy.policies import Policy
 
 
 def test_policy_simple_sinpa(blockchain_ursulas, blockchain_alice, blockchain_bob, agency, testerchain):
@@ -35,7 +36,7 @@ def test_policy_simple_sinpa(blockchain_ursulas, blockchain_alice, blockchain_bo
     policy_end_datetime = maya.now() + datetime.timedelta(days=5)
     label = b"this_is_the_path_to_which_access_is_being_granted"
 
-    with pytest.raises(amonia.NotEnoughNodes):
+    with pytest.raises(Policy.EnactmentError):
         _bupkiss_policy = amonia.grant_without_paying(bob=blockchain_bob,
                                                       label=label,
                                                       m=2,

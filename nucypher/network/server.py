@@ -234,7 +234,8 @@ def _make_rest_app(datastore: Datastore, this_node, domain: str, log: Logger) ->
         try:
             cleartext = this_node.verify_from(alice, policy_message_kit, decrypt=True)
         except InvalidSignature:
-            # TODO: Perhaps we log this?  Essentially 355.
+            message = "Set policy request contains and invalid signature for alice."
+            this_node.suspicious_activities_witnessed['fraud'].append((alice, message))
             return Response("Invalid Signature", status_code=400)
 
         if this_node.federated_only:
@@ -249,6 +250,8 @@ def _make_rest_app(datastore: Datastore, this_node, domain: str, log: Logger) ->
                 return Response(message, status=402)
             except this_node.UnknownPolicy:
                 message = f"Policy {policy_id.hex()} is not a published policy."
+                # TODO: Is this really a "freerider", or is this just an honest mistake?
+                this_node.suspicious_activities_witnessed['freeriders'].append((alice, message))
                 return Response(message, status=404)
 
         kfrag = KFrag.from_bytes(kfrag_bytes)
@@ -260,8 +263,8 @@ def _make_rest_app(datastore: Datastore, this_node, domain: str, log: Logger) ->
                 return Response("Policy arrangement's signing key does not match sender's", status=403)
             policy_arrangement.kfrag = kfrag
 
-        # TODO: Sign the arrangement here.  #495
-        return ""  # TODO: Return A 200, with whatever policy metadata.
+        # TODO: Sign and return the arrangement here.  #495
+        return Response(status=200)
 
     @rest_app.route('/kFrag/<id_as_hex>', methods=["DELETE"])
     def revoke_arrangement(id_as_hex):
