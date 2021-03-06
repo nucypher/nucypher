@@ -294,8 +294,8 @@ def estimate_gas(analyzer: AnalyzeGas = None) -> None:
     #
     # Create policy
     #
-    policy_id_1 = os.urandom(int(Policy.POLICY_ID_LENGTH))
-    policy_id_2 = os.urandom(int(Policy.POLICY_ID_LENGTH))
+    policy_id_1 = os.urandom(int(Policy.ID_LENGTH))
+    policy_id_2 = os.urandom(int(Policy.ID_LENGTH))
     number_of_periods = 10
     rate = 100
     one_period = economics.hours_per_period * 60 * 60
@@ -370,9 +370,9 @@ def estimate_gas(analyzer: AnalyzeGas = None) -> None:
     #
     # Create policy with multiple pre-committed nodes
     #
-    policy_id_1 = os.urandom(int(Policy.POLICY_ID_LENGTH))
-    policy_id_2 = os.urandom(int(Policy.POLICY_ID_LENGTH))
-    policy_id_3 = os.urandom(int(Policy.POLICY_ID_LENGTH))
+    policy_id_1 = os.urandom(int(Policy.ID_LENGTH))
+    policy_id_2 = os.urandom(int(Policy.ID_LENGTH))
+    policy_id_3 = os.urandom(int(Policy.ID_LENGTH))
     number_of_periods = 100
     value = 3 * number_of_periods * rate
     current_timestamp = testerchain.w3.eth.getBlock('latest').timestamp
@@ -399,9 +399,9 @@ def estimate_gas(analyzer: AnalyzeGas = None) -> None:
     #
     # Create policy again without pre-committed nodes
     #
-    policy_id_1 = os.urandom(int(Policy.POLICY_ID_LENGTH))
-    policy_id_2 = os.urandom(int(Policy.POLICY_ID_LENGTH))
-    policy_id_3 = os.urandom(int(Policy.POLICY_ID_LENGTH))
+    policy_id_1 = os.urandom(int(Policy.ID_LENGTH))
+    policy_id_2 = os.urandom(int(Policy.ID_LENGTH))
+    policy_id_3 = os.urandom(int(Policy.ID_LENGTH))
     number_of_periods = 100
     value = number_of_periods * rate
     current_timestamp = testerchain.w3.eth.getBlock('latest').timestamp
