@@ -87,17 +87,19 @@ def test_exact_economics():
         assert int(365 ** 2 * reward_saturation * decay_half_life / log(2) / (1-multiplier) / expected_lock_duration_coefficient_2) == \
             expected_phase2_coefficient
 
+
+
     # After sanity checking, assemble expected test deployment parameters
     expected_deployment_parameters = (24,       # Hours in single period at genesis
-                                      24,       # Hours in single period
-                                      1053,     # Coefficient which modifies the rate at which the maximum issuance decays (d)
-                                      365,      # Numerator of the locking duration coefficient (k1)
-                                      730,      # Denominator of the locking duration coefficient (k2)
-                                      365,      # Max periods that will be additionally rewarded (awarded_periods)
-                                      2829579800000000000000000000,  # Total supply for the first phase
-                                      1002509479452054794520547,     # Max possible reward for one period for all stakers in the first phase
-                                      30,       # Min amount of periods during which tokens can be locked
-                                      15000000000000000000000,       # min locked NuNits
+                                      24 * 7,   # Hours in single period
+                                      150,     # Coefficient which modifies the rate at which the maximum issuance decays (d)
+                                      52,      # Numerator of the locking duration coefficient (k1)
+                                      52 * 2,  # Denominator of the locking duration coefficient (k2)
+                                      52,      # Max periods that will be additionally rewarded (awarded_periods)
+                                      2829579800000000000000000000,   # Total supply for the first phase
+                                      7036845384615384615384615,      # Max possible reward for one period for all stakers in the first phase
+                                      4,       # Min amount of periods during which tokens can be locked
+                                      15000000000000000000000,        # min locked NuNits
                                       30000000000000000000000000,     # max locked NuNits
                                       2)        # Min worker periods
     #
@@ -115,10 +117,10 @@ def test_exact_economics():
         assert e.erc20_total_supply == expected_total_supply
 
         # Check reward rates for the second phase
-        initial_rate = (e.erc20_total_supply - int(e.first_phase_total_supply)) * (e.lock_duration_coefficient_1 + 365) / \
+        initial_rate = (e.erc20_total_supply - int(e.first_phase_total_supply)) * (e.lock_duration_coefficient_1 + 52) / \
                        (e.issuance_decay_coefficient * e.lock_duration_coefficient_2)
         assert int(initial_rate) == int(e.first_phase_max_issuance)
-        assert Decimal(LOG2 / (e.token_halving * 365) * (e.erc20_total_supply - int(e.first_phase_total_supply))) == initial_rate
+        assert int(LOG2 / (e.token_halving * 52) * (e.erc20_total_supply - int(e.first_phase_total_supply))) == int(initial_rate)
 
         initial_rate_small = (e.erc20_total_supply - int(e.first_phase_total_supply)) * e.lock_duration_coefficient_1 / \
                              (e.issuance_decay_coefficient * e.lock_duration_coefficient_2)
@@ -137,7 +139,7 @@ def test_exact_economics():
         assert e.cumulative_rewards_at_period(0) == 0
 
         # Check phase 1 doesn't overshoot
-        switch_period = 5 * 365
+        switch_period = 5 * 52
         assert e.first_phase_final_period() == switch_period
         assert e.token_supply_at_period(period=switch_period) == expected_phase1_supply + expected_initial_supply
         assert e.token_supply_at_period(period=switch_period) < e.token_supply_at_period(period=switch_period + 1)
@@ -149,16 +151,16 @@ def test_exact_economics():
         # Last NuNit is minted after 188 years (or 68500 periods).
         # That's the year 2208, if token is launched in 2020.
         # 23rd century schizoid man!
-        assert expected_total_supply == e.token_supply_at_period(period=68500)
+        assert expected_total_supply == e.token_supply_at_period(period=68500//7)
 
         # After 1 year:
-        assert 1_365_915_960_000000000000000000 == e.token_supply_at_period(period=365)
-        assert 365_915_960_000000000000000000 == e.cumulative_rewards_at_period(period=365)
-        assert e.erc20_initial_supply + e.cumulative_rewards_at_period(365) == e.token_supply_at_period(period=365)
+        assert 1_365_915_960_000000000000000000 == e.token_supply_at_period(period=52)
+        assert 365_915_960_000000000000000000 == e.cumulative_rewards_at_period(period=52)
+        assert e.erc20_initial_supply + e.cumulative_rewards_at_period(52) == e.token_supply_at_period(period=52)
 
         # Checking that the supply function is monotonic in phase 1
         todays_supply = e.token_supply_at_period(period=0)
-        for t in range(68500):
+        for t in range(68500//7):
             tomorrows_supply = e.token_supply_at_period(period=t + 1)
             assert tomorrows_supply >= todays_supply
             todays_supply = tomorrows_supply
