@@ -56,12 +56,12 @@ class BaseEconomics:
     nunits_per_token = 10 ** __token_decimals  # Smallest unit designation
 
     # Period Definition
-    _default_hours_per_period = 24
+    _default_hours_per_period = 24 * 7
     _default_genesis_hours_per_period = 24
 
     # Time Constraints
     _default_minimum_worker_periods = 2
-    _default_minimum_locked_periods = 30  # 720 Hours minimum
+    _default_minimum_locked_periods = 4  # 28 days
 
     # Value Constraints
     _default_minimum_allowed_locked = NU(15_000, 'NU').to_nunits()
@@ -348,7 +348,7 @@ class StandardTokenEconomics(BaseEconomics):
         with localcontext() as ctx:
             ctx.prec = self._precision
 
-            one_year_in_periods = Decimal(ONE_YEAR_IN_HOURS / hours_per_period)
+            one_year_in_periods = ONE_YEAR_IN_HOURS // hours_per_period
 
             initial_supply = Decimal(initial_supply)
 
@@ -425,7 +425,7 @@ class StandardTokenEconomics(BaseEconomics):
             if t <= phase_switch_in_periods:
                 S_t = S_0 + t * I_s_per_period
             else:
-                one_year_in_periods = Decimal(ONE_YEAR_IN_HOURS / self.hours_per_period)
+                one_year_in_periods = ONE_YEAR_IN_HOURS // self.hours_per_period
                 S_p1 = self.first_phase_supply
                 T_half = self.token_halving  # in years
                 T_half_in_periods = T_half * one_year_in_periods
