@@ -23,7 +23,7 @@ from nucypher.crypto.powers import TransactingPower
 
 # Experimental max error
 MAX_ERROR_FIRST_PHASE = 1e-20
-MAX_ERROR_SECOND_PHASE = 3e-5
+MAX_ERROR_SECOND_PHASE = 5e-3
 MAX_PERIODS_SECOND_PHASE = 100
 
 
