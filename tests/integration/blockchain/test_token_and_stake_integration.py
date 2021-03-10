@@ -250,13 +250,13 @@ def test_stake_validation(mock_testerchain, token_economics, mock_staking_agent)
         validate_prolong(stake=stake, additional_periods=1)
 
     stake = make_sub_stake(first_locked_period=current_period - 2,
-                           final_locked_period=current_period + 10,
+                           final_locked_period=current_period + 2,
                            value=nu)
     with pytest.raises(Stake.StakingError):
         validate_prolong(stake=stake, additional_periods=1)
     with pytest.raises(Stake.StakingError):
-        validate_prolong(stake=stake, additional_periods=token_economics.minimum_locked_periods - 11)
-    validate_prolong(stake=stake, additional_periods=token_economics.minimum_locked_periods - 10)
+        validate_prolong(stake=stake, additional_periods=token_economics.minimum_locked_periods - 3)
+    validate_prolong(stake=stake, additional_periods=token_economics.minimum_locked_periods - 2)
 
     # Validate increase method
     stake = make_sub_stake(first_locked_period=current_period - 2,

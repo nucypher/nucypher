@@ -348,7 +348,7 @@ class StandardTokenEconomics(BaseEconomics):
         with localcontext() as ctx:
             ctx.prec = self._precision
 
-            one_year_in_periods = ONE_YEAR_IN_HOURS // hours_per_period
+            one_year_in_periods = Decimal(ONE_YEAR_IN_HOURS / hours_per_period)
 
             initial_supply = Decimal(initial_supply)
 
@@ -392,7 +392,7 @@ class StandardTokenEconomics(BaseEconomics):
                          issuance_decay_coefficient=issuance_decay_coefficient,
                          lock_duration_coefficient_1=lock_duration_coefficient_1,
                          lock_duration_coefficient_2=lock_duration_coefficient_2,
-                         maximum_rewarded_periods=maximum_rewarded_periods,
+                         maximum_rewarded_periods=int(maximum_rewarded_periods),
                          hours_per_period=hours_per_period,
         **kwargs)
 
@@ -425,8 +425,8 @@ class StandardTokenEconomics(BaseEconomics):
             if t <= phase_switch_in_periods:
                 S_t = S_0 + t * I_s_per_period
             else:
-                one_year_in_periods = ONE_YEAR_IN_HOURS // self.hours_per_period
-                S_p1 = self.first_phase_supply
+                one_year_in_periods = Decimal(ONE_YEAR_IN_HOURS / self.hours_per_period)
+                S_p1 = self.first_phase_max_issuance * phase_switch_in_periods
                 T_half = self.token_halving  # in years
                 T_half_in_periods = T_half * one_year_in_periods
                 t = t - phase_switch_in_periods
