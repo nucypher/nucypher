@@ -41,6 +41,7 @@ def test_exact_economics():
     #
     # Expected Output
     #
+    one_year_in_periods = 365 / 7
 
     # Supply
     expected_total_supply = 3885390081748248632541961138
@@ -55,12 +56,13 @@ def test_exact_economics():
     # Staking 2 phase
     decay_half_life = 2
     multiplier = 0.5
-    expected_lock_duration_coefficient_1 = 365
+    expected_lock_duration_coefficient_1 = one_year_in_periods
     expected_lock_duration_coefficient_2 = 2 * expected_lock_duration_coefficient_1
-    expected_phase2_coefficient = 1053
+    expected_phase2_coefficient = 150
     expected_minting_coefficient = expected_phase2_coefficient * expected_lock_duration_coefficient_2
 
-    assert expected_lock_duration_coefficient_1 * decay_half_life == round(expected_minting_coefficient * log(2) * multiplier / 365)
+    assert int(expected_lock_duration_coefficient_1 * decay_half_life) == \
+           round(expected_minting_coefficient * log(2) * multiplier / one_year_in_periods)
 
     #
     # Sanity
@@ -83,8 +85,8 @@ def test_exact_economics():
         # Sanity check expected testing outputs
         assert Decimal(expected_total_supply) / expected_initial_supply == expected_supply_ratio
         assert expected_reward_supply == expected_total_supply - expected_initial_supply
-        assert reward_saturation * 365 * multiplier == expected_lock_duration_coefficient_1 * (1 - multiplier)
-        assert int(365 ** 2 * reward_saturation * decay_half_life / log(2) / (1-multiplier) / expected_lock_duration_coefficient_2) == \
+        assert reward_saturation * one_year_in_periods * multiplier == expected_lock_duration_coefficient_1 * (1 - multiplier)
+        assert int(one_year_in_periods ** 2 * reward_saturation * decay_half_life / log(2) / (1-multiplier) / expected_lock_duration_coefficient_2) == \
             expected_phase2_coefficient
 
 
@@ -97,7 +99,7 @@ def test_exact_economics():
                                       52 * 2,  # Denominator of the locking duration coefficient (k2)
                                       52,      # Max periods that will be additionally rewarded (awarded_periods)
                                       2829579800000000000000000000,   # Total supply for the first phase
-                                      7036845384615384615384615,      # Max possible reward for one period for all stakers in the first phase
+                                      7017566356164383151812537,      # Max possible reward for one period for all stakers in the first phase
                                       4,       # Min amount of periods during which tokens can be locked
                                       15000000000000000000000,        # min locked NuNits
                                       30000000000000000000000000,     # max locked NuNits
@@ -111,16 +113,18 @@ def test_exact_economics():
 
     with localcontext() as ctx:
         ctx.prec = StandardTokenEconomics._precision
+        one_year_in_periods = Decimal(one_year_in_periods)
 
         # Check that total_supply calculated correctly
         assert Decimal(e.erc20_total_supply) / e.initial_supply == expected_supply_ratio
         assert e.erc20_total_supply == expected_total_supply
 
         # Check reward rates for the second phase
-        initial_rate = (e.erc20_total_supply - int(e.first_phase_total_supply)) * (e.lock_duration_coefficient_1 + 52) / \
+        initial_rate = (e.erc20_total_supply - int(e.first_phase_total_supply)) * (e.lock_duration_coefficient_1 + one_year_in_periods) / \
                        (e.issuance_decay_coefficient * e.lock_duration_coefficient_2)
         assert int(initial_rate) == int(e.first_phase_max_issuance)
-        assert int(LOG2 / (e.token_halving * 52) * (e.erc20_total_supply - int(e.first_phase_total_supply))) == int(initial_rate)
+        assert int(LOG2 / (e.token_halving * one_year_in_periods) * (e.erc20_total_supply - int(e.first_phase_total_supply))) == \
+               int(initial_rate)
 
         initial_rate_small = (e.erc20_total_supply - int(e.first_phase_total_supply)) * e.lock_duration_coefficient_1 / \
                              (e.issuance_decay_coefficient * e.lock_duration_coefficient_2)
@@ -141,26 +145,29 @@ def test_exact_economics():
         # Check phase 1 doesn't overshoot
         switch_period = 5 * 52
         assert e.first_phase_final_period() == switch_period
-        assert e.token_supply_at_period(period=switch_period) == expected_phase1_supply + expected_initial_supply
+        assert e.token_supply_at_period(period=switch_period) <= expected_phase1_supply + expected_initial_supply
+        assert e.token_supply_at_period(period=switch_period + 1) > expected_phase1_supply + expected_initial_supply
         assert e.token_supply_at_period(period=switch_period) < e.token_supply_at_period(period=switch_period + 1)
 
         assert e.rewards_during_period(period=1) == round(e.first_phase_max_issuance)
         assert e.rewards_during_period(period=switch_period) == round(e.first_phase_max_issuance)
         assert e.rewards_during_period(period=switch_period + 1) < int(e.first_phase_max_issuance)
 
-        # Last NuNit is minted after 188 years (or 68500 periods).
+        # Last NuNit is minted after 188 years (or 9800 periods).
         # That's the year 2208, if token is launched in 2020.
         # 23rd century schizoid man!
-        assert expected_total_supply == e.token_supply_at_period(period=68500//7)
+        assert abs(expected_total_supply - e.token_supply_at_period(period=9800)) < e.first_phase_max_issuance
+        assert e.erc20_total_supply == expected_total_supply
 
         # After 1 year:
-        assert 1_365_915_960_000000000000000000 == e.token_supply_at_period(period=52)
-        assert 365_915_960_000000000000000000 == e.cumulative_rewards_at_period(period=52)
+        expected_reward_one_year = 52 * 7017566356164383151812537
+        assert abs((expected_initial_supply + expected_reward_one_year) - e.token_supply_at_period(period=52)) <= 100
+        assert abs(expected_reward_one_year - e.cumulative_rewards_at_period(period=52)) <= 100
         assert e.erc20_initial_supply + e.cumulative_rewards_at_period(52) == e.token_supply_at_period(period=52)
 
         # Checking that the supply function is monotonic in phase 1
         todays_supply = e.token_supply_at_period(period=0)
-        for t in range(68500//7):
+        for t in range(9800):
             tomorrows_supply = e.token_supply_at_period(period=t + 1)
             assert tomorrows_supply >= todays_supply
             todays_supply = tomorrows_supply
