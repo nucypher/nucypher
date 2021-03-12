@@ -364,7 +364,9 @@ class Policy(ABC):
 
         for ursula, kfrag in zip(arrangements, self.kfrags):
             arrangement = arrangements[ursula]
-            treasure_map.add_kfrag(ursula, kfrag, self.alice.stamp, arrangement.id)
+            treasure_map.add_kfrag(ursula=ursula,
+                                   kfrag=kfrag,
+                                   signer_stamp=self.alice.stamp)
 
         treasure_map.prepare_for_publication(bob_encrypting_key=self.bob.public_keys(DecryptingPower),
                                              bob_verifying_key=self.bob.public_keys(SigningPower),
@@ -422,7 +424,8 @@ class Policy(ABC):
                                                arrangements=arrangements)
         treasure_map_publisher = self._make_publisher(treasure_map=treasure_map,
                                                       network_middleware=network_middleware)
-        revocation_kit = RevocationKit(treasure_map, self.alice.stamp)
+
+        revocation_kit = RevocationKit(treasure_map=treasure_map, signer=self.alice.stamp)  # TODO: Signal revocation without using encrypted kfrag
 
         enacted_policy = EnactedPolicy(self._id,
                                        self.hrac,
