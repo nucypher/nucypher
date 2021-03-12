@@ -620,7 +620,7 @@ class Bob(Character):
                                                                 map_identifier)
 
         self._try_orient(treasure_map, alice_verifying_key)
-        self.treasure_maps[map_identifier] = treasure_map # TODO: make a part of _try_orient()?
+        self.treasure_maps[map_identifier] = treasure_map  # TODO: make a part of _try_orient()?
         return treasure_map
 
     def make_compass_for_alice(self, alice):
@@ -685,6 +685,7 @@ class Bob(Character):
 
     def work_orders_for_capsules(self,
                                  *capsules,
+                                 label: bytes,
                                  alice_verifying_key: UmbralPublicKey,
                                  treasure_map: 'TreasureMap',
                                  num_ursulas: int = None,
@@ -700,7 +701,7 @@ class Bob(Character):
 
         random_walk = list(treasure_map)
         shuffle(random_walk)  # Mutates list in-place
-        for ursula_address, arrangement_id in random_walk:
+        for ursula_address, encrypted_kfrag in random_walk:
 
             capsules_to_include = []
             for capsule in capsules:
@@ -715,9 +716,9 @@ class Bob(Character):
 
             # TODO: Bob crashes if he hasn't learned about this Ursula #999
             ursula = self.known_nodes[ursula_address]
-            encrypted_kfrag = bytes(treasure_map[ursula_address])
+            hrac = self.construct_policy_hrac(verifying_key=alice_verifying_key, label=label)
             if capsules_to_include:
-                work_order = WorkOrder.construct_by_bob(arrangement_id=arrangement_id,
+                work_order = WorkOrder.construct_by_bob(hrac=hrac,
                                                         alice_verifying=alice_verifying_key,
                                                         capsules=capsules_to_include,
                                                         ursula=ursula,

@@ -28,7 +28,7 @@ from constant_sorrow.constants import CFRAG_NOT_RETAINED, NO_DECRYPTION_PERFORME
 from cryptography.hazmat.backends.openssl import backend
 from cryptography.hazmat.primitives import hashes
 from eth_utils import to_canonical_address, to_checksum_address
-from typing import Optional, Tuple
+from typing import Optional, Tuple, Callable
 from umbral.config import default_params
 from umbral.keys import UmbralPublicKey
 from umbral.pre import Capsule
@@ -111,8 +111,7 @@ class TreasureMap:
                                     version=(bytes, 1),
                                     public_signature=Signature,
                                     hrac=(bytes, HRAC_LENGTH),
-                                    message_kit=(UmbralMessageKit, VariableLengthBytestring),
-                                    )
+                                    message_kit=(UmbralMessageKit, VariableLengthBytestring))
 
     def prepare_for_publication(self,
                                 bob_encrypting_key,
@@ -146,14 +145,15 @@ class TreasureMap:
     def _set_id(self):
         self._id = keccak_digest(bytes(self._verifying_key) + bytes(self._hrac)).hex()
 
-    def _set_payload(self):
-        self._payload = self.version + self._public_signature + self._hrac + bytes(
-            VariableLengthBytestring(self.message_kit.to_bytes()))
+    def _set_payload(self) -> None:
+        self._payload = self.version \
+                        + self._public_signature \
+                        + self._hrac \
+                        + bytes(VariableLengthBytestring(self.message_kit.to_bytes()))
 
     def __bytes__(self):
         if self._payload is None:
             self._set_payload()
-
         return self._payload
 
     @property
@@ -177,24 +177,19 @@ class TreasureMap:
             return NO_DECRYPTION_PERFORMED
         else:
             nodes_as_bytes = b""
-            for ursula_address, (encrypted_kfrag, arrangement_id) in self.destinations.items():
+            for ursula_address, encrypted_kfrag in self.destinations.items():
                 node_id = to_canonical_address(ursula_address)
                 kfrag = bytes(VariableLengthBytestring(bytes(encrypted_kfrag)))
-                nodes_as_bytes += node_id + kfrag + arrangement_id
+                nodes_as_bytes += (node_id + kfrag)
             return nodes_as_bytes
 
-    def add_arrangement(self, ursula, arrangement):
-        if self.destinations == NO_DECRYPTION_PERFORMED:
-            raise TypeError("This TreasureMap is encrypted.  You can't add another node without decrypting it.")
-        self.destinations[ursula.checksum_address] = arrangement.id  # TODO: 1995
-
-    def add_kfrag(self, ursula, kfrag, signer_stamp: SignatureStamp, arrangement_id):
+    def add_kfrag(self, ursula, kfrag, signer_stamp: SignatureStamp):
         if self.destinations == NO_DECRYPTION_PERFORMED:
             raise TypeError("This TreasureMap is encrypted.  You can't add another node without decrypting it.")
         encrypted_kfrag = encrypt_and_sign(ursula.public_keys(DecryptingPower),
                                            plaintext=bytes(kfrag),
                                            signer=signer_stamp)[0]
-        self.destinations[ursula.checksum_address] = (encrypted_kfrag, arrangement_id)
+        self.destinations[ursula.checksum_address] = encrypted_kfrag
 
     def public_id(self) -> str:
         """
@@ -223,7 +218,7 @@ class TreasureMap:
         else:
             raise self.InvalidSignature("This TreasureMap is not properly publicly signed by Alice.")
 
-    def orient(self, compass):
+    def orient(self, compass: Callable):
         """
         When Bob receives the TreasureMap, he'll pass a compass (a callable which can verify and decrypt the
         payload message kit).
@@ -231,8 +226,7 @@ class TreasureMap:
         try:
             map_in_the_clear = compass(message_kit=self.message_kit)
         except Character.InvalidSignature:
-            raise self.InvalidSignature(
-                "This TreasureMap does not contain the correct signature from Alice to Bob.")
+            raise self.InvalidSignature("This TreasureMap does not contain the correct signature from Alice to Bob.")
         else:
             self._m = map_in_the_clear[0]
             try:
@@ -352,7 +346,7 @@ class WorkOrder:
 
     def __init__(self,
                  bob: Bob,
-                 arrangement_id,
+                 hrac: bytes,
                  encrypted_kfrag: bytes,
                  alice_address: bytes,
                  tasks: dict,
@@ -361,7 +355,7 @@ class WorkOrder:
                  blockhash=None
                  ) -> None:
         self.bob = bob
-        self.arrangement_id = arrangement_id
+        self.hrac=hrac
         self.encrypted_kfrag = encrypted_kfrag
         self.alice_address = alice_address
         self.tasks = tasks
@@ -372,7 +366,7 @@ class WorkOrder:
 
     def __repr__(self):
         return "WorkOrder for hrac {hrac}: (capsules: {capsule_reprs}) for {node}".format(
-            hrac=self.arrangement_id.hex()[:6],
+            hrac=self.hrac,
             capsule_reprs=self.tasks.keys(),
             node=self.ursula
         )
@@ -384,7 +378,7 @@ class WorkOrder:
         return len(self.tasks)
 
     @classmethod
-    def construct_by_bob(cls, arrangement_id, alice_verifying, capsules, ursula, bob, encrypted_kfrag):
+    def construct_by_bob(cls, hrac, alice_verifying, capsules, ursula, bob, encrypted_kfrag):
         ursula.mature()
         alice_address = canonical_address_from_umbral_key(alice_verifying)
 
@@ -410,7 +404,7 @@ class WorkOrder:
         receipt_signature = bob.stamp(receipt_bytes)
 
         return cls(bob=bob,
-                   arrangement_id=arrangement_id,
+                   hrac=hrac,
                    encrypted_kfrag=encrypted_kfrag,
                    tasks=tasks,
                    receipt_signature=receipt_signature,
@@ -556,22 +550,24 @@ class Revocation:
     """
     revocation_splitter = BytestringSplitter((bytes, 7), (bytes, 32), Signature)
 
-    def __init__(self, arrangement_id: bytes,
+    def __init__(self,
+                 encrypted_kfrag: bytes,
                  signer: 'SignatureStamp' = None,
-                 signature: Signature = None):
+                 signature: Signature = None
+                 ):
 
         self.prefix = b'REVOKE-'
-        self.arrangement_id = arrangement_id
+        self.encrypted_kfrag = encrypted_kfrag
 
         if not (bool(signer) ^ bool(signature)):
             raise ValueError("Either pass a signer or a signature; not both.")
         elif signer:
-            self.signature = signer(self.prefix + self.arrangement_id)
+            self.signature = signer(self.prefix + bytes(self.encrypted_kfrag))
         elif signature:
             self.signature = signature
 
     def __bytes__(self):
-        return self.prefix + self.arrangement_id + bytes(self.signature)
+        return self.prefix + self.encrypted_kfrag + bytes(self.signature)
 
     def __repr__(self):
         return bytes(self)
@@ -587,11 +583,10 @@ class Revocation:
         _, arrangement_id, signature = cls.revocation_splitter(revocation_bytes)
         return cls(arrangement_id, signature=signature)
 
-    def verify_signature(self, alice_pubkey: 'UmbralPublicKey'):
+    def verify_signature(self, alice_pubkey: 'UmbralPublicKey') -> bool:
         """
         Verifies the revocation was from the provided pubkey.
         """
-        if not self.signature.verify(self.prefix + self.arrangement_id, alice_pubkey):
-            raise InvalidSignature(
-                "Revocation has an invalid signature: {}".format(self.signature))
+        if not self.signature.verify(self.prefix + self.encrypted_kfrag, alice_pubkey):
+            raise InvalidSignature("Revocation has an invalid signature: {}".format(self.signature))
         return True
