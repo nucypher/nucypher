@@ -58,7 +58,8 @@ def test_bob_already_knows_all_nodes_in_treasure_map(enacted_federated_policy,
         federated_bob.remember_node(ursula)
 
     # Now, Bob can get the TreasureMap all by himself, and doesn't need a side channel.
-    the_map = federated_bob.get_treasure_map(federated_alice.stamp, enacted_federated_policy.label)
+    the_map = federated_bob.get_treasure_map(alice_verifying_key=federated_alice.stamp,
+                                             label=enacted_federated_policy.label)
     unknown, known = federated_bob.peek_at_treasure_map(treasure_map=the_map)
 
     # He finds that he didn't need to discover any new nodes...
@@ -152,6 +153,7 @@ def test_bob_can_issue_a_work_order_to_a_specific_ursula(enacted_federated_polic
                                  verifying=federated_alice.stamp.as_umbral_pubkey())
     work_orders, _ = federated_bob.work_orders_for_capsules(
         capsule,
+        label=enacted_federated_policy.label,
         treasure_map=treasure_map,
         alice_verifying_key=federated_alice.stamp.as_umbral_pubkey(),
         num_ursulas=1)
@@ -165,6 +167,7 @@ def test_bob_can_issue_a_work_order_to_a_specific_ursula(enacted_federated_polic
     # This time, we'll tell Bob to cache it.
     retained_work_orders, _ = federated_bob.work_orders_for_capsules(
         capsule,
+        label=enacted_federated_policy.label,
         treasure_map=treasure_map,
         alice_verifying_key=federated_alice.stamp.as_umbral_pubkey(),
         num_ursulas=1)
