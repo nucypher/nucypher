@@ -28,6 +28,12 @@ import re
 import tabulate
 import time
 from twisted.logger import ILogObserver, globalLogPublisher, jsonFileLogObserver
+from web3.contract import Contract
+
+from nucypher.blockchain.eth.deployers import StakingEscrowDeployer, PolicyManagerDeployer
+from nucypher.blockchain.eth.registry import InMemoryContractRegistry
+from nucypher.blockchain.eth.signers.software import Web3Signer
+from nucypher.crypto.powers import TransactingPower
 from umbral.keys import UmbralPrivateKey
 from umbral.signing import Signer
 from unittest.mock import Mock
@@ -40,7 +46,7 @@ from nucypher.blockchain.eth.agents import (
     PolicyManagerAgent,
     StakingEscrowAgent
 )
-from nucypher.blockchain.eth.constants import NUCYPHER_CONTRACT_NAMES
+from nucypher.blockchain.eth.constants import NUCYPHER_CONTRACT_NAMES, NULL_ADDRESS
 from nucypher.crypto.signing import SignatureStamp
 from nucypher.exceptions import DevelopmentInstallationRequired
 from nucypher.policy.policies import Policy
@@ -590,6 +596,151 @@ def estimate_gas(analyzer: AnalyzeGas = None) -> None:
     transact_and_log(f"Make a commitment + mint + re-stake ({number_of_sub_stakes} sub-stakes)",
                      staker_functions.commitToNextPeriod(),
                      {'from': staker4})
+
+    print("********* Estimates of migration *********")
+
+    registry = InMemoryContractRegistry()
+    deployer_power = TransactingPower(signer=Web3Signer(testerchain.client),
+                                      account=testerchain.etherbase_account)
+
+    def deploy_contract(contract_name, *args, **kwargs):
+        return testerchain.deploy_contract(deployer_power,
+                                           registry,
+                                           contract_name,
+                                           *args,
+                                           **kwargs)
+
+    token_economics = StandardTokenEconomics(genesis_hours_per_period=StandardTokenEconomics._default_hours_per_period,
+                                             hours_per_period=2 * StandardTokenEconomics._default_hours_per_period)
+
+    token, _ = deploy_contract('NuCypherToken', _totalSupplyOfTokens=token_economics.erc20_total_supply)
+    # Deploy Adjudicator mock
+    adjudicator, _ = deploy_contract('AdjudicatorForStakingEscrowMock', token_economics.reward_coefficient)
+
+    # Deploy old StakingEscrow contract
+    deploy_args = token_economics.staking_deployment_parameters
+    deploy_args = (deploy_args[0], *deploy_args[2:])
+    escrow_old_library, _ = deploy_contract(
+        'StakingEscrowOld',
+        token.address,
+        *deploy_args,
+        False  # testContract
+    )
+    escrow_dispatcher, _ = deploy_contract('Dispatcher', escrow_old_library.address)
+
+    escrow = testerchain.client.get_contract(
+        abi=escrow_old_library.abi,
+        address=escrow_dispatcher.address,
+        ContractFactoryClass=Contract)
+
+    # Deploy old PolicyManager contract
+    policy_manager_old_library, _ = deploy_contract(contract_name='PolicyManagerOld', _escrow=escrow.address)
+    policy_manager_dispatcher, _ = deploy_contract('Dispatcher', policy_manager_old_library.address)
+
+    policy_manager = testerchain.client.get_contract(
+        abi=policy_manager_old_library.abi,
+        address=policy_manager_dispatcher.address,
+        ContractFactoryClass=Contract)
+
+    tx = adjudicator.functions.setStakingEscrow(escrow.address).transact()
+    testerchain.wait_for_receipt(tx)
+    tx = escrow.functions.setPolicyManager(policy_manager.address).transact()
+    testerchain.wait_for_receipt(tx)
+    tx = escrow.functions.setAdjudicator(adjudicator.address).transact()
+    testerchain.wait_for_receipt(tx)
+
+    # Initialize Escrow contract
+    tx = token.functions.approve(escrow.address, token_economics.erc20_reward_supply).transact()
+    testerchain.wait_for_receipt(tx)
+    tx = escrow.functions.initialize(token_economics.erc20_reward_supply, testerchain.etherbase_account).transact()
+    testerchain.wait_for_receipt(tx)
+
+    # Prepare stakers
+    stakers = (staker1, staker2, staker3, staker4)
+    for staker in stakers:
+        max_stake_size = token_economics.maximum_allowed_locked
+        tx = token.functions.transfer(staker, max_stake_size).transact()
+        testerchain.wait_for_receipt(tx)
+        tx = token.functions.approve(escrow.address, max_stake_size).transact({'from': staker})
+        testerchain.wait_for_receipt(tx)
+
+    sub_stakes_1 = 2
+    duration = token_economics.minimum_locked_periods
+    stake_size = token_economics.minimum_allowed_locked
+    for staker in (staker1, staker3):
+        for i in range(1, sub_stakes_1 + 1):
+            tx = escrow.functions.deposit(staker, stake_size, duration * i).transact({'from': staker})
+            testerchain.wait_for_receipt(tx)
+    sub_stakes_2 = 24
+    for staker in (staker2, staker4):
+        for i in range(1, sub_stakes_2 + 1):
+            tx = escrow.functions.deposit(staker, stake_size, duration * i).transact({'from': staker})
+            testerchain.wait_for_receipt(tx)
+
+    for staker in stakers:
+        tx = escrow.functions.bondWorker(staker).transact({'from': staker})
+        testerchain.wait_for_receipt(tx)
+
+    for i in range(duration):
+        tx = escrow.functions.commitToNextPeriod().transact({'from': staker1})
+        testerchain.wait_for_receipt(tx)
+        tx = escrow.functions.commitToNextPeriod().transact({'from': staker3})
+        testerchain.wait_for_receipt(tx)
+        if i % 2 == 0:
+            tx = escrow.functions.commitToNextPeriod().transact({'from': staker2})
+            testerchain.wait_for_receipt(tx)
+            tx = escrow.functions.commitToNextPeriod().transact({'from': staker4})
+            testerchain.wait_for_receipt(tx)
+        testerchain.time_travel(periods=1, periods_base=token_economics.genesis_seconds_per_period)
+
+    ##########
+    # Deploy new version of contracts
+    ##########
+    deploy_args = token_economics.staking_deployment_parameters
+    escrow_library, _ = deploy_contract(
+        'StakingEscrow',
+        token.address,
+        policy_manager.address,
+        adjudicator.address,
+        NULL_ADDRESS,
+        *deploy_args)
+    escrow = testerchain.client.get_contract(
+        abi=escrow_library.abi,
+        address=escrow_dispatcher.address,
+        ContractFactoryClass=Contract)
+
+    policy_manager_library, _ = deploy_contract(contract_name='PolicyManager',
+                                                _escrowDispatcher=escrow.address,
+                                                _escrowImplementation=escrow_library.address)
+
+    tx = escrow_dispatcher.functions.upgrade(escrow_library.address).transact()
+    testerchain.wait_for_receipt(tx)
+    tx = policy_manager_dispatcher.functions.upgrade(policy_manager_library.address).transact()
+    testerchain.wait_for_receipt(tx)
+
+    for staker in (staker1, staker2):
+        downtime_length = escrow.functions.getPastDowntimeLength(staker).call()
+        sub_stakes_length = escrow.functions.getSubStakesLength(staker).call()
+        transact_and_log(f"Migrate with {sub_stakes_length} sub-stakes and {downtime_length} downtimes",
+                         escrow.functions.migrate(staker),
+                         {'from': staker})
+        downtime_length = escrow.functions.getPastDowntimeLength(staker).call()
+        sub_stakes_length = escrow.functions.getSubStakesLength(staker).call()
+        transact_and_log(f"Commit after migration with {sub_stakes_length} sub-stakes and {downtime_length} downtimes",
+                         escrow.functions.commitToNextPeriod(),
+                         {'from': staker})
+
+    for staker in (staker3, staker4):
+        downtime_length = escrow.functions.getPastDowntimeLength(staker).call()
+        sub_stakes_length = escrow.functions.getSubStakesLength(staker).call()
+        transact_and_log(
+            f"Commit together with migration with {sub_stakes_length} sub-stakes and {downtime_length} downtimes",
+            escrow.functions.commitToNextPeriod(),
+            {'from': staker})
+
+    transact_and_log(f"Dummy migrate call",
+                     escrow.functions.migrate(staker1),
+                     {'from': staker1})
 
     print("********* All Done! *********")
 

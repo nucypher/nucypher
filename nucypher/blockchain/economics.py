@@ -56,6 +56,7 @@ class BaseEconomics:
 
     # Period Definition
     _default_hours_per_period = 24
+    _default_genesis_hours_per_period = 24
 
     # Time Constraints
     _default_minimum_worker_periods = 2
@@ -99,6 +100,7 @@ class BaseEconomics:
                  maximum_rewarded_periods: int,
                  first_phase_supply: int,
                  first_phase_max_issuance: int,
+                 genesis_hours_per_period: int = _default_genesis_hours_per_period,
                  hours_per_period: int = _default_hours_per_period,
                  minimum_locked_periods: int = _default_minimum_locked_periods,
                  minimum_allowed_locked: int = _default_minimum_allowed_locked,
@@ -142,6 +144,7 @@ class BaseEconomics:
         :param maximum_rewarded_periods: (kmax) Number of periods beyond which a stake's lock duration
         no longer increases the subsidy it receives. kmax = reward_saturation * 365 where default reward_saturation = 1.
         See Equation 8 in Staking Protocol & Economics paper.
+        :param genesis_hours_per_period: Hours in single period at genesis
         :param hours_per_period: Hours in single period
         :param minimum_locked_periods: Min amount of periods during which tokens can be locked
         :param minimum_allowed_locked: Min amount of tokens that can be locked
@@ -182,11 +185,13 @@ class BaseEconomics:
         self.lock_duration_coefficient_1 = lock_duration_coefficient_1
         self.lock_duration_coefficient_2 = lock_duration_coefficient_2
         self.maximum_rewarded_periods = maximum_rewarded_periods
+        self.genesis_hours_per_period = genesis_hours_per_period
         self.hours_per_period = hours_per_period
         self.minimum_locked_periods = minimum_locked_periods
         self.minimum_allowed_locked = minimum_allowed_locked
         self.maximum_allowed_locked = maximum_allowed_locked
         self.minimum_worker_periods = minimum_worker_periods
+        self.genesis_seconds_per_period = genesis_hours_per_period * 60 * 60  # Genesis seconds in single period
         self.seconds_per_period = hours_per_period * 60 * 60  # Seconds in single period
 
         #
@@ -217,6 +222,7 @@ class BaseEconomics:
         deploy_parameters = (
 
             # Period
+            self.genesis_hours_per_period,  # Hours in single period at genesis
             self.hours_per_period,  # Hours in single period
 
             # Coefficients
@@ -461,8 +467,10 @@ class EconomicsFactory:
 
         # Staking Escrow
         staking_parameters = list(staking_agent.staking_parameters())
+        genesis_seconds_per_period = staking_parameters.pop(0)
         seconds_per_period = staking_parameters.pop(0)
-        staking_parameters.insert(6, seconds_per_period // 60 // 60)  # hours_per_period
+        staking_parameters.insert(6, genesis_seconds_per_period // 60 // 60)  # genesis_hours_per_period
+        staking_parameters.insert(7, seconds_per_period // 60 // 60)  # hours_per_period
         minting_coefficient = staking_parameters[0]
         lock_duration_coefficient_2 = staking_parameters[2]
         first_phase_total_supply = staking_parameters[4]

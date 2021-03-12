@@ -34,6 +34,7 @@ def token_economics():
                               lock_duration_coefficient_1=4,
                               lock_duration_coefficient_2=8,
                               maximum_rewarded_periods=4,
+                              genesis_hours_per_period=1,
                               hours_per_period=1,
                               minimum_locked_periods=2,
                               minimum_allowed_locked=100,
@@ -81,8 +82,8 @@ def escrow_contract(testerchain,
         deploy_parameters = list(token_economics.staking_deployment_parameters)
         deploy_parameters[-2] = max_allowed_locked_tokens
         if disable_reward:
-            deploy_parameters[5] = 0
             deploy_parameters[6] = 0
+            deploy_parameters[7] = 0
 
         contract, _ = deploy_contract('EnhancedStakingEscrow',
                                       token.address,

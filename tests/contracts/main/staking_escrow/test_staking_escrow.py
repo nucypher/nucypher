@@ -1282,7 +1282,7 @@ def test_staking_from_worklock(testerchain, token, worklock, escrow_contract, to
     assert token.functions.balanceOf(escrow.address).call() == 0
 
     # Can claim before initialization
-    wind_down, _re_stake, _measure_work, _snapshots = escrow.functions.getFlags(staker1).call()
+    wind_down, _re_stake, _measure_work, _snapshots, _migrated = escrow.functions.getFlags(staker1).call()
     assert not wind_down
     current_period = escrow.functions.getCurrentPeriod().call()
     tx = worklock.functions.depositFromWorkLock(staker1, value, duration).transact()
@@ -1292,7 +1292,7 @@ def test_staking_from_worklock(testerchain, token, worklock, escrow_contract, to
     assert escrow.functions.getLockedTokens(staker1, 1).call() == value
     assert escrow.functions.getLockedTokens(staker1, duration).call() == value
     assert escrow.functions.getLockedTokens(staker1, duration + 1).call() == 0
-    wind_down, _re_stake, _measure_work, _snapshots = escrow.functions.getFlags(staker1).call()
+    wind_down, _re_stake, _measure_work, _snapshots, _migrated = escrow.functions.getFlags(staker1).call()
     assert wind_down
 
     # Check that all events are emitted
@@ -1328,7 +1328,7 @@ def test_staking_from_worklock(testerchain, token, worklock, escrow_contract, to
     tx = escrow.functions.initialize(0, creator).transact({'from': creator})
     testerchain.wait_for_receipt(tx)
 
-    wind_down, _re_stake, _measure_work, _snapshots = escrow.functions.getFlags(staker2).call()
+    wind_down, _re_stake, _measure_work, _snapshots, _migrated = escrow.functions.getFlags(staker2).call()
     assert not wind_down
     current_period = escrow.functions.getCurrentPeriod().call()
     tx = worklock.functions.depositFromWorkLock(staker2, value, duration).transact()
@@ -1338,7 +1338,7 @@ def test_staking_from_worklock(testerchain, token, worklock, escrow_contract, to
     assert escrow.functions.getLockedTokens(staker2, 1).call() == 2 * value
     assert escrow.functions.getLockedTokens(staker2, duration).call() == 2 * value
     assert escrow.functions.getLockedTokens(staker2, duration + 1).call() == 0
-    wind_down, _re_stake, _measure_work, _snapshots = escrow.functions.getFlags(staker2).call()
+    wind_down, _re_stake, _measure_work, _snapshots, _migrated = escrow.functions.getFlags(staker2).call()
     assert not wind_down
 
     # Check that all events are emitted
@@ -1370,7 +1370,7 @@ def test_staking_from_worklock(testerchain, token, worklock, escrow_contract, to
 
     tx = escrow.functions.setWindDown(True).transact({'from': staker3})
     testerchain.wait_for_receipt(tx)
-    wind_down, _re_stake, _measure_work, _snapshots = escrow.functions.getFlags(staker3).call()
+    wind_down, _re_stake, _measure_work, _snapshots, _migrated = escrow.functions.getFlags(staker3).call()
     assert wind_down
     events = wind_down_log.get_all_entries()
     assert len(events) == 2
@@ -1383,7 +1383,7 @@ def test_staking_from_worklock(testerchain, token, worklock, escrow_contract, to
     assert escrow.functions.getLockedTokens(staker3, 1).call() == 2 * value
     assert escrow.functions.getLockedTokens(staker3, duration).call() == 2 * value
     assert escrow.functions.getLockedTokens(staker3, duration + 1).call() == 0
-    wind_down, _re_stake, _measure_work, _snapshots = escrow.functions.getFlags(staker3).call()
+    wind_down, _re_stake, _measure_work, _snapshots, _migrated = escrow.functions.getFlags(staker3).call()
     assert wind_down
 
     # Check that all events are emitted

@@ -570,6 +570,7 @@ class StakingEscrowDeployer(BaseContractDeployer, UpgradeableContractMixin, Owna
                      confirmations: int = 0,
                      **overrides):
         constructor_kwargs = {
+            "_genesisHoursPerPeriod": self.economics.genesis_hours_per_period,
             "_hoursPerPeriod": self.economics.hours_per_period,
             "_minLockedPeriods": self.economics.minimum_locked_periods,
             "_minAllowableLockedTokens": self.economics.minimum_allowed_locked,
@@ -598,17 +599,18 @@ class StakingEscrowDeployer(BaseContractDeployer, UpgradeableContractMixin, Owna
                           **overrides):
         args = self.economics.staking_deployment_parameters
         constructor_kwargs = {
-            "_hoursPerPeriod": args[0],
-            "_issuanceDecayCoefficient": args[1],
-            "_lockDurationCoefficient1": args[2],
-            "_lockDurationCoefficient2": args[3],
-            "_maximumRewardedPeriods": args[4],
-            "_firstPhaseTotalSupply": args[5],
-            "_firstPhaseMaxIssuance": args[6],
-            "_minLockedPeriods": args[7],
-            "_minAllowableLockedTokens": args[8],
-            "_maxAllowableLockedTokens": args[9],
-            "_minWorkerPeriods": args[10]
+            "_genesisHoursPerPeriod": args[0],
+            "_hoursPerPeriod": args[1],
+            "_issuanceDecayCoefficient": args[2],
+            "_lockDurationCoefficient1": args[3],
+            "_lockDurationCoefficient2": args[4],
+            "_maximumRewardedPeriods": args[5],
+            "_firstPhaseTotalSupply": args[6],
+            "_firstPhaseMaxIssuance": args[7],
+            "_minLockedPeriods": args[8],
+            "_minAllowableLockedTokens": args[9],
+            "_maxAllowableLockedTokens": args[10],
+            "_minWorkerPeriods": args[11]
         }
         constructor_kwargs.update(overrides)
         constructor_kwargs = {k: v for k, v in constructor_kwargs.items() if v is not None}
@@ -839,11 +841,17 @@ class PolicyManagerDeployer(BaseContractDeployer, UpgradeableContractMixin, Owna
             self.staking_contract = self.blockchain.get_contract_by_name(registry=self.registry,
                                                                          contract_name=staking_contract_name,
                                                                          proxy_name=proxy_name)
+            # If migration is happening then we should get latest StakingEscrow
+            # but this contract is not yet targeted by Dispatcher
+            self.staking_implementation = self.blockchain.get_contract_by_name(registry=self.registry,
+                                                                               contract_name=staking_contract_name,
+                                                                               enrollment_version='latest')
         except self.registry.UnknownContract:
             staking_contract_name = StakingEscrowDeployer.contract_name_stub
             self.staking_contract = self.blockchain.get_contract_by_name(registry=self.registry,
                                                                          contract_name=staking_contract_name,
                                                                          proxy_name=proxy_name)
+            self.staking_implementation = self.staking_contract
 
     def check_deployment_readiness(self, deployer_address: ChecksumAddress, *args, **kwargs) -> Tuple[bool, list]:
         staking_escrow_owner = self.staking_contract.functions.owner().call()
@@ -861,7 +869,8 @@ class PolicyManagerDeployer(BaseContractDeployer, UpgradeableContractMixin, Owna
                           gas_limit: int = None,
                           confirmations: int = 0
                           ) -> tuple:
-        constructor_kwargs = {"_escrow": self.staking_contract.address}
+        constructor_kwargs = {"_escrowDispatcher": self.staking_contract.address,
+                              "_escrowImplementation": self.staking_implementation.address}
         policy_manager_contract, deploy_receipt = self.blockchain.deploy_contract(transacting_power,
                                                                                   self.registry,
                                                                                   self.contract_name,

@@ -12,7 +12,7 @@ import "contracts/StakingEscrow.sol";
 */
 contract PolicyManagerBad is PolicyManager {
 
-    constructor(StakingEscrow _escrow) PolicyManager(_escrow) {
+    constructor(StakingEscrow _escrow) PolicyManager(_escrow, _escrow) {
     }
 
     function getNodeFeeDelta(address, uint16) public view override returns (int256) {}
@@ -27,7 +27,7 @@ contract PolicyManagerV2Mock is PolicyManager {
 
     uint256 public valueToCheck;
 
-    constructor(StakingEscrow _escrow) PolicyManager(_escrow) {
+    constructor(StakingEscrow _escrow) PolicyManager(_escrow, _escrow) {
     }
 
     function setValueToCheck(uint256 _valueToCheck) public {
@@ -51,6 +51,7 @@ contract StakingEscrowForPolicyMock {
         uint16 endPeriod;
     }
 
+    uint32 public immutable genesisSecondsPerPeriod;
     uint32 public immutable secondsPerPeriod;
 
     PolicyManager public policyManager;
@@ -58,10 +59,12 @@ contract StakingEscrowForPolicyMock {
     Downtime[] public downtime;
 
     /**
+    * @param _genesisHoursPerPeriod Size of period in hours at genesis
     * @param _hoursPerPeriod Size of period in hours
     */
-    constructor(uint16 _hoursPerPeriod) {
-        secondsPerPeriod = uint32(_hoursPerPeriod * 1 hours);
+    constructor(uint16 _genesisHoursPerPeriod, uint16 _hoursPerPeriod) {
+        secondsPerPeriod = _hoursPerPeriod * uint32(1 hours);
+        genesisSecondsPerPeriod = _genesisHoursPerPeriod * uint32(1 hours);
     }
 
     /**
@@ -95,6 +98,13 @@ contract StakingEscrowForPolicyMock {
         uint16 _periodToSetDefault
     ) external {
         policyManager.ping(_node, _processedPeriod1, _processedPeriod2, _periodToSetDefault);
+    }
+
+    /**
+    * @notice Emulate migrate method call
+    */
+    function migrate(address _node) external {
+        policyManager.migrate(_node);
     }
 
     /**
@@ -144,7 +154,7 @@ contract StakingEscrowForPolicyMock {
 */
 contract ExtendedPolicyManager is PolicyManager {
 
-    constructor(StakingEscrow _escrow) PolicyManager(_escrow) {
+    constructor(StakingEscrow _escrow) PolicyManager(_escrow, _escrow) {
     }
 
     function setNodeFeeDelta(address _node, uint16 _period, int256 _value) external {
