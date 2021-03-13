@@ -62,7 +62,7 @@ def test_blockchain_alice_finds_ursula_via_rest(blockchain_alice, blockchain_urs
 def test_treasure_map_cannot_be_duplicated(blockchain_ursulas, blockchain_alice, blockchain_bob, agency):
     # Setup the policy details
     n = 3
-    policy_end_datetime = maya.now() + datetime.timedelta(days=5)
+    policy_end_datetime = maya.now() + datetime.timedelta(days=35)
     label = b"this_is_the_path_to_which_access_is_being_granted"
 
     # Create the Policy, Granting access to Bob
@@ -160,7 +160,7 @@ def test_treasure_map_cannot_be_duplicated_again(blockchain_ursulas,
                                                  agency):
     # Setup the policy details
     n = 3
-    policy_end_datetime = maya.now() + datetime.timedelta(days=5)
+    policy_end_datetime = maya.now() + datetime.timedelta(days=35)
     label = b"this_is_the_path_to_which_access_is_being_granted"
 
     # Create the Policy, Granting access to Bob

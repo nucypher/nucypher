@@ -139,7 +139,7 @@ def test_blockchain_ursulas_reencrypt(blockchain_ursulas, blockchain_alice, bloc
 
     # TODO: Make sample selection buffer configurable - #1061
     m = n = 10
-    expiration = maya.now() + datetime.timedelta(days=5)
+    expiration = maya.now() + datetime.timedelta(days=35)
 
     _policy = blockchain_alice.grant(bob=blockchain_bob,
                                      label=label,
