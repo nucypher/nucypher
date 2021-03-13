@@ -47,8 +47,9 @@ def test_rough_economics():
     assert float(round(e.erc20_total_supply / Decimal(1e9), 2)) == 3.89  # As per economics paper
 
     # Check that we have correct numbers in day 1 of the second phase
+    one_year_in_periods = Decimal(365 / 7)
     initial_rate = (e.erc20_total_supply - int(e.first_phase_total_supply)) \
-        * (e.lock_duration_coefficient_1 + 52) \
+        * (e.lock_duration_coefficient_1 + one_year_in_periods) \
         / (e.issuance_decay_coefficient * e.lock_duration_coefficient_2)
     assert int(initial_rate) == int(e.first_phase_max_issuance)
 
@@ -58,14 +59,14 @@ def test_rough_economics():
     assert int(initial_rate_small) == int(initial_rate / 2)
 
     # Sanity check that total and reward supply calculated correctly
-    assert int(LOG2 / (e.token_halving * 52) * (e.erc20_total_supply - int(e.first_phase_total_supply))) == int(initial_rate)
+    assert int(LOG2 / (e.token_halving * one_year_in_periods) * (e.erc20_total_supply - int(e.first_phase_total_supply))) == int(initial_rate)
     assert int(e.reward_supply) == int(e.erc20_total_supply - Decimal(int(1e9)))
 
     with localcontext() as ctx:  # TODO: Needs follow up - why the sudden failure (python 3.8.0)?
         ctx.prec = 18  # Perform a high precision calculation
         # Sanity check for lock_duration_coefficient_1 (k1), issuance_decay_coefficient (d) and lock_duration_coefficient_2 (k2)
         expected = e.lock_duration_coefficient_1 * e.token_halving
-        result = e.issuance_decay_coefficient * e.lock_duration_coefficient_2 * LOG2 * e.small_stake_multiplier / 52
+        result = e.issuance_decay_coefficient * e.lock_duration_coefficient_2 * LOG2 * e.small_stake_multiplier / one_year_in_periods
         assert expected == result
 
 
@@ -73,8 +74,8 @@ def test_economic_parameter_aliases():
 
     e = StandardTokenEconomics()
 
-    assert e.lock_duration_coefficient_1 == 52
-    assert e.lock_duration_coefficient_2 == 2 * 52
+    assert int(e.lock_duration_coefficient_1) == 52
+    assert int(e.lock_duration_coefficient_2) == 2 * 52
     assert int(e.issuance_decay_coefficient) == 150
     assert e.maximum_rewarded_periods == 52
 

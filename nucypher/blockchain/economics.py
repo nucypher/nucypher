@@ -394,7 +394,7 @@ class StandardTokenEconomics(BaseEconomics):
                          lock_duration_coefficient_2=lock_duration_coefficient_2,
                          maximum_rewarded_periods=int(maximum_rewarded_periods),
                          hours_per_period=hours_per_period,
-        **kwargs)
+                         **kwargs)
 
     def first_phase_final_period(self) -> int:
         """

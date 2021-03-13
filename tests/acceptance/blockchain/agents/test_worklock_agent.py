@@ -187,7 +187,7 @@ def test_successful_claim(testerchain, agency, token_economics, test_registry):
     tpower = TransactingPower(account=bidder, signer=Web3Signer(testerchain.client))
 
     # Ensure that the bidder is not staking.
-    locked_tokens = staking_agent.get_locked_tokens(staker_address=bidder, periods=10)
+    locked_tokens = staking_agent.get_locked_tokens(staker_address=bidder, periods=5)
     assert locked_tokens == 0
 
     receipt = agent.claim(transacting_power=tpower)
@@ -198,5 +198,5 @@ def test_successful_claim(testerchain, agency, token_economics, test_registry):
         _receipt = agent.claim(transacting_power=tpower)
 
     # Ensure that the claimant is now the holder of a stake.
-    locked_tokens = staking_agent.get_locked_tokens(staker_address=bidder, periods=10)
+    locked_tokens = staking_agent.get_locked_tokens(staker_address=bidder, periods=5)
     assert locked_tokens > 0
