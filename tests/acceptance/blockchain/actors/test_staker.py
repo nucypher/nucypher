@@ -60,7 +60,8 @@ def test_staker_divides_stake(staker, token_economics):
     new_stake_value = NU(token_economics.minimum_allowed_locked * 2, 'NuNit')
 
     stake_index = 0
-    staker.initialize_stake(amount=stake_value, lock_periods=int(token_economics.minimum_locked_periods))
+    duration = int(token_economics.minimum_locked_periods)
+    staker.initialize_stake(amount=stake_value, lock_periods=duration)
     stake = staker.stakes[stake_index + 1]
 
     # Can't use additional periods and expiration together
@@ -70,8 +71,8 @@ def test_staker_divides_stake(staker, token_economics):
     staker.divide_stake(target_value=new_stake_value, stake=stake, additional_periods=2)
 
     current_period = staker.staking_agent.get_current_period()
-    expected_old_stake = (current_period + 1, current_period + 30, stake_value - new_stake_value)
-    expected_new_stake = (current_period + 1, current_period + 32, new_stake_value)
+    expected_old_stake = (current_period + 1, current_period + duration, stake_value - new_stake_value)
+    expected_new_stake = (current_period + 1, current_period + duration + 2, new_stake_value)
 
     assert 3 == len(staker.stakes), 'A new stake was not added to this stakers stakes'
     assert expected_old_stake == staker.stakes[stake_index + 1].to_stake_info(), 'Old stake values are invalid'
@@ -102,9 +103,9 @@ def test_staker_divides_stake(staker, token_economics):
                                         start_of_period=True)
     staker.divide_stake(target_value=yet_another_stake_value, stake=stake, expiration=new_expiration)
 
-    expected_new_stake = (current_period + 1, current_period + 32, new_stake_value)
+    expected_new_stake = (current_period + 1, current_period + duration + 2, new_stake_value)
     expected_yet_another_stake = Stake(first_locked_period=current_period + 1,
-                                       final_locked_period=current_period + 34,
+                                       final_locked_period=current_period + duration + 4,
                                        value=yet_another_stake_value,
                                        checksum_address=staker.checksum_address,
                                        index=3,

@@ -252,7 +252,8 @@ def idle_blockchain_policy(testerchain, blockchain_alice, blockchain_bob, token_
     Creates a Policy, in a manner typical of how Alice might do it, with a unique label
     """
     random_label = generate_random_label()
-    days = token_economics.minimum_locked_periods // 2
+    periods = token_economics.minimum_locked_periods // 2
+    days = periods * (token_economics.hours_per_period // 24)
     now = testerchain.w3.eth.getBlock('latest').timestamp
     expiration = maya.MayaDT(now).add(days=days - 1)
     n = 3
@@ -260,7 +261,7 @@ def idle_blockchain_policy(testerchain, blockchain_alice, blockchain_bob, token_
     policy = blockchain_alice.create_policy(blockchain_bob,
                                             label=random_label,
                                             m=m, n=n,
-                                            value=n * days * 100,
+                                            value=n * periods * 100,
                                             expiration=expiration)
     return policy
 
@@ -440,7 +441,7 @@ def make_token_economics(blockchain):
 
     economics = StandardTokenEconomics(
         worklock_boosting_refund_rate=200,
-        worklock_commitment_duration=60,  # periods
+        worklock_commitment_duration=60,  # genesis periods
         worklock_supply=10 * BaseEconomics._default_maximum_allowed_locked,
         bidding_start_date=bidding_start_date,
         bidding_end_date=bidding_end_date,

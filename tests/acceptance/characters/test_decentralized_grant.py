@@ -28,7 +28,7 @@ from nucypher.policy.collections import SignedTreasureMap as DecentralizedTreasu
 def test_decentralized_grant(blockchain_alice, blockchain_bob, blockchain_ursulas):
     # Setup the policy details
     n = 3
-    policy_end_datetime = maya.now() + datetime.timedelta(days=5)
+    policy_end_datetime = maya.now() + datetime.timedelta(days=35)
     label = b"this_is_the_path_to_which_access_is_being_granted"
 
     # Create the Policy, Granting access to Bob

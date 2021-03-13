@@ -64,7 +64,7 @@ def test_staking_escrow_preparation(testerchain,
     # Data is still old, because there is no upgrade yet
     staking_agent = ContractAgency.get_agent(StakingEscrowAgent, registry=test_registry)
     assert staking_agent.contract.functions.secondsPerPeriod().call() == token_economics.seconds_per_period
-    assert staking_agent.contract.functions.genesisSecondsPerPeriod().call() == token_economics.seconds_per_period
+    assert staking_agent.contract.functions.genesisSecondsPerPeriod().call() == token_economics.genesis_seconds_per_period
 
 
 def test_policy_manager_preparation(testerchain,
@@ -79,7 +79,7 @@ def test_policy_manager_preparation(testerchain,
     # Data is still old, because there is no upgrade yet
     policy_manager_agent = ContractAgency.get_agent(PolicyManagerAgent, registry=test_registry)
     assert policy_manager_agent.contract.functions.secondsPerPeriod().call() == token_economics.seconds_per_period
-    assert policy_manager_agent.contract.functions.genesisSecondsPerPeriod().call() == token_economics.seconds_per_period
+    assert policy_manager_agent.contract.functions.genesisSecondsPerPeriod().call() == token_economics.genesis_seconds_per_period
 
 
 def test_staking_escrow_migration_upgrade(testerchain,
