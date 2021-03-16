@@ -40,6 +40,7 @@ CONTRACTS = {
                 'AbstractStakingContract',
                 'InitializableStakingContract',
                 'PoolingStakingContract',
+                'PoolingStakingContractV2',
                 'WorkLockPoolingContract']
 }
 
