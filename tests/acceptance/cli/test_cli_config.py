@@ -23,17 +23,20 @@ import pytest
 from nucypher.blockchain.eth.registry import InMemoryContractRegistry
 from nucypher.cli.main import nucypher_cli
 from nucypher.config.characters import AliceConfiguration, BobConfiguration, UrsulaConfiguration
-from nucypher.config.constants import NUCYPHER_ENVVAR_KEYRING_PASSWORD, NUCYPHER_ENVVAR_WORKER_IP_ADDRESS, \
-    TEMPORARY_DOMAIN
-from tests.constants import (FAKE_PASSWORD_CONFIRMED, INSECURE_DEVELOPMENT_PASSWORD, MOCK_CUSTOM_INSTALLATION_PATH,
-                             MOCK_IP_ADDRESS,
-                             TEST_PROVIDER_URI, YES)
+from nucypher.config.constants import NUCYPHER_ENVVAR_KEYRING_PASSWORD, TEMPORARY_DOMAIN
+from tests.constants import (
+    FAKE_PASSWORD_CONFIRMED,
+    INSECURE_DEVELOPMENT_PASSWORD,
+    MOCK_CUSTOM_INSTALLATION_PATH,
+    MOCK_IP_ADDRESS,
+    TEST_PROVIDER_URI,
+    YES
+)
 
 CONFIG_CLASSES = (AliceConfiguration, BobConfiguration, UrsulaConfiguration)
 
 
-ENV = {NUCYPHER_ENVVAR_WORKER_IP_ADDRESS: MOCK_IP_ADDRESS,  # TODO: Remove this #2512
-       NUCYPHER_ENVVAR_KEYRING_PASSWORD: INSECURE_DEVELOPMENT_PASSWORD}
+ENV = {NUCYPHER_ENVVAR_KEYRING_PASSWORD: INSECURE_DEVELOPMENT_PASSWORD}
 
 
 @pytest.mark.parametrize('config_class', CONFIG_CLASSES)

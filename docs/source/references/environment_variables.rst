@@ -39,7 +39,5 @@ Ursula (Worker)
 
 * `NUCYPHER_WORKER_ADDRESS`
     Ethereum account used by Ursula.
-* `NUCYPHER_WORKER_IP_ADDRESS`
-    IP address of Ursula.
 * `NUCYPHER_WORKER_ETH_PASSWORD`
     Password for Ethereum account used by Ursula (Worker).
