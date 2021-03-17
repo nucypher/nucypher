@@ -24,6 +24,8 @@ import pytest
 from nucypher.blockchain.economics import BaseEconomics
 from nucypher.blockchain.eth.agents import StakingEscrowAgent, WeightedSampler
 from nucypher.blockchain.eth.constants import NULL_ADDRESS, STAKING_ESCROW_CONTRACT_NAME
+from nucypher.blockchain.eth.signers.software import Web3Signer
+from nucypher.crypto.powers import TransactingPower
 
 
 @pytest.fixture()
@@ -58,19 +60,20 @@ def test_sampling_distribution(testerchain, token, deploy_contract, token_econom
     # SETUP
     #
 
+    policy_manager, _ = deploy_contract(
+        'PolicyManagerForStakingEscrowMock', NULL_ADDRESS, token_economics.seconds_per_period
+    )
+    adjudicator, _ = deploy_contract('AdjudicatorForStakingEscrowMock', token_economics.reward_coefficient)
+
     staking_escrow_contract, _ = deploy_contract(
         STAKING_ESCROW_CONTRACT_NAME,
         token.address,
-        *token_economics.staking_deployment_parameters,
-        _isTestContract=False
+        policy_manager.address,
+        adjudicator.address,
+        NULL_ADDRESS,
+        *token_economics.staking_deployment_parameters
     )
     staking_agent = StakingEscrowAgent(registry=None, contract=staking_escrow_contract)
-
-    policy_manager, _ = deploy_contract(
-        'PolicyManagerForStakingEscrowMock', token.address, staking_escrow_contract.address
-    )
-    tx = staking_escrow_contract.functions.setPolicyManager(policy_manager.address).transact()
-    testerchain.wait_for_receipt(tx)
 
     # Travel to the start of the next period to prevent problems with unexpected overflow first period
     testerchain.time_travel(hours=1)
@@ -98,9 +101,10 @@ def test_sampling_distribution(testerchain, token, deploy_contract, token_econom
         tx = token.functions.approve(staking_escrow_contract.address, balance).transact({'from': staker})
         testerchain.wait_for_receipt(tx)
 
-        staking_agent.deposit_tokens(amount=balance, lock_periods=10, sender_address=staker, staker_address=staker)
-        staking_agent.bond_worker(staker_address=staker, worker_address=staker)
-        staking_agent.commit_to_next_period(staker)
+        staker_power = TransactingPower(account=staker, signer=Web3Signer(testerchain.client))
+        staking_agent.deposit_tokens(amount=balance, lock_periods=10, transacting_power=staker_power)
+        staking_agent.bond_worker(transacting_power=staker_power, worker_address=staker)
+        staking_agent.commit_to_next_period(transacting_power=staker_power)
 
     # Wait next period and check all locked tokens
     testerchain.time_travel(hours=1)
