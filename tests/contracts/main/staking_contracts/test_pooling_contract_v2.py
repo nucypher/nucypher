@@ -66,7 +66,9 @@ def test_staking(testerchain, token_economics, token, escrow, pooling_contract, 
     assert pooling_contract.functions.totalWithdrawnReward().call() == 0
     assert token.functions.balanceOf(pooling_contract.address).call() == 0
     assert pooling_contract.functions.getAvailableWorkerReward().call() == 0
-    assert pooling_contract.functions.getAvailableDelegatorReward().call() == 0
+    assert pooling_contract.functions.getAvailableReward().call() == 0
+    assert pooling_contract.functions.isDepositAllowed().call()
+    assert pooling_contract.functions.isWithdrawAllAllowed().call()
 
     # Give some tokens to delegators
     for index, delegator in enumerate(delegators):
@@ -77,7 +79,7 @@ def test_staking(testerchain, token_economics, token, escrow, pooling_contract, 
     # Delegators deposit tokens to the pooling contract
     total_deposited_tokens = 0
     tokens_supply = 0
-    assert pooling_contract.functions.getAvailableDelegatorReward().call() == 0
+    assert pooling_contract.functions.getAvailableReward().call() == 0
     for index, delegator in enumerate(delegators):
         assert pooling_contract.functions.delegators(delegator).call() == [0, 0, 0]
         assert pooling_contract.functions.getAvailableDelegatorReward(delegator).call() == 0
@@ -104,42 +106,22 @@ def test_staking(testerchain, token_economics, token, escrow, pooling_contract, 
     assert pooling_contract.functions.workerWithdrawnReward().call() == 0
     assert pooling_contract.functions.totalWithdrawnReward().call() == 0
     assert pooling_contract.functions.getAvailableWorkerReward().call() == 0
-    assert pooling_contract.functions.getAvailableDelegatorReward().call() == 0
+    assert pooling_contract.functions.getAvailableReward().call() == 0
+    assert pooling_contract.functions.isDepositAllowed().call()
+    assert pooling_contract.functions.isWithdrawAllAllowed().call()
 
-    # Disable deposit
-    log = pooling_contract.events.DepositIsEnabledSet.createFilter(fromBlock='latest')
-    with pytest.raises((TransactionFailed, ValueError)):
-        tx = pooling_contract.functions.disableDeposit().transact({'from': delegators[0]})
-        testerchain.wait_for_receipt(tx)
-    tx = pooling_contract.functions.disableDeposit().transact({'from': owner})
-    testerchain.wait_for_receipt(tx)
-    events = log.get_all_entries()
-    assert len(events) == 1
-    event_args = events[-1]['args']
-    assert event_args['sender'] == owner
-    assert not event_args['value']
-
+    # Delegator can cancel deposit before stake will be created
     delegator = delegators[0]
     tokens = token.functions.balanceOf(delegator).call()
+    tx = pooling_contract.functions.withdrawAll().transact({'from': delegator})
+    testerchain.wait_for_receipt(tx)
+    assert token.functions.balanceOf(delegator).call() == 2 * tokens
+    assert pooling_contract.functions.delegators(delegator).call() == [0, 0, 0]
+    # Return back
     tx = token.functions.approve(pooling_contract.address, tokens).transact({'from': delegator})
     testerchain.wait_for_receipt(tx)
-    with pytest.raises((TransactionFailed, ValueError)):
-        tx = pooling_contract.functions.depositTokens(tokens).transact({'from': delegator})
-        testerchain.wait_for_receipt(tx)
-    tx = token.functions.approve(pooling_contract.address, 0).transact({'from': delegator})
+    tx = pooling_contract.functions.depositTokens(tokens).transact({'from': delegator})
     testerchain.wait_for_receipt(tx)
-
-    # Enable deposit
-    with pytest.raises((TransactionFailed, ValueError)):
-        tx = pooling_contract.functions.enableDeposit().transact({'from': delegators[0]})
-        testerchain.wait_for_receipt(tx)
-    tx = pooling_contract.functions.enableDeposit().transact({'from': owner})
-    testerchain.wait_for_receipt(tx)
-    events = log.get_all_entries()
-    assert len(events) == 2
-    event_args = events[-1]['args']
-    assert event_args['sender'] == owner
-    assert event_args['value']
 
     # Delegators deposit tokens to the pooling contract again
     for index, delegator in enumerate(delegators):
@@ -155,7 +137,7 @@ def test_staking(testerchain, token_economics, token, escrow, pooling_contract, 
         assert token.functions.balanceOf(pooling_contract.address).call() == tokens_supply
 
         events = deposit_log.get_all_entries()
-        assert len(events) == len(delegators) + index + 1
+        assert len(events) == len(delegators) + index + 2
         event_args = events[-1]['args']
         assert event_args['sender'] == delegator
         assert event_args['value'] == tokens
@@ -173,31 +155,52 @@ def test_staking(testerchain, token_economics, token, escrow, pooling_contract, 
     testerchain.wait_for_receipt(tx)
     assert pooling_contract.functions.totalDepositedTokens().call() == total_deposited_tokens
     assert token.functions.balanceOf(pooling_contract.address).call() == 0
+    assert not pooling_contract.functions.isDepositAllowed().call()
+    assert not pooling_contract.functions.isWithdrawAllAllowed().call()
+
+    # Can't deposit after stake was created
+    tokens = token_economics.minimum_allowed_locked
+    tx = token.functions.approve(pooling_contract.address, tokens).transact({'from': creator})
+    testerchain.wait_for_receipt(tx)
+    with pytest.raises((TransactionFailed, ValueError)):
+        tx = pooling_contract.functions.depositTokens(tokens).transact({'from': creator})
+        testerchain.wait_for_receipt(tx)
+    tx = token.functions.approve(pooling_contract.address, 0).transact({'from': creator})
+    testerchain.wait_for_receipt(tx)
 
     # Give some tokens as a reward
-    assert pooling_contract.functions.getAvailableDelegatorReward().call() == 0
+    assert pooling_contract.functions.getAvailableReward().call() == 0
     reward = token_economics.minimum_allowed_locked
     tx = token.functions.approve(escrow.address, reward).transact()
     testerchain.wait_for_receipt(tx)
     tx = escrow.functions.deposit(pooling_contract.address, reward, 0).transact()
     testerchain.wait_for_receipt(tx)
+    assert not pooling_contract.functions.isDepositAllowed().call()
+    assert not pooling_contract.functions.isWithdrawAllAllowed().call()
 
     # Only owner can withdraw tokens from the staking escrow
     with pytest.raises((TransactionFailed, ValueError)):
         tx = pooling_contract_interface.functions.withdrawAsStaker(reward).transact({'from': delegators[0]})
         testerchain.wait_for_receipt(tx)
 
-    withdrawn_stake = reward + stake
-    assert pooling_contract.functions.getAvailableDelegatorReward().call() == 0
-    tx = pooling_contract_interface.functions.withdrawAsStaker(withdrawn_stake).transact({'from': owner})
+    assert pooling_contract.functions.getAvailableReward().call() == 0
+    tx = pooling_contract_interface.functions.withdrawAsStaker(reward).transact({'from': owner})
     testerchain.wait_for_receipt(tx)
-    assert pooling_contract.functions.getAvailableDelegatorReward().call() == reward
+    assert pooling_contract.functions.getAvailableReward().call() == reward
     worker_reward = reward * WORKER_FRACTION // BASIS_FRACTION
     assert pooling_contract.functions.getAvailableWorkerReward().call() == worker_reward
     assert pooling_contract.functions.totalDepositedTokens().call() == total_deposited_tokens
-    assert token.functions.balanceOf(pooling_contract.address).call() == withdrawn_stake
-    tokens_supply = withdrawn_stake
+    assert token.functions.balanceOf(pooling_contract.address).call() == reward
+    tokens_supply = reward
     total_withdrawn_tokens = 0
+    assert not pooling_contract.functions.isDepositAllowed().call()
+    assert not pooling_contract.functions.isWithdrawAllAllowed().call()
+
+    # Can't withdraw initial deposit before stake will be unlocked
+    for delegator in delegators:
+        with pytest.raises((TransactionFailed, ValueError)):
+            tx = pooling_contract.functions.withdrawAll().transact({'from': delegator})
+            testerchain.wait_for_receipt(tx)
 
     # Each delegator can withdraw some portion of tokens
     available_reward = reward
@@ -226,7 +229,7 @@ def test_staking(testerchain, token_economics, token, escrow, pooling_contract, 
         assert pooling_contract.functions.totalWithdrawnReward().call() == total_withdrawn_tokens
 
         events = withdraw_log.get_all_entries()
-        assert len(events) == index + 1
+        assert len(events) == index + 2
         event_args = events[-1]['args']
         assert event_args['sender'] == delegator
         assert event_args['value'] == portion
@@ -234,7 +237,7 @@ def test_staking(testerchain, token_economics, token, escrow, pooling_contract, 
 
     # Node owner withdraws tokens
     assert pooling_contract.functions.getAvailableWorkerReward().call() == worker_reward
-    assert pooling_contract.functions.getAvailableDelegatorReward().call() == available_reward
+    assert pooling_contract.functions.getAvailableReward().call() == available_reward
 
     # Only node owner can call this method
     with pytest.raises((TransactionFailed, ValueError)):
@@ -256,10 +259,10 @@ def test_staking(testerchain, token_economics, token, escrow, pooling_contract, 
     assert token.functions.balanceOf(owner).call() == 0
     assert token.functions.balanceOf(worker_owner).call() == worker_reward
     assert pooling_contract.functions.totalWithdrawnReward().call() == total_withdrawn_tokens
-    assert pooling_contract.functions.getAvailableDelegatorReward().call() == available_reward - worker_reward
+    assert pooling_contract.functions.getAvailableReward().call() == available_reward - worker_reward
 
     events = withdraw_log.get_all_entries()
-    assert len(events) == len(delegators) + 1
+    assert len(events) == len(delegators) + 2
     event_args = events[-1]['args']
     assert event_args['sender'] == worker_owner
     assert event_args['value'] == worker_reward
@@ -269,6 +272,16 @@ def test_staking(testerchain, token_economics, token, escrow, pooling_contract, 
     with pytest.raises((TransactionFailed, ValueError)):
         tx = pooling_contract.functions.withdrawWorkerReward().transact({'from': worker_owner})
         testerchain.wait_for_receipt(tx)
+
+    # Withdraw stake
+    tx = pooling_contract_interface.functions.withdrawAsStaker(stake - 1).transact({'from': owner})
+    testerchain.wait_for_receipt(tx)
+    assert not pooling_contract.functions.isWithdrawAllAllowed().call()
+    tx = pooling_contract_interface.functions.withdrawAsStaker(1).transact({'from': owner})
+    testerchain.wait_for_receipt(tx)
+    tokens_supply += stake
+    assert not pooling_contract.functions.isDepositAllowed().call()
+    assert pooling_contract.functions.isWithdrawAllAllowed().call()
 
     # Each delegator can withdraw rest of reward and deposit
     previous_total_deposited_tokens = total_deposited_tokens
@@ -307,11 +320,14 @@ def test_staking(testerchain, token_economics, token, escrow, pooling_contract, 
     assert abs(pooling_contract.functions.workerWithdrawnReward().call() - withdrawn_worker_reward) <= 1
 
     events = withdraw_log.get_all_entries()
-    assert len(events) == len(delegators) + 2
+    assert len(events) == len(delegators) + 3
     event_args = events[-1]['args']
     assert event_args['sender'] == delegator
     assert event_args['value'] == new_portion
     assert event_args['depositedTokens'] == 0
+
+    assert not pooling_contract.functions.isDepositAllowed().call()
+    assert pooling_contract.functions.isWithdrawAllAllowed().call()
 
     # Check worker's reward, still zero
     assert pooling_contract.functions.getAvailableWorkerReward().call() == 0
@@ -367,7 +383,7 @@ def test_staking(testerchain, token_economics, token, escrow, pooling_contract, 
     assert abs(pooling_contract.functions.workerWithdrawnReward().call() - withdrawn_worker_reward) <= 1
 
     events = withdraw_log.get_all_entries()
-    assert len(events) == len(delegators) + 4
+    assert len(events) == len(delegators) + 5
     event_args = events[-2]['args']
     assert event_args['sender'] == worker_owner
     assert event_args['value'] == new_worker_transfer
@@ -385,6 +401,9 @@ def test_staking(testerchain, token_economics, token, escrow, pooling_contract, 
     # Check others rewards
     assert abs(pooling_contract.functions.getAvailableDelegatorReward(delegators[2]).call() - other_reward_portion) <= 10
 
+    assert not pooling_contract.functions.isDepositAllowed().call()
+    assert pooling_contract.functions.isWithdrawAllAllowed().call()
+
     # Withdraw last portion for last delegator
     delegator = delegators[2]
     deposited_tokens = pooling_contract.functions.delegators(delegator).call()[0]
@@ -399,10 +418,10 @@ def test_staking(testerchain, token_economics, token, escrow, pooling_contract, 
     assert token.functions.balanceOf(pooling_contract.address).call() <= 1
     assert token.functions.balanceOf(delegator).call() == previous_portion + new_portion
     assert token.functions.balanceOf(worker_owner).call() == worker_reward + new_worker_transfer + new_worker_reward
-    assert pooling_contract.functions.getAvailableDelegatorReward().call() <= 1
+    assert pooling_contract.functions.getAvailableReward().call() <= 1
 
     events = withdraw_log.get_all_entries()
-    assert len(events) == len(delegators) + 6
+    assert len(events) == len(delegators) + 7
     event_args = events[-2]['args']
     assert event_args['sender'] == worker_owner
     assert event_args['value'] == new_worker_reward
@@ -413,11 +432,18 @@ def test_staking(testerchain, token_economics, token, escrow, pooling_contract, 
     assert event_args['value'] == new_portion
     assert event_args['depositedTokens'] == 0
 
+    assert not pooling_contract.functions.isDepositAllowed().call()
+    assert pooling_contract.functions.isWithdrawAllAllowed().call()
+
+    #
     # Change worker owner
+    #
 
     # Prepare reward
     tx = token.functions.transfer(pooling_contract.address, new_reward).transact({'from': creator})
     testerchain.wait_for_receipt(tx)
+    assert not pooling_contract.functions.isDepositAllowed().call()
+    assert pooling_contract.functions.isWithdrawAllAllowed().call()
 
     # Only pool owner can change value
     new_worker_owner = delegators[0]
@@ -445,6 +471,16 @@ def test_staking(testerchain, token_economics, token, escrow, pooling_contract, 
     event_args = events[1]['args']
     assert event_args['sender'] == owner
     assert event_args['workerOwner'] == new_worker_owner
+
+    # There are no reward or locked tokens, deposit is allowed again
+    assert pooling_contract.functions.isDepositAllowed().call()
+    assert pooling_contract.functions.isWithdrawAllAllowed().call()
+    delegator = delegators[0]
+    tokens = token_economics.minimum_allowed_locked
+    tx = token.functions.approve(pooling_contract.address, tokens).transact({'from': creator})
+    testerchain.wait_for_receipt(tx)
+    tx = pooling_contract.functions.depositTokens(tokens).transact({'from': creator})
+    testerchain.wait_for_receipt(tx)
 
 
 def test_fee(testerchain, token_economics, token, policy_manager, pooling_contract, pooling_contract_interface):
