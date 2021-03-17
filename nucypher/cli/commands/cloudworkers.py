@@ -132,7 +132,7 @@ def create(general_config, cloudprovider, aws_profile, remote_provider, nucypher
 @cloudworkers.command('add')
 @click.option('--host-address', help="The IP address or Hostname of the host you are adding.", required=True)
 @click.option('--login-name', help="The name username of a user with root privileges we can ssh as on the host.", required=True)
-@click.option('--key-path', help="The path to a keypair we will need to ssh into this host", default="~/.ssh/id_rsa.pub")
+@click.option('--key-path', help="The path to a keypair we will need to ssh into this host", default="~/.ssh/id_rsa")
 @click.option('--ssh-port', help="The port this host's ssh daemon is listening on", default=22)
 @click.option('--host-nickname', help="A nickname to remember this host by", type=click.STRING, required=True)
 @click.option('--namespace', help="Namespace for these operations.  Used to address hosts and data locally and name hosts on cloud platforms.", type=click.STRING, required=True, default='local-stakeholders')
@@ -143,6 +143,10 @@ def add(general_config, host_address, login_name, key_path, ssh_port, host_nickn
 
     emitter = setup_emitter(general_config)
     name = host_nickname
+
+    if not CloudDeployers:
+        emitter.echo("Ansible is required to use `nucypher cloudworkers *` commands.  (Please run 'pip install ansible'.)", color="red")
+        return
 
     deployer = CloudDeployers.get_deployer('generic')(emitter, None, None, namespace=namespace, network=network, action='add')
     config = deployer.create_nodes([name], host_address, login_name, key_path, ssh_port)
@@ -174,6 +178,10 @@ def add_for_stake(general_config, staker_options, config_file, staker_address, h
     staker_addresses = filter_staker_addresses(stakers, [staker_address])
     if not staker_addresses:
         emitter.echo(f"Could not find staker address: {staker_address} among your stakes. (try `nucypher stake --list`)", color="red")
+        return
+
+    if not CloudDeployers:
+        emitter.echo("Ansible is required to use `nucypher cloudworkers *` commands.  (Please run 'pip install ansible'.)", color="red")
         return
 
     config_file = config_file or StakeHolderConfiguration.default_filepath()
