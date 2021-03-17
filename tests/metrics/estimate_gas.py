@@ -30,7 +30,6 @@ import time
 from twisted.logger import ILogObserver, globalLogPublisher, jsonFileLogObserver
 from web3.contract import Contract
 
-from nucypher.blockchain.eth.deployers import StakingEscrowDeployer, PolicyManagerDeployer
 from nucypher.blockchain.eth.registry import InMemoryContractRegistry
 from nucypher.blockchain.eth.signers.software import Web3Signer
 from nucypher.crypto.powers import TransactingPower
@@ -62,7 +61,7 @@ except ImportError:
 ALGORITHM_SHA256 = 1
 TOKEN_ECONOMICS = StandardTokenEconomics()
 MIN_ALLOWED_LOCKED = TOKEN_ECONOMICS.minimum_allowed_locked
-MIN_LOCKED_PERIODS = TOKEN_ECONOMICS.minimum_locked_periods
+LOCKED_PERIODS = 30
 MAX_ALLOWED_LOCKED = TOKEN_ECONOMICS.maximum_allowed_locked
 MAX_MINTING_PERIODS = TOKEN_ECONOMICS.maximum_rewarded_periods
 
@@ -233,7 +232,7 @@ def estimate_gas(analyzer: AnalyzeGas = None) -> None:
 
     # First deposit ever is the most expensive, make it to remove unusual gas spending
     transact(token_functions.approve(staking_agent.contract_address, MIN_ALLOWED_LOCKED * 10), {'from': origin})
-    transact(staker_functions.deposit(everyone_else[0], MIN_ALLOWED_LOCKED, MIN_LOCKED_PERIODS), {'from': origin})
+    transact(staker_functions.deposit(everyone_else[0], MIN_ALLOWED_LOCKED, LOCKED_PERIODS), {'from': origin})
     testerchain.time_travel(periods=1)
 
     #
@@ -256,12 +255,12 @@ def estimate_gas(analyzer: AnalyzeGas = None) -> None:
     # Ursula and Alice transfer some tokens to the escrow and lock them
     #
     transact_and_log("Initial deposit tokens, first",
-                     staker_functions.deposit(staker1, MIN_ALLOWED_LOCKED * 3, MIN_LOCKED_PERIODS),
+                     staker_functions.deposit(staker1, MIN_ALLOWED_LOCKED * 3, LOCKED_PERIODS),
                      {'from': staker1})
     transact_and_log("Initial deposit tokens, other",
-                     staker_functions.deposit(staker2, MIN_ALLOWED_LOCKED * 3, MIN_LOCKED_PERIODS),
+                     staker_functions.deposit(staker2, MIN_ALLOWED_LOCKED * 3, LOCKED_PERIODS),
                      {'from': staker2})
-    transact(staker_functions.deposit(staker3, MIN_ALLOWED_LOCKED * 3, MIN_LOCKED_PERIODS), {'from': staker3})
+    transact(staker_functions.deposit(staker3, MIN_ALLOWED_LOCKED * 3, LOCKED_PERIODS), {'from': staker3})
 
     transact(staker_functions.bondWorker(staker1), {'from': staker1})
     transact(staker_functions.bondWorker(staker2), {'from': staker2})
@@ -332,7 +331,7 @@ def estimate_gas(analyzer: AnalyzeGas = None) -> None:
     transact(staker_functions.setReStake(True), {'from': staker1})
     transact(staker_functions.setReStake(True), {'from': staker2})
 
-    # Used to remove spending for first call in a day for mint and commitToNextPeriod
+    # Used to remove spending for first call in a period for mint and commitToNextPeriod
     transact(staker_functions.commitToNextPeriod(), {'from': staker3})
 
     transact_and_log("Make a commitment + mint + re-stake",
@@ -359,9 +358,9 @@ def estimate_gas(analyzer: AnalyzeGas = None) -> None:
     # Ursula and Alice deposit some tokens to the escrow again
     #
     transact_and_log("Deposit tokens after making a commitment",
-                     staker_functions.deposit(staker1, MIN_ALLOWED_LOCKED * 2, MIN_LOCKED_PERIODS),
+                     staker_functions.deposit(staker1, MIN_ALLOWED_LOCKED * 2, LOCKED_PERIODS),
                      {'from': staker1})
-    transact(staker_functions.deposit(staker2, MIN_ALLOWED_LOCKED * 2, MIN_LOCKED_PERIODS), {'from': staker2})
+    transact(staker_functions.deposit(staker2, MIN_ALLOWED_LOCKED * 2, LOCKED_PERIODS), {'from': staker2})
 
     #
     # Revoke policy
@@ -458,7 +457,7 @@ def estimate_gas(analyzer: AnalyzeGas = None) -> None:
     # Check regular deposit
     #
     transact_and_log("Deposit tokens to new sub-stake",
-                     staker_functions.deposit(staker1, MIN_ALLOWED_LOCKED, MIN_LOCKED_PERIODS),
+                     staker_functions.deposit(staker1, MIN_ALLOWED_LOCKED, LOCKED_PERIODS),
                      {'from': staker1})
     transact_and_log("Deposit tokens using existing sub-stake",
                      staker_functions.depositAndIncrease(0, MIN_ALLOWED_LOCKED),
@@ -473,7 +472,7 @@ def estimate_gas(analyzer: AnalyzeGas = None) -> None:
     transact_and_log("ApproveAndCall",
                      token_functions.approveAndCall(staking_agent.contract_address,
                                                     MIN_ALLOWED_LOCKED * 2,
-                                                    web3.toBytes(MIN_LOCKED_PERIODS)),
+                                                    web3.toBytes(LOCKED_PERIODS)),
                      {'from': staker1})
 
     #
@@ -482,7 +481,7 @@ def estimate_gas(analyzer: AnalyzeGas = None) -> None:
     testerchain.time_travel(periods=1)
     transact(staker_functions.commitToNextPeriod(), {'from': staker1})
     transact_and_log("Locking tokens and creating new sub-stake",
-                     staker_functions.lockAndCreate(MIN_ALLOWED_LOCKED, MIN_LOCKED_PERIODS),
+                     staker_functions.lockAndCreate(MIN_ALLOWED_LOCKED, LOCKED_PERIODS),
                      {'from': staker1})
     transact_and_log("Locking tokens using existing sub-stake",
                      staker_functions.lockAndIncrease(0, MIN_ALLOWED_LOCKED),
@@ -545,7 +544,7 @@ def estimate_gas(analyzer: AnalyzeGas = None) -> None:
         transact(staker_functions.commitToNextPeriod(), {'from': staker1})
         testerchain.time_travel(periods=1)
 
-    transact(staker_functions.lockAndCreate(MIN_ALLOWED_LOCKED, MIN_LOCKED_PERIODS), {'from': staker1})
+    transact(staker_functions.lockAndCreate(MIN_ALLOWED_LOCKED, LOCKED_PERIODS), {'from': staker1})
     deposit = staker_functions.stakerInfo(staker1).call()[0]
     unlocked = deposit - staker_functions.getLockedTokens(staker1, 1).call()
     transact(staker_functions.withdraw(unlocked), {'from': staker1})
@@ -574,12 +573,12 @@ def estimate_gas(analyzer: AnalyzeGas = None) -> None:
     transact(token_functions.approve(staking_agent.contract_address, MIN_ALLOWED_LOCKED * number_of_sub_stakes),
              {'from': origin})
     for i in range(number_of_sub_stakes):
-        transact(staker_functions.deposit(staker4, MIN_ALLOWED_LOCKED, MIN_LOCKED_PERIODS),
+        transact(staker_functions.deposit(staker4, MIN_ALLOWED_LOCKED, LOCKED_PERIODS),
                  {'from': origin})
     transact(staker_functions.bondWorker(staker4), {'from': staker4})
     transact(staker_functions.setWindDown(True), {'from': staker4})
 
-    # Used to remove spending for first call in a day for mint and commitToNextPeriod
+    # Used to remove spending for first call in a period for mint and commitToNextPeriod
     transact(staker_functions.commitToNextPeriod(), {'from': staker1})
 
     transact_and_log(f"Make a commitment ({number_of_sub_stakes} sub-stakes)",
@@ -590,7 +589,7 @@ def estimate_gas(analyzer: AnalyzeGas = None) -> None:
     transact(staker_functions.commitToNextPeriod(), {'from': staker4})
     testerchain.time_travel(periods=1)
 
-    # Used to remove spending for first call in a day for mint and commitToNextPeriod
+    # Used to remove spending for first call in a period for mint and commitToNextPeriod
     transact(staker_functions.commitToNextPeriod(), {'from': staker1})
 
     transact_and_log(f"Make a commitment + mint + re-stake ({number_of_sub_stakes} sub-stakes)",

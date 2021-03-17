@@ -32,7 +32,7 @@ def test_policy_simple_sinpa(blockchain_ursulas, blockchain_alice, blockchain_bo
     amonia = Amonia.from_lawful_alice(blockchain_alice)
     # Setup the policy details
     n = 3
-    policy_end_datetime = maya.now() + datetime.timedelta(days=5)
+    policy_end_datetime = maya.now() + datetime.timedelta(days=35)
     label = b"this_is_the_path_to_which_access_is_being_granted"
 
     with pytest.raises(amonia.NotEnoughNodes):
@@ -62,7 +62,7 @@ def test_try_to_post_free_arrangement_by_hacking_enact(blockchain_ursulas, block
     amonia = Amonia.from_lawful_alice(blockchain_alice)
     # Setup the policy details
     n = 3
-    policy_end_datetime = maya.now() + datetime.timedelta(days=5)
+    policy_end_datetime = maya.now() + datetime.timedelta(days=35)
     label = b"another_path"
 
     bupkiss_policy = amonia.circumvent_safegaurds_and_grant_without_paying(bob=blockchain_bob,
@@ -103,7 +103,7 @@ def test_pay_a_flunky_instead_of_the_arranged_ursula(blockchain_alice, blockchai
 
     # Setup the policy details
     n = 3
-    policy_end_datetime = maya.now() + datetime.timedelta(days=5)
+    policy_end_datetime = maya.now() + datetime.timedelta(days=35)
     label = b"back_and_forth_forever"
 
     bupkiss_policy = amonia.grant_while_paying_the_wrong_nodes(ursulas_to_trick_into_working_for_free=target_ursulas,
@@ -142,7 +142,7 @@ def test_put_additional_treasure_map_on_network(blockchain_ursulas, blockchain_a
     amonia = Amonia.from_lawful_alice(blockchain_alice)
     # Setup the policy details
     n = 3
-    policy_end_datetime = maya.now() + datetime.timedelta(days=5)
+    policy_end_datetime = maya.now() + datetime.timedelta(days=35)
     label = b"this_is_the_path_to_which_access_is_being_granted"
 
     policy = amonia.grant(bob=blockchain_bob,

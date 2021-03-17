@@ -31,6 +31,7 @@ from nucypher.blockchain.eth.registry import BaseContractRegistry
 from nucypher.blockchain.eth.token import NU
 
 LOG2 = Decimal(log(2))
+ONE_YEAR_IN_HOURS = 365 * 24
 
 
 class BaseEconomics:
@@ -55,12 +56,12 @@ class BaseEconomics:
     nunits_per_token = 10 ** __token_decimals  # Smallest unit designation
 
     # Period Definition
-    _default_hours_per_period = 24
+    _default_hours_per_period = 24 * 7
     _default_genesis_hours_per_period = 24
 
     # Time Constraints
     _default_minimum_worker_periods = 2
-    _default_minimum_locked_periods = 30  # 720 Hours minimum
+    _default_minimum_locked_periods = 4  # 28 days
 
     # Value Constraints
     _default_minimum_allowed_locked = NU(15_000, 'NU').to_nunits()
@@ -329,6 +330,7 @@ class StandardTokenEconomics(BaseEconomics):
                  decay_half_life: int = __default_decay_half_life,
                  reward_saturation: int = __default_reward_saturation,
                  small_stake_multiplier: Decimal = __default_small_stake_multiplier,
+                 hours_per_period: int = BaseEconomics._default_hours_per_period,
                  **kwargs):
         """
         :param initial_supply: Number of tokens in circulating supply at t=0
@@ -346,17 +348,24 @@ class StandardTokenEconomics(BaseEconomics):
         with localcontext() as ctx:
             ctx.prec = self._precision
 
+            one_year_in_periods = Decimal(ONE_YEAR_IN_HOURS / hours_per_period)
+
             initial_supply = Decimal(initial_supply)
 
             first_phase_supply = Decimal(first_phase_supply)
 
-            first_phase_max_issuance = first_phase_supply / first_phase_duration / 365
+            first_phase_max_issuance = first_phase_supply / first_phase_duration / one_year_in_periods
 
             # ERC20 Token parameter (See Equation 4 in Mining paper)
-            total_supply = initial_supply + first_phase_supply + first_phase_max_issuance * 365 * decay_half_life / LOG2
+            total_supply = initial_supply             \
+                           + first_phase_supply       \
+                           + first_phase_max_issuance \
+                           * one_year_in_periods      \
+                           * decay_half_life          \
+                           / LOG2
 
             # Awarded periods- Escrow parameter
-            maximum_rewarded_periods = reward_saturation * 365
+            maximum_rewarded_periods = reward_saturation * one_year_in_periods
 
             # k2 - Escrow parameter
             lock_duration_coefficient_2 = maximum_rewarded_periods / (1 - small_stake_multiplier)
@@ -365,7 +374,7 @@ class StandardTokenEconomics(BaseEconomics):
             lock_duration_coefficient_1 = lock_duration_coefficient_2 * small_stake_multiplier
 
             # d - Escrow parameter
-            issuance_decay_coefficient = 365 * decay_half_life / LOG2
+            issuance_decay_coefficient = one_year_in_periods * decay_half_life / LOG2
 
 
         #
@@ -383,7 +392,8 @@ class StandardTokenEconomics(BaseEconomics):
                          issuance_decay_coefficient=issuance_decay_coefficient,
                          lock_duration_coefficient_1=lock_duration_coefficient_1,
                          lock_duration_coefficient_2=lock_duration_coefficient_2,
-                         maximum_rewarded_periods=maximum_rewarded_periods,
+                         maximum_rewarded_periods=int(maximum_rewarded_periods),
+                         hours_per_period=hours_per_period,
                          **kwargs)
 
     def first_phase_final_period(self) -> int:
@@ -415,9 +425,10 @@ class StandardTokenEconomics(BaseEconomics):
             if t <= phase_switch_in_periods:
                 S_t = S_0 + t * I_s_per_period
             else:
-                S_p1 = self.first_phase_supply
+                one_year_in_periods = Decimal(ONE_YEAR_IN_HOURS / self.hours_per_period)
+                S_p1 = self.first_phase_max_issuance * phase_switch_in_periods
                 T_half = self.token_halving  # in years
-                T_half_in_periods = T_half * 365
+                T_half_in_periods = T_half * one_year_in_periods
                 t = t - phase_switch_in_periods
 
                 S_t = S_0 + S_p1 + I_s_per_period * T_half_in_periods * (1 - 2 ** (-t / T_half_in_periods)) / LOG2

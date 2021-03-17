@@ -298,7 +298,7 @@ def run_entire_cli_lifecycle(click_runner,
         bob_keys = side_channel.fetch_bob_public_keys()
         bob_encrypting_key = bob_keys.bob_encrypting_key
         bob_verifying_key = bob_keys.bob_verifying_key
-        expiration = (maya.now() + datetime.timedelta(days=3)).datetime().strftime("%Y-%m-%d %H:%M:%S")
+        expiration = (maya.now() + datetime.timedelta(days=35)).datetime().strftime("%Y-%m-%d %H:%M:%S")
 
         grant_args = ('alice', 'grant',
                       '--mock-networking',

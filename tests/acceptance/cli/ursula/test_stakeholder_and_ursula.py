@@ -557,10 +557,9 @@ def test_collect_rewards_integration(click_runner,
                                      manual_staker,
                                      manual_worker,
                                      token_economics,
-                                     policy_value,
-                                     policy_rate):
+                                     policy_value):
 
-    half_stake_time = token_economics.minimum_locked_periods // 2  # Test setup
+    half_stake_time = 2 * token_economics.minimum_locked_periods  # Test setup
     logger = Logger("Test-CLI")  # Enter the Teacher's Logger, and
     current_period = 0  # State the initial period for incrementing
 
@@ -606,9 +605,10 @@ def test_collect_rewards_integration(click_runner,
     blockchain_alice.selection_buffer = 1
 
     M, N = 1, 1
-    days = 3
+    duration_in_periods = 3
+    days = (duration_in_periods - 1) * (token_economics.hours_per_period // 24)
     now = testerchain.w3.eth.getBlock('latest').timestamp
-    expiration = maya.MayaDT(now).add(days=days-1)
+    expiration = maya.MayaDT(now).add(days=days)
     blockchain_policy = blockchain_alice.grant(bob=blockchain_bob,
                                                label=random_policy_label,
                                                m=M, n=N,
@@ -691,7 +691,7 @@ def test_collect_rewards_integration(click_runner,
 
     # Policy Fee
     collected_policy_fee = testerchain.client.get_balance(burner_wallet.address)
-    expected_collection = policy_rate * 30
+    expected_collection = policy_value
     assert collected_policy_fee == expected_collection
 
     # Finish the passage of time... once and for all
