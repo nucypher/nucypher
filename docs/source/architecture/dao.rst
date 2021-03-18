@@ -31,11 +31,18 @@ proposal to the community, all stakers have the chance to validate that proposal
 .. image:: ../.static/img/dao_proposal.png
     :target: ../.static/img/dao_proposal.png
 
-Clicking on ``Yes`` or ``No`` triggers an Ethereum transaction signalling each staker's opinion on the proposal.
-Depending on whether a quorum is reached, proposals may be validated rejected. If they validated, they can take
-immediate effect on the NuCypher Network via the Agent.
+Clicking on ``Yes`` or ``No`` triggers an Ethereum transaction signalling each staker's opinion on the proposal. That
+staker's opinion is weighted by their stake i.e. if they have 30,000 NU staked, then that staker will have
+a weight of 30,000 NU tokens.
 
-Note that not all proposals necessarily aim to produce on-chain effects on the network's smart contracts; some
+Depending on whether a quorum is reached, proposals may be validated or rejected. A proposal can only be validated
+if and only if:
+
+#. it receives > 60% support, i.e., of all the tokens that participated, more than 60% are required to signal ``Yes``
+#. it receives > 25% approval, i.e., more than 25% of all the staked tokens that could have possibly participated are required to signal ``Yes``
+
+If a proposal is validated, it can take immediate effect on the NuCypher Network via the Agent. Note that not all
+proposals necessarily aim to produce on-chain effects on the network's smart contracts; some
 proposals may seek to consolidate a current of thought among stakers. For example, deciding on new directions for
 the network, or collecting the community's sentiment about some past event or decision.
 
