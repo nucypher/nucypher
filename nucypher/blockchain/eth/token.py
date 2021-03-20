@@ -752,9 +752,15 @@ class WorkTracker:
         # Measure working interval
         interval = onchain_period - self.worker.last_committed_period
         if interval < 0:
-            self.__reset_tracker_state()
-            return  # No need to commit to this period.  Save the gas.
-        if interval > 0:
+            # Handle period migrations
+            last_commitment = self.worker.last_committed_period
+            next_period = onchain_period + 1
+            if last_commitment > next_period:
+                self.log.warn(f"PERIOD MIGRATION DETECTED - proceeding with commitment.")
+            else:
+                self.__reset_tracker_state()
+                return  # No need to commit to this period.  Save the gas.
+        elif interval > 0:
             # TODO: #1516 Follow-up actions for missed commitments
             self.log.warn(f"MISSED COMMITMENTS - {interval} missed staking commitments detected.")
 
