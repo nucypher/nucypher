@@ -465,7 +465,7 @@ class BlockchainInterface:
                       ) -> dict:
 
         nonce = self.client.get_transaction_count(account=sender_address, pending=use_pending_nonce)
-        base_payload = {'chainId': int(self.client.chain_id),
+        base_payload = {
                         'nonce': nonce,
                         'from': sender_address}
 
