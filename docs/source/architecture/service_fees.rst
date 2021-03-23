@@ -12,7 +12,7 @@ Service Fees (Pricing)
 Minimum fee rate
 ----------------
 
-When stakers join the network, they specify a minimum fee rate, on a *per sharing policy* and *per 24h period* basis, that their worker (Ursula) will accept at the point of engagement with a network user (Alice). If Alice’s offered per period rate (contained alongside the sharing policy’s parameters in an ``Arrangement`` object) for a specified policy duration computes as equal to or greater than the minimum fee rate, the sharing policy will be accepted by Ursula and the access control service will commence. Ursula will service the sharing policy by being online and answering access requests, at that unchanging per period fee rate, until the specified expiration date or an early revocation is instigated by Alice.
+When stakers join the network, they specify a minimum fee rate, on a *per sharing policy* and *per period (7 days)* basis, that their worker (Ursula) will accept at the point of engagement with a network user (Alice). If Alice’s offered per period rate (contained alongside the sharing policy’s parameters in an ``Arrangement`` object) for a specified policy duration computes as equal to or greater than the minimum fee rate, the sharing policy will be accepted by Ursula and the access control service will commence. Ursula will service the sharing policy by being online and answering access requests, at that unchanging per period fee rate, until the specified expiration date or an early revocation is instigated by Alice.
 
 The minimum fee rate applies to each individual worker machine managing a given sharing policy. In other words, the rate is also *per Ursula*. If Alice wishes to employ multiple Ursulas to service a single sharing policy (``n`` > 1), a common configuration, then they must pay each staker associated with that policy the same fee rate. This rate will be the highest from the set of *minimum* fee rates specified by the stakers with which they engage. Alices may attempt price optimization strategies to find the cheapest group of Ursulas.
 
@@ -24,7 +24,7 @@ The minimum sum of fees a staker can receive period-to-period is the product of 
 Global fee range
 ----------------
 
-The global fee range is a means of establishing quasi-universal pricing for the NuCypher service. It is enforced via the function ``feeRateRange`` in ``PolicyManager.sol``, which specifies per sharing policy and per 24h period constraints expressed in **WEI**. Note that elsewhere, fee rates are discussed in **GWEI** and fiat (USD).
+The global fee range is a means of establishing quasi-universal pricing for the NuCypher service. It is enforced via the function ``feeRateRange`` in ``PolicyManager.sol``, which specifies per sharing policy and per period (7 days) constraints expressed in **WEI**. Note that elsewhere, fee rates are discussed in **GWEI** and fiat (USD).
 
 The minimum fee rate chosen by stakers must fall within the global fee range. The network will launch with the following parameters:
 

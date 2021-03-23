@@ -29,7 +29,7 @@ NuCypher currently has two testnets available, each of them with different goals
 Q: How long is a period?
 ~~~~~~~~~~~~~~~~~~~~~~~~
 
-1 period is 24 hours. Periods begin at midnight UTC.
+1 period is 7 days, and periods start at midnight UTC.
 
 
 Using the Network

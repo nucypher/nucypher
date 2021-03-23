@@ -34,8 +34,8 @@ Staking Procedure
 .. caution::
 
     Once NU is locked in the staking escrow contract, a worker node must be run to unlock it.  Worker's make
-    periodic automated commitments which spend ~200k gas each transaction. Be sure to consider this operational
-    cost when locking NU.
+    periodic automated commitments (every 7 days) which cost ~200k gas. Be sure to consider this
+    operational cost when locking NU.
 
 .. note::
 
@@ -149,7 +149,7 @@ the commitment period.
     Before proceeding it is important to know that the worker must spend ETH to unlock staked NU.
     Once tokens are locked, the only way for them to become unlocked is by running a bonded Worker node.
 
-    Currently, Worker nodes must perform one automated transaction every 24 hours costing ~200k gas.
+    Currently, Worker nodes must perform one automated transaction every 7 days costing ~200k gas.
 
 
 .. code:: bash
@@ -246,7 +246,7 @@ bonded a Worker node to your Staker.
 After initiating a stake, the staker must delegate access to a work address through *bonding*.
 There is a 1:1 relationship between the roles: A Staker may have multiple substakes but only ever has one Worker at a time.
 
-.. important:: The Worker cannot be changed for a minimum of 2 periods (48 hours) once bonded.
+.. important:: The Worker cannot be changed for a minimum of 2 periods (14 days) once bonded.
 
 .. code:: bash
 

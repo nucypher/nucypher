@@ -12,7 +12,7 @@ Staker Overview
 
 A nucypher staker is a holder of NU and manager of one or more stakes. NU is an ERC-20 token that underpins the network. Stakes are initiated by locking NU into
 the *"Staking Escrow "* contract for a fixed duration of time. Staked NU earns two income streams: inflation
-rewards (NU) and policy fees (ETH). Staked NU gradually unlocks with each completed period (24 hours),
+rewards (NU) and policy fees (ETH). Staked NU gradually unlocks with each completed period (7 days),
 depending on *re-stake* and *wind-down* configuration options.
 
 Active network participation (work) is delegated to a *Worker* node through *bonding*.
@@ -28,7 +28,7 @@ Worker Overview
 
 The Worker is the bonded delegate of a Staker and an active network node, performing work on behalf of a Staker.
 Workers must remain online to provide uninterrupted services on-demand, signalling their availability with
-commitment transactions every period (24 hours).
+commitment transactions every period (7 days) each transaction costing ~200k gas.
 
 
 Staker and Worker Delegation
