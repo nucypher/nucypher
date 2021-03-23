@@ -55,6 +55,10 @@ Given its high enforceability, the presence of an inflexible fee range dictating
 
 The Pricing Protocol & Economics paper_ serves as a resource for community debate, proposals for modification, and DAO-driven upgrades/redeployments in the future. The paper discusses the merits and risks of quasi-universal pricing and the enforcement of an upper and lower bound on all offered price points. It introduces a price point analysis from a demand-side, service-side and theoretical standpoint to produce the provisional constraints in absolute terms that the network will launch with (above).
 
+.. note::
+
+    This Pricing Protocol & Economics paper was originally written when period lengths were 24 hours; period lengths are now 7 days but the core principles still apply.
+
 
 Setting a discretionary fee rate
 --------------------------------

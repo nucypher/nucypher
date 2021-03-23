@@ -165,16 +165,16 @@ the commitment period.
     Select index of staking account [0]: 1
     Selected 1: 0x270b3f8af5ba2B79ea3Bd6a6Efc7ecAB056d3E3f
     Enter stake value in NU (15000 NU - 30000 NU) [30000]: 30000
-    Enter stake duration (30 - 47103) [365]: 30
+    Enter stake duration (4 - 44155) [52]: 4
 
     ══════════════════════════════ STAGED STAKE ══════════════════════════════
 
     Staking address: 0x270b3f8af5ba2B79ea3Bd6a6Efc7ecAB056d3E3f
     ~ Chain      -> ID # <CHAIN_ID>
     ~ Value      -> 30000 NU (30000000000000000000000 NuNits)
-    ~ Duration   -> 30 Days (30 Periods)
-    ~ Enactment  -> Jun 19 20:00 EDT (period #18433)
-    ~ Expiration -> Jul 19 20:00 EDT (period #18463)
+    ~ Duration   -> 28 Days (4 Periods)
+    ~ Enactment  -> Jun 19 20:00 EDT (period #2633)
+    ~ Expiration -> Jul 17 20:00 EDT (period #2637)
 
     ═════════════════════════════════════════════════════════════════════════
 
@@ -187,7 +187,7 @@ the commitment period.
 
     - You are obligated to maintain a networked and available Ursula-Worker node
       bonded to the staker address 0x270b3f8af5ba2B79ea3Bd6a6Efc7ecAB056d3E3f for the duration
-      of the stake(s) (30 periods).
+      of the stake(s) (4 periods).
 
     - Agree to allow NuCypher network users to carry out uninterrupted re-encryption
       work orders at-will without interference.
@@ -228,7 +228,7 @@ Once you have created one or more stakes, you can view all active stakes for con
     ╒═══════╤══════════╤═════════════╤═════════════╤═══════════════╕
     │   Idx │ Value    │   Remaining │ Enactment   │ Termination   │
     ╞═══════╪══════════╪═════════════╪═════════════╪═══════════════╡
-    │ 	0   │ 30000 NU │      	  31 │ Jun 19 2020 │ Jul 19 2020   │
+    │ 	0   │ 30000 NU │      	  5  │ Jun 19 2020 │ Jul 17 2020   │
     ╘═══════╧══════════╧═════════════╧═════════════╧═══════════════╛
 
 If the Worker in the list is shown as ``NO_WORKER_BONDED``, it means that you haven't yet

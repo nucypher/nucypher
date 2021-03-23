@@ -121,12 +121,12 @@ To divide an existing stake:
 
     Select Stake: 0
     Enter target value (15000 NU - 16437.841006996376688377 NU): 15000
-    Enter number of periods to extend: 20
+    Enter number of periods to extend: 4
 
     ══════════════════════════════ ORIGINAL STAKE ════════════════════════════
 
     Staking address: 0x270b3f8af5ba2B79ea3Bd6a6Efc7ecAB056d3E3f
-    ~ Original Stake: | - | 0x270b | 0x45D3 | 0 | 31437.841006996376688377 NU | 33 periods . | Jun 19 20:00 EDT - Jul 22 20:00 EDT
+    ~ Original Stake: | - | 0x270b | 0x45D3 | 0 | 31437.841006996376688377 NU | 4 periods . | Jun 19 20:00 EDT - Jul 17 20:00 EDT
 
 
     ══════════════════════════════ STAGED STAKE ══════════════════════════════
@@ -134,9 +134,9 @@ To divide an existing stake:
     Staking address: 0x270b3f8af5ba2B79ea3Bd6a6Efc7ecAB056d3E3f
     ~ Chain      -> ID # 4 | Rinkeby
     ~ Value      -> 15000 NU (15000000000000000000000 NuNits)
-    ~ Duration   -> 53 Days (53 Periods)
-    ~ Enactment  -> Jun 19 20:00 EDT (period #18433)
-    ~ Expiration -> Aug 11 20:00 EDT (period #18486)
+    ~ Duration   -> 56 Days (8 Periods)
+    ~ Enactment  -> Jun 19 20:00 EDT (period #2633)
+    ~ Expiration -> Aug 12 20:00 EDT (period #2641)
 
     ═════════════════════════════════════════════════════════════════════════
     Publish stake division to the blockchain? [y/N]: y
@@ -162,9 +162,9 @@ To divide an existing stake:
     ╒═══════╤═════════════════════════════╤═════════════╤═════════════╤═══════════════╕
     │   Idx │ Value                   	  │   Remaining │ Enactment   │ Termination   │
     ╞═══════╪═════════════════════════════╪═════════════╪═════════════╪═══════════════╡
-    │ 	0   │ 16437.841006996376688377 NU │         31  │ Jun 19 2020 │ Jul 22 2020   │
+    │ 	0   │ 16437.841006996376688377 NU │         5   │ Jun 19 2020 │ Jul 17 2020   │
     ├───────┼─────────────────────────────┼─────────────┼─────────────┼───────────────┤
-    │ 	1   │ 15000 NU                	  │         51  │ Jun 19 2020 │ Aug 11 2020   │
+    │ 	1   │ 15000 NU                	  │         9   │ Jun 19 2020 │ Aug 12 2020   │
     ╘═══════╧═════════════════════════════╧═════════════╧═════════════╧═══════════════╛
 
 
@@ -210,9 +210,9 @@ and will be indicated by the ``INACTIVE`` status label.
     ╒═══════╤═══════════════╤═════════════╤═════════════╤═══════════════╤═══════════╕
     │   Idx │ Value         │   Remaining │ Enactment   │ Termination   │ Status    │
     ╞═══════╪═══════════════╪═════════════╪═════════════╪═══════════════╪═══════════╡
-    │     0 │ 123456.789 NU │          -4 │ Oct 15 2020 │ Nov 19 2020   │ INACTIVE  │
+    │     0 │ 123456.789 NU │          -1 │ Oct 15 2020 │ Nov 29 2020   │ INACTIVE  │
     ├───────┼───────────────┼─────────────┼─────────────┼───────────────┼───────────┤
-    │     1 │ 123456.789 NU │          27 │ Oct 15 2020 │ Dec 20 2020   │ DIVISIBLE │
+    │     1 │ 123456.789 NU │           3 │ Oct 15 2020 │ Dec 14 2020   │ DIVISIBLE │
     ├───────┼───────────────┼─────────────┼─────────────┼───────────────┼───────────┤
 
 
@@ -312,8 +312,8 @@ For example, to view all of the staking rewards received by the Staker thus far,
     --------- StakingEscrow Events ---------
 
     Minted:
-      - (EventRecord) staker: <STAKER ADDRESS>, period: 18551, value: 1234567890123456789012, block_number: 11070103
-      - (EventRecord) staker: <STAKER ADDRESS>, period: 18552, value: 1234567890123456789012, block_number: 11076964
+      - (EventRecord) staker: <STAKER ADDRESS>, period: 2650, value: 1234567890123456789012, block_number: 11070103
+      - (EventRecord) staker: <STAKER ADDRESS>, period: 2650, value: 1234567890123456789012, block_number: 11076964
       ...
 
 ``1234567890123456789012`` is in NuNits and equates to approximately 1234.57 NU (1 NU = 10\ :sup:`18` NuNits).
@@ -331,8 +331,8 @@ To view staking rewards received by the Staker from block number 11070000 to blo
     --------- StakingEscrow Events ---------
 
     Minted:
-      - (EventRecord) staker: <STAKER ADDRESS>, period: 18551, value: 1234567890123456789012, block_number: 11070103
-      - (EventRecord) staker: <STAKER ADDRESS>, period: 18552, value: 1234567890123456789012, block_number: 11076964
+      - (EventRecord) staker: <STAKER ADDRESS>, period: 2650, value: 1234567890123456789012, block_number: 11070103
+      - (EventRecord) staker: <STAKER ADDRESS>, period: 2650, value: 1234567890123456789012, block_number: 11076964
       ...
 
 

@@ -48,7 +48,7 @@ Glossary
       1 NU = 10\ :sup:`18` NuNits.
 
     Period
-      A timeframe of approximately a day in the NuCypher Network.
+      A timeframe of approximately 7 days in the NuCypher Network.
 
     PKE
       Public-key encryption.

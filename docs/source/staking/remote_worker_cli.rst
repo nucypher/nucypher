@@ -96,7 +96,7 @@ Some examples:
     >  worker address:          0xe88bF385a6ed8C86aA153f08F999d8698B5326e0
     >  rest url:                https://xxx.xxx.xxx.xxx:9151
     >      missing commitments:   0
-    >      last committed period: 18601
+    >      last committed period: 2657
     >      ETH:                   0.xxx
     >      provider:              https://mainnet.infura.io/v3/xxxx
     >      ursula docker image:   "nucypher/nucypher:latest"
