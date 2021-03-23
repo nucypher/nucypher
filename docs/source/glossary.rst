@@ -48,7 +48,10 @@ Glossary
       1 NU = 10\ :sup:`18` NuNits.
 
     Period
-      A timeframe of approximately 7 days in the NuCypher Network.
+      A timeframe of approximately 7 days in the NuCypher Network. This parameter is used as a minimum unit for policy
+      duration, and is also the cadence with which workers must make an on-chain commitment to being online and
+      available. Note that period durations were 24 hours in the genesis (previous) protocol and could change again in the
+      future.
 
     PKE
       Public-key encryption.

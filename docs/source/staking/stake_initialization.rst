@@ -34,8 +34,8 @@ Staking Procedure
 .. caution::
 
     Once NU is locked in the staking escrow contract, a worker node must be run to unlock it.  Worker's make
-    periodic automated commitments (every 7 days) which cost ~200k gas. Be sure to consider this
-    operational cost when locking NU.
+    periodic automated commitments (every 7 days) which cost at least ~200k gas, depending on how many sub-stakes
+    you have. Be sure to consider this operational cost when locking NU.
 
 .. note::
 

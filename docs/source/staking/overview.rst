@@ -28,7 +28,7 @@ Worker Overview
 
 The Worker is the bonded delegate of a Staker and an active network node, performing work on behalf of a Staker.
 Workers must remain online to provide uninterrupted services on-demand, signalling their availability with
-commitment transactions every period (7 days) each transaction costing ~200k gas.
+a commitment transaction before the start of each period (every 7 days), which costs approximately 200k gas.
 
 
 Staker and Worker Delegation
