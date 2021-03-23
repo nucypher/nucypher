@@ -602,6 +602,18 @@ class StakingEscrowAgent(EthereumContractAgent):
         return receipt
 
     @contract_api(CONTRACT_CALL)
+    def is_migrated(self, staker_address: ChecksumAddress) -> bool:
+        flags = self.get_flags(staker_address)
+        return flags.migration_flag
+
+    @contract_api(TRANSACTION)
+    def migrate(self, transacting_power: TransactingPower) -> TxReceipt:
+        contract_function: ContractFunction = self.contract.functions.migrate(transacting_power.account)
+        receipt = self.blockchain.send_transaction(contract_function=contract_function,
+                                                   transacting_power=transacting_power)
+        return receipt
+
+    @contract_api(CONTRACT_CALL)
     def is_winding_down(self, staker_address: ChecksumAddress) -> bool:
         flags = self.get_flags(staker_address)
         return flags.wind_down_flag

@@ -866,6 +866,15 @@ class Staker(NucypherTokenActor):
         receipt = self._set_snapshots(value=False)
         return receipt
 
+    @property
+    def is_migrated(self) -> bool:
+        migrated = self.staking_agent.is_migrated(staker_address=self.checksum_address)
+        return migrated
+
+    def migrate(self) -> TxReceipt:
+        receipt = self.staking_agent.migrate(transacting_power=self.transacting_power)
+        return receipt
+
     @only_me
     @save_receipt
     def remove_inactive_stake(self, stake: Stake) -> TxReceipt:

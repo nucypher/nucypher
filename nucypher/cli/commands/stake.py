@@ -1349,3 +1349,43 @@ def mint(general_config: GroupGeneralConfig,
                           emitter=emitter,
                           chain_name=blockchain.client.chain_name,
                           transaction_type='mint')
+
+
+@stake.command()
+@group_transacting_staker_options
+@option_config_file
+@option_force
+@group_general_config
+def migrate(general_config: GroupGeneralConfig,
+            transacting_staker_options: TransactingStakerOptions,
+            config_file, force):
+
+    # Setup
+    emitter = setup_emitter(general_config)
+    STAKEHOLDER = transacting_staker_options.create_character(emitter, config_file)
+    blockchain = transacting_staker_options.get_blockchain()
+    client_account, staking_address = select_client_account_for_staking(
+        emitter=emitter,
+        stakeholder=STAKEHOLDER,
+        staking_address=transacting_staker_options.staker_options.staking_address)
+
+    # Interact
+    if STAKEHOLDER.staker.is_migrated:
+        emitter.echo('Saker has already migrated.', color='red')
+        raise click.Abort
+    if not force:
+        click.confirm('Confirm manual migration', abort=True)
+
+    # Authenticate
+    password = get_password(stakeholder=STAKEHOLDER,
+                            blockchain=blockchain,
+                            client_account=client_account,
+                            hw_wallet=transacting_staker_options.hw_wallet)
+    STAKEHOLDER.assimilate(checksum_address=client_account, password=password)
+
+    # Migrate
+    receipt = STAKEHOLDER.staker.migrate()
+    paint_receipt_summary(receipt=receipt,
+                          emitter=emitter,
+                          chain_name=blockchain.client.chain_name,
+                          transaction_type='migrate')
