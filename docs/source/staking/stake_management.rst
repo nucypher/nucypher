@@ -312,8 +312,8 @@ For example, to view all of the staking rewards received by the Staker thus far,
     --------- StakingEscrow Events ---------
 
     Minted:
-      - (EventRecord) staker: <STAKER ADDRESS>, period: 2650, value: 1234567890123456789012, block_number: 11070103
-      - (EventRecord) staker: <STAKER ADDRESS>, period: 2650, value: 1234567890123456789012, block_number: 11076964
+      - (EventRecord) staker: <STAKER ADDRESS>, period: 18551, value: 1234567890123456789012, block_number: 11070103
+      - (EventRecord) staker: <STAKER ADDRESS>, period: 18552, value: 1234567890123456789012, block_number: 11076964
       ...
 
 ``1234567890123456789012`` is in NuNits and equates to approximately 1234.57 NU (1 NU = 10\ :sup:`18` NuNits).
@@ -331,8 +331,8 @@ To view staking rewards received by the Staker from block number 11070000 to blo
     --------- StakingEscrow Events ---------
 
     Minted:
-      - (EventRecord) staker: <STAKER ADDRESS>, period: 2650, value: 1234567890123456789012, block_number: 11070103
-      - (EventRecord) staker: <STAKER ADDRESS>, period: 2650, value: 1234567890123456789012, block_number: 11076964
+      - (EventRecord) staker: <STAKER ADDRESS>, period: 18551, value: 1234567890123456789012, block_number: 11070103
+      - (EventRecord) staker: <STAKER ADDRESS>, period: 18552, value: 1234567890123456789012, block_number: 11076964
       ...
 
 

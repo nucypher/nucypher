@@ -37,10 +37,10 @@ For example, to view the staking rewards received by all Stakers in the current 
     --------- StakingEscrow Events ---------
 
     Minted:
-      - (EventRecord) staker: <STAKER_ADDRESS 1>, period: 2668, value: 1234567890123456789012, block_number: 11916689
-      - (EventRecord) staker: <STAKER ADDRESS 2>, period: 2668, value: 1234567890123456789012, block_number: 11916692
-      - (EventRecord) staker: <STAKER ADDRESS 3>, period: 2668, value: 1234567890123456789012, block_number: 11916692
-      - (EventRecord) staker: <STAKER ADDRESS 4>, period: 2668, value: 1234567890123456789012, block_number: 11916692
+      - (EventRecord) staker: <STAKER_ADDRESS 1>, period: 18681, value: 1234567890123456789012, block_number: 11916689
+      - (EventRecord) staker: <STAKER ADDRESS 2>, period: 18681, value: 1234567890123456789012, block_number: 11916692
+      - (EventRecord) staker: <STAKER ADDRESS 3>, period: 18681, value: 1234567890123456789012, block_number: 11916692
+      - (EventRecord) staker: <STAKER ADDRESS 4>, period: 18681, value: 1234567890123456789012, block_number: 11916692
       ...
 
 The value ``1234567890123456789012`` is in NuNits and equates to approximately 1234.57 NU (1 NU = 10\ :sup:`18` NuNits).
@@ -58,10 +58,10 @@ To view the staking rewards received by all Stakers from block number ``11916685
     --------- StakingEscrow Events ---------
 
     Minted:
-      - (EventRecord) staker: <STAKER_ADDRESS 1>, period: 2668, value: 1234567890123456789012, block_number: 11916687
-      - (EventRecord) staker: <STAKER_ADDRESS 2>, period: 2668, value: 1234567890123456789012, block_number: 11916687
-      - (EventRecord) staker: <STAKER_ADDRESS 3>, period: 2668, value: 1234567890123456789012, block_number: 11916687
-      - (EventRecord) staker: <STAKER ADDRESS 4>, period: 2668, value: 1234567890123456789012, block_number: 11916687
+      - (EventRecord) staker: <STAKER_ADDRESS 1>, period: 18681, value: 1234567890123456789012, block_number: 11916687
+      - (EventRecord) staker: <STAKER_ADDRESS 2>, period: 18681, value: 1234567890123456789012, block_number: 11916687
+      - (EventRecord) staker: <STAKER_ADDRESS 3>, period: 18681, value: 1234567890123456789012, block_number: 11916687
+      - (EventRecord) staker: <STAKER ADDRESS 4>, period: 18681, value: 1234567890123456789012, block_number: 11916687
       ...
 
 
@@ -106,10 +106,10 @@ For example, to view all of the commitments ever made by the Worker associated w
     --------- StakingEscrow Events ---------
 
     CommitmentMade:
-      - (EventRecord) staker: <STAKER_ADDRESS>, period: 2650, value: 1234567890123456789012, block_number: 11057641
-      - (EventRecord) staker: <STAKER_ADDRESS>, period: 2650, value: 1234567890123456789012, block_number: 11063640
-      - (EventRecord) staker: <STAKER_ADDRESS>, period: 2650, value: 1234567890123456789012, block_number: 11070103
-      - (EventRecord) staker: <STAKER_ADDRESS>, period: 2650, value: 1234567890123456789012, block_number: 11076964
+      - (EventRecord) staker: <STAKER_ADDRESS>, period: 18551, value: 1234567890123456789012, block_number: 11057641
+      - (EventRecord) staker: <STAKER_ADDRESS>, period: 18552, value: 1234567890123456789012, block_number: 11063640
+      - (EventRecord) staker: <STAKER_ADDRESS>, period: 18553, value: 1234567890123456789012, block_number: 11070103
+      - (EventRecord) staker: <STAKER_ADDRESS>, period: 18554, value: 1234567890123456789012, block_number: 11076964
       ...
 
 To view the commitment made by the Worker associated with a specific Staker in period 18552, run:
@@ -124,7 +124,7 @@ To view the commitment made by the Worker associated with a specific Staker in p
     --------- StakingEscrow Events ---------
 
     CommitmentMade:
-      - (EventRecord) staker: <STAKER_ADDRESS>, period: 2650, value: 1234567890123456789012, block_number: 11063640
+      - (EventRecord) staker: <STAKER_ADDRESS>, period: 18552, value: 1234567890123456789012, block_number: 11063640
 
 
 CSV Output
