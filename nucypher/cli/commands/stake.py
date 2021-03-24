@@ -366,12 +366,18 @@ def bond_worker(general_config: GroupGeneralConfig,
     emitter = setup_emitter(general_config)
     STAKEHOLDER = transacting_staker_options.create_character(emitter, config_file)
     blockchain = transacting_staker_options.get_blockchain()
-    economics = STAKEHOLDER.staker.economics
 
     client_account, staking_address = select_client_account_for_staking(
         emitter=emitter,
         stakeholder=STAKEHOLDER,
         staking_address=transacting_staker_options.staker_options.staking_address)
+
+    password = get_password(stakeholder=STAKEHOLDER,
+                            blockchain=blockchain,
+                            client_account=client_account,
+                            hw_wallet=transacting_staker_options.hw_wallet)
+    STAKEHOLDER.assimilate(checksum_address=client_account, password=password)
+    economics = STAKEHOLDER.staker.economics
 
     if not worker_address:
         worker_address = click.prompt(PROMPT_WORKER_ADDRESS, type=EIP55_CHECKSUM_ADDRESS)
@@ -397,11 +403,6 @@ def bond_worker(general_config: GroupGeneralConfig,
                       f"worker {worker_address} to staker {staking_address} "
                       f"for a minimum of {STAKEHOLDER.staker.economics.minimum_worker_periods} periods?", abort=True)
 
-    password = get_password(stakeholder=STAKEHOLDER,
-                            blockchain=blockchain,
-                            client_account=client_account,
-                            hw_wallet=transacting_staker_options.hw_wallet)
-    STAKEHOLDER.assimilate(checksum_address=client_account, password=password)
     receipt = STAKEHOLDER.staker.bond_worker(worker_address=worker_address)
 
     # Report Success
@@ -431,8 +432,6 @@ def unbond_worker(general_config: GroupGeneralConfig,
     STAKEHOLDER = transacting_staker_options.create_character(emitter, config_file)
     blockchain = transacting_staker_options.get_blockchain()
 
-    economics = STAKEHOLDER.staker.economics
-
     client_account, staking_address = select_client_account_for_staking(
         emitter=emitter,
         stakeholder=STAKEHOLDER,
@@ -450,6 +449,7 @@ def unbond_worker(general_config: GroupGeneralConfig,
         click.confirm("Are you sure you want to unbond your worker?", abort=True)
 
     STAKEHOLDER.assimilate(checksum_address=client_account, password=password)
+    economics = STAKEHOLDER.staker.economics
     receipt = STAKEHOLDER.staker.unbond_worker()
 
     # TODO: Double-check dates
@@ -1063,7 +1063,6 @@ def remove_inactive(general_config: GroupGeneralConfig,
     # Setup
     emitter = setup_emitter(general_config)
     STAKEHOLDER = transacting_staker_options.create_character(emitter, config_file)
-    action_period = STAKEHOLDER.staker.staking_agent.get_current_period()
     blockchain = transacting_staker_options.get_blockchain()
 
     client_account, staking_address = select_client_account_for_staking(
@@ -1071,13 +1070,13 @@ def remove_inactive(general_config: GroupGeneralConfig,
         stakeholder=STAKEHOLDER,
         staking_address=transacting_staker_options.staker_options.staking_address)
 
-
     # Authenticate
     password = get_password(stakeholder=STAKEHOLDER,
                             blockchain=blockchain,
                             client_account=client_account,
                             hw_wallet=transacting_staker_options.hw_wallet)
     STAKEHOLDER.assimilate(checksum_address=client_account, password=password)
+    action_period = STAKEHOLDER.staker.staking_agent.get_current_period()
 
     emitter.message(FETCHING_INACTIVE_STAKES, color='yellow')
     if remove_all:
@@ -1102,7 +1101,7 @@ def remove_inactive(general_config: GroupGeneralConfig,
         if index is not None:  # 0 is valid.
             selected_stake = STAKEHOLDER.staker.stakes[index]
         else:
-            selected_stake = select_stake(staker=STAKEHOLDER, emitter=emitter, stakes_status=Stake.Status.INACTIVE)
+            selected_stake = select_stake(staker=STAKEHOLDER.staker, emitter=emitter, stakes_status=Stake.Status.INACTIVE)
 
         remove_inactive_substake(emitter=emitter,
                                  stakeholder=STAKEHOLDER,
