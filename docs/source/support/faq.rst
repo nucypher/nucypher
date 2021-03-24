@@ -31,6 +31,9 @@ Q: How long is a period?
 
 1 period is 7 days, and periods start at midnight UTC.
 
+At genesis launch, 1 period was 24 hours, but this was updated by the NuCypher DAO to be
+7 days (see :doc:`/architecture/period_migration`).
+
 
 Using the Network
 -----------------
