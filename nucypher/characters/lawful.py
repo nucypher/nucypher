@@ -1748,6 +1748,17 @@ class Ursula(Teacher, Character, Worker):
         else:
             known_nodes_info = None
 
+        if not self.federated_only:
+            balance_eth = float(self.eth_balance)
+            balance_nu = float(self.token_balance.to_tokens())
+            missing_commitments = self.missing_commitments
+            last_committed_period = self.last_committed_period
+        else:
+            balance_eth = None
+            balance_nu = None
+            missing_commitments = None
+            last_committed_period = None
+
         return LocalUrsulaStatus(nickname=self.nickname,
                                  staker_address=self.checksum_address,
                                  worker_address=self.worker_address,
@@ -1758,6 +1769,10 @@ class Ursula(Teacher, Character, Worker):
                                  fleet_state=fleet_state,
                                  previous_fleet_states=previous_fleet_states,
                                  known_nodes=known_nodes_info,
+                                 balance_eth=balance_eth,
+                                 balance_nu=balance_nu,
+                                 missing_commitments=missing_commitments,
+                                 last_committed_period=last_committed_period,
                                  )
 
 
@@ -1772,6 +1787,10 @@ class LocalUrsulaStatus(NamedTuple):
     fleet_state: ArchivedFleetState
     previous_fleet_states: List[ArchivedFleetState]
     known_nodes: Optional[List[RemoteUrsulaStatus]]
+    balance_eth: float
+    balance_nu: float
+    missing_commitments: int
+    last_committed_period: int
 
     def to_json(self) -> Dict[str, Any]:
         if self.known_nodes is None:
@@ -1787,7 +1806,12 @@ class LocalUrsulaStatus(NamedTuple):
                     version=self.version,
                     fleet_state=self.fleet_state.to_json(),
                     previous_fleet_states=[state.to_json() for state in self.previous_fleet_states],
-                    known_nodes=known_nodes_json)
+                    known_nodes=known_nodes_json,
+                    balance_eth=self.balance_eth,
+                    balance_nu=self.balance_nu,
+                    missing_commitments=self.missing_commitments,
+                    last_committed_period=self.last_committed_period,
+                    )
 
 
 class Enrico(Character):
