@@ -8,11 +8,11 @@ python_version = "3"
 
 [packages]
 # NuCypher
-umbral = "==0.1.3a2"
 constant-sorrow = ">=0.1.0a9"
 bytestring-splitter = ">=1.3.0"
 hendrix = ">=3.4"
 lmdb = "*"
+umbral = ">=0.2"
 # Cryptography
 pyopenssl = "*"
 cryptography = ">=3.2"
@@ -33,6 +33,7 @@ py-evm = "*"
 eth-tester = "*"
 coincurve = "*"
 web3 = "<=5.12.3"
+eth-utils = "<1.10"
 py-geth = "*"
 # CLI / Configuration
 appdirs = "*"
