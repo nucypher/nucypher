@@ -20,9 +20,7 @@ import contextlib
 import socket
 from cryptography.x509 import Certificate
 from typing import Iterable, List, Optional, Set
-from umbral import pre
-from umbral.keys import UmbralPrivateKey
-from umbral.signing import Signer
+from nucypher.crypto.umbral_adapter import pre, UmbralPrivateKey, Signer
 
 from nucypher.blockchain.eth.actors import Staker
 from nucypher.blockchain.eth.interfaces import BlockchainInterface
@@ -195,9 +193,7 @@ def _mock_ursula_reencrypts(ursula):
     bobs_signer = Signer(priv_key_bob)
     task_signature = bytes(bobs_signer(specification))
 
-    metadata = bytes(ursula.stamp(task_signature))
-
-    cfrag = pre.reencrypt(kfrags[0], capsule, metadata=metadata)
+    cfrag = pre.reencrypt(kfrags[0], capsule)
     cfrag_signature = ursula.stamp(bytes(cfrag))
 
     bob = Bob.from_public_keys(verifying_key=pub_key_bob)

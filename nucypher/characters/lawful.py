@@ -56,10 +56,7 @@ from twisted.internet.defer import Deferred
 from twisted.internet.task import LoopingCall
 from twisted.logger import Logger
 from typing import Dict, Iterable, List, NamedTuple, Tuple, Union, Optional, Sequence, Set, Any
-from umbral import pre
-from umbral.keys import UmbralPublicKey
-from umbral.kfrags import KFrag
-from umbral.signing import Signature
+from nucypher.crypto.umbral_adapter import UmbralPublicKey, VerifiedKeyFrag, Signature, pre, VerificationError
 
 import nucypher
 from nucypher.acumen.nicknames import Nickname
@@ -79,7 +76,7 @@ from nucypher.cli.processes import UrsulaCommandProtocol
 from nucypher.config.constants import END_OF_POLICIES_PROBATIONARY_PERIOD
 from nucypher.config.storages import ForgetfulNodeStorage, NodeStorage
 from nucypher.crypto.api import encrypt_and_sign, keccak_digest
-from nucypher.crypto.constants import HRAC_LENGTH, PUBLIC_KEY_LENGTH
+from nucypher.crypto.constants import HRAC_LENGTH
 from nucypher.crypto.keypairs import HostingKeypair
 from nucypher.crypto.kits import UmbralMessageKit
 from nucypher.crypto.powers import (
@@ -90,6 +87,7 @@ from nucypher.crypto.powers import (
     TransactingPower
 )
 from nucypher.crypto.signing import InvalidSignature
+from nucypher.crypto.splitters import key_splitter, signature_splitter
 from nucypher.datastore.datastore import DatastoreTransactionError, RecordNotFound
 from nucypher.datastore.queries import find_expired_policies, find_expired_treasure_maps
 from nucypher.network.exceptions import NodeSeemsToBeDown
@@ -808,16 +806,22 @@ class Bob(Character):
         self._completed_work_orders.save_work_order(work_order, as_replete=retain_cfrags)
 
         the_airing_of_grievances = []
+        verified_cfrags = []
         for capsule, pre_task in work_order.tasks.items():
-            if not pre_task.cfrag.verify_correctness(capsule):
+            try:
+                verified_cfrag = pre_task.cfrag.verify_correctness(capsule)
+            except VerificationError:
                 # TODO: WARNING - This block is untested.
                 # I got a lot of problems with you people ...
                 the_airing_of_grievances.append(work_order.ursula)
+            else:
+                verified_cfrags.append(verified_cfrag) # FIXME: this is unused
+                pre_task.cfrag = verified_cfrag # FIXME: massive yikes, needs to be done properly
 
         if the_airing_of_grievances:
             return False, the_airing_of_grievances
         else:
-            return True, cfrags
+            return True, verified_cfrags
 
     def retrieve(self,
 
@@ -1568,13 +1572,13 @@ class Ursula(Teacher, Character, Worker):
             public_address=ETH_ADDRESS_BYTE_LENGTH,
             domain=VariableLengthBytestring,
             timestamp=(int, 4, {'byteorder': 'big'}),
-            interface_signature=Signature,
+            interface_signature=signature_splitter,
 
             # FIXME: Fixed length doesn't work with federated. It was LENGTH_ECDSA_SIGNATURE_WITH_RECOVERY,
             decentralized_identity_evidence=VariableLengthBytestring,
 
-            verifying_key=(UmbralPublicKey, PUBLIC_KEY_LENGTH),
-            encrypting_key=(UmbralPublicKey, PUBLIC_KEY_LENGTH),
+            verifying_key=key_splitter,
+            encrypting_key=key_splitter,
             certificate=(load_pem_x509_certificate, VariableLengthBytestring, {"backend": default_backend()}),
             rest_interface=InterfaceInfo,
         )
@@ -1727,26 +1731,24 @@ class Ursula(Teacher, Character, Worker):
     # Re-Encryption
     #
 
-    def _reencrypt(self, kfrag: KFrag, work_order: 'WorkOrder', alice_verifying_key: UmbralPublicKey):
+    def _reencrypt(self, kfrag: VerifiedKeyFrag, work_order: 'WorkOrder', alice_verifying_key: UmbralPublicKey):
 
         # Prepare a bytestring for concatenating re-encrypted
         # capsule data for each work order task.
         cfrag_byte_stream = bytes()
         for capsule, task in work_order.tasks.items():
-            # Ursula signs on top of Bob's signature of each task.
-            # Now both are committed to the same task.  See #259.
-            reencryption_metadata = bytes(self.stamp(bytes(task.signature)))
+            # See #259 for the discussion leading to the current protocol.
 
             # Ursula sets Alice's verifying key for capsule correctness verification.
             capsule.set_correctness_keys(verifying=alice_verifying_key)
 
             # Then re-encrypts the fragment.
-            cfrag = pre.reencrypt(kfrag, capsule, metadata=reencryption_metadata)  # <--- pyUmbral
+            cfrag = pre.reencrypt(kfrag, capsule)  # <--- pyUmbral
             self.log.info(f"Re-encrypted capsule {capsule} -> made {cfrag}.")
 
             # Next, Ursula signs to commit to her results.
             reencryption_signature = self.stamp(bytes(cfrag))
-            cfrag_byte_stream += VariableLengthBytestring(cfrag) + reencryption_signature
+            cfrag_byte_stream += bytes(cfrag) + bytes(reencryption_signature)
 
         # ... and finally returns all the re-encrypted bytes
         return cfrag_byte_stream

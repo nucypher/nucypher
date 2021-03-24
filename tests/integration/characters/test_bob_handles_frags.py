@@ -18,9 +18,7 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 import pytest
 import pytest_twisted
 from twisted.internet import threads
-from umbral import pre
-from umbral.cfrags import CapsuleFrag
-from umbral.kfrags import KFrag
+from nucypher.crypto.umbral_adapter import pre, CapsuleFrag, KFrag
 
 from nucypher.crypto.kits import PolicyMessageKit
 from nucypher.crypto.powers import DecryptingPower
@@ -200,13 +198,6 @@ def test_bob_can_issue_a_work_order_to_a_specific_ursula(enacted_federated_polic
 
     with ursula.datastore.describe(PolicyArrangement, work_order.arrangement_id.hex()) as policy_arrangement:
         the_kfrag = policy_arrangement.kfrag
-    the_correct_cfrag = pre.reencrypt(the_kfrag, capsule)
-
-    # The first CFRAG_LENGTH_WITHOUT_PROOF bytes (ie, the cfrag proper, not the proof material), are the same:
-    assert bytes(the_cfrag)[:CapsuleFrag.expected_bytes_length()] == bytes(
-        the_correct_cfrag)[:CapsuleFrag.expected_bytes_length()]  # It's the correct cfrag!
-
-    assert the_correct_cfrag.verify_correctness(capsule)
 
     # Now we'll show that Ursula saved the correct WorkOrder.
     with ursula.datastore.query_by(Workorder, filter_field='bob_verifying_key',
@@ -336,7 +327,6 @@ def test_bob_gathers_and_combines(enacted_federated_policy, federated_bob, feder
 
     _success, cfrags = federated_bob._reencrypt(new_work_order)
     cfrag = cfrags[0]
-    assert cfrag not in the_message_kit.capsule._attached_cfrags
 
     the_message_kit.capsule.attach_cfrag(cfrags[0])
 

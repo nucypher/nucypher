@@ -33,20 +33,17 @@ from cryptography.hazmat.backends.openssl.ec import _EllipticCurvePrivateKey
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric import ec
 from cryptography.hazmat.primitives.asymmetric.ec import EllipticCurve
-from cryptography.hazmat.primitives.kdf.hkdf import HKDF
 from cryptography.hazmat.primitives.serialization import Encoding, load_pem_private_key
 from cryptography.x509 import Certificate
 from eth_account import Account
 from eth_keys import KeyAPI as EthKeyAPI
 from eth_utils import to_checksum_address
-from nacl.exceptions import CryptoError
-from nacl.secret import SecretBox
-from umbral.keys import UmbralKeyingMaterial, UmbralPrivateKey, UmbralPublicKey, derive_key_from_password
+from nucypher.crypto.umbral_adapter import UmbralKeyingMaterial, UmbralPrivateKey, UmbralPublicKey, derive_key_from_password, AuthenticationFailed
 
 from nucypher.config.constants import DEFAULT_CONFIG_ROOT
 from nucypher.crypto.api import generate_teacher_certificate, _TLS_CURVE
-from nucypher.crypto.constants import BLAKE2B
 from nucypher.crypto.keypairs import HostingKeypair
+from nucypher.crypto.passwords import derive_wrapping_key_from_key_material, SecretBox
 from nucypher.crypto.powers import (DecryptingPower, DerivedKeyBasedPower, KeyPairBasedPower, SigningPower)
 from nucypher.network.server import TLSHostingPower
 from nucypher.utilities.logging import Logger
@@ -411,11 +408,11 @@ class NucypherKeyring:
     def __decrypt_keyfile(self, key_path: str) -> UmbralPrivateKey:
         """Returns plaintext version of decrypting key."""
         key_data = _read_keyfile(key_path, deserializer=_deserialize_private_key)
-        wrap_key = _derive_wrapping_key_from_key_material(salt=key_data['wrap_salt'],
-                                                          key_material=self.__derived_key_material)
+        wrap_key = derive_wrapping_key_from_key_material(salt=key_data['wrap_salt'],
+                                                         key_material=self.__derived_key_material)
         try:
             plain_umbral_key = UmbralPrivateKey.from_bytes(key_bytes=key_data['key'], wrapping_key=wrap_key)
-        except CryptoError:
+        except AuthenticationFailed:
             raise self.AuthenticationFailed('Invalid or incorrect nucypher keyring password.')
         return plain_umbral_key
 
@@ -440,14 +437,9 @@ class NucypherKeyring:
             return self.is_unlocked
         key_data = _read_keyfile(keypath=self.__root_keypath, deserializer=_deserialize_private_key)
         self.log.info("Unlocking keyring.")
-        try:
-            derived_key = derive_key_from_password(password=password.encode(), salt=key_data['master_salt'])
-        except CryptoError:
-            self.log.info("Keyring unlock failed.")
-            raise self.AuthenticationFailed
-        else:
-            self.__derived_key_material = derived_key
-            self.log.info("Finished unlocking.")
+        derived_key = derive_key_from_password(password=password.encode(), salt=key_data['master_salt'])
+        self.__derived_key_material = derived_key
+        self.log.info("Finished unlocking.")
         return self.is_unlocked
 
     @unlock_required
@@ -490,7 +482,7 @@ class NucypherKeyring:
         # Derived
         elif issubclass(power_class, DerivedKeyBasedPower):
             key_data = _read_keyfile(self.__delegating_keypath, deserializer=_deserialize_private_key)
-            wrap_key = _derive_wrapping_key_from_key_material(salt=key_data['wrap_salt'], key_material=self.__derived_key_material)
+            wrap_key = derive_wrapping_key_from_key_material(salt=key_data['wrap_salt'], key_material=self.__derived_key_material)
             keying_material = SecretBox(wrap_key).decrypt(key_data['key'])
             new_cryptopower = power_class(keying_material=keying_material)
 
@@ -551,9 +543,7 @@ class NucypherKeyring:
             signing_private_key, signing_public_key = _generate_signing_keys()
 
             if checksum_address is FEDERATED_ADDRESS:
-                uncompressed_bytes = signing_public_key.to_bytes(is_compressed=False)
-                without_prefix = uncompressed_bytes[1:]
-                verifying_key_as_eth_key = EthKeyAPI.PublicKey(without_prefix)
+                verifying_key_as_eth_key = EthKeyAPI.PublicKey.from_compressed_bytes(bytes(signing_public_key))
                 checksum_address = verifying_key_as_eth_key.to_checksum_address()
 
         else:
@@ -576,9 +566,9 @@ class NucypherKeyring:
 
             cls.log.info("About to derive key from password.")
             derived_key_material = derive_key_from_password(salt=password_salt, password=password.encode())
-            encrypting_wrap_key = _derive_wrapping_key_from_key_material(salt=encrypting_salt, key_material=derived_key_material)
-            signature_wrap_key = _derive_wrapping_key_from_key_material(salt=signing_salt, key_material=derived_key_material)
-            delegating_wrap_key = _derive_wrapping_key_from_key_material(salt=delegating_salt, key_material=derived_key_material)
+            encrypting_wrap_key = derive_wrapping_key_from_key_material(salt=encrypting_salt, key_material=derived_key_material)
+            signature_wrap_key = derive_wrapping_key_from_key_material(salt=signing_salt, key_material=derived_key_material)
+            delegating_wrap_key = derive_wrapping_key_from_key_material(salt=delegating_salt, key_material=derived_key_material)
 
             # Encapsulate Private Keys
             encrypting_key_data = encrypting_private_key.to_bytes(wrapping_key=encrypting_wrap_key)

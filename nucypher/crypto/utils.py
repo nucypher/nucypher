@@ -18,7 +18,7 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 from coincurve import PublicKey
 from eth_keys import KeyAPI as EthKeyAPI
 from typing import Any, Union
-from umbral.keys import UmbralPublicKey
+from nucypher.crypto.umbral_adapter import UmbralPublicKey
 
 from nucypher.crypto.api import keccak_digest
 from nucypher.crypto.signing import SignatureStamp
@@ -43,7 +43,7 @@ def construct_policy_id(label: bytes, stamp: bytes) -> bytes:
 def canonical_address_from_umbral_key(public_key: Union[UmbralPublicKey, SignatureStamp]) -> bytes:
     if isinstance(public_key, SignatureStamp):
         public_key = public_key.as_umbral_pubkey()
-    pubkey_compressed_bytes = public_key.to_bytes(is_compressed=True)
+    pubkey_compressed_bytes = bytes(public_key)
     eth_pubkey = EthKeyAPI.PublicKey.from_compressed_bytes(pubkey_compressed_bytes)
     canonical_address = eth_pubkey.to_canonical_address()
     return canonical_address

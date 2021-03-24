@@ -23,13 +23,13 @@ from cryptography.hazmat.backends.openssl import backend
 from cryptography.hazmat.primitives import hashes
 from eth_account.account import Account
 from eth_account.messages import HexBytes, SignableMessage, encode_defunct
+from eth_keys import KeyAPI as EthKeyAPI
 from eth_tester.exceptions import TransactionFailed
 from eth_utils import to_canonical_address, to_checksum_address, to_normalized_address
-from umbral.keys import UmbralPrivateKey, UmbralPublicKey
-from umbral.signing import Signer, Signature
 
 from nucypher.crypto.api import keccak_digest, verify_eip_191
 from nucypher.crypto.utils import canonical_address_from_umbral_key
+from nucypher.crypto.umbral_adapter import UmbralPrivateKey, UmbralPublicKey, Signer, Signature
 
 ALGORITHM_KECCAK256 = 0
 ALGORITHM_SHA256 = 1
@@ -51,7 +51,7 @@ def get_signature_recovery_value(message: bytes,
     """
 
     signature = bytes(signature)
-    ecdsa_signature_size = Signature.expected_bytes_length()
+    ecdsa_signature_size = 64 # two curve scalars
     if len(signature) != ecdsa_signature_size:
         raise ValueError(f"The signature size should be {ecdsa_signature_size} B.")
 
@@ -64,6 +64,20 @@ def get_signature_recovery_value(message: bytes,
     else:
         raise ValueError("Signature recovery failed. "
                          "Either the message, the signature or the public key is not correct")
+
+
+def pubkey_as_address(umbral_pubkey):
+    """
+    Returns the public key as b'0x' + keccak(uncompressed_bytes)[-20:]
+    """
+    return to_normalized_address(canonical_address_from_umbral_key(umbral_pubkey).hex())
+
+
+def pubkey_as_uncompressed_bytes(umbral_pubkey):
+    """
+    Returns the public key as uncompressed bytes (without the prefix, so 64 bytes long)
+    """
+    return EthKeyAPI.PublicKey.from_compressed_bytes(bytes(umbral_pubkey)).to_bytes()
 
 
 @pytest.fixture()
@@ -83,9 +97,7 @@ def test_recover(testerchain, signature_verifier):
     # Generate Umbral key and extract "address" from the public key
     umbral_privkey = UmbralPrivateKey.gen_key()
     umbral_pubkey = umbral_privkey.get_pubkey()
-    umbral_pubkey_bytes = umbral_privkey.get_pubkey().to_bytes(is_compressed=False)
-    signer_address = keccak_digest(umbral_pubkey_bytes[1:])
-    signer_address = to_normalized_address(signer_address[12:])
+    signer_address = pubkey_as_address(umbral_pubkey)
 
     # Sign message
     signer = Signer(umbral_privkey)
@@ -121,9 +133,8 @@ def test_address(testerchain, signature_verifier):
     # Generate Umbral key and extract "address" from the public key
     umbral_privkey = UmbralPrivateKey.gen_key()
     umbral_pubkey = umbral_privkey.get_pubkey()
-    umbral_pubkey_bytes = umbral_pubkey.to_bytes(is_compressed=False)[1:]
-    signer_address = keccak_digest(umbral_pubkey_bytes)
-    signer_address = to_normalized_address(signer_address[12:])
+    signer_address = pubkey_as_address(umbral_pubkey)
+    umbral_pubkey_bytes = pubkey_as_uncompressed_bytes(umbral_pubkey)
 
     # Check extracting address in library
     result_address = signature_verifier.functions.toAddress(umbral_pubkey_bytes).call()
@@ -148,7 +159,7 @@ def test_verify(testerchain, signature_verifier):
     # Generate Umbral key
     umbral_privkey = UmbralPrivateKey.gen_key()
     umbral_pubkey = umbral_privkey.get_pubkey()
-    umbral_pubkey_bytes = umbral_pubkey.to_bytes(is_compressed=False)
+    umbral_pubkey_bytes = pubkey_as_uncompressed_bytes(umbral_pubkey)
 
     # Sign message using SHA-256 hash
     signer = Signer(umbral_privkey)
@@ -161,15 +172,15 @@ def test_verify(testerchain, signature_verifier):
     # Verify signature
     assert signature_verifier.functions.verify(message,
                                                recoverable_signature,
-                                               umbral_pubkey_bytes[1:],
+                                               umbral_pubkey_bytes,
                                                ALGORITHM_SHA256).call()
 
     # Verify signature using wrong key
     umbral_privkey = UmbralPrivateKey.gen_key()
-    umbral_pubkey_bytes = umbral_privkey.get_pubkey().to_bytes(is_compressed=False)
+    umbral_pubkey_bytes = pubkey_as_uncompressed_bytes(umbral_privkey.get_pubkey())
     assert not signature_verifier.functions.verify(message,
                                                    recoverable_signature,
-                                                   umbral_pubkey_bytes[1:],
+                                                   umbral_pubkey_bytes,
                                                    ALGORITHM_SHA256).call()
 
 
@@ -179,7 +190,7 @@ def test_verify_eip191(testerchain, signature_verifier):
     # Generate Umbral key
     umbral_privkey = UmbralPrivateKey.gen_key()
     umbral_pubkey = umbral_privkey.get_pubkey()
-    umbral_pubkey_bytes = umbral_pubkey.to_bytes(is_compressed=False)
+    umbral_pubkey_bytes = pubkey_as_uncompressed_bytes(umbral_pubkey)
 
     #
     # Check EIP191 signatures: Version E
@@ -201,14 +212,14 @@ def test_verify_eip191(testerchain, signature_verifier):
     version_E = b'E'
     assert signature_verifier.functions.verifyEIP191(message,
                                                      signature,
-                                                     umbral_pubkey_bytes[1:],
+                                                     umbral_pubkey_bytes,
                                                      version_E).call()
 
     # Of course, it'll fail if we try using version 0
     version_0 = b'\x00'
     assert not signature_verifier.functions.verifyEIP191(message,
                                                      signature,
-                                                     umbral_pubkey_bytes[1:],
+                                                     umbral_pubkey_bytes,
                                                      version_0).call()
 
     # Check that the hash-based method also works independently
@@ -240,13 +251,13 @@ def test_verify_eip191(testerchain, signature_verifier):
     # On chain verify signature
     assert signature_verifier.functions.verifyEIP191(message,
                                                      signature,
-                                                     umbral_pubkey_bytes[1:],
+                                                     umbral_pubkey_bytes,
                                                      version_0).call()
 
     # Of course, now it fails if we try with version E
     assert not signature_verifier.functions.verifyEIP191(message,
                                                          signature,
-                                                         umbral_pubkey_bytes[1:],
+                                                         umbral_pubkey_bytes,
                                                          version_E).call()
 
     # Check that the hash-based method also works independently

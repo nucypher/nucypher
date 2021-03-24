@@ -239,12 +239,11 @@ class CapsuleFrag(umbral.CapsuleFrag):
     def to_bytes(self):
         return bytes(self)
 
-    def verify_correctness(self, capsule, metadata=None):
+    def verify_correctness(self, capsule):
         keys = capsule.get_correctness_keys()
         return self.verify(
             capsule._capsule,
-            verifying_pk=keys['verifying'], delegating_pk=keys['delegating'], receiving_pk=keys['receiving'],
-            metadata=metadata)
+            verifying_pk=keys['verifying'], delegating_pk=keys['delegating'], receiving_pk=keys['receiving'])
 
 
 # Adapter for standalone functions
@@ -253,9 +252,9 @@ class PRE:
     GenericUmbralError = umbral.GenericError
 
     @staticmethod
-    def reencrypt(kfrag, capsule, metadata=None):
+    def reencrypt(kfrag, capsule):
         assert isinstance(capsule, Capsule)
-        cf = umbral.reencrypt(capsule._capsule, kfrag, metadata=metadata)
+        cf = umbral.reencrypt(capsule._capsule, kfrag)
         return cf
 
     @staticmethod

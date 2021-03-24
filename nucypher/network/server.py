@@ -34,7 +34,7 @@ from mako import exceptions as mako_exceptions
 from mako.template import Template
 from maya import MayaDT
 from typing import Tuple
-from umbral.kfrags import KFrag
+from nucypher.crypto.umbral_adapter import KFrag
 from web3.exceptions import TimeExhausted
 
 import nucypher
@@ -263,13 +263,15 @@ def _make_rest_app(datastore: Datastore, this_node, domain: str, log: Logger) ->
             kfrag_bytes = cleartext
         kfrag = KFrag.from_bytes(kfrag_bytes)
 
-        if not kfrag.verify(signing_pubkey=alices_verifying_key):
+        try:
+            verified_kfrag = kfrag.verify(signing_pubkey=alices_verifying_key)
+        except VerificationError:
             return Response(f"Signature on {kfrag} is invalid", status=403)
 
         with datastore.describe(PolicyArrangement, id_as_hex, writeable=True) as policy_arrangement:
             if not policy_arrangement.alice_verifying_key == alice.stamp.as_umbral_pubkey():
                 return Response("Policy arrangement's signing key does not match sender's", status=403)
-            policy_arrangement.kfrag = kfrag
+            policy_arrangement.kfrag = verified_kfrag
 
         # TODO: Sign the arrangement here.  #495
         return ""  # TODO: Return A 200, with whatever policy metadata.

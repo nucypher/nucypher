@@ -26,8 +26,7 @@ from cryptography import x509
 from cryptography.hazmat.backends import default_backend
 
 from nucypher.blockchain.eth.networks import NetworksInventory
-from nucypher.crypto.signing import signature_splitter
-from nucypher.crypto.splitters import cfrag_splitter
+from nucypher.crypto.splitters import cfrag_splitter, signature_splitter
 from nucypher.utilities.logging import Logger
 
 EXEMPT_FROM_VERIFICATION.bool_value(False)

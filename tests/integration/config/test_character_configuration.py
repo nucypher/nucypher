@@ -21,7 +21,7 @@ from unittest.mock import Mock
 import pytest
 import tempfile
 from constant_sorrow.constants import CERTIFICATE_NOT_SAVED, NO_KEYRING_ATTACHED
-from umbral.keys import UmbralPrivateKey
+from nucypher.crypto.umbral_adapter import UmbralPrivateKey
 
 from tests.constants import MOCK_IP_ADDRESS
 from nucypher.blockchain.eth.actors import StakeHolder

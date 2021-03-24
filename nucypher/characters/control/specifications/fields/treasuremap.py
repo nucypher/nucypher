@@ -25,6 +25,7 @@ from nucypher.characters.control.specifications.fields.base import BaseField
 from nucypher.crypto.constants import HRAC_LENGTH
 from nucypher.crypto.kits import UmbralMessageKit
 from nucypher.crypto.signing import Signature
+from nucypher.crypto.splitters import signature_splitter
 
 
 class TreasureMap(BaseField, fields.Field):
@@ -40,7 +41,7 @@ class TreasureMap(BaseField, fields.Field):
 
     def _validate(self, value):
 
-        splitter = BytestringSplitter(Signature,
+        splitter = BytestringSplitter(signature_splitter,
                                   (bytes, HRAC_LENGTH),  # hrac
                                   (UmbralMessageKit, VariableLengthBytestring)
                                   )  # TODO: USe the one from TMap
