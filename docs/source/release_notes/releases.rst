@@ -4,6 +4,45 @@ Releases
 
 .. towncrier release notes start
 
+v4.8.0 (2021-03-23)
+-------------------
+
+Features
+~~~~~~~~
+
+- Expanded features for staker and status CLI:
+    - Support substake inspection via `nucypher status stakers --substakes`.
+    - Automated transaction series for inactive substake removal.
+    - Display unlocked NU amount from stakers status.
+    - Handle replacement of stuck withdraw transactions with --replace. (`#2528 <https://github.com/nucypher/nucypher/issues/2528>`__)
+- Support extended period migration by nodes via work tracker. (`#2607 <https://github.com/nucypher/nucypher/issues/2607>`__)
+
+
+Bugfixes
+~~~~~~~~
+
+- Improved import error feedback and default ssh key path in cloudworkers. (`#2598 <https://github.com/nucypher/nucypher/issues/2598>`__)
+- Support geth 1.10.x - Remove chainID from transaction payloads. (`#2603 <https://github.com/nucypher/nucypher/issues/2603>`__)
+
+
+Improved Documentation
+~~~~~~~~~~~~~~~~~~~~~~
+
+- Document minimum approval and support requirements for NuCypher DAO. (`#2599 <https://github.com/nucypher/nucypher/issues/2599>`__)
+
+
+Deprecations and Removals
+~~~~~~~~~~~~~~~~~~~~~~~~~
+
+- Deprecate worker IP address as environment variable (``NUCYPHER_WORKER_IP_ADDRESS``). (`#2583 <https://github.com/nucypher/nucypher/issues/2583>`__)
+
+
+Misc
+~~~~
+
+- Adjust ``Ursula.status_info()`` API to make it easier for ``nucypher-monitor`` to collect data. (`#2574 <https://github.com/nucypher/nucypher/issues/2574>`__)
+
+
 v4.7.1 (2021-03-02)
 -------------------
 

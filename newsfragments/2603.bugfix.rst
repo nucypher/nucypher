@@ -1,1 +1,0 @@
-Support geth 1.10.x - Remove chainID from transaction payloads.
