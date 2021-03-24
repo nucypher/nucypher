@@ -1,1 +1,0 @@
-Add ``balance_eth``, ``balance_nu``, ``missing_commitments`` and ``last_committed_period`` to the ``/status`` REST endpoint.

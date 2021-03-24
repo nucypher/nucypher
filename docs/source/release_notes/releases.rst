@@ -4,6 +4,15 @@ Releases
 
 .. towncrier release notes start
 
+v4.8.1 (2021-03-24)
+-------------------
+
+Bugfixes
+~~~~~~~~
+
+- Add ``balance_eth``, ``balance_nu``, ``missing_commitments`` and ``last_committed_period`` to the ``/status`` REST endpoint. (`#2611 <https://github.com/nucypher/nucypher/issues/2611>`__)
+
+
 v4.8.0 (2021-03-23)
 -------------------
 
