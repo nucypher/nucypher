@@ -159,8 +159,9 @@ def confirm_staged_grant(emitter, grant_request: Dict, federated: bool, seconds_
     pretty_request['rate'] = f"{pretty_request['rate']} wei/period * {pretty_request['n']} nodes"
 
     expiration = pretty_request['expiration']
-    periods = calculate_period_duration(future_time=MayaDT(expiration),
+    periods = calculate_period_duration(future_time=MayaDT.from_datetime(expiration),
                                         seconds_per_period=seconds_per_period)
+    periods += 1  # current period is always included
     pretty_request['expiration'] = f"{pretty_request['expiration']} ({periods} periods)"
 
     # M of N
