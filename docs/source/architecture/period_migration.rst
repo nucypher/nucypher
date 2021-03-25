@@ -8,7 +8,7 @@ Genesis
 -------
 
 At the Network launch (genesis) on October 15th, 2020, the length of a period was 24 hours. As a result, before
-UTC midnight, Workers needed to make a daily on-chain commitment transactions indicating availability for
+UTC midnight, Workers needed to make a per period (daily) on-chain commitment transactions indicating availability for
 the following period (after UTC midnight).
 
 The cost of the commitment transaction was approximately 200k gas, but could cost more depending on the number of

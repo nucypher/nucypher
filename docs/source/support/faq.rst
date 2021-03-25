@@ -164,7 +164,7 @@ Participation in WorkLock is now closed, but since NU is an ERC-20 token, it can
 Q: When/Why does a node operator need to use ``mint`` command?
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-The period following stake termination or later, but before withdrawing escrowed tokens. Each node on the NuCypher network sends daily transactions signalling continued commitment to providing service, and to calculation of NU rewards for prior periods ("minting"). At the final day/period of a stake, automatic minting will stop and intervention is required to complete the final minting calculation by calling ``mint`` manually.
+The period following stake termination or later, but before withdrawing escrowed tokens. Each node on the NuCypher network sends per period commitment transactions signalling continued commitment to providing service, and to calculation of NU rewards for prior periods ("minting"). At the final period of a stake, automatic minting will stop and intervention is required to complete the final minting calculation by calling ``mint`` manually.
 
 Q: What are the recommended specifications for running a nucypher node?
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~

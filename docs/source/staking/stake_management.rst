@@ -328,8 +328,8 @@ Remove inactive sub-stake
 
 When sub-stakes terminate, are merged or edited,
 there may be 'unused', inactive sub-stakes remaining on-chain.
-Continued tracking of these unused sub-stakes adds unnecessary gas costs to daily operations.
-Consequently, removal of unused sub-stakes will reduce daily gas costs.
+Continued tracking of these unused sub-stakes adds unnecessary gas costs to node commitment operations.
+Consequently, removal of unused sub-stakes will reduce per period gas costs.
 
 Unused sub-stakes can be displayed by listing all sub-stakes
 and will be indicated by the ``INACTIVE`` status label.
