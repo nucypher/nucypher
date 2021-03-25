@@ -59,6 +59,55 @@ stake's duration is not shorter than the minimum. To prolong an existing stake's
 
     (nucypher)$ nucypher stake prolong --hw-wallet
 
+    Enter ethereum account password (0xB548378f13e9A2C7bEf66B890B46F2eD6Ed87fCf):
+
+    Network <NETWORK_NAME> ═══════════════════════════════
+    Staker 0xB548378f13e9A2C7bEf66B890B46F2eD6Ed87fCf ════
+    Worker 0x6cf78fE4bD2a6573046d17f72f4C20462124Aa10 ════
+    --------------  -----------------------------------
+    Status          Never Made a Commitment (New Stake)
+    Restaking       Yes
+    Winding Down    No
+    Snapshots       Yes
+    Unclaimed Fees  0 ETH
+    Min fee rate    50 gwei
+    --------------  -----------------------------------
+    ╒═══════╤══════════╤═════════════╤═════════════╤═══════════════╤═══════════╕
+    │   Idx │ Value    │   Remaining │ Enactment   │ Termination   │ Status    │
+    ╞═══════╪══════════╪═════════════╪═════════════╪═══════════════╪═══════════╡
+    │     0 │ 30000 NU │           5 │ Mar 24 2021 │ Apr 21 2021   │ DIVISIBLE │
+    ├───────┼──────────┼─────────────┼─────────────┼───────────────┼───────────┤
+    │     1 │ 15000 NU │           9 │ Mar 24 2021 │ May 19 2021   │ EDITABLE  │
+    ╘═══════╧══════════╧═════════════╧═════════════╧═══════════════╧═══════════╛
+    Select Stake (0, 1): 0
+    Enter number of periods to extend (1-62859): 4
+    Publish stake extension of 4 period(s) to the blockchain? [y/N]: y
+    Broadcasting PROLONGSTAKE Transaction (0.012197658 ETH @ 274 gwei)
+    TXHASH 0x049b98200c5949b75aa265ad4155f4ba02cb17a0309b16093bd7003c59fefb74
+    Waiting 600 seconds for receipt
+    Successfully Prolonged Stake
+    ...
+
+
+    Network <NETWORK_NAME> ═══════════════════════════════
+    Staker 0xB548378f13e9A2C7bEf66B890B46F2eD6Ed87fCf ════
+    Worker 0x6cf78fE4bD2a6573046d17f72f4C20462124Aa10 ════
+    --------------  -----------------------------------
+    Status          Never Made a Commitment (New Stake)
+    Restaking       Yes
+    Winding Down    No
+    Snapshots       Yes
+    Unclaimed Fees  0 ETH
+    Min fee rate    50 gwei
+    --------------  -----------------------------------
+    ╒═══════╤══════════╤═════════════╤═════════════╤═══════════════╤═══════════╕
+    │   Idx │ Value    │   Remaining │ Enactment   │ Termination   │ Status    │
+    ╞═══════╪══════════╪═════════════╪═════════════╪═══════════════╪═══════════╡
+    │     0 │ 30000 NU │           9 │ Mar 24 2021 │ May 19 2021   │ DIVISIBLE │
+    ├───────┼──────────┼─────────────┼─────────────┼───────────────┼───────────┤
+    │     1 │ 15000 NU │           9 │ Mar 24 2021 │ May 19 2021   │ EDITABLE  │
+    ╘═══════╧══════════╧═════════════╧═════════════╧═══════════════╧═══════════╛
+
 
 Wind Down
 ~~~~~~~~~
@@ -118,54 +167,71 @@ To divide an existing stake:
 .. code:: bash
 
     (nucypher)$ nucypher stake divide --hw-wallet
+    Enter ethereum account password (0xB548378f13e9A2C7bEf66B890B46F2eD6Ed87fCf):
+    NOTE: Showing divisible stakes only
 
-    Select Stake: 0
-    Enter target value (15000 NU - 16437.841006996376688377 NU): 15000
+    Network <NETWORK_NAME> ═══════════════════════════════
+    Staker 0xB548378f13e9A2C7bEf66B890B46F2eD6Ed87fCf ════
+    Worker 0x6cf78fE4bD2a6573046d17f72f4C20462124Aa10 ════
+    --------------  -----------------------------------
+    Status          Never Made a Commitment (New Stake)
+    Restaking       Yes
+    Winding Down    No
+    Snapshots       Yes
+    Unclaimed Fees  0 ETH
+    Min fee rate    50 gwei
+    --------------  -----------------------------------
+    ╒═══════╤══════════╤═════════════╤═════════════╤═══════════════╤═══════════╕
+    │   Idx │ Value    │   Remaining │ Enactment   │ Termination   │ Status    │
+    ╞═══════╪══════════╪═════════════╪═════════════╪═══════════════╪═══════════╡
+    │     0 │ 45000 NU │           5 │ Mar 24 2021 │ Apr 21 2021   │ DIVISIBLE │
+    ╘═══════╧══════════╧═════════════╧═════════════╧═══════════════╧═══════════╛
+    Select Stake (0): 0
+    Enter target value (15000 NU - 30000 NU): 15000
     Enter number of periods to extend: 4
 
     ══════════════════════════════ ORIGINAL STAKE ════════════════════════════
 
-    Staking address: 0x270b3f8af5ba2B79ea3Bd6a6Efc7ecAB056d3E3f
-    ~ Original Stake: | - | 0x270b | 0x45D3 | 0 | 31437.841006996376688377 NU | 4 periods . | Jun 19 20:00 EDT - Jul 17 20:00 EDT
+    Staking address: 0xB548378f13e9A2C7bEf66B890B46F2eD6Ed87fCf
+    ~ Original Stake: | - | 0xB548 | 0 | 45000 NU | 4 periods  | Mar 24 17:00 PDT - Apr 21 17:00 PDT
 
 
     ══════════════════════════════ STAGED STAKE ══════════════════════════════
 
-    Staking address: 0x270b3f8af5ba2B79ea3Bd6a6Efc7ecAB056d3E3f
-    ~ Chain      -> ID # 4 | Rinkeby
+    Staking address: 0xB548378f13e9A2C7bEf66B890B46F2eD6Ed87fCf
+    ~ Chain      -> ID <CHAIN_ID>
     ~ Value      -> 15000 NU (15000000000000000000000 NuNits)
     ~ Duration   -> 56 Days (8 Periods)
-    ~ Enactment  -> Jun 19 20:00 EDT (period #2633)
-    ~ Expiration -> Aug 12 20:00 EDT (period #2641)
+    ~ Enactment  -> Mar 24 2021 17:00 PDT (period #2673)
+    ~ Expiration -> May 19 2021 17:00 PDT (period #2681)
 
     ═════════════════════════════════════════════════════════════════════════
     Publish stake division to the blockchain? [y/N]: y
-    Enter password to unlock account 0x270b3f8af5ba2B79ea3Bd6a6Efc7ecAB056d3E3f:
-    Confirm transaction DIVIDESTAKE on hardware wallet... (76058 gwei @ 1000000000)
-    Broadcasting DIVIDESTAKE Transaction (76058 gwei @ 1000000000)...
+    Broadcasting DIVIDESTAKE Transaction (0.019689812 ETH @ 273.5 gwei)
+    TXHASH 0x641029fcfd4e263dc38774c5510f539f50c00004941ed0c4c737e53b67ade024
+    Waiting 600 seconds for receipt
     Successfully divided stake
-    OK | 0x74ddd647de6eaca7ef0c485706ef526001d959a3c2eaa98699e087a7d259d08b (75349 gas)
-    Block #6711982 | 0xd1c6d6df257ecd05632550565edb709ae577066a60ca433bc4d23de5fb332009
-     See https://rinkeby.etherscan.io/tx/0x74ddd647de6eaca7ef0c485706ef526001d959a3c2eaa98699e087a7d259d08b
+    ...
 
 
     Network <NETWORK_NAME> ═══════════════════════════════
-    Staker 0x270b3f8af5ba2B79ea3Bd6a6Efc7ecAB056d3E3f ════
-    Worker 0x45D33d1Ff0A7E696556f36DE697E5C92C2CCcFaE ════
-    --------------  ----------------
-    Status          Committed #18436
-    Restaking       Yes (Unlocked)
+    Staker 0xB548378f13e9A2C7bEf66B890B46F2eD6Ed87fCf ════
+    Worker 0x6cf78fE4bD2a6573046d17f72f4C20462124Aa10 ════
+    --------------  -----------------------------------
+    Status          Never Made a Commitment (New Stake)
+    Restaking       Yes
     Winding Down    No
+    Snapshots       Yes
     Unclaimed Fees  0 ETH
-    Min fee rate    0 ETH
-    --------------  ----------------
-    ╒═══════╤═════════════════════════════╤═════════════╤═════════════╤═══════════════╕
-    │   Idx │ Value                   	  │   Remaining │ Enactment   │ Termination   │
-    ╞═══════╪═════════════════════════════╪═════════════╪═════════════╪═══════════════╡
-    │ 	0   │ 16437.841006996376688377 NU │         5   │ Jun 19 2020 │ Jul 17 2020   │
-    ├───────┼─────────────────────────────┼─────────────┼─────────────┼───────────────┤
-    │ 	1   │ 15000 NU                	  │         9   │ Jun 19 2020 │ Aug 12 2020   │
-    ╘═══════╧═════════════════════════════╧═════════════╧═════════════╧═══════════════╛
+    Min fee rate    50 gwei
+    --------------  -----------------------------------
+    ╒═══════╤══════════╤═════════════╤═════════════╤═══════════════╤═══════════╕
+    │   Idx │ Value    │   Remaining │ Enactment   │ Termination   │ Status    │
+    ╞═══════╪══════════╪═════════════╪═════════════╪═══════════════╪═══════════╡
+    │     0 │ 30000 NU │           5 │ Mar 24 2021 │ Apr 21 2021   │ DIVISIBLE │
+    ├───────┼──────────┼─────────────┼─────────────┼───────────────┼───────────┤
+    │     1 │ 15000 NU │           9 │ Mar 24 2021 │ May 19 2021   │ EDITABLE  │
+    ╘═══════╧══════════╧═════════════╧═════════════╧═══════════════╧═══════════╛
 
 
 Increase
@@ -188,6 +254,73 @@ This can help to decrease gas consumption in some operations. To merge two stake
 .. code:: bash
 
     (nucypher)$ nucypher stake merge --hw-wallet
+    Enter ethereum account password (0xB548378f13e9A2C7bEf66B890B46F2eD6Ed87fCf):
+
+    Network <NETWORK_NAME> ═══════════════════════════════
+    Staker 0xB548378f13e9A2C7bEf66B890B46F2eD6Ed87fCf ════
+    Worker 0x6cf78fE4bD2a6573046d17f72f4C20462124Aa10 ════
+    --------------  -----------------------------------
+    Status          Never Made a Commitment (New Stake)
+    Restaking       Yes
+    Winding Down    No
+    Snapshots       Yes
+    Unclaimed Fees  0 ETH
+    Min fee rate    50 gwei
+    --------------  -----------------------------------
+    ╒═══════╤══════════╤═════════════╤═════════════╤═══════════════╤═══════════╕
+    │   Idx │ Value    │   Remaining │ Enactment   │ Termination   │ Status    │
+    ╞═══════╪══════════╪═════════════╪═════════════╪═══════════════╪═══════════╡
+    │     0 │ 30000 NU │           9 │ Mar 24 2021 │ May 19 2021   │ DIVISIBLE │
+    ├───────┼──────────┼─────────────┼─────────────┼───────────────┼───────────┤
+    │     1 │ 15000 NU │           9 │ Mar 24 2021 │ May 19 2021   │ EDITABLE  │
+    ╘═══════╧══════════╧═════════════╧═════════════╧═══════════════╧═══════════╛
+    Select Stake (0, 1): 0
+    NOTE: Showing stakes with 2680 final period only
+
+    Network <NETWORK_NAME> ═══════════════════════════════
+    Staker 0xB548378f13e9A2C7bEf66B890B46F2eD6Ed87fCf ════
+    Worker 0x6cf78fE4bD2a6573046d17f72f4C20462124Aa10 ════
+    --------------  -----------------------------------
+    Status          Never Made a Commitment (New Stake)
+    Restaking       Yes
+    Winding Down    No
+    Snapshots       Yes
+    Unclaimed Fees  0 ETH
+    Min fee rate    50 gwei
+    --------------  -----------------------------------
+    ╒═══════╤══════════╤═════════════╤═════════════╤═══════════════╤══════════╕
+    │   Idx │ Value    │   Remaining │ Enactment   │ Termination   │ Status   │
+    ╞═══════╪══════════╪═════════════╪═════════════╪═══════════════╪══════════╡
+    │     1 │ 15000 NU │           9 │ Mar 24 2021 │ May 19 2021   │ EDITABLE │
+    ╘═══════╧══════════╧═════════════╧═════════════╧═══════════════╧══════════╛
+    Select Stake (1): 1
+    Publish merging of 0 and 1 stakes? [y/N]: y
+    Broadcasting MERGESTAKE Transaction (0.013509688 ETH @ 278 gwei)
+    TXHASH 0xef5ac787a22fc9a0a3e13a173e6e6db7603ec0be4473084d8b2b06a414328d62
+    Waiting 600 seconds for receipt
+    Successfully Merged Stakes
+    ...
+
+    Network <NETWORK_NAME> ═══════════════════════════════
+    Staker 0xB548378f13e9A2C7bEf66B890B46F2eD6Ed87fCf ════
+    Worker 0x6cf78fE4bD2a6573046d17f72f4C20462124Aa10 ════
+    --------------  -----------------------------------
+    Status          Never Made a Commitment (New Stake)
+    Restaking       Yes
+    Winding Down    No
+    Snapshots       Yes
+    Unclaimed Fees  0 ETH
+    Min fee rate    50 gwei
+    --------------  -----------------------------------
+    ╒═══════╤══════════╤═════════════╤═════════════╤═══════════════╤═══════════╕
+    │   Idx │ Value    │   Remaining │ Enactment   │ Termination   │ Status    │
+    ╞═══════╪══════════╪═════════════╪═════════════╪═══════════════╪═══════════╡
+    │     0 │ 45000 NU │           9 │ Mar 24 2021 │ May 19 2021   │ DIVISIBLE │
+    ╘═══════╧══════════╧═════════════╧═════════════╧═══════════════╧═══════════╛
+    Note that some sub-stakes are inactive: [1]
+    Run `nucypher stake list --all` to show all sub-stakes.
+    Run `nucypher stake remove-inactive --all` to remove inactive sub-stakes; removal of inactive sub-stakes will reduce commitment gas costs.
+
 
 
 Remove inactive sub-stake
@@ -204,16 +337,24 @@ and will be indicated by the ``INACTIVE`` status label.
 .. code:: bash
 
     (nucypher)$ nucypher stake list --all --hw-wallet
-
-    ...
-
-    ╒═══════╤═══════════════╤═════════════╤═════════════╤═══════════════╤═══════════╕
-    │   Idx │ Value         │   Remaining │ Enactment   │ Termination   │ Status    │
-    ╞═══════╪═══════════════╪═════════════╪═════════════╪═══════════════╪═══════════╡
-    │     0 │ 123456.789 NU │          -1 │ Oct 15 2020 │ Nov 29 2020   │ INACTIVE  │
-    ├───────┼───────────────┼─────────────┼─────────────┼───────────────┼───────────┤
-    │     1 │ 123456.789 NU │           3 │ Oct 15 2020 │ Dec 14 2020   │ DIVISIBLE │
-    ├───────┼───────────────┼─────────────┼─────────────┼───────────────┼───────────┤
+    Network <NETWORK_NAME> ═══════════════════════════════
+    Staker 0xB548378f13e9A2C7bEf66B890B46F2eD6Ed87fCf ════
+    Worker 0x6cf78fE4bD2a6573046d17f72f4C20462124Aa10 ════
+    --------------  -----------------------------------
+    Status          Never Made a Commitment (New Stake)
+    Restaking       Yes
+    Winding Down    No
+    Snapshots       Yes
+    Unclaimed Fees  0 ETH
+    Min fee rate    50 gwei
+    --------------  -----------------------------------
+    ╒═══════╤══════════╤═════════════╤═════════════╤═══════════════╤═══════════╕
+    │   Idx │ Value    │   Remaining │ Enactment   │ Termination   │ Status    │
+    ╞═══════╪══════════╪═════════════╪═════════════╪═══════════════╪═══════════╡
+    │     0 │ 45000 NU │ 9           │ Mar 24 2021 │ May 19 2021   │ DIVISIBLE │
+    ├───────┼──────────┼─────────────┼─────────────┼───────────────┼───────────┤
+    │     1 │ 15000 NU │ N/A         │ Mar 24 2021 │ N/A           │ INACTIVE  │
+    ╘═══════╧══════════╧═════════════╧═════════════╧═══════════════╧═══════════╛
 
 
 To remove an unused sub-stake, run the following command and select the index
@@ -222,12 +363,59 @@ of your ``INACTIVE`` sub-stake:
 .. code:: bash
 
     (nucypher)$ nucypher stake remove-inactive --hw-wallet
+    Enter ethereum account password (0xB548378f13e9A2C7bEf66B890B46F2eD6Ed87fCf):
+    Fetching inactive stakes
+
+    Network <NETWORK_NAME> ═══════════════════════════════
+    Staker 0xB548378f13e9A2C7bEf66B890B46F2eD6Ed87fCf ════
+    Worker 0x6cf78fE4bD2a6573046d17f72f4C20462124Aa10 ════
+    --------------  -----------------------------------
+    Status          Never Made a Commitment (New Stake)
+    Restaking       Yes
+    Winding Down    No
+    Snapshots       Yes
+    Unclaimed Fees  0 ETH
+    Min fee rate    50 gwei
+    --------------  -----------------------------------
+    ╒═══════╤══════════╤═════════════╤═════════════╤═══════════════╤═══════════╕
+    │   Idx │ Value    │   Remaining │ Enactment   │ Termination   │ Status    │
+    ╞═══════╪══════════╪═════════════╪═════════════╪═══════════════╪═══════════╡
+    │     1 │ 15000 NU │ N/A         │ Mar 24 2021 │ N/A           │ INACTIVE  │
+    ╘═══════╧══════════╧═════════════╧═════════════╧═══════════════╧═══════════╛
+
+    Select Stake (1): 1
+    Publish removal of 1 stake? [y/N]: y
+    Broadcasting REMOVEUNUSEDSUBSTAKE Transaction (0.012804726 ETH @ 288.2 gwei)
+    TXHASH 0x942a70ee2adb5078fa6d8fa468f28d3e35386f90247035fdb5d19c34836200a0
+    Waiting 600 seconds for receipt
+    Successfully Removed Stake
+    ...
+
+    Network <NETWORK_NAME> ═══════════════════════════════
+    Staker 0xB548378f13e9A2C7bEf66B890B46F2eD6Ed87fCf ════
+    Worker 0x6cf78fE4bD2a6573046d17f72f4C20462124Aa10 ════
+    --------------  -----------------------------------
+    Status          Never Made a Commitment (New Stake)
+    Restaking       Yes
+    Winding Down    No
+    Snapshots       Yes
+    Unclaimed Fees  0 ETH
+    Min fee rate    50 gwei
+    --------------  -----------------------------------
+    ╒═══════╤══════════╤═════════════╤═════════════╤═══════════════╤═══════════╕
+    │   Idx │ Value    │   Remaining │ Enactment   │ Termination   │ Status    │
+    ╞═══════╪══════════╪═════════════╪═════════════╪═══════════════╪═══════════╡
+    │     0 │ 45000 NU │           9 │ Mar 24 2021 │ May 19 2021   │ DIVISIBLE │
+    ╘═══════╧══════════╧═════════════╧═════════════╧═══════════════╧═══════════╛
 
 
 In order to make the operation as simple and cheap as possible,
 the removal algorithm simply relocates the last active sub-stake to the slot
 occupied by the currently inactive one, so you will notice a slight
 re-ordering of your sub-stakes. This is normal and doesn't have any negative implications.
+
+For your convenience, run ``nucypher stake remove-inactive --all`` to remove all inactive sub-stakes using
+one CLI command to execute a series of removal transactions.
 
 
 Collect Staker Rewards
