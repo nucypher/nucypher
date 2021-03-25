@@ -356,24 +356,22 @@ def _make_rest_app(datastore: Datastore, this_node, domain: str, log: Logger) ->
         # treasure map is valid pursuant to an active policy.
         # We also set the expiration from the data on the blockchain here.
         if not this_node.federated_only:
-            policy_data, alice_checksum_address = this_node.policy_agent.fetch_policy(
-                    received_treasure_map._hrac,
-                    with_owner=True)
+            policy = this_node.policy_agent.fetch_policy(policy_id=received_treasure_map._hrac)
             # If the Policy doesn't exist, the policy_data is all zeros.
-            if not policy_data[5]:
+            if policy.sponsor is NULL_ADDRESS:
                 log.info(f"TreasureMap is for non-existent Policy; not storing {map_identifier}")
                 return Response("The Policy for this TreasureMap doesn't exist.", status=409)
 
             # Check that this treasure map is from Alice per the Policy.
-            if not received_treasure_map.verify_blockchain_signature(checksum_address=alice_checksum_address):
+            if not received_treasure_map.verify_blockchain_signature(checksum_address=policy.owner):
                 log.info(f"Bad TreasureMap ID; not storing {map_identifier}")
                 return Response("This TreasureMap doesn't match a paid Policy.", status=402)
 
             # Check that this treasure map is valid for the Policy datetime and that it's not disabled.
-            if policy_data[0] or datetime.utcnow() >= datetime.utcfromtimestamp(policy_data[5]):
+            if policy.disabled or datetime.utcnow() >= datetime.utcfromtimestamp(policy.end_timestamp):
                 log.info(f"Received TreasureMap for an expired/disabled policy; not storing {map_identifier}")
                 return Response("This TreasureMap is for an expired/disabled policy.", status=402)
-            expiration_date = MayaDT.from_datetime(datetime.utcfromtimestamp(policy_data[5]))
+            expiration_date = MayaDT.from_datetime(datetime.utcfromtimestamp(policy.end_timestamp))
 
         # Step 4: Finally, we store our treasure map under its identifier!
         log.info(f"{this_node} storing TreasureMap {map_identifier}")
