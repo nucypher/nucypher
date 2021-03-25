@@ -95,7 +95,7 @@ The pooling contract has several roles:
 
     .. important::
 
-      It is recommended to use a multisig, DAO or other decentralization governance mechanism.
+      It is recommended to use a multisig, DAO or other decentralized governance mechanism.
 
 * *Worker Owner* - the owner of the Worker that runs on behalf of the staking pool; only this address can
   withdraw the worker's collected fee
@@ -108,7 +108,7 @@ The pooling contract has several roles:
 
       Be cautious of who is bestowed the Administrator role because even if the pooling contract was audited,
       the Administrator can modify/upgrade the contract code after deployment. **It is recommended to use a
-      multisig, DAO or other decentralization governance mechanism.**
+      multisig, DAO or other decentralized governance mechanism.**
 
 
 Worker Fees
