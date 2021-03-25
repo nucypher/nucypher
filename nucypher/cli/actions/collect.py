@@ -90,7 +90,7 @@ def collect_expiration(alice: Alice, expiration: maya.MayaDT, force: bool) -> ma
         default_expiration = None
         expiration_prompt = 'Enter policy expiration (Y-M-D H:M:S)'
         if alice.duration_periods:
-            default_expiration = maya.now() + timedelta(days=alice.duration_periods)
+            default_expiration = maya.now() + timedelta(hours=alice.duration_periods * alice.economics.hours_per_period)
         expiration = click.prompt(expiration_prompt, type=click.DateTime(), default=default_expiration)
     return expiration
 

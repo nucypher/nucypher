@@ -957,7 +957,8 @@ def test_create_interactive(click_runner,
                                        lock_periods=lock_periods) in result.output
     assert CONFIRM_BROADCAST_CREATE_STAKE in result.output
     assert CONFIRM_LARGE_STAKE_VALUE.format(value=value) in result.output
-    assert CONFIRM_LARGE_STAKE_DURATION.format(lock_periods=lock_periods) in result.output
+    lock_days = (lock_periods * token_economics.hours_per_period) // 24
+    assert CONFIRM_LARGE_STAKE_DURATION.format(lock_periods=lock_periods, lock_days=lock_days) in result.output
 
     mock_staking_agent.get_all_stakes.assert_called()
     mock_staking_agent.get_current_period.assert_called()
@@ -1017,7 +1018,8 @@ def test_create_non_interactive(click_runner,
                                        lock_periods=lock_periods) not in result.output
     assert CONFIRM_BROADCAST_CREATE_STAKE in result.output
     assert CONFIRM_LARGE_STAKE_VALUE.format(value=value) not in result.output
-    assert CONFIRM_LARGE_STAKE_DURATION.format(lock_periods=lock_periods) not in result.output
+    lock_days = (lock_periods * token_economics.hours_per_period) // 24
+    assert CONFIRM_LARGE_STAKE_DURATION.format(lock_periods=lock_periods, lock_days=lock_days) not in result.output
 
     mock_staking_agent.get_all_stakes.assert_called()
     mock_staking_agent.get_current_period.assert_called()
@@ -1096,7 +1098,8 @@ def test_create_lock_interactive(click_runner,
                                        lock_periods=lock_periods) in result.output
     assert CONFIRM_BROADCAST_CREATE_STAKE in result.output
     assert CONFIRM_LARGE_STAKE_VALUE.format(value=value) not in result.output
-    assert CONFIRM_LARGE_STAKE_DURATION.format(lock_periods=lock_periods) in result.output
+    lock_days = (lock_periods * token_economics.hours_per_period) // 24
+    assert CONFIRM_LARGE_STAKE_DURATION.format(lock_periods=lock_periods, lock_days=lock_days) in result.output
 
     mock_staking_agent.get_all_stakes.assert_called()
     mock_staking_agent.get_current_period.assert_called()
@@ -1154,7 +1157,8 @@ def test_create_lock_non_interactive(click_runner,
                                        lock_periods=lock_periods) not in result.output
     assert CONFIRM_BROADCAST_CREATE_STAKE in result.output
     assert CONFIRM_LARGE_STAKE_VALUE.format(value=value) not in result.output
-    assert CONFIRM_LARGE_STAKE_DURATION.format(lock_periods=lock_periods) not in result.output
+    lock_days = (lock_periods * token_economics.hours_per_period) // 24
+    assert CONFIRM_LARGE_STAKE_DURATION.format(lock_periods=lock_periods, lock_days=lock_days) not in result.output
 
     mock_staking_agent.get_all_stakes.assert_called()
     mock_staking_agent.get_current_period.assert_called()

@@ -114,9 +114,13 @@ def paint_stakes(emitter: StdoutEmitter,
 
     emitter.echo(tabulate.tabulate(rows, headers=STAKE_TABLE_COLUMNS, tablefmt="fancy_grid"))  # newline
 
-    if not paint_unlocked and inactive_substakes:
-        emitter.echo(f"Note that some sub-stakes are inactive: {inactive_substakes}\n"
-                     f"Run `nucypher stake list --all` to show all sub-stakes.", color='yellow')
+    if inactive_substakes:
+        emitter.echo(f"Note that some sub-stakes are inactive: {inactive_substakes}")
+        if paint_unlocked:
+            emitter.echo("Run `nucypher stake remove-inactive --all` to remove inactive sub-stakes; removing them will "
+                         "reduce future commitment gas costs", color='yellow')
+        else:
+            emitter.echo("Run `nucypher stake list --all` to show all sub-stakes.", color='yellow')
 
 
 def prettify_stake(stake, index: int = None) -> str:
@@ -171,16 +175,18 @@ def paint_staged_stake(emitter,
                        start_period,
                        unlock_period,
                        division_message: str = None):
+    economics = stakeholder.staker.economics
     start_datetime = datetime_at_period(period=start_period,
-                                        seconds_per_period=stakeholder.staker.economics.seconds_per_period,
+                                        seconds_per_period=economics.seconds_per_period,
                                         start_of_period=True)
 
     unlock_datetime = datetime_at_period(period=unlock_period,
-                                         seconds_per_period=stakeholder.staker.economics.seconds_per_period,
+                                         seconds_per_period=economics.seconds_per_period,
                                          start_of_period=True)
+    locked_days = (lock_periods * economics.hours_per_period) // 24
 
-    start_datetime_pretty = start_datetime.local_datetime().strftime("%b %d %H:%M %Z")
-    unlock_datetime_pretty = unlock_datetime.local_datetime().strftime("%b %d %H:%M %Z")
+    start_datetime_pretty = start_datetime.local_datetime().strftime("%b %d %Y %H:%M %Z")
+    unlock_datetime_pretty = unlock_datetime.local_datetime().strftime("%b %d %Y %H:%M %Z")
 
     if division_message:
         emitter.echo(f"\n{'═' * 30} ORIGINAL STAKE {'═' * 28}", bold=True)
@@ -192,7 +198,7 @@ def paint_staged_stake(emitter,
 Staking address: {staking_address}
 ~ Chain      -> ID # {blockchain.client.chain_id} | {blockchain.client.chain_name}
 ~ Value      -> {stake_value} ({int(stake_value)} NuNits)
-~ Duration   -> {lock_periods} Days ({lock_periods} Periods)
+~ Duration   -> {locked_days} Days ({lock_periods} Periods)
 ~ Enactment  -> {start_datetime_pretty} (period #{start_period})
 ~ Expiration -> {unlock_datetime_pretty} (period #{unlock_period})
     """)

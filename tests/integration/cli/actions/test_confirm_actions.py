@@ -18,10 +18,11 @@
 import click
 import pytest
 
+from nucypher.blockchain.economics import StandardTokenEconomics
 from nucypher.blockchain.eth.clients import EthereumTesterClient, PUBLIC_CHAINS
 from nucypher.blockchain.eth.token import NU
 from nucypher.cli.actions.confirm import (confirm_deployment, confirm_enable_restaking,
-                                          confirm_enable_winding_down, confirm_large_stake, confirm_staged_stake)
+                                          confirm_enable_winding_down, confirm_large_and_or_long_stake, confirm_staged_stake)
 from nucypher.cli.literature import (ABORT_DEPLOYMENT, RESTAKING_AGREEMENT,
                                      WINDING_DOWN_AGREEMENT, CONFIRM_STAGED_STAKE,
                                      CONFIRM_LARGE_STAKE_VALUE, CONFIRM_LARGE_STAKE_DURATION)
@@ -163,13 +164,17 @@ def test_confirm_staged_stake_cli_action(test_emitter, mock_stdin, capsys):
     assert mock_stdin.empty()
 
 
+STANDARD_ECONOMICS = StandardTokenEconomics()
+MIN_ALLOWED_LOCKED = STANDARD_ECONOMICS.minimum_allowed_locked
+
+
 @pytest.mark.parametrize('value,duration,must_confirm_value,must_confirm_duration', (
         (NU.from_tokens(1), 1, False, False),
-        (NU.from_tokens(1), 31, False, False),
-        (NU.from_tokens(15), 31, False, False),
-        (NU.from_tokens(150001), 31, True, False),
-        (NU.from_tokens(150000), 366, False, True),
-        (NU.from_tokens(150001), 366, True, True),
+        (NU.from_tokens(1), STANDARD_ECONOMICS.minimum_locked_periods + 1, False, False),
+        (NU.from_tokens(15), STANDARD_ECONOMICS.minimum_locked_periods + 1, False, False),
+        (((NU.from_nunits(MIN_ALLOWED_LOCKED) * 10) + 1), STANDARD_ECONOMICS.minimum_locked_periods + 1, True, False),
+        (NU.from_nunits(MIN_ALLOWED_LOCKED) * 10, STANDARD_ECONOMICS.maximum_rewarded_periods + 1, False, True),
+        (((NU.from_nunits(MIN_ALLOWED_LOCKED) * 10) + 1), STANDARD_ECONOMICS.maximum_rewarded_periods + 1, True, True),
 ))
 def test_confirm_large_stake_cli_action(test_emitter,
                                         mock_stdin,
@@ -180,14 +185,16 @@ def test_confirm_large_stake_cli_action(test_emitter,
                                         must_confirm_duration):
 
     asked_about_value = lambda output: CONFIRM_LARGE_STAKE_VALUE.format(value=value) in output
-    asked_about_duration = lambda output: CONFIRM_LARGE_STAKE_DURATION.format(lock_periods=duration) in output
+    lock_days = (duration * STANDARD_ECONOMICS.hours_per_period) // 24
+    asked_about_duration = lambda output: CONFIRM_LARGE_STAKE_DURATION.format(lock_periods=duration,
+                                                                              lock_days=lock_days) in output
 
     # Positive Cases - either do not need to confirm anything, or say yes
     if must_confirm_value:
         mock_stdin.line(YES)
     if must_confirm_duration:
         mock_stdin.line(YES)
-    result = confirm_large_stake(value=value, lock_periods=duration)
+    result = confirm_large_and_or_long_stake(value=value, lock_periods=duration, economics=STANDARD_ECONOMICS)
     assert result
     captured = capsys.readouterr()
     assert must_confirm_value == asked_about_value(captured.out)
@@ -205,7 +212,7 @@ def test_confirm_large_stake_cli_action(test_emitter,
             mock_stdin.line(NO)
 
         with pytest.raises(click.Abort):
-            confirm_large_stake(value=value, lock_periods=duration)
+            confirm_large_and_or_long_stake(value=value, lock_periods=duration, economics=STANDARD_ECONOMICS)
         captured = capsys.readouterr()
         assert must_confirm_value == asked_about_value(captured.out)
         assert must_confirm_duration == asked_about_duration(captured.out)
