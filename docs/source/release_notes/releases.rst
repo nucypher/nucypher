@@ -4,6 +4,15 @@ Releases
 
 .. towncrier release notes start
 
+v4.8.2 (2021-03-25)
+-------------------
+
+Bugfixes
+~~~~~~~~
+
+- Fixes ethereum account selection with ambiguous source in CLI. (`#2615 <https://github.com/nucypher/nucypher/issues/2615>`__)
+
+
 v4.8.1 (2021-03-24)
 -------------------
 
