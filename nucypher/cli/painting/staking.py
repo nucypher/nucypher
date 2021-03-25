@@ -101,26 +101,36 @@ def paint_stakes(emitter: StdoutEmitter,
 
     rows, inactive_substakes = list(), list()
     for index, stake in enumerate(stakes):
+        is_inactive = False
+
         if stake.status().is_child(Stake.Status.INACTIVE):
             inactive_substakes.append(index)
+            is_inactive = True
 
         if stake.status().is_child(Stake.Status.UNLOCKED) and not paint_unlocked:
             # This stake is unlocked.
             continue
-        rows.append(list(stake.describe().values()))
+
+        stake_description = stake.describe()
+        if is_inactive:
+            # stake is inactive - update display values since they don't make much sense to display
+            stake_description['remaining'] = 'N/A'
+            stake_description['last_period'] = 'N/A'
+
+        rows.append(list(stake_description.values()))
 
     if not rows:
         emitter.echo(f"There are no locked stakes\n")
 
     emitter.echo(tabulate.tabulate(rows, headers=STAKE_TABLE_COLUMNS, tablefmt="fancy_grid"))  # newline
 
-    if inactive_substakes:
-        emitter.echo(f"Note that some sub-stakes are inactive: {inactive_substakes}")
-        if paint_unlocked:
-            emitter.echo("Run `nucypher stake remove-inactive --all` to remove inactive sub-stakes; removing them will "
-                         "reduce future commitment gas costs", color='yellow')
-        else:
-            emitter.echo("Run `nucypher stake list --all` to show all sub-stakes.", color='yellow')
+    if not paint_unlocked and inactive_substakes:
+        emitter.echo(f"Note that some sub-stakes are inactive: {inactive_substakes}\n"
+                     f"Run `nucypher stake list --all` to show all sub-stakes.\n"
+                     f"Run `nucypher stake remove-inactive --all` to remove inactive sub-stakes; removal of inactive "
+                     f"sub-stakes will reduce commitment gas costs.", color='yellow')
+        # TODO - it would be nice to provide remove-inactive hint when painting_unlocked - however, this same function
+        #  is used by remove-inactive command is run, and it is redundant to be shown then
 
 
 def prettify_stake(stake, index: int = None) -> str:
