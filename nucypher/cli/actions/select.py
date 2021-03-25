@@ -106,7 +106,8 @@ def select_client_account(emitter,
         # Connect to the blockchain in order to select an account
         if not BlockchainInterfaceFactory.is_interface_initialized(provider_uri=provider_uri):
             BlockchainInterfaceFactory.initialize_interface(provider_uri=provider_uri, poa=poa, emitter=emitter)
-        signer_uri = provider_uri
+        if not signer_uri:
+            signer_uri = provider_uri
 
     blockchain = BlockchainInterfaceFactory.get_interface(provider_uri=provider_uri)
 
