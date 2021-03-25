@@ -68,6 +68,8 @@ from nucypher.types import (
     StakerInfo,
     PeriodDelta,
     StakingEscrowParameters,
+    Evidence,
+    Policy
 )
 from nucypher.utilities.logging import Logger  # type: ignore
 
@@ -820,12 +822,15 @@ class PolicyManagerAgent(EthereumContractAgent):
         If `with_owner=True`, this method executes the equivalent of `getPolicyOwner`
         to avoid another call.
         """
-        blockchain_record = self.contract.functions.policies(policy_id).call()
-        if with_owner:
-            # If the policyOwner addr is null, we return the sponsor addr instead of the owner.
-            owner_checksum_addr = blockchain_record[1] if blockchain_record[2] == NULL_ADDRESS else blockchain_record[2]
-            return blockchain_record, owner_checksum_addr
-        return blockchain_record
+        record = self.contract.functions.policies(policy_id).call()
+        policy = Policy(disabled=record[0],
+                        sponsor=record[1],
+                        # If the policyOwner addr is null, we return the sponsor addr instead of the owner.
+                        owner=record[1] if record[2] == NULL_ADDRESS else record[2],
+                        fee_rate=record[3],
+                        start_timestamp=record[4],
+                        end_timestamp=record[5])
+        return policy
 
     def fetch_arrangement_addresses_from_policy_txid(self, txhash: Union[str, bytes], timeout: int = 600) -> Iterable:
         # TODO: Won't it be great when this is impossible?  #1274
