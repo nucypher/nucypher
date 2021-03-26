@@ -202,14 +202,15 @@ def _mock_ursula_reencrypts(ursula):
 
     bob = Bob.from_public_keys(verifying_key=pub_key_bob)
     task = WorkOrder.PRETask(capsule, task_signature, cfrag, cfrag_signature)
+    hrac = bob.construct_policy_hrac(verifying_key=signing_pubkey, label=b'this is the label')
     work_order = WorkOrder(bob=bob,
-                           encrypted_kfrag=None,  # FIXME
-                           arrangement_id=None,
-                           alice_address=alice_address,
+                           hrac=hrac,
+                           encrypted_kfrag=None,
                            tasks={capsule: task},
                            receipt_signature=None,
                            ursula=ursula,
-                           blockhash=blockhash)
+                           authorizer_verifying_key=signing_pubkey.to_bytes(),
+                           publisher_verifying_key=signing_pubkey.to_bytes())
 
     evidence = IndisputableEvidence(task, work_order)
     return evidence
