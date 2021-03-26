@@ -19,8 +19,9 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 import contextlib
 import json
 import random
+import time
 from base64 import b64decode, b64encode
-from collections import OrderedDict, defaultdict
+from collections import OrderedDict, defaultdict, namedtuple
 from datetime import datetime
 from functools import partial
 from json.decoder import JSONDecodeError
@@ -29,7 +30,6 @@ from random import shuffle
 from typing import Dict, Iterable, List, NamedTuple, Tuple, Union, Optional, Sequence, Set, Any
 
 import maya
-import time
 from bytestring_splitter import (
     BytestringKwargifier,
     BytestringSplitter,
@@ -86,7 +86,14 @@ from nucypher.crypto.powers import (
 )
 from nucypher.crypto.signing import InvalidSignature
 from nucypher.crypto.splitters import key_splitter, signature_splitter
-from nucypher.crypto.umbral_adapter import Capsule, PublicKey, VerifiedKeyFrag, Signature, VerificationError, reencrypt
+from nucypher.crypto.umbral_adapter import (
+    Capsule,
+    PublicKey,
+    VerifiedKeyFrag,
+    Signature,
+    VerificationError,
+    reencrypt
+)
 from nucypher.crypto.utils import keccak_digest, encrypt_and_sign
 from nucypher.datastore.datastore import DatastoreTransactionError, RecordNotFound
 from nucypher.datastore.queries import find_expired_policies, find_expired_treasure_maps
@@ -491,6 +498,8 @@ class Bob(Character):
 
     _default_crypto_powerups = [SigningPower, DecryptingPower]
 
+    WorkOrders = namedtuple('WorkOrders', ['new', 'complete'])
+
     class IncorrectCFragsReceived(Exception):
         """
         Raised when Bob detects incorrect CFrags returned by some Ursulas
@@ -582,7 +591,8 @@ class Bob(Character):
 
         if block:
             if new_thread:
-                return threads.deferToThread(self.block_until_specific_nodes_are_known, unknown_ursulas,
+                return threads.deferToThread(self.block_until_specific_nodes_are_known,
+                                             unknown_ursulas,
                                              timeout=timeout,
                                              allow_missing=allow_missing)
             else:
@@ -614,8 +624,7 @@ class Bob(Character):
             if not self.known_nodes:
                 raise self.NotEnoughTeachers("Can't retrieve without knowing about any nodes at all.  Pass a teacher or seed node.")
 
-        treasure_map = self.get_treasure_map_from_known_ursulas(self.network_middleware,
-                                                                map_identifier)
+        treasure_map = self.get_treasure_map_from_known_ursulas(self.network_middleware, map_identifier)
 
         self._try_orient(treasure_map, alice_verifying_key)
         self.treasure_maps[map_identifier] = treasure_map  # TODO: make a part of _try_orient()?
@@ -683,13 +692,18 @@ class Bob(Character):
 
     def work_orders_for_capsules(self,
                                  *capsules,
-                                 alice_verifying_key: PublicKey,
                                  label: bytes,
                                  treasure_map: 'TreasureMap',
+                                 publisher_verifying_key: PublicKey,
+                                 authorizer_verifying_key: Optional[PublicKey] = None,
                                  num_ursulas: int = None,
                                  ) -> Tuple[Dict[ChecksumAddress, 'WorkOrder'], Dict['Capsule', 'WorkOrder']]:
 
         from nucypher.policy.collections import WorkOrder  # Prevent circular import
+
+        if not authorizer_verifying_key:
+            # Assume the policy publisher is the same as the KFrag generator by default.
+            authorizer_verifying_key = publisher_verifying_key
 
         if not treasure_map:
             raise ValueError(f"Bob doesn't have a TreasureMap; can't generate work orders.")
@@ -714,10 +728,10 @@ class Bob(Character):
 
             # TODO: Bob crashes if he hasn't learned about this Ursula #999
             ursula = self.known_nodes[ursula_address]
-            hrac = self.construct_policy_hrac(verifying_key=alice_verifying_key, label=label)
             if capsules_to_include:
-                work_order = WorkOrder.construct_by_bob(hrac=hrac,
-                                                        alice_verifying=alice_verifying_key,
+                work_order = WorkOrder.construct_by_bob(label=label,
+                                                        publisher_verifying_key=publisher_verifying_key,
+                                                        authorizer_verifying_key=authorizer_verifying_key,
                                                         capsules=capsules_to_include,
                                                         ursula=ursula,
                                                         bob=self,
@@ -730,8 +744,7 @@ class Bob(Character):
                 break
 
         if not incomplete_work_orders:
-            self.log.warn(
-                "No new WorkOrders created.  Try calling this with different parameters.")  # TODO: Clearer instructions.  NRN
+            self.log.warn("No new WorkOrders created.  Try calling this with different parameters.")  # TODO: Clearer instructions.  NRN
 
         return incomplete_work_orders, complete_work_orders
 
@@ -809,58 +822,19 @@ class Bob(Character):
         else:
             return True, verified_cfrags
 
-    def retrieve(self,
-
-                 # Policy
-                 *message_kits: UmbralMessageKit,
-                 alice_verifying_key: Union[PublicKey, bytes],
-                 label: bytes,
-
-                 # Source Authentication
-                 enrico: "Enrico" = None,
-                 policy_encrypting_key: PublicKey = None,
-
-                 # Retrieval Behaviour
-                 retain_cfrags: bool = False,
-                 use_attached_cfrags: bool = False,
-                 use_precedent_work_orders: bool = False,
-                 treasure_map: Union['TreasureMap', bytes] = None
-
-                 ) -> List[bytes]:
-
-        # Try our best to get an umbral.PublicKey from input
-        alice_verifying_key = PublicKey.from_bytes(bytes(alice_verifying_key))
-
-        if treasure_map is not None:
-
-            if self.federated_only:
-                from nucypher.policy.collections import TreasureMap as _MapClass
-            else:
-                from nucypher.policy.collections import SignedTreasureMap as _MapClass
-
-            # TODO: This LBYL is ugly and fraught with danger.  NRN
-            if isinstance(treasure_map, bytes):
-                treasure_map = _MapClass.from_bytes(treasure_map)
-
-            if isinstance(treasure_map, str):
-                tmap_bytes = treasure_map.encode()
-                treasure_map = _MapClass.from_bytes(b64decode(tmap_bytes))
-
-            self._try_orient(treasure_map, alice_verifying_key)
-            # self.treasure_maps[treasure_map.public_id()] = treasure_map # TODO: Can we?
-        else:
-            map_id = self.construct_map_id(alice_verifying_key, label)
-            try:
-                treasure_map = self.treasure_maps[map_id]
-            except KeyError:
-                # If the treasure map is not known, join the policy as part of retrieval.
-                self.join_policy(label=label, alice_verifying_key=alice_verifying_key)
-                treasure_map = self.treasure_maps[map_id]
-
-        _unknown_ursulas, _known_ursulas, m = self.follow_treasure_map(treasure_map=treasure_map, block=True)
+    def _assemble_work_orders(self,
+                              *message_kits,
+                              enrico,
+                              policy_encrypting_key,
+                              use_attached_cfrags,
+                              publisher_verifying_key,
+                              authorizer_verifying_key,
+                              treasure_map,
+                              label,
+                              use_precedent_work_orders
+                              ):
 
         # Part I: Assembling the WorkOrders.
-
         message_kits_map = {mk.capsule: mk for mk in message_kits}
 
         # Normalization
@@ -880,11 +854,13 @@ class Bob(Character):
 
         for message_kit in message_kits:
             message_kit.set_correctness_keys(receiving=self.public_keys(DecryptingPower))
-            message_kit.set_correctness_keys(verifying=alice_verifying_key)
+            message_kit.set_correctness_keys(verifying=publisher_verifying_key)
 
         new_work_orders, complete_work_orders = self.work_orders_for_capsules(
             treasure_map=treasure_map,
-            alice_verifying_key=alice_verifying_key,
+            publisher_verifying_key=publisher_verifying_key,
+            authorizer_verifying_key=authorizer_verifying_key,
+            label=label,
             *[mk.capsule for mk in message_kits])
 
         self.log.info(f"Found {len(complete_work_orders)} complete work orders "
@@ -898,20 +874,32 @@ class Bob(Character):
                         message_kits_map[capsule].attach_cfrag(cfrag_in_question)
             else:
                 self.log.warn(
-                    "Found existing complete WorkOrders, but use_precedent_work_orders is set to False.  To use Bob in 'KMS mode', set retain_cfrags=False as well.")
+                    "Found existing complete WorkOrders, but use_precedent_work_orders is set to False. "
+                    "To use Bob in 'KMS mode', set retain_cfrags=False as well.")
+
+        work_orders = self.WorkOrders(new=new_work_orders, complete=complete_work_orders)
+        return work_orders, message_kits_map
+
+    def _get_cleartexts(self,
+                        *message_kits,
+                        message_kits_map: Dict[Capsule, UmbralMessageKit],
+                        new_work_orders: Sequence['WorkOrder'],
+                        m: int,
+                        retain_cfrags: bool
+                        ) -> List[bytes]:
 
         # Part II: Getting the cleartexts.
+        capsules_to_activate = set(mk.capsule for mk in message_kits)
         cleartexts = []
 
         try:
             # TODO Optimization: Block here (or maybe even later) until map is done being followed (instead of blocking above). #1114
             the_airing_of_grievances = []
 
-            remaining_work_orders, remaining_capsules = self._filter_work_orders_and_capsules(
-                new_work_orders, message_kits, m)
+            remaining_work_orders, capsules_to_activate = self._filter_work_orders_and_capsules(new_work_orders, capsules_to_activate, m)
 
             # If all the capsules are now activated, we can stop here.
-            if remaining_capsules and remaining_work_orders:
+            if capsules_to_activate and remaining_work_orders:
 
                 # OK, so we're going to need to do some network activity for this retrieval.  Let's make sure we've seeded.
                 if not self.done_seeding:
@@ -928,14 +916,13 @@ class Bob(Character):
                         message_kit = message_kits_map[capsule]
                         message_kit.attach_cfrag(pre_task.cfrag)
                         if len(message_kit) >= m:
-                            remaining_capsules.discard(capsule)
+                            capsules_to_activate.discard(capsule)
 
                     # If all the capsules are now activated, we can stop here.
-                    if not remaining_capsules:
+                    if not capsules_to_activate:
                         break
                 else:
-                    raise Ursula.NotEnoughUrsulas(
-                        "Unable to reach m Ursulas.  See the logs for which Ursulas are down or noncompliant.")
+                    raise Ursula.NotEnoughUrsulas("Unable to reach m Ursulas.  See the logs for which Ursulas are down or noncompliant.")
 
             if the_airing_of_grievances:
                 # ... and now you're gonna hear about it!
@@ -953,6 +940,94 @@ class Bob(Character):
                     message_kit.clear_cfrags()
                 for work_order in new_work_orders.values():
                     work_order.sanitize()
+
+        return cleartexts
+
+    def _handle_treasure_map(self, treasure_map, publisher_verifying_key: PublicKey, label: bytes):
+
+        # Try our best to get an umbral.PublicKey from input
+        publisher_verifying_key = PublicKey.from_bytes(bytes(publisher_verifying_key))
+
+        if treasure_map is not None:
+
+            if self.federated_only:
+                from nucypher.policy.collections import TreasureMap as _MapClass
+            else:
+                from nucypher.policy.collections import SignedTreasureMap as _MapClass
+
+            # TODO: This LBYL is ugly and fraught with danger.  NRN
+            if isinstance(treasure_map, bytes):
+                treasure_map = _MapClass.from_bytes(treasure_map)
+
+            if isinstance(treasure_map, str):
+                tmap_bytes = treasure_map.encode()
+                treasure_map = _MapClass.from_bytes(b64decode(tmap_bytes))
+
+            self._try_orient(treasure_map, publisher_verifying_key)
+            # self.treasure_maps[treasure_map.public_id()] = treasure_map # TODO: Can we?
+        else:
+            map_id = self.construct_map_id(publisher_verifying_key, label)
+            try:
+                treasure_map = self.treasure_maps[map_id]
+            except KeyError:
+                # If the treasure map is not known, join the policy as part of retrieval.
+                self.join_policy(label=label, alice_verifying_key=publisher_verifying_key)
+                treasure_map = self.treasure_maps[map_id]
+
+        _unknown_ursulas, _known_ursulas, m = self.follow_treasure_map(treasure_map=treasure_map, block=True)
+        return treasure_map, m
+
+    def retrieve(self,
+
+                 # Policy
+                 *message_kits: UmbralMessageKit,
+                 label: bytes,
+
+                 # Alice(s)
+                 publisher_verifying_key: Union[PublicKey, bytes],
+                 authorizer_verifying_key: Optional[Union[PublicKey, bytes]] = None,
+
+                 # Source Authentication
+                 enrico: "Enrico" = None,
+                 policy_encrypting_key: PublicKey = None,
+
+                 # Retrieval Behaviour
+                 retain_cfrags: bool = False,
+                 use_attached_cfrags: bool = False,
+                 use_precedent_work_orders: bool = False,
+                 treasure_map: Union['TreasureMap', bytes] = None
+
+                 ) -> List[bytes]:
+
+        # Try our best to get an PublicKey instances from input
+        publisher_verifying_key = PublicKey.from_bytes(bytes(publisher_verifying_key))
+        if not authorizer_verifying_key:
+            # If an authorizer verifying key is not passed, use the publisher's by default.
+            authorizer_verifying_key = publisher_verifying_key
+        else:
+            authorizer_verifying_key = PublicKey.from_bytes(bytes(authorizer_verifying_key))
+
+        treasure_map, m = self._handle_treasure_map(treasure_map=treasure_map,
+                                                    publisher_verifying_key=publisher_verifying_key,
+                                                    label=label)
+
+        work_orders, message_kits_map = self._assemble_work_orders(
+            *message_kits,
+            label=label,
+            enrico=enrico,
+            policy_encrypting_key=policy_encrypting_key,
+            authorizer_verifying_key=authorizer_verifying_key,
+            publisher_verifying_key=publisher_verifying_key,
+            treasure_map=treasure_map,
+            use_attached_cfrags=use_attached_cfrags,
+            use_precedent_work_orders=use_precedent_work_orders
+        )
+
+        cleartexts = self._get_cleartexts(*message_kits,
+                                          message_kits_map=message_kits_map,
+                                          new_work_orders=work_orders.new,
+                                          retain_cfrags=retain_cfrags,
+                                          m=m)
 
         return cleartexts
 
