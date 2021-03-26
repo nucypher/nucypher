@@ -16,18 +16,12 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
 
-import binascii
+import weakref
+
 import os
 import uuid
-import weakref
-from bytestring_splitter import BytestringSplitter
 from constant_sorrow import constants
-from constant_sorrow.constants import (
-    FLEET_STATES_MATCH,
-    NO_BLOCKCHAIN_CONNECTION,
-    NO_KNOWN_NODES,
-    RELAX
-)
+from constant_sorrow.constants import FLEET_STATES_MATCH, RELAX
 from datetime import datetime, timedelta
 from flask import Flask, Response, jsonify, request
 from mako import exceptions as mako_exceptions
@@ -35,16 +29,14 @@ from mako.template import Template
 from maya import MayaDT
 from typing import Tuple
 from umbral.kfrags import KFrag
-from web3.exceptions import TimeExhausted
 
-import nucypher
-from nucypher.crypto.api import InvalidNodeCertificate
+from nucypher.blockchain.eth.constants import NULL_ADDRESS
 from nucypher.config.constants import MAX_UPLOAD_CONTENT_LENGTH
+from nucypher.crypto.api import InvalidNodeCertificate
 from nucypher.crypto.keypairs import HostingKeypair
-from nucypher.crypto.kits import UmbralMessageKit
+from nucypher.crypto.kits import PolicyMessageKit
 from nucypher.crypto.powers import KeyPairBasedPower, PowerUpError
 from nucypher.crypto.signing import InvalidSignature
-from nucypher.crypto.utils import canonical_address_from_umbral_key
 from nucypher.datastore.datastore import Datastore, RecordNotFound, DatastoreTransactionError
 from nucypher.datastore.models import PolicyArrangement, TreasureMap, Workorder
 from nucypher.network import LEARNING_LOOP_VERSION
@@ -250,50 +242,42 @@ def _make_rest_app(datastore: Datastore, this_node, domain: str, log: Logger) ->
             log.info("KFrag successfully removed.")
             return Response(response='KFrag deleted!', status=200)
 
-    @rest_app.route('/reencrypt/<id_as_hex>/', methods=["POST"])
-    def reencrypt(id_as_hex):
-
-        # Get Policy Arrangement
-        try:
-            arrangement_id = binascii.unhexlify(id_as_hex)
-        except (binascii.Error, TypeError):
-            return Response(response=b'Invalid arrangement ID', status=405)
-
-        # TODO: Verify payment
-        try:
-            # TODO: Yeah, well, what if this arrangement hasn't been enacted?  1702
-            with datastore.describe(PolicyArrangement, id_as_hex) as policy_arrangement:
-                alice_verifying_key = policy_arrangement.alice_verifying_key
-        except RecordNotFound:
-            return Response(response=arrangement_id, status=404)
+    @rest_app.route('/reencrypt', methods=["POST"])
+    def reencrypt():
 
         # Get Work Order
         from nucypher.policy.collections import WorkOrder  # Avoid circular import
-        alice_address = canonical_address_from_umbral_key(alice_verifying_key)
         work_order_payload = request.data
-        work_order = WorkOrder.from_rest_payload(arrangement_id=arrangement_id,
-                                                 rest_payload=work_order_payload,
-                                                 ursula=this_node,
-                                                 alice_address=alice_address)
+        work_order = WorkOrder.from_rest_payload(rest_payload=work_order_payload, ursula=this_node)
         log.info(f"Work Order from {work_order.bob}, signed {work_order.receipt_signature}")
 
-        # Get KFrag
-        encrypted_kfrag = work_order.kfrag
-        kfrag = this_node.verify_from(alice_verifying_key, encrypted_kfrag, decrypt=True)
-        if not kfrag.verify(signing_pubkey=alice_verifying_key):  # TODO: Maybe this check is redundant?
-            return Response(response="{} is invalid".format(kfrag), status=422)  # TODO: Maybe good, ol' 400 is OK.
+        # Deserialize Entities
+        authorizer = Alice.from_public_keys(verifying_key=work_order.authorizer_verifying_key)
+        authorizer_verifying_key = authorizer.stamp.as_umbral_pubkey()
+        kfrag_kit = PolicyMessageKit.from_bytes(work_order.encrypted_kfrag)
+
+        # Verify & Decrypt KFrag
+        # TODO: Cache the result of kfrag verification for optimization
+        kfrag_plaintext = this_node.verify_from(stranger=authorizer, message_kit=kfrag_kit, decrypt=True)
+        kfrag = KFrag.from_bytes(kfrag_plaintext)
+        if not kfrag.verify(signing_pubkey=authorizer_verifying_key):
+            log.info(f"Invalid KFrag detected - sender {authorizer_verifying_key.to_bytes().hex()}")
+            return Response(response="{} is invalid".format(kfrag), status=401)
+
+        # TODO: Verify policy payment
+        # TODO: Cache the result of payment verification for optimization
 
         # Re-encrypt
         response = this_node._reencrypt(kfrag=kfrag,
                                         work_order=work_order,
-                                        alice_verifying_key=alice_verifying_key)
+                                        alice_verifying_key=authorizer_verifying_key)
 
         # Now, Ursula saves this workorder to her database...
         # Note: we give the work order a random ID to store it under.
-        with datastore.describe(Workorder, str(uuid.uuid4()), writeable=True) as new_workorder:
-            new_workorder.arrangement_id = work_order.arrangement_id
+        work_order_id = str(uuid.uuid4())
+        with datastore.describe(Workorder, work_order_id, writeable=True) as new_workorder:
             new_workorder.bob_verifying_key = work_order.bob.stamp.as_umbral_pubkey()
-            new_workorder.bob_signature = work_order.receipt_signature
+            new_workorder.bob_signature = work_order.receipt_signature  # Handle for challenge protocol
 
         headers = {'Content-Type': 'application/octet-stream'}
         return Response(headers=headers, response=response)

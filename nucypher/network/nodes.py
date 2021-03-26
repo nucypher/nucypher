@@ -15,6 +15,8 @@ You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
+from collections import defaultdict, deque
+
 import contextlib
 import time
 from collections import defaultdict, deque
@@ -24,6 +26,15 @@ from typing import Iterable, List, Set, Tuple, Union
 
 import maya
 import requests
+import time
+from bytestring_splitter import (
+    BytestringSplitter,
+    BytestringSplittingError,
+    PartiallyKwargifiedBytes,
+    VariableLengthBytestring
+)
+from constant_sorrow import constant_or_bytes
+from contextlib import suppress
 from bytestring_splitter import (
     BytestringSplitter,
     PartiallyKwargifiedBytes,
@@ -41,9 +52,13 @@ from constant_sorrow.constants import (
 )
 from cryptography.x509 import Certificate
 from eth_utils import to_checksum_address
+from queue import Queue
 from requests.exceptions import SSLError
 from twisted.internet import reactor, task
 from twisted.internet.defer import Deferred
+from typing import Iterable, List
+from typing import Set, Tuple, Union
+from umbral.signing import Signature
 from umbral.signing import Signature
 
 from nucypher.acumen.nicknames import Nickname
@@ -74,6 +89,7 @@ TEACHER_NODES = {
     NetworksInventory.LYNX: ('https://lynx.nucypher.network:9151',),
     NetworksInventory.IBEX: ('https://ibex.nucypher.network:9151',),
 }
+
 
 class NodeSprout(PartiallyKwargifiedBytes):
     """
@@ -182,7 +198,7 @@ class Learner:
     __DEFAULT_MIDDLEWARE_CLASS = RestMiddleware
 
     LEARNER_VERSION = LEARNING_LOOP_VERSION
-    LOWEST_COMPATIBLE_VERSION = 2   # Disallow versions lower than this
+    LOWEST_COMPATIBLE_VERSION = 2  # Disallow versions lower than this
 
     node_splitter = BytestringSplitter(VariableLengthBytestring)
     version_splitter = BytestringSplitter((int, 2, {"byteorder": "big"}))
@@ -261,7 +277,8 @@ class Learner:
 
         from nucypher.characters.lawful import Ursula
         self.node_class = node_class or Ursula
-        self.node_class.set_cert_storage_function(node_storage.store_node_certificate)  # TODO: Fix this temporary workaround for on-disk cert storage.  #1481
+        self.node_class.set_cert_storage_function(
+            node_storage.store_node_certificate)  # TODO: Fix this temporary workaround for on-disk cert storage.  #1481
 
         known_nodes = known_nodes or tuple()
         self.unresponsive_startup_nodes = list()  # TODO: Buckets - Attempt to use these again later  #567
@@ -407,7 +424,7 @@ class Learner:
                 # This node is already known.  We can safely return.
                 return False
 
-        self.known_nodes.record_node(node) # FIXME - dont always remember nodes, bucket them.
+        self.known_nodes.record_node(node)  # FIXME - dont always remember nodes, bucket them.
 
         if self.save_metadata:
             self.node_storage.store_node_metadata(node=node)
@@ -802,7 +819,8 @@ class Learner:
         # These except clauses apply to the current_teacher itself, not the learned-about nodes.
         except NodeSeemsToBeDown as e:
             unresponsive_nodes.add(current_teacher)
-            self.log.info(f"Teacher {str(current_teacher)} is perhaps down:{e}.")  # FIXME: This was printing the node bytestring. Is this really necessary?  #1712
+            self.log.info(
+                f"Teacher {str(current_teacher)} is perhaps down:{e}.")  # FIXME: This was printing the node bytestring. Is this really necessary?  #1712
             return
         except current_teacher.InvalidNode as e:
             # Ugh.  The teacher is invalid.  Rough.
@@ -818,10 +836,12 @@ class Learner:
                 # TODO: Sort this out.
                 return RELAX
             else:
-                self.log.warn(f"Unhandled error while learning from {str(current_teacher)}: {bytes(current_teacher)}:{e}.")
+                self.log.warn(
+                    f"Unhandled error while learning from {str(current_teacher)}: {bytes(current_teacher)}:{e}.")
                 raise
         except Exception as e:
-            self.log.warn(f"Unhandled error while learning from {str(current_teacher)}: {bytes(current_teacher)}:{e}.")  # To track down 2345 / 1698
+            self.log.warn(
+                f"Unhandled error while learning from {str(current_teacher)}: {bytes(current_teacher)}:{e}.")  # To track down 2345 / 1698
             raise
         finally:
             # Is cycling happening in the right order?
