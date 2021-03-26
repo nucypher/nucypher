@@ -33,7 +33,10 @@ contract PoolingStakingContractV2 is InitializableStakingContract, Ownable {
         uint256 withdrawnETH;
     }
 
-    /// Defines base fraction and precision of worker fraction. Value 10000 defines 100 worker fraction is 1% of reward
+    /**
+     * Defines base fraction and precision of worker fraction.
+     * E.g., for a value of 10000, a worker fraction of 100 represents 1% of reward (100/10000)
+     */
     uint256 public constant BASIS_FRACTION = 10000;
 
     StakingEscrow public escrow;
@@ -253,7 +256,7 @@ contract PoolingStakingContractV2 is InitializableStakingContract, Ownable {
         uint256 availableWorkerReward = getAvailableWorkerReward();
 
         // potentially could be less then due reward
-        uint256 availableETH = getAvailableETH(msg.sender);
+        uint256 availableETH = getAvailableDelegatorETH(msg.sender);
 
         // prevent losing reward for worker after calculations
         uint256 workerReward = availableWorkerReward.mul(delegator.depositedTokens).div(totalDepositedTokens);
@@ -286,7 +289,7 @@ contract PoolingStakingContractV2 is InitializableStakingContract, Ownable {
     /**
      * @notice Get available ether for delegator
      */
-    function getAvailableETH(address _delegator) public view returns (uint256) {
+    function getAvailableDelegatorETH(address _delegator) public view returns (uint256) {
         Delegator storage delegator = delegators[_delegator];
         uint256 balance = address(this).balance;
         // ETH balance + already withdrawn
@@ -305,7 +308,7 @@ contract PoolingStakingContractV2 is InitializableStakingContract, Ownable {
      */
     function withdrawETH() public override {
         Delegator storage delegator = delegators[msg.sender];
-        uint256 availableETH = getAvailableETH(msg.sender);
+        uint256 availableETH = getAvailableDelegatorETH(msg.sender);
         require(availableETH > 0, "There is no available ETH to withdraw");
         delegator.withdrawnETH = delegator.withdrawnETH.add(availableETH);
 

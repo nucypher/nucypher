@@ -533,7 +533,7 @@ def test_fee(testerchain, token_economics, token, policy_manager, pooling_contra
         deposited_tokens = pooling_contract.functions.delegators(delegator).call()[0]
         max_portion = value * deposited_tokens // total_deposited_tokens
         balance = testerchain.client.get_balance(delegator)
-        assert pooling_contract.functions.getAvailableETH(delegator).call() == max_portion
+        assert pooling_contract.functions.getAvailableDelegatorETH(delegator).call() == max_portion
 
         tx = pooling_contract.functions.withdrawETH().transact({'from': delegator, 'gas_price': 0})
         testerchain.wait_for_receipt(tx)
