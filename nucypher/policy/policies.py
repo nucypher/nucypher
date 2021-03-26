@@ -127,7 +127,7 @@ class TreasureMapPublisher:
         # `percent_to_complete_before_release` successes. For now just letting it fire.
         self._worker_pool.block_until_target_successes()
         completed = self.completed
-        self.log.debug(f"The minimal amount of nodes ({len(completed)}) was contacted "
+        self.log.debug(f"The minimal amount of nodes ({len(completed)}) were contacted "
                        "while blocking for treasure map publication.")
         return completed
 
@@ -363,7 +363,6 @@ class Policy(ABC):
         treasure_map = self._treasure_map_class(m=self.m)
 
         for ursula, kfrag in zip(arrangements, self.kfrags):
-            arrangement = arrangements[ursula]
             treasure_map.add_kfrag(ursula=ursula,
                                    kfrag=kfrag,
                                    signer_stamp=self.alice.stamp)
@@ -383,12 +382,11 @@ class Policy(ABC):
         # TODO (#2516): remove hardcoding of 8 nodes
         self.alice.block_until_number_of_known_nodes_is(8, timeout=2, learn_on_this_thread=True)
         target_nodes = self.bob.matching_nodes_among(self.alice.known_nodes)
-        treasure_map_bytes = bytes(treasure_map) # prevent the closure from holding the reference
+        treasure_map_bytes = bytes(treasure_map)  # prevent the closure from holding the reference
 
         def put_treasure_map_on_node(node):
             try:
-                response = network_middleware.put_treasure_map_on_node(node=node,
-                                                                       map_payload=treasure_map_bytes)
+                response = network_middleware.put_treasure_map_on_node(node=node, map_payload=treasure_map_bytes)
             except Exception as e:
                 self.log.warn(f"Putting treasure map on {node} failed: {e}")
                 raise
@@ -401,8 +399,7 @@ class Policy(ABC):
                 # TODO: What happens if this is a 300 or 400 level response?
                 raise Exception(message)
 
-        return TreasureMapPublisher(worker=put_treasure_map_on_node,
-                                   nodes=target_nodes)
+        return TreasureMapPublisher(worker=put_treasure_map_on_node, nodes=target_nodes)
 
     def enact(self,
               network_middleware: RestMiddleware,
@@ -494,8 +491,7 @@ class BlockchainPolicy(Policy):
                  rate: int,
                  payment_periods: int,
                  *args,
-                 **kwargs,
-                 ):
+                 **kwargs):
 
         super().__init__(*args, **kwargs)
 
