@@ -228,10 +228,9 @@ class RestMiddleware:
 
     def send_work_order_payload_to_ursula(self, work_order):
         payload = work_order.payload()
-        id_as_hex = work_order.arrangement_id.hex()
         response = self.client.post(
             node_or_sprout=work_order.ursula,
-            path=f"reencrypt/{id_as_hex}",
+            path=f"reencrypt",
             data=payload,
             timeout=2
         )

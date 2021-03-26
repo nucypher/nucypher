@@ -60,13 +60,13 @@ class MessageKit(CryptoKit):
         self.sender_verifying_key = sender_verifying_key
         self._signature = signature
 
-    def to_bytes(self, include_alice_pubkey=True):
+    def to_bytes(self, include_sender_key=True):
         # We include the capsule first.
         as_bytes = bytes(self.capsule)
 
         # Then, before the ciphertext, we see if we're including alice's public key.
         # We want to put that first because it's typically of known length.
-        if include_alice_pubkey and self.sender_verifying_key:
+        if include_sender_key and self.sender_verifying_key:
             as_bytes += bytes(self.sender_verifying_key)
 
         as_bytes += VariableLengthBytestring(self.ciphertext)
@@ -83,8 +83,6 @@ class MessageKit(CryptoKit):
     def signature(self):
         return self._signature
 
-    def __bytes__(self):
-        return bytes(self.capsule) + VariableLengthBytestring(self.ciphertext)
 
 
 class PolicyMessageKit(MessageKit):
@@ -106,7 +104,7 @@ class PolicyMessageKit(MessageKit):
         self._sender = enrico
 
     def __bytes__(self):
-        return super().to_bytes(include_alice_pubkey=True)
+        return super().to_bytes(include_sender_key=True)
 
     def ensure_correct_sender(self,
                               enrico: Optional["Enrico"] = None,
