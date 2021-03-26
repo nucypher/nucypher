@@ -16,15 +16,15 @@ have the ability to route to new methods in the Main contracts.
 Development
 -----------
 
-To minimize development efforts, developers can use the ``AbstractStakingContract`` smart contract API.
-``AbstractStakingContract`` accesses Main Contracts' addresses through
+To minimize development efforts, developers can use the :doc:`AbstractStakingContract </contracts_api/staking/AbstractStakingContract>`
+smart contract API. It accesses Main Contracts through
 :doc:`StakingInterface </contracts_api/staking/StakingInterface>` and
-:doc:`StakingInterfaceRouter </contracts_api/staking/StakingInterfaceRouter>`, so that developers do not need to access
-the Main contracts directly or be concerned about upgraded or incompatible ABIs, and can concentrate on the core
-logic of their staking contract.
+:doc:`StakingInterfaceRouter </contracts_api/staking/StakingInterfaceRouter>` so that developers do not need to access
+the Main contracts directly or be concerned about upgraded or incompatible ABIs; instead, they can concentrate on
+the core logic of their staking contract.
 
-This feature makes it possible for the developer's staking smart contract to not need to be upgradeable. The
-benefit of the contract not being upgradeable is that it reassures users that once the contract is deployed, it cannot
+This feature makes it possible for the developer's staking smart contract to not be upgradeable. The
+benefit of a non-upgradeable contract is that it reassures users that once the contract is deployed, it cannot
 be modified.
 
 
@@ -71,19 +71,21 @@ a :doc:`simple staking pool smart contract </contracts_api/staking/PoolingStakin
 
     .. TODO: add link to audit report
 
-    While NuCypher has had the staking pool contract audited, there remains smart contract risk and there are
+    While NuCypher had the staking pool contract audited, there remains smart contract risk and there are
     no guarantees about the logic. There is also the risk of trust in the *Owner* of the contract to not
     be malicious. See the `Risks`_ section below.
 
 
 The staking pool smart contract organizes multiple NU holders into one large Staker which delegates to a
-single Worker. Each token holder can deposit any amount of NU into the pool and will be entitled to the pro-rata
-share of the pool and rewards without needing to maintain and run their own Worker. Token holders will pay a
-percentage of NU staking rewards received to the owner of the Worker for running a node.
-
-There is the added benefit of reducing overall Worker gas costs by combining multiple Stakers, each of whom would
-have needed to a Worker otherwise, into one large Staker that uses a single Worker that performs work on
+single Worker. It reduces overall Worker gas costs by combining multiple Stakers, each of whom would
+have needed to run a Worker otherwise, into one large Staker that uses a single Worker to perform work on
 behalf of the staking pool.
+
+Each token holder can deposit any amount of NU into the pool and will be entitled to the pro-rata
+share of the pool and proceeds without needing to maintain and run their own Worker. Token holders will pay a
+percentage of NU staking rewards received to the owner of the Worker for running a node. For example, if a token holder
+deposits 5% of the total NU deposited to the NU they are entitled to 5% of the staking rewards (after fees) and 5%
+of the ETH policy fees received.
 
 
 Contract Roles
@@ -129,19 +131,23 @@ Contract Lifecycle
 * After the intended deposits have been received, the *Owner* specifies staking parameters to create a stake: size,
   duration, restaking, winddown etc., and bonds the stake to the Worker address.
 * Once the *Owner* creates a stake, the ability to deposit into the pool is automatically disabled to prevent any
-  new deposits. Disabling deposits ensures that there is clear proportional ownership of the pool and its received
-  rewards. This is a much simpler model for determining proportional ownership than allowing deposits after
-  staking has started and after staking rewards and policy fees have been received.
-* Once staking rewards and policy fees have been generated, the *Owner* can withdraw the staking rewards from
-  ``StakingEscrow`` to the pool, and *Delegators* can obtain their proportional share of the proceeds via
-  the ``withdrawTokens`` and ``withdrawETH`` functions. Note that this is only for staking rewards and policy fees,
-  **not** their original deposit. The original deposit can only be withdrawn once the stake has expired.
-* Throughout this process, the *Worker Owner* can retrieve their Worker commission via the
-  ``withdrawWorkerReward`` function.
-* When the stake eventually becomes expired and the *Owner* withdraws the pool's escrowed NU from ``StakingEscrow``,
-  then all of the withdrawn NU will be available for *Delegators* to withdraw including their deposit, and
-  proportional to their share.
-* *Delegators* that want to withdraw both their original deposit and all of their proportional rewards i.e. exit
+  new deposits. Conditions for disabled deposits are enforced via the use of ``isDepositAllowed`` function checks
+  within the contract. Disabling deposits ensures that there is clear proportional ownership of the pool and its received
+  rewards i.e. if a *Delegator* provided 5% of the deposits, they will receive 5% of the proceeds from the staking pool
+  - staking rewards (after fees) and policy fees. This is a much simpler model for determining proportional ownership
+  than allowing deposits after staking has started and after staking rewards and policy fees have already been received.
+* Once staking rewards and policy fees have been generated, the *Owner* can withdraw these from ``StakingEscrow``
+  to the pool; staking rewards via ``withdrawAsStaker``, and policy fees via ``withdrawPolicyFee``. *Delegators* can
+  determine the current value of their proportional share of rewards and fees via the ``getAvailableDelegatorReward``
+  and ``getAvailableDelegatorETH`` functions respectively. Their share of the proceeds can be withdrawn from the pool
+  via the ``withdrawTokens`` and ``withdrawETH`` contract functions. Note that this is only for staking rewards and
+  policy fees, **not** their original deposit. The original deposit can only be withdrawn once the stake has expired.
+* Throughout this process, the *Worker Owner* can determine their Worker commission via the ``getAvailableWorkerReward``
+  function and retrieve it via the ``withdrawWorkerReward`` function.
+* When the stake eventually becomes expired and the *Owner* withdraws the pool's escrowed NU from ``StakingEscrow`` via
+  ``withdrawAsStaker``, then the withdrawn NU will be available for *Delegators* to withdraw including their
+  deposit, and proportional to their share.
+* *Delegators* that want to withdraw their original deposit, NU rewards and ETH fees i.e. exit
   the pool, they can do so via the ``withdrawAll`` function.
 
 
