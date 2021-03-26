@@ -300,7 +300,8 @@ def init(general_config, config_options, force, config_root):
     if not config_options.federated_only and not config_options.domain:
         config_options.domain = select_network(emitter)
     ursula_config = config_options.generate_config(emitter, config_root, force)
-    paint_new_installation_help(emitter, new_configuration=ursula_config)
+    filepath = ursula_config.to_configuration_file()
+    paint_new_installation_help(emitter, new_configuration=ursula_config, filepath=filepath)
 
 
 @ursula.command()

@@ -207,7 +207,8 @@ def init(general_config, config_options, config_root, discovery_port):
         else:
             emitter.echo(str(e), color='red', bold=True)
             raise click.Abort
-    paint_new_installation_help(emitter, new_configuration=new_felix_config)
+    filepath = new_felix_config.to_configuration_file()
+    paint_new_installation_help(emitter, new_configuration=new_felix_config, filepath=filepath)
 
 
 @felix.command()

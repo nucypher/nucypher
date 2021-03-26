@@ -227,7 +227,8 @@ def init(general_config, config_options, config_root):
     if not config_root:
         config_root = general_config.config_root
     new_bob_config = config_options.generate_config(emitter, config_root)
-    paint_new_installation_help(emitter, new_configuration=new_bob_config)
+    filepath = new_bob_config.to_configuration_file()
+    paint_new_installation_help(emitter, new_configuration=new_bob_config, filepath=filepath)
 
 
 @bob.command()

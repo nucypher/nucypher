@@ -51,12 +51,16 @@ def echo_logging_root_path(ctx, param, value):
     ctx.exit()
 
 
-def paint_new_installation_help(emitter, new_configuration):
+def paint_new_installation_help(emitter, new_configuration, filepath):
     character_config_class = new_configuration.__class__
     character_name = character_config_class.NAME.lower()
 
-    emitter.message("Generated keyring {}".format(new_configuration.keyring_root), color='green')
-    emitter.message("Generated configuration file {}".format(new_configuration.config_file_location), color='green')
+    emitter.message(f"Generated keyring {new_configuration.keyring_root}", color='green')
+
+    config_filepath_type = "default"
+    if new_configuration.default_filepath() != filepath:
+        config_filepath_type = "non-default"
+    emitter.message(f"Generated configuration file at {config_filepath_type} filepath {filepath}", color='green')
 
     # Felix
     if character_name == 'felix':

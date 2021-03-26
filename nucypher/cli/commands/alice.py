@@ -297,7 +297,8 @@ def init(general_config, full_config_options, config_root):
     if not config_root:
         config_root = general_config.config_root
     new_alice_config = full_config_options.generate_config(emitter, config_root)
-    paint_new_installation_help(emitter, new_configuration=new_alice_config)
+    filepath = new_alice_config.to_configuration_file()
+    paint_new_installation_help(emitter, new_configuration=new_alice_config, filepath=filepath)
 
 
 @alice.command()

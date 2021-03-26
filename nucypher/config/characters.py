@@ -374,10 +374,9 @@ class StakeHolderConfiguration(CharacterConfiguration):
 
     @classmethod
     def generate(cls, *args, **kwargs):
-        """Shortcut: Hook-up a new initial installation and write configuration file to the disk"""
+        """Shortcut: Hook-up a new initial installation configuration."""
         node_config = cls(dev_mode=False, *args, **kwargs)
         node_config.initialize()
-        node_config.to_configuration_file()
         return node_config
 
     def to_configuration_file(self, override: bool = True, *args, **kwargs) -> str:
