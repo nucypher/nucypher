@@ -382,8 +382,7 @@ class WorkOrder:
         return "WorkOrder for hrac {hrac}: (capsules: {capsule_reprs}) for {node}".format(
             hrac=self.hrac,
             capsule_reprs=self.tasks.keys(),
-            node=self.ursula
-        )
+            node=self.ursula)
 
     def __eq__(self, other):
         return self.receipt_signature == other.receipt_signature
