@@ -17,7 +17,7 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 
 
 from collections import OrderedDict
-from typing import Optional, Callable
+from typing import Optional, Callable, Sequence
 
 import maya
 from bytestring_splitter import (
@@ -28,8 +28,9 @@ from bytestring_splitter import (
 )
 from constant_sorrow.constants import CFRAG_NOT_RETAINED, NO_DECRYPTION_PERFORMED, NOT_SIGNED
 from eth_utils import to_canonical_address, to_checksum_address
+from umbral.keys import UmbralPublicKey
 
-from nucypher.blockchain.eth.constants import ETH_ADDRESS_BYTE_LENGTH, ETH_HASH_BYTE_LENGTH
+from nucypher.blockchain.eth.constants import ETH_ADDRESS_BYTE_LENGTH
 from nucypher.characters.lawful import Bob, Character
 from nucypher.crypto.constants import HRAC_LENGTH
 from nucypher.crypto.kits import UmbralMessageKit
@@ -37,7 +38,6 @@ from nucypher.crypto.powers import DecryptingPower
 from nucypher.crypto.signing import InvalidSignature, Signature, signature_splitter, SignatureStamp
 from nucypher.crypto.splitters import capsule_splitter, key_splitter, cfrag_splitter, signature_splitter
 from nucypher.crypto.umbral_adapter import PublicKey, Capsule
-from nucypher.crypto.utils import canonical_address_from_umbral_key
 from nucypher.crypto.utils import (
     keccak_digest,
     verify_eip_191,
@@ -47,8 +47,8 @@ from nucypher.network.middleware import RestMiddleware
 
 
 class TreasureMap:
-    ID_LENGTH = 32
-    version = bytes.fromhex("42")  # FIXME: This is a placeholder versioning, while we devise a better data serialization format
+
+    version = bytes.fromhex('42')  # TODO: Versioning
 
     class NowhereToBeFound(RestMiddleware.NotFound):
         """
@@ -62,8 +62,7 @@ class TreasureMap:
         """
 
     ursula_and_kfrag_splitter = BytestringSplitter((to_checksum_address, ETH_ADDRESS_BYTE_LENGTH),
-                                                   (UmbralMessageKit, VariableLengthBytestring),
-                                                   (bytes, ID_LENGTH))  # FIXME: Include the arrangement for the moment
+                                                   (UmbralMessageKit, VariableLengthBytestring))
 
     from nucypher.crypto.signing import \
         InvalidSignature  # Raised when the public signature (typically intended for Ursula) is not valid.
@@ -176,14 +175,14 @@ class TreasureMap:
             nodes_as_bytes = b""
             for ursula_address, encrypted_kfrag in self.destinations.items():
                 node_id = to_canonical_address(ursula_address)
-                kfrag = bytes(VariableLengthBytestring(bytes(encrypted_kfrag)))
+                kfrag = bytes(VariableLengthBytestring(encrypted_kfrag.to_bytes()))
                 nodes_as_bytes += (node_id + kfrag)
             return nodes_as_bytes
 
     def add_kfrag(self, ursula, kfrag, signer_stamp: SignatureStamp):
         if self.destinations == NO_DECRYPTION_PERFORMED:
             raise TypeError("This TreasureMap is encrypted.  You can't add another node without decrypting it.")
-        encrypted_kfrag = encrypt_and_sign(ursula.public_keys(DecryptingPower),
+        encrypted_kfrag = encrypt_and_sign(recipient_pubkey_enc=ursula.public_keys(DecryptingPower),
                                            plaintext=bytes(kfrag),
                                            signer=signer_stamp)[0]
         self.destinations[ursula.checksum_address] = encrypted_kfrag
@@ -200,10 +199,8 @@ class TreasureMap:
     def from_bytes(cls, bytes_representation, verify=True):
         splitter = cls.splitter()
         treasure_map = splitter(bytes_representation)
-
         if verify:
             treasure_map.public_verify()
-
         return treasure_map
 
     def public_verify(self):
@@ -228,7 +225,7 @@ class TreasureMap:
             self._m = map_in_the_clear[0]
             try:
                 ursula_and_kfrags = self.ursula_and_kfrag_splitter.repeat(map_in_the_clear[1:])
-                self._destinations = {u: (k, a) for u, k, a in ursula_and_kfrags}
+                self._destinations = {u: k for u, k in ursula_and_kfrags}
             except BytestringSplittingError:
                 self._destinations = {}
             self.check_for_sufficient_destinations()
@@ -259,11 +256,16 @@ class SignedTreasureMap(TreasureMap):
 
     def __init__(self, blockchain_signature=NOT_SIGNED, *args, **kwargs):
         self._blockchain_signature = blockchain_signature
-        return super().__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
 
     @classmethod
     def splitter(cls):
-        return super().splitter() + BytestringKwargifier(cls, blockchain_signature=65)
+        return BytestringKwargifier(cls,
+                                    version=(bytes, 1),
+                                    public_signature=Signature,
+                                    hrac=(bytes, HRAC_LENGTH),
+                                    message_kit=(UmbralMessageKit, VariableLengthBytestring),
+                                    blockchain_signature=65)
 
     def include_blockchain_signature(self, blockchain_signer):
         self._blockchain_signature = blockchain_signer(super().__bytes__())
@@ -279,7 +281,7 @@ class SignedTreasureMap(TreasureMap):
             raise self.InvalidSignature(
                 "Can't cast a SignedTreasureMap to bytes until it has a blockchain signature "
                 "(otherwise, is it really a 'SignedTreasureMap'?")
-        return self._blockchain_signature + super().__bytes__()
+        return super().__bytes__() + self._blockchain_signature
 
 
 class WorkOrder:
@@ -294,27 +296,30 @@ class WorkOrder:
             self.cfrag = cfrag  # TODO: we need to store them in case of Ursula misbehavior
             self.cfrag_signature = cfrag_signature
 
-        def get_specification(self, ursula_pubkey, alice_address, blockhash, ursula_identity_evidence=b''):
-            ursula_pubkey = bytes(ursula_pubkey)
-            ursula_identity_evidence = bytes(ursula_identity_evidence)
-            alice_address = bytes(alice_address)
-            blockhash = bytes(blockhash)
+        def get_specification(self,
+                              ursula_stamp: SignatureStamp,
+                              ursula_identity_evidence: Optional[bytes] = b''
+                              ) -> bytes:
 
+            ursula_pubkey = bytes(ursula_stamp)
+            ursula_identity_evidence = bytes(ursula_identity_evidence)
+
+            # FIXME: Include full specification
             expected_lengths = (
-                (alice_address, 'alice_address', ETH_ADDRESS_BYTE_LENGTH),
-                (blockhash, 'blockhash', ETH_HASH_BYTE_LENGTH),
-                # TODO: Why does ursula_identity_evidence has a default value of b''? for federated, perhaps?
+                (ursula_pubkey, 'ursula_pubkey', PublicKey.expected_bytes_length()),
+                # (blockhash, 'blockhash', ETH_HASH_BYTE_LENGTH),
+                # NOTE: ursula_identity_evidence has a default value of b'' for federated mode.
             )
 
             for parameter, name, expected_length in expected_lengths:
                 if len(parameter) != expected_length:
                     raise ValueError(f"{name} must be of length {expected_length}, but it's {len(parameter)}")
 
-            task_specification = (bytes(self.capsule),
-                                  ursula_pubkey,
-                                  ursula_identity_evidence,
-                                  alice_address,
-                                  blockhash)
+            task_specification = (
+                bytes(self.capsule),
+                ursula_pubkey,
+                ursula_identity_evidence
+            )
             return b''.join(task_specification)
 
         def __bytes__(self):
@@ -332,34 +337,45 @@ class WorkOrder:
             else:
                 return cls(capsule=capsule, signature=signature)
 
-        def attach_work_result(self, cfrag, cfrag_signature):
+        def attach_work_result(self, cfrag, cfrag_signature) -> None:
             self.cfrag = cfrag
             self.cfrag_signature = cfrag_signature
 
     HEADER = b"wo:"
+
+    # receipt signature
+    # publisher verifying key
+    # authorizer verifying key
+    # bob stamp
+    # HRAC
+    # encrypted kfrag
+    # tasks
     payload_splitter = signature_splitter \
-                       + key_splitter     \
-                       + BytestringSplitter(ETH_HASH_BYTE_LENGTH) \
+                       + key_splitter \
+                       + key_splitter \
+                       + key_splitter \
+                       + BytestringSplitter((bytes, HRAC_LENGTH)) \
                        + BytestringSplitter((bytes, VariableLengthBytestring))
 
     def __init__(self,
                  bob: Bob,
                  hrac: bytes,
                  encrypted_kfrag: bytes,
-                 alice_address: bytes,
+                 authorizer_verifying_key: bytes,
+                 publisher_verifying_key: bytes,
                  tasks: dict,
-                 receipt_signature,
-                 ursula=None,
-                 blockhash=None
-                 ) -> None:
+                 receipt_signature: Signature,
+                 ursula: Optional['Ursula'] = None
+                 ):
+
         self.bob = bob
-        self.hrac=hrac
+        self.hrac = hrac
+        self.ursula = ursula
         self.encrypted_kfrag = encrypted_kfrag
-        self.alice_address = alice_address
+        self.publisher_verifying_key = publisher_verifying_key
+        self.authorizer_verifying_key = authorizer_verifying_key
         self.tasks = tasks
-        self.receipt_signature = receipt_signature
-        self.ursula = ursula  # TODO: We may still need a more elegant system for ID'ing Ursula.  See #136.
-        self.blockhash = blockhash or b'\x00' * 32  # TODO: #259
+        self.receipt_signature = receipt_signature  # not a blockchain receipt
         self.completed = False
 
     def __repr__(self):
@@ -375,14 +391,29 @@ class WorkOrder:
     def __len__(self):
         return len(self.tasks)
 
+    @staticmethod
+    def _make_receipt(tasks, bob, ursula) -> bytes:
+        # TODO: What's the goal of the receipt? Should it include only the capsules?
+        # FIXME: Include encrypted KFrag in the receipt
+        capsules = b''.join(map(bytes, tasks.keys()))
+        receipt_bytes = WorkOrder.HEADER + bytes(ursula.stamp) + capsules
+        receipt = bob.stamp(receipt_bytes)
+        return receipt
+
     @classmethod
-    def construct_by_bob(cls, hrac, alice_verifying, capsules, ursula, bob, encrypted_kfrag):
+    def construct_by_bob(cls,
+                         label: bytes,
+                         publisher_verifying_key: UmbralPublicKey,
+                         authorizer_verifying_key: UmbralPublicKey,
+                         capsules: Sequence,
+                         ursula: 'Ursula',
+                         bob: Bob,
+                         encrypted_kfrag: bytes):
+
+        # In the event of a challenge, decentralized_identity_evidence
+        # can be used to prove that ursula was/is a valid worker at the
+        # time of the re-encryption request.
         ursula.mature()
-        alice_address = canonical_address_from_umbral_key(alice_verifying)
-
-        # TODO: Bob's input to prove freshness for this work order - #259
-        blockhash = b'\0' * ETH_HASH_BYTE_LENGTH
-
         ursula_identity_evidence = b''
         if ursula._stamp_has_valid_signature_by_worker():
             ursula_identity_evidence = ursula.decentralized_identity_evidence
@@ -391,69 +422,77 @@ class WorkOrder:
         tasks = OrderedDict()
         for capsule in capsules:
             task = cls.PRETask(capsule, signature=None)
-            specification = task.get_specification(ursula.stamp, alice_address, blockhash, ursula_identity_evidence)
+            specification = task.get_specification(ursula_stamp=ursula.stamp,
+                                                   ursula_identity_evidence=ursula_identity_evidence)
             task.signature = bob.stamp(specification)
             tasks[capsule] = task
 
-        # TODO: What's the goal of the receipt? Should it include only the capsules?
-        # FIXME: Include encrypted KFrag in the receipt
-        capsules = b''.join(map(bytes, tasks.keys()))
-        receipt_bytes = cls.HEADER + bytes(ursula.stamp) + capsules
-        receipt_signature = bob.stamp(receipt_bytes)
-
+        receipt = cls._make_receipt(tasks=tasks, bob=bob, ursula=ursula)
+        hrac = bob.construct_policy_hrac(verifying_key=publisher_verifying_key, label=label)
         return cls(bob=bob,
-                   hrac=hrac,
-                   encrypted_kfrag=encrypted_kfrag,
-                   tasks=tasks,
-                   receipt_signature=receipt_signature,
-                   alice_address=alice_address,
                    ursula=ursula,
-                   blockhash=blockhash)
+                   hrac=hrac,
+                   tasks=tasks,
+                   receipt_signature=receipt,
+                   encrypted_kfrag=encrypted_kfrag,
+                   publisher_verifying_key=publisher_verifying_key,
+                   authorizer_verifying_key=authorizer_verifying_key)
 
-    def payload(self):
+    def payload(self) -> bytes:
         """
         Creates a serialized WorkOrder. Called by Bob requesting reencryption tasks
+
+        # receipt signature
+        # publisher verifying key
+        # authorizer verifying key
+        # bob stamp
+        # HRAC
+        # encrypted kfrag
+        # tasks
+
         """
         tasks_bytes = b''.join(bytes(item) for item in self.tasks.values())
-        return bytes(self.receipt_signature) + self.bob.stamp + self.blockhash + \
-               bytes(VariableLengthBytestring(self.encrypted_kfrag)) + tasks_bytes
+        return bytes(self.receipt_signature)                        \
+            + bytes(self.publisher_verifying_key)                   \
+            + bytes(self.authorizer_verifying_key)                  \
+            + bytes(self.bob.stamp)                                 \
+            + bytes(self.hrac)                                      \
+            + bytes(VariableLengthBytestring(self.encrypted_kfrag)) \
+            + tasks_bytes
 
     @classmethod
-    def from_rest_payload(cls, arrangement_id, rest_payload, ursula, alice_address):
-        signature, bob_verifying_key, blockhash, kfrag, remainder = cls.payload_splitter(rest_payload, return_remainder=True)
+    def from_rest_payload(cls, rest_payload: bytes, ursula: 'Ursula'):
+        result = cls.payload_splitter(rest_payload, return_remainder=True)
+        signature, publisher_verifying, authorizer_verifying, bob_verifying, hrac, kfrag, remainder = result
         tasks = {capsule: cls.PRETask(capsule, sig) for capsule, sig in cls.PRETask.input_splitter.repeat(remainder)}
-        # TODO: check freshness of blockhash? #259
 
         # FIXME: Include kfrag in checks
-
         ursula_identity_evidence = b''
         if ursula._stamp_has_valid_signature_by_worker():
             ursula_identity_evidence = ursula.decentralized_identity_evidence
 
         for task in tasks.values():
             # Each task signature has to match the original specification
-            specification = task.get_specification(ursula.stamp,
-                                                   alice_address,
-                                                   blockhash,
-                                                   ursula_identity_evidence)
+            specification = task.get_specification(ursula_stamp=ursula.stamp,
+                                                   ursula_identity_evidence=ursula_identity_evidence)
 
-            if not task.signature.verify(bob_verifying_key, specification):
+            if not task.signature.verify(bob_verifying, specification):
                 raise InvalidSignature()
 
         # Check receipt
         capsules = b''.join(map(bytes, tasks.keys()))
         receipt_bytes = cls.HEADER + bytes(ursula.stamp) + capsules
-        if not signature.verify(bob_verifying_key, receipt_bytes):
+        if not signature.verify(bob_verifying, receipt_bytes):
             raise InvalidSignature()
 
-        bob = Bob.from_public_keys(verifying_key=bob_verifying_key)
+        bob = Bob.from_public_keys(verifying_key=bob_verifying)
         return cls(bob=bob,
+                   hrac=hrac,
                    ursula=ursula,
-                   encrypted_kfrag=kfrag,
-                   arrangement_id=arrangement_id,
                    tasks=tasks,
-                   alice_address=alice_address,
-                   blockhash=blockhash,
+                   encrypted_kfrag=kfrag,
+                   publisher_verifying_key=publisher_verifying,
+                   authorizer_verifying_key=authorizer_verifying,
                    receipt_signature=signature)
 
     def complete(self, cfrags_and_signatures):
