@@ -977,6 +977,7 @@ class Bob(Character):
                  label: bytes,
 
                  # Alice(s)
+                 # TODO: Rename to alice/relayer verifying key.
                  publisher_verifying_key: Union[PublicKey, bytes],
                  authorizer_verifying_key: Optional[Union[PublicKey, bytes]] = None,
 

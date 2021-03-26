@@ -264,8 +264,11 @@ def _make_rest_app(datastore: Datastore, this_node, domain: str, log: Logger) ->
             log.info(f"Invalid KFrag detected - sender {authorizer_verifying_key.to_bytes().hex()}")
             return Response(response="{} is invalid".format(kfrag), status=401)
 
-        # TODO: Verify policy payment
-        # TODO: Cache the result of payment verification for optimization
+        # TODO:
+        #  - Verify policy payment, in the worst case scenario (since this will slow things down)
+        #  - Cache the result of payment verification for optimization
+        #  - Use an async task before this even happens.
+        #  - Use the graph as an optimization?
 
         # Re-encrypt
         response = this_node._reencrypt(kfrag=kfrag,
@@ -306,6 +309,7 @@ def _make_rest_app(datastore: Datastore, this_node, domain: str, log: Logger) ->
         as a decentralized node. Otherwise, we use the map_id in
         federated mode.
         """
+
         if not this_node.federated_only:
             from nucypher.policy.collections import SignedTreasureMap as _MapClass
         else:
