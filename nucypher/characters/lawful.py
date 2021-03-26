@@ -977,8 +977,9 @@ class Bob(Character):
                  label: bytes,
 
                  # Alice(s)
-                 relayer_verifying_key: Union[UmbralPublicKey, bytes],
-                 alice_verifying_key: Optional[Union[UmbralPublicKey, bytes]] = None,
+                 # TODO: Rename to alice/relayer verifying key.
+                 publisher_verifying_key: Union[UmbralPublicKey, bytes],
+                 authorizer_verifying_key: Optional[Union[UmbralPublicKey, bytes]] = None,
 
                  # Source Authentication
                  enrico: "Enrico" = None,

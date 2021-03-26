@@ -387,8 +387,7 @@ class WorkOrder:
         return "WorkOrder for hrac {hrac}: (capsules: {capsule_reprs}) for {node}".format(
             hrac=self.hrac,
             capsule_reprs=self.tasks.keys(),
-            node=self.ursula
-        )
+            node=self.ursula)
 
     def __eq__(self, other):
         return self.receipt_signature == other.receipt_signature
@@ -780,7 +779,12 @@ class IndisputableEvidence:
             v_y, vz_xy, v1_y, v1h_xy, v2_y,
             uz_xy, u1_y, u1h_xy, u2_y,
             hashed_kfrag_validity_message,
+
+            # TODO: Revisit this with updated umbral API.
+            # FIXME: This is not alice's address.
+            # It needs to be alice's verifying key as an ethereum address.
             self.alice_address,
+
             # The following single-byte values are interpreted as a single bytes5 variable by the Solidity contract
             kfrag_signature_v,
             cfrag_signature_v,
