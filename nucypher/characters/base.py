@@ -38,7 +38,6 @@ from umbral.keys import UmbralPublicKey
 from umbral.signing import Signature
 
 from nucypher.acumen.nicknames import Nickname
-from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
 from nucypher.blockchain.eth.registry import BaseContractRegistry, InMemoryContractRegistry
 from nucypher.blockchain.eth.signers.base import Signer
 from nucypher.characters.control.controllers import CLIController, JSONRPCController
@@ -384,8 +383,7 @@ class Character(Learner):
         message_kit, signature = encrypt_and_sign(recipient_pubkey_enc=recipient.public_keys(DecryptingPower),
                                                   plaintext=plaintext,
                                                   signer=signer,
-                                                  sign_plaintext=sign_plaintext
-                                                  )
+                                                  sign_plaintext=sign_plaintext)
         return message_kit, signature
 
     def verify_from(self,
@@ -409,16 +407,14 @@ class Character(Learner):
         :return: Whether or not the signature is valid, the decrypted plaintext or NO_DECRYPTION_PERFORMED
         """
 
-        #
-        # Optional Sanity Check
-        #
+        sender_verifying_key = stranger.stamp.as_umbral_pubkey()
 
-        # In the spirit of duck-typing, we want to accept a message kit object, or bytes
+        # We're duck-typed here - we want to accept a message kit object or bytes.
+        # This gives us a fail fast opportunity:
         # If the higher-order object MessageKit is passed, we can perform an additional
         # eager sanity check before performing decryption.
 
         with contextlib.suppress(AttributeError):
-            sender_verifying_key = stranger.stamp.as_umbral_pubkey()
             if message_kit.sender_verifying_key:
                 if not message_kit.sender_verifying_key == sender_verifying_key:
                     raise ValueError("This MessageKit doesn't appear to have come from {}".format(stranger))
@@ -456,12 +452,13 @@ class Character(Learner):
 
         if signature and signature_from_kit:
             if signature != signature_from_kit:
-                raise ValueError(
-                    "The MessageKit has a Signature, but it's not the same one you provided.  Something's up.")
+                raise ValueError("The MessageKit has a Signature, but it's not the same one you provided.")
 
         signature_to_use = signature or signature_from_kit
         if signature_to_use:
-            is_valid = signature_to_use.verify(message, sender_verifying_key)  # FIXME: Message is undefined here
+
+            # FIXME: Linter complains about message being possibly undefined
+            is_valid = signature_to_use.verify(message=message, verifying_key=sender_verifying_key)
             if not is_valid:
                 try:
                     node_on_the_other_end = self.known_node_class.from_seednode_metadata(stranger.seed_node_metadata(),
