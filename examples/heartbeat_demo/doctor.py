@@ -16,7 +16,6 @@
 """
 
 import json
-import traceback
 from timeit import default_timer as timer
 
 import maya
