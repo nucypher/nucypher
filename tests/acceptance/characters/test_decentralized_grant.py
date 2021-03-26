@@ -49,12 +49,8 @@ def test_decentralized_grant(blockchain_alice, blockchain_bob, blockchain_ursula
     # Let's look at the enacted arrangements.
     for ursula in blockchain_ursulas:
         if ursula.checksum_address in policy.treasure_map.destinations:
-            arrangement_id = policy.treasure_map.destinations[ursula.checksum_address]
-
-            # Get the Arrangement from Ursula's datastore, looking up by the Arrangement ID.
-            with ursula.datastore.describe(PolicyArrangement, arrangement_id.hex()) as policy_arrangement:
-                retrieved_kfrag = policy_arrangement.kfrag
-            assert bool(retrieved_kfrag) # TODO: try to assemble them back?
+            kfrag_kit = policy.treasure_map.destinations[ursula.checksum_address]
+            assert bool(kfrag_kit)  # TODO: try to decrypt?
 
 
 def test_alice_sets_treasure_map_decentralized(enacted_blockchain_policy, blockchain_alice, blockchain_bob, blockchain_ursulas):

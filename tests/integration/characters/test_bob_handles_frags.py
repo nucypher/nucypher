@@ -18,11 +18,13 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 import pytest
 import pytest_twisted
 from twisted.internet import threads
+from umbral import pre
+from umbral.capsule_frag import CapsuleFrag
 
+from nucypher.config.constants import TEMPORARY_DOMAIN
 from nucypher.crypto.kits import PolicyMessageKit
 from nucypher.crypto.powers import DecryptingPower
-from nucypher.config.constants import TEMPORARY_DOMAIN
-from nucypher.datastore.models import PolicyArrangement, Workorder
+from nucypher.datastore.models import Workorder
 from tests.utils.middleware import MockRestMiddleware, NodeIsDownMiddleware
 
 
@@ -121,8 +123,11 @@ def test_bob_can_follow_treasure_map_even_if_he_only_knows_of_one_node(enacted_f
     bob.disenchant()
 
 
-def test_bob_can_issue_a_work_order_to_a_specific_ursula(enacted_federated_policy, federated_bob,
-                                                         federated_alice, federated_ursulas, capsule_side_channel):
+def test_bob_can_issue_a_work_order_to_a_specific_ursula(enacted_federated_policy,
+                                                         federated_bob,
+                                                         federated_alice,
+                                                         federated_ursulas,
+                                                         capsule_side_channel):
     """
     Now that Bob has his list of Ursulas, he can issue a WorkOrder to one. Upon receiving the WorkOrder, Ursula
     saves it and responds by re-encrypting and giving Bob a cFrag.
@@ -152,7 +157,7 @@ def test_bob_can_issue_a_work_order_to_a_specific_ursula(enacted_federated_polic
         message_kit.capsule,
         label=enacted_federated_policy.label,
         treasure_map=treasure_map,
-        alice_verifying_key=federated_alice.stamp.as_umbral_pubkey(),
+        publisher_verifying_key=federated_alice.stamp.as_umbral_pubkey(),
         num_ursulas=1)
 
     # Again: one Ursula, one work_order.
@@ -166,7 +171,7 @@ def test_bob_can_issue_a_work_order_to_a_specific_ursula(enacted_federated_polic
         message_kit.capsule,
         label=enacted_federated_policy.label,
         treasure_map=treasure_map,
-        alice_verifying_key=federated_alice.stamp.as_umbral_pubkey(),
+        publisher_verifying_key=federated_alice.stamp.as_umbral_pubkey(),
         num_ursulas=1)
 
     # The work order we just made is not yet complete, of course.
@@ -189,8 +194,8 @@ def test_bob_can_issue_a_work_order_to_a_specific_ursula(enacted_federated_polic
     # Having received the cFrag, Bob also saved the WorkOrder as complete.
     assert len(federated_bob._completed_work_orders.by_ursula[address]) == 1
 
-    # OK, so cool - Bob has his cFrag!  Let's make sure everything went properly.  First, we'll show that it is in fact
-    # the correct cFrag (ie, that Ursula performed re-encryption properly).
+    # OK, so cool - Bob has his cFrag!  Let's make sure everything went properly.
+    # First, we'll show that it is in fact the correct cFrag (ie, that Ursula performed re-encryption properly).
     for u in federated_ursulas:
         if u.rest_interface.port == work_order.ursula.rest_interface.port:
             ursula = u
@@ -198,8 +203,13 @@ def test_bob_can_issue_a_work_order_to_a_specific_ursula(enacted_federated_polic
     else:
         raise RuntimeError("We've lost track of the Ursula that has the WorkOrder. Can't really proceed.")
 
-    with ursula.datastore.describe(PolicyArrangement, work_order.arrangement_id.hex()) as policy_arrangement:
-        the_kfrag = policy_arrangement.kfrag
+    the_kfrag = enacted_federated_policy.kfrags[0]
+    the_correct_cfrag = pre.reencrypt(the_kfrag, message_kit.capsule)
+
+    # The first CFRAG_LENGTH_WITHOUT_PROOF bytes (ie, the cfrag proper, not the proof material), are the same:
+    assert bytes(the_cfrag)[:CapsuleFrag.serialized_size()] == bytes(the_correct_cfrag)[:CapsuleFrag.serialized_size()]  # It's the correct cfrag!
+
+    assert the_correct_cfrag.verify_correctness(message_kit.capsule)
 
     # Now we'll show that Ursula saved the correct WorkOrder.
     with ursula.datastore.query_by(Workorder, filter_field='bob_verifying_key',
