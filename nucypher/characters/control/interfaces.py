@@ -222,7 +222,7 @@ class BobInterface(CharacterPublicInterface):
 
         plaintexts = self.character.retrieve(message_kit,
                                              enrico=enrico,
-                                             alice_verifying_key=alice_verifying_key,
+                                             publisher_verifying_key=alice_verifying_key,
                                              label=label,
                                              treasure_map=treasure_map)
 
