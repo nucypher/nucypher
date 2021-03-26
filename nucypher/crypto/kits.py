@@ -15,6 +15,7 @@ You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
+
 from typing import Optional, Dict
 
 from bytestring_splitter import BytestringKwargifier, VariableLengthBytestring
@@ -127,9 +128,6 @@ class MessageKit(CryptoKit):
     @property
     def signature(self):
         return self._signature
-
-    def __bytes__(self):
-        return bytes(self.capsule) + VariableLengthBytestring(self.ciphertext)
 
 
 class PolicyMessageKit(MessageKit):
