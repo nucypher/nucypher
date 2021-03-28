@@ -448,7 +448,26 @@ def estimate_gas(analyzer: AnalyzeGas = None) -> None:
                      policy_functions.revokePolicy(policy_id_3),
                      {'from': alice2})
 
-    for index in range(5):
+    transact(staker_functions.commitToNextPeriod(), {'from': staker1})
+    transact(staker_functions.commitToNextPeriod(), {'from': staker2})
+    transact(staker_functions.commitToNextPeriod(), {'from': staker3})
+    testerchain.time_travel(periods=1)
+    #
+    # Batch granting
+    #
+    policy_id_1 = os.urandom(int(Policy.POLICY_ID_LENGTH))
+    policy_id_2 = os.urandom(int(Policy.POLICY_ID_LENGTH))
+    current_timestamp = testerchain.w3.eth.getBlock('latest').timestamp
+    end_timestamp = current_timestamp + (number_of_periods - 1) * one_period
+    value = 3 * number_of_periods * rate
+    transact_and_log("Creating 2 policies (3 nodes, 100 periods, pre-committed)",
+                     policy_functions.createPolicies([policy_id_1, policy_id_2],
+                                                     alice1,
+                                                     end_timestamp,
+                                                     [staker1, staker2, staker3]),
+                     {'from': alice1, 'value': 2 * value})
+
+    for index in range(4):
         transact(staker_functions.commitToNextPeriod(), {'from': staker1})
         testerchain.time_travel(periods=1)
     transact(staker_functions.mint(), {'from': staker1})
