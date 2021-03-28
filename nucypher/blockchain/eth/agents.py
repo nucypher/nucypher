@@ -33,7 +33,7 @@ from typing import Dict, Iterable, List, Tuple, Type, Union, Any, Optional, cast
 from web3.contract import Contract, ContractFunction
 from web3.types import Wei, Timestamp, TxReceipt, TxParams, Nonce
 
-from nucypher.blockchain.eth.aragon import Artifact
+from nucypher.blockchain.eth.aragon import Artifact, Action
 from nucypher.blockchain.eth.constants import (
     ADJUDICATOR_CONTRACT_NAME,
     DISPATCHER_CONTRACT_NAME,
@@ -47,7 +47,8 @@ from nucypher.blockchain.eth.constants import (
     TOKEN_MANAGER_CONTRACT_NAME,
     VOTING_CONTRACT_NAME,
     VOTING_AGGREGATOR_CONTRACT_NAME,
-    WORKLOCK_CONTRACT_NAME
+    WORKLOCK_CONTRACT_NAME,
+    DAO_AGENT_CONTRACT_NAME
 )
 from nucypher.blockchain.eth.decorators import contract_api
 from nucypher.blockchain.eth.events import ContractEvents
@@ -1349,7 +1350,7 @@ class InstanceAgent(EthereumContractAgent):
         super().__init__(contract=contract, provider_uri=provider_uri)
 
 
-class AragonAgent(InstanceAgent):
+class AragonBaseAgent(InstanceAgent):
     """Base agent for Aragon contracts that uses ABIs from artifact.json files"""
 
     def __init__(self, address: str, provider_uri: str = None):
@@ -1357,7 +1358,7 @@ class AragonAgent(InstanceAgent):
         super().__init__(abi=self.artifact.abi, address=address, provider_uri=provider_uri)
 
 
-class ForwarderAgent(AragonAgent):
+class ForwarderAgent(AragonBaseAgent):
     """Agent for Aragon apps that implement the Forwarder interface"""
 
     contract_name = FORWARDER_INTERFACE_NAME
@@ -1445,6 +1446,20 @@ class TokenManagerAgent(ForwarderAgent):
     def _burn(self, holder_address: ChecksumAddress, amount: int) -> ContractFunction:
         function_call = self.contract.functions.burn(holder_address, amount)
         return function_call
+
+
+class AragonAgent(ForwarderAgent):
+
+    contract_name = DAO_AGENT_CONTRACT_NAME
+
+    def _execute(self, target_address: ChecksumAddress, amount: int, data: bytes) -> ContractFunction:
+        function_call = self.contract.functions.execute(target_address, amount, data)
+        return function_call
+
+    def get_execute_call_as_action(self, target_address: ChecksumAddress, data: bytes, amount: int = 0) -> Action:
+        execute_call = self._execute(target_address=target_address, amount=amount, data=data)
+        action = Action(target=self.contract_address, data=execute_call)
+        return action
 
 
 class ContractAgency:
