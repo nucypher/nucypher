@@ -566,8 +566,8 @@ def _make_agency(testerchain, test_registry, token_economics, deployer_transacti
 
 
 @pytest.fixture(scope='module')
-def test_registry_source_manager(testerchain, test_registry):
-    with mock_registry_source_manager(blockchain=testerchain, test_registry=test_registry):
+def test_registry_source_manager(test_registry):
+    with mock_registry_source_manager(test_registry=test_registry):
         yield
 
 
