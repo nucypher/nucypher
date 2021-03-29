@@ -35,7 +35,7 @@ from nucypher.cli.options import (
     option_registry_filepath,
     option_signer_uri,
     option_parameters, option_hw_wallet)
-from nucypher.cli.utils import setup_emitter, get_registry, connect_to_blockchain
+from nucypher.cli.utils import setup_emitter, get_registry, connect_to_blockchain, initialize_deployer_interface
 from nucypher.config.constants import NUCYPHER_ENVVAR_PROVIDER_URI
 
 option_parameters.required = True
@@ -61,7 +61,10 @@ class DaoOptions:  # TODO: This class is essentially the same that WorkLock opti
     def setup(self, general_config) -> tuple:
         emitter = setup_emitter(general_config)
         registry = get_registry(network=self.network, registry_filepath=self.registry_filepath)
-        blockchain = connect_to_blockchain(emitter=emitter, provider_uri=self.provider_uri)
+        blockchain = initialize_deployer_interface(emitter=emitter,
+                                                   provider_uri=self.provider_uri,
+                                                   poa=False,
+                                                   ignore_solidity_check=True)
         return emitter, registry, blockchain
 
     def get_participant_address(self, emitter, registry, show_staking: bool = False):
@@ -86,7 +89,7 @@ class DaoOptions:  # TODO: This class is essentially the same that WorkLock opti
         if transacting and not is_clef and not hw_wallet:
             client_password = get_client_password(checksum_address=self.participant_address)
 
-        testnet = self.domain != NetworksInventory.MAINNET
+        testnet = self.network != NetworksInventory.MAINNET
         signer = Signer.from_signer_uri(self.signer_uri, testnet=testnet) if self.signer_uri else None
         actor = DaoActor(checksum_address=self.participant_address,
                          network=self.network,
@@ -145,7 +148,7 @@ def propose(general_config: GroupGeneralConfig, dao_options: DaoOptions, hw_wall
     with open(parameters) as json_file:
         parameters = json.load(json_file)
 
-    manager.rotate_emergency_response_team(**parameters)
+    manager.period_extension_proposal(**parameters)
 
 
 @dao.command()
