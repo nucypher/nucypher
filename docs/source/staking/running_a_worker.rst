@@ -208,7 +208,7 @@ Instead of using docker, the nucypher worker can be run as a systemd service.
     $(nucypher) pip install -U nucypher
 
 
-2. Configure the worker using the nucypher CLI.
+2. Configure the worker using the nucypher CLI, and store the configuration to disk:
 
 .. code-block::
 
@@ -225,6 +225,14 @@ Replace the following values with your own:
    * ``<NETWORK NAME>`` - The name of a nucypher network (mainnet, ibex, or lynx)
    * ``<SIGNER URI>`` - The URI to an ethereum keystore or signer: `keystore:///root/.ethereum/keystore`
    * ``<GWEI>`` - The maximum price of gas to spend on commitment transactions
+
+
+.. important::
+
+    The default configuration file is ``ursula.json``. If there is an existing default configuration file, a new
+    Worker configuration file with a unique suffix is created e.g. ``ursula-0216ad10.json``. Since this file would not
+    be the default, subsequent ``ursula`` CLI commands should use the ``--config-file <FILEPATH>`` option to specify
+    the non-default filepath of the Worker configuration file.
 
 
 3. Use this template to create a file named ``ursula.service`` and place it in ``/etc/systemd/system/``.
@@ -298,6 +306,8 @@ Run Worker Manually
 If you'd like to use another own method of running the worker process in the background, or are
 using one of the testnets, here is how to run Ursula using the CLI directly.
 
+First initialize a Worker configuration and store it to disk:
+
 .. code-block::
 
     $(nucypher) nucypher ursula init \
@@ -312,6 +322,15 @@ Replace the following values with your own:
    * ``<NETWORK NAME>`` - The name of a nucypher network (mainnet, ibex, or lynx)
    * ``<SIGNER URI>`` - The URI to an ethereum keystore or signer: `keystore:///root/.ethereum/keystore`
    * ``<GWEI>`` - The maximum price of gas to spend on commitment transactions
+
+
+.. important::
+
+    The default configuration file is ``ursula.json``. If there is an existing default configuration file, a new
+    Worker configuration file with a unique suffix is created e.g. ``ursula-0216ad10.json``. Since this file would not
+    be the default, subsequent ``ursula`` CLI commands should use the ``--config-file <FILEPATH>`` option to specify
+    the non-default filepath of the Worker configuration file.
+
 
 .. note::
 

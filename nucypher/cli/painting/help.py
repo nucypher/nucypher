@@ -57,10 +57,16 @@ def paint_new_installation_help(emitter, new_configuration, filepath):
 
     emitter.message(f"Generated keyring {new_configuration.keyring_root}", color='green')
 
-    config_filepath_type = "default"
+    default_config_filepath = True
     if new_configuration.default_filepath() != filepath:
-        config_filepath_type = "non-default"
-    emitter.message(f"Generated configuration file at {config_filepath_type} filepath {filepath}", color='green')
+        default_config_filepath = False
+    emitter.message(f'Generated configuration file at {"default" if default_config_filepath else "non-default"} '
+                    f'filepath {filepath}', color='green')
+
+    # add hint about --config-file
+    if not default_config_filepath:
+        emitter.message(f'* NOTE: for a non-default configuration filepath use `--config-file "{filepath}"` '
+                        f'with subsequent `{character_name}` CLI commands', color='yellow')
 
     # Felix
     if character_name == 'felix':
@@ -83,7 +89,6 @@ To initialize a new faucet recipient database run: nucypher felix createdb
 * Revoke access         -> nucypher alice revoke
 * Start HTTP server     -> nucypher alice run
 '''
-
 
     elif character_name == 'bob':
         hint = '''
