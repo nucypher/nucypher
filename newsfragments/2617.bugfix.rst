@@ -1,0 +1,2 @@
+Ensure that correct configuration filepath is displayed when initializing characters, and add hint about
+using ``--config-file <FILE>`` for subsequent CLI commands if non-default filepath used.
