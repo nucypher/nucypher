@@ -17,12 +17,12 @@
 
 
 import glob
-
-import click
 import os
-from tabulate import tabulate
 from typing import Callable
 from typing import Optional, Tuple, Type
+
+import click
+from tabulate import tabulate
 from web3.main import Web3
 
 from nucypher.blockchain.eth.actors import StakeHolder, Staker
@@ -42,7 +42,8 @@ from nucypher.cli.literature import (
     SELECT_NETWORK,
     SELECT_STAKE,
     SELECT_STAKING_ACCOUNT_INDEX,
-    SELECTED_ACCOUNT
+    SELECTED_ACCOUNT,
+    IGNORE_OLD_CONFIGURATION
 )
 from nucypher.cli.painting.policies import paint_cards
 from nucypher.cli.painting.staking import paint_stakes
@@ -233,7 +234,12 @@ def select_config_file(emitter: StdoutEmitter,
 
     config_root = config_root or DEFAULT_CONFIG_ROOT
     default_config_file = glob.glob(config_class.default_filepath(config_root=config_root))
-    glob_pattern = f'{config_root}/{config_class.NAME}-0x*.{config_class._CONFIG_FILE_EXTENSION}'
+
+    # updated glob pattern for secondary configuration files accommodates for:
+    # 1. configuration files with "0x..." checksum address as suffix - including older ursula config files
+    # 2. newer (ursula) configuration files which use signing_pub_key[:8] as hex as the suffix
+    glob_pattern = f'{config_root}/{config_class.NAME}-[0-9a-fA-f]*.{config_class._CONFIG_FILE_EXTENSION}'
+
     secondary_config_files = glob.glob(glob_pattern)
     config_files = [*default_config_file, *secondary_config_files]
     if not config_files:
@@ -242,25 +248,39 @@ def select_config_file(emitter: StdoutEmitter,
         raise click.Abort()
 
     checksum_address = checksum_address or os.environ.get(NUCYPHER_ENVVAR_WORKER_ADDRESS, None)  # TODO: Deprecate worker_address in favor of checksum_address
-    if checksum_address:
 
-        #
-        # Manual
-        #
-
-        parsed_addresses = {config_class.checksum_address_from_filepath(fp): fp for fp in config_files}
+    parsed_addresses = list()
+    parsed_config_files = list()
+    # parse configuration files for checksum address values
+    for fp in config_files:
         try:
-            config_file = parsed_addresses[checksum_address]
-        except KeyError:
-            raise ValueError(f"'{checksum_address}' is not a known {config_class.NAME} configuration account.")
+            config_checksum_address = config_class.checksum_address_from_filepath(fp)
+            if checksum_address and config_checksum_address == checksum_address:
+                # matching configuration file found, no need to continue - return filepath
+                return fp
 
-    elif len(config_files) > 1:
+            parsed_addresses.append([config_checksum_address])
+            parsed_config_files.append(fp)
+        except config_class.OldVersion:
+            # no use causing entire usage to crash if file can't be used anyway - inform the user; they can
+            # decide for themself
+            emitter.echo(IGNORE_OLD_CONFIGURATION.format(config_file=fp), color='yellow')
 
+    if checksum_address:
+        # shouldn't get here if checksum address was specified and corresponding file found
+        raise ValueError(f"'{checksum_address}' is not a known {config_class.NAME} configuration account.")
+
+    if not parsed_config_files:
+        # No available configuration files
+        emitter.message(NO_CONFIGURATIONS_ON_DISK.format(name=config_class.NAME.capitalize(),
+                                                         command=config_class.NAME),
+                        color='red')
+        raise click.Abort()
+    elif len(parsed_config_files) > 1:
         #
         # Interactive
         #
-
-        parsed_addresses = tuple([config_class.checksum_address_from_filepath(fp)] for fp in config_files)
+        parsed_addresses = tuple(parsed_addresses)  # must be tuple-of-iterables for tabulation
 
         # Display account info
         headers = ['Account']
@@ -268,14 +288,13 @@ def select_config_file(emitter: StdoutEmitter,
 
         # Prompt the user for selection, and return
         prompt = f"Select {config_class.NAME} configuration"
-        account_range = click.IntRange(min=0, max=len(config_files) - 1)
+        account_range = click.IntRange(min=0, max=len(parsed_config_files) - 1)
         choice = click.prompt(prompt, type=account_range, default=0)
-        config_file = config_files[choice]
+        config_file = parsed_config_files[choice]
         emitter.echo(f"Selected {choice}: {config_file}", color='blue')
-
     else:
         # Default: Only one config file, use it.
-        config_file = config_files[0]
+        config_file = parsed_config_files[0]
 
     return config_file
 

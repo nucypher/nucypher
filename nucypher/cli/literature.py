@@ -372,6 +372,7 @@ Wrote JSON configuration to {filepath}
 
 """
 
+IGNORE_OLD_CONFIGURATION = "Ignoring configuration file '{config_file}' - version is too old"
 
 #
 #  Authentication

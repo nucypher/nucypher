@@ -17,10 +17,13 @@
 
 
 import json
-
 import os
 import re
 from abc import ABC, abstractmethod
+from decimal import Decimal
+from tempfile import TemporaryDirectory
+from typing import Union, Callable, Optional, List
+
 from constant_sorrow.constants import (
     UNKNOWN_VERSION,
     UNINITIALIZED_CONFIGURATION,
@@ -30,12 +33,7 @@ from constant_sorrow.constants import (
     DEVELOPMENT_CONFIGURATION,
     LIVE_CONFIGURATION
 )
-
-
-from decimal import Decimal
 from eth_utils.address import is_checksum_address
-from tempfile import TemporaryDirectory
-from typing import Union, Callable, Optional, List
 from umbral.signing import Signature
 
 from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
@@ -268,7 +266,7 @@ class BaseConfiguration(ABC):
         """Reads `filepath` and returns the deserialized JSON payload dict."""
         with open(filepath, 'r') as file:
             raw_contents = file.read()
-            payload = cls.deserialize(raw_contents)
+            payload = cls.deserialize(raw_contents, payload_label=filepath)
         return payload
 
     def _write_configuration_file(self, filepath: str, override: bool = False) -> str:
@@ -287,12 +285,13 @@ class BaseConfiguration(ABC):
         return serialized_payload
 
     @classmethod
-    def deserialize(cls, payload: str, deserializer=json.loads) -> dict:
+    def deserialize(cls, payload: str, deserializer=json.loads, payload_label: Optional[str] = None) -> dict:
         """Returns the JSON deserialized content of `payload`"""
         deserialized_payload = deserializer(payload)
         version = deserialized_payload.pop('version', UNKNOWN_VERSION)
         if version != cls.VERSION:
-            raise cls.OldVersion(f"Configuration file is the wrong version "
+            label = f"'{payload_label}' " if payload_label else ""
+            raise cls.OldVersion(f"Configuration {label}is the wrong version "
                                  f"Expected version {cls.VERSION}; Got version {version}")
         return deserialized_payload
 
@@ -523,7 +522,6 @@ class CharacterConfiguration(BaseConfiguration):
 
     @classmethod
     def checksum_address_from_filepath(cls, filepath: str) -> str:
-
         pattern = re.compile(r'''
                              (^\w+)-
                              (0x{1}         # Then, 0x the start of the string, exactly once
@@ -536,22 +534,11 @@ class CharacterConfiguration(BaseConfiguration):
 
         if match:
             character_name, checksum_address = match.groups()
-
         else:
             # Extract from default by "peeking" inside the configuration file.
             default_name = cls.generate_filename()
             if filename == default_name:
                 checksum_address = cls.peek(filepath=filepath, field='checksum_address')
-
-                ###########
-                # TODO: Cleanup and deprecate worker_address in config files, leaving only checksum_address
-                from nucypher.config.characters import UrsulaConfiguration
-                if isinstance(cls, UrsulaConfiguration):
-                    federated = bool(cls.peek(filepath=filepath, field='federated_only'))
-                    if not federated:
-                        checksum_address = cls.peek(filepath=cls.filepath, field='worker_address')
-                ###########
-
             else:
                 raise ValueError(f"Cannot extract checksum from filepath '{filepath}'")
 

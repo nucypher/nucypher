@@ -17,11 +17,13 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 
 
 import os
+from tempfile import TemporaryDirectory
+
 from constant_sorrow.constants import UNINITIALIZED_CONFIGURATION
 from cryptography.hazmat.primitives.asymmetric import ec
 from cryptography.hazmat.primitives.asymmetric.ec import EllipticCurve
 from cryptography.x509 import Certificate
-from tempfile import TemporaryDirectory
+from eth_utils import is_checksum_address
 
 from nucypher.blockchain.eth.actors import StakeHolder
 from nucypher.config.base import CharacterConfiguration
@@ -76,6 +78,19 @@ class UrsulaConfiguration(CharacterConfiguration):
         self.worker_address = worker_address
         self.availability_check = availability_check if availability_check is not None else self.DEFAULT_AVAILABILITY_CHECKS
         super().__init__(dev_mode=dev_mode, *args, **kwargs)
+
+    @classmethod
+    def checksum_address_from_filepath(cls, filepath: str) -> str:
+        # must always extract worker address by "peeking" inside the ursula configuration file.
+        checksum_address = cls.peek(filepath=filepath, field='checksum_address')
+        federated = bool(cls.peek(filepath=filepath, field='federated_only'))
+        if not federated:
+            checksum_address = cls.peek(filepath=filepath, field='worker_address')
+
+        if not is_checksum_address(checksum_address):
+            raise RuntimeError(
+                f"Invalid checksum address detected in configuration file at '{filepath}'.")
+        return checksum_address
 
     def generate_runtime_filepaths(self, config_root: str) -> dict:
         base_filepaths = super().generate_runtime_filepaths(config_root=config_root)
@@ -258,7 +273,6 @@ class FelixConfiguration(CharacterConfiguration):
     DEFAULT_LEARNER_PORT = 9151
     DEFAULT_REST_HOST = LOOPBACK_ADDRESS
     __DEFAULT_TLS_CURVE = ec.SECP384R1
-
 
     def __init__(self,
                  db_filepath: str = None,

@@ -16,9 +16,13 @@
 """
 
 import os
+from unittest.mock import patch, PropertyMock
+
 import pytest
 import shutil
 from pathlib import Path
+
+from umbral.keys import UmbralPrivateKey
 
 from nucypher.blockchain.eth.actors import Worker
 from nucypher.cli.main import nucypher_cli
@@ -157,17 +161,24 @@ def test_coexisting_configurations(click_runner,
     assert os.path.isfile(alice_file_location)
     assert os.path.isfile(ursula_file_location)
 
-    # Use the same local filepath to init another persistent Ursula
-    init_args = ('ursula', 'init',
-                 '--network', TEMPORARY_DOMAIN,
-                 '--worker-address', another_ursula,
-                 '--rest-host', MOCK_IP_ADDRESS_2,
-                 '--registry-filepath', agency_local_registry.filepath,
-                 '--provider', TEST_PROVIDER_URI,
-                 '--config-root', custom_filepath)
+    # keyring signing key
+    signing_public_key = UmbralPrivateKey.gen_key().get_pubkey()
+    with patch('nucypher.config.keyring.NucypherKeyring.signing_public_key',
+               PropertyMock(return_value=signing_public_key)):
+        # Use the same local filepath to init another persistent Ursula
+        init_args = ('ursula', 'init',
+                     '--network', TEMPORARY_DOMAIN,
+                     '--worker-address', another_ursula,
+                     '--rest-host', MOCK_IP_ADDRESS_2,
+                     '--registry-filepath', agency_local_registry.filepath,
+                     '--provider', TEST_PROVIDER_URI,
+                     '--config-root', custom_filepath)
 
-    result = click_runner.invoke(nucypher_cli, init_args, catch_exceptions=False, env=envvars)
-    assert result.exit_code == 0
+        result = click_runner.invoke(nucypher_cli, init_args, catch_exceptions=False, env=envvars)
+        assert result.exit_code == 0
+
+    another_ursula_configuration_file_location = custom_filepath / UrsulaConfiguration.generate_filename(
+        modifier=signing_public_key.hex()[:8])
 
     # All configuration files still exist.
     assert os.path.isfile(felix_file_location)
