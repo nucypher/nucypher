@@ -94,9 +94,9 @@ workers can use, a software based wallet is the easiest.
     Periodic automated commitments are required to signal continued availability. Currently, Worker
     nodes must perform one commitment transaction every 7 days each costing ~200k gas.
 
-    Use the `--max-gas-price` option to set the maximum commitment gas price you are willing to spend.
-    Workers will automatically retry and replace any previous commitment attempts. Too low of a gas price
-    may result in missed commitments.
+    The ``--max-gas-price`` parameter is optional and can be used to set the maximum commitment gas price you are
+    willing to spend. Workers will automatically retry and replace any previous commitment attempts. Too low of a
+    gas price may result in missed commitments.
 
 
 .. _run-ursula-with-docker:
