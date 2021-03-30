@@ -15,13 +15,13 @@
  along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
+
 import pytest
 
 from nucypher.characters.lawful import Ursula
 from nucypher.crypto.utils import keccak_digest
 from nucypher.datastore.models import TreasureMap as DatastoreTreasureMap
-from nucypher.policy.collections import TreasureMap as FederatedTreasureMap
-from tests.utils.middleware import MockRestMiddleware
+from nucypher.policy.maps import TreasureMap as FederatedTreasureMap
 
 
 def test_alice_creates_policy_with_correct_hrac(federated_alice, federated_bob, idle_federated_policy):

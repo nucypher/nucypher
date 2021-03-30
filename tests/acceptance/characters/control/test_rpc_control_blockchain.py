@@ -22,7 +22,7 @@ import pytest
 from nucypher.characters.control.interfaces import AliceInterface
 from nucypher.characters.control.interfaces import BobInterface, EnricoInterface
 from nucypher.crypto.powers import DecryptingPower, SigningPower
-from nucypher.policy.collections import SignedTreasureMap
+from nucypher.policy.maps import SignedTreasureMap
 from tests.utils.controllers import get_fields, validate_json_rpc_response_data
 
 

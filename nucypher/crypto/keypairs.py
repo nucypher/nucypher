@@ -25,6 +25,8 @@ from constant_sorrow import constants
 from cryptography.hazmat.primitives.asymmetric import ec
 from hendrix.deploy.tls import HendrixDeployTLS
 from hendrix.facilities.services import ExistingKeyTLSContextFactory
+from nucypher.crypto.api import _TLS_CURVE
+from umbral.signing import Signer
 
 from nucypher.config.constants import MAX_UPLOAD_CONTENT_LENGTH
 from nucypher.crypto.kits import MessageKit
@@ -33,12 +35,11 @@ from nucypher.crypto.tls import _read_tls_certificate, _TLS_CURVE, generate_self
 from nucypher.crypto.umbral_adapter import (
     SecretKey,
     PublicKey,
-    decrypt_original,
-    decrypt_reencrypted,
     Signature,
-    Signer
+    Signer,
+    decrypt_original,
+    decrypt_reencrypted
 )
-from nucypher.network.resources import get_static_resources
 
 
 class Keypair(object):
@@ -85,6 +86,9 @@ class DecryptingKeypair(Keypair):
     """
     A keypair for Umbral
     """
+
+    class DecryptionFailed(Exception):
+        """Raised when decryption fails."""
 
     def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)

@@ -93,6 +93,7 @@ def test_alice_can_learn_about_a_whole_bunch_of_ursulas(highperf_mocked_alice):
 
 _POLICY_PRESERVER = []
 
+
 @skip_on_circleci  # TODO: #2552 Taking 6-10 seconds on CircleCI, passing locally.
 def test_alice_verifies_ursula_just_in_time(fleet_of_highperf_mocked_ursulas,
                                             highperf_mocked_alice,

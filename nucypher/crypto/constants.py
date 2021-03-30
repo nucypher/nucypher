@@ -18,7 +18,13 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 
 from cryptography.hazmat.primitives import hashes
 
+# Policy component sizes
 HRAC_LENGTH = 16
+SIGNATURE_SIZE = 64
+WRIT_CHECKSUM_SIZE = 32
+SIGNED_WRIT_SIZE = HRAC_LENGTH + WRIT_CHECKSUM_SIZE + SIGNATURE_SIZE
+KFRAG_CIPHERTEXT_SIZE = 494
+ENCRYPTED_KFRAG_PAYLOAD_LENGTH = SIGNED_WRIT_SIZE + KFRAG_CIPHERTEXT_SIZE
 
 # Digest Lengths
 KECCAK_DIGEST_LENGTH = 32

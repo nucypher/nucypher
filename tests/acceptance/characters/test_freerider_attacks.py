@@ -15,12 +15,13 @@ You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
+
 import datetime
 import maya
 import pytest
 
+from nucypher.characters.lawful import Ursula
 from nucypher.characters.unlawful import Amonia
-from nucypher.datastore.models import PolicyArrangement, TreasureMap as DatastoreTreasureMap
 from nucypher.datastore.datastore import RecordNotFound
 from nucypher.datastore.queries import find_policy_arrangements
 from nucypher.network.middleware import RestMiddleware
@@ -36,24 +37,27 @@ def test_policy_simple_sinpa(blockchain_ursulas, blockchain_alice, blockchain_bo
     policy_end_datetime = maya.now() + datetime.timedelta(days=35)
     label = b"this_is_the_path_to_which_access_is_being_granted"
 
-    with pytest.raises(amonia.NotEnoughNodes):
+    with pytest.raises(Ursula.UnpaidPolicy):
         _bupkiss_policy = amonia.grant_without_paying(bob=blockchain_bob,
                                                       label=label,
                                                       m=2,
                                                       n=n,
                                                       rate=int(1e18),  # one ether
-                                                      expiration=policy_end_datetime)
+                                                      expiration=policy_end_datetime,
+                                                      publish_reasure_map=True)
 
     for ursula in blockchain_ursulas:
         # Reset the Ursula for the next test.
         ursula.suspicious_activities_witnessed['freeriders'] = []
-        try:
-            with find_policy_arrangements(ursula.datastore) as arrangements:
-                for arrangement in arrangements:
-                    arrangement.delete()
-        except RecordNotFound:
-            # No records were found; this Ursula didn't have the arrangement.
-            continue
+
+        # TODO: Show that there is no KFrag available
+
+        # try:
+        #     with ursula.datastore.query_by(PolicyArrangement, writeable=True) as arrangements:
+        #         [arrangement.delete() for arrangement in arrangements]
+        # except RecordNotFound:
+        #     # No records were found; this Ursula didn't have the arrangement.
+        #     continue
 
 
 def test_try_to_post_free_arrangement_by_hacking_enact(blockchain_ursulas, blockchain_alice, blockchain_bob, agency,
@@ -81,7 +85,7 @@ def test_try_to_post_free_arrangement_by_hacking_enact(blockchain_ursulas, block
             with find_policy_arrangements(ursula.datastore) as all_arrangements:
                 arrangement = all_arrangements[0] # ...and Ursula did save the Arrangement after considering it...
                 with pytest.raises(AttributeError):
-                    should_error = arrangement.kfrag # ...Ursula did *not* save a KFrag and will not service this Policy.
+                    should_error = arrangement.kfrag  # ...Ursula did *not* save a KFrag and will not service this Policy.
 
                 # Additionally, Ursula logged Amonia as a freerider:
                 freeriders = ursula.suspicious_activities_witnessed['freeriders']
