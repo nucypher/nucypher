@@ -820,7 +820,7 @@ class PolicyManagerAgent(EthereumContractAgent):
         return receipt
 
     @contract_api(CONTRACT_CALL)
-    def fetch_policy(self, policy_id: str, with_owner=False) -> Union[tuple, list]:
+    def fetch_policy(self, policy_id: bytes) -> Policy:
         """
         Fetch raw stored blockchain data regarding the policy with the given policy ID.
         If `with_owner=True`, this method executes the equivalent of `getPolicyOwner`
@@ -916,7 +916,7 @@ class AdjudicatorAgent(EthereumContractAgent):
     @contract_api(TRANSACTION)
     def evaluate_cfrag(self, evidence, transacting_power: TransactingPower) -> TxReceipt:
         """Submits proof that a worker created wrong CFrag"""
-        payload: TxParams = {'gas': Wei(500_000)}  # TODO #842: gas needed for use with geth.
+        payload: TxParams = {'gas': Wei(500_000)}  # TODO TransactionFails unless gas is provided.
         contract_function: ContractFunction = self.contract.functions.evaluateCFrag(*evidence.evaluation_arguments())
         receipt = self.blockchain.send_transaction(contract_function=contract_function,
                                                    transacting_power=transacting_power,

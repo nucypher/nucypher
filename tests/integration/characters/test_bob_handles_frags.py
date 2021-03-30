@@ -20,8 +20,11 @@ import pytest_twisted
 from twisted.internet import threads
 from umbral import pre
 from umbral.capsule_frag import CapsuleFrag
+from umbral.cfrags import CapsuleFrag
 
+from nucypher.characters.lawful import Alice
 from nucypher.config.constants import TEMPORARY_DOMAIN
+from nucypher.crypto.keypairs import DecryptingKeypair
 from nucypher.crypto.kits import PolicyMessageKit
 from nucypher.crypto.powers import DecryptingPower
 from nucypher.datastore.models import Workorder
@@ -157,7 +160,7 @@ def test_bob_can_issue_a_work_order_to_a_specific_ursula(enacted_federated_polic
         message_kit.capsule,
         label=enacted_federated_policy.label,
         treasure_map=treasure_map,
-        publisher_verifying_key=federated_alice.stamp.as_umbral_pubkey(),
+        relayer_verifying_key=federated_alice.stamp.as_umbral_pubkey(),
         num_ursulas=1)
 
     # Again: one Ursula, one work_order.
@@ -171,7 +174,7 @@ def test_bob_can_issue_a_work_order_to_a_specific_ursula(enacted_federated_polic
         message_kit.capsule,
         label=enacted_federated_policy.label,
         treasure_map=treasure_map,
-        publisher_verifying_key=federated_alice.stamp.as_umbral_pubkey(),
+        relayer_verifying_key=federated_alice.stamp.as_umbral_pubkey(),
         num_ursulas=1)
 
     # The work order we just made is not yet complete, of course.
@@ -203,7 +206,12 @@ def test_bob_can_issue_a_work_order_to_a_specific_ursula(enacted_federated_polic
     else:
         raise RuntimeError("We've lost track of the Ursula that has the WorkOrder. Can't really proceed.")
 
-    the_kfrag = enacted_federated_policy.kfrags[0]
+    # Ursula decrypts the encrypted KFrag
+    encrypted_kfrag = enacted_federated_policy.treasure_map.destinations[ursula.checksum_address]
+    plaintext_kfrag_payload = ursula.verify_from(stranger=Alice.from_public_keys(verifying_key=enacted_federated_policy.alice_verifying_key),
+                                                 message_kit=encrypted_kfrag,
+                                                 decrypt=True)
+    _signed_writ, the_kfrag = work_order.kfrag_payload_splitter(plaintext_kfrag_payload)
     the_correct_cfrag = pre.reencrypt(the_kfrag, message_kit.capsule)
 
     # The first CFRAG_LENGTH_WITHOUT_PROOF bytes (ie, the cfrag proper, not the proof material), are the same:
@@ -234,8 +242,9 @@ def test_bob_can_use_cfrag_attached_to_completed_workorder(enacted_federated_pol
 
     incomplete_work_orders, complete_work_orders = federated_bob.work_orders_for_capsules(
         last_capsule_on_side_channel,
+        label=enacted_federated_policy.label,
         treasure_map=enacted_federated_policy.treasure_map,
-        alice_verifying_key=federated_alice.stamp.as_umbral_pubkey(),
+        relayer_verifying_key=federated_alice.stamp.as_umbral_pubkey(),
         num_ursulas=1,
     )
 
@@ -283,8 +292,9 @@ def test_bob_remembers_that_he_has_cfrags_for_a_particular_capsule(enacted_feder
     # The rest of this test will show that if Bob generates another WorkOrder, it's for a *different* Ursula.
     incomplete_work_orders, complete_work_orders = federated_bob.work_orders_for_capsules(
         last_capsule_on_side_channel,
+        label=enacted_federated_policy.label,
         treasure_map=enacted_federated_policy.treasure_map,
-        alice_verifying_key=federated_alice.stamp.as_umbral_pubkey(),
+        relayer_verifying_key=federated_alice.stamp.as_umbral_pubkey(),
         num_ursulas=1)
     id_of_this_new_ursula, new_work_order = list(incomplete_work_orders.items())[0]
 
@@ -324,7 +334,7 @@ def test_bob_gathers_and_combines(enacted_federated_policy, federated_bob, feder
     assert len(federated_bob._completed_work_orders) < enacted_federated_policy.treasure_map.m
 
     # Bob can't decrypt yet with just two CFrags.  He needs to gather at least m.
-    with pytest.raises(ValueError):
+    with pytest.raises(DecryptingKeypair.DecryptionFailed):
         federated_bob.decrypt(the_message_kit)
 
     number_left_to_collect = enacted_federated_policy.treasure_map.m - len(federated_bob._completed_work_orders)
@@ -336,8 +346,9 @@ def test_bob_gathers_and_combines(enacted_federated_policy, federated_bob, feder
 
     new_incomplete_work_orders, _ = federated_bob.work_orders_for_capsules(
         the_message_kit.capsule,
+        label=enacted_federated_policy.label,
         treasure_map=enacted_federated_policy.treasure_map,
-        alice_verifying_key=federated_alice.stamp.as_umbral_pubkey(),
+        relayer_verifying_key=federated_alice.stamp.as_umbral_pubkey(),
         num_ursulas=number_left_to_collect)
     _id_of_yet_another_ursula, new_work_order = list(new_incomplete_work_orders.items())[0]
 
@@ -556,8 +567,7 @@ def test_federated_retrieves_partially_then_finishes(federated_bob,
                                                      federated_alice,
                                                      capsule_side_channel,
                                                      enacted_federated_policy,
-                                                     federated_ursulas
-                                                     ):
+                                                     federated_ursulas):
     # Same setup as last time.
     capsule_side_channel.reset()
     the_message_kit = capsule_side_channel()
@@ -651,10 +661,9 @@ def test_federated_retrieves_partially_then_finishes(federated_bob,
 
 
 def test_bob_retrieves_multiple_messages_in_a_single_adventure(federated_bob,
-                                                   federated_alice,
-                                                   capsule_side_channel,
-                                                   enacted_federated_policy,
-                                                   ):
+                                                               federated_alice,
+                                                               capsule_side_channel,
+                                                               enacted_federated_policy):
     # The side channel delivers all that Bob needs at this point:
     # - A single MessageKit, containing a Capsule
     # - A representation of the data source

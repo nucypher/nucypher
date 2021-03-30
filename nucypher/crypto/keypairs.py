@@ -14,7 +14,8 @@ GNU Affero General Public License for more details.
 You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
-import base64
+
+
 from typing import Union
 
 import sha3
@@ -24,13 +25,20 @@ from constant_sorrow import constants
 from cryptography.hazmat.primitives.asymmetric import ec
 from hendrix.deploy.tls import HendrixDeployTLS
 from hendrix.facilities.services import ExistingKeyTLSContextFactory
+from umbral.signing import Signer
 
 from nucypher.config.constants import MAX_UPLOAD_CONTENT_LENGTH
-from nucypher.crypto import api as API
 from nucypher.crypto.api import generate_teacher_certificate, _TLS_CURVE
 from nucypher.crypto.kits import MessageKit
 from nucypher.crypto.signing import SignatureStamp, StrangerStamp
-from nucypher.crypto.umbral_adapter import SecretKey, PublicKey, Signature, Signer, decrypt_original, decrypt_reencrypted
+from nucypher.crypto.umbral_adapter import (
+    SecretKey,
+    PublicKey,
+    Signature,
+    Signer,
+    decrypt_original,
+    decrypt_reencrypted
+)
 from nucypher.network.resources import get_static_resources
 
 
@@ -78,6 +86,9 @@ class DecryptingKeypair(Keypair):
     """
     A keypair for Umbral
     """
+
+    class DecryptionFailed(Exception):
+        """Raised when decryption fails."""
 
     def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)

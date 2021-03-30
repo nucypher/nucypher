@@ -14,7 +14,7 @@ GNU Affero General Public License for more details.
 You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
-
+import os
 
 import contextlib
 import socket
@@ -28,6 +28,8 @@ from nucypher.characters.lawful import Ursula
 from nucypher.config.characters import UrsulaConfiguration
 from nucypher.crypto.umbral_adapter import SecretKey, Signer, encrypt, generate_kfrags, reencrypt
 from nucypher.crypto.utils import canonical_address_from_umbral_key
+from nucypher.policy.disputes import IndisputableEvidence
+from nucypher.policy.orders import WorkOrder
 from nucypher.policy.collections import WorkOrder
 from tests.constants import NUMBER_OF_URSULAS_IN_DEVELOPMENT_NETWORK
 from tests.mock.datastore import MOCK_DB
@@ -178,16 +180,13 @@ def _mock_ursula_reencrypts(ursula):
                              sign_delegating_key=False,
                              sign_receiving_key=False)
 
+    # TODO: Is this needed?
+    # alice_address = canonical_address_from_umbral_key(signing_pubkey)
     ursula_pubkey = ursula.stamp.as_umbral_pubkey()
-
-    alice_address = canonical_address_from_umbral_key(signing_pubkey)
-    blockhash = bytes(32)
-
     specification = b''.join((bytes(capsule),
                               bytes(ursula_pubkey),
-                              bytes(ursula.decentralized_identity_evidence),
-                              alice_address,
-                              blockhash))
+                              bytes(ursula.decentralized_identity_evidence)
+                              ))
 
     bobs_signer = Signer(priv_key_bob)
     task_signature = bytes(bobs_signer.sign(specification))
@@ -197,15 +196,15 @@ def _mock_ursula_reencrypts(ursula):
 
     bob = Bob.from_public_keys(verifying_key=pub_key_bob)
     task = WorkOrder.PRETask(capsule, task_signature, cfrag, cfrag_signature)
-    hrac = bob.construct_policy_hrac(verifying_key=signing_pubkey, label=b'this is the label')
+    hrac = bob.construct_policy_hrac(relayer_verifying_key=signing_pubkey, label=b'this is the label')
     work_order = WorkOrder(bob=bob,
                            hrac=hrac,
-                           encrypted_kfrag=None,
+                           encrypted_kfrag=os.urandom(606),
                            tasks={capsule: task},
                            receipt_signature=None,
                            ursula=ursula,
-                           authorizer_verifying_key=signing_pubkey.to_bytes(),
-                           publisher_verifying_key=signing_pubkey.to_bytes())
+                           alice_verifying_key=signing_pubkey.to_bytes(),
+                           relayer_verifying_key=signing_pubkey.to_bytes())
 
     evidence = IndisputableEvidence(task, work_order)
     return evidence
