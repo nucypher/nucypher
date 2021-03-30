@@ -23,7 +23,7 @@ from nucypher.blockchain.eth.constants import NULL_ADDRESS
 
 
 def test_staking_escrow_migration(testerchain, token_economics, token, deploy_contract):
-    creator, staker1, staker2, staker3, staker4, staker5, staker6, staker7, *everyone_else = testerchain.client.accounts
+    creator, staker1, staker2, staker3, staker4, staker5, staker6, staker7, staker8, *everyone_else = testerchain.client.accounts
 
     # Deploy PolicyManager, Adjudicator and WorkLock mocks
     policy_manager, _ = deploy_contract(
@@ -75,7 +75,7 @@ def test_staking_escrow_migration(testerchain, token_economics, token, deploy_co
     testerchain.wait_for_receipt(tx)
 
     # Prepare stakers
-    stakers = (staker1, staker2, staker3, staker4, staker5)
+    stakers = (staker1, staker2, staker3, staker4, staker5, staker8)
     for staker in (*stakers, staker6):
         max_stake_size = token_economics.maximum_allowed_locked
         tx = token.functions.transfer(staker, max_stake_size).transact()
@@ -130,6 +130,14 @@ def test_staking_escrow_migration(testerchain, token_economics, token, deploy_co
     tx = contract.functions.setReStake(False).transact({'from': staker5})
     testerchain.wait_for_receipt(tx)
     tx = contract.functions.setWindDown(True).transact({'from': staker5})
+    testerchain.wait_for_receipt(tx)
+
+    # Special staker: prepare merged sub-stakes
+    tx = contract.functions.deposit(staker8, stake_size, duration).transact({'from': staker1})
+    testerchain.wait_for_receipt(tx)
+    tx = contract.functions.deposit(staker8, stake_size, duration).transact({'from': staker1})
+    testerchain.wait_for_receipt(tx)
+    tx = contract.functions.mergeStake(0, 1).transact({'from': staker8})
     testerchain.wait_for_receipt(tx)
 
     for i in range(duration):
@@ -536,6 +544,32 @@ def test_staking_escrow_migration(testerchain, token_economics, token, deploy_co
     assert registrations == 1
     assert policy_manager.functions.migratedNodes(staker7).call() == 0
 
+    ##########
+    # Special staker with merged sub-stakes
+    ##########
+    stake_8 = contract.functions.getAllTokens(staker8).call()
+    wind_down, re_stake, measure_work, snapshots, migrated = contract.functions.getFlags(staker8).call()
+    sub_stake = contract.functions.getSubStakeInfo(staker8, 1).call()
+    assert sub_stake == [first_period + 1, 1, 0, stake_size]
+
+    tx = contract.functions.migrate(staker8).transact()
+    testerchain.wait_for_receipt(tx)
+    assert contract.functions.getAllTokens(staker8).call() == stake_8
+
+    assert contract.functions.getFlags(staker8).call() == [wind_down, re_stake, measure_work, snapshots, True]
+    assert policy_manager.functions.migratedNodes(staker8).call() == 1
+    assert contract.functions.getLastCommittedPeriod(staker8).call() == 1
+    assert contract.functions.getPastDowntimeLength(staker8).call() == 0
+    assert contract.functions.getSubStakesLength(staker8).call() == 2
+    sub_stake = contract.functions.getSubStakeInfo(staker8, 0).call()
+    assert sub_stake == [(first_period + 1) // 2, 0, duration // 2, 2 * stake_size]
+    sub_stake = contract.functions.getSubStakeInfo(staker8, 1).call()
+    assert sub_stake == [(first_period + 1) // 2, 1, 0, stake_size]
+    assert contract.functions.getLockedTokens(staker8, 0).call() == 2 * stake_size
+    assert contract.functions.getLockedTokens(staker8, 1).call() == 2 * stake_size
+    staker_info = contract.functions.stakerInfo(staker8).call()[0:8]
+    assert staker_info == [stake_8, 0, 0, 1, 0, 0, 0, NULL_ADDRESS]
+
     # Time machine test
     testerchain.time_travel(periods=1, periods_base=token_economics.seconds_per_period)
     current_period = contract.functions.getCurrentPeriod().call()
@@ -560,7 +594,7 @@ def test_staking_escrow_migration(testerchain, token_economics, token, deploy_co
         tx = contract.functions.commitToNextPeriod().transact({'from': staker2})
         testerchain.wait_for_receipt(tx)
 
-    assert len(migration_log.get_all_entries()) == 5
+    assert len(migration_log.get_all_entries()) == 6
 
     ##########
     # Upgrade again
