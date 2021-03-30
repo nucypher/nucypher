@@ -1253,6 +1253,9 @@ contract StakingEscrow is Issuer, IERC900History {
             // sub-stake has fixed last period
             if (subStake.lastPeriod != 0) {
                 subStake.lastPeriod = recalculatePeriod(subStake.lastPeriod);
+                if (subStake.lastPeriod == 0) {
+                    subStake.lastPeriod = 1;
+                }
                 subStake.unlockingDuration = 0;
             // sub-stake has no fixed ending but possible that with new period length will have
             } else {
