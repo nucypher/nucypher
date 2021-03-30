@@ -15,17 +15,23 @@
  along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
+
 from base64 import b64encode
 
 import datetime
 import maya
 import pytest
 
+from nucypher.characters.control.specifications.fields.treasuremap import TreasureMap
 from nucypher.characters.control.specifications import fields
 from nucypher.characters.control.specifications.alice import GrantPolicy
 from nucypher.characters.control.specifications.base import BaseSchema
-from nucypher.characters.control.specifications.exceptions import (InvalidArgumentCombo, InvalidInputData,
-                                                                   SpecificationError)
+from nucypher.characters.control.specifications.exceptions import (
+    InvalidArgumentCombo,
+    InvalidInputData,
+    SpecificationError
+)
+
 from nucypher.crypto.powers import DecryptingPower
 
 
@@ -72,8 +78,7 @@ def test_treasuremap_validation(enacted_federated_policy):
     """Tell people exactly what's wrong with their treasuremaps"""
 
     class TreasureMapsOnly(BaseSchema):
-
-        tmap = fields.TreasureMap()
+        tmap = TreasureMap()
 
     # this will raise a base64 error
     with pytest.raises(SpecificationError) as e:
@@ -84,7 +89,7 @@ def test_treasuremap_validation(enacted_federated_policy):
     assert "Invalid base64-encoded string" in str(e)
 
     # valid base64 but invalid treasuremap
-    with pytest.raises(SpecificationError) as e:
+    with pytest.raises(InvalidInputData) as e:
         TreasureMapsOnly().load({'tmap': "VGhpcyBpcyB0b3RhbGx5IG5vdCBhIHRyZWFzdXJlbWFwLg=="})
 
     assert "Could not parse tmap" in str(e)

@@ -26,6 +26,7 @@ from hendrix.deploy.tls import HendrixDeployTLS
 from hendrix.facilities.services import ExistingKeyTLSContextFactory
 from umbral import pre
 from umbral.keys import UmbralPrivateKey, UmbralPublicKey
+from umbral.pre import UmbralDecryptionError, GenericUmbralError
 from umbral.signing import Signature, Signer
 
 from nucypher.config.constants import MAX_UPLOAD_CONTENT_LENGTH
@@ -92,6 +93,9 @@ class DecryptingKeypair(Keypair):
     A keypair for Umbral
     """
 
+    class DecryptionFailed(Exception):
+        """Raised when decryption fails."""
+
     def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
 
@@ -101,11 +105,12 @@ class DecryptingKeypair(Keypair):
 
         :return: bytes
         """
-        cleartext = pre.decrypt(ciphertext=message_kit.ciphertext,
-                                capsule=message_kit.capsule,
-                                decrypting_key=self._privkey,
-                                )
-
+        try:
+            cleartext = pre.decrypt(ciphertext=message_kit.ciphertext,
+                                    capsule=message_kit.capsule,
+                                    decrypting_key=self._privkey)
+        except (UmbralDecryptionError, GenericUmbralError):
+            raise self.DecryptionFailed
         return cleartext
 
 

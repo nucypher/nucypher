@@ -16,10 +16,8 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
 
-from umbral.keys import UmbralPrivateKey
-from umbral.signing import Signer
+import pytest
 
-from nucypher.config.constants import TEMPORARY_DOMAIN
 from nucypher.blockchain.eth.actors import NucypherTokenActor, Staker
 from nucypher.blockchain.eth.agents import (
     AdjudicatorAgent,
@@ -30,8 +28,11 @@ from nucypher.blockchain.eth.agents import (
 from nucypher.blockchain.eth.constants import NULL_ADDRESS
 from nucypher.blockchain.eth.signers.software import Web3Signer
 from nucypher.blockchain.eth.token import NU
+from nucypher.config.constants import TEMPORARY_DOMAIN
 from nucypher.crypto.powers import TransactingPower
 from nucypher.crypto.signing import SignatureStamp
+from umbral.keys import UmbralPrivateKey
+from umbral.signing import Signer
 
 
 def mock_ursula(testerchain, account, mocker):
@@ -46,6 +47,7 @@ def mock_ursula(testerchain, account, mocker):
     return ursula
 
 
+@pytest.mark.skip("David, send help!")
 def test_adjudicator_slashes(agency,
                              testerchain,
                              mock_ursula_reencrypts,

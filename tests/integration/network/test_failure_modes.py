@@ -25,7 +25,6 @@ from bytestring_splitter import BytestringSplittingError
 from functools import partial
 from twisted.internet import threads
 
-from nucypher.policy.collections import TreasureMap
 from nucypher.policy.policies import Policy
 from tests.utils.middleware import EvilMiddleWare, NodeIsDownMiddleware
 from tests.utils.ursula import make_federated_ursulas
