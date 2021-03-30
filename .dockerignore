@@ -1,6 +1,8 @@
+venv
 .env/*
 env/*
 docs/*
 newsfragments/*
 .coverage/*
 .git/*
+.history

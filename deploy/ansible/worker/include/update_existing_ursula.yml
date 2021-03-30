@@ -6,11 +6,7 @@
 
     - name: Keep disk space clean by pruning unneeded docker debris
       become: yes
-      docker_prune:
-        containers: yes
-        images: yes
-        networks: yes
-        builder_cache: yes
+      shell: docker system prune -af
 
     - name: "pull {{ nucypher_image | default('nucypher/nucypher:latest') }}"
       become: yes
@@ -19,7 +15,6 @@
         source: pull
         force_source: yes
 
-- import_playbook: stop_containers.yml
 - import_playbook: run_geth.yml
   when: node_is_decentralized is not undefined and node_is_decentralized
 - import_playbook: run_ursula.yml
