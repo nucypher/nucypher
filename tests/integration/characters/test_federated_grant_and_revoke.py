@@ -15,15 +15,14 @@ You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
+
 import datetime
 import maya
 import pytest
-from umbral.kfrags import KFrag
 
 from nucypher.characters.lawful import Enrico
 from nucypher.crypto.api import keccak_digest
-from nucypher.datastore.models import PolicyArrangement
-from nucypher.policy.collections import Revocation
+from nucypher.policy.orders import Revocation
 
 
 def test_federated_grant(federated_alice, federated_bob, federated_ursulas):
@@ -49,12 +48,8 @@ def test_federated_grant(federated_alice, federated_bob, federated_ursulas):
     # Let's look at the enacted arrangements.
     for ursula in federated_ursulas:
         if ursula.checksum_address in policy.treasure_map.destinations:
-            _, arrangement_id = policy.treasure_map.destinations[ursula.checksum_address]  # FIXME:
+            assert policy.treasure_map.destinations[ursula.checksum_address]
 
-            # Get the Arrangement from Ursula's datastore, looking up by the Arrangement ID.
-            with ursula.datastore.describe(PolicyArrangement, arrangement_id.hex()) as policy_arrangement:
-                alice_verifying_key = policy_arrangement.alice_verifying_key
-            assert bool(alice_verifying_key)
 
 
 def test_federated_alice_can_decrypt(federated_alice, federated_bob):
@@ -97,6 +92,7 @@ def test_federated_alice_can_decrypt(federated_alice, federated_bob):
     assert plaintext == decrypted_data
 
 
+@pytest.mark.skip("Needs rework post-TMcKF")  # TODO
 @pytest.mark.usefixtures('federated_ursulas')
 def test_revocation(federated_alice, federated_bob):
     m, n = 2, 3
@@ -105,9 +101,8 @@ def test_revocation(federated_alice, federated_bob):
 
     policy = federated_alice.grant(federated_bob, label, m=m, n=n, expiration=policy_end_datetime)
 
-    # Test that all arrangements are included in the RevocationKit
-    for node_id, (_, arrangement_id) in policy.treasure_map:  # FIXME:
-        assert policy.revocation_kit[node_id].arrangement_id == arrangement_id
+    for node_id, encrypted_kfrag in policy.treasure_map:
+        assert policy.revocation_kit[node_id]
 
     # Test revocation kit's signatures
     for revocation in policy.revocation_kit:
@@ -120,9 +115,9 @@ def test_revocation(federated_alice, federated_bob):
     assert deserialized_revocation == revocation
 
     # Attempt to revoke the new policy
-    failed_revocations = federated_alice.revoke(policy)
+    receipt, failed_revocations = federated_alice.revoke(policy)
     assert len(failed_revocations) == 0
 
     # Try to revoke the already revoked policy
-    already_revoked = federated_alice.revoke(policy)
+    receipt, already_revoked = federated_alice.revoke(policy)
     assert len(already_revoked) == 3

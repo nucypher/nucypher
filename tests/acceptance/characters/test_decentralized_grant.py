@@ -22,7 +22,7 @@ import pytest
 from nucypher.crypto.api import keccak_digest
 from nucypher.datastore.models import PolicyArrangement
 from nucypher.datastore.models import TreasureMap as DatastoreTreasureMap
-from nucypher.policy.collections import SignedTreasureMap
+from nucypher.policy.maps import SignedTreasureMap
 
 
 def test_decentralized_grant(blockchain_alice, blockchain_bob, blockchain_ursulas):

@@ -17,8 +17,6 @@
 
 
 import json
-from pathlib import Path
-from typing import Union, Optional, Dict, Callable
 
 import base64
 import constant_sorrow
@@ -27,12 +25,14 @@ import os
 from bytestring_splitter import VariableLengthBytestring, BytestringKwargifier
 from constant_sorrow.constants import ALICE, BOB, NO_SIGNATURE
 from hexbytes.main import HexBytes
-from umbral.keys import UmbralPublicKey
+from pathlib import Path
+from typing import Union, Optional, Dict, Callable
 
 from nucypher.characters.base import Character
 from nucypher.characters.lawful import Alice, Bob
 from nucypher.config.constants import DEFAULT_CONFIG_ROOT
 from nucypher.crypto.powers import SigningPower, DecryptingPower
+from umbral.keys import UmbralPublicKey
 
 
 class Card:

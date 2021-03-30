@@ -15,6 +15,7 @@ You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
+
 import math
 import maya
 from abc import ABC, abstractmethod
@@ -22,13 +23,10 @@ from bytestring_splitter import BytestringSplitter, VariableLengthBytestring
 from eth_typing.evm import ChecksumAddress
 from twisted.internet import reactor
 from typing import Tuple, Sequence, Optional, Iterable, List, Dict, Type
-from umbral.keys import UmbralPublicKey
-from umbral.kfrags import KFrag
 
 from nucypher.blockchain.eth.agents import StakersReservoir, StakingEscrowAgent
 from nucypher.blockchain.eth.constants import POLICY_ID_LENGTH
-from nucypher.characters.lawful import Alice, Ursula
-from nucypher.crypto.api import keccak_digest, secure_random
+from nucypher.crypto.api import keccak_digest
 from nucypher.crypto.constants import HRAC_LENGTH, PUBLIC_KEY_LENGTH
 from nucypher.crypto.kits import RevocationKit
 from nucypher.crypto.powers import DecryptingPower, SigningPower, TransactingPower
@@ -36,46 +34,39 @@ from nucypher.crypto.utils import construct_policy_id
 from nucypher.network.middleware import RestMiddleware
 from nucypher.utilities.concurrency import WorkerPool, AllAtOnceFactory
 from nucypher.utilities.logging import Logger
+from umbral.keys import UmbralPublicKey
+from umbral.kfrags import KFrag
+from umbral.signing import Signature
 
 
 class Arrangement:
     """
     A contract between Alice and a single Ursula.
     """
-    ID_LENGTH = 32
 
-    splitter = BytestringSplitter((UmbralPublicKey, PUBLIC_KEY_LENGTH),  # alive_verifying_key
-                                  (bytes, ID_LENGTH),  # arrangement_id
-                                  (bytes, VariableLengthBytestring))  # expiration
+    splitter = BytestringSplitter((UmbralPublicKey, PUBLIC_KEY_LENGTH),  # alice_verifying_key
+                                  (bytes, VariableLengthBytestring))     # expiration
 
-    @classmethod
-    def from_alice(cls, alice: Alice, expiration: maya.MayaDT) -> 'Arrangement':
-        arrangement_id = secure_random(cls.ID_LENGTH)
-        alice_verifying_key = alice.stamp.as_umbral_pubkey()
-        return cls(alice_verifying_key, expiration, arrangement_id)
-
-    def __init__(self,
-                 alice_verifying_key: UmbralPublicKey,
-                 expiration: maya.MayaDT,
-                 arrangement_id: bytes,
-                 ) -> None:
-        if len(arrangement_id) != self.ID_LENGTH:
-            raise ValueError(f"Arrangement ID must be of length {self.ID_LENGTH}.")
-        self.id = arrangement_id
+    def __init__(self, alice_verifying_key: UmbralPublicKey, expiration: maya.MayaDT):
         self.expiration = expiration
         self.alice_verifying_key = alice_verifying_key
 
     def __bytes__(self):
-        return bytes(self.alice_verifying_key) + self.id + bytes(VariableLengthBytestring(self.expiration.iso8601().encode()))
+        return bytes(self.alice_verifying_key) + bytes(VariableLengthBytestring(self.expiration.iso8601().encode()))
+
+    @classmethod
+    def from_alice(cls, alice: 'Alice', expiration: maya.MayaDT) -> 'Arrangement':
+        alice_verifying_key = alice.stamp.as_umbral_pubkey()
+        return cls(alice_verifying_key=alice_verifying_key, expiration=expiration)
 
     @classmethod
     def from_bytes(cls, arrangement_as_bytes: bytes) -> 'Arrangement':
-        alice_verifying_key, arrangement_id, expiration_bytes = cls.splitter(arrangement_as_bytes)
+        alice_verifying_key, expiration_bytes = cls.splitter(arrangement_as_bytes)
         expiration = maya.MayaDT.from_iso8601(iso8601_string=expiration_bytes.decode())
-        return cls(alice_verifying_key=alice_verifying_key, arrangement_id=arrangement_id, expiration=expiration)
+        return cls(alice_verifying_key=alice_verifying_key, expiration=expiration)
 
     def __repr__(self):
-        return f"Arrangement(client_key={self.alice_verifying_key})"
+        return f"Arrangement(alice={self.alice_verifying_key})"
 
 
 class TreasureMapPublisher:
@@ -116,34 +107,26 @@ class TreasureMapPublisher:
         completed = self.completed
         self.log.debug(f"The minimal amount of nodes ({len(completed)}) were contacted "
                        "while blocking for treasure map publication.")
+
+        successes = self._worker_pool.get_successes()
+        responses = {ursula.checksum_address: status for ursula, status in successes.items()}
+        if not all(response.status_code == 201 for response in responses.values()):
+            report = "\n".join(f"{address}: {status}" for address, status in responses.items())
+            self.log.debug(f"Policy enactment failed. Request statuses:\n{report}")
+
+            # OK, let's check: if any Ursulas claimed we didn't pay,
+            # we need to re-evaluate our situation here.
+            claims_of_freeloading = sum(response.status_code == 402 for response in responses.values())
+            if claims_of_freeloading:
+                raise Policy.Unpaid
+
+            # otherwise just raise a more generic error
+            raise Policy.EnactmentError(report)
+
         return completed
 
     def block_until_complete(self):
-
-        # Block until everything is complete. We need all the workers to finish.
         self._worker_pool.join()
-
-        successes = self.worker_pool.get_successes()
-
-        if len(successes) != self.n:
-            raise Policy.EnactmentError()
-
-        # TODO: Enable retries?
-        statuses = {ursula_and_kfrag[0].checksum_address: status for ursula_and_kfrag, status in successes.items()}
-        if not all(status == 200 for status in statuses.values()):
-            report = "\n".join(f"{address}: {status}" for address, status in statuses.items())
-            self.log.debug(f"Policy enactment failed. Request statuses:\n{report}")
-
-            # OK, let's check: if two or more Ursulas claimed we didn't pay,
-            # we need to re-evaluate our situation here.
-            number_of_claims_of_freeloading = sum(status == 402 for status in statuses.values())
-
-            # TODO: a better exception here?
-            if number_of_claims_of_freeloading > 2:
-                raise self.alice.NotEnoughNodes
-
-            # otherwise just raise a more generic error
-            raise Policy.EnactmentError()
 
 
 class MergedReservoir:
@@ -198,19 +181,39 @@ class Policy(ABC):
 
     log = Logger("Policy")
 
-    class NotEnoughUrsulas(Exception):
+    class PolicyException(Exception):
+        """Base exception for policy exceptions"""
+
+    class NotEnoughUrsulas(PolicyException):
         """
         Raised when a Policy has been used to generate Arrangements with Ursulas insufficient number
         such that we don't have enough KFrags to give to each Ursula.
         """
 
-    class EnactmentError(Exception):
-        """
-        Raised if one or more Ursulas failed to enact the policy.
-        """
+    class EnactmentError(PolicyException):
+        """Raised if one or more Ursulas failed to enact the policy."""
+
+    class Unpaid(PolicyException):
+        """Raised when a worker expects policy payment but receives none."""
+
+    class Unknown(PolicyException):
+        """Raised when a worker cannot find a published policy for a given policy ID"""
+
+    class Inactive(PolicyException):
+        """Raised when a worker is requested to perform re-encryption for a disabled policy"""
+
+    class Expired(PolicyException):
+        """Raised when a worker is requested to perform re-encryption for an expired policy"""
+
+    class Unauthorized(PolicyException):
+        """Raised when Bob is not authorized to request re-encryptions from Ursula.."""
+
+    class Revoked(Unauthorized):
+        """Raised when a policy is revoked has been revoked access"""
+
 
     def __init__(self,
-                 alice: Alice,
+                 alice: 'Alice',
                  label: bytes,
                  expiration: maya.MayaDT,
                  bob: 'Bob',
@@ -247,7 +250,7 @@ class Policy(ABC):
         * the label
 
         Alice and Bob have all the information they need to construct this.
-        Ursula does not, so we share it with her.
+        'Ursula' does not, so we share it with her.
         """
         self.hrac = keccak_digest(bytes(self.alice.stamp) + bytes(self.bob.stamp) + self.label)[:HRAC_LENGTH]
 
@@ -261,13 +264,13 @@ class Policy(ABC):
         """
         raise NotImplementedError
 
-    def _enact_arrangements(self, arrangements: Dict[Ursula, Arrangement]):
+    def _enact_arrangements(self, arrangements: Dict['Ursula', Arrangement]):
         pass
 
     def _propose_arrangement(self,
                              address: ChecksumAddress,
                              network_middleware: RestMiddleware,
-                             ) -> Tuple[Ursula, Arrangement]:
+                             ) -> Tuple['Ursula', Arrangement]:
         """
         Attempt to propose an arrangement to the node with the given address.
         """
@@ -283,6 +286,12 @@ class Policy(ABC):
         status = negotiation_response.status_code
 
         if status == 200:
+            # TODO: What to do in the case of invalid signature?
+            # Verify that the sampled ursula agreed to the arrangement.
+            ursula_signature = negotiation_response.content
+            self.alice.verify_from(ursula, bytes(arrangement),
+                                   signature=Signature.from_bytes(ursula_signature),
+                                   decrypt=False)
             self.log.debug(f"Arrangement accepted by {ursula}")
         else:
             message = f"Proposing arrangement to {ursula} failed with {status}"
@@ -292,13 +301,13 @@ class Policy(ABC):
         # We could just return the arrangement and get the Ursula object
         # from `known_nodes` later, but when we introduce slashing in FleetSensor,
         # the address can already disappear from `known_nodes` by that time.
-        return (ursula, arrangement)
+        return ursula, arrangement
 
     def _make_arrangements(self,
                            network_middleware: RestMiddleware,
-                           handpicked_ursulas: Optional[Iterable[Ursula]] = None,
+                           handpicked_ursulas: Optional[Iterable['Ursula']] = None,
                            timeout: int = 10,
-                           ) -> Dict[Ursula, Arrangement]:
+                           ) -> Dict['Ursula', Arrangement]:
         """
         Pick some Ursula addresses and send them arrangement proposals.
         Returns a dictionary of Ursulas to Arrangements if it managed to get `n` responses.
@@ -355,24 +364,27 @@ class Policy(ABC):
 
     def _make_treasure_map(self,
                            network_middleware: RestMiddleware,
-                           arrangements: Dict[Ursula, Arrangement],
+                           arrangements: Dict['Ursula', Arrangement],
                            ) -> 'TreasureMap':
-        """
-        Creates a treasure map for given arrangements.
-        """
+        """Creates a treasure map for given arrangements."""
 
+        # TreasureMap (federated) or SignerTreasureMap (decentralized)
         treasure_map = self._treasure_map_class(m=self.m)
 
+        # The HRAC is needed to produce kfrag writs.
+        treasure_map.derive_hrac(alice_stamp=self.alice.stamp,
+                                 bob_verifying_key=self.bob.public_keys(SigningPower),
+                                 label=self.label)
+
+        # Encrypt each kfrag for an Ursula.
         for ursula, kfrag in zip(arrangements, self.kfrags):
             treasure_map.add_kfrag(ursula=ursula,
                                    kfrag=kfrag,
-                                   signer_stamp=self.alice.stamp)
+                                   alice_stamp=self.alice.stamp)
 
+        # Sign the map if needed before sending it out into the world.
         treasure_map.prepare_for_publication(bob_encrypting_key=self.bob.public_keys(DecryptingPower),
-                                             bob_verifying_key=self.bob.public_keys(SigningPower),
-                                             alice_stamp=self.alice.stamp,
-                                             label=self.label)
-
+                                             alice_stamp=self.alice.stamp)
         return treasure_map
 
     def _make_publisher(self,
@@ -392,19 +404,17 @@ class Policy(ABC):
                 self.log.warn(f"Putting treasure map on {node} failed: {e}")
                 raise
 
-            if response.status_code == 201:
-                return response
-            else:
+            # Received an HTTP response
+            if response.status_code != 201:
                 message = f"Putting treasure map on {node} failed with response status: {response.status}"
                 self.log.warn(message)
-                # TODO: What happens if this is a 300 or 400 level response?
-                raise Exception(message)
+            return response
 
         return TreasureMapPublisher(worker=put_treasure_map_on_node, nodes=target_nodes)
 
     def enact(self,
               network_middleware: RestMiddleware,
-              handpicked_ursulas: Optional[Iterable[Ursula]] = None,
+              handpicked_ursulas: Optional[Iterable['Ursula']] = None,
               publish_treasure_map: bool = True,
               ) -> 'EnactedPolicy':
         """
@@ -455,7 +465,8 @@ class Policy(ABC):
 
 class FederatedPolicy(Policy):
 
-    from nucypher.policy.collections import TreasureMap as _treasure_map_class  # TODO: Circular Import
+    from nucypher.policy.maps import TreasureMap as __map_class
+    _treasure_map_class = __map_class
 
     def _not_enough_ursulas_exception(self):
         return Policy.NotEnoughUrsulas
@@ -476,7 +487,8 @@ class BlockchainPolicy(Policy):
     A collection of n Arrangements representing a single Policy
     """
 
-    from nucypher.policy.collections import SignedTreasureMap as _treasure_map_class  # TODO: Circular Import
+    from nucypher.policy.maps import SignedTreasureMap as __map_class
+    _treasure_map_class = __map_class
 
     class InvalidPolicyValue(ValueError):
         pass
@@ -573,12 +585,12 @@ class BlockchainPolicy(Policy):
     def _make_enactment_payload(self, kfrag) -> bytes:
         return bytes(self.hrac)[:self.ID_LENGTH] + bytes(kfrag)
 
-    def _enact_arrangements(self, arrangements) -> None:
+    def _enact_arrangements(self, arrangements: Dict['Ursula', Arrangement]) -> None:
         self._publish_to_blockchain(ursulas=list(arrangements))
 
     def _make_treasure_map(self,
                            network_middleware: RestMiddleware,
-                           arrangements: Dict[Ursula, Arrangement],
+                           arrangements: Dict['Ursula', Arrangement],
                            ) -> 'TreasureMap':
 
         treasure_map = super()._make_treasure_map(network_middleware, arrangements)

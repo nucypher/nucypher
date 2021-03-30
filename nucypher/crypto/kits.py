@@ -15,6 +15,7 @@ You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
+
 from typing import Optional
 
 from bytestring_splitter import BytestringKwargifier, VariableLengthBytestring
@@ -103,6 +104,9 @@ class PolicyMessageKit(MessageKit):
         self.capsule.set_correctness_keys(delegating=enrico.policy_pubkey)
         self._sender = enrico
 
+    def __eq__(self, other):
+        return bytes(self) == bytes(other)
+
     def __bytes__(self):
         return super().to_bytes(include_sender_key=True)
 
@@ -135,10 +139,12 @@ UmbralMessageKit = PolicyMessageKit  # Temporarily, until serialization w/ Enric
 class RevocationKit:
 
     def __init__(self, treasure_map, signer: 'SignatureStamp'):
-        from nucypher.policy.collections import Revocation
+        from nucypher.policy.orders import Revocation
         self.revocations = dict()
-        for node_id, encrypted_kfrag in treasure_map:  # FIXME: Revocations need to change
-            self.revocations[node_id] = Revocation(encrypted_kfrag, signer=signer)
+        for node_id, encrypted_kfrag in treasure_map:
+            self.revocations[node_id] = Revocation(ursula_checksum_address=node_id,
+                                                   encrypted_kfrag=encrypted_kfrag,
+                                                   signer=signer)
 
     def __iter__(self):
         return iter(self.revocations.values())

@@ -14,35 +14,43 @@
  You should have received a copy of the GNU Affero General Public License
  along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
+
+
 import os
 
+from nucypher.crypto.powers import DecryptingPower, SigningPower
+from nucypher.policy.maps import TreasureMap
 from umbral.kfrags import KFrag
 
-from nucypher.crypto.powers import DecryptingPower, SigningPower
-from nucypher.policy.collections import TreasureMap
 
-
-def test_complete_treasure_map_journey(federated_alice, federated_bob, federated_ursulas):
+def test_complete_treasure_map_journey(federated_alice, federated_bob, federated_ursulas, mocker):
 
     treasure_map = TreasureMap(m=1)
 
+    bob_encrypting_key = federated_bob.public_keys(DecryptingPower)
+    bob_verifying_key = federated_bob.public_keys(SigningPower)
+
     mock_kfrag = os.urandom(KFrag.expected_bytes_length())
+    make_kfrag_payload_spy = mocker.spy(TreasureMap, '_make_kfrag_payload')
+    encrypted_kfrags = dict()
+
+    treasure_map.derive_hrac(alice_stamp=federated_alice.stamp,
+                             bob_verifying_key=bob_verifying_key,
+                             label="chili con carne 🔥".encode('utf-8'))
+
     for ursula in federated_ursulas:
         treasure_map.add_kfrag(ursula, mock_kfrag, federated_alice.stamp)
+        encrypted_kfrags[ursula.checksum_address] = make_kfrag_payload_spy.spy_return
+
+    treasure_map.prepare_for_publication(bob_encrypting_key=bob_encrypting_key,
+                                         alice_stamp=federated_alice.stamp)
 
     ursula_rolodex = {u.checksum_address: u for u in federated_ursulas}
     for ursula_address, encrypted_kfrag in treasure_map.destinations.items():
         assert ursula_address in ursula_rolodex
         ursula = ursula_rolodex[ursula_address]
-        assert mock_kfrag == ursula.verify_from(federated_alice, encrypted_kfrag, decrypt=True)  # FIXME: 2203
-
-    bob_encrypting_key = federated_bob.public_keys(DecryptingPower)
-    bob_verifying_key = federated_bob.public_keys(SigningPower)
-
-    treasure_map.prepare_for_publication(bob_encrypting_key=bob_encrypting_key,
-                                         bob_verifying_key=bob_verifying_key,
-                                         alice_stamp=federated_alice.stamp,
-                                         label="chili con carne 🔥".encode('utf-8'))
+        mock_kfrag_payload = encrypted_kfrags[ursula.checksum_address]
+        assert mock_kfrag_payload == ursula.verify_from(federated_alice, encrypted_kfrag, decrypt=True)  # FIXME: 2203
 
     serialized_map = bytes(treasure_map)
 

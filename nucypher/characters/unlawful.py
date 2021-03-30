@@ -28,7 +28,7 @@ from nucypher.config.constants import TEMPORARY_DOMAIN
 from nucypher.crypto.api import encrypt_and_sign
 from nucypher.crypto.powers import CryptoPower, SigningPower, DecryptingPower, TransactingPower
 from nucypher.exceptions import DevelopmentInstallationRequired
-from nucypher.policy.collections import SignedTreasureMap
+from nucypher.policy.maps import SignedTreasureMap
 
 
 class Vladimir(Ursula):
@@ -144,9 +144,7 @@ class Amonia(Alice):
             message_kit, _signature = policy.alice.encrypt_for(ursula, payload)
 
             try:
-                network_middleware.enact_policy(ursula,
-                                                arrangement.id,
-                                                message_kit.to_bytes())
+                network_middleware.enact_policy(ursula, message_kit.to_bytes())
             except Exception as e:
                 # I don't care what went wrong - I will keep trying to ram arrangements through.
                 continue
@@ -181,7 +179,7 @@ class Amonia(Alice):
         an on-chain Policy using PolicyManager, I'm hoping Ursula won't notice.
         """
 
-        def publish_wrong_payee_address_to_blockchain(policy, _ursulas):
+        def publish_wrong_payee_address_to_blockchain(policy, ursulas):
             receipt = policy.alice.policy_agent.create_policy(
                 policy_id=policy.hrac,  # bytes16 _policyID
                 transacting_power=policy.alice.transacting_power,
