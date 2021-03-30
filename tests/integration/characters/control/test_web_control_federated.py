@@ -15,6 +15,7 @@
  along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
+
 import json
 from base64 import b64decode, b64encode
 
@@ -26,7 +27,7 @@ from click.testing import CliRunner
 import nucypher
 from nucypher.crypto.kits import UmbralMessageKit
 from nucypher.crypto.powers import DecryptingPower
-from nucypher.policy.collections import TreasureMap
+from nucypher.policy.maps import TreasureMap
 
 click_runner = CliRunner()
 

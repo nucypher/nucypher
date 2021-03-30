@@ -457,7 +457,6 @@ class Character(Learner):
         signature_to_use = signature or signature_from_kit
         if signature_to_use:
 
-            # FIXME: Linter complains about message being possibly undefined
             is_valid = signature_to_use.verify(message=message, verifying_key=sender_verifying_key)
             if not is_valid:
                 try:

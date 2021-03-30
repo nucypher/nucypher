@@ -127,8 +127,7 @@ class NucypherMiddlewareClient:
                     m = f"While trying to {method_name} {args} ({kwargs}), server 404'd.  Response: {cleaned_response.content}"
                     raise RestMiddleware.NotFound(m)
                 else:
-                    m = f"Unexpected response while trying to {method_name} {args},{kwargs}: {cleaned_response.status_code} {cleaned_response.content}"
-                    raise RestMiddleware.UnexpectedResponse(m, status=cleaned_response.status_code)
+                    return cleaned_response
             return cleaned_response
 
         return method_wrapper
@@ -192,7 +191,7 @@ class RestMiddleware:
         response = self.client.post(node_or_sprout=node,
                                     path="consider_arrangement",
                                     data=bytes(arrangement),
-                                    timeout=2)
+                                    timeout=120)  # TODO: What is an appropriate timeout here?
         return response
 
     def reencrypt(self, work_order):
@@ -203,15 +202,12 @@ class RestMiddleware:
 
     def revoke_arrangement(self, ursula, revocation):
         # TODO: Implement revocation confirmations
-        response = self.client.delete(
+        response = self.client.post(
             node_or_sprout=ursula,
-            path=f"kFrag/{revocation.arrangement_id.hex()}",
+            path=f"revoke",
             data=bytes(revocation),
         )
         return response
-
-    def get_competitive_rate(self):
-        return NotImplemented
 
     def get_treasure_map_from_node(self, node, map_identifier):
         response = self.client.get(node_or_sprout=node,

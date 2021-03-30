@@ -137,7 +137,7 @@ class AliceInterface(CharacterPublicInterface):
         policy_id = construct_policy_id(label, bob_verifying_key)
         policy = self.character.active_policies[policy_id]
 
-        failed_revocations = self.character.revoke(policy)
+        receipt, failed_revocations = self.character.revoke(policy)
         if len(failed_revocations) > 0:
             for node_id, attempt in failed_revocations.items():
                 revocation, fail_reason = attempt
@@ -211,8 +211,7 @@ class BobInterface(CharacterPublicInterface):
 
         policy_encrypting_key = UmbralPublicKey.from_bytes(policy_encrypting_key)
         alice_verifying_key = UmbralPublicKey.from_bytes(alice_verifying_key)
-        message_kit = UmbralMessageKit.from_bytes(
-            message_kit)  # TODO #846: May raise UnknownOpenSSLError and InvalidTag.
+        message_kit = UmbralMessageKit.from_bytes(message_kit)  # TODO #846: May raise UnknownOpenSSLError and InvalidTag.
 
         enrico = Enrico.from_public_keys(verifying_key=message_kit.sender_verifying_key,
                                          policy_encrypting_key=policy_encrypting_key,
@@ -222,7 +221,7 @@ class BobInterface(CharacterPublicInterface):
 
         plaintexts = self.character.retrieve(message_kit,
                                              enrico=enrico,
-                                             publisher_verifying_key=alice_verifying_key,
+                                             alice_verifying_key=alice_verifying_key,
                                              label=label,
                                              treasure_map=treasure_map)
 
