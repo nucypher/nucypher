@@ -92,7 +92,9 @@ from nucypher.cli.literature import (
     CONFIRM_STAKE_USE_UNLOCKED,
     CONFIRM_REMOVE_ALL_INACTIVE_SUBSTAKES,
     NO_INACTIVE_STAKES,
-    FETCHING_INACTIVE_STAKES
+    FETCHING_INACTIVE_STAKES,
+    MIGRATION_ALREADY_PERFORMED,
+    CONFIRM_MANUAL_MIGRATION
 )
 from nucypher.cli.options import (
     group_options,
@@ -1356,9 +1358,13 @@ def mint(general_config: GroupGeneralConfig,
 @option_config_file
 @option_force
 @group_general_config
+@click.option('--external-staker-address',
+              help="The staking address of a staker to manually migrate", type=EIP55_CHECKSUM_ADDRESS)
 def migrate(general_config: GroupGeneralConfig,
             transacting_staker_options: TransactingStakerOptions,
-            config_file, force):
+            config_file,
+            force,
+            external_staker_address):
 
     # Setup
     emitter = setup_emitter(general_config)
@@ -1370,11 +1376,12 @@ def migrate(general_config: GroupGeneralConfig,
         staking_address=transacting_staker_options.staker_options.staking_address)
 
     # Interact
+    address_to_migrate = external_staker_address or staking_address
     if STAKEHOLDER.staker.is_migrated:
-        emitter.echo('Saker has already migrated.', color='red')
+        emitter.echo(MIGRATION_ALREADY_PERFORMED.format(address=address_to_migrate), color='red')
         raise click.Abort
     if not force:
-        click.confirm('Confirm manual migration', abort=True)
+        click.confirm(CONFIRM_MANUAL_MIGRATION.format(address=address_to_migrate), abort=True)
 
     # Authenticate
     password = get_password(stakeholder=STAKEHOLDER,
@@ -1384,7 +1391,7 @@ def migrate(general_config: GroupGeneralConfig,
     STAKEHOLDER.assimilate(checksum_address=client_account, password=password)
 
     # Migrate
-    receipt = STAKEHOLDER.staker.migrate()
+    receipt = STAKEHOLDER.staker.migrate(staker_address=staking_address)
     paint_receipt_summary(receipt=receipt,
                           emitter=emitter,
                           chain_name=blockchain.client.chain_name,
