@@ -18,15 +18,18 @@
 
 import click
 from constant_sorrow.constants import UNKNOWN_DEVELOPMENT_CHAIN_ID
-from datetime import datetime
+
+from maya import MayaDT
 from tabulate import tabulate
 from typing import Type, Union, Dict
 from web3.main import Web3
 
+from nucypher.blockchain.economics import BaseEconomics
 from nucypher.blockchain.eth.deployers import BaseContractDeployer
 from nucypher.blockchain.eth.interfaces import BlockchainDeployerInterface, VersionedContract, BlockchainInterface
 from nucypher.blockchain.eth.registry import LocalContractRegistry
 from nucypher.blockchain.eth.token import NU
+from nucypher.blockchain.eth.utils import calculate_period_duration
 from nucypher.characters.control.emitters import StdoutEmitter
 from nucypher.cli.literature import (
     ABORT_DEPLOYMENT,
@@ -92,12 +95,14 @@ def confirm_staged_stake(staker_address: str, value: NU, lock_periods: int) -> b
     return True
 
 
-def confirm_large_stake(value: NU = None, lock_periods: int = None) -> bool:
+def confirm_large_and_or_long_stake(value: NU = None, lock_periods: int = None, economics: BaseEconomics = None) -> bool:
     """Interactively confirm a large stake and/or a long stake duration."""
-    if value and (value > NU.from_tokens(150000)):
+    if economics and value and (value > (NU.from_nunits(economics.minimum_allowed_locked) * 10)):  # > 10x min stake
         click.confirm(CONFIRM_LARGE_STAKE_VALUE.format(value=value), abort=True)
-    if lock_periods and (lock_periods > 365):
-        click.confirm(CONFIRM_LARGE_STAKE_DURATION.format(lock_periods=lock_periods), abort=True)
+    if economics and lock_periods and (lock_periods > economics.maximum_rewarded_periods):  # > 1 year
+        lock_days = (lock_periods * economics.hours_per_period) // 24
+        click.confirm(CONFIRM_LARGE_STAKE_DURATION.format(lock_periods=lock_periods, lock_days=lock_days),
+                      abort=True)
     return True
 
 
@@ -141,7 +146,7 @@ def verify_upgrade_details(blockchain: Union[BlockchainDeployerInterface, Blockc
                                                    new_version=new_version), abort=True)
 
 
-def confirm_staged_grant(emitter, grant_request: Dict, federated: bool) -> None:
+def confirm_staged_grant(emitter, grant_request: Dict, federated: bool, seconds_per_period=None) -> None:
 
     pretty_request = grant_request.copy()  # WARNING: Do not mutate
 
@@ -154,7 +159,9 @@ def confirm_staged_grant(emitter, grant_request: Dict, federated: bool) -> None:
     pretty_request['rate'] = f"{pretty_request['rate']} wei/period * {pretty_request['n']} nodes"
 
     expiration = pretty_request['expiration']
-    periods = (expiration - datetime.now()).days
+    periods = calculate_period_duration(future_time=MayaDT.from_datetime(expiration),
+                                        seconds_per_period=seconds_per_period)
+    periods += 1  # current period is always included
     pretty_request['expiration'] = f"{pretty_request['expiration']} ({periods} periods)"
 
     # M of N
@@ -170,11 +177,6 @@ def confirm_staged_grant(emitter, grant_request: Dict, federated: bool) -> None:
     table = [[prettify_field(field), value] for field, value in pretty_request.items()]
     table.append(['Period Rate', f'{period_rate} gwei'])
     table.append(['Policy Value', f'{period_rate * periods} gwei'])
-
-    # TODO: Use period calculation utilities instead of days
-    # periods = calculate_period_duration(future_time=maya.MayaDT(pretty_request['expiration']),
-    #                                     seconds_per_period=StandardTokenEconomics().seconds_per_period)
-
 
     emitter.echo("\nSuccessfully staged grant, Please review the details:\n", color='green')
     emitter.echo(tabulate(table, tablefmt="simple"))

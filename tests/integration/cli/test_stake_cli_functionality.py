@@ -957,7 +957,8 @@ def test_create_interactive(click_runner,
                                        lock_periods=lock_periods) in result.output
     assert CONFIRM_BROADCAST_CREATE_STAKE in result.output
     assert CONFIRM_LARGE_STAKE_VALUE.format(value=value) in result.output
-    assert CONFIRM_LARGE_STAKE_DURATION.format(lock_periods=lock_periods) in result.output
+    lock_days = (lock_periods * token_economics.hours_per_period) // 24
+    assert CONFIRM_LARGE_STAKE_DURATION.format(lock_periods=lock_periods, lock_days=lock_days) in result.output
 
     mock_staking_agent.get_all_stakes.assert_called()
     mock_staking_agent.get_current_period.assert_called()
@@ -1017,7 +1018,8 @@ def test_create_non_interactive(click_runner,
                                        lock_periods=lock_periods) not in result.output
     assert CONFIRM_BROADCAST_CREATE_STAKE in result.output
     assert CONFIRM_LARGE_STAKE_VALUE.format(value=value) not in result.output
-    assert CONFIRM_LARGE_STAKE_DURATION.format(lock_periods=lock_periods) not in result.output
+    lock_days = (lock_periods * token_economics.hours_per_period) // 24
+    assert CONFIRM_LARGE_STAKE_DURATION.format(lock_periods=lock_periods, lock_days=lock_days) not in result.output
 
     mock_staking_agent.get_all_stakes.assert_called()
     mock_staking_agent.get_current_period.assert_called()
@@ -1096,7 +1098,8 @@ def test_create_lock_interactive(click_runner,
                                        lock_periods=lock_periods) in result.output
     assert CONFIRM_BROADCAST_CREATE_STAKE in result.output
     assert CONFIRM_LARGE_STAKE_VALUE.format(value=value) not in result.output
-    assert CONFIRM_LARGE_STAKE_DURATION.format(lock_periods=lock_periods) in result.output
+    lock_days = (lock_periods * token_economics.hours_per_period) // 24
+    assert CONFIRM_LARGE_STAKE_DURATION.format(lock_periods=lock_periods, lock_days=lock_days) in result.output
 
     mock_staking_agent.get_all_stakes.assert_called()
     mock_staking_agent.get_current_period.assert_called()
@@ -1154,7 +1157,8 @@ def test_create_lock_non_interactive(click_runner,
                                        lock_periods=lock_periods) not in result.output
     assert CONFIRM_BROADCAST_CREATE_STAKE in result.output
     assert CONFIRM_LARGE_STAKE_VALUE.format(value=value) not in result.output
-    assert CONFIRM_LARGE_STAKE_DURATION.format(lock_periods=lock_periods) not in result.output
+    lock_days = (lock_periods * token_economics.hours_per_period) // 24
+    assert CONFIRM_LARGE_STAKE_DURATION.format(lock_periods=lock_periods, lock_days=lock_days) not in result.output
 
     mock_staking_agent.get_all_stakes.assert_called()
     mock_staking_agent.get_current_period.assert_called()
@@ -1378,7 +1382,6 @@ def test_stake_list_all(click_runner, surrogate_stakers, surrogate_stakes, token
     for stakes in surrogate_stakes:
         for index, sub_stake in enumerate(stakes):
             value = NU.from_nunits(sub_stake.locked_value)
-            remaining = sub_stake.last_period - current_period + 1
             start_datetime = datetime_at_period(period=sub_stake.first_period,
                                                 seconds_per_period=token_economics.seconds_per_period,
                                                 start_of_period=True)
@@ -1386,10 +1389,17 @@ def test_stake_list_all(click_runner, surrogate_stakers, surrogate_stakes, token
                                                  seconds_per_period=token_economics.seconds_per_period,
                                                  start_of_period=True)
             enactment = start_datetime.local_datetime().strftime("%b %d %Y")
-            termination = unlock_datetime.local_datetime().strftime("%b %d %Y")
+
+            status = statuses[index]
+            if status == Stake.Status.INACTIVE:
+                remaining = 'N/A'
+                termination = 'N/A'
+            else:
+                remaining = sub_stake.last_period - current_period + 1
+                termination = unlock_datetime.local_datetime().strftime("%b %d %Y")
             assert re.search(f"{index}\\s+│\\s+"
                              f"{value}\\s+│\\s+"
                              f"{remaining}\\s+│\\s+"
                              f"{enactment}\\s+│\\s+"
                              f"{termination}\\s+│\\s+"
-                             f"{statuses[index].name}", result.output, re.MULTILINE)
+                             f"{status.name}", result.output, re.MULTILINE)

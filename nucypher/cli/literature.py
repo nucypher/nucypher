@@ -78,7 +78,7 @@ Accept ursula node operator obligation?"""
 
 CONFIRM_LARGE_STAKE_VALUE = "Wow, {value} - That's a lot of NU - Are you sure this is correct?"
 
-CONFIRM_LARGE_STAKE_DURATION = "Woah, {lock_periods} is a long time - Are you sure this is correct?"
+CONFIRM_LARGE_STAKE_DURATION = "Woah, {lock_periods} periods ({lock_days} days) is a long time - Are you sure this is correct?"
 
 PROMPT_STAKE_CREATE_VALUE = "Enter stake value in NU ({lower_limit} - {upper_limit})"
 

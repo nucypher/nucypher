@@ -32,7 +32,7 @@ from nucypher.cli.actions.configure import get_or_update_configuration, handle_m
 from nucypher.cli.actions.confirm import (
     confirm_enable_restaking,
     confirm_enable_winding_down,
-    confirm_large_stake,
+    confirm_large_and_or_long_stake,
     confirm_staged_stake,
     confirm_disable_snapshots
 )
@@ -545,7 +545,7 @@ def create(general_config: GroupGeneralConfig,
     #
 
     if not force:
-        confirm_large_stake(value=value, lock_periods=lock_periods)
+        confirm_large_and_or_long_stake(value=value, lock_periods=lock_periods, economics=economics)
         paint_staged_stake(emitter=emitter,
                            blockchain=blockchain,
                            stakeholder=STAKEHOLDER,
@@ -634,7 +634,7 @@ def increase(general_config: GroupGeneralConfig,
         current_period = STAKEHOLDER.staker.staking_agent.get_current_period()
         unlock_period = current_stake.final_locked_period + 1
 
-        confirm_large_stake(value=value, lock_periods=lock_periods)
+        confirm_large_and_or_long_stake(value=value, lock_periods=lock_periods, economics=STAKEHOLDER.staker.economics)
         paint_staged_stake(emitter=emitter,
                            blockchain=blockchain,
                            stakeholder=STAKEHOLDER,
@@ -878,7 +878,7 @@ def divide(general_config: GroupGeneralConfig,
         extension = lock_periods
 
     if not force:
-        confirm_large_stake(lock_periods=extension, value=value)
+        confirm_large_and_or_long_stake(lock_periods=extension, value=value, economics=economics)
         paint_staged_stake_division(emitter=emitter,
                                     blockchain=blockchain,
                                     stakeholder=STAKEHOLDER,

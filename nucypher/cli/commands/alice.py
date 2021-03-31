@@ -17,13 +17,10 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 
 
 import click
-import os
-from constant_sorrow.constants import NO_PASSWORD
 
-from nucypher.blockchain.eth.signers.software import ClefSigner
 from nucypher.characters.control.emitters import StdoutEmitter
 from nucypher.characters.control.interfaces import AliceInterface
-from nucypher.cli.actions.auth import get_client_password, get_nucypher_password
+from nucypher.cli.actions.auth import get_nucypher_password
 from nucypher.cli.actions.collect import collect_bob_public_keys, collect_policy_parameters
 from nucypher.cli.actions.configure import (
     destroy_configuration,
@@ -65,7 +62,6 @@ from nucypher.cli.types import EIP55_CHECKSUM_ADDRESS
 from nucypher.cli.utils import make_cli_character, setup_emitter
 from nucypher.config.characters import AliceConfiguration
 from nucypher.config.constants import (
-    NUCYPHER_ENVVAR_ALICE_ETH_PASSWORD,
     TEMPORARY_DOMAIN,
 )
 from nucypher.config.keyring import NucypherKeyring
@@ -498,7 +494,10 @@ def grant(general_config,
 
     # Grant
     if not force and not general_config.json_ipc:
-        confirm_staged_grant(emitter=emitter, grant_request=grant_request, federated=ALICE.federated_only)
+        confirm_staged_grant(emitter=emitter,
+                             grant_request=grant_request,
+                             federated=ALICE.federated_only,
+                             seconds_per_period=(None if ALICE.federated_only else ALICE.economics.seconds_per_period))
     emitter.echo(f'Granting Access to {bob_public_keys.verifying_key[:8]}', color='yellow')
     return ALICE.controller.grant(request=grant_request)
 
