@@ -317,11 +317,11 @@ contract PolicyManager is Upgradeable {
 
     /**
     * @notice Create multiple policies with the same owner, nodes and length
-    * @dev Generate policy id before creation
+    * @dev Generate policy ids before creation
     * @param _policyIds Policy ids
     * @param _policyOwner Policy owner. Zero address means sender is owner
-    * @param _endTimestamp End timestamp of the policy in seconds
-    * @param _nodes Nodes that will handle policy
+    * @param _endTimestamp End timestamp of all policies in seconds
+    * @param _nodes Nodes that will handle all policies
     */
     function createPolicies(
         bytes16[] calldata _policyIds,
@@ -342,7 +342,7 @@ contract PolicyManager is Upgradeable {
         uint16 endPeriod = uint16(_endTimestamp / secondsPerPeriod) + 1;
         uint256 numberOfPeriods = endPeriod - currentPeriod;
         uint128 feeRate = uint128(msg.value.div(_nodes.length) / numberOfPeriods / _policyIds.length);
-        require(feeRate > 0 && feeRate * numberOfPeriods * _nodes.length * _policyIds.length  == msg.value);
+        require(feeRate > 0 && feeRate * numberOfPeriods * _nodes.length * _policyIds.length == msg.value);
 
         for (uint256 i = 0; i < _policyIds.length; i++) {
             Policy storage policy = policies[_policyIds[i]];
