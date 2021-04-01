@@ -81,15 +81,17 @@ class UrsulaConfiguration(CharacterConfiguration):
 
     @classmethod
     def checksum_address_from_filepath(cls, filepath: str) -> str:
-        # must always extract worker address by "peeking" inside the ursula configuration file.
+        """
+        Extracts worker address by "peeking" inside the ursula configuration file.
+        """
+
         checksum_address = cls.peek(filepath=filepath, field='checksum_address')
         federated = bool(cls.peek(filepath=filepath, field='federated_only'))
         if not federated:
             checksum_address = cls.peek(filepath=filepath, field='worker_address')
 
         if not is_checksum_address(checksum_address):
-            raise RuntimeError(
-                f"Invalid checksum address detected in configuration file at '{filepath}'.")
+            raise RuntimeError(f"Invalid checksum address detected in configuration file at '{filepath}'.")
         return checksum_address
 
     def generate_runtime_filepaths(self, config_root: str) -> dict:

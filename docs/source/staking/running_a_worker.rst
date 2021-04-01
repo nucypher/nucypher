@@ -208,7 +208,7 @@ Instead of using docker, the nucypher worker can be run as a systemd service.
     $(nucypher) pip install -U nucypher
 
 
-2. Configure the worker using the nucypher CLI, and store the configuration to disk:
+2. Configure the worker using the nucypher CLI:
 
 .. code-block::
 
@@ -227,12 +227,16 @@ Replace the following values with your own:
    * ``<GWEI>`` - The maximum price of gas to spend on commitment transactions
 
 
+The configuration settings will be stored in an ursula configuration file.
+
 .. important::
 
     The default configuration file is ``ursula.json``. If there is an existing default configuration file, a new
-    Worker configuration file with a unique suffix is created e.g. ``ursula-0216ad10.json``. Since this file would not
-    be the default, subsequent ``ursula`` CLI commands should use the ``--config-file <FILEPATH>`` option to specify
-    the non-default filepath of the Worker configuration file.
+    Worker configuration file suffixed by the first 8 characters of the node's public key
+    e.g. ``ursula-0216ad10.json``. Since this file is not the default, subsequent ``ursula`` CLI commands
+    can use the ``--config-file <FILEPATH>`` option to specify the non-default filepath of the Worker
+    configuration file. If there are multiple configuration files and ``--config-file <FILEPATH>`` is not specified,
+    the CLI will prompt for an interactive selection of the configuration file to use.
 
 
 3. Use this template to create a file named ``ursula.service`` and place it in ``/etc/systemd/system/``.
@@ -306,7 +310,7 @@ Run Worker Manually
 If you'd like to use another own method of running the worker process in the background, or are
 using one of the testnets, here is how to run Ursula using the CLI directly.
 
-First initialize a Worker configuration and store it to disk:
+First initialize a Worker configuration:
 
 .. code-block::
 
@@ -323,32 +327,16 @@ Replace the following values with your own:
    * ``<SIGNER URI>`` - The URI to an ethereum keystore or signer: `keystore:///root/.ethereum/keystore`
    * ``<GWEI>`` - The maximum price of gas to spend on commitment transactions
 
+The configuration settings will be stored in an ursula configuration file.
 
 .. important::
 
     The default configuration file is ``ursula.json``. If there is an existing default configuration file, a new
-    Worker configuration file with a unique suffix is created e.g. ``ursula-0216ad10.json``. Since this file would not
-    be the default, subsequent ``ursula`` CLI commands should use the ``--config-file <FILEPATH>`` option to specify
-    the non-default filepath of the Worker configuration file.
-
-
-.. note::
-
-    All worker configuration values can be changed using the `config` command
-    (Note that the worker must be restarted for new changes to take effect):
-
-    .. code::
-
-        nucypher ursula config --<OPTION> <NEW VALUE>
-
-        # Update the max gas price setting
-        nucypher ursula config --max-gas-price <GWEI>
-
-        # Update the max gas price setting
-        nucypher ursula config --provider <PROVIDER URI>
-
-        # View the current configuration
-        nucypher ursula config
+    Worker configuration file suffixed by the first 8 characters of the node's public key
+    e.g. ``ursula-0216ad10.json``. Since this file is not the default, subsequent ``ursula`` CLI commands
+    can use the ``--config-file <FILEPATH>`` option to specify the non-default filepath of the Worker
+    configuration file. If there are multiple configuration files and ``--config-file <FILEPATH>`` is not specified,
+    the CLI will prompt for an interactive selection of the configuration file to use.
 
 
 2. Start the worker
@@ -364,6 +352,46 @@ Replace the following values with your own:
    * ``<PROVIDER URI>`` - The URI of a local or hosted ethereum node
    * ``<NETWORK NAME>`` - The name of a nucypher network (mainnet, ibex, or lynx)
    * ``<SIGNER URI>`` - The URI to an ethereum keystore or signer: `keystore:///root/.ethereum/keystore`
+
+
+Update Worker Configuration
+^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+All worker configuration values can be modified using the `config` command. For non-default worker configuration file
+paths, use the ``--config-file <CONFIG PATH>`` parameter.
+
+.. code::
+
+    #
+    # Default configuration file path
+    #
+
+    nucypher ursula config --<OPTION> <NEW VALUE>
+
+    # Update the max gas price setting
+    nucypher ursula config --max-gas-price <GWEI>
+
+    # Change the Ethereum provider to use
+    nucypher ursula config --provider <PROVIDER URI>
+
+    # View the current configuration
+    nucypher ursula config
+
+
+    #
+    # Non-default configuration file path
+    #
+
+    # View the current configuration of a non-default configuration file path
+    nucypher ursula config --config-file <CONFIG PATH>
+
+    # Update the max gas price setting of a non-default configuration file path
+    nucypher ursula config --config-file <CONFIG PATH> --provider <PROVIDER URI>
+
+
+.. important::
+
+    The worker must be restarted for new changes to take effect.
 
 
 4. Qualify Worker

@@ -556,7 +556,7 @@ class CharacterConfiguration(BaseConfiguration):
 
     @classmethod
     def generate(cls, password: str, *args, **kwargs):
-        """Shortcut: Hook-up a new initial installation configuration."""
+        """Shortcut: Hook-up a new initial installation and configuration."""
         node_config = cls(dev_mode=False, *args, **kwargs)
         node_config.initialize(password=password)
         return node_config
