@@ -26,13 +26,17 @@ NuCypher currently has two testnets available, each of them with different goals
 * ``lynx``: Public Long-Term Support testnet, intended as a stable playground for network users (e.g., Alices wishing to create sharing policies). Running on Ethereum Goerli testnet.
 * ``ibex``: Public testnet, intended as a playground for stakers and node operators (e.g., learning how to create and manage stakes, setting up a node), as well as for internal development purposes. Running on Ethereun Rinkeby testnet.
 
-Q: How long is a period?
-~~~~~~~~~~~~~~~~~~~~~~~~
+Q: What is a period and how long is it?
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-1 period is 7 days, and periods start at midnight UTC.
+In the NuCypher protocol, a Period is the minimum unit of time. This applies to sharing policy durations, and
+also corresponds to the frequency that Workers must make an on-chain commitment to being online and available
+to provide service.
 
-At genesis launch, 1 period was 24 hours, but this was updated by the NuCypher DAO to be
-7 days (see :doc:`/architecture/period_migration`).
+1 period is 7 days, and periods always start on Thursdays at midnight UTC.
+
+At Network launch, 1 period was 24 hours, but this was updated by a NuCypher DAO proposal to be
+7 days (see :doc:`/architecture/period_duration`).
 
 
 Using the Network
