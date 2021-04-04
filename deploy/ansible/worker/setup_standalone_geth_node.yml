@@ -1,0 +1,8 @@
+- name: "Setup Remote Geth"
+  hosts: "{{ play_hosts }}"
+  remote_user: "{{default_user}}"
+
+- import_playbook: include/setup_user.yml
+- import_playbook: include/setup_docker.yml
+- import_playbook: include/install_geth.yml
+- import_playbook: include/run_external_geth.yml

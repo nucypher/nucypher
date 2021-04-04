@@ -10,19 +10,6 @@
         state: absent
       when: wipe_nucypher_config is not undefined and wipe_nucypher_config
 
-    - name: "create geth directory"
-      become: yes
-      file:
-        path: /home/nucypher/geth/
-        state: directory
-        mode: '0755'
-
-    - name: "pull ethereum/client-go:latest"
-      become: yes
-      docker_image:
-        name: ethereum/client-go:latest
-        source: pull
-
     - name: "create geth keystore directory"
       become: yes
       file:

@@ -1,0 +1,1 @@
+New standalone geth fullnode anisble playbook.
