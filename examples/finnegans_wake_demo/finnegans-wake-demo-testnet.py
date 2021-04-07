@@ -69,7 +69,7 @@ TESTNET = 'lynx'
 
 # Then, there was bob. Bob learns about the
 # rest of the network from the seednode.
-bob = Bob(domain=TESTNET)
+bob = Bob(domain=TESTNET, provider_uri=PROVIDER_URI)
 
 # Bob puts his public keys somewhere alice can find them.
 verifying_key = bob.public_keys(SigningPower)
@@ -90,7 +90,7 @@ password = os.environ.get('DEMO_ALICE_PASSWORD') or getpass(f"Enter password to 
 wallet.unlock_account(account=ALICE_ADDRESS, password=password)
 
 # This is Alice.
-alice = Alice(checksum_address=ALICE_ADDRESS, signer=wallet, domain=TESTNET)
+alice = Alice(checksum_address=ALICE_ADDRESS, signer=wallet, domain=TESTNET, provider_uri=PROVIDER_URI)
 
 # Alice puts her public key somewhere for Bob to find later...
 alice_verifying_key = bytes(alice.stamp)
