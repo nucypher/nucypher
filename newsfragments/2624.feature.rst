@@ -1,1 +1,1 @@
-New standalone geth fullnode anisble playbook.
+New standalone geth fullnode ansible playbook.
