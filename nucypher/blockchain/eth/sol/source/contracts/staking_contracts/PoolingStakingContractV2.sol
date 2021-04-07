@@ -25,7 +25,7 @@ contract PoolingStakingContractV2 is InitializableStakingContract, Ownable {
         uint256 depositedTokens
     );
     event ETHWithdrawn(address indexed sender, uint256 value);
-    event DepositSet(address indexed sender, bool value);
+    event WorkerOwnerSet(address indexed sender, address indexed workerOwner);
 
     struct Delegator {
         uint256 depositedTokens;
@@ -33,8 +33,11 @@ contract PoolingStakingContractV2 is InitializableStakingContract, Ownable {
         uint256 withdrawnETH;
     }
 
-    /// Defines base fraction and precision of worker fraction. Value 100 defines 1 worker fraction is 1% of reward
-    uint256 public constant BASIS_FRACTION = 100;
+    /**
+     * Defines base fraction and precision of worker fraction.
+     * E.g., for a value of 10000, a worker fraction of 100 represents 1% of reward (100/10000)
+     */
+    uint256 public constant BASIS_FRACTION = 10000;
 
     StakingEscrow public escrow;
     address public workerOwner;
@@ -47,12 +50,12 @@ contract PoolingStakingContractV2 is InitializableStakingContract, Ownable {
     uint256 public workerWithdrawnReward;
 
     mapping(address => Delegator) public delegators;
-    bool public depositIsEnabled = true;
 
     /**
      * @notice Initialize function for using with OpenZeppelin proxy
      * @param _workerFraction Share of token reward that worker node owner will get.
-     * Use value up to BASIS_FRACTION, if _workerFraction = BASIS_FRACTION -> means 100% reward as commission
+     * Use value up to BASIS_FRACTION (10000), if _workerFraction = BASIS_FRACTION -> means 100% reward as commission.
+     * For example, 100 worker fraction is 1% of reward
      * @param _router StakingInterfaceRouter address
      * @param _workerOwner Owner of worker node, only this address can withdraw worker commission
      */
@@ -60,35 +63,48 @@ contract PoolingStakingContractV2 is InitializableStakingContract, Ownable {
         uint256 _workerFraction,
         StakingInterfaceRouter _router,
         address _workerOwner
-    ) public initializer {
+    ) external initializer {
         require(_workerOwner != address(0) && _workerFraction <= BASIS_FRACTION);
         InitializableStakingContract.initialize(_router);
         _transferOwnership(msg.sender);
         escrow = _router.target().escrow();
         workerFraction = _workerFraction;
         workerOwner = _workerOwner;
+        emit WorkerOwnerSet(msg.sender, _workerOwner);
     }
 
     /**
-     * @notice Enabled deposit
+     * @notice withdrawAll() is allowed
      */
-    function enableDeposit() external onlyOwner {
-        depositIsEnabled = true;
-        emit DepositSet(msg.sender, depositIsEnabled);
+    function isWithdrawAllAllowed() public view returns (bool) {
+        // no tokens in StakingEscrow contract which belong to pool
+        return escrow.getAllTokens(address(this)) == 0;
     }
 
     /**
-     * @notice Disable deposit
+     * @notice deposit() is allowed
      */
-    function disableDeposit() external onlyOwner {
-        depositIsEnabled = false;
-        emit DepositSet(msg.sender, depositIsEnabled);
+    function isDepositAllowed() public view returns (bool) {
+        // tokens which directly belong to pool
+        uint256 freeTokens = token.balanceOf(address(this));
+
+        // no sub-stakes and no earned reward
+        return isWithdrawAllAllowed() && freeTokens == totalDepositedTokens;
+    }
+
+    /**
+     * @notice Set worker owner address
+     */
+    function setWorkerOwner(address _workerOwner) external onlyOwner {
+        workerOwner = _workerOwner;
+        emit WorkerOwnerSet(msg.sender, _workerOwner);
     }
 
     /**
      * @notice Calculate worker's fraction depending on deposited tokens
+     * Override to implement dynamic worker fraction.
      */
-    function getWorkerFraction() public view returns (uint256) {
+    function getWorkerFraction() public view virtual returns (uint256) {
         return workerFraction;
     }
 
@@ -97,7 +113,7 @@ contract PoolingStakingContractV2 is InitializableStakingContract, Ownable {
      * @param _value Amount of tokens to transfer
      */
     function depositTokens(uint256 _value) external {
-        require(depositIsEnabled, "Deposit must be enabled");
+        require(isDepositAllowed(), "Deposit must be enabled");
         require(_value > 0, "Value must be not empty");
         totalDepositedTokens = totalDepositedTokens.add(_value);
         Delegator storage delegator = delegators[msg.sender];
@@ -110,9 +126,13 @@ contract PoolingStakingContractV2 is InitializableStakingContract, Ownable {
      * @notice Get available reward for all delegators and owner
      */
     function getAvailableReward() public view returns (uint256) {
+        // locked + unlocked tokens in StakingEscrow contract which belong to pool
         uint256 stakedTokens = escrow.getAllTokens(address(this));
+        // tokens which directly belong to pool
         uint256 freeTokens = token.balanceOf(address(this));
+        // tokens in excess of the initially deposited
         uint256 reward = stakedTokens.add(freeTokens).sub(totalDepositedTokens);
+        // check how many of reward tokens belong directly to pool
         if (reward > freeTokens) {
             return freeTokens;
         }
@@ -120,7 +140,8 @@ contract PoolingStakingContractV2 is InitializableStakingContract, Ownable {
     }
 
     /**
-     * @notice Get cumulative reward
+     * @notice Get cumulative reward.
+     * Available and withdrawn reward together to use in delegator/owner reward calculations
      */
     function getCumulativeReward() public view returns (uint256) {
         return getAvailableReward().add(totalWithdrawnReward);
@@ -130,16 +151,21 @@ contract PoolingStakingContractV2 is InitializableStakingContract, Ownable {
      * @notice Get available reward in tokens for worker node owner
      */
     function getAvailableWorkerReward() public view returns (uint256) {
+        // total current and historical reward
         uint256 reward = getCumulativeReward();
 
+        // calculate total reward for worker including historical reward
         uint256 maxAllowableReward;
+        // usual case
         if (totalDepositedTokens != 0) {
             uint256 fraction = getWorkerFraction();
             maxAllowableReward = reward.mul(fraction).div(BASIS_FRACTION);
+        // special case when there are no delegators
         } else {
             maxAllowableReward = reward;
         }
 
+        // check that worker has any new reward
         if (maxAllowableReward > workerWithdrawnReward) {
             return maxAllowableReward - workerWithdrawnReward;
         }
@@ -149,26 +175,28 @@ contract PoolingStakingContractV2 is InitializableStakingContract, Ownable {
     /**
      * @notice Get available reward in tokens for delegator
      */
-    function getAvailableReward(address _delegator)
-        public
-        view
-        returns (uint256)
-    {
+    function getAvailableDelegatorReward(address _delegator) public view returns (uint256) {
+        // special case when there are no delegators
         if (totalDepositedTokens == 0) {
             return 0;
         }
 
+        // total current and historical reward
         uint256 reward = getCumulativeReward();
         Delegator storage delegator = delegators[_delegator];
         uint256 fraction = getWorkerFraction();
+
+        // calculate total reward for delegator including historical reward
+        // excluding worker share
         uint256 maxAllowableReward = reward.mul(delegator.depositedTokens).mul(BASIS_FRACTION - fraction).div(
             totalDepositedTokens.mul(BASIS_FRACTION)
         );
 
-        return
-            maxAllowableReward > delegator.withdrawnReward
-                ? maxAllowableReward - delegator.withdrawnReward
-                : 0;
+        // check that worker has any new reward
+        if (maxAllowableReward > delegator.withdrawnReward) {
+            return maxAllowableReward - delegator.withdrawnReward;
+        }
+        return 0;
     }
 
     /**
@@ -202,7 +230,7 @@ contract PoolingStakingContractV2 is InitializableStakingContract, Ownable {
         require(_value <= balance, "Not enough tokens in the contract");
 
         Delegator storage delegator = delegators[msg.sender];
-        uint256 availableReward = getAvailableReward(msg.sender);
+        uint256 availableReward = getAvailableDelegatorReward(msg.sender);
 
         require( _value <= availableReward, "Requested amount of tokens exceeded allowed portion");
         delegator.withdrawnReward = delegator.withdrawnReward.add(_value);
@@ -216,18 +244,19 @@ contract PoolingStakingContractV2 is InitializableStakingContract, Ownable {
      * @notice Withdraw reward, deposit and fee to delegator
      */
     function withdrawAll() public {
+        require(isWithdrawAllAllowed(), "Withdraw deposit and reward must be enabled");
         uint256 balance = token.balanceOf(address(this));
 
         Delegator storage delegator = delegators[msg.sender];
-        uint256 availableReward = getAvailableReward(msg.sender);
+        uint256 availableReward = getAvailableDelegatorReward(msg.sender);
         uint256 value = availableReward.add(delegator.depositedTokens);
         require(value <= balance, "Not enough tokens in the contract");
 
-        // TODO remove double reading
+        // TODO remove double reading: availableReward and availableWorkerReward use same calls to external contracts
         uint256 availableWorkerReward = getAvailableWorkerReward();
 
         // potentially could be less then due reward
-        uint256 availableETH = getAvailableETH(msg.sender);
+        uint256 availableETH = getAvailableDelegatorETH(msg.sender);
 
         // prevent losing reward for worker after calculations
         uint256 workerReward = availableWorkerReward.mul(delegator.depositedTokens).div(totalDepositedTokens);
@@ -252,15 +281,15 @@ contract PoolingStakingContractV2 is InitializableStakingContract, Ownable {
         totalWithdrawnETH = totalWithdrawnETH.sub(delegator.withdrawnETH);
         delegator.withdrawnETH = 0;
         if (availableETH > 0) {
-            msg.sender.sendValue(availableETH);
             emit ETHWithdrawn(msg.sender, availableETH);
+            msg.sender.sendValue(availableETH);
         }
     }
 
     /**
      * @notice Get available ether for delegator
      */
-    function getAvailableETH(address _delegator) public view returns (uint256) {
+    function getAvailableDelegatorETH(address _delegator) public view returns (uint256) {
         Delegator storage delegator = delegators[_delegator];
         uint256 balance = address(this).balance;
         // ETH balance + already withdrawn
@@ -279,13 +308,13 @@ contract PoolingStakingContractV2 is InitializableStakingContract, Ownable {
      */
     function withdrawETH() public override {
         Delegator storage delegator = delegators[msg.sender];
-        uint256 availableETH = getAvailableETH(msg.sender);
+        uint256 availableETH = getAvailableDelegatorETH(msg.sender);
         require(availableETH > 0, "There is no available ETH to withdraw");
         delegator.withdrawnETH = delegator.withdrawnETH.add(availableETH);
 
         totalWithdrawnETH = totalWithdrawnETH.add(availableETH);
-        msg.sender.sendValue(availableETH);
         emit ETHWithdrawn(msg.sender, availableETH);
+        msg.sender.sendValue(availableETH);
     }
 
     /**
