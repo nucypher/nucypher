@@ -495,12 +495,15 @@ class Bob(Character):
                  treasure_maps: Optional[Dict] = None,
                  controller: bool = True,
                  verify_node_bonding: bool = False,
+                 provider_uri: str = None,
                  *args, **kwargs) -> None:
 
         Character.__init__(self,
                            is_me=is_me,
                            known_node_class=Ursula,
                            verify_node_bonding=verify_node_bonding,
+                           is_offchain=provider_uri is None,
+                           provider_uri=provider_uri,
                            *args, **kwargs)
 
         if controller:

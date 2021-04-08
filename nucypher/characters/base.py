@@ -84,6 +84,7 @@ class Character(Learner):
                  signer: Signer = None,
                  registry: BaseContractRegistry = None,
                  include_self_in_the_state: bool = False,
+                 is_offchain: bool = False,
                  *args, **kwargs
                  ) -> None:
 
@@ -178,7 +179,7 @@ class Character(Learner):
                 self._stamp = NO_SIGNING_POWER
 
             # Blockchainy
-            if not self.federated_only:
+            if not self.federated_only and not is_offchain:
                 if not provider_uri:
                     raise ValueError('Provider URI is required to init a decentralized character.')
                 self.provider_uri = provider_uri

@@ -69,7 +69,7 @@ TESTNET = 'lynx'
 
 # Then, there was bob. Bob learns about the
 # rest of the network from the seednode.
-bob = Bob(domain=TESTNET, provider_uri=PROVIDER_URI)
+bob = Bob(domain=TESTNET)
 
 # Bob puts his public keys somewhere alice can find them.
 verifying_key = bob.public_keys(SigningPower)
