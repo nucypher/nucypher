@@ -1,0 +1,17 @@
+- name: "Setup Ethereum"
+  hosts: "{{ play_hosts }}"
+  remote_user: "{{default_user}}"
+  gather_facts: no
+  tasks:
+    - name: "create geth directory"
+      become: yes
+      file:
+        path: /home/nucypher/geth/
+        state: directory
+        mode: '0755'
+
+    - name: "pull ethereum/client-go:stable"
+      become: yes
+      docker_image:
+        name: ethereum/client-go:stable
+        source: pull

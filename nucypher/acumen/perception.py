@@ -432,11 +432,11 @@ class RemoteUrsulaStatus(NamedTuple):
         if self.recorded_fleet_state is None:
             recorded_fleet_state_json = None
         else:
-            recorded_fleet_state_json = recorded_fleet_state.to_json()
+            recorded_fleet_state_json = self.recorded_fleet_state.to_json()
         if self.last_learned_from is None:
             last_learned_from_json = None
         else:
-            last_learned_from_json = last_learned_from.iso8601()
+            last_learned_from_json = self.last_learned_from.iso8601()
         return dict(verified=self.verified,
                     nickname=self.nickname.to_json(),
                     staker_address=self.staker_address,
