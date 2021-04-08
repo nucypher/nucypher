@@ -69,11 +69,9 @@ a :doc:`simple staking pool smart contract </contracts_api/staking/PoolingStakin
 
 .. note::
 
-    .. TODO: add link to audit report
-
-    While NuCypher had the staking pool contract audited, there remains smart contract risk and there are
-    no guarantees about the logic. There is also the risk of trust in the *Owner* of the contract to not
-    be malicious. See the `Risks`_ section below.
+    While NuCypher had the staking pool contract `audited by MixBytes <https://github.com/mixbytes/audits_public/tree/master/NuCypher>`_,
+    there remains smart contract risk and there are no guarantees about the logic. There is also the risk of trust in
+    the *Owner* of the contract to not be malicious. See the `Risks`_ section below.
 
 
 The staking pool smart contract organizes multiple NU holders into one large Staker which delegates to a
