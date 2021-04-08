@@ -24,6 +24,7 @@ from web3 import HTTPProvider, IPCProvider, WebsocketProvider
 from nucypher.blockchain.eth.clients import (GanacheClient, GethClient, InfuraClient, PUBLIC_CHAINS,
                                              ParityClient, AlchemyClient)
 from nucypher.blockchain.eth.interfaces import BlockchainInterface
+from nucypher.utilities.networking import LOOPBACK_ADDRESS
 
 DEFAULT_GAS_PRICE = 42
 GAS_PRICE_FROM_STRATEGY = 1234
@@ -59,7 +60,7 @@ class MockAlchemyProvider:
 
 
 class MockWebSocketProvider:
-    endpoint_uri = 'ws://127.0.0.1:8546'
+    endpoint_uri = f'ws://{LOOPBACK_ADDRESS}:8546'
     clientVersion = 'Geth/v1.8.23-omnibus-2ad89aaa/linux-amd64/go1.11.1'
 
 
@@ -260,7 +261,7 @@ def test_detect_provider_type_https():
 
 
 def test_detect_provider_type_ws():
-    interface = ProviderTypeTestClient(provider_uri='ws://127.0.0.1:8546',
+    interface = ProviderTypeTestClient(provider_uri=f'ws://{LOOPBACK_ADDRESS}:8546',
                                        expected_provider_class=WebsocketProvider,
                                        actual_provider_to_attach=MockWebSocketProvider())
     interface.connect()

@@ -37,6 +37,7 @@ from nucypher.cli.main import nucypher_cli
 from nucypher.config.characters import StakeHolderConfiguration, UrsulaConfiguration
 from nucypher.config.constants import TEMPORARY_DOMAIN
 from nucypher.utilities.logging import Logger
+from nucypher.utilities.networking import LOOPBACK_ADDRESS
 from tests.constants import (
     FAKE_PASSWORD_CONFIRMED,
     FEE_RATE_RANGE,
@@ -583,7 +584,7 @@ def test_collect_rewards_integration(click_runner,
                     signer=Web3Signer(testerchain.client),
                     worker_address=worker_address,
                     registry=agency_local_registry,
-                    rest_host='127.0.0.1',
+                    rest_host=LOOPBACK_ADDRESS,
                     rest_port=ursula_port,
                     provider_uri=TEST_PROVIDER_URI,
                     network_middleware=MockRestMiddleware(),

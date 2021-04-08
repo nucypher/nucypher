@@ -24,11 +24,12 @@ from twisted.internet import reactor
 
 from nucypher.characters.lawful import Ursula
 from nucypher.config.constants import APP_DIR, TEMPORARY_DOMAIN
+from nucypher.utilities.networking import LOOPBACK_ADDRESS
 
 FLEET_POPULATION = 12
 DEMO_NODE_STARTING_PORT = 11500
 
-ursula_maker = partial(Ursula, rest_host='127.0.0.1',
+ursula_maker = partial(Ursula, rest_host=LOOPBACK_ADDRESS,
                        federated_only=True,
                        domain=TEMPORARY_DOMAIN)
 

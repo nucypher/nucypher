@@ -18,6 +18,8 @@ from bytestring_splitter import VariableLengthBytestring
 from eth_utils import is_checksum_address
 from urllib.parse import urlparse
 
+from nucypher.utilities.networking import LOOPBACK_ADDRESS
+
 
 class SuspiciousActivity(RuntimeError):
     """raised when an action appears to amount to malicious conduct."""
@@ -63,7 +65,7 @@ class InterfaceInfo:
     expected_bytes_length = lambda: VariableLengthBytestring
 
     def __init__(self, host, port) -> None:
-        loopback, localhost = '127.0.0.1', 'localhost'
+        loopback, localhost = LOOPBACK_ADDRESS, 'localhost'
         self.host = loopback if host == localhost else host
         self.port = int(port)
 
