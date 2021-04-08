@@ -14,14 +14,12 @@
  You should have received a copy of the GNU Affero General Public License
  along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
-
-
+import glob
 import json
+from json.decoder import JSONDecodeError
+from typing import Optional, Type, List
 
 import click
-from json.decoder import JSONDecodeError
-from nucypher.config.base import CharacterConfiguration
-from typing import Optional, Type
 
 from nucypher.characters.control.emitters import StdoutEmitter
 from nucypher.characters.lawful import Ursula
@@ -38,7 +36,9 @@ from nucypher.cli.literature import (
     CONFIRM_URSULA_IPV4_ADDRESS
 )
 from nucypher.cli.types import WORKER_IP
+from nucypher.config.base import CharacterConfiguration
 from nucypher.config.characters import StakeHolderConfiguration
+from nucypher.config.constants import DEFAULT_CONFIG_ROOT
 from nucypher.utilities.networking import InvalidWorkerIP, validate_worker_ip
 from nucypher.utilities.networking import determine_external_ip_address, UnknownIPAddress
 
@@ -48,6 +48,23 @@ def forget(emitter: StdoutEmitter, configuration: CharacterConfiguration) -> Non
     click.confirm(CONFIRM_FORGET_NODES, abort=True)
     configuration.forget_nodes()
     emitter.message(SUCCESSFUL_FORGET_NODES, color='red')
+
+
+def get_config_filepaths(config_class: Type[CharacterConfiguration], config_root: str = None) -> List:
+    #
+    # Scrape disk for configuration files
+    #
+    config_root = config_root or DEFAULT_CONFIG_ROOT
+    default_config_file = glob.glob(config_class.default_filepath(config_root=config_root))
+
+    # updated glob pattern for secondary configuration files accommodates for:
+    # 1. configuration files with "0x..." checksum address as suffix - including older ursula config files
+    # 2. newer (ursula) configuration files which use signing_pub_key[:8] as hex as the suffix
+    glob_pattern = f'{config_root}/{config_class.NAME}-[0-9a-fA-f]*.{config_class._CONFIG_FILE_EXTENSION}'
+
+    secondary_config_files = sorted(glob.glob(glob_pattern))  # sort list to make order deterministic
+    config_files = [*default_config_file, *secondary_config_files]
+    return config_files
 
 
 def get_or_update_configuration(emitter: StdoutEmitter,

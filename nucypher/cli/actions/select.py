@@ -15,9 +15,8 @@
  along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
-
-import glob
 import os
+from pathlib import Path
 from typing import Callable
 from typing import Optional, Tuple, Type
 
@@ -33,6 +32,7 @@ from nucypher.blockchain.eth.registry import InMemoryContractRegistry, BaseContr
 from nucypher.blockchain.eth.signers.base import Signer
 from nucypher.blockchain.eth.token import NU, Stake
 from nucypher.characters.control.emitters import StdoutEmitter
+from nucypher.cli.actions.configure import get_config_filepaths
 from nucypher.cli.literature import (
     GENERIC_SELECT_ACCOUNT,
     NO_CONFIGURATIONS_ON_DISK,
@@ -48,7 +48,7 @@ from nucypher.cli.literature import (
 from nucypher.cli.painting.policies import paint_cards
 from nucypher.cli.painting.staking import paint_stakes
 from nucypher.config.base import CharacterConfiguration
-from nucypher.config.constants import DEFAULT_CONFIG_ROOT, NUCYPHER_ENVVAR_WORKER_ADDRESS
+from nucypher.config.constants import NUCYPHER_ENVVAR_WORKER_ADDRESS, DEFAULT_CONFIG_ROOT
 from nucypher.policy.identity import Card
 
 
@@ -228,20 +228,8 @@ def select_config_file(emitter: StdoutEmitter,
 
     """
 
-    #
-    # Scrape Disk Configurations
-    #
-
     config_root = config_root or DEFAULT_CONFIG_ROOT
-    default_config_file = glob.glob(config_class.default_filepath(config_root=config_root))
-
-    # updated glob pattern for secondary configuration files accommodates for:
-    # 1. configuration files with "0x..." checksum address as suffix - including older ursula config files
-    # 2. newer (ursula) configuration files which use signing_pub_key[:8] as hex as the suffix
-    glob_pattern = f'{config_root}/{config_class.NAME}-[0-9a-fA-f]*.{config_class._CONFIG_FILE_EXTENSION}'
-
-    secondary_config_files = glob.glob(glob_pattern)
-    config_files = [*default_config_file, *secondary_config_files]
+    config_files = get_config_filepaths(config_class=config_class, config_root=config_root)
     if not config_files:
         emitter.message(NO_CONFIGURATIONS_ON_DISK.format(name=config_class.NAME.capitalize(),
                                                          command=config_class.NAME), color='red')
@@ -249,8 +237,8 @@ def select_config_file(emitter: StdoutEmitter,
 
     checksum_address = checksum_address or os.environ.get(NUCYPHER_ENVVAR_WORKER_ADDRESS, None)  # TODO: Deprecate worker_address in favor of checksum_address
 
-    parsed_addresses = list()
     parsed_config_files = list()
+    parsed_addresses_and_filenames = list()
     # parse configuration files for checksum address values
     for fp in config_files:
         try:
@@ -259,8 +247,8 @@ def select_config_file(emitter: StdoutEmitter,
                 # matching configuration file found, no need to continue - return filepath
                 return fp
 
-            parsed_addresses.append([config_checksum_address])
             parsed_config_files.append(fp)
+            parsed_addresses_and_filenames.append([config_checksum_address, Path(fp).name])  # store checksum & filename
         except config_class.OldVersion:
             # no use causing entire usage to crash if file can't be used anyway - inform the user; they can
             # decide for themself
@@ -280,11 +268,13 @@ def select_config_file(emitter: StdoutEmitter,
         #
         # Interactive
         #
-        parsed_addresses = tuple(parsed_addresses)  # must be tuple-of-iterables for tabulation
+        emitter.echo(f"\nConfiguration Directory: {config_root}\n")
+
+        parsed_addresses_and_filenames = tuple(parsed_addresses_and_filenames)  # must be tuple-of-iterables for tabulation
 
         # Display account info
-        headers = ['Account']
-        emitter.echo(tabulate(parsed_addresses, headers=headers, showindex='always'))
+        headers = ['Account', 'Configuration File']
+        emitter.echo(tabulate(parsed_addresses_and_filenames, headers=headers, showindex='always'))
 
         # Prompt the user for selection, and return
         prompt = f"Select {config_class.NAME} configuration"
@@ -295,6 +285,7 @@ def select_config_file(emitter: StdoutEmitter,
     else:
         # Default: Only one config file, use it.
         config_file = parsed_config_files[0]
+        emitter.echo(f"Defaulting to {config_class.NAME} configuration file: {config_file}")
 
     return config_file
 

@@ -317,7 +317,7 @@ NO_FEE_TO_WITHDRAW = "No policy fee can be withdrawn."
 
 MISSING_CONFIGURATION_FILE = """
 
-No {name} configuration file found.  To create a new {name} configuration run:
+No {name} configuration file found. To create a new {name} configuration run:
 
 nucypher {init_command}
 """
@@ -325,7 +325,7 @@ nucypher {init_command}
 
 SELECT_NETWORK = "Select Network"
 
-NO_CONFIGURATIONS_ON_DISK = "No {name} configurations found.  run 'nucypher {command} init' then try again."
+NO_CONFIGURATIONS_ON_DISK = "No {name} configurations found. Run 'nucypher {command} init' then try again."
 
 SUCCESSFUL_UPDATE_CONFIGURATION_VALUES = "Updated configuration values: {fields}"
 
