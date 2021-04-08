@@ -253,9 +253,8 @@ class Alice(Character, BlockchainPolicyAuthor):
 
         else:
             # Sample from blockchain PolicyManager
-            from nucypher.policy.policies import BlockchainPolicy
             payload.update(**policy_params)
-            policy = BlockchainPolicy(alice=self, **payload)
+            policy = super(Alice, self).create_policy(**payload)
 
         return policy
 
