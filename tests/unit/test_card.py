@@ -17,7 +17,7 @@
 
 import pytest
 
-from nucypher.characters.lawful import Bob, Alice
+from nucypher.characters.lawful import Alice, Bob
 from nucypher.crypto.powers import DecryptingPower, SigningPower
 from nucypher.policy.identity import Card
 from tests.utils.middleware import MockRestMiddleware
@@ -59,6 +59,9 @@ def test_character_card(character_class):
     character_card.to_qr_code()
     # TODO: Examine system output here?
 
+    # filepath without nickname
+    assert character_card.id.hex() in str(character_card.filepath)
+
     # nicknames
     original_checksum = character_card.id
     nickname = 'Wilson'
@@ -67,3 +70,6 @@ def test_character_card(character_class):
     restored_checksum = restored.id
     assert restored.nickname == nickname
     assert original_checksum == restored_checksum == same_card.id
+
+    # filepath with nickname
+    assert f'{nickname}.{character_card.id.hex()}' in str(character_card.filepath)
