@@ -16,7 +16,6 @@
         volumes:
           - /home/nucypher/geth:/root
         ports:
-          - "8545/tcp"
-          - "30303/tcp"
-          - "8546/tcp"
-          - "30303/udp"
+          - "8545:8545/tcp"
+          - "30303:30303"
+          - "8546:8546/tcp"

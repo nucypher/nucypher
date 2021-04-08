@@ -10,8 +10,8 @@
         state: directory
         mode: '0755'
 
-    - name: "pull ethereum/client-go:latest"
+    - name: "pull ethereum/client-go:stable"
       become: yes
       docker_image:
-        name: ethereum/client-go:latest
+        name: ethereum/client-go:stable
         source: pull
