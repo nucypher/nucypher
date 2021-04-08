@@ -30,7 +30,7 @@ from nucypher.cli.main import nucypher_cli
 from nucypher.config.characters import UrsulaConfiguration
 from nucypher.config.constants import NUCYPHER_ENVVAR_KEYRING_PASSWORD, TEMPORARY_DOMAIN
 from nucypher.network.nodes import Teacher
-from nucypher.utilities.networking import UnknownIPAddress
+from nucypher.utilities.networking import LOOPBACK_ADDRESS, UnknownIPAddress
 from tests.constants import (
     FAKE_PASSWORD_CONFIRMED,
     INSECURE_DEVELOPMENT_PASSWORD,
@@ -114,7 +114,7 @@ def test_run_lone_federated_default_development_ursula(click_runner):
     time.sleep(Learner._SHORT_LEARNING_DELAY)
     assert result.exit_code == 0, result.output
     assert "Running" in result.output
-    assert "127.0.0.1:{}".format(deploy_port) in result.output
+    assert f"{LOOPBACK_ADDRESS}:{deploy_port}" in result.output
 
     reserved_ports = (UrsulaConfiguration.DEFAULT_REST_PORT, UrsulaConfiguration.DEFAULT_DEVELOPMENT_REST_PORT)
     assert deploy_port not in reserved_ports
@@ -153,7 +153,7 @@ def test_federated_ursula_learns_via_cli(click_runner, federated_ursulas):
 
     assert result.exit_code == 0
     assert "Starting services" in result.output
-    assert f"127.0.0.1:{deploy_port}" in result.output
+    assert f"{LOOPBACK_ADDRESS}:{deploy_port}" in result.output
 
     reserved_ports = (UrsulaConfiguration.DEFAULT_REST_PORT, UrsulaConfiguration.DEFAULT_DEVELOPMENT_REST_PORT)
     assert deploy_port not in reserved_ports

@@ -40,7 +40,7 @@ class InvalidWorkerIP(RuntimeError):
 
 CENTRALIZED_IP_ORACLE_URL = 'https://ifconfig.me/'
 
-LOOPBACK_ADDRESS = '127.0.0.1'  # TODO use across code base - #2538
+LOOPBACK_ADDRESS = '127.0.0.1'
 
 RequestErrors = (
     # https://requests.readthedocs.io/en/latest/user/quickstart/#errors-and-exceptions
