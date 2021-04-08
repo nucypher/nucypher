@@ -17,14 +17,14 @@
 
 import pytest
 
-from nucypher.characters.lawful import Bob, Alice
+from nucypher.characters.lawful import Alice, Bob
 from nucypher.crypto.powers import DecryptingPower, SigningPower
 from nucypher.policy.identity import Card
 from tests.utils.middleware import MockRestMiddleware
 
 
 @pytest.mark.parametrize('character_class', (Bob, Alice))
-def test_character_card(character_class):
+def test_character_card(character_class, capsys):
     character = character_class(federated_only=True,
                                 start_learning_now=False,
                                 network_middleware=MockRestMiddleware())
@@ -57,7 +57,13 @@ def test_character_card(character_class):
 
     # qr code echo
     character_card.to_qr_code()
-    # TODO: Examine system output here?
+    captured = capsys.readouterr()
+    qr_code_padding = '\xa0' * 21  # min length for qr code version 1
+    assert captured.out.startswith(qr_code_padding)
+    assert captured.out.endswith(f'{qr_code_padding}\n')
+
+    # filepath without nickname
+    assert character_card.id.hex() in str(character_card.filepath)
 
     # nicknames
     original_checksum = character_card.id
@@ -67,3 +73,6 @@ def test_character_card(character_class):
     restored_checksum = restored.id
     assert restored.nickname == nickname
     assert original_checksum == restored_checksum == same_card.id
+
+    # filepath with nickname
+    assert f'{nickname}.{character_card.id.hex()}' in str(character_card.filepath)

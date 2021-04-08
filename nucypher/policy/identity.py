@@ -65,7 +65,7 @@ class Card:
     __BASE_PAYLOAD_SIZE = sum(length[1] for length in _bob_specification.values() if isinstance(length[1], int))
     __MAX_CARD_LENGTH = __BASE_PAYLOAD_SIZE + __MAX_NICKNAME_SIZE + 2
     __FILE_EXTENSION = 'card'
-    __DELIMITER = ':'  # delimits nickname from ID
+    __DELIMITER = '.'  # delimits nickname from ID
 
     TRUNCATE = 16
     CARD_DIR = Path(DEFAULT_CONFIG_ROOT) / 'cards'
