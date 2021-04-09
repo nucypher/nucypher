@@ -254,7 +254,7 @@ class Alice(Character, BlockchainPolicyAuthor):
         else:
             # Sample from blockchain PolicyManager
             payload.update(**policy_params)
-            policy = super(Alice, self).create_policy(**payload)
+            policy = super().create_policy(**payload)
 
         return policy
 
