@@ -9,16 +9,17 @@ Genesis
 -------
 
 At the Network launch on October 15th, 2020, the duration of a period was 24 hours. As a result, before UTC midnight,
-Workers needed to make a per period (daily) on-chain commitment transactions indicating availability for the following
+Workers needed to make a per period (daily) on-chain commitment transactions indicating availability for the subsequent
 period (after UTC midnight).
 
-The cost of the commitment transaction was approximately 200k gas but could cost more depending on the number of
-sub-stakes being staked. Given the significant increase in Ethereum gas since launch, the cost of the daily
-commitment transaction significantly increased and became untenable. Particularly for stake sizes closer to the minimum
-stake size, the NU staking rewards and fees received from running a Worker may not cover the cost of this commitment
-transaction.
+The cost of the commitment transaction is approximately 200k gas units but may be higher depending on the number of
+sub-stakes a Staker has. Given the significant increase in Ethereum gas price since network launch, the cost of the daily
+commitment transaction significantly increased and became untenable. Particularly for short stake durations and stake
+sizes closer to the minimum stake size, the NU staking rewards and fees received from running a Worker may not cover
+the cost of this commitment transaction.
 
-Reducing the transaction gas cost was a necessity, and there were multiple mitigation attempts:
+Reducing the total amount of gas fees required to run a Worker became a necessity, and there have been multiple
+mitigations:
 
 #. Removal of inactive sub-stakes i.e. sub-stakes that expired and were no longer relevant (`PR #2384 <https://github.com/nucypher/nucypher/issues/2384>`_).
 #. Addition of a Worker configuration setting to specify a cap on the gas price that Workers were willing to pay for the
@@ -29,7 +30,7 @@ Ultimately these were incremental solutions, which worked around the underlying 
 was to increase the period duration i.e. reduce the frequency with which Workers needed to make the on-chain commitment
 transaction, thereby reducing the cost by a factor based on the increase in period duration.
 
-Taking a long-term perspective, lowering Worker overhead encourages more Stakers and Worker, and enables more
+Taking a long-term perspective, lowering Worker overhead encourages more participation, and enables more
 competitive break-even policy fee price points for network usage which is likely to increase user adoption.
 
 
@@ -49,7 +50,8 @@ new minimum unit of time.
 The period duration modification reduces the frequency of on-chain
 commitment transactions (and therefore worker gas costs) and has minimal impact on the total staking rewards
 received for running a Worker.  However, since the commitment transaction occurs every 7 days, staking rewards
-will also be minted once every 7 days (instead of daily), but the sum minted will be 7 days worth.
+will also be minted once every 7 days (instead of daily), but the reward rate remains the same
+(the minted value will be 7 days worth).
 
 Since period numbers are calculated relative to Unix epoch time, a period duration of 7 days will cause periods
 to always start on Thursdays at UTC midnight *(Fun fact: the Unix epoch - January 1st, 1970 - was on a
@@ -58,4 +60,4 @@ Thursday so period calculations will always yield Thursday as the start of a new
 
 .. important::
 
-    It is entirely possible that the NuCypher DAO decides to update the period duration again in the future.
+    The NuCypher DAO may decide to update the period duration again in the future.
