@@ -310,11 +310,13 @@ class Card:
             nickname, _id = identifier.split(cls.__DELIMITER)
         except ValueError:
             nickname = identifier
-        for filename in os.listdir(Card.CARD_DIR):
-            if nickname.lower() in filename.lower():
-                break
-        else:
+        filenames = [f for f in os.listdir(Card.CARD_DIR) if nickname.lower() in f.lower()]
+        if not filenames:
             raise cls.UnknownCard(f'Unknown card nickname or ID "{nickname}".')
+        elif len(filenames) == 1:
+            filename = filenames[0]
+        else:
+            raise ValueError(f'Ambiguous card nickname: {nickname}. Try using card ID instead.')
         filepath = card_dir / filename
         return filepath
 
