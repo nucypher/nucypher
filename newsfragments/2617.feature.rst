@@ -1,0 +1,3 @@
+Improve UX for character CLI when there are multiple configuration files:
+  - If there are multiple possible character configuration files prompt the user to choose
+  - If there is only one character configuration file, even if not the default filename, use lone configuration without prompting and print to CLI.
