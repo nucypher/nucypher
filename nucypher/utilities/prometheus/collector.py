@@ -30,8 +30,7 @@ from nucypher.blockchain.eth.actors import NucypherTokenActor
 from nucypher.blockchain.eth.agents import ContractAgency, PolicyManagerAgent, StakingEscrowAgent, WorkLockAgent
 from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
 from nucypher.blockchain.eth.registry import BaseContractRegistry
-from nucypher.datastore.datastore import RecordNotFound
-from nucypher.datastore.models import Workorder, PolicyArrangement
+from nucypher.datastore.queries import find_policy_arrangements, find_work_orders
 
 from prometheus_client.registry import CollectorRegistry
 
@@ -129,11 +128,9 @@ class UrsulaInfoMetricsCollector(BaseMetricsCollector):
             self.metrics["availability_score_gauge"].set(self.ursula._availability_tracker.score)
         else:
             self.metrics["availability_score_gauge"].set(-1)
-        try:
-            with self.ursula.datastore.query_by(Workorder) as work_orders:
-                self.metrics["work_orders_gauge"].set(len(work_orders))
-        except RecordNotFound:
-            self.metrics["work_orders_gauge"].set(0)
+
+        with find_work_orders(self.ursula.datastore) as work_orders:
+            self.metrics["work_orders_gauge"].set(len(work_orders))
 
         if not self.ursula.federated_only:
             staking_agent = ContractAgency.get_agent(StakingEscrowAgent, registry=self.ursula.registry)
@@ -145,11 +142,8 @@ class UrsulaInfoMetricsCollector(BaseMetricsCollector):
                                      'missing_commitments': str(missing_commitments)}
             base_payload.update(decentralized_payload)
 
-            try:
-                with self.ursula.datastore.query_by(PolicyArrangement) as policy_arrangements:
-                    self.metrics["policies_held_gauge"].set(len(policy_arrangements))
-            except RecordNotFound:
-                self.metrics["policies_held_gauge"].set(0)
+            with find_policy_arrangements(self.ursula.datastore) as policy_arrangements:
+                self.metrics["policies_held_gauge"].set(len(policy_arrangements))
 
         self.metrics["host_info"].info(base_payload)
 
