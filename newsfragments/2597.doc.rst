@@ -1,0 +1,1 @@
+Document staking smart contract API and the base staking pool implementation (``PoolingStakingContractV2``).

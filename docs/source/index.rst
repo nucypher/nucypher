@@ -133,6 +133,7 @@ Whitepapers
    architecture/sub_stakes
    architecture/slashing
    architecture/service_fees
+   architecture/staking_contracts
 
 .. toctree::
    :maxdepth: 1
