@@ -374,6 +374,8 @@ Wrote JSON configuration to {filepath}
 
 IGNORE_OLD_CONFIGURATION = "Ignoring configuration file '{config_file}' - version is too old"
 
+DEFAULT_TO_LONE_CONFIG_FILE = "Defaulting to {config_class} configuration file: '{config_file}'"
+
 #
 #  Authentication
 #

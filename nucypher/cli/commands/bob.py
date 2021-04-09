@@ -48,7 +48,8 @@ from nucypher.cli.options import (
     option_registry_filepath,
     option_signer_uri,
     option_teacher_uri,
-    option_lonely, option_max_gas_price
+    option_lonely,
+    option_max_gas_price
 )
 from nucypher.cli.painting.help import paint_new_installation_help
 from nucypher.cli.painting.policies import paint_single_card
@@ -108,6 +109,10 @@ class BobConfigOptions:
                 lonely=self.lonely
             )
         else:
+            if not config_file:
+                config_file = select_config_file(emitter=emitter,
+                                                 checksum_address=self.checksum_address,
+                                                 config_class=BobConfiguration)
             try:
                 return BobConfiguration.from_configuration_file(
                     emitter=emitter,

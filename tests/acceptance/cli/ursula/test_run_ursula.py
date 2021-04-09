@@ -26,6 +26,7 @@ from twisted.internet import threads
 from nucypher import utilities
 from nucypher.blockchain.eth.actors import Worker
 from nucypher.characters.base import Learner
+from nucypher.cli.literature import NO_CONFIGURATIONS_ON_DISK
 from nucypher.cli.main import nucypher_cli
 from nucypher.config.characters import UrsulaConfiguration
 from nucypher.config.constants import NUCYPHER_ENVVAR_KEYRING_PASSWORD, TEMPORARY_DOMAIN
@@ -46,7 +47,9 @@ def test_missing_configuration_file(default_filepath_mock, click_runner):
     cmd_args = ('ursula', 'run', '--network', TEMPORARY_DOMAIN)
     result = click_runner.invoke(nucypher_cli, cmd_args, catch_exceptions=False)
     assert result.exit_code != 0
-    assert "No Ursula configurations found.  run 'nucypher ursula init' then try again." in result.output
+    configuration_type = UrsulaConfiguration.NAME
+    assert NO_CONFIGURATIONS_ON_DISK.format(name=configuration_type.capitalize(),
+                                            command=configuration_type) in result.output
 
 
 def test_ursula_startup_ip_checkup(click_runner, mocker):

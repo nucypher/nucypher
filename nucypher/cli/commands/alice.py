@@ -54,7 +54,8 @@ from nucypher.cli.options import (
     option_registry_filepath,
     option_signer_uri,
     option_teacher_uri,
-    option_lonely, option_max_gas_price
+    option_lonely,
+    option_max_gas_price
 )
 from nucypher.cli.painting.help import paint_new_installation_help
 from nucypher.cli.painting.policies import paint_single_card
@@ -128,6 +129,10 @@ class AliceConfigOptions:
             )
 
         else:
+            if not config_file:
+                config_file = select_config_file(emitter=emitter,
+                                                 checksum_address=self.pay_with,
+                                                 config_class=AliceConfiguration)
             try:
                 return AliceConfiguration.from_configuration_file(
                     emitter=emitter,
@@ -270,7 +275,6 @@ class AliceCharacterOptions:
         except NucypherKeyring.AuthenticationFailed as e:
             emitter.echo(str(e), color='red', bold=True)
             click.get_current_context().exit(1)
-
 
 
 group_character_options = group_options(

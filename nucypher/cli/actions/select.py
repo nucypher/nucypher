@@ -43,7 +43,8 @@ from nucypher.cli.literature import (
     SELECT_STAKE,
     SELECT_STAKING_ACCOUNT_INDEX,
     SELECTED_ACCOUNT,
-    IGNORE_OLD_CONFIGURATION
+    IGNORE_OLD_CONFIGURATION,
+    DEFAULT_TO_LONE_CONFIG_FILE
 )
 from nucypher.cli.painting.policies import paint_cards
 from nucypher.cli.painting.staking import paint_stakes
@@ -285,7 +286,8 @@ def select_config_file(emitter: StdoutEmitter,
     else:
         # Default: Only one config file, use it.
         config_file = parsed_config_files[0]
-        emitter.echo(f"Defaulting to {config_class.NAME} configuration file: {config_file}")
+        emitter.echo(DEFAULT_TO_LONE_CONFIG_FILE.format(config_class=config_class.NAME.capitalize(),
+                                                        config_file=config_file))
 
     return config_file
 

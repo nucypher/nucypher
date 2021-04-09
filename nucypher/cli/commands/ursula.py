@@ -132,6 +132,10 @@ class UrsulaConfigOptions:
                 availability_check=self.availability_check
             )
         else:
+            if not config_file:
+                config_file = select_config_file(emitter=emitter,
+                                                 checksum_address=self.worker_address,
+                                                 config_class=UrsulaConfiguration)
             try:
                 return UrsulaConfiguration.from_configuration_file(
                     emitter=emitter,
@@ -313,10 +317,6 @@ def destroy(general_config, config_options, config_file, force):
     """Delete Ursula node configuration."""
     emitter = setup_emitter(general_config, config_options.worker_address)
     _pre_launch_warnings(emitter, dev=config_options.dev, force=force)
-    if not config_file:
-        config_file = select_config_file(emitter=emitter,
-                                         checksum_address=config_options.worker_address,
-                                         config_class=UrsulaConfiguration)
     ursula_config = config_options.create_config(emitter, config_file)
     destroy_configuration(emitter, character_config=ursula_config, force=force)
 
@@ -362,11 +362,6 @@ def run(general_config, character_options, config_file, interactive, dry_run, pr
 
     _pre_launch_warnings(emitter, dev=dev_mode, force=None)
 
-    if not config_file and not dev_mode:
-        config_file = select_config_file(emitter=emitter,
-                                         checksum_address=worker_address,
-                                         config_class=UrsulaConfiguration)
-
     prometheus_config: 'PrometheusMetricsConfig' = None
     if prometheus and not dev_mode:
         # Locally scoped to prevent import without prometheus explicitly installed
@@ -379,7 +374,6 @@ def run(general_config, character_options, config_file, interactive, dry_run, pr
     ursula_config, URSULA = character_options.create_character(emitter=emitter,
                                                                config_file=config_file,
                                                                json_ipc=general_config.json_ipc)
-
 
     if ip_checkup and not (dev_mode or lonely):
         # Always skip startup IP checks for dev and lonely modes.
