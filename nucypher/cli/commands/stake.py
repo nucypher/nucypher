@@ -1359,12 +1359,16 @@ def mint(general_config: GroupGeneralConfig,
 @option_force
 @group_general_config
 @click.option('--external-staker-address',
-              help="The staking address of a staker to manually migrate", type=EIP55_CHECKSUM_ADDRESS)
+              help="The staking address to manually migrate (defaults to wallet address)", type=EIP55_CHECKSUM_ADDRESS)
 def migrate(general_config: GroupGeneralConfig,
             transacting_staker_options: TransactingStakerOptions,
             config_file,
             force,
             external_staker_address):
+    """
+    Manually migrate a staker to updated period duration. Stakers do not normally need to run
+    this command unless there is a problem with automated migration or commitments..
+    """
 
     # Setup
     emitter = setup_emitter(general_config)
@@ -1391,7 +1395,7 @@ def migrate(general_config: GroupGeneralConfig,
     STAKEHOLDER.assimilate(checksum_address=client_account, password=password)
 
     # Migrate
-    receipt = STAKEHOLDER.staker.migrate(staker_address=staking_address)
+    receipt = STAKEHOLDER.staker.migrate(staker_address=address_to_migrate)
     paint_receipt_summary(receipt=receipt,
                           emitter=emitter,
                           chain_name=blockchain.client.chain_name,
