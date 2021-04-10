@@ -1367,7 +1367,7 @@ def migrate(general_config: GroupGeneralConfig,
             external_staker_address):
     """
     Manually migrate a staker to updated period duration. Stakers do not normally need to run
-    this command unless there is a problem with automated migration or commitments..
+    this command unless there is a problem with automated migration or commitments.
     """
 
     # Setup
