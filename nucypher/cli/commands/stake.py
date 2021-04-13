@@ -15,7 +15,6 @@
  along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
-
 import click
 from decimal import Decimal
 from web3 import Web3
@@ -26,7 +25,7 @@ from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory, Block
 from nucypher.blockchain.eth.signers import TrezorSigner
 from nucypher.blockchain.eth.signers.software import ClefSigner
 from nucypher.blockchain.eth.token import NU, Stake
-from nucypher.blockchain.eth.utils import datetime_at_period
+from nucypher.blockchain.eth.utils import datetime_at_period, estimate_block_number_for_period
 from nucypher.cli.actions.auth import get_client_password
 from nucypher.cli.actions.configure import get_or_update_configuration, handle_missing_configuration_file
 from nucypher.cli.actions.confirm import (
@@ -1399,3 +1398,86 @@ def migrate(general_config: GroupGeneralConfig,
                           emitter=emitter,
                           chain_name=blockchain.client.chain_name,
                           transaction_type='migrate')
+
+    paint_staking_accounts(emitter=emitter,
+                           signer=STAKEHOLDER.signer,
+                           registry=STAKEHOLDER.registry,
+                           domain=STAKEHOLDER.domain)
+
+
+@stake.group()
+def rewards():
+    """Manage staking rewards."""
+
+
+@rewards.command()
+@group_staker_options
+@option_config_file
+@group_general_config
+@click.option('--period', help="Number of periods for which to calculate historical rewards", type=click.INT, default=0)
+def show(general_config, staker_options, config_file, period):
+    """Show staking rewards."""
+    if period < 0:
+        raise click.BadOptionUsage(option_name='--period', message='--period must positive')
+
+    emitter = setup_emitter(general_config)
+    STAKEHOLDER = staker_options.create_character(emitter, config_file)
+    _client_account, staking_address = select_client_account_for_staking(
+        emitter=emitter,
+        stakeholder=STAKEHOLDER,
+        staking_address=staker_options.staking_address)
+    blockchain = staker_options.get_blockchain()
+
+    staking_agent = STAKEHOLDER.staker.staking_agent
+
+    if period:
+        latest_block = blockchain.client.block_number
+        current_period = staking_agent.get_current_period()
+        seconds_per_period = staking_agent.staking_parameters()[0]
+
+        from_period = current_period - 90
+        from_block = estimate_block_number_for_period(period=from_period,
+                                                      seconds_per_period=seconds_per_period,
+                                                      latest_block=latest_block)
+        to_block = 'latest'
+
+        event_name = 'Minted'
+        argument_filters = {'staker': staking_address}
+        event_type = staking_agent.contract.events[event_name]
+        entries = event_type.getLogs(fromBlock=from_block, toBlock=to_block, argument_filters=argument_filters)
+
+        reward_amount = 0
+        for event_record in entries:
+            print(event_record)
+            reward_amount += event_record['value']
+    else:
+        reward_amount = STAKEHOLDER.staker.calculate_staking_reward()
+
+    emitter.echo(f"Reward amount: {reward_amount}")
+
+
+@rewards.group()
+@group_staker_options
+@option_config_file
+@group_general_config
+@click.option('--tokens', help="Deposit NU tokens", type=click.STRING)
+@click.option('--amount', help="Amount to deposit", type=click.FLOAT)
+def deposit(general_config, staker_options, config_file, tokens, amount):
+    """Deposit rewards."""
+    if amount and amount < 0:
+        raise click.BadOptionUsage(option_name='--amount', message='--amount must positive')
+
+
+@rewards.group()
+@group_staker_options
+@option_config_file
+@group_general_config
+@click.option('--tokens', help="Withdraw NU tokens", type=click.STRING)
+@click.option('--fees', help="Withdraw staking fees", type=click.STRING)
+@click.option('--amount', help="Amount to deposit", type=click.FLOAT)
+def withdraw(general_config, staker_options, config_file, tokens, fees, amount):
+    """Withdraw rewards."""
+    if amount and amount < 0:
+        raise click.BadOptionUsage(option_name='--amount', message='--amount must positive')
+    if tokens and fees:
+        raise click.BadOptionUsage(option_name='--tokens', message='Pass either --tokens or --fees, not both')
