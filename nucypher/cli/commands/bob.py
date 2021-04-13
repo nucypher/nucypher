@@ -375,7 +375,7 @@ def retrieve(general_config,
 
     if not alice_verifying_key:
         if alice:  # from storage
-            card = Card.lBadOptionUsageoad(identifier=alice)
+            card = Card.load(identifier=alice)
             if card.character is not Alice:
                 emitter.error('Grantee card is not an Alice.')
                 raise click.Abort
