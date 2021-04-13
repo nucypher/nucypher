@@ -112,6 +112,7 @@ class Alice(Character, BlockchainPolicyAuthor):
                  # Mode
                  is_me: bool = True,
                  federated_only: bool = False,
+                 provider_uri: str = None,
                  signer=None,
 
                  # Ownership
@@ -156,11 +157,15 @@ class Alice(Character, BlockchainPolicyAuthor):
                            known_node_class=Ursula,
                            is_me=is_me,
                            federated_only=federated_only,
+                           provider_uri=provider_uri,
                            checksum_address=checksum_address,
                            network_middleware=network_middleware,
                            *args, **kwargs)
 
         if is_me and not federated_only:  # TODO: #289
+            if not provider_uri:
+                raise ValueError('Provider URI is required to init a decentralized character.')
+
             blockchain = BlockchainInterfaceFactory.get_interface(provider_uri=self.provider_uri)
             signer = signer or Web3Signer(blockchain.client)  # fallback to web3 provider by default for Alice.
             self.transacting_power = TransactingPower(account=self.checksum_address, signer=signer)
@@ -171,7 +176,6 @@ class Alice(Character, BlockchainPolicyAuthor):
                                             registry=self.registry,
                                             rate=rate,
                                             duration_periods=duration_periods)
-
 
         self.log = Logger(self.__class__.__name__)
         if is_me:
@@ -502,7 +506,6 @@ class Bob(Character):
                            is_me=is_me,
                            known_node_class=Ursula,
                            verify_node_bonding=verify_node_bonding,
-                           is_offchain=provider_uri is None,
                            provider_uri=provider_uri,
                            *args, **kwargs)
 
@@ -1080,6 +1083,7 @@ class Ursula(Teacher, Character, Worker):
                  worker_address: ChecksumAddress = None,  # TODO: deprecate, and rename to "checksum_address"
                  client_password: str = None,
                  decentralized_identity_evidence=NOT_SIGNED,
+                 provider_uri: str = None,
 
                  # Character
                  abort_on_learning_error: bool = False,
@@ -1100,6 +1104,7 @@ class Ursula(Teacher, Character, Worker):
                            domain=domain,
                            known_node_class=Ursula,
                            include_self_in_the_state=True,
+                           provider_uri=provider_uri,
                            **character_kwargs)
 
         if is_me:
@@ -1117,6 +1122,9 @@ class Ursula(Teacher, Character, Worker):
 
             # Decentralized Worker
             if not federated_only:
+
+                if not provider_uri:
+                    raise ValueError('Provider URI is required to init a decentralized character.')
 
                 # TODO: Move to method
                 # Prepare a TransactingPower from worker node's transacting keys
