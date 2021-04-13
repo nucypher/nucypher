@@ -179,8 +179,6 @@ class Character(Learner):
 
             # Blockchainy
             if not self.federated_only:
-                if not provider_uri:
-                    raise ValueError('Provider URI is required to init a decentralized character.')
                 self.provider_uri = provider_uri
 
                 # TODO: Implicit / lazy blockchain connection here?
