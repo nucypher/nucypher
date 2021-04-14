@@ -47,8 +47,13 @@ def test_policy_simple_sinpa(blockchain_ursulas, blockchain_alice, blockchain_bo
     for ursula in blockchain_ursulas:
         # Reset the Ursula for the next test.
         ursula.suspicious_activities_witnessed['freeriders'] = []
-        with find_policy_arrangements(ursula.datastore, writeable=True) as arrangements:
-            [arrangement.delete() for arrangement in arrangements]
+        try:
+            with find_policy_arrangements(ursula.datastore) as arrangements:
+                for arrangement in arrangements:
+                    arrangement.delete()
+        except RecordNotFound:
+            # No records were found; this Ursula didn't have the arrangement.
+            continue
 
 
 def test_try_to_post_free_arrangement_by_hacking_enact(blockchain_ursulas, blockchain_alice, blockchain_bob, agency,
@@ -72,19 +77,24 @@ def test_try_to_post_free_arrangement_by_hacking_enact(blockchain_ursulas, block
 
     for ursula in blockchain_ursulas:
         # Even though the grant executed without error...
-        with find_policy_arrangements(ursula.datastore, writeable=True) as all_arrangements:
-            arrangement = all_arrangements[0] # ...and Ursula did save the Arrangement after considering it...
-            with pytest.raises(AttributeError):
-                should_error = arrangement.kfrag # ...Ursula did *not* save a KFrag and will not service this Policy.
+        try:
+            with find_policy_arrangements(ursula.datastore) as all_arrangements:
+                arrangement = all_arrangements[0] # ...and Ursula did save the Arrangement after considering it...
+                with pytest.raises(AttributeError):
+                    should_error = arrangement.kfrag # ...Ursula did *not* save a KFrag and will not service this Policy.
 
-            # Additionally, Ursula logged Amonia as a freerider:
-            freeriders = ursula.suspicious_activities_witnessed['freeriders']
-            assert len(freeriders) == 1
-            assert freeriders[0][0] == amonia
+                # Additionally, Ursula logged Amonia as a freerider:
+                freeriders = ursula.suspicious_activities_witnessed['freeriders']
+                assert len(freeriders) == 1
+                assert freeriders[0][0] == amonia
 
-            # Reset the Ursula for the next test.
-            ursula.suspicious_activities_witnessed['freeriders'] = []
-            [arrangement.delete() for arrangement in all_arrangements]
+                # Reset the Ursula for the next test.
+                ursula.suspicious_activities_witnessed['freeriders'] = []
+                for arrangement in all_arrangements:
+                    arrangement.delete()
+        except RecordNotFound:
+            # No records were found; this Ursula didn't have the arrangement.
+            continue
 
 
 def test_pay_a_flunky_instead_of_the_arranged_ursula(blockchain_alice, blockchain_bob, blockchain_ursulas,
@@ -112,19 +122,24 @@ def test_pay_a_flunky_instead_of_the_arranged_ursula(blockchain_alice, blockchai
     # Same exact set of assertions as the last test:
     for ursula in blockchain_ursulas:
         # Even though the grant executed without error...
-        with find_policy_arrangements(ursula.datastore, writeable=True) as all_arrangements:
-            arrangement = all_arrangements[0] # ...and Ursula did save the Arrangement after considering it...
-            with pytest.raises(AttributeError):
-                should_error = arrangement.kfrag # ...Ursula did *not* save a KFrag and will not service this Policy.
+        try:
+            with find_policy_arrangements(ursula.datastore) as all_arrangements:
+                arrangement = all_arrangements[0] # ...and Ursula did save the Arrangement after considering it...
+                with pytest.raises(AttributeError):
+                    should_error = arrangement.kfrag # ...Ursula did *not* save a KFrag and will not service this Policy.
 
-            # Additionally, Ursula logged Amonia as a freerider:
-            freeriders = ursula.suspicious_activities_witnessed['freeriders']
-            assert len(freeriders) == 1
-            assert freeriders[0][0] == amonia
+                # Additionally, Ursula logged Amonia as a freerider:
+                freeriders = ursula.suspicious_activities_witnessed['freeriders']
+                assert len(freeriders) == 1
+                assert freeriders[0][0] == amonia
 
-            # Reset the Ursula for the next test.
-            ursula.suspicious_activities_witnessed['freeriders'] = []
-            [arrangement.delete() for arrangement in all_arrangements]
+                # Reset the Ursula for the next test.
+                ursula.suspicious_activities_witnessed['freeriders'] = []
+                for arrangement in all_arrangements:
+                    arrangement.delete()
+        except RecordNotFound:
+            # No records were found; this Ursula didn't have the arrangement.
+            continue
 
 
 def test_put_additional_treasure_map_on_network(blockchain_ursulas, blockchain_alice, blockchain_bob, agency, testerchain):

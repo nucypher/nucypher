@@ -90,7 +90,7 @@ from nucypher.crypto.powers import (
     TransactingPower
 )
 from nucypher.crypto.signing import InvalidSignature
-from nucypher.datastore.datastore import DatastoreTransactionError
+from nucypher.datastore.datastore import DatastoreTransactionError, RecordNotFound
 from nucypher.datastore.queries import find_expired_policies, find_expired_treasure_maps
 from nucypher.network.exceptions import NodeSeemsToBeDown
 from nucypher.network.middleware import RestMiddleware
@@ -1225,12 +1225,12 @@ class Ursula(Teacher, Character, Worker):
                 for policy in expired_policies:
                     policy.delete()
                 result = len(expired_policies)
+        except RecordNotFound:
+            self.log.debug("No expired treasure maps found.")
         except DatastoreTransactionError:
             self.log.warn(f"Failed to prune policy arrangements; DB session rolled back.")
         else:
-            if result == 0:
-                self.log.debug("No expired policy arrangements found.")
-            elif result > 0:
+            if result > 0:
                 self.log.debug(f"Pruned {result} policy arrangements.")
 
         try:
@@ -1238,12 +1238,12 @@ class Ursula(Teacher, Character, Worker):
                 for treasure_map in expired_treasure_maps:
                     treasure_map.delete()
                 result = len(expired_treasure_maps)
+        except RecordNotFound:
+            self.log.debug("No expired treasure maps found.")
         except DatastoreTransactionError:
             self.log.warn(f"Failed to prune expired treasure maps; DB session rolled back.")
         else:
-            if result == 0:
-                self.log.debug("No expired treasure maps found.")
-            elif result > 0:
+            if result > 0:
                 self.log.debug(f"Pruned {result} treasure maps.")
 
     def __preflight(self) -> None:

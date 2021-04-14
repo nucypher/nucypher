@@ -17,7 +17,7 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 import maya
 
 from nucypher.config.constants import SEEDNODES
-from nucypher.datastore.queries import find_work_orders
+from nucypher.datastore.queries import fetch_work_orders
 
 
 def build_fleet_state_status(ursula) -> str:
@@ -41,8 +41,8 @@ def paint_node_status(emitter, ursula, start_time):
     # Build FleetState status line
     fleet_state = build_fleet_state_status(ursula=ursula)
 
-    with find_work_orders(ursula.datastore) as work_orders:
-        num_work_orders = len(work_orders)
+    work_orders = fetch_work_orders(ursula.datastore)
+    num_work_orders = len(work_orders)
 
     stats = ['⇀URSULA {}↽'.format(ursula.nickname.icon),
              '{}'.format(ursula),
