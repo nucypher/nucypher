@@ -627,7 +627,7 @@ class BlockchainInterface:
                          transacting_power: TransactingPower,
                          payload: dict = None,
                          transaction_gas_limit: Optional[int] = None,
-                         gas_estimation_multiplier: Optional[float] = 1.25,  # TODO: Workaround for #2635, #2337
+                         gas_estimation_multiplier: Optional[float] = 1.15,  # TODO: Workaround for #2635, #2337
                          confirmations: int = 0,
                          fire_and_forget: bool = False,  # do not wait for receipt.  See #2385
                          replace: bool = False,
