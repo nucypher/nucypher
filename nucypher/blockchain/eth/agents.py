@@ -539,6 +539,8 @@ class StakingEscrowAgent(EthereumContractAgent):
         """
         contract_function: ContractFunction = self.contract.functions.mint()
         receipt: TxReceipt = self.blockchain.send_transaction(contract_function=contract_function,
+                                                              gas_estimation_multiplier=1.25,
+                                                              # TODO: Workaround for #2337
                                                               transacting_power=transacting_power)
         return receipt
 
