@@ -1226,7 +1226,7 @@ class Ursula(Teacher, Character, Worker):
                     policy.delete()
                 result = len(expired_policies)
         except RecordNotFound:
-            self.log.debug("No expired treasure maps found.")
+            self.log.debug("No expired policy arrangements found.")
         except DatastoreTransactionError:
             self.log.warn(f"Failed to prune policy arrangements; DB session rolled back.")
         else:
