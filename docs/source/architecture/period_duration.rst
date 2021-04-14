@@ -39,7 +39,7 @@ competitive break-even policy fee price points for network usage which is likely
 
 A `proposal to increase the protocol period duration <https://dao.nucypher.com/t/1-improve-staker-p-l-by-increasing-period-duration/110>`_,
 outlining the pros and cons, was put forth to the :doc:`NuCypher DAO </architecture/dao>`, and a 7-day period duration
-received the majority of votes. On ``[some date]`` the NuCypher DAO approved the period migration, and subsequently,
+received the majority of votes. On Wednesday, April 14th, 2021, the NuCypher DAO approved the period migration, and subsequently,
 the period duration for the NuCypher protocol.
 
 Modifying the period duration to 7 days involved changes to the ``StakingEscrow`` and ``PolicyManager`` smart
