@@ -92,7 +92,9 @@ from nucypher.cli.literature import (
     CONFIRM_STAKE_USE_UNLOCKED,
     CONFIRM_REMOVE_ALL_INACTIVE_SUBSTAKES,
     NO_INACTIVE_STAKES,
-    FETCHING_INACTIVE_STAKES
+    FETCHING_INACTIVE_STAKES,
+    MIGRATION_ALREADY_PERFORMED,
+    CONFIRM_MANUAL_MIGRATION
 )
 from nucypher.cli.options import (
     group_options,
@@ -1349,3 +1351,52 @@ def mint(general_config: GroupGeneralConfig,
                           emitter=emitter,
                           chain_name=blockchain.client.chain_name,
                           transaction_type='mint')
+
+
+@stake.command()
+@group_transacting_staker_options
+@option_config_file
+@option_force
+@group_general_config
+@click.option('--external-staker-address',
+              help="The staking address to manually migrate (defaults to wallet address)", type=EIP55_CHECKSUM_ADDRESS)
+def migrate(general_config: GroupGeneralConfig,
+            transacting_staker_options: TransactingStakerOptions,
+            config_file,
+            force,
+            external_staker_address):
+    """
+    Manually migrate a staker to updated period duration. Stakers do not normally need to run
+    this command unless there is a problem with automated migration or commitments.
+    """
+
+    # Setup
+    emitter = setup_emitter(general_config)
+    STAKEHOLDER = transacting_staker_options.create_character(emitter, config_file)
+    blockchain = transacting_staker_options.get_blockchain()
+    client_account, staking_address = select_client_account_for_staking(
+        emitter=emitter,
+        stakeholder=STAKEHOLDER,
+        staking_address=transacting_staker_options.staker_options.staking_address)
+
+    # Interact
+    address_to_migrate = external_staker_address or staking_address
+    if STAKEHOLDER.staker.is_migrated:
+        emitter.echo(MIGRATION_ALREADY_PERFORMED.format(address=address_to_migrate), color='red')
+        raise click.Abort
+    if not force:
+        click.confirm(CONFIRM_MANUAL_MIGRATION.format(address=address_to_migrate), abort=True)
+
+    # Authenticate
+    password = get_password(stakeholder=STAKEHOLDER,
+                            blockchain=blockchain,
+                            client_account=client_account,
+                            hw_wallet=transacting_staker_options.hw_wallet)
+    STAKEHOLDER.assimilate(checksum_address=client_account, password=password)
+
+    # Migrate
+    receipt = STAKEHOLDER.staker.migrate(staker_address=address_to_migrate)
+    paint_receipt_summary(receipt=receipt,
+                          emitter=emitter,
+                          chain_name=blockchain.client.chain_name,
+                          transaction_type='migrate')
