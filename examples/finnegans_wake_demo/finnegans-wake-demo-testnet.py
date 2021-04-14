@@ -90,7 +90,7 @@ password = os.environ.get('DEMO_ALICE_PASSWORD') or getpass(f"Enter password to 
 wallet.unlock_account(account=ALICE_ADDRESS, password=password)
 
 # This is Alice.
-alice = Alice(checksum_address=ALICE_ADDRESS, signer=wallet, domain=TESTNET)
+alice = Alice(checksum_address=ALICE_ADDRESS, signer=wallet, domain=TESTNET, provider_uri=PROVIDER_URI)
 
 # Alice puts her public key somewhere for Bob to find later...
 alice_verifying_key = bytes(alice.stamp)

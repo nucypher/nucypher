@@ -134,7 +134,7 @@ Whitepapers
    architecture/slashing
    architecture/service_fees
    architecture/period_duration
-
+   architecture/staking_contracts
 .. TODO perhaps categorize architecture section
 
 .. toctree::

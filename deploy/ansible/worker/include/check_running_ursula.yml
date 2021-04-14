@@ -56,7 +56,11 @@
           {% if serving and 'json' in status_data %}nickname: {{status_data.json.nickname.text}}\n
           staker address:          {{status_data.json.staker_address}}\n
           worker address:          {{status_data.json.worker_address}}\n
-          rest url:                https://{{status_data.json.rest_url}}\n{% endif %}
+          rest url:                https://{{status_data.json.rest_url}}\n
+          \tversion:               {{status_data.json.version}}\n
+          \tmissing commitments:   {{status_data.json.missing_commitments}}\n
+          \tlast committed period: {{status_data.json.last_committed_period}}\n
+          \tETH:                   {{status_data.json.balance_eth}}\n{% endif %}
           \tprovider:              {{blockchain_provider}}\n
           \tursula docker image:   {{running_docker_image.stdout}}\n
           \tursula command:        {{running_docker_command.stdout}}\n

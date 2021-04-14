@@ -112,6 +112,7 @@ class Alice(Character, BlockchainPolicyAuthor):
                  # Mode
                  is_me: bool = True,
                  federated_only: bool = False,
+                 provider_uri: str = None,
                  signer=None,
 
                  # Ownership
@@ -156,11 +157,15 @@ class Alice(Character, BlockchainPolicyAuthor):
                            known_node_class=Ursula,
                            is_me=is_me,
                            federated_only=federated_only,
+                           provider_uri=provider_uri,
                            checksum_address=checksum_address,
                            network_middleware=network_middleware,
                            *args, **kwargs)
 
         if is_me and not federated_only:  # TODO: #289
+            if not provider_uri:
+                raise ValueError('Provider URI is required to init a decentralized character.')
+
             blockchain = BlockchainInterfaceFactory.get_interface(provider_uri=self.provider_uri)
             signer = signer or Web3Signer(blockchain.client)  # fallback to web3 provider by default for Alice.
             self.transacting_power = TransactingPower(account=self.checksum_address, signer=signer)
@@ -171,7 +176,6 @@ class Alice(Character, BlockchainPolicyAuthor):
                                             registry=self.registry,
                                             rate=rate,
                                             duration_periods=duration_periods)
-
 
         self.log = Logger(self.__class__.__name__)
         if is_me:
@@ -253,9 +257,8 @@ class Alice(Character, BlockchainPolicyAuthor):
 
         else:
             # Sample from blockchain PolicyManager
-            from nucypher.policy.policies import BlockchainPolicy
             payload.update(**policy_params)
-            policy = BlockchainPolicy(alice=self, **payload)
+            policy = super().create_policy(**payload)
 
         return policy
 
@@ -495,12 +498,14 @@ class Bob(Character):
                  treasure_maps: Optional[Dict] = None,
                  controller: bool = True,
                  verify_node_bonding: bool = False,
+                 provider_uri: str = None,
                  *args, **kwargs) -> None:
 
         Character.__init__(self,
                            is_me=is_me,
                            known_node_class=Ursula,
                            verify_node_bonding=verify_node_bonding,
+                           provider_uri=provider_uri,
                            *args, **kwargs)
 
         if controller:
@@ -1077,6 +1082,7 @@ class Ursula(Teacher, Character, Worker):
                  worker_address: ChecksumAddress = None,  # TODO: deprecate, and rename to "checksum_address"
                  client_password: str = None,
                  decentralized_identity_evidence=NOT_SIGNED,
+                 provider_uri: str = None,
 
                  # Character
                  abort_on_learning_error: bool = False,
@@ -1097,6 +1103,7 @@ class Ursula(Teacher, Character, Worker):
                            domain=domain,
                            known_node_class=Ursula,
                            include_self_in_the_state=True,
+                           provider_uri=provider_uri,
                            **character_kwargs)
 
         if is_me:
@@ -1114,6 +1121,9 @@ class Ursula(Teacher, Character, Worker):
 
             # Decentralized Worker
             if not federated_only:
+
+                if not provider_uri:
+                    raise ValueError('Provider URI is required to init a decentralized character.')
 
                 # TODO: Move to method
                 # Prepare a TransactingPower from worker node's transacting keys
@@ -1748,6 +1758,17 @@ class Ursula(Teacher, Character, Worker):
         else:
             known_nodes_info = None
 
+        if not self.federated_only:
+            balance_eth = float(self.eth_balance)
+            balance_nu = float(self.token_balance.to_tokens())
+            missing_commitments = self.missing_commitments
+            last_committed_period = self.last_committed_period
+        else:
+            balance_eth = None
+            balance_nu = None
+            missing_commitments = None
+            last_committed_period = None
+
         return LocalUrsulaStatus(nickname=self.nickname,
                                  staker_address=self.checksum_address,
                                  worker_address=self.worker_address,
@@ -1758,6 +1779,10 @@ class Ursula(Teacher, Character, Worker):
                                  fleet_state=fleet_state,
                                  previous_fleet_states=previous_fleet_states,
                                  known_nodes=known_nodes_info,
+                                 balance_eth=balance_eth,
+                                 balance_nu=balance_nu,
+                                 missing_commitments=missing_commitments,
+                                 last_committed_period=last_committed_period,
                                  )
 
 
@@ -1772,6 +1797,10 @@ class LocalUrsulaStatus(NamedTuple):
     fleet_state: ArchivedFleetState
     previous_fleet_states: List[ArchivedFleetState]
     known_nodes: Optional[List[RemoteUrsulaStatus]]
+    balance_eth: float
+    balance_nu: float
+    missing_commitments: int
+    last_committed_period: int
 
     def to_json(self) -> Dict[str, Any]:
         if self.known_nodes is None:
@@ -1787,7 +1816,12 @@ class LocalUrsulaStatus(NamedTuple):
                     version=self.version,
                     fleet_state=self.fleet_state.to_json(),
                     previous_fleet_states=[state.to_json() for state in self.previous_fleet_states],
-                    known_nodes=known_nodes_json)
+                    known_nodes=known_nodes_json,
+                    balance_eth=self.balance_eth,
+                    balance_nu=self.balance_nu,
+                    missing_commitments=self.missing_commitments,
+                    last_committed_period=self.last_committed_period,
+                    )
 
 
 class Enrico(Character):

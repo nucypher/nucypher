@@ -1,0 +1,20 @@
+all:
+  children:
+    nucypher:
+      children:
+        mainnet:
+          children:
+            nodes:
+              vars:
+                network_name: "mainnet"
+                geth_options: "--mainnet"
+                geth_dir: '/home/nucypher/geth/.ethereum/mainnet/'
+                geth_container_geth_datadir: "/root/.ethereum/mainnet"
+                nucypher_container_geth_datadir: "/root/.local/share/geth/.ethereum/mainnet"
+                etherscan_domain: mainnet.etherscan.io
+                ansible_python_interpreter: /usr/bin/python3
+                ansible_connection: ssh
+                ansible_ssh_private_key_file: <PEM FILE HERE>
+              hosts:
+                <IP ADDRESS HERE>:
+                  default_user: ubuntu

@@ -65,7 +65,7 @@ class Card:
     __BASE_PAYLOAD_SIZE = sum(length[1] for length in _bob_specification.values() if isinstance(length[1], int))
     __MAX_CARD_LENGTH = __BASE_PAYLOAD_SIZE + __MAX_NICKNAME_SIZE + 2
     __FILE_EXTENSION = 'card'
-    __DELIMITER = ':'  # delimits nickname from ID
+    __DELIMITER = '.'  # delimits nickname from ID
 
     TRUNCATE = 16
     CARD_DIR = Path(DEFAULT_CONFIG_ROOT) / 'cards'
@@ -310,11 +310,13 @@ class Card:
             nickname, _id = identifier.split(cls.__DELIMITER)
         except ValueError:
             nickname = identifier
-        for filename in os.listdir(Card.CARD_DIR):
-            if nickname.lower() in filename.lower():
-                break
-        else:
+        filenames = [f for f in os.listdir(Card.CARD_DIR) if nickname.lower() in f.lower()]
+        if not filenames:
             raise cls.UnknownCard(f'Unknown card nickname or ID "{nickname}".')
+        elif len(filenames) == 1:
+            filename = filenames[0]
+        else:
+            raise ValueError(f'Ambiguous card nickname: {nickname}. Try using card ID instead.')
         filepath = card_dir / filename
         return filepath
 

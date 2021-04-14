@@ -488,13 +488,14 @@ class BlockchainInterface:
                                    use_pending_nonce: Optional[bool] = None,
                                    ) -> dict:
 
+        if transaction_gas_limit is not None:
+            self.log.warn("The transaction gas limit of {transaction_gas_limit} will override gas estimation attempts")
+
         # Sanity checks for the gas estimation multiplier
         if gas_estimation_multiplier is not None:
-            if not 1 <= gas_estimation_multiplier <= 3:  # TODO: Arbitrary upper bound.
+            if not 1 <= gas_estimation_multiplier <= 3:  # Arbitrary upper bound.
                 raise ValueError(f"The gas estimation multiplier should be a float between 1 and 3, "
                                  f"but we received {gas_estimation_multiplier}.")
-            elif transaction_gas_limit is not None:
-                raise ValueError("'transaction_gas_limit' and 'gas_estimation_multiplier' can't be used together.")
 
         payload = self.build_payload(sender_address=sender_address,
                                      payload=payload,
@@ -502,7 +503,7 @@ class BlockchainInterface:
                                      use_pending_nonce=use_pending_nonce)
         self.__log_transaction(transaction_dict=payload, contract_function=contract_function)
         try:
-            if 'gas' not in payload:
+            if 'gas' not in payload:  # i.e., transaction_gas_limit is not None
                 # As web3 buildTransaction() will estimate gas with block identifier "pending" by default,
                 # explicitly estimate gas here with block identifier 'latest' if not otherwise specified
                 # as a pending transaction can cause gas estimation to fail, notably in case of worklock refunds.
@@ -516,8 +517,8 @@ class BlockchainInterface:
                                                   contract_function=contract_function,
                                                   logger=self.log)
 
-        # Overestimate the transaction gas limit according to the gas estimation multiplier, if any
-        if gas_estimation_multiplier:
+        # Increase the estimated gas limit according to the gas estimation multiplier, if any.
+        if gas_estimation_multiplier and not transaction_gas_limit:
             gas_estimation = transaction_dict['gas']
             overestimation = int(math.ceil(gas_estimation * gas_estimation_multiplier))
             self.log.debug(f"Gas limit for this TX was increased from {gas_estimation} to {overestimation}, "
@@ -627,7 +628,7 @@ class BlockchainInterface:
                          transacting_power: TransactingPower,
                          payload: dict = None,
                          transaction_gas_limit: Optional[int] = None,
-                         gas_estimation_multiplier: Optional[float] = None,
+                         gas_estimation_multiplier: Optional[float] = 1.15,  # TODO: Workaround for #2635, #2337
                          confirmations: int = 0,
                          fire_and_forget: bool = False,  # do not wait for receipt.  See #2385
                          replace: bool = False,

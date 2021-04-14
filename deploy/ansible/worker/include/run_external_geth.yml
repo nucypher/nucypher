@@ -1,0 +1,21 @@
+- name: "Run shared externally available geth node"
+  hosts: "{{ play_hosts }}"
+  remote_user: "{{default_user}}"
+  gather_facts: no
+  tasks:
+
+    - name: "run geth {{geth_options}} forever in the background"
+      become: yes
+      docker_container:
+        name: geth
+        state: started
+        restart: yes
+        image: ethereum/client-go:stable
+        restart_policy: "unless-stopped"
+        command: "{{geth_options}} --http --http.addr 0.0.0.0 --http.api eth,web3,net --nousb --syncmode fast --rpcvhosts=* --cache 2000"
+        volumes:
+          - /home/nucypher/geth:/root
+        ports:
+          - "8545:8545/tcp"
+          - "30303:30303"
+          - "8546:8546/tcp"

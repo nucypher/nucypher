@@ -32,6 +32,7 @@ from nucypher.config.constants import (
     NUCYPHER_ENVVAR_BOB_ETH_PASSWORD
 )
 from nucypher.config.keyring import NucypherKeyring
+from nucypher.utilities.networking import LOOPBACK_ADDRESS
 
 
 class UrsulaConfiguration(CharacterConfiguration):
@@ -41,7 +42,7 @@ class UrsulaConfiguration(CharacterConfiguration):
     NAME = CHARACTER_CLASS.__name__.lower()
 
     DEFAULT_REST_PORT = 9151
-    DEFAULT_DEVELOPMENT_REST_HOST = '127.0.0.1'
+    DEFAULT_DEVELOPMENT_REST_HOST = LOOPBACK_ADDRESS
     DEFAULT_DEVELOPMENT_REST_PORT = 10151
     DEFAULT_DB_NAME = f'{NAME}.db'
     DEFAULT_AVAILABILITY_CHECKS = False
@@ -255,7 +256,7 @@ class FelixConfiguration(CharacterConfiguration):
     DEFAULT_DB_FILEPATH = os.path.join(DEFAULT_CONFIG_ROOT, DEFAULT_DB_NAME)
     DEFAULT_REST_PORT = 6151
     DEFAULT_LEARNER_PORT = 9151
-    DEFAULT_REST_HOST = '127.0.0.1'
+    DEFAULT_REST_HOST = LOOPBACK_ADDRESS
     __DEFAULT_TLS_CURVE = ec.SECP384R1
 
 
