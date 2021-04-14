@@ -34,8 +34,8 @@ Staking Procedure
 .. caution::
 
     Once NU is locked in the staking escrow contract, a worker node must be run to unlock it.  Worker's make
-    periodic automated commitments which spend ~200k gas each transaction. Be sure to consider this operational
-    cost when locking NU.
+    periodic automated commitments (every 7 days) which cost at least ~200k gas, depending on how many sub-stakes
+    you have. Be sure to consider this operational cost when locking NU.
 
 .. note::
 
@@ -149,51 +149,45 @@ the commitment period.
     Before proceeding it is important to know that the worker must spend ETH to unlock staked NU.
     Once tokens are locked, the only way for them to become unlocked is by running a bonded Worker node.
 
-    Currently, Worker nodes must perform one automated transaction every 24 hours costing ~200k gas.
+    Currently, Worker nodes must perform one automated transaction every 7 days costing ~200k gas.
 
 
 .. code:: bash
 
 
     (nucypher)$ nucypher stake create
-
-        Account
-    --  ------------------------------------------
-     0  0x63e478bc474eBb6c31568ff131cCd95C24bfD552
-     1  0x270b3f8af5ba2B79ea3Bd6a6Efc7ecAB056d3E3f
-     2  0x45D33d1Ff0A7E696556f36DE697E5C92C2CCcFaE
-    Select index of staking account [0]: 1
-    Selected 1: 0x270b3f8af5ba2B79ea3Bd6a6Efc7ecAB056d3E3f
-    Enter stake value in NU (15000 NU - 30000 NU) [30000]: 30000
-    Enter stake duration (30 - 47103) [365]: 30
+    Enter ethereum account password (0xB548378f13e9A2C7bEf66B890B46F2eD6Ed87fCf):
+    Enter stake value in NU (15000 NU - 45000 NU) [45000]: 45000
+    Enter stake duration (4 - 62863) [52]: 4
 
     ══════════════════════════════ STAGED STAKE ══════════════════════════════
 
-    Staking address: 0x270b3f8af5ba2B79ea3Bd6a6Efc7ecAB056d3E3f
+    Staking address: 0xB548378f13e9A2C7bEf66B890B46F2eD6Ed87fCf
     ~ Chain      -> ID # <CHAIN_ID>
-    ~ Value      -> 30000 NU (30000000000000000000000 NuNits)
-    ~ Duration   -> 30 Days (30 Periods)
-    ~ Enactment  -> Jun 19 20:00 EDT (period #18433)
-    ~ Expiration -> Jul 19 20:00 EDT (period #18463)
+    ~ Value      -> 45000 NU (45000000000000000000000 NuNits)
+    ~ Duration   -> 28 Days (4 Periods)
+    ~ Enactment  -> Mar 24 2021 17:00 PDT (period #2673)
+    ~ Expiration -> Apr 21 2021 17:00 PDT (period #2677)
 
     ═════════════════════════════════════════════════════════════════════════
 
     * Ursula Node Operator Notice *
     -------------------------------
 
-    By agreeing to stake 30000 NU (30000000000000000000000 NuNits):
+    By agreeing to stake 45000 NU (45000000000000000000000 NuNits):
 
     - Staked tokens will be locked for the stake duration.
 
     - You are obligated to maintain a networked and available Ursula-Worker node
-      bonded to the staker address 0x270b3f8af5ba2B79ea3Bd6a6Efc7ecAB056d3E3f for the duration
-      of the stake(s) (30 periods).
+      bonded to the staker address 0xB548378f13e9A2C7bEf66B890B46F2eD6Ed87fCf for the duration
+      of the stake(s) (4 periods).
 
     - Agree to allow NuCypher network users to carry out uninterrupted re-encryption
       work orders at-will without interference.
 
-    Failure to keep your node online, or violation of re-encryption work orders
-    will result in the loss of staked tokens as described in the NuCypher slashing protocol.
+    Failure to keep your node online or fulfill re-encryption work orders will result
+    in loss of staked NU as described in the NuCypher slashing protocol:
+    https://docs.nucypher.com/en/latest/architecture/slashing.html.
 
     Keeping your Ursula node online during the staking period and successfully
     producing correct re-encryption work orders will result in rewards
@@ -201,6 +195,19 @@ the commitment period.
 
     Accept ursula node operator obligation? [y/N]: y
     Publish staged stake to the blockchain? [y/N]: y
+    Broadcasting APPROVEANDCALL Transaction (0.0821491982 ETH @ 261.575 gwei)
+    TXHASH 0xf4fc7d6b674c83e4fd99fef64e194b7455fc4438a639e2973b09f09f3493ad10
+    Waiting 600 seconds for receipt
+
+    Stake initialization transaction was successful.
+    ...
+
+    StakingEscrow address: 0x40Ca356d8180Ddc21C82263F9EbCeaAc6Cad7250
+
+    View your stakes by running 'nucypher stake list'
+    or set your Ursula worker node address by running 'nucypher stake bond-worker'.
+
+    See https://docs.nucypher.com/en/latest/staking/running_a_worker.html
 
 
 You will need to confirm two transactions here.
@@ -216,20 +223,22 @@ Once you have created one or more stakes, you can view all active stakes for con
     (nucypher)$ nucypher stake list
 
     Network <NETWORK_NAME> ═══════════════════════════════
-    Staker 0x270b3f8af5ba2B79ea3Bd6a6Efc7ecAB056d3E3f ════
-    Worker NO_WORKER_BONDED ════
+    Staker 0xB548378f13e9A2C7bEf66B890B46F2eD6Ed87fCf ════
+    Worker not bonded ════
     --------------  -----------------------------------
     Status          Never Made a Commitment (New Stake)
-    Restaking       Yes (Unlocked)
+    Restaking       Yes
     Winding Down    No
+    Snapshots       Yes
     Unclaimed Fees  0 ETH
-    Min fee rate    0 ETH
+    Min fee rate    50 gwei
     --------------  -----------------------------------
-    ╒═══════╤══════════╤═════════════╤═════════════╤═══════════════╕
-    │   Idx │ Value    │   Remaining │ Enactment   │ Termination   │
-    ╞═══════╪══════════╪═════════════╪═════════════╪═══════════════╡
-    │ 	0   │ 30000 NU │      	  31 │ Jun 19 2020 │ Jul 19 2020   │
-    ╘═══════╧══════════╧═════════════╧═════════════╧═══════════════╛
+    ╒═══════╤══════════╤═════════════╤═════════════╤═══════════════╤═══════════╕
+    │   Idx │ Value    │   Remaining │ Enactment   │ Termination   │ Status    │
+    ╞═══════╪══════════╪═════════════╪═════════════╪═══════════════╪═══════════╡
+    │     0 │ 45000 NU │           5 │ Mar 24 2021 │ Apr 21 2021   │ DIVISIBLE │
+    ╘═══════╧══════════╧═════════════╧═════════════╧═══════════════╧═══════════╛
+
 
 If the Worker in the list is shown as ``NO_WORKER_BONDED``, it means that you haven't yet
 bonded a Worker node to your Staker.
@@ -246,21 +255,17 @@ bonded a Worker node to your Staker.
 After initiating a stake, the staker must delegate access to a work address through *bonding*.
 There is a 1:1 relationship between the roles: A Staker may have multiple substakes but only ever has one Worker at a time.
 
-.. important:: The Worker cannot be changed for a minimum of 2 periods (48 hours) once bonded.
+.. important:: The Worker cannot be changed for a minimum of 2 periods (14 days) once bonded.
 
 .. code:: bash
 
     (nucypher)$ nucypher stake bond-worker
+    Enter ethereum account password (0xB548378f13e9A2C7bEf66B890B46F2eD6Ed87fCf):
+    Enter worker address: 0x6cf78fE4bD2a6573046d17f72f4C20462124Aa10
+    Commit to bonding worker 0x6cf78fE4bD2a6573046d17f72f4C20462124Aa10 to staker 0xB548378f13e9A2C7bEf66B890B46F2eD6Ed87fCf for a minimum of 2 periods? [y/N]: y
+    ...
+    This worker can be replaced or detached after period #2674 (2021-04-01 00:00:00+00:00)
 
-            Account
-    --  ------------------------------------------
-     0  0x63e478bc474eBb6c31568ff131cCd95C24bfD552
-     1  0x270b3f8af5ba2B79ea3Bd6a6Efc7ecAB056d3E3f
-     2  0x45D33d1Ff0A7E696556f36DE697E5C92C2CCcFaE
-    Select index of staking account [0]: 1
-    Selected 1: 0x270b3f8af5ba2B79ea3Bd6a6Efc7ecAB056d3E3f
-    Enter worker address: 0x45D33d1Ff0A7E696556f36DE697E5C92C2CCcFaE
-    Commit to bonding worker 0x45D33d1Ff0A7E696556f36DE697E5C92C2CCcFaE to staker 0x270b3f8af5ba2B79ea3Bd6a6Efc7ecAB056d3E3f for a minimum of 2 periods? [y/N]: y
 
 .. note::
 

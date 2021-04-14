@@ -133,6 +133,9 @@ Whitepapers
    architecture/sub_stakes
    architecture/slashing
    architecture/service_fees
+   architecture/period_duration
+
+.. TODO perhaps categorize architecture section
 
 .. toctree::
    :maxdepth: 1

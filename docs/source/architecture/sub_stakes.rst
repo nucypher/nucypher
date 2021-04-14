@@ -3,7 +3,7 @@
 Sub-stakes
 ==========
 
-A staker may extend the unlock period for any number of portions of their total stake. This divides the stake into smaller parts, each with a unique unlock date in the future. Stakers may also acquire and lock new tokens. The total stake is represented as the sum of all the different sub-stakes active in a given period (new period every 24h), which includes locked sub-stakes, and any sub-stakes that have passed their unlock date, and can be freely withdrawn. 
+A staker may extend the unlock period for any number of portions of their total stake. This divides the stake into smaller parts, each with a unique unlock date in the future. Stakers may also acquire and lock new tokens. The total stake is represented as the sum of all the different sub-stakes active in a given period (new period every 7 days), which includes locked sub-stakes, and any sub-stakes that have passed their unlock date, and can be freely withdrawn.
 
 Each sub-stake has:
 
