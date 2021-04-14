@@ -4,6 +4,40 @@ Releases
 
 .. towncrier release notes start
 
+v5.0.0 (2021-04-14)
+-------------------
+
+Features
+~~~~~~~~
+
+- Increase period duration in contracts and handle migration of current stakes to new format. (`#2549 <https://github.com/nucypher/nucypher/issues/2549>`__)
+- DAO proposal #1: Improve staker P/L by increasing period duration. (`#2594 <https://github.com/nucypher/nucypher/issues/2594>`__)
+- Refinements for pool staking contract (`#2596 <https://github.com/nucypher/nucypher/issues/2596>`__)
+- New standalone geth fullnode ansible playbook. (`#2624 <https://github.com/nucypher/nucypher/issues/2624>`__)
+
+
+Bugfixes
+~~~~~~~~
+
+- Accommodate migrated period duration in CLI UX. (`#2614 <https://github.com/nucypher/nucypher/issues/2614>`__)
+- cloudworkers more throughoughly cleans up diskspace before updates. (`#2618 <https://github.com/nucypher/nucypher/issues/2618>`__)
+- Bob now accepts provider_uri as an optional parameter (`#2626 <https://github.com/nucypher/nucypher/issues/2626>`__)
+- Add a default gas limit multiplier of 1.15 for all outgoing ETH transactions (`#2637 <https://github.com/nucypher/nucypher/issues/2637>`__)
+
+
+Improved Documentation
+~~~~~~~~~~~~~~~~~~~~~~
+
+- Document staking smart contract API and the base staking pool implementation (``PoolingStakingContractV2``). (`#2597 <https://github.com/nucypher/nucypher/issues/2597>`__)
+
+
+Misc
+~~~~
+
+- Change filepath delimiter to dot (".") in Card Storage API (`#2628 <https://github.com/nucypher/nucypher/issues/2628>`__)
+- Use constant for loopback address across the codebase. (`#2629 <https://github.com/nucypher/nucypher/issues/2629>`__)
+
+
 v4.8.2 (2021-03-25)
 -------------------
 

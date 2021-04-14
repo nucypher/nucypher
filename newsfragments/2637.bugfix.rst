@@ -1,1 +1,0 @@
-Add a default gas limit multiplier of 1.15 for all outgoing ETH transactions

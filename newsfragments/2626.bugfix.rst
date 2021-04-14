@@ -1,1 +1,0 @@
-Bob now accepts provider_uri as an optional parameter

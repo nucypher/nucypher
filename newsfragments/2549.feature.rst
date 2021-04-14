@@ -1,1 +1,0 @@
-Increase period duration in contracts and handle migration of current stakes to new format.

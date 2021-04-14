@@ -1,1 +1,0 @@
-Use constant for loopback address across the codebase.

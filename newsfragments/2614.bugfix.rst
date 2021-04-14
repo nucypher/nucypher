@@ -1,1 +1,0 @@
-Accommodate migrated period duration in CLI UX.

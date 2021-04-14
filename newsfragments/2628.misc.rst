@@ -1,1 +1,0 @@
-Change filepath delimiter to dot (".") in Card Storage API
