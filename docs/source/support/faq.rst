@@ -26,10 +26,17 @@ NuCypher currently has two testnets available, each of them with different goals
 * ``lynx``: Public Long-Term Support testnet, intended as a stable playground for network users (e.g., Alices wishing to create sharing policies). Running on Ethereum Goerli testnet.
 * ``ibex``: Public testnet, intended as a playground for stakers and node operators (e.g., learning how to create and manage stakes, setting up a node), as well as for internal development purposes. Running on Ethereun Rinkeby testnet.
 
-Q: How long is a period?
-~~~~~~~~~~~~~~~~~~~~~~~~
+Q: What is a period and how long is it?
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-1 period is 24 hours. Periods begin at midnight UTC.
+In the NuCypher protocol, a Period is the minimum unit of time. This applies to sharing policy durations, and
+also corresponds to the frequency that Workers must make an on-chain commitment to being online and available
+to provide service.
+
+1 period is 7 days, and periods always start on Thursdays at midnight UTC.
+
+At Network launch, 1 period was 24 hours, but this was updated by a NuCypher DAO proposal to be
+7 days (see :doc:`/architecture/period_duration`).
 
 
 Using the Network
@@ -161,7 +168,7 @@ Participation in WorkLock is now closed, but since NU is an ERC-20 token, it can
 Q: When/Why does a node operator need to use ``mint`` command?
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-The period following stake termination or later, but before withdrawing escrowed tokens. Each node on the NuCypher network sends daily transactions signalling continued commitment to providing service, and to calculation of NU rewards for prior periods ("minting"). At the final day/period of a stake, automatic minting will stop and intervention is required to complete the final minting calculation by calling ``mint`` manually.
+The period following stake termination or later, but before withdrawing escrowed tokens. Each node on the NuCypher network sends per period commitment transactions signalling continued commitment to providing service, and to calculation of NU rewards for prior periods ("minting"). At the final period of a stake, automatic minting will stop and intervention is required to complete the final minting calculation by calling ``mint`` manually.
 
 Q: What are the recommended specifications for running a nucypher node?
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~

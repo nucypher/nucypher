@@ -10,7 +10,7 @@ The `NuCypher DAO <https://client.aragon.org/#/nucypherdao/>`_ is a decentralize
 rule over the NuCypher Network and powered by the `Aragon Project <https://aragon.org/>`_.
 
 The NuCypher DAO comprises the core stakeholders: the stakers that put up resources to run nodes for the network and
-serve users. NuCypher stakers will be able to validate issues, proposals, and changes that affect the daily operation
+serve users. NuCypher stakers will be able to validate issues, proposals, and changes that affect the operation
 of the network, with validation power directly proportional to the amount of tokens staked. These issues include
 proposed smart contract upgrades, changes to the global fee rates, and adjustments to other parameters of the NuCypher
 protocol and the DAO itself. Additionally, all NuCypher stakers will be able to submit proposals to the DAO,

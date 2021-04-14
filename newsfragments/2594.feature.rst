@@ -1,0 +1,1 @@
+DAO proposal #1: Improve staker P/L by increasing period duration.

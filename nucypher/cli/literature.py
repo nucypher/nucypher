@@ -112,6 +112,10 @@ SELECT_STAKE = "Select Stake"
 
 NO_STAKES_FOUND = "No stakes found."
 
+CONFIRM_MANUAL_MIGRATION = "Confirm manual migration for staker {address}"
+
+MIGRATION_ALREADY_PERFORMED = 'Staker {address} has already migrated.'
+
 
 POST_STAKING_ADVICE = """
 View your stakes by running 'nucypher stake list'

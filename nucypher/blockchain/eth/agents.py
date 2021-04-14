@@ -581,8 +581,8 @@ class StakingEscrowAgent(EthereumContractAgent):
     @contract_api(CONTRACT_CALL)
     def get_flags(self, staker_address: ChecksumAddress) -> StakerFlags:
         flags: tuple = self.contract.functions.getFlags(staker_address).call()
-        wind_down_flag, restake_flag, measure_work_flag, snapshot_flag = flags
-        return StakerFlags(wind_down_flag, restake_flag, measure_work_flag, snapshot_flag)
+        wind_down_flag, restake_flag, measure_work_flag, snapshot_flag, migration_flag = flags
+        return StakerFlags(wind_down_flag, restake_flag, measure_work_flag, snapshot_flag, migration_flag)
 
     @contract_api(CONTRACT_CALL)
     def is_restaking(self, staker_address: ChecksumAddress) -> bool:
@@ -599,6 +599,20 @@ class StakingEscrowAgent(EthereumContractAgent):
         receipt: TxReceipt = self.blockchain.send_transaction(contract_function=contract_function,
                                                               transacting_power=transacting_power)
         # TODO: Handle ReStakeSet event (see #1193)
+        return receipt
+
+    @contract_api(CONTRACT_CALL)
+    def is_migrated(self, staker_address: ChecksumAddress) -> bool:
+        flags = self.get_flags(staker_address)
+        return flags.migration_flag
+
+    @contract_api(TRANSACTION)
+    def migrate(self, transacting_power: TransactingPower, staker_address: Optional[ChecksumAddress] = None) -> TxReceipt:
+        if not staker_address:
+            staker_address = transacting_power.account
+        contract_function: ContractFunction = self.contract.functions.migrate(staker_address)
+        receipt = self.blockchain.send_transaction(contract_function=contract_function,
+                                                   transacting_power=transacting_power)
         return receipt
 
     @contract_api(CONTRACT_CALL)
@@ -620,8 +634,8 @@ class StakingEscrowAgent(EthereumContractAgent):
 
     @contract_api(CONTRACT_CALL)
     def is_taking_snapshots(self, staker_address: ChecksumAddress) -> bool:
-        _winddown_flag, _restake_flag, _measure_work_flag, snapshots_flag = self.get_flags(staker_address)
-        return snapshots_flag
+        flags = self.get_flags(staker_address)
+        return flags.snapshot_flag
 
     @contract_api(TRANSACTION)
     def set_snapshots(self, transacting_power: TransactingPower, activate: bool) -> TxReceipt:
@@ -646,7 +660,8 @@ class StakingEscrowAgent(EthereumContractAgent):
         parameter_signatures = (
 
             # Period
-            'secondsPerPeriod',  # Seconds in single period
+            'genesisSecondsPerPeriod',       # Seconds in single period at genesis
+            'secondsPerPeriod',             # Seconds in single period
 
             # Coefficients
             'mintingCoefficient',           # Minting coefficient (d * k2)

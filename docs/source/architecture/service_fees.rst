@@ -12,7 +12,7 @@ Service Fees (Pricing)
 Minimum fee rate
 ----------------
 
-When stakers join the network, they specify a minimum fee rate, on a *per sharing policy* and *per 24h period* basis, that their worker (Ursula) will accept at the point of engagement with a network user (Alice). If Alice’s offered per period rate (contained alongside the sharing policy’s parameters in an ``Arrangement`` object) for a specified policy duration computes as equal to or greater than the minimum fee rate, the sharing policy will be accepted by Ursula and the access control service will commence. Ursula will service the sharing policy by being online and answering access requests, at that unchanging per period fee rate, until the specified expiration date or an early revocation is instigated by Alice.
+When stakers join the network, they specify a minimum fee rate, on a *per sharing policy* and *per period (7 days)* basis, that their worker (Ursula) will accept at the point of engagement with a network user (Alice). If Alice’s offered per period rate (contained alongside the sharing policy’s parameters in an ``Arrangement`` object) for a specified policy duration computes as equal to or greater than the minimum fee rate, the sharing policy will be accepted by Ursula and the access control service will commence. Ursula will service the sharing policy by being online and answering access requests, at that unchanging per period fee rate, until the specified expiration date or an early revocation is instigated by Alice.
 
 The minimum fee rate applies to each individual worker machine managing a given sharing policy. In other words, the rate is also *per Ursula*. If Alice wishes to employ multiple Ursulas to service a single sharing policy (``n`` > 1), a common configuration, then they must pay each staker associated with that policy the same fee rate. This rate will be the highest from the set of *minimum* fee rates specified by the stakers with which they engage. Alices may attempt price optimization strategies to find the cheapest group of Ursulas.
 
@@ -24,7 +24,7 @@ The minimum sum of fees a staker can receive period-to-period is the product of 
 Global fee range
 ----------------
 
-The global fee range is a means of establishing quasi-universal pricing for the NuCypher service. It is enforced via the function ``feeRateRange`` in ``PolicyManager.sol``, which specifies per sharing policy and per 24h period constraints expressed in **WEI**. Note that elsewhere, fee rates are discussed in **GWEI** and fiat (USD).
+The global fee range is a means of establishing quasi-universal pricing for the NuCypher service. It is enforced via the function ``feeRateRange`` in ``PolicyManager.sol``, which specifies per sharing policy and per period (7 days) constraints expressed in **WEI**. Note that elsewhere, fee rates are discussed in **GWEI** and fiat (USD).
 
 The minimum fee rate chosen by stakers must fall within the global fee range. The network will launch with the following parameters:
 
@@ -54,6 +54,10 @@ In order to successfully interact with the ``PolicyManager.sol`` contract, the g
 Given its high enforceability, the presence of an inflexible fee range dictating the bounds of every transaction is arguably the most critical component of the NuCypher protocol’s economic design and parametrization, particularly over the long-term and with respect to the sustainability of the network. From a governance perspective, it is also amongst the most malleable, thanks in part to the ``setFeeRateRange`` utility. If a quorum of stakers wish to set prices outside the range, then they have the right to lobby and propose a widening of the global fee range, its removal altogether, or some other design modification (e.g. narrowing the range). They may do so via the NuCypher DAO – the owner of all NuCypher smart contracts - by submitting a proposal to be validated by stakers, weighted in proportion to their stake size. See the DAO forum_ for guidance on the NuCypher DAO and governance processes and pipelines.
 
 The Pricing Protocol & Economics paper_ serves as a resource for community debate, proposals for modification, and DAO-driven upgrades/redeployments in the future. The paper discusses the merits and risks of quasi-universal pricing and the enforcement of an upper and lower bound on all offered price points. It introduces a price point analysis from a demand-side, service-side and theoretical standpoint to produce the provisional constraints in absolute terms that the network will launch with (above).
+
+.. note::
+
+    This Pricing Protocol & Economics paper was originally written when period lengths were 24 hours; period lengths are now 7 days but the core principles still apply.
 
 
 Setting a discretionary fee rate

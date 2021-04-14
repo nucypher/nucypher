@@ -91,12 +91,14 @@ CONSTRUCTOR_OVERRIDES = {
                                                      "_firstPhaseMaxIssuance": None,
                                                      "_miningCoefficient": 2,
                                                      "_lockedPeriodsCoefficient": 1,
-                                                     "_rewardedPeriods": 1}
+                                                     "_rewardedPeriods": 1},
+                                          "v5.7.1": {"_genesisHoursPerPeriod": None}
                                           }
 }
 
 FORCE_SKIP = {
-    StakingEscrowDeployer.contract_name: ["v5.6.1"]
+    StakingEscrowDeployer.contract_name: ["v5.6.1"],
+    PolicyManagerDeployer.contract_name: ["v6.2.1"]
 }
 
 
