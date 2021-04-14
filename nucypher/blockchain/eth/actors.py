@@ -871,8 +871,8 @@ class Staker(NucypherTokenActor):
         migrated = self.staking_agent.is_migrated(staker_address=self.checksum_address)
         return migrated
 
-    def migrate(self, staking_address: Optional[ChecksumAddress] = None) -> TxReceipt:
-        receipt = self.staking_agent.migrate(transacting_power=self.transacting_power, staker_address=staking_address)
+    def migrate(self, staker_address: Optional[ChecksumAddress] = None) -> TxReceipt:
+        receipt = self.staking_agent.migrate(transacting_power=self.transacting_power, staker_address=staker_address)
         return receipt
 
     @only_me
