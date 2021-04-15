@@ -1,0 +1,1 @@
+Fixed incorrect use of genesis value for ``seconds_per_period`` when estimating block number based on period number - applies to prometheus metrics collection and ``nucypher status events``.
