@@ -4,6 +4,24 @@ Releases
 
 .. towncrier release notes start
 
+v5.1.0 (2021-04-15)
+-------------------
+
+Features
+~~~~~~~~
+
+- Improve UX for character CLI when there are multiple configuration files:
+    - If there are multiple possible character configuration files prompt the user to choose
+    - If there is only one character configuration file, even if not the default filename, use lone configuration without prompting and print to CLI. (`#2617 <https://github.com/nucypher/nucypher/issues/2617>`__)
+
+
+Bugfixes
+~~~~~~~~
+
+- Ensure that correct configuration filepath is displayed when initializing characters, and add hint about
+  using ``--config-file <FILE>`` for subsequent CLI commands if non-default filepath used. (`#2617 <https://github.com/nucypher/nucypher/issues/2617>`__)
+
+
 v5.0.2 (2021-04-14)
 -------------------
 
