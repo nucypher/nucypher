@@ -4,6 +4,15 @@ Releases
 
 .. towncrier release notes start
 
+v5.0.2 (2021-04-14)
+-------------------
+
+Bugfixes
+~~~~~~~~
+
+- Fixed incorrect use of genesis value for ``seconds_per_period`` when estimating block number based on period number - applies to prometheus metrics collection and ``nucypher status events``. (`#2646 <https://github.com/nucypher/nucypher/issues/2646>`__)
+
+
 v5.0.1 (2021-04-14)
 -------------------
 
