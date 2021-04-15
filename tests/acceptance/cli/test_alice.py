@@ -18,6 +18,7 @@
 import os
 from unittest import mock
 
+from nucypher.cli.commands.alice import AliceConfigOptions
 from nucypher.cli.literature import SUCCESSFUL_DESTRUCTION, COLLECT_NUCYPHER_PASSWORD
 from nucypher.cli.main import nucypher_cli
 from nucypher.config.characters import AliceConfiguration
@@ -83,10 +84,10 @@ def test_alice_control_starts_with_mocked_keyring(click_runner, mocker, monkeypa
 
     mocker.patch.object(AliceConfiguration, "attach_keyring", return_value=None)
     good_enough_config = AliceConfiguration(dev_mode=True, federated_only=True, keyring=MockKeyring())
-    mocker.patch.object(AliceConfiguration, "from_configuration_file", return_value=good_enough_config)
+    mocker.patch.object(AliceConfigOptions, "create_config", return_value=good_enough_config)
     init_args = ('alice', 'run', '-x', '--lonely', '--network', TEMPORARY_DOMAIN)
     result = click_runner.invoke(nucypher_cli, init_args, input=FAKE_PASSWORD_CONFIRMED)
-    assert result.exit_code == 0, result.exception
+    assert result.exit_code == 0, result.output
 
 
 def test_initialize_alice_with_custom_configuration_root(custom_filepath, click_runner, monkeypatch):

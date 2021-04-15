@@ -51,12 +51,22 @@ def echo_logging_root_path(ctx, param, value):
     ctx.exit()
 
 
-def paint_new_installation_help(emitter, new_configuration):
+def paint_new_installation_help(emitter, new_configuration, filepath):
     character_config_class = new_configuration.__class__
     character_name = character_config_class.NAME.lower()
 
-    emitter.message("Generated keyring {}".format(new_configuration.keyring_root), color='green')
-    emitter.message("Generated configuration file {}".format(new_configuration.config_file_location), color='green')
+    emitter.message(f"Generated keyring {new_configuration.keyring_root}", color='green')
+
+    default_config_filepath = True
+    if new_configuration.default_filepath() != filepath:
+        default_config_filepath = False
+    emitter.message(f'Generated configuration file at {"default" if default_config_filepath else "non-default"} '
+                    f'filepath {filepath}', color='green')
+
+    # add hint about --config-file
+    if not default_config_filepath:
+        emitter.message(f'* NOTE: for a non-default configuration filepath use `--config-file "{filepath}"` '
+                        f'with subsequent `{character_name}` CLI commands', color='yellow')
 
     # Felix
     if character_name == 'felix':
@@ -79,7 +89,6 @@ To initialize a new faucet recipient database run: nucypher felix createdb
 * Revoke access         -> nucypher alice revoke
 * Start HTTP server     -> nucypher alice run
 '''
-
 
     elif character_name == 'bob':
         hint = '''

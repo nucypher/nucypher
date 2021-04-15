@@ -17,11 +17,13 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 
 
 import os
+from tempfile import TemporaryDirectory
+
 from constant_sorrow.constants import UNINITIALIZED_CONFIGURATION
 from cryptography.hazmat.primitives.asymmetric import ec
 from cryptography.hazmat.primitives.asymmetric.ec import EllipticCurve
 from cryptography.x509 import Certificate
-from tempfile import TemporaryDirectory
+from eth_utils import is_checksum_address
 
 from nucypher.blockchain.eth.actors import StakeHolder
 from nucypher.config.base import CharacterConfiguration
@@ -77,6 +79,21 @@ class UrsulaConfiguration(CharacterConfiguration):
         self.availability_check = availability_check if availability_check is not None else self.DEFAULT_AVAILABILITY_CHECKS
         super().__init__(dev_mode=dev_mode, *args, **kwargs)
 
+    @classmethod
+    def checksum_address_from_filepath(cls, filepath: str) -> str:
+        """
+        Extracts worker address by "peeking" inside the ursula configuration file.
+        """
+
+        checksum_address = cls.peek(filepath=filepath, field='checksum_address')
+        federated = bool(cls.peek(filepath=filepath, field='federated_only'))
+        if not federated:
+            checksum_address = cls.peek(filepath=filepath, field='worker_address')
+
+        if not is_checksum_address(checksum_address):
+            raise RuntimeError(f"Invalid checksum address detected in configuration file at '{filepath}'.")
+        return checksum_address
+
     def generate_runtime_filepaths(self, config_root: str) -> dict:
         base_filepaths = super().generate_runtime_filepaths(config_root=config_root)
         filepaths = dict(db_filepath=os.path.join(config_root, self.DEFAULT_DB_NAME))
@@ -84,7 +101,7 @@ class UrsulaConfiguration(CharacterConfiguration):
         return base_filepaths
 
     def generate_filepath(self, modifier: str = None, *args, **kwargs) -> str:
-        filepath = super().generate_filepath(modifier=modifier or self.worker_address, *args, **kwargs)
+        filepath = super().generate_filepath(modifier=modifier or self.keyring.signing_public_key.hex()[:8], *args, **kwargs)
         return filepath
 
     def static_payload(self) -> dict:
@@ -259,7 +276,6 @@ class FelixConfiguration(CharacterConfiguration):
     DEFAULT_REST_HOST = LOOPBACK_ADDRESS
     __DEFAULT_TLS_CURVE = ec.SECP384R1
 
-
     def __init__(self,
                  db_filepath: str = None,
                  rest_host: str = None,
@@ -374,10 +390,9 @@ class StakeHolderConfiguration(CharacterConfiguration):
 
     @classmethod
     def generate(cls, *args, **kwargs):
-        """Shortcut: Hook-up a new initial installation and write configuration file to the disk"""
+        """Shortcut: Hook-up a new initial installation configuration."""
         node_config = cls(dev_mode=False, *args, **kwargs)
         node_config.initialize()
-        node_config.to_configuration_file()
         return node_config
 
     def to_configuration_file(self, override: bool = True, *args, **kwargs) -> str:

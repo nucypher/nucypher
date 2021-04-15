@@ -16,9 +16,9 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
 
-import click
 import os
-from constant_sorrow.constants import NO_BLOCKCHAIN_CONNECTION
+
+import click
 
 from nucypher.cli.actions.auth import (
     get_client_password,
@@ -26,7 +26,7 @@ from nucypher.cli.actions.auth import (
     unlock_nucypher_keyring
 )
 from nucypher.cli.actions.configure import destroy_configuration, handle_missing_configuration_file
-from nucypher.cli.utils import setup_emitter
+from nucypher.cli.actions.select import select_config_file
 from nucypher.cli.config import group_general_config
 from nucypher.cli.literature import (
     CONFIRM_OVERWRITE_DATABASE,
@@ -50,10 +50,12 @@ from nucypher.cli.options import (
     option_poa,
     option_provider_uri,
     option_registry_filepath,
-    option_teacher_uri, option_signer_uri,
+    option_teacher_uri,
+    option_signer_uri,
 )
 from nucypher.cli.painting.help import paint_new_installation_help
 from nucypher.cli.types import NETWORK_PORT
+from nucypher.cli.utils import setup_emitter
 from nucypher.config.characters import FelixConfiguration
 from nucypher.config.constants import DEFAULT_CONFIG_ROOT, NUCYPHER_ENVVAR_WORKER_ETH_PASSWORD
 from nucypher.utilities.networking import LOOPBACK_ADDRESS
@@ -90,6 +92,10 @@ class FelixConfigOptions:
 
     def create_config(self, emitter, config_file):
         # Load Felix from Configuration File with overrides
+        if not config_file:
+            config_file = select_config_file(emitter=emitter,
+                                             checksum_address=self.checksum_address,
+                                             config_class=FelixConfiguration)
         try:
             return FelixConfiguration.from_configuration_file(
                 emitter=emitter,
@@ -207,7 +213,8 @@ def init(general_config, config_options, config_root, discovery_port):
         else:
             emitter.echo(str(e), color='red', bold=True)
             raise click.Abort
-    paint_new_installation_help(emitter, new_configuration=new_felix_config)
+    filepath = new_felix_config.to_configuration_file()
+    paint_new_installation_help(emitter, new_configuration=new_felix_config, filepath=filepath)
 
 
 @felix.command()

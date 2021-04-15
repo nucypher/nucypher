@@ -15,14 +15,13 @@
  along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
-
-import glob
-
-import click
 import os
-from tabulate import tabulate
+from pathlib import Path
 from typing import Callable
 from typing import Optional, Tuple, Type
+
+import click
+from tabulate import tabulate
 from web3.main import Web3
 
 from nucypher.blockchain.eth.actors import StakeHolder, Staker
@@ -33,6 +32,7 @@ from nucypher.blockchain.eth.registry import InMemoryContractRegistry, BaseContr
 from nucypher.blockchain.eth.signers.base import Signer
 from nucypher.blockchain.eth.token import NU, Stake
 from nucypher.characters.control.emitters import StdoutEmitter
+from nucypher.cli.actions.configure import get_config_filepaths
 from nucypher.cli.literature import (
     GENERIC_SELECT_ACCOUNT,
     NO_CONFIGURATIONS_ON_DISK,
@@ -42,12 +42,14 @@ from nucypher.cli.literature import (
     SELECT_NETWORK,
     SELECT_STAKE,
     SELECT_STAKING_ACCOUNT_INDEX,
-    SELECTED_ACCOUNT
+    SELECTED_ACCOUNT,
+    IGNORE_OLD_CONFIGURATION,
+    DEFAULT_TO_LONE_CONFIG_FILE
 )
 from nucypher.cli.painting.policies import paint_cards
 from nucypher.cli.painting.staking import paint_stakes
 from nucypher.config.base import CharacterConfiguration
-from nucypher.config.constants import DEFAULT_CONFIG_ROOT, NUCYPHER_ENVVAR_WORKER_ADDRESS
+from nucypher.config.constants import NUCYPHER_ENVVAR_WORKER_ADDRESS, DEFAULT_CONFIG_ROOT
 from nucypher.policy.identity import Card
 
 
@@ -227,55 +229,65 @@ def select_config_file(emitter: StdoutEmitter,
 
     """
 
-    #
-    # Scrape Disk Configurations
-    #
-
     config_root = config_root or DEFAULT_CONFIG_ROOT
-    default_config_file = glob.glob(config_class.default_filepath(config_root=config_root))
-    glob_pattern = f'{config_root}/{config_class.NAME}-0x*.{config_class._CONFIG_FILE_EXTENSION}'
-    secondary_config_files = glob.glob(glob_pattern)
-    config_files = [*default_config_file, *secondary_config_files]
+    config_files = get_config_filepaths(config_class=config_class, config_root=config_root)
     if not config_files:
         emitter.message(NO_CONFIGURATIONS_ON_DISK.format(name=config_class.NAME.capitalize(),
                                                          command=config_class.NAME), color='red')
         raise click.Abort()
 
     checksum_address = checksum_address or os.environ.get(NUCYPHER_ENVVAR_WORKER_ADDRESS, None)  # TODO: Deprecate worker_address in favor of checksum_address
-    if checksum_address:
 
-        #
-        # Manual
-        #
-
-        parsed_addresses = {config_class.checksum_address_from_filepath(fp): fp for fp in config_files}
+    parsed_config_files = list()
+    parsed_addresses_and_filenames = list()
+    # parse configuration files for checksum address values
+    for fp in config_files:
         try:
-            config_file = parsed_addresses[checksum_address]
-        except KeyError:
-            raise ValueError(f"'{checksum_address}' is not a known {config_class.NAME} configuration account.")
+            config_checksum_address = config_class.checksum_address_from_filepath(fp)
+            if checksum_address and config_checksum_address == checksum_address:
+                # matching configuration file found, no need to continue - return filepath
+                return fp
 
-    elif len(config_files) > 1:
+            parsed_config_files.append(fp)
+            parsed_addresses_and_filenames.append([config_checksum_address, Path(fp).name])  # store checksum & filename
+        except config_class.OldVersion:
+            # no use causing entire usage to crash if file can't be used anyway - inform the user; they can
+            # decide for themself
+            emitter.echo(IGNORE_OLD_CONFIGURATION.format(config_file=fp), color='yellow')
 
+    if checksum_address:
+        # shouldn't get here if checksum address was specified and corresponding file found
+        raise ValueError(f"'{checksum_address}' is not a known {config_class.NAME} configuration account.")
+
+    if not parsed_config_files:
+        # No available configuration files
+        emitter.message(NO_CONFIGURATIONS_ON_DISK.format(name=config_class.NAME.capitalize(),
+                                                         command=config_class.NAME),
+                        color='red')
+        raise click.Abort()
+    elif len(parsed_config_files) > 1:
         #
         # Interactive
         #
+        emitter.echo(f"\nConfiguration Directory: {config_root}\n")
 
-        parsed_addresses = tuple([config_class.checksum_address_from_filepath(fp)] for fp in config_files)
+        parsed_addresses_and_filenames = tuple(parsed_addresses_and_filenames)  # must be tuple-of-iterables for tabulation
 
         # Display account info
-        headers = ['Account']
-        emitter.echo(tabulate(parsed_addresses, headers=headers, showindex='always'))
+        headers = ['Account', 'Configuration File']
+        emitter.echo(tabulate(parsed_addresses_and_filenames, headers=headers, showindex='always'))
 
         # Prompt the user for selection, and return
         prompt = f"Select {config_class.NAME} configuration"
-        account_range = click.IntRange(min=0, max=len(config_files) - 1)
+        account_range = click.IntRange(min=0, max=len(parsed_config_files) - 1)
         choice = click.prompt(prompt, type=account_range, default=0)
-        config_file = config_files[choice]
+        config_file = parsed_config_files[choice]
         emitter.echo(f"Selected {choice}: {config_file}", color='blue')
-
     else:
         # Default: Only one config file, use it.
-        config_file = config_files[0]
+        config_file = parsed_config_files[0]
+        emitter.echo(DEFAULT_TO_LONE_CONFIG_FILE.format(config_class=config_class.NAME.capitalize(),
+                                                        config_file=config_file))
 
     return config_file
 

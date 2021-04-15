@@ -23,7 +23,7 @@ import click
 import pytest
 
 from nucypher.cli.actions.select import select_config_file
-from nucypher.cli.literature import NO_CONFIGURATIONS_ON_DISK
+from nucypher.cli.literature import NO_CONFIGURATIONS_ON_DISK, DEFAULT_TO_LONE_CONFIG_FILE
 
 
 def test_select_config_file_with_no_config_files(test_emitter,
@@ -74,7 +74,8 @@ def test_auto_select_config_file(test_emitter,
 
     # ...nothing was displayed
     captured = capsys.readouterr()
-    assert not captured.out
+    assert DEFAULT_TO_LONE_CONFIG_FILE.format(config_class=config_class.NAME.capitalize(),
+                                              config_file=str(config_path)) in captured.out
 
 
 def test_interactive_select_config_file(test_emitter,
@@ -120,7 +121,7 @@ def test_interactive_select_config_file(test_emitter,
     assert mock_stdin.empty()
 
     table_data = captured.out.split('\n')
-    table_addresses = [row.split()[1] for row in table_data[2:-2]]
+    table_addresses = [row.split()[1] for row in table_data[6:-2]]  # escape extra lines printed before table
 
     # TODO: Finish this test
     # for index, (filename, account) in enumerate(accounts):

@@ -54,7 +54,8 @@ from nucypher.cli.options import (
     option_registry_filepath,
     option_signer_uri,
     option_teacher_uri,
-    option_lonely, option_max_gas_price
+    option_lonely,
+    option_max_gas_price
 )
 from nucypher.cli.painting.help import paint_new_installation_help
 from nucypher.cli.painting.policies import paint_single_card
@@ -128,6 +129,10 @@ class AliceConfigOptions:
             )
 
         else:
+            if not config_file:
+                config_file = select_config_file(emitter=emitter,
+                                                 checksum_address=self.pay_with,
+                                                 config_class=AliceConfiguration)
             try:
                 return AliceConfiguration.from_configuration_file(
                     emitter=emitter,
@@ -272,7 +277,6 @@ class AliceCharacterOptions:
             click.get_current_context().exit(1)
 
 
-
 group_character_options = group_options(
     AliceCharacterOptions,
     config_options=group_config_options,
@@ -297,7 +301,8 @@ def init(general_config, full_config_options, config_root):
     if not config_root:
         config_root = general_config.config_root
     new_alice_config = full_config_options.generate_config(emitter, config_root)
-    paint_new_installation_help(emitter, new_configuration=new_alice_config)
+    filepath = new_alice_config.to_configuration_file()
+    paint_new_installation_help(emitter, new_configuration=new_alice_config, filepath=filepath)
 
 
 @alice.command()
