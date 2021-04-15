@@ -369,7 +369,7 @@ class CommitmentMadeEventMetricsCollector(EventMetricsCollector):
             # - commitment made during current period for next period
             block_number_for_previous_period = estimate_block_number_for_period(
                 period=previous_period,
-                seconds_per_period=self.contract_agent.staking_parameters()[0],
+                seconds_per_period=self.contract_agent.staking_parameters()[1],
                 latest_block=latest_block)
 
             events_throttler = ContractEventsThrottler(agent=self.contract_agent,
