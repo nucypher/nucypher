@@ -65,7 +65,7 @@ from nucypher.cli.literature import (
     ONLY_DISPLAYING_MERGEABLE_STAKES_NOTE,
     CONFIRM_MERGE,
     SUCCESSFUL_STAKES_MERGE,
-    CONFIRM_STAKE_USE_UNLOCKED
+    CONFIRM_STAKE_USE_UNLOCKED, TOKEN_REWARD
 )
 from nucypher.config.constants import TEMPORARY_DOMAIN
 from nucypher.types import SubStakeInfo, StakerInfo
@@ -1403,3 +1403,49 @@ def test_stake_list_all(click_runner, surrogate_stakers, surrogate_stakes, token
                              f"{enactment}\\s+│\\s+"
                              f"{termination}\\s+│\\s+"
                              f"{status.name}", result.output, re.MULTILINE)
+
+
+@pytest.mark.usefixtures("test_registry_source_manager", "patch_stakeholder_configuration")
+def test_show_rewards(click_runner, surrogate_stakers, mock_staking_agent, mocker):
+    reward_amount = 1
+    reward = NU(reward_amount, 'NU')
+    mock_staking_agent.calculate_staking_reward.return_value = reward.to_nunits()
+
+    collection_args = ('rewards',
+                       'show',
+                       '--provider', MOCK_PROVIDER_URI,
+                       '--network', TEMPORARY_DOMAIN,
+                       '--staking-address', surrogate_stakers[0])
+
+    result = click_runner.invoke(stake, collection_args, catch_exceptions=False)
+    assert result.exit_code == 0
+    assert TOKEN_REWARD.format(reward_amount=reward_amount) in result.output
+
+    mock_staking_agent.calculate_staking_reward.assert_called_once_with(staker_address=surrogate_stakers[0])
+
+
+@pytest.mark.usefixtures("test_registry_source_manager", "patch_stakeholder_configuration")
+def test_show_rewards_for_period(click_runner, surrogate_stakers, mock_staking_agent, mocker):
+    reward_amount = 1
+    nr_of_events = 3
+    events = [{'args': {'value': NU(reward_amount, 'NU').to_nunits()}} for _ in range(nr_of_events)]
+    event_name = 'Minted'
+    event = mocker.Mock()
+    event.getLogs = mocker.MagicMock(return_value=events)
+    mock_staking_agent.contract.events = {event_name: event}
+    mock_staking_agent.staking_parameters.return_value = [10]
+
+    collection_args = ('rewards',
+                       'show',
+                       '--provider', MOCK_PROVIDER_URI,
+                       '--network', TEMPORARY_DOMAIN,
+                       '--staking-address', surrogate_stakers[0],
+                       '--period', 30)
+
+    result = click_runner.invoke(stake, collection_args, catch_exceptions=False)
+    assert result.exit_code == 0
+    assert TOKEN_REWARD.format(reward_amount=reward_amount * nr_of_events) in result.output
+
+    mock_staking_agent.get_current_period.assert_called()
+    mock_staking_agent.staking_parameters.assert_called()
+    mock_staking_agent.contract.events[event_name].getLogs.assert_called()

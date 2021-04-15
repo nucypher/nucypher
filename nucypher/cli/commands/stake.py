@@ -93,7 +93,8 @@ from nucypher.cli.literature import (
     NO_INACTIVE_STAKES,
     FETCHING_INACTIVE_STAKES,
     MIGRATION_ALREADY_PERFORMED,
-    CONFIRM_MANUAL_MIGRATION
+    CONFIRM_MANUAL_MIGRATION,
+    TOKEN_REWARD
 )
 from nucypher.cli.options import (
     group_options,
@@ -1434,26 +1435,23 @@ def show(general_config, staker_options, config_file, period):
         latest_block = blockchain.client.block_number
         current_period = staking_agent.get_current_period()
         seconds_per_period = staking_agent.staking_parameters()[0]
-
-        from_period = current_period - 90
+        from_period = current_period - period
         from_block = estimate_block_number_for_period(period=from_period,
                                                       seconds_per_period=seconds_per_period,
                                                       latest_block=latest_block)
-        to_block = 'latest'
 
-        event_name = 'Minted'
         argument_filters = {'staker': staking_address}
-        event_type = staking_agent.contract.events[event_name]
-        entries = event_type.getLogs(fromBlock=from_block, toBlock=to_block, argument_filters=argument_filters)
+        event_type = staking_agent.contract.events['Minted']
+        entries = event_type.getLogs(fromBlock=from_block, toBlock='latest', argument_filters=argument_filters)
 
         reward_amount = 0
         for event_record in entries:
-            print(event_record)
-            reward_amount += event_record['value']
+            reward_amount += event_record['args']['value']
+        reward_amount = NU(reward_amount, 'NuNit').to_tokens()
     else:
-        reward_amount = STAKEHOLDER.staker.calculate_staking_reward()
+        reward_amount = STAKEHOLDER.staker.calculate_staking_reward().to_tokens()
 
-    emitter.echo(f"Reward amount: {reward_amount}")
+    emitter.echo(message=TOKEN_REWARD.format(reward_amount=reward_amount))
 
 
 @rewards.group()

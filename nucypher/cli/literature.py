@@ -311,6 +311,8 @@ NO_TOKENS_TO_WITHDRAW = "No tokens can be withdrawn."
 
 NO_FEE_TO_WITHDRAW = "No policy fee can be withdrawn."
 
+TOKEN_REWARD = 'Staking rewards: {reward_amount} NU'
+
 #
 # Configuration
 #
