@@ -1452,30 +1452,3 @@ def show(general_config, staker_options, config_file, period):
         reward_amount = STAKEHOLDER.staker.calculate_staking_reward().to_tokens()
 
     emitter.echo(message=TOKEN_REWARD.format(reward_amount=reward_amount))
-
-
-@rewards.group()
-@group_staker_options
-@option_config_file
-@group_general_config
-@click.option('--tokens', help="Deposit NU tokens", type=click.STRING)
-@click.option('--amount', help="Amount to deposit", type=click.FLOAT)
-def deposit(general_config, staker_options, config_file, tokens, amount):
-    """Deposit rewards."""
-    if amount and amount < 0:
-        raise click.BadOptionUsage(option_name='--amount', message='--amount must positive')
-
-
-@rewards.group()
-@group_staker_options
-@option_config_file
-@group_general_config
-@click.option('--tokens', help="Withdraw NU tokens", type=click.STRING)
-@click.option('--fees', help="Withdraw staking fees", type=click.STRING)
-@click.option('--amount', help="Amount to deposit", type=click.FLOAT)
-def withdraw(general_config, staker_options, config_file, tokens, fees, amount):
-    """Withdraw rewards."""
-    if amount and amount < 0:
-        raise click.BadOptionUsage(option_name='--amount', message='--amount must positive')
-    if tokens and fees:
-        raise click.BadOptionUsage(option_name='--tokens', message='Pass either --tokens or --fees, not both')
