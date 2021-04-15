@@ -1087,7 +1087,7 @@ def remove_inactive(general_config: GroupGeneralConfig,
             emitter.message(NO_INACTIVE_STAKES, color='red')
             raise click.Abort()
         if not force:
-            prompt = CONFIRM_REMOVE_ALL_INACTIVE_SUBSTAKES.format(stakes=", ".join(s.index for s in inactive_stakes),
+            prompt = CONFIRM_REMOVE_ALL_INACTIVE_SUBSTAKES.format(stakes=", ".join(str(s.index) for s in inactive_stakes),
                                                                   quantity=len(inactive_stakes),
                                                                   staker_address=STAKEHOLDER.checksum_address)
             click.confirm(prompt, abort=True)
