@@ -190,7 +190,7 @@ def events(general_config, registry_options, contract_name, from_block, to_block
         staking_agent = ContractAgency.get_agent(StakingEscrowAgent, registry=registry)
         current_period = staking_agent.get_current_period()
         from_block = estimate_block_number_for_period(period=current_period,
-                                                      seconds_per_period=staking_agent.staking_parameters()[0],
+                                                      seconds_per_period=staking_agent.staking_parameters()[1],
                                                       latest_block=last_block)
     if to_block is None:
         to_block = 'latest'
