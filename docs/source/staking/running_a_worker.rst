@@ -327,7 +327,7 @@ Replace the following values with your own:
    * ``<SIGNER URI>`` - The URI to an ethereum keystore or signer: `keystore:///root/.ethereum/keystore`
    * ``<GWEI>`` - The maximum price of gas to spend on commitment transactions
 
-The configuration settings will be stored in an ursula configuration file.
+The configuration settings will be stored in an Ursula configuration file.
 
 .. important::
 
