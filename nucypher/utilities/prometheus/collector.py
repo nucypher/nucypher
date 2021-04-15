@@ -30,7 +30,7 @@ from nucypher.blockchain.eth.actors import NucypherTokenActor
 from nucypher.blockchain.eth.agents import ContractAgency, PolicyManagerAgent, StakingEscrowAgent, WorkLockAgent
 from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
 from nucypher.blockchain.eth.registry import BaseContractRegistry
-from nucypher.datastore.queries import fetch_policy_arrangements, find_policy_arrangements, fetch_work_orders
+from nucypher.datastore.queries import get_policy_arrangements, get_work_orders
 
 from prometheus_client.registry import CollectorRegistry
 
@@ -129,7 +129,7 @@ class UrsulaInfoMetricsCollector(BaseMetricsCollector):
         else:
             self.metrics["availability_score_gauge"].set(-1)
 
-        work_orders = fetch_work_orders(self.ursula.datastore)
+        work_orders = get_work_orders(self.ursula.datastore)
         self.metrics["work_orders_gauge"].set(len(work_orders))
 
         if not self.ursula.federated_only:
@@ -142,7 +142,7 @@ class UrsulaInfoMetricsCollector(BaseMetricsCollector):
                                      'missing_commitments': str(missing_commitments)}
             base_payload.update(decentralized_payload)
 
-            policy_arrangements = fetch_policy_arrangements(self.ursula.datastore)
+            policy_arrangements = get_policy_arrangements(self.ursula.datastore)
             self.metrics["policies_held_gauge"].set(len(policy_arrangements))
 
         self.metrics["host_info"].info(base_payload)

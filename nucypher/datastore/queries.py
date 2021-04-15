@@ -15,18 +15,25 @@
  along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 import functools
-from typing import List, Type
+from typing import Callable, List, Type
 
 from nucypher.datastore.base import DatastoreRecord
-from nucypher.datastore.datastore import Datastore, RecordNotFound
+from nucypher.datastore.datastore import Datastore, DatastoreQueryResult, RecordNotFound
 from nucypher.datastore.models import PolicyArrangement, TreasureMap, Workorder
 
 
-def fetch(func):
-    """Used to fetch lazy results. Breaks writeable records."""
+def unwrap_records(func: Callable[..., DatastoreQueryResult]) -> Callable[..., List[Type['DatastoreRecord']]]:
+    """
+    Used to safely unwrap results of a query.
+    Suitable only for reading `DatastoreRecord`s. Use `find_*` functions if you want to modify records.
+
+    Since results returned by `Datastore.query_by()` are lazy (wrapped in a `@contextmanager` generator)
+    we have to unwrap them and handle `RecordNotFound` error, if any. `DatastoreRecord`s are not writable
+    after unwrapping, because exiting `@contextmanager` is also closing `Datastore` transaction.
+    """
 
     @functools.wraps(func)
-    def wrapper(*args, **kwargs):
+    def wrapper(*args, **kwargs) -> List[Type['DatastoreRecord']]:
         try:
             with func(*args, **kwargs) as results:
                 return results
@@ -36,29 +43,29 @@ def fetch(func):
     return wrapper
 
 
-def find_expired_policies(ds: Datastore, now) -> List[Type['DatastoreRecord']]:
+def find_expired_policies(ds: Datastore, now) -> DatastoreQueryResult:
     return ds.query_by(PolicyArrangement,
                        filter_field='expiration',
                        filter_func=lambda expiration: expiration <= now,
                        writeable=True)
 
 
-def find_expired_treasure_maps(ds: Datastore, now) -> List[Type['DatastoreRecord']]:
+def find_expired_treasure_maps(ds: Datastore, now) -> DatastoreQueryResult:
     return ds.query_by(TreasureMap,
                        filter_field='expiration',
                        filter_func=lambda expiration: expiration <= now,
                        writeable=True)
 
 
-@fetch
-def fetch_work_orders(ds: Datastore) -> List[Type['DatastoreRecord']]:
+@unwrap_records
+def get_work_orders(ds: Datastore) -> List[Workorder]:
     return ds.query_by(Workorder)
 
 
-def find_policy_arrangements(ds: Datastore) -> List[Type['DatastoreRecord']]:
+def find_policy_arrangements(ds: Datastore) -> DatastoreQueryResult:
     return ds.query_by(PolicyArrangement, writeable=True)
 
 
-@fetch
-def fetch_policy_arrangements(ds: Datastore) -> List[Type['DatastoreRecord']]:
+@unwrap_records
+def get_policy_arrangements(ds: Datastore) -> List[PolicyArrangement]:
     return ds.query_by(PolicyArrangement)
