@@ -14,8 +14,11 @@
  You should have received a copy of the GNU Affero General Public License
  along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
+
 import functools
 from typing import Callable, List, Type
+
+import maya
 
 from nucypher.datastore.base import DatastoreRecord
 from nucypher.datastore.datastore import Datastore, DatastoreQueryResult, RecordNotFound
@@ -43,17 +46,17 @@ def unwrap_records(func: Callable[..., DatastoreQueryResult]) -> Callable[..., L
     return wrapper
 
 
-def find_expired_policies(ds: Datastore, now) -> DatastoreQueryResult:
+def find_expired_policies(ds: Datastore, cutoff: maya.MayaDT) -> DatastoreQueryResult:
     return ds.query_by(PolicyArrangement,
                        filter_field='expiration',
-                       filter_func=lambda expiration: expiration <= now,
+                       filter_func=lambda expiration: expiration <= cutoff,
                        writeable=True)
 
 
-def find_expired_treasure_maps(ds: Datastore, now) -> DatastoreQueryResult:
+def find_expired_treasure_maps(ds: Datastore, cutoff: maya.MayaDT) -> DatastoreQueryResult:
     return ds.query_by(TreasureMap,
                        filter_field='expiration',
-                       filter_func=lambda expiration: expiration <= now,
+                       filter_func=lambda expiration: expiration <= cutoff,
                        writeable=True)
 
 
