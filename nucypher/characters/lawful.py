@@ -124,7 +124,7 @@ class Alice(Character, BlockchainPolicyAuthor):
 
                  # Policy Value
                  rate: int = None,
-                 duration_periods: int = None,
+                 payment_periods: int = None,
 
                  # Policy Storage
                  store_policy_credentials: bool = None,
@@ -175,7 +175,7 @@ class Alice(Character, BlockchainPolicyAuthor):
                                             transacting_power=self.transacting_power,
                                             registry=self.registry,
                                             rate=rate,
-                                            duration_periods=duration_periods)
+                                            payment_periods=payment_periods)
 
         self.log = Logger(self.__class__.__name__)
         if is_me:
@@ -265,7 +265,7 @@ class Alice(Character, BlockchainPolicyAuthor):
     def generate_policy_parameters(self,
                                    m: int = None,
                                    n: int = None,
-                                   duration_periods: int = None,
+                                   payment_periods: int = None,
                                    expiration: maya.MayaDT = None,
                                    *args, **kwargs
                                    ) -> dict:
@@ -273,8 +273,8 @@ class Alice(Character, BlockchainPolicyAuthor):
         Construct policy creation from parameters or overrides.
         """
 
-        if not duration_periods and not expiration:
-            raise ValueError("Policy end time must be specified as 'expiration' or 'duration_periods', got neither.")
+        if not payment_periods and not expiration:
+            raise ValueError("Policy end time must be specified as 'expiration' or 'payment_periods', got neither.")
 
         # Merge injected and default params.
         m = m or self.m
@@ -283,7 +283,7 @@ class Alice(Character, BlockchainPolicyAuthor):
 
         if self.federated_only:
             if not expiration:
-                raise TypeError("For a federated policy, you must specify expiration (duration_periods don't count).")
+                raise TypeError("For a federated policy, you must specify expiration (payment_periods don't count).")
             if expiration <= maya.now():
                 raise ValueError(f'Expiration must be in the future ({expiration}).')
         else:
@@ -293,7 +293,7 @@ class Alice(Character, BlockchainPolicyAuthor):
 
             # Calculate Policy Rate and Value
             payload = super().generate_policy_parameters(number_of_ursulas=n,
-                                                         duration_periods=duration_periods,
+                                                         payment_periods=payment_periods,
                                                          expiration=expiration,
                                                          *args, **kwargs)
             base_payload.update(payload)

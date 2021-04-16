@@ -187,7 +187,7 @@ class AliceConfiguration(CharacterConfiguration):
                  m: int = None,
                  n: int = None,
                  rate: int = None,
-                 duration_periods: int = None,
+                 payment_periods: int = None,
                  store_policies: bool = DEFAULT_STORE_POLICIES,
                  store_cards: bool = DEFAULT_STORE_CARDS,
                  *args, **kwargs):
@@ -198,7 +198,7 @@ class AliceConfiguration(CharacterConfiguration):
 
         # if not self.federated_only:  # TODO: why not?
         self.rate = rate
-        self.duration_periods = duration_periods
+        self.payment_periods = payment_periods
 
         self.store_policies = store_policies
         self.store_cards = store_cards
@@ -213,8 +213,8 @@ class AliceConfiguration(CharacterConfiguration):
         if not self.federated_only:
             if self.rate:
                 payload['rate'] = self.rate
-            if self.duration_periods:
-                payload['duration_periods'] = self.duration_periods
+            if self.payment_periods:
+                payload['payment_periods'] = self.payment_periods
         return {**super().static_payload(), **payload}
 
     def write_keyring(self, password: str, **generation_kwargs) -> NucypherKeyring:

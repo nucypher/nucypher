@@ -1187,7 +1187,7 @@ class BlockchainPolicyAuthor(NucypherTokenActor):
 
     def __init__(self,
                  rate: int = None,
-                 duration_periods: int = None,
+                 payment_periods: int = None,
                  *args, **kwargs):
         """
         :param policy_agent: A policy agent with the blockchain attached;
@@ -1203,7 +1203,7 @@ class BlockchainPolicyAuthor(NucypherTokenActor):
 
         self.economics = EconomicsFactory.get_economics(registry=self.registry)
         self.rate = rate
-        self.duration_periods = duration_periods
+        self.payment_periods = payment_periods
 
     @property
     def default_rate(self):
@@ -1212,7 +1212,7 @@ class BlockchainPolicyAuthor(NucypherTokenActor):
 
     def generate_policy_parameters(self,
                                    number_of_ursulas: int = None,
-                                   duration_periods: int = None,
+                                   payment_periods: int = None,
                                    expiration: maya.MayaDT = None,
                                    value: int = None,
                                    rate: int = None,
@@ -1221,35 +1221,35 @@ class BlockchainPolicyAuthor(NucypherTokenActor):
         Construct policy creation from parameters or overrides.
         """
 
-        if not duration_periods and not expiration:
-            raise ValueError("Policy end time must be specified as 'expiration' or 'duration_periods', got neither.")
+        if not payment_periods and not expiration:
+            raise ValueError("Policy end time must be specified as 'expiration' or 'payment_periods', got neither.")
 
         # Merge injected and default params.
         rate = rate if rate is not None else self.rate  # TODO conflict with CLI default value, see #1709
-        duration_periods = duration_periods or self.duration_periods
+        payment_periods = payment_periods or self.payment_periods
 
         # Calculate duration in periods and expiration datetime
-        if duration_periods:
+        if payment_periods:
             # Duration equals one period means that expiration date is the last second of the current period
-            expiration = datetime_at_period(self.staking_agent.get_current_period() + duration_periods,
+            expiration = datetime_at_period(self.staking_agent.get_current_period() + payment_periods,
                                             seconds_per_period=self.economics.seconds_per_period,
                                             start_of_period=True)
             expiration -= 1  # Get the last second of the target period
         else:
             now = self.staking_agent.blockchain.get_blocktime()
-            duration_periods = calculate_period_duration(now=maya.MayaDT(now),
-                                                         future_time=expiration,
-                                                         seconds_per_period=self.economics.seconds_per_period)
-            duration_periods += 1  # Number of all included periods
+            payment_periods = calculate_period_duration(now=maya.MayaDT(now),
+                                                        future_time=expiration,
+                                                        seconds_per_period=self.economics.seconds_per_period)
+            payment_periods += 1  # Number of all included periods
 
         from nucypher.policy.policies import BlockchainPolicy
         blockchain_payload = BlockchainPolicy.generate_policy_parameters(n=number_of_ursulas,
-                                                                         duration_periods=duration_periods,
+                                                                         payment_periods=payment_periods,
                                                                          value=value,
                                                                          rate=rate)
 
         # These values may have been recalculated in this blocktime.
-        policy_end_time = dict(duration_periods=duration_periods, expiration=expiration)
+        policy_end_time = dict(payment_periods=payment_periods, expiration=expiration)
         payload = {**blockchain_payload, **policy_end_time}
         return payload
 

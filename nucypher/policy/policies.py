@@ -542,14 +542,14 @@ class BlockchainPolicy(Policy):
     def __init__(self,
                  value: int,
                  rate: int,
-                 duration_periods: int,
+                 payment_periods: int,
                  *args,
                  **kwargs,
                  ):
 
         super().__init__(*args, **kwargs)
 
-        self.duration_periods = duration_periods
+        self.payment_periods = payment_periods
         self.value = value
         self.rate = rate
 
@@ -559,21 +559,21 @@ class BlockchainPolicy(Policy):
         return BlockchainPolicy.NotEnoughBlockchainUrsulas
 
     def _validate_fee_value(self) -> None:
-        rate_per_period = self.value // self.n // self.duration_periods  # wei
-        recalculated_value = self.duration_periods * rate_per_period * self.n
+        rate_per_period = self.value // self.n // self.payment_periods  # wei
+        recalculated_value = self.payment_periods * rate_per_period * self.n
         if recalculated_value != self.value:
             raise ValueError(f"Invalid policy value calculation - "
                              f"{self.value} can't be divided into {self.n} staker payments per period "
-                             f"for {self.duration_periods} periods without a remainder")
+                             f"for {self.payment_periods} periods without a remainder")
 
     @staticmethod
     def generate_policy_parameters(n: int,
-                                   duration_periods: int,
+                                   payment_periods: int,
                                    value: int = None,
                                    rate: int = None) -> dict:
 
         # Check for negative inputs
-        if sum(True for i in (n, duration_periods, value, rate) if i is not None and i < 0) > 0:
+        if sum(True for i in (n, payment_periods, value, rate) if i is not None and i < 0) > 0:
             raise BlockchainPolicy.InvalidPolicyValue(f"Negative policy parameters are not allowed. Be positive.")
 
         # Check for policy params
@@ -583,7 +583,7 @@ class BlockchainPolicy(Policy):
                                                           f"Got value: {value} and rate: {rate}")
 
         if value is None:
-            value = rate * duration_periods * n
+            value = rate * payment_periods * n
 
         else:
             value_per_node = value // n
@@ -591,10 +591,10 @@ class BlockchainPolicy(Policy):
                 raise BlockchainPolicy.InvalidPolicyValue(f"Policy value of ({value} wei) cannot be"
                                                           f" divided by N ({n}) without a remainder.")
 
-            rate = value_per_node // duration_periods
-            if rate * duration_periods != value_per_node:
+            rate = value_per_node // payment_periods
+            if rate * payment_periods != value_per_node:
                 raise BlockchainPolicy.InvalidPolicyValue(f"Policy value of ({value_per_node} wei) per node "
-                                                          f"cannot be divided by duration ({duration_periods} periods)"
+                                                          f"cannot be divided by duration ({payment_periods} periods)"
                                                           f" without a remainder.")
 
         params = dict(rate=rate, value=value)
@@ -602,7 +602,7 @@ class BlockchainPolicy(Policy):
 
     def _make_reservoir(self, handpicked_addresses):
         try:
-            reservoir = self.alice.get_stakers_reservoir(duration=self.duration_periods,
+            reservoir = self.alice.get_stakers_reservoir(duration=self.payment_periods,
                                                          without=handpicked_addresses)
         except StakingEscrowAgent.NotEnoughStakers:
             # TODO: do that in `get_stakers_reservoir()`?
