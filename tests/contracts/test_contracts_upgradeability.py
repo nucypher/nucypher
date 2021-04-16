@@ -40,7 +40,6 @@ from nucypher.crypto.powers import TransactingPower
 from tests.constants import INSECURE_DEVELOPMENT_PASSWORD
 from tests.fixtures import make_token_economics
 from tests.utils.blockchain import free_gas_price_strategy
-import pytest
 
 
 USER = "nucypher"
@@ -110,10 +109,13 @@ def deploy_base_contract(blockchain_interface: BlockchainDeployerInterface,
                          skipt_test: bool):
     contract_name = deployer.contract_name
     latest_version, _data = blockchain_interface.find_raw_contract_data(contract_name, "latest")
-    try:
-        overrides = CONSTRUCTOR_OVERRIDES[contract_name][latest_version]
-    except KeyError:
-        overrides = dict()
+    raw_contracts = blockchain_interface._raw_contract_cache
+    overrides = dict()
+    if len(raw_contracts[contract_name]) != 1:
+        try:
+            overrides = CONSTRUCTOR_OVERRIDES[contract_name][latest_version]
+        except KeyError:
+            pass
 
     version = "latest" if skipt_test else "earliest"
     try:
@@ -135,7 +137,6 @@ def skip_test(blockchain_interface: BlockchainDeployerInterface, contract_name: 
     return force_skip or len(raw_contracts[contract_name]) == 1
 
 
-@pytest.mark.skip()  # TODO: Unskip this test
 def test_upgradeability(temp_dir_path):
     # Prepare remote source for compilation
     download_github_dir(GITHUB_SOURCE_LINK, temp_dir_path)
@@ -166,7 +167,7 @@ def test_upgradeability(temp_dir_path):
         contract_name = PolicyManagerDeployer.contract_name
         skip_policy_manager_test = skip_test(blockchain_interface, contract_name)
 
-        if not skip_adjudicator_test and not skip_staking_escrow_test and not skip_policy_manager_test:
+        if skip_adjudicator_test and skip_staking_escrow_test and skip_policy_manager_test:
             return
 
         # Prepare master version of contracts and upgrade to the latest
