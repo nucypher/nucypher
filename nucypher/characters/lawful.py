@@ -278,18 +278,26 @@ class Alice(Character, BlockchainPolicyAuthor):
 
         # Merge injected and default params.
         m = m or self.m
-        n = n or self.n
+        n = n or self
         base_payload = dict(m=m, n=n, expiration=expiration)
 
-        # Calculate Policy Rate and Value
-        if not self.federated_only:
+        if self.federated_only:
+            if not expiration:
+                raise TypeError("For a federated policy, you must specify expiration (duration_periods don't count).")
+            if expiration <= maya.now():
+                raise ValueError(f'Expiration must be in the future ({expiration}).')
+        else:
+            blocktime = maya.MayaDT(self.policy_agent.blockchain.get_blocktime())
+            if expiration and (expiration <= blocktime):
+                raise ValueError(f'Expiration must be in the future ({expiration} is earlier than blocktime {blocktime}).')
+
+            # Calculate Policy Rate and Value
             payload = super().generate_policy_parameters(number_of_ursulas=n,
                                                          duration_periods=duration_periods,
                                                          expiration=expiration,
                                                          *args, **kwargs)
             base_payload.update(payload)
-        elif not expiration:
-            raise TypeError("For a federated policy, you must specify expiration (duration_periods don't count).")
+
         return base_payload
 
     def _check_grant_requirements(self, policy):
