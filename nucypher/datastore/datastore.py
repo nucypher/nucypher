@@ -15,16 +15,13 @@ You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 import lmdb
-import maya
 from contextlib import contextmanager, suppress
 from functools import partial
-from typing import Any, Callable, List, NamedTuple, Optional, Type, Union
+from typing import Any, Callable, Generator, List, NamedTuple, Optional, Type, Union
 
-from bytestring_splitter import BytestringSplitter
-from nucypher.crypto.signing import Signature
-from nucypher.datastore.base import DatastoreRecord, DBWriteError, RecordField
-from nucypher.datastore.models import PolicyArrangement, Workorder
+from nucypher.datastore.base import DatastoreRecord, DBWriteError
 
+DatastoreQueryResult = Generator[List[Type['DatastoreRecord']], None, None]
 
 class RecordNotFound(Exception):
     """
@@ -141,7 +138,7 @@ class Datastore:
               filter_func: Optional[Callable[[Union[Any, Type['DatastoreRecord']]], bool]] = None,
               filter_field: str = "",
               writeable: bool = False,
-              ) -> List[Type['DatastoreRecord']]:
+              ) -> DatastoreQueryResult:
         """
         Performs a query on the datastore for the record by `record_type`.
 

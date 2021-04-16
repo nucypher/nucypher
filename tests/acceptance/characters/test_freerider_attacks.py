@@ -22,6 +22,7 @@ import pytest
 from nucypher.characters.unlawful import Amonia
 from nucypher.datastore.models import PolicyArrangement, TreasureMap as DatastoreTreasureMap
 from nucypher.datastore.datastore import RecordNotFound
+from nucypher.datastore.queries import find_policy_arrangements
 from nucypher.network.middleware import RestMiddleware
 
 
@@ -47,8 +48,9 @@ def test_policy_simple_sinpa(blockchain_ursulas, blockchain_alice, blockchain_bo
         # Reset the Ursula for the next test.
         ursula.suspicious_activities_witnessed['freeriders'] = []
         try:
-            with ursula.datastore.query_by(PolicyArrangement, writeable=True) as arrangements:
-                [arrangement.delete() for arrangement in arrangements]
+            with find_policy_arrangements(ursula.datastore) as arrangements:
+                for arrangement in arrangements:
+                    arrangement.delete()
         except RecordNotFound:
             # No records were found; this Ursula didn't have the arrangement.
             continue
@@ -76,7 +78,7 @@ def test_try_to_post_free_arrangement_by_hacking_enact(blockchain_ursulas, block
     for ursula in blockchain_ursulas:
         # Even though the grant executed without error...
         try:
-            with ursula.datastore.query_by(PolicyArrangement, writeable=True) as all_arrangements:
+            with find_policy_arrangements(ursula.datastore) as all_arrangements:
                 arrangement = all_arrangements[0] # ...and Ursula did save the Arrangement after considering it...
                 with pytest.raises(AttributeError):
                     should_error = arrangement.kfrag # ...Ursula did *not* save a KFrag and will not service this Policy.
@@ -88,7 +90,8 @@ def test_try_to_post_free_arrangement_by_hacking_enact(blockchain_ursulas, block
 
                 # Reset the Ursula for the next test.
                 ursula.suspicious_activities_witnessed['freeriders'] = []
-                [arrangement.delete() for arrangement in all_arrangements]
+                for arrangement in all_arrangements:
+                    arrangement.delete()
         except RecordNotFound:
             # No records were found; this Ursula didn't have the arrangement.
             continue
@@ -120,7 +123,7 @@ def test_pay_a_flunky_instead_of_the_arranged_ursula(blockchain_alice, blockchai
     for ursula in blockchain_ursulas:
         # Even though the grant executed without error...
         try:
-            with ursula.datastore.query_by(PolicyArrangement, writeable=True) as all_arrangements:
+            with find_policy_arrangements(ursula.datastore) as all_arrangements:
                 arrangement = all_arrangements[0] # ...and Ursula did save the Arrangement after considering it...
                 with pytest.raises(AttributeError):
                     should_error = arrangement.kfrag # ...Ursula did *not* save a KFrag and will not service this Policy.
@@ -132,7 +135,8 @@ def test_pay_a_flunky_instead_of_the_arranged_ursula(blockchain_alice, blockchai
 
                 # Reset the Ursula for the next test.
                 ursula.suspicious_activities_witnessed['freeriders'] = []
-                [arrangement.delete() for arrangement in all_arrangements]
+                for arrangement in all_arrangements:
+                    arrangement.delete()
         except RecordNotFound:
             # No records were found; this Ursula didn't have the arrangement.
             continue
