@@ -15,11 +15,12 @@
  along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
-
 import pytest
 import re
 from web3 import Web3
 
+from nucypher.blockchain.eth.clients import EthereumTesterClient
+from nucypher.cli.painting.staking import REWARDS_TABLE_COLUMNS
 from nucypher.crypto.powers import TransactingPower
 from nucypher.blockchain.eth.actors import Staker, StakeHolder
 from nucypher.blockchain.eth.constants import MAX_UINT16, NULL_ADDRESS
@@ -65,7 +66,10 @@ from nucypher.cli.literature import (
     ONLY_DISPLAYING_MERGEABLE_STAKES_NOTE,
     CONFIRM_MERGE,
     SUCCESSFUL_STAKES_MERGE,
-    CONFIRM_STAKE_USE_UNLOCKED, TOKEN_REWARD
+    CONFIRM_STAKE_USE_UNLOCKED,
+    TOKEN_REWARD_CURRENT,
+    TOKEN_REWARD_PAST,
+    TOKEN_REWARD_PAST_HEADER
 )
 from nucypher.config.constants import TEMPORARY_DOMAIN
 from nucypher.types import SubStakeInfo, StakerInfo
@@ -1419,32 +1423,53 @@ def test_show_rewards(click_runner, surrogate_stakers, mock_staking_agent, mocke
 
     result = click_runner.invoke(stake, collection_args, catch_exceptions=False)
     assert result.exit_code == 0
-    assert TOKEN_REWARD.format(reward_amount=reward_amount) in result.output
+    assert TOKEN_REWARD_CURRENT.format(reward_amount=reward_amount) in result.output
 
     mock_staking_agent.calculate_staking_reward.assert_called_once_with(staker_address=surrogate_stakers[0])
 
 
 @pytest.mark.usefixtures("test_registry_source_manager", "patch_stakeholder_configuration")
 def test_show_rewards_for_period(click_runner, surrogate_stakers, mock_staking_agent, mocker):
-    reward_amount = 1
+    days = 30
+    seconds_in_day = 24 * 60 * 60
+    periods_per_day = 2
+    seconds_per_period = periods_per_day * seconds_in_day
+    latest_block = 100_00_000
+
+    reward_amount = 1.00000001
     nr_of_events = 3
-    events = [{'args': {'value': NU(reward_amount, 'NU').to_nunits()}} for _ in range(nr_of_events)]
+    events = [{
+        'args': {'value': NU(reward_amount, 'NU').to_nunits()},
+        'block_number': latest_block - i
+    } for i in range(nr_of_events)]
+
     event_name = 'Minted'
     event = mocker.Mock()
     event.getLogs = mocker.MagicMock(return_value=events)
+
     mock_staking_agent.contract.events = {event_name: event}
-    mock_staking_agent.staking_parameters.return_value = [10]
+    mock_staking_agent.staking_parameters.return_value = [seconds_per_period]
+    mocker.patch.object(EthereumTesterClient,
+                        'block_number',
+                        return_value=latest_block,
+                        new_callable=mocker.PropertyMock)
 
     collection_args = ('rewards',
                        'show',
                        '--provider', MOCK_PROVIDER_URI,
                        '--network', TEMPORARY_DOMAIN,
                        '--staking-address', surrogate_stakers[0],
-                       '--period', 30)
+                       '--period', days)
 
     result = click_runner.invoke(stake, collection_args, catch_exceptions=False)
     assert result.exit_code == 0
-    assert TOKEN_REWARD.format(reward_amount=reward_amount * nr_of_events) in result.output
+    assert TOKEN_REWARD_PAST_HEADER.format(days=days,
+                                           periods=periods_per_day*days) in result.output
+    for header in REWARDS_TABLE_COLUMNS:
+        assert header in result.output
+    for event in events:
+        assert str(event['block_number']) in result.output
+    assert TOKEN_REWARD_PAST.format(reward_amount=reward_amount * nr_of_events)
 
     mock_staking_agent.get_current_period.assert_called()
     mock_staking_agent.staking_parameters.assert_called()

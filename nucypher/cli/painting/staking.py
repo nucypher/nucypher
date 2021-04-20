@@ -14,7 +14,7 @@ GNU Affero General Public License for more details.
 You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
-
+import math
 
 import tabulate
 from typing import List
@@ -24,14 +24,19 @@ from nucypher.blockchain.eth.agents import ContractAgency, NucypherTokenAgent
 from nucypher.blockchain.eth.constants import STAKING_ESCROW_CONTRACT_NAME, NULL_ADDRESS
 from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
 from nucypher.blockchain.eth.token import NU, Stake
-from nucypher.blockchain.eth.utils import datetime_at_period, prettify_eth_amount
+from nucypher.blockchain.eth.utils import datetime_at_period, estimate_block_number_for_period, prettify_eth_amount
 from nucypher.characters.control.emitters import StdoutEmitter
-from nucypher.cli.literature import POST_STAKING_ADVICE
+from nucypher.cli.literature import (
+    POST_STAKING_ADVICE,
+    TOKEN_REWARD_CURRENT,
+    TOKEN_REWARD_PAST,
+    TOKEN_REWARD_PAST_HEADER
+)
 from nucypher.cli.painting.transactions import paint_receipt_summary
 
 STAKE_TABLE_COLUMNS = ('Idx', 'Value', 'Remaining', 'Enactment', 'Termination', 'Status')
 STAKER_TABLE_COLUMNS = ('Status', 'Restaking', 'Winding Down', 'Snapshots', 'Unclaimed Fees', 'Min fee rate')
-
+REWARDS_TABLE_COLUMNS = ('Block number', 'Value (NU)')
 
 def paint_all_stakes(emitter: StdoutEmitter,
                      stakeholder: 'StakeHolder',
@@ -267,3 +272,42 @@ Minimum acceptable fee rate (set by staker for their associated worker):
     ~ Previously set ....... {prettify_eth_amount(raw_minimum)}
     ~ Effective ............ {prettify_eth_amount(minimum)}"""
     emitter.echo(rate_payload)
+
+
+def paint_staking_rewards(STAKEHOLDER, blockchain, emitter, period, staking_address, staking_agent):
+    if period:
+        seconds_per_period = staking_agent.staking_parameters()[0]
+        days_per_period = seconds_per_period / 60 / 60 / 24
+        periods_in_days = math.floor(days_per_period * period)
+        current_period = staking_agent.get_current_period()
+        from_period = current_period - periods_in_days
+        latest_block = blockchain.client.block_number
+        from_block = estimate_block_number_for_period(period=from_period,
+                                                      seconds_per_period=seconds_per_period,
+                                                      latest_block=latest_block)
+
+        argument_filters = {'staker': staking_address}
+        event_type = staking_agent.contract.events['Minted']
+        entries = event_type.getLogs(fromBlock=from_block,
+                                     toBlock='latest',
+                                     argument_filters=argument_filters)
+
+        rows = []
+        rewards_total = 0
+        for event_record in entries:
+            token_reward = NU(event_record['args']['value'], 'NuNit').to_tokens()
+            rows.append([
+                int(event_record['block_number']),
+                token_reward,
+            ])
+            rewards_total += token_reward
+        emitter.echo(message=TOKEN_REWARD_PAST_HEADER.format(days=period,
+                                                             periods=periods_in_days))
+        emitter.echo(tabulate.tabulate(rows,
+                                       headers=REWARDS_TABLE_COLUMNS,
+                                       tablefmt="fancy_grid",
+                                       floatfmt=".18g"))
+        emitter.echo(message=TOKEN_REWARD_PAST.format(reward_amount=rewards_total))
+    else:
+        reward_amount = STAKEHOLDER.staker.calculate_staking_reward().to_tokens()
+        emitter.echo(message=TOKEN_REWARD_CURRENT.format(reward_amount=reward_amount))

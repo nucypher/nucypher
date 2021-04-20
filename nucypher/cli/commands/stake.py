@@ -14,9 +14,9 @@
  You should have received a copy of the GNU Affero General Public License
  along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
+from decimal import Decimal
 
 import click
-from decimal import Decimal
 from web3 import Web3
 
 from nucypher.blockchain.eth.actors import StakeHolder
@@ -25,7 +25,7 @@ from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory, Block
 from nucypher.blockchain.eth.signers import TrezorSigner
 from nucypher.blockchain.eth.signers.software import ClefSigner
 from nucypher.blockchain.eth.token import NU, Stake
-from nucypher.blockchain.eth.utils import datetime_at_period, estimate_block_number_for_period
+from nucypher.blockchain.eth.utils import datetime_at_period
 from nucypher.cli.actions.auth import get_client_password
 from nucypher.cli.actions.configure import get_or_update_configuration, handle_missing_configuration_file
 from nucypher.cli.actions.confirm import (
@@ -113,11 +113,13 @@ from nucypher.cli.options import (
     option_gas_price
 )
 from nucypher.cli.painting.staking import (
-    paint_min_rate, paint_staged_stake,
+    paint_min_rate,
+    paint_staged_stake,
     paint_staged_stake_division,
     paint_stakes,
     paint_staking_accounts,
-    paint_staking_confirmation, paint_all_stakes
+    paint_staking_confirmation,
+    paint_all_stakes, paint_staking_rewards
 )
 from nucypher.cli.painting.transactions import paint_receipt_summary
 from nucypher.cli.types import (
@@ -1411,44 +1413,23 @@ def rewards():
     """Manage staking rewards."""
 
 
-@rewards.command()
+@rewards.command('show')
 @group_staker_options
 @option_config_file
 @group_general_config
-@click.option('--period', help="Number of periods for which to calculate historical rewards", type=click.INT, default=0)
-def show(general_config, staker_options, config_file, period):
+@click.option('--period', help="Number of days for which to calculate past rewards", type=click.INT)
+def show_rewards(general_config, staker_options, config_file, period):
     """Show staking rewards."""
-    if period < 0:
+
+    if period and period < 0:
         raise click.BadOptionUsage(option_name='--period', message='--period must positive')
 
     emitter = setup_emitter(general_config)
     STAKEHOLDER = staker_options.create_character(emitter, config_file)
-    _client_account, staking_address = select_client_account_for_staking(
-        emitter=emitter,
-        stakeholder=STAKEHOLDER,
-        staking_address=staker_options.staking_address)
+    _client_account, staking_address = select_client_account_for_staking(emitter=emitter,
+                                                                         stakeholder=STAKEHOLDER,
+                                                                         staking_address=staker_options.staking_address)
     blockchain = staker_options.get_blockchain()
-
     staking_agent = STAKEHOLDER.staker.staking_agent
 
-    if period:
-        latest_block = blockchain.client.block_number
-        current_period = staking_agent.get_current_period()
-        seconds_per_period = staking_agent.staking_parameters()[0]
-        from_period = current_period - period
-        from_block = estimate_block_number_for_period(period=from_period,
-                                                      seconds_per_period=seconds_per_period,
-                                                      latest_block=latest_block)
-
-        argument_filters = {'staker': staking_address}
-        event_type = staking_agent.contract.events['Minted']
-        entries = event_type.getLogs(fromBlock=from_block, toBlock='latest', argument_filters=argument_filters)
-
-        reward_amount = 0
-        for event_record in entries:
-            reward_amount += event_record['args']['value']
-        reward_amount = NU(reward_amount, 'NuNit').to_tokens()
-    else:
-        reward_amount = STAKEHOLDER.staker.calculate_staking_reward().to_tokens()
-
-    emitter.echo(message=TOKEN_REWARD.format(reward_amount=reward_amount))
+    paint_staking_rewards(STAKEHOLDER, blockchain, emitter, period, staking_address, staking_agent)
