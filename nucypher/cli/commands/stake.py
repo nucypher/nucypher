@@ -1417,19 +1417,19 @@ def rewards():
 @group_staker_options
 @option_config_file
 @group_general_config
-@click.option('--period', help="Number of days for which to calculate past rewards", type=click.INT)
-def show_rewards(general_config, staker_options, config_file, period):
+@click.option('--num_past_periods', help="Number of past periods for which to calculate rewards", type=click.INT)
+def show_rewards(general_config, staker_options, config_file, num_past_periods):
     """Show staking rewards."""
 
-    if period and period < 0:
-        raise click.BadOptionUsage(option_name='--period', message='--period must positive')
+    if num_past_periods and num_past_periods < 0:
+        raise click.BadOptionUsage(option_name='--num_past_periods', message='--num_past_periods must positive')
 
     emitter = setup_emitter(general_config)
-    STAKEHOLDER = staker_options.create_character(emitter, config_file)
+    stakeholder = staker_options.create_character(emitter, config_file)
     _client_account, staking_address = select_client_account_for_staking(emitter=emitter,
-                                                                         stakeholder=STAKEHOLDER,
+                                                                         stakeholder=stakeholder,
                                                                          staking_address=staker_options.staking_address)
     blockchain = staker_options.get_blockchain()
-    staking_agent = STAKEHOLDER.staker.staking_agent
+    staking_agent = stakeholder.staker.staking_agent
 
-    paint_staking_rewards(STAKEHOLDER, blockchain, emitter, period, staking_address, staking_agent)
+    paint_staking_rewards(stakeholder, blockchain, emitter, num_past_periods, staking_address, staking_agent)

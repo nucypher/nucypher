@@ -29,6 +29,7 @@ from nucypher.characters.control.emitters import StdoutEmitter
 from nucypher.cli.literature import (
     POST_STAKING_ADVICE,
     TOKEN_REWARD_CURRENT,
+    TOKEN_REWARD_NOT_FOUND,
     TOKEN_REWARD_PAST,
     TOKEN_REWARD_PAST_HEADER
 )
@@ -36,7 +37,8 @@ from nucypher.cli.painting.transactions import paint_receipt_summary
 
 STAKE_TABLE_COLUMNS = ('Idx', 'Value', 'Remaining', 'Enactment', 'Termination', 'Status')
 STAKER_TABLE_COLUMNS = ('Status', 'Restaking', 'Winding Down', 'Snapshots', 'Unclaimed Fees', 'Min fee rate')
-REWARDS_TABLE_COLUMNS = ('Block number', 'Value (NU)')
+REWARDS_TABLE_COLUMNS = ('Date', 'Block Number', 'Period', 'Value (NU)')
+
 
 def paint_all_stakes(emitter: StdoutEmitter,
                      stakeholder: 'StakeHolder',
@@ -274,13 +276,13 @@ Minimum acceptable fee rate (set by staker for their associated worker):
     emitter.echo(rate_payload)
 
 
-def paint_staking_rewards(STAKEHOLDER, blockchain, emitter, period, staking_address, staking_agent):
-    if period:
-        seconds_per_period = staking_agent.staking_parameters()[0]
-        days_per_period = seconds_per_period / 60 / 60 / 24
-        periods_in_days = math.floor(days_per_period * period)
+def paint_staking_rewards(stakeholder, blockchain, emitter, num_past_periods, staking_address, staking_agent):
+    if num_past_periods:
+        economics = stakeholder.staker.economics
+        seconds_per_period = economics.seconds_per_period
+        days_per_period = economics.hours_per_period // 24
         current_period = staking_agent.get_current_period()
-        from_period = current_period - periods_in_days
+        from_period = current_period - num_past_periods
         latest_block = blockchain.client.block_number
         from_block = estimate_block_number_for_period(period=from_period,
                                                       seconds_per_period=seconds_per_period,
@@ -296,18 +298,26 @@ def paint_staking_rewards(STAKEHOLDER, blockchain, emitter, period, staking_addr
         rewards_total = 0
         for event_record in entries:
             token_reward = NU(event_record['args']['value'], 'NuNit').to_tokens()
+            period = event_record['args']['period']
+            date = datetime_at_period(period, seconds_per_period, start_of_period=True)
             rows.append([
+                date.local_datetime().strftime("%b %d %Y"),
                 int(event_record['block_number']),
+                int(period),
                 token_reward,
             ])
             rewards_total += token_reward
-        emitter.echo(message=TOKEN_REWARD_PAST_HEADER.format(days=period,
-                                                             periods=periods_in_days))
-        emitter.echo(tabulate.tabulate(rows,
-                                       headers=REWARDS_TABLE_COLUMNS,
-                                       tablefmt="fancy_grid",
-                                       floatfmt=".18g"))
-        emitter.echo(message=TOKEN_REWARD_PAST.format(reward_amount=rewards_total))
+
+        periods_as_days = math.floor(days_per_period * num_past_periods)
+        if rows:
+            emitter.echo(message=TOKEN_REWARD_PAST_HEADER.format(periods=num_past_periods, days=periods_as_days))
+            emitter.echo(tabulate.tabulate(rows,
+                                           headers=REWARDS_TABLE_COLUMNS,
+                                           tablefmt="fancy_grid",
+                                           floatfmt=".18g"))
+            emitter.echo(message=TOKEN_REWARD_PAST.format(reward_amount=rewards_total))
+        else:
+            emitter.echo(TOKEN_REWARD_NOT_FOUND)
     else:
-        reward_amount = STAKEHOLDER.staker.calculate_staking_reward().to_tokens()
+        reward_amount = stakeholder.staker.calculate_staking_reward().to_tokens()
         emitter.echo(message=TOKEN_REWARD_CURRENT.format(reward_amount=reward_amount))
