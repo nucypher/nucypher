@@ -278,7 +278,7 @@ class Alice(Character, BlockchainPolicyAuthor):
 
         # Merge injected and default params.
         m = m or self.m
-        n = n or self
+        n = n or self.n
         base_payload = dict(m=m, n=n, expiration=expiration)
 
         if self.federated_only:
