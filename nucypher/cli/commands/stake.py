@@ -94,7 +94,6 @@ from nucypher.cli.literature import (
     FETCHING_INACTIVE_STAKES,
     MIGRATION_ALREADY_PERFORMED,
     CONFIRM_MANUAL_MIGRATION,
-    TOKEN_REWARD
 )
 from nucypher.cli.options import (
     group_options,
