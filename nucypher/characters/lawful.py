@@ -94,7 +94,7 @@ from nucypher.datastore.datastore import DatastoreTransactionError, RecordNotFou
 from nucypher.datastore.queries import find_expired_policies, find_expired_treasure_maps
 from nucypher.network.exceptions import NodeSeemsToBeDown
 from nucypher.network.middleware import RestMiddleware
-from nucypher.network.nodes import NodeSprout, Teacher
+from nucypher.network.nodes import NodeSprout, TEACHER_NODES, Teacher
 from nucypher.network.protocols import InterfaceInfo, parse_node_uri
 from nucypher.network.server import ProxyRESTServer, TLSHostingPower, make_rest_app
 from nucypher.network.trackers import AvailabilityTracker
@@ -1451,7 +1451,7 @@ class Ursula(Teacher, Character, Worker):
     def seednode_for_network(cls, network: str) -> 'Ursula':
         """Returns a default seednode ursula for a given network."""
         try:
-            url = RestMiddleware.TEACHER_NODES[network][0]
+            url = TEACHER_NODES[network][0]
         except KeyError:
             raise ValueError(f'"{network}" is not a known network.')
         except IndexError:

@@ -15,28 +15,28 @@ You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
-
-import json
-
 import contextlib
-import maya
+import json
 import os
-import pytest
 import random
 import shutil
 import tempfile
-from click.testing import CliRunner
 from datetime import datetime, timedelta
-from eth_utils import to_checksum_address
 from functools import partial
-from typing import Tuple, Callable
+from typing import Callable, Tuple
+
+import maya
+import pytest
+from click.testing import CliRunner
+from constant_sorrow.constants import (FULL, INIT)
+from eth_utils import to_checksum_address
 from web3 import Web3
 from web3.contract import Contract
 from web3.types import TxReceipt
 
 from nucypher.blockchain.economics import BaseEconomics, StandardTokenEconomics
 from nucypher.blockchain.eth.actors import StakeHolder, Staker
-from nucypher.blockchain.eth.agents import NucypherTokenAgent, PolicyManagerAgent, StakingEscrowAgent, ContractAgency
+from nucypher.blockchain.eth.agents import ContractAgency, NucypherTokenAgent
 from nucypher.blockchain.eth.deployers import (
     AdjudicatorDeployer,
     NucypherTokenDeployer,
@@ -60,6 +60,7 @@ from nucypher.config.characters import (
 from nucypher.config.constants import TEMPORARY_DOMAIN
 from nucypher.crypto.powers import TransactingPower
 from nucypher.datastore import datastore
+from nucypher.network.nodes import TEACHER_NODES
 from nucypher.utilities.logging import GlobalLoggerSettings, Logger
 from tests.constants import (
     BASE_TEMP_DIR,
@@ -100,14 +101,8 @@ from tests.utils.config import (
 )
 from tests.utils.middleware import MockRestMiddleware, MockRestMiddlewareForLargeFleetTests
 from tests.utils.policy import generate_random_label
-from tests.utils.ursula import (
-    MOCK_URSULA_STARTING_PORT,
-    make_decentralized_ursulas,
-    make_federated_ursulas,
-    MOCK_KNOWN_URSULAS_CACHE,
-    _mock_ursula_reencrypts
-)
-from constant_sorrow.constants import (FULL, INIT)
+from tests.utils.ursula import (MOCK_KNOWN_URSULAS_CACHE, MOCK_URSULA_STARTING_PORT, _mock_ursula_reencrypts,
+                                make_decentralized_ursulas, make_federated_ursulas)
 
 test_logger = Logger("test-logger")
 
@@ -1035,3 +1030,9 @@ def stakeholder_configuration_file_location(custom_filepath):
     _configuration_file_location = os.path.join(MOCK_CUSTOM_INSTALLATION_PATH,
                                                 StakeHolderConfiguration.generate_filename())
     return _configuration_file_location
+
+
+@pytest.fixture(autouse=True)
+def mock_teacher_nodes(mocker):
+    mock_nodes = tuple(u.rest_url() for u in MOCK_KNOWN_URSULAS_CACHE.values())[0:2]
+    mocker.patch.dict(TEACHER_NODES, {TEMPORARY_DOMAIN: mock_nodes})

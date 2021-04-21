@@ -145,15 +145,6 @@ class RestMiddleware:
 
     _client_class = NucypherMiddlewareClient
 
-    TEACHER_NODES = {
-        NetworksInventory.MAINNET: (
-            'https://seeds.nucypher.network:9151',
-            'https://closest-seed.nucypher.network:9151',
-        ),
-        NetworksInventory.LYNX: ('https://lynx.nucypher.network:9151',),
-        NetworksInventory.IBEX: ('https://ibex.nucypher.network:9151',),
-    }
-
     class UnexpectedResponse(Exception):
         def __init__(self, message, status, *args, **kwargs):
             super().__init__(message, *args, **kwargs)

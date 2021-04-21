@@ -16,49 +16,53 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
 import contextlib
-import datetime
 import time
 from collections import defaultdict, deque
 from contextlib import suppress
 from queue import Queue
-from typing import Iterable, List
-from typing import Set, Tuple, Union
+from typing import Iterable, List, Set, Tuple, Union
 
 import maya
 import requests
+from bytestring_splitter import BytestringSplitter, BytestringSplittingError, PartiallyKwargifiedBytes, \
+    VariableLengthBytestring
+from constant_sorrow import constant_or_bytes
+from constant_sorrow.constants import (CERTIFICATE_NOT_SAVED, FLEET_STATES_MATCH, NOT_SIGNED, NO_KNOWN_NODES,
+                                       NO_STORAGE_AVAILIBLE, RELAX, UNKNOWN_VERSION)
 from cryptography.x509 import Certificate
 from eth_utils import to_checksum_address
 from requests.exceptions import SSLError
 from twisted.internet import reactor, task
 from twisted.internet.defer import Deferred
+from umbral.signing import Signature
 
-import nucypher
-from bytestring_splitter import BytestringSplitter, BytestringSplittingError, PartiallyKwargifiedBytes, \
-    VariableLengthBytestring
-from constant_sorrow import constant_or_bytes
-from constant_sorrow.constants import (CERTIFICATE_NOT_SAVED, FLEET_STATES_MATCH, NOT_SIGNED,
-                                       NO_KNOWN_NODES, NO_STORAGE_AVAILIBLE, UNKNOWN_FLEET_STATE, UNKNOWN_VERSION,
-                                       RELAX)
 from nucypher.acumen.nicknames import Nickname
 from nucypher.acumen.perception import FleetSensor
 from nucypher.blockchain.economics import EconomicsFactory
 from nucypher.blockchain.eth.agents import ContractAgency, StakingEscrowAgent
 from nucypher.blockchain.eth.constants import NULL_ADDRESS
+from nucypher.blockchain.eth.networks import NetworksInventory
 from nucypher.blockchain.eth.registry import BaseContractRegistry
 from nucypher.config.constants import SeednodeMetadata
 from nucypher.config.storages import ForgetfulNodeStorage
-from nucypher.crypto.api import recover_address_eip_191, verify_eip_191, InvalidNodeCertificate
+from nucypher.crypto.api import InvalidNodeCertificate, recover_address_eip_191, verify_eip_191
 from nucypher.crypto.kits import UmbralMessageKit
-from nucypher.crypto.powers import DecryptingPower, NoSigningPower, SigningPower, TransactingPower
+from nucypher.crypto.powers import DecryptingPower, NoSigningPower, SigningPower
 from nucypher.crypto.signing import signature_splitter
 from nucypher.network import LEARNING_LOOP_VERSION
 from nucypher.network.exceptions import NodeSeemsToBeDown
 from nucypher.network.middleware import RestMiddleware
 from nucypher.network.protocols import SuspiciousActivity
-from nucypher.network.server import TLSHostingPower
 from nucypher.utilities.logging import Logger
-from umbral.signing import Signature
 
+TEACHER_NODES = {
+    NetworksInventory.MAINNET: (
+        'https://seeds.nucypher.network:9151',
+        'https://closest-seed.nucypher.network:9151',
+    ),
+    NetworksInventory.LYNX: ('https://lynx.nucypher.network:9151',),
+    NetworksInventory.IBEX: ('https://ibex.nucypher.network:9151',),
+}
 
 class NodeSprout(PartiallyKwargifiedBytes):
     """
@@ -301,7 +305,7 @@ class Learner:
         discovered = []
 
         if self.domain:
-            canonical_sage_uris = self.network_middleware.TEACHER_NODES.get(self.domain, ())
+            canonical_sage_uris = TEACHER_NODES.get(self.domain, ())
 
             for uri in canonical_sage_uris:
                 try:

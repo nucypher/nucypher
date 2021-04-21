@@ -114,14 +114,15 @@ def get_external_ip_from_default_teacher(network: str,
                                          log: Logger = IP_DETECTION_LOGGER
                                          ) -> Union[str, None]:
 
-    # Prevents circular import
+    # Prevents circular imports
     from nucypher.characters.lawful import Ursula
+    from nucypher.network.nodes import TEACHER_NODES
 
     if federated_only and registry:
         raise ValueError('Federated mode must not be true if registry is provided.')
     base_error = 'Cannot determine IP using default teacher'
     try:
-        top_teacher_url = RestMiddleware.TEACHER_NODES[network][0]
+        top_teacher_url = TEACHER_NODES[network][0]
     except IndexError:
         log.debug(f'{base_error}: No teacher available for network "{network}".')
         return
