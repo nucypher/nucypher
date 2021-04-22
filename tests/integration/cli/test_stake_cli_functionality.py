@@ -15,70 +15,38 @@
  along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 import math
-from decimal import Decimal
-
-import pytest
 import re
 
+import pytest
 from eth_typing import BlockNumber
 from web3 import Web3
 
+from nucypher.blockchain.eth.actors import StakeHolder, Staker
 from nucypher.blockchain.eth.clients import EthereumTesterClient
-from nucypher.cli.painting.staking import REWARDS_TABLE_COLUMNS
-from nucypher.crypto.powers import TransactingPower
-from nucypher.blockchain.eth.actors import Staker, StakeHolder
 from nucypher.blockchain.eth.constants import MAX_UINT16, NULL_ADDRESS
 from nucypher.blockchain.eth.signers.software import Web3Signer
 from nucypher.blockchain.eth.token import NU, Stake
 from nucypher.blockchain.eth.utils import datetime_at_period, estimate_block_number_for_period
 from nucypher.cli.actions.select import select_client_account_for_staking
-from nucypher.cli.commands.stake import (
-    stake,
-    StakeHolderConfigOptions,
-    StakerOptions,
-    TransactingStakerOptions
-)
-from nucypher.cli.literature import (
-    NO_TOKENS_TO_WITHDRAW,
-    COLLECTING_TOKEN_REWARD,
-    CONFIRM_COLLECTING_WITHOUT_MINTING,
-    NO_FEE_TO_WITHDRAW,
-    COLLECTING_ETH_FEE,
-    NO_MINTABLE_PERIODS,
-    STILL_LOCKED_TOKENS,
-    CONFIRM_MINTING,
-    PROMPT_PROLONG_VALUE,
-    CONFIRM_PROLONG,
-    SUCCESSFUL_STAKE_PROLONG,
-    PERIOD_ADVANCED_WARNING,
-    PROMPT_STAKE_DIVIDE_VALUE,
-    PROMPT_STAKE_EXTEND_VALUE,
-    CONFIRM_BROADCAST_STAKE_DIVIDE,
-    SUCCESSFUL_STAKE_DIVIDE,
-    SUCCESSFUL_STAKE_INCREASE,
-    PROMPT_STAKE_INCREASE_VALUE,
-    CONFIRM_INCREASING_STAKE,
-    PROMPT_STAKE_CREATE_VALUE,
-    PROMPT_STAKE_CREATE_LOCK_PERIODS,
-    CONFIRM_LARGE_STAKE_VALUE,
-    CONFIRM_LARGE_STAKE_DURATION,
-    CONFIRM_STAGED_STAKE,
-    CONFIRM_BROADCAST_CREATE_STAKE,
-    INSUFFICIENT_BALANCE_TO_INCREASE,
-    MAXIMUM_STAKE_REACHED,
-    INSUFFICIENT_BALANCE_TO_CREATE,
-    ONLY_DISPLAYING_MERGEABLE_STAKES_NOTE,
-    CONFIRM_MERGE,
-    SUCCESSFUL_STAKES_MERGE,
-    CONFIRM_STAKE_USE_UNLOCKED,
-    TOKEN_REWARD_CURRENT,
-    TOKEN_REWARD_NOT_FOUND,
-    TOKEN_REWARD_PAST,
-    TOKEN_REWARD_PAST_HEADER
-)
+from nucypher.cli.commands.stake import (StakeHolderConfigOptions, StakerOptions, TransactingStakerOptions, stake)
+from nucypher.cli.literature import (COLLECTING_ETH_FEE, COLLECTING_TOKEN_REWARD, CONFIRM_BROADCAST_CREATE_STAKE,
+                                     CONFIRM_BROADCAST_STAKE_DIVIDE, CONFIRM_COLLECTING_WITHOUT_MINTING,
+                                     CONFIRM_INCREASING_STAKE, CONFIRM_LARGE_STAKE_DURATION, CONFIRM_LARGE_STAKE_VALUE,
+                                     CONFIRM_MERGE, CONFIRM_MINTING, CONFIRM_PROLONG, CONFIRM_STAGED_STAKE,
+                                     CONFIRM_STAKE_USE_UNLOCKED, INSUFFICIENT_BALANCE_TO_CREATE,
+                                     INSUFFICIENT_BALANCE_TO_INCREASE, MAXIMUM_STAKE_REACHED, NO_FEE_TO_WITHDRAW,
+                                     NO_MINTABLE_PERIODS, NO_TOKENS_TO_WITHDRAW, ONLY_DISPLAYING_MERGEABLE_STAKES_NOTE,
+                                     PERIOD_ADVANCED_WARNING, PROMPT_PROLONG_VALUE, PROMPT_STAKE_CREATE_LOCK_PERIODS,
+                                     PROMPT_STAKE_CREATE_VALUE, PROMPT_STAKE_DIVIDE_VALUE, PROMPT_STAKE_EXTEND_VALUE,
+                                     PROMPT_STAKE_INCREASE_VALUE, STILL_LOCKED_TOKENS, SUCCESSFUL_STAKES_MERGE,
+                                     SUCCESSFUL_STAKE_DIVIDE, SUCCESSFUL_STAKE_INCREASE, SUCCESSFUL_STAKE_PROLONG,
+                                     TOKEN_REWARD_CURRENT, TOKEN_REWARD_NOT_FOUND, TOKEN_REWARD_PAST,
+                                     TOKEN_REWARD_PAST_HEADER)
+from nucypher.cli.painting.staking import REWARDS_TABLE_COLUMNS
 from nucypher.config.constants import TEMPORARY_DOMAIN
-from nucypher.types import SubStakeInfo, StakerInfo
-from tests.constants import MOCK_PROVIDER_URI, YES, INSECURE_DEVELOPMENT_PASSWORD
+from nucypher.crypto.powers import TransactingPower
+from nucypher.types import StakerInfo, SubStakeInfo
+from tests.constants import INSECURE_DEVELOPMENT_PASSWORD, MOCK_PROVIDER_URI, YES
 
 
 @pytest.fixture()
@@ -217,7 +185,8 @@ def test_no_token_reward(click_runner, surrogate_stakers, mock_staking_agent):
     # No tokens at all
     mock_staking_agent.calculate_staking_reward.return_value = 0
 
-    collection_args = ('collect-reward',
+    collection_args = ('rewards',
+                       'withdraw',
                        '--no-policy-fee',
                        '--staking-reward',
                        '--provider', MOCK_PROVIDER_URI,
@@ -244,7 +213,8 @@ def test_collecting_token_reward(click_runner, surrogate_stakers, mock_staking_a
     mock_staking_agent.calculate_staking_reward.return_value = reward.to_nunits()
     mock_staking_agent.non_withdrawable_stake.return_value = staked.to_nunits()
 
-    collection_args = ('collect-reward',
+    collection_args = ('rewards',
+                       'withdraw',
                        '--no-policy-fee',
                        '--staking-reward',
                        '--provider', MOCK_PROVIDER_URI,
@@ -275,7 +245,8 @@ def test_collecting_whole_reward_with_warning(click_runner, surrogate_stakers, m
     mock_staking_agent.get_current_committed_period.return_value = 8
     mock_staking_agent.get_next_committed_period.return_value = 9
 
-    collection_args = ('collect-reward',
+    collection_args = ('rewards',
+                       'withdraw',
                        '--no-policy-fee',
                        '--staking-reward',
                        '--provider', MOCK_PROVIDER_URI,
@@ -309,7 +280,8 @@ def test_collecting_whole_reward_without_warning(click_runner, surrogate_stakers
     mock_staking_agent.get_current_committed_period.return_value = 0
     mock_staking_agent.get_next_committed_period.return_value = 0
 
-    collection_args = ('collect-reward',
+    collection_args = ('rewards',
+                       'withdraw',
                        '--no-policy-fee',
                        '--staking-reward',
                        '--provider', MOCK_PROVIDER_URI,
@@ -336,7 +308,8 @@ def test_collecting_whole_reward_without_warning(click_runner, surrogate_stakers
 def test_no_policy_fee(click_runner, surrogate_stakers, mock_policy_manager_agent):
     mock_policy_manager_agent.get_fee_amount.return_value = 0
 
-    collection_args = ('collect-reward',
+    collection_args = ('rewards',
+                       'withdraw',
                        '--policy-fee',
                        '--no-staking-reward',
                        '--provider', MOCK_PROVIDER_URI,
@@ -358,7 +331,8 @@ def test_collecting_fee(click_runner, surrogate_stakers, mock_policy_manager_age
     fee_amount_eth = 11
     mock_policy_manager_agent.get_fee_amount.return_value = Web3.toWei(fee_amount_eth, 'ether')
 
-    collection_args = ('collect-reward',
+    collection_args = ('rewards',
+                       'withdraw',
                        '--policy-fee',
                        '--no-staking-reward',
                        '--provider', MOCK_PROVIDER_URI,

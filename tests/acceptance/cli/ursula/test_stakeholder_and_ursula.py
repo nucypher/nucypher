@@ -678,7 +678,7 @@ def test_collect_rewards_integration(click_runner,
     assert staker.locked_tokens() >= token_economics.minimum_allowed_locked
 
     # Collect Policy Fee
-    collection_args = ('stake', 'collect-reward',
+    collection_args = ('stake', 'rewards', 'withdraw',
                        '--config-file', stakeholder_configuration_file_location,
                        '--policy-fee',
                        '--no-staking-reward',
@@ -709,7 +709,7 @@ def test_collect_rewards_integration(click_runner,
 
     balance_before_collecting = staker.token_agent.get_balance(address=staker_address)
 
-    collection_args = ('stake', 'collect-reward',
+    collection_args = ('stake', 'rewards', 'withdraw',
                        '--config-file', stakeholder_configuration_file_location,
                        '--no-policy-fee',
                        '--staking-reward',
