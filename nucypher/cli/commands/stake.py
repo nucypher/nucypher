@@ -118,7 +118,8 @@ from nucypher.cli.painting.staking import (
     paint_stakes,
     paint_staking_accounts,
     paint_staking_confirmation,
-    paint_all_stakes, paint_staking_rewards
+    paint_all_stakes, 
+    paint_staking_rewards
 )
 from nucypher.cli.painting.transactions import paint_receipt_summary
 from nucypher.cli.types import (
@@ -1416,12 +1417,12 @@ def rewards():
 @group_staker_options
 @option_config_file
 @group_general_config
-@click.option('--num_past_periods', help="Number of past periods for which to calculate rewards", type=click.INT)
-def show_rewards(general_config, staker_options, config_file, num_past_periods):
+@click.option('--periods', help="Number of past periods for which to calculate rewards", type=click.INT)
+def show_rewards(general_config, staker_options, config_file, periods):
     """Show staking rewards."""
 
-    if num_past_periods and num_past_periods < 0:
-        raise click.BadOptionUsage(option_name='--num_past_periods', message='--num_past_periods must positive')
+    if periods and periods < 0:
+        raise click.BadOptionUsage(option_name='--periods', message='--periods must positive')
 
     emitter = setup_emitter(general_config)
     stakeholder = staker_options.create_character(emitter, config_file)
@@ -1431,4 +1432,4 @@ def show_rewards(general_config, staker_options, config_file, num_past_periods):
     blockchain = staker_options.get_blockchain()
     staking_agent = stakeholder.staker.staking_agent
 
-    paint_staking_rewards(stakeholder, blockchain, emitter, num_past_periods, staking_address, staking_agent)
+    paint_staking_rewards(stakeholder, blockchain, emitter, periods, staking_address, staking_agent)

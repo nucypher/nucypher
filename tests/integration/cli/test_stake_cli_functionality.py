@@ -1435,7 +1435,7 @@ def test_show_rewards(click_runner, surrogate_stakers, mock_staking_agent, mocke
 
 @pytest.mark.usefixtures("test_registry_source_manager", "patch_stakeholder_configuration")
 def test_show_rewards_for_period(click_runner, surrogate_stakers, mock_staking_agent, token_economics, mocker):
-    num_past_periods = 30
+    periods = 30
     periods_per_day = token_economics.hours_per_period / 24
     seconds_per_period = token_economics.seconds_per_period
     latest_block = 100_000_000
@@ -1468,12 +1468,12 @@ def test_show_rewards_for_period(click_runner, surrogate_stakers, mock_staking_a
                        '--provider', MOCK_PROVIDER_URI,
                        '--network', TEMPORARY_DOMAIN,
                        '--staking-address', surrogate_stakers[0],
-                       '--num_past_periods', num_past_periods)
+                       '--periods', periods)
 
     result = click_runner.invoke(stake, collection_args, catch_exceptions=False)
     assert result.exit_code == 0
-    periods_as_days = math.floor(periods_per_day*num_past_periods)
-    assert TOKEN_REWARD_PAST_HEADER.format(periods=num_past_periods, days=periods_as_days) in result.output
+    periods_as_days = math.floor(periods_per_day*periods)
+    assert TOKEN_REWARD_PAST_HEADER.format(periods=periods, days=periods_as_days) in result.output
     for header in REWARDS_TABLE_COLUMNS:
         assert header in result.output
     for event in events:
@@ -1496,7 +1496,7 @@ def test_show_rewards(click_runner, surrogate_stakers, mock_staking_agent, mocke
                        '--provider', MOCK_PROVIDER_URI,
                        '--network', TEMPORARY_DOMAIN,
                        '--staking-address', surrogate_stakers[0],
-                       '--num_past_periods', 10)
+                       '--periods', 10)
 
     result = click_runner.invoke(stake, collection_args, catch_exceptions=False)
     assert result.exit_code == 0
