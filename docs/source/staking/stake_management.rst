@@ -22,7 +22,7 @@ Several administrative operations can be performed on active stakes:
 +----------------------+-------------------------------------------------------------------------------+
 |  ``remove-inactive`` | Remove unused/inactive stakes                                                 |
 +----------------------+-------------------------------------------------------------------------------+
-|  ``rewards``         | Preview and withdraw staking rewards                                   |
+|  ``rewards``         | Preview and withdraw staking rewards                                          |
 +----------------------+-------------------------------------------------------------------------------+
 |  ``events``          | View blockchain events associated with a staker                               |
 +----------------------+-------------------------------------------------------------------------------+
