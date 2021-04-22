@@ -1415,7 +1415,7 @@ def test_stake_list_all(click_runner, surrogate_stakers, surrogate_stakes, token
 
 
 @pytest.mark.usefixtures("test_registry_source_manager", "patch_stakeholder_configuration")
-def test_show_rewards(click_runner, surrogate_stakers, mock_staking_agent, mocker):
+def test_show_rewards(click_runner, surrogate_stakers, mock_staking_agent):
     reward_amount = 1
     reward = NU(reward_amount, 'NU')
     mock_staking_agent.calculate_staking_reward.return_value = reward.to_nunits()
@@ -1436,7 +1436,7 @@ def test_show_rewards(click_runner, surrogate_stakers, mock_staking_agent, mocke
 @pytest.mark.usefixtures("test_registry_source_manager", "patch_stakeholder_configuration")
 def test_show_rewards_for_period(click_runner, surrogate_stakers, mock_staking_agent, token_economics, mocker):
     periods = 30
-    periods_per_day = token_economics.hours_per_period / 24
+    periods_per_day = token_economics.hours_per_period // 24
     seconds_per_period = token_economics.seconds_per_period
     latest_block = 100_000_000
     latest_period = 15_000
@@ -1445,7 +1445,7 @@ def test_show_rewards_for_period(click_runner, surrogate_stakers, mock_staking_a
     nr_of_events = 3
     events = [{
         'args': {
-            'value': NU(Decimal(reward_amount), 'NU').to_nunits(),
+            'value': NU(reward_amount + i/100*i, 'NU').to_nunits(),
             'period': latest_period - i,
         },
         'block_number': estimate_block_number_for_period(latest_period - i,
@@ -1469,16 +1469,20 @@ def test_show_rewards_for_period(click_runner, surrogate_stakers, mock_staking_a
                        '--network', TEMPORARY_DOMAIN,
                        '--staking-address', surrogate_stakers[0],
                        '--periods', periods)
-
     result = click_runner.invoke(stake, collection_args, catch_exceptions=False)
+
     assert result.exit_code == 0
     periods_as_days = math.floor(periods_per_day*periods)
+
     assert TOKEN_REWARD_PAST_HEADER.format(periods=periods, days=periods_as_days) in result.output
     for header in REWARDS_TABLE_COLUMNS:
         assert header in result.output
     for event in events:
         assert str(event['block_number']) in result.output
-    assert TOKEN_REWARD_PAST.format(reward_amount=reward_amount * nr_of_events)
+
+    rewards_total = sum([e['args']['value'] for e in events])
+    rewards_total = NU(rewards_total, 'NU').to_tokens()
+    assert TOKEN_REWARD_PAST.format(reward_amount=rewards_total)
 
     mock_staking_agent.get_current_period.assert_called()
     mock_staking_agent.contract.events[event_name].getLogs.assert_called()

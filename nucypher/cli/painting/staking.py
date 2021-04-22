@@ -317,8 +317,6 @@ def paint_staking_rewards(stakeholder, blockchain, emitter, past_periods, stakin
 
     periods_as_days = math.floor(economics.days_per_period * past_periods)
     emitter.echo(message=TOKEN_REWARD_PAST_HEADER.format(periods=past_periods, days=periods_as_days))
-    emitter.echo(tabulate.tabulate(rows,
-                                   headers=REWARDS_TABLE_COLUMNS,
-                                   tablefmt="fancy_grid",
-                                   floatfmt=".18g"))
+    emitter.echo(tabulate.tabulate(rows, headers=REWARDS_TABLE_COLUMNS, tablefmt="fancy_grid"))
+    rewards_total = NU(rewards_total, 'NU').to_tokens()
     emitter.echo(message=TOKEN_REWARD_PAST.format(reward_amount=rewards_total))
