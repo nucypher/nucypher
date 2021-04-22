@@ -70,7 +70,7 @@ from nucypher.network.middleware import RestMiddleware
 from nucypher.policy.identity import Card
 
 option_pay_with = click.option('--pay-with', help="Run with a specified account", type=EIP55_CHECKSUM_ADDRESS)
-option_duration_periods = click.option('--duration-periods', help="Policy duration in periods", type=click.INT)
+option_payment_periods = click.option('--payment-periods', help="Policy payment periods", type=click.INT)
 
 
 class AliceConfigOptions:
@@ -177,13 +177,13 @@ class AliceFullConfigOptions:
 
     __option_name__ = 'full_config_options'
 
-    def __init__(self, config_options, poa: bool, light: bool, m: int, n: int, duration_periods: int):
+    def __init__(self, config_options, poa: bool, light: bool, m: int, n: int, payment_periods: int):
         self.config_options = config_options
         self.poa = poa
         self.light = light
         self.m = m
         self.n = n
-        self.duration_periods = duration_periods
+        self.payment_periods = payment_periods
 
     def generate_config(self, emitter: StdoutEmitter, config_root: str) -> AliceConfiguration:
 
@@ -218,7 +218,7 @@ class AliceFullConfigOptions:
             light=self.light,
             m=self.m,
             n=self.n,
-            duration_periods=self.duration_periods)
+            payment_periods=self.payment_periods)
 
     def get_updates(self) -> dict:
         opts = self.config_options
@@ -232,7 +232,7 @@ class AliceFullConfigOptions:
                        light=self.light,
                        m=self.m,
                        n=self.n,
-                       duration_periods=self.duration_periods)
+                       payment_periods=self.payment_periods)
         # Depends on defaults being set on Configuration classes, filtrates None values
         updates = {k: v for k, v in payload.items() if v is not None}
         return updates
@@ -245,7 +245,7 @@ group_full_config_options = group_options(
     light=option_light,
     m=option_m,
     n=option_n,
-    duration_periods=option_duration_periods
+    payment_periods=option_payment_periods
 )
 
 
