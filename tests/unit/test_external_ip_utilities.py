@@ -79,7 +79,7 @@ def mock_client(mocker):
 @pytest.fixture(autouse=True)
 def mock_default_teachers(mocker):
     teachers = {MOCK_NETWORK: (MOCK_IP_ADDRESS, )}
-    mocker.patch.dict(TEACHER_NODES, teachers)
+    mocker.patch.dict(TEACHER_NODES, teachers, clear=True)
 
 
 def test_get_external_ip_from_centralized_source(mock_requests):

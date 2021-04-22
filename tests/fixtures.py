@@ -1035,4 +1035,4 @@ def stakeholder_configuration_file_location(custom_filepath):
 @pytest.fixture(autouse=True)
 def mock_teacher_nodes(mocker):
     mock_nodes = tuple(u.rest_url() for u in MOCK_KNOWN_URSULAS_CACHE.values())[0:2]
-    mocker.patch.dict(TEACHER_NODES, {TEMPORARY_DOMAIN: mock_nodes})
+    mocker.patch.dict(TEACHER_NODES, {TEMPORARY_DOMAIN: mock_nodes}, clear=True)
