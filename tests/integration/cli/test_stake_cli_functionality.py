@@ -1431,7 +1431,7 @@ def test_show_rewards(click_runner, surrogate_stakers, mock_staking_agent):
 
     result = click_runner.invoke(stake, collection_args, catch_exceptions=False)
     assert result.exit_code == 0
-    assert TOKEN_REWARD_CURRENT.format(reward_amount=reward_amount) in result.output
+    assert TOKEN_REWARD_CURRENT.format(reward_amount=round(reward_amount, 2)) in result.output
 
     mock_staking_agent.calculate_staking_reward.assert_called_once_with(staker_address=surrogate_stakers[0])
 
@@ -1444,16 +1444,16 @@ def test_show_rewards_for_period(click_runner, surrogate_stakers, mock_staking_a
     latest_block = 100_000_000
     latest_period = 15_000
 
-    reward_amount = 1.00000001
+    reward_amount = 1
     nr_of_events = 3
     events = [{
         'args': {
-            'value': NU(reward_amount + i/100*i, 'NU').to_nunits(),
+            'value': NU(int(reward_amount + i/100*i), 'NU').to_nunits(),
             'period': latest_period - i,
         },
         'blockNumber': estimate_block_number_for_period(latest_period - i,
-                                                         seconds_per_period,
-                                                         BlockNumber(latest_block - i * 100)),
+                                                        seconds_per_period,
+                                                        BlockNumber(latest_block - i * 100)),
     } for i in range(nr_of_events)]
 
     event_name = 'Minted'
@@ -1484,8 +1484,8 @@ def test_show_rewards_for_period(click_runner, surrogate_stakers, mock_staking_a
         assert str(event['blockNumber']) in result.output
 
     rewards_total = sum([e['args']['value'] for e in events])
-    rewards_total = NU(rewards_total, 'NU').to_tokens()
-    assert TOKEN_REWARD_PAST.format(reward_amount=rewards_total)
+    rewards_total = NU(rewards_total, 'NU')
+    assert TOKEN_REWARD_PAST.format(reward_amount=round(rewards_total, 2))
 
     mock_staking_agent.get_current_period.assert_called()
     mock_staking_agent.contract.events[event_name].getLogs.assert_called()

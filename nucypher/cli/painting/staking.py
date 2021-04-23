@@ -278,8 +278,8 @@ Minimum acceptable fee rate (set by staker for their associated worker):
 
 def paint_staking_rewards(stakeholder, blockchain, emitter, past_periods, staking_address, staking_agent):
     if not past_periods:
-        reward_amount = stakeholder.staker.calculate_staking_reward().to_tokens()
-        emitter.echo(message=TOKEN_REWARD_CURRENT.format(reward_amount=reward_amount))
+        reward_amount = stakeholder.staker.calculate_staking_reward()
+        emitter.echo(message=TOKEN_REWARD_CURRENT.format(reward_amount=round(reward_amount, 2)))
         return
 
     economics = stakeholder.staker.economics
@@ -307,7 +307,7 @@ def paint_staking_rewards(stakeholder, blockchain, emitter, past_periods, stakin
             date.local_datetime().strftime("%b %d %Y"),
             int(event_record['blockNumber']),
             int(period),
-            token_reward,
+            round(token_reward, 2),
         ])
         rewards_total += token_reward
 
@@ -318,5 +318,5 @@ def paint_staking_rewards(stakeholder, blockchain, emitter, past_periods, stakin
     periods_as_days = math.floor(economics.days_per_period * past_periods)
     emitter.echo(message=TOKEN_REWARD_PAST_HEADER.format(periods=past_periods, days=periods_as_days))
     emitter.echo(tabulate.tabulate(rows, headers=REWARDS_TABLE_COLUMNS, tablefmt="fancy_grid"))
-    rewards_total = NU(rewards_total, 'NU').to_tokens()
-    emitter.echo(message=TOKEN_REWARD_PAST.format(reward_amount=rewards_total))
+    rewards_total = NU(rewards_total, 'NU')
+    emitter.echo(message=TOKEN_REWARD_PAST.format(reward_amount=round(rewards_total, 2)))
