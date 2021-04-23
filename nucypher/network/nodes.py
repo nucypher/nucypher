@@ -24,11 +24,21 @@ from typing import Iterable, List, Set, Tuple, Union
 
 import maya
 import requests
-from bytestring_splitter import BytestringSplitter, BytestringSplittingError, PartiallyKwargifiedBytes, \
+from bytestring_splitter import (
+    BytestringSplitter,
+    PartiallyKwargifiedBytes,
     VariableLengthBytestring
+)
 from constant_sorrow import constant_or_bytes
-from constant_sorrow.constants import (CERTIFICATE_NOT_SAVED, FLEET_STATES_MATCH, NOT_SIGNED, NO_KNOWN_NODES,
-                                       NO_STORAGE_AVAILIBLE, RELAX, UNKNOWN_VERSION)
+from constant_sorrow.constants import (
+    CERTIFICATE_NOT_SAVED,
+    FLEET_STATES_MATCH,
+    NOT_SIGNED,
+    NO_KNOWN_NODES,
+    NO_STORAGE_AVAILIBLE,
+    RELAX,
+    UNKNOWN_VERSION
+)
 from cryptography.x509 import Certificate
 from eth_utils import to_checksum_address
 from requests.exceptions import SSLError
