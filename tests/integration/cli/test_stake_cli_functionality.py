@@ -69,7 +69,7 @@ from nucypher.cli.literature import (
     CONFIRM_MERGE,
     SUCCESSFUL_STAKES_MERGE,
     CONFIRM_STAKE_USE_UNLOCKED,
-    TOKEN_REWARD_NOT_FOUND,
+    TOKEN_REWARD_CURRENT, TOKEN_REWARD_NOT_FOUND,
     TOKEN_REWARD_PAST,
     TOKEN_REWARD_PAST_HEADER
 )
@@ -1451,7 +1451,7 @@ def test_show_rewards_for_period(click_runner, surrogate_stakers, mock_staking_a
             'value': NU(reward_amount + i/100*i, 'NU').to_nunits(),
             'period': latest_period - i,
         },
-        'block_number': estimate_block_number_for_period(latest_period - i,
+        'blockNumber': estimate_block_number_for_period(latest_period - i,
                                                          seconds_per_period,
                                                          BlockNumber(latest_block - i * 100)),
     } for i in range(nr_of_events)]
@@ -1481,7 +1481,7 @@ def test_show_rewards_for_period(click_runner, surrogate_stakers, mock_staking_a
     for header in REWARDS_TABLE_COLUMNS:
         assert header in result.output
     for event in events:
-        assert str(event['block_number']) in result.output
+        assert str(event['blockNumber']) in result.output
 
     rewards_total = sum([e['args']['value'] for e in events])
     rewards_total = NU(rewards_total, 'NU').to_tokens()

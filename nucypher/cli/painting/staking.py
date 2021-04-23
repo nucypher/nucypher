@@ -305,7 +305,7 @@ def paint_staking_rewards(stakeholder, blockchain, emitter, past_periods, stakin
         date = datetime_at_period(period, seconds_per_period, start_of_period=True)
         rows.append([
             date.local_datetime().strftime("%b %d %Y"),
-            int(event_record['block_number']),
+            int(event_record['blockNumber']),
             int(period),
             token_reward,
         ])
