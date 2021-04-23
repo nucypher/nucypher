@@ -42,7 +42,6 @@ class WorklockParameters(Tuple):
 
 class StakingEscrowParameters(Tuple):
     seconds_per_period: int
-    days_per_period: int
     minting_coefficient: int
     lock_duration_coefficient_1: int
     lock_duration_coefficient_2: int
