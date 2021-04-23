@@ -16,13 +16,14 @@
 """
 import math
 import re
+from decimal import Decimal
 
 import pytest
 from eth_typing import BlockNumber
 from web3 import Web3
 
 from nucypher.blockchain.eth.clients import EthereumTesterClient
-from nucypher.cli.painting.staking import REWARDS_TABLE_COLUMNS
+from nucypher.cli.painting.staking import REWARDS_TABLE_COLUMNS, TOKEN_DECIMAL_PLACE
 from nucypher.crypto.powers import TransactingPower
 from nucypher.blockchain.eth.actors import Staker, StakeHolder
 from nucypher.blockchain.eth.constants import MAX_UINT16, NULL_ADDRESS
@@ -1431,7 +1432,7 @@ def test_show_rewards(click_runner, surrogate_stakers, mock_staking_agent):
 
     result = click_runner.invoke(stake, collection_args, catch_exceptions=False)
     assert result.exit_code == 0
-    assert TOKEN_REWARD_CURRENT.format(reward_amount=round(reward_amount, 2)) in result.output
+    assert TOKEN_REWARD_CURRENT.format(reward_amount=round(reward_amount, TOKEN_DECIMAL_PLACE)) in result.output
 
     mock_staking_agent.calculate_staking_reward.assert_called_once_with(staker_address=surrogate_stakers[0])
 
@@ -1448,7 +1449,7 @@ def test_show_rewards_for_period(click_runner, surrogate_stakers, mock_staking_a
     nr_of_events = 3
     events = [{
         'args': {
-            'value': NU(int(reward_amount + i/100*i), 'NU').to_nunits(),
+            'value': NU(Decimal(reward_amount + i/100*i), 'NU').to_nunits(),
             'period': latest_period - i,
         },
         'blockNumber': estimate_block_number_for_period(latest_period - i,
@@ -1485,7 +1486,7 @@ def test_show_rewards_for_period(click_runner, surrogate_stakers, mock_staking_a
 
     rewards_total = sum([e['args']['value'] for e in events])
     rewards_total = NU(rewards_total, 'NU')
-    assert TOKEN_REWARD_PAST.format(reward_amount=round(rewards_total, 2))
+    assert TOKEN_REWARD_PAST.format(reward_amount=round(rewards_total, TOKEN_DECIMAL_PLACE))
 
     mock_staking_agent.get_current_period.assert_called()
     mock_staking_agent.contract.events[event_name].getLogs.assert_called()

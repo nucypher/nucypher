@@ -39,6 +39,7 @@ STAKE_TABLE_COLUMNS = ('Idx', 'Value', 'Remaining', 'Enactment', 'Termination', 
 STAKER_TABLE_COLUMNS = ('Status', 'Restaking', 'Winding Down', 'Snapshots', 'Unclaimed Fees', 'Min fee rate')
 REWARDS_TABLE_COLUMNS = ('Date', 'Block Number', 'Period', 'Value (NU)')
 
+TOKEN_DECIMAL_PLACE = 5
 
 def paint_all_stakes(emitter: StdoutEmitter,
                      stakeholder: 'StakeHolder',
@@ -279,7 +280,7 @@ Minimum acceptable fee rate (set by staker for their associated worker):
 def paint_staking_rewards(stakeholder, blockchain, emitter, past_periods, staking_address, staking_agent):
     if not past_periods:
         reward_amount = stakeholder.staker.calculate_staking_reward()
-        emitter.echo(message=TOKEN_REWARD_CURRENT.format(reward_amount=round(reward_amount, 2)))
+        emitter.echo(message=TOKEN_REWARD_CURRENT.format(reward_amount=round(reward_amount, TOKEN_DECIMAL_PLACE)))
         return
 
     economics = stakeholder.staker.economics
@@ -307,7 +308,7 @@ def paint_staking_rewards(stakeholder, blockchain, emitter, past_periods, stakin
             date.local_datetime().strftime("%b %d %Y"),
             int(event_record['blockNumber']),
             int(period),
-            round(token_reward, 2),
+            round(token_reward, TOKEN_DECIMAL_PLACE),
         ])
         rewards_total += token_reward
 
@@ -319,4 +320,4 @@ def paint_staking_rewards(stakeholder, blockchain, emitter, past_periods, stakin
     emitter.echo(message=TOKEN_REWARD_PAST_HEADER.format(periods=past_periods, days=periods_as_days))
     emitter.echo(tabulate.tabulate(rows, headers=REWARDS_TABLE_COLUMNS, tablefmt="fancy_grid"))
     rewards_total = NU(rewards_total, 'NU')
-    emitter.echo(message=TOKEN_REWARD_PAST.format(reward_amount=round(rewards_total, 2)))
+    emitter.echo(message=TOKEN_REWARD_PAST.format(reward_amount=round(rewards_total, TOKEN_DECIMAL_PLACE)))
