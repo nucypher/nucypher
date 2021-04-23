@@ -173,7 +173,7 @@ Manage stakes and other staker-related operations.
 +======================+===============================================================================+
 |  ``show``            | Show available and historical staking rewards                                 |
 +----------------------+-------------------------------------------------------------------------------+
-|  ``withdraw``        | Withdraw staking compensation from the contract to your wallet                |
+|  ``withdraw``        | Withdraw unlocked tokens from the contract to your wallet                     |
 +----------------------+-------------------------------------------------------------------------------+
 
 Ursula
