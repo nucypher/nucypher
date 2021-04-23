@@ -1,0 +1,1 @@
+Moves "stake collect-reward" to "stake rewards withdraw" command.
