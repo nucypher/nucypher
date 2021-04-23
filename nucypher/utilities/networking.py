@@ -120,13 +120,10 @@ def get_external_ip_from_default_teacher(network: str,
 
     if federated_only and registry:
         raise ValueError('Federated mode must not be true if registry is provided.')
+
     base_error = 'Cannot determine IP using default teacher'
-    try:
-        top_teacher_url = TEACHER_NODES[network][0]
-    except IndexError:
-        log.debug(f'{base_error}: No teacher available for network "{network}".')
-        return
-    except KeyError:
+
+    if network not in TEACHER_NODES:
         log.debug(f'{base_error}: Unknown network "{network}".')
         return
 
@@ -137,12 +134,21 @@ def get_external_ip_from_default_teacher(network: str,
     Ursula.set_federated_mode(federated_only)
     #####
 
-    try:
-        teacher = Ursula.from_teacher_uri(teacher_uri=top_teacher_url,
-                                          federated_only=federated_only,
-                                          min_stake=0)  # TODO: Handle customized min stake here.
-    except NodeSeemsToBeDown:
-        # Teacher is unreachable.  Move on.
+    teacher = None
+    for teacher_uri in TEACHER_NODES[network]:
+        try:
+            teacher = Ursula.from_teacher_uri(teacher_uri=teacher_uri,
+                                              federated_only=federated_only,
+                                              min_stake=0)  # TODO: Handle customized min stake here.
+            # Found a reachable teacher, return from loop
+            break
+        except NodeSeemsToBeDown:
+            # Teacher is unreachable, try next one
+            continue
+
+    if not teacher:
+        # No reachable teacher found, return early
+        log.debug(f'{base_error}: No teacher available for network "{network}".')
         return
 
     # TODO: Pass registry here to verify stake (not essential here since it's a hardcoded node)
