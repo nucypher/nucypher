@@ -21,18 +21,19 @@ import os
 from constant_sorrow.constants import NO_PASSWORD
 from nacl.exceptions import CryptoError
 
-from nucypher.blockchain.eth.signers.software import ClefSigner
 from nucypher.blockchain.eth.decorators import validate_checksum_address
+from nucypher.blockchain.eth.signers.software import ClefSigner
 from nucypher.characters.control.emitters import StdoutEmitter
 from nucypher.cli.literature import (
     COLLECT_ETH_PASSWORD,
     COLLECT_NUCYPHER_PASSWORD,
     DECRYPTING_CHARACTER_KEYRING,
-    GENERIC_PASSWORD_PROMPT
+    GENERIC_PASSWORD_PROMPT,
+    PASSWORD_COLLECTION_NOTICE
 )
+from nucypher.config.base import CharacterConfiguration
 from nucypher.config.constants import NUCYPHER_ENVVAR_KEYRING_PASSWORD
 from nucypher.config.keyring import NucypherKeyring
-from nucypher.config.base import CharacterConfiguration
 
 
 def get_password_from_prompt(prompt: str = GENERIC_PASSWORD_PROMPT, envvar: str = None, confirm: bool = False) -> str:
@@ -77,11 +78,12 @@ def unlock_signer_account(config: CharacterConfiguration, json_ipc: bool) -> Non
     config.signer.unlock_account(account=config.checksum_address, password=__password)
 
 
-def get_nucypher_password(confirm: bool = False, envvar=NUCYPHER_ENVVAR_KEYRING_PASSWORD) -> str:
+def get_nucypher_password(emitter, confirm: bool = False, envvar=NUCYPHER_ENVVAR_KEYRING_PASSWORD) -> str:
     """Interactively collect a nucypher password"""
     prompt = COLLECT_NUCYPHER_PASSWORD
     if confirm:
         from nucypher.config.keyring import NucypherKeyring
+        emitter.message(PASSWORD_COLLECTION_NOTICE)
         prompt += f" ({NucypherKeyring.MINIMUM_PASSWORD_LENGTH} character minimum)"
     keyring_password = get_password_from_prompt(prompt=prompt, confirm=confirm, envvar=envvar)
     return keyring_password

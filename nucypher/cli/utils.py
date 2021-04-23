@@ -84,7 +84,7 @@ def make_cli_character(character_config,
     if unlock_keyring:
         unlock_nucypher_keyring(emitter,
                                 character_configuration=character_config,
-                                password=get_nucypher_password(confirm=False))
+                                password=get_nucypher_password(emitter=emitter, confirm=False))
 
     # Handle Signer/Wallet
     if unlock_signer:

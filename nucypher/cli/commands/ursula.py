@@ -179,7 +179,7 @@ class UrsulaConfigOptions:
         if not self.rest_host:
             self.rest_host = collect_worker_ip_address(emitter, network=self.domain, force=force)
 
-        return UrsulaConfiguration.generate(password=get_nucypher_password(confirm=True),
+        return UrsulaConfiguration.generate(password=get_nucypher_password(emitter=emitter, confirm=True),
                                             config_root=config_root,
                                             rest_host=self.rest_host,
                                             rest_port=self.rest_port,
@@ -301,6 +301,8 @@ def init(general_config, config_options, force, config_root):
     _pre_launch_warnings(emitter, dev=None, force=force)
     if not config_root:
         config_root = general_config.config_root
+    if not config_options.federated_only and not config_options.provider_uri:
+        raise click.BadOptionUsage('--provider', message="--provider is required to initialize a new ursula.")
     if not config_options.federated_only and not config_options.domain:
         config_options.domain = select_network(emitter)
     ursula_config = config_options.generate_config(emitter, config_root, force)

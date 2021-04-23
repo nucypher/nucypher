@@ -141,7 +141,7 @@ class BobConfigOptions:
                                                      provider_uri=self.provider_uri)  # TODO: See #1888
 
         return BobConfiguration.generate(
-            password=get_nucypher_password(confirm=True),
+            password=get_nucypher_password(emitter=emitter, confirm=True),
             config_root=config_root,
             checksum_address=checksum_address,
             domain=self.domain,

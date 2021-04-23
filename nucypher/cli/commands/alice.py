@@ -206,7 +206,7 @@ class AliceFullConfigOptions:
                                              network=opts.domain)
 
         return AliceConfiguration.generate(
-            password=get_nucypher_password(confirm=True),
+            password=get_nucypher_password(emitter=emitter, confirm=True),
             config_root=config_root,
             checksum_address=pay_with,
             domain=opts.domain,

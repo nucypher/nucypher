@@ -55,7 +55,18 @@ def paint_new_installation_help(emitter, new_configuration, filepath):
     character_config_class = new_configuration.__class__
     character_name = character_config_class.NAME.lower()
 
-    emitter.message(f"Generated keyring {new_configuration.keyring_root}", color='green')
+    emitter.message(f"Generated keyring", color='green')
+    emitter.message(f"""
+    
+Public key (stamp):   {bytes(new_configuration.keyring.signing_public_key).hex()}
+Path to keyring: {new_configuration.keyring_root}
+
+- You can share your public key with anyone. Others need it to interact with you.
+- Never share secret keys with anyone! Character keys are required to interact with the network!
+- Backup your keyring! Without the keyring you wil not be able to use existing network policies.
+- Remember your password! Without the password, it's impossible to decrypt the key!
+
+""")
 
     default_config_filepath = True
     if new_configuration.default_filepath() != filepath:

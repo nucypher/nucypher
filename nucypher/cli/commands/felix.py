@@ -16,10 +16,10 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
 
+import click
 import os
 
-import click
-
+from nucypher.characters.control.emitters import StdoutEmitter
 from nucypher.cli.actions.auth import (
     get_client_password,
     get_nucypher_password,
@@ -116,7 +116,7 @@ class FelixConfigOptions:
 
     def generate_config(self, config_root, discovery_port):
         return FelixConfiguration.generate(
-            password=get_nucypher_password(confirm=True),
+            password=get_nucypher_password(emitter=StdoutEmitter(), confirm=True),
             config_root=config_root,
             rest_host=self.host,
             rest_port=discovery_port,
@@ -163,7 +163,7 @@ class FelixCharacterOptions:
             # Authenticate
             unlock_nucypher_keyring(emitter,
                                     character_configuration=felix_config,
-                                    password=get_nucypher_password(confirm=False))
+                                    password=get_nucypher_password(emitter=emitter, confirm=False))
 
             client_password = get_client_password(checksum_address=felix_config.checksum_address,
                                                   envvar=NUCYPHER_ENVVAR_WORKER_ETH_PASSWORD)
