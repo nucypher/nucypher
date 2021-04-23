@@ -217,8 +217,8 @@ def test_no_token_reward(click_runner, surrogate_stakers, mock_staking_agent):
 
     collection_args = ('rewards',
                        'withdraw',
-                       '--no-policy-fee',
-                       '--staking-reward',
+                       '--no-fees',
+                       '--tokens',
                        '--provider', MOCK_PROVIDER_URI,
                        '--network', TEMPORARY_DOMAIN,
                        '--staking-address', surrogate_stakers[0])
@@ -245,8 +245,8 @@ def test_collecting_token_reward(click_runner, surrogate_stakers, mock_staking_a
 
     collection_args = ('rewards',
                        'withdraw',
-                       '--no-policy-fee',
-                       '--staking-reward',
+                       '--no-fees',
+                       '--tokens',
                        '--provider', MOCK_PROVIDER_URI,
                        '--network', TEMPORARY_DOMAIN,
                        '--staking-address', surrogate_stakers[0])
@@ -277,8 +277,8 @@ def test_collecting_whole_reward_with_warning(click_runner, surrogate_stakers, m
 
     collection_args = ('rewards',
                        'withdraw',
-                       '--no-policy-fee',
-                       '--staking-reward',
+                       '--no-fees',
+                       '--tokens',
                        '--provider', MOCK_PROVIDER_URI,
                        '--network', TEMPORARY_DOMAIN,
                        '--staking-address', surrogate_stakers[0])
@@ -312,8 +312,8 @@ def test_collecting_whole_reward_without_warning(click_runner, surrogate_stakers
 
     collection_args = ('rewards',
                        'withdraw',
-                       '--no-policy-fee',
-                       '--staking-reward',
+                       '--no-fees',
+                       '--tokens',
                        '--provider', MOCK_PROVIDER_URI,
                        '--network', TEMPORARY_DOMAIN,
                        '--staking-address', surrogate_stakers[0])
@@ -340,8 +340,8 @@ def test_no_policy_fee(click_runner, surrogate_stakers, mock_policy_manager_agen
 
     collection_args = ('rewards',
                        'withdraw',
-                       '--policy-fee',
-                       '--no-staking-reward',
+                       '--fees',
+                       '--no-tokens',
                        '--provider', MOCK_PROVIDER_URI,
                        '--network', TEMPORARY_DOMAIN,
                        '--staking-address', surrogate_stakers[0])
@@ -363,8 +363,8 @@ def test_collecting_fee(click_runner, surrogate_stakers, mock_policy_manager_age
 
     collection_args = ('rewards',
                        'withdraw',
-                       '--policy-fee',
-                       '--no-staking-reward',
+                       '--fees',
+                       '--no-tokens',
                        '--provider', MOCK_PROVIDER_URI,
                        '--network', TEMPORARY_DOMAIN,
                        '--staking-address', surrogate_stakers[0])

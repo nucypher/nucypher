@@ -422,7 +422,7 @@ Collect Staker Rewards
 ~~~~~~~~~~~~~~~~~~~~~~
 
 NuCypher nodes earn two types of rewards: staking rewards (in NU) and policy fees (i.e., service fees in ETH).
-To collect these rewards use ``nucypher stake rewards withdraw`` with flags ``--staking-reward`` and ``--policy-fee``
+To collect these rewards use ``nucypher stake rewards withdraw`` with flags ``--tokens`` and ``--fees``
 (or even both).
 
 While staking rewards can only be collected to the original staker account, you can decide which account receives
@@ -430,7 +430,7 @@ policy fees using the ``--withdraw-address <ETH_ADDRESS>`` flag.
 
 .. code:: bash
 
-    (nucypher)$ nucypher stake rewards withdraw --staking-reward --policy-fee --staking-address 0x270b3f8af5ba2B79ea3Bd6a6Efc7ecAB056d3E3f --hw-wallet
+    (nucypher)$ nucypher stake rewards withdraw --tokens --fees --staking-address 0x270b3f8af5ba2B79ea3Bd6a6Efc7ecAB056d3E3f --hw-wallet
     Collecting 228.340621510864128225 NU from staking rewards...
     Confirm transaction WITHDRAW on hardware wallet... (500000 gwei @ 1000000000)
     Broadcasting WITHDRAW Transaction (500000 gwei @ 1000000000)...

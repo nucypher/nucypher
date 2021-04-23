@@ -1358,19 +1358,19 @@ def show_rewards(general_config, staker_options, config_file, periods):
 @group_transacting_staker_options
 @option_config_file
 @click.option('--replace', help="Replace any existing pending transaction", is_flag=True)
-@click.option('--staking-reward/--no-staking-reward', is_flag=True, default=False)
-@click.option('--policy-fee/--no-policy-fee', is_flag=True, default=False)
+@click.option('--tokens/--no-tokens', is_flag=True, default=False)
+@click.option('--fees/--no-fees', is_flag=True, default=False)
 @click.option('--withdraw-address', help="Send fee collection to an alternate address", type=EIP55_CHECKSUM_ADDRESS)
 @option_force
 @group_general_config
 def withdraw_rewards(general_config: GroupGeneralConfig,
-                   transacting_staker_options: TransactingStakerOptions,
-                   config_file,
-                   staking_reward,
-                   policy_fee,
-                   withdraw_address,
-                   replace,
-                   force):
+                     transacting_staker_options: TransactingStakerOptions,
+                     config_file,
+                     tokens,
+                     fees,
+                     withdraw_address,
+                     replace,
+                     force):
     """Withdraw staking rewards."""
 
     # Setup
@@ -1378,8 +1378,8 @@ def withdraw_rewards(general_config: GroupGeneralConfig,
     STAKEHOLDER = transacting_staker_options.create_character(emitter, config_file)
     blockchain = transacting_staker_options.get_blockchain()
 
-    if not staking_reward and not policy_fee:
-        raise click.BadArgumentUsage(f"Either --staking-reward or --policy-fee must be True to collect rewards.")
+    if not tokens and not fees:
+        raise click.BadArgumentUsage(f"Either --tokens or --fees must be True to collect rewards.")
 
     client_account, staking_address = select_client_account_for_staking(
         emitter=emitter,
@@ -1388,7 +1388,7 @@ def withdraw_rewards(general_config: GroupGeneralConfig,
 
     password = None
 
-    if staking_reward:
+    if tokens:
         # Note: Sending staking / inflation rewards to another account is not allowed.
         reward_amount = STAKEHOLDER.staker.calculate_staking_reward()
         if reward_amount == 0:
@@ -1413,7 +1413,7 @@ def withdraw_rewards(general_config: GroupGeneralConfig,
                               chain_name=blockchain.client.chain_name,
                               emitter=emitter)
 
-    if policy_fee:
+    if fees:
         fee_amount = Web3.fromWei(STAKEHOLDER.staker.calculate_policy_fee(), 'ether')
         if fee_amount == 0:
             emitter.echo(NO_FEE_TO_WITHDRAW, color='red')

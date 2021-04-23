@@ -680,8 +680,8 @@ def test_collect_rewards_integration(click_runner,
     # Collect Policy Fee
     collection_args = ('stake', 'rewards', 'withdraw',
                        '--config-file', stakeholder_configuration_file_location,
-                       '--policy-fee',
-                       '--no-staking-reward',
+                       '--fees',
+                       '--no-tokens',
                        '--staking-address', staker_address,
                        '--withdraw-address', burner_wallet.address)
     result = click_runner.invoke(nucypher_cli,
@@ -711,8 +711,8 @@ def test_collect_rewards_integration(click_runner,
 
     collection_args = ('stake', 'rewards', 'withdraw',
                        '--config-file', stakeholder_configuration_file_location,
-                       '--no-policy-fee',
-                       '--staking-reward',
+                       '--no-fees',
+                       '--tokens',
                        '--staking-address', staker_address,
                        '--force')
 
