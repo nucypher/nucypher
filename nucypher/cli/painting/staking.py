@@ -14,7 +14,6 @@ GNU Affero General Public License for more details.
 You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
-import math
 
 import tabulate
 from typing import List
@@ -40,6 +39,7 @@ STAKER_TABLE_COLUMNS = ('Status', 'Restaking', 'Winding Down', 'Snapshots', 'Unc
 REWARDS_TABLE_COLUMNS = ('Date', 'Block Number', 'Period', 'Value (NU)')
 
 TOKEN_DECIMAL_PLACE = 5
+
 
 def paint_all_stakes(emitter: StdoutEmitter,
                      stakeholder: 'StakeHolder',
@@ -299,7 +299,7 @@ def paint_staking_rewards(stakeholder, blockchain, emitter, past_periods, stakin
                                  argument_filters=argument_filters)
 
     rows = []
-    rewards_total = 0
+    rewards_total = NU(0, 'NU')
     for event_record in entries:
         token_reward = NU(event_record['args']['value'], 'NuNit').to_tokens()
         period = event_record['args']['period']
@@ -316,8 +316,7 @@ def paint_staking_rewards(stakeholder, blockchain, emitter, past_periods, stakin
         emitter.echo(TOKEN_REWARD_NOT_FOUND)
         return
 
-    periods_as_days = math.floor(economics.days_per_period * past_periods)
+    periods_as_days = economics.days_per_period * past_periods
     emitter.echo(message=TOKEN_REWARD_PAST_HEADER.format(periods=past_periods, days=periods_as_days))
     emitter.echo(tabulate.tabulate(rows, headers=REWARDS_TABLE_COLUMNS, tablefmt="fancy_grid"))
-    rewards_total = NU(rewards_total, 'NU')
     emitter.echo(message=TOKEN_REWARD_PAST.format(reward_amount=round(rewards_total, TOKEN_DECIMAL_PLACE)))
