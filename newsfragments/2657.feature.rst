@@ -1,1 +1,1 @@
-Adds "https://closest-seed.nucypher.network" as a new teacher node for mainnet.
+Adds "https://closest-seed.nucypher.network" as a fallback teacher node for mainnet.
