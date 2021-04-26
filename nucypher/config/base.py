@@ -295,7 +295,7 @@ class BaseConfiguration(ABC):
                                  f"Expected version {cls.VERSION}; Got version {version}")
         return deserialized_payload
 
-    def update(self, filepath: str = None, modifier: str = None, **updates) -> None:
+    def update(self, filepath: str = None, **updates) -> None:
         for field, value in updates.items():
             try:
                 getattr(self, field)
@@ -303,7 +303,8 @@ class BaseConfiguration(ABC):
                 raise self.ConfigurationError(f"Cannot update '{field}'. It is an invalid configuration field.")
             else:
                 setattr(self, field, value)
-        self.to_configuration_file(filepath=filepath, modifier=modifier, override=True)
+        # just write the configuration file, file exists and we are overriding
+        self._write_configuration_file(filepath=filepath, override=True)
 
 
 class CharacterConfiguration(BaseConfiguration):
@@ -552,7 +553,8 @@ class CharacterConfiguration(BaseConfiguration):
 
         Warning: This method allows mutation and may result in an inconsistent configuration.
         """
-        return super().update(modifier=self.checksum_address, filepath=self.config_file_location, **kwargs)
+        # config file should exist and we we override -> no need for modifier
+        return super().update(filepath=self.config_file_location, **kwargs)
 
     @classmethod
     def generate(cls, password: str, *args, **kwargs):
