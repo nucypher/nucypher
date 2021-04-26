@@ -4,6 +4,27 @@ Releases
 
 .. towncrier release notes start
 
+v5.2.0 (2021-04-26)
+-------------------
+
+Features
+~~~~~~~~
+
+- CLI option --duration-periods renamed to --payment-periods. (`#2650 <https://github.com/nucypher/nucypher/issues/2650>`__)
+
+
+Bugfixes
+~~~~~~~~
+
+- Fixed inability to update ursula configuration file due to the keyring not being instantiated - updated logic no longer needs keyring to be instantiated. (`#2660 <https://github.com/nucypher/nucypher/issues/2660>`__)
+
+
+Misc
+~~~~
+
+- Extends policy probationary period until May 31st, 2021.  No policies may be created on the network beyond this date. (`#2656 <https://github.com/nucypher/nucypher/issues/2656>`__)
+
+
 v5.1.0 (2021-04-15)
 -------------------
 

@@ -1,1 +1,0 @@
-Fixed inability to update ursula configuration file due to the keyring not being instantiated - updated logic no longer needs keyring to be instantiated.
