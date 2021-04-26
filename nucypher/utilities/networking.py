@@ -134,26 +134,26 @@ def get_external_ip_from_default_teacher(network: str,
     Ursula.set_federated_mode(federated_only)
     #####
 
-    teacher = None
+    external_ip = None
     for teacher_uri in TEACHER_NODES[network]:
         try:
             teacher = Ursula.from_teacher_uri(teacher_uri=teacher_uri,
                                               federated_only=federated_only,
                                               min_stake=0)  # TODO: Handle customized min stake here.
+            # TODO: Pass registry here to verify stake (not essential here since it's a hardcoded node)
+            external_ip = _request_from_node(teacher=teacher)
             # Found a reachable teacher, return from loop
-            break
+            if external_ip:
+                break
         except NodeSeemsToBeDown:
             # Teacher is unreachable, try next one
             continue
 
-    if not teacher:
-        # No reachable teacher found, return early
+    if not external_ip:
         log.debug(f'{base_error}: No teacher available for network "{network}".')
         return
 
-    # TODO: Pass registry here to verify stake (not essential here since it's a hardcoded node)
-    result = _request_from_node(teacher=teacher)
-    return result
+    return external_ip
 
 
 def get_external_ip_from_known_nodes(known_nodes: FleetSensor,
