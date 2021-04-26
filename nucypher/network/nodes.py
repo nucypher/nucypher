@@ -35,7 +35,7 @@ from constant_sorrow.constants import (
     FLEET_STATES_MATCH,
     NOT_SIGNED,
     NO_KNOWN_NODES,
-    NO_STORAGE_AVAILIBLE,
+    NO_STORAGE_AVAILABLE,
     RELAX,
     UNKNOWN_VERSION
 )
@@ -255,7 +255,7 @@ class Learner:
         if not node_storage:
             node_storage = self.__DEFAULT_NODE_STORAGE(federated_only=self.federated_only)
         self.node_storage = node_storage
-        if save_metadata and node_storage is NO_STORAGE_AVAILIBLE:
+        if save_metadata and node_storage is NO_STORAGE_AVAILABLE:
             raise ValueError("Cannot save nodes without a configured node storage")
 
         from nucypher.characters.lawful import Ursula
