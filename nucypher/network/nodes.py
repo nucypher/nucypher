@@ -67,8 +67,9 @@ from nucypher.utilities.logging import Logger
 
 TEACHER_NODES = {
     NetworksInventory.MAINNET: (
-        'https://seeds.nucypher.network:9151',
         'https://closest-seed.nucypher.network:9151',
+        'https://seeds.nucypher.network',
+        'https://mainnet.nucypher.network:9151',
     ),
     NetworksInventory.LYNX: ('https://lynx.nucypher.network:9151',),
     NetworksInventory.IBEX: ('https://ibex.nucypher.network:9151',),
