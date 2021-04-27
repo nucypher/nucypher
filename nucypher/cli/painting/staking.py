@@ -14,7 +14,7 @@ GNU Affero General Public License for more details.
 You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
-
+import maya
 import tabulate
 from typing import List
 from web3.main import Web3
@@ -301,16 +301,18 @@ def paint_staking_rewards(stakeholder, blockchain, emitter, past_periods, stakin
     rows = []
     rewards_total = NU(0, 'NU')
     for event_record in entries:
-        token_reward = NU(event_record['args']['value'], 'NuNit').to_tokens()
-        period = event_record['args']['period']
-        date = datetime_at_period(period, seconds_per_period, start_of_period=True)
+        event_block_number = int(event_record['blockNumber'])
+        event_period = event_record['args']['period']
+        event_reward = NU(event_record['args']['value'], 'NuNit')
+        timestamp = blockchain.client.get_block(event_block_number).timestamp
+        event_date = maya.MayaDT(epoch=timestamp).local_datetime().strftime("%b %d %Y")
         rows.append([
-            date.local_datetime().strftime("%b %d %Y"),
-            int(event_record['blockNumber']),
-            int(period),
-            round(token_reward, TOKEN_DECIMAL_PLACE),
+            event_date,
+            event_block_number,
+            int(event_period),
+            round(event_reward.to_tokens(), TOKEN_DECIMAL_PLACE),
         ])
-        rewards_total += token_reward
+        rewards_total += event_reward
 
     if not rows:
         emitter.echo(TOKEN_REWARD_NOT_FOUND)

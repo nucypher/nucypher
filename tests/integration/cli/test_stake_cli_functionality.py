@@ -14,6 +14,7 @@
  You should have received a copy of the GNU Affero General Public License
  along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
+import datetime
 import math
 import re
 from decimal import Decimal
@@ -21,11 +22,10 @@ from decimal import Decimal
 import pytest
 from eth_typing import BlockNumber
 from web3 import Web3
+from web3.datastructures import AttributeDict
 
+from nucypher.blockchain.eth.actors import StakeHolder, Staker
 from nucypher.blockchain.eth.clients import EthereumTesterClient
-from nucypher.cli.painting.staking import REWARDS_TABLE_COLUMNS, TOKEN_DECIMAL_PLACE
-from nucypher.crypto.powers import TransactingPower
-from nucypher.blockchain.eth.actors import Staker, StakeHolder
 from nucypher.blockchain.eth.constants import MAX_UINT16, NULL_ADDRESS
 from nucypher.blockchain.eth.signers.software import Web3Signer
 from nucypher.blockchain.eth.token import NU, Stake
@@ -70,11 +70,13 @@ from nucypher.cli.literature import (
     CONFIRM_MERGE,
     SUCCESSFUL_STAKES_MERGE,
     CONFIRM_STAKE_USE_UNLOCKED,
-    TOKEN_REWARD_CURRENT, TOKEN_REWARD_NOT_FOUND,
+    TOKEN_REWARD_NOT_FOUND,
     TOKEN_REWARD_PAST,
     TOKEN_REWARD_PAST_HEADER
 )
+from nucypher.cli.painting.staking import REWARDS_TABLE_COLUMNS, TOKEN_DECIMAL_PLACE
 from nucypher.config.constants import TEMPORARY_DOMAIN
+from nucypher.crypto.powers import TransactingPower
 from nucypher.types import SubStakeInfo, StakerInfo
 from tests.constants import MOCK_PROVIDER_URI, YES, INSECURE_DEVELOPMENT_PASSWORD
 
@@ -1424,13 +1426,13 @@ def test_show_rewards(click_runner, surrogate_stakers, mock_staking_agent):
     reward = NU(reward_amount, 'NU')
     mock_staking_agent.calculate_staking_reward.return_value = reward.to_nunits()
 
-    collection_args = ('rewards',
-                       'show',
-                       '--provider', MOCK_PROVIDER_URI,
-                       '--network', TEMPORARY_DOMAIN,
-                       '--staking-address', surrogate_stakers[0])
+    command = ('rewards',
+               'show',
+               '--provider', MOCK_PROVIDER_URI,
+               '--network', TEMPORARY_DOMAIN,
+               '--staking-address', surrogate_stakers[0])
 
-    result = click_runner.invoke(stake, collection_args, catch_exceptions=False)
+    result = click_runner.invoke(stake, command, catch_exceptions=False)
     assert result.exit_code == 0
     assert TOKEN_REWARD_CURRENT.format(reward_amount=round(reward_amount, TOKEN_DECIMAL_PLACE)) in result.output
 
@@ -1466,17 +1468,21 @@ def test_show_rewards_for_period(click_runner, surrogate_stakers, mock_staking_a
                         'block_number',
                         return_value=latest_block,
                         new_callable=mocker.PropertyMock)
+    mocker.patch.object(EthereumTesterClient,
+                        'get_block',
+                        return_value=AttributeDict({'timestamp': datetime.datetime.timestamp(datetime.datetime.now())}),
+                        new_callable=mocker.MagicMock)
 
-    collection_args = ('rewards',
-                       'show',
-                       '--provider', MOCK_PROVIDER_URI,
-                       '--network', TEMPORARY_DOMAIN,
-                       '--staking-address', surrogate_stakers[0],
-                       '--periods', periods)
-    result = click_runner.invoke(stake, collection_args, catch_exceptions=False)
+    command = ('rewards',
+               'show',
+               '--provider', MOCK_PROVIDER_URI,
+               '--network', TEMPORARY_DOMAIN,
+               '--staking-address', surrogate_stakers[0],
+               '--periods', periods)
+    result = click_runner.invoke(stake, command, catch_exceptions=False)
 
     assert result.exit_code == 0
-    periods_as_days = math.floor(periods_per_day*periods)
+    periods_as_days = math.floor(periods_per_day * periods)
 
     assert TOKEN_REWARD_PAST_HEADER.format(periods=periods, days=periods_as_days) in result.output
     for header in REWARDS_TABLE_COLUMNS:
@@ -1499,14 +1505,14 @@ def test_show_rewards(click_runner, surrogate_stakers, mock_staking_agent, mocke
     event.getLogs = mocker.MagicMock(return_value=[])
     mock_staking_agent.contract.events = {event_name: event}
 
-    collection_args = ('rewards',
-                       'show',
-                       '--provider', MOCK_PROVIDER_URI,
-                       '--network', TEMPORARY_DOMAIN,
-                       '--staking-address', surrogate_stakers[0],
-                       '--periods', 10)
+    command = ('rewards',
+               'show',
+               '--provider', MOCK_PROVIDER_URI,
+               '--network', TEMPORARY_DOMAIN,
+               '--staking-address', surrogate_stakers[0],
+               '--periods', 10)
 
-    result = click_runner.invoke(stake, collection_args, catch_exceptions=False)
+    result = click_runner.invoke(stake, command, catch_exceptions=False)
     assert result.exit_code == 0
     assert TOKEN_REWARD_NOT_FOUND in result.output
 
