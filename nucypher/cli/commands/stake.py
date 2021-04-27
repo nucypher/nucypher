@@ -1358,8 +1358,10 @@ def show_rewards(general_config, staker_options, config_file, periods):
 @group_transacting_staker_options
 @option_config_file
 @click.option('--replace', help="Replace any existing pending transaction", is_flag=True)
-@click.option('--tokens/--no-tokens', is_flag=True, default=False)
-@click.option('--fees/--no-fees', is_flag=True, default=False)
+@click.option('--tokens/--no-tokens', help="Enable/disable tokens withdrawal. Defaults to `--no-tokens`", is_flag=True,
+              default=False)
+@click.option('--fees/--no-fees', help="Enable/disable fees withdrawal. Defaults to `--no-fees`", is_flag=True,
+              default=False)
 @click.option('--withdraw-address', help="Send fee collection to an alternate address", type=EIP55_CHECKSUM_ADDRESS)
 @option_force
 @group_general_config
