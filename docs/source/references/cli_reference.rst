@@ -125,7 +125,7 @@ Manage stakes and other staker-related operations.
 +----------------------+-------------------------------------------------------------------------------+
 |  ``restake``         | Manage automatic reward re-staking                                            |
 +----------------------+-------------------------------------------------------------------------------+
-|  ``rewards``         | Preview and withdraw staking rewards                                          |
+|  ``rewards``         | Preview and withdraw staking rewards and fees                                 |
 +----------------------+-------------------------------------------------------------------------------+
 |  ``prolong``         | Prolong an existing stake's duration                                          |
 +----------------------+-------------------------------------------------------------------------------+
@@ -173,7 +173,7 @@ Manage stakes and other staker-related operations.
 +======================+===============================================================================+
 |  ``show``            | Show available and historical staking rewards                                 |
 +----------------------+-------------------------------------------------------------------------------+
-|  ``withdraw``        | Withdraw unlocked tokens from the contract to your wallet                     |
+|  ``withdraw``        | Withdraw unlocked tokens and fees from the contract to your wallet            |
 +----------------------+-------------------------------------------------------------------------------+
 
 Ursula

@@ -310,7 +310,7 @@ def paint_staking_rewards(stakeholder, blockchain, emitter, past_periods, stakin
             event_date,
             event_block_number,
             int(event_period),
-            round(event_reward.to_tokens(), TOKEN_DECIMAL_PLACE),
+            round(event_reward, TOKEN_DECIMAL_PLACE),
         ])
         rewards_total += event_reward
 
