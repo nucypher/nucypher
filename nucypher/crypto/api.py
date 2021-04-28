@@ -234,6 +234,14 @@ def read_certificate_pseudonym(certificate: Certificate):
     return checksum_address
 
 
+def read_certificate_common_name(certificate: Certificate):
+    try:
+        host = certificate.subject.get_attributes_for_oid(NameOID.COMMON_NAME)[0]
+        return host.value
+    except IndexError:
+        raise InvalidNodeCertificate("Invalid teacher certificate encountered: No host name preset as common name.")
+
+
 def encrypt_and_sign(recipient_pubkey_enc: UmbralPublicKey,
                      plaintext: bytes,
                      signer: 'SignatureStamp',

@@ -26,6 +26,7 @@ from json import JSONDecodeError
 from os.path import abspath
 from typing import Callable, ClassVar, Dict, List, Tuple, Union, Optional
 
+import OpenSSL
 from constant_sorrow.constants import FEDERATED_ADDRESS, KEYRING_LOCKED
 from cryptography import x509
 from cryptography.hazmat.backends import default_backend
@@ -44,7 +45,7 @@ from nacl.secret import SecretBox
 from umbral.keys import UmbralKeyingMaterial, UmbralPrivateKey, UmbralPublicKey, derive_key_from_password
 
 from nucypher.config.constants import DEFAULT_CONFIG_ROOT
-from nucypher.crypto.api import generate_teacher_certificate, _TLS_CURVE
+from nucypher.crypto.api import generate_teacher_certificate, _TLS_CURVE, read_certificate_common_name, read_certificate_pseudonym
 from nucypher.crypto.constants import BLAKE2B
 from nucypher.crypto.keypairs import HostingKeypair
 from nucypher.crypto.powers import (DecryptingPower, DerivedKeyBasedPower, KeyPairBasedPower, SigningPower)
@@ -505,6 +506,17 @@ class NucypherKeyring:
                                          checksum_address=self.checksum_address,
                                          generate_certificate=False,
                                          certificate_filepath=self.__tls_certificate_path)
+                certificate = keypair.certificate
+                if not self.is_valid_tls_certificate(certificate, host, self.checksum_address):
+                    self.log.warn("TLS certificate invalid - regenerating it")
+                    # don't need curve since providing the private key
+                    certificate_filepath = self.regenerate_tls_cert(private_key, host, self.checksum_address, self.__tls_certificate_path)
+                    keypair = HostingKeypair(host=host,
+                                             private_key=private_key,
+                                             checksum_address=self.checksum_address,
+                                             generate_certificate=False,
+                                             certificate_filepath=certificate_filepath)
+
                 new_cryptopower = TLSHostingPower(keypair=keypair, host=host)
 
             else:
@@ -677,6 +689,34 @@ class NucypherKeyring:
 
         keyring_instance = cls(account=checksum_address, **keyring_args)
         return keyring_instance
+
+    def is_valid_tls_certificate(self, certificate, host, checksum_address) -> bool:
+        # check host name hasn't changed
+        cert_host = read_certificate_common_name(certificate=certificate)
+        if cert_host != host:
+            self.log.warn("TLS certificate invalid - invalid host name")
+            return False
+
+        # check checksum
+        cert_checksum = read_certificate_pseudonym(certificate=certificate)
+        if cert_checksum != checksum_address:
+            self.log.warn("TLS certificate invalid - invalid checksum address")
+            return False
+
+        # check expiry
+        x509 = OpenSSL.crypto.X509.from_cryptography(certificate)
+        if x509.get_notAfter() and x509.has_expired():
+            self.log.warn("TLS certificate invalid - certificate expired")
+            return False
+
+        return True
+
+    def regenerate_tls_cert(self, private_key, host, checksum_address, full_filepath) -> str:
+        cert, _ = generate_teacher_certificate(host=host, checksum_address=checksum_address, private_key=private_key)
+        certificate_filepath = _write_tls_certificate(full_filepath=full_filepath,
+                                                      certificate=cert,
+                                                      force=True)
+        return certificate_filepath
 
     @classmethod
     def validate_password(cls, password: str) -> List:
