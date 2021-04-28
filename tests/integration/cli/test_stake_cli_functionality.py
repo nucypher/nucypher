@@ -24,8 +24,8 @@ from eth_typing import BlockNumber
 from web3 import Web3
 from web3.datastructures import AttributeDict
 
-from nucypher.blockchain.eth.actors import StakeHolder, Staker
 from nucypher.blockchain.eth.clients import EthereumTesterClient
+from nucypher.blockchain.eth.actors import StakeHolder, Staker
 from nucypher.blockchain.eth.constants import MAX_UINT16, NULL_ADDRESS
 from nucypher.blockchain.eth.signers.software import Web3Signer
 from nucypher.blockchain.eth.token import NU, Stake
@@ -77,8 +77,8 @@ from nucypher.cli.literature import (
 from nucypher.cli.painting.staking import REWARDS_TABLE_COLUMNS, TOKEN_DECIMAL_PLACE
 from nucypher.config.constants import TEMPORARY_DOMAIN
 from nucypher.crypto.powers import TransactingPower
-from nucypher.types import SubStakeInfo, StakerInfo
-from tests.constants import MOCK_PROVIDER_URI, YES, INSECURE_DEVELOPMENT_PASSWORD
+from nucypher.types import StakerInfo, SubStakeInfo
+from tests.constants import INSECURE_DEVELOPMENT_PASSWORD, MOCK_PROVIDER_URI, YES
 
 
 @pytest.fixture()
@@ -687,6 +687,9 @@ def test_increase_interactive(click_runner,
     assert SUCCESSFUL_STAKE_INCREASE not in result.output
 
     mock_staking_agent.get_locked_tokens.return_value = token_economics.maximum_allowed_locked // 2
+    current_allowance = 1
+    mock_token_agent.get_allowance.return_value = current_allowance
+
     result = click_runner.invoke(stake, command, input=user_input, catch_exceptions=False)
     assert result.exit_code == 0
 
@@ -705,9 +708,11 @@ def test_increase_interactive(click_runner,
     mock_staking_agent.assert_only_transactions([mock_staking_agent.deposit_and_increase])
     mock_staking_agent.get_substake_info.assert_called_once_with(staker_address=surrogate_stakers[0],
                                                                  stake_index=sub_stake_index)
+    mock_token_agent.get_allowance.assert_called_once_with(owner=surrogate_stakers[0],
+                                                           spender=mock_staking_agent.contract.address)
     mock_token_agent.increase_allowance.assert_called_once_with(transacting_power=surrogate_transacting_power,
                                                                 spender_address=mock_staking_agent.contract.address,
-                                                                increase=additional_value.to_nunits())
+                                                                increase=additional_value.to_nunits() - current_allowance)
     mock_token_agent.assert_only_transactions([mock_token_agent.increase_allowance])
 
 
@@ -729,6 +734,8 @@ def test_increase_non_interactive(click_runner,
     locked_tokens = token_economics.minimum_allowed_locked * 5
     mock_staking_agent.get_locked_tokens.return_value = locked_tokens
     mock_token_agent.get_balance.return_value = 2 * token_economics.maximum_allowed_locked
+    current_allowance = 1
+    mock_token_agent.get_allowance.return_value = current_allowance
 
     command = ('increase',
                '--provider', MOCK_PROVIDER_URI,
@@ -757,9 +764,11 @@ def test_increase_non_interactive(click_runner,
     mock_staking_agent.assert_only_transactions([mock_staking_agent.deposit_and_increase])
     mock_staking_agent.get_substake_info.assert_called_once_with(staker_address=surrogate_stakers[0],
                                                                  stake_index=sub_stake_index)
+    mock_token_agent.get_allowance.assert_called_once_with(owner=surrogate_stakers[0],
+                                                           spender=mock_staking_agent.contract.address)
     mock_token_agent.increase_allowance.assert_called_once_with(transacting_power=surrogate_transacting_power,
                                                                 spender_address=mock_staking_agent.contract.address,
-                                                                increase=additional_value.to_nunits())
+                                                                increase=additional_value.to_nunits() - current_allowance)
     mock_token_agent.assert_only_transactions([mock_token_agent.increase_allowance])
 
 

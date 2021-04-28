@@ -787,9 +787,14 @@ class Staker(NucypherTokenActor):
 
     def _deposit_and_increase(self, stake_index: int, amount: int) -> TxReceipt:
         """Public facing method for deposit and increasing stake."""
-        self.token_agent.increase_allowance(increase=amount,
-                                            transacting_power=self.transacting_power,
-                                            spender_address=self.staking_agent.contract.address)
+        current_allowance = self.token_agent.get_allowance(owner=self.checksum_address,
+                                                           spender=self.staking_agent.contract.address)
+        if amount > current_allowance:
+            to_increase = amount - current_allowance
+            self.token_agent.increase_allowance(increase=to_increase,
+                                                transacting_power=self.transacting_power,
+                                                spender_address=self.staking_agent.contract.address)
+            self.log.info(f"{self.checksum_address} increased token allowance for spender {self.staking_agent.contract.address} to {amount}")
         receipt = self.staking_agent.deposit_and_increase(transacting_power=self.transacting_power,
                                                           stake_index=stake_index,
                                                           amount=amount)

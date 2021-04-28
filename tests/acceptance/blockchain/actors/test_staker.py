@@ -25,7 +25,7 @@ from nucypher.blockchain.eth.signers.software import Web3Signer
 from nucypher.blockchain.eth.token import NU, Stake
 from nucypher.blockchain.eth.utils import datetime_at_period
 from nucypher.crypto.powers import TransactingPower
-from tests.constants import FEE_RATE_RANGE, INSECURE_DEVELOPMENT_PASSWORD, DEVELOPMENT_TOKEN_AIRDROP_AMOUNT
+from tests.constants import FEE_RATE_RANGE, DEVELOPMENT_TOKEN_AIRDROP_AMOUNT
 from tests.utils.blockchain import token_airdrop
 from tests.utils.ursula import make_decentralized_ursulas
 
