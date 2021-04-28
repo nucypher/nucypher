@@ -104,7 +104,7 @@ def test_create_revoke(testerchain, escrow, policy_manager):
     # Can't create policy using timestamp from the past
     with pytest.raises((TransactionFailed, ValueError)):
         tx = policy_manager.functions.createPolicy(policy_id, policy_sponsor, current_timestamp -1, [node1])\
-            .transact({'from': policy_sponsor})
+            .transact({'from': policy_sponsor, 'value': value})
         testerchain.wait_for_receipt(tx)
 
     # Create policy
@@ -515,6 +515,240 @@ def test_create_revoke(testerchain, escrow, policy_manager):
         .createPolicy(policy_id_5, NULL_ADDRESS, end_timestamp, [node1, node2]) \
         .transact({'from': policy_sponsor, 'value': 2 * default_rate})
     testerchain.wait_for_receipt(tx)
+
+
+def test_create_multiple_policies(testerchain, escrow, policy_manager):
+    creator, policy_sponsor, bad_node, node1, node2, node3, policy_owner, *everyone_else = testerchain.client.accounts
+
+    rate = 20
+    one_period = 60 * 60
+    number_of_periods = 10
+    value = rate * number_of_periods
+    default_fee_delta = policy_manager.functions.DEFAULT_FEE_DELTA().call()
+
+    policy_sponsor_balance = testerchain.client.get_balance(policy_sponsor)
+    policy_created_log = policy_manager.events.PolicyCreated.createFilter(fromBlock='latest')
+
+    # Check registered nodes
+    assert 0 < policy_manager.functions.nodes(node1).call()[PREVIOUS_FEE_PERIOD_FIELD]
+    assert 0 < policy_manager.functions.nodes(node2).call()[PREVIOUS_FEE_PERIOD_FIELD]
+    assert 0 < policy_manager.functions.nodes(node3).call()[PREVIOUS_FEE_PERIOD_FIELD]
+    assert 0 == policy_manager.functions.nodes(bad_node).call()[PREVIOUS_FEE_PERIOD_FIELD]
+    current_timestamp = testerchain.w3.eth.getBlock('latest').timestamp
+    end_timestamp = current_timestamp + (number_of_periods - 1) * one_period
+
+    policy_id_1 = os.urandom(POLICY_ID_LENGTH)
+    policy_id_2 = os.urandom(POLICY_ID_LENGTH)
+    policies = [policy_id_1, policy_id_2]
+
+    # Try to create policy for bad (unregistered) node
+    with pytest.raises((TransactionFailed, ValueError)):
+        tx = policy_manager.functions.createPolicies(policies, policy_sponsor, end_timestamp, [bad_node])\
+            .transact({'from': policy_sponsor, 'value': 2 * value})
+        testerchain.wait_for_receipt(tx)
+    with pytest.raises((TransactionFailed, ValueError)):
+        tx = policy_manager.functions.createPolicies(policies, policy_sponsor, end_timestamp, [node1, bad_node])\
+            .transact({'from': policy_sponsor, 'value': 2 * value})
+        testerchain.wait_for_receipt(tx)
+
+    # Try to create policy with no ETH
+    with pytest.raises((TransactionFailed, ValueError)):
+        tx = policy_manager.functions.createPolicies(policies, policy_sponsor, end_timestamp, [node1])\
+            .transact({'from': policy_sponsor})
+        testerchain.wait_for_receipt(tx)
+
+    # Can't create policy using timestamp from the past
+    with pytest.raises((TransactionFailed, ValueError)):
+        tx = policy_manager.functions.createPolicies(policies, policy_sponsor, current_timestamp - 1, [node1])\
+            .transact({'from': policy_sponsor, 'value': 2 * value})
+        testerchain.wait_for_receipt(tx)
+
+    # Can't create two policies with the same id
+    with pytest.raises((TransactionFailed, ValueError)):
+        tx = policy_manager.functions.createPolicies([policy_id_1, policy_id_1], policy_sponsor, end_timestamp, [node1]) \
+            .transact({'from': policy_sponsor, 'value': 2 * value, 'gas_price': 0})
+        testerchain.wait_for_receipt(tx)
+
+    # Can't use createPolicies() method for only one policy
+    with pytest.raises((TransactionFailed, ValueError)):
+        tx = policy_manager.functions.createPolicies([policy_id_1], policy_sponsor, end_timestamp, [node1]) \
+            .transact({'from': policy_sponsor, 'value': value, 'gas_price': 0})
+        testerchain.wait_for_receipt(tx)
+
+    # Create policy
+    current_period = escrow.functions.getCurrentPeriod().call()
+    tx = policy_manager.functions.createPolicies(policies, policy_sponsor, end_timestamp, [node1])\
+        .transact({'from': policy_sponsor, 'value': 2 * value, 'gas_price': 0})
+    testerchain.wait_for_receipt(tx)
+    current_timestamp = testerchain.w3.eth.getBlock('latest').timestamp
+    # Check balances and policy info
+    assert 2 * value == testerchain.client.get_balance(policy_manager.address)
+    assert policy_sponsor_balance - 2 * value == testerchain.client.get_balance(policy_sponsor)
+
+    events = policy_created_log.get_all_entries()
+    assert len(events) == 2
+
+    for i, policy_id in enumerate(policies):
+        policy = policy_manager.functions.policies(policy_id).call()
+        assert policy_sponsor == policy[SPONSOR_FIELD]
+        assert NULL_ADDRESS == policy[OWNER_FIELD]
+        assert rate == policy[RATE_FIELD]
+        assert current_timestamp == policy[START_TIMESTAMP_FIELD]
+        assert end_timestamp == policy[END_TIMESTAMP_FIELD]
+        assert not policy[DISABLED_FIELD]
+        assert 1 == policy_manager.functions.getArrangementsLength(policy_id).call()
+        assert node1 == policy_manager.functions.getArrangementInfo(policy_id, 0).call()[0]
+        assert policy_sponsor == policy_manager.functions.getPolicyOwner(policy_id).call()
+        assert policy_manager.functions.getNodeFeeDelta(node1, current_period).call() == 2 * rate
+        assert policy_manager.functions.getNodeFeeDelta(node1, current_period + number_of_periods).call() == -2 * rate
+
+        event_args = events[i]['args']
+        assert policy_id == event_args['policyId']
+        assert policy_sponsor == event_args['sponsor']
+        assert policy_sponsor == event_args['owner']
+        assert rate == event_args['feeRate']
+        assert current_timestamp == event_args['startTimestamp']
+        assert end_timestamp == event_args['endTimestamp']
+        assert 1 == event_args['numberOfNodes']
+
+    # Can't create policy with the same id
+    policy_id_3 = os.urandom(POLICY_ID_LENGTH)
+    with pytest.raises((TransactionFailed, ValueError)):
+        tx = policy_manager.functions.createPolicies([policy_id_3, policy_id_1], policy_sponsor, end_timestamp, [node1])\
+            .transact({'from': policy_sponsor, 'value': 2 * value})
+        testerchain.wait_for_receipt(tx)
+
+    # Revoke policies
+    tx = policy_manager.functions.revokePolicy(policy_id_1).transact({'from': policy_sponsor, 'gas_price': 0})
+    testerchain.wait_for_receipt(tx)
+    tx = policy_manager.functions.revokePolicy(policy_id_2).transact({'from': policy_sponsor, 'gas_price': 0})
+    testerchain.wait_for_receipt(tx)
+    assert policy_manager.functions.policies(policy_id_1).call()[DISABLED_FIELD]
+    assert policy_manager.functions.policies(policy_id_2).call()[DISABLED_FIELD]
+
+    # Create new policy
+    testerchain.time_travel(hours=1)
+    current_period = escrow.functions.getCurrentPeriod().call()
+    for period_to_set_default in range(current_period, current_period + number_of_periods + 1):
+        tx = escrow.functions.ping(node1, 0, 0, period_to_set_default).transact()
+        testerchain.wait_for_receipt(tx)
+        tx = escrow.functions.ping(node2, 0, 0, period_to_set_default).transact()
+        testerchain.wait_for_receipt(tx)
+    current_timestamp = testerchain.w3.eth.getBlock('latest').timestamp
+    end_timestamp = current_timestamp + (number_of_periods - 1) * one_period
+    policy_id_1 = os.urandom(POLICY_ID_LENGTH)
+    policy_id_2 = os.urandom(POLICY_ID_LENGTH)
+    policies = [policy_id_1, policy_id_2]
+    tx = policy_manager.functions.createPolicies(policies, policy_owner, end_timestamp, [node1, node2, node3])\
+        .transact({'from': policy_sponsor, 'value': 6 * value, 'gas_price': 0})
+    testerchain.wait_for_receipt(tx)
+
+    current_timestamp = testerchain.w3.eth.getBlock('latest').timestamp
+    assert 6 * value == testerchain.client.get_balance(policy_manager.address)
+    assert policy_sponsor_balance - 6 * value == testerchain.client.get_balance(policy_sponsor)
+    events = policy_created_log.get_all_entries()
+    assert len(events) == 4
+
+    for i, policy_id in enumerate(policies):
+        policy = policy_manager.functions.policies(policy_id).call()
+        assert policy_sponsor == policy[SPONSOR_FIELD]
+        assert policy_owner == policy[OWNER_FIELD]
+        assert rate == policy[RATE_FIELD]
+        assert current_timestamp == policy[START_TIMESTAMP_FIELD]
+        assert end_timestamp == policy[END_TIMESTAMP_FIELD]
+        assert not policy[DISABLED_FIELD]
+        assert policy_owner == policy_manager.functions.getPolicyOwner(policy_id).call()
+        assert policy_manager.functions.getNodeFeeDelta(node1, current_period).call() == default_fee_delta
+        assert policy_manager.functions.getNodeFeeDelta(node1, current_period + number_of_periods).call() == -2 * rate
+        assert policy_manager.functions.getNodeFeeDelta(node2, current_period).call() == 2 * rate
+        assert policy_manager.functions.getNodeFeeDelta(node2, current_period + number_of_periods).call() == -2 * rate
+        assert policy_manager.functions.getNodeFeeDelta(node3, current_period).call() == 2 * rate
+        assert policy_manager.functions.getNodeFeeDelta(node3, current_period + number_of_periods).call() == -2 * rate
+
+        event_args = events[i + 2]['args']
+        assert policy_id == event_args['policyId']
+        assert policy_sponsor == event_args['sponsor']
+        assert policy_owner == event_args['owner']
+        assert rate == event_args['feeRate']
+        assert current_timestamp == event_args['startTimestamp']
+        assert end_timestamp == event_args['endTimestamp']
+        assert 3 == event_args['numberOfNodes']
+
+    # Revoke policies
+    tx = policy_manager.functions.revokePolicy(policy_id_1).transact({'from': policy_owner, 'gas_price': 0})
+    testerchain.wait_for_receipt(tx)
+    tx = policy_manager.functions.revokePolicy(policy_id_2).transact({'from': policy_owner, 'gas_price': 0})
+    testerchain.wait_for_receipt(tx)
+    assert policy_manager.functions.policies(policy_id_1).call()[DISABLED_FIELD]
+    assert policy_manager.functions.policies(policy_id_2).call()[DISABLED_FIELD]
+
+    # Can't create policy with wrong ETH value - when fee is not calculated by formula:
+    # numberOfNodes * feeRate * numberOfPeriods * numberOfPolicies
+    policy_id_1 = os.urandom(POLICY_ID_LENGTH)
+    policy_id_2 = os.urandom(POLICY_ID_LENGTH)
+    policies = [policy_id_1, policy_id_2]
+    with pytest.raises((TransactionFailed, ValueError)):
+        tx = policy_manager.functions.createPolicies(policies, policy_sponsor, end_timestamp, [node1])\
+            .transact({'from': policy_sponsor, 'value': value - 1})
+        testerchain.wait_for_receipt(tx)
+
+    min_rate, default_rate, max_rate = 10, 20, 30
+    tx = policy_manager.functions.setFeeRateRange(min_rate, default_rate, max_rate).transact({'from': creator})
+    testerchain.wait_for_receipt(tx)
+
+    # Set minimum fee rate for nodes
+    tx = policy_manager.functions.setMinFeeRate(10).transact({'from': node1})
+    testerchain.wait_for_receipt(tx)
+    tx = policy_manager.functions.setMinFeeRate(20).transact({'from': node2})
+    testerchain.wait_for_receipt(tx)
+    assert policy_manager.functions.nodes(node1).call()[MIN_FEE_RATE_FIELD] == 10
+    assert policy_manager.functions.nodes(node2).call()[MIN_FEE_RATE_FIELD] == 20
+    assert policy_manager.functions.getMinFeeRate(node1).call() == 10
+    assert policy_manager.functions.getMinFeeRate(node2).call() == 20
+
+    # Try to create policy with low rate
+    current_timestamp = testerchain.w3.eth.getBlock('latest').timestamp
+    end_timestamp = current_timestamp + 10
+    with pytest.raises((TransactionFailed, ValueError)):
+        tx = policy_manager.functions.createPolicies(policies, policy_sponsor, end_timestamp, [node1])\
+            .transact({'from': policy_sponsor, 'value': 2 * (min_rate - 1)})
+        testerchain.wait_for_receipt(tx)
+    with pytest.raises((TransactionFailed, ValueError)):
+        tx = policy_manager.functions.createPolicies(policies, policy_sponsor, end_timestamp, [node1, node2])\
+            .transact({'from': policy_sponsor, 'value': 2 * 2 * (min_rate + 1)})
+        testerchain.wait_for_receipt(tx)
+
+    # Create new policy
+    value = 2 * default_rate * number_of_periods
+    end_timestamp = current_timestamp + (number_of_periods - 1) * one_period
+    tx = policy_manager.functions.createPolicies(
+        policies, NULL_ADDRESS, end_timestamp, [node1, node2]) \
+        .transact({'from': policy_sponsor, 'value': 2 * value, 'gas_price': 0})
+    testerchain.wait_for_receipt(tx)
+    current_timestamp = testerchain.w3.eth.getBlock('latest').timestamp
+    assert 2 * value == testerchain.client.get_balance(policy_manager.address)
+    assert policy_sponsor_balance - 2 * value == testerchain.client.get_balance(policy_sponsor)
+    events = policy_created_log.get_all_entries()
+    assert len(events) == 6
+
+    for i, policy_id in enumerate(policies):
+        policy = policy_manager.functions.policies(policy_id).call()
+        assert policy_sponsor == policy[SPONSOR_FIELD]
+        assert NULL_ADDRESS == policy[OWNER_FIELD]
+        assert default_rate == policy[RATE_FIELD]
+        assert current_timestamp == policy[START_TIMESTAMP_FIELD]
+        assert end_timestamp == policy[END_TIMESTAMP_FIELD]
+        assert not policy[DISABLED_FIELD]
+        assert policy_sponsor == policy_manager.functions.getPolicyOwner(policy_id).call()
+
+        event_args = events[i + 4]['args']
+        assert policy_id == event_args['policyId']
+        assert policy_sponsor == event_args['sponsor']
+        assert policy_sponsor == event_args['owner']
+        assert rate == event_args['feeRate']
+        assert current_timestamp == event_args['startTimestamp']
+        assert end_timestamp == event_args['endTimestamp']
+        assert 2 == event_args['numberOfNodes']
 
 
 def test_upgrading(testerchain, deploy_contract):
