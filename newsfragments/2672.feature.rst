@@ -1,0 +1,1 @@
+Whitespaces in character nicknames are now implicitly replaced with an underscore ("_").

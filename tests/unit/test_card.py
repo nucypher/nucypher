@@ -67,12 +67,13 @@ def test_character_card(character_class, capsys):
 
     # nicknames
     original_checksum = character_card.id
-    nickname = 'Wilson'
+    nickname = 'Wilson the Great'
+    expected_nickname = nickname.replace(' ', '_')
     character_card.set_nickname(nickname)
     restored = Card.from_bytes(bytes(character_card))
     restored_checksum = restored.id
-    assert restored.nickname == nickname
+    assert restored.nickname == expected_nickname
     assert original_checksum == restored_checksum == same_card.id
 
     # filepath with nickname
-    assert f'{nickname}.{character_card.id.hex()}' in str(character_card.filepath)
+    assert f'{expected_nickname}.{character_card.id.hex()}' in str(character_card.filepath)

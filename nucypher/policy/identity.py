@@ -23,7 +23,6 @@ from typing import Union, Optional, Dict, Callable
 import base64
 import constant_sorrow
 import hashlib
-import maya
 import os
 from bytestring_splitter import VariableLengthBytestring, BytestringKwargifier
 from constant_sorrow.constants import ALICE, BOB, NO_SIGNATURE
@@ -34,7 +33,6 @@ from nucypher.characters.base import Character
 from nucypher.characters.lawful import Alice, Bob
 from nucypher.config.constants import DEFAULT_CONFIG_ROOT
 from nucypher.crypto.powers import SigningPower, DecryptingPower
-from nucypher.policy.collections import SignedTreasureMap
 
 
 class Card:
@@ -270,6 +268,7 @@ class Card:
             return self.__nickname.decode()
 
     def set_nickname(self, nickname: str) -> None:
+        nickname = nickname.replace(' ', '_')
         if len(nickname.encode()) > self.__MAX_NICKNAME_SIZE:
             raise ValueError(f'New nickname exceeds maximum size ({self.__MAX_NICKNAME_SIZE} bytes)')
         self.__nickname = nickname.encode()
