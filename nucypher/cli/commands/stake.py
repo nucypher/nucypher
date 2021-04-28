@@ -14,10 +14,9 @@
  You should have received a copy of the GNU Affero General Public License
  along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
-
+from decimal import Decimal
 
 import click
-from decimal import Decimal
 from web3 import Web3
 
 from nucypher.blockchain.eth.actors import StakeHolder
@@ -94,7 +93,7 @@ from nucypher.cli.literature import (
     NO_INACTIVE_STAKES,
     FETCHING_INACTIVE_STAKES,
     MIGRATION_ALREADY_PERFORMED,
-    CONFIRM_MANUAL_MIGRATION
+    CONFIRM_MANUAL_MIGRATION,
 )
 from nucypher.cli.options import (
     group_options,
@@ -113,11 +112,14 @@ from nucypher.cli.options import (
     option_gas_price
 )
 from nucypher.cli.painting.staking import (
-    paint_min_rate, paint_staged_stake,
+    paint_min_rate,
+    paint_staged_stake,
     paint_staged_stake_division,
     paint_stakes,
     paint_staking_accounts,
-    paint_staking_confirmation, paint_all_stakes
+    paint_staking_confirmation,
+    paint_all_stakes,
+    paint_staking_rewards
 )
 from nucypher.cli.painting.transactions import paint_receipt_summary
 from nucypher.cli.types import (
@@ -1113,87 +1115,6 @@ def remove_inactive(general_config: GroupGeneralConfig,
                                  force=force)
 
 
-@stake.command('collect-reward')
-@group_transacting_staker_options
-@option_config_file
-@click.option('--replace', help="Replace any existing pending transaction", is_flag=True)
-@click.option('--staking-reward/--no-staking-reward', is_flag=True, default=False)
-@click.option('--policy-fee/--no-policy-fee', is_flag=True, default=False)
-@click.option('--withdraw-address', help="Send fee collection to an alternate address", type=EIP55_CHECKSUM_ADDRESS)
-@option_force
-@group_general_config
-def collect_reward(general_config: GroupGeneralConfig,
-                   transacting_staker_options: TransactingStakerOptions,
-                   config_file,
-                   staking_reward,
-                   policy_fee,
-                   withdraw_address,
-                   replace,
-                   force):
-    """Withdraw staking reward."""
-
-    # Setup
-    emitter = setup_emitter(general_config)
-    STAKEHOLDER = transacting_staker_options.create_character(emitter, config_file)
-    blockchain = transacting_staker_options.get_blockchain()
-
-    if not staking_reward and not policy_fee:
-        raise click.BadArgumentUsage(f"Either --staking-reward or --policy-fee must be True to collect rewards.")
-
-    client_account, staking_address = select_client_account_for_staking(
-        emitter=emitter,
-        stakeholder=STAKEHOLDER,
-        staking_address=transacting_staker_options.staker_options.staking_address)
-
-    password = None
-
-    if staking_reward:
-        # Note: Sending staking / inflation rewards to another account is not allowed.
-        reward_amount = STAKEHOLDER.staker.calculate_staking_reward()
-        if reward_amount == 0:
-            emitter.echo(NO_TOKENS_TO_WITHDRAW, color='red')
-            raise click.Abort
-
-        emitter.echo(message=COLLECTING_TOKEN_REWARD.format(reward_amount=reward_amount))
-
-        withdrawing_last_portion = STAKEHOLDER.staker.non_withdrawable_stake() == 0
-        if not force and withdrawing_last_portion and STAKEHOLDER.staker.mintable_periods() > 0:
-            click.confirm(CONFIRM_COLLECTING_WITHOUT_MINTING, abort=True)
-
-        # Authenticate and Execute
-        password = get_password(stakeholder=STAKEHOLDER,
-                                blockchain=blockchain,
-                                client_account=client_account,
-                                hw_wallet=transacting_staker_options.hw_wallet)
-        STAKEHOLDER.assimilate(checksum_address=client_account, password=password)
-
-        staking_receipt = STAKEHOLDER.staker.collect_staking_reward(replace=replace)
-        paint_receipt_summary(receipt=staking_receipt,
-                              chain_name=blockchain.client.chain_name,
-                              emitter=emitter)
-
-    if policy_fee:
-        fee_amount = Web3.fromWei(STAKEHOLDER.staker.calculate_policy_fee(), 'ether')
-        if fee_amount == 0:
-            emitter.echo(NO_FEE_TO_WITHDRAW, color='red')
-            raise click.Abort
-
-        emitter.echo(message=COLLECTING_ETH_FEE.format(fee_amount=fee_amount))
-
-        if password is None:
-            # Authenticate and Execute
-            password = get_password(stakeholder=STAKEHOLDER,
-                                    blockchain=blockchain,
-                                    client_account=client_account,
-                                    hw_wallet=transacting_staker_options.hw_wallet)
-            STAKEHOLDER.assimilate(checksum_address=client_account, password=password)
-
-        policy_receipt = STAKEHOLDER.staker.collect_policy_fee(collector_address=withdraw_address)
-        paint_receipt_summary(receipt=policy_receipt,
-                              chain_name=blockchain.client.chain_name,
-                              emitter=emitter)
-
-
 @stake.command()
 @group_staker_options
 @option_config_file
@@ -1399,3 +1320,118 @@ def migrate(general_config: GroupGeneralConfig,
                           emitter=emitter,
                           chain_name=blockchain.client.chain_name,
                           transaction_type='migrate')
+
+    paint_staking_accounts(emitter=emitter,
+                           signer=STAKEHOLDER.signer,
+                           registry=STAKEHOLDER.registry,
+                           domain=STAKEHOLDER.domain)
+
+
+@stake.group()
+def rewards():
+    """Manage staking rewards."""
+
+
+@rewards.command('show')
+@group_staker_options
+@option_config_file
+@group_general_config
+@click.option('--periods', help="Number of past periods for which to calculate rewards", type=click.INT)
+def show_rewards(general_config, staker_options, config_file, periods):
+    """Show staking rewards."""
+
+    if periods and periods < 0:
+        raise click.BadOptionUsage(option_name='--periods', message='--periods must positive')
+
+    emitter = setup_emitter(general_config)
+    stakeholder = staker_options.create_character(emitter, config_file)
+    _client_account, staking_address = select_client_account_for_staking(emitter=emitter,
+                                                                         stakeholder=stakeholder,
+                                                                         staking_address=staker_options.staking_address)
+    blockchain = staker_options.get_blockchain()
+    staking_agent = stakeholder.staker.staking_agent
+
+    paint_staking_rewards(stakeholder, blockchain, emitter, periods, staking_address, staking_agent)
+
+
+@rewards.command('withdraw')
+@group_transacting_staker_options
+@option_config_file
+@click.option('--replace', help="Replace any existing pending transaction", is_flag=True)
+@click.option('--tokens/--no-tokens', help="Enable/disable tokens withdrawal. Defaults to `--no-tokens`", is_flag=True,
+              default=False)
+@click.option('--fees/--no-fees', help="Enable/disable fees withdrawal. Defaults to `--no-fees`", is_flag=True,
+              default=False)
+@click.option('--withdraw-address', help="Send fee collection to an alternate address", type=EIP55_CHECKSUM_ADDRESS)
+@option_force
+@group_general_config
+def withdraw_rewards(general_config: GroupGeneralConfig,
+                     transacting_staker_options: TransactingStakerOptions,
+                     config_file,
+                     tokens,
+                     fees,
+                     withdraw_address,
+                     replace,
+                     force):
+    """Withdraw staking rewards."""
+
+    # Setup
+    emitter = setup_emitter(general_config)
+    STAKEHOLDER = transacting_staker_options.create_character(emitter, config_file)
+    blockchain = transacting_staker_options.get_blockchain()
+
+    if not tokens and not fees:
+        raise click.BadArgumentUsage(f"Either --tokens or --fees must be True to collect rewards.")
+
+    client_account, staking_address = select_client_account_for_staking(
+        emitter=emitter,
+        stakeholder=STAKEHOLDER,
+        staking_address=transacting_staker_options.staker_options.staking_address)
+
+    password = None
+
+    if tokens:
+        # Note: Sending staking / inflation rewards to another account is not allowed.
+        reward_amount = STAKEHOLDER.staker.calculate_staking_reward()
+        if reward_amount == 0:
+            emitter.echo(NO_TOKENS_TO_WITHDRAW, color='red')
+            raise click.Abort
+
+        emitter.echo(message=COLLECTING_TOKEN_REWARD.format(reward_amount=reward_amount))
+
+        withdrawing_last_portion = STAKEHOLDER.staker.non_withdrawable_stake() == 0
+        if not force and withdrawing_last_portion and STAKEHOLDER.staker.mintable_periods() > 0:
+            click.confirm(CONFIRM_COLLECTING_WITHOUT_MINTING, abort=True)
+
+        # Authenticate and Execute
+        password = get_password(stakeholder=STAKEHOLDER,
+                                blockchain=blockchain,
+                                client_account=client_account,
+                                hw_wallet=transacting_staker_options.hw_wallet)
+        STAKEHOLDER.assimilate(checksum_address=client_account, password=password)
+
+        staking_receipt = STAKEHOLDER.staker.collect_staking_reward(replace=replace)
+        paint_receipt_summary(receipt=staking_receipt,
+                              chain_name=blockchain.client.chain_name,
+                              emitter=emitter)
+
+    if fees:
+        fee_amount = Web3.fromWei(STAKEHOLDER.staker.calculate_policy_fee(), 'ether')
+        if fee_amount == 0:
+            emitter.echo(NO_FEE_TO_WITHDRAW, color='red')
+            raise click.Abort
+
+        emitter.echo(message=COLLECTING_ETH_FEE.format(fee_amount=fee_amount))
+
+        if password is None:
+            # Authenticate and Execute
+            password = get_password(stakeholder=STAKEHOLDER,
+                                    blockchain=blockchain,
+                                    client_account=client_account,
+                                    hw_wallet=transacting_staker_options.hw_wallet)
+            STAKEHOLDER.assimilate(checksum_address=client_account, password=password)
+
+        policy_receipt = STAKEHOLDER.staker.collect_policy_fee(collector_address=withdraw_address)
+        paint_receipt_summary(receipt=policy_receipt,
+                              chain_name=blockchain.client.chain_name,
+                              emitter=emitter)

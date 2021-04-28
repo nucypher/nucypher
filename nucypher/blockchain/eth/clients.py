@@ -386,6 +386,9 @@ class EthereumClient:
         now = highest_block['timestamp']
         return now
 
+    def get_block(self, block_identifier):
+        return self.w3.eth.getBlock(block_identifier)
+
     def _has_latest_block(self) -> bool:
         # TODO: Investigate using `web3.middleware.make_stalecheck_middleware` #2060
         # check that our local chain data is up to date

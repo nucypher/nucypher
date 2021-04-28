@@ -311,6 +311,14 @@ NO_TOKENS_TO_WITHDRAW = "No tokens can be withdrawn."
 
 NO_FEE_TO_WITHDRAW = "No policy fee can be withdrawn."
 
+TOKEN_REWARD_CURRENT = 'Available staking rewards: {reward_amount}.'
+
+TOKEN_REWARD_PAST_HEADER = 'Staking rewards in the last {periods} periods ({days} days):'
+
+TOKEN_REWARD_PAST = 'Total staking rewards: {reward_amount}.'
+
+TOKEN_REWARD_NOT_FOUND = "No staking rewards found."
+
 #
 # Configuration
 #

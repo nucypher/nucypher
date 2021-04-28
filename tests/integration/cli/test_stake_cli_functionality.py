@@ -14,18 +14,22 @@
  You should have received a copy of the GNU Affero General Public License
  along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
-
+import datetime
+import math
+import re
+from decimal import Decimal
 
 import pytest
-import re
+from eth_typing import BlockNumber
 from web3 import Web3
+from web3.datastructures import AttributeDict
 
-from nucypher.crypto.powers import TransactingPower
-from nucypher.blockchain.eth.actors import Staker, StakeHolder
+from nucypher.blockchain.eth.actors import StakeHolder, Staker
+from nucypher.blockchain.eth.clients import EthereumTesterClient
 from nucypher.blockchain.eth.constants import MAX_UINT16, NULL_ADDRESS
 from nucypher.blockchain.eth.signers.software import Web3Signer
 from nucypher.blockchain.eth.token import NU, Stake
-from nucypher.blockchain.eth.utils import datetime_at_period
+from nucypher.blockchain.eth.utils import datetime_at_period, estimate_block_number_for_period
 from nucypher.cli.actions.select import select_client_account_for_staking
 from nucypher.cli.commands.stake import (
     stake,
@@ -65,9 +69,14 @@ from nucypher.cli.literature import (
     ONLY_DISPLAYING_MERGEABLE_STAKES_NOTE,
     CONFIRM_MERGE,
     SUCCESSFUL_STAKES_MERGE,
-    CONFIRM_STAKE_USE_UNLOCKED
+    CONFIRM_STAKE_USE_UNLOCKED,
+    TOKEN_REWARD_NOT_FOUND,
+    TOKEN_REWARD_PAST,
+    TOKEN_REWARD_PAST_HEADER
 )
+from nucypher.cli.painting.staking import REWARDS_TABLE_COLUMNS, TOKEN_DECIMAL_PLACE
 from nucypher.config.constants import TEMPORARY_DOMAIN
+from nucypher.crypto.powers import TransactingPower
 from nucypher.types import SubStakeInfo, StakerInfo
 from tests.constants import MOCK_PROVIDER_URI, YES, INSECURE_DEVELOPMENT_PASSWORD
 
@@ -208,9 +217,10 @@ def test_no_token_reward(click_runner, surrogate_stakers, mock_staking_agent):
     # No tokens at all
     mock_staking_agent.calculate_staking_reward.return_value = 0
 
-    collection_args = ('collect-reward',
-                       '--no-policy-fee',
-                       '--staking-reward',
+    collection_args = ('rewards',
+                       'withdraw',
+                       '--no-fees',
+                       '--tokens',
                        '--provider', MOCK_PROVIDER_URI,
                        '--network', TEMPORARY_DOMAIN,
                        '--staking-address', surrogate_stakers[0])
@@ -235,9 +245,10 @@ def test_collecting_token_reward(click_runner, surrogate_stakers, mock_staking_a
     mock_staking_agent.calculate_staking_reward.return_value = reward.to_nunits()
     mock_staking_agent.non_withdrawable_stake.return_value = staked.to_nunits()
 
-    collection_args = ('collect-reward',
-                       '--no-policy-fee',
-                       '--staking-reward',
+    collection_args = ('rewards',
+                       'withdraw',
+                       '--no-fees',
+                       '--tokens',
                        '--provider', MOCK_PROVIDER_URI,
                        '--network', TEMPORARY_DOMAIN,
                        '--staking-address', surrogate_stakers[0])
@@ -266,9 +277,10 @@ def test_collecting_whole_reward_with_warning(click_runner, surrogate_stakers, m
     mock_staking_agent.get_current_committed_period.return_value = 8
     mock_staking_agent.get_next_committed_period.return_value = 9
 
-    collection_args = ('collect-reward',
-                       '--no-policy-fee',
-                       '--staking-reward',
+    collection_args = ('rewards',
+                       'withdraw',
+                       '--no-fees',
+                       '--tokens',
                        '--provider', MOCK_PROVIDER_URI,
                        '--network', TEMPORARY_DOMAIN,
                        '--staking-address', surrogate_stakers[0])
@@ -300,9 +312,10 @@ def test_collecting_whole_reward_without_warning(click_runner, surrogate_stakers
     mock_staking_agent.get_current_committed_period.return_value = 0
     mock_staking_agent.get_next_committed_period.return_value = 0
 
-    collection_args = ('collect-reward',
-                       '--no-policy-fee',
-                       '--staking-reward',
+    collection_args = ('rewards',
+                       'withdraw',
+                       '--no-fees',
+                       '--tokens',
                        '--provider', MOCK_PROVIDER_URI,
                        '--network', TEMPORARY_DOMAIN,
                        '--staking-address', surrogate_stakers[0])
@@ -327,9 +340,10 @@ def test_collecting_whole_reward_without_warning(click_runner, surrogate_stakers
 def test_no_policy_fee(click_runner, surrogate_stakers, mock_policy_manager_agent):
     mock_policy_manager_agent.get_fee_amount.return_value = 0
 
-    collection_args = ('collect-reward',
-                       '--policy-fee',
-                       '--no-staking-reward',
+    collection_args = ('rewards',
+                       'withdraw',
+                       '--fees',
+                       '--no-tokens',
                        '--provider', MOCK_PROVIDER_URI,
                        '--network', TEMPORARY_DOMAIN,
                        '--staking-address', surrogate_stakers[0])
@@ -349,9 +363,10 @@ def test_collecting_fee(click_runner, surrogate_stakers, mock_policy_manager_age
     fee_amount_eth = 11
     mock_policy_manager_agent.get_fee_amount.return_value = Web3.toWei(fee_amount_eth, 'ether')
 
-    collection_args = ('collect-reward',
-                       '--policy-fee',
-                       '--no-staking-reward',
+    collection_args = ('rewards',
+                       'withdraw',
+                       '--fees',
+                       '--no-tokens',
                        '--provider', MOCK_PROVIDER_URI,
                        '--network', TEMPORARY_DOMAIN,
                        '--staking-address', surrogate_stakers[0])
@@ -1403,3 +1418,103 @@ def test_stake_list_all(click_runner, surrogate_stakers, surrogate_stakes, token
                              f"{enactment}\\s+│\\s+"
                              f"{termination}\\s+│\\s+"
                              f"{status.name}", result.output, re.MULTILINE)
+
+
+@pytest.mark.usefixtures("test_registry_source_manager", "patch_stakeholder_configuration")
+def test_show_rewards(click_runner, surrogate_stakers, mock_staking_agent):
+    reward_amount = 1
+    reward = NU(reward_amount, 'NU')
+    mock_staking_agent.calculate_staking_reward.return_value = reward.to_nunits()
+
+    command = ('rewards',
+               'show',
+               '--provider', MOCK_PROVIDER_URI,
+               '--network', TEMPORARY_DOMAIN,
+               '--staking-address', surrogate_stakers[0])
+
+    result = click_runner.invoke(stake, command, catch_exceptions=False)
+    assert result.exit_code == 0
+    assert TOKEN_REWARD_CURRENT.format(reward_amount=round(reward_amount, TOKEN_DECIMAL_PLACE)) in result.output
+
+    mock_staking_agent.calculate_staking_reward.assert_called_once_with(staker_address=surrogate_stakers[0])
+
+
+@pytest.mark.usefixtures("test_registry_source_manager", "patch_stakeholder_configuration")
+def test_show_rewards_for_period(click_runner, surrogate_stakers, mock_staking_agent, token_economics, mocker):
+    periods = 30
+    periods_per_day = token_economics.hours_per_period // 24
+    seconds_per_period = token_economics.seconds_per_period
+    latest_block = 100_000_000
+    latest_period = 15_000
+
+    reward_amount = 1
+    nr_of_events = 3
+    events = [{
+        'args': {
+            'value': NU(Decimal(reward_amount + i/100*i), 'NU').to_nunits(),
+            'period': latest_period - i,
+        },
+        'blockNumber': estimate_block_number_for_period(latest_period - i,
+                                                        seconds_per_period,
+                                                        BlockNumber(latest_block - i * 100)),
+    } for i in range(nr_of_events)]
+
+    event_name = 'Minted'
+    event = mocker.Mock()
+    event.getLogs = mocker.MagicMock(return_value=events)
+
+    mock_staking_agent.contract.events = {event_name: event}
+    mocker.patch.object(EthereumTesterClient,
+                        'block_number',
+                        return_value=latest_block,
+                        new_callable=mocker.PropertyMock)
+    mocker.patch.object(EthereumTesterClient,
+                        'get_block',
+                        return_value=AttributeDict({'timestamp': datetime.datetime.timestamp(datetime.datetime.now())}),
+                        new_callable=mocker.MagicMock)
+
+    command = ('rewards',
+               'show',
+               '--provider', MOCK_PROVIDER_URI,
+               '--network', TEMPORARY_DOMAIN,
+               '--staking-address', surrogate_stakers[0],
+               '--periods', periods)
+    result = click_runner.invoke(stake, command, catch_exceptions=False)
+
+    assert result.exit_code == 0
+    periods_as_days = math.floor(periods_per_day * periods)
+
+    assert TOKEN_REWARD_PAST_HEADER.format(periods=periods, days=periods_as_days) in result.output
+    for header in REWARDS_TABLE_COLUMNS:
+        assert header in result.output
+    for event in events:
+        assert str(event['blockNumber']) in result.output
+
+    rewards_total = sum([e['args']['value'] for e in events])
+    rewards_total = NU(rewards_total, 'NU')
+    assert TOKEN_REWARD_PAST.format(reward_amount=round(rewards_total, TOKEN_DECIMAL_PLACE))
+
+    mock_staking_agent.get_current_period.assert_called()
+    mock_staking_agent.contract.events[event_name].getLogs.assert_called()
+
+
+@pytest.mark.usefixtures("test_registry_source_manager", "patch_stakeholder_configuration")
+def test_show_rewards(click_runner, surrogate_stakers, mock_staking_agent, mocker):
+    event_name = 'Minted'
+    event = mocker.Mock()
+    event.getLogs = mocker.MagicMock(return_value=[])
+    mock_staking_agent.contract.events = {event_name: event}
+
+    command = ('rewards',
+               'show',
+               '--provider', MOCK_PROVIDER_URI,
+               '--network', TEMPORARY_DOMAIN,
+               '--staking-address', surrogate_stakers[0],
+               '--periods', 10)
+
+    result = click_runner.invoke(stake, command, catch_exceptions=False)
+    assert result.exit_code == 0
+    assert TOKEN_REWARD_NOT_FOUND in result.output
+
+    mock_staking_agent.get_current_period.assert_called()
+    mock_staking_agent.contract.events[event_name].getLogs.assert_called()

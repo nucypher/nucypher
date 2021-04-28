@@ -192,8 +192,9 @@ class BaseEconomics:
         self.minimum_allowed_locked = minimum_allowed_locked
         self.maximum_allowed_locked = maximum_allowed_locked
         self.minimum_worker_periods = minimum_worker_periods
-        self.genesis_seconds_per_period = genesis_hours_per_period * 60 * 60  # Genesis seconds in single period
-        self.seconds_per_period = hours_per_period * 60 * 60  # Seconds in single period
+        self.genesis_seconds_per_period = genesis_hours_per_period * 60 * 60  # Genesis seconds in a single period
+        self.seconds_per_period = hours_per_period * 60 * 60  # Seconds in a single period
+        self.days_per_period = hours_per_period // 24  # Days in a single period
 
         #
         # Adjudicator
