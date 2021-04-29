@@ -1354,7 +1354,7 @@ class Ursula(Teacher, Character, Worker):
                     emitter.message(f"{e.__class__.__name__} {e}", color='red', bold=True)
                 raise  # Crash :-(
 
-        if start_reactor:  # ... without hendrix
+        elif start_reactor:  # ... without hendrix
             reactor.run()  # <--- Blocking Call (Reactor)
 
     def stop(self, halt_reactor: bool = False) -> None:
