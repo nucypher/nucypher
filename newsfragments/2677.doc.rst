@@ -1,0 +1,1 @@
+Update service fee pricing to reflect correct per period rate since periods are now 7-days.
