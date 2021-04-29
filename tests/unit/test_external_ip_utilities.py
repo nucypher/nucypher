@@ -20,7 +20,8 @@ import pytest
 from nucypher.acumen.perception import FleetSensor
 from nucypher.characters.lawful import Ursula
 from nucypher.network.exceptions import NodeSeemsToBeDown
-from nucypher.network.middleware import RestMiddleware, NucypherMiddlewareClient
+from nucypher.network.middleware import NucypherMiddlewareClient
+from nucypher.network.nodes import TEACHER_NODES
 from nucypher.utilities.networking import (
     determine_external_ip_address,
     get_external_ip_from_centralized_source,
@@ -30,7 +31,6 @@ from nucypher.utilities.networking import (
     UnknownIPAddress
 )
 from tests.constants import MOCK_IP_ADDRESS
-
 
 MOCK_NETWORK = 'holodeck'
 
@@ -79,7 +79,7 @@ def mock_client(mocker):
 @pytest.fixture(autouse=True)
 def mock_default_teachers(mocker):
     teachers = {MOCK_NETWORK: (MOCK_IP_ADDRESS, )}
-    mocker.patch.dict(RestMiddleware.TEACHER_NODES, teachers)
+    mocker.patch.dict(TEACHER_NODES, teachers, clear=True)
 
 
 def test_get_external_ip_from_centralized_source(mock_requests):
@@ -140,7 +140,7 @@ def test_get_external_ip_from_known_nodes_client(mocker, mock_client):
 
     # Setup HTTP Client
     mocker.patch.object(Ursula, 'from_teacher_uri', return_value=Dummy('0xdeadpork'))
-    teacher_uri = RestMiddleware.TEACHER_NODES[MOCK_NETWORK][0]
+    teacher_uri = TEACHER_NODES[MOCK_NETWORK][0]
 
     get_external_ip_from_known_nodes(known_nodes=sensor, sample_size=sample_size)
     assert mock_client.call_count == 1  # first node responded
@@ -161,7 +161,7 @@ def test_get_external_ip_default_teacher_unreachable(mocker):
 def test_get_external_ip_from_default_teacher(mocker, mock_client, mock_requests):
 
     mock_client.return_value = Dummy.GoodResponse
-    teacher_uri = RestMiddleware.TEACHER_NODES[MOCK_NETWORK][0]
+    teacher_uri = TEACHER_NODES[MOCK_NETWORK][0]
     mocker.patch.object(Ursula, 'from_teacher_uri', return_value=Dummy('0xdeadbeef'))
 
     # "Success"

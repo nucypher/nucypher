@@ -16,7 +16,9 @@
 """
 
 from nucypher.acumen.perception import FleetSensor
+from nucypher.characters.lawful import Ursula
 from nucypher.config.storages import LocalFileBasedNodeStorage
+from nucypher.network.nodes import TEACHER_NODES
 
 
 def test_learner_learns_about_domains_separately(lonely_ursula_maker, caplog):
@@ -118,3 +120,47 @@ def test_learner_ignores_stored_nodes_from_other_domains(lonely_ursula_maker, tm
     other_staker._current_teacher_node = learner
     other_staker.learn_from_teacher_node()  # And once it did, the node from the wrong domain spread.
     assert pest not in other_staker.known_nodes  # But not anymore.
+
+
+def test_learner_with_empty_storage_uses_fallback_nodes(lonely_ursula_maker, mocker):
+    domain = "learner-domain"
+    mocker.patch.dict(TEACHER_NODES, {domain: ("teacher-uri",)}, clear=True)
+
+    # Create a learner and a teacher
+    learner, teacher = lonely_ursula_maker(domain=domain, quantity=2, save_metadata=False)
+    mocker.patch.object(Ursula, 'from_teacher_uri', return_value=teacher)
+
+    # Since there are no nodes in local node storage, the learner should only learn about the teacher
+    learner.learn_from_teacher_node()
+    assert set(learner.known_nodes) == {teacher}
+
+
+def test_learner_uses_both_nodes_from_storage_and_fallback_nodes(lonely_ursula_maker, tmpdir, mocker):
+    domain = "learner-domain"
+    mocker.patch.dict(TEACHER_NODES, {domain: ("teacher-uri",)}, clear=True)
+
+    # Create a local file-based node storage
+    root = tmpdir.mkdir("known_nodes")
+    metadata = root.mkdir("metadata")
+    certs = root.mkdir("certs")
+    node_storage = LocalFileBasedNodeStorage(federated_only=True,
+                                             metadata_dir=metadata,
+                                             certificates_dir=certs,
+                                             storage_root=root)
+
+    # Create some nodes and persist them to local storage
+    other_nodes = lonely_ursula_maker(domain=domain,
+                                      node_storage=node_storage,
+                                      know_each_other=True,
+                                      quantity=3,
+                                      save_metadata=True)
+
+    # Create a teacher and a learner using existing node storage
+    learner, teacher = lonely_ursula_maker(domain=domain, node_storage=node_storage, quantity=2)
+    mocker.patch.object(Ursula, 'from_teacher_uri', return_value=teacher)
+
+    # The learner should learn about all nodes
+    learner.learn_from_teacher_node()
+    all_nodes = {teacher}
+    all_nodes.update(other_nodes)
+    assert set(learner.known_nodes) == all_nodes

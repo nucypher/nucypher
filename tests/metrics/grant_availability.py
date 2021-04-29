@@ -18,6 +18,8 @@
 """
 from pathlib import Path
 
+from nucypher.network.nodes import TEACHER_NODES
+
 """
 WARNING: This script makes automatic transactions.
 Do not use this script unless you know what you
@@ -67,7 +69,7 @@ except KeyError:
 # Alice Configuration
 DOMAIN: str = 'mainnet'  # ibex
 DEFAULT_SEEDNODE_URIS: List[str] = [
-    *RestMiddleware.TEACHER_NODES[DOMAIN],
+    *TEACHER_NODES[DOMAIN],
 ]
 INSECURE_PASSWORD: str = "METRICS_INSECURE_DEVELOPMENT_PASSWORD"
 TEMP_ALICE_DIR: str = Path('/', 'tmp', 'grant-metrics')
