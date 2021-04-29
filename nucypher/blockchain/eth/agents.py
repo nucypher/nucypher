@@ -185,9 +185,7 @@ class NucypherTokenAgent(EthereumContractAgent):
                          transacting_power: TransactingPower
                          ) -> TxReceipt:
         """Approve the spender address to transfer an amount of tokens on behalf of the sender address"""
-        current_allowance = self.get_allowance(owner=transacting_power.account, spender=spender_address)
-        if current_allowance != 0:
-            raise self.RequirementError(f"Token allowance for spender {spender_address} must be 0")
+        self._validate_zero_allowance(spender_address, transacting_power)
 
         payload: TxParams = {'gas': Wei(500_000)}  # TODO #842: gas needed for use with geth! <<<< Is this still open?
         contract_function: ContractFunction = self.contract.functions.approve(spender_address, amount)
@@ -212,9 +210,7 @@ class NucypherTokenAgent(EthereumContractAgent):
                          call_data: bytes = b'',
                          gas_limit: Optional[Wei] = None
                          ) -> TxReceipt:
-        current_allowance = self.get_allowance(owner=transacting_power.account, spender=target_address)
-        if current_allowance != 0:
-            raise self.RequirementError(f"Token allowance for spender {target_address} must be 0")
+        self._validate_zero_allowance(target_address, transacting_power)
 
         payload = None
         if gas_limit:  # TODO: Gas management - #842
@@ -224,6 +220,11 @@ class NucypherTokenAgent(EthereumContractAgent):
                                                                                transacting_power=transacting_power,
                                                                                payload=payload)
         return approve_and_call_receipt
+
+    def _validate_zero_allowance(self, target_address, transacting_power):
+        current_allowance = self.get_allowance(owner=transacting_power.account, spender=target_address)
+        if current_allowance != 0:
+            raise self.RequirementError(f"Token allowance for spender {target_address} must be 0")
 
 
 class StakingEscrowAgent(EthereumContractAgent):

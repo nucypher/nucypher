@@ -987,11 +987,12 @@ def test_create_interactive(click_runner,
     mock_staking_agent.get_all_stakes.assert_called()
     mock_staking_agent.get_current_period.assert_called()
     mock_refresh_stakes.assert_called()
+    mock_token_agent.get_allowance.assert_called()
     mock_token_agent.approve_and_call.assert_called_with(amount=value.to_nunits(),
                                                          target_address=mock_staking_agent.contract_address,
                                                          transacting_power=surrogate_transacting_power,
                                                          call_data=Web3.toBytes(lock_periods))
-    mock_token_agent.assert_only_transactions([mock_token_agent.approve_and_call])
+    mock_token_agent.assert_only_transactions([mock_token_agent.increase_allowance, mock_token_agent.approve_and_call])
     mock_staking_agent.assert_no_transactions()
 
 
@@ -1048,11 +1049,12 @@ def test_create_non_interactive(click_runner,
     mock_staking_agent.get_all_stakes.assert_called()
     mock_staking_agent.get_current_period.assert_called()
     mock_refresh_stakes.assert_called()
+    mock_token_agent.get_allowance.assert_called()
     mock_token_agent.approve_and_call.assert_called_once_with(amount=value.to_nunits(),
                                                               target_address=mock_staking_agent.contract_address,
                                                               transacting_power=surrogate_transacting_power,
                                                               call_data=Web3.toBytes(lock_periods))
-    mock_token_agent.assert_only_transactions([mock_token_agent.approve_and_call])
+    mock_token_agent.assert_only_transactions([mock_token_agent.increase_allowance, mock_token_agent.approve_and_call])
     mock_staking_agent.assert_no_transactions()
 
 

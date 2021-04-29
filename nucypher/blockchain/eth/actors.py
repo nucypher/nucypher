@@ -609,6 +609,8 @@ class Staker(NucypherTokenActor):
             raise self.InsufficientTokens(f"Insufficient token balance ({token_balance}) "
                                           f"for new stake initialization of {amount}")
 
+        self._ensure_token_allowance(amount)
+
         # Write to blockchain
         new_stake = Stake.initialize_stake(staking_agent=self.staking_agent,
                                            economics=self.economics,
@@ -787,6 +789,13 @@ class Staker(NucypherTokenActor):
 
     def _deposit_and_increase(self, stake_index: int, amount: int) -> TxReceipt:
         """Public facing method for deposit and increasing stake."""
+        self._ensure_token_allowance(amount)
+        receipt = self.staking_agent.deposit_and_increase(transacting_power=self.transacting_power,
+                                                          stake_index=stake_index,
+                                                          amount=amount)
+        return receipt
+
+    def _ensure_token_allowance(self, amount):
         current_allowance = self.token_agent.get_allowance(owner=self.checksum_address,
                                                            spender=self.staking_agent.contract.address)
         if amount > current_allowance:
@@ -794,11 +803,8 @@ class Staker(NucypherTokenActor):
             self.token_agent.increase_allowance(increase=to_increase,
                                                 transacting_power=self.transacting_power,
                                                 spender_address=self.staking_agent.contract.address)
-            self.log.info(f"{self.checksum_address} increased token allowance for spender {self.staking_agent.contract.address} to {amount}")
-        receipt = self.staking_agent.deposit_and_increase(transacting_power=self.transacting_power,
-                                                          stake_index=stake_index,
-                                                          amount=amount)
-        return receipt
+            self.log.info(
+                f"{self.checksum_address} increased token allowance for spender {self.staking_agent.contract.address} to {amount}")
 
     def _lock_and_increase(self, stake_index: int, amount: int) -> TxReceipt:
         """Public facing method for increasing stake."""
