@@ -298,8 +298,12 @@ def run_entire_cli_lifecycle(click_runner,
         bob_keys = side_channel.fetch_bob_public_keys()
         bob_encrypting_key = bob_keys.bob_encrypting_key
         bob_verifying_key = bob_keys.bob_verifying_key
-        expiration = (maya.now() + datetime.timedelta(days=13)).datetime().strftime("%Y-%m-%d %H:%M:%S")
+        if federated:
+            current_time = maya.now()
+        else:
+            current_time = maya.MayaDT(epoch=testerchain.client.get_blocktime())
 
+        expiration = (current_time + datetime.timedelta(days=2)).datetime().strftime("%Y-%m-%d %H:%M:%S")
         grant_args = ('alice', 'grant',
                       '--mock-networking',
                       '--json-ipc',
