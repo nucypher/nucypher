@@ -609,8 +609,6 @@ class Staker(NucypherTokenActor):
             raise self.InsufficientTokens(f"Insufficient token balance ({token_balance}) "
                                           f"for new stake initialization of {amount}")
 
-        self._ensure_token_allowance(amount)
-
         # Write to blockchain
         new_stake = Stake.initialize_stake(staking_agent=self.staking_agent,
                                            economics=self.economics,
@@ -766,6 +764,9 @@ class Staker(NucypherTokenActor):
 
     def _deposit(self, amount: int, lock_periods: int) -> TxReceipt:
         """Public facing method for token locking."""
+        self.token_agent.approve_transfer(amount=0,
+                                          spender_address=self.staking_agent.contract_address,
+                                          transacting_power=self.transacting_power)
         receipt = self.token_agent.approve_and_call(amount=amount,
                                                     target_address=self.staking_agent.contract_address,
                                                     transacting_power=self.transacting_power,
@@ -789,13 +790,13 @@ class Staker(NucypherTokenActor):
 
     def _deposit_and_increase(self, stake_index: int, amount: int) -> TxReceipt:
         """Public facing method for deposit and increasing stake."""
-        self._ensure_token_allowance(amount)
+        self._ensure_allowance_at_least(amount)
         receipt = self.staking_agent.deposit_and_increase(transacting_power=self.transacting_power,
                                                           stake_index=stake_index,
                                                           amount=amount)
         return receipt
 
-    def _ensure_token_allowance(self, amount):
+    def _ensure_allowance_at_least(self, amount):
         current_allowance = self.token_agent.get_allowance(owner=self.checksum_address,
                                                            spender=self.staking_agent.contract.address)
         if amount > current_allowance:
