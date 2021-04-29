@@ -30,21 +30,20 @@ The minimum fee rate chosen by stakers must fall within the global fee range. Th
 
 **Minimum fee rate**
 
-50 GWEI *per period, per policy, per Ursula*
+350 GWEI *per period, per policy, per Ursula*
 
 **Maximum fee rate**
 
-500 GWEI *per period, per policy, per Ursula*
+3500 GWEI *per period, per policy, per Ursula*
 
 **Default fee rate**
 
-50 GWEI *per period, per policy, per Ursula*
+350 GWEI *per period, per policy, per Ursula*
 
 The minimum and maximum fee rate are a lower and upper bound to constrain the fee rate a staker may offer. The default fee rate is the rate that will be displayed and offered to Alices if the staker chooses not to configure this parameter themselves, or chooses a rate outside the boundaries of the global fee range. The default rate will also be used if the range's boundaries are updated, a staker's specified rate *now* falls outside the range, and they fail to change it.
 
 The fee range must be adhered to in identical fashion by all NuCypher stakers, regardless of their stake size or capacity. The fee range applies to all sharing policies, irrespective of the volume of re-encryption requests or other distinguishing attributes. It also applies equally to all periods in the future, until the moment that the global fee range’s parameters are adjusted or the range is removed, via official governance processes (see below). If an update of this sort occurs, sharing policies that were previously established, but have not yet expired, should not have the per-period fee rate retroactively modified. Note that the global fee range is only applicable to stakers and Ursulas. Alices are free to pay as high a rate as they like.
 
-The genesis parameters for the global fee range (above) were enacted_ and deployed by the NuCypher DAO's ERT_ on October 14th 2020, using the ``setFeeRateRange`` utility contained in the contract ``PolicyManager.sol``.
 
 Governance & pricing paper
 ---------------------------------------
