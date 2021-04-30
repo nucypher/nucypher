@@ -16,13 +16,11 @@
 """
 import itertools
 
-import pytest
 from web3 import Web3
 
 from nucypher.utilities.gas_strategies import (
     construct_fixed_price_gas_strategy,
-    max_price_gas_strategy_wrapper,
-    GasStrategyError
+    linear_scaling_gas_strategy_wrapper, max_price_gas_strategy_wrapper,
 )
 
 
@@ -60,3 +58,15 @@ def test_max_price_gas_strategy(mocker, monkeypatch):
 
     for _ in gas_prices_wei[4:]:
         assert wrapped_strategy("web3", "tx") == max_gas_price_wei
+
+
+def test_linear_scaling_gas_strategy(mocker, monkeypatch):
+    gas_price_factor = 0.1
+    gas_price = Web3.toWei(100, 'gwei')
+    mock_gas_strategy = mocker.Mock(return_value=gas_price)
+
+    wrapped_strategy = linear_scaling_gas_strategy_wrapper(gas_strategy=mock_gas_strategy,
+                                                           gas_price_factor=gas_price_factor)
+
+    assert wrapped_strategy("web3", {'is_replacement_tx': False}) == gas_price
+    assert wrapped_strategy("web3", {'is_replacement_tx': True}) == gas_price * gas_price_factor
