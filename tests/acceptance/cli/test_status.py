@@ -205,13 +205,13 @@ def test_nucypher_status_events(click_runner, testerchain, agency_local_registry
         line_count = 0
         for row in csv_reader:
             if line_count == 0:
-                assert ",".join(row) == 'event_name,block_number,staker,period,value'  # specific to CommitmentMade
+                assert ",".join(row) == 'event_name,block_number,unix_timestamp,date,staker,period,value'  # specific to CommitmentMade
             else:
                 row_data = f'{row}'
                 assert row[0] == 'CommitmentMade', row_data
-                # skip block number
-                assert row[2] == first_staker.checksum_address, row_data
-                assert row[3] == f'{committed_period}', row_data
+                # skip block_number, unix_timestamp, date
+                assert row[4] == first_staker.checksum_address, row_data
+                assert row[5] == f'{committed_period}', row_data
                 # skip value
             line_count += 1
         assert line_count == 2, 'column names and single event row in csv file'
