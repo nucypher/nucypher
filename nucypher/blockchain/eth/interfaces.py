@@ -305,11 +305,11 @@ class BlockchainInterface:
 
         configuration_message = f"Using gas strategy '{reported_gas_strategy}'"
 
+        # Order of applying strategy wrappers is significant
+        gas_strategy = linear_scaling_gas_strategy_wrapper(gas_strategy=gas_strategy,
+                                                           gas_price_factor=self.REPLACE_TX_GAS_FACTOR)
         if self.max_gas_price:
             __price = Web3.toWei(self.max_gas_price, 'gwei')  # from gwei to wei
-            # Order of applying strategy wrappers is significant
-            gas_strategy = linear_scaling_gas_strategy_wrapper(gas_strategy=gas_strategy,
-                                                               gas_price_factor=self.REPLACE_TX_GAS_FACTOR)
             gas_strategy = max_price_gas_strategy_wrapper(gas_strategy=gas_strategy, max_gas_price_wei=__price)
             configuration_message += f", with a max price of {self.max_gas_price} gwei."
 
@@ -512,7 +512,9 @@ class BlockchainInterface:
                 # explicitly estimate gas here with block identifier 'latest' if not otherwise specified
                 # as a pending transaction can cause gas estimation to fail, notably in case of worklock refunds.
                 payload['gas'] = contract_function.estimateGas(payload, block_identifier='latest')
+                payload['_is_replacement_tx'] = use_pending_nonce
             transaction_dict = contract_function.buildTransaction(payload)
+            transaction_dict.pop('_is_replacement_tx', None)
         except (TestTransactionFailed, ValidationError, ValueError) as error:
             # Note: Geth (1.9.15) raises ValueError in the same condition that pyevm raises ValidationError here.
             # Treat this condition as "Transaction Failed" during gas estimation.
@@ -529,9 +531,6 @@ class BlockchainInterface:
                            f"using a multiplier of {gas_estimation_multiplier}.")
             transaction_dict['gas'] = overestimation
             # TODO: What if we're going over the block limit? Not likely, but perhaps worth checking (NRN)
-
-        # Ensure higher gas price when sending a replacement tx
-        transaction_dict['is_replacement_tx'] = use_pending_nonce
 
         return transaction_dict
 

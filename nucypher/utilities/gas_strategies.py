@@ -67,7 +67,7 @@ def linear_scaling_gas_strategy_wrapper(gas_strategy: Callable, gas_price_factor
 
     def _wrapper(web3, transaction_params):
         gas_price = gas_strategy(web3, transaction_params)
-        if transaction_params['is_replacement_tx']:
+        if transaction_params.get('_is_replacement_tx', False):
             gas_price = round(gas_price * gas_price_factor)
         return gas_price
 

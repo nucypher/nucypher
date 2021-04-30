@@ -41,7 +41,7 @@ def test_fixed_price_gas_strategy():
     assert "12gwei" == strategy.name
 
 
-def test_max_price_gas_strategy(mocker, monkeypatch):
+def test_max_price_gas_strategy(mocker):
 
     gas_prices_gwei = [10, 100, 999, 1000, 1001, 1_000_000, 1_000_000_000]
     gas_prices_wei = [Web3.toWei(gwei_price, 'gwei') for gwei_price in gas_prices_gwei]
@@ -60,7 +60,7 @@ def test_max_price_gas_strategy(mocker, monkeypatch):
         assert wrapped_strategy("web3", "tx") == max_gas_price_wei
 
 
-def test_linear_scaling_gas_strategy(mocker, monkeypatch):
+def test_linear_scaling_gas_strategy(mocker):
     gas_price_factor = 0.1
     gas_price = Web3.toWei(100, 'gwei')
     mock_gas_strategy = mocker.Mock(return_value=gas_price)
@@ -68,5 +68,8 @@ def test_linear_scaling_gas_strategy(mocker, monkeypatch):
     wrapped_strategy = linear_scaling_gas_strategy_wrapper(gas_strategy=mock_gas_strategy,
                                                            gas_price_factor=gas_price_factor)
 
-    assert wrapped_strategy("web3", {'is_replacement_tx': False}) == gas_price
-    assert wrapped_strategy("web3", {'is_replacement_tx': True}) == gas_price * gas_price_factor
+    tx = {'_is_replacement_tx': False}
+    assert wrapped_strategy("web3", tx) == gas_price
+
+    tx['_is_replacement_tx'] = True
+    assert wrapped_strategy("web3", tx) == gas_price * gas_price_factor
