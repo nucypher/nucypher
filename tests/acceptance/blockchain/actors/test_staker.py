@@ -36,6 +36,9 @@ def test_staker_locking_tokens(testerchain, agency, staker, token_economics, tes
 
     assert NU(token_economics.minimum_allowed_locked, 'NuNit') < staker.token_balance, "Insufficient staker balance"
 
+    # Make sure staking handles existing token allowance
+    staker.token_agent.approve_transfer(1000000000, staking_agent.contract_address, staker.transacting_power)
+
     staker.initialize_stake(amount=NU(token_economics.minimum_allowed_locked, 'NuNit'),
                             # Lock the minimum amount of tokens
                             lock_periods=token_economics.minimum_locked_periods)

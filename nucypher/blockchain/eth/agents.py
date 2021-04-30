@@ -185,7 +185,7 @@ class NucypherTokenAgent(EthereumContractAgent):
                            decrease: NuNits
                            ) -> TxReceipt:
         """Decrease the allowance of a spender address funded by a sender address"""
-        contract_function: ContractFunction = self.contract.functions.increaseAllowance(spender_address, decrease)
+        contract_function: ContractFunction = self.contract.functions.decreaseAllowance(spender_address, decrease)
         receipt: TxReceipt = self.blockchain.send_transaction(contract_function=contract_function,
                                                               transacting_power=transacting_power)
         return receipt
