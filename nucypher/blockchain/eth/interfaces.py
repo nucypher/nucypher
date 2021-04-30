@@ -526,6 +526,12 @@ class BlockchainInterface:
             transaction_dict['gas'] = overestimation
             # TODO: What if we're going over the block limit? Not likely, but perhaps worth checking (NRN)
 
+        # Ensure higher gas price when sending a replacement tx
+        if use_pending_nonce:
+            self.log.debug(f"Gas price for this TX was increased from {transaction_dict['gasPrice']} "
+                           f"to {transaction_dict['gasPrice'] + 1} to prevent replacement TX from being stuck.")
+            transaction_dict['gasPrice'] += 1
+
         return transaction_dict
 
     def sign_and_broadcast_transaction(self,
