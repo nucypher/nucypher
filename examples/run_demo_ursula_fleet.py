@@ -47,12 +47,11 @@ def spin_up_federated_ursulas(quantity: int = FLEET_POPULATION):
 
     ursulas.append(sage)
     for index, port in enumerate(ports[1:]):
-        db = f"{USER_CACHE / port}.db"
         u = ursula_maker(
             rest_port=port,
             seed_nodes=[sage.seed_node_metadata()],
             start_learning_now=True,
-            db_filepath=db,
+            db_filepath=f"{USER_CACHE / port}.db",
         )
         ursulas.append(u)
 
