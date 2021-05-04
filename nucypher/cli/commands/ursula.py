@@ -15,6 +15,8 @@
  along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 import os
+import shutil
+import tempfile
 from operator import attrgetter
 from pathlib import Path
 
@@ -514,7 +516,7 @@ def backup(general_config, config_options, backup_options):
     worker_path, keystore_path, backup_path, password, overwrite = (
         attrgetter('worker_path', 'keystore_path', 'backup_path', 'password', 'overwrite')(backup_options))
 
-    for path in [worker_path, keystore_path, backup_path.parent]:
+    for path in [worker_path, keystore_path]:
         if not path.exists():
             raise FileNotFoundError(f'Path does not exist: {path.absolute()}')
 
@@ -561,7 +563,7 @@ def restore(general_config, config_options, backup_options):
         attrgetter('worker_path', 'keystore_path', 'backup_path', 'password', 'overwrite')(backup_options))
 
     if not backup_path.exists():
-        raise FileNotFoundError(f'Path does not exist: {backup_path.absolute()}')
+        raise FileNotFoundError(f'Backup file does not exist: {backup_path.absolute()}')
 
     with pyzipper.AESZipFile(backup_path) as zf:
         zf.setpassword(password)
@@ -575,14 +577,15 @@ def _read_zf(emitter: StdoutEmitter, zf: pyzipper.ZipFile, archive_root: str, de
         prompt = f"Path already exists: {destination_path}\nOverwrite?"
         click.confirm(prompt, abort=True)
 
-    if not destination_path.exists():
-        os.makedirs(destination_path, exist_ok=True)
-
+    # Using temporary dir as a workaround for "zf.extract" always treating "archive_item" as a relative path
+    temp_dir = tempfile.mkdtemp()
     for archive_item in zf.namelist():
         if archive_item.startswith(archive_root):
-            item_path = Path(*Path(archive_item).parts[1:])  # remove `archive_root` prefix
-            dest_item_path = destination_path / item_path
-            zf.extract(archive_item, dest_item_path)
-            emitter.echo(f"Wrote {archive_item} to {dest_item_path.absolute()}", verbosity=2)
+            zf.extract(archive_item, temp_dir)
+            emitter.echo(f"Extracted {archive_item}", verbosity=2)
+
+    archive_path = Path(temp_dir, archive_root)
+    if archive_path.exists():
+        shutil.move(archive_path, destination_path)
 
     emitter.echo(f"Wrote {destination_path.absolute()}")
