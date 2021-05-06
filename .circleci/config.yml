@@ -403,10 +403,8 @@ commands:
     description: "Install NuCypher with Pip"
     steps:
       - run:
-          name: Install Python Development Dependencies with Pip (Workaround for problem with pip resolver. See 2493)
+          name: Install Python Development Dependencies with Pip
           command: |
-            python -m pip install pip==20.2.4
-            pip3 --version
             pip3 install --user -e .[dev]
       - run:
           name: Install Solidity Compiler
