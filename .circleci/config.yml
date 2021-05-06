@@ -404,8 +404,10 @@ commands:
     steps:
       - run:
           name: Install Python Development Dependencies with Pip
-          command: |
-            pip3 install --user -e .[dev]
+          command: pip3 install --user -e .[dev]
+      - run:
+          name: Check that pip installed package is importable
+          command: python -c "import nucypher"
       - run:
           name: Install Solidity Compiler
           command: python3 ./scripts/installation/install_solc.py
