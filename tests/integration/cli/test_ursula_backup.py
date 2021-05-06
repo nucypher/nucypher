@@ -1,3 +1,5 @@
+import os
+
 from nucypher.config.storages import LocalFileBasedNodeStorage
 from nucypher.cli.commands.ursula import ursula as ursula_command
 
@@ -67,6 +69,8 @@ def test_ursula_backup_and_restore_config(click_runner, lonely_ursula_maker, tmp
                                                       storage_root=restored_known_nodes)
 
     # Recreate Ursulas
-    restored_ursula, other_restored_ursula = lonely_ursula_maker(domain=domain, node_storage=restored_node_storage, quantity=2,
-                                                                 know_each_other=True, save_metadata=False)
+    restored_ursula, other_restored_ursula = lonely_ursula_maker(domain=domain, node_storage=restored_node_storage,
+                                                                 quantity=2, know_each_other=True, save_metadata=False)
     assert other_restored_ursula in restored_ursula.known_nodes
+
+    assert keystore_file in os.listdir(restored_keystore_path / keystore_dir_name)
