@@ -161,9 +161,7 @@ def test_registry():
 
 @pytest.fixture(scope='module')
 def test_registry_source_manager(mock_testerchain, test_registry):
-    with mock_registry_source_manager(blockchain=mock_testerchain,
-                                      test_registry=test_registry,
-                                      mock_backend=True) as real_inventory:
+    with mock_registry_source_manager(test_registry=test_registry) as real_inventory:
         yield real_inventory
 
 

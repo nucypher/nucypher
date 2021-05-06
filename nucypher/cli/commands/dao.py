@@ -15,14 +15,13 @@
  along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
-
 import json
-
-import click
 import os
 
+import click
+
 from nucypher.blockchain.eth.networks import NetworksInventory
-from nucypher.blockchain.eth.actors import EmergencyResponseManager, BaseActor
+from nucypher.blockchain.eth.actors import DaoActor
 from nucypher.blockchain.eth.signers.base import Signer
 from nucypher.blockchain.eth.signers.software import ClefSigner
 from nucypher.cli.actions.auth import get_client_password
@@ -36,7 +35,7 @@ from nucypher.cli.options import (
     option_registry_filepath,
     option_signer_uri,
     option_parameters, option_hw_wallet)
-from nucypher.cli.utils import setup_emitter, get_registry, connect_to_blockchain
+from nucypher.cli.utils import setup_emitter, get_registry, connect_to_blockchain, initialize_deployer_interface
 from nucypher.config.constants import NUCYPHER_ENVVAR_PROVIDER_URI
 
 option_parameters.required = True
@@ -62,7 +61,10 @@ class DaoOptions:  # TODO: This class is essentially the same that WorkLock opti
     def setup(self, general_config) -> tuple:
         emitter = setup_emitter(general_config)
         registry = get_registry(network=self.network, registry_filepath=self.registry_filepath)
-        blockchain = connect_to_blockchain(emitter=emitter, provider_uri=self.provider_uri)
+        blockchain = initialize_deployer_interface(emitter=emitter,
+                                                   provider_uri=self.provider_uri,
+                                                   poa=False,
+                                                   ignore_solidity_check=True)
         return emitter, registry, blockchain
 
     def get_participant_address(self, emitter, registry, show_staking: bool = False):
@@ -80,20 +82,20 @@ class DaoOptions:  # TODO: This class is essentially the same that WorkLock opti
     def __create_participant(self,
                              registry,
                              transacting: bool = True,
-                             hw_wallet: bool = False) -> BaseActor:
+                             hw_wallet: bool = False) -> DaoActor:
 
         client_password = None
         is_clef = ClefSigner.is_valid_clef_uri(self.signer_uri)  # TODO: why not allow the clef signer's validator act on this?
         if transacting and not is_clef and not hw_wallet:
             client_password = get_client_password(checksum_address=self.participant_address)
 
-        testnet = self.domain != NetworksInventory.MAINNET
+        testnet = self.network != NetworksInventory.MAINNET
         signer = Signer.from_signer_uri(self.signer_uri, testnet=testnet) if self.signer_uri else None
-        actor = EmergencyResponseManager(checksum_address=self.participant_address,  # bomberos
-                                         network=self.network,
-                                         registry=registry,
-                                         signer=signer,
-                                         transacting=transacting)
+        actor = DaoActor(checksum_address=self.participant_address,
+                         network=self.network,
+                         registry=registry,
+                         signer=signer,
+                         transacting=transacting)
         return actor
 
     def create_participant(self, registry, hw_wallet: bool = False):
@@ -142,11 +144,11 @@ def propose(general_config: GroupGeneralConfig, dao_options: DaoOptions, hw_wall
     emitter, registry, blockchain = dao_options.setup(general_config=general_config)
     _participant_address = dao_options.get_participant_address(emitter, registry, show_staking=True)
 
-    manager: EmergencyResponseManager = dao_options.create_participant(registry=registry, hw_wallet=hw_wallet)
+    manager = dao_options.create_participant(registry=registry, hw_wallet=hw_wallet)
     with open(parameters) as json_file:
         parameters = json.load(json_file)
 
-    manager.rotate_emergency_response_team(**parameters)
+    manager.period_extension_proposal(**parameters)
 
 
 @dao.command()

@@ -25,12 +25,9 @@ import shutil
 import tempfile
 from abc import ABC, abstractmethod
 from constant_sorrow.constants import REGISTRY_COMMITTED
-from eth_typing.evm import ChecksumAddress
-from typing import Dict, Iterator, List, Tuple, Type, Union, Optional
-from web3.types import ABI
+from typing import Dict, Iterator, List, Tuple, Type, Union
 
 from nucypher.blockchain.eth import CONTRACT_REGISTRY_BASE
-from nucypher.blockchain.eth.constants import PREALLOCATION_ESCROW_CONTRACT_NAME
 from nucypher.blockchain.eth.networks import NetworksInventory
 from nucypher.config.constants import DEFAULT_CONFIG_ROOT
 from nucypher.utilities.logging import Logger

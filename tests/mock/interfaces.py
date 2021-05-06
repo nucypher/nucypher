@@ -22,7 +22,6 @@ from contextlib import contextmanager
 from typing import Union
 
 from nucypher.blockchain.eth.clients import EthereumClient
-from nucypher.blockchain.eth.constants import PREALLOCATION_ESCROW_CONTRACT_NAME
 from nucypher.blockchain.eth.networks import NetworksInventory
 from nucypher.blockchain.eth.registry import (
     BaseContractRegistry,
@@ -35,7 +34,7 @@ from tests.utils.blockchain import TesterBlockchain
 
 
 @contextmanager
-def mock_registry_source_manager(blockchain, test_registry, mock_backend: bool = False):
+def mock_registry_source_manager(test_registry):
 
     class MockRegistrySource(CanonicalRegistrySource):
         name = "Mock Registry Source"
@@ -47,13 +46,6 @@ def mock_registry_source_manager(blockchain, test_registry, mock_backend: bool =
                 raise ValueError(f"Somehow, MockRegistrySource is trying to get a registry for '{self.network}'. "
                                  f"Only '{TEMPORARY_DOMAIN}' is supported.'")
 
-            if not mock_backend:
-                factory = blockchain.get_contract_factory(contract_name=PREALLOCATION_ESCROW_CONTRACT_NAME)
-                preallocation_escrow_abi = factory.abi
-                self.allocation_template = {
-                    "BENEFICIARY_ADDRESS": ["ALLOCATION_CONTRACT_ADDRESS", preallocation_escrow_abi]
-                }
-
         def get_publication_endpoint(self) -> str:
             return f":mock-registry-source:/{self.network}/{self.registry_name}"
 
@@ -61,8 +53,6 @@ def mock_registry_source_manager(blockchain, test_registry, mock_backend: bool =
             self.logger.debug(f"Reading registry at {self.get_publication_endpoint()}")
             if self.registry_name == BaseContractRegistry.REGISTRY_NAME:
                 registry_data = test_registry.read()
-            elif self.registry_name == IndividualAllocationRegistry.REGISTRY_NAME:
-                registry_data = self.allocation_template
             raw_registry_data = json.dumps(registry_data)
             return raw_registry_data
 

@@ -1,0 +1,22 @@
+{
+    "DAOAgent": {
+        "app_name": "Agent",
+        "address": "0xb6bfF48574B722F3BFf0C29c9e1b631dD19c1A93"
+    },
+    "StandardAggregator": {
+        "app_name": "VotingAggregator",
+        "address": "0xD2DCfaCf1098c7C17D0e6f50231b25FE1D465f33"
+    },
+    "StandardVoting": {
+        "app_name": "Voting",
+        "address": "0x61950D573c741CA10EE6815DE11BCbE7e60a0f10"
+    },
+    "EmergencyVoting": {
+        "app_name": "Voting",
+        "address": "0xc0A7249bb3F41f8F611149C23A054810bDe06f49"
+    },
+    "EmergencyManager": {
+        "app_name": "TokenManager",
+        "address": "0xF086B8E0F75484e854D4DE37b655312C3D567904"
+    }
+}
