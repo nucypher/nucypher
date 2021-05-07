@@ -1,0 +1,1 @@
+Include annotated description of the worker status page.

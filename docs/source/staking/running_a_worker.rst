@@ -84,6 +84,10 @@ workers can use, a software based wallet is the easiest.
 
         geth account new
 
+    - Never share your ethereum account password.
+    - Do not forget your ethereum account password.
+    - Secure your ethereum account password in a password manager.
+
 
 3. Run Worker
 -------------
@@ -122,7 +126,7 @@ Export Worker Environment Variables
 
 .. code:: bash
 
-    # Passwords are used for both creation and unlocking
+    # Passwords used for both creation and unlocking
     export NUCYPHER_KEYRING_PASSWORD=<YOUR KEYRING_PASSWORD>
     export NUCYPHER_WORKER_ETH_PASSWORD=<YOUR WORKER ETH ACCOUNT PASSWORD>
 
@@ -131,17 +135,17 @@ Initialize a new Worker
 
 .. code:: bash
 
-    docker run -it --rm \
-    --name ursula       \
+    docker run -it --rm  \
+    --name ursula        \
     -v ~/.local/share/nucypher:/root/.local/share/nucypher \
-    -v ~/.ethereum/:/root/.ethereum \
-    -p 9151:9151                    \
-    -e NUCYPHER_KEYRING_PASSWORD    \
-    nucypher/nucypher:latest        \
-    nucypher ursula init            \
-    --provider <PROVIDER URI>       \
-    --network <NETWORK NAME>        \
-    --signer <SIGNER URI>           \
+    -v ~/.ethereum/:/root/.ethereum               \
+    -p 9151:9151                                  \
+    -e NUCYPHER_KEYRING_PASSWORD                  \
+    nucypher/nucypher:latest                      \
+    nucypher ursula init                          \
+    --signer keystore:///root/.ethereum/keystore  \
+    --provider <PROVIDER URI>                     \
+    --network <NETWORK NAME>                      \
     --max-gas-price <GWEI>
 
 
@@ -149,7 +153,6 @@ Replace the following values with your own:
 
    * ``<PROVIDER URI>`` - The URI of a local or hosted ethereum node
    * ``<NETWORK NAME>`` - The name of a nucypher network (mainnet, ibex, or lynx)
-   * ``<SIGNER URI>`` - The URI to an ethereum keystore or signer: `keystore:///root/.ethereum/keystore`
    * ``<GWEI>`` - The maximum price of gas to spend on commitment transactions
 
 
@@ -456,11 +459,34 @@ View logs for a CLI-launched or systemd Ursula:
     journalctl -f -t ursula
 
 
-Status Webpage
-^^^^^^^^^^^^^^
+Node Status Webpage
+^^^^^^^^^^^^^^^^^^^
 
 Once Ursula is running, you can view its public status page at ``https://<node_ip>:9151/status``.
-It should eventually be listed on the `Status Monitor Page <https://status.nucypher.network>`_ (this can take a few minutes).
+
+.. image:: ../.static/img/Annotated-Ursula-Status-Webpage-v1.png
+    :target: ../.static/img/Annotated-Ursula-Status-Webpage-v1.png
+
+- *Nickname Icon* - A visual representation of the node's nickname words and colors
+- *Staker Nickname* - A nickname/codename for the node derived from the staker address
+- *Staker Address* - The Staker address this node is bonded to
+- *Client Version* - The version of nucypher this node is running
+- *Network Name* - The nucypher network this node is running on (mainnet, lynx, or ibex).
+- *Peer Count* - The total number of peers this node has discovered.
+- *Fleet State Checksum* - A checksum representing all currently known peers
+- *Fleet State Icon* - A visual representation of the fleet state's checksum word and color
+- *Fleet State History* - The most recent historical fleet states known by this node, sorted from most recent to oldest
+- *Peer Nickname* - The nickname of a peer derived from it's staker address
+- *Peer Fleet State* - The current fleet state of a peer node
+- *Peer Staker Address* - The staker address of a peer
+- *Verified Nodes* - The collection of nodes that have been and validated by this node (valid metadata and staking status)
+- *Unverified Nodes* - The collection of nodes that have not been contacted or validated by this node
+
+
+Network Status Webpage
+^^^^^^^^^^^^^^^^^^^^^^
+
+Your node will eventually be listed on the `Status Monitor Page <https://status.nucypher.network>`_ (this can take some time).
 
 
 Prometheus Endpoint
