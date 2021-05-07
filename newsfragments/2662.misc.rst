@@ -1,0 +1,1 @@
+Improves password collection hints while running ``init`` commands.

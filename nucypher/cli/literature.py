@@ -210,6 +210,7 @@ SUCCESSFUL_DISABLE_RESTAKING = 'Successfully disabled re-staking for {staking_ad
 #
 # Snapshots
 #
+
 SNAPSHOTS_DISABLING_AGREEMENT = """
 By disabling snapshots, staker {staking_address} will be excluded from all future DAO validations
 until snapshots are enabled.
@@ -387,6 +388,11 @@ DEFAULT_TO_LONE_CONFIG_FILE = "Defaulting to {config_class} configuration file: 
 #
 #  Authentication
 #
+
+PASSWORD_COLLECTION_NOTICE = f"""
+Please provide a password to lock Worker keys.
+Do not forget this password, and ideally store it using a password manager.
+"""
 
 COLLECT_ETH_PASSWORD = "Enter ethereum account password ({checksum_address})"
 

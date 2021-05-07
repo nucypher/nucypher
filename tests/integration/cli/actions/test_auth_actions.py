@@ -21,6 +21,7 @@ from constant_sorrow.constants import NO_PASSWORD
 from nacl.exceptions import CryptoError
 
 from nucypher.blockchain.eth.decorators import InvalidChecksumAddress
+from nucypher.characters.control.emitters import StdoutEmitter
 from nucypher.cli.actions.auth import (
     get_client_password,
     get_nucypher_password,
@@ -90,7 +91,7 @@ def test_get_client_password(mock_stdin, mock_account, confirm, capsys):
 @pytest.mark.parametrize('confirm', (True, False))
 def test_get_nucypher_password(mock_stdin, mock_account, confirm, capsys):
     mock_stdin.password(INSECURE_DEVELOPMENT_PASSWORD, confirm=confirm)
-    result = get_nucypher_password(confirm=confirm)
+    result = get_nucypher_password(emitter=StdoutEmitter(), confirm=confirm)
     assert result == INSECURE_DEVELOPMENT_PASSWORD
     assert mock_stdin.empty()
     captured = capsys.readouterr()
