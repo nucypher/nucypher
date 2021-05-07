@@ -795,7 +795,7 @@ class Staker(NucypherTokenActor):
         return receipt
 
     def _ensure_allowance_equals(self, amount: int):
-        owner = self.checksum_address
+        owner = self.transacting_power.account
         spender = self.staking_agent.contract.address
         current_allowance = self.token_agent.get_allowance(owner=owner, spender=spender)
         if amount > current_allowance:
