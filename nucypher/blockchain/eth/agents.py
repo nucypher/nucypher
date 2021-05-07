@@ -180,12 +180,26 @@ class NucypherTokenAgent(EthereumContractAgent):
         return receipt
 
     @contract_api(TRANSACTION)
+    def decrease_allowance(self,
+                           transacting_power: TransactingPower,
+                           spender_address: ChecksumAddress,
+                           decrease: NuNits
+                           ) -> TxReceipt:
+        """Decrease the allowance of a spender address funded by a sender address"""
+        contract_function: ContractFunction = self.contract.functions.decreaseAllowance(spender_address, decrease)
+        receipt: TxReceipt = self.blockchain.send_transaction(contract_function=contract_function,
+                                                              transacting_power=transacting_power)
+        return receipt
+
+    @contract_api(TRANSACTION)
     def approve_transfer(self,
                          amount: NuNits,
                          spender_address: ChecksumAddress,
                          transacting_power: TransactingPower
                          ) -> TxReceipt:
         """Approve the spender address to transfer an amount of tokens on behalf of the sender address"""
+        self._validate_zero_allowance(amount, spender_address, transacting_power)
+
         payload: TxParams = {'gas': Wei(500_000)}  # TODO #842: gas needed for use with geth! <<<< Is this still open?
         contract_function: ContractFunction = self.contract.functions.approve(spender_address, amount)
         receipt: TxReceipt = self.blockchain.send_transaction(contract_function=contract_function,
@@ -209,6 +223,8 @@ class NucypherTokenAgent(EthereumContractAgent):
                          call_data: bytes = b'',
                          gas_limit: Optional[Wei] = None
                          ) -> TxReceipt:
+        self._validate_zero_allowance(amount, target_address, transacting_power)
+
         payload = None
         if gas_limit:  # TODO: Gas management - #842
             payload = {'gas': gas_limit}
@@ -217,6 +233,13 @@ class NucypherTokenAgent(EthereumContractAgent):
                                                                                transacting_power=transacting_power,
                                                                                payload=payload)
         return approve_and_call_receipt
+
+    def _validate_zero_allowance(self, amount, target_address, transacting_power):
+        if amount == 0:
+            return
+        current_allowance = self.get_allowance(owner=transacting_power.account, spender=target_address)
+        if current_allowance != 0:
+            raise self.RequirementError(f"Token allowance for spender {target_address} must be 0")
 
 
 class StakingEscrowAgent(EthereumContractAgent):

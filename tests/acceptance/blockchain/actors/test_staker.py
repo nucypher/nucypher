@@ -25,7 +25,7 @@ from nucypher.blockchain.eth.signers.software import Web3Signer
 from nucypher.blockchain.eth.token import NU, Stake
 from nucypher.blockchain.eth.utils import datetime_at_period
 from nucypher.crypto.powers import TransactingPower
-from tests.constants import FEE_RATE_RANGE, INSECURE_DEVELOPMENT_PASSWORD, DEVELOPMENT_TOKEN_AIRDROP_AMOUNT
+from tests.constants import FEE_RATE_RANGE, DEVELOPMENT_TOKEN_AIRDROP_AMOUNT
 from tests.utils.blockchain import token_airdrop
 from tests.utils.ursula import make_decentralized_ursulas
 
@@ -35,6 +35,9 @@ def test_staker_locking_tokens(testerchain, agency, staker, token_economics, tes
     staking_agent = ContractAgency.get_agent(StakingEscrowAgent, registry=test_registry)
 
     assert NU(token_economics.minimum_allowed_locked, 'NuNit') < staker.token_balance, "Insufficient staker balance"
+
+    # Make sure staking handles existing token allowance
+    staker.token_agent.approve_transfer(1000000000, staking_agent.contract_address, staker.transacting_power)
 
     staker.initialize_stake(amount=NU(token_economics.minimum_allowed_locked, 'NuNit'),
                             # Lock the minimum amount of tokens

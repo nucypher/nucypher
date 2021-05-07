@@ -769,6 +769,7 @@ class Staker(NucypherTokenActor):
 
     def _deposit(self, amount: int, lock_periods: int) -> TxReceipt:
         """Public facing method for token locking."""
+        self._ensure_allowance_equals(0)
         receipt = self.token_agent.approve_and_call(amount=amount,
                                                     target_address=self.staking_agent.contract_address,
                                                     transacting_power=self.transacting_power,
@@ -792,13 +793,28 @@ class Staker(NucypherTokenActor):
 
     def _deposit_and_increase(self, stake_index: int, amount: int) -> TxReceipt:
         """Public facing method for deposit and increasing stake."""
-        self.token_agent.increase_allowance(increase=amount,
-                                            transacting_power=self.transacting_power,
-                                            spender_address=self.staking_agent.contract.address)
+        self._ensure_allowance_equals(amount)
         receipt = self.staking_agent.deposit_and_increase(transacting_power=self.transacting_power,
                                                           stake_index=stake_index,
                                                           amount=amount)
         return receipt
+
+    def _ensure_allowance_equals(self, amount: int):
+        owner = self.transacting_power.account
+        spender = self.staking_agent.contract.address
+        current_allowance = self.token_agent.get_allowance(owner=owner, spender=spender)
+        if amount > current_allowance:
+            to_increase = amount - current_allowance
+            self.token_agent.increase_allowance(increase=to_increase,
+                                                transacting_power=self.transacting_power,
+                                                spender_address=spender)
+            self.log.info(f"{owner} increased token allowance for spender {spender} to {amount}")
+        elif amount < current_allowance:
+            to_decrease = current_allowance - amount
+            self.token_agent.decrease_allowance(decrease=to_decrease,
+                                                transacting_power=self.transacting_power,
+                                                spender_address=spender)
+            self.log.info(f"{owner} decreased token allowance for spender {spender} to {amount}")
 
     def _lock_and_increase(self, stake_index: int, amount: int) -> TxReceipt:
         """Public facing method for increasing stake."""
