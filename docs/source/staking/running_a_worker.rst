@@ -471,11 +471,11 @@ Once Ursula is running, you can view its public status page at ``https://<node_i
 - *Staker Nickname* - A nickname/codename for the node derived from the staker address
 - *Staker Address* - The Staker address this node is bonded to
 - *Client Version* - The version of nucypher this node is running
-- *Network Name* - The nucypher network name this node is running (mainnet, lynx, or ibex).
-- *Peer Count* - The total number of peers this node had discovered.
-- *Fleet State Checksum* - A checksum representing the currently known peer constituents and quantity
+- *Network Name* - The nucypher network this node is running on (mainnet, lynx, or ibex).
+- *Peer Count* - The total number of peers this node has discovered.
+- *Fleet State Checksum* - A checksum representing all currently known peers
 - *Fleet State Icon* - A visual representation of the fleet state's checksum word and color
-- *Fleet State History* - The most recent historical fleet states known by this node
+- *Fleet State History* - The most recent historical fleet states known by this node, sorted from most recent to oldest
 - *Peer Nickname* - The nickname of a peer derived from it's staker address
 - *Peer Fleet State* - The current fleet state of a peer node
 - *Peer Staker Address* - The staker address of a peer
