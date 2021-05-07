@@ -62,8 +62,8 @@ Public key (stamp):   {bytes(new_configuration.keyring.signing_public_key).hex()
 Path to keyring: {new_configuration.keyring_root}
 
 - You can share your public key with anyone. Others need it to interact with you.
-- Never share secret keys with anyone! Character keys are required to interact with the network!
-- Backup your keyring! Without the keyring you wil not be able to use existing network policies.
+- Never share secret keys with anyone! 
+- Backup your keyring! Character keys are required to interact with the protocol!
 - Remember your password! Without the password, it's impossible to decrypt the key!
 
 """)
