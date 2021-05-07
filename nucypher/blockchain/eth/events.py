@@ -34,7 +34,7 @@ class EventRecord:
         except BlockchainInterfaceFactory.NoRegisteredInterfaces:
             self.timestamp = None
         else:
-            self.timestamp = blockchain.client.w3.eth.getBlock(self.block_number)['timestamp'],
+            self.timestamp = blockchain.client.w3.eth.getBlock(self.block_number)['timestamp']
 
     def __repr__(self):
         pairs_to_show = dict(self.args.items())

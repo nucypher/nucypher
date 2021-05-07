@@ -52,6 +52,8 @@ def write_events_to_csv_file(csv_file: str,
             event_row = OrderedDict()
             event_row['event_name'] = event_name
             event_row['block_number'] = event_record.block_number
+            event_row['unix_timestamp'] = event_record.timestamp
+            event_row['date'] = maya.MayaDT(event_record.timestamp).iso8601()
             event_row.update(dict(event_record.args.items()))
             if events_writer is None:
                 events_writer = csv.DictWriter(events_file, fieldnames=event_row.keys())
