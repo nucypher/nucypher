@@ -479,7 +479,7 @@ Once Ursula is running, you can view its public status page at ``https://<node_i
 - *Peer Nickname* - The nickname of a peer derived from it's staker address
 - *Peer Fleet State* - The current fleet state of a peer node
 - *Peer Staker Address* - The staker address of a peer
-- *Verified Nodes* - The collection of nodes that have been connected to and validated by this node
+- *Verified Nodes* - The collection of nodes that have been and validated by this node (valid metadata and staking status)
 - *Unverified Nodes* - The collection of nodes that have not been contacted or validated by this node
 
 
