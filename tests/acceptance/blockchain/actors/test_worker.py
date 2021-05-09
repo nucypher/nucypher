@@ -24,7 +24,6 @@ from web3.middleware.simulate_unmined_transaction import unmined_receipt_simulat
 from nucypher.blockchain.eth.actors import Worker
 from nucypher.blockchain.eth.token import NU, WorkTracker
 from nucypher.utilities.logging import Logger
-from tests.constants import INSECURE_DEVELOPMENT_PASSWORD
 from tests.utils.ursula import make_decentralized_ursulas, start_pytest_ursula_services
 
 logger = Logger("test-worker")
@@ -59,6 +58,7 @@ def test_worker_auto_commitments(mocker,
 
     commit_spy = mocker.spy(Worker, 'commit_to_next_period')
     replacement_spy = mocker.spy(WorkTracker, '_WorkTracker__fire_replacement_commitment')
+    mocker.patch.object(WorkTracker, '_WorkTracker__get_tx_pending', return_value=[])
 
     # Make the Worker
     ursula = make_decentralized_ursulas(ursula_config=ursula_decentralized_test_config,
