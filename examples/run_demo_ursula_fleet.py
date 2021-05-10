@@ -20,6 +20,9 @@ import shutil
 from functools import partial
 from pathlib import Path
 
+from twisted.internet import reactor
+from contextlib import suppress
+
 from nucypher.characters.lawful import Ursula
 from nucypher.config.constants import APP_DIR, TEMPORARY_DOMAIN
 from nucypher.utilities.networking import LOOPBACK_ADDRESS
@@ -63,17 +66,11 @@ def spin_up_federated_ursulas(quantity: int = FLEET_POPULATION):
         print(f"{u}: {deployer._listening_message()}")
 
     try:
-        while True:
-            input("'Ctl + C' to quit\r\n")
+        reactor.run()
     finally:
-        last_u = None
         for u in ursulas:
-            shutil.rmtree(u.datastore.db_path)
-            last_u = u
-
-        # This kills the whole process.
-        # TODO: Is there a graceful way to shut each Ursula down?
-        last_u.get_deployer().stop()
+            with suppress(FileNotFoundError):
+                shutil.rmtree(u.datastore.db_path)
 
 
 if __name__ == "__main__":
