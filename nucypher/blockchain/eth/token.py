@@ -375,6 +375,14 @@ class Stake:
         kappa = 0.5 * (1 + min(T_max, self.periods_remaining) / T_max)
         return kappa
 
+    @property
+    def boost(self) -> float:
+        """An alternative representation of the kappa coefficient, more easy to understand.
+        Sub-stake boosts can range from 1x (i.e. no boost) to 2x (max boost). """
+
+        min_kappa = 0.5
+        boost = self.kappa / min_kappa
+        return boost
 
     def describe(self) -> Dict[str, str]:
         start_datetime = self.start_datetime.local_datetime().strftime("%b %d %Y")
@@ -385,7 +393,7 @@ class Stake:
                     remaining=self.periods_remaining,
                     enactment=start_datetime,
                     last_period=end_datetime,
-                    kappa=self.kappa,
+                    boost=f"{self.boost:.2f}x",
                     status=self.status().name)
         return data
 
