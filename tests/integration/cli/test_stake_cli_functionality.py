@@ -29,7 +29,7 @@ from nucypher.blockchain.eth.actors import StakeHolder, Staker
 from nucypher.blockchain.eth.constants import MAX_UINT16, NULL_ADDRESS
 from nucypher.blockchain.eth.signers.software import Web3Signer
 from nucypher.blockchain.eth.token import NU, Stake
-from nucypher.blockchain.eth.utils import datetime_at_period, estimate_block_number_for_period
+from nucypher.blockchain.eth.utils import estimate_block_number_for_period
 from nucypher.cli.actions.select import select_client_account_for_staking
 from nucypher.cli.commands.stake import (
     stake,
@@ -1332,7 +1332,12 @@ def test_merge_non_interactive(click_runner,
 
 
 @pytest.mark.usefixtures("test_registry_source_manager", "patch_stakeholder_configuration")
-def test_stake_list_active(click_runner, surrogate_stakers, surrogate_stakes, token_economics):
+def test_stake_list_active(click_runner,
+                           surrogate_stakers,
+                           surrogate_stakes,
+                           token_economics,
+                           mocker,
+                           get_random_checksum_address):
 
     command = ('list',
                '--provider', MOCK_PROVIDER_URI,
@@ -1354,24 +1359,34 @@ def test_stake_list_active(click_runner, surrogate_stakers, surrogate_stakes, to
                 Stake.Status.INACTIVE]
 
     current_period = 10
+    mock_staking_agent = mocker.Mock()
+    mock_staking_agent.get_current_period = mocker.Mock(return_value=current_period)
+
     for stakes in surrogate_stakes:
-        for index, sub_stake in enumerate(stakes):
-            value = NU.from_nunits(sub_stake.locked_value)
-            remaining = sub_stake.last_period - current_period + 1
-            start_datetime = datetime_at_period(period=sub_stake.first_period,
-                                                seconds_per_period=token_economics.seconds_per_period,
-                                                start_of_period=True)
-            unlock_datetime = datetime_at_period(period=sub_stake.last_period + 1,
-                                                 seconds_per_period=token_economics.seconds_per_period,
-                                                 start_of_period=True)
-            enactment = start_datetime.local_datetime().strftime("%b %d %Y")
-            termination = unlock_datetime.local_datetime().strftime("%b %d %Y")
-            search = f"{index}\\s+│\\s+" \
-                     f"{value}\\s+│\\s+" \
-                     f"{remaining}\\s+│\\s+" \
-                     f"{enactment}\\s+│\\s+" \
-                     f"{termination}\\s+│\\s+" \
-                     f"{statuses[index].name}"
+        for index, sub_stake_info in enumerate(stakes):
+
+            value = NU.from_nunits(sub_stake_info.locked_value)
+
+            sub_stake = Stake(staking_agent=mock_staking_agent,
+                              checksum_address=get_random_checksum_address(),
+                              value=value,
+                              first_locked_period=sub_stake_info.first_period,
+                              final_locked_period=sub_stake_info.last_period,
+                              index=index,
+                              economics=token_economics)
+
+            sub_stake.status = mocker.Mock(return_value=statuses[index])
+
+            sub_stake_data = sub_stake.describe()
+
+            search = f"{sub_stake_data['index']}\\s+│\\s+" \
+                     f"{sub_stake_data['value']}\\s+│\\s+" \
+                     f"{sub_stake_data['remaining']}\\s+│\\s+" \
+                     f"{sub_stake_data['enactment']}\\s+│\\s+" \
+                     f"{sub_stake_data['last_period']}\\s+│\\s+" \
+                     f"{sub_stake_data['boost']}\\s+│\\s+" \
+                     f"{sub_stake_data['status']}"
+
             # locked sub-stakes
             if index < 5:
                 assert re.search(search, result.output, re.MULTILINE)
@@ -1381,7 +1396,13 @@ def test_stake_list_active(click_runner, surrogate_stakers, surrogate_stakes, to
 
 
 @pytest.mark.usefixtures("test_registry_source_manager", "patch_stakeholder_configuration")
-def test_stake_list_all(click_runner, surrogate_stakers, surrogate_stakes, token_economics, surrogate_transacting_power):
+def test_stake_list_all(click_runner,
+                        surrogate_stakers,
+                        surrogate_stakes,
+                        token_economics,
+                        surrogate_transacting_power,
+                        mocker,
+                        get_random_checksum_address):
 
     command = ('list',
                '--all',
@@ -1404,30 +1425,39 @@ def test_stake_list_all(click_runner, surrogate_stakers, surrogate_stakes, token
                 Stake.Status.INACTIVE]
 
     current_period = 10
+    mock_staking_agent = mocker.Mock()
+    mock_staking_agent.get_current_period = mocker.Mock(return_value=current_period)
+
     for stakes in surrogate_stakes:
-        for index, sub_stake in enumerate(stakes):
-            value = NU.from_nunits(sub_stake.locked_value)
-            start_datetime = datetime_at_period(period=sub_stake.first_period,
-                                                seconds_per_period=token_economics.seconds_per_period,
-                                                start_of_period=True)
-            unlock_datetime = datetime_at_period(period=sub_stake.last_period + 1,
-                                                 seconds_per_period=token_economics.seconds_per_period,
-                                                 start_of_period=True)
-            enactment = start_datetime.local_datetime().strftime("%b %d %Y")
+        for index, sub_stake_info in enumerate(stakes):
+            value = NU.from_nunits(sub_stake_info.locked_value)
+
+            sub_stake = Stake(staking_agent=mock_staking_agent,
+                              checksum_address=get_random_checksum_address(),
+                              value=value,
+                              first_locked_period=sub_stake_info.first_period,
+                              final_locked_period=sub_stake_info.last_period,
+                              index=index,
+                              economics=token_economics)
 
             status = statuses[index]
+            sub_stake.status = mocker.Mock(return_value=status)
+            sub_stake_data = sub_stake.describe()
+
             if status == Stake.Status.INACTIVE:
-                remaining = 'N/A'
-                termination = 'N/A'
-            else:
-                remaining = sub_stake.last_period - current_period + 1
-                termination = unlock_datetime.local_datetime().strftime("%b %d %Y")
-            assert re.search(f"{index}\\s+│\\s+"
-                             f"{value}\\s+│\\s+"
-                             f"{remaining}\\s+│\\s+"
-                             f"{enactment}\\s+│\\s+"
-                             f"{termination}\\s+│\\s+"
-                             f"{status.name}", result.output, re.MULTILINE)
+                sub_stake_data['remaining'] = 'N/A'
+                sub_stake_data['last_period'] = 'N/A'
+                sub_stake_data['boost'] = 'N/A'
+
+            search = f"{sub_stake_data['index']}\\s+│\\s+" \
+                     f"{sub_stake_data['value']}\\s+│\\s+" \
+                     f"{sub_stake_data['remaining']}\\s+│\\s+" \
+                     f"{sub_stake_data['enactment']}\\s+│\\s+" \
+                     f"{sub_stake_data['last_period']}\\s+│\\s+" \
+                     f"{sub_stake_data['boost']}\\s+│\\s+" \
+                     f"{sub_stake_data['status']}"
+
+            assert re.search(search, result.output, re.MULTILINE)
 
 
 @pytest.mark.usefixtures("test_registry_source_manager", "patch_stakeholder_configuration")
