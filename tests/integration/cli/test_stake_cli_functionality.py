@@ -70,6 +70,7 @@ from nucypher.cli.literature import (
     CONFIRM_MERGE,
     SUCCESSFUL_STAKES_MERGE,
     CONFIRM_STAKE_USE_UNLOCKED,
+    TOKEN_REWARD_CURRENT,
     TOKEN_REWARD_NOT_FOUND,
     TOKEN_REWARD_PAST,
     TOKEN_REWARD_PAST_HEADER
@@ -1474,7 +1475,7 @@ def test_show_rewards(click_runner, surrogate_stakers, mock_staking_agent):
 
     result = click_runner.invoke(stake, command, catch_exceptions=False)
     assert result.exit_code == 0
-    assert TOKEN_REWARD_CURRENT.format(reward_amount=round(reward_amount, TOKEN_DECIMAL_PLACE)) in result.output
+    assert TOKEN_REWARD_CURRENT.format(reward_amount=round(reward, TOKEN_DECIMAL_PLACE)) in result.output
 
     mock_staking_agent.calculate_staking_reward.assert_called_once_with(staker_address=surrogate_stakers[0])
 
@@ -1539,7 +1540,7 @@ def test_show_rewards_for_period(click_runner, surrogate_stakers, mock_staking_a
 
 
 @pytest.mark.usefixtures("test_registry_source_manager", "patch_stakeholder_configuration")
-def test_show_rewards(click_runner, surrogate_stakers, mock_staking_agent, mocker):
+def test_show_rewards_not_found(click_runner, surrogate_stakers, mock_staking_agent, mocker):
     event_name = 'Minted'
     event = mocker.Mock()
     event.getLogs = mocker.MagicMock(return_value=[])
