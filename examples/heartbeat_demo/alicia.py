@@ -20,6 +20,7 @@ import sys
 import json
 import os
 import shutil
+from pathlib import Path
 
 import maya
 
@@ -38,7 +39,7 @@ from nucypher.utilities.logging import GlobalLoggerSettings
 
 GlobalLoggerSettings.start_console_logging()
 
-TEMP_ALICE_DIR = os.path.join('/', 'tmp', 'heartbeat-demo-alice')
+TEMP_ALICE_DIR = Path('/', 'tmp', 'heartbeat-demo-alice')
 
 
 # if your ursulas are NOT running on your current host,
@@ -72,7 +73,7 @@ ursula = Ursula.from_seed_and_stake_info(seed_uri=SEEDNODE_URI,
                                          minimum_stake=0)
 
 alice_config = AliceConfiguration(
-    config_root=os.path.join(TEMP_ALICE_DIR),
+    config_root=TEMP_ALICE_DIR,
     domain=TEMPORARY_DOMAIN,
     known_nodes={ursula},
     start_learning_now=False,

@@ -15,6 +15,7 @@
  along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 from decimal import Decimal
+from pathlib import Path
 
 import click
 from web3 import Web3
@@ -127,7 +128,7 @@ from nucypher.cli.painting.transactions import paint_receipt_summary
 from nucypher.cli.types import (
     EIP55_CHECKSUM_ADDRESS,
     GWEI,
-    DecimalRange
+    DecimalRange, PathPath
 )
 from nucypher.cli.utils import setup_emitter, retrieve_events
 from nucypher.config.characters import StakeHolderConfiguration
@@ -139,7 +140,7 @@ option_csv = click.option('--csv', help="Write event data to a CSV file using a 
                           is_flag=True)
 option_csv_file = click.option('--csv-file',
                                help="Write event data to the CSV file at specified filepath",
-                               type=click.Path(dir_okay=False))
+                               type=PathPath(dir_okay=False))
 option_value = click.option('--value', help="Token value of stake", type=DecimalRange(min=0))
 option_lock_periods = click.option('--lock-periods', help="Duration of stake in periods.", type=click.INT)
 option_worker_address = click.option('--worker-address', help="Address to bond as an Ursula-Worker", type=EIP55_CHECKSUM_ADDRESS)

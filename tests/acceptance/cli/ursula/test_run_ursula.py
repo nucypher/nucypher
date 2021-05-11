@@ -176,7 +176,7 @@ def test_persistent_node_storage_integration(click_runner,
 
     alice, ursula, another_ursula, felix, staker, *all_yall = testerchain.unassigned_accounts
     filename = UrsulaConfiguration.generate_filename()
-    another_ursula_configuration_file_location = os.path.join(custom_filepath, filename)
+    another_ursula_configuration_file_location = custom_filepath / filename
 
     init_args = ('ursula', 'init',
                  '--provider', TEST_PROVIDER_URI,
@@ -254,7 +254,7 @@ def test_ursula_run_ip_checkup(testerchain, custom_filepath, click_runner, mocke
     # Setup
     teacher = blockchain_ursulas.pop()
     filename = UrsulaConfiguration.generate_filename()
-    another_ursula_configuration_file_location = os.path.join(custom_filepath, filename)
+    another_ursula_configuration_file_location = custom_filepath / filename
 
     # manual teacher
     run_args = ('ursula', 'run',

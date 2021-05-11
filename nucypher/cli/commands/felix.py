@@ -14,7 +14,7 @@ GNU Affero General Public License for more details.
 You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
-
+from pathlib import Path
 
 import click
 import os
@@ -73,9 +73,9 @@ class FelixConfigOptions:
                  provider_uri,
                  signer_uri,
                  host,
-                 db_filepath,
+                 db_filepath: Path,
                  checksum_address,
-                 registry_filepath,
+                 registry_filepath: Path,
                  poa,
                  port):
 
@@ -114,7 +114,7 @@ class FelixConfigOptions:
                 config_file=config_file
             )
 
-    def generate_config(self, config_root, discovery_port):
+    def generate_config(self, config_root: Path, discovery_port):
         return FelixConfiguration.generate(
             password=get_nucypher_password(emitter=StdoutEmitter(), confirm=True),
             config_root=config_root,
@@ -238,7 +238,7 @@ def createdb(general_config, character_options, config_file, force):
     """Create Felix DB."""
     emitter = setup_emitter(general_config, character_options.config_options.checksum_address)
     FELIX = character_options.create_character(emitter, config_file, general_config.debug)
-    if os.path.isfile(FELIX.db_filepath):
+    if FELIX.db_filepath.is_file():
         if not force:
             click.confirm(CONFIRM_OVERWRITE_DATABASE, abort=True)
         os.remove(FELIX.db_filepath)

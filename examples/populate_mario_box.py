@@ -20,6 +20,7 @@
 import base64
 import json
 import os
+from pathlib import Path
 
 import click
 
@@ -49,7 +50,7 @@ def mario_box_cli(plaintext_dir, alice_config, label, outfile):
 
     with click.progressbar(paths) as bar:
         for path in bar:
-            filepath = os.path.join(plaintext_dir, path)
+            filepath = Path(plaintext_dir, path)
             with open(filepath, 'rb') as file:
                 plaintext = file.read()
                 encoded_plaintext = base64.b64encode(plaintext)

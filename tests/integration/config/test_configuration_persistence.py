@@ -17,7 +17,6 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 
 import datetime
 import maya
-import os
 
 from nucypher.characters.lawful import Bob
 from nucypher.config.characters import AliceConfiguration
@@ -27,9 +26,9 @@ from tests.constants import INSECURE_DEVELOPMENT_PASSWORD
 from tests.utils.middleware import MockRestMiddleware
 
 
-def test_alices_powers_are_persistent(federated_ursulas, tmpdir):
+def test_alices_powers_are_persistent(federated_ursulas, temp_dir_path):
     # Create a non-learning AliceConfiguration
-    config_root = os.path.join(tmpdir, 'nucypher-custom-alice-config')
+    config_root = temp_dir_path / 'nucypher-custom-alice-config'
     alice_config = AliceConfiguration(
         config_root=config_root,
         network_middleware=MockRestMiddleware(),

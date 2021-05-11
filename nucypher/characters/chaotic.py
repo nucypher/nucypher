@@ -16,6 +16,7 @@
 """
 
 import json
+from pathlib import Path
 
 import eth_utils
 import math
@@ -90,7 +91,7 @@ class Felix(Character, NucypherTokenActor):
         pass
 
     def __init__(self,
-                 db_filepath: str,
+                 db_filepath: Path,
                  rest_host: str,
                  rest_port: int,
                  client_password: str = None,
@@ -112,7 +113,7 @@ class Felix(Character, NucypherTokenActor):
         # Database
         self.db_filepath = db_filepath
         self.db = NO_DATABASE_AVAILABLE
-        self.db_engine = create_engine(f'sqlite:///{self.db_filepath}', convert_unicode=True)
+        self.db_engine = create_engine(f'sqlite:///{self.db_filepath.absolute()}', convert_unicode=True)
 
         # Blockchain
         self.transacting_power = TransactingPower(password=client_password,

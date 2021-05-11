@@ -17,6 +17,7 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 
 
 import os
+from pathlib import Path
 from tempfile import TemporaryDirectory
 
 from constant_sorrow.constants import UNINITIALIZED_CONFIGURATION
@@ -55,7 +56,7 @@ class UrsulaConfiguration(CharacterConfiguration):
                  rest_host: str = None,
                  worker_address: str = None,
                  dev_mode: bool = False,
-                 db_filepath: str = None,
+                 db_filepath: Path = None,
                  rest_port: int = None,
                  certificate: Certificate = None,
                  availability_check: bool = None,
@@ -80,7 +81,7 @@ class UrsulaConfiguration(CharacterConfiguration):
         super().__init__(dev_mode=dev_mode, *args, **kwargs)
 
     @classmethod
-    def checksum_address_from_filepath(cls, filepath: str) -> str:
+    def checksum_address_from_filepath(cls, filepath: Path) -> str:
         """
         Extracts worker address by "peeking" inside the ursula configuration file.
         """
@@ -93,13 +94,13 @@ class UrsulaConfiguration(CharacterConfiguration):
             raise RuntimeError(f"Invalid checksum address detected in configuration file at '{filepath}'.")
         return checksum_address
 
-    def generate_runtime_filepaths(self, config_root: str) -> dict:
+    def generate_runtime_filepaths(self, config_root: Path) -> dict:
         base_filepaths = super().generate_runtime_filepaths(config_root=config_root)
-        filepaths = dict(db_filepath=os.path.join(config_root, self.DEFAULT_DB_NAME))
+        filepaths = dict(db_filepath=config_root / self.DEFAULT_DB_NAME)
         base_filepaths.update(filepaths)
         return base_filepaths
 
-    def generate_filepath(self, modifier: str = None, *args, **kwargs) -> str:
+    def generate_filepath(self, modifier: str = None, *args, **kwargs) -> Path:
         filepath = super().generate_filepath(modifier=modifier or self.keystore.id[:8], *args, **kwargs)
         return filepath
 
@@ -108,7 +109,7 @@ class UrsulaConfiguration(CharacterConfiguration):
             worker_address=self.worker_address,
             rest_host=self.rest_host,
             rest_port=self.rest_port,
-            db_filepath=self.db_filepath,
+            db_filepath=self.db_filepath.absolute(),
             availability_check=self.availability_check,
         )
         return {**super().static_payload(), **payload}
@@ -138,7 +139,7 @@ class UrsulaConfiguration(CharacterConfiguration):
         return ursula
 
     def destroy(self) -> None:
-        if os.path.isfile(self.db_filepath):
+        if self.db_filepath.is_file():
             os.remove(self.db_filepath)
         super().destroy()
 
@@ -241,7 +242,7 @@ class FelixConfiguration(CharacterConfiguration):
     NAME = CHARACTER_CLASS.__name__.lower()
 
     DEFAULT_DB_NAME = '{}.db'.format(NAME)
-    DEFAULT_DB_FILEPATH = os.path.join(DEFAULT_CONFIG_ROOT, DEFAULT_DB_NAME)
+    DEFAULT_DB_FILEPATH = DEFAULT_CONFIG_ROOT / DEFAULT_DB_NAME
     DEFAULT_REST_PORT = 6151
     DEFAULT_LEARNER_PORT = 9151
     DEFAULT_REST_HOST = LOOPBACK_ADDRESS
@@ -262,13 +263,13 @@ class FelixConfiguration(CharacterConfiguration):
         self.rest_host = rest_host or self.DEFAULT_REST_HOST
         self.tls_curve = tls_curve or self.__DEFAULT_TLS_CURVE
         self.certificate = certificate
-        self.db_filepath = db_filepath or os.path.join(self.config_root, self.DEFAULT_DB_NAME)
+        self.db_filepath = db_filepath or self.config_root / self.DEFAULT_DB_NAME
 
     def static_payload(self) -> dict:
         payload = dict(
          rest_host=self.rest_host,
          rest_port=self.rest_port,
-         db_filepath=self.db_filepath,
+         db_filepath=self.db_filepath.absolute(),
          signer_uri=self.signer_uri
         )
         return {**super().static_payload(), **payload}
@@ -313,7 +314,7 @@ class StakeHolderConfiguration(CharacterConfiguration):
         pass
 
     @classmethod
-    def assemble(cls, filepath: str = None, **overrides) -> dict:
+    def assemble(cls, filepath: Path = None, **overrides) -> dict:
         payload = cls._read_configuration_file(filepath=filepath)
         # Filter out None values from **overrides to detect, well, overrides...
         # Acts as a shim for optional CLI flags.
@@ -322,19 +323,19 @@ class StakeHolderConfiguration(CharacterConfiguration):
         return payload
 
     @classmethod
-    def generate_runtime_filepaths(cls, config_root: str) -> dict:
+    def generate_runtime_filepaths(cls, config_root: Path) -> dict:
         """Dynamically generate paths based on configuration root directory"""
         filepaths = dict(config_root=config_root,
-                         config_file_location=os.path.join(config_root, cls.generate_filename()))
+                         config_file_location=config_root / cls.generate_filename())
         return filepaths
 
-    def initialize(self, password: str = None) -> str:
+    def initialize(self, password: str = None) -> Path:
         """Initialize a new configuration and write installation files to disk."""
 
         # Development
         if self.dev_mode:
             self.__temp_dir = TemporaryDirectory(prefix=self.TEMP_CONFIGURATION_DIR_PREFIX)
-            self.config_root = self.__temp_dir.name
+            self.config_root = Path(self.__temp_dir.name)
 
         # Persistent
         else:
@@ -358,5 +359,5 @@ class StakeHolderConfiguration(CharacterConfiguration):
         node_config.initialize()
         return node_config
 
-    def to_configuration_file(self, override: bool = True, *args, **kwargs) -> str:
+    def to_configuration_file(self, override: bool = True, *args, **kwargs) -> Path:
         return super().to_configuration_file(override=True, *args, **kwargs)

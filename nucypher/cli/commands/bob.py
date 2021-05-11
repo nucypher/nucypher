@@ -15,6 +15,7 @@
  along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 from base64 import b64decode
+from pathlib import Path
 
 import click
 
@@ -68,7 +69,7 @@ class BobConfigOptions:
     def __init__(self, 
                  provider_uri: str,
                  network: str,
-                 registry_filepath: str,
+                 registry_filepath: Path,
                  checksum_address: str,
                  discovery_port: int,
                  dev: bool,

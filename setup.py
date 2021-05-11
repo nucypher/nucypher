@@ -99,7 +99,7 @@ class PostDevelopCommand(develop):
 #
 
 def read_requirements(path):
-    with open(os.path.join(BASE_DIR, path)) as f:
+    with open(BASE_DIR / path) as f:
         _pipenv_flags, *lines = f.read().split('\n')
 
     # TODO remove when will be no more git dependencies in requirements.txt

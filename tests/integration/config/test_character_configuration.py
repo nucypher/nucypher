@@ -16,9 +16,11 @@
 """
 
 import os
+from pathlib import Path
+from unittest.mock import Mock
+import pytest
 import tempfile
 
-import pytest
 from constant_sorrow.constants import CERTIFICATE_NOT_SAVED, NO_KEYSTORE_ATTACHED
 
 from nucypher.blockchain.eth.actors import StakeHolder
@@ -107,18 +109,18 @@ def test_federated_development_character_configurations(character, configuration
 @pytest.mark.parametrize('configuration_class', all_configurations)
 def test_default_character_configuration_preservation(configuration_class, testerchain, test_registry_source_manager, mocker, tmpdir):
 
-    configuration_class.DEFAULT_CONFIG_ROOT = '/tmp'
+    configuration_class.DEFAULT_CONFIG_ROOT = Path('/tmp')
     fake_address = '0xdeadbeef'
     network = TEMPORARY_DOMAIN
 
     expected_filename = f'{configuration_class.NAME}.{configuration_class._CONFIG_FILE_EXTENSION}'
     generated_filename = configuration_class.generate_filename()
     assert generated_filename == expected_filename
-    expected_filepath = os.path.join('/', 'tmp', generated_filename)
+    expected_filepath = Path('/', 'tmp', generated_filename)
 
-    if os.path.exists(expected_filepath):
+    if expected_filepath.exists():
         os.remove(expected_filepath)
-    assert not os.path.exists(expected_filepath)
+    assert not expected_filepath.exists()
 
     if configuration_class == StakeHolderConfiguration:
         # special case for defaults
@@ -142,7 +144,7 @@ def test_default_character_configuration_preservation(configuration_class, teste
 
     written_filepath = character_config.to_configuration_file()
     assert written_filepath == expected_filepath
-    assert os.path.exists(written_filepath)
+    assert written_filepath.exists()
 
     try:
         # Read
@@ -154,10 +156,10 @@ def test_default_character_configuration_preservation(configuration_class, teste
         assert character_config.serialize() == restored_configuration.serialize()
 
         # File still exists after reading
-        assert os.path.exists(written_filepath)
+        assert written_filepath.exists()
 
     finally:
-        if os.path.exists(expected_filepath):
+        if expected_filepath.exists():
             os.remove(expected_filepath)
 
 
@@ -178,7 +180,7 @@ def test_ursula_development_configuration(federated_only=True):
     # A Temporary Ursula
     port = ursula_one.rest_information()[0].port
     assert port == UrsulaConfiguration.DEFAULT_DEVELOPMENT_REST_PORT
-    assert tempfile.gettempdir() in ursula_one.datastore.db_path
+    assert tempfile.gettempdir() in str(ursula_one.datastore.db_path)
     assert ursula_one.certificate_filepath is CERTIFICATE_NOT_SAVED
     assert isinstance(ursula_one.node_storage, ForgetfulNodeStorage)
     assert ':memory:' in ursula_one.node_storage._name

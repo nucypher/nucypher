@@ -22,6 +22,7 @@ import shutil
 from base64 import b64decode
 from collections import namedtuple
 from json import JSONDecodeError
+from pathlib import Path
 
 import maya
 import pytest
@@ -138,7 +139,7 @@ def run_entire_cli_lifecycle(click_runner,
     GlobalLoggerSettings.stop_console_logging()
 
     # Alice uses her configuration file to run the character "view" command
-    alice_configuration_file_location = os.path.join(alice_config_root, AliceConfiguration.generate_filename())
+    alice_configuration_file_location = Path(alice_config_root, AliceConfiguration.generate_filename())
     alice_view_args = ('alice', 'public-keys',
                        '--json-ipc',
                        '--config-file', alice_configuration_file_location)
@@ -178,7 +179,7 @@ def run_entire_cli_lifecycle(click_runner,
     assert bob_init_response.exit_code == 0
 
     # Alice uses her configuration file to run the character "view" command
-    bob_configuration_file_location = os.path.join(bob_config_root, BobConfiguration.generate_filename())
+    bob_configuration_file_location = Path(bob_config_root, BobConfiguration.generate_filename())
     bob_view_args = ('bob', 'public-keys',
                      '--json-ipc',
                      '--mock-networking',  # TODO: It's absurd for this public-keys command to connect at all.  1710

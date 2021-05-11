@@ -35,7 +35,7 @@ from nucypher.config.constants import DEFAULT_CONFIG_ROOT
 #     """
 #
 #     if not filepath:
-#         filepath = os.path.join(DEFAULT_CONFIG_ROOT, 'static-nodes.json')
+#         filepath = DEFAULT_CONFIG_ROOT / 'static-nodes.json'
 #     try:
 #         with open(filepath, 'r') as file:
 #             static_nodes = json.load(file)

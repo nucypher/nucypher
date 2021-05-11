@@ -17,6 +17,7 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 
 
 from collections import namedtuple
+from pathlib import Path
 
 import click
 import functools
@@ -28,7 +29,7 @@ from nucypher.cli.types import (
     GWEI,
     NETWORK_PORT,
     NuCypherNetworkName,
-    WEI,
+    PathPath, WEI,
     STAKED_TOKENS_RANGE,
     MIN_ALLOWED_LOCKED_TOKENS
 )
@@ -38,7 +39,7 @@ from nucypher.utilities.logging import Logger
 
 option_checksum_address = click.option('--checksum-address', help="Run with a specified account", type=EIP55_CHECKSUM_ADDRESS)
 option_config_file = click.option('--config-file', help="Path to configuration file", type=EXISTING_READABLE_FILE)
-option_config_root = click.option('--config-root', help="Custom configuration directory", type=click.Path())
+option_config_root = click.option('--config-root', help="Custom configuration directory", type=PathPath())
 option_dev = click.option('--dev', '-d', help="Enable development mode", is_flag=True)
 option_db_filepath = click.option('--db-filepath', help="The database filepath to connect to", type=click.STRING)
 option_dry_run = click.option('--dry-run', '-x', help="Execute normally without actually starting the node", is_flag=True)

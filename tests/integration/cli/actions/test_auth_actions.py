@@ -152,8 +152,7 @@ def test_unlock_nucypher_keystore(mocker,
                                  test_emitter,
                                  capsys,
                                  alice_blockchain_test_config,
-                                 patch_keystore,
-                                 tmpdir):
+                                 patch_keystore):
 
     # Setup
     # Do not test "real" unlocking here, just the plumbing

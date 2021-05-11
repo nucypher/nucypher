@@ -43,7 +43,7 @@ def spin_up_federated_ursulas(quantity: int = FLEET_POPULATION):
     sage_dir = str(USER_CACHE / 'sage.db')
     ursulas = []
 
-    if not os.path.exists(sage_dir):
+    if not sage_dir.exists():
         os.makedirs(sage_dir)
 
     sage = ursula_maker(rest_port=ports[0], db_filepath=sage_dir)

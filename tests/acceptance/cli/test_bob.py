@@ -17,6 +17,7 @@
 
 import json
 from base64 import b64encode
+from pathlib import Path
 from unittest import mock
 
 import os
@@ -51,7 +52,7 @@ def test_missing_configuration_file(default_filepath_mock, click_runner):
     assert "nucypher bob init" in result.output
 
 
-def test_initialize_bob_with_custom_configuration_root(custom_filepath, click_runner):
+def test_initialize_bob_with_custom_configuration_root(click_runner, custom_filepath: Path):
     # Use a custom local filepath for configuration
     init_args = ('bob', 'init',
                  '--network', TEMPORARY_DOMAIN,
@@ -66,40 +67,40 @@ def test_initialize_bob_with_custom_configuration_root(custom_filepath, click_ru
     assert 'IPv4' not in result.output
 
     # Files and Directories
-    assert os.path.isdir(custom_filepath), 'Configuration file does not exist'
-    assert os.path.isdir(os.path.join(custom_filepath, 'keystore')), 'KEYSTORE does not exist'
-    assert os.path.isdir(os.path.join(custom_filepath, 'known_nodes')), 'known_nodes directory does not exist'
+    assert custom_filepath.is_dir(), 'Configuration file does not exist'
+    assert (custom_filepath / 'keystore').is_dir(), 'Keystore does not exist'
+    assert (custom_filepath / 'known_nodes').is_dir(), 'known_nodes directory does not exist'
 
-    custom_config_filepath = os.path.join(custom_filepath, BobConfiguration.generate_filename())
-    assert os.path.isfile(custom_config_filepath), 'Configuration file does not exist'
+    custom_config_filepath = custom_filepath / BobConfiguration.generate_filename()
+    assert custom_config_filepath.is_file(), 'Configuration file does not exist'
 
     # Auth
     assert COLLECT_NUCYPHER_PASSWORD in result.output, 'WARNING: User was not prompted for password'
     assert 'Repeat for confirmation:' in result.output, 'User was not prompted to confirm password'
 
 
-def test_bob_control_starts_with_preexisting_configuration(click_runner, custom_filepath):
-    custom_config_filepath = os.path.join(custom_filepath, BobConfiguration.generate_filename())
-    init_args = ('bob', 'run', '--dry-run', '--lonely', '--config-file', custom_config_filepath)
+def test_bob_control_starts_with_preexisting_configuration(click_runner, custom_filepath: Path):
+    custom_config_filepath = custom_filepath / BobConfiguration.generate_filename()
+    init_args = ('bob', 'run', '--dry-run', '--lonely', '--config-file', str(custom_config_filepath))
     result = click_runner.invoke(nucypher_cli, init_args, input=FAKE_PASSWORD_CONFIRMED)
     assert result.exit_code == 0, result.exception
     assert "Bob Verifying Key" in result.output
     assert "Bob Encrypting Key" in result.output
 
 
-def test_bob_make_card(click_runner, custom_filepath, mocker):
+def test_bob_make_card(click_runner, custom_filepath: Path, mocker):
     mock_save_card = mocker.patch.object(Card, 'save')
-    custom_config_filepath = os.path.join(custom_filepath, BobConfiguration.generate_filename())
-    command = ('bob', 'make-card', '--nickname', 'anders', '--config-file', custom_config_filepath)
+    custom_config_filepath = custom_filepath / BobConfiguration.generate_filename()
+    command = ('bob', 'make-card', '--nickname', 'anders', '--config-file', str(custom_config_filepath))
     result = click_runner.invoke(nucypher_cli, command, input=FAKE_PASSWORD_CONFIRMED, catch_exceptions=False)
     assert result.exit_code == 0
     assert "Saved new character card " in result.output
     mock_save_card.assert_called_once()
 
 
-def test_bob_view_with_preexisting_configuration(click_runner, custom_filepath):
-    custom_config_filepath = os.path.join(custom_filepath, BobConfiguration.generate_filename())
-    view_args = ('bob', 'config', '--config-file', custom_config_filepath)
+def test_bob_view_with_preexisting_configuration(click_runner, custom_filepath: Path):
+    custom_config_filepath = custom_filepath / BobConfiguration.generate_filename()
+    view_args = ('bob', 'config', '--config-file', str(custom_config_filepath))
     result = click_runner.invoke(nucypher_cli, view_args, input=FAKE_PASSWORD_CONFIRMED)
     assert result.exit_code == 0, result.exception
     assert "checksum_address" in result.output
@@ -121,7 +122,7 @@ def test_bob_retrieves_twice_via_cli(click_runner,
                                      capsule_side_channel,
                                      enacted_federated_policy,
                                      federated_ursulas,
-                                     custom_filepath_2,
+                                     custom_filepath_2: Path,
                                      federated_alice,
                                      federated_bob,
                                      mocker):
@@ -132,7 +133,7 @@ def test_bob_retrieves_twice_via_cli(click_runner,
     three_message_kits = [capsule_side_channel(), capsule_side_channel(), capsule_side_channel()]
 
     bob_config_root = custom_filepath_2
-    bob_configuration_file_location = os.path.join(bob_config_root, BobConfiguration.generate_filename())
+    bob_configuration_file_location = bob_config_root / BobConfiguration.generate_filename()
     label = enacted_federated_policy.label
 
     # I already have a Bob.
@@ -200,10 +201,10 @@ def test_bob_retrieves_twice_via_cli(click_runner,
 
 
 # NOTE: Should be the last test in this module since it deletes the configuration file
-def test_bob_destroy(click_runner, custom_filepath):
-    custom_config_filepath = os.path.join(custom_filepath, BobConfiguration.generate_filename())
-    destroy_args = ('bob', 'destroy', '--config-file', custom_config_filepath, '--force')
+def test_bob_destroy(click_runner, custom_filepath: Path):
+    custom_config_filepath = custom_filepath / BobConfiguration.generate_filename()
+    destroy_args = ('bob', 'destroy', '--config-file', str(custom_config_filepath), '--force')
     result = click_runner.invoke(nucypher_cli, destroy_args, catch_exceptions=False)
     assert result.exit_code == 0, result.exception
     assert SUCCESSFUL_DESTRUCTION in result.output
-    assert not os.path.exists(custom_config_filepath), "Bob config file was deleted"
+    assert not custom_config_filepath.exists(), "Bob config file was deleted"

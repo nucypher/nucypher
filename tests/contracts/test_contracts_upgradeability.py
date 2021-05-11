@@ -52,14 +52,14 @@ BlockchainDeployerInterface.GAS_STRATEGIES = {**BlockchainDeployerInterface.GAS_
                                               'free': free_gas_price_strategy}
 
 
-def download_github_dir(source_link: str, target_folder: str):
+def download_github_dir(source_link: str, target_folder: Path):
     response = requests.get(source_link)
     if response.status_code != 200:
         error = f"Failed to call api {source_link} with status code {response.status_code}"
         raise RuntimeError(error)
 
     for content in response.json():
-        path = os.path.join(target_folder, content["name"])
+        path = target_folder / content["name"]
         if content["type"] == "dir":
             os.mkdir(path)
             download_github_dir(content["url"], path)

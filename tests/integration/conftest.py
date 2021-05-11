@@ -14,6 +14,7 @@ GNU Affero General Public License for more details.
 You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
+from pathlib import Path
 
 import lmdb
 import os
@@ -213,8 +214,8 @@ def worker_address(worker_account):
 
 
 @pytest.fixture(scope='module')
-def custom_config_filepath(custom_filepath):
-    filepath = os.path.join(custom_filepath, UrsulaConfiguration.generate_filename())
+def custom_config_filepath(custom_filepath: Path):
+    filepath = custom_filepath / UrsulaConfiguration.generate_filename()
     return filepath
 
 

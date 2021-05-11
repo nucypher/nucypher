@@ -108,7 +108,7 @@ class TestTemporaryFileBasedNodeStorage(BaseTestNodeStorageBackends):
         some_node, another_node, *other = os.listdir(self.storage_backend.metadata_dir)
 
         # Let's break the metadata (but not the version)
-        metadata_path = os.path.join(self.storage_backend.metadata_dir, some_node)
+        metadata_path = self.storage_backend.metadata_dir / some_node
         with open(metadata_path, 'wb') as file:
             file.write(Learner.LEARNER_VERSION.to_bytes(4, 'big') + b'invalid')
 
@@ -118,7 +118,7 @@ class TestTemporaryFileBasedNodeStorage(BaseTestNodeStorageBackends):
                                      certificate_only=False)
 
         # Let's break the metadata, by putting a completely wrong version
-        metadata_path = os.path.join(self.storage_backend.metadata_dir, another_node)
+        metadata_path = self.storage_backend.metadata_dir / another_node
         with open(metadata_path, 'wb') as file:
             file.write(b'meh')  # Versions are expected to be 4 bytes, but this is 3 bytes
 

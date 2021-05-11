@@ -119,7 +119,7 @@ test_logger = Logger("test-logger")
 @pytest.fixture(scope="function")
 def tempfile_path():
     fd, path = tempfile.mkstemp()
-    yield path
+    yield Path(path)
     os.close(fd)
     os.remove(path)
 
@@ -127,7 +127,7 @@ def tempfile_path():
 @pytest.fixture(scope="module")
 def temp_dir_path():
     temp_dir = tempfile.TemporaryDirectory(prefix='nucypher-test-')
-    yield temp_dir.name
+    yield Path(temp_dir.name)
     temp_dir.cleanup()
 
 
@@ -141,7 +141,7 @@ def test_datastore():
 def certificates_tempdir():
     custom_filepath = '/tmp/nucypher-test-certificates-'
     cert_tmpdir = tempfile.TemporaryDirectory(prefix=custom_filepath)
-    yield cert_tmpdir.name
+    yield Path(cert_tmpdir.name)
     cert_tmpdir.cleanup()
 
 
@@ -637,7 +637,7 @@ def agency_local_registry(testerchain, agency, test_registry):
     registry = LocalContractRegistry(filepath=MOCK_REGISTRY_FILEPATH)
     registry.write(test_registry.read())
     yield registry
-    if os.path.exists(MOCK_REGISTRY_FILEPATH):
+    if MOCK_REGISTRY_FILEPATH.exists():
         os.remove(MOCK_REGISTRY_FILEPATH)
 
 
@@ -785,11 +785,11 @@ def mock_ursula_reencrypts():
 
 @pytest.fixture(scope='session')
 def stakeholder_config_file_location():
-    path = os.path.join('/', 'tmp', 'nucypher-test-stakeholder.json')
-    if os.path.exists(path):
+    path = Path('/', 'tmp', 'nucypher-test-stakeholder.json')
+    if path.exists():
         os.remove(path)
     yield path
-    if os.path.exists(path):
+    if path.exists():
         os.remove(path)
 
 
@@ -799,7 +799,7 @@ def software_stakeholder(testerchain, agency, stakeholder_config_file_location, 
 
     # Setup
     path = stakeholder_config_file_location
-    if os.path.exists(path):
+    if path.exists():
         os.remove(path)
 
     #                          0xaAa482c790b4301bE18D75A0D1B11B2ACBEF798B
@@ -835,7 +835,7 @@ def software_stakeholder(testerchain, agency, stakeholder_config_file_location, 
 
     # Teardown
     yield stakeholder
-    if os.path.exists(path):
+    if path.exists():
         os.remove(path)
 
 
@@ -1029,6 +1029,7 @@ def nominal_federated_configuration_fields():
     del config
 
 
+# TODO: Not used?
 @pytest.fixture(scope='module')
 def mock_allocation_infile(testerchain, token_economics, get_random_checksum_address):
     accounts = [get_random_checksum_address() for _ in range(10)]
@@ -1044,18 +1045,18 @@ def mock_allocation_infile(testerchain, token_economics, get_random_checksum_add
         file.write(json.dumps(allocation_data))
 
     yield MOCK_ALLOCATION_INFILE
-    if os.path.isfile(MOCK_ALLOCATION_INFILE):
+    if MOCK_ALLOCATION_INFILE.is_file():
         os.remove(MOCK_ALLOCATION_INFILE)
 
 
 @pytest.fixture(scope='function')
 def new_local_registry():
     filename = f'{BASE_TEMP_PREFIX}mock-empty-registry-{datetime.now().strftime(DATETIME_FORMAT)}.json'
-    registry_filepath = os.path.join(BASE_TEMP_DIR, filename)
+    registry_filepath = BASE_TEMP_DIR / filename
     registry = LocalContractRegistry(filepath=registry_filepath)
     registry.write(InMemoryContractRegistry().read())
     yield registry
-    if os.path.exists(registry_filepath):
+    if registry_filepath.exists():
         os.remove(registry_filepath)
 
 
@@ -1082,16 +1083,14 @@ def custom_filepath_2():
 
 
 @pytest.fixture(scope='module')
-def worker_configuration_file_location(custom_filepath):
-    _configuration_file_location = os.path.join(MOCK_CUSTOM_INSTALLATION_PATH,
-                                                UrsulaConfiguration.generate_filename())
+def worker_configuration_file_location(custom_filepath) -> Path:
+    _configuration_file_location = MOCK_CUSTOM_INSTALLATION_PATH / UrsulaConfiguration.generate_filename()
     return _configuration_file_location
 
 
 @pytest.fixture(scope='module')
-def stakeholder_configuration_file_location(custom_filepath):
-    _configuration_file_location = os.path.join(MOCK_CUSTOM_INSTALLATION_PATH,
-                                                StakeHolderConfiguration.generate_filename())
+def stakeholder_configuration_file_location(custom_filepath) -> Path:
+    _configuration_file_location = MOCK_CUSTOM_INSTALLATION_PATH / StakeHolderConfiguration.generate_filename()
     return _configuration_file_location
 
 

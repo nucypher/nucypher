@@ -74,10 +74,10 @@ def test_new_stakeholder(click_runner,
     assert result.exit_code == 0
 
     # Files and Directories
-    assert os.path.isdir(custom_filepath), 'Configuration file does not exist'
+    assert custom_filepath.is_dir(), 'Configuration file does not exist'
 
-    custom_config_filepath = os.path.join(custom_filepath, StakeHolderConfiguration.generate_filename())
-    assert os.path.isfile(custom_config_filepath), 'Configuration file does not exist'
+    custom_config_filepath = custom_filepath / StakeHolderConfiguration.generate_filename()
+    assert custom_config_filepath.is_file(), 'Configuration file does not exist'
 
     with open(custom_config_filepath, 'r') as config_file:
         raw_config_data = config_file.read()
@@ -376,12 +376,12 @@ def test_ursula_init(click_runner,
     assert result.exit_code == 0
 
     # Files and Directories
-    assert os.path.isdir(custom_filepath), 'Configuration file does not exist'
-    assert os.path.isdir(os.path.join(custom_filepath, 'keystore')), 'KEYSTORE does not exist'
-    assert os.path.isdir(os.path.join(custom_filepath, 'known_nodes')), 'known_nodes directory does not exist'
+    assert custom_filepath.is_dir(), 'Configuration file does not exist'
+    assert (custom_filepath / 'keystore').is_dir(), 'KEYSTORE does not exist'
+    assert (custom_filepath / 'known_nodes').is_dir(), 'known_nodes directory does not exist'
 
-    custom_config_filepath = os.path.join(custom_filepath, UrsulaConfiguration.generate_filename())
-    assert os.path.isfile(custom_config_filepath), 'Configuration file does not exist'
+    custom_config_filepath = custom_filepath / UrsulaConfiguration.generate_filename()
+    assert custom_config_filepath.is_file(), 'Configuration file does not exist'
 
     with open(custom_config_filepath, 'r') as config_file:
         raw_config_data = config_file.read()
@@ -397,7 +397,7 @@ def test_ursula_run(click_runner,
                     custom_filepath,
                     testerchain):
 
-    custom_config_filepath = os.path.join(custom_filepath, UrsulaConfiguration.generate_filename())
+    custom_config_filepath = custom_filepath / UrsulaConfiguration.generate_filename()
 
     # Now start running your Ursula!
     init_args = ('ursula', 'run',

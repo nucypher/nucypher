@@ -17,7 +17,7 @@
 
 
 import os
-import pytest
+from pathlib import Path
 
 from nucypher.blockchain.eth.agents import (
     AdjudicatorAgent,
@@ -42,8 +42,8 @@ from tests.constants import (
     YES_ENTER
 )
 
-ALTERNATE_REGISTRY_FILEPATH = '/tmp/nucypher-test-registry-alternate.json'
-ALTERNATE_REGISTRY_FILEPATH_2 = '/tmp/nucypher-test-registry-alternate-2.json'
+ALTERNATE_REGISTRY_FILEPATH = Path('/tmp/nucypher-test-registry-alternate.json')
+ALTERNATE_REGISTRY_FILEPATH_2 = Path('/tmp/nucypher-test-registry-alternate-2.json')
 
 
 def test_nucypher_deploy_inspect_no_deployments(click_runner, testerchain, new_local_registry):
@@ -196,9 +196,9 @@ def test_transfer_ownership_staking_interface_router(click_runner, testerchain, 
 
 def test_bare_contract_deployment_to_alternate_registry(click_runner, agency_local_registry):
 
-    if os.path.exists(ALTERNATE_REGISTRY_FILEPATH):
+    if ALTERNATE_REGISTRY_FILEPATH.exists():
         os.remove(ALTERNATE_REGISTRY_FILEPATH)
-    assert not os.path.exists(ALTERNATE_REGISTRY_FILEPATH)
+    assert not ALTERNATE_REGISTRY_FILEPATH.exists()
 
     command = ('contracts',
                '--contract-name', StakingEscrowDeployer.contract_name,
@@ -215,8 +215,8 @@ def test_bare_contract_deployment_to_alternate_registry(click_runner, agency_loc
     assert result.exit_code == 0
 
     # Verify alternate registry output
-    assert os.path.exists(agency_local_registry.filepath)
-    assert os.path.exists(ALTERNATE_REGISTRY_FILEPATH)
+    assert agency_local_registry.filepath.exists()
+    assert ALTERNATE_REGISTRY_FILEPATH.exists()
     new_registry = LocalContractRegistry(filepath=ALTERNATE_REGISTRY_FILEPATH)
     assert agency_local_registry != new_registry
 
@@ -230,7 +230,7 @@ def test_bare_contract_deployment_to_alternate_registry(click_runner, agency_loc
 def test_manual_proxy_retargeting(monkeypatch, testerchain, click_runner, token_economics):
 
     # A local, alternate filepath registry exists
-    assert os.path.exists(ALTERNATE_REGISTRY_FILEPATH)
+    assert ALTERNATE_REGISTRY_FILEPATH.exists()
     local_registry = LocalContractRegistry(filepath=ALTERNATE_REGISTRY_FILEPATH)
     deployer = StakingEscrowDeployer(registry=local_registry,
                                      economics=token_economics)
@@ -267,9 +267,9 @@ def test_manual_proxy_retargeting(monkeypatch, testerchain, click_runner, token_
 
 def test_manual_deployment_of_idle_network(click_runner):
 
-    if os.path.exists(ALTERNATE_REGISTRY_FILEPATH_2):
+    if ALTERNATE_REGISTRY_FILEPATH_2.exists():
         os.remove(ALTERNATE_REGISTRY_FILEPATH_2)
-    assert not os.path.exists(ALTERNATE_REGISTRY_FILEPATH_2)
+    assert not ALTERNATE_REGISTRY_FILEPATH_2.exists()
     registry = LocalContractRegistry(filepath=ALTERNATE_REGISTRY_FILEPATH_2)
     registry.write(InMemoryContractRegistry().read())  # TODO: Manual deployments from scratch require an existing but empty registry (i.e., a json file just with "[]")
 
@@ -286,7 +286,7 @@ def test_manual_deployment_of_idle_network(click_runner):
     result = click_runner.invoke(deploy, command, input=user_input, catch_exceptions=False)
     assert result.exit_code == 0, result.output
 
-    assert os.path.exists(ALTERNATE_REGISTRY_FILEPATH_2)
+    assert ALTERNATE_REGISTRY_FILEPATH_2.exists()
     new_registry = LocalContractRegistry(filepath=ALTERNATE_REGISTRY_FILEPATH_2)
 
     deployed_contracts = [NUCYPHER_TOKEN_CONTRACT_NAME]

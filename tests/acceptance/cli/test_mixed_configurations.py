@@ -43,10 +43,10 @@ from tests.constants import (
 
 @pytest.fixture(scope='function')
 def custom_filepath():
-    _path = str(MOCK_CUSTOM_INSTALLATION_PATH)
+    _path = MOCK_CUSTOM_INSTALLATION_PATH
     shutil.rmtree(_path, ignore_errors=True)
-    assert not Path(_path).exists()
-    yield Path(_path)
+    assert not _path.exists()
+    yield _path
     shutil.rmtree(_path, ignore_errors=True)
 
 
@@ -96,7 +96,7 @@ def test_coexisting_configurations(click_runner,
     assert not known_nodes_dir.exists()
 
     # Not the configuration root...
-    assert not os.path.isdir(custom_filepath)
+    assert not custom_filepath.is_dir()
 
     # ... nothing
     None
@@ -123,8 +123,8 @@ def test_coexisting_configurations(click_runner,
     assert result.exit_code == 0
 
     # All configuration files still exist.
-    assert os.path.isdir(custom_filepath)
-    assert os.path.isfile(felix_file_location)
+    assert custom_filepath.is_dir()
+    assert felix_file_location.is_file()
 
     # Use a custom local filepath to init a persistent Alice
     alice_init_args = ('alice', 'init',
@@ -138,8 +138,8 @@ def test_coexisting_configurations(click_runner,
     assert result.exit_code == 0
 
     # All configuration files still exist.
-    assert os.path.isfile(felix_file_location)
-    assert os.path.isfile(alice_file_location)
+    assert felix_file_location.is_file()
+    assert alice_file_location.is_file()
 
     # Use the same local filepath to init a persistent Ursula
     init_args = ('ursula', 'init',
@@ -154,9 +154,9 @@ def test_coexisting_configurations(click_runner,
     assert result.exit_code == 0, result.output
 
     # All configuration files still exist.
-    assert os.path.isfile(felix_file_location)
-    assert os.path.isfile(alice_file_location)
-    assert os.path.isfile(ursula_file_location)
+    assert felix_file_location.is_file()
+    assert alice_file_location.is_file()
+    assert ursula_file_location.is_file()
 
     key_spy = mocker.spy(Keystore, 'generate')
 
@@ -174,14 +174,14 @@ def test_coexisting_configurations(click_runner,
     assert result.exit_code == 0
 
     # All configuration files still exist.
-    assert os.path.isfile(felix_file_location)
-    assert os.path.isfile(alice_file_location)
+    assert felix_file_location.is_file()
+    assert alice_file_location.is_file()
 
     kid = key_spy.spy_return.id[:8]
     another_ursula_configuration_file_location = custom_filepath / UrsulaConfiguration.generate_filename(modifier=kid)
-    assert os.path.isfile(another_ursula_configuration_file_location)
+    assert another_ursula_configuration_file_location.is_file()
 
-    assert os.path.isfile(ursula_file_location)
+    assert ursula_file_location.is_file()
 
     #
     # Run
@@ -204,10 +204,10 @@ def test_coexisting_configurations(click_runner,
     Worker.READY_TIMEOUT = None
 
     # All configuration files still exist.
-    assert os.path.isfile(felix_file_location)
-    assert os.path.isfile(alice_file_location)
-    assert os.path.isfile(another_ursula_configuration_file_location)
-    assert os.path.isfile(ursula_file_location)
+    assert felix_file_location.is_file()
+    assert alice_file_location.is_file()
+    assert another_ursula_configuration_file_location.is_file()
+    assert ursula_file_location.is_file()
 
     # Check that the proper Ursula console is attached
     assert another_ursula in result.output
@@ -221,23 +221,23 @@ def test_coexisting_configurations(click_runner,
                                        '--config-file', another_ursula_configuration_file_location)
     result = click_runner.invoke(nucypher_cli, another_ursula_destruction_args, catch_exceptions=False, env=envvars)
     assert result.exit_code == 0
-    assert not os.path.isfile(another_ursula_configuration_file_location)
+    assert not another_ursula_configuration_file_location.is_file()
 
     ursula_destruction_args = ('ursula', 'destroy', '--config-file', ursula_file_location)
     result = click_runner.invoke(nucypher_cli, ursula_destruction_args, input='Y', catch_exceptions=False, env=envvars)
     assert result.exit_code == 0
     assert 'y/N' in result.output
-    assert not os.path.isfile(ursula_file_location)
+    assert not ursula_file_location.is_file()
 
     alice_destruction_args = ('alice', 'destroy', '--force', '--config-file', alice_file_location)
     result = click_runner.invoke(nucypher_cli, alice_destruction_args, catch_exceptions=False, env=envvars)
     assert result.exit_code == 0
-    assert not os.path.isfile(alice_file_location)
+    assert not alice_file_location.is_file()
 
     felix_destruction_args = ('felix', 'destroy', '--force', '--config-file', felix_file_location)
     result = click_runner.invoke(nucypher_cli, felix_destruction_args, catch_exceptions=False, env=envvars)
     assert result.exit_code == 0
-    assert not os.path.isfile(felix_file_location)
+    assert not felix_file_location.is_file()
 
 
 def test_corrupted_configuration(click_runner,

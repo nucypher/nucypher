@@ -14,6 +14,7 @@ GNU Affero General Public License for more details.
 You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
+from pathlib import Path
 
 import click
 from cryptography.exceptions import InternalError
@@ -133,6 +134,15 @@ class UmbralPublicKeyHex(click.ParamType):
         return value
 
 
+# TODO: Remove after click==8.x.x is released
+# Reference: https://github.com/pallets/click/issues/405
+# Reference: https://github.com/pallets/click/pull/1804
+class PathPath(click.Path):
+    """A Click path argument that returns a pathlib Path, not a string"""
+    def convert(self, value, param, ctx):
+        return Path(super().convert(value, param, ctx))
+
+
 # Ethereum
 EIP55_CHECKSUM_ADDRESS = ChecksumAddress()
 WEI = click.IntRange(min=1, clamp=False)  # TODO: Better validation for ether and wei values?
@@ -143,8 +153,8 @@ MIN_ALLOWED_LOCKED_TOKENS = Decimal(__min_allowed_locked)
 STAKED_TOKENS_RANGE = DecimalRange(min=__min_allowed_locked)
 
 # Filesystem
-EXISTING_WRITABLE_DIRECTORY = click.Path(exists=True, dir_okay=True, file_okay=False, writable=True)
-EXISTING_READABLE_FILE = click.Path(exists=True, dir_okay=False, file_okay=True, readable=True)
+EXISTING_WRITABLE_DIRECTORY = PathPath(exists=True, dir_okay=True, file_okay=False, writable=True)
+EXISTING_READABLE_FILE = PathPath(exists=True, dir_okay=False, file_okay=True, readable=True)
 
 # Network
 NETWORK_PORT = click.IntRange(min=0, max=65535, clamp=False)

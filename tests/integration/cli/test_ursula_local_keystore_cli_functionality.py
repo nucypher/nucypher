@@ -46,13 +46,13 @@ def mock_account_password_keystore(tmp_path_factory):
 
 
 def test_ursula_init_with_local_keystore_signer(click_runner,
-                                                tmp_path,
+                                                temp_dir_path,
                                                 mocker,
                                                 mock_testerchain,
                                                 mock_account_password_keystore,
                                                 test_registry_source_manager):
-    custom_filepath = tmp_path
-    custom_config_filepath = tmp_path / UrsulaConfiguration.generate_filename()
+    custom_filepath = temp_dir_path
+    custom_config_filepath = temp_dir_path / UrsulaConfiguration.generate_filename()
     worker_account, password, mock_keystore_path = mock_account_password_keystore
     mock_signer_uri = f'keystore://{mock_keystore_path}'
 

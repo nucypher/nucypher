@@ -36,11 +36,11 @@ from tests.constants import INSECURE_DEVELOPMENT_PASSWORD
 from tests.utils.matchers import IsType
 
 
-def test_generate_alice_keystore(tmpdir):
+def test_generate_alice_keystore(temp_dir_path):
 
     keystore = Keystore.generate(
         password=INSECURE_DEVELOPMENT_PASSWORD,
-        keystore_dir=tmpdir
+        keystore_dir=temp_dir_path
     )
 
     with pytest.raises(Keystore.Locked):
@@ -68,10 +68,10 @@ def test_generate_alice_keystore(tmpdir):
     assert delegating_pubkey == another_delegating_pubkey
 
 
-def test_characters_use_keystore(tmpdir):
+def test_characters_use_keystore(temp_dir_path):
     keystore = Keystore.generate(
         password=INSECURE_DEVELOPMENT_PASSWORD,
-        keystore_dir=tmpdir
+        keystore_dir=temp_dir_path
     )
     keystore.unlock(password=INSECURE_DEVELOPMENT_PASSWORD)
     alice = Alice(federated_only=True, start_learning_now=False, keystore=keystore)
@@ -87,10 +87,10 @@ def test_characters_use_keystore(tmpdir):
 
 
 @pytest.mark.skip('Do we really though?')
-def test_tls_hosting_certificate_remains_the_same(tmpdir, mocker):
+def test_tls_hosting_certificate_remains_the_same(temp_dir_path, mocker):
     keystore = Keystore.generate(
         password=INSECURE_DEVELOPMENT_PASSWORD,
-        keystore_dir=tmpdir
+        keystore_dir=temp_dir_path
     )
     keystore.unlock(password=INSECURE_DEVELOPMENT_PASSWORD)
 

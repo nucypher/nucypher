@@ -14,6 +14,8 @@ GNU Affero General Public License for more details.
 You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
+from pathlib import Path
+
 import lmdb
 from contextlib import contextmanager, suppress
 from functools import partial
@@ -83,7 +85,7 @@ class Datastore:
     # We can set this arbitrarily high (1TB) to prevent any run-time crashes.
     LMDB_MAP_SIZE = 1_000_000_000_000
 
-    def __init__(self, db_path: str) -> None:
+    def __init__(self, db_path: Path) -> None:
         """
         Initializes a Datastore object by path.
 

@@ -17,6 +17,8 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 
 
 import contextlib
+from pathlib import Path
+
 import json
 import random
 import time
@@ -1099,9 +1101,9 @@ class Ursula(Teacher, Character, Worker):
                  is_me: bool = True,
 
                  certificate: Certificate = None,
-                 certificate_filepath: str = None,
+                 certificate_filepath: Path = None,
 
-                 db_filepath: str = None,
+                 db_filepath: Path = None,
                  interface_signature=None,
                  timestamp=None,
                  availability_check: bool = False,  # TODO: Remove from init

@@ -72,7 +72,7 @@ DEFAULT_SEEDNODE_URIS: List[str] = [
     *TEACHER_NODES[DOMAIN],
 ]
 INSECURE_PASSWORD: str = "METRICS_INSECURE_DEVELOPMENT_PASSWORD"
-TEMP_ALICE_DIR: str = Path('/', 'tmp', 'grant-metrics')
+TEMP_ALICE_DIR: Path = Path('/', 'tmp', 'grant-metrics')
 
 # Policy Parameters
 M: int = 1
@@ -166,7 +166,7 @@ def make_alice(known_nodes: Optional[Set[Ursula]] = None):
         provider_uri=ETHEREUM_PROVIDER_URI,
         checksum_address=ALICE_ADDRESS,
         signer_uri=f'keystore://{SIGNER_URI}',
-        config_root=os.path.join(TEMP_ALICE_DIR),
+        config_root=TEMP_ALICE_DIR,
         domain=DOMAIN,
         known_nodes=known_nodes,
         start_learning_now=False,

@@ -19,9 +19,10 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 import os
 import uuid
 import weakref
+from pathlib import Path
+
 from datetime import datetime, timedelta
 from typing import Tuple
-
 from constant_sorrow import constants
 from constant_sorrow.constants import FLEET_STATES_MATCH, RELAX, NOT_STAKING
 from flask import Flask, Response, jsonify, request
@@ -44,10 +45,10 @@ from nucypher.network.exceptions import NodeSeemsToBeDown
 from nucypher.network.protocols import InterfaceInfo
 from nucypher.utilities.logging import Logger
 
-HERE = BASE_DIR = os.path.abspath(os.path.dirname(__file__))
-TEMPLATES_DIR = os.path.join(HERE, "templates")
+HERE = BASE_DIR = Path(__file__).parent
+TEMPLATES_DIR = HERE / "templates"
 
-status_template = Template(filename=os.path.join(TEMPLATES_DIR, "basic_status.mako")).get_def('main')
+status_template = Template(filename=str(TEMPLATES_DIR / "basic_status.mako")).get_def('main')
 
 
 class ProxyRESTServer:
@@ -76,7 +77,7 @@ class ProxyRESTServer:
 
 
 def make_rest_app(
-        db_filepath: str,
+        db_filepath: Path,
         this_node,
         domain,
         log: Logger = Logger("http-application-layer")

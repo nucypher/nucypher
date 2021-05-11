@@ -144,7 +144,7 @@ def test_nucypher_status_locked_tokens(click_runner, testerchain, agency_local_r
         assert re.search(f"Min: {all_locked} - Max: {all_locked}", result.output, re.MULTILINE)
 
 
-def test_nucypher_status_events(click_runner, testerchain, agency_local_registry, stakers, tmpdir):
+def test_nucypher_status_events(click_runner, testerchain, agency_local_registry, stakers, temp_dir_path):
     # All workers make a commitment
     staking_agent = ContractAgency.get_agent(StakingEscrowAgent, registry=agency_local_registry)
     starting_block_number = testerchain.get_block_number()
@@ -188,7 +188,7 @@ def test_nucypher_status_events(click_runner, testerchain, agency_local_registry
     #
     # CSV output
     #
-    csv_file = Path(tmpdir) / 'status_events_output.csv'
+    csv_file = temp_dir_path / 'status_events_output.csv'
     csv_status_command = ('events',
                           '--provider', TEST_PROVIDER_URI,
                           '--network', TEMPORARY_DOMAIN,

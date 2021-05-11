@@ -18,6 +18,7 @@
 
 import json
 import os
+from pathlib import Path
 from unittest.mock import patch, PropertyMock
 
 import pytest
@@ -37,8 +38,8 @@ CONTRACTS_TO_UPGRADE = ('StakingEscrow', 'PolicyManager', 'Adjudicator', 'Stakin
 
 
 @pytest.fixture(scope="module")
-def registry_filepath(temp_dir_path):
-    return os.path.join(temp_dir_path, 'nucypher-test-autodeploy.json')
+def registry_filepath(temp_dir_path: Path):
+    return temp_dir_path / 'nucypher-test-autodeploy.json'
 
 
 def test_deploy_single_contract(click_runner, tempfile_path):

@@ -16,10 +16,11 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 import json
 from json import JSONDecodeError
-from os.path import abspath, dirname
 
 import hashlib
 import os
+from pathlib import Path
+
 import requests
 import shutil
 import tempfile
@@ -345,7 +346,7 @@ class LocalContractRegistry(BaseContractRegistry):
 
     REGISTRY_TYPE = 'contract'
 
-    def __init__(self, filepath: str, *args, **kwargs):
+    def __init__(self, filepath: Path, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.__filepath = filepath
         self.log.info(f"Using {self.REGISTRY_TYPE} registry {filepath}")
@@ -355,8 +356,8 @@ class LocalContractRegistry(BaseContractRegistry):
         return r
 
     @property
-    def filepath(self) -> str:
-        return str(self.__filepath)
+    def filepath(self) -> Path:
+        return self.__filepath
 
     def _swap_registry(self, filepath: str) -> bool:
         self.__filepath = filepath
@@ -398,7 +399,7 @@ class LocalContractRegistry(BaseContractRegistry):
         it will _overwrite_ everything in it.
         """
         # Ensure parent path exists
-        os.makedirs(abspath(dirname(self.__filepath)), exist_ok=True)
+        os.makedirs(self.__filepath.parent, exist_ok=True)
 
         with open(self.__filepath, 'w') as registry_file:
             registry_file.seek(0)
@@ -432,12 +433,12 @@ class TemporaryContractRegistry(LocalContractRegistry):
         with open(self.filepath, 'w') as registry_file:
             registry_file.write('')
 
-    def commit(self, filepath) -> str:
+    def commit(self, filepath) -> Path:
         """writes the current state of the registry to a file"""
         self.log.info("Committing temporary registry to {}".format(filepath))
         self._swap_registry(filepath)                     # I'll allow it
 
-        if os.path.exists(filepath):
+        if filepath.exists():
             self.log.debug("Removing registry {}".format(filepath))
             self.clear()                                  # clear prior sim runs
 
@@ -474,12 +475,12 @@ class InMemoryContractRegistry(BaseContractRegistry):
                 raise
         return registry_data
 
-    def commit(self, filepath: str = None, overwrite: bool = False) -> str:
+    def commit(self, filepath: Path = None, overwrite: bool = False) -> Path:
         """writes the current state of the registry to a file"""
         if not filepath:
-            filepath = os.path.join(DEFAULT_CONFIG_ROOT, self.REGISTRY_NAME)
+            filepath = DEFAULT_CONFIG_ROOT / self.REGISTRY_NAME
         self.log.info("Committing in-memory registry to disk.")
-        if os.path.exists(filepath) and not overwrite:
+        if filepath.exists() and not overwrite:
             existing_registry = LocalContractRegistry(filepath=filepath)
             raise self.CantOverwriteRegistry(f"Registry #{existing_registry.id[:16]} exists at {filepath} "
                                              f"while writing Registry #{self.id[:16]}).  "

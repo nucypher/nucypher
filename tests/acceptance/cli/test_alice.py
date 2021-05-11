@@ -16,6 +16,7 @@
 """
 
 import os
+from pathlib import Path
 from unittest import mock
 from unittest.mock import PropertyMock
 
@@ -97,6 +98,8 @@ def test_alice_control_starts_with_mocked_keystore(click_runner, mocker, monkeyp
 
 
 def test_initialize_alice_with_custom_configuration_root(custom_filepath, click_runner, monkeypatch):
+    custom_filepath = Path(custom_filepath)
+
     monkeypatch.delenv(NUCYPHER_ENVVAR_KEYSTORE_PASSWORD, raising=False)
 
     # Use a custom local filepath for configuration
@@ -114,12 +117,12 @@ def test_initialize_alice_with_custom_configuration_root(custom_filepath, click_
     assert 'IPv4' not in result.output
 
     # Files and Directories
-    assert os.path.isdir(custom_filepath), 'Configuration file does not exist'
-    assert os.path.isdir(os.path.join(custom_filepath, 'keystore')), 'KEYSTORE does not exist'
-    assert os.path.isdir(os.path.join(custom_filepath, 'known_nodes')), 'known_nodes directory does not exist'
+    assert custom_filepath.is_dir(), 'Configuration file does not exist'
+    assert (custom_filepath / 'keystore').is_dir(), 'Keystore does not exist'
+    assert (custom_filepath / 'known_nodes').is_dir(), 'known_nodes directory does not exist'
 
-    custom_config_filepath = os.path.join(custom_filepath, AliceConfiguration.generate_filename())
-    assert os.path.isfile(custom_config_filepath), 'Configuration file does not exist'
+    custom_config_filepath = custom_filepath / AliceConfiguration.generate_filename()
+    assert custom_config_filepath.is_file(), 'Configuration file does not exist'
 
     # Auth
     assert COLLECT_NUCYPHER_PASSWORD in result.output, 'WARNING: User was not prompted for password'
@@ -127,16 +130,18 @@ def test_initialize_alice_with_custom_configuration_root(custom_filepath, click_
 
 
 def test_alice_control_starts_with_preexisting_configuration(click_runner, custom_filepath):
-    custom_config_filepath = os.path.join(custom_filepath, AliceConfiguration.generate_filename())
-    run_args = ('alice', 'run', '--dry-run', '--lonely', '--config-file', custom_config_filepath)
+    custom_filepath = Path(custom_filepath)
+    custom_config_filepath = custom_filepath / AliceConfiguration.generate_filename()
+    run_args = ('alice', 'run', '--dry-run', '--lonely', '--config-file', str(custom_config_filepath))
     result = click_runner.invoke(nucypher_cli, run_args, input=FAKE_PASSWORD_CONFIRMED)
     assert result.exit_code == 0, result.exception
 
 
 def test_alice_make_card(click_runner, custom_filepath, mocker):
+    custom_filepath = Path(custom_filepath)
     mock_save_card = mocker.patch.object(Card, 'save')
-    custom_config_filepath = os.path.join(custom_filepath, AliceConfiguration.generate_filename())
-    command = ('alice', 'make-card', '--nickname', 'flora', '--config-file', custom_config_filepath)
+    custom_config_filepath = custom_filepath / AliceConfiguration.generate_filename()
+    command = ('alice', 'make-card', '--nickname', 'flora', '--config-file', str(custom_config_filepath))
     result = click_runner.invoke(nucypher_cli, command, input=FAKE_PASSWORD_CONFIRMED, catch_exceptions=False)
     assert result.exit_code == 0
     mock_save_card.assert_called_once()
@@ -169,8 +174,9 @@ def test_alice_public_keys(click_runner):
 
 
 def test_alice_view_preexisting_configuration(click_runner, custom_filepath):
-    custom_config_filepath = os.path.join(custom_filepath, AliceConfiguration.generate_filename())
-    view_args = ('alice', 'config', '--config-file', custom_config_filepath)
+    custom_filepath = Path(custom_filepath)
+    custom_config_filepath = custom_filepath / AliceConfiguration.generate_filename()
+    view_args = ('alice', 'config', '--config-file', str(custom_config_filepath))
     result = click_runner.invoke(nucypher_cli, view_args, input=FAKE_PASSWORD_CONFIRMED)
     assert result.exit_code == 0
     assert "checksum_address" in result.output

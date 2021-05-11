@@ -208,9 +208,9 @@ def select_network(emitter: StdoutEmitter) -> str:
 
 def select_config_file(emitter: StdoutEmitter,
                        config_class: Type[CharacterConfiguration],
-                       config_root: str = None,
+                       config_root: Path = None,
                        checksum_address: str = None,
-                       ) -> str:
+                       ) -> Path:
     """
     Selects a nucypher character configuration file from the disk automatically or interactively.
 

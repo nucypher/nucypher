@@ -75,7 +75,7 @@ def test_run_felix(click_runner, testerchain, agency_local_registry):
     result = click_runner.invoke(nucypher_cli, init_args, catch_exceptions=False, env=envvars)
     assert result.exit_code == 0
 
-    configuration_file_location = os.path.join(MOCK_CUSTOM_INSTALLATION_PATH_2, FelixConfiguration.generate_filename())
+    configuration_file_location = MOCK_CUSTOM_INSTALLATION_PATH_2 / FelixConfiguration.generate_filename()
 
     # Felix Creates a Database
     db_args = ('felix', 'createdb',
@@ -180,4 +180,4 @@ def test_run_felix(click_runner, testerchain, agency_local_registry):
     result = click_runner.invoke(nucypher_cli, destroy_args, catch_exceptions=False, env=envvars)
     assert result.exit_code == 0
     assert SUCCESSFUL_DESTRUCTION in result.output
-    assert not os.path.exists(configuration_file_location), "Felix configuration file was deleted"
+    assert not configuration_file_location.exists(), "Felix configuration file was deleted"

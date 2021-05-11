@@ -32,7 +32,7 @@ from tests.utils.blockchain import TesterBlockchain as _TesterBlockchain
 
 
 @pytest.mark.usefixtures('testerchain')
-def test_rapid_deployment(token_economics, test_registry, tmpdir, get_random_checksum_address):
+def test_rapid_deployment(token_economics, test_registry, temp_dir_path, get_random_checksum_address):
 
     blockchain = _TesterBlockchain(eth_airdrop=False, test_accounts=4)
 
@@ -68,7 +68,7 @@ def test_rapid_deployment(token_economics, test_registry, tmpdir, get_random_che
         random_allocation = {'checksum_address': checksum_address, 'amount': amount, 'lock_periods': duration}
         allocation_data.append(random_allocation)
 
-    filepath = tmpdir / "allocations.json"
+    filepath = temp_dir_path / "allocations.json"
     with open(filepath, 'w') as f:
         json.dump(allocation_data, f)
 

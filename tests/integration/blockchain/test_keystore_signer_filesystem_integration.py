@@ -110,15 +110,15 @@ def test_invalid_keystore(tmp_path):
         Signer.from_signer_uri(uri=f'keystore:{bad_address}', testnet=True)
 
 
-def test_signer_reads_keystore_from_disk(mock_account, mock_key, tmpdir):
+def test_signer_reads_keystore_from_disk(mock_account, mock_key, temp_dir_path):
 
     # Test reading a keyfile from the disk via KeystoreSigner since
     # it is mocked for the rest of this test module
-    fake_ethereum = Path(tmpdir) / '.fake-ethereum'
+    fake_ethereum = temp_dir_path / '.fake-ethereum'
     try:
         fake_ethereum.mkdir()
 
-        tmp_keystore = Path(tmpdir) / '.fake-ethereum' / 'keystore'
+        tmp_keystore = temp_dir_path / '.fake-ethereum' / 'keystore'
         tmp_keystore.mkdir()
 
         mock_keyfile_path = tmp_keystore / MOCK_KEYFILE_NAME

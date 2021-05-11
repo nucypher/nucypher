@@ -40,7 +40,7 @@ def multisig_owners(testerchain):
 
 @pytest.fixture(scope="module")
 def multisig_parameters_filepath(multisig_owners, temp_dir_path):
-    filepath = os.path.join(temp_dir_path, 'multisig_params.json')
+    filepath = temp_dir_path / 'multisig_params.json'
 
     multisig_parameters = {
         'threshold': MULTISIG_THRESHOLD,
@@ -51,7 +51,7 @@ def multisig_parameters_filepath(multisig_owners, temp_dir_path):
         file.write(json.dumps(multisig_parameters))
 
     yield filepath
-    if os.path.isfile(filepath):
+    if filepath.exists():
         os.remove(filepath)
 
 

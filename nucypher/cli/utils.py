@@ -144,7 +144,7 @@ def establish_deployer_registry(emitter,
 
     # Establish a contract registry from disk if specified
     filepath = registry_infile
-    default_registry_filepath = os.path.join(DEFAULT_CONFIG_ROOT, BaseContractRegistry.REGISTRY_NAME)
+    default_registry_filepath = DEFAULT_CONFIG_ROOT / BaseContractRegistry.REGISTRY_NAME
     if registry_outfile:
         # mutative usage of existing registry
         registry_infile = registry_infile or default_registry_filepath
@@ -157,7 +157,7 @@ def establish_deployer_registry(emitter,
 
     if dev:
         # TODO: Need a way to detect a geth --dev registry filepath here. (then deprecate the --dev flag)
-        filepath = os.path.join(DEFAULT_CONFIG_ROOT, BaseContractRegistry.DEVELOPMENT_REGISTRY_NAME)
+        filepath = DEFAULT_CONFIG_ROOT / BaseContractRegistry.DEVELOPMENT_REGISTRY_NAME
 
     registry_filepath = filepath or default_registry_filepath
 
@@ -225,10 +225,10 @@ def get_env_bool(var_name: str, default: bool) -> bool:
         return default
 
 
-def ensure_config_root(config_root: str) -> None:
+def ensure_config_root(config_root: Path) -> None:
     """Ensure config root exists, because we need a default place to put output files."""
     config_root = config_root or DEFAULT_CONFIG_ROOT
-    if not os.path.exists(config_root):
+    if not config_root.exists():
         os.makedirs(config_root)
 
 
