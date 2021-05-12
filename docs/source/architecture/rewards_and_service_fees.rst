@@ -43,7 +43,7 @@ a service-provider must commit to servicing the network for some period of
 time by locking collateral (staking). Service-providers specify a stake
 unlocking time in the future :math:`t_u`,
 where at time :math:`t` the minimum duration :math:`t_u − t` may not be fewer than
-:math:`D_min = 4` (measured in periods, with 1 period equals 7 days),
+:math:`D_{min} = 4` (measured in periods, with 1 period equals 7 days),
 but may be any greater number of periods.
 
 The NuCypher protocol allows service-providers to partition their stake into
@@ -68,10 +68,10 @@ Sub-stakes that unlock in 52 periods (approximately 1 year) or more
 receive the maximum subsidy (:math:`\kappa = 1`), whereas a sub-stake that unlocks in
 4 weeks would receive slightly over half the maximum subsidy (:math:`\kappa \approx 0.54`).
 The subsidy coefficient :math:`\kappa` for a given sub-stake :math:`i` is calculated
-as following, where :math:`D_max` is currently set to 52 periods (i.e., 364 days):
+as following, where :math:`D_{max}` is currently set to 52 periods (i.e., 364 days):
 
 .. math::
-    \kappa_i = 0.5 \cdot \left(1 + \frac{\mathsf{min}(D_i, D_max)}{D_max} \right)
+    \kappa_i = 0.5 \cdot \left(1 + \frac{\mathsf{min}(D_i, D_{max})}{D_{max}} \right)
 
 
 To improve user experience, instead of this coefficient,
@@ -94,13 +94,13 @@ Subsidies calculation
 
 For a given period, a sub-stake :math:`i` of size :math:`\ell_i` will receive
 the following subsidy :math:`s_i`, where :math:`L` is the sum of all locked
-sub-stakes (for all active stakers in the network) and :math:`I_max`
+sub-stakes (for all active stakers in the network) and :math:`I_{max}`
 is the maximum number of tokens that can be minted per period:
 
 .. math::
-    s_i = \kappa_i \cdot \frac{\ell_i}{L} \cdot I_max
+    s_i = \kappa_i \cdot \frac{\ell_i}{L} \cdot I_{max}
 
-Note that current value for :math:`I_max` is 7,017,566.35 NU.
+Note that current value for :math:`I_{max}` is 7,017,566.35 NU.
 See the `Staking paper <https://github.com/nucypher/whitepaper/raw/master/economics/staking_protocol/NuCypher_Staking_Protocol_Economics.pdf>`_
 for more details on subsidies calculation.
 
