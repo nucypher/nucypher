@@ -1314,8 +1314,8 @@ class Ursula(Teacher, Character, Worker):
                 self.block_until_ready()
             self.stakes.checksum_address = self.checksum_address
             self.stakes.refresh()
-            if not self.stakes:
-                msg = "No stakes found for worker."
+            if not self.stakes.has_active_substakes:
+                msg = "No active stakes found for worker."
                 if emitter:
                     emitter.message(f"✗ {msg}", color='red')
                 self.log.error(msg)
