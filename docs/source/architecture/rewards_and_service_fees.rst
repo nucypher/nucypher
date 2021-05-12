@@ -7,8 +7,6 @@ Rewards and Service Fees
 Token Rewards
 =============
 
-.. _stakingpaper: https://github.com/nucypher/whitepaper/raw/master/economics/staking_protocol/NuCypher_Staking_Protocol_Economics.pdf
-
 The NuCypher network is an example of a decentralized service marketplace,
 providing infrastructural services to digital applications/systems (‘users’)
 via a distributed array of independent node operators (‘service-providers’).
@@ -103,7 +101,8 @@ is the maximum number of tokens that can be minted per period:
     s_i = \kappa_i \cdot \frac{\ell_i}{L} \cdot I_max
 
 Note that current value for :math:`I_max` is 7,017,566.35 NU.
-See the :ref:`stakingpaper <Staking paper>` for more details on subsidies calculation.
+See the `Staking paper <https://github.com/nucypher/whitepaper/raw/master/economics/staking_protocol/NuCypher_Staking_Protocol_Economics.pdf>`_
+for more details on subsidies calculation.
 
 
 

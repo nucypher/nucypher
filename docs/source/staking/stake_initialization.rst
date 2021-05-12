@@ -239,8 +239,10 @@ Once you have created one or more stakes, you can view all active stakes for con
     │     0 │ 45000 NU │           5 │ Mar 24 2021 │ Apr 21 2021   │  1.10x │ DIVISIBLE │
     ╘═══════╧══════════╧═════════════╧═════════════╧═══════════════╧════════╧═══════════╛
 
-.. caution:: If the Worker in the list is shown as ``NO_WORKER_BONDED``, it means that you haven't yet
-bonded a Worker node to your Staker. Your staking account will be highlighted in red.
+.. caution::
+    If the Worker in the list is shown as ``NO_WORKER_BONDED``,
+    it means that you haven't yet bonded a Worker node to your Staker.
+    Your staking account will be highlighted in red.
 
 
 .. _bond-worker:
