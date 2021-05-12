@@ -109,7 +109,7 @@ class UrsulaConfiguration(CharacterConfiguration):
             worker_address=self.worker_address,
             rest_host=self.rest_host,
             rest_port=self.rest_port,
-            db_filepath=self.db_filepath.absolute(),
+            db_filepath=self.db_filepath,
             availability_check=self.availability_check,
         )
         return {**super().static_payload(), **payload}

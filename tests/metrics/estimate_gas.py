@@ -70,7 +70,7 @@ class AnalyzeGas:
     # Logging
     LOG_NAME = 'estimate-gas'
     LOG_FILENAME = '{}.log.json'.format(LOG_NAME)
-    OUTPUT_DIR = Path(__file__) / 'results'
+    OUTPUT_DIR = Path(__file__).parent / 'results'
     JSON_OUTPUT_FILENAME = '{}.json'.format(LOG_NAME)
 
     _PATTERN = re.compile(r'''

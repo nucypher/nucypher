@@ -20,8 +20,8 @@ from pathlib import Path
 from typing import List
 import random
 
-_HERE = Path(__file__)
-with open(_HERE.parent / 'web_colors.json') as f:
+_HERE = Path(__file__).parent
+with open(_HERE / 'web_colors.json') as f:
     _COLORS = json.load(f)['colors']
 
 _SYMBOLS = {

@@ -648,7 +648,8 @@ class CharacterConfiguration(BaseConfiguration):
 
         # Assemble
         payload.update(dict(node_storage=node_storage, max_gas_price=max_gas_price))
-        for key in ['keyring_root', 'db_filepath']:
+        # TODO: Move this to implementation of respective classes?
+        for key in ['keyring_root', 'db_filepath', 'filepath', 'config_root', 'registry_filepath']:
             if key in payload:
                 payload[key] = Path(payload[key])
 

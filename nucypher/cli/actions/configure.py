@@ -61,7 +61,7 @@ def get_config_filepaths(config_class: Type[CharacterConfiguration], config_root
     # updated glob pattern for secondary configuration files accommodates for:
     # 1. configuration files with "0x..." checksum address as suffix - including older ursula config files
     # 2. newer (ursula) configuration files which use signing_pub_key[:8] as hex as the suffix
-    glob_pattern = f'{str(config_root)}/{config_class.NAME}-[0-9a-fA-F]*.{config_class._CONFIG_FILE_EXTENSION}'
+    glob_pattern = f'{config_root.absolute()}/{config_class.NAME}-[0-9a-fA-F]*.{config_class._CONFIG_FILE_EXTENSION}'
 
     secondary_config_files = sorted(glob.glob(glob_pattern))  # sort list to make order deterministic
     config_files = [*default_config_file, *secondary_config_files]
@@ -114,7 +114,7 @@ def handle_missing_configuration_file(character_config_class: Type[CharacterConf
     if name == StakeHolderConfiguration.NAME.capitalize():
         init_command = 'stake init-stakeholder'
     message = MISSING_CONFIGURATION_FILE.format(name=name, init_command=init_command)
-    raise click.FileError(filename=str(config_file_location), hint=message)
+    raise click.FileError(filename=str(config_file_location.absolute()), hint=message)
 
 
 def handle_invalid_configuration_file(emitter: StdoutEmitter,
