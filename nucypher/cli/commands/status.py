@@ -42,7 +42,6 @@ from nucypher.cli.options import (
 )
 from nucypher.cli.painting.staking import paint_fee_rate_range, paint_stakes
 from nucypher.cli.painting.status import paint_contract_status, paint_locked_tokens_status, paint_stakers
-from nucypher.cli.types import PathPath
 from nucypher.cli.utils import (
     connect_to_blockchain,
     get_registry,
@@ -87,7 +86,7 @@ option_csv = click.option('--csv',
                           is_flag=True)
 option_csv_file = click.option('--csv-file',
                                help="Write event data to the CSV file at specified filepath",
-                               type=PathPath(dir_okay=False))
+                               type=click.Path(dir_okay=False, path_type=Path))
 option_event_filters = click.option('--event-filter', '-f', 'event_filters',
                                     help="Event filter of the form <name>=<value>",
                                     multiple=True,
