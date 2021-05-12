@@ -784,7 +784,7 @@ class WorkTracker:
             return
 
         self.stakes.refresh()
-        if not self.stakes.has_active_substakes():
+        if not self.stakes.has_active_substakes:
             self.log.warn(f'COMMIT PREVENTED - There are no active stakes.')
             return
 
