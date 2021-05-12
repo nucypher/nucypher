@@ -235,9 +235,9 @@ class BaseConfiguration(ABC):
         """
         if not self.config_root.exists():
             try:
-                os.mkdir(self.config_root, mode=0o755)
+                self.config_root.mkdir(mode=0o755)
             except FileNotFoundError:
-                os.makedirs(self.config_root, mode=0o755)
+                self.config_root.mkdir(parents=True, mode=0o755)
 
     @classmethod
     def peek(cls, filepath: Path, field: str) -> Union[str, None]:
@@ -618,7 +618,7 @@ class CharacterConfiguration(BaseConfiguration):
 
     def destroy(self) -> None:
         """Parse a node configuration and remove all associated files from the filesystem"""
-        os.remove(self.config_file_location)
+        self.config_file_location.unlink()
 
     def generate_parameters(self, **overrides) -> dict:
         """

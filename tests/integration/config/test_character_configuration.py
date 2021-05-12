@@ -119,7 +119,7 @@ def test_default_character_configuration_preservation(configuration_class, teste
     expected_filepath = Path('/', 'tmp', generated_filename)
 
     if expected_filepath.exists():
-        os.remove(expected_filepath)
+        expected_filepath.unlink()
     assert not expected_filepath.exists()
 
     if configuration_class == StakeHolderConfiguration:
@@ -160,7 +160,7 @@ def test_default_character_configuration_preservation(configuration_class, teste
 
     finally:
         if expected_filepath.exists():
-            os.remove(expected_filepath)
+            expected_filepath.unlink()
 
 
 def test_ursula_development_configuration(federated_only=True):
@@ -213,7 +213,7 @@ def test_destroy_configuration(config,
     spy_keystore_attached = mocker.spy(CharacterConfiguration, 'attach_keystore')
     mock_config_destroy = mocker.patch.object(CharacterConfiguration, 'destroy')
     spy_keystore_destroy = mocker.spy(Keystore, 'destroy')
-    mock_os_remove = mocker.patch('os.remove')
+    mock_os_remove = mocker.patch('pathlib.Path.unlink')
 
     # Test
     destroy_configuration(emitter=test_emitter, character_config=config)

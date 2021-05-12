@@ -399,7 +399,7 @@ class LocalContractRegistry(BaseContractRegistry):
         it will _overwrite_ everything in it.
         """
         # Ensure parent path exists
-        os.makedirs(self.__filepath.parent, exist_ok=True)
+        self.__filepath.parent.mkdir(parents=True, exist_ok=True)
 
         with open(self.__filepath, 'w') as registry_file:
             registry_file.seek(0)
@@ -409,7 +409,7 @@ class LocalContractRegistry(BaseContractRegistry):
         self._id = None
 
     def _destroy(self) -> None:
-        os.remove(self.filepath)
+        self.filepath.unlink()
 
     @classmethod
     def from_dict(cls, payload: dict, **overrides) -> 'LocalContractRegistry':

@@ -294,8 +294,8 @@ class Card:
         return exists
 
     def save(self, encoder: Callable = base64.b64encode, overwrite: bool = False) -> Path:
-        if not self.CARD_DIR.exists():
-            os.mkdir(str(self.CARD_DIR))
+        if not self.CARD_DIR.is_dir():
+            self.CARD_DIR.mkdir()
         if self.is_saved and not overwrite:
             raise FileExistsError('Card exists. Pass overwrite=True to allow this operation.')
         with open(str(self.filepath), 'wb') as file:
@@ -309,7 +309,7 @@ class Card:
             nickname, _id = identifier.split(cls.__DELIMITER)
         except ValueError:
             nickname = identifier
-        filenames = [f for f in os.listdir(Card.CARD_DIR) if nickname.lower() in f.lower()]
+        filenames = [f for f in Card.CARD_DIR.iterdir() if nickname.lower() in f.lower()]
         if not filenames:
             raise cls.UnknownCard(f'Unknown card nickname or ID "{nickname}".')
         elif len(filenames) == 1:
@@ -342,4 +342,4 @@ class Card:
         return instance
 
     def delete(self) -> None:
-        os.remove(str(self.filepath))
+        self.filepath.unlink()

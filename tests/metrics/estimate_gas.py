@@ -89,7 +89,7 @@ class AnalyzeGas:
         self.gas_estimations = dict()
 
         if not self.OUTPUT_DIR.is_dir():
-            os.mkdir(self.OUTPUT_DIR)
+            self.OUTPUT_DIR.mkdir()
 
     @provider(ILogObserver)
     def __call__(self, event, *args, **kwargs) -> None:

@@ -119,9 +119,10 @@ test_logger = Logger("test-logger")
 @pytest.fixture(scope="function")
 def tempfile_path():
     fd, path = tempfile.mkstemp()
-    yield Path(path)
+    path = Path(path)
+    yield path
     os.close(fd)
-    os.remove(path)
+    path.unlink()
 
 
 @pytest.fixture(scope="module")
@@ -638,7 +639,7 @@ def agency_local_registry(testerchain, agency, test_registry):
     registry.write(test_registry.read())
     yield registry
     if MOCK_REGISTRY_FILEPATH.exists():
-        os.remove(MOCK_REGISTRY_FILEPATH)
+        MOCK_REGISTRY_FILEPATH.unlink()
 
 
 @pytest.fixture(scope="module")
@@ -787,10 +788,10 @@ def mock_ursula_reencrypts():
 def stakeholder_config_file_location():
     path = Path('/', 'tmp', 'nucypher-test-stakeholder.json')
     if path.exists():
-        os.remove(path)
+        path.unlink()
     yield path
     if path.exists():
-        os.remove(path)
+        path.unlink()
 
 
 @pytest.fixture(scope='module')
@@ -800,7 +801,7 @@ def software_stakeholder(testerchain, agency, stakeholder_config_file_location, 
     # Setup
     path = stakeholder_config_file_location
     if path.exists():
-        os.remove(path)
+        path.unlink()
 
     #                          0xaAa482c790b4301bE18D75A0D1B11B2ACBEF798B
     stakeholder_private_key = '255f64a948eeb1595b8a2d1e76740f4683eca1c8f1433d13293db9b6e27676cc'
@@ -836,7 +837,7 @@ def software_stakeholder(testerchain, agency, stakeholder_config_file_location, 
     # Teardown
     yield stakeholder
     if path.exists():
-        os.remove(path)
+        path.unlink()
 
 
 @pytest.fixture(scope="module")
@@ -1046,7 +1047,7 @@ def mock_allocation_infile(testerchain, token_economics, get_random_checksum_add
 
     yield MOCK_ALLOCATION_INFILE
     if MOCK_ALLOCATION_INFILE.is_file():
-        os.remove(MOCK_ALLOCATION_INFILE)
+        MOCK_ALLOCATION_INFILE.unlink()
 
 
 @pytest.fixture(scope='function')
@@ -1057,7 +1058,7 @@ def new_local_registry():
     registry.write(InMemoryContractRegistry().read())
     yield registry
     if registry_filepath.exists():
-        os.remove(registry_filepath)
+        registry_filepath.unlink()
 
 
 @pytest.fixture(scope='module')

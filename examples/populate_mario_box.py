@@ -45,7 +45,7 @@ def mario_box_cli(plaintext_dir, alice_config, label, outfile):
     policy_encrypting_key_hex = bytes(policy_encrypting_key).hex()
 
     output = list()
-    paths = list(os.listdir(plaintext_dir))
+    paths = list(plaintext_dir.iterdir())
     click.secho(f"Encrypting {len(paths)} files for policy {policy_encrypting_key_hex}", fg='blue')
 
     with click.progressbar(paths) as bar:

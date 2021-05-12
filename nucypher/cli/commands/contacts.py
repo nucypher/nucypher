@@ -60,10 +60,10 @@ def _list():
     emitter = StdoutEmitter()
     card_directory = Card.CARD_DIR
     try:
-        card_filepaths = os.listdir(card_directory)
+        card_filepaths = card_directory.iterdir()
     except FileNotFoundError:
-        os.mkdir(Card.CARD_DIR)
-        card_filepaths = os.listdir(card_directory)
+        Card.CARD_DIR.mkdir()
+        card_filepaths = card_directory.iterdir()
     if not card_filepaths:
         emitter.error(f'No cards found at {card_directory}.  '
                       f"To create one run 'nucypher {contacts.name} {create.name}'.")

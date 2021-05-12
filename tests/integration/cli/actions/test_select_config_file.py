@@ -35,7 +35,7 @@ def test_select_config_file_with_no_config_files(test_emitter,
     config_class = alice_blockchain_test_config
 
     # Prove there are no config files on the disk.
-    assert not os.listdir(temp_dir_path)
+    assert not list(temp_dir_path.iterdir())
     with pytest.raises(click.Abort):
         select_config_file(emitter=test_emitter,
                            config_class=config_class,

@@ -295,7 +295,7 @@ def select_config_file(emitter: StdoutEmitter,
 def select_card(emitter, card_identifier: str) -> Card:
     if not card_identifier:
         cards = []
-        for filename in os.listdir(Card.CARD_DIR):
+        for filename in Card.CARD_DIR.iterdir():
             filepath = Card.CARD_DIR / filename
             card = Card.load(filepath=filepath)
             cards.append(card)

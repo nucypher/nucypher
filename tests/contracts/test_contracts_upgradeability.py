@@ -61,7 +61,7 @@ def download_github_dir(source_link: str, target_folder: Path):
     for content in response.json():
         path = target_folder / content["name"]
         if content["type"] == "dir":
-            os.mkdir(path)
+            path.mkdir()
             download_github_dir(content["url"], path)
         else:
             download_github_file(content["download_url"], path)

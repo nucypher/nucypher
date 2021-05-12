@@ -108,7 +108,7 @@ class NodeStorage(ABC):
             raise FileExistsError('A TLS certificate already exists at {}.'.format(certificate_filepath))
 
         # Write
-        os.makedirs(certificate_filepath.parent, exist_ok=True)
+        certificate_filepath.parent.mkdir(parents=True, exist_ok=True)
         with open(certificate_filepath, 'wb') as certificate_file:
             public_pem_bytes = certificate.public_bytes(self.TLS_CERTIFICATE_ENCODING)
             certificate_file.write(public_pem_bytes)
@@ -205,7 +205,7 @@ class ForgetfulNodeStorage(NodeStorage):
 
     def forget(self) -> bool:
         for temp_certificate in self.__temporary_certificates:
-            os.remove(temp_certificate)
+            temp_certificate.unlink()
         return len(self.__temporary_certificates) == 0
 
     def store_node_certificate(self, certificate: Certificate, port: int) -> str:
@@ -336,13 +336,13 @@ class LocalFileBasedNodeStorage(NodeStorage):
     # Metadata
     #
 
-    def __generate_metadata_filepath(self, stamp: Union[SignatureStamp, str], metadata_dir: str = None) -> Path:
+    def __generate_metadata_filepath(self, stamp: Union[SignatureStamp, str], metadata_dir: Path = None) -> Path:
         if isinstance(stamp, SignatureStamp):
             stamp = bytes(stamp).hex()
         metadata_path = metadata_dir or self.metadata_dir / self.__METADATA_FILENAME_TEMPLATE.format(stamp)
         return metadata_path
 
-    def __read_metadata(self, filepath: str):
+    def __read_metadata(self, filepath: Path):
 
         from nucypher.characters.lawful import Ursula
 
@@ -359,7 +359,7 @@ class LocalFileBasedNodeStorage(NodeStorage):
         return node
 
     def __write_metadata(self, filepath: Path, node):
-        os.makedirs(filepath.parent, exist_ok=True)
+        filepath.parent.mkdir(parents=True, exist_ok=True)
         with open(filepath, "wb") as f:
             f.write(self.encode_node_bytes(bytes(node)))
         self.log.info("Wrote new node metadata to filesystem {}".format(filepath))
@@ -369,7 +369,7 @@ class LocalFileBasedNodeStorage(NodeStorage):
     # API
     #
     def all(self, federated_only: bool, certificates_only: bool = False) -> Set[Union[Any, Certificate]]:
-        filenames = os.listdir(self.certificates_dir if certificates_only else self.metadata_dir)
+        filenames = list((self.certificates_dir if certificates_only else self.metadata_dir).iterdir())
         self.log.info("Found {} known node metadata files at {}".format(len(filenames), self.metadata_dir))
 
         known_certificates = set()
@@ -417,15 +417,12 @@ class LocalFileBasedNodeStorage(NodeStorage):
         """Forget all stored nodes and certificates"""
 
         def __destroy_dir_contents(path: Path) -> None:
-            try:
-                paths_to_remove = os.listdir(path)
-            except FileNotFoundError:
+            if not path.is_dir():
                 return
-            else:
-                for file in paths_to_remove:
-                    file_path = path / file
-                    if file_path.is_file():
-                        os.unlink(file_path)
+            for file in path.iterdir():
+                file_path = path / file
+                if file_path.is_file():
+                    file_path.unlink()
 
         if metadata is True:
             __destroy_dir_contents(self.metadata_dir)
@@ -458,7 +455,7 @@ class LocalFileBasedNodeStorage(NodeStorage):
         storage_dirs = (self.root_dir, self.metadata_dir, self.certificates_dir)
         for storage_dir in storage_dirs:
             try:
-                os.mkdir(storage_dir, mode=0o755)
+                storage_dir.mkdir(mode=0o755)
             except FileExistsError:
                 message = "There are pre-existing files at {}".format(self.root_dir)
                 self.log.info(message)

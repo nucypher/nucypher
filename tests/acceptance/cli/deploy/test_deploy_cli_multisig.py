@@ -52,7 +52,7 @@ def multisig_parameters_filepath(multisig_owners, temp_dir_path):
 
     yield filepath
     if filepath.exists():
-        os.remove(filepath)
+        filepath.unlink()
 
 
 @pytest.mark.skip("Takes a long time to run; Currently unused.")

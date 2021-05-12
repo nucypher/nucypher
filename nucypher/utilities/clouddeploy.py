@@ -263,7 +263,7 @@ class BaseCloudNodeConfigurator:
     def _write_config(self):
 
         config_dir = self.config_path.parent
-        os.makedirs(config_dir, exist_ok=True)
+        config_dir.mkdir(parents=True, exist_ok=True)
 
         with open(self.config_path, 'w') as outfile:
             json.dump(self.config, outfile, indent=4)
@@ -857,11 +857,11 @@ class AWSNodeConfigurator(BaseCloudNodeConfigurator):
     def _create_keypair(self):
         new_keypair_data = self.ec2Client.create_key_pair(KeyName=f'{self.namespace_network}')
         out_path = DEFAULT_CONFIG_ROOT / NODE_CONFIG_STORAGE_KEY / f'{self.namespace_network}.awskeypair'
-        os.makedirs(out_path.parent, exist_ok=True)
+        out_path.parent.mkdir(parents=True, exist_ok=True)
         with open(out_path, 'w') as outfile:
             outfile.write(new_keypair_data['KeyMaterial'])
         # set local keypair permissions https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ec2-key-pairs.html
-        os.chmod(out_path, 0o400)
+        out_path.chmod(0o400)
         self.emitter.echo(f"a new aws keypair was saved to {out_path}, keep it safe.", color='yellow')
         return new_keypair_data['KeyName'], out_path
 
@@ -870,7 +870,7 @@ class AWSNodeConfigurator(BaseCloudNodeConfigurator):
         deleted_keypair_data = self.ec2Client.delete_key_pair(KeyName=f'{self.namespace_network}')
         if deleted_keypair_data['HTTPStatusCode'] == 200:
             outpath = Path(DEFAULT_CONFIG_ROOT).joinpath(NODE_CONFIG_STORAGE_KEY, f'{self.namespace_network}.awskeypair')
-            os.remove(outpath)
+            outpath.unlink()
             self.emitter.echo(f"keypair at {outpath}, was deleted", color='yellow')
 
     def _ensure_vpc(self):
@@ -1014,7 +1014,7 @@ class AWSNodeConfigurator(BaseCloudNodeConfigurator):
                 time.sleep(6)
                 self.ec2Client.delete_key_pair(KeyName=self.config.get('keypair'))
                 del self.config['keypair']
-                os.remove(self.config['keypair_path'])
+                self.config['keypair_path'].unlink()
                 del self.config['keypair_path']
                 self._write_config()
 

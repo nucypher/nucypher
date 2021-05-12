@@ -229,7 +229,7 @@ def ensure_config_root(config_root: Path) -> None:
     """Ensure config root exists, because we need a default place to put output files."""
     config_root = config_root or DEFAULT_CONFIG_ROOT
     if not config_root.exists():
-        os.makedirs(config_root)
+        config_root.mkdir(parents=True)
 
 
 def deployer_pre_launch_warnings(emitter: StdoutEmitter, etherscan: bool, hw_wallet: bool) -> None:

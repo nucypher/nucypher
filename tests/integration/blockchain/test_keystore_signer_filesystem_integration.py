@@ -89,7 +89,7 @@ def unknown_address():
 
 def test_invalid_keystore(tmp_path):
     with pytest.raises(Signer.InvalidSignerURI) as e:
-        Signer.from_signer_uri(uri=f'keystore:{tmp_path/"nonexistent"}', testnet=True)
+        Signer.from_signer_uri(uri=f'keystore:{tmp_path.absolute()/"nonexistent"}', testnet=True)
 
     empty_path = tmp_path / 'empty_file'
     open(empty_path, 'x+t').close()

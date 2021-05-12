@@ -197,7 +197,7 @@ def test_transfer_ownership_staking_interface_router(click_runner, testerchain, 
 def test_bare_contract_deployment_to_alternate_registry(click_runner, agency_local_registry):
 
     if ALTERNATE_REGISTRY_FILEPATH.exists():
-        os.remove(ALTERNATE_REGISTRY_FILEPATH)
+        ALTERNATE_REGISTRY_FILEPATH.unlink()
     assert not ALTERNATE_REGISTRY_FILEPATH.exists()
 
     command = ('contracts',
@@ -268,7 +268,7 @@ def test_manual_proxy_retargeting(monkeypatch, testerchain, click_runner, token_
 def test_manual_deployment_of_idle_network(click_runner):
 
     if ALTERNATE_REGISTRY_FILEPATH_2.exists():
-        os.remove(ALTERNATE_REGISTRY_FILEPATH_2)
+        ALTERNATE_REGISTRY_FILEPATH_2.unlink()
     assert not ALTERNATE_REGISTRY_FILEPATH_2.exists()
     registry = LocalContractRegistry(filepath=ALTERNATE_REGISTRY_FILEPATH_2)
     registry.write(InMemoryContractRegistry().read())  # TODO: Manual deployments from scratch require an existing but empty registry (i.e., a json file just with "[]")

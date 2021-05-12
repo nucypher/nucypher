@@ -140,7 +140,7 @@ class UrsulaConfiguration(CharacterConfiguration):
 
     def destroy(self) -> None:
         if self.db_filepath.is_file():
-            os.remove(self.db_filepath)
+            self.db_filepath.unlink()
         super().destroy()
 
 

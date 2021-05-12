@@ -18,6 +18,7 @@
 
 
 from collections import deque
+from pathlib import Path
 
 import maya
 import os
@@ -175,7 +176,7 @@ class JSONRPCLineReceiver(LineReceiver):
 
     encoding = 'utf-8'
     delimiter = os.linesep.encode(encoding=encoding)
-    __ipc_endpoint = "/tmp/nucypher.ipc"
+    __ipc_endpoint = Path("/tmp/nucypher.ipc")
 
     class IPCWriter(StandardIO):
         pass
@@ -206,12 +207,12 @@ class JSONRPCLineReceiver(LineReceiver):
         # Hookup the IPC endpoint file
         self.transport.write = self.__ipc_writer
 
-        self.log.info(f"JSON RPC-IPC endpoint opened at {self.__ipc_endpoint}."
+        self.log.info(f"JSON RPC-IPC endpoint opened at {self.__ipc_endpoint.absolute()}."
                       f" Listening for messages.")  # TODO
 
     def connectionLost(self, reason=connectionDone) -> None:
         self.__ipc_fd.close()
-        os.remove(self.__ipc_endpoint)
+        self.__ipc_endpoint.unlink()
 
         self.log.info("JSON RPC-IPC Endpoint Closed.")  # TODO
 

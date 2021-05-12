@@ -241,7 +241,7 @@ def createdb(general_config, character_options, config_file, force):
     if FELIX.db_filepath.is_file():
         if not force:
             click.confirm(CONFIRM_OVERWRITE_DATABASE, abort=True)
-        os.remove(FELIX.db_filepath)
+        FELIX.db_filepath.unlink()
         emitter.echo(SUCCESSFUL_DATABASE_DESTRUCTION.format(path=FELIX.db_filepath))
     FELIX.create_tables()
     emitter.echo(SUCCESSFUL_DATABASE_CREATION.format(path=FELIX.db_filepath), color='green')

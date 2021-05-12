@@ -65,11 +65,11 @@ def test_ursula_serves_statics(ursula_federated_test_config):
         try:
             with open("test-cert", "wb") as f:
                 f.write(cert_bytes)
-            os.makedirs(Path(STATICS_DIR), exist_ok=True)
+            Path(STATICS_DIR).mkdir(exist_ok=True)
             with open(Path(STATICS_DIR, 'test-never-make-a-file-with-this-name.js'), 'w+') as fout:
                 fout.write("console.log('I am Javascript')\n")
                 fout.close()
             yield threads.deferToThread(check_static_service, node, "test-cert")
             yield threads.deferToThread(check_static_file_not_there, node, "test-cert")
         finally:
-            os.remove("test-cert")
+            Path("test-cert").unlink()

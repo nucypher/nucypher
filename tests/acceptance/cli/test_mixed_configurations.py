@@ -208,6 +208,7 @@ def test_coexisting_configurations(click_runner,
     assert alice_file_location.is_file()
     assert another_ursula_configuration_file_location.is_file()
     assert ursula_file_location.is_file()
+    assert len(os.listdir(public_keys_dir)) == 11
 
     # Check that the proper Ursula console is attached
     assert another_ursula in result.output
@@ -276,7 +277,7 @@ def test_corrupted_configuration(click_runner,
         assert result.exit_code != 0
 
     # Ensure there is no unintentional file creation (keys, config, etc.)
-    top_level_config_root = os.listdir(custom_filepath)
+    top_level_config_root = custom_filepath.iterdir()
     assert 'ursula.config' not in top_level_config_root                         # no config file was created
 
     assert Path(custom_filepath).exists()
@@ -303,13 +304,13 @@ def test_corrupted_configuration(click_runner,
     default_filename = UrsulaConfiguration.generate_filename()
 
     # Ensure configuration creation
-    top_level_config_root = os.listdir(custom_filepath)
+    top_level_config_root = custom_filepath.iterdir()
     assert default_filename in top_level_config_root, "JSON configuration file was not created"
     for field in ['known_nodes', 'keystore', default_filename]:
         assert field in top_level_config_root
 
     # "Corrupt" the configuration by removing the contract registry
-    os.remove(agency_local_registry.filepath)
+    agency_local_registry.filepath.unlink()
 
     # Attempt destruction with invalid configuration (missing registry)
     ursula_file_location = custom_filepath / default_filename

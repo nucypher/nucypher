@@ -105,7 +105,7 @@ class TestTemporaryFileBasedNodeStorage(BaseTestNodeStorageBackends):
 
     def test_invalid_metadata(self, light_ursula):
         self._read_and_write_metadata(ursula=light_ursula, node_storage=self.storage_backend)
-        some_node, another_node, *other = os.listdir(self.storage_backend.metadata_dir)
+        some_node, another_node, *other = list(self.storage_backend.metadata_dir.iterdir())
 
         # Let's break the metadata (but not the version)
         metadata_path = self.storage_backend.metadata_dir / some_node
@@ -113,7 +113,7 @@ class TestTemporaryFileBasedNodeStorage(BaseTestNodeStorageBackends):
             file.write(Learner.LEARNER_VERSION.to_bytes(4, 'big') + b'invalid')
 
         with pytest.raises(TemporaryFileBasedNodeStorage.InvalidNodeMetadata):
-            self.storage_backend.get(stamp=some_node[:-5],
+            self.storage_backend.get(stamp=str(some_node.name)[:-5],
                                      federated_only=True,
                                      certificate_only=False)
 
@@ -123,7 +123,7 @@ class TestTemporaryFileBasedNodeStorage(BaseTestNodeStorageBackends):
             file.write(b'meh')  # Versions are expected to be 4 bytes, but this is 3 bytes
 
         with pytest.raises(TemporaryFileBasedNodeStorage.InvalidNodeMetadata):
-            self.storage_backend.get(stamp=another_node[:-5],
+            self.storage_backend.get(stamp=str(another_node.name)[:-5],
                                      federated_only=True,
                                      certificate_only=False)
 

@@ -43,17 +43,17 @@ def expected_configuration_filepaths():
 
     # Setup
     if manual_expected_default_filepath.exists():
-        os.remove(manual_expected_default_filepath)
+        manual_expected_default_filepath.unlink()
     if manual_expected_modified_filepath.exists():
-        os.remove(manual_expected_modified_filepath)
+        manual_expected_modified_filepath.unlink()
 
     yield manual_expected_default_filepath, manual_expected_modified_filepath
 
     # Teardown
     if manual_expected_default_filepath.exists():
-        os.remove(manual_expected_default_filepath)
+        manual_expected_default_filepath.unlink()
     if manual_expected_modified_filepath.exists():
-        os.remove(manual_expected_modified_filepath)
+        manual_expected_modified_filepath.unlink()
 
 
 class RestorableTestItem(BaseConfiguration):
