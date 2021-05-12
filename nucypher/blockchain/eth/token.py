@@ -377,7 +377,7 @@ class Stake:
 
     @property
     def boost(self) -> float:
-        """An alternative representation of the kappa coefficient, more easy to understand.
+        """An alternative representation of the kappa coefficient, easier to understand.
         Sub-stake boosts can range from 1x (i.e. no boost) to 2x (max boost). """
 
         min_kappa = 0.5
