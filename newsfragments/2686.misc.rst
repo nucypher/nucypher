@@ -1,0 +1,1 @@
+Ursula will now detect absence of active stakes during startup and in worker loop.
