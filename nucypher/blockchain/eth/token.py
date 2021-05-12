@@ -558,7 +558,7 @@ class WorkTracker:
         self._tracking_task.clock = self.CLOCK
 
         self.__pending = dict()  # TODO: Prime with pending worker transactions
-        self.__has_untracked_commitment = False
+        self.__num_untracked_commitments = False
         self.__requirement = None
         self.__current_period = None
         self.__start_time = NOT_STAKING
@@ -658,10 +658,12 @@ class WorkTracker:
         if txs_in_mempool > len(self.__pending):  # We're missing some pending TXs
             return False
 
-        self.__has_untracked_commitment = bool(set(tx_pending) - set(self.__pending))
-        if self.__has_untracked_commitment:
-            # Mempool has limit on the number on TXs, and may drop them resulting in missing pending TXs
-            self.log.info(f'A pending commitment transaction has been dropped from mempool.')
+        self.__num_untracked_commitments = set(tx_pending) - set(self.__pending)
+        # Mempool has limit on the number on TXs, and may drop them resulting in missing pending TXs
+        if self.__num_untracked_commitments != 0:
+            s = "s" if self.__num_untracked_commitments > 1 else ""
+            self.log.info(f'{self.__num_untracked_commitments} pending commitment transaction{s}'
+                          f' has been dropped from mempool.')
             return False
 
         # txs_in_mempool < len(self.__pending)
@@ -679,7 +681,7 @@ class WorkTracker:
     def __track_pending_commitments(self) -> bool:
         # TODO: Keep a purpose-built persistent log of worker transaction history
 
-        unmined_transactions = 1 if self.__has_untracked_commitment else 0
+        unmined_transactions = self.__num_untracked_commitments
         pending_transactions = self.pending.items()    # note: this must be performed non-mutatively
         for tx_firing_block_number, txhash in sorted(pending_transactions):
             try:
@@ -709,7 +711,7 @@ class WorkTracker:
         del self.__pending[tx_firing_block_number]  # assume our original TX is stuck
 
     def __handle_replacement_commitment(self, current_block_number: int) -> None:
-        if self.__has_untracked_commitment:
+        if self.__num_untracked_commitments:
             message = f"We have an untracked pending transaction. Issuing a replacement transaction."
             tx_firing_block_number = 0
         else:
