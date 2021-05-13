@@ -14,6 +14,7 @@
  You should have received a copy of the GNU Affero General Public License
  along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
+from pathlib import Path
 
 from nucypher.acumen.perception import FleetSensor
 from nucypher.characters.lawful import Ursula
@@ -66,9 +67,9 @@ def test_learner_restores_metadata_from_storage(lonely_ursula_maker, tmpdir):
     metadata = root.mkdir("metadata")
     certs = root.mkdir("certs")
     old_storage = LocalFileBasedNodeStorage(federated_only=True,
-                                            metadata_dir=metadata,
-                                            certificates_dir=certs,
-                                            storage_root=root)
+                                            metadata_dir=Path(metadata),
+                                            certificates_dir=Path(certs),
+                                            storage_root=Path(root))
 
     # Use the ursula maker with this storage so it's populated with nodes from one domain
     _some_ursulas = lonely_ursula_maker(domain="fistro",
@@ -144,9 +145,9 @@ def test_learner_uses_both_nodes_from_storage_and_fallback_nodes(lonely_ursula_m
     metadata = root.mkdir("metadata")
     certs = root.mkdir("certs")
     node_storage = LocalFileBasedNodeStorage(federated_only=True,
-                                             metadata_dir=metadata,
-                                             certificates_dir=certs,
-                                             storage_root=root)
+                                             metadata_dir=Path(metadata),
+                                             certificates_dir=Path(certs),
+                                             storage_root=Path(root))
 
     # Create some nodes and persist them to local storage
     other_nodes = lonely_ursula_maker(domain=domain,

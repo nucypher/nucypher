@@ -20,6 +20,7 @@ import json
 import os
 import random
 import tempfile
+from pathlib import Path
 from unittest import mock
 
 import maya
@@ -50,7 +51,7 @@ from tests.utils.middleware import MockRestMiddleware
 from tests.utils.ursula import MOCK_KNOWN_URSULAS_CACHE, select_test_port
 
 
-@mock.patch('nucypher.config.characters.StakeHolderConfiguration.default_filepath', return_value='/non/existent/file')
+@mock.patch('nucypher.config.characters.StakeHolderConfiguration.default_filepath', return_value=Path('/non/existent/file'))
 def test_missing_configuration_file(default_filepath_mock, click_runner):
     cmd_args = ('stake', 'list')
     result = click_runner.invoke(nucypher_cli, cmd_args, catch_exceptions=False)

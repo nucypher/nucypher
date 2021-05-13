@@ -287,7 +287,7 @@ class LocalFileBasedNodeStorage(NodeStorage):
                                     metadata_dir: Path = None,
                                     certificates_dir: Path = None):
 
-        storage_root = storage_root or (config_root or DEFAULT_CONFIG_ROOT / 'known_nodes')
+        storage_root = storage_root or ((config_root or DEFAULT_CONFIG_ROOT) / 'known_nodes')
         metadata_dir = metadata_dir or storage_root / 'metadata'
         certificates_dir = certificates_dir or storage_root / 'certificates'
 

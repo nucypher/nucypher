@@ -58,14 +58,11 @@ def show(query, qrcode):
 def _list():
     """Show all character cards"""
     emitter = StdoutEmitter()
-    card_directory = Card.CARD_DIR
-    try:
-        card_filepaths = card_directory.iterdir()
-    except FileNotFoundError:
+    if not Card.CARD_DIR.is_dir():
         Card.CARD_DIR.mkdir()
-        card_filepaths = card_directory.iterdir()
+    card_filepaths = list(Card.CARD_DIR.iterdir())
     if not card_filepaths:
-        emitter.error(f'No cards found at {card_directory}.  '
+        emitter.error(f'No cards found at {Card.CARD_DIR}.  '
                       f"To create one run 'nucypher {contacts.name} {create.name}'.")
     cards = list()
     for filename in card_filepaths:

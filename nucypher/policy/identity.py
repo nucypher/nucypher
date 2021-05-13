@@ -309,7 +309,7 @@ class Card:
             nickname, _id = identifier.split(cls.__DELIMITER)
         except ValueError:
             nickname = identifier
-        filenames = [f for f in Card.CARD_DIR.iterdir() if nickname.lower() in f.lower()]
+        filenames = [f for f in Card.CARD_DIR.iterdir() if nickname.lower() in f.name.lower()]
         if not filenames:
             raise cls.UnknownCard(f'Unknown card nickname or ID "{nickname}".')
         elif len(filenames) == 1:

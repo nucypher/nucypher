@@ -45,8 +45,7 @@ except IndexError:
     SEEDNODE_URI = "localhost:11500"
 
 
-# TODO: path joins?
-TEMP_DOCTOR_DIR = "{}/doctor-files".format(Path(__file__).parent)
+TEMP_DOCTOR_DIR = Path(__file__).parent / "doctor-files"
 
 # Remove previous demo files and create new ones
 shutil.rmtree(TEMP_DOCTOR_DIR, ignore_errors=True)

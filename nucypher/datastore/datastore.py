@@ -92,7 +92,7 @@ class Datastore:
         :param db_path: Filepath to a lmdb database.
         """
         self.db_path = db_path
-        self.__db_env = lmdb.open(db_path, map_size=self.LMDB_MAP_SIZE)
+        self.__db_env = lmdb.open(str(db_path), map_size=self.LMDB_MAP_SIZE)
 
     @contextmanager
     def describe(self,

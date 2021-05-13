@@ -16,7 +16,8 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
 
-import os
+from pathlib import Path
+
 import pytest_twisted
 import requests
 from cryptography.hazmat.primitives import serialization

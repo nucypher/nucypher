@@ -90,7 +90,7 @@ from nucypher.cli.painting.deployment import (
 from nucypher.cli.painting.help import echo_solidity_version
 from nucypher.cli.painting.multisig import paint_multisig_proposed_transaction
 from nucypher.cli.painting.transactions import paint_receipt_summary
-from nucypher.cli.types import EIP55_CHECKSUM_ADDRESS, EXISTING_READABLE_FILE, WEI
+from nucypher.cli.types import EIP55_CHECKSUM_ADDRESS, EXISTING_READABLE_FILE, PathlibPath, WEI
 from nucypher.cli.utils import (
     deployer_pre_launch_warnings,
     ensure_config_root,
@@ -102,7 +102,7 @@ from nucypher.crypto.powers import TransactingPower
 option_deployer_address = click.option('--deployer-address', help="Deployer's checksum address", type=EIP55_CHECKSUM_ADDRESS)
 option_registry_infile = click.option('--registry-infile', help="Input path for contract registry file", type=EXISTING_READABLE_FILE)
 option_registry_outfile = click.option('--registry-outfile', help="Output path for contract registry file",
-                                       type=click.Path(file_okay=True, path_type=Path))
+                                       type=PathlibPath(file_okay=True))
 option_target_address = click.option('--target-address', help="Address of the target contract", type=EIP55_CHECKSUM_ADDRESS)
 option_gas = click.option('--gas', help="Operate with a specified gas per-transaction limit", type=click.IntRange(min=1))
 option_ignore_deployed = click.option('--ignore-deployed', help="Ignore already deployed contracts if exist.", is_flag=True)
