@@ -15,7 +15,6 @@ You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
-
 from bytestring_splitter import (
     BytestringSplitter,
     VariableLengthBytestring,
@@ -40,7 +39,6 @@ from umbral.signing import Signature
 
 
 class TreasureMap:
-
     VERSION_NUMBER = 2  # Increment when serialization format changes.
 
     _DELIMITER = b':'
@@ -110,7 +108,8 @@ class TreasureMap:
         try:
             return self.public_id() == other.public_id()
         except AttributeError:
-            raise TypeError(f"Can't compare {type(other).__name__} to a TreasureMap (it needs to implement public_id() )")
+            raise TypeError(
+                f"Can't compare {type(other).__name__} to a TreasureMap (it needs to implement public_id() )")
 
     def __iter__(self):
         return iter(self.destinations.items())
@@ -130,27 +129,33 @@ class TreasureMap:
         error is the version is incompatible or ValueError if the header is malformed.
         """
         header = bytes_representation[:cls._HEADER_SIZE]
-        if header != cls._HEADER:
+        header_matches = header == cls._HEADER
+        if header_matches:
+            return cls.VERSION_NUMBER
+        else:
             if bytes_representation[:len(cls._PREFIX)] != cls._PREFIX:
                 # This either is not a treasure map, or predates versioning.
-                raise ValueError('Invalid treasure map header.')
+                # We'll return 0 and hope that it's an old one.
+                return 0
             try:
                 prefix, version = header.split(cls._DELIMITER)
             except ValueError:
                 raise ValueError('Invalid treasure map header.')
-            raise cls.OldVersion(f'Treasure map is an old version ({version} but the latest version is {cls.VERSION_NUMBER}')
+            raise cls.OldVersion(
+                f'Treasure map is an old version ({version} but the latest version is {cls.VERSION_NUMBER}')
 
     ######################################################
     # Previous Version
     @classmethod
-    def splitter(cls):
+    def splitter_old(cls):
         return BytestringKwargifier(cls,
                                     public_signature=Signature,
                                     hrac=(bytes, HRAC_LENGTH),
                                     message_kit=(UmbralMessageKit, VariableLengthBytestring)
                                     )
+
     @classmethod
-    def from_bytes(cls, bytes_representation, verify=True):
+    def from_bytes_old(cls, bytes_representation, verify=True):
         splitter = cls.splitter()
         treasure_map = splitter(bytes_representation)
 
@@ -158,20 +163,33 @@ class TreasureMap:
             treasure_map.public_verify()
 
         return treasure_map
+
     ############################################################
 
+    _splitters = {}
+
+    def __new__(cls, *args, **kwargs):
+        cls._splitters[0] = BytestringKwargifier(cls,
+                                                 public_signature=Signature,
+                                                 hrac=(bytes, HRAC_LENGTH),
+                                                 message_kit=(UmbralMessageKit, VariableLengthBytestring)
+                                                 )
+        cls._splitters[2] = BytestringKwargifier(cls,
+                                                 version=(bytes, cls._HEADER_SIZE),
+                                                 public_signature=Signature,
+                                                 hrac=(bytes, HRAC_LENGTH),
+                                                 message_kit=(UmbralMessageKit, VariableLengthBytestring))
+        return object.__new__(cls)
+
     @classmethod
-    def splitter(cls):
-        return BytestringKwargifier(cls,
-                                    version=(bytes, cls._HEADER_SIZE),
-                                    public_signature=Signature,
-                                    hrac=(bytes, HRAC_LENGTH),
-                                    message_kit=(UmbralMessageKit, VariableLengthBytestring))
+    def splitter(cls, for_version=VERSION_NUMBER):
+        splitter = cls._splitters[for_version]
+        return splitter
 
     @classmethod
     def from_bytes(cls, bytes_representation: bytes, verify: bool = True) -> Union['TreasureMap', 'SignedTreasureMap']:
-        cls._check_version(bytes_representation=bytes_representation)
-        splitter = cls.splitter()
+        version = cls._check_version(bytes_representation=bytes_representation)
+        splitter = cls.splitter(for_version=version)
         treasure_map = splitter(bytes_representation)
         if verify:
             treasure_map.public_verify()
@@ -197,10 +215,10 @@ class TreasureMap:
         self._id = keccak_digest(bytes(self._verifying_key) + bytes(self._hrac)).hex()
 
     def _set_payload(self) -> None:
-        self._payload = self._HEADER  \
-            + self._public_signature  \
-            + self._hrac              \
-            + bytes(VariableLengthBytestring(self.message_kit.to_bytes()))
+        self._payload = self._HEADER \
+                        + self._public_signature \
+                        + self._hrac \
+                        + bytes(VariableLengthBytestring(self.message_kit.to_bytes()))
 
     def derive_hrac(self, alice_stamp: SignatureStamp, bob_verifying_key: UmbralPublicKey, label: bytes) -> None:
         """
@@ -262,7 +280,8 @@ class TreasureMap:
 
         if not self._hrac:
             # TODO: Use a better / different exception or encapsulate HRAC derivation with KFrag population.
-            raise RuntimeError('Cannot add KFrag to TreasureMap without an HRAC set.  Call "derive_hrac" and try again.')
+            raise RuntimeError(
+                'Cannot add KFrag to TreasureMap without an HRAC set.  Call "derive_hrac" and try again.')
 
         # Encrypt this kfrag payload for Ursula.
         kfrag_payload = self._make_kfrag_payload(kfrag=kfrag, alice_stamp=alice_stamp)
