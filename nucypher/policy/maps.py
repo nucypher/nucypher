@@ -124,14 +124,6 @@ class TreasureMap:
         return self._payload
 
     @classmethod
-    def splitter(cls):
-        return BytestringKwargifier(cls,
-                                    version=(bytes, cls._HEADER_SIZE),
-                                    public_signature=Signature,
-                                    hrac=(bytes, HRAC_LENGTH),
-                                    message_kit=(UmbralMessageKit, VariableLengthBytestring))
-
-    @classmethod
     def _check_version(cls, bytes_representation: bytes) -> None:
         """
         Takes a bytes representation of a treasure map and raises OldVersion
@@ -147,6 +139,34 @@ class TreasureMap:
             except ValueError:
                 raise ValueError('Invalid treasure map header.')
             raise cls.OldVersion(f'Treasure map is an old version ({version} but the latest version is {cls.VERSION_NUMBER}')
+
+    ######################################################
+    # Previous Version
+    @classmethod
+    def splitter(cls):
+        return BytestringKwargifier(cls,
+                                    public_signature=Signature,
+                                    hrac=(bytes, HRAC_LENGTH),
+                                    message_kit=(UmbralMessageKit, VariableLengthBytestring)
+                                    )
+    @classmethod
+    def from_bytes(cls, bytes_representation, verify=True):
+        splitter = cls.splitter()
+        treasure_map = splitter(bytes_representation)
+
+        if verify:
+            treasure_map.public_verify()
+
+        return treasure_map
+    ############################################################
+
+    @classmethod
+    def splitter(cls):
+        return BytestringKwargifier(cls,
+                                    version=(bytes, cls._HEADER_SIZE),
+                                    public_signature=Signature,
+                                    hrac=(bytes, HRAC_LENGTH),
+                                    message_kit=(UmbralMessageKit, VariableLengthBytestring))
 
     @classmethod
     def from_bytes(cls, bytes_representation: bytes, verify: bool = True) -> Union['TreasureMap', 'SignedTreasureMap']:
