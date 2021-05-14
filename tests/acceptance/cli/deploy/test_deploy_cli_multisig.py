@@ -55,7 +55,7 @@ def multisig_parameters_filepath(multisig_owners, temp_dir_path):
         os.remove(filepath)
 
 
-@pytest.skip("Takes a long time to run; Currently unused.")
+@pytest.mark.skip("Takes a long time to run; Currently unused.")
 def test_deploy_multisig_contract(click_runner,
                                   multisig_parameters_filepath,
                                   multisig_owners,
