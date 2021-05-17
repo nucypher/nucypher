@@ -150,7 +150,11 @@ Inflation Rewards (NU) and Policy Fees (ETH).
 Q: How are Policy Fees (ETH) determined?
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-The amount of fees a staker can earn in a given period is determined by multiple factors, including (1) the minimum fee rate set by the staker, (2) the number of active policies issued by users of the network to that staker, and (3) whether the staker has previously committed to being available for that period. See :doc:`/architecture/service_fees` for details.
+The amount of fees a staker can earn in a given period is determined by multiple factors,
+including (1) the minimum fee rate set by the staker,
+(2) the number of active policies issued by users of the network to that staker,
+and (3) whether the staker has previously committed to being available for that period.
+See :doc:`/architecture/rewards_and_service_fees` for details.
 
 Q: How many Ursulas per period collect Inflation rewards (NU)?
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~

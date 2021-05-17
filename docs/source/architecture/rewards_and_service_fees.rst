@@ -1,5 +1,111 @@
 .. _service-fees:
 
+************************
+Rewards and Service Fees
+************************
+
+Token Rewards
+=============
+
+The NuCypher network is an example of a decentralized service marketplace,
+providing infrastructural services to digital applications/systems (‘users’)
+via a distributed array of independent node operators (‘service-providers’).
+NuCypher’s primary offerings depend, to some extent, on long-term commitment
+to the network by a large, diversified population of service-providers.
+
+Like many decentralized and centralized service marketplaces,
+an abundance of reliable, committed service-providers is critical
+– and that the network establishes this state prior to the emergence of
+user adoption, lest the adoption be short-lived. As with any network,
+operating a node incurs various overheads, upfront and ongoing, and denominated
+in fiat, cryptocurrency and time. Moreover, eligibility for service provision in
+the NuCypher network is contingent on the acquisition and time-locking of
+collateral (‘staking’), which burdens the service-provider with ongoing risk
+and opportunity cost. NuCypher users, who require the collateral of those serving
+them to remain locked for at least as long as their commercial engagement with
+the network – engagements which in some cases will last for months or years
+– protract this burden.
+
+If demand for NuCypher services rises sufficiently, direct payments from users
+(‘fees’) will sustain the operations of service-providers. However,
+before demand reaches this threshold, another stream of revenue is required
+to incentivize a sufficient number of service-providers to join the network,
+and to subsidize the cost of their operations until a mature fee market
+materializes. Thus, an important mechanism in the NuCypher protocol is the
+distribution of subsidies to actively staking service-providers,
+realized through the growth of the native token’s circulating supply.
+
+Sub-stakes
+----------
+
+In order to be eligible to answer user requests, earn fees, and receive subsidies,
+a service-provider must commit to servicing the network for some period of
+time by locking collateral (staking). Service-providers specify a stake
+unlocking time in the future :math:`t_u`,
+where at time :math:`t` the minimum duration :math:`t_u − t` may not be fewer than
+:math:`D_{min} = 4` (measured in periods, with 1 period equals 7 days),
+but may be any greater number of periods.
+
+The NuCypher protocol allows service-providers to partition their stake into
+sub-stakes, up to a maximum of 30.
+A sub-stake has a unique remaining duration :math:`D` – the number of periods until
+it unlocks and the tokens become freely withdrawable. The sub-stake size :math:`\ell`
+is the number of tokens locked. It is possible to extend (but not reduce)
+:math:`D` for a sub-stake, or split a sub-stake by extending :math:`D` for part of it.
+It is also possible to acquire more tokens and increase :math:`\ell` in any sub-stake.
+This mechanism enables more granular planning for future liquidity needs.
+See :ref:`stake-management` for a more complete guide of the operations that
+can be performed over sub-stakes.
+
+Subsidy coefficient
+-------------------
+
+The amount of rewards earned by each sub-stake :math:`i` is proportional to
+the duration of time until it unlocks (:math:`D_i = t_i − t`),
+and the number of tokens in the sub-stake :math:`\ell_i`. This proportion is represented
+by a `subsidy coefficient` (:math:`\kappa`, or `kappa`) which ranges from 0.5 to 1.
+Sub-stakes that unlock in 52 periods (approximately 1 year) or more
+receive the maximum subsidy (:math:`\kappa = 1`), whereas a sub-stake that unlocks in
+4 periods (28 days) would receive slightly over half the maximum subsidy (:math:`\kappa \approx 0.54`).
+The subsidy coefficient :math:`\kappa` for a given sub-stake :math:`i` is calculated
+as following, where :math:`D_{max}` is currently set to 52 periods (364 days):
+
+.. math::
+    \kappa_i = 0.5 \cdot \left(1 + \frac{\mathsf{min}(D_i, D_{max})}{D_{max}} \right)
+
+
+To improve user experience, instead of this coefficient,
+in NuCypher's user interfaces we display an equivalent representation called
+"`boost`", a value ranging between 1 and 2,
+and defined as :math:`\text{boost} = \frac{\kappa}{0.5}`.
+
+
+.. code:: bash
+
+    ╒═══════╤══════════╤═════════════╤═════════════╤═══════════════╤════════╤═══════════╕
+    │  Slot │ Value    │   Remaining │ Enactment   │ Termination   │  Boost │ Status    │
+    ╞═══════╪══════════╪═════════════╪═════════════╪═══════════════╪════════╪═══════════╡
+    │     0 │ 45000 NU │           5 │ Mar 24 2021 │ Apr 21 2021   │  1.10x │ DIVISIBLE │
+    ╘═══════╧══════════╧═════════════╧═════════════╧═══════════════╧════════╧═══════════╛
+
+
+Subsidies calculation
+---------------------
+
+For a given period, a sub-stake :math:`i` of size :math:`\ell_i` will receive
+the following subsidy :math:`s_i`, where :math:`L` is the sum of all locked
+sub-stakes (for all active stakers in the network) and :math:`I_{max}`
+is the maximum number of tokens that can be minted per period:
+
+.. math::
+    s_i = \kappa_i \cdot \frac{\ell_i}{L} \cdot I_{max}
+
+Note that current value for :math:`I_{max}` is 7,017,566.35 NU.
+See the `Staking Protocol & Economics paper <https://github.com/nucypher/whitepaper/raw/master/economics/staking_protocol/NuCypher_Staking_Protocol_Economics.pdf>`_
+for more details on subsidies calculation.
+
+
+
 Service Fees (Pricing)
 ======================
 

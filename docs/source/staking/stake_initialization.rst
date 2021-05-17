@@ -233,18 +233,16 @@ Once you have created one or more stakes, you can view all active stakes for con
     Unclaimed Fees  0 ETH
     Min fee rate    50 gwei
     --------------  -----------------------------------
-    ╒═══════╤══════════╤═════════════╤═════════════╤═══════════════╤═══════════╕
-    │   Idx │ Value    │   Remaining │ Enactment   │ Termination   │ Status    │
-    ╞═══════╪══════════╪═════════════╪═════════════╪═══════════════╪═══════════╡
-    │     0 │ 45000 NU │           5 │ Mar 24 2021 │ Apr 21 2021   │ DIVISIBLE │
-    ╘═══════╧══════════╧═════════════╧═════════════╧═══════════════╧═══════════╛
+    ╒═══════╤══════════╤═════════════╤═════════════╤═══════════════╤════════╤═══════════╕
+    │  Slot │ Value    │   Remaining │ Enactment   │ Termination   │  Boost │ Status    │
+    ╞═══════╪══════════╪═════════════╪═════════════╪═══════════════╪════════╪═══════════╡
+    │     0 │ 45000 NU │           5 │ Mar 24 2021 │ Apr 21 2021   │  1.10x │ DIVISIBLE │
+    ╘═══════╧══════════╧═════════════╧═════════════╧═══════════════╧════════╧═══════════╛
 
-
-If the Worker in the list is shown as ``NO_WORKER_BONDED``, it means that you haven't yet
-bonded a Worker node to your Staker.
-
-
-.. note:: Stakers accounts without a worker bonded will be highlighted in red.
+.. caution::
+    If the Worker in the list is shown as ``NO_WORKER_BONDED``,
+    it means that you haven't yet bonded a Worker node to your Staker.
+    Your staking account will be highlighted in red.
 
 
 .. _bond-worker:

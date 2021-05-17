@@ -30,7 +30,7 @@ from constant_sorrow.constants import (
     NOT_STAKING,
     UNTRACKED_PENDING_TRANSACTION
 )
-from eth_utils import currency, is_checksum_address
+from eth_utils import currency
 from hexbytes.main import HexBytes
 from twisted.internet import reactor, task
 from web3.exceptions import TransactionNotFound
@@ -366,6 +366,24 @@ class Stake:
             result = delta
         return result
 
+    @property
+    def kappa(self) -> float:
+        """Returns the kappa factor for this substake based on its duration.
+        The kappa factor grows linearly with duration, but saturates when it's longer than the maximum rewarded periods.
+        See the economics papers for a more detailed description."""
+        T_max = self.economics.maximum_rewarded_periods
+        kappa = 0.5 * (1 + min(T_max, self.periods_remaining) / T_max)
+        return kappa
+
+    @property
+    def boost(self) -> float:
+        """An alternative representation of the kappa coefficient, easier to understand.
+        Sub-stake boosts can range from 1x (i.e. no boost) to 2x (max boost). """
+
+        min_kappa = 0.5
+        boost = self.kappa / min_kappa
+        return boost
+
     def describe(self) -> Dict[str, str]:
         start_datetime = self.start_datetime.local_datetime().strftime("%b %d %Y")
         end_datetime = self.unlock_datetime.local_datetime().strftime("%b %d %Y")
@@ -375,6 +393,7 @@ class Stake:
                     remaining=self.periods_remaining,
                     enactment=start_datetime,
                     last_period=end_datetime,
+                    boost=f"{self.boost:.2f}x",
                     status=self.status().name)
         return data
 

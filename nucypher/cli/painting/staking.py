@@ -34,7 +34,7 @@ from nucypher.cli.literature import (
 )
 from nucypher.cli.painting.transactions import paint_receipt_summary
 
-STAKE_TABLE_COLUMNS = ('Idx', 'Value', 'Remaining', 'Enactment', 'Termination', 'Status')
+STAKE_TABLE_COLUMNS = ('Slot', 'Value', 'Remaining', 'Enactment', 'Termination', 'Boost', 'Status')
 STAKER_TABLE_COLUMNS = ('Status', 'Restaking', 'Winding Down', 'Snapshots', 'Unclaimed Fees', 'Min fee rate')
 REWARDS_TABLE_COLUMNS = ('Date', 'Block Number', 'Period', 'Value (NU)')
 
@@ -124,6 +124,7 @@ def paint_stakes(emitter: StdoutEmitter,
             # stake is inactive - update display values since they don't make much sense to display
             stake_description['remaining'] = 'N/A'
             stake_description['last_period'] = 'N/A'
+            stake_description['boost'] = 'N/A'
 
         rows.append(list(stake_description.values()))
 
