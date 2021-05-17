@@ -28,7 +28,7 @@ the network – engagements which in some cases will last for months or years
 
 If demand for NuCypher services rises sufficiently, direct payments from users
 (‘fees’) will sustain the operations of service-providers. However,
-before demand reaches this threshold, another stream of revenue is required –
+before demand reaches this threshold, another stream of revenue is required
 to incentivize a sufficient number of service-providers to join the network,
 and to subsidize the cost of their operations until a mature fee market
 materializes. Thus, an important mechanism in the NuCypher protocol is the
@@ -66,9 +66,9 @@ and the number of tokens in the sub-stake :math:`\ell_i`. This proportion is rep
 by a `subsidy coefficient` (:math:`\kappa`, or `kappa`) which ranges from 0.5 to 1.
 Sub-stakes that unlock in 52 periods (approximately 1 year) or more
 receive the maximum subsidy (:math:`\kappa = 1`), whereas a sub-stake that unlocks in
-4 weeks would receive slightly over half the maximum subsidy (:math:`\kappa \approx 0.54`).
+4 periods (28 days) would receive slightly over half the maximum subsidy (:math:`\kappa \approx 0.54`).
 The subsidy coefficient :math:`\kappa` for a given sub-stake :math:`i` is calculated
-as following, where :math:`D_{max}` is currently set to 52 periods (i.e., 364 days):
+as following, where :math:`D_{max}` is currently set to 52 periods (364 days):
 
 .. math::
     \kappa_i = 0.5 \cdot \left(1 + \frac{\mathsf{min}(D_i, D_{max})}{D_{max}} \right)
@@ -101,7 +101,7 @@ is the maximum number of tokens that can be minted per period:
     s_i = \kappa_i \cdot \frac{\ell_i}{L} \cdot I_{max}
 
 Note that current value for :math:`I_{max}` is 7,017,566.35 NU.
-See the `Staking paper <https://github.com/nucypher/whitepaper/raw/master/economics/staking_protocol/NuCypher_Staking_Protocol_Economics.pdf>`_
+See the `Staking Protocol & Economics paper <https://github.com/nucypher/whitepaper/raw/master/economics/staking_protocol/NuCypher_Staking_Protocol_Economics.pdf>`_
 for more details on subsidies calculation.
 
 
