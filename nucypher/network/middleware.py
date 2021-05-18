@@ -14,7 +14,7 @@ GNU Affero General Public License for more details.
 You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
-
+import urllib
 
 import requests
 import socket
@@ -34,6 +34,8 @@ EXEMPT_FROM_VERIFICATION.bool_value(False)
 
 
 class NucypherMiddlewareClient:
+    log = Logger()
+
     library = requests
     timeout = 1.2
 
@@ -54,6 +56,7 @@ class NucypherMiddlewareClient:
         if node_or_sprout:
             if node_or_sprout is not EXEMPT_FROM_VERIFICATION:
                 node = node_or_sprout.mature()  # Morph into a node.
+                # TODO: Why do we ignore verification results here? Are we only interested in raised exceptions?
                 node.verify_node(network_middleware_client=self, registry=self.registry)
         return self.parse_node_or_host_and_port(node_or_sprout, host, port)
 
@@ -114,6 +117,16 @@ class NucypherMiddlewareClient:
                                      " different certificate_filepath.  What do you even expect?")
             else:
                 certificate_filepath = node_certificate_filepath
+
+            if node_or_sprout:
+                parsed = urllib.parse.urlparse(host)
+                try:
+                    certificate = ssl.get_server_certificate(addr=(parsed.hostname, parsed.port))
+                    certificate_filepath = node_or_sprout.node_storage.store_node_certificate(certificate)
+                    self.log.warn(f"Replaced SSL certificate for host: {host}")
+                except:
+                    self.log.warn(f"Failed to replace SSL certificate for host: {host}")
+                    pass
 
             method = getattr(http_client, method_name)
 
