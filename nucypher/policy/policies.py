@@ -38,6 +38,7 @@ from twisted.python.threadpool import ThreadPool
 from nucypher.blockchain.eth.actors import BlockchainPolicyAuthor
 from nucypher.blockchain.eth.agents import PolicyManagerAgent, StakersReservoir, StakingEscrowAgent
 from nucypher.characters.lawful import Alice, Ursula
+<<<<<<< HEAD
 from nucypher.crypto.api import keccak_digest, secure_random
 from nucypher.crypto.constants import HRAC_LENGTH
 from nucypher.crypto.kits import RevocationKit
@@ -45,6 +46,12 @@ from nucypher.crypto.powers import DecryptingPower, SigningPower, TransactingPow
 from nucypher.crypto.splitters import key_splitter
 from nucypher.crypto.umbral_adapter import PublicKey, KeyFrag
 from nucypher.crypto.utils import construct_policy_id
+=======
+from nucypher.crypto.constants import HRAC_LENGTH, PUBLIC_KEY_LENGTH
+from nucypher.crypto.kits import RevocationKit
+from nucypher.crypto.powers import DecryptingPower, SigningPower, TransactingPower
+from nucypher.crypto.utils import construct_policy_id, secure_random, keccak_digest
+>>>>>>> c20ee57ec... bulk renaming of Keyring -> Keystore
 from nucypher.network.exceptions import NodeSeemsToBeDown
 from nucypher.network.middleware import RestMiddleware
 from nucypher.utilities.concurrency import WorkerPool, AllAtOnceFactory

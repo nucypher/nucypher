@@ -16,14 +16,20 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
 
-import json
-from collections import OrderedDict, defaultdict
-
 import contextlib
-import maya
+import json
 import random
-import time
 from base64 import b64decode, b64encode
+from collections import OrderedDict, defaultdict
+from datetime import datetime
+from functools import partial
+from json.decoder import JSONDecodeError
+from queue import Queue
+from random import shuffle
+from typing import Dict, Iterable, List, NamedTuple, Tuple, Union, Optional, Sequence, Set, Any
+
+import maya
+import time
 from bytestring_splitter import (
     BytestringKwargifier,
     BytestringSplitter,
@@ -43,19 +49,13 @@ from constant_sorrow.constants import (
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives.serialization import Encoding
 from cryptography.x509 import Certificate, NameOID, load_pem_x509_certificate
-from datetime import datetime
 from eth_typing.evm import ChecksumAddress
 from eth_utils import to_checksum_address
 from flask import Response, request
-from functools import partial
-from json.decoder import JSONDecodeError
-from queue import Queue
-from random import shuffle
 from twisted.internet import reactor, stdio, threads
 from twisted.internet.defer import Deferred
 from twisted.internet.task import LoopingCall
 from twisted.logger import Logger
-from typing import Dict, Iterable, List, NamedTuple, Tuple, Union, Optional, Sequence, Set, Any
 
 import nucypher
 from nucypher.acumen.nicknames import Nickname
@@ -74,7 +74,6 @@ from nucypher.characters.control.interfaces import AliceInterface, BobInterface,
 from nucypher.cli.processes import UrsulaCommandProtocol
 from nucypher.config.constants import END_OF_POLICIES_PROBATIONARY_PERIOD
 from nucypher.config.storages import ForgetfulNodeStorage, NodeStorage
-from nucypher.crypto.api import encrypt_and_sign, keccak_digest
 from nucypher.crypto.constants import HRAC_LENGTH
 from nucypher.crypto.keypairs import HostingKeypair
 from nucypher.crypto.kits import UmbralMessageKit
@@ -88,6 +87,7 @@ from nucypher.crypto.powers import (
 from nucypher.crypto.signing import InvalidSignature
 from nucypher.crypto.splitters import key_splitter, signature_splitter
 from nucypher.crypto.umbral_adapter import Capsule, PublicKey, VerifiedKeyFrag, Signature, VerificationError, reencrypt
+from nucypher.crypto.utils import keccak_digest, encrypt_and_sign
 from nucypher.datastore.datastore import DatastoreTransactionError, RecordNotFound
 from nucypher.datastore.queries import find_expired_policies, find_expired_treasure_maps
 from nucypher.network.exceptions import NodeSeemsToBeDown

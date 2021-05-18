@@ -42,8 +42,8 @@ NUCYPHER_TEST_DIR = BASE_DIR / 'tests'
 
 # User Application Filepaths
 APP_DIR = AppDirs(nucypher.__title__, nucypher.__author__)
-DEFAULT_CONFIG_ROOT = os.getenv('NUCYPHER_CONFIG_ROOT', default=APP_DIR.user_data_dir)
-USER_LOG_DIR = os.getenv('NUCYPHER_USER_LOG_DIR', default=APP_DIR.user_log_dir)
+DEFAULT_CONFIG_ROOT = Path(os.getenv('NUCYPHER_CONFIG_ROOT', default=APP_DIR.user_data_dir))
+USER_LOG_DIR = Path(os.getenv('NUCYPHER_USER_LOG_DIR', default=APP_DIR.user_log_dir))
 DEFAULT_LOG_FILENAME = "nucypher.log"
 DEFAULT_JSON_LOG_FILENAME = "nucypher.json"
 

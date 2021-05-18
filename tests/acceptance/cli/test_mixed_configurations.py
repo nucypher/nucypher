@@ -16,18 +16,22 @@
 """
 
 import os
+import shutil
+from pathlib import Path
 from unittest.mock import patch, PropertyMock
 
 import pytest
-import shutil
-from pathlib import Path
 
 from nucypher.blockchain.eth.actors import Worker
 from nucypher.cli.main import nucypher_cli
 from nucypher.config.characters import AliceConfiguration, FelixConfiguration, UrsulaConfiguration
-from nucypher.config.constants import NUCYPHER_ENVVAR_KEYRING_PASSWORD, TEMPORARY_DOMAIN, \
-    NUCYPHER_ENVVAR_ALICE_ETH_PASSWORD, NUCYPHER_ENVVAR_BOB_ETH_PASSWORD
-from nucypher.config.keyring import NucypherKeyring
+from nucypher.config.constants import (
+    NUCYPHER_ENVVAR_KEYRING_PASSWORD,
+    TEMPORARY_DOMAIN,
+    NUCYPHER_ENVVAR_ALICE_ETH_PASSWORD,
+    NUCYPHER_ENVVAR_BOB_ETH_PASSWORD
+)
+from nucypher.crypto.keystore import Keystore
 from nucypher.crypto.umbral_adapter import SecretKey
 from nucypher.network.nodes import Teacher
 from tests.constants import (
@@ -279,7 +283,7 @@ def test_corrupted_configuration(click_runner,
     # Fails because password is too short and the command uses incomplete args (needs either -F or blockchain details)
     envvars = {NUCYPHER_ENVVAR_KEYRING_PASSWORD: ''}
 
-    with pytest.raises(NucypherKeyring.AuthenticationFailed):
+    with pytest.raises(Keystore.AuthenticationFailed):
         result = click_runner.invoke(nucypher_cli, init_args, catch_exceptions=False, env=envvars)
         assert result.exit_code != 0
 

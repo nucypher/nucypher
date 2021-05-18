@@ -16,35 +16,33 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
 
-import binascii
 import os
 import uuid
 import weakref
+from datetime import datetime, timedelta
+from typing import Tuple
+
+import binascii
 from bytestring_splitter import BytestringSplitter
 from constant_sorrow import constants
 from constant_sorrow.constants import (
     FLEET_STATES_MATCH,
     NO_BLOCKCHAIN_CONNECTION,
-    NO_KNOWN_NODES,
     RELAX
 )
-from datetime import datetime, timedelta
 from flask import Flask, Response, jsonify, request
 from mako import exceptions as mako_exceptions
 from mako.template import Template
 from maya import MayaDT
-from typing import Tuple
 from web3.exceptions import TimeExhausted
 
-import nucypher
-from nucypher.crypto.api import InvalidNodeCertificate
 from nucypher.config.constants import MAX_UPLOAD_CONTENT_LENGTH
 from nucypher.crypto.keypairs import HostingKeypair
 from nucypher.crypto.kits import UmbralMessageKit
 from nucypher.crypto.powers import KeyPairBasedPower, PowerUpError
 from nucypher.crypto.signing import InvalidSignature
 from nucypher.crypto.umbral_adapter import KeyFrag, VerificationError
-from nucypher.crypto.utils import canonical_address_from_umbral_key
+from nucypher.crypto.utils import canonical_address_from_umbral_key, InvalidNodeCertificate
 from nucypher.datastore.datastore import Datastore, RecordNotFound, DatastoreTransactionError
 from nucypher.datastore.models import PolicyArrangement, TreasureMap, Workorder
 from nucypher.network import LEARNING_LOOP_VERSION

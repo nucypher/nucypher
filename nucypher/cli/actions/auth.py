@@ -33,7 +33,7 @@ from nucypher.cli.literature import (
 )
 from nucypher.config.base import CharacterConfiguration
 from nucypher.config.constants import NUCYPHER_ENVVAR_KEYRING_PASSWORD
-from nucypher.config.keyring import NucypherKeyring
+from nucypher.crypto.keystore import Keystore
 
 
 def get_password_from_prompt(prompt: str = GENERIC_PASSWORD_PROMPT, envvar: str = None, confirm: bool = False) -> str:
@@ -82,9 +82,9 @@ def get_nucypher_password(emitter, confirm: bool = False, envvar=NUCYPHER_ENVVAR
     """Interactively collect a nucypher password"""
     prompt = COLLECT_NUCYPHER_PASSWORD
     if confirm:
-        from nucypher.config.keyring import NucypherKeyring
+        from nucypher.crypto.keystore import Keystore
         emitter.message(PASSWORD_COLLECTION_NOTICE)
-        prompt += f" ({NucypherKeyring.MINIMUM_PASSWORD_LENGTH} character minimum)"
+        prompt += f" ({Keystore.MINIMUM_PASSWORD_LENGTH} character minimum)"
     keyring_password = get_password_from_prompt(prompt=prompt, confirm=confirm, envvar=envvar)
     return keyring_password
 
@@ -102,6 +102,6 @@ def unlock_nucypher_keyring(emitter: StdoutEmitter, password: str, character_con
         character_configuration.attach_keyring()
         character_configuration.keyring.unlock(password=password)  # Takes ~3 seconds, ~1GB Ram
     except CryptoError:
-        raise NucypherKeyring.AuthenticationFailed
+        raise Keystore.AuthenticationFailed
     else:
         return True

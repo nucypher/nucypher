@@ -65,7 +65,7 @@ from nucypher.config.characters import AliceConfiguration
 from nucypher.config.constants import (
     TEMPORARY_DOMAIN,
 )
-from nucypher.config.keyring import NucypherKeyring
+from nucypher.crypto.keystore import Keystore
 from nucypher.network.middleware import RestMiddleware
 from nucypher.policy.identity import Card
 
@@ -272,7 +272,7 @@ class AliceCharacterOptions:
                                        lonely=self.config_options.lonely,
                                        json_ipc=json_ipc)
             return ALICE
-        except NucypherKeyring.AuthenticationFailed as e:
+        except Keystore.AuthenticationFailed as e:
             emitter.echo(str(e), color='red', bold=True)
             click.get_current_context().exit(1)
 

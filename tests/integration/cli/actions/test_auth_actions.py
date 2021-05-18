@@ -34,7 +34,7 @@ from nucypher.cli.literature import (
     DECRYPTING_CHARACTER_KEYRING,
     GENERIC_PASSWORD_PROMPT
 )
-from nucypher.config.keyring import NucypherKeyring
+from nucypher.crypto.keystore import Keystore
 from nucypher.config.base import CharacterConfiguration
 from tests.constants import INSECURE_DEVELOPMENT_PASSWORD
 
@@ -97,7 +97,7 @@ def test_get_nucypher_password(mock_stdin, mock_account, confirm, capsys):
     captured = capsys.readouterr()
     assert COLLECT_NUCYPHER_PASSWORD in captured.out
     if confirm:
-        prompt = COLLECT_NUCYPHER_PASSWORD + f" ({NucypherKeyring.MINIMUM_PASSWORD_LENGTH} character minimum)"
+        prompt = COLLECT_NUCYPHER_PASSWORD + f" ({Keystore.MINIMUM_PASSWORD_LENGTH} character minimum)"
         assert prompt in captured.out
 
 
@@ -105,14 +105,14 @@ def test_unlock_nucypher_keyring_invalid_password(mocker, test_emitter, alice_bl
 
     # Setup
     keyring_attach_spy = mocker.spy(CharacterConfiguration, 'attach_keyring')
-    mocker.patch.object(NucypherKeyring, 'unlock', side_effect=CryptoError)
+    mocker.patch.object(Keystore, 'unlock', side_effect=CryptoError)
     mocker.patch.object(CharacterConfiguration,
                         'dev_mode',
                         return_value=False,
                         new_callable=mocker.PropertyMock)
 
     # Test
-    with pytest.raises(NucypherKeyring.AuthenticationFailed):
+    with pytest.raises(Keystore.AuthenticationFailed):
         unlock_nucypher_keyring(emitter=test_emitter,
                                 password=INSECURE_DEVELOPMENT_PASSWORD+'typo',
                                 character_configuration=alice_blockchain_test_config)
@@ -125,7 +125,7 @@ def test_unlock_nucypher_keyring_invalid_password(mocker, test_emitter, alice_bl
 def test_unlock_nucypher_keyring_dev_mode(mocker, test_emitter, capsys, alice_blockchain_test_config):
 
     # Setup
-    unlock_spy = mocker.spy(NucypherKeyring, 'unlock')
+    unlock_spy = mocker.spy(Keystore, 'unlock')
     attach_spy = mocker.spy(CharacterConfiguration, 'attach_keyring')
     mocker.patch.object(CharacterConfiguration,
                         'dev_mode',
@@ -154,7 +154,7 @@ def test_unlock_nucypher_keyring(mocker,
 
     # Setup
     # Do not test "real" unlocking here, just the plumbing
-    unlock_spy = mocker.patch.object(NucypherKeyring, 'unlock', return_value=True)
+    unlock_spy = mocker.patch.object(Keystore, 'unlock', return_value=True)
     attach_spy = mocker.spy(CharacterConfiguration, 'attach_keyring')
     mocker.patch.object(CharacterConfiguration,
                         'dev_mode',

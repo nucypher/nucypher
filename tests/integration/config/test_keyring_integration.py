@@ -26,7 +26,7 @@ from flask import Flask
 
 from nucypher.characters.lawful import Alice, Bob, Ursula
 from nucypher.config.constants import TEMPORARY_DOMAIN
-from nucypher.config.keyring import NucypherKeyring
+from nucypher.crypto.keystore import Keystore
 from nucypher.crypto.powers import DecryptingPower, DelegatingPower
 from nucypher.crypto.umbral_adapter import SecretKey, Signer
 from nucypher.datastore.datastore import Datastore
@@ -38,7 +38,7 @@ from tests.utils.matchers import IsType
 
 def test_generate_alice_keyring(tmpdir):
 
-    keyring = NucypherKeyring.generate(
+    keyring = Keystore.generate(
         checksum_address=FEDERATED_ADDRESS,
         password=INSECURE_DEVELOPMENT_PASSWORD,
         encrypting=True,
@@ -49,7 +49,7 @@ def test_generate_alice_keyring(tmpdir):
     enc_pubkey = keyring.encrypting_public_key
     assert enc_pubkey is not None
 
-    with pytest.raises(NucypherKeyring.KeyringLocked):
+    with pytest.raises(Keystore.KeyringLocked):
         _dec_keypair = keyring.derive_crypto_power(DecryptingPower).keypair
 
     keyring.unlock(password=INSECURE_DEVELOPMENT_PASSWORD)
@@ -77,7 +77,7 @@ def test_generate_alice_keyring(tmpdir):
 
 
 def test_characters_use_keyring(tmpdir):
-    keyring = NucypherKeyring.generate(
+    keyring = Keystore.generate(
         checksum_address=FEDERATED_ADDRESS,
         password=INSECURE_DEVELOPMENT_PASSWORD,
         encrypting=True,
@@ -98,7 +98,7 @@ def test_characters_use_keyring(tmpdir):
 
 
 def test_tls_hosting_certificate_remains_the_same(tmpdir, mocker):
-    keyring = NucypherKeyring.generate(
+    keyring = Keystore.generate(
         checksum_address=FEDERATED_ADDRESS,
         password=INSECURE_DEVELOPMENT_PASSWORD,
         encrypting=True,

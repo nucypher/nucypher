@@ -76,7 +76,7 @@ NUMBER_OF_ALLOCATIONS_IN_TESTS = 50  # TODO: Move to constants
 
 __valid_password_chars = string.ascii_uppercase + string.ascii_lowercase + string.digits
 
-INSECURE_DEVELOPMENT_PASSWORD = ''.join(SystemRandom().choice(__valid_password_chars) for _ in range(16))
+INSECURE_DEVELOPMENT_PASSWORD = ''.join(SystemRandom().choice(__valid_password_chars) for _ in range(32))
 
 #
 # Temporary Directories and Files

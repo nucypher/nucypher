@@ -45,12 +45,12 @@ from nucypher.blockchain.eth.registry import (
 from nucypher.blockchain.eth.signers import Signer
 from nucypher.characters.lawful import Ursula
 from nucypher.config import constants
-from nucypher.config.keyring import NucypherKeyring
 from nucypher.config.storages import (
     ForgetfulNodeStorage,
     LocalFileBasedNodeStorage,
     NodeStorage
 )
+from nucypher.crypto.keystore import Keystore
 from nucypher.crypto.powers import CryptoPower, CryptoPowerUp
 from nucypher.crypto.umbral_adapter import Signature
 from nucypher.network.middleware import RestMiddleware
@@ -355,7 +355,7 @@ class CharacterConfiguration(BaseConfiguration):
                  crypto_power: CryptoPower = None,
 
                  # Keyring
-                 keyring: NucypherKeyring = None,
+                 keyring: Keystore = None,
                  keyring_root: str = None,
 
                  # Learner
@@ -745,7 +745,7 @@ class CharacterConfiguration(BaseConfiguration):
             if self.keyring.checksum_address != account:
                 raise self.ConfigurationError("There is already a keyring attached to this configuration.")
             return
-        self.keyring = NucypherKeyring(keyring_root=self.keyring_root, account=account, *args, **kwargs)
+        self.keyring = Keystore(keyring_root=self.keyring_root, account=account, *args, **kwargs)
 
     def derive_node_power_ups(self) -> List[CryptoPowerUp]:
         power_ups = list()
@@ -780,7 +780,7 @@ class CharacterConfiguration(BaseConfiguration):
         self.log.debug(message)
         return self.config_root
 
-    def write_keyring(self, password: str, checksum_address: str = None, **generation_kwargs) -> NucypherKeyring:
+    def write_keyring(self, password: str, checksum_address: str = None, **generation_kwargs) -> Keystore:
 
         # Configure checksum address
         checksum_address = checksum_address or self.checksum_address
@@ -790,10 +790,10 @@ class CharacterConfiguration(BaseConfiguration):
             raise self.ConfigurationError(f'No checksum address provided for decentralized configuration.')
 
         # Generate new keys
-        self.keyring = NucypherKeyring.generate(password=password,
-                                                keyring_root=self.keyring_root,
-                                                checksum_address=checksum_address,
-                                                **generation_kwargs)
+        self.keyring = Keystore.generate(password=password,
+                                         keyring_root=self.keyring_root,
+                                         checksum_address=checksum_address,
+                                         **generation_kwargs)
 
         # In the case of a federated keyring generation,
         # the generated federated address must be set here.

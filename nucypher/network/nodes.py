@@ -54,7 +54,7 @@ from nucypher.blockchain.eth.networks import NetworksInventory
 from nucypher.blockchain.eth.registry import BaseContractRegistry
 from nucypher.config.constants import SeednodeMetadata
 from nucypher.config.storages import ForgetfulNodeStorage
-from nucypher.crypto.api import InvalidNodeCertificate, recover_address_eip_191, verify_eip_191
+from nucypher.crypto.utils import InvalidNodeCertificate, recover_address_eip_191, verify_eip_191
 from nucypher.crypto.kits import UmbralMessageKit
 from nucypher.crypto.powers import DecryptingPower, NoSigningPower, SigningPower
 from nucypher.crypto.splitters import signature_splitter

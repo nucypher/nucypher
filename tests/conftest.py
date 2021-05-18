@@ -45,7 +45,7 @@ Learner._DEBUG_MODE = False
 
 
 @pytest.fixture(autouse=True, scope='session')
-def __very_pretty_and_insecure_scrypt_do_not_use():
+def __very_pretty_and_insecure_scrypt_do_not_use(request):
     """
     # WARNING: DO NOT USE THIS CODE ANYWHERE #
 

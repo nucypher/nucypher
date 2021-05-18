@@ -15,11 +15,10 @@ You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
-from coincurve import PublicKey
-from eth_keys import KeyAPI as EthKeyAPI
 from typing import Any, Union
 
-from nucypher.crypto.api import keccak_digest
+from eth_keys import KeyAPI as EthKeyAPI
+
 from nucypher.crypto.signing import SignatureStamp
 from nucypher.crypto.umbral_adapter import PublicKey
 
@@ -47,3 +46,4 @@ def canonical_address_from_umbral_key(public_key: Union[PublicKey, SignatureStam
     eth_pubkey = EthKeyAPI.PublicKey.from_compressed_bytes(pubkey_compressed_bytes)
     canonical_address = eth_pubkey.to_canonical_address()
     return canonical_address
+

@@ -21,7 +21,6 @@ from constant_sorrow import constants
 from cryptography.exceptions import InvalidSignature
 
 from nucypher.characters.lawful import Alice, Bob, Character
-from nucypher.crypto import api
 from nucypher.crypto.powers import (CryptoPower, NoSigningPower, SigningPower)
 
 """

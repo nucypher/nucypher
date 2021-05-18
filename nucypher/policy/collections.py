@@ -16,6 +16,7 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
 from collections import OrderedDict
+from typing import Optional
 
 import maya
 from bytestring_splitter import BytestringKwargifier
@@ -26,15 +27,10 @@ from bytestring_splitter import (
 )
 from constant_sorrow.constants import CFRAG_NOT_RETAINED, NO_DECRYPTION_PERFORMED
 from constant_sorrow.constants import NOT_SIGNED
-from cryptography.hazmat.backends.openssl import backend
-from cryptography.hazmat.primitives import hashes
 from eth_utils import to_canonical_address, to_checksum_address
-from typing import Optional, Tuple
 
 from nucypher.blockchain.eth.constants import ETH_ADDRESS_BYTE_LENGTH, ETH_HASH_BYTE_LENGTH
 from nucypher.characters.lawful import Bob, Character
-from nucypher.crypto.api import encrypt_and_sign, keccak_digest
-from nucypher.crypto.api import verify_eip_191
 from nucypher.crypto.constants import HRAC_LENGTH
 from nucypher.crypto.kits import UmbralMessageKit
 from nucypher.crypto.signing import InvalidSignature, Signature, SignatureStamp
@@ -42,6 +38,9 @@ from nucypher.crypto.splitters import capsule_splitter, cfrag_splitter, key_spli
 from nucypher.crypto.umbral_adapter import PublicKey, Capsule
 from nucypher.crypto.utils import (
     canonical_address_from_umbral_key,
+    keccak_digest,
+    verify_eip_191,
+    encrypt_and_sign
 )
 from nucypher.network.middleware import RestMiddleware
 

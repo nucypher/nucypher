@@ -35,7 +35,8 @@ from nucypher.acumen.nicknames import Nickname
 from nucypher.blockchain.eth.decorators import validate_checksum_address
 from nucypher.blockchain.eth.registry import BaseContractRegistry
 from nucypher.config.constants import DEFAULT_CONFIG_ROOT
-from nucypher.crypto.api import read_certificate_pseudonym, InvalidNodeCertificate
+from nucypher.crypto.utils import InvalidNodeCertificate
+from nucypher.crypto.tls import read_certificate_pseudonym
 from nucypher.utilities.logging import Logger
 
 

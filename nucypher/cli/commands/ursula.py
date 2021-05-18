@@ -63,7 +63,7 @@ from nucypher.config.constants import (
     NUCYPHER_ENVVAR_WORKER_ETH_PASSWORD,
     TEMPORARY_DOMAIN
 )
-from nucypher.config.keyring import NucypherKeyring
+from nucypher.crypto.keystore import Keystore
 
 
 class UrsulaConfigOptions:
@@ -156,7 +156,7 @@ class UrsulaConfigOptions:
                 )
             except FileNotFoundError:
                 return handle_missing_configuration_file(character_config_class=UrsulaConfiguration, config_file=config_file)
-            except NucypherKeyring.AuthenticationFailed as e:
+            except Keystore.AuthenticationFailed as e:
                 emitter.echo(str(e), color='red', bold=True)
                 # TODO: Exit codes (not only for this, but for other exceptions)
                 return click.get_current_context().exit(1)
@@ -271,7 +271,7 @@ class UrsulaCharacterOptions:
                                         json_ipc=json_ipc)
             return ursula_config, URSULA
 
-        except NucypherKeyring.AuthenticationFailed as e:
+        except Keystore.AuthenticationFailed as e:
             emitter.echo(str(e), color='red', bold=True)
             # TODO: Exit codes (not only for this, but for other exceptions)
             return click.get_current_context().exit(1)

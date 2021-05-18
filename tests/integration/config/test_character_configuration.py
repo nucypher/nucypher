@@ -16,18 +16,18 @@
 """
 
 import os
+import tempfile
 from unittest.mock import Mock
 
 import pytest
-import tempfile
 from constant_sorrow.constants import CERTIFICATE_NOT_SAVED, NO_KEYRING_ATTACHED
 
-from tests.constants import MOCK_IP_ADDRESS
 from nucypher.blockchain.eth.actors import StakeHolder
 from nucypher.characters.chaotic import Felix
 from nucypher.characters.lawful import Alice, Bob, Ursula
 from nucypher.cli.actions.configure import destroy_configuration
 from nucypher.cli.literature import SUCCESSFUL_DESTRUCTION
+from nucypher.config.base import CharacterConfiguration
 from nucypher.config.characters import (
     AliceConfiguration,
     BobConfiguration,
@@ -36,11 +36,10 @@ from nucypher.config.characters import (
     UrsulaConfiguration
 )
 from nucypher.config.constants import TEMPORARY_DOMAIN
-from nucypher.config.keyring import NucypherKeyring
-from nucypher.config.base import CharacterConfiguration
 from nucypher.config.storages import ForgetfulNodeStorage
+from nucypher.crypto.keystore import Keystore
 from nucypher.crypto.umbral_adapter import SecretKey
-
+from tests.constants import MOCK_IP_ADDRESS
 
 # Main Cast
 configurations = (AliceConfiguration, BobConfiguration, UrsulaConfiguration)
@@ -128,7 +127,7 @@ def test_default_character_configuration_preservation(configuration_class, teste
     elif configuration_class == UrsulaConfiguration:
         # special case for rest_host & dev mode
         # use keyring
-        keyring = Mock(spec=NucypherKeyring)
+        keyring = Mock(spec=Keystore)
         keyring.signing_public_key = SecretKey.random().public_key()
         character_config = configuration_class(checksum_address=fake_address,
                                                domain=network,
@@ -211,7 +210,7 @@ def test_destroy_configuration(config,
     # Isolate from filesystem and Spy on the methods we're testing here
     spy_keyring_attached = mocker.spy(CharacterConfiguration, 'attach_keyring')
     mock_config_destroy = mocker.patch.object(CharacterConfiguration, 'destroy')
-    spy_keyring_destroy = mocker.spy(NucypherKeyring, 'destroy')
+    spy_keyring_destroy = mocker.spy(Keystore, 'destroy')
     mock_os_remove = mocker.patch('os.remove')
 
     # Test

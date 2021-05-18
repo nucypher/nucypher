@@ -20,7 +20,7 @@ from eth_utils import to_checksum_address
 
 from nucypher.blockchain.eth.signers.software import Web3Signer
 from nucypher.characters.lawful import Character
-from nucypher.crypto.api import verify_eip_191
+from nucypher.crypto.utils import verify_eip_191
 from nucypher.crypto.powers import (TransactingPower)
 from tests.constants import INSECURE_DEVELOPMENT_PASSWORD, MOCK_PROVIDER_URI
 

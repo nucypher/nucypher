@@ -19,7 +19,7 @@ import datetime
 import maya
 import pytest
 
-from nucypher.crypto.api import keccak_digest
+from nucypher.crypto.utils import keccak_digest
 from nucypher.datastore.models import PolicyArrangement
 from nucypher.datastore.models import TreasureMap as DatastoreTreasureMap
 from nucypher.policy.collections import SignedTreasureMap as DecentralizedTreasureMap

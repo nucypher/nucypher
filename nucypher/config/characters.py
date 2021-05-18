@@ -33,7 +33,7 @@ from nucypher.config.constants import (
     NUCYPHER_ENVVAR_ALICE_ETH_PASSWORD,
     NUCYPHER_ENVVAR_BOB_ETH_PASSWORD
 )
-from nucypher.config.keyring import NucypherKeyring
+from nucypher.crypto.keystore import Keystore
 from nucypher.utilities.networking import LOOPBACK_ADDRESS
 
 
@@ -145,7 +145,7 @@ class UrsulaConfiguration(CharacterConfiguration):
             account = checksum_address or self.worker_address
         return super().attach_keyring(checksum_address=account)
 
-    def write_keyring(self, password: str, **generation_kwargs) -> NucypherKeyring:
+    def write_keyring(self, password: str, **generation_kwargs) -> Keystore:
         keyring = super().write_keyring(password=password,
                                         encrypting=True,
                                         rest=True,
@@ -217,7 +217,7 @@ class AliceConfiguration(CharacterConfiguration):
                 payload['payment_periods'] = self.payment_periods
         return {**super().static_payload(), **payload}
 
-    def write_keyring(self, password: str, **generation_kwargs) -> NucypherKeyring:
+    def write_keyring(self, password: str, **generation_kwargs) -> Keystore:
         return super().write_keyring(password=password,
                                      encrypting=True,
                                      rest=False,
@@ -248,7 +248,7 @@ class BobConfiguration(CharacterConfiguration):
         self.store_policies = store_policies
         self.store_cards = store_cards
 
-    def write_keyring(self, password: str, **generation_kwargs) -> NucypherKeyring:
+    def write_keyring(self, password: str, **generation_kwargs) -> Keystore:
         return super().write_keyring(password=password,
                                      encrypting=True,
                                      rest=False,
@@ -302,7 +302,7 @@ class FelixConfiguration(CharacterConfiguration):
         )
         return {**super().static_payload(), **payload}
 
-    def write_keyring(self, password: str, **generation_kwargs) -> NucypherKeyring:
+    def write_keyring(self, password: str, **generation_kwargs) -> Keystore:
         return super().write_keyring(password=password,
                                      encrypting=True,  # TODO: #668
                                      rest=True,

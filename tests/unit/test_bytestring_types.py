@@ -18,7 +18,7 @@ import pytest
 from bytestring_splitter import BytestringSplitter, BytestringSplittingError
 
 from nucypher.characters.lawful import Enrico
-from nucypher.crypto.api import secure_random
+from nucypher.crypto.utils import secure_random
 from nucypher.crypto.kits import UmbralMessageKit
 from nucypher.crypto.signing import Signature
 from nucypher.crypto.splitters import signature_splitter
