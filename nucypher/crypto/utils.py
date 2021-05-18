@@ -19,7 +19,6 @@ from coincurve import PublicKey
 from eth_keys import KeyAPI as EthKeyAPI
 from typing import Any, Union
 from umbral.keys import UmbralPublicKey
-from umbral.point import Point
 from umbral.signing import Signature
 
 from nucypher.crypto.api import keccak_digest
@@ -42,47 +41,11 @@ def construct_policy_id(label: bytes, stamp: bytes) -> bytes:
     return keccak_digest(label + stamp)
 
 
-def canonical_address_from_umbral_key(public_key: UmbralPublicKey) -> bytes:
+def canonical_address_from_umbral_key(public_key: Union[UmbralPublicKey, SignatureStamp]) -> bytes:
     pubkey_raw_bytes = get_coordinates_as_bytes(public_key)
     eth_pubkey = EthKeyAPI.PublicKey(pubkey_raw_bytes)
     canonical_address = eth_pubkey.to_canonical_address()
     return canonical_address
-
-
-def recover_pubkey_from_signature(message: bytes,
-                                  signature: Union[bytes, Signature],
-                                  v_value_to_try: int,
-                                  is_prehashed: bool = False) -> bytes:
-    """
-    Recovers a serialized, compressed public key from a signature.
-    It allows to specify a potential v value, in which case it assumes the signature
-    has the traditional (r,s) raw format. If a v value is not present, it assumes
-    the signature has the recoverable format (r, s, v).
-
-    :param message: Signed message
-    :param signature: The signature from which the pubkey is recovered
-    :param v_value_to_try: A potential v value to try
-    :param is_prehashed: True if the message is already pre-hashed. Default is False, and message will be hashed with SHA256
-    :return: The compressed byte-serialized representation of the recovered public key
-    """
-
-    signature = bytes(signature)
-    expected_signature_size = Signature.expected_bytes_length()
-    if not len(signature) == expected_signature_size:
-        raise ValueError(f"The signature size should be {expected_signature_size} B.")
-
-    if v_value_to_try in (0, 1, 27, 28):
-        if v_value_to_try >= 27:
-            v_value_to_try -= 27
-        signature = signature + v_value_to_try.to_bytes(1, 'big')
-    else:
-        raise ValueError("Wrong v value. It should be 0, 1, 27 or 28.")
-
-    kwargs = dict(hasher=None) if is_prehashed else {}
-    pubkey = PublicKey.from_signature_and_message(serialized_sig=signature,
-                                                  message=message,
-                                                  **kwargs)
-    return pubkey.format(compressed=True)
 
 
 def get_signature_recovery_value(message: bytes,
@@ -117,7 +80,7 @@ def get_signature_recovery_value(message: bytes,
                          "Either the message, the signature or the public key is not correct")
 
 
-def get_coordinates_as_bytes(point: Union[Point, UmbralPublicKey, SignatureStamp],
+def get_coordinates_as_bytes(point: UmbralPublicKey,
                              x_coord=True,
                              y_coord=True) -> bytes:
     if isinstance(point, SignatureStamp):

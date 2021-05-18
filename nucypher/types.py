@@ -26,7 +26,6 @@ Work = NewType("Work", int)
 Agent = TypeVar('Agent', bound='EthereumContractAgent')
 Period = NewType('Period', int)
 PeriodDelta = NewType('PeriodDelta', int)
-Evidence = TypeVar('Evidence', bound='IndisputableEvidence')
 ContractReturnValue = TypeVar('ContractReturnValue', bound=Union[TxReceipt, Wei, int, str, bool])
 
 
