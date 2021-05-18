@@ -28,6 +28,7 @@ from hendrix.facilities.services import ExistingKeyTLSContextFactory
 from nucypher.config.constants import MAX_UPLOAD_CONTENT_LENGTH
 from nucypher.crypto.kits import MessageKit
 from nucypher.crypto.signing import SignatureStamp, StrangerStamp
+from nucypher.crypto.tls import generate_teacher_certificate
 from nucypher.crypto.umbral_adapter import (
     SecretKey,
     PublicKey,

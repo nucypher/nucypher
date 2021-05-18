@@ -41,14 +41,14 @@ def echo_solidity_version(ctx, param, value):
 def echo_config_root_path(ctx, param, value):
     if not value or ctx.resilient_parsing:
         return
-    click.secho(DEFAULT_CONFIG_ROOT)
+    click.secho(str(DEFAULT_CONFIG_ROOT.resolve()))
     ctx.exit()
 
 
 def echo_logging_root_path(ctx, param, value):
     if not value or ctx.resilient_parsing:
         return
-    click.secho(USER_LOG_DIR)
+    click.secho(str(USER_LOG_DIR.resolve()))
     ctx.exit()
 
 
