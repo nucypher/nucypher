@@ -79,5 +79,5 @@ def test_treasure_map_versioning(mocker, federated_alice, federated_bob, federat
     deserialized_map = TreasureMap.from_bytes(serialized_map)
     assert treasure_map == deserialized_map
 
-    # b''.serialized_map.split(b'')[len(TreasureMap._PREFIX)+1] = int(TreasureMap.VERSION_NUMBER+1).to_bytes(1, 'big')
-    assert False
+    map_from_f04d564a1 = TreasureMap.from_bytes(map_from_previous_version)
+    assert map_from_f04d564a1.public_verify()
