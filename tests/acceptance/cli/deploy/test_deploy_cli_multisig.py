@@ -20,12 +20,12 @@ import json
 import os
 import pytest
 
-from nucypher.blockchain.eth.clients import EthereumClient
 from nucypher.blockchain.eth.agents import (
     MultiSigAgent
 )
 from nucypher.blockchain.eth.registry import LocalContractRegistry
 from nucypher.cli.commands.deploy import deploy
+from nucypher.config.constants import TEMPORARY_DOMAIN
 from tests.constants import (
     TEST_PROVIDER_URI,
 )
@@ -55,6 +55,7 @@ def multisig_parameters_filepath(multisig_owners, temp_dir_path):
         os.remove(filepath)
 
 
+@pytest.mark.skip("Takes a long time to run; Currently unused.")
 def test_deploy_multisig_contract(click_runner,
                                   multisig_parameters_filepath,
                                   multisig_owners,
@@ -66,6 +67,7 @@ def test_deploy_multisig_contract(click_runner,
 
     command = ['contracts',
                '--registry-infile', new_local_registry.filepath,
+               '--network', TEMPORARY_DOMAIN,
                '--provider', TEST_PROVIDER_URI,
                '--contract-name', 'MultiSig',
                '--parameters', multisig_parameters_filepath]
