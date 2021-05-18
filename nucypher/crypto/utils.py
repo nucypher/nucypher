@@ -19,7 +19,6 @@ from coincurve import PublicKey
 from eth_keys import KeyAPI as EthKeyAPI
 from typing import Any, Union
 from umbral.keys import UmbralPublicKey
-from umbral.signing import Signature
 
 from nucypher.crypto.api import keccak_digest
 from nucypher.crypto.signing import SignatureStamp
@@ -48,35 +47,3 @@ def canonical_address_from_umbral_key(public_key: Union[UmbralPublicKey, Signatu
     eth_pubkey = EthKeyAPI.PublicKey.from_compressed_bytes(pubkey_compressed_bytes)
     canonical_address = eth_pubkey.to_canonical_address()
     return canonical_address
-
-
-def get_signature_recovery_value(message: bytes,
-                                 signature: Union[bytes, Signature],
-                                 public_key: Union[bytes, UmbralPublicKey],
-                                 is_prehashed: bool = False) -> bytes:
-    """
-    Obtains the recovery value of a standard ECDSA signature.
-
-    :param message: Signed message
-    :param signature: The signature from which the pubkey is recovered
-    :param public_key: The public key for verifying the signature
-    :param is_prehashed: True if the message is already pre-hashed. Default is False, and message will be hashed with SHA256
-    :return: The compressed byte-serialized representation of the recovered public key
-    """
-
-    signature = bytes(signature)
-    ecdsa_signature_size = Signature.expected_bytes_length()
-    if len(signature) != ecdsa_signature_size:
-        raise ValueError(f"The signature size should be {ecdsa_signature_size} B.")
-
-    kwargs = dict(hasher=None) if is_prehashed else {}
-    for v in (0, 1):
-        v_byte = bytes([v])
-        recovered_pubkey = PublicKey.from_signature_and_message(serialized_sig=signature + v_byte,
-                                                                message=message,
-                                                                **kwargs)
-        if bytes(public_key) == recovered_pubkey.format(compressed=True):
-            return v_byte
-    else:
-        raise ValueError("Signature recovery failed. "
-                         "Either the message, the signature or the public key is not correct")

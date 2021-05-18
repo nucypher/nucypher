@@ -18,21 +18,52 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 
 import os
 import pytest
+from coincurve import PublicKey
 from cryptography.hazmat.backends.openssl import backend
 from cryptography.hazmat.primitives import hashes
 from eth_account.account import Account
 from eth_account.messages import HexBytes, SignableMessage, encode_defunct
 from eth_tester.exceptions import TransactionFailed
 from eth_utils import to_canonical_address, to_checksum_address, to_normalized_address
-from umbral.keys import UmbralPrivateKey
-from umbral.signing import Signer
+from umbral.keys import UmbralPrivateKey, UmbralPublicKey
+from umbral.signing import Signer, Signature
 
 from nucypher.crypto.api import keccak_digest, verify_eip_191
-from nucypher.crypto.utils import canonical_address_from_umbral_key, get_signature_recovery_value
+from nucypher.crypto.utils import canonical_address_from_umbral_key
 
 ALGORITHM_KECCAK256 = 0
 ALGORITHM_SHA256 = 1
 ALGORITHM_RIPEMD160 = 2
+
+
+def get_signature_recovery_value(message: bytes,
+                                 signature: Signature,
+                                 public_key: UmbralPublicKey
+                                 ) -> bytes:
+    """
+    Obtains the recovery value of a standard ECDSA signature.
+
+    :param message: Signed message
+    :param signature: The signature from which the pubkey is recovered
+    :param public_key: The public key for verifying the signature
+    :param is_prehashed: True if the message is already pre-hashed. Default is False, and message will be hashed with SHA256
+    :return: The compressed byte-serialized representation of the recovered public key
+    """
+
+    signature = bytes(signature)
+    ecdsa_signature_size = Signature.expected_bytes_length()
+    if len(signature) != ecdsa_signature_size:
+        raise ValueError(f"The signature size should be {ecdsa_signature_size} B.")
+
+    for v in (0, 1):
+        v_byte = bytes([v])
+        recovered_pubkey = PublicKey.from_signature_and_message(serialized_sig=signature + v_byte,
+                                                                message=message)
+        if bytes(public_key) == recovered_pubkey.format(compressed=True):
+            return v_byte
+    else:
+        raise ValueError("Signature recovery failed. "
+                         "Either the message, the signature or the public key is not correct")
 
 
 @pytest.fixture()
