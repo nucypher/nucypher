@@ -22,7 +22,7 @@ from bytestring_splitter import (
     BytestringSplitter,
     VariableLengthBytestring,
     BytestringKwargifier,
-    BytestringSplittingError
+    BytestringSplittingError, VersionedBytestringKwargifier
 )
 from constant_sorrow.constants import NO_DECRYPTION_PERFORMED, NOT_SIGNED
 from eth_utils.address import to_checksum_address, to_canonical_address
@@ -43,11 +43,11 @@ from nucypher.network.middleware import RestMiddleware
 class TreasureMap:
     VERSION_NUMBER = 2  # Increment when serialization format changes.
 
-    _DELIMITER = b':'
-    _PREFIX = b'TM' + _DELIMITER
-    _VERSION = int(VERSION_NUMBER).to_bytes(1, 'big')
-    _HEADER = _PREFIX + _VERSION
-    _HEADER_SIZE = len(_HEADER)
+    # _DELIMITER = b':'
+    # _PREFIX = b'TM' + _DELIMITER
+    _VERSION = int(VERSION_NUMBER).to_bytes(2, 'big')
+    _HEADER = _VERSION
+    # _HEADER_SIZE = len(_HEADER)
 
     class NowhereToBeFound(RestMiddleware.NotFound):
         """
@@ -130,8 +130,10 @@ class TreasureMap:
         Takes a bytes representation of a treasure map and raises OldVersion
         error is the version is incompatible or ValueError if the header is malformed.
         """
-        header = bytes_representation[:cls._HEADER_SIZE]
-        header_matches = header == cls._HEADER
+        version = VersionedBytestringKwargifier.get_metadata(bytes_representation)['version']
+
+        # header = bytes_representation[:cls._HEADER_SIZE]
+        header_matches = version == cls.VERSION_NUMBER
         if header_matches:
             return cls.VERSION_NUMBER
         else:
@@ -171,16 +173,18 @@ class TreasureMap:
     _splitters = {}
 
     def __new__(cls, *args, **kwargs):
-        cls._splitters[0] = BytestringKwargifier(cls,
-                                                 public_signature=Signature,
-                                                 hrac=(bytes, HRAC_LENGTH),
-                                                 message_kit=(UmbralMessageKit, VariableLengthBytestring)
-                                                 )
-        cls._splitters[2] = BytestringKwargifier(cls,
-                                                 version=(bytes, cls._HEADER_SIZE),
-                                                 public_signature=Signature,
-                                                 hrac=(bytes, HRAC_LENGTH),
-                                                 message_kit=(UmbralMessageKit, VariableLengthBytestring))
+        cls._splitters[0] = VersionedBytestringKwargifier(cls,
+                                                          public_signature=Signature,
+                                                          hrac=(bytes, HRAC_LENGTH),
+                                                          message_kit=(UmbralMessageKit, VariableLengthBytestring),
+                                                          version=0,
+                                                          )
+        cls._splitters[2] = VersionedBytestringKwargifier(cls,
+                                                          version=1,
+                                                          public_signature=Signature,
+                                                          hrac=(bytes, HRAC_LENGTH),
+                                                          message_kit=(UmbralMessageKit, VariableLengthBytestring),
+                                                          )
         return object.__new__(cls)
 
     @classmethod
