@@ -15,14 +15,13 @@ You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
-
 from typing import Optional, Callable, Union, Sequence
 
 from bytestring_splitter import (
     BytestringSplitter,
     VariableLengthBytestring,
     BytestringKwargifier,
-    BytestringSplittingError, VersionedBytestringKwargifier
+    BytestringSplittingError, VersioningMixin, BrandingMixin
 )
 from constant_sorrow.constants import NO_DECRYPTION_PERFORMED, NOT_SIGNED
 from eth_utils.address import to_checksum_address, to_canonical_address
@@ -40,14 +39,16 @@ from nucypher.crypto.signing import SignatureStamp
 from nucypher.network.middleware import RestMiddleware
 
 
-class TreasureMap:
-    VERSION_NUMBER = 2  # Increment when serialization format changes.
+class TreadsureMapSplitter(BrandingMixin, VersioningMixin, BytestringKwargifier):
+    pass
 
-    # _DELIMITER = b':'
-    # _PREFIX = b'TM' + _DELIMITER
+
+class TreasureMap:
+    VERSION_NUMBER = 1  # Increment when serialization format changes.
+
+    _BRAND = b'TM'
     _VERSION = int(VERSION_NUMBER).to_bytes(2, 'big')
-    _HEADER = _VERSION
-    # _HEADER_SIZE = len(_HEADER)
+    _HEADER = _BRAND + _VERSION
 
     class NowhereToBeFound(RestMiddleware.NotFound):
         """
@@ -125,77 +126,44 @@ class TreasureMap:
         return self._payload
 
     @classmethod
-    def _check_version(cls, bytes_representation: bytes) -> None:
+    def get_splitter(cls, bytes_representation: bytes) -> None:
         """
         Takes a bytes representation of a treasure map and raises OldVersion
         error is the version is incompatible or ValueError if the header is malformed.
         """
-        version = VersionedBytestringKwargifier.get_metadata(bytes_representation)['version']
+        representation_metadata = TreadsureMapSplitter.get_metadata(bytes_representation)
 
         # header = bytes_representation[:cls._HEADER_SIZE]
-        header_matches = version == cls.VERSION_NUMBER
-        if header_matches:
-            return cls.VERSION_NUMBER
+        brand_matches = representation_metadata['brand'] == cls._BRAND
+        version = representation_metadata['version']
+
+        if version <= cls.VERSION_NUMBER and brand_matches:
+            # This representation is compatible with a known stencil.
+            splitter = cls._splitters[version]
         else:
-            if bytes_representation[:len(cls._PREFIX)] != cls._PREFIX:
-                # This either is not a treasure map, or predates versioning.
-                # We'll return 0 and hope that it's an old one.
-                return 0
-            try:
-                prefix, version = header.split(cls._DELIMITER)
-            except ValueError:
-                raise ValueError('Invalid treasure map header.')
-            raise cls.OldVersion(
-                f'Treasure map is an old version ({version} but the latest version is {cls.VERSION_NUMBER}')
-
-    ######################################################
-    # Previous Version
-    @classmethod
-    def splitter_old(cls):
-        return BytestringKwargifier(cls,
-                                    public_signature=Signature,
-                                    hrac=(bytes, HRAC_LENGTH),
-                                    message_kit=(UmbralMessageKit, VariableLengthBytestring)
-                                    )
-
-    @classmethod
-    def from_bytes_old(cls, bytes_representation, verify=True):
-        splitter = cls.splitter()
-        treasure_map = splitter(bytes_representation)
-
-        if verify:
-            treasure_map.public_verify()
-
-        return treasure_map
-
-    ############################################################
+            # It's possible that this is a preversioned representation.
+            splitter = cls._splitters['unversioned']  # TODO: In this case, it's still a map from a previous version - how will we handle sin KFrags?
+        return splitter
 
     _splitters = {}
 
     def __new__(cls, *args, **kwargs):
-        cls._splitters[0] = VersionedBytestringKwargifier(cls,
-                                                          public_signature=Signature,
-                                                          hrac=(bytes, HRAC_LENGTH),
-                                                          message_kit=(UmbralMessageKit, VariableLengthBytestring),
-                                                          version=0,
-                                                          )
-        cls._splitters[2] = VersionedBytestringKwargifier(cls,
-                                                          version=1,
-                                                          public_signature=Signature,
-                                                          hrac=(bytes, HRAC_LENGTH),
-                                                          message_kit=(UmbralMessageKit, VariableLengthBytestring),
-                                                          )
+
+        cls._splitters['unversioned'] = BytestringKwargifier(cls,
+                                                 public_signature=Signature,
+                                                 hrac=(bytes, HRAC_LENGTH),
+                                                 message_kit=(UmbralMessageKit, VariableLengthBytestring),
+                                                 )
+        cls._splitters[1] = TreadsureMapSplitter(cls,
+                                                 public_signature=Signature,
+                                                 hrac=(bytes, HRAC_LENGTH),
+                                                 message_kit=(UmbralMessageKit, VariableLengthBytestring),
+                                                 )
         return object.__new__(cls)
 
     @classmethod
-    def splitter(cls, for_version=VERSION_NUMBER):
-        splitter = cls._splitters[for_version]
-        return splitter
-
-    @classmethod
     def from_bytes(cls, bytes_representation: bytes, verify: bool = True) -> Union['TreasureMap', 'SignedTreasureMap']:
-        version = cls._check_version(bytes_representation=bytes_representation)
-        splitter = cls.splitter(for_version=version)
+        splitter = cls.get_splitter(bytes_representation)
         treasure_map = splitter(bytes_representation)
         if verify:
             treasure_map.public_verify()
