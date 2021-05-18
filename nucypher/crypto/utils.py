@@ -42,8 +42,10 @@ def construct_policy_id(label: bytes, stamp: bytes) -> bytes:
 
 
 def canonical_address_from_umbral_key(public_key: Union[UmbralPublicKey, SignatureStamp]) -> bytes:
-    pubkey_raw_bytes = get_coordinates_as_bytes(public_key)
-    eth_pubkey = EthKeyAPI.PublicKey(pubkey_raw_bytes)
+    if isinstance(public_key, SignatureStamp):
+        public_key = public_key.as_umbral_pubkey()
+    pubkey_compressed_bytes = public_key.to_bytes(is_compressed=True)
+    eth_pubkey = EthKeyAPI.PublicKey.from_compressed_bytes(pubkey_compressed_bytes)
     canonical_address = eth_pubkey.to_canonical_address()
     return canonical_address
 
@@ -78,21 +80,3 @@ def get_signature_recovery_value(message: bytes,
     else:
         raise ValueError("Signature recovery failed. "
                          "Either the message, the signature or the public key is not correct")
-
-
-def get_coordinates_as_bytes(point: UmbralPublicKey,
-                             x_coord=True,
-                             y_coord=True) -> bytes:
-    if isinstance(point, SignatureStamp):
-        point = point.as_umbral_pubkey()
-
-    coordinates_as_bytes = point.to_bytes(is_compressed=False)[1:]
-    middle = len(coordinates_as_bytes)//2
-    if x_coord and y_coord:
-        return coordinates_as_bytes
-    elif x_coord:
-        return coordinates_as_bytes[:middle]
-    elif y_coord:
-        return coordinates_as_bytes[middle:]
-    else:
-        raise ValueError("At least one coordinate must be set")
