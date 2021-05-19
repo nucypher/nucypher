@@ -69,7 +69,7 @@ Alternately, you can install the development dependencies with pip:
 .. code-block:: bash
 
     $ pip3 install -e .[dev]
-    $ ./scripts/installation/install_solc.sh
+    $ ./scripts/installation/install_solc.py
 
 
 Development Docker Installation
