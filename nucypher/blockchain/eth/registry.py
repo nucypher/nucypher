@@ -359,7 +359,7 @@ class LocalContractRegistry(BaseContractRegistry):
     def filepath(self) -> Path:
         return self.__filepath
 
-    def _swap_registry(self, filepath: str) -> bool:
+    def _swap_registry(self, filepath: Path) -> bool:
         self.__filepath = filepath
         return True
 
@@ -458,7 +458,7 @@ class InMemoryContractRegistry(BaseContractRegistry):
     def clear(self):
         self.__registry_data = None
 
-    def _swap_registry(self, filepath: str) -> bool:
+    def _swap_registry(self, filepath: Path) -> bool:
         raise NotImplementedError
 
     def write(self, registry_data: list) -> None:

@@ -130,7 +130,7 @@ def run_entire_cli_lifecycle(click_runner,
     else:
         alice_init_args += ('--provider', TEST_PROVIDER_URI,
                             '--pay-with', testerchain.alice_account,
-                            '--registry-filepath', str(registry_filepath))
+                            '--registry-filepath', registry_filepath)
 
     alice_init_response = click_runner.invoke(nucypher_cli, alice_init_args, catch_exceptions=False, env=envvars)
     assert alice_init_response.exit_code == 0

@@ -14,8 +14,7 @@
  You should have received a copy of the GNU Affero General Public License
  along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
-
-
+from pathlib import Path
 from unittest import mock
 
 import os
@@ -36,7 +35,7 @@ from nucypher.config.constants import NUCYPHER_ENVVAR_KEYSTORE_PASSWORD, TEMPORA
 from tests.constants import (INSECURE_DEVELOPMENT_PASSWORD, MOCK_CUSTOM_INSTALLATION_PATH_2, TEST_PROVIDER_URI)
 
 
-@mock.patch('nucypher.config.characters.FelixConfiguration.default_filepath', return_value='/non/existent/file')
+@mock.patch('nucypher.config.characters.FelixConfiguration.default_filepath', return_value=Path('/non/existent/file'))
 def test_missing_configuration_file(default_filepath_mock, click_runner):
     cmd_args = ('felix', 'view')
     result = click_runner.invoke(nucypher_cli, cmd_args, catch_exceptions=False)
@@ -66,7 +65,7 @@ def test_run_felix(click_runner, testerchain, agency_local_registry):
     # Felix creates a system configuration
     init_args = ('felix', 'init',
                  '--debug',
-                 '--registry-filepath', str(agency_local_registry.filepath),
+                 '--registry-filepath', agency_local_registry.filepath,
                  '--checksum-address', testerchain.client.accounts[0],
                  '--config-root', MOCK_CUSTOM_INSTALLATION_PATH_2,
                  '--provider', TEST_PROVIDER_URI)
