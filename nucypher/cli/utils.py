@@ -167,7 +167,7 @@ def establish_deployer_registry(emitter,
     return registry
 
 
-def get_registry(network: str, registry_filepath: str = None) -> BaseContractRegistry:
+def get_registry(network: str, registry_filepath: Path = None) -> BaseContractRegistry:
     if registry_filepath:
         registry = LocalContractRegistry(filepath=registry_filepath)
     else:

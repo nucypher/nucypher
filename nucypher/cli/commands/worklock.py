@@ -14,7 +14,7 @@
  You should have received a copy of the GNU Affero General Public License
  along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
-
+from pathlib import Path
 
 import click
 import maya
@@ -90,7 +90,7 @@ class WorkLockOptions:
                  participant_address: ChecksumAddress,
                  signer_uri: str,
                  provider_uri: str,
-                 registry_filepath: str,
+                 registry_filepath: Path,
                  network: str):
 
         self.bidder_address = participant_address

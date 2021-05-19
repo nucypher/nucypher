@@ -134,12 +134,6 @@ class UmbralPublicKeyHex(click.ParamType):
         return value
 
 
-class PathlibPath(click.Path):
-    """A Click path argument that returns a pathlib Path, not a string"""
-    def convert(self, value, param, ctx):
-        return Path(super().convert(value, param, ctx))
-
-
 # Ethereum
 EIP55_CHECKSUM_ADDRESS = ChecksumAddress()
 WEI = click.IntRange(min=1, clamp=False)  # TODO: Better validation for ether and wei values?
@@ -150,8 +144,8 @@ MIN_ALLOWED_LOCKED_TOKENS = Decimal(__min_allowed_locked)
 STAKED_TOKENS_RANGE = DecimalRange(min=__min_allowed_locked)
 
 # Filesystem
-EXISTING_WRITABLE_DIRECTORY = PathlibPath(exists=True, dir_okay=True, file_okay=False, writable=True)
-EXISTING_READABLE_FILE = PathlibPath(exists=True, dir_okay=False, file_okay=True, readable=True)
+EXISTING_WRITABLE_DIRECTORY = click.Path(exists=True, dir_okay=True, file_okay=False, writable=True, path_type=Path)
+EXISTING_READABLE_FILE = click.Path(exists=True, dir_okay=False, file_okay=True, readable=True, path_type=Path)
 
 # Network
 NETWORK_PORT = click.IntRange(min=0, max=65535, clamp=False)

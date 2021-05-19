@@ -84,7 +84,7 @@ class AliceConfigOptions:
                  federated_only: bool,
                  discovery_port: int,
                  pay_with: str,
-                 registry_filepath: str,
+                 registry_filepath: Path,
                  middleware: RestMiddleware,
                  gas_strategy: str,
                  max_gas_price: int,  # gwei

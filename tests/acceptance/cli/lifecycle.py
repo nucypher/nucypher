@@ -105,8 +105,8 @@ def run_entire_cli_lifecycle(click_runner,
     federated = list(ursulas)[0].federated_only
 
     # Boring Setup Stuff
-    alice_config_root = str(custom_filepath)
-    bob_config_root = str(custom_filepath_2)
+    alice_config_root = custom_filepath
+    bob_config_root = custom_filepath_2
     envvars = {NUCYPHER_ENVVAR_KEYSTORE_PASSWORD: INSECURE_DEVELOPMENT_PASSWORD,
                NUCYPHER_ENVVAR_ALICE_ETH_PASSWORD: INSECURE_DEVELOPMENT_PASSWORD,
                NUCYPHER_ENVVAR_BOB_ETH_PASSWORD: INSECURE_DEVELOPMENT_PASSWORD}
@@ -139,7 +139,7 @@ def run_entire_cli_lifecycle(click_runner,
     GlobalLoggerSettings.stop_console_logging()
 
     # Alice uses her configuration file to run the character "view" command
-    alice_configuration_file_location = Path(alice_config_root, AliceConfiguration.generate_filename())
+    alice_configuration_file_location = alice_config_root / AliceConfiguration.generate_filename()
     alice_view_args = ('alice', 'public-keys',
                        '--json-ipc',
                        '--config-file', alice_configuration_file_location)
@@ -172,14 +172,14 @@ def run_entire_cli_lifecycle(click_runner,
         bob_init_args += ('--federated-only',)
     else:
         bob_init_args += ('--provider', TEST_PROVIDER_URI,
-                          '--registry-filepath', str(registry_filepath),
+                          '--registry-filepath', registry_filepath,
                           '--checksum-address', testerchain.bob_account)
 
     bob_init_response = click_runner.invoke(nucypher_cli, bob_init_args, catch_exceptions=False, env=envvars)
     assert bob_init_response.exit_code == 0
 
     # Alice uses her configuration file to run the character "view" command
-    bob_configuration_file_location = Path(bob_config_root, BobConfiguration.generate_filename())
+    bob_configuration_file_location = bob_config_root / BobConfiguration.generate_filename()
     bob_view_args = ('bob', 'public-keys',
                      '--json-ipc',
                      '--mock-networking',  # TODO: It's absurd for this public-keys command to connect at all.  1710

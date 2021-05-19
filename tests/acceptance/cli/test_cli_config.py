@@ -49,7 +49,7 @@ def test_initialize_via_cli(config_class, custom_filepath: Path, click_runner, m
     init_args = (command, 'init',
                  '--network', TEMPORARY_DOMAIN,
                  '--federated-only',
-                 '--config-root', str(custom_filepath))
+                 '--config-root', custom_filepath)
 
     if config_class == UrsulaConfiguration:
         init_args += ('--rest-host', MOCK_IP_ADDRESS)
