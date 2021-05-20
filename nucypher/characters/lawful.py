@@ -780,7 +780,7 @@ class Bob(Character):
     def _reencrypt(self,
                    work_order: 'WorkOrder',
                    retain_cfrags: bool = False
-                   ) -> Tuple[bool, Union[List['IndisputableEvidence'], List['CapsuleFrag']]]:
+                   ) -> Tuple[bool, Union[List['Ursula'], List['CapsuleFrag']]]:
 
         if work_order.completed:
             raise TypeError(
@@ -811,10 +811,8 @@ class Bob(Character):
         for capsule, pre_task in work_order.tasks.items():
             if not pre_task.cfrag.verify_correctness(capsule):
                 # TODO: WARNING - This block is untested.
-                from nucypher.policy.collections import IndisputableEvidence
-                evidence = IndisputableEvidence(task=pre_task, work_order=work_order)
                 # I got a lot of problems with you people ...
-                the_airing_of_grievances.append(evidence)
+                the_airing_of_grievances.append(work_order.ursula)
 
         if the_airing_of_grievances:
             return False, the_airing_of_grievances

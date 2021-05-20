@@ -52,11 +52,6 @@ from nucypher.policy.policies import Policy
 from nucypher.utilities.logging import Logger
 from tests.utils.blockchain import TesterBlockchain
 
-try:
-    from tests.utils.ursula import _mock_ursula_reencrypts as mock_ursula_reencrypts
-except ImportError:
-    raise DevelopmentInstallationRequired(importable_name='tests.utils.ursula')
-
 
 ALGORITHM_SHA256 = 1
 TOKEN_ECONOMICS = StandardTokenEconomics()
@@ -144,12 +139,6 @@ def mock_ursula(testerchain, account):
 
     ursula = Mock(stamp=ursula_stamp, decentralized_identity_evidence=signed_stamp)
     return ursula
-
-
-def generate_args_for_slashing(ursula, corrupt_cfrag: bool = True):
-    evidence = mock_ursula_reencrypts(ursula, corrupt_cfrag=corrupt_cfrag)
-    args = list(evidence.evaluation_arguments())
-    return args
 
 
 def estimate_gas(analyzer: AnalyzeGas = None) -> None:
@@ -520,44 +509,7 @@ def estimate_gas(analyzer: AnalyzeGas = None) -> None:
     testerchain.time_travel(periods=1)
     transact(staker_functions.commitToNextPeriod(), {'from': staker1})
 
-    #
-    # Slashing tests
-    #
     testerchain.time_travel(periods=1)
-
-    #
-    # Slashing
-    #
-    slashing_args = generate_args_for_slashing(ursula_with_stamp)
-    transact_and_log("Slash just value", adjudicator_functions.evaluateCFrag(*slashing_args), {'from': alice1})
-
-    deposit = staker_functions.stakerInfo(staker1).call()[0]
-    unlocked = deposit - staker_functions.getLockedTokens(staker1, 0).call()
-    transact(staker_functions.withdraw(unlocked), {'from': staker1})
-
-    sub_stakes_length = str(staker_functions.getSubStakesLength(staker1).call())
-    slashing_args = generate_args_for_slashing(ursula_with_stamp)
-    transact_and_log("Slashing one sub stake and saving old one (" + sub_stakes_length + " sub stakes), 1st",
-                     adjudicator_functions.evaluateCFrag(*slashing_args),
-                     {'from': alice1})
-
-    sub_stakes_length = str(staker_functions.getSubStakesLength(staker1).call())
-    slashing_args = generate_args_for_slashing(ursula_with_stamp)
-    transact_and_log("Slashing one sub stake and saving old one (" + sub_stakes_length + " sub stakes), 2nd",
-                     adjudicator_functions.evaluateCFrag(*slashing_args),
-                     {'from': alice1})
-
-    sub_stakes_length = str(staker_functions.getSubStakesLength(staker1).call())
-    slashing_args = generate_args_for_slashing(ursula_with_stamp)
-    transact_and_log("Slashing one sub stake and saving old one (" + sub_stakes_length + " sub stakes), 3rd",
-                     adjudicator_functions.evaluateCFrag(*slashing_args),
-                     {'from': alice1})
-
-    sub_stakes_length = str(staker_functions.getSubStakesLength(staker1).call())
-    slashing_args = generate_args_for_slashing(ursula_with_stamp)
-    transact_and_log("Slashing two sub stakes and saving old one (" + sub_stakes_length + " sub stakes)",
-                     adjudicator_functions.evaluateCFrag(*slashing_args),
-                     {'from': alice1})
 
     for index in range(18):
         transact(staker_functions.commitToNextPeriod(), {'from': staker1})
@@ -567,21 +519,6 @@ def estimate_gas(analyzer: AnalyzeGas = None) -> None:
     deposit = staker_functions.stakerInfo(staker1).call()[0]
     unlocked = deposit - staker_functions.getLockedTokens(staker1, 1).call()
     transact(staker_functions.withdraw(unlocked), {'from': staker1})
-
-    sub_stakes_length = str(staker_functions.getSubStakesLength(staker1).call())
-    slashing_args = generate_args_for_slashing(ursula_with_stamp)
-    transact_and_log("Slashing two sub stakes, shortest and new one (" + sub_stakes_length + " sub stakes)",
-                     adjudicator_functions.evaluateCFrag(*slashing_args),
-                     {'from': alice1})
-
-    sub_stakes_length = str(staker_functions.getSubStakesLength(staker1).call())
-    slashing_args = generate_args_for_slashing(ursula_with_stamp)
-    transact_and_log("Slashing three sub stakes, two shortest and new one (" + sub_stakes_length + " sub stakes)",
-                     adjudicator_functions.evaluateCFrag(*slashing_args),
-                     {'from': alice1})
-
-    slashing_args = generate_args_for_slashing(ursula_with_stamp, corrupt_cfrag=False)
-    transact_and_log("Evaluating correct CFrag", adjudicator_functions.evaluateCFrag(*slashing_args), {'from': alice1})
 
     transact_and_log("Prolong stake", staker_functions.prolongStake(0, 20), {'from': staker1})
     transact_and_log("Merge sub-stakes", staker_functions.mergeStake(2, 3), {'from': staker1})

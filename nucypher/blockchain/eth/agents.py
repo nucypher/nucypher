@@ -68,7 +68,6 @@ from nucypher.types import (
     StakerInfo,
     PeriodDelta,
     StakingEscrowParameters,
-    Evidence
 )
 from nucypher.utilities.logging import Logger  # type: ignore
 
@@ -915,7 +914,7 @@ class AdjudicatorAgent(EthereumContractAgent):
     _proxy_name: str = DISPATCHER_CONTRACT_NAME
 
     @contract_api(TRANSACTION)
-    def evaluate_cfrag(self, evidence: Evidence, transacting_power: TransactingPower) -> TxReceipt:
+    def evaluate_cfrag(self, evidence, transacting_power: TransactingPower) -> TxReceipt:
         """Submits proof that a worker created wrong CFrag"""
         payload: TxParams = {'gas': Wei(500_000)}  # TODO #842: gas needed for use with geth.
         contract_function: ContractFunction = self.contract.functions.evaluateCFrag(*evidence.evaluation_arguments())
@@ -925,7 +924,7 @@ class AdjudicatorAgent(EthereumContractAgent):
         return receipt
 
     @contract_api(CONTRACT_CALL)
-    def was_this_evidence_evaluated(self, evidence: Evidence) -> bool:
+    def was_this_evidence_evaluated(self, evidence) -> bool:
         data_hash: bytes = sha256_digest(evidence.task.capsule, evidence.task.cfrag)
         result: bool = self.contract.functions.evaluatedCFrags(data_hash).call()
         return result
@@ -1003,7 +1002,7 @@ class WorkLockAgent(EthereumContractAgent):
     def cancel_bid(self, transacting_power: TransactingPower) -> TxReceipt:
         """Cancel bid and refund deposited ETH."""
         contract_function: ContractFunction = self.contract.functions.cancelBid()
-        receipt = self.blockchain.send_transaction(contract_function=contract_function, 
+        receipt = self.blockchain.send_transaction(contract_function=contract_function,
                                                    transacting_power=transacting_power)
         return receipt
 
@@ -1012,7 +1011,7 @@ class WorkLockAgent(EthereumContractAgent):
         """Force refund to bidders who can get tokens more than maximum allowed."""
         addresses = sorted(addresses, key=str.casefold)
         contract_function: ContractFunction = self.contract.functions.forceRefund(addresses)
-        receipt = self.blockchain.send_transaction(contract_function=contract_function, 
+        receipt = self.blockchain.send_transaction(contract_function=contract_function,
                                                    transacting_power=transacting_power)
         return receipt
 

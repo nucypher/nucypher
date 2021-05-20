@@ -21,7 +21,6 @@ import socket
 from cryptography.x509 import Certificate
 from typing import Iterable, List, Optional, Set
 from umbral import pre
-from umbral.curvebn import CurveBN
 from umbral.keys import UmbralPrivateKey
 from umbral.signing import Signer
 
@@ -31,7 +30,7 @@ from nucypher.characters.lawful import Bob
 from nucypher.characters.lawful import Ursula
 from nucypher.config.characters import UrsulaConfiguration
 from nucypher.crypto.utils import canonical_address_from_umbral_key
-from nucypher.policy.collections import WorkOrder, IndisputableEvidence
+from nucypher.policy.collections import WorkOrder
 from tests.constants import NUMBER_OF_URSULAS_IN_DEVELOPMENT_NETWORK
 from tests.mock.datastore import MOCK_DB
 
@@ -165,7 +164,7 @@ MOCK_KNOWN_URSULAS_CACHE = dict()
 MOCK_URSULA_STARTING_PORT = 51000  # select_test_port()
 
 
-def _mock_ursula_reencrypts(ursula, corrupt_cfrag: bool = False):
+def _mock_ursula_reencrypts(ursula):
     delegating_privkey = UmbralPrivateKey.gen_key()
     _symmetric_key, capsule = pre._encapsulate(delegating_privkey.get_pubkey())
     signing_privkey = UmbralPrivateKey.gen_key()
@@ -199,15 +198,7 @@ def _mock_ursula_reencrypts(ursula, corrupt_cfrag: bool = False):
     metadata = bytes(ursula.stamp(task_signature))
 
     cfrag = pre.reencrypt(kfrags[0], capsule, metadata=metadata)
-
-    if corrupt_cfrag:
-        cfrag.proof.bn_sig = CurveBN.gen_rand(capsule.params.curve)
-
     cfrag_signature = ursula.stamp(bytes(cfrag))
 
     bob = Bob.from_public_keys(verifying_key=pub_key_bob)
-    task = WorkOrder.PRETask(capsule, task_signature, cfrag, cfrag_signature)
-    work_order = WorkOrder(bob, None, alice_address, {capsule: task}, None, ursula, blockhash)
-
-    evidence = IndisputableEvidence(task, work_order)
-    return evidence
+    return WorkOrder.PRETask(capsule, task_signature, cfrag, cfrag_signature)

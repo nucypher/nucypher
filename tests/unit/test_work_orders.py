@@ -43,8 +43,9 @@ def ursula(mocker):
 
 def test_pre_task(mock_ursula_reencrypts, ursula, get_random_checksum_address):
     identity_evidence = ursula.decentralized_identity_evidence
-    evidence = mock_ursula_reencrypts(ursula)
-    capsule = evidence.task.capsule
+    task = mock_ursula_reencrypts(ursula)
+    cfrag = task.cfrag
+    capsule = task.capsule
     capsule_bytes = capsule.to_bytes()
 
     signature = ursula.stamp(capsule_bytes)
@@ -61,7 +62,6 @@ def test_pre_task(mock_ursula_reencrypts, ursula, get_random_checksum_address):
     assert signature == deserialized_task.signature
 
     # Attaching cfrags to the task
-    cfrag = evidence.task.cfrag
     cfrag_bytes = bytes(VariableLengthBytestring(cfrag.to_bytes()))
     cfrag_signature = ursula.stamp(cfrag_bytes)
 
@@ -101,7 +101,7 @@ def test_work_order_with_multiple_capsules(mock_ursula_reencrypts,
                                            federated_alice,
                                            number):
 
-    tasks = [mock_ursula_reencrypts(ursula).task for _ in range(number)]
+    tasks = [mock_ursula_reencrypts(ursula) for _ in range(number)]
     material = [(task.capsule, task.signature, task.cfrag, task.cfrag_signature) for task in tasks]
     capsules, signatures, cfrags, cfrag_signatures = zip(*material)
 
