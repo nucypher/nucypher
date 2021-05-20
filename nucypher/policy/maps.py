@@ -344,7 +344,6 @@ class SignedTreasureMap(TreasureMap):
     @classmethod
     def splitter(cls):
         return BytestringKwargifier(cls,
-                                    version=(bytes, len(cls._PREFIX)),
                                     public_signature=Signature,
                                     hrac=(bytes, HRAC_LENGTH),
                                     message_kit=(UmbralMessageKit, VariableLengthBytestring),
