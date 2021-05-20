@@ -133,6 +133,9 @@ class NodeSprout(PartiallyKwargifiedBytes):
             self._nickname = Nickname.from_seed(self.checksum_address)
         return self._nickname
 
+    def rest_url(self):
+        return self.rest_interface.uri
+
     def mature(self):
         if self._is_finishing:
             return self._finishing_mutex.get()

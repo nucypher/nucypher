@@ -150,7 +150,6 @@ class FleetState:
             nodes_to_add_dict = {node.checksum_address: node for node in nodes_to_add}
             for checksum_address in diff.nodes_updated:
                 new_node = nodes_to_add_dict[checksum_address]
-                new_node.mature()
                 nodes[checksum_address] = new_node
             for checksum_address in diff.nodes_removed:
                 del nodes[checksum_address]
