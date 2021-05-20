@@ -38,7 +38,7 @@ class TreasureMap(BaseField, fields.Field):
         try:
             # Unsigned TreasureMap (Federated)
             from nucypher.policy.maps import TreasureMap as UnsignedTreasureMap
-            splitter = UnsignedTreasureMap.splitter()
+            splitter = UnsignedTreasureMap.get_splitter(value)
             splitter(value)
         except InvalidNativeDataTypes:
             try:
