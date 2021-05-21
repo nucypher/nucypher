@@ -57,7 +57,7 @@ def get_signature_recovery_value(message: bytes,
 
     for v in (0, 1):
         v_byte = bytes([v])
-        recovered_pubkey = PublicKey.from_signature_and_message(serialized_sig=signature + v_byte,
+        recovered_pubkey = PublicKey.from_signature_and_message(signature=signature + v_byte,
                                                                 message=message)
         if bytes(public_key) == recovered_pubkey.format(compressed=True):
             return v_byte

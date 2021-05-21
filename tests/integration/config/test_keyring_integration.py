@@ -21,7 +21,7 @@ from unittest.mock import ANY
 
 import pytest
 from constant_sorrow.constants import FEDERATED_ADDRESS
-from cryptography.hazmat.primitives.serialization.base import Encoding
+from cryptography.hazmat.primitives.serialization import Encoding
 from flask import Flask
 from umbral.keys import UmbralPrivateKey
 from umbral.signing import Signer
