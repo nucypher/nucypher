@@ -74,7 +74,7 @@ def test_bob_rpc_character_control_retrieve_with_tmap(
     wrong_tmap.prepare_for_publication(
         bob_encrypting_key=blockchain_bob.public_keys(DecryptingPower),
         alice_stamp=blockchain_alice.stamp)
-    wrong_tmap._blockchain_signature = os.urandom(64)    # ...because it only matters when Ursula looks at it.
+    wrong_tmap._blockchain_signature = b"this is not a signature, but we don't need one for this test....."  # ...because it only matters when Ursula looks at it. (65 bytes)
     tmap_bytes = bytes(wrong_tmap)
     tmap_64 = b64encode(tmap_bytes).decode()
     request_data['params']['treasure_map'] = tmap_64
