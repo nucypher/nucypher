@@ -48,7 +48,6 @@ class TreasureMap:
 
     _BRAND = b'TM'
     _VERSION = int(VERSION_NUMBER).to_bytes(2, 'big')
-    _HEADER = _BRAND + _VERSION
 
     class NowhereToBeFound(RestMiddleware.NotFound):
         """
@@ -123,7 +122,7 @@ class TreasureMap:
     def __bytes__(self):
         if self._payload is None:
             self._set_payload()
-        return self._payload
+        return self._BRAND + self._VERSION + self._payload
 
     @classmethod
     def get_splitter(cls, bytes_representation: bytes) -> None:
@@ -189,8 +188,7 @@ class TreasureMap:
         self._id = keccak_digest(bytes(self._verifying_key) + bytes(self._hrac)).hex()
 
     def _set_payload(self) -> None:
-        self._payload = self._HEADER \
-                        + self._public_signature \
+        self._payload = self._public_signature \
                         + self._hrac \
                         + bytes(VariableLengthBytestring(self.message_kit.to_bytes()))
 
@@ -337,20 +335,34 @@ class TreasureMap:
 
 class SignedTreasureMap(TreasureMap):
 
+    _BRAND = b'SM'
+
     def __init__(self, blockchain_signature=NOT_SIGNED, *args, **kwargs):
         self._blockchain_signature = blockchain_signature
         super().__init__(*args, **kwargs)
 
-    @classmethod
-    def splitter(cls):
-        return BytestringKwargifier(cls,
-                                    public_signature=Signature,
-                                    hrac=(bytes, HRAC_LENGTH),
-                                    message_kit=(UmbralMessageKit, VariableLengthBytestring),
-                                    blockchain_signature=65)
+    def __new__(cls, *args, **kwargs):
+        # TODO: This is a little too brittle-and-repeaty for my tastes; maybe we modify
+        # BSS to allow summing *before* the prefix(es)?
+
+        cls._splitters['unversioned'] = BytestringKwargifier(cls,
+                                                 blockchain_signature=65,
+                                                 public_signature=Signature,
+                                                 hrac=(bytes, HRAC_LENGTH),
+                                                 message_kit=(UmbralMessageKit, VariableLengthBytestring),
+                                                 )
+        cls._splitters[1] = TreadsureMapSplitter(cls,
+                                                 blockchain_signature=65,
+                                                 public_signature=Signature,
+                                                 hrac=(bytes, HRAC_LENGTH),
+                                                 message_kit=(UmbralMessageKit, VariableLengthBytestring),
+                                                 )
+        return object.__new__(cls)
 
     def include_blockchain_signature(self, blockchain_signer):
-        self._blockchain_signature = blockchain_signer(super().__bytes__())
+        if self._payload is None:
+            self._set_payload()
+        self._blockchain_signature = blockchain_signer(self._payload)
 
     def verify_blockchain_signature(self, checksum_address):
         self._set_payload()
@@ -363,4 +375,6 @@ class SignedTreasureMap(TreasureMap):
             raise self.InvalidSignature(
                 "Can't cast a SignedTreasureMap to bytes until it has a blockchain signature "
                 "(otherwise, is it really a 'SignedTreasureMap'?")
-        return super().__bytes__() + self._blockchain_signature
+        if self._payload is None:
+            self._set_payload()
+        return self._BRAND + self._VERSION + self._blockchain_signature  + self._payload
