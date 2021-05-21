@@ -44,7 +44,7 @@ class TreasureMap(BaseField, fields.Field):
             try:
                 # Signed TreasureMap (Blockchain)
                 from nucypher.policy.maps import SignedTreasureMap
-                splitter = SignedTreasureMap.splitter()
+                splitter = SignedTreasureMap.get_splitter(value)
                 splitter(value)
             except InvalidNativeDataTypes as e:
                 raise InvalidInputData(f"Could not parse {self.name}: {e}")
