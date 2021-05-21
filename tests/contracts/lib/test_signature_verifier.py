@@ -17,8 +17,9 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 
 
 import os
-import pytest
+
 import coincurve
+import pytest
 from cryptography.hazmat.backends.openssl import backend
 from cryptography.hazmat.primitives import hashes
 from eth_account.account import Account
