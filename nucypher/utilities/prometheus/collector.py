@@ -19,6 +19,7 @@ from nucypher.blockchain.eth.utils import estimate_block_number_for_period
 
 try:
     from prometheus_client import Gauge, Enum, Counter, Info, Histogram, Summary
+    from prometheus_client.registry import CollectorRegistry
 except ImportError:
     raise ImportError('"prometheus_client" must be installed - run "pip install nucypher[ursula]" and try again.')
 
@@ -31,8 +32,6 @@ from nucypher.blockchain.eth.agents import ContractAgency, PolicyManagerAgent, S
 from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
 from nucypher.blockchain.eth.registry import BaseContractRegistry
 from nucypher.datastore.queries import get_policy_arrangements, get_work_orders
-
-from prometheus_client.registry import CollectorRegistry
 
 from typing import Dict, Union
 
