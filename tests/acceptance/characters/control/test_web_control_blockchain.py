@@ -130,7 +130,7 @@ def test_alice_character_control_revoke(alice_web_controller_test_client, blockc
     assert response.status_code == 200
 
     revoke_request_data = {
-        'label': 'test',
+        'label': 'test-revoke',
         'bob_verifying_key': bytes(blockchain_bob.stamp).hex()
     }
 
