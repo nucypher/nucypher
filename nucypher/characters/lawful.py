@@ -384,7 +384,8 @@ class Alice(Character, BlockchainPolicyAuthor):
         receipt, failed = dict(), dict()
 
         if onchain and (not self.federated_only):
-            receipt = self.policy_agent.revoke_policy(policy_id=policy.hrac)
+            receipt = self.policy_agent.revoke_policy(policy_id=policy.hrac,
+                                                      transacting_power=self._crypto_power.power_ups(TransactingPower))
 
         if offchain:
             """
