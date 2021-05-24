@@ -93,7 +93,11 @@ class NodeSprout(PartiallyKwargifiedBytes):
         self._finishing_mutex = Queue()
 
     def __eq__(self, other):
-        return isinstance(other, NodeSprout) and self._checksum_address == other._checksum_address
+        try:
+            other_stamp = other.stamp
+        except (AttributeError, NoSigningPower):
+            return False
+        return bytes(self.stamp) == bytes(other_stamp)
 
     def __hash__(self):
         if not self._hash:
