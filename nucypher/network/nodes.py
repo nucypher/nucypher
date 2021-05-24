@@ -100,10 +100,7 @@ class NodeSprout(PartiallyKwargifiedBytes):
         return bytes(self.stamp) == bytes(other_stamp)
 
     def __hash__(self):
-        if not self._hash:
-            self._hash = int.from_bytes(self.public_address,
-                                        byteorder="big")  # stop-propagation logic (ie, only propagate verified, staked nodes) keeps this unique and BFT.
-        return self._hash
+        return int.from_bytes(bytes(self.stamp), byteorder="big")
 
     def __repr__(self):
         if not self._repr:
