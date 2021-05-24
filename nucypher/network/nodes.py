@@ -92,6 +92,9 @@ class NodeSprout(PartiallyKwargifiedBytes):
         self._is_finishing = False
         self._finishing_mutex = Queue()
 
+    def __eq__(self, other):
+        return isinstance(other, NodeSprout) and self._checksum_address == other._checksum_address
+
     def __hash__(self):
         if not self._hash:
             self._hash = int.from_bytes(self.public_address,
