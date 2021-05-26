@@ -19,7 +19,7 @@ from collections import namedtuple
 import click
 import maya
 
-from nucypher.characters.control.emitters import StdoutEmitter
+from nucypher.control.emitters import StdoutEmitter
 from nucypher.characters.lawful import Alice
 
 Precondition = namedtuple('Precondition', 'options condition')

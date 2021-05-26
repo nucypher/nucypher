@@ -16,6 +16,9 @@
 """
 
 import click
+from marshmallow import fields
+
+from nucypher.control.specifications.exceptions import InvalidInputData
 
 
 class BaseField:
@@ -25,3 +28,35 @@ class BaseField:
     def __init__(self, *args, **kwargs):
         self.click = kwargs.pop('click', None)
         super().__init__(*args, **kwargs)
+
+
+#
+# Very common, simple field types to build on.
+#
+
+class String(BaseField, fields.String):
+    pass
+
+
+class List(BaseField, fields.List):
+    pass
+
+
+class Integer(BaseField, fields.Integer):
+    click_type = click.INT
+
+
+class PositiveInteger(Integer):
+    def _validate(self, value):
+        if not value > 0:
+            raise InvalidInputData(f"{self.name} must be a positive integer.")
+
+
+#
+# CLI utility
+#
+
+class click:
+    def __init__(self, *args, **kwargs):
+        self.args = args
+        self.kwargs = kwargs

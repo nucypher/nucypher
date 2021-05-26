@@ -17,6 +17,9 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 
 
 import contextlib
+from contextlib import suppress
+from typing import ClassVar, Dict, List, Optional, Union
+
 from constant_sorrow import default_constant_splitter
 from constant_sorrow.constants import (
     DO_NOT_SIGN,
@@ -29,20 +32,18 @@ from constant_sorrow.constants import (
     SIGNATURE_TO_FOLLOW,
     STRANGER
 )
-from contextlib import suppress
 from cryptography.exceptions import InvalidSignature
 from eth_keys import KeyAPI as EthKeyAPI
 from eth_utils import to_canonical_address, to_checksum_address
-from typing import ClassVar, Dict, List, Optional, Union
 from umbral.keys import UmbralPublicKey
 from umbral.signing import Signature
 
 from nucypher.acumen.nicknames import Nickname
-from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
 from nucypher.blockchain.eth.registry import BaseContractRegistry, InMemoryContractRegistry
 from nucypher.blockchain.eth.signers.base import Signer
-from nucypher.characters.control.controllers import CLIController, JSONRPCController
+from nucypher.characters.control.controllers import CharacterCLIController
 from nucypher.config.keyring import NucypherKeyring
+from nucypher.control.controllers import JSONRPCController
 from nucypher.crypto.api import encrypt_and_sign
 from nucypher.crypto.kits import UmbralMessageKit
 from nucypher.crypto.powers import (
@@ -524,9 +525,9 @@ class Character(Learner):
 
     def make_cli_controller(self, crash_on_error: bool = False):
         app_name = bytes(self.stamp).hex()[:6]
-        controller = CLIController(app_name=app_name,
-                                   crash_on_error=crash_on_error,
-                                   interface=self.interface)
+        controller = CharacterCLIController(app_name=app_name,
+                                            crash_on_error=crash_on_error,
+                                            interface=self.interface)
 
         self.controller = controller
         return controller

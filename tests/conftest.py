@@ -20,7 +20,7 @@ from collections import defaultdict
 import lmdb
 import pytest
 
-from nucypher.characters.control.emitters import WebEmitter
+from nucypher.control.emitters import WebEmitter
 from nucypher.crypto.powers import TransactingPower
 from nucypher.network.nodes import Learner
 from nucypher.network.trackers import AvailabilityTracker

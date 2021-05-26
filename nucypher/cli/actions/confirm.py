@@ -30,7 +30,7 @@ from nucypher.blockchain.eth.interfaces import BlockchainDeployerInterface, Vers
 from nucypher.blockchain.eth.registry import LocalContractRegistry
 from nucypher.blockchain.eth.token import NU
 from nucypher.blockchain.eth.utils import calculate_period_duration
-from nucypher.characters.control.emitters import StdoutEmitter
+from nucypher.control.emitters import StdoutEmitter
 from nucypher.cli.literature import (
     ABORT_DEPLOYMENT,
     CHARACTER_DESTRUCTION,

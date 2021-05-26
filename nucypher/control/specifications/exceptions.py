@@ -15,17 +15,22 @@
  along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
-from marshmallow import fields
 
-from nucypher.control.specifications.fields.base import BaseField
+class SpecificationError(ValueError):
+    """The protocol request is completely unusable"""
 
 
-class Label(BaseField, fields.Field):
+class MissingField(SpecificationError):
+    """The protocol request cannot be deserialized because it is missing required fields"""
 
-    def _serialize(self, value, attr, obj, **kwargs):
-        return value.decode('utf-8')
 
-    def _deserialize(self, value, attr, data, **kwargs):
-        if isinstance(value, bytes):
-            return value
-        return value.encode()
+class InvalidInputData(SpecificationError):
+    """Input data does not match the input specification"""
+
+
+class InvalidOutputData(SpecificationError):
+    """Response data does not match the output specification"""
+
+
+class InvalidArgumentCombo(SpecificationError):
+    """Arguments specified are incompatible"""
