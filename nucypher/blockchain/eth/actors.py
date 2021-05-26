@@ -102,7 +102,7 @@ from nucypher.blockchain.eth.utils import (
     prettify_eth_amount
 )
 from nucypher.characters.banners import STAKEHOLDER_BANNER
-from nucypher.characters.control.emitters import StdoutEmitter
+from nucypher.control.emitters import StdoutEmitter
 from nucypher.config.constants import DEFAULT_CONFIG_ROOT
 from nucypher.crypto.powers import TransactingPower
 from nucypher.types import NuNits, Period

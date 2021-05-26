@@ -14,17 +14,3 @@
  You should have received a copy of the GNU Affero General Public License
  along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
-
-from marshmallow import INCLUDE, Schema
-
-from nucypher.characters.control.specifications.exceptions import InvalidInputData
-
-
-class BaseSchema(Schema):
-
-    class Meta:
-
-        unknown = INCLUDE   # pass through any data that isn't defined as a field
-
-    def handle_error(self, error, data, many, **kwargs):
-        raise InvalidInputData(error)

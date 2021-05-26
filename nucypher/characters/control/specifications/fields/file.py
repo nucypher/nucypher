@@ -18,8 +18,7 @@
 import os
 from marshmallow import fields
 
-from nucypher.characters.control.specifications.exceptions import InvalidInputData, InvalidNativeDataTypes
-from nucypher.characters.control.specifications.fields.base import BaseField
+from nucypher.control.specifications.fields.base import BaseField
 
 
 class FileField(BaseField, fields.String):

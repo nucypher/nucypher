@@ -24,7 +24,7 @@ from datetime import timedelta
 from typing import Tuple
 from web3.main import Web3
 
-from nucypher.characters.control.emitters import StdoutEmitter
+from nucypher.control.emitters import StdoutEmitter
 from nucypher.characters.lawful import Bob, Alice
 from nucypher.cli.painting.help import enforce_probationary_period, paint_probationary_period_disclaimer
 from nucypher.cli.painting.policies import paint_single_card
