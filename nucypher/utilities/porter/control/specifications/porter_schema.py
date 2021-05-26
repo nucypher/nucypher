@@ -46,14 +46,16 @@ def option_bob_encrypting_key():
 #
 class AliceGetUrsulas(BaseSchema):
     quantity = base_fields.PositiveInteger(
-        required=True, load_only=True,
+        required=True,
+        load_only=True,
         click=click.option(
             '--quantity',
             '-n',
             help="Total number of ursualas needed",
             type=click.INT, required=True))
     duration_periods = base_fields.PositiveInteger(
-        required=True, load_only=True,
+        required=True,
+        load_only=True,
         click=click.option(
             '--periods',
             '-p',
@@ -63,6 +65,7 @@ class AliceGetUrsulas(BaseSchema):
     # optional
     exclude_ursulas = base_fields.List(fields.ChecksumAddress(
         required=False,
+        load_only=True,
         click=click.option(
             '--exclude-ursula',
             '-e',
@@ -71,6 +74,7 @@ class AliceGetUrsulas(BaseSchema):
 
     include_ursulas = base_fields.List(fields.ChecksumAddress(
         required=False,
+        load_only=True,
         click=click.option(
             '--include-ursula',
             '-i',
@@ -84,6 +88,7 @@ class AliceGetUrsulas(BaseSchema):
 class AlicePublishTreasureMap(BaseSchema):
     treasure_map = character_fields.TreasureMap(
         required=True,
+        load_only=True,
         click=click.option(
             '--treasure-map',
             '-t',
@@ -91,7 +96,8 @@ class AlicePublishTreasureMap(BaseSchema):
             type=click.STRING,
             required=True))
     bob_encrypting_key = character_fields.Key(
-        required=True, load_only=True,
+        required=True,
+        load_only=True,
         click=option_bob_encrypting_key())
 
 
@@ -105,6 +111,7 @@ class AliceRevoke(BaseSchema):
 class BobGetTreasureMap(BaseSchema):
     treasure_map_id = fields.TreasureMapID(
         required=True,
+        load_only=True,
         click=click.option(
             '--treasure-map-id',
             '-tid',
@@ -112,7 +119,8 @@ class BobGetTreasureMap(BaseSchema):
             type=click.STRING,
             required=True))
     bob_encrypting_key = character_fields.Key(
-        required=True, load_only=True,
+        required=True,
+        load_only=True,
         click=option_bob_encrypting_key())
 
     # output
@@ -122,9 +130,11 @@ class BobGetTreasureMap(BaseSchema):
 class BobExecWorkOrder(BaseSchema):
     ursula = fields.ChecksumAddress(
         required=True,
+        load_only=True,
         click=option_ursula())
     work_order = fields.WorkOrder(
         required=True,
+        load_only=True,
         click=click.option(
             '--work-order',
             '-w',
