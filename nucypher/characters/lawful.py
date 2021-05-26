@@ -69,8 +69,8 @@ from nucypher.blockchain.eth.registry import BaseContractRegistry
 from nucypher.blockchain.eth.signers.software import Web3Signer
 from nucypher.characters.banners import ALICE_BANNER, BOB_BANNER, ENRICO_BANNER, URSULA_BANNER
 from nucypher.characters.base import Character, Learner
-from nucypher.characters.control.controllers import WebController
-from nucypher.characters.control.emitters import StdoutEmitter
+from nucypher.control.controllers import WebController
+from nucypher.control.emitters import StdoutEmitter
 from nucypher.characters.control.interfaces import AliceInterface, BobInterface, EnricoInterface
 from nucypher.cli.processes import UrsulaCommandProtocol
 from nucypher.config.constants import END_OF_POLICIES_PROBATIONARY_PERIOD

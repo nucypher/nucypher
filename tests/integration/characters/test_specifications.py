@@ -25,13 +25,8 @@ import pytest
 from nucypher.characters.control.specifications.fields.treasuremap import TreasureMap
 from nucypher.characters.control.specifications import fields
 from nucypher.characters.control.specifications.alice import GrantPolicy
-from nucypher.characters.control.specifications.base import BaseSchema
-from nucypher.characters.control.specifications.exceptions import (
-    InvalidArgumentCombo,
-    InvalidInputData,
-    SpecificationError
-)
-
+from nucypher.control.specifications.base import BaseSchema
+from nucypher.control.specifications.exceptions import SpecificationError, InvalidInputData, InvalidArgumentCombo
 from nucypher.crypto.powers import DecryptingPower
 
 

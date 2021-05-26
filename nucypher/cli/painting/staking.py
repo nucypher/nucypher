@@ -24,7 +24,7 @@ from nucypher.blockchain.eth.constants import STAKING_ESCROW_CONTRACT_NAME, NULL
 from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
 from nucypher.blockchain.eth.token import NU, Stake
 from nucypher.blockchain.eth.utils import datetime_at_period, estimate_block_number_for_period, prettify_eth_amount
-from nucypher.characters.control.emitters import StdoutEmitter
+from nucypher.control.emitters import StdoutEmitter
 from nucypher.cli.literature import (
     POST_STAKING_ADVICE,
     TOKEN_REWARD_CURRENT,

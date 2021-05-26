@@ -18,7 +18,7 @@
 import maya
 from marshmallow import fields
 
-from nucypher.characters.control.specifications.fields.base import BaseField
+from nucypher.control.specifications.fields.base import BaseField
 
 
 class DateTime(BaseField, fields.Field):

@@ -37,7 +37,7 @@ from nucypher.blockchain.eth.registry import (
 from nucypher.blockchain.eth.signers.base import Signer
 from nucypher.blockchain.eth.signers.software import ClefSigner
 from nucypher.blockchain.eth.sol.__conf__ import SOLIDITY_COMPILER_VERSION
-from nucypher.characters.control.emitters import StdoutEmitter
+from nucypher.control.emitters import StdoutEmitter
 from nucypher.cli.actions.auth import get_client_password
 from nucypher.cli.actions.confirm import confirm_deployment, verify_upgrade_details
 from nucypher.cli.actions.select import select_client_account

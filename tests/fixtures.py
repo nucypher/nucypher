@@ -49,7 +49,7 @@ from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
 from nucypher.blockchain.eth.registry import InMemoryContractRegistry, LocalContractRegistry
 from nucypher.blockchain.eth.signers.software import Web3Signer
 from nucypher.blockchain.eth.token import NU
-from nucypher.characters.control.emitters import StdoutEmitter
+from nucypher.control.emitters import StdoutEmitter
 from nucypher.characters.lawful import Enrico
 from nucypher.config.characters import (
     AliceConfiguration,

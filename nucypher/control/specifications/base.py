@@ -15,17 +15,15 @@
  along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
-from marshmallow import fields
+from marshmallow import INCLUDE, Schema
 
-from nucypher.control.specifications.fields.base import BaseField
+from nucypher.control.specifications.exceptions import InvalidInputData
 
 
-class Label(BaseField, fields.Field):
+class BaseSchema(Schema):
 
-    def _serialize(self, value, attr, obj, **kwargs):
-        return value.decode('utf-8')
+    class Meta:
+        unknown = INCLUDE   # pass through any data that isn't defined as a field
 
-    def _deserialize(self, value, attr, data, **kwargs):
-        if isinstance(value, bytes):
-            return value
-        return value.encode()
+    def handle_error(self, error, data, many, **kwargs):
+        raise InvalidInputData(error)
