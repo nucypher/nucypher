@@ -441,14 +441,22 @@ class LocalFileBasedNodeStorage(NodeStorage):
         return payload
 
     @classmethod
+    def format_payload(cls, payload: dict) -> dict:
+        output = {}
+        for key, value in payload.items():
+            if key in ['root_dir', 'metadata_dir', 'certificates_dir']:
+                output[key] = Path(payload[key])
+            else:
+                output[key] = payload[key]
+        return output
+
+    @classmethod
     def from_payload(cls, payload: dict, *args, **kwargs) -> 'LocalFileBasedNodeStorage':
+        payload = cls.format_payload(payload)
         storage_type = payload[cls._TYPE_LABEL]
         if not storage_type == cls._name:
             raise cls.NodeStorageError("Wrong storage type. got {}".format(storage_type))
         del payload['storage_type']
-        for key in ['root_dir', 'metadata_dir', 'certificates_dir']:
-            if key in payload:
-                payload[key] = Path(payload[key])
         return cls(*args, **payload, **kwargs)
 
     def initialize(self):

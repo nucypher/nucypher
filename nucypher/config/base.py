@@ -17,7 +17,6 @@
 
 
 import json
-import os
 import re
 from abc import ABC, abstractmethod
 from decimal import Decimal
@@ -303,15 +302,10 @@ class BaseConfiguration(ABC):
             raise cls.OldVersion(f"Configuration {label}is the wrong version "
                                  f"Expected version {cls.VERSION}; Got version {version}")
 
-        # TODO: Move to implementation of `deserialize` in their respective classes
-        for key in ['keyring_root', 'db_filepath']:
-            if key in deserialized_payload:
-                deserialized_payload[key] = Path(deserialized_payload[key])
-
-        for key in ['root_dir', 'metadata_dir', 'certificates_dir']:
-            if key in payload:
-                deserialized_payload['node_storage'][key] = Path(deserialized_payload['node_storage'][key])
-
+        if 'keyring_root' in deserialized_payload:
+            deserialized_payload['keyring_root'] = Path(deserialized_payload['keyring_root'])
+        if 'node_storage' in deserialized_payload:
+            deserialized_payload['node_storage'] = LocalFileBasedNodeStorage.format_payload(deserialized_payload['node_storage'])
         return deserialized_payload
 
     def update(self, filepath: Path = None, **updates) -> None:
@@ -648,8 +642,7 @@ class CharacterConfiguration(BaseConfiguration):
 
         # Assemble
         payload.update(dict(node_storage=node_storage, max_gas_price=max_gas_price))
-        # TODO: Move this to implementation of respective classes?
-        for key in ['keyring_root', 'db_filepath', 'filepath', 'config_root', 'registry_filepath']:
+        for key in ('keyring_root', 'filepath', 'config_root', 'registry_filepath'):
             if key in payload:
                 payload[key] = Path(payload[key])
 

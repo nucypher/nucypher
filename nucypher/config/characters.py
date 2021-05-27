@@ -14,11 +14,10 @@ GNU Affero General Public License for more details.
 You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
-
-
-import os
+import json
 from pathlib import Path
 from tempfile import TemporaryDirectory
+from typing import Optional
 
 from constant_sorrow.constants import UNINITIALIZED_CONFIGURATION
 from cryptography.hazmat.primitives.asymmetric import ec
@@ -142,6 +141,18 @@ class UrsulaConfiguration(CharacterConfiguration):
         if self.db_filepath.is_file():
             self.db_filepath.unlink()
         super().destroy()
+
+    @classmethod
+    def deserialize(cls, payload: str, deserializer=json.loads, payload_label: Optional[str] = None) -> dict:
+        deserialized_payload = super().deserialize(payload, deserializer, payload_label)
+        deserialized_payload['db_filepath'] = Path(deserialized_payload['db_filepath'])
+        return deserialized_payload
+
+    @classmethod
+    def assemble(cls, filepath: Path = None, **overrides) -> dict:
+        payload = super().assemble(filepath, **overrides)
+        payload['db_filepath'] = Path(payload['db_filepath'])
+        return payload
 
 
 class AliceConfiguration(CharacterConfiguration):
