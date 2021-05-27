@@ -21,6 +21,9 @@ from nucypher.utilities.porter.control.specifications import porter_schema
 
 
 class PorterInterface(ControlInterface):
+    def __init__(self, porter: 'Porter' = None, *args, **kwargs):
+        super().__init__(implementer=porter, *args, **kwargs)
+
     #
     # Alice Endpoints
     #
