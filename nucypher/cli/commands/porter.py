@@ -18,9 +18,10 @@ import click
 
 from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
 from nucypher.blockchain.eth.networks import NetworksInventory
+from nucypher.cli.config import group_general_config
 from nucypher.cli.options import option_network, option_provider_uri
 from nucypher.cli.types import NETWORK_PORT
-from nucypher.control.emitters import StdoutEmitter
+from nucypher.cli.utils import setup_emitter
 from nucypher.utilities.porter.control.interfaces import PorterInterface
 from nucypher.utilities.porter.porter import Porter
 
@@ -34,57 +35,68 @@ def porter():
 
 
 @porter.command()
+@group_general_config
 @PorterInterface.connect_cli('get_ursulas')
-def get_ursulas(porter_uri, quantity, duration_periods, exclude_ursulas, include_ursulas):
+def get_ursulas(general_config, porter_uri, quantity, duration_periods, exclude_ursulas, include_ursulas):
     """Sample Ursulas on behalf of Alice."""
     pass
 
 
 @porter.command()
+@group_general_config
 @PorterInterface.connect_cli('publish_treasure_map')
-def publish_treasure_map(porter_uri, treasure_map, bob_encrypting_key):
+def publish_treasure_map(general_config, porter_uri, treasure_map, bob_encrypting_key):
     """Publish a treasure map on behalf of Alice."""
     pass
 
 
 @porter.command()
+@group_general_config
 @PorterInterface.connect_cli('revoke')
-def revoke(porter_uri):
+def revoke(general_config, porter_uri):
     """Off-chain revoke of a policy on behalf of Alice."""
     pass
 
 
 @porter.command()
+@group_general_config
 @PorterInterface.connect_cli('get_treasure_map')
-def get_treasure_map(porter_uri, treasure_map_id, bob_encrypting_key):
+def get_treasure_map(general_config, porter_uri, treasure_map_id, bob_encrypting_key):
     """Retrieve a treasure map on behalf of Bob."""
     pass
 
 
 @porter.command()
+@group_general_config
 @PorterInterface.connect_cli('exec_work_order')
-def exec_work_order(porter_uri, ursula, work_order):
+def exec_work_order(general_config, porter_uri, ursula, work_order):
     """Execute a PRE work order on behalf of Bob."""
     pass
 
 
 @porter.command()
+@group_general_config
 @option_network(default=NetworksInventory.DEFAULT, validate=True, required=True)
 @option_provider_uri(required=True)
-@click.option('--http-port', help="Porter HTTP port for JSON endpoint", type=NETWORK_PORT, default=9155)  # TODO some default value from Porter Learner Class
+@click.option('--http-port', help="Porter HTTP port for JSON endpoint", type=NETWORK_PORT, default=Porter.DEFAULT_PORTER_HTTP_PORT)
 @click.option('--dry-run', '-x', help="Execute normally without actually starting Porter", is_flag=True)
 @click.option('--eager', help="Start learning and scraping the network before starting up other services", is_flag=True, default=True)
-def run(network, provider_uri, http_port, dry_run, eager):
+def run(general_config, network, provider_uri, http_port, dry_run, eager):
     """Start Porter's Web controller."""
-    emitter = StdoutEmitter()
-    emitter.clear()
-    emitter.banner(Porter.BANNER)
+    emitter = setup_emitter(general_config, banner=Porter.BANNER)
 
     # Setup
     BlockchainInterfaceFactory.initialize_interface(provider_uri=provider_uri)
 
     PORTER = Porter(domain=network,
                     start_learning_now=eager)
+
+    # RPC
+    if general_config.json_ipc:
+        rpc_controller = PORTER.make_rpc_controller()
+        _transport = rpc_controller.make_control_transport()
+        rpc_controller.start()
+        return
 
     # HTTP
     emitter.message(f"Network: {network.capitalize()}", color='green')
