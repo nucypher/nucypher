@@ -16,11 +16,11 @@
 """
 from constant_sorrow.constants import NO_CONTROL_PROTOCOL
 from flask import request, Response
-from twisted.logger import Logger
 
 from nucypher.blockchain.eth.registry import BaseContractRegistry, InMemoryContractRegistry
-from nucypher.control.controllers import WebController
+from nucypher.control.controllers import WebController, JSONRPCController
 from nucypher.network.nodes import Learner
+from nucypher.utilities.logging import Logger
 from nucypher.utilities.porter.control.controllers import PorterCLIController
 from nucypher.utilities.porter.control.interfaces import PorterInterface
 
@@ -39,11 +39,13 @@ class Porter(Learner):
 the conduit between web apps and the nucypher network
 """
 
+    APP_NAME = "Porter"
+
     _SHORT_LEARNING_DELAY = 2
     _LONG_LEARNING_DELAY = 30
     _ROUNDS_WITHOUT_NODES_AFTER_WHICH_TO_SLOW_DOWN = 25
 
-    APP_NAME = "Porter"
+    DEFAULT_PORTER_HTTP_PORT = 9155
 
     _interface_class = PorterInterface
 
@@ -71,6 +73,14 @@ the conduit between web apps and the nucypher network
         controller = PorterCLIController(app_name=self.APP_NAME,
                                          crash_on_error=crash_on_error,
                                          interface=self.interface)
+        self.controller = controller
+        return controller
+
+    def make_rpc_controller(self, crash_on_error: bool = False):
+        controller = JSONRPCController(app_name=self.APP_NAME,
+                                       crash_on_error=crash_on_error,
+                                       interface=self.interface)
+
         self.controller = controller
         return controller
 
