@@ -33,7 +33,7 @@ def option_ursula():
 
 
 def option_bob_encrypting_key():
-    click.option(
+    return click.option(
         '--bob-encrypting-key',
         '-bek',
         help="Bob's encrypting key as a hexadecimal string",
@@ -51,7 +51,7 @@ class AliceGetUrsulas(BaseSchema):
         click=click.option(
             '--quantity',
             '-n',
-            help="Total number of ursualas needed",
+            help="Total number of Ursulas needed",
             type=click.INT, required=True))
     duration_periods = base_fields.PositiveInteger(
         required=True,
@@ -63,26 +63,34 @@ class AliceGetUrsulas(BaseSchema):
             type=click.INT, required=True))
 
     # optional
-    exclude_ursulas = base_fields.List(fields.ChecksumAddress(
-        required=False,
-        load_only=True,
+    exclude_ursulas = base_fields.List(
+        fields.UrsulaChecksumAddress(),
         click=click.option(
             '--exclude-ursula',
             '-e',
-            help="Ursula checksum address",
-            type=types.EIP55_CHECKSUM_ADDRESS, required=False)))
-
-    include_ursulas = base_fields.List(fields.ChecksumAddress(
+            help="Ursula checksum address to exclude from sample",
+            multiple=True,
+            type=types.EIP55_CHECKSUM_ADDRESS,
+            required=False,
+            default=[]),
         required=False,
-        load_only=True,
+        load_only=True)
+
+    include_ursulas = base_fields.List(
+        fields.UrsulaChecksumAddress(),
         click=click.option(
             '--include-ursula',
             '-i',
-            help="Ursula checksum address",
-            type=types.EIP55_CHECKSUM_ADDRESS, required=False)))
+            help="Ursula checksum address to include in sample",
+            multiple=True,
+            type=types.EIP55_CHECKSUM_ADDRESS,
+            required=False,
+            default=[]),
+        required=False,
+        load_only=True)
 
     # output
-    ursulas = base_fields.List(fields.ChecksumAddress(), dump_only=True)
+    ursulas = base_fields.List(fields.UrsulaChecksumAddress(), dump_only=True)
 
 
 class AlicePublishTreasureMap(BaseSchema):
@@ -92,7 +100,7 @@ class AlicePublishTreasureMap(BaseSchema):
         click=click.option(
             '--treasure-map',
             '-t',
-            help="TreasureMap",
+            help="Treasure Map to publish",
             type=click.STRING,
             required=True))
     bob_encrypting_key = character_fields.Key(
@@ -115,7 +123,7 @@ class BobGetTreasureMap(BaseSchema):
         click=click.option(
             '--treasure-map-id',
             '-tid',
-            help="TreasureMap ID as hex",
+            help="Treasure Map ID as hex",
             type=click.STRING,
             required=True))
     bob_encrypting_key = character_fields.Key(
@@ -128,7 +136,7 @@ class BobGetTreasureMap(BaseSchema):
 
 
 class BobExecWorkOrder(BaseSchema):
-    ursula = fields.ChecksumAddress(
+    ursula = fields.UrsulaChecksumAddress(
         required=True,
         load_only=True,
         click=option_ursula())
