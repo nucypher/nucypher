@@ -15,7 +15,9 @@
  along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 import os
+import platform
 import shutil
+import sys
 import tempfile
 from operator import attrgetter
 from pathlib import Path
@@ -473,6 +475,20 @@ class BackupCliOptions:
         self.overwrite = overwrite
 
 
+
+def _default_keystore_path():
+    # Reference: https://ethdocs.org/en/latest/account-management.html#manual-backup-restore
+    keystore_paths = {
+        'Windows': Path('%appdata%\Roaming\Ethereum\keystore'),
+        'Linux': Path('.ethereum/keystore'),
+        'Darwin': Path('Library/Ethereum/keystore'),
+    }
+    system = platform.system()
+    if system in keystore_paths.keys():
+        return Path.home() / keystore_paths[system]
+    return Path.home()
+
+
 backup_cli_options = group_options(
     BackupCliOptions,
     password=click.option('--password',
@@ -491,7 +507,7 @@ backup_cli_options = group_options(
                                prompt="Path to Ursula keystore directory",
                                type=click.Path(),
                                required=True,
-                               default=Path.home() / ".ethereum/keystore"),  # TODO: use env var?
+                               default=_default_keystore_path()),
     backup_path=click.option('--backup-path',
                              help="Path to backup file",
                              prompt="Path to backup file",
