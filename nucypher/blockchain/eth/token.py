@@ -671,7 +671,7 @@ class WorkTracker:
         return True
 
     def __get_tx_pending(self):
-        pending_block = self.client.w3.eth.getBlock(block_identifier='pending', full_transactions=True)
+        pending_block = self.client.w3.eth.getBlock('pending', True)
         tx_pending = [
             tx.hash for tx in pending_block['transactions']
             if tx.hash in self.__pending.values()
