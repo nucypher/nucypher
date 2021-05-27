@@ -14,12 +14,12 @@
  You should have received a copy of the GNU Affero General Public License
  along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
-
+from marshmallow import fields
 
 from nucypher.cli import types
-from nucypher.control.specifications.fields import String
+from nucypher.control.specifications.fields import BaseField
 
 
-class ChecksumAddress(String):
+class UrsulaChecksumAddress(BaseField, fields.String):
     """Ursula checksum address."""
     click_type = types.EIP55_CHECKSUM_ADDRESS
