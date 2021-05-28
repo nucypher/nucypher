@@ -163,4 +163,4 @@ def test_learner_uses_both_nodes_from_storage_and_fallback_nodes(lonely_ursula_m
     learner.learn_from_teacher_node()
     all_nodes = {teacher}
     all_nodes.update(other_nodes)
-    assert set(learner.known_nodes) == all_nodes
+    assert set(n.mature() for n in learner.known_nodes) == all_nodes
