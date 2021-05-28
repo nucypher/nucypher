@@ -15,9 +15,11 @@
  along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 import click
+from marshmallow import validates_schema
 
 from nucypher.control.specifications.base import BaseSchema
 from nucypher.control.specifications import fields as base_fields
+from nucypher.control.specifications.exceptions import InvalidArgumentCombo
 from nucypher.utilities.porter.control.specifications import fields
 from nucypher.characters.control.specifications import fields as character_fields
 from nucypher.cli import types
@@ -91,6 +93,14 @@ class AliceGetUrsulas(BaseSchema):
 
     # output
     ursulas = base_fields.List(fields.UrsulaChecksumAddress(), dump_only=True)
+
+    @validates_schema
+    def check_valid_quantity_and_include_ursulas(self, data, **kwargs):
+        # TODO does this make sense - perhaps having extra ursulas could be a good thing if some are down or can't
+        #  be contacted at that time
+        ursulas_to_include = data.get('include_ursulas')
+        if ursulas_to_include and len(ursulas_to_include) > data['quantity']:
+            raise InvalidArgumentCombo(f"Ursulas to include is greater than quantity requested")
 
 
 class AlicePublishTreasureMap(BaseSchema):
