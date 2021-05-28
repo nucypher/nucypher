@@ -24,7 +24,7 @@ from nucypher.control.specifications.fields.base import BaseField
 
 class Cleartext(BaseField, fields.String):
 
-    def _serialize(self, value, attr, data, **kwargs):
+    def _serialize(self, value, attr, obj, **kwargs):
         return value.decode()
 
     def _deserialize(self, value, attr, data, **kwargs):
