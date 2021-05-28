@@ -20,7 +20,6 @@ from cryptography.hazmat.backends.openssl import backend
 from cryptography.hazmat.primitives import hashes
 from typing import Tuple
 
-from nucypher.crypto.utils import get_coordinates_as_bytes, get_signature_recovery_value
 from nucypher.policy.orders import WorkOrder
 from umbral.config import default_params
 from umbral.curvebn import CurveBN
