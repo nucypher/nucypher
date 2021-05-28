@@ -70,7 +70,6 @@ from nucypher.types import (
     StakerInfo,
     PeriodDelta,
     StakingEscrowParameters,
-    Evidence,
     Policy
 )
 from nucypher.utilities.logging import Logger  # type: ignore
