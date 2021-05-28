@@ -17,26 +17,13 @@
 
 from marshmallow import fields
 
-from nucypher.characters.control.specifications.exceptions import InvalidNativeDataTypes
 from nucypher.control.specifications.exceptions import InvalidInputData
 from nucypher.control.specifications.fields.base import BaseField
+from nucypher.policy.collections import TreasureMap
 
 
-class TreasureMapID(BaseField, fields.Field):
-
-    def _serialize(self, value, attr, obj, **kwargs):
-        return bytes(value).hex()
-
-    def _deserialize(self, value, attr, data, **kwargs):
-        if isinstance(value, bytes):
-            return value
-        try:
-            return bytes.fromhex(value)
-        except InvalidNativeDataTypes as e:
-            raise InvalidInputData(f"Could not convert input for {self.name} to a TreasureMap ID: {e}")
+class TreasureMapID(BaseField, fields.String):
 
     def _validate(self, value):
-        try:
-            return len(value) == 32  # should be 32-bytes
-        except InvalidNativeDataTypes as e:
-            raise InvalidInputData(f"Could not convert input for {self.name} to an TreasureMap ID: {e}")
+        if len(bytes.fromhex(value)) != TreasureMap.ID_LENGTH:
+            raise InvalidInputData(f"Could not convert input for {self.name} to a valid TreasureMap ID: invalid length")

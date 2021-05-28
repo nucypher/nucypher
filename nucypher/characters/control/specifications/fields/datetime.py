@@ -17,7 +17,9 @@
 
 import maya
 from marshmallow import fields
+from pendulum.parsing import ParserError
 
+from nucypher.control.specifications.exceptions import InvalidInputData
 from nucypher.control.specifications.fields.base import BaseField
 
 
@@ -27,4 +29,7 @@ class DateTime(BaseField, fields.Field):
         return value.iso8601()
 
     def _deserialize(self, value, attr, data, **kwargs):
-        return maya.MayaDT.from_iso8601(iso8601_string=value)
+        try:
+            return maya.MayaDT.from_iso8601(iso8601_string=value)
+        except ParserError as e:
+            raise InvalidInputData(f"Could not convert input for {self.name} to a valid date time: {e}")

@@ -20,6 +20,7 @@ import inspect
 import json
 from abc import ABC, abstractmethod
 from json import JSONDecodeError
+from typing import Optional
 
 import maya
 from flask import Flask, Response
@@ -42,11 +43,14 @@ class ControllerBase(ABC):
     """
     _emitter_class = NotImplemented
 
-    def __init__(self):
+    def __init__(self, interface: ControlInterface):
         # Control Emitter
         self.emitter = self._emitter_class()
 
-    def _perform_action(self, action: str, request: dict) -> dict:
+        # Interface
+        self.interface = interface
+
+    def _perform_action(self, action: str, request: Optional[dict] = None) -> dict:
         """
         This method is where input validation and method invocation
         happens for all interface actions.
@@ -67,16 +71,15 @@ class InterfaceControlServer(ControllerBase):
 
     def __init__(self,
                  app_name: str,
-                 interface: ControlInterface,
                  crash_on_error: bool = _crash_on_error_default,
                  *args,
                  **kwargs):
+        super().__init__(*args, **kwargs)
+
         self.app_name = app_name
 
         # Configuration
         self.crash_on_error = crash_on_error
-
-        self.interface = interface
 
         def set_method(name):
             def wrapper(request=None, **kwargs):
@@ -88,8 +91,6 @@ class InterfaceControlServer(ControllerBase):
         for method_name in self._get_interfaces().keys():
             set_method(method_name)
             set_method(method_name)
-
-        super().__init__(*args, **kwargs)
 
         self.log = Logger(app_name)
 
