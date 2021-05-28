@@ -29,10 +29,8 @@ from nucypher.blockchain.eth.interfaces import BlockchainInterface
 from nucypher.characters.lawful import Bob
 from nucypher.characters.lawful import Ursula
 from nucypher.config.characters import UrsulaConfiguration
-from nucypher.crypto.utils import canonical_address_from_umbral_key
 from nucypher.policy.disputes import IndisputableEvidence
 from nucypher.policy.orders import WorkOrder
-from nucypher.policy.collections import WorkOrder
 from tests.constants import NUMBER_OF_URSULAS_IN_DEVELOPMENT_NETWORK
 from tests.mock.datastore import MOCK_DB
 
@@ -200,16 +198,4 @@ def _mock_ursula_reencrypts(ursula):
     cfrag_signature = ursula.stamp(bytes(cfrag))
 
     bob = Bob.from_public_keys(verifying_key=pub_key_bob)
-    task = WorkOrder.PRETask(capsule, task_signature, cfrag, cfrag_signature)
-    hrac = bob.construct_policy_hrac(relayer_verifying_key=signing_pubkey, label=b'this is the label')
-    work_order = WorkOrder(bob=bob,
-                           hrac=hrac,
-                           encrypted_kfrag=os.urandom(606),
-                           tasks={capsule: task},
-                           receipt_signature=None,
-                           ursula=ursula,
-                           alice_verifying_key=signing_pubkey.to_bytes(),
-                           relayer_verifying_key=signing_pubkey.to_bytes())
-
-    evidence = IndisputableEvidence(task, work_order)
-    return evidence
+    return WorkOrder.PRETask(capsule, task_signature, cfrag, cfrag_signature)
