@@ -33,16 +33,28 @@ class PorterInterface(ControlInterface):
                     duration_periods: int,
                     exclude_ursulas: List[str],
                     include_ursulas: List[str]) -> dict:
+        # Steps (analogous to nucypher.character.control.interfaces):
+        # 1. creation of relevant objects / setup
+        # 2. call self.implementer.some_function() i.e. Porter learner has an associated function to call
+        # 3. create response
         pass
 
     @attach_schema(porter_schema.AlicePublishTreasureMap)
     def publish_treasure_map(self,
                              treasure_map: bytes,
                              bob_encrypting_key: bytes) -> dict:
+        # Steps (analogous to nucypher.character.control.interfaces):
+        # 1. creation of relevant objects / setup
+        # 2. call self.implementer.some_function() i.e. Porter learner has an associated function to call
+        # 3. create response
         pass
 
     @attach_schema(porter_schema.AliceRevoke)
     def revoke(self) -> dict:
+        # Steps (analogous to nucypher.character.control.interfaces):
+        # 1. creation of objects / setup
+        # 2. call self.implementer.some_function() i.e. Porter learner has an associated function to call
+        # 3. create response
         pass
 
     #
@@ -50,12 +62,20 @@ class PorterInterface(ControlInterface):
     #
     @attach_schema(porter_schema.BobGetTreasureMap)
     def get_treasure_map(self,
-                         treasure_map_id: bytes,
+                         treasure_map_id: str,
                          bob_encrypting_key: bytes) -> dict:
+        # Steps (analogous to nucypher.character.control.interfaces):
+        # 1. creation of relevant objects / setup
+        # 2. call self.implementer.some_function() i.e. Porter learner has an associated function to call
+        # 3. create response
         pass
 
     @attach_schema(porter_schema.BobExecWorkOrder)
     def exec_work_order(self,
                         ursula: str,
                         work_order: bytes) -> dict:
+        # Steps (analogous to nucypher.character.control.interfaces):
+        # 1. creation of relevant objects / setup
+        # 2. call self.implementer.some_function() i.e. Porter learner has an associated function to call
+        # 3. create response
         pass
