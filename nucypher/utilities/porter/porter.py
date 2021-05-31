@@ -36,7 +36,7 @@ class Porter(Learner):
 | |   | |_| | |   | |_( (/ /| |
 |_|    \___/|_|    \___)____)_|
 
-the conduit between web apps and the nucypher network
+the Pipe for nucypher network operations
 """
 
     APP_NAME = "Porter"
@@ -98,40 +98,30 @@ the conduit between web apps and the nucypher network
         #
         @porter_flask_control.route('/get_ursulas', methods=['GET'])
         def get_ursulas() -> Response:
-            """
-            Porter control endpoint for sampling Ursulas on behalf of Alice.
-            """
+            """Porter control endpoint for sampling Ursulas on behalf of Alice."""
             return controller(method_name='get_ursulas', control_request=request)
 
         @porter_flask_control.route("/publish_treasure_map", methods=['POST'])
         def publish_treasure_map() -> Response:
-            """
-            Porter control endpoint for publishing a treasure map on behalf of Alice.
-            """
+            """Porter control endpoint for publishing a treasure map on behalf of Alice."""
             response = controller(method_name='publish_treasure_map', control_request=request)
             return response
 
         @porter_flask_control.route("/revoke", methods=['POST'])
         def revoke():
-            """
-            Porter control endpoint for off-chain revocation of a policy on behalf of Alice.
-            """
+            """Porter control endpoint for off-chain revocation of a policy on behalf of Alice."""
             response = controller(method_name='revoke', control_request=request)
             return response
 
         @porter_flask_control.route('/get_treasure_map', methods=['GET'])
         def get_treasure_map() -> Response:
-            """
-            Porter control endpoint for retrieving a treasure map on behalf of Bob.
-            """
+            """Porter control endpoint for retrieving a treasure map on behalf of Bob."""
             response = controller(method_name='get_treasure_map', control_request=request)
             return response
 
         @porter_flask_control.route("/exec_work_order", methods=['POST'])
         def exec_work_order() -> Response:
-            """
-            Porter control endpoint for executing a PRE work order on behalf of Bob.
-            """
+            """Porter control endpoint for executing a PRE work order on behalf of Bob."""
             response = controller(method_name='exec_work_order', control_request=request)
             return response
 
