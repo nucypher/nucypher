@@ -564,11 +564,12 @@ class WorkTracker:
 
     ALLOWED_DEVIATION = 0.5  # i.e., up to +50% from the expected confirmation time
 
-    def __init__(self, worker, *args, **kwargs):
+    def __init__(self, worker, stakes, *args, **kwargs):
 
         super().__init__(*args, **kwargs)
         self.log = Logger('stake-tracker')
         self.worker = worker
+        self.stakes = stakes
         self.staking_agent = self.worker.staking_agent
         self.client = self.staking_agent.blockchain.client
 
@@ -801,6 +802,11 @@ class WorkTracker:
             # TODO: Follow-up actions for failed requirements
             return
 
+        self.stakes.refresh()
+        if not self.stakes.has_active_substakes:
+            self.log.warn(f'COMMIT PREVENTED - There are no active stakes.')
+            return
+
         txhash = self.__fire_commitment()
         self.__pending[current_block_number] = txhash
 
@@ -902,3 +908,10 @@ class StakeList(UserList):
 
         # Record most recent cache update
         self.__updated = maya.now()
+
+    @property
+    def has_active_substakes(self) -> bool:
+        current_period = self.staking_agent.get_current_period()
+        for stake in self.data:
+            if not stake.status(current_period=current_period).is_child(Stake.Status.INACTIVE):
+                return True

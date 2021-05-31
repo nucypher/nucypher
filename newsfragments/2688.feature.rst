@@ -1,0 +1,1 @@
+Ursula will now check for active stakes on startup.

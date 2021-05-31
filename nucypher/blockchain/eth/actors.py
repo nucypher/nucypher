@@ -1094,7 +1094,7 @@ class Worker(NucypherTokenActor):
 
         if is_me:
             self.stakes = StakeList(registry=self.registry, checksum_address=self.checksum_address)
-            self.work_tracker = work_tracker or WorkTracker(worker=self)
+            self.work_tracker = work_tracker or WorkTracker(worker=self, stakes=self.stakes)
 
     def block_until_ready(self, poll_rate: int = None, timeout: int = None, feedback_rate: int = None):
         """
