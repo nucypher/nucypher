@@ -24,25 +24,36 @@ import unittest
 from unittest.mock import Mock
 
 import pytest
-from prometheus_client import (
-    CollectorRegistry,
-    Counter,
-    Enum,
-    Gauge,
-    Histogram,
-    Info,
-    Metric,
-    Summary
-)
-from prometheus_client.core import GaugeHistogramMetricFamily, Timestamp
-
-from nucypher.utilities.prometheus.collector import BaseMetricsCollector, MetricsCollector
-from nucypher.utilities.prometheus.metrics import JSONMetricsResource
-from nucypher.utilities.prometheus.metrics import PrometheusMetricsConfig
 
 TEST_PREFIX = 'test_prefix'
 
+try:
+    # all prometheus related imports
+    from prometheus_client import (
+        CollectorRegistry,
+        Counter,
+        Enum,
+        Gauge,
+        Histogram,
+        Info,
+        Metric,
+        Summary
+    )
 
+    from prometheus_client.core import GaugeHistogramMetricFamily, Timestamp
+
+    # include dependencies that have sub-dependencies on prometheus
+    from nucypher.utilities.prometheus.collector import BaseMetricsCollector, MetricsCollector
+    from nucypher.utilities.prometheus.metrics import JSONMetricsResource
+    from nucypher.utilities.prometheus.metrics import PrometheusMetricsConfig
+
+    # flag to skip tests
+    PROMETHEUS_INSTALLED = True
+except ImportError:
+    PROMETHEUS_INSTALLED = False
+
+
+@pytest.mark.skipif(condition=(not PROMETHEUS_INSTALLED), reason="prometheus_client is required for test")
 def test_prometheus_metrics_config():
     port = 2020
 
@@ -79,6 +90,7 @@ def test_prometheus_metrics_config():
     assert prometheus_config.start_now
 
 
+@pytest.mark.skipif(condition=(not PROMETHEUS_INSTALLED), reason="prometheus_client is required for test")
 def test_base_metrics_collector():
     class TestBastMetricsCollector(BaseMetricsCollector):
         def __init__(self):
@@ -104,6 +116,7 @@ def test_base_metrics_collector():
     assert collector.collect_internal_run
 
 
+@pytest.mark.skipif(condition=(not PROMETHEUS_INSTALLED), reason="prometheus_client is required for test")
 class TestGenerateJSON(unittest.TestCase):
     def setUp(self):
         self.registry = CollectorRegistry()

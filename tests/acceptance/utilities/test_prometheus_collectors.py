@@ -19,22 +19,34 @@ import random
 from typing import List
 from unittest.mock import patch
 
-from prometheus_client import CollectorRegistry
+import pytest
 
 from nucypher.blockchain.eth.signers.software import Web3Signer
 from nucypher.crypto.powers import TransactingPower
-from nucypher.utilities.prometheus.collector import (
-    UrsulaInfoMetricsCollector,
-    BlockchainMetricsCollector,
-    StakerMetricsCollector,
-    WorkerMetricsCollector,
-    MetricsCollector
-)
-from nucypher.utilities.prometheus.metrics import create_staking_events_metric_collectors, create_metrics_collectors
 from tests.constants import TEST_PROVIDER_URI
 from tests.utils.blockchain import TesterBlockchain
 
+try:
+    # all prometheus related imports
+    from prometheus_client import CollectorRegistry
 
+    # include dependencies that have sub-dependencies on prometheus
+    from nucypher.utilities.prometheus.collector import (
+        UrsulaInfoMetricsCollector,
+        BlockchainMetricsCollector,
+        StakerMetricsCollector,
+        WorkerMetricsCollector,
+        MetricsCollector
+    )
+    from nucypher.utilities.prometheus.metrics import create_staking_events_metric_collectors, create_metrics_collectors
+
+    # flag to skip tests
+    PROMETHEUS_INSTALLED = True
+except ImportError:
+    PROMETHEUS_INSTALLED = False
+
+
+@pytest.mark.skipif(condition=(not PROMETHEUS_INSTALLED), reason="prometheus_client is required for test")
 def test_ursula_info_metrics_collector(test_registry,
                                        blockchain_ursulas,
                                        agency):
@@ -65,6 +77,7 @@ def test_ursula_info_metrics_collector(test_registry,
     assert learning_mode == 1
 
 
+@pytest.mark.skipif(condition=(not PROMETHEUS_INSTALLED), reason="prometheus_client is required for test")
 def test_blockchain_metrics_collector(testerchain):
     collector = BlockchainMetricsCollector(provider_uri=TEST_PROVIDER_URI)
 
@@ -80,6 +93,7 @@ def test_blockchain_metrics_collector(testerchain):
     assert block_number == testerchain.get_block_number()
 
 
+@pytest.mark.skipif(condition=(not PROMETHEUS_INSTALLED), reason="prometheus_client is required for test")
 def test_staker_metrics_collector(test_registry, stakers):
     staker = random.choice(stakers)
     collector = StakerMetricsCollector(domain=staker.network,
@@ -117,6 +131,7 @@ def test_staker_metrics_collector(test_registry, stakers):
     assert missing_commitments == staker.missing_commitments
 
 
+@pytest.mark.skipif(condition=(not PROMETHEUS_INSTALLED), reason="prometheus_client is required for test")
 def test_worker_metrics_collector(test_registry, blockchain_ursulas):
     ursula = random.choice(blockchain_ursulas)
     collector = WorkerMetricsCollector(domain=ursula.domain,
@@ -134,6 +149,7 @@ def test_worker_metrics_collector(test_registry, blockchain_ursulas):
     assert worker_nunits == float(int(ursula.token_balance))
 
 
+@pytest.mark.skipif(condition=(not PROMETHEUS_INSTALLED), reason="prometheus_client is required for test")
 def test_staking_events_metric_collectors(testerchain, blockchain_ursulas):
     ursula = random.choice(blockchain_ursulas)
 
@@ -211,6 +227,7 @@ def test_staking_events_metric_collectors(testerchain, blockchain_ursulas):
     assert minted_event_block_number == minted_block_number
 
 
+@pytest.mark.skipif(condition=(not PROMETHEUS_INSTALLED), reason="prometheus_client is required for test")
 def test_all_metrics_collectors_sanity_collect(testerchain, blockchain_ursulas):
     ursula = random.choice(blockchain_ursulas)
 
@@ -227,10 +244,10 @@ def test_all_metrics_collectors_sanity_collect(testerchain, blockchain_ursulas):
         collector.collect()
 
 
-def initialize_collectors(metrics_collectors: List[MetricsCollector],
+def initialize_collectors(metrics_collectors: List['MetricsCollector'],
                           testerchain: TesterBlockchain,
-                          collector_registry:
-                          CollectorRegistry, prefix: str) -> None:
+                          collector_registry: 'CollectorRegistry',
+                          prefix: str) -> None:
     with patch('nucypher.utilities.prometheus.collector.estimate_block_number_for_period',
                autospec=True,
                return_value=testerchain.get_block_number()):
