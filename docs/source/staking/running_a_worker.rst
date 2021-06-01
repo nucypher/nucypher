@@ -494,3 +494,80 @@ that uses a Grafana dashboard to visualize and monitor the metrics produced by t
 
 .. image:: ../.static/img/p2p_validator_dashboard.png
     :target: ../.static/img/p2p_validator_dashboard.png
+
+6. Backup and restore Worker
+----------------------------
+
+Backup the worker
+^^^^^^^^^^^^^^^^^
+
+Local worker configuration can be preserved and transfered using ``nucypher ursula backup`` command: 
+
+.. code-block::
+
+    $(nucypher) nucypher ursula backup     \
+    --backup-path <BACKUP PATH>            \
+    --worker-path <SOURCE WORKER PATH>     \
+    --keystore-path <SOURCE KEYSTORE PATH> \
+    --password <PASSWORD>                  \
+    --overwrite <OVERWRITE>
+
+
+Replace the following values with your own:
+
+   * ``<BACKUP PATH>`` - The path to the backup file to be created
+   * ``<SOURCE WORKER PATH>`` - The path to the existing worker configuration root directory
+   * ``<SOURCE KEYSTORE PATH>`` - The path to Ethereum keystore file used by the worker
+   * ``<PASSWORD>`` - The password to be used to protect backup file
+   * ``<OVERWRITE>`` - The boolean flag indicating permission to overwrite backup file at ``<BACKUP PATH>`` if it exists
+
+Restore the worker
+^^^^^^^^^^^^^^^^^^
+
+Resulting backup file can be restored using ``nucypher ursula restore`` command: 
+
+.. code-block::
+
+    $(nucypher) nucypher ursula restore \
+    --backup-path <BACKUP PATH>            \
+    --worker-path <WORKER PATH>         \
+    --keystore-path <KEYSTORE PATH>     \
+    --password <PASSWORD>               \
+    --overwrite <OVERWRITE>
+
+Replace the following values with your own:
+
+   * ``<BACKUP PATH>`` - The path to the existing backup file
+   * ``<DESTINATION WORKER PATH>`` - The path to the new worker configuration directory
+   * ``<DESTINATION KEYSTORE PATH>`` - The path to the new Ethereum keystore file location
+   * ``<PASSWORD>`` - The previously selected password 
+   * ``<OVERWRITE>`` - The boolean flag indicating permission to overwrite existing files in ``<DESTINATION WORKER PATH>`` and ``<DESTINATION KEYSTORE PATH>`` locations
+
+Interactive usage
+^^^^^^^^^^^^^^^^^
+
+Both ``ursula backup`` and ``ursula restore`` commands support interactive usage:
+
+.. code-block::
+
+    $(nucypher) nucypher ursula <backup|restore>
+    # (Follow command line prompts ...)
+
+Backup file
+^^^^^^^^^^^
+
+The backup file is a password-encrypted ZIP archive with a following structure:
+
+.. code-block::
+
+    $(nucypher) tree -L 3 restored_backup
+    restored_backup
+    ├── keystore
+    │   └── keystore.json
+    └── worker
+        └── nucypher
+            ├── cards
+            ├── keyring
+            ├── known_nodes
+            ├── ursula.db
+            └── ursula.json
