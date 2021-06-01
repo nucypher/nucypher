@@ -17,10 +17,6 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 
 from nucypher.blockchain.eth.sol.compile.types import SourceBundle
 from nucypher.exceptions import DevelopmentInstallationRequired
-try:
-    import tests
-except ImportError:
-    raise DevelopmentInstallationRequired(importable_name='tests')
 from nucypher.blockchain.eth.sol.compile.constants import IGNORE_CONTRACT_PREFIXES, SOLC_LOGGER
 import os
 from pathlib import Path
