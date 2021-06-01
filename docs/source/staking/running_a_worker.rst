@@ -498,10 +498,10 @@ that uses a Grafana dashboard to visualize and monitor the metrics produced by t
 6. Backup and restore Worker
 ----------------------------
 
-Backup the worker
+Backup the Worker
 ^^^^^^^^^^^^^^^^^
 
-Local worker configuration can be preserved and transfered using ``nucypher ursula backup`` command: 
+A local worker configuration can be preserved and transferred using ``nucypher ursula backup`` command: 
 
 .. code-block::
 
@@ -517,14 +517,14 @@ Replace the following values with your own:
 
    * ``<BACKUP PATH>`` - The path to the backup file to be created
    * ``<SOURCE WORKER PATH>`` - The path to the existing worker configuration root directory
-   * ``<SOURCE KEYSTORE PATH>`` - The path to Ethereum keystore file used by the worker
-   * ``<PASSWORD>`` - The password to be used to protect backup file
-   * ``<OVERWRITE>`` - The boolean flag indicating permission to overwrite backup file at ``<BACKUP PATH>`` if it exists
+   * ``<SOURCE KEYSTORE PATH>`` - The path to the Ethereum keystore file used by the worker
+   * ``<PASSWORD>`` - The password to secure the backup file
+   * ``<OVERWRITE>`` - The boolean flag indicating permission to overwrite any pre-existing backup file at ``<BACKUP PATH>``
 
-Restore the worker
+Restore the Worker
 ^^^^^^^^^^^^^^^^^^
 
-Resulting backup file can be restored using ``nucypher ursula restore`` command: 
+A backup file can be restored using ``nucypher ursula restore`` command: 
 
 .. code-block::
 
@@ -540,13 +540,13 @@ Replace the following values with your own:
    * ``<BACKUP PATH>`` - The path to the existing backup file
    * ``<DESTINATION WORKER PATH>`` - The path to the new worker configuration directory
    * ``<DESTINATION KEYSTORE PATH>`` - The path to the new Ethereum keystore file location
-   * ``<PASSWORD>`` - The previously selected password 
-   * ``<OVERWRITE>`` - The boolean flag indicating permission to overwrite existing files in ``<DESTINATION WORKER PATH>`` and ``<DESTINATION KEYSTORE PATH>`` locations
+   * ``<PASSWORD>`` - The backup password 
+   * ``<OVERWRITE>`` - The boolean flag indicating permission to overwrite any pre-existing files in ``<DESTINATION WORKER PATH>`` and ``<DESTINATION KEYSTORE PATH>`` locations
 
 Interactive usage
 ^^^^^^^^^^^^^^^^^
 
-Both ``ursula backup`` and ``ursula restore`` commands support interactive usage:
+Both ``nucypher ursula backup`` and ``nucypher ursula restore`` commands support interactive usage:
 
 .. code-block::
 
