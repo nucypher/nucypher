@@ -658,7 +658,7 @@ class WorkTracker:
         if txs_in_mempool > len(self.__pending):  # We're missing some pending TXs
             return False
 
-        self.__num_untracked_commitments = len(set(tx_pending) - set(self.__pending))
+        self.__num_untracked_commitments = len(set(self.__pending) - set(tx_pending))
         # Mempool has limit on the number on TXs, and may drop them resulting in missing pending TXs
         if self.__num_untracked_commitments != 0:
             s = "s" if self.__num_untracked_commitments > 1 else ""
