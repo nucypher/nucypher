@@ -529,22 +529,20 @@ def backup(general_config, config_options, backup_options):
     Backup the Ursula node's configuration.
     """
     emitter = setup_emitter(general_config, config_options.worker_address)
-    worker_path, keystore_path, backup_path, password, overwrite = (
-        attrgetter('worker_path', 'keystore_path', 'backup_path', 'password', 'overwrite')(backup_options))
 
-    for path in [worker_path, keystore_path]:
+    for path in [backup_options.worker_path, backup_options.keystore_path]:
         if not path.exists():
             raise FileNotFoundError(f'Path does not exist: {path.absolute()}')
 
-    if backup_path.exists() and not overwrite:
-        prompt = f"Path already exists: {backup_path}\nOverwrite?"
+    if backup_options.backup_path.exists() and not backup_options.overwrite:
+        prompt = f"Path already exists: {backup_options.backup_path}\nOverwrite?"
         click.confirm(prompt, abort=True)
 
-    with pyzipper.AESZipFile(backup_path, 'w', encryption=pyzipper.WZ_AES) as zf:
-        zf.setpassword(password)
+    with pyzipper.AESZipFile(backup_options.backup_path, 'w', encryption=pyzipper.WZ_AES) as zf:
+        zf.setpassword(backup_options.password)
         zf.setencryption(**BACKUP_ENCRYPTION_SETTINGS)
-        _write_zf(emitter, zf, worker_path, WORKER_ARCHIVE_ROOT)
-        _write_zf(emitter, zf, keystore_path, KEYSTORE_ARCHIVE_ROOT)
+        _write_zf(emitter, zf, backup_options.worker_path, WORKER_ARCHIVE_ROOT)
+        _write_zf(emitter, zf, backup_options.keystore_path, KEYSTORE_ARCHIVE_ROOT)
 
 
 def _write_zf(emitter: StdoutEmitter, zf: pyzipper.ZipFile, source: Path, archive_root: str):
@@ -557,13 +555,13 @@ def _write_zf(emitter: StdoutEmitter, zf: pyzipper.ZipFile, source: Path, archiv
     if source.is_file():
         _write(source, archive_root / source.name)
     else:
-        for root_path, dirs, files in os.walk(source):
+        for root_path, _dirs, files in os.walk(source):
             for file in files:
                 file_path = Path(root_path, file)
                 archive_path = archive_root / file_path.relative_to(source.parent.absolute())
                 _write(file_path, archive_path)
 
-    emitter.echo(f"Wrote f{source}")
+    emitter.echo(f"Wrote f{source.absolute()}")
 
 
 @ursula.command()
@@ -575,20 +573,18 @@ def restore(general_config, config_options, backup_options):
     Restore the Ursula node's configuration.
     """
     emitter = setup_emitter(general_config, config_options.worker_address)
-    worker_path, keystore_path, backup_path, password, overwrite = (
-        attrgetter('worker_path', 'keystore_path', 'backup_path', 'password', 'overwrite')(backup_options))
 
-    if not backup_path.exists():
-        raise FileNotFoundError(f'Backup file does not exist: {backup_path.absolute()}')
+    if not backup_options.backup_path.exists():
+        raise FileNotFoundError(f'Backup file does not exist: {backup_options.backup_path.absolute()}')
 
-    with pyzipper.AESZipFile(backup_path) as zf:
-        zf.setpassword(password)
+    with pyzipper.AESZipFile(backup_options.backup_path) as zf:
+        zf.setpassword(backup_options.password)
         zf.setencryption(**BACKUP_ENCRYPTION_SETTINGS)
-        _read_zf(emitter, zf, KEYSTORE_ARCHIVE_ROOT, keystore_path, overwrite)
-        _read_zf(emitter, zf, WORKER_ARCHIVE_ROOT, worker_path, overwrite)
+        _extract_zf(emitter, zf, KEYSTORE_ARCHIVE_ROOT, backup_options.keystore_path, backup_options.overwrite)
+        _extract_zf(emitter, zf, WORKER_ARCHIVE_ROOT, backup_options.worker_path, backup_options.overwrite)
 
 
-def _read_zf(emitter: StdoutEmitter, zf: pyzipper.ZipFile, archive_root: str, destination_path: Path, overwrite: bool):
+def _extract_zf(emitter: StdoutEmitter, zf: pyzipper.ZipFile, archive_root: str, destination_path: Path, overwrite: bool):
     if destination_path.exists() and not overwrite:
         prompt = f"Path already exists: {destination_path}\nOverwrite?"
         click.confirm(prompt, abort=True)
