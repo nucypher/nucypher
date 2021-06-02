@@ -510,8 +510,7 @@ A local worker configuration can be preserved and transferred using ``nucypher u
     --worker-path <SOURCE WORKER PATH>     \
     --keystore-path <SOURCE KEYSTORE PATH> \
     --password <PASSWORD>                  \
-    --overwrite <OVERWRITE>
-
+    --force <FORCE>
 
 Replace the following values with your own:
 
@@ -519,7 +518,26 @@ Replace the following values with your own:
    * ``<SOURCE WORKER PATH>`` - The path to the existing worker configuration root directory
    * ``<SOURCE KEYSTORE PATH>`` - The path to the Ethereum keystore file used by the worker
    * ``<PASSWORD>`` - The password to secure the backup file
-   * ``<OVERWRITE>`` - The boolean flag indicating permission to overwrite any pre-existing backup file at ``<BACKUP PATH>``
+   * ``<FORCE>`` - The boolean flag indicating acceptance of default configuration values and permission to overwrite any pre-existing backup file at ``<BACKUP PATH>``
+
+Backup file
+^^^^^^^^^^^
+
+The backup file is a password-encrypted ZIP archive with a following structure:
+
+.. code-block::
+
+    $(nucypher) tree -L 3 ursula_backup
+    restored_backup
+    ├── keystore
+    │   └── keystore.json
+    └── worker
+        └── nucypher
+            ├── cards
+            ├── keyring
+            ├── known_nodes
+            ├── ursula.db
+            └── ursula.json
 
 Restore the Worker
 ^^^^^^^^^^^^^^^^^^
@@ -533,7 +551,7 @@ A backup file can be restored using ``nucypher ursula restore`` command:
     --worker-path <WORKER PATH>         \
     --keystore-path <KEYSTORE PATH>     \
     --password <PASSWORD>               \
-    --overwrite <OVERWRITE>
+    --force <FORCE>
 
 Replace the following values with your own:
 
@@ -541,7 +559,7 @@ Replace the following values with your own:
    * ``<DESTINATION WORKER PATH>`` - The path to the new worker configuration directory
    * ``<DESTINATION KEYSTORE PATH>`` - The path to the new Ethereum keystore file location
    * ``<PASSWORD>`` - The backup password 
-   * ``<OVERWRITE>`` - The boolean flag indicating permission to overwrite any pre-existing files in ``<DESTINATION WORKER PATH>`` and ``<DESTINATION KEYSTORE PATH>`` locations
+   * ``<FORCE>`` - The boolean flag indicating acceptance of default configuration values and permission to overwrite any pre-existing files in ``<DESTINATION WORKER PATH>`` and ``<DESTINATION KEYSTORE PATH>`` locations
 
 Interactive usage
 ^^^^^^^^^^^^^^^^^
@@ -552,22 +570,3 @@ Both ``nucypher ursula backup`` and ``nucypher ursula restore`` commands support
 
     $(nucypher) nucypher ursula <backup|restore>
     # (Follow command line prompts ...)
-
-Backup file
-^^^^^^^^^^^
-
-The backup file is a password-encrypted ZIP archive with a following structure:
-
-.. code-block::
-
-    $(nucypher) tree -L 3 restored_backup
-    restored_backup
-    ├── keystore
-    │   └── keystore.json
-    └── worker
-        └── nucypher
-            ├── cards
-            ├── keyring
-            ├── known_nodes
-            ├── ursula.db
-            └── ursula.json

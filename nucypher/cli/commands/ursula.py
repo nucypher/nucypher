@@ -17,9 +17,7 @@
 import os
 import platform
 import shutil
-import sys
 import tempfile
-from operator import attrgetter
 from pathlib import Path
 
 import click
@@ -466,13 +464,13 @@ class BackupCliOptions:
                  keystore_path: str,
                  backup_path: str,
                  password: str,
-                 overwrite: bool,
+                 force: bool,
                  ) -> None:
         self.worker_path = Path(worker_path)
         self.keystore_path = Path(keystore_path)
         self.backup_path = Path(backup_path)
         self.password = password.encode()
-        self.overwrite = overwrite
+        self.force = force
 
 
 
@@ -489,21 +487,29 @@ def _default_keystore_path():
     return Path.home()
 
 
+def _deactivate_prompts(ctx, _param, value):
+    if value:
+        for p in ctx.command.params:
+            if isinstance(p, click.Option):
+                p.prompt = None
+    return value
+
 backup_cli_options = group_options(
     BackupCliOptions,
     password=click.option('--password',
                           help="Enter backup password",
                           prompt="Enter backup password",
                           hide_input=True,
+                          required=True,
                           confirmation_prompt=True),
     worker_path=click.option('--worker-path',
-                             help="Path to Ursula worker directory",
+                             help=f"Path to Ursula worker directory [{DEFAULT_CONFIG_ROOT}]",
                              prompt="Path to Ursula worker directory",
                              type=click.Path(),
                              required=True,
                              default=DEFAULT_CONFIG_ROOT),
     keystore_path=click.option('--keystore-path',
-                               help="Path to Ursula keystore directory",
+                               help=f"Path to Ursula keystore directory [{_default_keystore_path()}]",
                                prompt="Path to Ursula keystore directory",
                                type=click.Path(),
                                required=True,
@@ -514,10 +520,22 @@ backup_cli_options = group_options(
                              type=click.Path(dir_okay=False),
                              default=Path("./ursula-backup.zip"),
                              required=True),
-    overwrite=click.option('--overwrite',
-                           help="Overwrite existing backup",
-                           default=False)
+    force=click.option('--force', 
+                       help="Disable prompts", 
+                       default=False,
+                       is_eager=True, 
+                       is_flag=True, 
+                       callback=_deactivate_prompts)
 )
+
+def _prompt_overwrite(path: Path, force: bool):
+    if path.exists():
+        prompt = f"Path already exists: {path.absolute()}"
+        if force:
+            click.echo(f'{prompt} - Overwriting.')
+        else:
+            click.echo(f'{prompt}\n Overwrite?')
+            click.confirm(prompt, abort=True)
 
 
 @ursula.command()
@@ -529,15 +547,14 @@ def backup(general_config, config_options, backup_options):
     Backup the Ursula node's configuration.
     """
     emitter = setup_emitter(general_config, config_options.worker_address)
+    _pre_launch_warnings(emitter, dev=None, force=backup_options.force)
 
     for path in [backup_options.worker_path, backup_options.keystore_path]:
         if not path.exists():
             raise FileNotFoundError(f'Path does not exist: {path.absolute()}')
 
-    if backup_options.backup_path.exists() and not backup_options.overwrite:
-        prompt = f"Path already exists: {backup_options.backup_path}\nOverwrite?"
-        click.confirm(prompt, abort=True)
-
+    _prompt_overwrite(backup_options.backup_path, backup_options.force)
+    
     with pyzipper.AESZipFile(backup_options.backup_path, 'w', encryption=pyzipper.WZ_AES) as zf:
         zf.setpassword(backup_options.password)
         zf.setencryption(**BACKUP_ENCRYPTION_SETTINGS)
@@ -573,6 +590,7 @@ def restore(general_config, config_options, backup_options):
     Restore the Ursula node's configuration.
     """
     emitter = setup_emitter(general_config, config_options.worker_address)
+    _pre_launch_warnings(emitter, dev=None, force=backup_options.force)
 
     if not backup_options.backup_path.exists():
         raise FileNotFoundError(f'Backup file does not exist: {backup_options.backup_path.absolute()}')
@@ -580,14 +598,12 @@ def restore(general_config, config_options, backup_options):
     with pyzipper.AESZipFile(backup_options.backup_path) as zf:
         zf.setpassword(backup_options.password)
         zf.setencryption(**BACKUP_ENCRYPTION_SETTINGS)
-        _extract_zf(emitter, zf, KEYSTORE_ARCHIVE_ROOT, backup_options.keystore_path, backup_options.overwrite)
-        _extract_zf(emitter, zf, WORKER_ARCHIVE_ROOT, backup_options.worker_path, backup_options.overwrite)
+        _extract_zf(emitter, zf, KEYSTORE_ARCHIVE_ROOT, backup_options.keystore_path, backup_options.force)
+        _extract_zf(emitter, zf, WORKER_ARCHIVE_ROOT, backup_options.worker_path, backup_options.force)
 
 
-def _extract_zf(emitter: StdoutEmitter, zf: pyzipper.ZipFile, archive_root: str, destination_path: Path, overwrite: bool):
-    if destination_path.exists() and not overwrite:
-        prompt = f"Path already exists: {destination_path}\nOverwrite?"
-        click.confirm(prompt, abort=True)
+def _extract_zf(emitter: StdoutEmitter, zf: pyzipper.ZipFile, archive_root: str, destination_path: Path, force: bool):
+    _prompt_overwrite(destination_path, force)
 
     # Using temporary dir as a workaround for "zf.extract" always treating "archive_item" as a relative path
     temp_dir = tempfile.mkdtemp()
@@ -598,6 +614,6 @@ def _extract_zf(emitter: StdoutEmitter, zf: pyzipper.ZipFile, archive_root: str,
 
     archive_path = Path(temp_dir, archive_root)
     if archive_path.exists():
-        shutil.move(archive_path, destination_path)
+        shutil.move(str(archive_path.absolute()), str(destination_path.absolute()))
 
     emitter.echo(f"Wrote {destination_path.absolute()}")
