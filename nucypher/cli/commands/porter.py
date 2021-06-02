@@ -18,13 +18,15 @@ import click
 
 from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
 from nucypher.blockchain.eth.networks import NetworksInventory
+from nucypher.characters.lawful import Ursula
 from nucypher.cli.config import group_general_config
-from nucypher.cli.options import option_network, option_provider_uri
+from nucypher.cli.options import option_network, option_provider_uri, option_federated_only, option_teacher_uri
 from nucypher.cli.types import NETWORK_PORT
 from nucypher.cli.utils import setup_emitter
 from nucypher.utilities.porter.control.interfaces import PorterInterface
 from nucypher.utilities.porter.porter import Porter
 
+from nucypher.config.constants import TEMPORARY_DOMAIN
 
 @click.group()
 def porter():
@@ -76,20 +78,41 @@ def exec_work_order(general_config, porter_uri, ursula, work_order):
 
 @porter.command()
 @group_general_config
-@option_network(default=NetworksInventory.DEFAULT, validate=True, required=True)
-@option_provider_uri(required=True)
+@option_network(default=NetworksInventory.DEFAULT, validate=True, required=False)
+@option_provider_uri(required=False)
+@option_federated_only
+@option_teacher_uri
 @click.option('--http-port', help="Porter HTTP port for JSON endpoint", type=NETWORK_PORT, default=Porter.DEFAULT_PORTER_HTTP_PORT)
 @click.option('--dry-run', '-x', help="Execute normally without actually starting Porter", is_flag=True)
 @click.option('--eager', help="Start learning and scraping the network before starting up other services", is_flag=True, default=True)
-def run(general_config, network, provider_uri, http_port, dry_run, eager):
+def run(general_config, network, provider_uri, federated_only, teacher_uri, http_port, dry_run, eager):
     """Start Porter's Web controller."""
     emitter = setup_emitter(general_config, banner=Porter.BANNER)
 
-    # Setup
-    BlockchainInterfaceFactory.initialize_interface(provider_uri=provider_uri)
+    if federated_only:
+        if not teacher_uri:
+            raise click.BadOptionUsage(option_name='--teacher',
+                                       message="--teacher is required for federated porter.")
 
-    PORTER = Porter(domain=network,
-                    start_learning_now=eager)
+        ursula = Ursula.from_seed_and_stake_info(seed_uri="localhost:11500",
+                                                 federated_only=True,
+                                                 minimum_stake=0)
+        PORTER = Porter(domain=TEMPORARY_DOMAIN,
+                        start_learning_now=eager,
+                        known_nodes={ursula},
+                        verify_node_bonding=False,
+                        federated_only=True)
+    else:
+        if not provider_uri:
+            raise click.BadOptionUsage(option_name='--provider',
+                                       message="--provider is required for decentralized porter.")
+        if not network:
+            raise click.BadOptionUsage(option_name='--network',
+                                       message="--network is required for decentralized porter.")
+
+        BlockchainInterfaceFactory.initialize_interface(provider_uri=provider_uri)
+        PORTER = Porter(domain=network,
+                        start_learning_now=eager)
 
     # RPC
     if general_config.json_ipc:
@@ -99,8 +122,10 @@ def run(general_config, network, provider_uri, http_port, dry_run, eager):
         return
 
     # HTTP
-    emitter.message(f"Network: {network.capitalize()}", color='green')
-    emitter.message(f"Provider: {provider_uri}", color='green')
+    emitter.message(f"Network: {PORTER.domain.capitalize()}", color='green')
+    if not federated_only:
+        emitter.message(f"Provider: {provider_uri}", color='green')
+
     controller = PORTER.make_web_controller(crash_on_error=False)
     message = f"Running Porter Web Controller at http://localhost:{http_port}"
     emitter.message(message, color='green', bold=True)

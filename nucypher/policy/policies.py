@@ -76,15 +76,33 @@ class TreasureMapPublisher:
     log = Logger('TreasureMapPublisher')
 
     def __init__(self,
-                 worker,
+                 treasure_map_bytes,
                  nodes,
+                 network_middleware,
                  percent_to_complete_before_release=5,
                  threadpool_size=120,
                  timeout=20):
 
         self._total = len(nodes)
         self._block_until_this_many_are_complete = math.ceil(len(nodes) * percent_to_complete_before_release / 100)
-        self._worker_pool = WorkerPool(worker=worker,
+
+        def put_treasure_map_on_node(node):
+            try:
+                response = network_middleware.put_treasure_map_on_node(node=node,
+                                                                       map_payload=treasure_map_bytes)
+            except Exception as e:
+                self.log.warn(f"Putting treasure map on {node} failed: {e}")
+                raise
+
+            if response.status_code == 201:
+                return response
+            else:
+                message = f"Putting treasure map on {node} failed with response status: {response.status}"
+                self.log.warn(message)
+                # TODO: What happens if this is a 300 or 400 level response?
+                raise Exception(message)
+
+        self._worker_pool = WorkerPool(worker=put_treasure_map_on_node,
                                        value_factory=AllAtOnceFactory(nodes),
                                        target_successes=self._block_until_this_many_are_complete,
                                        timeout=timeout,
@@ -384,22 +402,11 @@ class Policy(ABC):
         # TODO (#2516): remove hardcoding of 8 nodes
         self.alice.block_until_number_of_known_nodes_is(8, timeout=2, learn_on_this_thread=True)
         target_nodes = self.bob.matching_nodes_among(self.alice.known_nodes)
-        treasure_map_bytes = bytes(treasure_map)  # prevent the closure from holding the reference
+        treasure_map_bytes = bytes(treasure_map)  # prevent holding of the reference
 
-        def put_treasure_map_on_node(node):
-            try:
-                response = network_middleware.put_treasure_map_on_node(node=node, map_payload=treasure_map_bytes)
-            except Exception as e:
-                self.log.warn(f"Putting treasure map on {node} failed: {e}")
-                raise
-
-            # Received an HTTP response
-            if response.status_code != 201:
-                message = f"Putting treasure map on {node} failed with response status: {response.status}"
-                self.log.warn(message)
-            return response
-
-        return TreasureMapPublisher(worker=put_treasure_map_on_node, nodes=target_nodes)
+        return TreasureMapPublisher(treasure_map_bytes=treasure_map_bytes,
+                                    nodes=target_nodes,
+                                    network_middleware=network_middleware)
 
     def enact(self,
               network_middleware: RestMiddleware,
