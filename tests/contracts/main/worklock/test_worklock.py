@@ -861,7 +861,7 @@ def test_verifying_correctness(testerchain, token_economics, escrow, deploy_cont
 
     # Set gas only for one check
     tx = worklock.functions.verifyBiddingCorrectness(gas_to_save_state)\
-        .transact({'gas': gas_to_save_state + 30000, 'gas_price': 0})
+        .transact({'gas': gas_to_save_state + 35000, 'gas_price': 0})
     testerchain.wait_for_receipt(tx)
     assert worklock.functions.nextBidderToCheck().call() == 1
 
