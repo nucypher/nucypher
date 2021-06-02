@@ -39,7 +39,7 @@ from umbral.kfrags import KFrag
 from umbral.signing import Signature
 
 
-class TreadsureMapSplitter(BrandingMixin, VersioningMixin, BytestringKwargifier):
+class TreasureMapSplitter(BrandingMixin, VersioningMixin, BytestringKwargifier):
     pass
 
 
@@ -130,7 +130,7 @@ class TreasureMap:
         Takes a bytes representation of a treasure map and raises OldVersion
         error is the version is incompatible or ValueError if the header is malformed.
         """
-        representation_metadata = TreadsureMapSplitter.get_metadata(bytes_representation)
+        representation_metadata = TreasureMapSplitter.get_metadata(bytes_representation)
 
         # header = bytes_representation[:cls._HEADER_SIZE]
         brand_matches = representation_metadata['brand'] == cls._BRAND
@@ -153,7 +153,7 @@ class TreasureMap:
                                                  hrac=(bytes, HRAC_LENGTH),
                                                  message_kit=(UmbralMessageKit, VariableLengthBytestring),
                                                  )
-        cls._splitters[1] = TreadsureMapSplitter(cls,
+        cls._splitters[1] = TreasureMapSplitter(cls,
                                                  public_signature=Signature,
                                                  hrac=(bytes, HRAC_LENGTH),
                                                  message_kit=(UmbralMessageKit, VariableLengthBytestring),
@@ -351,7 +351,7 @@ class SignedTreasureMap(TreasureMap):
                                                  hrac=(bytes, HRAC_LENGTH),
                                                  message_kit=(UmbralMessageKit, VariableLengthBytestring),
                                                  )
-        cls._splitters[1] = TreadsureMapSplitter(cls,
+        cls._splitters[1] = TreasureMapSplitter(cls,
                                                  blockchain_signature=65,
                                                  public_signature=Signature,
                                                  hrac=(bytes, HRAC_LENGTH),
