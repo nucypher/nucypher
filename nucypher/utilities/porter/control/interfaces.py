@@ -16,6 +16,8 @@
 """
 from typing import List
 
+from umbral.keys import UmbralPublicKey
+
 from nucypher.control.interfaces import ControlInterface, attach_schema
 from nucypher.utilities.porter.control.specifications import porter_schema
 
@@ -43,11 +45,10 @@ class PorterInterface(ControlInterface):
     def publish_treasure_map(self,
                              treasure_map: bytes,
                              bob_encrypting_key: bytes) -> dict:
-        # Steps (analogous to nucypher.character.control.interfaces):
-        # 1. creation of relevant objects / setup
-        # 2. call self.implementer.some_function() i.e. Porter learner has an associated function to call
-        # 3. create response
-        pass
+        bob_enc_key = UmbralPublicKey.from_bytes(bob_encrypting_key)
+        self.implementer.publish_treasure_map(treasure_map_bytes=treasure_map,
+                                              bob_encrypting_key=bob_enc_key)
+        return {}
 
     @attach_schema(porter_schema.AliceRevoke)
     def revoke(self) -> dict:
@@ -64,11 +65,11 @@ class PorterInterface(ControlInterface):
     def get_treasure_map(self,
                          treasure_map_id: str,
                          bob_encrypting_key: bytes) -> dict:
-        # Steps (analogous to nucypher.character.control.interfaces):
-        # 1. creation of relevant objects / setup
-        # 2. call self.implementer.some_function() i.e. Porter learner has an associated function to call
-        # 3. create response
-        pass
+        bob_enc_key = UmbralPublicKey.from_bytes(bob_encrypting_key)
+        treasure_map = self.implementer.get_treasure_map(map_identifier=treasure_map_id,
+                                                         bob_encrypting_key=bob_enc_key)
+        response_data = {'treasure_map': treasure_map}
+        return response_data
 
     @attach_schema(porter_schema.BobExecWorkOrder)
     def exec_work_order(self,

@@ -16,14 +16,19 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
 
-import json
-from collections import OrderedDict, defaultdict
-
 import contextlib
-import maya
-import random
+import json
 import time
 from base64 import b64decode, b64encode
+from collections import OrderedDict, defaultdict
+from datetime import datetime
+from functools import partial
+from json.decoder import JSONDecodeError
+from queue import Queue
+from random import shuffle
+from typing import Dict, Iterable, List, NamedTuple, Tuple, Union, Optional, Sequence, Set, Any
+
+import maya
 from bytestring_splitter import (
     BytestringKwargifier,
     BytestringSplitter,
@@ -43,19 +48,13 @@ from constant_sorrow.constants import (
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives.serialization import Encoding
 from cryptography.x509 import Certificate, NameOID, load_pem_x509_certificate
-from datetime import datetime
 from eth_typing.evm import ChecksumAddress
 from eth_utils import to_checksum_address
 from flask import Response, request
-from functools import partial
-from json.decoder import JSONDecodeError
-from queue import Queue
-from random import shuffle
 from twisted.internet import reactor, stdio, threads
 from twisted.internet.defer import Deferred
 from twisted.internet.task import LoopingCall
 from twisted.logger import Logger
-from typing import Dict, Iterable, List, NamedTuple, Tuple, Union, Optional, Sequence, Set, Any
 from umbral import pre
 from umbral.keys import UmbralPublicKey
 from umbral.kfrags import KFrag
@@ -70,14 +69,15 @@ from nucypher.blockchain.eth.constants import ETH_ADDRESS_BYTE_LENGTH
 from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
 from nucypher.blockchain.eth.registry import BaseContractRegistry
 from nucypher.blockchain.eth.signers.software import Web3Signer
+from nucypher.characters import utils
 from nucypher.characters.banners import ALICE_BANNER, BOB_BANNER, ENRICO_BANNER, URSULA_BANNER
 from nucypher.characters.base import Character, Learner
-from nucypher.control.controllers import WebController
-from nucypher.control.emitters import StdoutEmitter
 from nucypher.characters.control.interfaces import AliceInterface, BobInterface, EnricoInterface
 from nucypher.cli.processes import UrsulaCommandProtocol
 from nucypher.config.constants import END_OF_POLICIES_PROBATIONARY_PERIOD
 from nucypher.config.storages import ForgetfulNodeStorage, NodeStorage
+from nucypher.control.controllers import WebController
+from nucypher.control.emitters import StdoutEmitter
 from nucypher.crypto.api import encrypt_and_sign, keccak_digest
 from nucypher.crypto.constants import HRAC_LENGTH, PUBLIC_KEY_LENGTH
 from nucypher.crypto.keypairs import HostingKeypair
@@ -89,7 +89,6 @@ from nucypher.crypto.powers import (
     SigningPower,
     TransactingPower
 )
-from nucypher.crypto.signing import InvalidSignature
 from nucypher.datastore.datastore import DatastoreTransactionError, RecordNotFound
 from nucypher.datastore.queries import find_expired_policies, find_expired_treasure_maps
 from nucypher.network.exceptions import NodeSeemsToBeDown
@@ -616,8 +615,7 @@ class Bob(Character):
             if not self.known_nodes:
                 raise self.NotEnoughTeachers("Can't retrieve without knowing about any nodes at all.  Pass a teacher or seed node.")
 
-        treasure_map = self.get_treasure_map_from_known_ursulas(self.network_middleware,
-                                                                map_identifier)
+        treasure_map = self.get_treasure_map_from_known_ursulas(map_identifier)
 
         self._try_orient(treasure_map, alice_verifying_key)
         self.treasure_maps[map_identifier] = treasure_map # TODO: make a part of _try_orient()?
@@ -641,47 +639,16 @@ class Bob(Character):
 
         return map_id
 
-    def get_treasure_map_from_known_ursulas(self, network_middleware, map_identifier, timeout=3):
+    def get_treasure_map_from_known_ursulas(self, map_identifier, timeout=3):
         """
         Iterate through the nodes we know, asking for the TreasureMap.
         Return the first one who has it.
         """
-        if self.federated_only:
-            from nucypher.policy.collections import TreasureMap as _MapClass
-        else:
-            from nucypher.policy.collections import SignedTreasureMap as _MapClass
-
-        start = maya.now()
-
-        # Spend no more than half the timeout finding the nodes.  8 nodes is arbitrary.  Come at me.
-        self.block_until_number_of_known_nodes_is(8, timeout=timeout/2, learn_on_this_thread=True)
-        while True:
-            nodes_with_map = self.matching_nodes_among(self.known_nodes)
-            random.shuffle(nodes_with_map)
-
-            for node in nodes_with_map:
-                try:
-                    response = network_middleware.get_treasure_map_from_node(node, map_identifier)
-                except (*NodeSeemsToBeDown, self.NotEnoughNodes):
-                    continue
-                except network_middleware.NotFound:
-                    self.log.info(f"Node {node} claimed not to have TreasureMap {map_identifier}")
-                    continue
-
-                if response.status_code == 200 and response.content:
-                    try:
-                        treasure_map = _MapClass.from_bytes(response.content)
-                        return treasure_map
-                    except InvalidSignature:
-                        # TODO: What if a node gives a bunk TreasureMap?  NRN
-                        raise
-                else:
-                    continue  # TODO: Actually, handle error case here.  NRN
-            else:
-                self.learn_from_teacher_node()
-
-            if (start - maya.now()).seconds > timeout:
-                raise _MapClass.NowhereToBeFound(f"Asked {len(self.known_nodes)} nodes, but none had map {map_identifier} ")
+        bob_encrypting_key = self.public_keys(DecryptingPower)
+        return utils.get_treasure_map(learner=self,
+                                      map_identifier=map_identifier,
+                                      bob_encrypting_key=bob_encrypting_key,
+                                      timeout=timeout)
 
     def work_orders_for_capsules(self,
                                  *capsules,
@@ -969,41 +936,12 @@ class Bob(Character):
     def matching_nodes_among(self,
                              nodes: FleetSensor,
                              no_less_than=7):  # Somewhat arbitrary floor here.
-        # Look for nodes whose checksum address has the second character of Bob's encrypting key in the first
-        # few characters.
-        # Think of it as a cheap knockoff hamming distance.
-        # The good news is that Bob can construct the list easily.
-        # And - famous last words incoming - there's no cognizable attack surface.
-        # Sure, Bob can mine encrypting keypairs until he gets the set of target Ursulas on which Alice can
-        # store a TreasureMap.  And then... ???... profit?
-
-        # Sanity check - do we even have enough nodes?
-        if len(nodes) < no_less_than:
-            raise ValueError(f"Can't select {no_less_than} from {len(nodes)} (Fleet state: {nodes.FleetState})")
-
-        search_boundary = 2
-        target_nodes = []
-        target_hex_match = self.public_keys(DecryptingPower).hex()[1]
-        while len(target_nodes) < no_less_than:
-            target_nodes = []
-            search_boundary += 2
-
-            if search_boundary > 42:  # We've searched the entire string and can't match any.  TODO: Portable learning is a nice idea here.
-                # Not enough matching nodes.  Fine, we'll just publish to the first few.
-                try:
-                    # TODO: This is almost certainly happening in a test.  If it does happen in production, it's a bit of a problem.  Need to fix #2124 to mitigate.
-                    target_nodes = list(nodes.values())[0:6]
-                    return target_nodes
-                except IndexError:
-                    raise self.NotEnoughNodes("There aren't enough nodes on the network to enact this policy.  Unless this is day one of the network and nodes are still getting spun up, something is bonkers.")
-
-            # TODO: 1995 all throughout here (we might not (need to) know the checksum address yet; canonical will do.)
-            # This might be a performance issue above a few thousand nodes.
-            target_nodes = [node for node in nodes if target_hex_match in node.checksum_address[2:search_boundary]]
-        return target_nodes
+        bob_encrypting_key = self.public_keys(DecryptingPower)
+        return utils.matching_nodes_among(nodes=nodes,
+                                          bob_encrypting_key=bob_encrypting_key,
+                                          no_less_than=no_less_than)
 
     def make_web_controller(drone_bob, crash_on_error: bool = False):
-
         app_name = bytes(drone_bob.stamp).hex()[:6]
         controller = WebController(app_name=app_name,
                                    crash_on_error=crash_on_error,
