@@ -419,10 +419,8 @@ class LocalFileBasedNodeStorage(NodeStorage):
         def __destroy_dir_contents(path: Path) -> None:
             if not path.is_dir():
                 return
-            for file in path.iterdir():
-                file_path = path / file
-                if file_path.is_file():
-                    file_path.unlink()
+            for dir_item in path.iterdir():
+                dir_item.unlink()
 
         if metadata is True:
             __destroy_dir_contents(self.metadata_dir)

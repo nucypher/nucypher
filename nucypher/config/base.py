@@ -22,7 +22,7 @@ from abc import ABC, abstractmethod
 from decimal import Decimal
 from pathlib import Path, PosixPath
 from tempfile import TemporaryDirectory
-from typing import Union, Callable, Optional, List
+from typing import Union, Callable, Optional, List, get_type_hints
 
 from constant_sorrow.constants import (
     UNKNOWN_VERSION,
@@ -194,7 +194,7 @@ class BaseConfiguration(ABC):
         :return: The generated filepath string
         """
         filename = cls.generate_filename()
-        default_path = Path(config_root or cls.DEFAULT_CONFIG_ROOT) / filename
+        default_path = (config_root or cls.DEFAULT_CONFIG_ROOT) / filename
         return default_path
 
     def generate_filepath(self, filepath: Path = None, modifier: str = None, override: bool = False) -> Path:
@@ -642,7 +642,11 @@ class CharacterConfiguration(BaseConfiguration):
 
         # Assemble
         payload.update(dict(node_storage=node_storage, max_gas_price=max_gas_price))
-        for key in ('keyring_root', 'filepath', 'config_root', 'registry_filepath'):
+        paths_only = [
+            arg for (arg, type_) in get_type_hints(cls.__init__).items() 
+            if type_ == Path
+        ]
+        for key in paths_only:
             if key in payload:
                 payload[key] = Path(payload[key])
 
