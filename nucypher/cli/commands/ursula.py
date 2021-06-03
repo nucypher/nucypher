@@ -539,14 +539,13 @@ def _prompt_overwrite(path: Path, force: bool):
 
 
 @ursula.command()
-@group_config_options
 @group_general_config
 @backup_cli_options
-def backup(general_config, config_options, backup_options):
+def backup(general_config, backup_options):
     """
     Backup the Ursula node's configuration.
     """
-    emitter = setup_emitter(general_config, config_options.worker_address)
+    emitter = setup_emitter(general_config)
     _pre_launch_warnings(emitter, dev=None, force=backup_options.force)
 
     for path in [backup_options.worker_path, backup_options.keystore_path]:
@@ -560,6 +559,8 @@ def backup(general_config, config_options, backup_options):
         zf.setencryption(**BACKUP_ENCRYPTION_SETTINGS)
         _write_zf(emitter, zf, backup_options.worker_path, WORKER_ARCHIVE_ROOT)
         _write_zf(emitter, zf, backup_options.keystore_path, KEYSTORE_ARCHIVE_ROOT)
+
+    emitter.echo(f"Backup created at {backup_options.backup_path.absolute()}")
 
 
 def _write_zf(emitter: StdoutEmitter, zf: pyzipper.ZipFile, source: Path, archive_root: str):
@@ -578,18 +579,17 @@ def _write_zf(emitter: StdoutEmitter, zf: pyzipper.ZipFile, source: Path, archiv
                 archive_path = archive_root / file_path.relative_to(source.parent.absolute())
                 _write(file_path, archive_path)
 
-    emitter.echo(f"Wrote f{source.absolute()}")
+    emitter.echo(f"Wrote {source.absolute()}")
 
 
 @ursula.command()
-@group_config_options
 @group_general_config
 @backup_cli_options
-def restore(general_config, config_options, backup_options):
+def restore(general_config, backup_options):
     """
     Restore the Ursula node's configuration.
     """
-    emitter = setup_emitter(general_config, config_options.worker_address)
+    emitter = setup_emitter(general_config)
     _pre_launch_warnings(emitter, dev=None, force=backup_options.force)
 
     if not backup_options.backup_path.exists():

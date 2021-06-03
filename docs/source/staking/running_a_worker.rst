@@ -527,8 +527,8 @@ The backup file is a password-encrypted ZIP archive with a following structure:
 
 .. code-block::
 
-    $(nucypher) tree -L 3 ursula_backup
-    restored_backup
+    $(nucypher) tree -L 3 ursula-backup
+    ursula-backup
     ├── keystore
     │   └── keystore.json
     └── worker
