@@ -15,40 +15,30 @@ You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
-
-import datetime
-from collections import OrderedDict
-from queue import Queue, Empty
-from typing import Callable, Tuple, Sequence, Set, Optional, Iterable, List, Dict, Type
-
 import math
-import maya
-import random
-import time
 from abc import ABC, abstractmethod
+from typing import Tuple, Sequence, Optional, Iterable, Dict, Type
+
+import maya
 from bytestring_splitter import BytestringSplitter, VariableLengthBytestring
-from constant_sorrow.constants import NOT_SIGNED
 from eth_typing.evm import ChecksumAddress
 from hexbytes import HexBytes
-from twisted._threads import AlreadyQuit
 from twisted.internet import reactor
-from twisted.internet.defer import ensureDeferred, Deferred
-from twisted.python.threadpool import ThreadPool
 from umbral.keys import UmbralPublicKey
 from umbral.kfrags import KFrag
 
-from nucypher.blockchain.eth.actors import BlockchainPolicyAuthor
-from nucypher.blockchain.eth.agents import PolicyManagerAgent, StakersReservoir, StakingEscrowAgent
+from nucypher.blockchain.eth.agents import StakersReservoir, StakingEscrowAgent
 from nucypher.characters.lawful import Alice, Ursula
 from nucypher.crypto.api import keccak_digest, secure_random
 from nucypher.crypto.constants import HRAC_LENGTH, PUBLIC_KEY_LENGTH
 from nucypher.crypto.kits import RevocationKit
 from nucypher.crypto.powers import DecryptingPower, SigningPower, TransactingPower
 from nucypher.crypto.utils import construct_policy_id
-from nucypher.network.exceptions import NodeSeemsToBeDown
 from nucypher.network.middleware import RestMiddleware
 from nucypher.utilities.concurrency import WorkerPool, AllAtOnceFactory
 from nucypher.utilities.logging import Logger
+from .reservoir import make_federated_staker_reservoir, MergedReservoir, PrefetchStrategy, \
+    make_decentralized_staker_reservoir
 
 
 class Arrangement:
@@ -151,49 +141,6 @@ class TreasureMapPublisher:
 
     def block_until_complete(self):
         self._worker_pool.join()
-
-
-class MergedReservoir:
-    """
-    A reservoir made of a list of addresses and a StakersReservoir.
-    Draws the values from the list first, then from StakersReservoir,
-    then returns None on subsequent calls.
-    """
-
-    def __init__(self, values: Iterable, reservoir: StakersReservoir):
-        self.values = list(values)
-        self.reservoir = reservoir
-
-    def __call__(self) -> Optional[ChecksumAddress]:
-        if self.values:
-            return self.values.pop(0)
-        elif len(self.reservoir) > 0:
-            return self.reservoir.draw(1)[0]
-        else:
-            return None
-
-
-class PrefetchStrategy:
-    """
-    Encapsulates the batch draw strategy from a reservoir.
-    Determines how many values to draw based on the number of values
-    that have already led to successes.
-    """
-
-    def __init__(self, reservoir: MergedReservoir, need_successes: int):
-        self.reservoir = reservoir
-        self.need_successes = need_successes
-
-    def __call__(self, successes: int) -> Optional[List[ChecksumAddress]]:
-        batch = []
-        for i in range(self.need_successes - successes):
-            value = self.reservoir()
-            if value is None:
-                break
-            batch.append(value)
-        if not batch:
-            return None
-        return batch
 
 
 class Policy(ABC):
@@ -511,21 +458,18 @@ class Policy(ABC):
 
 
 class FederatedPolicy(Policy):
-
     from nucypher.policy.collections import TreasureMap as _treasure_map_class  # TODO: Circular Import
 
     def _not_enough_ursulas_exception(self):
         return Policy.NotEnoughUrsulas
 
     def _make_reservoir(self, handpicked_addresses):
-        addresses = {
-            ursula.checksum_address: 1 for ursula in self.alice.known_nodes
-            if ursula.checksum_address not in handpicked_addresses}
-
-        return MergedReservoir(handpicked_addresses, StakersReservoir(addresses))
+        return make_federated_staker_reservoir(learner=self.alice,
+                                               exclude_addresses=None,
+                                               include_addresses=handpicked_addresses)
 
     def _make_enactment_payload(self, publication_transaction, kfrag):
-        assert publication_transaction is None # sanity check; should not ever be hit
+        assert publication_transaction is None  # sanity check; should not ever be hit
         return bytes(kfrag)
 
 
@@ -604,14 +548,10 @@ class BlockchainPolicy(Policy):
         return params
 
     def _make_reservoir(self, handpicked_addresses):
-        try:
-            reservoir = self.alice.get_stakers_reservoir(duration=self.payment_periods,
-                                                         without=handpicked_addresses)
-        except StakingEscrowAgent.NotEnoughStakers:
-            # TODO: do that in `get_stakers_reservoir()`?
-            reservoir = StakersReservoir({})
-
-        return MergedReservoir(handpicked_addresses, reservoir)
+        staker_reservoir = make_decentralized_staker_reservoir(staking_agent=self.alice.staking_agent,
+                                                               periods=self.payment_periods,
+                                                               include_addresses=handpicked_addresses)
+        return staker_reservoir
 
     def _publish_to_blockchain(self, ursulas) -> dict:
 

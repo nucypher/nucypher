@@ -64,15 +64,15 @@ def test_ursula_checksum_address_field(get_random_checksum_address):
     assert deserialized == ursula_checksum
     assert deserialized != other_address
 
-    field._validate(value=ursula_checksum)
-    field._validate(value=ursula_checksum.lower())
-    field._validate(value=ursula_checksum.upper())
-    field._validate(value=other_address)
-    field._validate(value=other_address.lower())
-    field._validate(value=other_address.upper())
+    field._deserialize(value=ursula_checksum, attr=None, data=None)
+    field._deserialize(value=ursula_checksum.lower(), attr=None, data=None)
+    field._deserialize(value=ursula_checksum.upper(), attr=None, data=None)
+    field._deserialize(value=other_address, attr=None, data=None)
+    field._deserialize(value=other_address.lower(), attr=None, data=None)
+    field._deserialize(value=other_address.upper(), attr=None, data=None)
 
     with pytest.raises(InvalidInputData):
-        field._validate(value="0xdeadbeef")
+        field._deserialize(value="0xdeadbeef", attr=None, data=None)
 
 
 def test_work_order_field(mock_ursula_reencrypts,

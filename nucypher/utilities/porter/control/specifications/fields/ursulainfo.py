@@ -14,21 +14,15 @@
  You should have received a copy of the GNU Affero General Public License
  along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
+from marshmallow.fields import URL
 
-from eth_utils import to_checksum_address
-from marshmallow import fields
-
-from nucypher.cli import types
-from nucypher.control.specifications.exceptions import InvalidInputData
-from nucypher.control.specifications.fields import BaseField
+from nucypher.characters.control.specifications.fields import Key
+from nucypher.control.specifications.base import BaseSchema
+from nucypher.utilities.porter.control.specifications.fields import UrsulaChecksumAddress
 
 
-class UrsulaChecksumAddress(BaseField, fields.String):
-    """Ursula checksum address."""
-    click_type = types.EIP55_CHECKSUM_ADDRESS
-
-    def _deserialize(self, value, attr, data, **kwargs):
-        try:
-            return to_checksum_address(value=value)
-        except ValueError as e:
-            raise InvalidInputData(f"Could not convert input for {self.name} to a valid checksum address: {e}")
+class UrsulaInfo(BaseSchema):
+    """Schema for the result of sampling of Ursulas."""
+    checksum_address = UrsulaChecksumAddress()
+    ip_address = URL()
+    encrypting_key = Key()
