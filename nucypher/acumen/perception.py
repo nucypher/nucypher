@@ -269,7 +269,7 @@ class FleetSensor:
             # Replace the existing object with a newer object, even if they're equal
             # (this object can be mutated externally).
             # This behavior is supposed to be consistent with that of the node storage
-            # (where a newer obhect with the same `checksum_address` replaces an older one).
+            # (where a newer object with the same `checksum_address` replaces an older one).
             if node in self._nodes_to_add:
                 self._nodes_to_add.remove(node)
             self._nodes_to_add.add(node)
