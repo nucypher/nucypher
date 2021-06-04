@@ -112,7 +112,8 @@ def run(general_config, network, provider_uri, federated_only, teacher_uri, http
 
         BlockchainInterfaceFactory.initialize_interface(provider_uri=provider_uri)
         PORTER = Porter(domain=network,
-                        start_learning_now=eager)
+                        start_learning_now=eager,
+                        provider_uri=provider_uri)
 
     # RPC
     if general_config.json_ipc:

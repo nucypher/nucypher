@@ -308,7 +308,6 @@ class Policy(ABC):
                             network_middleware: RestMiddleware,
                             arrangements: Dict[Ursula, Arrangement],
                             publication_transaction: Optional[HexBytes] = None,
-                            publish_treasure_map: bool = True,
                             timeout: int = 10,
                             ):
         """
@@ -418,8 +417,7 @@ class Policy(ABC):
                                                handpicked_ursulas=handpicked_ursulas)
 
         self._enact_arrangements(network_middleware=network_middleware,
-                                 arrangements=arrangements,
-                                 publish_treasure_map=publish_treasure_map)
+                                 arrangements=arrangements)
 
         treasure_map = self._make_treasure_map(network_middleware=network_middleware,
                                                arrangements=arrangements)
@@ -549,7 +547,7 @@ class BlockchainPolicy(Policy):
 
     def _make_reservoir(self, handpicked_addresses):
         staker_reservoir = make_decentralized_staker_reservoir(staking_agent=self.alice.staking_agent,
-                                                               periods=self.payment_periods,
+                                                               duration_periods=self.payment_periods,
                                                                include_addresses=handpicked_addresses)
         return staker_reservoir
 
@@ -574,12 +572,10 @@ class BlockchainPolicy(Policy):
 
     def _enact_arrangements(self,
                             network_middleware,
-                            arrangements,
-                            publish_treasure_map=True) -> TreasureMapPublisher:
+                            arrangements) -> TreasureMapPublisher:
         transaction = self._publish_to_blockchain(list(arrangements))
         return super()._enact_arrangements(network_middleware=network_middleware,
                                            arrangements=arrangements,
-                                           publish_treasure_map=publish_treasure_map,
                                            publication_transaction=transaction)
 
     def _make_treasure_map(self,
