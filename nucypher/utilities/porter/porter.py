@@ -21,6 +21,7 @@ from flask import request, Response
 from umbral.keys import UmbralPublicKey
 
 from nucypher.blockchain.eth.agents import ContractAgency, StakingEscrowAgent
+from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
 from nucypher.blockchain.eth.registry import BaseContractRegistry, InMemoryContractRegistry
 from nucypher.characters import utils
 from nucypher.characters.lawful import Ursula
@@ -64,16 +65,30 @@ the Pipe for nucypher network operations
 
     _interface_class = PorterInterface
 
+    class UrsulaInfo:
+        """Simple object that stores relevant Ursula information resulting from sampling."""
+
+        def __init__(self, checksum_address: str, ip_address: str, encrypting_key: UmbralPublicKey):
+            self.checksum_address = checksum_address
+            self.ip_address = ip_address
+            self.encrypting_key = encrypting_key
+
     def __init__(self,
                  domain: str = None,
                  registry: BaseContractRegistry = None,
                  controller: bool = True,
                  federated_only: bool = False,
                  node_class: object = Ursula,
+                 provider_uri: str = None,
                  *args, **kwargs):
         self.federated_only = federated_only
 
         if not self.federated_only:
+            if not provider_uri:
+                if not provider_uri:
+                    raise ValueError('Provider URI is required for decentralized Porter.')
+
+            BlockchainInterfaceFactory.get_interface(provider_uri=provider_uri)
             self.registry = registry or InMemoryContractRegistry.from_latest_publication(network=domain)
             self.staking_agent = ContractAgency.get_agent(StakingEscrowAgent, registry=self.registry)
         else:
@@ -110,7 +125,11 @@ the Pipe for nucypher network operations
         treasure_map_publisher.block_until_success_is_reasonably_likely()
         return
 
-    def get_ursulas(self, quantity: int, duration_periods: int, exclude_ursulas: List[str], include_ursulas: List[str]):
+    def get_ursulas(self,
+                    quantity: int,
+                    duration_periods: int,
+                    exclude_ursulas: List[str] = None,
+                    include_ursulas: List[str] = None) -> List[UrsulaInfo]:
         reservoir = self._make_staker_reservoir(quantity, duration_periods, exclude_ursulas, include_ursulas)
         value_factory = PrefetchStrategy(reservoir, quantity)
 
@@ -118,16 +137,16 @@ the Pipe for nucypher network operations
             if ursula_checksum not in self.known_nodes:
                 raise ValueError(f"{ursula_checksum} is not known")
 
-            # check connectivity
             ursula = self.known_nodes[ursula_checksum]
 
-            # don't care about the result only that it worked without raising an exception
+            # check connectivity - don't care about the result only that it worked without raising an exception
             # TODO is this the best way to check connectivity?
             _ = self.network_middleware.get_certificate(host=ursula.rest_interface.host,
                                                         port=ursula.rest_interface.port)
-            return UrsulaInfo(checksum_address=ursula_checksum,
-                              ip_address=f"https://{ursula.rest_interface.host}:{ursula.rest_interface.port}",
-                              encrypting_key=ursula.public_keys(DecryptingPower))
+
+            return Porter.UrsulaInfo(checksum_address=ursula_checksum,
+                                     ip_address=f"https://{ursula.rest_interface.host}:{ursula.rest_interface.port}",
+                                     encrypting_key=ursula.public_keys(DecryptingPower))
 
         self.block_until_number_of_known_nodes_is(quantity, learn_on_this_thread=True, eager=True)
 
@@ -138,27 +157,17 @@ the Pipe for nucypher network operations
                                  stagger_timeout=1,
                                  threadpool_size=quantity)
         worker_pool.start()
-        try:
-            successes = worker_pool.block_until_target_successes()
-        except (WorkerPool.OutOfValues, WorkerPool.TimedOut):
-            # It's possible to raise some other exceptions here,
-            # but we will use the logic below.
-            successes = worker_pool.get_successes()
-        finally:
-            worker_pool.cancel()
-            worker_pool.join()
-
+        successes = worker_pool.block_until_target_successes()
         ursulas_info = successes.values()
-        return ursulas_info
+        return list(ursulas_info)
 
     def _make_staker_reservoir(self,
                                quantity: int,
                                duration_periods: int,
-                               exclude_ursulas: List[str],
-                               include_ursulas: List[str]):
-        handpicked_ursulas = include_ursulas if include_ursulas else []
+                               exclude_ursulas: List[str] = None,
+                               include_ursulas: List[str] = None):
         if self.federated_only:
-            sample_size = quantity - len(handpicked_ursulas)
+            sample_size = quantity - (len(include_ursulas) if include_ursulas else 0)
             if not self.block_until_number_of_known_nodes_is(sample_size, learn_on_this_thread=True):
                 raise ValueError("Unable to learn about sufficient Ursulas")
             return make_federated_staker_reservoir(learner=self,
@@ -166,7 +175,7 @@ the Pipe for nucypher network operations
                                                    include_addresses=include_ursulas)
         else:
             return make_decentralized_staker_reservoir(staking_agent=self.staking_agent,
-                                                       periods=duration_periods,
+                                                       duration_periods=duration_periods,
                                                        exclude_addresses=exclude_ursulas,
                                                        include_addresses=include_ursulas)
 
@@ -227,11 +236,3 @@ the Pipe for nucypher network operations
             return response
 
         return controller
-
-
-class UrsulaInfo:
-    """Simple object that stores relevant Ursula information resulting from sampling."""
-    def __init__(self, checksum_address: str, ip_address: str, encrypting_key: UmbralPublicKey):
-        self.checksum_address = checksum_address
-        self.ip_address = ip_address
-        self.encrypting_key = encrypting_key

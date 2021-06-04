@@ -21,7 +21,9 @@ from eth_typing import ChecksumAddress
 from nucypher.blockchain.eth.agents import StakersReservoir, StakingEscrowAgent
 
 
-def make_federated_staker_reservoir(learner: 'Learner', exclude_addresses=None, include_addresses=None):
+def make_federated_staker_reservoir(learner: 'Learner',
+                                    exclude_addresses: List[str] = None,
+                                    include_addresses: List[str] = None):
     """
     Get a sampler object containing the federated stakers.
     """
@@ -45,9 +47,9 @@ def make_federated_staker_reservoir(learner: 'Learner', exclude_addresses=None, 
 
 
 def make_decentralized_staker_reservoir(staking_agent: StakingEscrowAgent,
-                                        periods,
-                                        exclude_addresses=None,
-                                        include_addresses=None):
+                                        duration_periods: int,
+                                        exclude_addresses: List[str] = None,
+                                        include_addresses: List[str] = None):
     """
     Get a sampler object containing the currently registered stakers.
     """
@@ -60,7 +62,7 @@ def make_decentralized_staker_reservoir(staking_agent: StakingEscrowAgent,
     without_set.update(exclude_addresses)
     without_set.update(include_addresses)
     try:
-        reservoir = staking_agent.get_stakers_reservoir(duration=periods,
+        reservoir = staking_agent.get_stakers_reservoir(duration=duration_periods,
                                                         without=without_set)
     except StakingEscrowAgent.NotEnoughStakers:
         # TODO: do that in `get_stakers_reservoir()`?

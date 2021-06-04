@@ -63,6 +63,7 @@ from nucypher.crypto.powers import TransactingPower
 from nucypher.datastore import datastore
 from nucypher.network.nodes import TEACHER_NODES
 from nucypher.utilities.logging import GlobalLoggerSettings, Logger
+from nucypher.utilities.porter.porter import Porter
 from tests.constants import (
     BASE_TEMP_DIR,
     BASE_TEMP_PREFIX,
@@ -416,6 +417,35 @@ def lonely_ursula_maker(ursula_federated_test_config):
     _maker = _PartialUrsulaMaker()
     yield _maker
     _maker.clean()
+
+
+#
+# Porter
+#
+@pytest.fixture(scope="module")
+def federated_porter(federated_ursulas):
+    porter = Porter(domain=TEMPORARY_DOMAIN,
+                    abort_on_learning_error=True,
+                    start_learning_now=True,
+                    known_nodes=federated_ursulas,
+                    verify_node_bonding=False,
+                    federated_only=True,
+                    network_middleware=MockRestMiddleware())
+    yield porter
+    porter.stop_learning_loop()
+
+
+@pytest.fixture(scope="module")
+def blockchain_porter(blockchain_ursulas, testerchain, test_registry):
+    porter = Porter(domain=TEMPORARY_DOMAIN,
+                    abort_on_learning_error=True,
+                    start_learning_now=True,
+                    known_nodes=blockchain_ursulas,
+                    provider_uri=TEST_PROVIDER_URI,
+                    registry=test_registry,
+                    network_middleware=MockRestMiddleware())
+    yield porter
+    porter.stop_learning_loop()
 
 
 #
