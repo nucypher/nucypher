@@ -33,13 +33,17 @@ class PorterInterface(ControlInterface):
     def get_ursulas(self,
                     quantity: int,
                     duration_periods: int,
-                    exclude_ursulas: List[str],
-                    include_ursulas: List[str]) -> dict:
-        # Steps (analogous to nucypher.character.control.interfaces):
-        # 1. creation of relevant objects / setup
-        # 2. call self.implementer.some_function() i.e. Porter learner has an associated function to call
-        # 3. create response
-        pass
+                    exclude_ursulas: List[str] = None,
+                    include_ursulas: List[str] = None) -> dict:
+        ursulas_info = self.implementer.get_ursulas(quantity=quantity,
+                                                    duration_periods=duration_periods,
+                                                    exclude_ursulas=exclude_ursulas,
+                                                    include_ursulas=include_ursulas)
+
+        response_data = {
+            "ursulas": ursulas_info
+        }
+        return response_data
 
     @attach_schema(porter_schema.AlicePublishTreasureMap)
     def publish_treasure_map(self,

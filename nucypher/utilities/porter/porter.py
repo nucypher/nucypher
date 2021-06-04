@@ -14,18 +14,27 @@
  You should have received a copy of the GNU Affero General Public License
  along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
+from typing import List
 
 from constant_sorrow.constants import NO_CONTROL_PROTOCOL, NO_BLOCKCHAIN_CONNECTION
 from flask import request, Response
 from umbral.keys import UmbralPublicKey
 
+from nucypher.blockchain.eth.agents import ContractAgency, StakingEscrowAgent
 from nucypher.blockchain.eth.registry import BaseContractRegistry, InMemoryContractRegistry
 from nucypher.characters import utils
 from nucypher.characters.lawful import Ursula
 from nucypher.characters.utils import matching_nodes_among
 from nucypher.control.controllers import WebController, JSONRPCController
+from nucypher.crypto.powers import DecryptingPower
 from nucypher.network.nodes import Learner
 from nucypher.policy.policies import TreasureMapPublisher
+from nucypher.policy.reservoir import (
+    make_federated_staker_reservoir,
+    make_decentralized_staker_reservoir,
+    PrefetchStrategy
+)
+from nucypher.utilities.concurrency import WorkerPool
 from nucypher.utilities.logging import Logger
 from nucypher.utilities.porter.control.controllers import PorterCLIController
 from nucypher.utilities.porter.control.interfaces import PorterInterface
@@ -66,6 +75,7 @@ the Pipe for nucypher network operations
 
         if not self.federated_only:
             self.registry = registry or InMemoryContractRegistry.from_latest_publication(network=domain)
+            self.staking_agent = ContractAgency.get_agent(StakingEscrowAgent, registry=self.registry)
         else:
             self.registry = NO_BLOCKCHAIN_CONNECTION.bool_value(False)
             node_class.set_federated_mode(federated_only)
@@ -99,6 +109,66 @@ the Pipe for nucypher network operations
         treasure_map_publisher.start()  # let's do this
         treasure_map_publisher.block_until_success_is_reasonably_likely()
         return
+
+    def get_ursulas(self, quantity: int, duration_periods: int, exclude_ursulas: List[str], include_ursulas: List[str]):
+        reservoir = self._make_staker_reservoir(quantity, duration_periods, exclude_ursulas, include_ursulas)
+        value_factory = PrefetchStrategy(reservoir, quantity)
+
+        def get_ursula_info(ursula_checksum):
+            if ursula_checksum not in self.known_nodes:
+                raise ValueError(f"{ursula_checksum} is not known")
+
+            # check connectivity
+            ursula = self.known_nodes[ursula_checksum]
+
+            # don't care about the result only that it worked without raising an exception
+            # TODO is this the best way to check connectivity?
+            _ = self.network_middleware.get_certificate(host=ursula.rest_interface.host,
+                                                        port=ursula.rest_interface.port)
+            return UrsulaInfo(checksum_address=ursula_checksum,
+                              ip_address=f"https://{ursula.rest_interface.host}:{ursula.rest_interface.port}",
+                              encrypting_key=ursula.public_keys(DecryptingPower))
+
+        self.block_until_number_of_known_nodes_is(quantity, learn_on_this_thread=True, eager=True)
+
+        worker_pool = WorkerPool(worker=get_ursula_info,
+                                 value_factory=value_factory,
+                                 target_successes=quantity,
+                                 timeout=10,  # TODO what is a good timeout? Should we standardize for Porter?
+                                 stagger_timeout=1,
+                                 threadpool_size=quantity)
+        worker_pool.start()
+        try:
+            successes = worker_pool.block_until_target_successes()
+        except (WorkerPool.OutOfValues, WorkerPool.TimedOut):
+            # It's possible to raise some other exceptions here,
+            # but we will use the logic below.
+            successes = worker_pool.get_successes()
+        finally:
+            worker_pool.cancel()
+            worker_pool.join()
+
+        ursulas_info = successes.values()
+        return ursulas_info
+
+    def _make_staker_reservoir(self,
+                               quantity: int,
+                               duration_periods: int,
+                               exclude_ursulas: List[str],
+                               include_ursulas: List[str]):
+        handpicked_ursulas = include_ursulas if include_ursulas else []
+        if self.federated_only:
+            sample_size = quantity - len(handpicked_ursulas)
+            if not self.block_until_number_of_known_nodes_is(sample_size, learn_on_this_thread=True):
+                raise ValueError("Unable to learn about sufficient Ursulas")
+            return make_federated_staker_reservoir(learner=self,
+                                                   exclude_addresses=exclude_ursulas,
+                                                   include_addresses=include_ursulas)
+        else:
+            return make_decentralized_staker_reservoir(staking_agent=self.staking_agent,
+                                                       periods=duration_periods,
+                                                       exclude_addresses=exclude_ursulas,
+                                                       include_addresses=include_ursulas)
 
     def make_cli_controller(self, crash_on_error: bool = False):
         controller = PorterCLIController(app_name=self.APP_NAME,
@@ -157,3 +227,11 @@ the Pipe for nucypher network operations
             return response
 
         return controller
+
+
+class UrsulaInfo:
+    """Simple object that stores relevant Ursula information resulting from sampling."""
+    def __init__(self, checksum_address: str, ip_address: str, encrypting_key: UmbralPublicKey):
+        self.checksum_address = checksum_address
+        self.ip_address = ip_address
+        self.encrypting_key = encrypting_key
