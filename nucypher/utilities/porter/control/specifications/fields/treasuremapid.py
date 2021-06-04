@@ -19,11 +19,14 @@ from marshmallow import fields
 
 from nucypher.control.specifications.exceptions import InvalidInputData
 from nucypher.control.specifications.fields.base import BaseField
+from nucypher.crypto.constants import HRAC_LENGTH
 from nucypher.policy.collections import TreasureMap
 
 
 class TreasureMapID(BaseField, fields.String):
 
     def _validate(self, value):
-        if len(bytes.fromhex(value)) != TreasureMap.ID_LENGTH:
+        treasure_map_id = bytes.fromhex(value)
+        # FIXME federated has map id length 32 bytes but decentralized has length 16 bytes ... huh?
+        if len(treasure_map_id) != TreasureMap.ID_LENGTH and len(treasure_map_id) != HRAC_LENGTH:
             raise InvalidInputData(f"Could not convert input for {self.name} to a valid TreasureMap ID: invalid length")

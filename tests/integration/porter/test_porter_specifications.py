@@ -192,7 +192,7 @@ def test_alice_revoke():
     pass  # TODO
 
 
-def test_bob_get_treasure_map(enacted_federated_policy, federated_bob):
+def test_bob_get_treasure_map(enacted_federated_policy, federated_alice, federated_bob):
     #
     # Input i.e. load
     #
@@ -201,7 +201,7 @@ def test_bob_get_treasure_map(enacted_federated_policy, federated_bob):
     with pytest.raises(InvalidInputData):
         BobGetTreasureMap().load({})
 
-    treasure_map_id = enacted_federated_policy.treasure_map.public_id()
+    treasure_map_id = federated_bob.construct_map_id(federated_alice.stamp, enacted_federated_policy.label)
     bob_encrypting_key = federated_bob.public_keys(DecryptingPower)
     bob_encrypting_key_hex = bytes(bob_encrypting_key).hex()
 
@@ -212,6 +212,11 @@ def test_bob_get_treasure_map(enacted_federated_policy, federated_bob):
 
     # required args
     BobGetTreasureMap().load(required_data)
+
+    # random 16-byte length map id
+    updated_data = dict(required_data)
+    updated_data['treasure_map_id'] = "93a9482bdf3b4f2e9df906a35144ca93"
+    BobGetTreasureMap().load(updated_data)
 
     # missing required args
     updated_data = {k: v for k, v in required_data.items() if k != 'treasure_map_id'}

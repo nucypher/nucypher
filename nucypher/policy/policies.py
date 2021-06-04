@@ -515,7 +515,7 @@ class BlockchainPolicy(Policy):
 
     def _make_reservoir(self, handpicked_addresses):
         staker_reservoir = make_decentralized_staker_reservoir(staking_agent=self.alice.staking_agent,
-                                                               periods=self.payment_periods,
+                                                               duration_periods=self.payment_periods,
                                                                include_addresses=handpicked_addresses)
         return staker_reservoir
 
