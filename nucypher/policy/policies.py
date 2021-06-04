@@ -27,7 +27,7 @@ from twisted.internet import reactor
 
 from nucypher.blockchain.eth.agents import StakersReservoir, StakingEscrowAgent
 from nucypher.blockchain.eth.constants import POLICY_ID_LENGTH
-from nucypher.crypto.constants import HRAC_LENGTH
+from nucypher.crypto.constants import HRAC_LENGTH, PUBLIC_KEY_LENGTH
 from nucypher.crypto.kits import RevocationKit
 from nucypher.crypto.powers import TransactingPower
 from nucypher.crypto.splitters import key_splitter
@@ -37,6 +37,8 @@ from nucypher.crypto.utils import construct_policy_id
 from nucypher.network.middleware import RestMiddleware
 from nucypher.utilities.concurrency import WorkerPool, AllAtOnceFactory
 from nucypher.utilities.logging import Logger
+from .reservoir import make_federated_staker_reservoir, MergedReservoir, PrefetchStrategy, \
+    make_decentralized_staker_reservoir
 
 
 class Arrangement:
@@ -147,49 +149,6 @@ class TreasureMapPublisher:
 
     def block_until_complete(self):
         self._worker_pool.join()
-
-
-class MergedReservoir:
-    """
-    A reservoir made of a list of addresses and a StakersReservoir.
-    Draws the values from the list first, then from StakersReservoir,
-    then returns None on subsequent calls.
-    """
-
-    def __init__(self, values: Iterable, reservoir: StakersReservoir):
-        self.values = list(values)
-        self.reservoir = reservoir
-
-    def __call__(self) -> Optional[ChecksumAddress]:
-        if self.values:
-            return self.values.pop(0)
-        elif len(self.reservoir) > 0:
-            return self.reservoir.draw(1)[0]
-        else:
-            return None
-
-
-class PrefetchStrategy:
-    """
-    Encapsulates the batch draw strategy from a reservoir.
-    Determines how many values to draw based on the number of values
-    that have already led to successes.
-    """
-
-    def __init__(self, reservoir: MergedReservoir, need_successes: int):
-        self.reservoir = reservoir
-        self.need_successes = need_successes
-
-    def __call__(self, successes: int) -> Optional[List[ChecksumAddress]]:
-        batch = []
-        for i in range(self.need_successes - successes):
-            value = self.reservoir()
-            if value is None:
-                break
-            batch.append(value)
-        if not batch:
-            return None
-        return batch
 
 
 class Policy(ABC):
@@ -465,7 +424,6 @@ class Policy(ABC):
 
 
 class FederatedPolicy(Policy):
-
     from nucypher.policy.maps import TreasureMap as __map_class
     _treasure_map_class = __map_class
 
@@ -473,11 +431,9 @@ class FederatedPolicy(Policy):
         return Policy.NotEnoughUrsulas
 
     def _make_reservoir(self, handpicked_addresses):
-        addresses = {
-            ursula.checksum_address: 1 for ursula in self.alice.known_nodes
-            if ursula.checksum_address not in handpicked_addresses}
-
-        return MergedReservoir(handpicked_addresses, StakersReservoir(addresses))
+        return make_federated_staker_reservoir(learner=self.alice,
+                                               exclude_addresses=None,
+                                               include_addresses=handpicked_addresses)
 
     def _make_enactment_payload(self, kfrag) -> bytes:
         return bytes(kfrag)
@@ -558,14 +514,10 @@ class BlockchainPolicy(Policy):
         return params
 
     def _make_reservoir(self, handpicked_addresses):
-        try:
-            reservoir = self.alice.get_stakers_reservoir(duration=self.payment_periods,
-                                                         without=handpicked_addresses)
-        except StakingEscrowAgent.NotEnoughStakers:
-            # TODO: do that in `get_stakers_reservoir()`?
-            reservoir = StakersReservoir({})
-
-        return MergedReservoir(handpicked_addresses, reservoir)
+        staker_reservoir = make_decentralized_staker_reservoir(staking_agent=self.alice.staking_agent,
+                                                               periods=self.payment_periods,
+                                                               include_addresses=handpicked_addresses)
+        return staker_reservoir
 
     def _publish_to_blockchain(self, ursulas) -> dict:
 
