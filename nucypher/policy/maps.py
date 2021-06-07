@@ -47,7 +47,7 @@ class TreasureMap:
     VERSION_NUMBER = 1  # Increment when serialization format changes.
 
     _BRAND = b'TM'
-    _VERSION = int(VERSION_NUMBER).to_bytes(2, 'big')
+    _VERSION = int(VERSION_NUMBER).to_bytes(VersioningMixin.HEADER_LENGTH, 'big')
 
     class NowhereToBeFound(RestMiddleware.NotFound):
         """
