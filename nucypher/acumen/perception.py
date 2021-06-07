@@ -150,7 +150,6 @@ class FleetState:
             nodes_to_add_dict = {node.checksum_address: node for node in nodes_to_add}
             for checksum_address in diff.nodes_updated:
                 new_node = nodes_to_add_dict[checksum_address]
-                new_node.mature()
                 nodes[checksum_address] = new_node
             for checksum_address in diff.nodes_removed:
                 del nodes[checksum_address]
@@ -267,6 +266,12 @@ class FleetSensor:
     def record_node(self, node: 'Ursula'):
 
         if node.domain == self._domain:
+            # Replace the existing object with a newer object, even if they're equal
+            # (this object can be mutated externally).
+            # This behavior is supposed to be consistent with that of the node storage
+            # (where a newer object with the same `checksum_address` replaces an older one).
+            if node in self._nodes_to_add:
+                self._nodes_to_add.remove(node)
             self._nodes_to_add.add(node)
 
             if self._auto_update_state:

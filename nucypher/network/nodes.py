@@ -92,11 +92,15 @@ class NodeSprout(PartiallyKwargifiedBytes):
         self._is_finishing = False
         self._finishing_mutex = Queue()
 
+    def __eq__(self, other):
+        try:
+            other_stamp = other.stamp
+        except (AttributeError, NoSigningPower):
+            return False
+        return bytes(self.stamp) == bytes(other_stamp)
+
     def __hash__(self):
-        if not self._hash:
-            self._hash = int.from_bytes(self.public_address,
-                                        byteorder="big")  # stop-propagation logic (ie, only propagate verified, staked nodes) keeps this unique and BFT.
-        return self._hash
+        return int.from_bytes(bytes(self.stamp), byteorder="big")
 
     def __repr__(self):
         if not self._repr:
@@ -132,6 +136,9 @@ class NodeSprout(PartiallyKwargifiedBytes):
         if not self._nickname:
             self._nickname = Nickname.from_seed(self.checksum_address)
         return self._nickname
+
+    def rest_url(self):
+        return self.rest_interface.uri
 
     def mature(self):
         if self._is_finishing:
