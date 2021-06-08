@@ -127,7 +127,7 @@ the Pipe for nucypher network operations
 
     def get_ursulas(self,
                     quantity: int,
-                    duration_periods: int,
+                    duration_periods: int = None,  # optional for federated mode
                     exclude_ursulas: List[str] = None,
                     include_ursulas: List[str] = None) -> List[UrsulaInfo]:
         reservoir = self._make_staker_reservoir(quantity, duration_periods, exclude_ursulas, include_ursulas)
@@ -163,7 +163,7 @@ the Pipe for nucypher network operations
 
     def _make_staker_reservoir(self,
                                quantity: int,
-                               duration_periods: int,
+                               duration_periods: int = None,  # optional for federated mode
                                exclude_ursulas: List[str] = None,
                                include_ursulas: List[str] = None):
         if self.federated_only:
@@ -174,6 +174,8 @@ the Pipe for nucypher network operations
                                                    exclude_addresses=exclude_ursulas,
                                                    include_addresses=include_ursulas)
         else:
+            if not duration_periods:
+                raise ValueError("Duration periods must be provided in decentralized mode")
             return make_decentralized_staker_reservoir(staking_agent=self.staking_agent,
                                                        duration_periods=duration_periods,
                                                        exclude_addresses=exclude_ursulas,
@@ -209,7 +211,8 @@ the Pipe for nucypher network operations
         @porter_flask_control.route('/get_ursulas', methods=['GET'])
         def get_ursulas() -> Response:
             """Porter control endpoint for sampling Ursulas on behalf of Alice."""
-            return controller(method_name='get_ursulas', control_request=request)
+            response = controller(method_name='get_ursulas', control_request=request)
+            return response
 
         @porter_flask_control.route("/publish_treasure_map", methods=['POST'])
         def publish_treasure_map() -> Response:
