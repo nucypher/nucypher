@@ -36,30 +36,22 @@ from tests.constants import INSECURE_DEVELOPMENT_PASSWORD
 from tests.utils.matchers import IsType
 
 
-def test_generate_alice_keyring(tmpdir):
+def test_generate_alice_keystore(tmpdir):
 
-    keyring = Keystore.generate(
-        checksum_address=FEDERATED_ADDRESS,
+    keystore = Keystore.generate(
         password=INSECURE_DEVELOPMENT_PASSWORD,
-        encrypting=True,
-        rest=False,
-        keyring_root=tmpdir
+        keystore_dir=tmpdir
     )
 
-    enc_pubkey = keyring.encrypting_public_key
-    assert enc_pubkey is not None
+    with pytest.raises(Keystore.Locked):
+        _dec_keypair = keystore.derive_crypto_power(DecryptingPower).keypair
 
-    with pytest.raises(Keystore.KeyringLocked):
-        _dec_keypair = keyring.derive_crypto_power(DecryptingPower).keypair
-
-    keyring.unlock(password=INSECURE_DEVELOPMENT_PASSWORD)
-    dec_keypair = keyring.derive_crypto_power(DecryptingPower).keypair
-
-    assert enc_pubkey == dec_keypair.pubkey
+    keystore.unlock(password=INSECURE_DEVELOPMENT_PASSWORD)
+    assert keystore.derive_crypto_power(DecryptingPower).keypair
 
     label = b'test'
 
-    delegating_power = keyring.derive_crypto_power(DelegatingPower)
+    delegating_power = keystore.derive_crypto_power(DelegatingPower)
     delegating_pubkey = delegating_power.get_pubkey_from_label(label)
 
     bob_pubkey = SecretKey.random().public_key()
@@ -70,26 +62,23 @@ def test_generate_alice_keyring(tmpdir):
 
     assert delegating_pubkey == delegating_pubkey_again
 
-    another_delegating_power = keyring.derive_crypto_power(DelegatingPower)
+    another_delegating_power = keystore.derive_crypto_power(DelegatingPower)
     another_delegating_pubkey = another_delegating_power.get_pubkey_from_label(label)
 
     assert delegating_pubkey == another_delegating_pubkey
 
 
-def test_characters_use_keyring(tmpdir):
-    keyring = Keystore.generate(
-        checksum_address=FEDERATED_ADDRESS,
+def test_characters_use_keystore(tmpdir):
+    keystore = Keystore.generate(
         password=INSECURE_DEVELOPMENT_PASSWORD,
-        encrypting=True,
-        rest=True,
-        host=LOOPBACK_ADDRESS,
-        keyring_root=tmpdir)
-    keyring.unlock(password=INSECURE_DEVELOPMENT_PASSWORD)
-    alice = Alice(federated_only=True, start_learning_now=False, keyring=keyring)
-    Bob(federated_only=True, start_learning_now=False, keyring=keyring)
+        keystore_dir=tmpdir
+    )
+    keystore.unlock(password=INSECURE_DEVELOPMENT_PASSWORD)
+    alice = Alice(federated_only=True, start_learning_now=False, keystore=keystore)
+    Bob(federated_only=True, start_learning_now=False, keystore=keystore)
     Ursula(federated_only=True,
            start_learning_now=False,
-           keyring=keyring,
+           keystore=keystore,
            rest_host=LOOPBACK_ADDRESS,
            rest_port=12345,
            db_filepath=tempfile.mkdtemp(),
@@ -97,28 +86,26 @@ def test_characters_use_keyring(tmpdir):
     alice.disenchant()  # To stop Alice's publication threadpool.  TODO: Maybe only start it at first enactment?
 
 
+@pytest.mark.skip('Do we really though?')
 def test_tls_hosting_certificate_remains_the_same(tmpdir, mocker):
-    keyring = Keystore.generate(
-        checksum_address=FEDERATED_ADDRESS,
+    keystore = Keystore.generate(
         password=INSECURE_DEVELOPMENT_PASSWORD,
-        encrypting=True,
-        rest=True,
-        host=LOOPBACK_ADDRESS,
-        keyring_root=tmpdir)
-    keyring.unlock(password=INSECURE_DEVELOPMENT_PASSWORD)
+        keystore_dir=tmpdir
+    )
+    keystore.unlock(password=INSECURE_DEVELOPMENT_PASSWORD)
 
     rest_port = 12345
     db_filepath = tempfile.mkdtemp()
 
     ursula = Ursula(federated_only=True,
                     start_learning_now=False,
-                    keyring=keyring,
+                    keystore=keystore,
                     rest_host=LOOPBACK_ADDRESS,
                     rest_port=rest_port,
                     db_filepath=db_filepath,
                     domain=TEMPORARY_DOMAIN)
 
-    assert ursula.keyring is keyring
+    assert ursula.keystore is keystore
     assert ursula.certificate == ursula._crypto_power.power_ups(TLSHostingPower).keypair.certificate
 
     original_certificate_bytes = ursula.certificate.public_bytes(encoding=Encoding.PEM)
@@ -128,13 +115,13 @@ def test_tls_hosting_certificate_remains_the_same(tmpdir, mocker):
     spy_rest_server_init = mocker.spy(ProxyRESTServer, '__init__')
     recreated_ursula = Ursula(federated_only=True,
                               start_learning_now=False,
-                              keyring=keyring,
+                              keystore=keystore,
                               rest_host=LOOPBACK_ADDRESS,
                               rest_port=rest_port,
                               db_filepath=db_filepath,
                               domain=TEMPORARY_DOMAIN)
 
-    assert recreated_ursula.keyring is keyring
+    assert recreated_ursula.keystore is keystore
     assert recreated_ursula.certificate.public_bytes(encoding=Encoding.PEM) == original_certificate_bytes
     tls_hosting_power = recreated_ursula._crypto_power.power_ups(TLSHostingPower)
     spy_rest_server_init.assert_called_once_with(ANY,  # self

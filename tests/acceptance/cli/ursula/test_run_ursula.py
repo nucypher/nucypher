@@ -29,7 +29,7 @@ from nucypher.characters.base import Learner
 from nucypher.cli.literature import NO_CONFIGURATIONS_ON_DISK
 from nucypher.cli.main import nucypher_cli
 from nucypher.config.characters import UrsulaConfiguration
-from nucypher.config.constants import NUCYPHER_ENVVAR_KEYRING_PASSWORD, TEMPORARY_DOMAIN
+from nucypher.config.constants import NUCYPHER_ENVVAR_KEYSTORE_PASSWORD, TEMPORARY_DOMAIN
 from nucypher.network.nodes import Teacher
 from nucypher.utilities.networking import LOOPBACK_ADDRESS, UnknownIPAddress
 from tests.constants import (
@@ -162,8 +162,7 @@ def test_federated_ursula_learns_via_cli(click_runner, federated_ursulas):
     assert deploy_port not in reserved_ports
 
     # Check that CLI Ursula reports that it remembers the teacher and saves the TLS certificate
-    assert teacher.checksum_address in result.output
-    assert f"Saved TLS certificate for {teacher.nickname}" in result.output
+    assert f"Saved TLS certificate for {LOOPBACK_ADDRESS}" in result.output
 
     federated_ursulas.clear()
 
@@ -188,7 +187,7 @@ def test_persistent_node_storage_integration(click_runner,
                  '--registry-filepath', agency_local_registry.filepath,
                  )
 
-    envvars = {NUCYPHER_ENVVAR_KEYRING_PASSWORD: INSECURE_DEVELOPMENT_PASSWORD}
+    envvars = {NUCYPHER_ENVVAR_KEYSTORE_PASSWORD: INSECURE_DEVELOPMENT_PASSWORD}
     result = click_runner.invoke(nucypher_cli, init_args, catch_exceptions=False, env=envvars)
     assert result.exit_code == 0
 
@@ -248,7 +247,7 @@ def test_ursula_run_ip_checkup(testerchain, custom_filepath, click_runner, mocke
     staker = blockchain_ursulas.pop()
 
     def set_staker_address(worker, *args, **kwargs):
-        worker._checksum_address = staker.checksum_address
+        worker.checksum_address = staker.checksum_address
         return True
     monkeypatch.setattr(Worker, 'block_until_ready', set_staker_address)
 

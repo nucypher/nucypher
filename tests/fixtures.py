@@ -58,6 +58,7 @@ from nucypher.config.characters import (
     UrsulaConfiguration
 )
 from nucypher.config.constants import TEMPORARY_DOMAIN
+from nucypher.crypto.keystore import Keystore
 from nucypher.crypto.powers import TransactingPower
 from nucypher.datastore import datastore
 from nucypher.network.nodes import TEACHER_NODES
@@ -174,7 +175,7 @@ def bob_federated_test_config():
 
 
 @pytest.fixture(scope="module")
-def ursula_decentralized_test_config(test_registry):
+def ursula_decentralized_test_config(test_registry, temp_dir_path):
     config = make_ursula_test_configuration(federated=False,
                                             provider_uri=TEST_PROVIDER_URI,
                                             test_registry=test_registry,
@@ -201,8 +202,7 @@ def bob_blockchain_test_config(testerchain, test_registry):
     config = make_bob_test_configuration(federated=False,
                                          provider_uri=TEST_PROVIDER_URI,
                                          test_registry=test_registry,
-                                         checksum_address=testerchain.bob_account,
-                                         )
+                                         checksum_address=testerchain.bob_account)
     yield config
     config.cleanup()
 
@@ -366,8 +366,9 @@ def blockchain_bob(bob_blockchain_test_config, testerchain):
 @pytest.fixture(scope="module")
 def federated_ursulas(ursula_federated_test_config):
     if MOCK_KNOWN_URSULAS_CACHE:
-        # raise RuntimeError("Ursulas cache was unclear at fixture loading time.  Did you use one of the ursula maker functions without cleaning up?")
-        MOCK_KNOWN_URSULAS_CACHE.clear()
+        raise RuntimeError("Ursulas cache was unclear at fixture loading time. "
+                           "Did you use one of the ursula maker functions without cleaning up?")
+        # MOCK_KNOWN_URSULAS_CACHE.clear()
 
     _ursulas = make_federated_ursulas(ursula_config=ursula_federated_test_config,
                                       quantity=NUMBER_OF_URSULAS_IN_DEVELOPMENT_NETWORK)

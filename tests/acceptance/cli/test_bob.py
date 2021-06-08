@@ -67,7 +67,7 @@ def test_initialize_bob_with_custom_configuration_root(custom_filepath, click_ru
 
     # Files and Directories
     assert os.path.isdir(custom_filepath), 'Configuration file does not exist'
-    assert os.path.isdir(os.path.join(custom_filepath, 'keyring')), 'Keyring does not exist'
+    assert os.path.isdir(os.path.join(custom_filepath, 'keystore')), 'KEYSTORE does not exist'
     assert os.path.isdir(os.path.join(custom_filepath, 'known_nodes')), 'known_nodes directory does not exist'
 
     custom_config_filepath = os.path.join(custom_filepath, BobConfiguration.generate_filename())
@@ -143,7 +143,7 @@ def test_bob_retrieves_twice_via_cli(click_runner,
                      '--config-root', bob_config_root,
                      '--federated-only')
 
-    envvars = {'NUCYPHER_KEYRING_PASSWORD': INSECURE_DEVELOPMENT_PASSWORD}
+    envvars = {'NUCYPHER_KEYSTORE_PASSWORD': INSECURE_DEVELOPMENT_PASSWORD}
 
     log.info("Init'ing a normal Bob; we'll substitute the Policy Bob in shortly.")
     bob_init_response = click_runner.invoke(nucypher_cli, bob_init_args, catch_exceptions=False, env=envvars)

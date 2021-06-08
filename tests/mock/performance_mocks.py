@@ -200,7 +200,7 @@ class VerificationTracker:
         cls.metadata_verifications += 1
 
 
-mock_cert_generation = patch("nucypher.crypto.api.generate_self_signed_certificate", new=do_not_create_cert)
+mock_cert_generation = patch("nucypher.crypto.tls.generate_self_signed_certificate", new=do_not_create_cert)
 mock_rest_app_creation = patch("nucypher.characters.lawful.make_rest_app",
                                new=NotARestApp.create_with_not_a_datastore)
 

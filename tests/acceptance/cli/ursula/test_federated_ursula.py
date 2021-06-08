@@ -19,12 +19,16 @@ import json
 from json import JSONDecodeError
 
 import os
+from unittest.mock import PropertyMock
+
 import pytest
 
 from nucypher.cli.literature import SUCCESSFUL_DESTRUCTION, COLLECT_NUCYPHER_PASSWORD
 from nucypher.cli.main import nucypher_cli
+from nucypher.config.base import CharacterConfiguration
 from nucypher.config.characters import UrsulaConfiguration
-from nucypher.config.constants import APP_DIR, DEFAULT_CONFIG_ROOT, NUCYPHER_ENVVAR_KEYRING_PASSWORD, TEMPORARY_DOMAIN
+from nucypher.config.constants import APP_DIR, DEFAULT_CONFIG_ROOT, NUCYPHER_ENVVAR_KEYSTORE_PASSWORD, TEMPORARY_DOMAIN
+from nucypher.crypto.keystore import Keystore
 from tests.constants import (
     FAKE_PASSWORD_CONFIRMED, INSECURE_DEVELOPMENT_PASSWORD,
     MOCK_CUSTOM_INSTALLATION_PATH,
@@ -32,11 +36,15 @@ from tests.constants import (
 from tests.utils.ursula import MOCK_URSULA_STARTING_PORT, select_test_port
 
 
-def test_initialize_ursula_defaults(click_runner, mocker):
+def test_initialize_ursula_defaults(click_runner, mocker, tmpdir):
 
     # Mock out filesystem writes
     mocker.patch.object(UrsulaConfiguration, 'initialize', autospec=True)
     mocker.patch.object(UrsulaConfiguration, 'to_configuration_file', autospec=True)
+
+    # Mock Keystore init
+    keystore = Keystore.generate(keystore_dir=tmpdir, password=INSECURE_DEVELOPMENT_PASSWORD)
+    mocker.patch.object(CharacterConfiguration, 'keystore', return_value=keystore, new_callable=PropertyMock)
 
     # Use default ursula init args
     init_args = ('ursula', 'init', '--network', TEMPORARY_DOMAIN, '--federated-only')
@@ -73,7 +81,7 @@ def test_initialize_custom_configuration_root(custom_filepath, click_runner):
 
     # Files and Directories
     assert os.path.isdir(custom_filepath), 'Configuration file does not exist'
-    assert os.path.isdir(os.path.join(custom_filepath, 'keyring')), 'Keyring does not exist'
+    assert os.path.isdir(os.path.join(custom_filepath, 'keystore')), 'KEYSTORE does not exist'
     assert os.path.isdir(os.path.join(custom_filepath, 'known_nodes')), 'known_nodes directory does not exist'
 
     custom_config_filepath = os.path.join(custom_filepath, UrsulaConfiguration.generate_filename())
@@ -182,7 +190,7 @@ def test_ursula_destroy_configuration(custom_filepath, click_runner):
     result = click_runner.invoke(nucypher_cli, destruction_args,
                                  input='Y\n'.format(INSECURE_DEVELOPMENT_PASSWORD),
                                  catch_exceptions=False,
-                                 env={NUCYPHER_ENVVAR_KEYRING_PASSWORD: INSECURE_DEVELOPMENT_PASSWORD})
+                                 env={NUCYPHER_ENVVAR_KEYSTORE_PASSWORD: INSECURE_DEVELOPMENT_PASSWORD})
 
     # CLI Output
     assert not os.path.isfile(custom_config_filepath), 'Configuration file still exists'

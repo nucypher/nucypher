@@ -31,6 +31,7 @@ from nucypher.crypto.utils import canonical_address_from_umbral_key
 from nucypher.policy.collections import WorkOrder
 from tests.constants import NUMBER_OF_URSULAS_IN_DEVELOPMENT_NETWORK
 from tests.mock.datastore import MOCK_DB
+from tests.utils.blockchain import TesterBlockchain
 
 
 def select_test_port() -> int:
@@ -64,9 +65,7 @@ def make_federated_ursulas(ursula_config: UrsulaConfiguration,
         starting_port = max(MOCK_KNOWN_URSULAS_CACHE.keys()) + 1
 
     federated_ursulas = set()
-
     for port in range(starting_port, starting_port+quantity):
-
         ursula = ursula_config.produce(rest_port=port + 100,
                                        db_filepath=MOCK_DB,
                                        **ursula_overrides)

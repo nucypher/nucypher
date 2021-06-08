@@ -18,7 +18,6 @@
 import os
 import shutil
 from pathlib import Path
-from unittest.mock import patch, PropertyMock
 
 import pytest
 
@@ -26,13 +25,12 @@ from nucypher.blockchain.eth.actors import Worker
 from nucypher.cli.main import nucypher_cli
 from nucypher.config.characters import AliceConfiguration, FelixConfiguration, UrsulaConfiguration
 from nucypher.config.constants import (
-    NUCYPHER_ENVVAR_KEYRING_PASSWORD,
+    NUCYPHER_ENVVAR_KEYSTORE_PASSWORD,
     TEMPORARY_DOMAIN,
     NUCYPHER_ENVVAR_ALICE_ETH_PASSWORD,
     NUCYPHER_ENVVAR_BOB_ETH_PASSWORD
 )
-from nucypher.crypto.keystore import Keystore
-from nucypher.crypto.umbral_adapter import SecretKey
+from nucypher.crypto.keystore import Keystore, InvalidPassword
 from nucypher.network.nodes import Teacher
 from tests.constants import (
     INSECURE_DEVELOPMENT_PASSWORD,
@@ -67,7 +65,8 @@ def test_destroy_with_no_configurations(click_runner, custom_filepath):
 def test_coexisting_configurations(click_runner,
                                    custom_filepath,
                                    testerchain,
-                                   agency_local_registry):
+                                   agency_local_registry,
+                                   mocker):
     #
     # Setup
     #
@@ -80,12 +79,12 @@ def test_coexisting_configurations(click_runner,
     # TODO: Is testerchain & Full contract deployment needed here (causes massive slowdown)?
     alice, ursula, another_ursula, felix, staker, *all_yall = testerchain.unassigned_accounts
 
-    envvars = {NUCYPHER_ENVVAR_KEYRING_PASSWORD: INSECURE_DEVELOPMENT_PASSWORD,
+    envvars = {NUCYPHER_ENVVAR_KEYSTORE_PASSWORD: INSECURE_DEVELOPMENT_PASSWORD,
                NUCYPHER_ENVVAR_ALICE_ETH_PASSWORD: INSECURE_DEVELOPMENT_PASSWORD,
                NUCYPHER_ENVVAR_BOB_ETH_PASSWORD: INSECURE_DEVELOPMENT_PASSWORD}
 
     # Future configuration filepaths for assertions...
-    public_keys_dir = custom_filepath / 'keyring' / 'public'
+    public_keys_dir = custom_filepath / 'keystore' / 'public'
     known_nodes_dir = custom_filepath / 'known_nodes'
 
     # ... Ensure they do not exist to begin with.
@@ -110,7 +109,6 @@ def test_coexisting_configurations(click_runner,
     felix_file_location = custom_filepath / FelixConfiguration.generate_filename()
     alice_file_location = custom_filepath / AliceConfiguration.generate_filename()
     ursula_file_location = custom_filepath / UrsulaConfiguration.generate_filename()
-    another_ursula_configuration_file_location = custom_filepath / UrsulaConfiguration.generate_filename(modifier=another_ursula)
 
     # Felix creates a system configuration
     felix_init_args = ('felix', 'init',
@@ -127,8 +125,6 @@ def test_coexisting_configurations(click_runner,
     # All configuration files still exist.
     assert os.path.isdir(custom_filepath)
     assert os.path.isfile(felix_file_location)
-    assert os.path.isdir(public_keys_dir)
-    assert len(os.listdir(public_keys_dir)) == 3
 
     # Use a custom local filepath to init a persistent Alice
     alice_init_args = ('alice', 'init',
@@ -144,7 +140,6 @@ def test_coexisting_configurations(click_runner,
     # All configuration files still exist.
     assert os.path.isfile(felix_file_location)
     assert os.path.isfile(alice_file_location)
-    assert len(os.listdir(public_keys_dir)) == 5
 
     # Use the same local filepath to init a persistent Ursula
     init_args = ('ursula', 'init',
@@ -159,36 +154,34 @@ def test_coexisting_configurations(click_runner,
     assert result.exit_code == 0, result.output
 
     # All configuration files still exist.
-    assert len(os.listdir(public_keys_dir)) == 8
     assert os.path.isfile(felix_file_location)
     assert os.path.isfile(alice_file_location)
     assert os.path.isfile(ursula_file_location)
 
-    # keyring signing key
-    signing_public_key = SecretKey.random().public_key()
-    with patch('nucypher.config.keyring.NucypherKeyring.signing_public_key',
-               PropertyMock(return_value=signing_public_key)):
-        # Use the same local filepath to init another persistent Ursula
-        init_args = ('ursula', 'init',
-                     '--network', TEMPORARY_DOMAIN,
-                     '--worker-address', another_ursula,
-                     '--rest-host', MOCK_IP_ADDRESS_2,
-                     '--registry-filepath', agency_local_registry.filepath,
-                     '--provider', TEST_PROVIDER_URI,
-                     '--config-root', custom_filepath)
+    key_spy = mocker.spy(Keystore, 'generate')
 
-        result = click_runner.invoke(nucypher_cli, init_args, catch_exceptions=False, env=envvars)
-        assert result.exit_code == 0
+    # keystore signing key
+    # Use the same local filepath to init another persistent Ursula
+    init_args = ('ursula', 'init',
+                 '--network', TEMPORARY_DOMAIN,
+                 '--worker-address', another_ursula,
+                 '--rest-host', MOCK_IP_ADDRESS_2,
+                 '--registry-filepath', agency_local_registry.filepath,
+                 '--provider', TEST_PROVIDER_URI,
+                 '--config-root', custom_filepath)
 
-    another_ursula_configuration_file_location = custom_filepath / UrsulaConfiguration.generate_filename(
-        modifier=bytes(signing_public_key).hex()[:8])
+    result = click_runner.invoke(nucypher_cli, init_args, catch_exceptions=False, env=envvars)
+    assert result.exit_code == 0
 
     # All configuration files still exist.
     assert os.path.isfile(felix_file_location)
     assert os.path.isfile(alice_file_location)
+
+    kid = key_spy.spy_return.id[:8]
+    another_ursula_configuration_file_location = custom_filepath / UrsulaConfiguration.generate_filename(modifier=kid)
     assert os.path.isfile(another_ursula_configuration_file_location)
+
     assert os.path.isfile(ursula_file_location)
-    assert len(os.listdir(public_keys_dir)) == 11
 
     #
     # Run
@@ -215,7 +208,6 @@ def test_coexisting_configurations(click_runner,
     assert os.path.isfile(alice_file_location)
     assert os.path.isfile(another_ursula_configuration_file_location)
     assert os.path.isfile(ursula_file_location)
-    assert len(os.listdir(public_keys_dir)) == 11
 
     # Check that the proper Ursula console is attached
     assert another_ursula in result.output
@@ -229,26 +221,22 @@ def test_coexisting_configurations(click_runner,
                                        '--config-file', another_ursula_configuration_file_location)
     result = click_runner.invoke(nucypher_cli, another_ursula_destruction_args, catch_exceptions=False, env=envvars)
     assert result.exit_code == 0
-    assert len(os.listdir(public_keys_dir)) == 8
     assert not os.path.isfile(another_ursula_configuration_file_location)
 
     ursula_destruction_args = ('ursula', 'destroy', '--config-file', ursula_file_location)
     result = click_runner.invoke(nucypher_cli, ursula_destruction_args, input='Y', catch_exceptions=False, env=envvars)
     assert result.exit_code == 0
     assert 'y/N' in result.output
-    assert len(os.listdir(public_keys_dir)) == 5
     assert not os.path.isfile(ursula_file_location)
 
     alice_destruction_args = ('alice', 'destroy', '--force', '--config-file', alice_file_location)
     result = click_runner.invoke(nucypher_cli, alice_destruction_args, catch_exceptions=False, env=envvars)
     assert result.exit_code == 0
-    assert len(os.listdir(public_keys_dir)) == 3
     assert not os.path.isfile(alice_file_location)
 
     felix_destruction_args = ('felix', 'destroy', '--force', '--config-file', felix_file_location)
     result = click_runner.invoke(nucypher_cli, felix_destruction_args, catch_exceptions=False, env=envvars)
     assert result.exit_code == 0
-    assert len(os.listdir(public_keys_dir)) == 0
     assert not os.path.isfile(felix_file_location)
 
 
@@ -281,9 +269,9 @@ def test_corrupted_configuration(click_runner,
                  )
 
     # Fails because password is too short and the command uses incomplete args (needs either -F or blockchain details)
-    envvars = {NUCYPHER_ENVVAR_KEYRING_PASSWORD: ''}
+    envvars = {NUCYPHER_ENVVAR_KEYSTORE_PASSWORD: ''}
 
-    with pytest.raises(Keystore.AuthenticationFailed):
+    with pytest.raises(InvalidPassword):
         result = click_runner.invoke(nucypher_cli, init_args, catch_exceptions=False, env=envvars)
         assert result.exit_code != 0
 
@@ -292,8 +280,8 @@ def test_corrupted_configuration(click_runner,
     assert 'ursula.config' not in top_level_config_root                         # no config file was created
 
     assert Path(custom_filepath).exists()
-    keyring = custom_filepath / 'keyring'
-    assert not keyring.exists()
+    keystore = custom_filepath / 'keystore'
+    assert not keystore.exists()
 
     known_nodes = 'known_nodes'
     path = custom_filepath / known_nodes
@@ -308,7 +296,7 @@ def test_corrupted_configuration(click_runner,
                  '--registry-filepath', agency_local_registry.filepath,
                  '--config-root', custom_filepath)
 
-    envvars = {NUCYPHER_ENVVAR_KEYRING_PASSWORD: INSECURE_DEVELOPMENT_PASSWORD}
+    envvars = {NUCYPHER_ENVVAR_KEYSTORE_PASSWORD: INSECURE_DEVELOPMENT_PASSWORD}
     result = click_runner.invoke(nucypher_cli, init_args, catch_exceptions=False, env=envvars)
     assert result.exit_code == 0
 
@@ -317,8 +305,7 @@ def test_corrupted_configuration(click_runner,
     # Ensure configuration creation
     top_level_config_root = os.listdir(custom_filepath)
     assert default_filename in top_level_config_root, "JSON configuration file was not created"
-    assert len(os.listdir(custom_filepath / 'keyring' / 'private')) == 4   # keys were created
-    for field in ['known_nodes', 'keyring', default_filename]:
+    for field in ['known_nodes', 'keystore', default_filename]:
         assert field in top_level_config_root
 
     # "Corrupt" the configuration by removing the contract registry
@@ -332,5 +319,4 @@ def test_corrupted_configuration(click_runner,
 
     # Ensure character destruction
     top_level_config_root = os.listdir(custom_filepath)
-    assert default_filename not in top_level_config_root                               # config file was destroyed
-    assert len(os.listdir(custom_filepath / 'keyring' / 'private')) == 0   # keys were destroyed
+    assert default_filename not in top_level_config_root  # config file was destroyed

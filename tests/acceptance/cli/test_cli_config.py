@@ -23,7 +23,7 @@ import pytest
 from nucypher.blockchain.eth.registry import InMemoryContractRegistry
 from nucypher.cli.main import nucypher_cli
 from nucypher.config.characters import AliceConfiguration, BobConfiguration, UrsulaConfiguration
-from nucypher.config.constants import NUCYPHER_ENVVAR_KEYRING_PASSWORD, TEMPORARY_DOMAIN
+from nucypher.config.constants import NUCYPHER_ENVVAR_KEYSTORE_PASSWORD, TEMPORARY_DOMAIN
 from tests.constants import (
     FAKE_PASSWORD_CONFIRMED,
     INSECURE_DEVELOPMENT_PASSWORD,
@@ -36,7 +36,7 @@ from tests.constants import (
 CONFIG_CLASSES = (AliceConfiguration, BobConfiguration, UrsulaConfiguration)
 
 
-ENV = {NUCYPHER_ENVVAR_KEYRING_PASSWORD: INSECURE_DEVELOPMENT_PASSWORD}
+ENV = {NUCYPHER_ENVVAR_KEYSTORE_PASSWORD: INSECURE_DEVELOPMENT_PASSWORD}
 
 
 @pytest.mark.parametrize('config_class', CONFIG_CLASSES)
@@ -64,7 +64,7 @@ def test_initialize_via_cli(config_class, custom_filepath, click_runner, monkeyp
 
     # Files and Directories
     assert os.path.isdir(custom_filepath), 'Configuration file does not exist'
-    assert os.path.isdir(os.path.join(custom_filepath, 'keyring')), 'Keyring does not exist'
+    assert os.path.isdir(os.path.join(custom_filepath, 'keystore')), 'KEYSTORE does not exist'
     assert os.path.isdir(os.path.join(custom_filepath, 'known_nodes')), 'known_nodes directory does not exist'
 
 

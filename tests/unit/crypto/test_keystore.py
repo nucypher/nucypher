@@ -113,12 +113,12 @@ def test_keystore_generation_defaults(tmp_path_factory):
     assert parent in keystore.keystore_path.parents  # created in the correct directory
 
 
-def test_keyring_invalid_password(tmpdir):
+def test_keystore_invalid_password(tmpdir):
     with pytest.raises(InvalidPassword):
         _keystore = Keystore.generate('short', keystore_dir=tmpdir)
 
 
-def test_keyring_derive_crypto_power_without_unlock(tmpdir):
+def test_keystore_derive_crypto_power_without_unlock(tmpdir):
     keystore = Keystore.generate(INSECURE_DEVELOPMENT_PASSWORD, keystore_dir=tmpdir)
     with pytest.raises(Keystore.Locked):
         keystore.derive_crypto_power(power_class=DecryptingPower)
@@ -133,7 +133,7 @@ def test_keystore_serializer():
     assert deserialized_key_data['salt'] == salt
 
 
-def test_keyring_lock_unlock(tmpdir):
+def test_keystore_lock_unlock(tmpdir):
     keystore = Keystore.generate(INSECURE_DEVELOPMENT_PASSWORD, keystore_dir=tmpdir)
 
     # locked by default

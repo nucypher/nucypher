@@ -30,7 +30,7 @@ from web3 import Web3
 
 from nucypher.cli.main import nucypher_cli
 from nucypher.config.characters import AliceConfiguration, BobConfiguration
-from nucypher.config.constants import NUCYPHER_ENVVAR_KEYRING_PASSWORD, TEMPORARY_DOMAIN, \
+from nucypher.config.constants import NUCYPHER_ENVVAR_KEYSTORE_PASSWORD, TEMPORARY_DOMAIN, \
     NUCYPHER_ENVVAR_ALICE_ETH_PASSWORD, NUCYPHER_ENVVAR_BOB_ETH_PASSWORD
 from nucypher.crypto.kits import UmbralMessageKit
 from nucypher.utilities.logging import GlobalLoggerSettings
@@ -106,7 +106,7 @@ def run_entire_cli_lifecycle(click_runner,
     # Boring Setup Stuff
     alice_config_root = str(custom_filepath)
     bob_config_root = str(custom_filepath_2)
-    envvars = {NUCYPHER_ENVVAR_KEYRING_PASSWORD: INSECURE_DEVELOPMENT_PASSWORD,
+    envvars = {NUCYPHER_ENVVAR_KEYSTORE_PASSWORD: INSECURE_DEVELOPMENT_PASSWORD,
                NUCYPHER_ENVVAR_ALICE_ETH_PASSWORD: INSECURE_DEVELOPMENT_PASSWORD,
                NUCYPHER_ENVVAR_BOB_ETH_PASSWORD: INSECURE_DEVELOPMENT_PASSWORD}
 
