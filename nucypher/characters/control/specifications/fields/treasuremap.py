@@ -25,7 +25,6 @@ from nucypher.control.specifications.fields.base import BaseField
 
 
 class TreasureMap(BaseField, fields.Field):
-
     def _serialize(self, value, attr, obj, **kwargs):
         return b64encode(bytes(value)).decode()
 
