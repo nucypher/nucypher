@@ -17,19 +17,14 @@
 
 from base64 import b64decode, b64encode
 
-from bytestring_splitter import BytestringSplitter, VariableLengthBytestring
 from marshmallow import fields
 
 from nucypher.characters.control.specifications.exceptions import InvalidNativeDataTypes
 from nucypher.control.specifications.exceptions import InvalidInputData
 from nucypher.control.specifications.fields.base import BaseField
-from nucypher.crypto.constants import HRAC_LENGTH
-from nucypher.crypto.kits import UmbralMessageKit
-from nucypher.crypto.signing import Signature
 
 
 class TreasureMap(BaseField, fields.Field):
-
     def _serialize(self, value, attr, obj, **kwargs):
         return b64encode(bytes(value)).decode()
 
@@ -40,13 +35,19 @@ class TreasureMap(BaseField, fields.Field):
             raise InvalidInputData(f"Could not parse {self.name}: {e}")
 
     def _validate(self, value):
+        from nucypher.policy.collections import SignedTreasureMap
+        from nucypher.policy.collections import TreasureMap as TreasureMapBase
 
-        splitter = BytestringSplitter(Signature,
-                                  (bytes, HRAC_LENGTH),  # hrac
-                                  (UmbralMessageKit, VariableLengthBytestring)
-                                  )  # TODO: USe the one from TMap
-        try:
-            signature, hrac, tmap_message_kit = splitter(value)
-            return True
-        except InvalidNativeDataTypes as e:
-            raise InvalidInputData(f"Could not parse {self.name}: {e}")
+        # TODO unsure which is which is there a way for one splitter to work in both cases?
+        splitters = [("decentralized", SignedTreasureMap.splitter()),
+                     ("federated", TreasureMapBase.splitter())]
+        exceptions = ""
+        for splitter_type, splitter in splitters:
+            try:
+                _ = splitter(value)
+                return True
+            except InvalidNativeDataTypes as e:
+                # store exception
+                exceptions += f"[{splitter_type}]: {e} ;"
+
+        raise InvalidInputData(f"Could not parse {self.name}: {exceptions}")

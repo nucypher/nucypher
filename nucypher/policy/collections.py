@@ -16,6 +16,7 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
 from collections import OrderedDict
+from typing import Optional
 
 import maya
 from bytestring_splitter import BytestringKwargifier
@@ -26,11 +27,7 @@ from bytestring_splitter import (
 )
 from constant_sorrow.constants import CFRAG_NOT_RETAINED, NO_DECRYPTION_PERFORMED
 from constant_sorrow.constants import NOT_SIGNED
-from cryptography.hazmat.backends.openssl import backend
-from cryptography.hazmat.primitives import hashes
 from eth_utils import to_canonical_address, to_checksum_address
-from typing import Optional, Tuple
-from umbral.config import default_params
 from umbral.keys import UmbralPublicKey
 from umbral.pre import Capsule
 
