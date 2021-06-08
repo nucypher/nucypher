@@ -264,7 +264,7 @@ class AliceCharacterOptions:
         try:
             ALICE = make_cli_character(character_config=config,
                                        emitter=emitter,
-                                       unlock_keyring=not config.dev_mode,
+                                       unlock_keystore=not config.dev_mode,
                                        unlock_signer=not config.federated_only,
                                        teacher_uri=self.teacher_uri,
                                        min_stake=self.min_stake,

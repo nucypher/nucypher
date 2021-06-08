@@ -513,7 +513,7 @@ class EthereumTesterClient(EthereumClient):
     is_local = True
 
     def unlock_account(self, account, password, duration: int = None) -> bool:
-        """Returns True if the testing backend keyring has control of the given address."""
+        """Returns True if the testing backend keystore has control of the given address."""
         account = to_checksum_address(account)
         keystore_accounts = self.w3.provider.ethereum_tester.get_accounts()
         if account in keystore_accounts:
@@ -524,7 +524,7 @@ class EthereumTesterClient(EthereumClient):
                                                                    unlock_seconds=duration)
 
     def lock_account(self, account) -> bool:
-        """Returns True if the testing backend keyring has control of the given address."""
+        """Returns True if the testing backend keystore has control of the given address."""
         account = to_canonical_address(account)
         keystore_accounts = self.w3.provider.ethereum_tester.backend.get_accounts()
         if account in keystore_accounts:

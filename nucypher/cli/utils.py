@@ -42,7 +42,7 @@ from nucypher.characters.base import Character
 from nucypher.characters.control.emitters import StdoutEmitter
 from nucypher.cli.actions.auth import (
     get_nucypher_password,
-    unlock_nucypher_keyring,
+    unlock_nucypher_keystore,
     unlock_signer_account
 )
 from nucypher.cli.literature import (
@@ -68,7 +68,7 @@ def setup_emitter(general_config, banner: str = None) -> StdoutEmitter:
 
 def make_cli_character(character_config,
                        emitter,
-                       unlock_keyring: bool = True,
+                       unlock_keystore: bool = True,
                        unlock_signer: bool = True,
                        teacher_uri: str = None,
                        min_stake: int = 0,
@@ -80,9 +80,9 @@ def make_cli_character(character_config,
     # Pre-Init
     #
 
-    # Handle Keyring
-    if unlock_keyring:
-        unlock_nucypher_keyring(emitter,
+    # Handle KEYSTORE
+    if unlock_keystore:
+        unlock_nucypher_keystore(emitter,
                                 character_configuration=character_config,
                                 password=get_nucypher_password(emitter=emitter, confirm=False))
 

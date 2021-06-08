@@ -33,7 +33,6 @@ from nucypher.config.constants import (
     NUCYPHER_ENVVAR_ALICE_ETH_PASSWORD,
     NUCYPHER_ENVVAR_BOB_ETH_PASSWORD
 )
-from nucypher.crypto.keystore import Keystore
 from nucypher.utilities.networking import LOOPBACK_ADDRESS
 
 
@@ -100,7 +99,7 @@ class UrsulaConfiguration(CharacterConfiguration):
         return base_filepaths
 
     def generate_filepath(self, modifier: str = None, *args, **kwargs) -> str:
-        filepath = super().generate_filepath(modifier=modifier or self.keyring.id[:8], *args, **kwargs)
+        filepath = super().generate_filepath(modifier=modifier or self.keystore.id[:8], *args, **kwargs)
         return filepath
 
     def static_payload(self) -> dict:
@@ -136,9 +135,6 @@ class UrsulaConfiguration(CharacterConfiguration):
             ursula.datastore_threadpool = MockDatastoreThreadPool()
 
         return ursula
-
-    def attach_keystore(self, keystore_id: str, *args, **kwargs) -> None:
-        return super().attach_keystore(keystore_id=keystore_id)
 
     def destroy(self) -> None:
         if os.path.isfile(self.db_filepath):
@@ -203,12 +199,6 @@ class AliceConfiguration(CharacterConfiguration):
                 payload['payment_periods'] = self.payment_periods
         return {**super().static_payload(), **payload}
 
-    def write_keyring(self, password: str, **generation_kwargs) -> Keystore:
-        return super().write_keyring(password=password,
-                                     encrypting=True,
-                                     rest=False,
-                                     **generation_kwargs)
-
 
 class BobConfiguration(CharacterConfiguration):
     from nucypher.characters.lawful import Bob
@@ -233,12 +223,6 @@ class BobConfiguration(CharacterConfiguration):
         super().__init__(*args, **kwargs)
         self.store_policies = store_policies
         self.store_cards = store_cards
-
-    def write_keyring(self, password: str, **generation_kwargs) -> Keystore:
-        return super().write_keyring(password=password,
-                                     encrypting=True,
-                                     rest=False,
-                                     **generation_kwargs)
 
     def static_payload(self) -> dict:
         payload = dict(
@@ -287,14 +271,6 @@ class FelixConfiguration(CharacterConfiguration):
          signer_uri=self.signer_uri
         )
         return {**super().static_payload(), **payload}
-
-    def write_keyring(self, password: str, **generation_kwargs) -> Keystore:
-        return super().write_keyring(password=password,
-                                     encrypting=True,  # TODO: #668
-                                     rest=True,
-                                     host=self.rest_host,
-                                     curve=self.tls_curve,
-                                     **generation_kwargs)
 
 
 class StakeHolderConfiguration(CharacterConfiguration):

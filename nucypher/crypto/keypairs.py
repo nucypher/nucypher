@@ -152,9 +152,8 @@ class HostingKeypair(Keypair):
                  ) -> None:
 
         if private_key:
-            if not certificate_filepath:
-                raise ValueError('public certificate required to load a hosting keypair.')
-            certificate = _read_tls_certificate(filepath=certificate_filepath)
+            if certificate_filepath:
+                certificate = _read_tls_certificate(filepath=certificate_filepath)
             super().__init__(private_key=private_key)
 
         elif certificate:

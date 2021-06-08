@@ -115,7 +115,7 @@ def confirm_destroy_configuration(config: CharacterConfiguration) -> bool:
         database = "No database found"
     confirmation = CHARACTER_DESTRUCTION.format(name=config.NAME,
                                                 root=config.config_root,
-                                                keystore=config.keyring_root,
+                                                keystore=config.keystore_dir,
                                                 nodestore=config.node_storage.source,
                                                 config=config.filepath,
                                                 database=database)

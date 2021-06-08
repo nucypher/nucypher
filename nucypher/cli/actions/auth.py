@@ -27,12 +27,12 @@ from nucypher.characters.control.emitters import StdoutEmitter
 from nucypher.cli.literature import (
     COLLECT_ETH_PASSWORD,
     COLLECT_NUCYPHER_PASSWORD,
-    DECRYPTING_CHARACTER_KEYRING,
+    DECRYPTING_CHARACTER_KEYSTORE,
     GENERIC_PASSWORD_PROMPT,
     PASSWORD_COLLECTION_NOTICE
 )
 from nucypher.config.base import CharacterConfiguration
-from nucypher.config.constants import NUCYPHER_ENVVAR_KEYRING_PASSWORD
+from nucypher.config.constants import NUCYPHER_ENVVAR_KEYSTORE_PASSWORD
 from nucypher.crypto.keystore import Keystore
 
 
@@ -78,19 +78,19 @@ def unlock_signer_account(config: CharacterConfiguration, json_ipc: bool) -> Non
     config.signer.unlock_account(account=config.checksum_address, password=__password)
 
 
-def get_nucypher_password(emitter, confirm: bool = False, envvar=NUCYPHER_ENVVAR_KEYRING_PASSWORD) -> str:
+def get_nucypher_password(emitter, confirm: bool = False, envvar=NUCYPHER_ENVVAR_KEYSTORE_PASSWORD) -> str:
     """Interactively collect a nucypher password"""
     prompt = COLLECT_NUCYPHER_PASSWORD
     if confirm:
         emitter.message(PASSWORD_COLLECTION_NOTICE)
         prompt += f" ({Keystore._MINIMUM_PASSWORD_LENGTH} character minimum)"
-    keyring_password = get_password_from_prompt(prompt=prompt, confirm=confirm, envvar=envvar)
-    return keyring_password
+    keystore_password = get_password_from_prompt(prompt=prompt, confirm=confirm, envvar=envvar)
+    return keystore_password
 
 
-def unlock_nucypher_keyring(emitter: StdoutEmitter, password: str, character_configuration: CharacterConfiguration) -> bool:
-    """Unlocks a nucypher keyring and attaches it to the supplied configuration if successful."""
-    emitter.message(DECRYPTING_CHARACTER_KEYRING.format(name=character_configuration.NAME.capitalize()), color='yellow')
+def unlock_nucypher_keystore(emitter: StdoutEmitter, password: str, character_configuration: CharacterConfiguration) -> bool:
+    """Unlocks a nucypher keystore and attaches it to the supplied configuration if successful."""
+    emitter.message(DECRYPTING_CHARACTER_KEYSTORE.format(name=character_configuration.NAME.capitalize()), color='yellow')
 
     # precondition
     if character_configuration.dev_mode:
@@ -98,8 +98,7 @@ def unlock_nucypher_keyring(emitter: StdoutEmitter, password: str, character_con
 
     # unlock
     try:
-        character_configuration.attach_keystore()
-        character_configuration.keyring.unlock(password=password)  # Takes ~3 seconds, ~1GB Ram
+        character_configuration.keystore.unlock(password=password)  # Takes ~3 seconds, ~1GB Ram
     except CryptoError:
         raise Keystore.AuthenticationFailed
     else:

@@ -20,6 +20,7 @@ import json
 import os
 import stat
 import string
+import tempfile
 from json import JSONDecodeError
 from os.path import abspath
 from pathlib import Path
@@ -250,8 +251,8 @@ def _parse_path(path: Path) -> Tuple[int, str]:
 
 
 def _derive_hosting_power(host: str, private_key: UmbralPrivateKey) -> TLSHostingPower:
-    certificate, _private_key = generate_self_signed_certificate(host=host, private_key=private_key)
-    keypair = HostingKeypair(host=host, certificate=certificate, generate_certificate=False)
+    certificate, private_key = generate_self_signed_certificate(host=host, private_key=private_key)
+    keypair = HostingKeypair(host=host, private_key=private_key, certificate=certificate, generate_certificate=False)
     power = TLSHostingPower(keypair=keypair, host=host)
     return power
 

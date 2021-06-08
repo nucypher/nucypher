@@ -263,7 +263,7 @@ class UrsulaCharacterOptions:
                                         emitter=emitter,
                                         min_stake=self.min_stake,
                                         teacher_uri=self.teacher_uri,
-                                        unlock_keyring=not self.config_options.dev,
+                                        unlock_keystore=not self.config_options.dev,
                                         client_password=__password,
                                         unlock_signer=False,  # Ursula's unlock is managed separately using client_password.
                                         lonely=self.config_options.lonely,

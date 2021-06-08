@@ -471,6 +471,11 @@ class Policy(ABC):
         Attempts to enact the policy, returns an `EnactedPolicy` object on success.
         """
 
+        # TODO: Why/is this needed here?
+        # Workaround for `RuntimeError: Learning loop is not running.  Start it with start_learning().`
+        if not self.alice._learning_task.running:
+            self.alice.start_learning_loop()
+
         arrangements = self._make_arrangements(network_middleware=network_middleware,
                                                handpicked_ursulas=handpicked_ursulas)
 

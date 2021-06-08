@@ -32,7 +32,7 @@ from cryptography.x509 import Certificate
 from cryptography.x509.oid import NameOID
 
 _TLS_CERTIFICATE_ENCODING = Encoding.PEM
-_TLS_CURVE = ec.SECP256R1
+_TLS_CURVE = ec.SECP384R1
 
 
 def _write_tls_certificate(certificate: Certificate,
