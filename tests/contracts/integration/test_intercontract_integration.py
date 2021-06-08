@@ -19,7 +19,7 @@ import os
 import pytest
 from eth_tester.exceptions import TransactionFailed
 from eth_utils import to_canonical_address, to_wei
-from nucypher.crypto.umbral_adapter import UmbralPrivateKey, Signer
+from umbral import SecretKey, Signer
 from web3.contract import Contract
 
 from nucypher.blockchain.economics import BaseEconomics
@@ -193,8 +193,8 @@ def escrow(testerchain, escrow_bare, escrow_dispatcher):
 
 
 def mock_ursula(testerchain, account, mocker):
-    ursula_privkey = UmbralPrivateKey.gen_key()
-    ursula_stamp = SignatureStamp(verifying_key=ursula_privkey.pubkey,
+    ursula_privkey = SecretKey.random()
+    ursula_stamp = SignatureStamp(verifying_key=ursula_privkey.public_key(),
                                   signer=Signer(ursula_privkey))
 
     signed_stamp = testerchain.client.sign_message(account=account,

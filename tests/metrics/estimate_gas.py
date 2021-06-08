@@ -28,12 +28,12 @@ import re
 import tabulate
 import time
 from twisted.logger import ILogObserver, globalLogPublisher, jsonFileLogObserver
+from umbral import SecretKey, Signer
 from web3.contract import Contract
 
 from nucypher.blockchain.eth.registry import InMemoryContractRegistry
 from nucypher.blockchain.eth.signers.software import Web3Signer
 from nucypher.crypto.powers import TransactingPower
-from nucypher.crypto.umbral_adapter import UmbralPrivateKey, Signer
 
 from unittest.mock import Mock
 from zope.interface import provider
@@ -130,8 +130,8 @@ class AnalyzeGas:
 
 
 def mock_ursula(testerchain, account):
-    ursula_privkey = UmbralPrivateKey.gen_key()
-    ursula_stamp = SignatureStamp(verifying_key=ursula_privkey.pubkey,
+    ursula_privkey = SecretKey.random()
+    ursula_stamp = SignatureStamp(verifying_key=ursula_privkey.public_key(),
                                   signer=Signer(ursula_privkey))
 
     signed_stamp = testerchain.client.sign_message(account=account,

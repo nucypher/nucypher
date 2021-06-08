@@ -101,7 +101,7 @@ class UrsulaConfiguration(CharacterConfiguration):
         return base_filepaths
 
     def generate_filepath(self, modifier: str = None, *args, **kwargs) -> str:
-        filepath = super().generate_filepath(modifier=modifier or self.keyring.signing_public_key.hex()[:8], *args, **kwargs)
+        filepath = super().generate_filepath(modifier=modifier or bytes(self.keyring.signing_public_key).hex()[:8], *args, **kwargs)
         return filepath
 
     def static_payload(self) -> dict:

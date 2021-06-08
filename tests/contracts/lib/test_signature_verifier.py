@@ -18,7 +18,7 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 
 import os
 import pytest
-from coincurve import PublicKey
+import coincurve
 from cryptography.hazmat.backends.openssl import backend
 from cryptography.hazmat.primitives import hashes
 from eth_account.account import Account
@@ -26,10 +26,10 @@ from eth_account.messages import HexBytes, SignableMessage, encode_defunct
 from eth_keys import KeyAPI as EthKeyAPI
 from eth_tester.exceptions import TransactionFailed
 from eth_utils import to_canonical_address, to_checksum_address, to_normalized_address
+from umbral import SecretKey, PublicKey, Signer, Signature
 
 from nucypher.crypto.api import keccak_digest, verify_eip_191
 from nucypher.crypto.utils import canonical_address_from_umbral_key
-from nucypher.crypto.umbral_adapter import UmbralPrivateKey, UmbralPublicKey, Signer, Signature
 
 ALGORITHM_KECCAK256 = 0
 ALGORITHM_SHA256 = 1
@@ -38,7 +38,7 @@ ALGORITHM_RIPEMD160 = 2
 
 def get_signature_recovery_value(message: bytes,
                                  signature: Signature,
-                                 public_key: UmbralPublicKey
+                                 public_key: PublicKey
                                  ) -> bytes:
     """
     Obtains the recovery value of a standard ECDSA signature.
@@ -57,8 +57,8 @@ def get_signature_recovery_value(message: bytes,
 
     for v in (0, 1):
         v_byte = bytes([v])
-        recovered_pubkey = PublicKey.from_signature_and_message(signature=signature + v_byte,
-                                                                message=message)
+        recovered_pubkey = coincurve.PublicKey.from_signature_and_message(signature=signature + v_byte,
+                                                                          message=message)
         if bytes(public_key) == recovered_pubkey.format(compressed=True):
             return v_byte
     else:
@@ -95,13 +95,13 @@ def test_recover(testerchain, signature_verifier):
     message_hash = hash_ctx.finalize()
 
     # Generate Umbral key and extract "address" from the public key
-    umbral_privkey = UmbralPrivateKey.gen_key()
-    umbral_pubkey = umbral_privkey.get_pubkey()
+    umbral_privkey = SecretKey.random()
+    umbral_pubkey = umbral_privkey.public_key()
     signer_address = pubkey_as_address(umbral_pubkey)
 
     # Sign message
     signer = Signer(umbral_privkey)
-    signature = signer(message)
+    signature = signer.sign(message)
 
     # Get recovery id (v) before using contract
     # If we don't have recovery id while signing then we should try to recover public key with different v
@@ -131,8 +131,8 @@ def test_recover(testerchain, signature_verifier):
 
 def test_address(testerchain, signature_verifier):
     # Generate Umbral key and extract "address" from the public key
-    umbral_privkey = UmbralPrivateKey.gen_key()
-    umbral_pubkey = umbral_privkey.get_pubkey()
+    umbral_privkey = SecretKey.random()
+    umbral_pubkey = umbral_privkey.public_key()
     signer_address = pubkey_as_address(umbral_pubkey)
     umbral_pubkey_bytes = pubkey_as_uncompressed_bytes(umbral_pubkey)
 
@@ -157,13 +157,13 @@ def test_verify(testerchain, signature_verifier):
     message = os.urandom(100)
 
     # Generate Umbral key
-    umbral_privkey = UmbralPrivateKey.gen_key()
-    umbral_pubkey = umbral_privkey.get_pubkey()
+    umbral_privkey = SecretKey.random()
+    umbral_pubkey = umbral_privkey.public_key()
     umbral_pubkey_bytes = pubkey_as_uncompressed_bytes(umbral_pubkey)
 
     # Sign message using SHA-256 hash
     signer = Signer(umbral_privkey)
-    signature = signer(message)
+    signature = signer.sign(message)
 
     # Get recovery id (v) before using contract
     v = get_signature_recovery_value(message, signature, umbral_pubkey)
@@ -176,8 +176,8 @@ def test_verify(testerchain, signature_verifier):
                                                ALGORITHM_SHA256).call()
 
     # Verify signature using wrong key
-    umbral_privkey = UmbralPrivateKey.gen_key()
-    umbral_pubkey_bytes = pubkey_as_uncompressed_bytes(umbral_privkey.get_pubkey())
+    umbral_privkey = SecretKey.random()
+    umbral_pubkey_bytes = pubkey_as_uncompressed_bytes(umbral_privkey.public_key())
     assert not signature_verifier.functions.verify(message,
                                                    recoverable_signature,
                                                    umbral_pubkey_bytes,
@@ -188,8 +188,8 @@ def test_verify_eip191(testerchain, signature_verifier):
     message = os.urandom(100)
 
     # Generate Umbral key
-    umbral_privkey = UmbralPrivateKey.gen_key()
-    umbral_pubkey = umbral_privkey.get_pubkey()
+    umbral_privkey = SecretKey.random()
+    umbral_pubkey = umbral_privkey.public_key()
     umbral_pubkey_bytes = pubkey_as_uncompressed_bytes(umbral_pubkey)
 
     #
@@ -199,7 +199,7 @@ def test_verify_eip191(testerchain, signature_verifier):
     # Produce EIP191 signature (version E)
     signable_message = encode_defunct(primitive=message)
     signature = Account.sign_message(signable_message=signable_message,
-                                     private_key=umbral_privkey.to_bytes())
+                                     private_key=bytes(umbral_privkey))
     signature = bytes(signature.signature)
 
     # Off-chain verify, just in case
@@ -240,7 +240,7 @@ def test_verify_eip191(testerchain, signature_verifier):
                                        header=HexBytes(validator),
                                        body=HexBytes(message))
     signature = Account.sign_message(signable_message=signable_message,
-                                     private_key=umbral_privkey.to_bytes())
+                                     private_key=bytes(umbral_privkey))
     signature = bytes(signature.signature)
 
     # Off-chain verify, just in case

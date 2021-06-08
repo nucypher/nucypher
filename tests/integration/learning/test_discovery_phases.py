@@ -19,7 +19,7 @@ import pytest
 import time
 from datetime import datetime
 from flask import Response
-from nucypher.crypto.umbral_adapter import UmbralPublicKey
+from umbral import PublicKey
 from unittest.mock import patch
 
 from nucypher.characters.lawful import Ursula
@@ -101,7 +101,7 @@ def test_alice_verifies_ursula_just_in_time(fleet_of_highperf_mocked_ursulas,
     not_public_key_record_field = RecordField(NotAPublicKey, encode=bytes,
                                               decode=NotAPublicKey.from_bytes)
 
-    _umbral_pubkey_from_bytes = UmbralPublicKey.from_bytes
+    _umbral_pubkey_from_bytes = PublicKey.from_bytes
 
     def actual_random_key_instead(*args, **kwargs):
         _previous_bytes = args[0]
@@ -117,8 +117,8 @@ def test_alice_verifies_ursula_just_in_time(fleet_of_highperf_mocked_ursulas,
 
     with NotARestApp.replace_route("receive_treasure_map", mock_receive_treasure_map):
         with NotARestApp.replace_route("set_policy", mock_set_policy):
-            with patch('umbral.keys.UmbralPublicKey.__eq__', lambda *args, **kwargs: True):
-                with patch('umbral.keys.UmbralPublicKey.from_bytes',
+            with patch('umbral.PublicKey.__eq__', lambda *args, **kwargs: True):
+                with patch('umbral.PublicKey.from_bytes',
                            new=actual_random_key_instead):
                     with patch("nucypher.datastore.models.PolicyArrangement._alice_verifying_key",
                                new=not_public_key_record_field):
@@ -170,7 +170,7 @@ def test_mass_treasure_map_placement(fleet_of_highperf_mocked_ursulas,
 
     policy = _POLICY_PRESERVER.pop()
 
-    with patch('umbral.keys.UmbralPublicKey.__eq__', lambda *args, **kwargs: True), mock_metadata_validation:
+    with patch('umbral.PublicKey.__eq__', lambda *args, **kwargs: True), mock_metadata_validation:
 
         started = datetime.now()
 

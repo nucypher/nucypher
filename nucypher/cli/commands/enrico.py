@@ -17,7 +17,7 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 
 
 import click
-from nucypher.crypto.umbral_adapter import UmbralPublicKey
+from umbral import PublicKey
 
 from nucypher.characters.control.interfaces import EnricoInterface
 from nucypher.characters.lawful import Enrico
@@ -99,7 +99,7 @@ def encrypt(general_config, policy_encrypting_key, message, file, ipfs):
 
 
 def _create_enrico(emitter, policy_encrypting_key) -> Enrico:
-    policy_encrypting_key = UmbralPublicKey.from_bytes(bytes.fromhex(policy_encrypting_key))
+    policy_encrypting_key = PublicKey.from_bytes(bytes.fromhex(policy_encrypting_key))
     ENRICO = Enrico(policy_encrypting_key=policy_encrypting_key)
     ENRICO.controller.emitter = emitter
     return ENRICO

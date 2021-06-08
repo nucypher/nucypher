@@ -38,12 +38,18 @@ from cryptography.x509 import Certificate
 from eth_account import Account
 from eth_keys import KeyAPI as EthKeyAPI
 from eth_utils import to_checksum_address
-from nucypher.crypto.umbral_adapter import UmbralKeyingMaterial, UmbralPrivateKey, UmbralPublicKey, derive_key_from_password, AuthenticationFailed
+from nacl.exceptions import CryptoError
+from umbral import SecretKey, PublicKey, SecretKeyFactory
 
 from nucypher.config.constants import DEFAULT_CONFIG_ROOT
 from nucypher.crypto.api import generate_teacher_certificate, _TLS_CURVE
 from nucypher.crypto.keypairs import HostingKeypair
-from nucypher.crypto.passwords import derive_wrapping_key_from_key_material, SecretBox
+from nucypher.crypto.passwords import (
+    secret_box_encrypt,
+    secret_box_decrypt,
+    SecretBoxAuthenticationError,
+    derive_key_from_password,
+    )
 from nucypher.crypto.powers import (DecryptingPower, DerivedKeyBasedPower, KeyPairBasedPower, SigningPower)
 from nucypher.network.server import TLSHostingPower
 from nucypher.utilities.logging import Logger
@@ -204,18 +210,18 @@ def _read_tls_public_certificate(filepath: str) -> Certificate:
 #
 
 
-def _generate_encryption_keys() -> Tuple[UmbralPrivateKey, UmbralPublicKey]:
+def _generate_encryption_keys() -> Tuple[SecretKey, PublicKey]:
     """Use pyUmbral keys to generate a new encrypting key pair"""
-    privkey = UmbralPrivateKey.gen_key()
-    pubkey = privkey.get_pubkey()
+    privkey = SecretKey.random()
+    pubkey = privkey.public_key()
     return privkey, pubkey
 
 
-def _generate_signing_keys() -> Tuple[UmbralPrivateKey, UmbralPublicKey]:
+def _generate_signing_keys() -> Tuple[SecretKey, PublicKey]:
     """
     """
-    privkey = UmbralPrivateKey.gen_key()
-    pubkey = privkey.get_pubkey()
+    privkey = SecretKey.random()
+    pubkey = privkey.public_key()
     return privkey, pubkey
 
 
@@ -362,13 +368,13 @@ class NucypherKeyring:
     @property
     def signing_public_key(self):
         signature_pubkey_bytes = _read_keyfile(keypath=self.__signing_pub_keypath, deserializer=None)
-        signature_pubkey = UmbralPublicKey.from_bytes(signature_pubkey_bytes)
+        signature_pubkey = PublicKey.from_bytes(signature_pubkey_bytes)
         return signature_pubkey
 
     @property
     def encrypting_public_key(self):
         encrypting_pubkey_bytes = _read_keyfile(keypath=self.__root_pub_keypath, deserializer=None)
-        encrypting_pubkey = UmbralPublicKey.from_bytes(encrypting_pubkey_bytes)
+        encrypting_pubkey = PublicKey.from_bytes(encrypting_pubkey_bytes)
         return encrypting_pubkey
 
     @property
@@ -405,15 +411,19 @@ class NucypherKeyring:
         return __key_filepaths
 
     @unlock_required
-    def __decrypt_keyfile(self, key_path: str) -> UmbralPrivateKey:
+    def __decrypt_keyfile(self, key_path: str) -> SecretKey:
         """Returns plaintext version of decrypting key."""
         key_data = _read_keyfile(key_path, deserializer=_deserialize_private_key)
-        wrap_key = derive_wrapping_key_from_key_material(salt=key_data['wrap_salt'],
-                                                         key_material=self.__derived_key_material)
+
         try:
-            plain_umbral_key = UmbralPrivateKey.from_bytes(key_bytes=key_data['key'], wrapping_key=wrap_key)
-        except AuthenticationFailed:
-            raise self.AuthenticationFailed('Invalid or incorrect nucypher keyring password.')
+            key_bytes = secret_box_decrypt(salt=key_data['wrap_salt'],
+                                           key_material=self.__derived_key_material,
+                                           ciphertext=key_data['key'])
+        except SecretBoxAuthenticationError as e:
+            raise self.AuthenticationFailed('Invalid or incorrect nucypher keyring password.') from e
+
+        plain_umbral_key = SecretKey.from_bytes(key_bytes)
+
         return plain_umbral_key
 
     #
@@ -482,8 +492,12 @@ class NucypherKeyring:
         # Derived
         elif issubclass(power_class, DerivedKeyBasedPower):
             key_data = _read_keyfile(self.__delegating_keypath, deserializer=_deserialize_private_key)
-            wrap_key = derive_wrapping_key_from_key_material(salt=key_data['wrap_salt'], key_material=self.__derived_key_material)
-            keying_material = SecretBox(wrap_key).decrypt(key_data['key'])
+            try:
+                keying_material = secret_box_decrypt(salt=key_data['wrap_salt'],
+                                                     key_material=self.__derived_key_material,
+                                                     ciphertext=key_data['key'])
+            except SecretBoxAuthenticationError as e:
+                raise self.AuthenticationFailed('Invalid or incorrect nucypher keyring password.') from e
             new_cryptopower = power_class(keying_material=keying_material)
 
         else:
@@ -559,21 +573,24 @@ class NucypherKeyring:
                                                       public_key_dir=_public_key_dir)
         if encrypting is True:
             encrypting_private_key, encrypting_public_key = _generate_encryption_keys()
-            delegating_keying_material = UmbralKeyingMaterial().to_bytes()
+            delegating_keying_material = bytes(SecretKeyFactory.random())
 
             # Derive Wrapping Keys
             password_salt, encrypting_salt, signing_salt, delegating_salt = (os.urandom(32) for _ in range(4))
 
             cls.log.info("About to derive key from password.")
             derived_key_material = derive_key_from_password(salt=password_salt, password=password.encode())
-            encrypting_wrap_key = derive_wrapping_key_from_key_material(salt=encrypting_salt, key_material=derived_key_material)
-            signature_wrap_key = derive_wrapping_key_from_key_material(salt=signing_salt, key_material=derived_key_material)
-            delegating_wrap_key = derive_wrapping_key_from_key_material(salt=delegating_salt, key_material=derived_key_material)
 
             # Encapsulate Private Keys
-            encrypting_key_data = encrypting_private_key.to_bytes(wrapping_key=encrypting_wrap_key)
-            signing_key_data = signing_private_key.to_bytes(wrapping_key=signature_wrap_key)
-            delegating_key_data = bytes(SecretBox(delegating_wrap_key).encrypt(delegating_keying_material))
+            encrypting_key_data = secret_box_encrypt(salt=encrypting_salt,
+                                                     key_material=derived_key_material,
+                                                     plaintext=bytes(encrypting_private_key))
+            signing_key_data = secret_box_encrypt(salt=signing_salt,
+                                                  key_material=derived_key_material,
+                                                  plaintext=bytes(signing_private_key))
+            delegating_key_data = secret_box_encrypt(salt=delegating_salt,
+                                                     key_material=derived_key_material,
+                                                     plaintext=delegating_keying_material)
 
             # Assemble Private Keys
             encrypting_key_metadata = _assemble_key_data(key_data=encrypting_key_data,
@@ -611,8 +628,8 @@ class NucypherKeyring:
                                                              serializer=_serialize_private_key)
 
                 # Write Public Keys
-                root_keypath = _write_public_keyfile(__key_filepaths['root_pub'], encrypting_public_key.to_bytes())
-                signing_keypath = _write_public_keyfile(__key_filepaths['signing_pub'], signing_public_key.to_bytes())
+                root_keypath = _write_public_keyfile(__key_filepaths['root_pub'], bytes(encrypting_public_key))
+                signing_keypath = _write_public_keyfile(__key_filepaths['signing_pub'], bytes(signing_public_key))
             except (PrivateKeyExistsError, FileExistsError):
                 if not force:
                     raise ExistingKeyringError(f"There is an existing keyring for address '{checksum_address}'")

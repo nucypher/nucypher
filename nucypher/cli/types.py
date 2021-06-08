@@ -20,7 +20,7 @@ from cryptography.exceptions import InternalError
 from decimal import Decimal, DecimalException
 from eth_utils import to_checksum_address
 from ipaddress import ip_address
-from nucypher.crypto.umbral_adapter import UmbralPublicKey
+from umbral import PublicKey
 
 from nucypher.blockchain.economics import StandardTokenEconomics
 from nucypher.blockchain.eth.interfaces import BlockchainInterface
@@ -127,7 +127,7 @@ class UmbralPublicKeyHex(click.ParamType):
     def convert(self, value, param, ctx):
         if self.validate:
             try:
-                _key = UmbralPublicKey.from_hex(value)
+                _key = PublicKey.from_bytes(bytes.fromhex(value))
             except (InternalError, ValueError):
                 self.fail(f"'{value}' is not a valid nucypher public key.")
         return value

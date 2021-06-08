@@ -15,7 +15,7 @@ You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 from maya import MayaDT
-from nucypher.crypto.umbral_adapter import UmbralPublicKey, VerifiedKeyFrag
+from umbral import PublicKey, VerifiedKeyFrag
 
 from nucypher.crypto.signing import Signature
 from nucypher.datastore.base import DatastoreRecord, RecordField
@@ -32,17 +32,17 @@ class PolicyArrangement(DatastoreRecord):
             encode=bytes,
             decode=VerifiedKeyFrag.from_verified_bytes)
     _alice_verifying_key = RecordField(
-            UmbralPublicKey,
+            PublicKey,
             encode=bytes,
-            decode=UmbralPublicKey.from_bytes)
+            decode=PublicKey.from_bytes)
 
 
 class Workorder(DatastoreRecord):
     _arrangement_id = RecordField(bytes)
     _bob_verifying_key = RecordField(
-            UmbralPublicKey,
+            PublicKey,
             encode=bytes,
-            decode=UmbralPublicKey.from_bytes)
+            decode=PublicKey.from_bytes)
     _bob_signature = RecordField(
             Signature,
             encode=bytes,

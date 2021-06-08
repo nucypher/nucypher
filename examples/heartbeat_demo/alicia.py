@@ -102,7 +102,7 @@ label = label.encode()
 policy_pubkey = alicia.get_policy_encrypting_key_from_label(label)
 
 print("The policy public key for "
-      "label '{}' is {}".format(label.decode("utf-8"), policy_pubkey.to_bytes().hex()))
+      "label '{}' is {}".format(label.decode("utf-8"), bytes(policy_pubkey).hex()))
 
 # Data Sources can produce encrypted data for access policies
 # that **don't exist yet**.
@@ -147,7 +147,7 @@ print("Done!")
 # For the demo, we need a way to share with Bob some additional info
 # about the policy, so we store it in a JSON file
 policy_info = {
-    "policy_pubkey": policy.public_key.to_bytes().hex(),
+    "policy_pubkey": bytes(policy.public_key).hex(),
     "alice_sig_pubkey": bytes(alicia.stamp).hex(),
     "label": label.decode("utf-8"),
 }

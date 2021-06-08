@@ -30,7 +30,7 @@ from cryptography.hazmat.backends.openssl import backend
 from cryptography.hazmat.primitives import hashes
 from eth_utils import to_canonical_address, to_checksum_address
 from typing import Optional, Tuple
-from nucypher.crypto.umbral_adapter import UmbralPublicKey, Capsule
+from umbral import PublicKey, Capsule
 
 from nucypher.blockchain.eth.constants import ETH_ADDRESS_BYTE_LENGTH, ETH_HASH_BYTE_LENGTH
 from nucypher.characters.lawful import Bob, Character
@@ -136,7 +136,7 @@ class TreasureMap:
         self._id = keccak_digest(bytes(self._verifying_key) + bytes(self._hrac)).hex()
 
     def _set_payload(self):
-        self._payload = self._public_signature + self._hrac + bytes(
+        self._payload = bytes(self._public_signature) + self._hrac + bytes(
             VariableLengthBytestring(self.message_kit.to_bytes()))
 
     def __bytes__(self):
@@ -195,7 +195,7 @@ class TreasureMap:
 
     def public_verify(self):
         message = bytes(self._verifying_key) + self._hrac
-        verified = self._public_signature.verify(message, self._verifying_key)
+        verified = self._public_signature.verify(self._verifying_key, message)
 
         if verified:
             return True
@@ -407,13 +407,13 @@ class WorkOrder:
                                                    blockhash,
                                                    ursula_identity_evidence)
 
-            if not task.signature.verify(specification, bob_verifying_key):
+            if not task.signature.verify(bob_verifying_key, specification):
                 raise InvalidSignature()
 
         # Check receipt
         capsules = b''.join(map(bytes, tasks.keys()))
         receipt_bytes = cls.HEADER + bytes(ursula.stamp) + capsules
-        if not signature.verify(receipt_bytes, bob_verifying_key):
+        if not signature.verify(bob_verifying_key, receipt_bytes):
             raise InvalidSignature()
 
         bob = Bob.from_public_keys(verifying_key=bob_verifying_key)
@@ -442,7 +442,7 @@ class WorkOrder:
         for task, (cfrag, cfrag_signature) in zip(self.tasks.values(), cfrags_and_signatures):
 
             # Validate re-encryption signatures
-            if cfrag_signature.verify(bytes(cfrag), ursula_verifying_key):
+            if cfrag_signature.verify(ursula_verifying_key, bytes(cfrag)):
                 good_cfrags.append(cfrag)
             else:
                 raise InvalidSignature(f"{cfrag} is not properly signed by Ursula.")
@@ -548,11 +548,11 @@ class Revocation:
         _, arrangement_id, signature = cls.revocation_splitter(revocation_bytes)
         return cls(arrangement_id, signature=signature)
 
-    def verify_signature(self, alice_pubkey: 'UmbralPublicKey'):
+    def verify_signature(self, alice_pubkey: 'PublicKey'):
         """
         Verifies the revocation was from the provided pubkey.
         """
-        if not self.signature.verify(self.prefix + self.arrangement_id, alice_pubkey):
+        if not self.signature.verify(alice_pubkey, self.prefix + self.arrangement_id):
             raise InvalidSignature(
                 "Revocation has an invalid signature: {}".format(self.signature))
         return True

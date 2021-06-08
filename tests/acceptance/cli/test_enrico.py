@@ -15,13 +15,13 @@
  along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
-from nucypher.crypto.umbral_adapter import UmbralPrivateKey
+from umbral import SecretKey
 
 from nucypher.cli.main import nucypher_cli
 
 
 def test_enrico_encrypt(click_runner):
-    policy_encrypting_key = UmbralPrivateKey.gen_key().get_pubkey().to_bytes().hex()
+    policy_encrypting_key = bytes(SecretKey.random().public_key()).hex()
     encrypt_args = ('enrico', 'encrypt',
                     '--message', 'to be or not to be',
                     '--policy-encrypting-key', policy_encrypting_key)
@@ -34,7 +34,7 @@ def test_enrico_encrypt(click_runner):
 
 
 def test_enrico_control_starts(click_runner):
-    policy_encrypting_key = UmbralPrivateKey.gen_key().get_pubkey().to_bytes().hex()
+    policy_encrypting_key = bytes(SecretKey.random().public_key()).hex()
     run_args = ('enrico', 'run',
                 '--policy-encrypting-key', policy_encrypting_key,
                 '--dry-run')

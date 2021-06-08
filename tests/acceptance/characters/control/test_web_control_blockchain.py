@@ -249,7 +249,7 @@ def test_enrico_web_character_control_encrypt_message(enrico_web_controller_test
     assert 'signature' in response_data['result']
 
     # Check that it serializes correctly.
-    assert UmbralMessageKit.from_bytes(b64decode(response_data['result']['message_kit']))
+    message_kit = UmbralMessageKit.from_bytes(b64decode(response_data['result']['message_kit']))
 
     # Send bad data to assert error return
     response = enrico_web_controller_test_client.post('/encrypt_message', data=json.dumps({'bad': 'input'}))

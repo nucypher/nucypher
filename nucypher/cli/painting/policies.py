@@ -26,9 +26,9 @@ from nucypher.policy.identity import Card
 def paint_single_card(emitter, card: Card, qrcode: bool = False) -> None:
     emitter.echo('*'*90, color='cyan')
     emitter.message(f'{(card.nickname or str(card.character.__name__)).capitalize()}\'s Card (ID {card.id.hex()})', bold=True)
-    emitter.echo(f'Verifying Key - {card.verifying_key.hex()}')
+    emitter.echo(f'Verifying Key - {bytes(card.verifying_key).hex()}')
     if card.character is Bob:
-        emitter.echo(f'Encrypting Key - {card.encrypting_key.hex()}')
+        emitter.echo(f'Encrypting Key - {bytes(card.encrypting_key).hex()}')
     if qrcode:
         card.to_qr_code()
     emitter.echo('*'*90, color='cyan')

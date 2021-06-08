@@ -21,7 +21,7 @@ from unittest.mock import Mock
 import pytest
 import tempfile
 from constant_sorrow.constants import CERTIFICATE_NOT_SAVED, NO_KEYRING_ATTACHED
-from nucypher.crypto.umbral_adapter import UmbralPrivateKey
+from umbral import SecretKey
 
 from tests.constants import MOCK_IP_ADDRESS
 from nucypher.blockchain.eth.actors import StakeHolder
@@ -128,7 +128,7 @@ def test_default_character_configuration_preservation(configuration_class, teste
         # special case for rest_host & dev mode
         # use keyring
         keyring = Mock(spec=NucypherKeyring)
-        keyring.signing_public_key = UmbralPrivateKey.gen_key().get_pubkey()
+        keyring.signing_public_key = SecretKey.random().public_key()
         character_config = configuration_class(checksum_address=fake_address,
                                                domain=network,
                                                rest_host=MOCK_IP_ADDRESS,

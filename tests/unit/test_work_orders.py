@@ -19,7 +19,7 @@ import os
 import pytest
 from bytestring_splitter import VariableLengthBytestring
 from eth_utils import to_canonical_address
-from nucypher.crypto.umbral_adapter import UmbralPrivateKey, Signer
+from umbral import SecretKey, Signer
 
 from nucypher.blockchain.eth.constants import ETH_HASH_BYTE_LENGTH, LENGTH_ECDSA_SIGNATURE_WITH_RECOVERY
 from nucypher.crypto.signing import SignatureStamp, InvalidSignature
@@ -31,8 +31,8 @@ from nucypher.policy.policies import Arrangement
 @pytest.fixture(scope="function")
 def ursula(mocker):
     identity_evidence = os.urandom(LENGTH_ECDSA_SIGNATURE_WITH_RECOVERY)
-    ursula_privkey = UmbralPrivateKey.gen_key()
-    ursula_stamp = SignatureStamp(verifying_key=ursula_privkey.pubkey,
+    ursula_privkey = SecretKey.random()
+    ursula_stamp = SignatureStamp(verifying_key=ursula_privkey.public_key(),
                                   signer=Signer(ursula_privkey))
     ursula = mocker.Mock(stamp=ursula_stamp, decentralized_identity_evidence=identity_evidence)
     ursula.mature = lambda: True
@@ -45,7 +45,7 @@ def test_pre_task(mock_ursula_reencrypts, ursula, get_random_checksum_address):
     task = mock_ursula_reencrypts(ursula)
     cfrag = task.cfrag
     capsule = task.capsule
-    capsule_bytes = capsule.to_bytes()
+    capsule_bytes = bytes(capsule)
 
     signature = ursula.stamp(capsule_bytes)
 
@@ -127,8 +127,8 @@ def test_work_order_with_multiple_capsules(mock_ursula_reencrypts,
         assert work_order.tasks[capsule].capsule == capsule
         task = WorkOrder.PRETask(capsule, signature=None)
         specification = task.get_specification(ursula.stamp, alice_address, blockhash, identity_evidence)
-        assert work_order.tasks[capsule].signature.verify(specification, bob_verifying_pubkey)
-    assert work_order.receipt_signature.verify(receipt_input, bob_verifying_pubkey)
+        assert work_order.tasks[capsule].signature.verify(bob_verifying_pubkey, specification)
+    assert work_order.receipt_signature.verify(bob_verifying_pubkey, receipt_input)
     assert work_order.ursula == ursula
     assert work_order.blockhash == blockhash
     assert not work_order.completed

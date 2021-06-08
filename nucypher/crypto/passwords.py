@@ -22,14 +22,8 @@ from cryptography.hazmat.primitives.kdf.scrypt import Scrypt as CryptographyScry
 from cryptography.hazmat.primitives.kdf.hkdf import HKDF
 
 from nacl.secret import SecretBox
-from nacl.bindings.crypto_aead import (
-    crypto_aead_xchacha20poly1305_ietf_encrypt as xchacha_encrypt,
-    crypto_aead_xchacha20poly1305_ietf_decrypt as xchacha_decrypt,
-    crypto_aead_xchacha20poly1305_ietf_KEYBYTES as XCHACHA_KEY_SIZE,
-    crypto_aead_xchacha20poly1305_ietf_NPUBBYTES as XCHACHA_NONCE_SIZE,
-    crypto_aead_xchacha20poly1305_ietf_MESSAGEBYTES_MAX as XCHACHA_MESSAGEBYTES_MAX,
-    )
 from nacl.utils import random as nacl_random
+from nacl.exceptions import CryptoError
 
 from nucypher.crypto.constants import BLAKE2B
 
@@ -38,53 +32,6 @@ from nucypher.crypto.constants import BLAKE2B
 __WRAPPING_KEY_LENGTH = 32 # TODO: should be the same as XCHACHA_KEY_SIZE
 __WRAPPING_KEY_INFO = b'NuCypher-KeyWrap'
 __HKDF_HASH_ALGORITHM = BLAKE2B
-
-
-class ChaChaSecretBox:
-    """
-    A NaCl SecretBox analogue based on ChaCha instead of Salsa, for compatibility with rust-umbral.
-
-    Unlike SecretBox, it also takes key material (password) instead of the full key
-    and expands it using SHA256.
-    """
-
-    KEY_SIZE = XCHACHA_KEY_SIZE
-    NONCE_SIZE = XCHACHA_NONCE_SIZE
-    MESSAGEBYTES_MAX = XCHACHA_MESSAGEBYTES_MAX
-
-    @classmethod
-    def from_key_material(key_material: bytes, salt: bytes, info: bytes):
-        hkdf = HKDF(algorithm=hashes.SHA256(),
-                    length=self.KEY_SIZE,
-                    salt=salt,
-                    info=info,
-                    backend=default_backend()
-                    )
-        return cls(hkdf.derive(key_material))
-
-    def __init__(self, key: bytes):
-        assert len(key) == self.KEY_SIZE
-        self._key = key
-
-    def encrypt(self, plaintext: bytes, nonce: Optional[bytes] = None) -> bytes:
-        if nonce is None:
-            nonce = nacl_random(self.NONCE_SIZE)
-
-        if len(nonce) != self.NONCE_SIZE:
-            raise ValueError(f"The nonce must be exactly {self.NONCE_SIZE} bytes long")
-
-        ciphertext = xchacha_encrypt(plaintext, b"", nonce, self._key)
-        return nonce + ciphertext
-
-    def decrypt(self, nonce_and_ciphertext: bytes) -> bytes:
-
-        if len(nonce_and_ciphertext) < self.NONCE_SIZE:
-            raise ValueError(f"The ciphertext must include the nonce")
-
-        nonce = nonce_and_ciphertext[:self.NONCE_SIZE]
-        ciphertext = nonce_and_ciphertext[self.NONCE_SIZE:]
-
-        return xchacha_decrypt(ciphertext, b"", nonce, self._key)
 
 
 def derive_wrapping_key_from_key_material(salt: bytes,
@@ -155,3 +102,24 @@ def derive_key_from_password(password: bytes,
     kdf = kwargs.get('kdf', Scrypt)()
     derived_key = kdf(password, salt, **kwargs)
     return derived_key
+
+
+class SecretBoxAuthenticationError(Exception):
+    pass
+
+
+def secret_box_encrypt(salt: bytes, key_material: bytes, plaintext: bytes) -> bytes:
+    wrapping_key = derive_wrapping_key_from_key_material(salt, key_material)
+    secret_box = SecretBox(wrapping_key)
+    ciphertext = secret_box.encrypt(plaintext)
+    return ciphertext
+
+
+def secret_box_decrypt(salt: bytes, key_material: bytes, ciphertext: bytes) -> bytes:
+    wrapping_key = derive_wrapping_key_from_key_material(salt, key_material)
+    secret_box = SecretBox(wrapping_key)
+    try:
+        plaintext = secret_box.decrypt(ciphertext)
+    except CryptoError as e:
+        raise SecretBoxAuthenticationError from e
+    return plaintext

@@ -47,8 +47,8 @@ def collect_keys_from_card(emitter: StdoutEmitter, card_identifier: str, force: 
     if not force:
         click.confirm('Is this the correct grantee (Bob)?', abort=True)
 
-    bob_encrypting_key = card.encrypting_key.hex()
-    bob_verifying_key = card.verifying_key.hex()
+    bob_encrypting_key = bytes(card.encrypting_key).hex()
+    bob_verifying_key = bytes(card.verifying_key).hex()
     public_keys = PublicKeys(encrypting_key=bob_encrypting_key, verifying_key=bob_verifying_key)
     return public_keys
 

@@ -19,7 +19,7 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 import os
 import pytest
 from eth_tester.exceptions import TransactionFailed
-from nucypher.crypto.umbral_adapter import pre, Signer, UmbralPrivateKey
+from umbral import Signer, SecretKey, generate_kfrags, encrypt, reencrypt
 
 
 @pytest.fixture()
@@ -30,25 +30,22 @@ def deserializer(testerchain, deploy_contract):
 
 @pytest.fixture(scope="module")
 def fragments():
-    delegating_privkey = UmbralPrivateKey.gen_key()
-    delegating_pubkey = delegating_privkey.get_pubkey()
-    signing_privkey = UmbralPrivateKey.gen_key()
+    delegating_privkey = SecretKey.random()
+    delegating_pubkey = delegating_privkey.public_key()
+    signing_privkey = SecretKey.random()
     signer = Signer(signing_privkey)
-    priv_key_bob = UmbralPrivateKey.gen_key()
-    pub_key_bob = priv_key_bob.get_pubkey()
-    kfrags = pre.generate_kfrags(delegating_privkey=delegating_privkey,
-                                 signer=signer,
-                                 receiving_pubkey=pub_key_bob,
-                                 threshold=2,
-                                 N=4,
-                                 sign_delegating_key=False,
-                                 sign_receiving_key=False)
+    priv_key_bob = SecretKey.random()
+    pub_key_bob = priv_key_bob.public_key()
+    kfrags = generate_kfrags(delegating_sk=delegating_privkey,
+                             signer=signer,
+                             receiving_pk=pub_key_bob,
+                             threshold=2,
+                             num_kfrags=4,
+                             sign_delegating_key=False,
+                             sign_receiving_key=False)
 
-    _symmetric_key, capsule = pre._encapsulate(delegating_pubkey)
-    capsule.set_correctness_keys(delegating=delegating_pubkey,
-                                 receiving=pub_key_bob,
-                                 verifying=signing_privkey.get_pubkey())
-    cfrag = pre.reencrypt(kfrags[0], capsule)
+    capsule, _ciphertext = encrypt(delegating_pubkey, b'unused')
+    cfrag = reencrypt(capsule, kfrags[0])
     return capsule, cfrag
 
 
@@ -66,7 +63,7 @@ def test_capsule(testerchain, deserializer, fragments):
 
     # Check real capsule
     capsule, _cfrag = fragments
-    capsule_bytes = capsule.to_bytes()
+    capsule_bytes = bytes(capsule)
     result = deserializer.functions.toCapsule(capsule_bytes).call()
     assert b''.join(result) == capsule_bytes
 

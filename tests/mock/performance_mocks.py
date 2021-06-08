@@ -21,7 +21,7 @@ from unittest.mock import patch
 
 from nucypher.network.server import make_rest_app
 from tests.mock.serials import good_serials
-from nucypher.crypto.umbral_adapter import UmbralPublicKey, Signature
+from umbral import PublicKey, Signature
 
 mock_cert_storage = patch("nucypher.config.storages.ForgetfulNodeStorage.store_node_certificate",
                           new=lambda *args, **kwargs: "this_might_normally_be_a_filepath")
@@ -52,7 +52,7 @@ class NotAPublicKey:
     _serial_bytes_length = 5
     _serial = 10000
 
-    _umbral_pubkey_from_bytes = UmbralPublicKey.from_bytes
+    _umbral_pubkey_from_bytes = PublicKey.from_bytes
 
     def _tick():
         for serial in good_serials:
@@ -89,10 +89,6 @@ class NotAPublicKey:
         self.__dict__ = _umbral_pubkey.__dict__
         self.__class__ = _umbral_pubkey.__class__
 
-    def to_cryptography_pubkey(self):
-        self.i_want_to_be_a_real_boy()
-        return self.to_cryptography_pubkey()
-
     def __eq__(self, other):
         return bytes(self) == bytes(other)
 
@@ -105,12 +101,6 @@ class NotAPrivateKey:
 
     def public_key(self):
         return NotAPublicKey()
-
-    def get_pubkey(self, *args, **kwargs):
-        return self.public_key()
-
-    def to_cryptography_privkey(self, *args, **kwargs):
-        return self
 
     def sign(self, *args, **kwargs):
         return b'0D\x02 @\xbfS&\x97\xb3\x9e\x9e\xd3\\j\x9f\x0e\x8fY\x0c\xbeS\x08d\x0b%s\xf6\x17\xe2\xb6\xcd\x95u\xaap\x02 ON\xd9E\xb3\x10M\xe1\xf4u\x0bL\x99q\xd6\r\x8e_\xe5I\x1e\xe5\xa2\xcf\xe5\x8be_\x077Gz'
@@ -233,13 +223,13 @@ def mock_secret_source(*args, **kwargs):
 
 @contextmanager
 def mock_pubkey_from_bytes(*args, **kwargs):
-    with patch('umbral.keys.UmbralPublicKey.from_bytes', NotAPublicKey.from_bytes):
+    with patch('umbral.PublicKey.from_bytes', NotAPublicKey.from_bytes):
         yield
     NotAPublicKey.reset()
 
 
 mock_stamp_call = patch('nucypher.crypto.signing.SignatureStamp.__call__', new=NotAPrivateKey.stamp)
-mock_signature_bytes = patch('umbral.signing.Signature.__bytes__', new=NotAPrivateKey.signature_bytes)
+mock_signature_bytes = patch('umbral.Signature.__bytes__', new=NotAPrivateKey.signature_bytes)
 
 
 def _determine_good_serials(start, end):

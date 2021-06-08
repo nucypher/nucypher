@@ -379,9 +379,9 @@ def retrieve(general_config,
             if card.character is not Alice:
                 emitter.error('Grantee card is not an Alice.')
                 raise click.Abort
-            alice_verifying_key = card.verifying_key.hex()
+            alice_verifying_key = bytes(card.verifying_key).hex()
             emitter.message(f'{card.nickname or ("Alice #"+card.id.hex())}\n'
-                            f'Verifying Key  | {card.verifying_key.hex()}',
+                            f'Verifying Key  | {bytes(card.verifying_key).hex()}',
                             color='green')
             if not force:
                 click.confirm('Is this the correct Granter (Alice)?', abort=True)

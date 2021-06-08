@@ -71,8 +71,8 @@ def test_keyring_restoration(tmpdir):
     account = keyring.account
     checksum_address = keyring.checksum_address
     certificate_filepath = keyring.certificate_filepath
-    encrypting_public_key_hex = keyring.encrypting_public_key.hex()
-    signing_public_key_hex = keyring.signing_public_key.hex()
+    encrypting_public_key_hex = bytes(keyring.encrypting_public_key).hex()
+    signing_public_key_hex = bytes(keyring.signing_public_key).hex()
 
     # tls power
     tls_hosting_power = keyring.derive_crypto_power(power_class=TLSHostingPower, host=LOOPBACK_ADDRESS)
@@ -83,12 +83,12 @@ def test_keyring_restoration(tmpdir):
 
     # decrypting power
     decrypting_power = keyring.derive_crypto_power(power_class=DecryptingPower)
-    decrypting_power_public_key_hex = decrypting_power.public_key().hex()
+    decrypting_power_public_key_hex = bytes(decrypting_power.public_key()).hex()
     decrypting_power_fingerprint = decrypting_power.keypair.fingerprint()
 
     # signing power
     signing_power = keyring.derive_crypto_power(power_class=SigningPower)
-    signing_power_public_key_hex = signing_power.public_key().hex()
+    signing_power_public_key_hex = bytes(signing_power.public_key()).hex()
     signing_power_fingerprint = signing_power.keypair.fingerprint()
 
     # get rid of object, but not persistent data
@@ -100,8 +100,8 @@ def test_keyring_restoration(tmpdir):
     assert restored_keyring.account == account
     assert restored_keyring.checksum_address == checksum_address
     assert restored_keyring.certificate_filepath == certificate_filepath
-    assert restored_keyring.encrypting_public_key.hex() == encrypting_public_key_hex
-    assert restored_keyring.signing_public_key.hex() == signing_public_key_hex
+    assert bytes(restored_keyring.encrypting_public_key).hex() == encrypting_public_key_hex
+    assert bytes(restored_keyring.signing_public_key).hex() == signing_public_key_hex
 
     # tls power
     restored_tls_hosting_power = restored_keyring.derive_crypto_power(power_class=TLSHostingPower,
@@ -113,12 +113,12 @@ def test_keyring_restoration(tmpdir):
 
     # decrypting power
     restored_decrypting_power = restored_keyring.derive_crypto_power(power_class=DecryptingPower)
-    assert restored_decrypting_power.public_key().hex() == decrypting_power_public_key_hex
+    assert bytes(restored_decrypting_power.public_key()).hex() == decrypting_power_public_key_hex
     assert restored_decrypting_power.keypair.fingerprint() == decrypting_power_fingerprint
 
     # signing power
     restored_signing_power = restored_keyring.derive_crypto_power(power_class=SigningPower)
-    assert restored_signing_power.public_key().hex() == signing_power_public_key_hex
+    assert bytes(restored_signing_power.public_key()).hex() == signing_power_public_key_hex
     assert restored_signing_power.keypair.fingerprint() == signing_power_fingerprint
 
 
