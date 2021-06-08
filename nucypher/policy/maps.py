@@ -29,7 +29,7 @@ from bytestring_splitter import (
 from nucypher.blockchain.eth.constants import ETH_ADDRESS_BYTE_LENGTH
 from nucypher.characters.base import Character
 from nucypher.crypto.api import encrypt_and_sign, keccak_digest, verify_eip_191
-from nucypher.crypto.constants import HRAC_LENGTH, WRIT_CHECKSUM_SIZE
+from nucypher.crypto.constants import HRAC_LENGTH, WRIT_CHECKSUM_SIZE, EIP712_MESSAGE_SIGNATURE_SIZE
 from nucypher.crypto.kits import UmbralMessageKit
 from nucypher.crypto.powers import DecryptingPower, SigningPower
 from nucypher.crypto.signing import SignatureStamp
@@ -346,17 +346,17 @@ class SignedTreasureMap(TreasureMap):
         # BSS to allow summing *before* the prefix(es)?
 
         cls._splitters['unversioned'] = BytestringKwargifier(cls,
-                                                 blockchain_signature=65,
-                                                 public_signature=Signature,
-                                                 hrac=(bytes, HRAC_LENGTH),
-                                                 message_kit=(UmbralMessageKit, VariableLengthBytestring),
-                                                 )
+                                                             blockchain_signature=EIP712_MESSAGE_SIGNATURE_SIZE,
+                                                             public_signature=Signature,
+                                                             hrac=(bytes, HRAC_LENGTH),
+                                                             message_kit=(UmbralMessageKit, VariableLengthBytestring),
+                                                             )
         cls._splitters[1] = TreasureMapSplitter(cls,
-                                                 blockchain_signature=65,
-                                                 public_signature=Signature,
-                                                 hrac=(bytes, HRAC_LENGTH),
-                                                 message_kit=(UmbralMessageKit, VariableLengthBytestring),
-                                                 )
+                                                blockchain_signature=EIP712_MESSAGE_SIGNATURE_SIZE,
+                                                public_signature=Signature,
+                                                hrac=(bytes, HRAC_LENGTH),
+                                                message_kit=(UmbralMessageKit, VariableLengthBytestring),
+                                                )
         return object.__new__(cls)
 
     def include_blockchain_signature(self, blockchain_signer):
