@@ -26,8 +26,7 @@ from nucypher.policy.collections import TreasureMap
 def test_get_ursulas(federated_porter, federated_ursulas):
     # simple
     quantity = 4
-    duration = 2  # irrelevant for federated
-    ursulas_info = federated_porter.get_ursulas(quantity=quantity, duration_periods=duration)
+    ursulas_info = federated_porter.get_ursulas(quantity=quantity)
     returned_ursula_addresses = {ursula_info.checksum_address for ursula_info in ursulas_info}
     assert len(returned_ursula_addresses) == quantity  # ensure no repeats
 
@@ -36,7 +35,6 @@ def test_get_ursulas(federated_porter, federated_ursulas):
     # include specific ursulas
     include_ursulas = [federated_ursulas_list[0].checksum_address, federated_ursulas_list[1].checksum_address]
     ursulas_info = federated_porter.get_ursulas(quantity=quantity,
-                                                duration_periods=duration,
                                                 include_ursulas=include_ursulas)
     returned_ursula_addresses = {ursula_info.checksum_address for ursula_info in ursulas_info}
     assert len(returned_ursula_addresses) == quantity
@@ -49,7 +47,6 @@ def test_get_ursulas(federated_porter, federated_ursulas):
     for i in range(number_to_exclude):
         exclude_ursulas.append(federated_ursulas_list[i].checksum_address)
     ursulas_info = federated_porter.get_ursulas(quantity=quantity,
-                                                duration_periods=duration,
                                                 exclude_ursulas=exclude_ursulas)
     returned_ursula_addresses = {ursula_info.checksum_address for ursula_info in ursulas_info}
     assert len(returned_ursula_addresses) == quantity
@@ -60,7 +57,6 @@ def test_get_ursulas(federated_porter, federated_ursulas):
     include_ursulas = [federated_ursulas_list[0].checksum_address, federated_ursulas_list[1].checksum_address]
     exclude_ursulas = [federated_ursulas_list[2].checksum_address, federated_ursulas_list[3].checksum_address]
     ursulas_info = federated_porter.get_ursulas(quantity=quantity,
-                                                duration_periods=duration,
                                                 include_ursulas=include_ursulas,
                                                 exclude_ursulas=exclude_ursulas)
     returned_ursula_addresses = {ursula_info.checksum_address for ursula_info in ursulas_info}
