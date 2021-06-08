@@ -84,6 +84,14 @@ workflows:
           requires:
             - unit
             - integration
+      - porter:
+          context: "NuCypher Tests"
+          filters:
+            tags:
+              only: /.*/
+          requires:
+            - unit
+            - integration
       - tests_ok:
           filters:
             tags:
@@ -96,6 +104,7 @@ workflows:
             - cli
             - deployers
             - utilities
+            - porter
       - build_dev_docker_images:
           filters:
             tags:
@@ -279,6 +288,13 @@ workflows:
               only: /.*/
           requires:
             - pip_install_37
+      - porter:
+          context: "Nightly"
+          filters:
+            tags:
+              only: /.*/
+          requires:
+            - pip_install_37
       - tests_ok:
           filters:
             tags:
@@ -291,6 +307,7 @@ workflows:
             - cli
             - deployers
             - utilities
+            - porter
       - build_dev_docker_images:
           filters:
             tags:
@@ -678,6 +695,18 @@ jobs:
           name: Preparing Nucypher Utilities Tests
           command: |
             circleci tests glob "tests/acceptance/utilities/**/test_*.py" | circleci tests split --split-by=timings | tee test-names.tmp
+      - run_test_suite
+      - capture_test_results
+
+  porter:
+    <<: *python_37_base
+    parallelism: 1
+    steps:
+      - prepare_environment
+      - run:
+          name: Preparing Nucypher Porter Tests
+          command: |
+            circleci tests glob "tests/acceptance/porter/**/test_*.py" | circleci tests split --split-by=timings | tee test-names.tmp
       - run_test_suite
       - capture_test_results
 
