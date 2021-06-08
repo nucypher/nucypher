@@ -94,9 +94,7 @@ def matching_nodes_among(nodes: FleetSensor,
     target_nodes = []
     target_hex_match = bob_encrypting_key.hex()[1]
     while len(target_nodes) < no_less_than:
-        target_nodes = []
         search_boundary += 2
-
         if search_boundary > 42:  # We've searched the entire string and can't match any.  TODO: Portable learning is a nice idea here.
             # Not enough matching nodes.  Fine, we'll just publish to the first few.
             try:
