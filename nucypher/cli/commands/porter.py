@@ -21,6 +21,7 @@ import click
 from nucypher.blockchain.eth.networks import NetworksInventory
 from nucypher.characters.lawful import Ursula
 from nucypher.cli.config import group_general_config
+from nucypher.cli.literature import BOTH_TLS_KEY_AND_CERTIFICATION_MUST_BE_PROVIDED, PORTER_RUN_MESSAGE
 from nucypher.cli.options import (
     option_network,
     option_provider_uri,
@@ -131,6 +132,7 @@ def run(general_config,
             raise click.BadOptionUsage(option_name='--provider',
                                        message="--provider is required for decentralized porter.")
         if not network:
+            # should never happen - network defaults to 'mainnet' if not specified
             raise click.BadOptionUsage(option_name='--network',
                                        message="--network is required for decentralized porter.")
 
@@ -158,8 +160,7 @@ def run(general_config,
     # HTTP/HTTPS
     if bool(tls_key_filepath) ^ bool(certificate_filepath):
         raise click.BadOptionUsage(option_name='--tls-key-filepath, --certificate-filepath',
-                                   message='both --tls-key-filepath and --certificate-filepath must be specified to '
-                                           'launch porter with TLS; only one specified')
+                                   message=BOTH_TLS_KEY_AND_CERTIFICATION_MUST_BE_PROVIDED)
 
     emitter.message(f"Network: {PORTER.domain.capitalize()}", color='green')
     if not federated_only:
@@ -167,7 +168,7 @@ def run(general_config,
 
     controller = PORTER.make_web_controller(crash_on_error=False)
     http_scheme = "https" if tls_key_filepath and certificate_filepath else "http"
-    message = f"Running Porter Web Controller at {http_scheme}://127.0.0.1:{http_port}"
+    message = PORTER_RUN_MESSAGE.format(http_scheme=http_scheme, http_port=http_port)
     emitter.message(message, color='green', bold=True)
     return controller.start(port=http_port,
                             tls_key_filepath=tls_key_filepath,
