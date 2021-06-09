@@ -159,7 +159,7 @@ with ethereum accounts, so be sure to specify an account you control with a ``Si
    True
 
    # The root directory containing the private keys
-   >>> keyring.keyring_root
+   >>> keyring.keystore_dir
    '/home/user/.local/share/nucypher/keyring'
 
 

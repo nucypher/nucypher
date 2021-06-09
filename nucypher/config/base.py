@@ -530,6 +530,9 @@ class CharacterConfiguration(BaseConfiguration):
     def keystore(self) -> Keystore:
         return self.__keystore
 
+    def attach_keystore(self, keystore: Keystore) -> None:
+        self.__keystore = keystore
+
     @classmethod
     def checksum_address_from_filepath(cls, filepath: str) -> str:
         pattern = re.compile(r'''
