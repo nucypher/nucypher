@@ -84,7 +84,7 @@ def option_contract_name(required: bool = False):
 def option_controller_port(default=None):
     return click.option(
         '--controller-port',
-        help="The host port to run Alice HTTP services on",
+        help="The host port to run HTTP services on",
         type=NETWORK_PORT,
         default=default)
 
