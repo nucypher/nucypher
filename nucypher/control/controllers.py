@@ -25,6 +25,7 @@ from typing import Optional
 import maya
 from flask import Flask, Response
 from hendrix.deploy.base import HendrixDeploy
+from hendrix.deploy.tls import HendrixDeployTLS
 from twisted.internet import reactor, stdio
 
 from nucypher.cli.processes import JSONRPCLineReceiver
@@ -265,15 +266,36 @@ class WebController(InterfaceControlServer):
         # Return FlaskApp decorator
         return self._transport
 
-    def start(self, http_port: int, dry_run: bool = False):
+    def start(self,
+              port: int,
+              tls_key_filepath: str = None,
+              certificate_filepath: str = None,
+              dry_run: bool = False):
 
-        self.log.info("Starting HTTP Control...")
+        self.log.info("Starting HTTP/HTTPS Control...")
         if dry_run:
             return
 
-        # TODO #845: Make non-blocking web control startup
-        hx_deployer = HendrixDeploy(action="start", options={
-            "wsgi": self._transport, "http_port": http_port, "resources": get_static_resources()})
+        if tls_key_filepath and certificate_filepath:
+            # HTTPS endpoint
+            hx_deployer = HendrixDeployTLS(action="start",
+                                           key=tls_key_filepath,
+                                           cert=certificate_filepath,
+                                           options={
+                                               "wsgi": self._transport,
+                                               "https_port": port,
+                                               "resources": get_static_resources()
+                                           })
+        else:
+            # HTTP endpoint
+            # TODO #845: Make non-blocking web control startup
+            hx_deployer = HendrixDeploy(action="start",
+                                        options={
+                                            "wsgi": self._transport,
+                                            "http_port": port,
+                                            "resources": get_static_resources()
+                                        })
+
         hx_deployer.run()  # <--- Blocking Call to Reactor
 
     def __call__(self, *args, **kwargs):

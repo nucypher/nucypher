@@ -63,7 +63,7 @@ the Pipe for nucypher network operations
     _LONG_LEARNING_DELAY = 30
     _ROUNDS_WITHOUT_NODES_AFTER_WHICH_TO_SLOW_DOWN = 25
 
-    DEFAULT_PORTER_HTTP_PORT = 9155
+    DEFAULT_PORT = 9155
 
     _interface_class = PorterInterface
 
@@ -147,7 +147,7 @@ the Pipe for nucypher network operations
                                                         port=ursula.rest_interface.port)
 
             return Porter.UrsulaInfo(checksum_address=ursula_checksum,
-                                     uri=f"https://{ursula.rest_interface.host}:{ursula.rest_interface.port}",
+                                     uri=f"{ursula.rest_interface.formal_uri}",
                                      encrypting_key=ursula.public_keys(DecryptingPower))
 
         self.block_until_number_of_known_nodes_is(quantity, learn_on_this_thread=True, eager=True)
