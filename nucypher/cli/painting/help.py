@@ -17,11 +17,11 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 
 import click
 import maya
+from constant_sorrow.constants import NO_KEYRING_ATTACHED
 
 from nucypher.blockchain.eth.sol.__conf__ import SOLIDITY_COMPILER_VERSION
 from nucypher.characters.banners import NUCYPHER_BANNER
 from nucypher.config.constants import DEFAULT_CONFIG_ROOT, USER_LOG_DIR, END_OF_POLICIES_PROBATIONARY_PERIOD
-from constant_sorrow.constants import NO_KEYRING_ATTACHED
 
 
 def echo_version(ctx, param, value):
@@ -64,8 +64,8 @@ def paint_new_installation_help(emitter, new_configuration, filepath):
     emitter.message(f"Generated keyring", color='green')
     emitter.message(f"""
     
-Public key (stamp):   {maybe_public_key}
-Path to keyring: {new_configuration.keyring_root}
+Public Key:   {new_configuration.keyring.id}
+Path to Keystore: {new_configuration.keyring_root}
 
 - You can share your public key with anyone. Others need it to interact with you.
 - Never share secret keys with anyone! 

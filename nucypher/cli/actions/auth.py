@@ -82,9 +82,8 @@ def get_nucypher_password(emitter, confirm: bool = False, envvar=NUCYPHER_ENVVAR
     """Interactively collect a nucypher password"""
     prompt = COLLECT_NUCYPHER_PASSWORD
     if confirm:
-        from nucypher.crypto.keystore import Keystore
         emitter.message(PASSWORD_COLLECTION_NOTICE)
-        prompt += f" ({Keystore.MINIMUM_PASSWORD_LENGTH} character minimum)"
+        prompt += f" ({Keystore._MINIMUM_PASSWORD_LENGTH} character minimum)"
     keyring_password = get_password_from_prompt(prompt=prompt, confirm=confirm, envvar=envvar)
     return keyring_password
 
@@ -99,7 +98,7 @@ def unlock_nucypher_keyring(emitter: StdoutEmitter, password: str, character_con
 
     # unlock
     try:
-        character_configuration.attach_keyring()
+        character_configuration.attach_keystore()
         character_configuration.keyring.unlock(password=password)  # Takes ~3 seconds, ~1GB Ram
     except CryptoError:
         raise Keystore.AuthenticationFailed

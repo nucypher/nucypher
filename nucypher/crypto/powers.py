@@ -17,9 +17,10 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 
 
 import inspect
+from typing import List, Optional, Tuple
+
 from eth_typing.evm import ChecksumAddress
 from hexbytes import HexBytes
-from typing import List, Optional, Tuple
 
 from nucypher.blockchain.eth.decorators import validate_checksum_address
 from nucypher.blockchain.eth.signers.base import Signer

@@ -105,7 +105,7 @@ def test_run_felix(click_runner, testerchain, agency_local_registry):
         felix_config = FelixConfiguration.from_configuration_file(filepath=configuration_file_location,
                                                                   registry_filepath=agency_local_registry.filepath)
 
-        felix_config.attach_keyring()
+        felix_config.attach_keystore()
         felix_config.keyring.unlock(password=INSECURE_DEVELOPMENT_PASSWORD)
         felix = felix_config.produce()
 

@@ -27,7 +27,7 @@ from secrets import token_bytes
 from typing import Callable, ClassVar, Dict, List, Union, Optional, Tuple
 
 import time
-from constant_sorrow.constants import KEYRING_LOCKED
+from constant_sorrow.constants import KEYSTORE_LOCKED
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives.kdf.hkdf import HKDF
 from cryptography.hazmat.primitives.kdf.scrypt import Scrypt
@@ -42,15 +42,13 @@ from nucypher.crypto.powers import (
     DecryptingPower,
     DerivedKeyBasedPower,
     KeyPairBasedPower,
-    SigningPower, CryptoPowerUp, DelegatingPower
+    SigningPower,
+    CryptoPowerUp,
+    DelegatingPower
 )
-from nucypher.crypto.tls import (
-    _write_tls_certificate,
-    _generate_tls_keys,
-    _TLS_CURVE
-)
+from nucypher.crypto.tls import generate_self_signed_certificate
 from nucypher.network.server import TLSHostingPower
-from umbral.keys import UmbralPrivateKey, UmbralKeyingMaterial
+from umbral.keys import UmbralPrivateKey
 
 # HKDF
 __HKDF_HASH_ALGORITHM = BLAKE2B
@@ -62,19 +60,12 @@ _DELEGATING_INFO = __INFO_BASE + b'delegate'
 _TLS_INFO = __INFO_BASE + b'tls'
 
 # Wrapping key
-_MINIMUM_PASSWORD_LENGTH = 8
 _SALT_SIZE = 32
 __WRAPPING_KEY_LENGTH = 32
 
 # Mnemonic
 _ENTROPY_BITS = 256
 _MNEMONIC_LANGUAGE = "english"
-
-# Keystore Filename
-_ID_SIZE = 32
-_DEFAULT_PATH: Path = DEFAULT_CONFIG_ROOT / 'keystore'
-_DELIMITER = '-'
-_SUFFIX = 'priv'
 
 # Keystore File
 FILE_ENCODING = 'utf-8'
@@ -200,7 +191,7 @@ def _deserialize_keystore(payload: bytes):
 
 def generate_keystore_filepath(parent: Path, id: str) -> Path:
     utc_nowish = int(time.time())  # epoch
-    path = parent / f'{utc_nowish}-{id}.priv'
+    path = Path(parent) / f'{utc_nowish}-{id}.priv'
     return path
 
 
@@ -210,8 +201,8 @@ def validate_keystore_password(password: str) -> List:
     """
     rules = (
         (bool(password), 'Password must not be blank.'),
-        (len(password) >= _MINIMUM_PASSWORD_LENGTH,
-         f'Password must be at least {_MINIMUM_PASSWORD_LENGTH} characters long.'),
+        (len(password) >= Keystore._MINIMUM_PASSWORD_LENGTH,
+         f'Password must be at least {Keystore._MINIMUM_PASSWORD_LENGTH} characters long.'),
     )
     failures = list()
     for rule, failure_message in rules:
@@ -221,8 +212,8 @@ def validate_keystore_password(password: str) -> List:
 
 
 def validate_keystore_filename(path: Path) -> None:
-    base_name = path.name.rstrip('.' + _SUFFIX)
-    parts = base_name.split(_DELIMITER)
+    base_name = path.name.rstrip('.' + Keystore._SUFFIX)
+    parts = base_name.split(Keystore._DELIMITER)
 
     try:
         created, keystore_id = parts
@@ -230,7 +221,7 @@ def validate_keystore_filename(path: Path) -> None:
         raise Keystore.Invalid(f'{path} is not a valid keystore filename')
 
     validators = (
-        bool(len(keystore_id) == _ID_SIZE),
+        bool(len(keystore_id) == Keystore._ID_SIZE),
         all(char in string.hexdigits for char in keystore_id)
     )
 
@@ -247,41 +238,36 @@ def _parse_path(path: Path) -> Tuple[int, str]:
         raise Keystore.NotFound(f"Keystore '{path}' does not exist.")
     if not path.is_file():
         raise ValueError('Keystore path must be a file.')
-    if not path.match(f'*{_DELIMITER}*.{_SUFFIX}'):
+    if not path.match(f'*{Keystore._DELIMITER}*.{Keystore._SUFFIX}'):
         Keystore.Invalid(f'{path} is not a valid keystore filename')
 
     # dissect keystore filename
     validate_keystore_filename(path)
-    base_name = path.name.rstrip('.'+_SUFFIX)
-    parts = base_name.split(_DELIMITER)
+    base_name = path.name.rstrip('.'+Keystore._SUFFIX)
+    parts = base_name.split(Keystore._DELIMITER)
     created, keystore_id = parts
     return created, keystore_id
 
 
-def _derive_hosting_power(host: str,
-                          private_key: UmbralPrivateKey,
-                          keyring_dir: Path
-                          ) -> TLSHostingPower:
-    if not host:
-        raise ValueError('Host is required to derive a TLSHostingPower')
-    public_key = bytes(private_key.pubkey).hex()
-    certificate_filepath = keyring_dir / f'{public_key}.pem'
-    keypair = HostingKeypair(host=host,
-                             private_key=private_key,
-                             generate_certificate=False,
-                             certificate_filepath=str(certificate_filepath))
+def _derive_hosting_power(host: str, private_key: UmbralPrivateKey) -> TLSHostingPower:
+    certificate, _private_key = generate_self_signed_certificate(host=host, private_key=private_key)
+    keypair = HostingKeypair(host=host, certificate=certificate, generate_certificate=False)
     power = TLSHostingPower(keypair=keypair, host=host)
     return power
 
 
-def generate_tls_certificate(host: str, pseudonym: str, path: Path) -> Path:
-    private_key, cert = _generate_tls_keys(host=host, checksum_address=pseudonym, curve=_TLS_CURVE)
-    certificate_filepath = _write_tls_certificate(full_filepath=path, certificate=cert)
-    return certificate_filepath
-
-
 class Keystore:
 
+    # Wrapping Key
+    _MINIMUM_PASSWORD_LENGTH = 8
+    _ID_SIZE = 32
+
+    # Filepath
+    _DEFAULT_DIR: Path = DEFAULT_CONFIG_ROOT / 'keystore'
+    _DELIMITER = '-'
+    _SUFFIX = 'priv'
+
+    # Powers derivation
     __HKDF_INFO = {SigningPower: _VERIFYING_INFO,
                    DecryptingPower: _DECRYPTING_INFO,
                    DelegatingPower: _DELEGATING_INFO,
@@ -305,7 +291,7 @@ class Keystore:
     def __init__(self, keystore_path: Path):
         self.keystore_path = keystore_path
         self.__created, self.__id = _parse_path(keystore_path)
-        self.__secret = KEYRING_LOCKED
+        self.__secret = KEYSTORE_LOCKED
 
     def __decrypt_keystore(self, path: Path, password: str) -> bool:
         payload = _read_keystore(path, deserializer=_deserialize_keystore)
@@ -323,10 +309,10 @@ class Keystore:
 
         # Derive verifying key (used as ID)
         verifying_key = _derive_umbral_key(material=secret, info=_VERIFYING_INFO)
-        keystore_id = verifying_key.to_bytes().hex()[:_ID_SIZE]
+        keystore_id = verifying_key.to_bytes().hex()[:Keystore._ID_SIZE]
 
         # Generate paths
-        keystore_dir = keystore_dir or _DEFAULT_PATH
+        keystore_dir = keystore_dir or Keystore._DEFAULT_DIR
         os.makedirs(abspath(keystore_dir), exist_ok=True, mode=0o700)
         keystore_path = generate_keystore_filepath(parent=keystore_dir, id=keystore_id)
 
@@ -345,6 +331,11 @@ class Keystore:
     # Public API
     #
 
+    @classmethod
+    def load(cls, id: str, keystore_dir: Path = _DEFAULT_DIR) -> 'Keystore':
+        filepath = generate_keystore_filepath(parent=keystore_dir, id=id)
+        instance = cls(keystore_path=filepath)
+        return instance
 
     @classmethod
     def restore(cls, words: str, password: str, keystore_dir: Optional[Path] = None) -> 'Keystore':
@@ -369,17 +360,17 @@ class Keystore:
 
     @property
     def is_unlocked(self) -> bool:
-        return self.__secret is not KEYRING_LOCKED
+        return self.__secret is not KEYSTORE_LOCKED
 
     def lock(self) -> bool:
-        self.__secret = KEYRING_LOCKED
+        self.__secret = KEYSTORE_LOCKED
         return self.is_unlocked
 
     def unlock(self, password: str) -> bool:
         try:
             self.__decrypt_keystore(path=self.keystore_path, password=password)
         except CryptoError:
-            self.__secret = KEYRING_LOCKED
+            self.__secret = KEYSTORE_LOCKED
             raise self.AuthenticationFailed
         return self.is_unlocked
 
@@ -406,7 +397,7 @@ class Keystore:
             power = power_class(keypair=keypair, *power_args, **power_kwargs)
 
         elif issubclass(power_class, DerivedKeyBasedPower):
-            power = power_class(keying_material=__private_key.to_bytes())
+            power = power_class(keying_material=__private_key.to_bytes(), *power_args, **power_kwargs)
 
         else:
             failure_message = f"{power_class.__name__} is an invalid type for deriving a CryptoPower."

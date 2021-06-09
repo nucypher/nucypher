@@ -27,7 +27,7 @@ from typing import Union, Callable, Optional, List
 from constant_sorrow.constants import (
     UNKNOWN_VERSION,
     UNINITIALIZED_CONFIGURATION,
-    NO_KEYRING_ATTACHED,
+    NO_KEYSTORE_ATTACHED,
     NO_BLOCKCHAIN_CONNECTION,
     FEDERATED_ADDRESS,
     DEVELOPMENT_CONFIGURATION,
@@ -321,7 +321,8 @@ class CharacterConfiguration(BaseConfiguration):
     TEMP_CONFIGURATION_DIR_PREFIX = 'tmp-nucypher'
     SIGNER_ENVVAR = None
 
-    # When we begin to support other threshold schemes, this will be one of the concepts that makes us want a factory.  #571
+    # When we begin to support other threshold schemes,
+    # this will be one of the concepts that makes us want a factory.  #571
     known_node_class = Ursula
 
     # Gas
@@ -404,7 +405,7 @@ class CharacterConfiguration(BaseConfiguration):
 
         # Keyring
         self.crypto_power = crypto_power
-        self.keyring = keyring or NO_KEYRING_ATTACHED
+        self.keyring = keyring or NO_KEYSTORE_ATTACHED
         self.keyring_root = keyring_root or UNINITIALIZED_CONFIGURATION
 
         # Contract Registry
@@ -525,7 +526,7 @@ class CharacterConfiguration(BaseConfiguration):
     def checksum_address_from_filepath(cls, filepath: str) -> str:
         pattern = re.compile(r'''
                              (^\w+)-
-                             (0x{1}         # Then, 0x the start of the string, exactly once
+                             (0x{1}           # Then, 0x the start of the string, exactly once
                              [0-9a-fA-F]{40}) # Followed by exactly 40 hex chars
                              ''',
                              re.VERBOSE)
@@ -587,7 +588,7 @@ class CharacterConfiguration(BaseConfiguration):
 
     def destroy(self) -> None:
         """Parse a node configuration and remove all associated files from the filesystem"""
-        self.attach_keyring()
+        self.attach_keystore()  # TODO: use keystore ID here
         self.keyring.destroy()
         os.remove(self.config_file_location)
 
@@ -635,6 +636,7 @@ class CharacterConfiguration(BaseConfiguration):
         filepath = filepath or cls.default_filepath()
         assembled_params = cls.assemble(filepath=filepath, **overrides)
         node_configuration = cls(filepath=filepath, **assembled_params)
+        from nucypher.config.characters import UrsulaConfiguration
         return node_configuration
 
     def validate(self) -> bool:
@@ -737,15 +739,8 @@ class CharacterConfiguration(BaseConfiguration):
             if getattr(self, field) is UNINITIALIZED_CONFIGURATION:
                 setattr(self, field, filepath)
 
-    def attach_keyring(self, checksum_address: str = None, *args, **kwargs) -> None:
-        account = checksum_address or self.checksum_address
-        if not account:
-            raise self.ConfigurationError("No account specified to unlock keyring")
-        if self.keyring is not NO_KEYRING_ATTACHED:
-            if self.keyring.checksum_address != account:
-                raise self.ConfigurationError("There is already a keyring attached to this configuration.")
-            return
-        self.keyring = Keystore(keyring_root=self.keyring_root, account=account, *args, **kwargs)
+    def attach_keystore(self, keystore_id, *args, **kwargs) -> None:
+        self.keyring = Keystore.load(keystore_id)
 
     def derive_node_power_ups(self) -> List[CryptoPowerUp]:
         power_ups = list()
@@ -780,26 +775,8 @@ class CharacterConfiguration(BaseConfiguration):
         self.log.debug(message)
         return self.config_root
 
-    def write_keyring(self, password: str, checksum_address: str = None, **generation_kwargs) -> Keystore:
-
-        # Configure checksum address
-        checksum_address = checksum_address or self.checksum_address
-        if self.federated_only:
-            checksum_address = FEDERATED_ADDRESS
-        elif not checksum_address:
-            raise self.ConfigurationError(f'No checksum address provided for decentralized configuration.')
-
-        # Generate new keys
-        self.keyring = Keystore.generate(password=password,
-                                         keyring_root=self.keyring_root,
-                                         checksum_address=checksum_address,
-                                         **generation_kwargs)
-
-        # In the case of a federated keyring generation,
-        # the generated federated address must be set here.
-        if self.federated_only:
-            self.checksum_address = self.keyring.checksum_address
-
+    def write_keyring(self, password: str) -> Keystore:
+        self.keyring = Keystore.generate(password=password, keystore_dir=self.keyring_root)
         return self.keyring
 
     @classmethod

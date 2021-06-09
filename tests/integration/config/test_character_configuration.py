@@ -20,7 +20,7 @@ import tempfile
 from unittest.mock import Mock
 
 import pytest
-from constant_sorrow.constants import CERTIFICATE_NOT_SAVED, NO_KEYRING_ATTACHED
+from constant_sorrow.constants import CERTIFICATE_NOT_SAVED, NO_KEYSTORE_ATTACHED
 
 from nucypher.blockchain.eth.actors import StakeHolder
 from nucypher.characters.chaotic import Felix
@@ -65,7 +65,7 @@ def test_federated_development_character_configurations(character, configuration
 
     assert config.is_me is True
     assert config.dev_mode is True
-    assert config.keyring == NO_KEYRING_ATTACHED
+    assert config.keyring == NO_KEYSTORE_ATTACHED
     assert config.provider_uri is None
 
     # Production
@@ -165,7 +165,7 @@ def test_ursula_development_configuration(federated_only=True):
     config = UrsulaConfiguration(dev_mode=True, federated_only=federated_only)
     assert config.is_me is True
     assert config.dev_mode is True
-    assert config.keyring == NO_KEYRING_ATTACHED
+    assert config.keyring == NO_KEYSTORE_ATTACHED
 
     # Produce an Ursula
     ursula_one = config()

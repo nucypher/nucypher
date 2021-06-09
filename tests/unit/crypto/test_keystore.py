@@ -22,7 +22,7 @@ import string
 from pathlib import Path
 
 import pytest
-from constant_sorrow.constants import KEYRING_LOCKED
+from constant_sorrow.constants import KEYSTORE_LOCKED
 from cryptography.hazmat.primitives.serialization.base import Encoding
 from mnemonic.mnemonic import Mnemonic
 from umbral.keys import UmbralKeyingMaterial
@@ -31,8 +31,9 @@ from nucypher.crypto.keystore import (
     Keystore,
     InvalidPassword,
     validate_keystore_filename,
-    _ID_SIZE,
-    _MNEMONIC_LANGUAGE, _derive_umbral_key, _DELEGATING_INFO
+    _MNEMONIC_LANGUAGE,
+    _derive_umbral_key,
+    _DELEGATING_INFO
 )
 from nucypher.crypto.keystore import (
     _assemble_keystore,
@@ -50,7 +51,7 @@ from tests.constants import INSECURE_DEVELOPMENT_PASSWORD
 def test_invalid_keystore_path_parts(tmp_path, tmp_path_factory):
 
     # Setup
-    not_hex = 'h' + ''.join(random.choice(string.ascii_letters) for _ in range(_ID_SIZE))
+    not_hex = 'h' + ''.join(random.choice(string.ascii_letters) for _ in range(Keystore._ID_SIZE))
     invalid_paths = (
         'nosuffix',                 # missing suffix
         'deadbeef.priv',            # missing created epoch
@@ -86,7 +87,7 @@ def test_keystore_instantiation_defaults(tmp_path_factory):
     # Setup
     parent = Path(tmp_path_factory.mktemp('test-keystore-'))
     parent.touch(exist_ok=True)
-    keystore_id = ''.join(random.choice(string.hexdigits.lower()) for _ in range(_ID_SIZE))
+    keystore_id = ''.join(random.choice(string.hexdigits.lower()) for _ in range(Keystore._ID_SIZE))
     path = parent / f'123-{keystore_id}.priv'
     path.touch()
 
@@ -95,7 +96,7 @@ def test_keystore_instantiation_defaults(tmp_path_factory):
     assert keystore.keystore_path == path  # retains the correct keystore path
     assert keystore.id == keystore_id      # accurately parses filename for ID
     assert not keystore.is_unlocked        # defaults to locked
-    assert keystore._Keystore__secret is KEYRING_LOCKED
+    assert keystore._Keystore__secret is KEYSTORE_LOCKED
     assert parent in keystore.keystore_path.parents  # created in the correct directory
 
 
@@ -108,7 +109,7 @@ def test_keystore_generation_defaults(tmp_path_factory):
     # Test
     keystore = Keystore.generate(INSECURE_DEVELOPMENT_PASSWORD, keystore_dir=parent)
     assert not keystore.is_unlocked        # defaults to locked
-    assert keystore._Keystore__secret is KEYRING_LOCKED
+    assert keystore._Keystore__secret is KEYSTORE_LOCKED
     assert parent in keystore.keystore_path.parents  # created in the correct directory
 
 
@@ -137,7 +138,7 @@ def test_keyring_lock_unlock(tmpdir):
 
     # locked by default
     assert not keystore.is_unlocked
-    assert keystore._Keystore__secret is KEYRING_LOCKED
+    assert keystore._Keystore__secret is KEYSTORE_LOCKED
 
     # incorrect password
     with pytest.raises(Keystore.AuthenticationFailed):
@@ -146,7 +147,7 @@ def test_keyring_lock_unlock(tmpdir):
     # unlock
     keystore.unlock(INSECURE_DEVELOPMENT_PASSWORD)
     assert keystore.is_unlocked
-    assert keystore._Keystore__secret != KEYRING_LOCKED
+    assert keystore._Keystore__secret != KEYSTORE_LOCKED
     assert isinstance(keystore._Keystore__secret, bytes)
 
     # unlock when already unlocked
@@ -262,10 +263,11 @@ def test_derive_delegating_power(tmpdir):
     assert delegating_power._get_privkey_from_label(label=b'some-label')
 
 
-# def test_derive_hosting_power(tmpdir):
-#     keystore = Keystore.generate(INSECURE_DEVELOPMENT_PASSWORD, keystore_dir=tmpdir)
-#     keystore.unlock(password=INSECURE_DEVELOPMENT_PASSWORD)
-#     hosting_power = keystore.derive_crypto_power(power_class=TLSHostingPower, host=LOOPBACK_ADDRESS)
-#     hosting_power_public_key_numbers = hosting_power.public_key().public_numbers()
-#     hosting_power_certificate_public_bytes = hosting_power.keypair.certificate.public_bytes(encoding=Encoding.PEM)
-#     tls_hosting_power_certificate_filepath = hosting_power.keypair.certificate_filepath
+def test_derive_hosting_power(tmpdir):
+    keystore = Keystore.generate(INSECURE_DEVELOPMENT_PASSWORD, keystore_dir=tmpdir)
+    keystore.unlock(password=INSECURE_DEVELOPMENT_PASSWORD)
+    hosting_power = keystore.derive_crypto_power(power_class=TLSHostingPower, host=LOOPBACK_ADDRESS)
+    assert hosting_power.public_key().public_numbers()
+    assert hosting_power.keypair.certificate.public_bytes(encoding=Encoding.PEM)
+    rederived_hosting_power = keystore.derive_crypto_power(power_class=TLSHostingPower, host=LOOPBACK_ADDRESS)
+    assert hosting_power.public_key().public_numbers() == rederived_hosting_power.public_key().public_numbers()

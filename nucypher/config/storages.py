@@ -36,7 +36,6 @@ from nucypher.blockchain.eth.decorators import validate_checksum_address
 from nucypher.blockchain.eth.registry import BaseContractRegistry
 from nucypher.config.constants import DEFAULT_CONFIG_ROOT
 from nucypher.crypto.utils import InvalidNodeCertificate
-from nucypher.crypto.tls import read_certificate_pseudonym
 from nucypher.utilities.logging import Logger
 
 
@@ -110,23 +109,12 @@ class NodeStorage(ABC):
         if not host:
             host = common_name_on_certificate
 
-        try:
-            pseudonym = certificate.subject.get_attributes_for_oid(NameOID.PSEUDONYM)[0]
-        except IndexError:
-            raise InvalidNodeCertificate(f"Missing checksum address on certificate for host '{host}'. "
-                                         f"Does this certificate belong to an Ursula?")
-        else:
-            checksum_address = pseudonym.value
-
-        if not is_checksum_address(checksum_address):
-            raise InvalidNodeCertificate("Invalid certificate wallet address encountered: {}".format(checksum_address))
-
         # Validate
         # TODO: It's better for us to have checked this a while ago so that this situation is impossible.  #443
         if host and (host != common_name_on_certificate):
             raise ValueError(f"You passed a hostname ('{host}') that does not match the certificate's common name.")
 
-        certificate_filepath = self.generate_certificate_filepath(checksum_address=checksum_address)
+        certificate_filepath = self.generate_certificate_filepath(host)
         certificate_already_exists = os.path.isfile(certificate_filepath)
         if force is False and certificate_already_exists:
             raise FileExistsError('A TLS certificate already exists at {}.'.format(certificate_filepath))
@@ -137,9 +125,7 @@ class NodeStorage(ABC):
             public_pem_bytes = certificate.public_bytes(self.TLS_CERTIFICATE_ENCODING)
             certificate_file.write(public_pem_bytes)
 
-        nickname = Nickname.from_seed(checksum_address)
-        self.log.debug(f"Saved TLS certificate for {nickname} {checksum_address}: {certificate_filepath}")
-
+        self.log.debug(f"Saved TLS certificate for {host} to {certificate_filepath}")
         return certificate_filepath
 
     @abstractmethod
@@ -240,8 +226,6 @@ class ForgetfulNodeStorage(NodeStorage):
         return len(self.__temporary_certificates) == 0
 
     def store_node_certificate(self, certificate: Certificate):
-        checksum_address = read_certificate_pseudonym(certificate=certificate)
-        self.__certificates[checksum_address] = certificate
         filepath = self._write_tls_certificate(certificate=certificate)
         return filepath
 
@@ -249,9 +233,8 @@ class ForgetfulNodeStorage(NodeStorage):
         self.__metadata[node.checksum_address] = node
         return self.__metadata[node.checksum_address]
 
-    @validate_checksum_address
-    def generate_certificate_filepath(self, checksum_address: str) -> str:
-        filename = '{}.pem'.format(checksum_address)
+    def generate_certificate_filepath(self, host: str) -> str:
+        filename = '{}.pem'.format(host)
         filepath = os.path.join(self._temp_certificates_dir, filename)
         return filepath
 
@@ -358,34 +341,26 @@ class LocalFileBasedNodeStorage(NodeStorage):
     #
 
     @validate_checksum_address
-    def __get_certificate_filename(self, checksum_address: str):
-        return '{}.{}'.format(checksum_address, Encoding.PEM.name.lower())
+    def __get_certificate_filename(self, host: str):
+        return '{}.{}'.format(host, Encoding.PEM.name.lower())
 
     def __get_certificate_filepath(self, certificate_filename: str) -> str:
         return os.path.join(self.certificates_dir, certificate_filename)
 
-    @validate_checksum_address
-    def generate_certificate_filepath(self, checksum_address: str) -> str:
-        certificate_filename = self.__get_certificate_filename(checksum_address)
+    def generate_certificate_filepath(self, host: str) -> str:
+        certificate_filename = self.__get_certificate_filename(host)
         certificate_filepath = self.__get_certificate_filepath(certificate_filename=certificate_filename)
         return certificate_filepath
 
     @validate_checksum_address
-    def __read_node_tls_certificate(self, filepath: str = None, checksum_address: str = None) -> Certificate:
+    def __read_node_tls_certificate(self, filepath: str) -> Certificate:
         """Deserialize an X509 certificate from a filepath"""
-        if not bool(filepath) ^ bool(checksum_address):
-            raise ValueError("Either pass filepath or checksum_address; Not both.")
-
-        if not filepath and checksum_address is not None:
-            filepath = self.generate_certificate_filepath(checksum_address)
-
         try:
             with open(filepath, 'rb') as certificate_file:
                 certificate = x509.load_pem_x509_certificate(certificate_file.read(), backend=default_backend())
                 # Sanity check:
                 # Validate the checksum address inside the cert as a consistency check against
                 # nodes that may have been altered on the disk somehow.
-                read_certificate_pseudonym(certificate=certificate)
                 return certificate
         except FileNotFoundError:
             raise FileNotFoundError("No SSL certificate found at {}".format(filepath))

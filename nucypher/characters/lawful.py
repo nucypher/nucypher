@@ -1187,13 +1187,11 @@ class Ursula(Teacher, Character, Worker):
             tls_hosting_power = self._crypto_power.power_ups(TLSHostingPower)
         except TLSHostingPower.not_found_error:
             if self.keyring:
-                # Restore from TLS private key on-disk
+                # Derive TLS private key from seed
                 tls_hosting_power = self.keyring.derive_crypto_power(TLSHostingPower, host=host)
             else:
                 # Generate ephemeral private key ("Dev Mode")
-                tls_hosting_keypair = HostingKeypair(host=host,
-                                                     checksum_address=self.checksum_address,
-                                                     generate_certificate=True)
+                tls_hosting_keypair = HostingKeypair(host=host, generate_certificate=True)
                 tls_hosting_power = TLSHostingPower(keypair=tls_hosting_keypair, host=host)
             self._crypto_power.consume_power_up(tls_hosting_power)  # Consume!
         return tls_hosting_power

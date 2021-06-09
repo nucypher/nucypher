@@ -84,7 +84,6 @@ class UrsulaConfiguration(CharacterConfiguration):
         """
         Extracts worker address by "peeking" inside the ursula configuration file.
         """
-
         checksum_address = cls.peek(filepath=filepath, field='checksum_address')
         federated = bool(cls.peek(filepath=filepath, field='federated_only'))
         if not federated:
@@ -101,7 +100,7 @@ class UrsulaConfiguration(CharacterConfiguration):
         return base_filepaths
 
     def generate_filepath(self, modifier: str = None, *args, **kwargs) -> str:
-        filepath = super().generate_filepath(modifier=modifier or bytes(self.keyring.signing_public_key).hex()[:8], *args, **kwargs)
+        filepath = super().generate_filepath(modifier=modifier or self.keyring.id[:8], *args, **kwargs)
         return filepath
 
     def static_payload(self) -> dict:
@@ -138,21 +137,8 @@ class UrsulaConfiguration(CharacterConfiguration):
 
         return ursula
 
-    def attach_keyring(self, checksum_address: str = None, *args, **kwargs) -> None:
-        if self.federated_only:
-            account = checksum_address or self.checksum_address
-        else:
-            account = checksum_address or self.worker_address
-        return super().attach_keyring(checksum_address=account)
-
-    def write_keyring(self, password: str, **generation_kwargs) -> Keystore:
-        keyring = super().write_keyring(password=password,
-                                        encrypting=True,
-                                        rest=True,
-                                        host=self.rest_host,
-                                        checksum_address=self.worker_address,
-                                        **generation_kwargs)
-        return keyring
+    def attach_keystore(self, keystore_id: str, *args, **kwargs) -> None:
+        return super().attach_keystore(keystore_id=keystore_id)
 
     def destroy(self) -> None:
         if os.path.isfile(self.db_filepath):
