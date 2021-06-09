@@ -53,7 +53,7 @@ def run(general_config, policy_encrypting_key, dry_run, http_port):
 
     ENRICO.log.info('Starting HTTP Character Web Controller')
     controller = ENRICO.make_web_controller()
-    return controller.start(http_port=http_port, dry_run=dry_run)
+    return controller.start(port=http_port, dry_run=dry_run)
 
 
 @enrico.command()
