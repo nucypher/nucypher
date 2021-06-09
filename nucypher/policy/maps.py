@@ -125,10 +125,10 @@ class TreasureMap:
         return self._BRAND + self._VERSION + self._payload
 
     @classmethod
-    def get_splitter(cls, bytes_representation: bytes) -> None:
+    def get_splitter(cls, bytes_representation: bytes) -> BytestringKwargifier:
         """
-        Takes a bytes representation of a treasure map and raises OldVersion
-        error is the version is incompatible or ValueError if the header is malformed.
+        Takes a bytes representation of a treasure map and returns a splitter matching the apparent format.
+        In the event of a missing or malformed header, returns the splitter designed for unversioned maps.
         """
         representation_metadata = TreasureMapSplitter.get_metadata(bytes_representation)
 
@@ -136,7 +136,7 @@ class TreasureMap:
         brand_matches = representation_metadata['brand'] == cls._BRAND
         version = representation_metadata['version']
 
-        if version <= cls.VERSION_NUMBER and brand_matches:
+        if version in cls._splitters and brand_matches:
             # This representation is compatible with a known stencil.
             splitter = cls._splitters[version]
         else:
