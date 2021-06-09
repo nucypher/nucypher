@@ -18,10 +18,11 @@
 import click
 from marshmallow import post_load
 
-from nucypher.characters.control.specifications import fields, exceptions
+import nucypher.control.specifications.exceptions
+from nucypher.characters.control.specifications import fields
 from nucypher.cli import options
 from nucypher.cli.types import EXISTING_READABLE_FILE
-from nucypher.characters.control.specifications.base import BaseSchema
+from nucypher.control.specifications.base import BaseSchema
 
 
 class EncryptMessage(BaseSchema):
@@ -53,7 +54,8 @@ class EncryptMessage(BaseSchema):
         """
 
         if data.get('message') and data.get('file'):
-            raise exceptions.InvalidArgumentCombo("choose either a message or a filepath but not both.")
+            raise nucypher.control.specifications.exceptions.InvalidArgumentCombo(
+                "Choose either a message or a filepath but not both.")
 
         if data.get('message'):
             data = bytes(data['message'], encoding='utf-8')

@@ -21,7 +21,7 @@ from constant_sorrow.constants import NO_PASSWORD
 from nacl.exceptions import CryptoError
 
 from nucypher.blockchain.eth.decorators import InvalidChecksumAddress
-from nucypher.characters.control.emitters import StdoutEmitter
+from nucypher.control.emitters import StdoutEmitter
 from nucypher.cli.actions.auth import (
     get_client_password,
     get_nucypher_password,

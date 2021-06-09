@@ -15,19 +15,22 @@
  along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
-import os
+from pathlib import Path
+
 from marshmallow import fields
 
-from nucypher.characters.control.specifications.exceptions import InvalidInputData, InvalidNativeDataTypes
-from nucypher.characters.control.specifications.fields.base import BaseField
+from nucypher.control.specifications.exceptions import InvalidInputData
+from nucypher.control.specifications.fields.base import BaseField
 
 
 class FileField(BaseField, fields.String):
-
     def _deserialize(self, value, attr, data, **kwargs):
-        with open(value, 'rb') as plaintext_file:
+        p = Path(value)
+        if not p.exists():
+            raise InvalidInputData(f"Filepath {value} does not exist")
+        if not p.is_file():
+            raise InvalidInputData(f"Filepath {value} does not map to a file")
+
+        with p.open(mode='rb') as plaintext_file:
             plaintext = plaintext_file.read()  # TODO: #2106 Handle large files
         return plaintext
-
-    def _validate(self, value):
-        return os.path.exists(value) and os.path.isfile(value)

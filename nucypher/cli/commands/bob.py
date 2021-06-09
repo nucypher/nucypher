@@ -18,7 +18,7 @@ from base64 import b64decode
 
 import click
 
-from nucypher.characters.control.emitters import StdoutEmitter
+from nucypher.control.emitters import StdoutEmitter
 from nucypher.characters.control.interfaces import BobInterface
 from nucypher.characters.lawful import Alice
 from nucypher.cli.actions.auth import get_nucypher_password

@@ -17,17 +17,18 @@
 
 import click
 
-from nucypher.characters.control.specifications import fields
-from nucypher.characters.control.specifications.base import BaseSchema
+import nucypher.control.specifications.fields as base_fields
+from nucypher.characters.control.specifications import fields as character_fields
+from nucypher.control.specifications.base import BaseSchema
 from nucypher.cli import options
 
 
 class JoinPolicy(BaseSchema):  #TODO:  this doesn't have a cli implementation
 
-    label = fields.Label(
+    label = character_fields.Label(
         load_only=True, required=True,
         click=options.option_label(required=True))
-    alice_verifying_key = fields.Key(
+    alice_verifying_key = character_fields.Key(
         load_only=True, required=True,
         click=click.option(
             '--alice-verifying-key',
@@ -35,23 +36,23 @@ class JoinPolicy(BaseSchema):  #TODO:  this doesn't have a cli implementation
             help="Alice's verifying key as a hexadecimal string",
             required=False, type=click.STRING,))
 
-    policy_encrypting_key = fields.String(dump_only=True)
+    policy_encrypting_key = base_fields.String(dump_only=True)
     # this should be a Key Field
     # but bob.join_policy outputs {'policy_encrypting_key': 'OK'}
 
 
 class Retrieve(BaseSchema):
-    label = fields.Label(
+    label = character_fields.Label(
         required=True,
         load_only=True,
         click=options.option_label(required=False)
     )
-    policy_encrypting_key = fields.Key(
+    policy_encrypting_key = character_fields.Key(
         required=True,
         load_only=True,
         click=options.option_policy_encrypting_key(required=False)
     )
-    alice_verifying_key = fields.Key(
+    alice_verifying_key = character_fields.Key(
         required=False,
         load_only=True,
         click=click.option(
@@ -61,15 +62,15 @@ class Retrieve(BaseSchema):
             type=click.STRING,
             required=False)
     )
-    message_kit = fields.UmbralMessageKit(
+    message_kit = character_fields.UmbralMessageKit(
         required=True,
         load_only=True,
         click=options.option_message_kit(required=False)
     )
 
-    cleartexts = fields.List(fields.Cleartext(), dump_only=True)
+    cleartexts = base_fields.List(character_fields.Cleartext(), dump_only=True)
 
 
 class PublicKeys(BaseSchema):
-    bob_encrypting_key = fields.Key(dump_only=True)
-    bob_verifying_key = fields.Key(dump_only=True)
+    bob_encrypting_key = character_fields.Key(dump_only=True)
+    bob_verifying_key = character_fields.Key(dump_only=True)

@@ -15,16 +15,20 @@
  along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
-from marshmallow import INCLUDE, Schema
+from eth_utils import to_checksum_address
+from marshmallow import fields
 
-from nucypher.characters.control.specifications.exceptions import InvalidInputData
+from nucypher.cli import types
+from nucypher.control.specifications.exceptions import InvalidInputData
+from nucypher.control.specifications.fields import BaseField
 
 
-class BaseSchema(Schema):
+class UrsulaChecksumAddress(BaseField, fields.String):
+    """Ursula checksum address."""
+    click_type = types.EIP55_CHECKSUM_ADDRESS
 
-    class Meta:
-
-        unknown = INCLUDE   # pass through any data that isn't defined as a field
-
-    def handle_error(self, error, data, many, **kwargs):
-        raise InvalidInputData(error)
+    def _validate(self, value):
+        try:
+            to_checksum_address(value=value)
+        except ValueError as e:
+            raise InvalidInputData(f"Could not convert input for {self.name} to a valid checksum address: {e}")

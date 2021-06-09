@@ -21,7 +21,7 @@ import pytest
 import sys
 from io import StringIO
 
-from nucypher.characters.control.emitters import StdoutEmitter
+from nucypher.control.emitters import StdoutEmitter
 from nucypher.cli.processes import UrsulaCommandProtocol
 
 

@@ -22,7 +22,7 @@ from unittest import mock
 import os
 import pytest
 
-from nucypher.characters.control.emitters import JSONRPCStdoutEmitter
+from nucypher.control.emitters import JSONRPCStdoutEmitter
 from nucypher.characters.lawful import Ursula
 from nucypher.cli import utils
 from nucypher.cli.literature import SUCCESSFUL_DESTRUCTION, COLLECT_NUCYPHER_PASSWORD

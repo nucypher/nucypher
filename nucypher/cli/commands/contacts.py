@@ -19,7 +19,7 @@ import click
 import os
 import shutil
 
-from nucypher.characters.control.emitters import StdoutEmitter
+from nucypher.control.emitters import StdoutEmitter
 from nucypher.cli.actions.select import select_card
 from nucypher.cli.options import option_force
 from nucypher.cli.painting.policies import paint_single_card, paint_cards
