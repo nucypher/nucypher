@@ -56,6 +56,10 @@ Glossary
     PKE
       Public-key encryption.
 
+    Porter
+      A web service that is the conduit between applications (platform-agnostic) and the nucypher network, that
+      performs nucypher protocol operations on behalf of Alice and Bob.
+
     PRE
       Proxy re-encryption.
 
