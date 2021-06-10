@@ -59,12 +59,10 @@ def echo_logging_root_path(ctx, param, value):
 def paint_new_installation_help(emitter, new_configuration, filepath):
     character_config_class = new_configuration.__class__
     character_name = character_config_class.NAME.lower()
-
-    if new_configuration.keyring != NO_KEYSTORE_ATTACHED:
-        maybe_public_key = bytes(new_configuration.keystore.id).hex()
+    if new_configuration.keystore != NO_KEYSTORE_ATTACHED:
+        maybe_public_key = new_configuration.keystore.id
     else:
         maybe_public_key = "(no keyring attached)"
-
     emitter.message(f"Generated keystore", color='green')
     emitter.message(f"""
     

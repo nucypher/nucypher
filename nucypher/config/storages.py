@@ -15,27 +15,23 @@ You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
-from pathlib import Path
-
-import OpenSSL
 import binascii
 import os
 import tempfile
 from abc import ABC, abstractmethod
+from pathlib import Path
+from typing import Any, Set, Tuple, Union
 
+import OpenSSL
 from bytestring_splitter import BytestringSplittingError
 from cryptography import x509
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives.serialization import Encoding
-from cryptography.x509 import Certificate, NameOID
-from eth_utils import is_checksum_address
-from typing import Any, Callable, Set, Tuple, Union
+from cryptography.x509 import Certificate
 
-from nucypher.acumen.nicknames import Nickname
 from nucypher.blockchain.eth.decorators import validate_checksum_address
 from nucypher.blockchain.eth.registry import BaseContractRegistry
 from nucypher.config.constants import DEFAULT_CONFIG_ROOT
-from nucypher.crypto.utils import InvalidNodeCertificate
 from nucypher.utilities.logging import Logger
 
 

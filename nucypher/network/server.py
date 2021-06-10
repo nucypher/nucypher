@@ -42,7 +42,7 @@ from nucypher.crypto.kits import UmbralMessageKit
 from nucypher.crypto.powers import KeyPairBasedPower, PowerUpError
 from nucypher.crypto.signing import InvalidSignature
 from nucypher.crypto.umbral_adapter import KeyFrag, VerificationError
-from nucypher.crypto.utils import canonical_address_from_umbral_key, InvalidNodeCertificate
+from nucypher.crypto.utils import canonical_address_from_umbral_key
 from nucypher.datastore.datastore import Datastore, RecordNotFound, DatastoreTransactionError
 from nucypher.datastore.models import PolicyArrangement, TreasureMap, Workorder
 from nucypher.network import LEARNING_LOOP_VERSION
@@ -160,9 +160,6 @@ def _make_rest_app(datastore: Datastore, this_node, domain: str, log: Logger) ->
                                                                                                certificate_filepath=certificate_filepath)
             except NodeSeemsToBeDown:
                 return Response({'error': 'Unreachable node'}, status=400)  # ... toasted
-
-            except InvalidNodeCertificate:
-                return Response({'error': 'Invalid TLS certificate - missing checksum address'}, status=400)  # ... invalid
 
             # Compare the results of the outer POST with the inner GET... yum
             if requesting_ursula_bytes == request.data:

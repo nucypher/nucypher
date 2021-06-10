@@ -54,7 +54,7 @@ from nucypher.blockchain.eth.networks import NetworksInventory
 from nucypher.blockchain.eth.registry import BaseContractRegistry
 from nucypher.config.constants import SeednodeMetadata
 from nucypher.config.storages import ForgetfulNodeStorage
-from nucypher.crypto.utils import InvalidNodeCertificate, recover_address_eip_191, verify_eip_191
+from nucypher.crypto.utils import recover_address_eip_191, verify_eip_191
 from nucypher.crypto.kits import UmbralMessageKit
 from nucypher.crypto.powers import DecryptingPower, NoSigningPower, SigningPower
 from nucypher.crypto.splitters import signature_splitter
@@ -424,10 +424,7 @@ class Learner:
             stranger_certificate = node.certificate
 
             # Store node's certificate - It has been seen.
-            try:
-                certificate_filepath = self.node_storage.store_node_certificate(certificate=stranger_certificate)
-            except InvalidNodeCertificate:
-                return False  # that was easy
+            certificate_filepath = self.node_storage.store_node_certificate(certificate=stranger_certificate)
 
             # In some cases (seed nodes or other temp stored certs),
             # this will update the filepath from the temp location to this one.
