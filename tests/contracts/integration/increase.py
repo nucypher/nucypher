@@ -14,6 +14,7 @@ GNU Affero General Public License for more details.
 You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
+from collections import Callable
 
 from nucypher.blockchain.eth.agents import StakingEscrowAgent, NucypherTokenAgent, PolicyManagerAgent, ContractAgency
 from nucypher.blockchain.eth.signers.software import Web3Signer
@@ -24,7 +25,12 @@ from nucypher.crypto.powers import TransactingPower
 MAX_NUNIT_ERROR = 10 * 1e-18  # 1 decimal place
 
 
-def test_rewards_ratios_after_increase(testerchain, agency, token_economics, test_registry):
+def check_rewards_ratios_after_increase(testerchain,
+                                        agency,
+                                        token_economics,
+                                        test_registry,
+                                        increase_callable: Callable,
+                                        skip_problematic_assertions_after_increase=False):      # set to True to allow values to be printed and failing assertions skipped
     num_test_periods = 20
     min_periods_before_increase = 10
 
@@ -78,9 +84,6 @@ def test_rewards_ratios_after_increase(testerchain, agency, token_economics, tes
     ursula3_total_rewards_at_increase = None
     ursula4_total_rewards_at_increase = None
 
-    # set to True to allow values to be printed and failing assertions skipped
-    skipProblematicAssertionsAfterIncrease = False
-
     for i in range(1, num_test_periods+1):
         testerchain.time_travel(periods=1)
         _commit_to_next_period(staking_agent, ursulas_tpowers)
@@ -118,11 +121,11 @@ def test_rewards_ratios_after_increase(testerchain, agency, token_economics, tes
 
             if i == (ursula4_period_of_increase + 1):
                 # this is the first period after increase
-                assert skipProblematicAssertionsAfterIncrease \
+                assert skip_problematic_assertions_after_increase \
                        or (ursula1_reward_for_period == ursula2_reward_for_period)  # staking the same
 
                 # minted rewards for prior period (when stake was still same size) in which case reward for period should still be equal
-                assert skipProblematicAssertionsAfterIncrease \
+                assert skip_problematic_assertions_after_increase \
                        or (ursula4_reward_for_period == ursula1_reward_for_period)
                 assert abs(ursula3_reward_for_period.to_tokens()
                            - ursula1_reward_for_period.to_tokens()
@@ -193,11 +196,7 @@ def test_rewards_ratios_after_increase(testerchain, agency, token_economics, tes
             # AND enough rewards received to stake min stake amount
             # AND not already previously increased
 
-            # increase ursula4 stake by min staking amount so that stake ratio of ursula1 or ursula2: ursula 4 is 1:2
-            staking_agent.lock_and_increase(transacting_power=ursula4_tpower,
-                                            amount=token_economics.minimum_allowed_locked,
-                                            stake_index=0)
-            print(f">>> Increase ursula4 NU in period {i}")
+            increase_callable(i, staking_agent, token_economics, ursula4_tpower)
             ursula4_period_of_increase = i
 
     assert ursula4_period_of_increase != -1, "increase of stake actually occurred"
@@ -208,7 +207,10 @@ def _commit_to_next_period(staking_agent, ursulas_tpowers):
         staking_agent.commit_to_next_period(transacting_power=ursula_tpower)
 
 
-def _prepare_staker(origin_tpower, staking_agent, token_agent, token_economics, ursula, ursula_tpower, amount):
+def _prepare_staker(origin_tpower, staking_agent, token_agent, token_economics, ursula, ursula_tpower, amount, lock_periods=None):
+    if not lock_periods:
+        lock_periods = 100 * token_economics.maximum_rewarded_periods
+
     # Prepare one staker
     _txhash = token_agent.transfer(amount=amount,
                                    target_address=ursula,
@@ -217,7 +219,7 @@ def _prepare_staker(origin_tpower, staking_agent, token_agent, token_economics, 
                                            spender_address=staking_agent.contract_address,
                                            transacting_power=ursula_tpower)
     _txhash = staking_agent.deposit_tokens(amount=amount,
-                                           lock_periods=100 * token_economics.maximum_rewarded_periods,
+                                           lock_periods=lock_periods,
                                            transacting_power=ursula_tpower,
                                            staker_address=ursula)
     _txhash = staking_agent.bond_worker(transacting_power=ursula_tpower, worker_address=ursula)
