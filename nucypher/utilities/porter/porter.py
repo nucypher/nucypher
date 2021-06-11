@@ -23,12 +23,13 @@ from umbral.keys import UmbralPublicKey
 from nucypher.blockchain.eth.agents import ContractAgency, StakingEscrowAgent
 from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
 from nucypher.blockchain.eth.registry import BaseContractRegistry, InMemoryContractRegistry
-from nucypher.characters import utils
+
 from nucypher.characters.lawful import Ursula
-from nucypher.characters.utils import matching_nodes_among
+
 from nucypher.control.controllers import WebController, JSONRPCController
 from nucypher.crypto.powers import DecryptingPower
 from nucypher.network.nodes import Learner
+from nucypher.network import utils
 from nucypher.policy.policies import TreasureMapPublisher
 from nucypher.policy.reservoir import (
     make_federated_staker_reservoir,
@@ -85,8 +86,7 @@ the Pipe for nucypher network operations
 
         if not self.federated_only:
             if not provider_uri:
-                if not provider_uri:
-                    raise ValueError('Provider URI is required for decentralized Porter.')
+                raise ValueError('Provider URI is required for decentralized Porter.')
 
             BlockchainInterfaceFactory.get_interface(provider_uri=provider_uri)
             self.registry = registry or InMemoryContractRegistry.from_latest_publication(network=domain)
@@ -116,8 +116,8 @@ the Pipe for nucypher network operations
     def publish_treasure_map(self, treasure_map_bytes: bytes, bob_encrypting_key: UmbralPublicKey):
         # TODO (#2516): remove hardcoding of 8 nodes
         self.block_until_number_of_known_nodes_is(8, timeout=2, learn_on_this_thread=True)
-        target_nodes = matching_nodes_among(nodes=self.known_nodes,
-                                            bob_encrypting_key=bob_encrypting_key)
+        target_nodes = utils.matching_nodes_among(nodes=self.known_nodes,
+                                                  bob_encrypting_key=bob_encrypting_key)
         treasure_map_publisher = TreasureMapPublisher(treasure_map_bytes=treasure_map_bytes,
                                                       nodes=target_nodes,
                                                       network_middleware=self.network_middleware)

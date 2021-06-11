@@ -67,7 +67,6 @@ from nucypher.blockchain.eth.constants import ETH_ADDRESS_BYTE_LENGTH
 from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
 from nucypher.blockchain.eth.registry import BaseContractRegistry
 from nucypher.blockchain.eth.signers.software import Web3Signer
-from nucypher.characters import utils
 from nucypher.characters.banners import ALICE_BANNER, BOB_BANNER, ENRICO_BANNER, URSULA_BANNER
 from nucypher.characters.base import Character, Learner
 from nucypher.characters.control.interfaces import AliceInterface, BobInterface, EnricoInterface
@@ -101,6 +100,7 @@ from nucypher.crypto.umbral_adapter import (
 from nucypher.crypto.utils import keccak_digest, encrypt_and_sign
 from nucypher.datastore.datastore import DatastoreTransactionError, RecordNotFound
 from nucypher.datastore.queries import find_expired_policies, find_expired_treasure_maps
+from nucypher.network import utils
 from nucypher.network.exceptions import NodeSeemsToBeDown
 from nucypher.network.middleware import RestMiddleware
 from nucypher.network.nodes import NodeSprout, TEACHER_NODES, Teacher
