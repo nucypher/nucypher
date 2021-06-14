@@ -24,5 +24,5 @@ from nucypher.utilities.porter.control.specifications.fields import UrsulaChecks
 class UrsulaInfo(BaseSchema):
     """Schema for the result of sampling of Ursulas."""
     checksum_address = UrsulaChecksumAddress()
-    ip_address = URL()
+    uri = URL()
     encrypting_key = Key()
