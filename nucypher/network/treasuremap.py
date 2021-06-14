@@ -25,7 +25,10 @@ from nucypher.network.exceptions import NodeSeemsToBeDown
 from nucypher.network.nodes import Learner
 
 
-def get_treasure_map(learner: Learner, map_identifier: str, bob_encrypting_key: UmbralPublicKey, timeout=3):
+def get_treasure_map_from_known_ursulas(learner: Learner,
+                                        map_identifier: str,
+                                        bob_encrypting_key: UmbralPublicKey,
+                                        timeout=3):
     """
     Iterate through the nodes we know, asking for the TreasureMap.
     Return the first one who has it.
@@ -40,9 +43,9 @@ def get_treasure_map(learner: Learner, map_identifier: str, bob_encrypting_key: 
     # Spend no more than half the timeout finding the nodes.  8 nodes is arbitrary.  Come at me.
     learner.block_until_number_of_known_nodes_is(8, timeout=timeout / 2, learn_on_this_thread=True)
     while True:
-        nodes_with_map = matching_nodes_among(nodes=learner.known_nodes,
-                                              bob_encrypting_key=bob_encrypting_key)
-        # TODO nodes_with_map can be large - what if treasure map not present in any of them?
+        nodes_with_map = find_matching_nodes(known_nodes=learner.known_nodes, bob_encrypting_key=bob_encrypting_key)
+        # TODO nodes_with_map can be large - what if treasure map not present in any of them? Without checking the
+        #  timeout within the loop, this could take a long time.
         shuffle(nodes_with_map)
 
         for node in nodes_with_map:
@@ -75,9 +78,9 @@ def get_treasure_map(learner: Learner, map_identifier: str, bob_encrypting_key: 
                                              f"but none had map {map_identifier}")
 
 
-def matching_nodes_among(nodes: FleetSensor,
-                         bob_encrypting_key: UmbralPublicKey,
-                         no_less_than=7):  # Somewhat arbitrary floor here.
+def find_matching_nodes(known_nodes: FleetSensor,
+                        bob_encrypting_key: UmbralPublicKey,
+                        no_less_than=7):  # Somewhat arbitrary floor here.
     # Look for nodes whose checksum address has the second character of Bob's encrypting key in the first
     # few characters.
     # Think of it as a cheap knockoff hamming distance.
@@ -87,8 +90,8 @@ def matching_nodes_among(nodes: FleetSensor,
     # store a TreasureMap.  And then... ???... profit?
 
     # Sanity check - do we even have enough nodes?
-    if len(nodes) < no_less_than:
-        raise ValueError(f"Can't select {no_less_than} from {len(nodes)} (Fleet state: {nodes.FleetState})")
+    if len(known_nodes) < no_less_than:
+        raise ValueError(f"Can't select {no_less_than} from {len(known_nodes)} (Fleet state: {known_nodes.FleetState})")
 
     search_boundary = 2
     target_nodes = []
@@ -100,7 +103,7 @@ def matching_nodes_among(nodes: FleetSensor,
             try:
                 # TODO: This is almost certainly happening in a test.  If it does happen in production, it's a
                 #  bit of a problem.  Need to fix #2124 to mitigate.
-                target_nodes = list(nodes.values())[0:6]
+                target_nodes = list(known_nodes.values())[0:6]
                 return target_nodes
             except IndexError:
                 raise Learner.NotEnoughNodes(
@@ -109,5 +112,5 @@ def matching_nodes_among(nodes: FleetSensor,
 
         # TODO: 1995 all throughout here (we might not (need to) know the checksum address yet; canonical will do.)
         # This might be a performance issue above a few thousand nodes.
-        target_nodes = [node for node in nodes if target_hex_match in node.checksum_address[2:search_boundary]]
+        target_nodes = [node for node in known_nodes if target_hex_match in node.checksum_address[2:search_boundary]]
     return target_nodes

@@ -431,7 +431,7 @@ class FederatedPolicy(Policy):
         return Policy.NotEnoughUrsulas
 
     def _make_reservoir(self, handpicked_addresses):
-        return make_federated_staker_reservoir(learner=self.alice,
+        return make_federated_staker_reservoir(known_nodes=self.alice.known_nodes,
                                                exclude_addresses=None,
                                                include_addresses=handpicked_addresses)
 

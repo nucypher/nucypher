@@ -18,12 +18,13 @@ from typing import Iterable, Optional, List
 
 from eth_typing import ChecksumAddress
 
+from nucypher.acumen.perception import FleetSensor
 from nucypher.blockchain.eth.agents import StakersReservoir, StakingEscrowAgent
 
 
-def make_federated_staker_reservoir(learner: 'Learner',
-                                    exclude_addresses: List[str] = None,
-                                    include_addresses: List[str] = None):
+def make_federated_staker_reservoir(known_nodes: FleetSensor,
+                                    exclude_addresses: Optional[Iterable[ChecksumAddress]] = None,
+                                    include_addresses: Optional[Iterable[ChecksumAddress]] = None):
     """
     Get a sampler object containing the federated stakers.
     """
@@ -36,7 +37,7 @@ def make_federated_staker_reservoir(learner: 'Learner',
     exclusion_set.update(include_addresses)
 
     addresses = {}
-    for ursula in learner.known_nodes:
+    for ursula in known_nodes:
         if ursula.checksum_address in exclusion_set:
             continue
         addresses[ursula.checksum_address] = 1
@@ -48,8 +49,8 @@ def make_federated_staker_reservoir(learner: 'Learner',
 
 def make_decentralized_staker_reservoir(staking_agent: StakingEscrowAgent,
                                         duration_periods: int,
-                                        exclude_addresses: List[str] = None,
-                                        include_addresses: List[str] = None):
+                                        exclude_addresses: Optional[Iterable[ChecksumAddress]] = None,
+                                        include_addresses: Optional[Iterable[ChecksumAddress]] = None):
     """
     Get a sampler object containing the currently registered stakers.
     """
