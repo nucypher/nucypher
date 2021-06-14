@@ -14,9 +14,10 @@
  You should have received a copy of the GNU Affero General Public License
  along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
-from typing import List
+from typing import List, Optional, Iterable
 
 from constant_sorrow.constants import NO_CONTROL_PROTOCOL, NO_BLOCKCHAIN_CONNECTION
+from eth_typing import ChecksumAddress
 from flask import request, Response
 from umbral.keys import UmbralPublicKey
 
@@ -29,7 +30,7 @@ from nucypher.characters.lawful import Ursula
 from nucypher.control.controllers import WebController, JSONRPCController
 from nucypher.crypto.powers import DecryptingPower
 from nucypher.network.nodes import Learner
-from nucypher.network import utils
+from nucypher.network import treasuremap
 from nucypher.policy.policies import TreasureMapPublisher
 from nucypher.policy.reservoir import (
     make_federated_staker_reservoir,
@@ -108,16 +109,16 @@ the Pipe for nucypher network operations
         self.log.info(self.BANNER)
 
     def get_treasure_map(self, map_identifier: str, bob_encrypting_key: UmbralPublicKey, timeout=3):
-        return utils.get_treasure_map(learner=self,
-                                      map_identifier=map_identifier,
-                                      bob_encrypting_key=bob_encrypting_key,
-                                      timeout=timeout)
+        return treasuremap.get_treasure_map_from_known_ursulas(learner=self,
+                                                               map_identifier=map_identifier,
+                                                               bob_encrypting_key=bob_encrypting_key,
+                                                               timeout=timeout)
 
     def publish_treasure_map(self, treasure_map_bytes: bytes, bob_encrypting_key: UmbralPublicKey):
         # TODO (#2516): remove hardcoding of 8 nodes
         self.block_until_number_of_known_nodes_is(8, timeout=2, learn_on_this_thread=True)
-        target_nodes = utils.matching_nodes_among(nodes=self.known_nodes,
-                                                  bob_encrypting_key=bob_encrypting_key)
+        target_nodes = treasuremap.find_matching_nodes(known_nodes=self.known_nodes,
+                                                       bob_encrypting_key=bob_encrypting_key)
         treasure_map_publisher = TreasureMapPublisher(treasure_map_bytes=treasure_map_bytes,
                                                       nodes=target_nodes,
                                                       network_middleware=self.network_middleware)
@@ -128,8 +129,8 @@ the Pipe for nucypher network operations
     def get_ursulas(self,
                     quantity: int,
                     duration_periods: int = None,  # optional for federated mode
-                    exclude_ursulas: List[str] = None,
-                    include_ursulas: List[str] = None) -> List[UrsulaInfo]:
+                    exclude_ursulas: Optional[Iterable[ChecksumAddress]] = None,
+                    include_ursulas: Optional[Iterable[ChecksumAddress]] = None) -> List[UrsulaInfo]:
         reservoir = self._make_staker_reservoir(quantity, duration_periods, exclude_ursulas, include_ursulas)
         value_factory = PrefetchStrategy(reservoir, quantity)
 
@@ -164,13 +165,13 @@ the Pipe for nucypher network operations
     def _make_staker_reservoir(self,
                                quantity: int,
                                duration_periods: int = None,  # optional for federated mode
-                               exclude_ursulas: List[str] = None,
-                               include_ursulas: List[str] = None):
+                               exclude_ursulas: Optional[Iterable[ChecksumAddress]] = None,
+                               include_ursulas: Optional[Iterable[ChecksumAddress]] = None):
         if self.federated_only:
             sample_size = quantity - (len(include_ursulas) if include_ursulas else 0)
             if not self.block_until_number_of_known_nodes_is(sample_size, learn_on_this_thread=True):
                 raise ValueError("Unable to learn about sufficient Ursulas")
-            return make_federated_staker_reservoir(learner=self,
+            return make_federated_staker_reservoir(known_nodes=self.known_nodes,
                                                    exclude_addresses=exclude_ursulas,
                                                    include_addresses=include_ursulas)
         else:

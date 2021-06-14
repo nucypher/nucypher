@@ -14,8 +14,9 @@
  You should have received a copy of the GNU Affero General Public License
  along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
-from typing import List
+from typing import List, Optional
 
+from eth_typing import ChecksumAddress
 from umbral.keys import UmbralPublicKey
 
 from nucypher.control.interfaces import ControlInterface, attach_schema
@@ -33,8 +34,8 @@ class PorterInterface(ControlInterface):
     def get_ursulas(self,
                     quantity: int,
                     duration_periods: int,
-                    exclude_ursulas: List[str] = None,
-                    include_ursulas: List[str] = None) -> dict:
+                    exclude_ursulas: Optional[List[ChecksumAddress]] = None,
+                    include_ursulas: Optional[List[ChecksumAddress]] = None) -> dict:
         ursulas_info = self.implementer.get_ursulas(quantity=quantity,
                                                     duration_periods=duration_periods,
                                                     exclude_ursulas=exclude_ursulas,
