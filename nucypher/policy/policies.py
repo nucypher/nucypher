@@ -27,7 +27,6 @@ from twisted.internet import reactor
 from umbral.keys import UmbralPublicKey
 from umbral.kfrags import KFrag
 
-from nucypher.blockchain.eth.agents import StakersReservoir, StakingEscrowAgent
 from nucypher.characters.lawful import Alice, Ursula
 from nucypher.crypto.api import keccak_digest, secure_random
 from nucypher.crypto.constants import HRAC_LENGTH, PUBLIC_KEY_LENGTH
@@ -462,7 +461,7 @@ class FederatedPolicy(Policy):
         return Policy.NotEnoughUrsulas
 
     def _make_reservoir(self, handpicked_addresses):
-        return make_federated_staker_reservoir(learner=self.alice,
+        return make_federated_staker_reservoir(known_nodes=self.alice.known_nodes,
                                                exclude_addresses=None,
                                                include_addresses=handpicked_addresses)
 
