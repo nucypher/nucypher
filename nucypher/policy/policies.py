@@ -432,7 +432,6 @@ class FederatedPolicy(Policy):
 
     def _make_reservoir(self, handpicked_addresses):
         return make_federated_staker_reservoir(known_nodes=self.alice.known_nodes,
-                                               exclude_addresses=None,
                                                include_addresses=handpicked_addresses)
 
     def _make_enactment_payload(self, kfrag) -> bytes:

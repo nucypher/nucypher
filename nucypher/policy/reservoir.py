@@ -30,12 +30,8 @@ def make_federated_staker_reservoir(known_nodes: FleetSensor,
     """
     # needs to not include both exclude and include addresses
     # so that they aren't included in reservoir, include_address will be re-added to reservoir afterwards
-    exclude_addresses = exclude_addresses or []
-    include_addresses = include_addresses or []
-    exclusion_set = set()
-    exclusion_set.update(exclude_addresses)
-    exclusion_set.update(include_addresses)
-
+    include_addresses = include_addresses or ()
+    exclusion_set = set(include_addresses) | set(exclude_addresses or ())
     addresses = {}
     for ursula in known_nodes:
         if ursula.checksum_address in exclusion_set:
@@ -56,11 +52,8 @@ def make_decentralized_staker_reservoir(staking_agent: StakingEscrowAgent,
 
     # needs to not include both exclude and include addresses
     # so that they aren't included in reservoir, include_address will be re-added to reservoir afterwards
-    exclude_addresses = exclude_addresses or []
-    include_addresses = include_addresses or []
-    without_set = set()
-    without_set.update(exclude_addresses)
-    without_set.update(include_addresses)
+    include_addresses = include_addresses or ()
+    without_set = set(include_addresses) | set(exclude_addresses or ())
     try:
         reservoir = staking_agent.get_stakers_reservoir(duration=duration_periods,
                                                         without=without_set)
