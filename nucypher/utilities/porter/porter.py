@@ -70,9 +70,9 @@ the Pipe for nucypher network operations
     class UrsulaInfo:
         """Simple object that stores relevant Ursula information resulting from sampling."""
 
-        def __init__(self, checksum_address: str, ip_address: str, encrypting_key: UmbralPublicKey):
+        def __init__(self, checksum_address: str, uri: str, encrypting_key: UmbralPublicKey):
             self.checksum_address = checksum_address
-            self.ip_address = ip_address
+            self.uri = uri
             self.encrypting_key = encrypting_key
 
     def __init__(self,
@@ -146,7 +146,7 @@ the Pipe for nucypher network operations
                                                         port=ursula.rest_interface.port)
 
             return Porter.UrsulaInfo(checksum_address=ursula_checksum,
-                                     ip_address=f"https://{ursula.rest_interface.host}:{ursula.rest_interface.port}",
+                                     uri=f"https://{ursula.rest_interface.host}:{ursula.rest_interface.port}",
                                      encrypting_key=ursula.public_keys(DecryptingPower))
 
         self.block_until_number_of_known_nodes_is(quantity, learn_on_this_thread=True, eager=True)

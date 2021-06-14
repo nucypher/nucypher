@@ -42,7 +42,6 @@ def make_federated_staker_reservoir(known_nodes: FleetSensor,
             continue
         addresses[ursula.checksum_address] = 1
 
-    include_addresses = include_addresses or []
     # add include addresses
     return MergedReservoir(include_addresses, StakersReservoir(addresses))
 

@@ -137,7 +137,7 @@ def test_alice_get_ursulas_schema(get_random_checksum_address):
     for i in range(3):
         ursula_info = {
             "checksum_address": get_random_checksum_address(),
-            "ip_address": f"https://127.0.0.1:{port+i}",
+            "uri": f"https://127.0.0.1:{port+i}",
             "encrypting_key": UmbralPrivateKey.gen_key().pubkey
         }
         ursulas_info.append(ursula_info)
