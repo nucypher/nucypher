@@ -1,7 +1,7 @@
 .. _porter:
 
-Porter
-======
+Porter Service
+==============
 
 Overview
 --------
@@ -20,6 +20,139 @@ web and mobile experience is accessible to application developers.
 
 Running Porter
 --------------
+.. note::
+
+    By default the Porter service will run on port 9155, unless specified otherwise.
+
+
+via CLI
+^^^^^^^
+Install ``nucypher`` - see :doc:`/references/pip-installation`.
+
+Usage
++++++
+.. code:: console
+
+    $ nucypher porter --help
+
+    Usage: nucypher porter [OPTIONS] COMMAND [ARGS]...
+
+      Porter management commands. Porter is a web-service that is the conduit
+      between applications and the nucypher network, that performs actions on
+      behalf of Alice and Bob.
+
+    Options:
+      --help  Show this message and exit.
+
+    Commands:
+      run                   Start Porter's Web controller.
+
+
+.. code:: console
+
+    $ nucypher porter run --help
+
+    Usage: nucypher porter run [OPTIONS]
+
+      Start Porter's Web controller.
+
+    Options:
+      -D, --debug                     Enable debugging mode, crashing on more
+                                      exceptions instead of trying to recover.
+                                      Also sets log level to "debug", turns on
+                                      console and file logging and turns off
+                                      Sentry logging.
+
+      --log-level [critical|error|warn|info|debug]
+                                      The log level for this process.  Is
+                                      overridden by --debug.
+
+      --sentry-logs / --no-sentry-logs
+                                      Enable/disable logging to Sentry. Defaults
+                                      to NUCYPHER_SENTRY_LOGS, or to `--sentry-
+                                      logs` if it is not set.
+
+      --file-logs / --no-file-logs    Enable/disable logging to file. Defaults to
+                                      NUCYPHER_FILE_LOGS, or to `--file-logs` if
+                                      it is not set.
+
+      --console-logs / --no-console-logs
+                                      Enable/disable logging to console. Defaults
+                                      to `--no-console-logs`.
+
+      -J, --json-ipc                  Send all IPC output to stdout as JSON, and
+                                      turn off the rest
+
+      -L, --no-logs                   Disable all logging output
+      -Q, --quiet                     Disable console messages
+      -v, --verbose                   Verbose console messages
+      --network NUCYPHER_NETWORK_NAME
+                                      NuCypher Network/Domain Name
+      --provider TEXT                 Blockchain provider's URI i.e.
+                                      'file:///path/to/geth.ipc'
+
+      -F, --federated-only / --decentralized
+                                      Connect only to federated nodes
+      --teacher TEXT                  An Ursula URI to start learning from
+                                      (seednode)
+
+      --registry-filepath FILE        Custom contract registry filepath
+      --http-port INTEGER RANGE       Porter HTTP/HTTPS port for JSON endpoint
+      --certificate-filepath FILE     Pre-signed TLS certificate filepath
+      --tls-key-filepath FILE         TLS private key filepath
+      -x, --dry-run                   Execute normally without actually starting
+                                      Porter
+
+      --eager                         Start learning and scraping the network
+                                      before starting up other services
+
+      --help                          Show this message and exit.
+
+
+.. code:: console
+
+    $ nucypher porter run --provider <YOUR WEB3 PROVIDER URI> --network mainnet
+
+
+     ______
+    (_____ \           _
+     _____) )__   ____| |_  ____  ____
+    |  ____/ _ \ / ___)  _)/ _  )/ ___)
+    | |   | |_| | |   | |_( (/ /| |
+    |_|    \___/|_|    \___)____)_|
+
+    the Pipe for nucypher network operations
+
+    Reading Latest Chaindata...
+    Network: Mainnet
+    Provider: ...
+    Running Porter Web Controller at http://127.0.0.1:9155
+
+
+To run via https use the ``--tls-key-filepath`` and ``--certificate-filepath`` options:
+
+.. code:: console
+
+    $ nucypher porter run --provider <YOUR WEB3 PROVIDER URI> --network mainnet --tls-key-filepath <TLS KEY FILEPATH> --certificate-filepath <CERT FILEPATH>
+
+
+     ______
+    (_____ \           _
+     _____) )__   ____| |_  ____  ____
+    |  ____/ _ \ / ___)  _)/ _  )/ ___)
+    | |   | |_| | |   | |_( (/ /| |
+    |_|    \___/|_|    \___)____)_|
+
+    the Pipe for nucypher network operations
+
+    Reading Latest Chaindata...
+    Network: Mainnet
+    Provider: ...
+    Running Porter Web Controller at https://127.0.0.1:9155
+
+
+via Docker
+^^^^^^^^^^
 TBD
 
 
@@ -33,23 +166,28 @@ All documented API endpoints use JSON and are REST-like.
 Some common returned status codes you may encounter are:
 
 - ``200 OK`` -- The request has succeeded.
-- ``400 BAD REQUEST`` -- The server cannot or will not process the request due to something that is perceived to be a client error (e.g., malformed request syntax, invalid request message framing, or deceptive request routing).
-- ``500 INTERNAL SERVER ERROR`` -- The server encountered an unexpected condition that prevented it from fulfilling the request.
+- ``400 BAD REQUEST`` -- The server cannot or will not process the request due to something that is perceived to
+  be a client error (e.g., malformed request syntax, invalid request message framing, or deceptive request routing).
+- ``500 INTERNAL SERVER ERROR`` -- The server encountered an unexpected condition that prevented it from
+  fulfilling the request.
 
 Typically, you will want to ensure that any given response results in a 200 status code.
 This indicates that the server successfully completed the call.
 
-If a 400 status code is returned, double-check the request data being sent to the server.
+If a 400 status code is returned, double-check the request data being sent to the server. The text provided in the
+error response should describe the nature of the problem.
 
 If a 500 status code, note the reason provided. If the error is ambiguous or unexpected, we'd like to
-know about it! See our :ref:`Contribution Guide <contribution-guide>` for issue reporting and getting involved.
-Please include contextual information about the sequence of steps that caused the 500 error in the GitHub issue, or
-message us in our `Discord <https://discord.gg/7rmXa3S>`_.
+know about it! The text provided in the error response should describe the nature of the problem.
+
+For any bugs/un expected errors, see our :ref:`Contribution Guide <contribution-guide>` for issue reporting and
+getting involved. Please include contextual information about the sequence of steps that caused the 500 error in the
+GitHub issue. For any questions, message us in our `Discord <https://discord.gg/7rmXa3S>`_.
 
 
 GET /get_ursulas
 ^^^^^^^^^^^^^^^^
-Sample available Ursulas for a policy as part of Alice's grant workflow. Returns a list of Ursulas
+Sample available Ursulas for a policy as part of Alice's ``grant`` workflow. Returns a list of Ursulas
 and their associated information that is used for the policy.
 
 Parameters
@@ -131,8 +269,8 @@ Example Response
 
 POST /publish_treasure_map
 ^^^^^^^^^^^^^^^^^^^^^^^^^^
-Publish a treasure map to the network as part of Alice's grant workflow. The treasure map associated with the policy
-is stored by the network.
+Publish a treasure map to the network as part of Alice's ``grant`` workflow. The treasure map associated
+with the policy is stored by the network.
 
 Parameters
 ++++++++++
@@ -174,7 +312,7 @@ Example Response
 
 GET /get_treasure_map
 ^^^^^^^^^^^^^^^^^^^^^
-Retrieve a treasure map from the network as part of Bob's retrieve workflow. Bob needs to obtain the treasure map
+Retrieve a treasure map from the network as part of Bob's ``retrieve`` workflow. Bob needs to obtain the treasure map
 associated with a policy, to learn which Ursulas were assigned to service the policy.
 
 Parameters
@@ -182,7 +320,7 @@ Parameters
 +----------------------------------+---------------+----------------------------------------+
 | **Parameter**                    | **Type**      | **Description**                        |
 +==================================+===============+========================================+
-| ``treasure_map_id``              | String        | Treasure map identifer.                |
+| ``treasure_map_id``              | String        | Treasure map identifier.               |
 +----------------------------------+---------------+----------------------------------------+
 | ``bob_encrypting_key``           | String        | Bob's encrypting key encoded as hex.   |
 +----------------------------------+---------------+----------------------------------------+
