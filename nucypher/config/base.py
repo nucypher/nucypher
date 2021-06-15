@@ -317,6 +317,7 @@ class CharacterConfiguration(BaseConfiguration):
 
     CHARACTER_CLASS = NotImplemented
     DEFAULT_CONTROLLER_PORT = NotImplemented
+    MNEMONIC_KEYSTORE = False
     DEFAULT_DOMAIN = NetworksInventory.DEFAULT
     DEFAULT_NETWORK_MIDDLEWARE = RestMiddleware
     TEMP_CONFIGURATION_DIR_PREFIX = 'tmp-nucypher'
@@ -757,7 +758,7 @@ class CharacterConfiguration(BaseConfiguration):
                 power_ups.append(power_up)
         return power_ups
 
-    def initialize(self, password: str, force: bool = False) -> str:
+    def initialize(self, password: str) -> str:
         """Initialize a new configuration and write installation files to disk."""
 
         # Development
@@ -768,7 +769,7 @@ class CharacterConfiguration(BaseConfiguration):
         # Persistent
         else:
             self._ensure_config_root_exists()
-            self.write_keystore(password=password, force=force)
+            self.write_keystore(password=password, interactive=self.MNEMONIC_KEYSTORE)
 
         self._cache_runtime_filepaths()
         self.node_storage.initialize()
@@ -782,8 +783,8 @@ class CharacterConfiguration(BaseConfiguration):
         self.log.debug(message)
         return self.config_root
 
-    def write_keystore(self, password: str, force: bool = False) -> Keystore:
-        self.__keystore = Keystore.generate(password=password, keystore_dir=self.keystore_dir, force=force)
+    def write_keystore(self, password: str, interactive: bool = True) -> Keystore:
+        self.__keystore = Keystore.generate(password=password, keystore_dir=self.keystore_dir, interactive=interactive)
         return self.keystore
 
     @classmethod

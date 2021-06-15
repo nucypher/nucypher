@@ -49,6 +49,7 @@ class UrsulaConfiguration(CharacterConfiguration):
     DEFAULT_AVAILABILITY_CHECKS = False
     LOCAL_SIGNERS_ALLOWED = True
     SIGNER_ENVVAR = NUCYPHER_ENVVAR_WORKER_ETH_PASSWORD
+    MNEMONIC_KEYSTORE = True
 
     def __init__(self,
                  rest_host: str = None,
