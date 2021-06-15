@@ -207,7 +207,7 @@ class BobConfiguration(CharacterConfiguration):
     CHARACTER_CLASS = Bob
     NAME = CHARACTER_CLASS.__name__.lower()
     DEFAULT_CONTROLLER_PORT = 7151
-    DEFFAULT_STORE_POLICIES = True
+    DEFAULT_STORE_POLICIES = True
     DEFAULT_STORE_CARDS = True
     SIGNER_ENVVAR = NUCYPHER_ENVVAR_BOB_ETH_PASSWORD
 
@@ -218,7 +218,7 @@ class BobConfiguration(CharacterConfiguration):
     )
 
     def __init__(self,
-                 store_policies: bool = DEFFAULT_STORE_POLICIES,
+                 store_policies: bool = DEFAULT_STORE_POLICIES,
                  store_cards: bool = DEFAULT_STORE_CARDS,
                  *args, **kwargs):
         super().__init__(*args, **kwargs)

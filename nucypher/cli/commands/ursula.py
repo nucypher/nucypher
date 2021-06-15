@@ -202,7 +202,7 @@ class UrsulaConfigOptions:
                        db_filepath=self.db_filepath,
                        domain=self.domain,
                        federated_only=self.federated_only,
-                       checksum_address=self.worker_address,
+                       worker_address=self.worker_address,
                        registry_filepath=self.registry_filepath,
                        provider_uri=self.provider_uri,
                        signer_uri=self.signer_uri,
