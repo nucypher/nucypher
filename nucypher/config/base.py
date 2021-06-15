@@ -19,7 +19,6 @@
 import json
 import os
 import re
-import tempfile
 from abc import ABC, abstractmethod
 from decimal import Decimal
 from pathlib import Path
@@ -31,7 +30,6 @@ from constant_sorrow.constants import (
     UNINITIALIZED_CONFIGURATION,
     NO_KEYSTORE_ATTACHED,
     NO_BLOCKCHAIN_CONNECTION,
-    FEDERATED_ADDRESS,
     DEVELOPMENT_CONFIGURATION,
     LIVE_CONFIGURATION
 )
@@ -57,6 +55,7 @@ from nucypher.crypto.powers import CryptoPower, CryptoPowerUp
 from nucypher.crypto.umbral_adapter import Signature
 from nucypher.network.middleware import RestMiddleware
 from nucypher.utilities.logging import Logger
+from umbral.signing import Signature
 
 
 class BaseConfiguration(ABC):
@@ -758,7 +757,7 @@ class CharacterConfiguration(BaseConfiguration):
                 power_ups.append(power_up)
         return power_ups
 
-    def initialize(self, password: str) -> str:
+    def initialize(self, password: str, force: bool = False) -> str:
         """Initialize a new configuration and write installation files to disk."""
 
         # Development
@@ -769,7 +768,7 @@ class CharacterConfiguration(BaseConfiguration):
         # Persistent
         else:
             self._ensure_config_root_exists()
-            self.write_keystore(password=password)
+            self.write_keystore(password=password, force=force)
 
         self._cache_runtime_filepaths()
         self.node_storage.initialize()
@@ -783,8 +782,8 @@ class CharacterConfiguration(BaseConfiguration):
         self.log.debug(message)
         return self.config_root
 
-    def write_keystore(self, password: str) -> Keystore:
-        self.__keystore = Keystore.generate(password=password, keystore_dir=self.keystore_dir)
+    def write_keystore(self, password: str, force: bool = False) -> Keystore:
+        self.__keystore = Keystore.generate(password=password, keystore_dir=self.keystore_dir, force=force)
         return self.keystore
 
     @classmethod

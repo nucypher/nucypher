@@ -20,13 +20,13 @@ import json
 import os
 import stat
 import string
-import tempfile
 from json import JSONDecodeError
 from os.path import abspath
 from pathlib import Path
 from secrets import token_bytes
 from typing import Callable, ClassVar, Dict, List, Union, Optional, Tuple
 
+import click
 import time
 from constant_sorrow.constants import KEYSTORE_LOCKED
 from cryptography.hazmat.backends import default_backend
@@ -36,6 +36,7 @@ from mnemonic.mnemonic import Mnemonic
 from nacl.exceptions import CryptoError
 from nacl.secret import SecretBox
 
+from nucypher.characters.control.emitters import StdoutEmitter
 from nucypher.config.constants import DEFAULT_CONFIG_ROOT
 from nucypher.crypto.constants import BLAKE2B
 from nucypher.crypto.keypairs import HostingKeypair
@@ -340,6 +341,7 @@ class Keystore:
 
     @classmethod
     def restore(cls, words: str, password: str, keystore_dir: Optional[Path] = None) -> 'Keystore':
+        """Restore a keystore from seed words"""
         __mnemonic = Mnemonic(_MNEMONIC_LANGUAGE)
         __secret = __mnemonic.to_entropy(words)
         path = Keystore.__save(secret=__secret, password=password, keystore_dir=keystore_dir)
@@ -347,13 +349,39 @@ class Keystore:
         return keystore
 
     @classmethod
-    def generate(cls, password: str, keystore_dir: Optional[Path] = None) -> 'Keystore':
+    def generate(cls, password: str, keystore_dir: Optional[Path] = None, force: bool = False) -> 'Keystore':
+        """Generate a new nucypher keystore for use with characters"""
         mnemonic = Mnemonic(_MNEMONIC_LANGUAGE)
         __words = mnemonic.generate(strength=_ENTROPY_BITS)
+        cls._confirm_generate(__words, force=force)
         __secret = mnemonic.to_entropy(__words)
         path = Keystore.__save(secret=__secret, password=password, keystore_dir=keystore_dir)
         keystore = cls(keystore_path=path)
         return keystore
+
+    @staticmethod
+    def _confirm_generate(__words: str, force: bool) -> None:
+        """
+        Inform the caller of new keystore seed words generation the console
+        and optionally perform interactive confirmation
+        """
+
+        # notification
+        emitter = StdoutEmitter()
+        emitter.message(f'Backup your seed words, you will not be able to view them again.\n')
+        emitter.message(f'{__words}\n', color='cyan')
+
+        # confirmation
+        if not force:
+            if not click.confirm("Have you backed up your seed phrase?"):
+                emitter.message('Keystore generation aborted.', color='red')
+                raise click.Abort()
+            click.clear()
+
+            __response = click.prompt("Confirm seed words")
+            if __response != __words:
+                raise ValueError('Incorrect seed word confirmation. No keystore has been created, try again.')
+        click.clear()
 
     @property
     def id(self) -> str:
