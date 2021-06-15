@@ -103,3 +103,17 @@ def unlock_nucypher_keystore(emitter: StdoutEmitter, password: str, character_co
         raise Keystore.AuthenticationFailed
     else:
         return True
+
+
+def recover_keystore(emitter) -> None:
+    emitter.message('This procedure will recover your nucypher keystore from mnemonic seed words. '
+                    'You will need to provide the entire mnemonic (space seperated) in the correct '
+                    'order and choose a new password.', color='cyan')
+    click.confirm('Do you want to continue', abort=True)
+    __words = click.prompt("Enter nucypher keystore seed words")
+    word_count = len(__words.split())
+    if word_count != 24:
+        emitter.message(f'Invalid mnemonic - Number of words must be 24, but only got {word_count}')
+    __password = get_nucypher_password(emitter=emitter, confirm=True)
+    keystore = Keystore.restore(words=__words, password=__password)
+    emitter.message(f'Recovered nucypher keystore {keystore.id} to \n {keystore.keystore_path}', color='green')

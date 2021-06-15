@@ -19,7 +19,7 @@
 import click
 
 from nucypher.blockchain.eth.signers.software import ClefSigner
-from nucypher.cli.actions.auth import get_client_password, get_nucypher_password
+from nucypher.cli.actions.auth import get_client_password, get_nucypher_password, recover_keystore
 from nucypher.cli.actions.configure import (
     destroy_configuration,
     handle_missing_configuration_file,
@@ -308,6 +308,16 @@ def init(general_config, config_options, force, config_root):
     ursula_config = config_options.generate_config(emitter, config_root, force)
     filepath = ursula_config.to_configuration_file()
     paint_new_installation_help(emitter, new_configuration=ursula_config, filepath=filepath)
+
+
+@ursula.command()
+@group_config_options
+@group_general_config
+def recover(general_config, config_options):
+    # TODO: Combine with work in PR #2682
+    # TODO: Integrate regeneration of configuration files
+    emitter = setup_emitter(general_config, config_options.worker_address)
+    recover_keystore(emitter=emitter)
 
 
 @ursula.command()

@@ -349,38 +349,37 @@ class Keystore:
         return keystore
 
     @classmethod
-    def generate(cls, password: str, keystore_dir: Optional[Path] = None, force: bool = False) -> 'Keystore':
+    def generate(cls, password: str, keystore_dir: Optional[Path] = None, interactive: bool = True) -> 'Keystore':
         """Generate a new nucypher keystore for use with characters"""
         mnemonic = Mnemonic(_MNEMONIC_LANGUAGE)
         __words = mnemonic.generate(strength=_ENTROPY_BITS)
-        cls._confirm_generate(__words, force=force)
+        if interactive:
+            cls._confirm_generate(__words)
         __secret = mnemonic.to_entropy(__words)
         path = Keystore.__save(secret=__secret, password=password, keystore_dir=keystore_dir)
         keystore = cls(keystore_path=path)
         return keystore
 
     @staticmethod
-    def _confirm_generate(__words: str, force: bool) -> None:
+    def _confirm_generate(__words: str) -> None:
         """
         Inform the caller of new keystore seed words generation the console
-        and optionally perform interactive confirmation
+        and optionally perform interactive confirmation.
         """
 
         # notification
         emitter = StdoutEmitter()
         emitter.message(f'Backup your seed words, you will not be able to view them again.\n')
         emitter.message(f'{__words}\n', color='cyan')
+        if not click.confirm("Have you backed up your seed phrase?"):
+            emitter.message('Keystore generation aborted.', color='red')
+            raise click.Abort()
+        click.clear()
 
         # confirmation
-        if not force:
-            if not click.confirm("Have you backed up your seed phrase?"):
-                emitter.message('Keystore generation aborted.', color='red')
-                raise click.Abort()
-            click.clear()
-
-            __response = click.prompt("Confirm seed words")
-            if __response != __words:
-                raise ValueError('Incorrect seed word confirmation. No keystore has been created, try again.')
+        __response = click.prompt("Confirm seed words")
+        if __response != __words:
+            raise ValueError('Incorrect seed word confirmation. No keystore has been created, try again.')
         click.clear()
 
     @property
