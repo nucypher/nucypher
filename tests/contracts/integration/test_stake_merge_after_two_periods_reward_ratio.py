@@ -14,7 +14,6 @@ GNU Affero General Public License for more details.
 You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
-from collections import Callable
 
 from nucypher.blockchain.eth.agents import StakingEscrowAgent, NucypherTokenAgent, PolicyManagerAgent, ContractAgency
 from nucypher.blockchain.eth.signers.software import Web3Signer
@@ -22,17 +21,16 @@ from nucypher.blockchain.eth.token import NU
 from nucypher.crypto.powers import TransactingPower
 
 # Experimental max error
-from tests.contracts.integration.utils import commit_to_next_period, prepare_staker, MAX_NUNIT_ERROR
+from tests.contracts.integration.utils import prepare_staker, commit_to_next_period, MAX_NUNIT_ERROR
 
 
-def check_rewards_ratios_after_increase(testerchain,
-                                        agency,
-                                        token_economics,
-                                        test_registry,
-                                        increase_callable: Callable,
-                                        skip_problematic_assertions_after_increase=False):      # set to True to allow values to be printed and failing assertions skipped
+def test_stake_add_sub_stake_then_merge_after_two_period_commitments(testerchain,
+                                                                     agency,
+                                                                     token_economics,
+                                                                     test_registry,
+                                                                     skip_problematic_assertions_after_increase=False):  # set to True to allow values to be printed and failing assertions skipped
     num_test_periods = 20
-    min_periods_before_increase = 10
+    min_periods_before_merge = 10
 
     testerchain.time_travel(hours=1)
     staking_agent = ContractAgency.get_agent(StakingEscrowAgent, registry=test_registry)
@@ -44,7 +42,7 @@ def check_rewards_ratios_after_increase(testerchain,
     ursula2 = testerchain.ursula_account(1)  # staker that will also stake minimum
     ursula3 = testerchain.ursula_account(2)  # staker that will stake 2x minimum
     ursula3_staking_ratio = 2  # 2x min stake
-    ursula4 = testerchain.ursula_account(3)  # staker that will stake minimum but then increase stake to 2x minimum
+    ursula4 = testerchain.ursula_account(3)  # staker that will stake minimum but then add new stake and merge to 2x minimum
 
     origin_tpower = TransactingPower(signer=Web3Signer(client=testerchain.client), account=origin)
     ursula1_tpower = TransactingPower(signer=Web3Signer(client=testerchain.client), account=ursula1)
@@ -77,7 +75,8 @@ def check_rewards_ratios_after_increase(testerchain,
     ursula3_prior_period_cumulative_rewards = None
     ursula4_prior_period_cumulative_rewards = None
 
-    ursula4_period_of_increase = -1
+    ursula4_period_of_additional_substake = -1
+    ursula4_period_of_merge = -1
 
     ursula1_total_rewards_at_increase = None
     ursula2_total_rewards_at_increase = None
@@ -93,7 +92,7 @@ def check_rewards_ratios_after_increase(testerchain,
         ursula3_rewards = staking_agent.calculate_staking_reward(staker_address=ursula3)
         ursula4_rewards = staking_agent.calculate_staking_reward(staker_address=ursula4)
 
-        if ursula4_period_of_increase == -1:
+        if ursula4_period_of_additional_substake == -1:
             # still in phase before ursula4 increases their stake
 
             # compare cumulative rewards
@@ -102,7 +101,7 @@ def check_rewards_ratios_after_increase(testerchain,
             assert abs(ursula3_rewards - ursula1_rewards - ursula2_rewards) < MAX_NUNIT_ERROR, \
                 f"rewards minted during {i} for {i-1}"  # 2x
         else:
-            # increase of stake performed by ursula4
+            # sub-stake added by ursula4
 
             # per period reward check
             ursula1_reward_for_period = (NU.from_nunits(ursula1_rewards)
@@ -119,7 +118,7 @@ def check_rewards_ratios_after_increase(testerchain,
             print(f">>> ursula3 reward calculated during period {i} for {i - 1}: {ursula3_reward_for_period}")
             print(f">>> ursula4 reward calculated during period {i} for {i - 1}: {ursula4_reward_for_period}")
 
-            if i == (ursula4_period_of_increase + 1):
+            if i == (ursula4_period_of_additional_substake + 1):
                 # this is the first period after increase
                 assert skip_problematic_assertions_after_increase \
                        or (ursula1_reward_for_period == ursula2_reward_for_period)  # staking the same
@@ -143,14 +142,15 @@ def check_rewards_ratios_after_increase(testerchain,
                 # ursula 1 and ursula 2 sill receive same rewards after increase
                 assert (ursula2_reward_for_period == ursula1_reward_for_period), f"rewards minted during {i} for {i-1}"
 
-                # ursula3 and ursula4 now staking the same amount after increase so receive same rewards
-                assert (ursula3_reward_for_period == ursula4_reward_for_period), f"rewards minted during {i} for {i-1}"
+                # ursula3 and ursula4 now staking the same amount after additional sub-stake so receive same rewards
+                assert abs(ursula3_reward_for_period.to_tokens()
+                           - ursula4_reward_for_period.to_tokens()) < MAX_NUNIT_ERROR, f"rewards minted during {i} for {i-1}"
 
                 # ursula4, ursula3 now staking 2x ursula1, ursula2
                 assert abs(ursula4_reward_for_period.to_tokens()
                            - ursula1_reward_for_period.to_tokens()
                            - ursula2_reward_for_period.to_tokens()) < MAX_NUNIT_ERROR, \
-                    f"per period reward during period {i} for period {i-1}; increase performed in {ursula4_period_of_increase}"
+                    f"per period reward during period {i} for period {i-1}; increase performed in {ursula4_period_of_additional_substake}"
 
                 # now we check total rewards since increase performed by ursula2
                 ursula1_total_rewards_since_increase = (NU.from_nunits(ursula1_rewards)
@@ -175,7 +175,8 @@ def check_rewards_ratios_after_increase(testerchain,
                 assert ursula1_total_rewards_since_increase == ursula2_total_rewards_since_increase
 
                 # ursula3 should receive same as ursula4 since increase since staking same amount since increase
-                assert ursula4_total_rewards_since_increase == ursula3_total_rewards_since_increase
+                assert abs(ursula4_total_rewards_since_increase.to_tokens()
+                           - ursula3_total_rewards_since_increase.to_tokens()) < MAX_NUNIT_ERROR
 
                 # ursula4 should receive 2x ursula1 and ursula2 rewards
                 assert abs(ursula4_total_rewards_since_increase.to_tokens()
@@ -188,15 +189,33 @@ def check_rewards_ratios_after_increase(testerchain,
         ursula3_prior_period_cumulative_rewards = NU.from_nunits(ursula3_rewards)
         ursula4_prior_period_cumulative_rewards = NU.from_nunits(ursula4_rewards)
 
-        # Perform ursula4 increase of stake at a random period (switch//10) in phase 1
-        if (i >= min_periods_before_increase) \
+        # Add ursula4 sub-stake at a random period (switch//10) in phase 1
+        if (i >= min_periods_before_merge) \
                 and ursula4_rewards >= token_economics.minimum_allowed_locked \
-                and ursula4_period_of_increase == -1:
+                and ursula4_period_of_additional_substake == -1:
             # minimum periods elapsed before attempting increase
             # AND enough rewards received to stake min stake amount
-            # AND not already previously increased
+            # AND sub-stake not already previously created
 
-            increase_callable(i, staking_agent, token_economics, ursula4_tpower)
-            ursula4_period_of_increase = i
+            # add new sub-stake but don't merge as yet
+            lock_periods = 100 * token_economics.maximum_rewarded_periods  # winddown is off
+            staking_agent.lock_and_create(transacting_power=ursula4_tpower,
+                                          amount=token_economics.minimum_allowed_locked,
+                                          lock_periods=lock_periods)
+            print(f">>> Added new sub-stake to ursula4 in period {i}")
+            ursula4_period_of_additional_substake = i
+            ursula4_prior_period_cumulative_rewards -= NU.from_nunits(token_economics.minimum_allowed_locked)  # adjust for amount taken out of unlocked rewards
+        elif ursula4_period_of_additional_substake != -1 and i == (ursula4_period_of_additional_substake + 2):  # wait 2 periods before merging
+            # merge ursula4 sub-stakes
+            substake_0 = staking_agent.get_substake_info(staker_address=ursula4_tpower.account, stake_index=0)
+            substake_1 = staking_agent.get_substake_info(staker_address=ursula4_tpower.account, stake_index=1)
+            assert substake_0.last_period == substake_1.last_period
+            _ = staking_agent.merge_stakes(transacting_power=ursula4_tpower,
+                                           stake_index_1=0,
+                                           stake_index_2=1)
 
-    assert ursula4_period_of_increase != -1, "increase of stake actually occurred"
+            print(f">>> Merged sub-stake (0, 1) for ursula4 in period {i}")
+            ursula4_period_of_merge = i
+
+    assert ursula4_period_of_additional_substake != -1, "addition of sub-stake actually occurred"
+    assert ursula4_period_of_merge != -1 and ursula4_period_of_merge == (ursula4_period_of_additional_substake + 2), "merge of sub-stake actually occurred"

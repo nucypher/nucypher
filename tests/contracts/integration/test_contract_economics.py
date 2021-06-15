@@ -21,6 +21,8 @@ from nucypher.blockchain.eth.signers.software import Web3Signer
 from nucypher.crypto.powers import TransactingPower
 
 # Experimental max error
+from tests.contracts.integration.utils import prepare_staker, commit_to_next_period
+
 MAX_ERROR_FIRST_PHASE = 1e-20
 MAX_ERROR_SECOND_PHASE = 5e-3
 MAX_PERIODS_SECOND_PHASE = 100
@@ -40,15 +42,14 @@ def test_reward(testerchain, agency, token_economics, test_registry):
     ursula2_tpower = TransactingPower(signer=Web3Signer(client=testerchain.client), account=ursula2)
 
     # Prepare one staker
-    _prepare_staker(origin_tpower, staking_agent, token_agent, token_economics, ursula1, ursula1_tpower, token_economics.minimum_allowed_locked)
-    _prepare_staker(origin_tpower, staking_agent, token_agent, token_economics, ursula2, ursula2_tpower,
+    prepare_staker(origin_tpower, staking_agent, token_agent, token_economics, ursula1, ursula1_tpower, token_economics.minimum_allowed_locked)
+    prepare_staker(origin_tpower, staking_agent, token_agent, token_economics, ursula2, ursula2_tpower,
                     token_economics.minimum_allowed_locked * 3)  # 3x min
 
-    _txhash = staking_agent.commit_to_next_period(transacting_power=ursula1_tpower)
-    _txhash = staking_agent.commit_to_next_period(transacting_power=ursula2_tpower)
+    ursulas_tpowers = [ursula1_tpower, ursula2_tpower]
+    commit_to_next_period(staking_agent, ursulas_tpowers)
     testerchain.time_travel(periods=1)
-    _txhash = staking_agent.commit_to_next_period(transacting_power=ursula1_tpower)
-    _txhash = staking_agent.commit_to_next_period(transacting_power=ursula2_tpower)
+    commit_to_next_period(staking_agent, ursulas_tpowers)
 
     assert staking_agent.calculate_staking_reward(staker_address=ursula1) == 0
     assert staking_agent.calculate_staking_reward(staker_address=ursula2) == 0
@@ -57,8 +58,7 @@ def test_reward(testerchain, agency, token_economics, test_registry):
     switch = token_economics.first_phase_final_period()
     for i in range(1, switch + MAX_PERIODS_SECOND_PHASE):
         testerchain.time_travel(periods=1)
-        _txhash = staking_agent.commit_to_next_period(transacting_power=ursula1_tpower)
-        _txhash = staking_agent.commit_to_next_period(transacting_power=ursula2_tpower)
+        commit_to_next_period(staking_agent, ursulas_tpowers)
 
         ursula1_rewards = staking_agent.calculate_staking_reward(staker_address=ursula1)
         ursula2_rewards = staking_agent.calculate_staking_reward(staker_address=ursula2)
@@ -68,19 +68,3 @@ def test_reward(testerchain, agency, token_economics, test_registry):
             assert error < MAX_ERROR_FIRST_PHASE
         else:
             assert error < MAX_ERROR_SECOND_PHASE
-
-
-def _prepare_staker(origin_tpower, staking_agent, token_agent, token_economics, ursula, ursula_tpower, amount):
-    # Prepare one staker
-    _txhash = token_agent.transfer(amount=amount,
-                                   target_address=ursula,
-                                   transacting_power=origin_tpower)
-    _txhash = token_agent.approve_transfer(amount=amount,
-                                           spender_address=staking_agent.contract_address,
-                                           transacting_power=ursula_tpower)
-    _txhash = staking_agent.deposit_tokens(amount=amount,
-                                           lock_periods=100 * token_economics.maximum_rewarded_periods,
-                                           transacting_power=ursula_tpower,
-                                           staker_address=ursula)
-    _txhash = staking_agent.bond_worker(transacting_power=ursula_tpower, worker_address=ursula)
-    _txhash = staking_agent.set_restaking(transacting_power=ursula_tpower, value=False)
