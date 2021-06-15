@@ -1820,23 +1820,24 @@ class Ursula(Teacher, Character, Worker):
         try:
             self.verify_from(alice, reconstructed_writ, signature=writ_signature)
         except InvalidSignature:
-            raise Policy.Unauthorized  # This isn't from Alice (relayer).
+            raise Policy.Unauthorized("This writ isn't signed by Alice; the Policy has probably not been paid for.")
 
         if writ_hrac != work_order.hrac:  # Funky Workorder
-            raise Policy.Unauthorized  # Bob, what the *hell* are you doing?
+            raise Policy.Unauthorized("HRAC mismatch: the writ provided by Alice is not for this Policy.")  # Bob, what the *hell* are you doing?
 
         kfrag_checksum = keccak_digest(bytes(kfrag))[:WRIT_CHECKSUM_SIZE]
         if kfrag_checksum != writ_kfrag_checksum:
-            raise Policy.Unauthorized  # Bob, Seriously?
+            raise Policy.Unauthorized("Although Alice's writ appears to be for this Policy, the KFrag is the wrong one.")  # Bob, Seriously?
 
         try:
             verified_kfrag = kfrag.verify(verifying_pk=alice.stamp.as_umbral_pubkey())
         except VerificationError:
-            raise Policy.Unauthorized  # WTF, Alice did not generate these KFrags.
+            # WTF, Alice did not generate these KFrags.
+            raise Policy.Unauthorized("Although Alice properly signed the writ - which includes the KFrag - she didn't properly sign the KFrag.")
 
         if writ_hrac in self.revoked_policies:
             # Note: This is only an off-chain and in-memory check.
-            raise Policy.Unauthorized  # Denied
+            raise Policy.Unauthorized("This Policy has been revoked (this has been an off-chain check).")  # Denied
 
         return verified_kfrag
 
