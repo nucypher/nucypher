@@ -21,75 +21,100 @@ web and mobile experience is accessible to application developers.
 Running Porter
 --------------
 
-Install ``nucypher`` - see :doc:`/references/pip-installation`.
-
 .. note::
 
     By default the Porter service will run on port 9155, unless specified otherwise.
 
+To run the Porter service over HTTPS, it will require a TLS key and a certificate. If desired, self-signed certificates
+can be created for the localhost using the ``openssl`` command:
 
-via CLI
-^^^^^^^
+.. code:: bash
 
-For a full list of CLI options, run:
+    $ openssl req -x509 -out cert.pem -keyout key.pem \
+      -newkey rsa:2048 -nodes -sha256 \
+      -subj '/CN=localhost' -extensions EXT -config <( \
+        printf "[dn]\nCN=localhost\n[req]\ndistinguished_name = dn\n[EXT]\nsubjectAltName=DNS:localhost\nkeyUsage=digitalSignature\nextendedKeyUsage=serverAuth")
 
-  .. code:: console
+via Docker
+^^^^^^^^^^
 
-      $ nucypher porter run --help
+Run Porter within Docker without acquiring or installing the ``nucypher`` codebase.
 
+#. Get the latest ``nucypher`` image:
 
-* Run via HTTP
+   .. code:: bash
 
-  .. code:: console
+       docker pull nucypher/nucypher:latest
 
-      $ nucypher porter run --provider <YOUR WEB3 PROVIDER URI> --network mainnet
+#. Run Porter service
 
+   For HTTP service (on default port 80):
 
-       ______
-      (_____ \           _
-       _____) )__   ____| |_  ____  ____
-      |  ____/ _ \ / ___)  _)/ _  )/ ___)
-      | |   | |_| | |   | |_( (/ /| |
-      |_|    \___/|_|    \___)____)_|
+   .. code:: bash
 
-      the Pipe for nucypher network operations
+       $ docker run -d --rm \
+          --name porter-http \
+          -v ~/.local/share/nucypher/:/root/.local/share/nucypher \
+          -p 80:9155 \
+          nucypher/nucypher:latest \
+          nucypher porter run \
+          --provider <YOUR WEB3 PROVIDER URI> \
+          --network <NETWORK NAME>
 
-      Reading Latest Chaindata...
-      Network: Mainnet
-      Provider: ...
-      Running Porter Web Controller at http://127.0.0.1:9155
+   For HTTPS service (on default port 443):
 
+   .. code:: bash
 
-* Run via HTTPS
+       $ docker run -d --rm \
+          --name porter-https \
+          -v ~/.local/share/nucypher/:/root/.local/share/nucypher \
+          -v <TLS DIRECTORY>:/etc/porter-tls
+          -p 443:9155 \
+          nucypher/nucypher:latest \
+          nucypher porter run \
+          --provider <YOUR WEB3 PROVIDER URI> \
+          --network <NETWORK NAME> \
+          --tls-key-filepath /etc/porter-tls/<KEY FILENAME> \
+          --tls-certificate-filepath /etc/porter-tls/<CERT FILENAME>
 
-  To run via HTTPS use the ``--tls-key-filepath`` and ``--certificate-filepath`` options:
+   The ``<TLS DIRECTORY>`` is expected to contain the TLS key file (``<KEY FILENAME>``) and the certificate (``<CERT FILENAME>``) to run Porter over HTTPS.
 
-  .. code:: console
+#. Porter will be available on default ports 80 (HTTP) or 443 (HTTPS).
 
-      $ nucypher porter run --provider <YOUR WEB3 PROVIDER URI> --network mainnet --tls-key-filepath <TLS KEY FILEPATH> --certificate-filepath <CERT FILEPATH>
+#. View Porter logs
 
+   .. code:: bash
 
-       ______
-      (_____ \           _
-       _____) )__   ____| |_  ____  ____
-      |  ____/ _ \ / ___)  _)/ _  )/ ___)
-      | |   | |_| | |   | |_( (/ /| |
-      |_|    \___/|_|    \___)____)_|
+       $ docker logs -f porter-http
 
-      the Pipe for nucypher network operations
+   or
 
-      Reading Latest Chaindata...
-      Network: Mainnet
-      Provider: ...
-      Running Porter Web Controller at https://127.0.0.1:9155
+   .. code:: bash
 
+       $ docker logs -f porter-https
+
+#. Stop Porter service
+
+   .. code:: bash
+
+       $ docker stop porter-http
+
+   or
+
+   .. code:: bash
+
+       $ docker stop porter-https
 
 
 via Docker Compose
 ^^^^^^^^^^^^^^^^^^
-Docker Compose will start the Porter service within a docker container.
 
-1. Set the required environment variables:
+Docker Compose will start the Porter service within a Docker container.
+
+#. Acquire the ``nucypher`` codebase - see :ref:`acquire_codebase`. Note that there is no need
+   to install ``nucypher`` after acquiring the codebase.
+
+#. Set the required environment variables:
 
    * Web3 Provider URI environment variable
 
@@ -108,20 +133,10 @@ Docker Compose will start the Porter service within a docker container.
 
          $ export NUCYPHER_NETWORK=<NETWORK NAME>
 
-   * (Optional) TLS directory variable containing the TLS key and the certificate to run Porter over https. The directory is expected to contain two files:
+   * (Optional) TLS directory variable containing the TLS key and the certificate to run Porter over HTTPS. The directory is expected to contain two files:
 
         * ``key.pem`` - the TLS key
         * ``cert.pem`` - the TLS certificate
-
-     .. note::
-
-         You can create self-signed certificates for the localhost using openssl command:
-             .. code:: bash
-
-                 $ openssl req -x509 -out cert.pem -keyout key.pem \
-                     -newkey rsa:2048 -nodes -sha256 \
-                     -subj '/CN=localhost' -extensions EXT -config <( \
-                       printf "[dn]\nCN=localhost\n[req]\ndistinguished_name = dn\n[EXT]\nsubjectAltName=DNS:localhost\nkeyUsage=digitalSignature\nextendedKeyUsage=serverAuth")
 
      Set the TLS directory environment variable
 
@@ -129,30 +144,91 @@ Docker Compose will start the Porter service within a docker container.
 
          export TLS_DIR=<ABSOLUTE PATH TO TLS DIRECTORY>
 
+#. Run Porter service
 
-2. Run Docker Compose
-
-   For HTTP service:
+   For HTTP service (on default port 80):
 
    .. code:: bash
 
        $ docker-compose -f deploy/docker/porter/docker-compose.yml up -d porter-http
 
-   For HTTPS service:
+   For HTTPS service (on default port 443):
 
    .. code:: bash
 
        $ docker-compose -f deploy/docker/porter/docker-compose.yml up -d porter-https
 
+#. Porter will be available on default ports 80 (HTTP) or 443 (HTTPS).
 
-3. View Docker compose logs
+#. View Porter logs
 
    .. code:: bash
 
        $ docker-compose -f deploy/docker/porter/docker-compose.yml logs -f <SERVICE_NAME>
 
+#. Stop Porter service
 
-4. Porter will be available on default ports 80 (HTTP) or 443 (HTTPS).
+   .. code:: bash
+
+       $ docker-compose -f deploy/docker/porter/docker-compose.yml down
+
+
+via CLI
+^^^^^^^
+
+Install ``nucypher`` - see :doc:`/references/pip-installation`.
+
+For a full list of CLI options, run:
+
+  .. code:: console
+
+      $ nucypher porter run --help
+
+
+* Run Porter service
+  * Run via HTTP
+
+  .. code:: console
+
+      $ nucypher porter run --provider <YOUR WEB3 PROVIDER URI> --network <NETWORK NAME>
+
+
+       ______
+      (_____ \           _
+       _____) )__   ____| |_  ____  ____
+      |  ____/ _ \ / ___)  _)/ _  )/ ___)
+      | |   | |_| | |   | |_( (/ /| |
+      |_|    \___/|_|    \___)____)_|
+
+      the Pipe for nucypher network operations
+
+      Reading Latest Chaindata...
+      Network: <NETWORK NAME>
+      Provider: ...
+      Running Porter Web Controller at http://127.0.0.1:9155
+
+  * Run via HTTPS
+
+  To run via HTTPS use the ``--tls-key-filepath`` and ``--tls-certificate-filepath`` options:
+
+  .. code:: console
+
+      $ nucypher porter run --provider <YOUR WEB3 PROVIDER URI> --network <NETWORK NAME> --tls-key-filepath <TLS KEY FILEPATH> --tls-certificate-filepath <CERT FILEPATH>
+
+
+       ______
+      (_____ \           _
+       _____) )__   ____| |_  ____  ____
+      |  ____/ _ \ / ___)  _)/ _  )/ ___)
+      | |   | |_| | |   | |_( (/ /| |
+      |_|    \___/|_|    \___)____)_|
+
+      the Pipe for nucypher network operations
+
+      Reading Latest Chaindata...
+      Network: <NETWORK NAME>
+      Provider: ...
+      Running Porter Web Controller at https://127.0.0.1:9155
 
 
 API
@@ -329,7 +405,7 @@ Returns
 +++++++
 The requested treasure map:
 
-    * ``treasure_map``: Treasure map bytes encoded as base64
+    * ``treasure_map`` - Treasure map bytes encoded as base64
 
 Example Request
 +++++++++++++++
