@@ -269,18 +269,17 @@ class WebController(InterfaceControlServer):
     def start(self,
               port: int,
               tls_key_filepath: str = None,
-              certificate_filepath: str = None,
+              tls_certificate_filepath: str = None,
               dry_run: bool = False):
-
-        self.log.info("Starting HTTP/HTTPS Control...")
         if dry_run:
             return
 
-        if tls_key_filepath and certificate_filepath:
+        if tls_key_filepath and tls_certificate_filepath:
+            self.log.info("Starting HTTPS Control...")
             # HTTPS endpoint
             hx_deployer = HendrixDeployTLS(action="start",
                                            key=tls_key_filepath,
-                                           cert=certificate_filepath,
+                                           cert=tls_certificate_filepath,
                                            options={
                                                "wsgi": self._transport,
                                                "https_port": port,
@@ -289,6 +288,7 @@ class WebController(InterfaceControlServer):
         else:
             # HTTP endpoint
             # TODO #845: Make non-blocking web control startup
+            self.log.info("Starting HTTP Control...")
             hx_deployer = HendrixDeploy(action="start",
                                         options={
                                             "wsgi": self._transport,

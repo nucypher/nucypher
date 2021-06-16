@@ -94,7 +94,7 @@ def exec_work_order(general_config, porter_uri, ursula, work_order):
 @option_registry_filepath
 @option_min_stake
 @click.option('--http-port', help="Porter HTTP/HTTPS port for JSON endpoint", type=NETWORK_PORT, default=Porter.DEFAULT_PORT)
-@click.option('--certificate-filepath', help="Pre-signed TLS certificate filepath", type=click.Path(dir_okay=False, exists=True, path_type=Path))
+@click.option('--tls-certificate-filepath', help="Pre-signed TLS certificate filepath", type=click.Path(dir_okay=False, exists=True, path_type=Path))
 @click.option('--tls-key-filepath', help="TLS private key filepath", type=click.Path(dir_okay=False, exists=True, path_type=Path))
 @click.option('--dry-run', '-x', help="Execute normally without actually starting Porter", is_flag=True)
 @click.option('--eager', help="Start learning and scraping the network before starting up other services", is_flag=True, default=True)
@@ -106,7 +106,7 @@ def run(general_config,
         registry_filepath,
         min_stake,
         http_port,
-        certificate_filepath,
+        tls_certificate_filepath,
         tls_key_filepath,
         dry_run,
         eager):
@@ -158,8 +158,8 @@ def run(general_config,
         return
 
     # HTTP/HTTPS
-    if bool(tls_key_filepath) ^ bool(certificate_filepath):
-        raise click.BadOptionUsage(option_name='--tls-key-filepath, --certificate-filepath',
+    if bool(tls_key_filepath) ^ bool(tls_certificate_filepath):
+        raise click.BadOptionUsage(option_name='--tls-key-filepath, --tls-certificate-filepath',
                                    message=BOTH_TLS_KEY_AND_CERTIFICATION_MUST_BE_PROVIDED)
 
     emitter.message(f"Network: {PORTER.domain.capitalize()}", color='green')
@@ -167,10 +167,10 @@ def run(general_config,
         emitter.message(f"Provider: {provider_uri}", color='green')
 
     controller = PORTER.make_web_controller(crash_on_error=False)
-    http_scheme = "https" if tls_key_filepath and certificate_filepath else "http"
+    http_scheme = "https" if tls_key_filepath and tls_certificate_filepath else "http"
     message = PORTER_RUN_MESSAGE.format(http_scheme=http_scheme, http_port=http_port)
     emitter.message(message, color='green', bold=True)
     return controller.start(port=http_port,
                             tls_key_filepath=tls_key_filepath,
-                            certificate_filepath=certificate_filepath,
+                            tls_certificate_filepath=tls_certificate_filepath,
                             dry_run=dry_run)

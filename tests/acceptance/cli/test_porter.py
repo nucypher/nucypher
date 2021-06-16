@@ -91,16 +91,16 @@ def test_federated_porter_cli_run_tls_filepath_and_certificate(click_runner,
                           '--teacher', federated_teacher_uri,
                           '--tls-key-filepath', tempfile_path)  # only tls-key provided
     result = click_runner.invoke(nucypher_cli, porter_run_command, catch_exceptions=False)
-    assert result.exit_code != 0  # both --tls-key-filepath and --certificate-filepath must be provided for TLS
+    assert result.exit_code != 0  # both --tls-key-filepath and --tls-certificate-filepath must be provided for TLS
     assert BOTH_TLS_KEY_AND_CERTIFICATION_MUST_BE_PROVIDED in result.output
 
     porter_run_command = ('porter', 'run',
                           '--dry-run',
                           '--federated-only',
                           '--teacher', federated_teacher_uri,
-                          '--certificate-filepath', tempfile_path)  # only certificate provided
+                          '--tls-certificate-filepath', tempfile_path)  # only certificate provided
     result = click_runner.invoke(nucypher_cli, porter_run_command, catch_exceptions=False)
-    assert result.exit_code != 0  # both --tls-key-filepath and --certificate-filepath must be provided for TLS
+    assert result.exit_code != 0  # both --tls-key-filepath and --tls-certificate-filepath must be provided for TLS
     assert BOTH_TLS_KEY_AND_CERTIFICATION_MUST_BE_PROVIDED in result.output
 
     #
@@ -115,24 +115,24 @@ def test_federated_porter_cli_run_tls_filepath_and_certificate(click_runner,
                           '--dry-run',
                           '--federated-only',
                           '--teacher', federated_teacher_uri,
-                          '--certificate-filepath', tempfile_path,
+                          '--tls-certificate-filepath', tempfile_path,
                           '--tls-key-filepath', str(non_existent_path.absolute()))
     result = click_runner.invoke(nucypher_cli, porter_run_command, catch_exceptions=False)
     assert result.exit_code != 0
     output = result.output
     assert f"'--tls-key-filepath': File '{non_existent_path.absolute()}' does not exist" in output
 
-    # certificate-filepath does not exist
+    # tls-certificate-filepath does not exist
     porter_run_command = ('porter', 'run',
                           '--dry-run',
                           '--federated-only',
                           '--teacher', federated_teacher_uri,
-                          '--certificate-filepath', str(non_existent_path.absolute()),
+                          '--tls-certificate-filepath', str(non_existent_path.absolute()),
                           '--tls-key-filepath', tempfile_path)
     result = click_runner.invoke(nucypher_cli, porter_run_command, catch_exceptions=False)
     assert result.exit_code != 0
     output = result.output
-    assert f"'--certificate-filepath': File '{non_existent_path.absolute()}' does not exist" in output
+    assert f"'--tls-certificate-filepath': File '{non_existent_path.absolute()}' does not exist" in output
 
 
 def test_federated_cli_run_https(click_runner, federated_ursulas, temp_dir_path, federated_teacher_uri):
@@ -146,7 +146,7 @@ def test_federated_cli_run_https(click_runner, federated_ursulas, temp_dir_path,
                           '--federated-only',
                           '--teacher', federated_teacher_uri,
                           '--tls-key-filepath', tls_key_path,
-                          '--certificate-filepath', certificate_file_path)
+                          '--tls-certificate-filepath', certificate_file_path)
     result = click_runner.invoke(nucypher_cli, porter_run_command, catch_exceptions=False)
     assert result.exit_code == 0
     assert PORTER_RUN_MESSAGE.format(http_scheme="https", http_port=Porter.DEFAULT_PORT) in result.output
@@ -240,7 +240,7 @@ def test_blockchain_porter_cli_run_https(click_runner,
                           '--registry-filepath', agency_local_registry.filepath,
                           '--teacher', blockchain_teacher_uri,
                           '--tls-key-filepath', tls_key_path,
-                          '--certificate-filepath', certificate_file_path)
+                          '--tls-certificate-filepath', certificate_file_path)
 
     result = click_runner.invoke(nucypher_cli, porter_run_command, catch_exceptions=False)
     assert result.exit_code == 0
