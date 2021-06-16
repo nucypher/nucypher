@@ -722,4 +722,4 @@ SUCCESSFUL_MANUALLY_SAVE_METADATA = "Successfully saved node metadata to {metada
 
 PORTER_RUN_MESSAGE = "Running Porter Web Controller at {http_scheme}://127.0.0.1:{http_port}"
 
-BOTH_TLS_KEY_AND_CERTIFICATION_MUST_BE_PROVIDED = "Both --tls-key-filepath and --certificate-filepath must be provided to launch porter with TLS; only one specified"
+BOTH_TLS_KEY_AND_CERTIFICATION_MUST_BE_PROVIDED = "Both --tls-key-filepath and --tls-certificate-filepath must be provided to launch porter with TLS; only one specified"
