@@ -20,6 +20,9 @@ web and mobile experience is accessible to application developers.
 
 Running Porter
 --------------
+
+Install ``nucypher`` - see :doc:`/references/pip-installation`.
+
 .. note::
 
     By default the Porter service will run on port 9155, unless specified otherwise.
@@ -27,133 +30,129 @@ Running Porter
 
 via CLI
 ^^^^^^^
-Install ``nucypher`` - see :doc:`/references/pip-installation`.
 
-Usage
-+++++
-.. code:: console
+For a full list of CLI options, run:
 
-    $ nucypher porter --help
+  .. code:: console
 
-    Usage: nucypher porter [OPTIONS] COMMAND [ARGS]...
-
-      Porter management commands. Porter is a web-service that is the conduit
-      between applications and the nucypher network, that performs actions on
-      behalf of Alice and Bob.
-
-    Options:
-      --help  Show this message and exit.
-
-    Commands:
-      run                   Start Porter's Web controller.
+      $ nucypher porter run --help
 
 
-.. code:: console
+* Run via HTTP
 
-    $ nucypher porter run --help
+  .. code:: console
 
-    Usage: nucypher porter run [OPTIONS]
-
-      Start Porter's Web controller.
-
-    Options:
-      -D, --debug                     Enable debugging mode, crashing on more
-                                      exceptions instead of trying to recover.
-                                      Also sets log level to "debug", turns on
-                                      console and file logging and turns off
-                                      Sentry logging.
-
-      --log-level [critical|error|warn|info|debug]
-                                      The log level for this process.  Is
-                                      overridden by --debug.
-
-      --sentry-logs / --no-sentry-logs
-                                      Enable/disable logging to Sentry. Defaults
-                                      to NUCYPHER_SENTRY_LOGS, or to `--sentry-
-                                      logs` if it is not set.
-
-      --file-logs / --no-file-logs    Enable/disable logging to file. Defaults to
-                                      NUCYPHER_FILE_LOGS, or to `--file-logs` if
-                                      it is not set.
-
-      --console-logs / --no-console-logs
-                                      Enable/disable logging to console. Defaults
-                                      to `--no-console-logs`.
-
-      -J, --json-ipc                  Send all IPC output to stdout as JSON, and
-                                      turn off the rest
-
-      -L, --no-logs                   Disable all logging output
-      -Q, --quiet                     Disable console messages
-      -v, --verbose                   Verbose console messages
-      --network NUCYPHER_NETWORK_NAME
-                                      NuCypher Network/Domain Name
-      --provider TEXT                 Blockchain provider's URI i.e.
-                                      'file:///path/to/geth.ipc'
-
-      -F, --federated-only / --decentralized
-                                      Connect only to federated nodes
-      --teacher TEXT                  An Ursula URI to start learning from
-                                      (seednode)
-
-      --registry-filepath FILE        Custom contract registry filepath
-      --http-port INTEGER RANGE       Porter HTTP/HTTPS port for JSON endpoint
-      --certificate-filepath FILE     Pre-signed TLS certificate filepath
-      --tls-key-filepath FILE         TLS private key filepath
-      -x, --dry-run                   Execute normally without actually starting
-                                      Porter
-
-      --eager                         Start learning and scraping the network
-                                      before starting up other services
-
-      --help                          Show this message and exit.
+      $ nucypher porter run --provider <YOUR WEB3 PROVIDER URI> --network mainnet
 
 
-.. code:: console
+       ______
+      (_____ \           _
+       _____) )__   ____| |_  ____  ____
+      |  ____/ _ \ / ___)  _)/ _  )/ ___)
+      | |   | |_| | |   | |_( (/ /| |
+      |_|    \___/|_|    \___)____)_|
 
-    $ nucypher porter run --provider <YOUR WEB3 PROVIDER URI> --network mainnet
+      the Pipe for nucypher network operations
 
-
-     ______
-    (_____ \           _
-     _____) )__   ____| |_  ____  ____
-    |  ____/ _ \ / ___)  _)/ _  )/ ___)
-    | |   | |_| | |   | |_( (/ /| |
-    |_|    \___/|_|    \___)____)_|
-
-    the Pipe for nucypher network operations
-
-    Reading Latest Chaindata...
-    Network: Mainnet
-    Provider: ...
-    Running Porter Web Controller at http://127.0.0.1:9155
+      Reading Latest Chaindata...
+      Network: Mainnet
+      Provider: ...
+      Running Porter Web Controller at http://127.0.0.1:9155
 
 
-To run via https use the ``--tls-key-filepath`` and ``--certificate-filepath`` options:
+* Run via HTTPS
 
-.. code:: console
+  To run via HTTPS use the ``--tls-key-filepath`` and ``--certificate-filepath`` options:
 
-    $ nucypher porter run --provider <YOUR WEB3 PROVIDER URI> --network mainnet --tls-key-filepath <TLS KEY FILEPATH> --certificate-filepath <CERT FILEPATH>
+  .. code:: console
 
-
-     ______
-    (_____ \           _
-     _____) )__   ____| |_  ____  ____
-    |  ____/ _ \ / ___)  _)/ _  )/ ___)
-    | |   | |_| | |   | |_( (/ /| |
-    |_|    \___/|_|    \___)____)_|
-
-    the Pipe for nucypher network operations
-
-    Reading Latest Chaindata...
-    Network: Mainnet
-    Provider: ...
-    Running Porter Web Controller at https://127.0.0.1:9155
+      $ nucypher porter run --provider <YOUR WEB3 PROVIDER URI> --network mainnet --tls-key-filepath <TLS KEY FILEPATH> --certificate-filepath <CERT FILEPATH>
 
 
-via Docker
-^^^^^^^^^^
-TBD
+       ______
+      (_____ \           _
+       _____) )__   ____| |_  ____  ____
+      |  ____/ _ \ / ___)  _)/ _  )/ ___)
+      | |   | |_| | |   | |_( (/ /| |
+      |_|    \___/|_|    \___)____)_|
+
+      the Pipe for nucypher network operations
+
+      Reading Latest Chaindata...
+      Network: Mainnet
+      Provider: ...
+      Running Porter Web Controller at https://127.0.0.1:9155
+
+
+
+via Docker Compose
+^^^^^^^^^^^^^^^^^^
+Docker Compose will start the Porter service within a docker container.
+
+1. Set the required environment variables:
+
+   * Web3 Provider URI environment variable
+
+     .. code:: bash
+
+         $ export WEB3_PROVIDER_URI=<YOUR WEB3 PROVIDER URI>
+
+     .. note::
+
+         Local ipc is not supported when running via Docker.
+
+
+   * Network Name environment variable
+
+     .. code:: bash
+
+         $ export NUCYPHER_NETWORK=<NETWORK NAME>
+
+   * (Optional) TLS directory variable containing the TLS key and the certificate to run Porter over https. The directory is expected to contain two files:
+
+        * ``key.pem`` - the TLS key
+        * ``cert.pem`` - the TLS certificate
+
+     .. note::
+
+         You can create self-signed certificates for the localhost using openssl command:
+             .. code:: bash
+
+                 $ openssl req -x509 -out cert.pem -keyout key.pem \
+                     -newkey rsa:2048 -nodes -sha256 \
+                     -subj '/CN=localhost' -extensions EXT -config <( \
+                       printf "[dn]\nCN=localhost\n[req]\ndistinguished_name = dn\n[EXT]\nsubjectAltName=DNS:localhost\nkeyUsage=digitalSignature\nextendedKeyUsage=serverAuth")
+
+     Set the TLS directory environment variable
+
+     .. code:: bash
+
+         export TLS_DIR=<ABSOLUTE PATH TO TLS DIRECTORY>
+
+
+2. Run Docker Compose
+
+   For HTTP service:
+
+   .. code:: bash
+
+       $ docker-compose -f deploy/docker/porter/docker-compose.yml up -d porter-http
+
+   For HTTPS service:
+
+   .. code:: bash
+
+       $ docker-compose -f deploy/docker/porter/docker-compose.yml up -d porter-https
+
+
+3. View Docker compose logs
+
+   .. code:: bash
+
+       $ docker-compose -f deploy/docker/porter/docker-compose.yml logs -f <SERVICE_NAME>
+
+
+4. Porter will be available on default ports 80 (HTTP) or 443 (HTTPS).
 
 
 API
