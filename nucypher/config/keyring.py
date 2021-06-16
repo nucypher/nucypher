@@ -48,7 +48,7 @@ from nucypher.crypto.passwords import (
     secret_box_encrypt,
     secret_box_decrypt,
     SecretBoxAuthenticationError,
-    derive_key_from_password,
+    derive_key_material_from_password,
     )
 from nucypher.crypto.powers import (DecryptingPower, DerivedKeyBasedPower, KeyPairBasedPower, SigningPower)
 from nucypher.network.server import TLSHostingPower
@@ -416,8 +416,8 @@ class NucypherKeyring:
         key_data = _read_keyfile(key_path, deserializer=_deserialize_private_key)
 
         try:
-            key_bytes = secret_box_decrypt(salt=key_data['wrap_salt'],
-                                           key_material=self.__derived_key_material,
+            key_bytes = secret_box_decrypt(key_material=self.__derived_key_material,
+                                           salt=key_data['wrap_salt'],
                                            ciphertext=key_data['key'])
         except SecretBoxAuthenticationError as e:
             raise self.AuthenticationFailed('Invalid or incorrect nucypher keyring password.') from e
@@ -447,7 +447,7 @@ class NucypherKeyring:
             return self.is_unlocked
         key_data = _read_keyfile(keypath=self.__root_keypath, deserializer=_deserialize_private_key)
         self.log.info("Unlocking keyring.")
-        derived_key = derive_key_from_password(password=password.encode(), salt=key_data['master_salt'])
+        derived_key = derive_key_material_from_password(password=password.encode(), salt=key_data['master_salt'])
         self.__derived_key_material = derived_key
         self.log.info("Finished unlocking.")
         return self.is_unlocked
@@ -493,8 +493,8 @@ class NucypherKeyring:
         elif issubclass(power_class, DerivedKeyBasedPower):
             key_data = _read_keyfile(self.__delegating_keypath, deserializer=_deserialize_private_key)
             try:
-                keying_material = secret_box_decrypt(salt=key_data['wrap_salt'],
-                                                     key_material=self.__derived_key_material,
+                keying_material = secret_box_decrypt(key_material=self.__derived_key_material,
+                                                     salt=key_data['wrap_salt'],
                                                      ciphertext=key_data['key'])
             except SecretBoxAuthenticationError as e:
                 raise self.AuthenticationFailed('Invalid or incorrect nucypher keyring password.') from e
@@ -579,17 +579,17 @@ class NucypherKeyring:
             password_salt, encrypting_salt, signing_salt, delegating_salt = (os.urandom(32) for _ in range(4))
 
             cls.log.info("About to derive key from password.")
-            derived_key_material = derive_key_from_password(salt=password_salt, password=password.encode())
+            derived_key_material = derive_key_material_from_password(salt=password_salt, password=password.encode())
 
             # Encapsulate Private Keys
-            encrypting_key_data = secret_box_encrypt(salt=encrypting_salt,
-                                                     key_material=derived_key_material,
+            encrypting_key_data = secret_box_encrypt(key_material=derived_key_material,
+                                                     salt=encrypting_salt,
                                                      plaintext=bytes(encrypting_private_key))
-            signing_key_data = secret_box_encrypt(salt=signing_salt,
-                                                  key_material=derived_key_material,
+            signing_key_data = secret_box_encrypt(key_material=derived_key_material,
+                                                  salt=signing_salt,
                                                   plaintext=bytes(signing_private_key))
-            delegating_key_data = secret_box_encrypt(salt=delegating_salt,
-                                                     key_material=derived_key_material,
+            delegating_key_data = secret_box_encrypt(key_material=derived_key_material,
+                                                     salt=delegating_salt,
                                                      plaintext=delegating_keying_material)
 
             # Assemble Private Keys
