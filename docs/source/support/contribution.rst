@@ -15,6 +15,8 @@ the nucypher codebase.
 
 Before continuing, ensure you have ``git`` installed (\ `Git Documentation <https://git-scm.com/doc>`_\ ).
 
+.. _acquire_codebase:
+
 Acquire NuCypher Codebase
 ^^^^^^^^^^^^^^^^^^^^^^^^^
 
