@@ -27,6 +27,6 @@ class TreasureMapID(BaseField, fields.String):
 
     def _validate(self, value):
         treasure_map_id = bytes.fromhex(value)
-        # FIXME federated has map id length 32 bytes but decentralized has length 16 bytes ... huh?
+        # FIXME federated has map id length 32 bytes but decentralized has length 16 bytes ... huh? - #2725
         if len(treasure_map_id) != TreasureMap.ID_LENGTH and len(treasure_map_id) != HRAC_LENGTH:
             raise InvalidInputData(f"Could not convert input for {self.name} to a valid TreasureMap ID: invalid length")
