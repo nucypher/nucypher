@@ -1,1 +1,0 @@
-Adds a new CLI command to show past and present staking rewards, "stake rewards show".

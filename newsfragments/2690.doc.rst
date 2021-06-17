@@ -1,1 +1,0 @@
-Add documentation about calculation of staking rewards.

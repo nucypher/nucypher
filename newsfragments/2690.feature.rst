@@ -1,1 +1,0 @@
-Add sub-stake boost information to staking CLI.

@@ -1,1 +1,0 @@
-Fix a performance regression in ``FleetSensor`` where nodes were matured prematurely (pun not intended)

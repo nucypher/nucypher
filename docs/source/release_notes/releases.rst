@@ -4,6 +4,53 @@ Releases
 
 .. towncrier release notes start
 
+v5.3.0 (2021-06-17)
+-------------------
+
+Features
+~~~~~~~~
+
+- PolicyManager: creating multiple policies in one tx (`#2619 <https://github.com/nucypher/nucypher/issues/2619>`__)
+- Adds a new CLI command to show past and present staking rewards, "stake rewards show". (`#2634 <https://github.com/nucypher/nucypher/issues/2634>`__)
+- Adds "https://closest-seed.nucypher.network" and "https://mainnet.nucypher.network" as a fallback teacher nodes for mainnet. (`#2657 <https://github.com/nucypher/nucypher/issues/2657>`__)
+- Whitespaces in character nicknames are now implicitly replaced with an underscore ("_"). (`#2672 <https://github.com/nucypher/nucypher/issues/2672>`__)
+- Added timestamp and date columns to csv output of "nucypher status events" command. (`#2680 <https://github.com/nucypher/nucypher/issues/2680>`__)
+- Ursula will now check for active stakes on startup. (`#2688 <https://github.com/nucypher/nucypher/issues/2688>`__)
+- Add sub-stake boost information to staking CLI. (`#2690 <https://github.com/nucypher/nucypher/issues/2690>`__)
+
+
+Bugfixes
+~~~~~~~~
+
+- Fixed issues where failing transactions would result in incorrect token allowance and prevent creation of new stakes. (`#2673 <https://github.com/nucypher/nucypher/issues/2673>`__)
+- examples/run_demo_ursula_fleet.py - Clean up each DB on shutdown. (`#2681 <https://github.com/nucypher/nucypher/issues/2681>`__)
+- Fix a performance regression in ``FleetSensor`` where nodes were matured prematurely (pun not intended) (`#2709 <https://github.com/nucypher/nucypher/issues/2709>`__)
+
+
+Improved Documentation
+~~~~~~~~~~~~~~~~~~~~~~
+
+- Include annotated description of the worker status page. (`#2665 <https://github.com/nucypher/nucypher/issues/2665>`__)
+- Update service fee pricing to reflect correct per period rate since periods are now 7-days. (`#2677 <https://github.com/nucypher/nucypher/issues/2677>`__)
+- Add documentation about calculation of staking rewards. (`#2690 <https://github.com/nucypher/nucypher/issues/2690>`__)
+
+
+Deprecations and Removals
+~~~~~~~~~~~~~~~~~~~~~~~~~
+
+- Moves "stake collect-reward" to "stake rewards withdraw" command. (`#2634 <https://github.com/nucypher/nucypher/issues/2634>`__)
+- Remove IndisputableEvidence (`#2699 <https://github.com/nucypher/nucypher/issues/2699>`__)
+
+
+Misc
+~~~~
+
+- Registry for NuCypher DAO entities. (`#2426 <https://github.com/nucypher/nucypher/issues/2426>`__)
+- Added code used to generate the DAO Proposal #1, for reference purposes. (`#2616 <https://github.com/nucypher/nucypher/issues/2616>`__)
+- Improves password collection hints while running ``init`` commands. (`#2662 <https://github.com/nucypher/nucypher/issues/2662>`__)
+- Extend policy probationary period until August 31st, 2021. No policies may be created on the network beyond this date. (`#2716 <https://github.com/nucypher/nucypher/issues/2716>`__)
+
+
 v5.2.0 (2021-04-26)
 -------------------
 
