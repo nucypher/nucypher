@@ -35,10 +35,14 @@ from nucypher.crypto.utils import keccak_digest
 from nucypher.crypto.umbral_adapter import PublicKey, KeyFrag, Signature
 from nucypher.crypto.utils import construct_policy_id
 from nucypher.network.middleware import RestMiddleware
+from nucypher.policy.reservoir import (
+    make_federated_staker_reservoir,
+    MergedReservoir,
+    PrefetchStrategy,
+    make_decentralized_staker_reservoir
+)
 from nucypher.utilities.concurrency import WorkerPool, AllAtOnceFactory
 from nucypher.utilities.logging import Logger
-from .reservoir import make_federated_staker_reservoir, MergedReservoir, PrefetchStrategy, \
-    make_decentralized_staker_reservoir
 
 
 class Arrangement:
