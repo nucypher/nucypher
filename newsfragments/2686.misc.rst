@@ -1,1 +1,1 @@
-Ursula will now detect absence of active stakes during startup and in worker loop.
+Ursula will now detect commitment transactions dropped from mempool.
