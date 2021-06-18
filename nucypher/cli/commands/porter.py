@@ -16,7 +16,6 @@
 """
 import click
 
-from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
 from nucypher.blockchain.eth.networks import NetworksInventory
 from nucypher.characters.lawful import Ursula
 from nucypher.cli.config import group_general_config
@@ -25,15 +24,15 @@ from nucypher.cli.options import (
     option_provider_uri,
     option_federated_only,
     option_teacher_uri,
-    option_registry_filepath
+    option_registry_filepath,
+    option_min_stake
 )
 from nucypher.cli.types import NETWORK_PORT
 from nucypher.cli.utils import setup_emitter, get_registry
-from nucypher.network.middleware import RestMiddleware
+from nucypher.config.constants import TEMPORARY_DOMAIN
 from nucypher.utilities.porter.control.interfaces import PorterInterface
 from nucypher.utilities.porter.porter import Porter
 
-from nucypher.config.constants import TEMPORARY_DOMAIN
 
 @click.group()
 def porter():
@@ -90,10 +89,20 @@ def exec_work_order(general_config, porter_uri, ursula, work_order):
 @option_federated_only
 @option_teacher_uri
 @option_registry_filepath
+@option_min_stake
 @click.option('--http-port', help="Porter HTTP port for JSON endpoint", type=NETWORK_PORT, default=Porter.DEFAULT_PORTER_HTTP_PORT)
 @click.option('--dry-run', '-x', help="Execute normally without actually starting Porter", is_flag=True)
 @click.option('--eager', help="Start learning and scraping the network before starting up other services", is_flag=True, default=True)
-def run(general_config, network, provider_uri, federated_only, teacher_uri, registry_filepath, http_port, dry_run, eager):
+def run(general_config,
+        network,
+        provider_uri,
+        federated_only,
+        teacher_uri,
+        registry_filepath,
+        min_stake,
+        http_port,
+        dry_run,
+        eager):
     """Start Porter's Web controller."""
     emitter = setup_emitter(general_config, banner=Porter.BANNER)
 
@@ -104,7 +113,7 @@ def run(general_config, network, provider_uri, federated_only, teacher_uri, regi
 
         teacher = Ursula.from_teacher_uri(teacher_uri=teacher_uri,
                                           federated_only=True,
-                                          min_stake=0)
+                                          min_stake=min_stake)  # min stake is irrelevant for federated
         PORTER = Porter(domain=TEMPORARY_DOMAIN,
                         start_learning_now=eager,
                         known_nodes={teacher},
@@ -120,18 +129,14 @@ def run(general_config, network, provider_uri, federated_only, teacher_uri, regi
                                        message="--network is required for decentralized porter.")
 
         registry = get_registry(network=network, registry_filepath=registry_filepath)
-        network_middleware = RestMiddleware(registry=registry)
-        BlockchainInterfaceFactory.initialize_interface(provider_uri=provider_uri)
         teacher = None
         if teacher_uri:
             teacher = Ursula.from_teacher_uri(teacher_uri=teacher_uri,
                                               federated_only=False,  # always False
-                                              min_stake=0,
-                                              network_middleware=network_middleware,
+                                              min_stake=min_stake,
                                               registry=registry)
 
         PORTER = Porter(domain=network,
-                        network_middleware=network_middleware,
                         known_nodes={teacher} if teacher else None,
                         registry=registry,
                         start_learning_now=eager,

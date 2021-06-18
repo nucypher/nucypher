@@ -89,7 +89,9 @@ the Pipe for nucypher network operations
             if not provider_uri:
                 raise ValueError('Provider URI is required for decentralized Porter.')
 
-            BlockchainInterfaceFactory.get_interface(provider_uri=provider_uri)
+            if not BlockchainInterfaceFactory.is_interface_initialized(provider_uri=provider_uri):
+                BlockchainInterfaceFactory.initialize_interface(provider_uri=provider_uri)
+
             self.registry = registry or InMemoryContractRegistry.from_latest_publication(network=domain)
             self.staking_agent = ContractAgency.get_agent(StakingEscrowAgent, registry=self.registry)
         else:
@@ -114,7 +116,7 @@ the Pipe for nucypher network operations
                                                                bob_encrypting_key=bob_encrypting_key,
                                                                timeout=timeout)
 
-    def publish_treasure_map(self, treasure_map_bytes: bytes, bob_encrypting_key: UmbralPublicKey):
+    def publish_treasure_map(self, treasure_map_bytes: bytes, bob_encrypting_key: UmbralPublicKey) -> None:
         # TODO (#2516): remove hardcoding of 8 nodes
         self.block_until_number_of_known_nodes_is(8, timeout=2, learn_on_this_thread=True)
         target_nodes = treasuremap.find_matching_nodes(known_nodes=self.known_nodes,
@@ -124,7 +126,6 @@ the Pipe for nucypher network operations
                                                       network_middleware=self.network_middleware)
         treasure_map_publisher.start()  # let's do this
         treasure_map_publisher.block_until_success_is_reasonably_likely()
-        return
 
     def get_ursulas(self,
                     quantity: int,

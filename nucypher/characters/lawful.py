@@ -668,7 +668,7 @@ class Bob(Character):
 
         return map_id
 
-    def get_treasure_map_from_known_ursulas(self, map_identifier, timeout=3):
+    def get_treasure_map_from_known_ursulas(self, map_identifier: str, timeout=3):
         """
         Iterate through the nodes we know, asking for the TreasureMap.
         Return the first one who has it.

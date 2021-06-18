@@ -82,17 +82,17 @@ class TreasureMapPublisher:
     log = Logger('TreasureMapPublisher')
 
     def __init__(self,
-                 treasure_map_bytes,
-                 nodes,
-                 network_middleware,
-                 percent_to_complete_before_release=5,
-                 threadpool_size=120,
-                 timeout=20):
+                 treasure_map_bytes: bytes,
+                 nodes: Sequence[Ursula],
+                 network_middleware: RestMiddleware,
+                 percent_to_complete_before_release: int = 5,
+                 threadpool_size: int = 120,
+                 timeout: float = 20):
 
         self._total = len(nodes)
         self._block_until_this_many_are_complete = math.ceil(len(nodes) * percent_to_complete_before_release / 100)
 
-        def put_treasure_map_on_node(node):
+        def put_treasure_map_on_node(node: Ursula):
             try:
                 response = network_middleware.put_treasure_map_on_node(node=node,
                                                                        map_payload=treasure_map_bytes)
