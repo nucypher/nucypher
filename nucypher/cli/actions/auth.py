@@ -16,10 +16,10 @@
 """
 
 
-import click
 import os
+
+import click
 from constant_sorrow.constants import NO_PASSWORD
-from nacl.exceptions import CryptoError
 
 from nucypher.blockchain.eth.decorators import validate_checksum_address
 from nucypher.blockchain.eth.signers.software import ClefSigner
@@ -33,7 +33,7 @@ from nucypher.cli.literature import (
 )
 from nucypher.config.base import CharacterConfiguration
 from nucypher.config.constants import NUCYPHER_ENVVAR_KEYSTORE_PASSWORD
-from nucypher.crypto.keystore import Keystore
+from nucypher.crypto.keystore import Keystore, _WORD_COUNT
 
 
 def get_password_from_prompt(prompt: str = GENERIC_PASSWORD_PROMPT, envvar: str = None, confirm: bool = False) -> str:
@@ -97,12 +97,8 @@ def unlock_nucypher_keystore(emitter: StdoutEmitter, password: str, character_co
         return True  # Dev accounts are always unlocked
 
     # unlock
-    try:
-        character_configuration.keystore.unlock(password=password)  # Takes ~3 seconds, ~1GB Ram
-    except CryptoError:
-        raise Keystore.AuthenticationFailed
-    else:
-        return True
+    character_configuration.keystore.unlock(password=password)  # Takes ~3 seconds, ~1GB Ram
+    return True
 
 
 def recover_keystore(emitter) -> None:
@@ -112,8 +108,8 @@ def recover_keystore(emitter) -> None:
     click.confirm('Do you want to continue', abort=True)
     __words = click.prompt("Enter nucypher keystore seed words")
     word_count = len(__words.split())
-    if word_count != 24:
-        emitter.message(f'Invalid mnemonic - Number of words must be 24, but only got {word_count}')
+    if word_count != _WORD_COUNT:
+        emitter.message(f'Invalid mnemonic - Number of words must be {str(_WORD_COUNT)}, but only got {word_count}')
     __password = get_nucypher_password(emitter=emitter, confirm=True)
     keystore = Keystore.restore(words=__words, password=__password)
     emitter.message(f'Recovered nucypher keystore {keystore.id} to \n {keystore.keystore_path}', color='green')

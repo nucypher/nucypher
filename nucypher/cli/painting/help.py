@@ -62,7 +62,7 @@ def paint_new_installation_help(emitter, new_configuration, filepath):
     if new_configuration.keystore != NO_KEYSTORE_ATTACHED:
         maybe_public_key = new_configuration.keystore.id
     else:
-        maybe_public_key = "(no keyring attached)"
+        maybe_public_key = "(no keystore attached)"
     emitter.message(f"Generated keystore", color='green')
     emitter.message(f"""
     

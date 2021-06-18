@@ -67,6 +67,7 @@ __WRAPPING_KEY_LENGTH = 32
 
 # Mnemonic
 _ENTROPY_BITS = 256
+_WORD_COUNT = 24
 _MNEMONIC_LANGUAGE = "english"
 
 # Keystore File
@@ -390,17 +391,15 @@ class Keystore:
     def is_unlocked(self) -> bool:
         return self.__secret is not KEYSTORE_LOCKED
 
-    def lock(self) -> bool:
+    def lock(self) -> None:
         self.__secret = KEYSTORE_LOCKED
-        return self.is_unlocked
 
-    def unlock(self, password: str) -> bool:
+    def unlock(self, password: str) -> None:
         try:
             self.__decrypt_keystore(path=self.keystore_path, password=password)
         except CryptoError:
             self.__secret = KEYSTORE_LOCKED
             raise self.AuthenticationFailed
-        return self.is_unlocked
 
     def derive_crypto_power(self,
                             power_class: ClassVar[CryptoPowerUp],
@@ -408,7 +407,7 @@ class Keystore:
                             ) -> Union[KeyPairBasedPower, DerivedKeyBasedPower]:
 
         if not self.is_unlocked:
-            raise Keystore.Locked(f"{self.id} is locked. Unlock with .unlock")
+            raise Keystore.Locked(f"{self.id} is locked and must be unlocked before use.")
         try:
             info = self.__HKDF_INFO[power_class]
         except KeyError:

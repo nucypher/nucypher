@@ -25,7 +25,6 @@ import pytest
 from constant_sorrow.constants import KEYSTORE_LOCKED
 from cryptography.hazmat.primitives.serialization.base import Encoding
 from mnemonic.mnemonic import Mnemonic
-from umbral.keys import UmbralKeyingMaterial
 
 from nucypher.crypto.keystore import (
     Keystore,
@@ -46,6 +45,7 @@ from nucypher.crypto.powers import DecryptingPower, SigningPower, DelegatingPowe
 from nucypher.network.server import TLSHostingPower
 from nucypher.utilities.networking import LOOPBACK_ADDRESS
 from tests.constants import INSECURE_DEVELOPMENT_PASSWORD
+from umbral.keys import UmbralKeyingMaterial
 
 
 def test_invalid_keystore_path_parts(tmp_path, tmp_path_factory):
@@ -224,7 +224,7 @@ def test_restore_keystore_from_mnemonic(tmpdir, mocker):
     # remove local and disk references, simulating a
     # lost keystore or forgotten password.
     del keystore
-    os.remove(keystore_path)
+    os.unlink(keystore_path)
 
     # prove the keystore is lost or missing
     assert not keystore_path.exists()

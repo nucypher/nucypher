@@ -14,7 +14,8 @@ GNU Affero General Public License for more details.
 You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
-from random import SystemRandom
+
+from secrets import SystemRandom
 from typing import Union, Tuple
 
 import sha3
@@ -34,7 +35,6 @@ from nucypher.crypto.signing import SignatureStamp
 from nucypher.crypto.umbral_adapter import PublicKey
 from umbral import pre
 from umbral.keys import UmbralPublicKey, UmbralPrivateKey
-from umbral.point import Point
 from umbral.signing import Signature
 
 
@@ -53,25 +53,6 @@ def canonical_address_from_umbral_key(public_key: Union[PublicKey, SignatureStam
     eth_pubkey = EthKeyAPI.PublicKey.from_compressed_bytes(pubkey_compressed_bytes)
     canonical_address = eth_pubkey.to_canonical_address()
     return canonical_address
-
-
-def get_coordinates_as_bytes(point: Union[Point, UmbralPublicKey, SignatureStamp],
-                             x_coord=True,
-                             y_coord=True) -> bytes:
-    if isinstance(point, SignatureStamp):
-        point = point.as_umbral_pubkey()
-
-    coordinates_as_bytes = point.to_bytes(is_compressed=False)[1:]
-    middle = len(coordinates_as_bytes)//2
-    if x_coord and y_coord:
-        return coordinates_as_bytes
-    elif x_coord:
-        return coordinates_as_bytes[:middle]
-    elif y_coord:
-        return coordinates_as_bytes[middle:]
-    else:
-        raise ValueError("At least one coordinate must be set")
-
 
 SYSTEM_RAND = SystemRandom()
 

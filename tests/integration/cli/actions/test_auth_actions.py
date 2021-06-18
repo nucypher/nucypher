@@ -106,7 +106,7 @@ def test_get_nucypher_password(mock_stdin, mock_account, confirm, capsys):
 def test_unlock_nucypher_keystore_invalid_password(mocker, test_emitter, alice_blockchain_test_config, capsys, tmpdir):
 
     # Setup
-    mocker.patch.object(Keystore, 'unlock', side_effect=CryptoError)
+    mocker.patch.object(Keystore, '_Keystore__decrypt_keystore', side_effect=CryptoError)
     mocker.patch.object(CharacterConfiguration,
                         'dev_mode',
                         return_value=False,
