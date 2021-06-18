@@ -129,6 +129,9 @@ class AlicePublishTreasureMap(BaseSchema):
         load_only=True,
         click=option_bob_encrypting_key())
 
+    # output
+    published = marshmallow_fields.Bool(dump_only=True)
+
 
 class AliceRevoke(BaseSchema):
     pass  # TODO need to understand revoke process better

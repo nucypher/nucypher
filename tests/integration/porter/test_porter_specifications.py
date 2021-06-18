@@ -187,6 +187,11 @@ def test_alice_publish_treasure_map_schema(enacted_federated_policy, federated_b
     with pytest.raises(InvalidInputData):
         AlicePublishTreasureMap().load(updated_data)
 
+    # Test Output - test only true since there is no false ever returned
+    response_data = {'published': True}
+    output = AlicePublishTreasureMap().dump(obj=response_data)
+    assert output == response_data
+
 
 def test_alice_revoke():
     pass  # TODO

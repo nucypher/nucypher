@@ -53,7 +53,8 @@ class PorterInterface(ControlInterface):
         bob_enc_key = UmbralPublicKey.from_bytes(bob_encrypting_key)
         self.implementer.publish_treasure_map(treasure_map_bytes=treasure_map,
                                               bob_encrypting_key=bob_enc_key)
-        return {}
+        response_data = {'published': True}  # always True - if publish failed, an exception is raised by implementer
+        return response_data
 
     @attach_schema(porter_schema.AliceRevoke)
     def revoke(self) -> dict:
