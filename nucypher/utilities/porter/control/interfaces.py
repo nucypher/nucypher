@@ -19,6 +19,7 @@ from typing import List, Optional
 from eth_typing import ChecksumAddress
 from umbral.keys import UmbralPublicKey
 
+from nucypher.characters.control.specifications.fields import TreasureMap
 from nucypher.control.interfaces import ControlInterface, attach_schema
 from nucypher.utilities.porter.control.specifications import porter_schema
 
@@ -26,6 +27,8 @@ from nucypher.utilities.porter.control.specifications import porter_schema
 class PorterInterface(ControlInterface):
     def __init__(self, porter: 'Porter' = None, *args, **kwargs):
         super().__init__(implementer=porter, *args, **kwargs)
+        # set federated/non-federated context for publish treasure map schema
+        PorterInterface.publish_treasure_map._schema.context[TreasureMap.IS_FEDERATED_CONTEXT_KEY] = porter.federated_only
 
     #
     # Alice Endpoints

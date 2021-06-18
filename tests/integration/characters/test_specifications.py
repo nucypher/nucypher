@@ -72,7 +72,7 @@ def test_treasuremap_validation(enacted_federated_policy):
 
     class TreasureMapsOnly(BaseSchema):
 
-        tmap = fields.TreasureMap()
+        tmap = fields.TreasureMap(federated_only=True)
 
     # this will raise a base64 error
     with pytest.raises(SpecificationError) as e:
