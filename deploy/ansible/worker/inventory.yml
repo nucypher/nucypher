@@ -59,7 +59,7 @@ all:
             ansible_python_interpreter: /usr/bin/python3
 
             # these can be overridden at the instance level if desired
-            NUCYPHER_KEYRING_PASSWORD: xxxxxxxxxxxxxxxxxxxxxxxpanda
+            NUCYPHER_KEYSTORE_PASSWORD: xxxxxxxxxxxxxxxxxxxxxxxpanda
             NUCYPHER_WORKER_ETH_PASSWORD: yyyyyyyyyyyyyyyyyyyystainpants
             #nucypher_ursula_run_options: "--debug"
             #nucypher_ursula_init_options: "--debug"
