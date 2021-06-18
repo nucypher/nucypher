@@ -15,8 +15,8 @@ Where applicable, values are evaluated in the following order of precedence:
 General
 -------
 
-* `NUCYPHER_KEYRING_PASSWORD`
-    Password for the `nucypher` Keyring.
+* `NUCYPHER_KEYSTORE_PASSWORD`
+    Password for the `nucypher` Keystore.
 * `NUCYPHER_PROVIDER_URI`
     Default Web3 node provider URI.
 

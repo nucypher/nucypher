@@ -13,12 +13,13 @@ three core areas of responsibility (in order of importance):
 1. Keystore Diligence
 ---------------------
 
-Requires that private keys used by the worker are backup or can be restored.
+Requires that private keys used by the worker are backed up and can be restored.
 
 Keystore diligence an be exercised by:
 
-  - Backing up the worker's private keys (both ethereum and nucypher).
-  - Using a password manager to generate a strong password when one is required.
+  - Keeping an offline record of the mnemonic recovery phrase.
+  - Backing up the worker's keystores (both ethereum and nucypher).
+  - Using a password manager to generate and store a strong password when one is required.
 
 .. note::
 
@@ -29,20 +30,14 @@ Keystore diligence an be exercised by:
 
         $ nucypher --config-path
 
-    Encrypted worker keys can be found in the ``keyring`` directory:
+    Encrypted worker keys can be found in the ``keystore`` directory:
 
     .. code-block:: bash
 
         /home/user/.local/share/nucypher
         ├── ursula.json
-        ├── keyring
-        │   ├── private
-        │   │   ├── delegating-0x12304EF1Dc04587225FEe3420CA6C786cdd58893.priv
-        │   │   ├── root-0x12304EF1Dc04587225FEe3420CA6C786cdd58893.priv
-        │   │   └── signing-0x12304EF1Dc04587225FEe3420CA6C786cdd58893.priv
-        │   └── public
-        │       ├── root-0x12304EF1Dc04587225FEe3420CA6C786cdd58893.pub
-        │       └── signing-0x12304EF1Dc04587225FEe3420CA6C786cdd58893.pub
+        ├── keystore
+        │   ├── 1621399628-e76f101f35846f18d80bfda5c61e9ec2.priv
         └── ...
 
 2. Datastore Diligence
