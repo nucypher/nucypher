@@ -359,7 +359,11 @@ Parameters
 
 Returns
 +++++++
-No data - only the status code is relevant.
+Confirmation that the treasure map was published:
+
+    * ``published`` - Value of ``true``.
+
+If publishing the treasure map fails, an error status code is returned.
 
 Example Request
 +++++++++++++++
@@ -380,7 +384,9 @@ Example Response
 .. code:: json
 
     {
-       "result": {},
+       "result": {
+          "published": true
+       },
        "version": "5.2.0"
     }
 
