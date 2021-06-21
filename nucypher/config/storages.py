@@ -67,9 +67,6 @@ class NodeStorage(ABC):
     def __setitem__(self, key, value):
         return self.store_node_metadata(node=value)
 
-    def __delitem__(self, key):
-        self.remove(checksum_address=key)
-
     def __iter__(self):
         return self.all(federated_only=self.federated_only)
 
@@ -93,8 +90,8 @@ class NodeStorage(ABC):
         return common_name_from_cert
 
     def _write_tls_certificate(self,
+                               port: int,  # used to avoid duplicate certs with the same IP
                                certificate: Certificate,
-                               host: str = None,
                                force: bool = True) -> str:
 
         # Read
@@ -102,15 +99,9 @@ class NodeStorage(ABC):
         subject_components = x509.get_subject().get_components()
         common_name_as_bytes = subject_components[0][1]
         common_name_on_certificate = common_name_as_bytes.decode()
-        if not host:
-            host = common_name_on_certificate
+        host = common_name_on_certificate
 
-        # Validate
-        # TODO: It's better for us to have checked this a while ago so that this situation is impossible.  #443
-        if host and (host != common_name_on_certificate):
-            raise ValueError(f"You passed a hostname ('{host}') that does not match the certificate's common name.")
-
-        certificate_filepath = self.generate_certificate_filepath(host)
+        certificate_filepath = self.generate_certificate_filepath(host=host, port=port)
         certificate_already_exists = os.path.isfile(certificate_filepath)
         if force is False and certificate_already_exists:
             raise FileExistsError('A TLS certificate already exists at {}.'.format(certificate_filepath))
@@ -125,7 +116,7 @@ class NodeStorage(ABC):
         return certificate_filepath
 
     @abstractmethod
-    def store_node_certificate(self, certificate: Certificate) -> str:
+    def store_node_certificate(self, certificate: Certificate, port: int) -> str:
         raise NotImplementedError
 
     @abstractmethod
@@ -134,7 +125,7 @@ class NodeStorage(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def generate_certificate_filepath(self, checksum_address: str) -> str:
+    def generate_certificate_filepath(self, host: str, port: int) -> str:
         raise NotImplementedError
 
     @abstractmethod
@@ -160,11 +151,6 @@ class NodeStorage(ABC):
     @abstractmethod
     def get(self, checksum_address: str, federated_only: bool):
         """Retrieve a single stored node"""
-        raise NotImplementedError
-
-    @abstractmethod
-    def remove(self, checksum_address: str) -> bool:
-        """Remove a single stored node"""
         raise NotImplementedError
 
     @abstractmethod
@@ -221,31 +207,18 @@ class ForgetfulNodeStorage(NodeStorage):
             os.remove(temp_certificate)
         return len(self.__temporary_certificates) == 0
 
-    def store_node_certificate(self, certificate: Certificate):
-        filepath = self._write_tls_certificate(certificate=certificate)
+    def store_node_certificate(self, certificate: Certificate, port: str):
+        filepath = self._write_tls_certificate(certificate=certificate, port=port)
         return filepath
 
     def store_node_metadata(self, node, filepath: str = None):
         self.__metadata[node.checksum_address] = node
         return self.__metadata[node.checksum_address]
 
-    def generate_certificate_filepath(self, host: str) -> str:
-        filename = '{}.pem'.format(host)
+    def generate_certificate_filepath(self, host: str, port: int) -> str:
+        filename = f'{host}:{port}.pem'
         filepath = os.path.join(self._temp_certificates_dir, filename)
         return filepath
-
-    @validate_checksum_address
-    def remove(self,
-               checksum_address: str,
-               metadata: bool = True,
-               certificate: bool = True
-               ) -> Tuple[bool, str]:
-
-        if metadata is True:
-            del self.__metadata[checksum_address]
-        if certificate is True:
-            del self.__certificates[checksum_address]
-        return True, checksum_address
 
     def clear(self, metadata: bool = True, certificates: bool = True) -> None:
         """Forget all stored nodes and certificates"""
@@ -337,14 +310,14 @@ class LocalFileBasedNodeStorage(NodeStorage):
     #
 
     @validate_checksum_address
-    def __get_certificate_filename(self, host: str):
-        return '{}.{}'.format(host, Encoding.PEM.name.lower())
+    def __get_certificate_filename(self, host: str, port: int) -> str:
+        return f'{host}:{port}.{Encoding.PEM.name.lower()}'
 
     def __get_certificate_filepath(self, certificate_filename: str) -> str:
         return os.path.join(self.certificates_dir, certificate_filename)
 
-    def generate_certificate_filepath(self, host: str) -> str:
-        certificate_filename = self.__get_certificate_filename(host)
+    def generate_certificate_filepath(self, host: str, port: int) -> str:
+        certificate_filename = self.__get_certificate_filename(host=host, port=port)
         certificate_filepath = self.__get_certificate_filepath(certificate_filename=certificate_filename)
         return certificate_filepath
 
@@ -433,8 +406,8 @@ class LocalFileBasedNodeStorage(NodeStorage):
         node = self.__read_metadata(filepath=metadata_path)
         return node
 
-    def store_node_certificate(self, certificate: Certificate, force: bool = True):
-        certificate_filepath = self._write_tls_certificate(certificate=certificate, force=force)
+    def store_node_certificate(self, certificate: Certificate, port: int, force: bool = True):
+        certificate_filepath = self._write_tls_certificate(certificate=certificate, port=port, force=force)
         return certificate_filepath
 
     def store_node_metadata(self, node, filepath: str = None) -> str:
@@ -442,21 +415,6 @@ class LocalFileBasedNodeStorage(NodeStorage):
         filepath = self.__generate_metadata_filepath(checksum_address=address, metadata_dir=filepath)
         self.__write_metadata(filepath=filepath, node=node)
         return filepath
-
-    @validate_checksum_address
-    def remove(self, checksum_address: str, metadata: bool = True, certificate: bool = True) -> None:
-
-        if metadata is True:
-            metadata_filepath = self.__generate_metadata_filepath(checksum_address=checksum_address)
-            os.remove(metadata_filepath)
-            self.log.debug("Deleted {} from the filesystem".format(checksum_address))
-
-        if certificate is True:
-            certificate_filepath = self.generate_certificate_filepath(checksum_address=checksum_address)
-            os.remove(certificate_filepath)
-            self.log.debug("Deleted {} from the filesystem".format(checksum_address))
-
-        return
 
     def clear(self, metadata: bool = True, certificates: bool = True) -> None:
         """Forget all stored nodes and certificates"""

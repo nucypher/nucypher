@@ -1512,11 +1512,6 @@ class Ursula(Teacher, Character, Worker):
         if network_middleware is None:
             network_middleware = RestMiddleware(registry=registry)
 
-        #
-        # WARNING: xxx Poison xxx
-        # Let's learn what we can about the ... "seednode".
-        #
-
         # Parse node URI
         host, port, staker_address = parse_node_uri(seed_uri)
 
@@ -1531,7 +1526,7 @@ class Ursula(Teacher, Character, Worker):
 
         # Create a temporary certificate storage area
         temp_node_storage = ForgetfulNodeStorage(federated_only=federated_only)
-        temp_certificate_filepath = temp_node_storage.store_node_certificate(certificate=certificate)
+        temp_certificate_filepath = temp_node_storage.store_node_certificate(certificate=certificate, port=port)
 
         # Load the host as a potential seed node
         potential_seed_node = cls.from_rest_url(

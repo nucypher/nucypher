@@ -84,28 +84,9 @@ class BaseTestNodeStorageBackends:
 
         return True
 
-    def _write_and_delete_metadata(self, ursula, node_storage):
-        # Write Node
-        node_storage.store_node_metadata(node=ursula)
-
-        # Delete Node
-        node_storage.remove(checksum_address=ursula.checksum_address, certificate=False)
-
-        # Read Node
-        with pytest.raises(NodeStorage.UnknownNode):
-            _node_from_storage = node_storage.get(checksum_address=ursula.checksum_address,
-                                                  federated_only=True)
-
-        # Read all nodes from storage
-        all_stored_nodes = node_storage.all(federated_only=True)
-        assert all_stored_nodes == set()
-        return True
-
     #
     # Storage Backend Tests
     #
-    def test_delete_node_in_storage(self, light_ursula):
-        assert self._write_and_delete_metadata(ursula=light_ursula, node_storage=self.storage_backend)
 
     def test_read_and_write_to_storage(self, light_ursula):
         assert self._read_and_write_metadata(ursula=light_ursula, node_storage=self.storage_backend)
