@@ -18,11 +18,14 @@ import os
 from base64 import b64encode
 
 import pytest
+from umbral.keys import UmbralPrivateKey
 
-from nucypher.control.specifications.exceptions import SpecificationError, InvalidArgumentCombo
+from nucypher.characters.control.specifications.fields import TreasureMap
+from nucypher.control.specifications.exceptions import InvalidArgumentCombo, InvalidInputData
 from nucypher.crypto.powers import DecryptingPower
 from nucypher.policy.collections import WorkOrder as WorkOrderClass
 from nucypher.policy.policies import Arrangement
+from nucypher.utilities.porter.control.specifications.fields.ursulainfo import UrsulaInfo
 from nucypher.utilities.porter.control.specifications.porter_schema import (
     AliceGetUrsulas,
     AlicePublishTreasureMap,
@@ -32,8 +35,12 @@ from nucypher.utilities.porter.control.specifications.porter_schema import (
 
 
 def test_alice_get_ursulas_schema(get_random_checksum_address):
+    #
+    # Input i.e. load
+    #
+
     # no args
-    with pytest.raises(SpecificationError):
+    with pytest.raises(InvalidInputData):
         AliceGetUrsulas().load({})
 
     quantity = 10
@@ -47,11 +54,11 @@ def test_alice_get_ursulas_schema(get_random_checksum_address):
 
     # missing required args
     updated_data = {k: v for k, v in required_data.items() if k != 'quantity'}
-    with pytest.raises(SpecificationError):
+    with pytest.raises(InvalidInputData):
         AliceGetUrsulas().load(updated_data)
 
     updated_data = {k: v for k, v in required_data.items() if k != 'duration_periods'}
-    with pytest.raises(SpecificationError):
+    with pytest.raises(InvalidInputData):
         AliceGetUrsulas().load(updated_data)
 
     # optional components
@@ -78,6 +85,22 @@ def test_alice_get_ursulas_schema(get_random_checksum_address):
     updated_data['include_ursulas'] = include_ursulas
     AliceGetUrsulas().load(updated_data)
 
+    # invalid include entry
+    updated_data = dict(required_data)
+    updated_data['exclude_ursulas'] = exclude_ursulas
+    updated_data['include_ursulas'] = list(include_ursulas)  # make copy to modify
+    updated_data['include_ursulas'].append("0xdeadbeef")
+    with pytest.raises(InvalidInputData):
+        AliceGetUrsulas().load(updated_data)
+
+    # invalid exclude entry
+    updated_data = dict(required_data)
+    updated_data['exclude_ursulas'] = list(exclude_ursulas)  # make copy to modify
+    updated_data['exclude_ursulas'].append("0xdeadbeef")
+    updated_data['include_ursulas'] = include_ursulas
+    with pytest.raises(InvalidInputData):
+        AliceGetUrsulas().load(updated_data)
+
     # too many ursulas to include
     updated_data = dict(required_data)
     too_many_ursulas_to_include = []
@@ -88,11 +111,54 @@ def test_alice_get_ursulas_schema(get_random_checksum_address):
         # number of ursulas to include exceeds quantity to sample
         AliceGetUrsulas().load(updated_data)
 
+    # include and exclude addresses are not mutually exclusive - include has common entry
+    updated_data = dict(required_data)
+    updated_data['exclude_ursulas'] = exclude_ursulas
+    updated_data['include_ursulas'] = list(include_ursulas)  # make copy to modify
+    updated_data['include_ursulas'].append(exclude_ursulas[0])  # one address that overlaps
+    with pytest.raises(InvalidArgumentCombo):
+        # 1 address in both include and exclude lists
+        AliceGetUrsulas().load(updated_data)
 
-def test_alice_publish_treasure_map_schema(enacted_federated_policy, federated_bob):
+    # include and exclude addresses are not mutually exclusive - exclude has common entry
+    updated_data = dict(required_data)
+    updated_data['exclude_ursulas'] = list(exclude_ursulas)  # make copy to modify
+    updated_data['exclude_ursulas'].append(include_ursulas[0])  # on address that overlaps
+    updated_data['include_ursulas'] = include_ursulas
+    with pytest.raises(InvalidArgumentCombo):
+        # 1 address in both include and exclude lists
+        AliceGetUrsulas().load(updated_data)
+
+    #
+    # Output i.e. dump
+    #
+    ursulas_info = []
+    expected_ursulas_info = []
+    port = 11500
+    for i in range(3):
+        ursula_info = {
+            "checksum_address": get_random_checksum_address(),
+            "uri": f"https://127.0.0.1:{port+i}",
+            "encrypting_key": UmbralPrivateKey.gen_key().pubkey
+        }
+        ursulas_info.append(ursula_info)
+
+        # use schema to determine expected output (encrypting key gets changed to hex)
+        expected_ursulas_info.append(UrsulaInfo().dump(ursula_info))
+
+    output = AliceGetUrsulas().dump(obj={'ursulas': ursulas_info})
+    assert output == {"ursulas": expected_ursulas_info}
+
+
+def test_alice_publish_treasure_map_schema_federated_context(enacted_federated_policy, federated_bob):
+    # since federated, schema's context must be set - so create one schema
+    # and reuse (it doesn't hold state other than the context)
+    alice_publish_treasure_map_schema = AlicePublishTreasureMap()
+    alice_publish_treasure_map_schema.context[TreasureMap.IS_FEDERATED_CONTEXT_KEY] = True
+
     # no args
-    with pytest.raises(SpecificationError):
-        AlicePublishTreasureMap().load({})
+    with pytest.raises(InvalidInputData):
+        alice_publish_treasure_map_schema.load({})
 
     treasure_map_b64 = b64encode(bytes(enacted_federated_policy.treasure_map)).decode()
     bob_encrypting_key = federated_bob.public_keys(DecryptingPower)
@@ -104,40 +170,55 @@ def test_alice_publish_treasure_map_schema(enacted_federated_policy, federated_b
     }
 
     # required args
-    AlicePublishTreasureMap().load(required_data)
+    alice_publish_treasure_map_schema.load(required_data)
 
     # missing required args
     updated_data = {k: v for k, v in required_data.items() if k != 'treasure_map'}
-    with pytest.raises(SpecificationError):
-        AlicePublishTreasureMap().load(updated_data)
+    with pytest.raises(InvalidInputData):
+        alice_publish_treasure_map_schema.load(updated_data)
 
     updated_data = {k: v for k, v in required_data.items() if k != 'bob_encrypting_key'}
-    with pytest.raises(SpecificationError):
-        AlicePublishTreasureMap().load(updated_data)
+    with pytest.raises(InvalidInputData):
+        alice_publish_treasure_map_schema.load(updated_data)
 
     # invalid treasure map
     updated_data = dict(required_data)
     updated_data['treasure_map'] = b64encode(b"testing").decode()
-    with pytest.raises(SpecificationError):
-        AlicePublishTreasureMap().load(updated_data)
+    with pytest.raises(InvalidInputData):
+        alice_publish_treasure_map_schema.load(updated_data)
 
     # invalid encrypting key
     updated_data = dict(required_data)
     updated_data['bob_encrypting_key'] = b'123456'.hex()
-    with pytest.raises(SpecificationError):
-        AlicePublishTreasureMap().load(updated_data)
+    with pytest.raises(InvalidInputData):
+        alice_publish_treasure_map_schema.load(updated_data)
+
+    # Test Output - test only true since there is no false ever returned
+    response_data = {'published': True}
+    output = alice_publish_treasure_map_schema.dump(obj=response_data)
+    assert output == response_data
+
+    # setting federated context to False fails
+    alice_publish_treasure_map_schema.context[TreasureMap.IS_FEDERATED_CONTEXT_KEY] = False
+    with pytest.raises(InvalidInputData):
+        # failed because non-federated (blockchain) treasure map expected, but instead federated treasure map provided
+        alice_publish_treasure_map_schema.load(required_data)
 
 
 def test_alice_revoke():
     pass  # TODO
 
 
-def test_bob_get_treasure_map(enacted_federated_policy, federated_bob):
+def test_bob_get_treasure_map(enacted_federated_policy, federated_alice, federated_bob):
+    #
+    # Input i.e. load
+    #
+
     # no args
-    with pytest.raises(SpecificationError):
+    with pytest.raises(InvalidInputData):
         BobGetTreasureMap().load({})
 
-    treasure_map_id = enacted_federated_policy.treasure_map.public_id()
+    treasure_map_id = federated_bob.construct_map_id(federated_alice.stamp, enacted_federated_policy.label)
     bob_encrypting_key = federated_bob.public_keys(DecryptingPower)
     bob_encrypting_key_hex = bytes(bob_encrypting_key).hex()
 
@@ -149,26 +230,39 @@ def test_bob_get_treasure_map(enacted_federated_policy, federated_bob):
     # required args
     BobGetTreasureMap().load(required_data)
 
+    # random 16-byte length map id
+    updated_data = dict(required_data)
+    updated_data['treasure_map_id'] = "93a9482bdf3b4f2e9df906a35144ca93"
+    BobGetTreasureMap().load(updated_data)
+
     # missing required args
     updated_data = {k: v for k, v in required_data.items() if k != 'treasure_map_id'}
-    with pytest.raises(SpecificationError):
+    with pytest.raises(InvalidInputData):
         BobGetTreasureMap().load(updated_data)
 
     updated_data = {k: v for k, v in required_data.items() if k != 'bob_encrypting_key'}
-    with pytest.raises(SpecificationError):
+    with pytest.raises(InvalidInputData):
         BobGetTreasureMap().load(updated_data)
 
     # invalid treasure map id
     updated_data = dict(required_data)
     updated_data['treasure_map_id'] = b'fake_id'.hex()
-    with pytest.raises(SpecificationError):
+    with pytest.raises(InvalidInputData):
         BobGetTreasureMap().load(updated_data)
 
     # invalid encrypting key
     updated_data = dict(required_data)
     updated_data['bob_encrypting_key'] = b'123456'.hex()
-    with pytest.raises(SpecificationError):
+    with pytest.raises(InvalidInputData):
         BobGetTreasureMap().load(updated_data)
+
+    #
+    # Output i.e. dump
+    #
+    treasure_map = enacted_federated_policy.treasure_map
+    result = {'treasure_map': treasure_map}
+    output = BobGetTreasureMap().dump(obj=result)
+    assert output == {'treasure_map': b64encode(bytes(treasure_map)).decode()}
 
 
 def test_bob_exec_work_order(mock_ursula_reencrypts,
@@ -193,7 +287,7 @@ def test_bob_exec_work_order(mock_ursula_reencrypts,
     work_order_bytes = work_order.payload()
 
     # no args
-    with pytest.raises(SpecificationError):
+    with pytest.raises(InvalidInputData):
         BobExecWorkOrder().load({})
 
     work_order_b64 = b64encode(work_order_bytes).decode()
@@ -207,15 +301,15 @@ def test_bob_exec_work_order(mock_ursula_reencrypts,
 
     # missing required args
     updated_data = {k: v for k, v in required_data.items() if k != 'ursula'}
-    with pytest.raises(SpecificationError):
+    with pytest.raises(InvalidInputData):
         BobExecWorkOrder().load(updated_data)
 
     updated_data = {k: v for k, v in required_data.items() if k != 'work_order'}
-    with pytest.raises(SpecificationError):
+    with pytest.raises(InvalidInputData):
         BobExecWorkOrder().load(updated_data)
 
     # invalid ursula checksum address
     updated_data = dict(required_data)
     updated_data['ursula'] = "0xdeadbeef"
-    with pytest.raises(SpecificationError):
+    with pytest.raises(InvalidInputData):
         BobExecWorkOrder().load(updated_data)

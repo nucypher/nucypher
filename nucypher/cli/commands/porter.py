@@ -16,12 +16,20 @@
 """
 import click
 
-from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
 from nucypher.blockchain.eth.networks import NetworksInventory
+from nucypher.characters.lawful import Ursula
 from nucypher.cli.config import group_general_config
-from nucypher.cli.options import option_network, option_provider_uri
+from nucypher.cli.options import (
+    option_network,
+    option_provider_uri,
+    option_federated_only,
+    option_teacher_uri,
+    option_registry_filepath,
+    option_min_stake
+)
 from nucypher.cli.types import NETWORK_PORT
-from nucypher.cli.utils import setup_emitter
+from nucypher.cli.utils import setup_emitter, get_registry
+from nucypher.config.constants import TEMPORARY_DOMAIN
 from nucypher.utilities.porter.control.interfaces import PorterInterface
 from nucypher.utilities.porter.porter import Porter
 
@@ -76,20 +84,63 @@ def exec_work_order(general_config, porter_uri, ursula, work_order):
 
 @porter.command()
 @group_general_config
-@option_network(default=NetworksInventory.DEFAULT, validate=True, required=True)
-@option_provider_uri(required=True)
+@option_network(default=NetworksInventory.DEFAULT, validate=True, required=False)
+@option_provider_uri(required=False)
+@option_federated_only
+@option_teacher_uri
+@option_registry_filepath
+@option_min_stake
 @click.option('--http-port', help="Porter HTTP port for JSON endpoint", type=NETWORK_PORT, default=Porter.DEFAULT_PORTER_HTTP_PORT)
 @click.option('--dry-run', '-x', help="Execute normally without actually starting Porter", is_flag=True)
 @click.option('--eager', help="Start learning and scraping the network before starting up other services", is_flag=True, default=True)
-def run(general_config, network, provider_uri, http_port, dry_run, eager):
+def run(general_config,
+        network,
+        provider_uri,
+        federated_only,
+        teacher_uri,
+        registry_filepath,
+        min_stake,
+        http_port,
+        dry_run,
+        eager):
     """Start Porter's Web controller."""
     emitter = setup_emitter(general_config, banner=Porter.BANNER)
 
-    # Setup
-    BlockchainInterfaceFactory.initialize_interface(provider_uri=provider_uri)
+    if federated_only:
+        if not teacher_uri:
+            raise click.BadOptionUsage(option_name='--teacher',
+                                       message="--teacher is required for federated porter.")
 
-    PORTER = Porter(domain=network,
-                    start_learning_now=eager)
+        teacher = Ursula.from_teacher_uri(teacher_uri=teacher_uri,
+                                          federated_only=True,
+                                          min_stake=min_stake)  # min stake is irrelevant for federated
+        PORTER = Porter(domain=TEMPORARY_DOMAIN,
+                        start_learning_now=eager,
+                        known_nodes={teacher},
+                        verify_node_bonding=False,
+                        federated_only=True)
+    else:
+        # decentralized/blockchain
+        if not provider_uri:
+            raise click.BadOptionUsage(option_name='--provider',
+                                       message="--provider is required for decentralized porter.")
+        if not network:
+            raise click.BadOptionUsage(option_name='--network',
+                                       message="--network is required for decentralized porter.")
+
+        registry = get_registry(network=network, registry_filepath=registry_filepath)
+        teacher = None
+        if teacher_uri:
+            teacher = Ursula.from_teacher_uri(teacher_uri=teacher_uri,
+                                              federated_only=False,  # always False
+                                              min_stake=min_stake,
+                                              registry=registry)
+
+        PORTER = Porter(domain=network,
+                        known_nodes={teacher} if teacher else None,
+                        registry=registry,
+                        start_learning_now=eager,
+                        provider_uri=provider_uri)
 
     # RPC
     if general_config.json_ipc:
@@ -99,9 +150,11 @@ def run(general_config, network, provider_uri, http_port, dry_run, eager):
         return
 
     # HTTP
-    emitter.message(f"Network: {network.capitalize()}", color='green')
-    emitter.message(f"Provider: {provider_uri}", color='green')
+    emitter.message(f"Network: {PORTER.domain.capitalize()}", color='green')
+    if not federated_only:
+        emitter.message(f"Provider: {provider_uri}", color='green')
+
     controller = PORTER.make_web_controller(crash_on_error=False)
-    message = f"Running Porter Web Controller at http://localhost:{http_port}"
+    message = f"Running Porter Web Controller at http://127.0.0.1:{http_port}"
     emitter.message(message, color='green', bold=True)
     return controller.start(http_port=http_port, dry_run=dry_run)

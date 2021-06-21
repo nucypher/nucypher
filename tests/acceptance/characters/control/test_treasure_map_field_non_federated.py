@@ -14,21 +14,25 @@
  You should have received a copy of the GNU Affero General Public License
  along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
+from base64 import b64encode
 
-from eth_utils import to_checksum_address
-from marshmallow import fields
+import pytest
 
-from nucypher.cli import types
+from nucypher.characters.control.specifications.fields import TreasureMap
 from nucypher.control.specifications.exceptions import InvalidInputData
-from nucypher.control.specifications.fields import BaseField
 
 
-class UrsulaChecksumAddress(BaseField, fields.String):
-    """Ursula checksum address."""
-    click_type = types.EIP55_CHECKSUM_ADDRESS
+def test_treasure_map(enacted_blockchain_policy):
+    treasure_map = enacted_blockchain_policy.treasure_map
 
-    def _deserialize(self, value, attr, data, **kwargs):
-        try:
-            return to_checksum_address(value=value)
-        except ValueError as e:
-            raise InvalidInputData(f"Could not convert input for {self.name} to a valid checksum address: {e}")
+    field = TreasureMap(federated_only=False)  # decentralized context
+    serialized = field._serialize(value=treasure_map, attr=None, obj=None)
+    assert serialized == b64encode(bytes(treasure_map)).decode()
+
+    deserialized = field._deserialize(value=serialized, attr=None, data=None)
+    assert deserialized == bytes(treasure_map)
+
+    field._validate(value=bytes(treasure_map))
+
+    with pytest.raises(InvalidInputData):
+        field._validate(value=b"TreasureMap")

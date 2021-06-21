@@ -14,21 +14,22 @@
  You should have received a copy of the GNU Affero General Public License
  along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
-
-from eth_utils import to_checksum_address
-from marshmallow import fields
-
-from nucypher.cli import types
-from nucypher.control.specifications.exceptions import InvalidInputData
-from nucypher.control.specifications.fields import BaseField
+import pytest
 
 
-class UrsulaChecksumAddress(BaseField, fields.String):
-    """Ursula checksum address."""
-    click_type = types.EIP55_CHECKSUM_ADDRESS
+#
+# Web
+#
+@pytest.fixture(scope='module')
+def federated_porter_web_controller(federated_porter):
+    web_controller = federated_porter.make_web_controller(crash_on_error=True)
+    yield web_controller.test_client()
 
-    def _deserialize(self, value, attr, data, **kwargs):
-        try:
-            return to_checksum_address(value=value)
-        except ValueError as e:
-            raise InvalidInputData(f"Could not convert input for {self.name} to a valid checksum address: {e}")
+
+#
+# RPC
+#
+@pytest.fixture(scope='module')
+def federated_porter_rpc_controller(federated_porter):
+    rpc_controller = federated_porter.make_rpc_controller(crash_on_error=True)
+    yield rpc_controller.test_client()
