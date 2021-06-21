@@ -265,7 +265,7 @@ def run(general_config, character_options, config_file, controller_port, dry_run
     # Start Controller
     controller = BOB.make_web_controller(crash_on_error=general_config.debug)
     BOB.log.info('Starting HTTP Character Web Controller')
-    return controller.start(http_port=controller_port, dry_run=dry_run)
+    return controller.start(port=controller_port, dry_run=dry_run)
 
 
 @bob.command()

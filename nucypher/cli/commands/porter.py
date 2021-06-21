@@ -14,11 +14,14 @@
  You should have received a copy of the GNU Affero General Public License
  along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
+from pathlib import Path
+
 import click
 
 from nucypher.blockchain.eth.networks import NetworksInventory
 from nucypher.characters.lawful import Ursula
 from nucypher.cli.config import group_general_config
+from nucypher.cli.literature import BOTH_TLS_KEY_AND_CERTIFICATION_MUST_BE_PROVIDED, PORTER_RUN_MESSAGE
 from nucypher.cli.options import (
     option_network,
     option_provider_uri,
@@ -90,7 +93,9 @@ def exec_work_order(general_config, porter_uri, ursula, work_order):
 @option_teacher_uri
 @option_registry_filepath
 @option_min_stake
-@click.option('--http-port', help="Porter HTTP port for JSON endpoint", type=NETWORK_PORT, default=Porter.DEFAULT_PORTER_HTTP_PORT)
+@click.option('--http-port', help="Porter HTTP/HTTPS port for JSON endpoint", type=NETWORK_PORT, default=Porter.DEFAULT_PORT)
+@click.option('--tls-certificate-filepath', help="Pre-signed TLS certificate filepath", type=click.Path(dir_okay=False, exists=True, path_type=Path))
+@click.option('--tls-key-filepath', help="TLS private key filepath", type=click.Path(dir_okay=False, exists=True, path_type=Path))
 @click.option('--dry-run', '-x', help="Execute normally without actually starting Porter", is_flag=True)
 @click.option('--eager', help="Start learning and scraping the network before starting up other services", is_flag=True, default=True)
 def run(general_config,
@@ -101,6 +106,8 @@ def run(general_config,
         registry_filepath,
         min_stake,
         http_port,
+        tls_certificate_filepath,
+        tls_key_filepath,
         dry_run,
         eager):
     """Start Porter's Web controller."""
@@ -125,6 +132,7 @@ def run(general_config,
             raise click.BadOptionUsage(option_name='--provider',
                                        message="--provider is required for decentralized porter.")
         if not network:
+            # should never happen - network defaults to 'mainnet' if not specified
             raise click.BadOptionUsage(option_name='--network',
                                        message="--network is required for decentralized porter.")
 
@@ -149,12 +157,20 @@ def run(general_config,
         rpc_controller.start()
         return
 
-    # HTTP
+    # HTTP/HTTPS
+    if bool(tls_key_filepath) ^ bool(tls_certificate_filepath):
+        raise click.BadOptionUsage(option_name='--tls-key-filepath, --tls-certificate-filepath',
+                                   message=BOTH_TLS_KEY_AND_CERTIFICATION_MUST_BE_PROVIDED)
+
     emitter.message(f"Network: {PORTER.domain.capitalize()}", color='green')
     if not federated_only:
         emitter.message(f"Provider: {provider_uri}", color='green')
 
     controller = PORTER.make_web_controller(crash_on_error=False)
-    message = f"Running Porter Web Controller at http://127.0.0.1:{http_port}"
+    http_scheme = "https" if tls_key_filepath and tls_certificate_filepath else "http"
+    message = PORTER_RUN_MESSAGE.format(http_scheme=http_scheme, http_port=http_port)
     emitter.message(message, color='green', bold=True)
-    return controller.start(http_port=http_port, dry_run=dry_run)
+    return controller.start(port=http_port,
+                            tls_key_filepath=tls_key_filepath,
+                            tls_certificate_filepath=tls_certificate_filepath,
+                            dry_run=dry_run)
