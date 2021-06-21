@@ -21,7 +21,11 @@ from pathlib import Path
 import pytest
 
 from nucypher.characters.lawful import Ursula
-from nucypher.cli.literature import PORTER_RUN_MESSAGE, BOTH_TLS_KEY_AND_CERTIFICATION_MUST_BE_PROVIDED
+from nucypher.cli.literature import (
+    PORTER_RUN_MESSAGE,
+    BOTH_TLS_KEY_AND_CERTIFICATION_MUST_BE_PROVIDED,
+    BASIC_AUTH_REQUIRES_HTTPS
+)
 from nucypher.cli.main import nucypher_cli
 from nucypher.config.constants import TEMPORARY_DOMAIN
 from nucypher.utilities.porter.porter import Porter
@@ -152,6 +156,28 @@ def test_federated_cli_run_https(click_runner, federated_ursulas, temp_dir_path,
     assert PORTER_RUN_MESSAGE.format(http_scheme="https", http_port=Porter.DEFAULT_PORT) in result.output
 
 
+def test_federated_cli_run_https_basic_auth(click_runner,
+                                            federated_ursulas,
+                                            federated_teacher_uri,
+                                            temp_dir_path,
+                                            basic_auth_file):
+    tls_key_path = Path(temp_dir_path) / 'key.pem'
+    _write_random_data(tls_key_path)
+    certificate_file_path = Path(temp_dir_path) / 'fullchain.pem'
+    _write_random_data(certificate_file_path)
+
+    porter_run_command = ('porter', 'run',
+                          '--dry-run',
+                          '--federated-only',
+                          '--teacher', federated_teacher_uri,
+                          '--tls-key-filepath', tls_key_path,
+                          '--tls-certificate-filepath', certificate_file_path,
+                          '--basic-auth-filepath', basic_auth_file)
+    result = click_runner.invoke(nucypher_cli, porter_run_command, catch_exceptions=False)
+    assert result.exit_code == 0
+    assert "Basic Authentication enabled" in result.output
+
+
 def test_blockchain_porter_cli_run_simple(click_runner,
                                           blockchain_ursulas,
                                           testerchain,
@@ -245,6 +271,48 @@ def test_blockchain_porter_cli_run_https(click_runner,
     result = click_runner.invoke(nucypher_cli, porter_run_command, catch_exceptions=False)
     assert result.exit_code == 0
     assert PORTER_RUN_MESSAGE.format(http_scheme="https", http_port=Porter.DEFAULT_PORT) in result.output
+
+
+def test_blockchain_porter_cli_run_https_basic_auth(click_runner,
+                                                    blockchain_ursulas,
+                                                    blockchain_teacher_uri,
+                                                    testerchain,
+                                                    agency_local_registry,
+                                                    temp_dir_path,
+                                                    basic_auth_file
+                                                    ):
+    tls_key_path = Path(temp_dir_path) / 'key.pem'
+    _write_random_data(tls_key_path)
+    certificate_file_path = Path(temp_dir_path) / 'fullchain.pem'
+    _write_random_data(certificate_file_path)
+
+    # Basic Auth requires https - missing both tls parameters
+    porter_run_command = ('porter', 'run',
+                          '--dry-run',
+                          '--network', TEMPORARY_DOMAIN,
+                          '--provider', TEST_PROVIDER_URI,
+                          '--registry-filepath', agency_local_registry.filepath,
+                          '--teacher', blockchain_teacher_uri,
+                          '--basic-auth-filepath', basic_auth_file)
+
+    result = click_runner.invoke(nucypher_cli, porter_run_command, catch_exceptions=False)
+    assert result.exit_code != 0
+    assert BASIC_AUTH_REQUIRES_HTTPS in result.output
+
+    # Basic Auth
+    porter_run_command = ('porter', 'run',
+                          '--dry-run',
+                          '--network', TEMPORARY_DOMAIN,
+                          '--provider', TEST_PROVIDER_URI,
+                          '--registry-filepath', agency_local_registry.filepath,
+                          '--teacher', blockchain_teacher_uri,
+                          '--tls-key-filepath', tls_key_path,
+                          '--tls-certificate-filepath', certificate_file_path,
+                          '--basic-auth-filepath', basic_auth_file)
+
+    result = click_runner.invoke(nucypher_cli, porter_run_command, catch_exceptions=False)
+    assert result.exit_code == 0
+    assert "Basic Authentication enabled" in result.output
 
 
 def _write_random_data(filepath: Path):

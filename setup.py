@@ -140,7 +140,7 @@ PORTER_REQUIRES = ['flask-htpasswd']  # needed for basic authentication
 EXTRAS = {
 
     # Admin
-    'dev': DEV_REQUIRES + URSULA_REQUIRES + ALICE_REQUIRES,
+    'dev': DEV_REQUIRES + URSULA_REQUIRES + ALICE_REQUIRES + PORTER_REQUIRES,
     'benchmark': DEV_REQUIRES + BENCHMARK_REQUIRES,
     'deploy': DEPLOY_REQUIRES,
 
