@@ -15,14 +15,14 @@ You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
-import binascii
 import os
 import tempfile
 from abc import ABC, abstractmethod
 from pathlib import Path
-from typing import Any, Set, Tuple, Union
+from typing import Any, Set, Union
 
 import OpenSSL
+import binascii
 from bytestring_splitter import BytestringSplittingError
 from cryptography import x509
 from cryptography.hazmat.backends import default_backend
@@ -32,6 +32,7 @@ from cryptography.x509 import Certificate
 from nucypher.blockchain.eth.decorators import validate_checksum_address
 from nucypher.blockchain.eth.registry import BaseContractRegistry
 from nucypher.config.constants import DEFAULT_CONFIG_ROOT
+from nucypher.crypto.signing import SignatureStamp
 from nucypher.utilities.logging import Logger
 
 
@@ -184,21 +185,21 @@ class ForgetfulNodeStorage(NodeStorage):
     def get(self,
             federated_only: bool,
             host: str = None,
-            checksum_address: str = None,
+            stamp: SignatureStamp = None,
             certificate_only: bool = False):
 
-        if not bool(checksum_address) ^ bool(host):
+        if not bool(stamp) ^ bool(host):
             message = "Either pass checksum_address or host; Not both. Got ({} {})".format(checksum_address, host)
             raise ValueError(message)
 
         if certificate_only is True:
             try:
-                return self.__certificates[checksum_address or host]
+                return self.__certificates[stamp or host]
             except KeyError:
                 raise self.UnknownNode
         else:
             try:
-                return self.__metadata[checksum_address or host]
+                return self.__metadata[stamp or host]
             except KeyError:
                 raise self.UnknownNode
 
@@ -207,13 +208,13 @@ class ForgetfulNodeStorage(NodeStorage):
             os.remove(temp_certificate)
         return len(self.__temporary_certificates) == 0
 
-    def store_node_certificate(self, certificate: Certificate, port: str):
+    def store_node_certificate(self, certificate: Certificate, port: int) -> str:
         filepath = self._write_tls_certificate(certificate=certificate, port=port)
         return filepath
 
-    def store_node_metadata(self, node, filepath: str = None):
-        self.__metadata[node.checksum_address] = node
-        return self.__metadata[node.checksum_address]
+    def store_node_metadata(self, node, filepath: str = None) -> bytes:
+        self.__metadata[node.stamp] = node
+        return self.__metadata[node.stamp]
 
     def generate_certificate_filepath(self, host: str, port: int) -> str:
         filename = f'{host}:{port}.pem'
@@ -338,10 +339,11 @@ class LocalFileBasedNodeStorage(NodeStorage):
     # Metadata
     #
 
-    @validate_checksum_address
-    def __generate_metadata_filepath(self, checksum_address: str, metadata_dir: str = None) -> str:
+    def __generate_metadata_filepath(self, stamp: Union[SignatureStamp, str], metadata_dir: str = None) -> str:
+        if isinstance(stamp, SignatureStamp):
+            stamp = bytes(stamp).hex()
         metadata_path = os.path.join(metadata_dir or self.metadata_dir,
-                                     self.__METADATA_FILENAME_TEMPLATE.format(checksum_address))
+                                     self.__METADATA_FILENAME_TEMPLATE.format(stamp))
         return metadata_path
 
     def __read_metadata(self, filepath: str):
@@ -398,11 +400,11 @@ class LocalFileBasedNodeStorage(NodeStorage):
             return known_nodes
 
     @validate_checksum_address
-    def get(self, checksum_address: str, federated_only: bool, certificate_only: bool = False):
+    def get(self, stamp: str, federated_only: bool, certificate_only: bool = False):
         if certificate_only is True:
-            certificate = self.__read_node_tls_certificate(checksum_address=checksum_address)
+            certificate = self.__read_node_tls_certificate(stamp=stamp)
             return certificate
-        metadata_path = self.__generate_metadata_filepath(checksum_address=checksum_address)
+        metadata_path = self.__generate_metadata_filepath(stamp=stamp)
         node = self.__read_metadata(filepath=metadata_path)
         return node
 
@@ -411,8 +413,7 @@ class LocalFileBasedNodeStorage(NodeStorage):
         return certificate_filepath
 
     def store_node_metadata(self, node, filepath: str = None) -> str:
-        address = node.checksum_address
-        filepath = self.__generate_metadata_filepath(checksum_address=address, metadata_dir=filepath)
+        filepath = self.__generate_metadata_filepath(stamp=node.stamp, metadata_dir=filepath)
         self.__write_metadata(filepath=filepath, node=node)
         return filepath
 
