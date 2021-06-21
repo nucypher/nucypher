@@ -19,7 +19,6 @@ from typing import List, Optional, Iterable
 from constant_sorrow.constants import NO_CONTROL_PROTOCOL, NO_BLOCKCHAIN_CONNECTION
 from eth_typing import ChecksumAddress
 from flask import request, Response
-from flask_htpasswd import HtPasswdAuth
 from umbral.keys import UmbralPublicKey
 
 from nucypher.blockchain.eth.agents import ContractAgency, StakingEscrowAgent
@@ -208,6 +207,12 @@ the Pipe for nucypher network operations
         # Register Flask Decorator
         porter_flask_control = controller.make_control_transport()
         if htpasswd_filepath:
+            try:
+                from flask_htpasswd import HtPasswdAuth
+            except ImportError:
+                raise ImportError('Porter installation is required for basic authentication '
+                                  '- run "pip install nucypher[porter]" and try again.')
+
             porter_flask_control.config['FLASK_HTPASSWD_PATH'] = htpasswd_filepath
             # ensure basic auth required for all endpoints
             porter_flask_control.config['FLASK_AUTH_ALL'] = True
