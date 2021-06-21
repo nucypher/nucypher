@@ -23,6 +23,7 @@ import shutil
 import tempfile
 from datetime import datetime, timedelta
 from functools import partial
+from pathlib import Path
 from typing import Callable, Tuple
 
 import maya
@@ -1087,3 +1088,16 @@ def mock_teacher_nodes(mocker):
 def disable_interactive_keystore_generation(mocker):
     # Do not notify or confirm mnemonic seed words during tests normally
     mocker.patch.object(Keystore, '_confirm_generate')
+
+
+#
+# Web Auth
+#
+@pytest.fixture(scope='module')
+def basic_auth_file(temp_dir_path):
+    basic_auth = Path(temp_dir_path) / 'htpasswd'
+    with basic_auth.open("w") as f:
+        # username: "admin", password: "admin"
+        f.write("admin:$apr1$hlEpWVoI$0qjykXrvdZ0yO2TnBggQO0\n")
+    yield basic_auth
+    basic_auth.unlink()

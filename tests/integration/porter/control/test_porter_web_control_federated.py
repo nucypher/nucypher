@@ -108,6 +108,8 @@ def test_publish_and_get_treasure_map(federated_porter_web_controller,
     response = federated_porter_web_controller.post('/publish_treasure_map',
                                                     data=json.dumps(publish_treasure_map_params))
     assert response.status_code == 200
+    response_data = json.loads(response.data)
+    assert response_data['result']['published']
 
     # try getting the random treasure map now
     get_treasure_map_params = {
@@ -132,3 +134,52 @@ def test_publish_and_get_treasure_map(federated_porter_web_controller,
     assert response.status_code == 200
     response_data = json.loads(response.data)
     assert response_data['result']['treasure_map'] == b64encode(bytes(enacted_federated_policy.treasure_map)).decode()
+
+
+def test_endpoints_basic_auth(federated_porter_basic_auth_web_controller):
+    # /get_ursulas
+    quantity = 4
+    duration = 2  # irrelevant for federated (but required)
+    get_ursulas_params = {
+        'quantity': quantity,
+        'duration_periods': duration,  # irrelevant for federated (but required)
+    }
+    response = federated_porter_basic_auth_web_controller.get('/get_ursulas', data=json.dumps(get_ursulas_params))
+    assert response.status_code == 401  # user unauthorized
+
+    random_bob_encrypting_key = UmbralPublicKey.from_bytes(
+        bytes.fromhex("026d1f4ce5b2474e0dae499d6737a8d987ed3c9ab1a55e00f57ad2d8e81fe9e9ac"))
+    random_treasure_map_id = "f6ec73c93084ce91d5542a4ba6070071f5565112fe19b26ae9c960f9d658903a"  # federated is 32 bytes
+    random_treasure_map = b64decode("Qld7S8sbKFCv2B8KxfJo4oxiTOjZ4VPyqTK5K1xK6DND6TbLg2hvlGaMV69aiiC5QfadB82w/5q1"
+                                    "Sw+SNFHN2esWgAbs38QuUVUGCzDoWzQAAAGIAuhw12ZiPMNV8LaeWV8uUN+au2HGOjWilqtKsaP9f"
+                                    "mnLAzFiTUAu9/VCxOLOQE88BPoWk1H7OxRLDEhnBVYyflpifKbOYItwLLTtWYVFRY90LtNSAzS8d3v"
+                                    "NH4c3SHSZwYsCKY+5LvJ68GD0CqhydSxCcGckh0unttHrYGSOQsURUI4AAAEBsSMlukjA1WyYA+Fouq"
+                                    "kuRtk8bVHcYLqRUkK2n6dShEUGMuY1SzcAbBINvJYmQp+hhzK5m47AzCl463emXepYZQC/evytktG7y"
+                                    "Xxd3k8Ak+Qr7T4+G2VgJl4YrafTpIT6wowd+8u/SMSrrf/M41OhtLeBC4uDKjO3rYBQfVLTpEAgiX/9"
+                                    "jxB80RtNMeCwgcieviAR5tlw2IlxVTEhxXbFeopcOZmfEuhVWqgBUfIakqsNCXkkubV0XS2l5G1vtTM8"
+                                    "oNML0rP8PyKd4+0M5N6P/EQqFkHH93LCDD0IQBq9usm3MoJp0eT8N3m5gprI05drDh2xe/W6qnQfw3YXn"
+                                    "jdvf2A=")
+
+    # /get_treasure_map
+    get_treasure_map_params = {
+        'treasure_map_id': random_treasure_map_id,
+        'bob_encrypting_key': random_bob_encrypting_key.hex()
+    }
+    response = federated_porter_basic_auth_web_controller.get('/get_treasure_map', data=json.dumps(get_treasure_map_params))
+    assert response.status_code == 401  # user not authenticated
+
+    # /publish_treasure_map
+    publish_treasure_map_params = {
+        'treasure_map': b64encode(bytes(random_treasure_map)).decode(),
+        'bob_encrypting_key': random_bob_encrypting_key.hex()
+    }
+    response = federated_porter_basic_auth_web_controller.post('/publish_treasure_map',
+                                                               data=json.dumps(publish_treasure_map_params))
+    assert response.status_code == 401  # user not authenticated
+
+    # try get_ursulas with authentication
+    credentials = b64encode(b"admin:admin").decode('utf-8')
+    response = federated_porter_basic_auth_web_controller.get('/get_ursulas',
+                                                              data=json.dumps(get_ursulas_params),
+                                                              headers={"Authorization": f"Basic {credentials}"})
+    assert response.status_code == 200  # success

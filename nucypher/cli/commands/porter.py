@@ -177,7 +177,7 @@ def run(general_config,
         emitter.message(f"Provider: {provider_uri}", color='green')
 
     if basic_auth_filepath:
-        emitter.message(f"Basic Authentication enabled", color='green')
+        emitter.message("Basic Authentication enabled", color='green')
 
     controller = PORTER.make_web_controller(htpasswd_filepath=basic_auth_filepath, crash_on_error=False)
     http_scheme = "https" if is_https else "http"
