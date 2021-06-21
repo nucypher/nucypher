@@ -19,6 +19,7 @@ from typing import List, Optional, Iterable
 from constant_sorrow.constants import NO_CONTROL_PROTOCOL, NO_BLOCKCHAIN_CONNECTION
 from eth_typing import ChecksumAddress
 from flask import request, Response
+from flask_htpasswd import HtPasswdAuth
 from umbral.keys import UmbralPublicKey
 
 from nucypher.blockchain.eth.agents import ContractAgency, StakingEscrowAgent
@@ -198,7 +199,7 @@ the Pipe for nucypher network operations
         self.controller = controller
         return controller
 
-    def make_web_controller(self, crash_on_error: bool = False):
+    def make_web_controller(self, crash_on_error: bool = False, htpasswd_filepath: str = None):
         controller = WebController(app_name=self.APP_NAME,
                                    crash_on_error=crash_on_error,
                                    interface=self._interface_class(porter=self))
@@ -206,6 +207,11 @@ the Pipe for nucypher network operations
 
         # Register Flask Decorator
         porter_flask_control = controller.make_control_transport()
+        if htpasswd_filepath:
+            porter_flask_control.config['FLASK_HTPASSWD_PATH'] = htpasswd_filepath
+            # ensure basic auth required for all endpoints
+            porter_flask_control.config['FLASK_AUTH_ALL'] = True
+            _ = HtPasswdAuth(app=porter_flask_control)
 
         #
         # Porter Control HTTP Endpoints
