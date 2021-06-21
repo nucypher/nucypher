@@ -106,6 +106,8 @@ def test_publish_and_get_treasure_map(blockchain_porter_web_controller,
     }
     response = blockchain_porter_web_controller.post('/publish_treasure_map', data=json.dumps(publish_treasure_map_params))
     assert response.status_code == 200
+    response_data = json.loads(response.data)
+    assert response_data['result']['published']
 
     # try getting the recently published treasure map
     map_id = blockchain_bob.construct_map_id(blockchain_alice.stamp,
@@ -115,7 +117,29 @@ def test_publish_and_get_treasure_map(blockchain_porter_web_controller,
         'bob_encrypting_key': blockchain_bob_encrypting_key.hex()
     }
     response = blockchain_porter_web_controller.get('/get_treasure_map',
-                                                     data=json.dumps(get_treasure_map_params))
+                                                    data=json.dumps(get_treasure_map_params))
     assert response.status_code == 200
     response_data = json.loads(response.data)
     assert response_data['result']['treasure_map'] == b64encode(bytes(treasure_map)).decode()
+
+
+def test_get_ursulas_basic_auth(blockchain_porter_basic_auth_web_controller):
+    quantity = 4
+    duration = 2
+    get_ursulas_params = {
+        'quantity': quantity,
+        'duration_periods': duration,
+    }
+
+    response = blockchain_porter_basic_auth_web_controller.get('/get_ursulas', data=json.dumps(get_ursulas_params))
+    assert response.status_code == 401  # user is unauthorized
+
+    credentials = b64encode(b"admin:admin").decode('utf-8')
+    response = blockchain_porter_basic_auth_web_controller.get('/get_ursulas',
+                                                               data=json.dumps(get_ursulas_params),
+                                                               headers={"Authorization": f"Basic {credentials}"})
+    assert response.status_code == 200  # success - access allowed
+    response_data = json.loads(response.data)
+    ursulas_info = response_data['result']['ursulas']
+    returned_ursula_addresses = {ursula_info['checksum_address'] for ursula_info in ursulas_info}  # ensure no repeats
+    assert len(returned_ursula_addresses) == quantity
