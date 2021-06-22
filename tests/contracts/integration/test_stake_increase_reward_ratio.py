@@ -14,9 +14,13 @@ GNU Affero General Public License for more details.
 You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
+import pytest
+
 from tests.contracts.integration.increase import check_rewards_ratios_after_increase
 
 
+@pytest.mark.skip(reason="This test depicts the known issue related to increasing stake and is expected to fail "
+                         "- see Issue #2691.")
 def test_rewards_ratios_after_increase(testerchain, agency, token_economics, test_registry):
     check_rewards_ratios_after_increase(testerchain, agency, token_economics, test_registry,
                                         increase_callable=_increase_stake,
