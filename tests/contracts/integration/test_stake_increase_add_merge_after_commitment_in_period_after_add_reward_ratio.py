@@ -24,11 +24,11 @@ from nucypher.crypto.powers import TransactingPower
 from tests.contracts.integration.utils import prepare_staker, commit_to_next_period, MAX_NUNIT_ERROR
 
 
-def test_stake_add_sub_stake_then_merge_after_two_period_commitments(testerchain,
-                                                                     agency,
-                                                                     token_economics,
-                                                                     test_registry,
-                                                                     skip_problematic_assertions_after_increase=False):  # set to True to allow values to be printed and failing assertions skipped
+def test_stake_increase_add_merge_after_commitment_in_period_after_add(testerchain,
+                                                                       agency,
+                                                                       token_economics,
+                                                                       test_registry,
+                                                                       skip_problematic_assertions_after_increase=False):  # set to True to allow values to be printed and failing assertions skipped
     num_test_periods = 20
     min_periods_before_merge = 10
 
@@ -205,17 +205,20 @@ def test_stake_add_sub_stake_then_merge_after_two_period_commitments(testerchain
             print(f">>> Added new sub-stake to ursula4 in period {i}")
             ursula4_period_of_additional_substake = i
             ursula4_prior_period_cumulative_rewards -= NU.from_nunits(token_economics.minimum_allowed_locked)  # adjust for amount taken out of unlocked rewards
-        elif ursula4_period_of_additional_substake != -1 and i == (ursula4_period_of_additional_substake + 2):  # wait 2 periods before merging
+        elif ursula4_period_of_additional_substake != -1 and i == (ursula4_period_of_additional_substake + 1):  # wait 1 period before merging
             # merge ursula4 sub-stakes
             substake_0 = staking_agent.get_substake_info(staker_address=ursula4_tpower.account, stake_index=0)
             substake_1 = staking_agent.get_substake_info(staker_address=ursula4_tpower.account, stake_index=1)
             assert substake_0.last_period == substake_1.last_period
+            last_committed_period = staking_agent.get_last_committed_period(staker_address=ursula4_tpower.account)
+            assert last_committed_period >= substake_0.first_period + 1  # original sub-stake
+            # new sub-stake (ensure commitment occurred in period after sub-stake was created
+            assert last_committed_period == substake_1.first_period + 1
             _ = staking_agent.merge_stakes(transacting_power=ursula4_tpower,
                                            stake_index_1=0,
                                            stake_index_2=1)
-
             print(f">>> Merged sub-stake (0, 1) for ursula4 in period {i}")
             ursula4_period_of_merge = i
 
     assert ursula4_period_of_additional_substake != -1, "addition of sub-stake actually occurred"
-    assert ursula4_period_of_merge != -1 and ursula4_period_of_merge == (ursula4_period_of_additional_substake + 2), "merge of sub-stake actually occurred"
+    assert ursula4_period_of_merge != -1 and ursula4_period_of_merge == (ursula4_period_of_additional_substake + 1), "merge of sub-stake actually occurred"
