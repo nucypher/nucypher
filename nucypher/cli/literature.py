@@ -90,6 +90,17 @@ CONFIRM_BROADCAST_CREATE_STAKE = "Publish staged stake to the blockchain?"
 
 CONFIRM_INCREASING_STAKE = "Confirm increase stake (index: {stake_index}) by {value}?"
 
+CONFIRM_INCREASING_STAKE_DISCLAIMER = """
+NOTE: Due to a known issue with the StakingEscrow contract, using the increase operation may lead to reduced staking
+rewards for the first period after the increase (GitHub Issue: https://github.com/nucypher/nucypher/issues/2691).
+
+A workaround to increase stake size without reduced staking rewards is the following:
+1. Create a new sub-stake with the same duration as the current sub-stake
+2. After 2 period commitments by the Worker node, merge the sub-stakes
+
+Are you sure you want to use the increase operation instead of the workaround?
+"""
+
 INSUFFICIENT_BALANCE_TO_INCREASE = "There are no tokens to increase stake"
 
 INSUFFICIENT_BALANCE_TO_CREATE = "Insufficient NU for stake creation."

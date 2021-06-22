@@ -94,6 +94,7 @@ from nucypher.cli.literature import (
     FETCHING_INACTIVE_STAKES,
     MIGRATION_ALREADY_PERFORMED,
     CONFIRM_MANUAL_MIGRATION,
+    CONFIRM_INCREASING_STAKE_DISCLAIMER
 )
 from nucypher.cli.options import (
     group_options,
@@ -634,6 +635,7 @@ def increase(general_config: GroupGeneralConfig,
     #
 
     if not force:
+        click.confirm(CONFIRM_INCREASING_STAKE_DISCLAIMER, abort=True)
         lock_periods = current_stake.periods_remaining - 1
         current_period = STAKEHOLDER.staker.staking_agent.get_current_period()
         unlock_period = current_stake.final_locked_period + 1

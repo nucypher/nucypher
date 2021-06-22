@@ -27,9 +27,9 @@ def test_rewards_ratios_after_increase(testerchain, agency, token_economics, tes
                                         skip_problematic_assertions_after_increase=False)
 
 
-def _increase_stake(i, staking_agent, token_economics, ursula4_tpower):
+def _increase_stake(i, staking_agent, lock_periods, amount, ursula4_tpower):
     # increase ursula4 stake by min staking amount so that stake ratio of ursula1 or ursula2: ursula 4 is 1:2
     staking_agent.lock_and_increase(transacting_power=ursula4_tpower,
-                                    amount=token_economics.minimum_allowed_locked,
+                                    amount=amount,
                                     stake_index=0)
     print(f">>> Increase ursula4 NU in period {i}")

@@ -196,7 +196,11 @@ def check_rewards_ratios_after_increase(testerchain,
             # AND enough rewards received to stake min stake amount
             # AND not already previously increased
 
-            increase_callable(i, staking_agent, token_economics, ursula4_tpower)
+            lock_periods = 100 * token_economics.maximum_rewarded_periods  # winddown is off
+            amount = token_economics.minimum_allowed_locked
+            increase_callable(i, staking_agent, lock_periods, amount, ursula4_tpower)
             ursula4_period_of_increase = i
+            ursula4_prior_period_cumulative_rewards -= NU.from_nunits(
+                token_economics.minimum_allowed_locked)  # adjust for amount taken out of unlocked rewards
 
     assert ursula4_period_of_increase != -1, "increase of stake actually occurred"

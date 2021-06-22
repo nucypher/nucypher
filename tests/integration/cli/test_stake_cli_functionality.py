@@ -73,7 +73,8 @@ from nucypher.cli.literature import (
     TOKEN_REWARD_CURRENT,
     TOKEN_REWARD_NOT_FOUND,
     TOKEN_REWARD_PAST,
-    TOKEN_REWARD_PAST_HEADER
+    TOKEN_REWARD_PAST_HEADER,
+    CONFIRM_INCREASING_STAKE_DISCLAIMER
 )
 from nucypher.cli.painting.staking import REWARDS_TABLE_COLUMNS, TOKEN_DECIMAL_PLACE
 from nucypher.config.constants import TEMPORARY_DOMAIN
@@ -668,7 +669,8 @@ def test_increase_interactive(click_runner,
     user_input = '\n'.join((str(selected_index),
                             str(sub_stake_index),
                             str(additional_value.to_tokens()),
-                            YES,
+                            YES,  # confirm disclaimer
+                            YES,  # confirm increase
                             INSECURE_DEVELOPMENT_PASSWORD))
 
     result = click_runner.invoke(stake, command, input=user_input, catch_exceptions=False)
@@ -697,6 +699,7 @@ def test_increase_interactive(click_runner,
     upper_limit = NU.from_nunits(balance)
     assert CONFIRM_STAKE_USE_UNLOCKED not in result.output  # default is use staker address
     assert PROMPT_STAKE_INCREASE_VALUE.format(upper_limit=upper_limit) in result.output
+    assert CONFIRM_INCREASING_STAKE_DISCLAIMER in result.output
     assert CONFIRM_INCREASING_STAKE.format(stake_index=sub_stake_index, value=additional_value) in result.output
     assert SUCCESSFUL_STAKE_INCREASE in result.output
 
@@ -752,6 +755,7 @@ def test_increase_non_interactive(click_runner,
 
     upper_limit = NU.from_nunits(token_economics.maximum_allowed_locked - locked_tokens)
     assert PROMPT_STAKE_INCREASE_VALUE.format(upper_limit=upper_limit) not in result.output
+    assert CONFIRM_INCREASING_STAKE_DISCLAIMER not in result.output
     assert CONFIRM_INCREASING_STAKE.format(stake_index=sub_stake_index, value=additional_value) not in result.output
     assert SUCCESSFUL_STAKE_INCREASE in result.output
     assert CONFIRM_STAKE_USE_UNLOCKED not in result.output  # default is use staker address
@@ -799,7 +803,8 @@ def test_increase_lock_interactive(click_runner,
                             str(sub_stake_index),
                             YES,
                             str(additional_value.to_tokens()),
-                            YES,
+                            YES,  # confirm disclaimer
+                            YES,  # confirm increase
                             INSECURE_DEVELOPMENT_PASSWORD))
 
     result = click_runner.invoke(stake, command, input=user_input, catch_exceptions=False)
@@ -826,6 +831,7 @@ def test_increase_lock_interactive(click_runner,
 
     upper_limit = NU.from_nunits(token_economics.maximum_allowed_locked - locked_tokens)
     assert PROMPT_STAKE_INCREASE_VALUE.format(upper_limit=upper_limit) in result.output
+    assert CONFIRM_INCREASING_STAKE_DISCLAIMER in result.output
     assert CONFIRM_INCREASING_STAKE.format(stake_index=sub_stake_index, value=additional_value) in result.output
     assert SUCCESSFUL_STAKE_INCREASE in result.output
     assert CONFIRM_STAKE_USE_UNLOCKED in result.output  # value not provided but --from-unlocked specified so prompted
@@ -876,6 +882,7 @@ def test_increase_lock_non_interactive(click_runner,
     upper_limit = NU.from_nunits(unlocked_tokens)
     assert CONFIRM_STAKE_USE_UNLOCKED not in result.output  # value provided so not prompted
     assert PROMPT_STAKE_INCREASE_VALUE.format(upper_limit=upper_limit) not in result.output
+    assert CONFIRM_INCREASING_STAKE_DISCLAIMER not in result.output
     assert CONFIRM_INCREASING_STAKE.format(stake_index=sub_stake_index, value=additional_value) not in result.output
     assert SUCCESSFUL_STAKE_INCREASE in result.output
 

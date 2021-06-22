@@ -27,11 +27,10 @@ def test_rewards_ratios_after_increase_via_merge(testerchain, agency, token_econ
                                         skip_problematic_assertions_after_increase=False)
 
 
-def _increase_stake_via_merge(i, staking_agent, token_economics, ursula4_tpower):
+def _increase_stake_via_merge(i, staking_agent, lock_periods, amount, ursula4_tpower):
     # increase ursula4 stake by min staking amount via merge so that stake ratio of ursula1 or ursula2: ursula 4 is 1:2
-    lock_periods = 100 * token_economics.maximum_rewarded_periods  # winddown is off
     _ = staking_agent.lock_and_create(transacting_power=ursula4_tpower,
-                                      amount=token_economics.minimum_allowed_locked,
+                                      amount=amount,
                                       lock_periods=lock_periods)
     substake_0 = staking_agent.get_substake_info(staker_address=ursula4_tpower.account, stake_index=0)
     substake_1 = staking_agent.get_substake_info(staker_address=ursula4_tpower.account, stake_index=1)
