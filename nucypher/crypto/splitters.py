@@ -17,13 +17,9 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 
 
 from bytestring_splitter import BytestringSplitter, VariableLengthBytestring
-from umbral.cfrags import CapsuleFrag
-from umbral.config import default_params
-from umbral.keys import UmbralPublicKey
-from umbral.pre import Capsule
+from nucypher.crypto.umbral_adapter import CapsuleFrag, PublicKey, Capsule, Signature
 
-from nucypher.crypto.constants import CAPSULE_LENGTH, PUBLIC_KEY_LENGTH
-
-key_splitter = BytestringSplitter((UmbralPublicKey, PUBLIC_KEY_LENGTH))
-capsule_splitter = BytestringSplitter((Capsule, CAPSULE_LENGTH, {"params": default_params()}))
-cfrag_splitter = BytestringSplitter((CapsuleFrag, VariableLengthBytestring))
+key_splitter = BytestringSplitter((PublicKey, PublicKey.serialized_size()))
+capsule_splitter = BytestringSplitter((Capsule, Capsule.serialized_size()))
+cfrag_splitter = BytestringSplitter((CapsuleFrag, CapsuleFrag.serialized_size()))
+signature_splitter = BytestringSplitter((Signature, Signature.serialized_size()))

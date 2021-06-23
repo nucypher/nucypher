@@ -34,16 +34,16 @@ from twisted._threads import AlreadyQuit
 from twisted.internet import reactor
 from twisted.internet.defer import ensureDeferred, Deferred
 from twisted.python.threadpool import ThreadPool
-from umbral.keys import UmbralPublicKey
-from umbral.kfrags import KFrag
 
 from nucypher.blockchain.eth.actors import BlockchainPolicyAuthor
 from nucypher.blockchain.eth.agents import PolicyManagerAgent, StakersReservoir, StakingEscrowAgent
 from nucypher.characters.lawful import Alice, Ursula
 from nucypher.crypto.api import keccak_digest, secure_random
-from nucypher.crypto.constants import HRAC_LENGTH, PUBLIC_KEY_LENGTH
+from nucypher.crypto.constants import HRAC_LENGTH
 from nucypher.crypto.kits import RevocationKit
 from nucypher.crypto.powers import DecryptingPower, SigningPower, TransactingPower
+from nucypher.crypto.splitters import key_splitter
+from nucypher.crypto.umbral_adapter import PublicKey, KeyFrag
 from nucypher.crypto.utils import construct_policy_id
 from nucypher.network.exceptions import NodeSeemsToBeDown
 from nucypher.network.middleware import RestMiddleware
@@ -57,7 +57,7 @@ class Arrangement:
     """
     ID_LENGTH = 32
 
-    splitter = BytestringSplitter((UmbralPublicKey, PUBLIC_KEY_LENGTH),  # alive_verifying_key
+    splitter = BytestringSplitter(key_splitter,  # alive_verifying_key
                                   (bytes, ID_LENGTH),  # arrangement_id
                                   (bytes, VariableLengthBytestring))  # expiration
 
@@ -68,7 +68,7 @@ class Arrangement:
         return cls(alice_verifying_key, expiration, arrangement_id)
 
     def __init__(self,
-                 alice_verifying_key: UmbralPublicKey,
+                 alice_verifying_key: PublicKey,
                  expiration: maya.MayaDT,
                  arrangement_id: bytes,
                  ) -> None:
@@ -190,7 +190,7 @@ class Policy(ABC):
     class NotEnoughUrsulas(Exception):
         """
         Raised when a Policy has been used to generate Arrangements with Ursulas insufficient number
-        such that we don't have enough KFrags to give to each Ursula.
+        such that we don't have enough KeyFrags to give to each Ursula.
         """
 
     class EnactmentError(Exception):
@@ -203,13 +203,13 @@ class Policy(ABC):
                  label: bytes,
                  expiration: maya.MayaDT,
                  bob: 'Bob',
-                 kfrags: Sequence[KFrag],
-                 public_key: UmbralPublicKey,
+                 kfrags: Sequence[KeyFrag],
+                 public_key: PublicKey,
                  m: int,
                  ):
 
         """
-        :param kfrags:  A list of KFrags to distribute per this Policy.
+        :param kfrags:  A list of KeyFrags to distribute per this Policy.
         :param label: The identity of the resource to which Bob is granted access.
         """
 
@@ -500,7 +500,7 @@ class Policy(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def _make_enactment_payload(self, publication_transaction: Optional[HexBytes], kfrag: KFrag) -> bytes:
+    def _make_enactment_payload(self, publication_transaction: Optional[HexBytes], kfrag: KeyFrag) -> bytes:
         """
         Serializes a given kfrag and policy publication transaction to send to Ursula.
         """
@@ -656,11 +656,11 @@ class EnactedPolicy:
                  id: bytes,
                  hrac: bytes,
                  label: bytes,
-                 public_key: UmbralPublicKey,
+                 public_key: PublicKey,
                  treasure_map: 'TreasureMap',
                  treasure_map_publisher: TreasureMapPublisher,
                  revocation_kit: RevocationKit,
-                 alice_verifying_key: UmbralPublicKey,
+                 alice_verifying_key: PublicKey,
                  ):
 
         self.id = id # TODO: is it even used anywhere?

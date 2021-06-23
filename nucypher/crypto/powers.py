@@ -20,13 +20,12 @@ import inspect
 from eth_typing.evm import ChecksumAddress
 from hexbytes import HexBytes
 from typing import List, Optional, Tuple
-from umbral import pre
-from umbral.keys import UmbralKeyingMaterial, UmbralPrivateKey, UmbralPublicKey
 
 from nucypher.blockchain.eth.decorators import validate_checksum_address
 from nucypher.blockchain.eth.signers.base import Signer
 from nucypher.crypto import keypairs
 from nucypher.crypto.keypairs import DecryptingKeypair, SigningKeypair
+from nucypher.crypto.umbral_adapter import generate_kfrags, SecretKeyFactory, SecretKey, PublicKey
 
 
 class PowerUpError(TypeError):
@@ -187,22 +186,22 @@ class TransactingPower(CryptoPowerUp):
 class KeyPairBasedPower(CryptoPowerUp):
     confers_public_key = True
     _keypair_class = keypairs.Keypair
-    _default_private_key_class = UmbralPrivateKey
+    _default_private_key_class = SecretKey
 
-    def __init__(self, public_key: UmbralPublicKey = None, keypair: keypairs.Keypair = None):
+    def __init__(self, public_key: PublicKey = None, keypair: keypairs.Keypair = None):
         if keypair and public_key:
             raise ValueError("Pass keypair or pubkey_bytes (or neither), but not both.")
         elif keypair:
             self.keypair = keypair
         else:
             # They didn't pass a keypair; we'll make one with the bytes or
-            # UmbralPublicKey if they provided such a thing.
+            # Umbral PublicKey if they provided such a thing.
             if public_key:
                 try:
                     public_key = public_key.as_umbral_pubkey()
                 except AttributeError:
                     try:
-                        public_key = UmbralPublicKey.from_bytes(public_key)
+                        public_key = PublicKey.from_bytes(public_key)
                     except TypeError:
                         public_key = public_key
                 self.keypair = self._keypair_class(
@@ -221,7 +220,7 @@ class KeyPairBasedPower(CryptoPowerUp):
         else:
             raise PowerUpError("This {} doesn't provide {}.".format(self.__class__, item))
 
-    def public_key(self) -> 'UmbralPublicKey':
+    def public_key(self) -> 'PublicKey':
         return self.keypair.pubkey
 
 
@@ -246,20 +245,17 @@ class DerivedKeyBasedPower(CryptoPowerUp):
 
 class DelegatingPower(DerivedKeyBasedPower):
 
-    def __init__(self,
-                 keying_material: Optional[bytes] = None,
-                 password: Optional[bytes] = None) -> None:
+    def __init__(self, keying_material: Optional[bytes] = None):
         if keying_material is None:
-            self.__umbral_keying_material = UmbralKeyingMaterial()
+            self.__umbral_keying_material = SecretKeyFactory.random()
         else:
-            self.__umbral_keying_material = UmbralKeyingMaterial.from_bytes(key_bytes=keying_material,
-                                                                            password=password)
+            self.__umbral_keying_material = SecretKeyFactory.from_bytes(keying_material)
 
     def _get_privkey_from_label(self, label):
-        return self.__umbral_keying_material.derive_privkey_by_label(label)
+        return self.__umbral_keying_material.secret_key_by_label(label)
 
     def get_pubkey_from_label(self, label):
-        return self._get_privkey_from_label(label).get_pubkey()
+        return self._get_privkey_from_label(label).public_key()
 
     def generate_kfrags(self,
                         bob_pubkey_enc,
@@ -267,7 +263,7 @@ class DelegatingPower(DerivedKeyBasedPower):
                         label: bytes,
                         m: int,
                         n: int
-                        ) -> Tuple[UmbralPublicKey, List]:
+                        ) -> Tuple[PublicKey, List]:
         """
         Generates re-encryption key frags ("KFrags") and returns them.
 
@@ -279,15 +275,15 @@ class DelegatingPower(DerivedKeyBasedPower):
         """
 
         __private_key = self._get_privkey_from_label(label)
-        kfrags = pre.generate_kfrags(delegating_privkey=__private_key,
-                                     receiving_pubkey=bob_pubkey_enc,
-                                     threshold=m,
-                                     N=n,
-                                     signer=signer,
-                                     sign_delegating_key=False,
-                                     sign_receiving_key=False,
-                                     )
-        return __private_key.get_pubkey(), kfrags
+        kfrags = generate_kfrags(delegating_sk=__private_key,
+                                 receiving_pk=bob_pubkey_enc,
+                                 threshold=m,
+                                 num_kfrags=n,
+                                 signer=signer,
+                                 sign_delegating_key=False,
+                                 sign_receiving_key=False,
+                                 )
+        return __private_key.public_key(), kfrags
 
     def get_decrypting_power_from_label(self, label):
         label_privkey = self._get_privkey_from_label(label)

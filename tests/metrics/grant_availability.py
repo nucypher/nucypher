@@ -35,13 +35,13 @@ import shutil
 import time
 from eth_typing.evm import ChecksumAddress
 from typing import Set, Optional, List, Tuple
-from umbral.keys import UmbralPrivateKey
 from web3.main import Web3
 from web3.types import Wei
 
 from nucypher.network.middleware import RestMiddleware
 from nucypher.characters.lawful import Bob, Ursula, Alice
 from nucypher.config.characters import AliceConfiguration
+from nucypher.crypto.umbral_adapter import SecretKey
 from nucypher.policy.policies import Policy
 from nucypher.utilities.logging import GlobalLoggerSettings
 
@@ -94,10 +94,10 @@ HANDPICKED_URSULA_URIS: List[str] = [
 
 def make_random_bob():
     """Generates a random ephemeral Bob instance."""
-    bob_verifying_secret = UmbralPrivateKey.gen_key()
-    bob_verifying_key = bob_verifying_secret.pubkey
-    decrypting_secret = UmbralPrivateKey.gen_key()
-    decrypting_key = decrypting_secret.pubkey
+    bob_verifying_secret = SecretKey.random()
+    bob_verifying_key = bob_verifying_secret.public_key()
+    decrypting_secret = SecretKey.random()
+    decrypting_key = decrypting_secret.public_key()
     bob = Bob.from_public_keys(verifying_key=bob_verifying_key,
                                encrypting_key=decrypting_key,
                                federated_only=False)
@@ -137,8 +137,8 @@ def collect(alice: Alice,
             print(f'GRANT FAIL\n{e}')
         else:
             success += 1
-            policies[policy.public_key.hex()] = policy  # track
-            print(f"PEK:{policy.public_key.hex()} | HRAC {policy.hrac.hex()}")
+            policies[bytes(policy.public_key).hex()] = policy  # track
+            print(f"PEK:{bytes(policy.public_key).hex()} | HRAC {policy.hrac.hex()}")
 
         # timeit
         end = maya.now()

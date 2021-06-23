@@ -18,11 +18,11 @@
 import functools
 import maya
 from typing import Union
-from umbral.keys import UmbralPublicKey
 
 from nucypher.characters.control.specifications import alice, bob, enrico
 from nucypher.crypto.kits import UmbralMessageKit
 from nucypher.crypto.powers import DecryptingPower, SigningPower
+from nucypher.crypto.umbral_adapter import PublicKey
 from nucypher.crypto.utils import construct_policy_id
 from nucypher.network.middleware import RestMiddleware
 
@@ -209,8 +209,8 @@ class BobInterface(CharacterPublicInterface):
         """
         from nucypher.characters.lawful import Enrico
 
-        policy_encrypting_key = UmbralPublicKey.from_bytes(policy_encrypting_key)
-        alice_verifying_key = UmbralPublicKey.from_bytes(alice_verifying_key)
+        policy_encrypting_key = PublicKey.from_bytes(policy_encrypting_key)
+        alice_verifying_key = PublicKey.from_bytes(alice_verifying_key)
         message_kit = UmbralMessageKit.from_bytes(
             message_kit)  # TODO #846: May raise UnknownOpenSSLError and InvalidTag.
 

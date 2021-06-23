@@ -34,8 +34,6 @@ from cryptography.exceptions import InvalidSignature
 from eth_keys import KeyAPI as EthKeyAPI
 from eth_utils import to_canonical_address, to_checksum_address
 from typing import ClassVar, Dict, List, Optional, Union
-from umbral.keys import UmbralPublicKey
-from umbral.signing import Signature
 
 from nucypher.acumen.nicknames import Nickname
 from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
@@ -56,8 +54,9 @@ from nucypher.crypto.powers import (
 from nucypher.crypto.signing import (
     SignatureStamp,
     StrangerStamp,
-    signature_splitter
 )
+from nucypher.crypto.splitters import signature_splitter
+from nucypher.crypto.umbral_adapter import PublicKey, Signature
 from nucypher.network.middleware import RestMiddleware
 from nucypher.network.nodes import Learner
 
@@ -305,14 +304,14 @@ class Character(Learner):
     @classmethod
     def from_public_keys(cls,
                          powers_and_material: Dict = None,
-                         verifying_key: Union[bytes, UmbralPublicKey] = None,
-                         encrypting_key: Union[bytes, UmbralPublicKey] = None,
+                         verifying_key: Union[bytes, PublicKey] = None,
+                         encrypting_key: Union[bytes, PublicKey] = None,
                          *args, **kwargs) -> 'Character':
         """
         Sometimes we discover a Character and, at the same moment,
         learn the public parts of more of their powers. Here, we take a Dict
         (powers_and_material) in the format {CryptoPowerUp class: material},
-        where material can be bytes or UmbralPublicKey.
+        where material can be bytes or umbral.PublicKey.
 
         Each item in the collection will have the CryptoPowerUp instantiated
         with the given material, and the resulting CryptoPowerUp instance
@@ -333,7 +332,7 @@ class Character(Learner):
 
         for power_up, public_key in powers_and_material.items():
             try:
-                umbral_key = UmbralPublicKey.from_bytes(public_key)
+                umbral_key = PublicKey.from_bytes(public_key)
             except TypeError:
                 umbral_key = public_key
 
@@ -461,7 +460,7 @@ class Character(Learner):
 
         signature_to_use = signature or signature_from_kit
         if signature_to_use:
-            is_valid = signature_to_use.verify(message, sender_verifying_key)  # FIXME: Message is undefined here
+            is_valid = signature_to_use.verify(sender_verifying_key, message)  # FIXME: Message is undefined here
             if not is_valid:
                 try:
                     node_on_the_other_end = self.known_node_class.from_seednode_metadata(stranger.seed_node_metadata(),
@@ -505,9 +504,7 @@ class Character(Learner):
     def derive_federated_address(self):
         if self.federated_only:
             verifying_key = self.public_keys(SigningPower)
-            uncompressed_bytes = verifying_key.to_bytes(is_compressed=False)
-            without_prefix = uncompressed_bytes[1:]
-            verifying_key_as_eth_key = EthKeyAPI.PublicKey(without_prefix)
+            verifying_key_as_eth_key = EthKeyAPI.PublicKey.from_compressed_bytes(bytes(verifying_key))
             federated_address = verifying_key_as_eth_key.to_checksum_address()
         else:
             raise RuntimeError('Federated address can only be derived for federated characters.')

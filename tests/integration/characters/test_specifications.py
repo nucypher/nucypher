@@ -145,7 +145,8 @@ def test_key_validation(federated_bob):
     with pytest.raises(SpecificationError) as e:
         # lets just take a couple bytes off
         BobKeyInputRequirer().load({'bobkey': "02f0cb3f3a33f16255d9b2586e6c56570aa07bbeb1157e169f1fb114ffb40037"})
-    assert "Unknown OpenSSL error." in str(e)
+    assert "Could not convert input for bobkey to an Umbral Key" in str(e)
+    assert "xpected 33 bytes, got 32" in str(e)
 
     result = BobKeyInputRequirer().load(dict(bobkey=bytes(federated_bob.public_keys(DecryptingPower)).hex()))
     assert isinstance(result['bobkey'], bytes)

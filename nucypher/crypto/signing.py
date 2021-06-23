@@ -17,11 +17,9 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 
 
 from bytestring_splitter import BytestringSplitter
-from umbral.signing import Signature, Signer
 
 from nucypher.crypto.api import keccak_digest
-
-signature_splitter = BytestringSplitter(Signature)
+from nucypher.crypto.umbral_adapter import Signature, Signer
 
 
 class SignatureStamp(object):
@@ -39,7 +37,7 @@ class SignatureStamp(object):
         return self._as_bytes
 
     def __call__(self, *args, **kwargs):
-        return self.__signer(*args, **kwargs)
+        return self.__signer.sign(*args, **kwargs)
 
     def __hash__(self):
         return int.from_bytes(self, byteorder="big")
@@ -58,6 +56,9 @@ class SignatureStamp(object):
 
     def __bool__(self):
         return True
+
+    def as_umbral_signer(self):
+        return self.__signer
 
     def as_umbral_pubkey(self):
         return self._as_umbral_pubkey

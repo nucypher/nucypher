@@ -34,7 +34,6 @@ from mako import exceptions as mako_exceptions
 from mako.template import Template
 from maya import MayaDT
 from typing import Tuple
-from umbral.kfrags import KFrag
 from web3.exceptions import TimeExhausted
 
 import nucypher
@@ -44,6 +43,7 @@ from nucypher.crypto.keypairs import HostingKeypair
 from nucypher.crypto.kits import UmbralMessageKit
 from nucypher.crypto.powers import KeyPairBasedPower, PowerUpError
 from nucypher.crypto.signing import InvalidSignature
+from nucypher.crypto.umbral_adapter import KeyFrag, VerificationError
 from nucypher.crypto.utils import canonical_address_from_umbral_key
 from nucypher.datastore.datastore import Datastore, RecordNotFound, DatastoreTransactionError
 from nucypher.datastore.models import PolicyArrangement, TreasureMap, Workorder
@@ -261,15 +261,17 @@ def _make_rest_app(datastore: Datastore, this_node, domain: str, log: Logger) ->
         else:
             _tx = NO_BLOCKCHAIN_CONNECTION
             kfrag_bytes = cleartext
-        kfrag = KFrag.from_bytes(kfrag_bytes)
+        kfrag = KeyFrag.from_bytes(kfrag_bytes)
 
-        if not kfrag.verify(signing_pubkey=alices_verifying_key):
+        try:
+            verified_kfrag = kfrag.verify(verifying_pk=alices_verifying_key)
+        except VerificationError:
             return Response(f"Signature on {kfrag} is invalid", status=403)
 
         with datastore.describe(PolicyArrangement, id_as_hex, writeable=True) as policy_arrangement:
             if not policy_arrangement.alice_verifying_key == alice.stamp.as_umbral_pubkey():
                 return Response("Policy arrangement's signing key does not match sender's", status=403)
-            policy_arrangement.kfrag = kfrag
+            policy_arrangement.kfrag = verified_kfrag
 
         # TODO: Sign the arrangement here.  #495
         return ""  # TODO: Return A 200, with whatever policy metadata.
@@ -277,7 +279,7 @@ def _make_rest_app(datastore: Datastore, this_node, domain: str, log: Logger) ->
     @rest_app.route('/kFrag/<id_as_hex>', methods=["DELETE"])
     def revoke_arrangement(id_as_hex):
         """
-        REST endpoint for revoking/deleting a KFrag from a node.
+        REST endpoint for revoking/deleting a KeyFrag from a node.
         """
         from nucypher.policy.collections import Revocation
 
@@ -295,10 +297,10 @@ def _make_rest_app(datastore: Datastore, this_node, domain: str, log: Logger) ->
                     policy_arrangement.delete()
         except (DatastoreTransactionError, InvalidSignature) as e:
             log.debug("Exception attempting to revoke: {}".format(e))
-            return Response(response='KFrag not found or revocation signature is invalid.', status=404)
+            return Response(response='KeyFrag not found or revocation signature is invalid.', status=404)
         else:
-            log.info("KFrag successfully removed.")
-            return Response(response='KFrag deleted!', status=200)
+            log.info("KeyFrag successfully removed.")
+            return Response(response='KeyFrag deleted!', status=200)
 
     @rest_app.route('/kFrag/<id_as_hex>/reencrypt', methods=["POST"])
     def reencrypt_via_rest(id_as_hex):
@@ -309,7 +311,7 @@ def _make_rest_app(datastore: Datastore, this_node, domain: str, log: Logger) ->
         except (binascii.Error, TypeError):
             return Response(response=b'Invalid arrangement ID', status=405)
         try:
-            # Get KFrag
+            # Get KeyFrag
             # TODO: Yeah, well, what if this arrangement hasn't been enacted?  1702
             with datastore.describe(PolicyArrangement, id_as_hex) as policy_arrangement:
                 kfrag = policy_arrangement.kfrag

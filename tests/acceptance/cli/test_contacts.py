@@ -20,9 +20,9 @@ import os
 import pytest
 import tempfile
 from pathlib import Path
-from umbral.keys import UmbralPrivateKey
 
 from nucypher.cli.main import nucypher_cli
+from nucypher.crypto.umbral_adapter import SecretKey
 from nucypher.policy.identity import Card
 
 
@@ -39,7 +39,7 @@ def patch_card_directory(session_mocker):
 
 @pytest.fixture(scope='module')
 def alice_verifying_key():
-    return UmbralPrivateKey.gen_key().get_pubkey().hex()
+    return bytes(SecretKey.random().public_key()).hex()
 
 
 @pytest.fixture(scope='module')
@@ -54,12 +54,12 @@ def alice_nickname():
 
 @pytest.fixture(scope='module')
 def bob_verifying_key():
-    return UmbralPrivateKey.gen_key().get_pubkey().hex()
+    return bytes(SecretKey.random().public_key()).hex()
 
 
 @pytest.fixture(scope='module')
 def bob_encrypting_key():
-    return UmbralPrivateKey.gen_key().get_pubkey().hex()
+    return bytes(SecretKey.random().public_key()).hex()
 
 
 def test_card_directory_autocreation(click_runner, mocker):
@@ -107,7 +107,7 @@ def test_create_alice_card_interactive(click_runner, alice_verifying_key, alice_
 def test_create_alice_card_inline(click_runner, alice_verifying_key, alice_nickname):
     command = ('contacts', 'create',
                '--type', 'a',
-               '--verifying-key',  UmbralPrivateKey.gen_key().get_pubkey().hex(),
+               '--verifying-key',  bytes(SecretKey.random().public_key()).hex(),
                '--nickname', 'philippa')
 
     assert len(os.listdir(Card.CARD_DIR)) == 1
@@ -139,8 +139,8 @@ def test_create_bob_card_interactive(click_runner, bob_nickname, bob_encrypting_
 def test_create_bob_card_inline(click_runner, alice_verifying_key, alice_nickname):
     command = ('contacts', 'create',
                '--type', 'b',
-               '--verifying-key',  UmbralPrivateKey.gen_key().get_pubkey().hex(),
-               '--encrypting-key', UmbralPrivateKey.gen_key().get_pubkey().hex(),
+               '--verifying-key',  bytes(SecretKey.random().public_key()).hex(),
+               '--encrypting-key', bytes(SecretKey.random().public_key()).hex(),
                '--nickname', 'hans')
 
     assert len(os.listdir(Card.CARD_DIR)) == 3

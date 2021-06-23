@@ -16,10 +16,10 @@
 """
 
 from marshmallow import fields
-from umbral.keys import UmbralPublicKey
 
 from nucypher.characters.control.specifications.exceptions import InvalidInputData, InvalidNativeDataTypes
 from nucypher.characters.control.specifications.fields.base import BaseField
+from nucypher.crypto.umbral_adapter import PublicKey
 
 
 class Key(BaseField, fields.Field):
@@ -37,6 +37,6 @@ class Key(BaseField, fields.Field):
 
     def _validate(self, value):
         try:
-            UmbralPublicKey.from_bytes(value)
+            PublicKey.from_bytes(value)
         except InvalidNativeDataTypes as e:
             raise InvalidInputData(f"Could not convert input for {self.name} to an Umbral Key: {e}")

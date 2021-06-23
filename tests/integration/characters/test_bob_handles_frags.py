@@ -18,9 +18,6 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 import pytest
 import pytest_twisted
 from twisted.internet import threads
-from umbral import pre
-from umbral.cfrags import CapsuleFrag
-from umbral.kfrags import KFrag
 
 from nucypher.crypto.kits import PolicyMessageKit
 from nucypher.crypto.powers import DecryptingPower
@@ -130,7 +127,7 @@ def test_bob_can_issue_a_work_order_to_a_specific_ursula(enacted_federated_polic
     saves it and responds by re-encrypting and giving Bob a cFrag.
 
     This is a multipart test; it shows proper relations between the Characters Ursula and Bob and also proper
-    interchange between a KFrag, Capsule, and CFrag object in the context of REST-driven proxy re-encryption.
+    interchange between a KeyFrag, Capsule, and CFrag object in the context of REST-driven proxy re-encryption.
     """
 
     # We pick up our story with Bob already having followed the treasure map above, ie:
@@ -146,12 +143,12 @@ def test_bob_can_issue_a_work_order_to_a_specific_ursula(enacted_federated_polic
 
     # We'll test against just a single Ursula - here, we make a WorkOrder for just one.
     # We can pass any number of capsules as args; here we pass just one.
-    capsule = capsule_side_channel().capsule
-    capsule.set_correctness_keys(delegating=enacted_federated_policy.public_key,
-                                 receiving=federated_bob.public_keys(DecryptingPower),
-                                 verifying=federated_alice.stamp.as_umbral_pubkey())
+    message_kit = capsule_side_channel()
+    message_kit.set_correctness_keys(delegating=enacted_federated_policy.public_key,
+                                     receiving=federated_bob.public_keys(DecryptingPower),
+                                     verifying=federated_alice.stamp.as_umbral_pubkey())
     work_orders, _ = federated_bob.work_orders_for_capsules(
-        capsule,
+        message_kit.capsule,
         treasure_map=treasure_map,
         alice_verifying_key=federated_alice.stamp.as_umbral_pubkey(),
         num_ursulas=1)
@@ -164,7 +161,7 @@ def test_bob_can_issue_a_work_order_to_a_specific_ursula(enacted_federated_polic
 
     # This time, we'll tell Bob to cache it.
     retained_work_orders, _ = federated_bob.work_orders_for_capsules(
-        capsule,
+        message_kit.capsule,
         treasure_map=treasure_map,
         alice_verifying_key=federated_alice.stamp.as_umbral_pubkey(),
         num_ursulas=1)
@@ -174,7 +171,7 @@ def test_bob_can_issue_a_work_order_to_a_specific_ursula(enacted_federated_polic
     assert work_order.completed is False
 
     # **** RE-ENCRYPTION HAPPENS HERE! ****
-    _success, cfrags = federated_bob._reencrypt(work_order, retain_cfrags=True)
+    _success, cfrags = federated_bob._reencrypt(work_order, {message_kit.capsule: message_kit}, retain_cfrags=True)
 
     # We only gave one Capsule, so we only got one cFrag.
     assert len(cfrags) == 1
@@ -184,7 +181,7 @@ def test_bob_can_issue_a_work_order_to_a_specific_ursula(enacted_federated_polic
     assert work_order.completed
 
     # Attach the CFrag to the Capsule.
-    capsule.attach_cfrag(the_cfrag)
+    message_kit.attach_cfrag(the_cfrag)
 
     # Having received the cFrag, Bob also saved the WorkOrder as complete.
     assert len(federated_bob._completed_work_orders.by_ursula[address]) == 1
@@ -200,13 +197,6 @@ def test_bob_can_issue_a_work_order_to_a_specific_ursula(enacted_federated_polic
 
     with ursula.datastore.describe(PolicyArrangement, work_order.arrangement_id.hex()) as policy_arrangement:
         the_kfrag = policy_arrangement.kfrag
-    the_correct_cfrag = pre.reencrypt(the_kfrag, capsule)
-
-    # The first CFRAG_LENGTH_WITHOUT_PROOF bytes (ie, the cfrag proper, not the proof material), are the same:
-    assert bytes(the_cfrag)[:CapsuleFrag.expected_bytes_length()] == bytes(
-        the_correct_cfrag)[:CapsuleFrag.expected_bytes_length()]  # It's the correct cfrag!
-
-    assert the_correct_cfrag.verify_correctness(capsule)
 
     # Now we'll show that Ursula saved the correct WorkOrder.
     with ursula.datastore.query_by(Workorder, filter_field='bob_verifying_key',
@@ -225,7 +215,8 @@ def test_bob_can_use_cfrag_attached_to_completed_workorder(enacted_federated_pol
     assert len(work_orders) == 1
 
     # ...and it matched the last capsule that came through the side channel.
-    last_capsule_on_side_channel = capsule_side_channel.messages[-1][0].capsule
+    last_message_kit_on_side_channel = capsule_side_channel.messages[-1][0]
+    last_capsule_on_side_channel = last_message_kit_on_side_channel.capsule
     old_work_order = work_orders[0][last_capsule_on_side_channel]
 
     incomplete_work_orders, complete_work_orders = federated_bob.work_orders_for_capsules(
@@ -244,8 +235,9 @@ def test_bob_can_use_cfrag_attached_to_completed_workorder(enacted_federated_pol
     assert old_work_order.tasks[last_capsule_on_side_channel].cfrag
 
     # As such, we will get TypeError if we try to get CFrags again.
+    message_kit_dict = {last_message_kit_on_side_channel.capsule: last_message_kit_on_side_channel}
     with pytest.raises(TypeError):
-        federated_bob._reencrypt(new_work_order)
+        federated_bob._reencrypt(new_work_order, message_kit_dict)
 
 
 def test_bob_remembers_that_he_has_cfrags_for_a_particular_capsule(enacted_federated_policy, federated_alice,
@@ -256,7 +248,8 @@ def test_bob_remembers_that_he_has_cfrags_for_a_particular_capsule(enacted_feder
     assert len(work_orders) == 1
 
     # ...and it matched the last capsule that came through the side channel.
-    last_capsule_on_side_channel = capsule_side_channel.messages[-1][0].capsule
+    last_message_kit_on_side_channel = capsule_side_channel.messages[-1][0]
+    last_capsule_on_side_channel = last_message_kit_on_side_channel.capsule
     first_and_only_work_order = work_orders[0]
     list_of_one_capsule = list(first_and_only_work_order.keys())
     capsule_as_saved = list_of_one_capsule[0]
@@ -265,7 +258,7 @@ def test_bob_remembers_that_he_has_cfrags_for_a_particular_capsule(enacted_feder
     assert len(federated_bob._completed_work_orders.by_capsule(last_capsule_on_side_channel)) == 1
 
     # ...and he used it to obtain a CFrag from Ursula.
-    assert len(capsule_as_saved) == 1
+    assert len(last_message_kit_on_side_channel) == 1
 
     # He can also get a dict of {Ursula:WorkOrder} by looking them up from the capsule.
     work_orders_by_capsule = federated_bob._completed_work_orders.by_capsule(capsule_as_saved)
@@ -294,14 +287,15 @@ def test_bob_remembers_that_he_has_cfrags_for_a_particular_capsule(enacted_feder
     assert new_work_order != saved_work_order
 
     # This WorkOrder has never been completed
-    _success, cfrags = federated_bob._reencrypt(new_work_order, retain_cfrags=True)
+    message_kit_dict = {last_capsule_on_side_channel: last_message_kit_on_side_channel}
+    _success, cfrags = federated_bob._reencrypt(new_work_order, message_kit_dict, retain_cfrags=True)
 
     # Again: one Capsule, one cFrag.
     assert len(cfrags) == 1
     new_cfrag = cfrags[0]
 
     # Attach the CFrag to the Capsule.
-    last_capsule_on_side_channel.attach_cfrag(new_cfrag)
+    last_message_kit_on_side_channel.attach_cfrag(new_cfrag)
 
 
 def test_bob_gathers_and_combines(enacted_federated_policy, federated_bob, federated_alice, capsule_side_channel):
@@ -317,12 +311,12 @@ def test_bob_gathers_and_combines(enacted_federated_policy, federated_bob, feder
     assert len(federated_bob._completed_work_orders) < enacted_federated_policy.treasure_map.m
 
     # Bob can't decrypt yet with just two CFrags.  He needs to gather at least m.
-    with pytest.raises(pre.GenericUmbralError):
+    with pytest.raises(ValueError):
         federated_bob.decrypt(the_message_kit)
 
     number_left_to_collect = enacted_federated_policy.treasure_map.m - len(federated_bob._completed_work_orders)
 
-    the_message_kit.capsule.set_correctness_keys(
+    the_message_kit.set_correctness_keys(
         delegating=the_data_source.policy_pubkey,
         receiving=federated_bob.public_keys(DecryptingPower),
         verifying=federated_alice.stamp.as_umbral_pubkey())
@@ -334,11 +328,10 @@ def test_bob_gathers_and_combines(enacted_federated_policy, federated_bob, feder
         num_ursulas=number_left_to_collect)
     _id_of_yet_another_ursula, new_work_order = list(new_incomplete_work_orders.items())[0]
 
-    _success, cfrags = federated_bob._reencrypt(new_work_order)
+    _success, cfrags = federated_bob._reencrypt(new_work_order, {the_message_kit.capsule: the_message_kit})
     cfrag = cfrags[0]
-    assert cfrag not in the_message_kit.capsule._attached_cfrags
 
-    the_message_kit.capsule.attach_cfrag(cfrags[0])
+    the_message_kit.attach_cfrag(cfrags[0])
 
     # Now.
     # At long last.
@@ -528,7 +521,7 @@ def test_federated_bob_cannot_resume_retrieval_without_caching(federated_bob,
                                label=enacted_federated_policy.label)
 
     # Since we weren't caching, there are no attached Cfrags.
-    assert len(the_message_kit.capsule) == 0
+    assert len(the_message_kit) == 0
 
     # Now the remaining two Ursulas go down.
     ursula9 = list(federated_ursulas)[8]
@@ -587,7 +580,7 @@ def test_federated_retrieves_partially_then_finishes(federated_bob,
                                retain_cfrags=True)
 
     # Since we were caching, there are now 2 attached cfrags.
-    assert len(the_message_kit.capsule) == 2
+    assert len(the_message_kit) == 2
 
     # Now the remaining two Ursulas go down.
     ursula9 = list(federated_ursulas)[8]
@@ -631,7 +624,7 @@ def test_federated_retrieves_partially_then_finishes(federated_bob,
     assert b"Welcome to flippering number 1." == delivered_cleartexts[0]
 
     # Heck, even if we delete the attached CFrags, as might happen if we were loading the Capsule again from disk...
-    the_message_kit.capsule.clear_cfrags()
+    the_message_kit.clear_cfrags()
 
     # ...we can still get the message with the network being down because Bob has the properly completed WorkOrders cached in state.
     delivered_cleartexts = federated_bob.retrieve(the_message_kit,

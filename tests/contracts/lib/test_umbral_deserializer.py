@@ -19,8 +19,7 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 import os
 import pytest
 from eth_tester.exceptions import TransactionFailed
-from umbral import keys, pre
-from umbral.signing import Signer
+from nucypher.crypto.umbral_adapter import Signer, SecretKey, generate_kfrags, encrypt, reencrypt
 
 
 @pytest.fixture()
@@ -31,27 +30,22 @@ def deserializer(testerchain, deploy_contract):
 
 @pytest.fixture(scope="module")
 def fragments():
-    delegating_privkey = keys.UmbralPrivateKey.gen_key()
-    delegating_pubkey = delegating_privkey.get_pubkey()
-    signing_privkey = keys.UmbralPrivateKey.gen_key()
+    delegating_privkey = SecretKey.random()
+    delegating_pubkey = delegating_privkey.public_key()
+    signing_privkey = SecretKey.random()
     signer = Signer(signing_privkey)
-    priv_key_bob = keys.UmbralPrivateKey.gen_key()
-    pub_key_bob = priv_key_bob.get_pubkey()
-    kfrags = pre.generate_kfrags(delegating_privkey=delegating_privkey,
-                                 signer=signer,
-                                 receiving_pubkey=pub_key_bob,
-                                 threshold=2,
-                                 N=4,
-                                 sign_delegating_key=False,
-                                 sign_receiving_key=False)
-    # TODO: Use nucypher re-encryption metadata
-    metadata = b"This is an example of metadata for re-encryption request"
+    priv_key_bob = SecretKey.random()
+    pub_key_bob = priv_key_bob.public_key()
+    kfrags = generate_kfrags(delegating_sk=delegating_privkey,
+                             signer=signer,
+                             receiving_pk=pub_key_bob,
+                             threshold=2,
+                             num_kfrags=4,
+                             sign_delegating_key=False,
+                             sign_receiving_key=False)
 
-    _symmetric_key, capsule = pre._encapsulate(delegating_pubkey)
-    capsule.set_correctness_keys(delegating=delegating_pubkey,
-                                 receiving=pub_key_bob,
-                                 verifying=signing_privkey.get_pubkey())
-    cfrag = pre.reencrypt(kfrags[0], capsule, metadata=metadata)
+    capsule, _ciphertext = encrypt(delegating_pubkey, b'unused')
+    cfrag = reencrypt(capsule, kfrags[0])
     return capsule, cfrag
 
 
@@ -69,42 +63,9 @@ def test_capsule(testerchain, deserializer, fragments):
 
     # Check real capsule
     capsule, _cfrag = fragments
-    capsule_bytes = capsule.to_bytes()
+    capsule_bytes = bytes(capsule)
     result = deserializer.functions.toCapsule(capsule_bytes).call()
-    assert bytes(capsule.point_e) == result[0] + result[1]
-    assert bytes(capsule.point_v) == result[2] + result[3]
-    assert capsule.bn_sig.to_bytes() == bytes(result[4])
-
-
-def test_proof(testerchain, deserializer, fragments):
-    # Wrong number of bytes to deserialize proof
-    with pytest.raises((TransactionFailed, ValueError)):
-        deserializer.functions.toCorrectnessProof(os.urandom(227)).call()
-
-    # Check random proof bytes without metadata
-    proof_bytes = os.urandom(228)
-    result = deserializer.functions.toCorrectnessProof(proof_bytes).call()
-    assert proof_bytes == bytes().join(result)
-
-    # Check random proof bytes with metadata
-    proof_bytes = os.urandom(270)
-    result = deserializer.functions.toCorrectnessProof(proof_bytes).call()
-    assert proof_bytes == bytes().join(result)
-
-    # Get real cfrag and proof
-    _capsule, cfrag = fragments
-    proof = cfrag.proof
-    proof_bytes = proof.to_bytes()
-
-    # Check real proof
-    result = deserializer.functions.toCorrectnessProof(proof_bytes).call()
-    assert bytes(proof.point_e2) == result[0] + result[1]
-    assert bytes(proof.point_v2) == result[2] + result[3]
-    assert bytes(proof.point_kfrag_commitment) == result[4] + result[5]
-    assert bytes(proof.point_kfrag_pok) == result[6] + result[7]
-    assert proof.bn_sig.to_bytes() == result[8]
-    assert bytes(proof.kfrag_signature) == result[9]
-    assert bytes(proof.metadata) == result[10]
+    assert b''.join(result) == capsule_bytes
 
 
 def test_cfrag(testerchain, deserializer, fragments):
@@ -123,20 +84,10 @@ def test_cfrag(testerchain, deserializer, fragments):
 
     # Check real cfrag
     _capsule, cfrag = fragments
-    proof = cfrag.proof
-    cfrag_bytes = cfrag.to_bytes()
-    result = deserializer.functions.toCapsuleFrag(cfrag_bytes).call()
-    assert bytes(cfrag.point_e1) == result[0] + result[1]
-    assert bytes(cfrag.point_v1) == result[2] + result[3]
-    assert bytes(cfrag.kfrag_id) == result[4]
-    assert bytes(cfrag.point_precursor) == result[5] + result[6]
-    result = deserializer.functions.toCorrectnessProofFromCapsuleFrag(cfrag_bytes).call()
-    assert bytes(proof.point_e2) == result[0] + result[1]
-    assert bytes(proof.point_v2) == result[2] + result[3]
-    assert bytes(proof.point_kfrag_commitment) == result[4] + result[5]
-    assert bytes(proof.point_kfrag_pok) == result[6] + result[7]
-    assert proof.bn_sig.to_bytes() == result[8]
-    assert bytes(proof.kfrag_signature) == result[9]
-    assert bytes(proof.metadata) == result[10]
+    cfrag_bytes = bytes(cfrag)
+    result_frag = deserializer.functions.toCapsuleFrag(cfrag_bytes).call()
+    result_proof = deserializer.functions.toCorrectnessProofFromCapsuleFrag(cfrag_bytes).call()
+    assert cfrag_bytes == b''.join(result_frag) + b''.join(result_proof)
+
 
 # TODO: Missing test for precomputed_data

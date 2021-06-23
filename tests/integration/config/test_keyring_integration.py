@@ -21,15 +21,14 @@ from unittest.mock import ANY
 
 import pytest
 from constant_sorrow.constants import FEDERATED_ADDRESS
-from cryptography.hazmat.primitives.serialization.base import Encoding
+from cryptography.hazmat.primitives.serialization import Encoding
 from flask import Flask
-from umbral.keys import UmbralPrivateKey
-from umbral.signing import Signer
 
 from nucypher.characters.lawful import Alice, Bob, Ursula
 from nucypher.config.constants import TEMPORARY_DOMAIN
 from nucypher.config.keyring import NucypherKeyring
 from nucypher.crypto.powers import DecryptingPower, DelegatingPower
+from nucypher.crypto.umbral_adapter import SecretKey, Signer
 from nucypher.datastore.datastore import Datastore
 from nucypher.network.server import TLSHostingPower, ProxyRESTServer
 from nucypher.utilities.networking import LOOPBACK_ADDRESS
@@ -63,8 +62,8 @@ def test_generate_alice_keyring(tmpdir):
     delegating_power = keyring.derive_crypto_power(DelegatingPower)
     delegating_pubkey = delegating_power.get_pubkey_from_label(label)
 
-    bob_pubkey = UmbralPrivateKey.gen_key().get_pubkey()
-    signer = Signer(UmbralPrivateKey.gen_key())
+    bob_pubkey = SecretKey.random().public_key()
+    signer = Signer(SecretKey.random())
     delegating_pubkey_again, _kfrags = delegating_power.generate_kfrags(
         bob_pubkey, signer, label, m=2, n=3
     )

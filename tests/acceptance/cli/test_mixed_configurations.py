@@ -22,14 +22,13 @@ import pytest
 import shutil
 from pathlib import Path
 
-from umbral.keys import UmbralPrivateKey
-
 from nucypher.blockchain.eth.actors import Worker
 from nucypher.cli.main import nucypher_cli
 from nucypher.config.characters import AliceConfiguration, FelixConfiguration, UrsulaConfiguration
 from nucypher.config.constants import NUCYPHER_ENVVAR_KEYRING_PASSWORD, TEMPORARY_DOMAIN, \
     NUCYPHER_ENVVAR_ALICE_ETH_PASSWORD, NUCYPHER_ENVVAR_BOB_ETH_PASSWORD
 from nucypher.config.keyring import NucypherKeyring
+from nucypher.crypto.umbral_adapter import SecretKey
 from nucypher.network.nodes import Teacher
 from tests.constants import (
     INSECURE_DEVELOPMENT_PASSWORD,
@@ -162,7 +161,7 @@ def test_coexisting_configurations(click_runner,
     assert os.path.isfile(ursula_file_location)
 
     # keyring signing key
-    signing_public_key = UmbralPrivateKey.gen_key().get_pubkey()
+    signing_public_key = SecretKey.random().public_key()
     with patch('nucypher.config.keyring.NucypherKeyring.signing_public_key',
                PropertyMock(return_value=signing_public_key)):
         # Use the same local filepath to init another persistent Ursula
@@ -178,7 +177,7 @@ def test_coexisting_configurations(click_runner,
         assert result.exit_code == 0
 
     another_ursula_configuration_file_location = custom_filepath / UrsulaConfiguration.generate_filename(
-        modifier=signing_public_key.hex()[:8])
+        modifier=bytes(signing_public_key).hex()[:8])
 
     # All configuration files still exist.
     assert os.path.isfile(felix_file_location)

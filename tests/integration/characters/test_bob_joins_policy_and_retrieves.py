@@ -161,7 +161,7 @@ def test_bob_joins_policy_and_retrieves(federated_alice,
     assert _cleartexts == delivered_cleartexts  # TODO: 892
 
     # OK, but we imagine that the message_kit is fresh here.
-    message_kit.capsule.clear_cfrags()
+    message_kit.clear_cfrags()
 
     with pytest.raises(Ursula.NotEnoughUrsulas):
         _cleartexts = bob.retrieve(message_kit,
@@ -216,7 +216,7 @@ def test_bob_retrieves_with_treasure_map(
         label=enacted_federated_policy.label,
         treasure_map=treasure_map)
 
-    message_kit.capsule.clear_cfrags()  # Return back to a non re-encrypted state
+    message_kit.clear_cfrags()  # Return back to a non re-encrypted state
     # Serialized treasure map
     text2 = federated_bob.retrieve(
         message_kit,

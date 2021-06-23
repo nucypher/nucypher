@@ -24,13 +24,13 @@ import msgpack
 import os
 import shutil
 import sys
-from umbral.keys import UmbralPublicKey
 
 from nucypher.characters.lawful import Bob, Enrico, Ursula
 from nucypher.config.constants import TEMPORARY_DOMAIN
 from nucypher.crypto.keypairs import DecryptingKeypair, SigningKeypair
 from nucypher.crypto.kits import UmbralMessageKit
 from nucypher.crypto.powers import DecryptingPower, SigningPower
+from nucypher.crypto.umbral_adapter import PublicKey
 from nucypher.network.middleware import RestMiddleware
 from nucypher.utilities.logging import GlobalLoggerSettings
 
@@ -86,8 +86,8 @@ print("Doctor = ", doctor)
 with open("policy-metadata.json", 'r') as f:
     policy_data = json.load(f)
 
-policy_pubkey = UmbralPublicKey.from_bytes(bytes.fromhex(policy_data["policy_pubkey"]))
-alices_sig_pubkey = UmbralPublicKey.from_bytes(bytes.fromhex(policy_data["alice_sig_pubkey"]))
+policy_pubkey = PublicKey.from_bytes(bytes.fromhex(policy_data["policy_pubkey"]))
+alices_sig_pubkey = PublicKey.from_bytes(bytes.fromhex(policy_data["alice_sig_pubkey"]))
 label = policy_data["label"].encode()
 
 print("The Doctor joins policy for label '{}'".format(label.decode("utf-8")))

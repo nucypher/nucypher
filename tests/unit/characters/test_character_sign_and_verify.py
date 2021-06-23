@@ -62,9 +62,8 @@ def test_actor_with_signing_power_can_sign():
     signature = stamp_of_the_signer(message)
 
     # ...or to get the signer's public key for verification purposes.
-    # (note: we use the private _der_encoded_bytes here to test directly against the API, instead of Character)
-    verification = api.verify_ecdsa(message, signature._der_encoded_bytes(),
-                                    stamp_of_the_signer.as_umbral_pubkey())
+    # (note: we verify directly using Umbral API, skipping Character)
+    verification = signature.verify(stamp_of_the_signer.as_umbral_pubkey(), message)
 
     assert verification is True
 

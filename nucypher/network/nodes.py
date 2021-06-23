@@ -44,7 +44,6 @@ from eth_utils import to_checksum_address
 from requests.exceptions import SSLError
 from twisted.internet import reactor, task
 from twisted.internet.defer import Deferred
-from umbral.signing import Signature
 
 from nucypher.acumen.nicknames import Nickname
 from nucypher.acumen.perception import FleetSensor
@@ -58,7 +57,8 @@ from nucypher.config.storages import ForgetfulNodeStorage
 from nucypher.crypto.api import InvalidNodeCertificate, recover_address_eip_191, verify_eip_191
 from nucypher.crypto.kits import UmbralMessageKit
 from nucypher.crypto.powers import DecryptingPower, NoSigningPower, SigningPower
-from nucypher.crypto.signing import signature_splitter
+from nucypher.crypto.splitters import signature_splitter
+from nucypher.crypto.umbral_adapter import Signature
 from nucypher.network import LEARNING_LOOP_VERSION
 from nucypher.network.exceptions import NodeSeemsToBeDown
 from nucypher.network.middleware import RestMiddleware
@@ -758,7 +758,7 @@ class Learner:
         #
 
         if signature:
-            is_valid = signature.verify(message, sender_verifying_key)
+            is_valid = signature.verify(sender_verifying_key, message)
             if not is_valid:
                 raise self.InvalidSignature("Signature for message isn't valid: {}".format(signature))
         else:
@@ -1258,7 +1258,7 @@ class Teacher:
         """
         interface_info_message = self._signable_interface_info_message()  # Contains canonical address.
         message = self.timestamp_bytes() + interface_info_message
-        interface_is_valid = self._interface_signature.verify(message, self.public_keys(SigningPower))
+        interface_is_valid = self._interface_signature.verify(self.public_keys(SigningPower), message)
         self.verified_interface = interface_is_valid
         if interface_is_valid:
             return True

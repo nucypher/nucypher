@@ -17,29 +17,29 @@
 
 import json
 import os
-from umbral.keys import UmbralPrivateKey, UmbralPublicKey
+from nucypher.crypto.umbral_adapter import SecretKey, PublicKey
 
 DOCTOR_PUBLIC_JSON = 'doctor.public.json'
 DOCTOR_PRIVATE_JSON = 'doctor.private.json'
 
 
 def generate_doctor_keys():
-    enc_privkey = UmbralPrivateKey.gen_key()
-    sig_privkey = UmbralPrivateKey.gen_key()
+    enc_privkey = SecretKey.random()
+    sig_privkey = SecretKey.random()
 
     doctor_privkeys = {
-        'enc': enc_privkey.to_bytes().hex(),
-        'sig': sig_privkey.to_bytes().hex(),
+        'enc': bytes(enc_privkey).hex(),
+        'sig': bytes(sig_privkey).hex(),
     }
 
     with open(DOCTOR_PRIVATE_JSON, 'w') as f:
         json.dump(doctor_privkeys, f)
 
-    enc_pubkey = enc_privkey.get_pubkey()
-    sig_pubkey = sig_privkey.get_pubkey()
+    enc_pubkey = enc_privkey.public_key()
+    sig_pubkey = sig_privkey.public_key()
     doctor_pubkeys = {
-        'enc': enc_pubkey.to_bytes().hex(),
-        'sig': sig_pubkey.to_bytes().hex()
+        'enc': bytes(enc_pubkey).hex(),
+        'sig': bytes(sig_pubkey).hex()
     }
     with open(DOCTOR_PUBLIC_JSON, 'w') as f:
         json.dump(doctor_pubkeys, f)
@@ -58,8 +58,8 @@ def _get_keys(file, key_class):
 
 
 def get_doctor_pubkeys():
-    return _get_keys(DOCTOR_PUBLIC_JSON, UmbralPublicKey)
+    return _get_keys(DOCTOR_PUBLIC_JSON, PublicKey)
 
 
 def get_doctor_privkeys():
-    return _get_keys(DOCTOR_PRIVATE_JSON, UmbralPrivateKey)
+    return _get_keys(DOCTOR_PRIVATE_JSON, SecretKey)

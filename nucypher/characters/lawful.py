@@ -56,10 +56,6 @@ from twisted.internet.defer import Deferred
 from twisted.internet.task import LoopingCall
 from twisted.logger import Logger
 from typing import Dict, Iterable, List, NamedTuple, Tuple, Union, Optional, Sequence, Set, Any
-from umbral import pre
-from umbral.keys import UmbralPublicKey
-from umbral.kfrags import KFrag
-from umbral.signing import Signature
 
 import nucypher
 from nucypher.acumen.nicknames import Nickname
@@ -79,7 +75,7 @@ from nucypher.cli.processes import UrsulaCommandProtocol
 from nucypher.config.constants import END_OF_POLICIES_PROBATIONARY_PERIOD
 from nucypher.config.storages import ForgetfulNodeStorage, NodeStorage
 from nucypher.crypto.api import encrypt_and_sign, keccak_digest
-from nucypher.crypto.constants import HRAC_LENGTH, PUBLIC_KEY_LENGTH
+from nucypher.crypto.constants import HRAC_LENGTH
 from nucypher.crypto.keypairs import HostingKeypair
 from nucypher.crypto.kits import UmbralMessageKit
 from nucypher.crypto.powers import (
@@ -90,6 +86,8 @@ from nucypher.crypto.powers import (
     TransactingPower
 )
 from nucypher.crypto.signing import InvalidSignature
+from nucypher.crypto.splitters import key_splitter, signature_splitter
+from nucypher.crypto.umbral_adapter import Capsule, PublicKey, VerifiedKeyFrag, Signature, VerificationError, reencrypt
 from nucypher.datastore.datastore import DatastoreTransactionError, RecordNotFound
 from nucypher.datastore.queries import find_expired_policies, find_expired_treasure_maps
 from nucypher.network.exceptions import NodeSeemsToBeDown
@@ -223,7 +221,7 @@ class Alice(Character, BlockchainPolicyAuthor):
         bob_encrypting_key = bob.public_keys(DecryptingPower)
         delegating_power = self._crypto_power.power_ups(DelegatingPower)
         return delegating_power.generate_kfrags(bob_pubkey_enc=bob_encrypting_key,
-                                                signer=self.stamp,
+                                                signer=self.stamp.as_umbral_signer(),
                                                 label=label,
                                                 m=m or self.m,
                                                 n=n or self.n)
@@ -362,7 +360,7 @@ class Alice(Character, BlockchainPolicyAuthor):
             enacted_policy.treasure_map_publisher.block_until_success_is_reasonably_likely()
         return enacted_policy
 
-    def get_policy_encrypting_key_from_label(self, label: bytes) -> UmbralPublicKey:
+    def get_policy_encrypting_key_from_label(self, label: bytes) -> PublicKey:
         alice_delegating_power = self._crypto_power.power_ups(DelegatingPower)
         policy_pubkey = alice_delegating_power.get_pubkey_from_label(label)
         return policy_pubkey
@@ -626,7 +624,7 @@ class Bob(Character):
     def make_compass_for_alice(self, alice):
         return partial(self.verify_from, alice, decrypt=True)
 
-    def construct_policy_hrac(self, verifying_key: Union[bytes, UmbralPublicKey], label: bytes) -> bytes:
+    def construct_policy_hrac(self, verifying_key: Union[bytes, PublicKey], label: bytes) -> bytes:
         _hrac = keccak_digest(bytes(verifying_key) + self.stamp + label)[:HRAC_LENGTH]
         return _hrac
 
@@ -685,7 +683,7 @@ class Bob(Character):
 
     def work_orders_for_capsules(self,
                                  *capsules,
-                                 alice_verifying_key: UmbralPublicKey,
+                                 alice_verifying_key: PublicKey,
                                  treasure_map: 'TreasureMap' = None,
                                  num_ursulas: int = None,
                                  ) -> Tuple[Dict[ChecksumAddress, 'WorkOrder'], Dict['Capsule', 'WorkOrder']]:
@@ -751,34 +749,22 @@ class Bob(Character):
 
     def _filter_work_orders_and_capsules(self,
                                          work_orders: Dict[ChecksumAddress, 'WorkOrder'],
-                                         capsules: Sequence['Capsule'],
+                                         message_kits: Sequence['UmbralMessageKit'],
                                          m: int,
                                          ) -> Tuple[List['WorkOrder'], Set['Capsule']]:
         remaining_work_orders = []
-        remaining_capsules = set(capsule for capsule in capsules if len(capsule) < m)
+        remaining_capsules = {mk.capsule for mk in message_kits if len(mk) < m}
         for work_order in work_orders.values():
-            for capsule in work_order.tasks:
-                work_order_is_useful = False
-                if len(capsule) >= m:
-                    remaining_capsules.discard(capsule)
-                else:
-                    work_order_is_useful = True
-                    break
-
-            # If all the capsules are now activated, we can stop here.
-            if not remaining_capsules:
-                break
-
-            if not work_order_is_useful:
-                # None of the Capsules for this particular WorkOrder need to be activated.  Move on to the next one.
-                continue
-
-            remaining_work_orders.append(work_order)
+            if not work_order.tasks.keys().isdisjoint(remaining_capsules):
+                remaining_work_orders.append(work_order)
 
         return remaining_work_orders, remaining_capsules
 
     def _reencrypt(self,
                    work_order: 'WorkOrder',
+                   # TODO (#2028): it's kind of awkward to pass this mapping here,
+                   # there should be a better way to handle this.
+                   message_kits_map: Dict[Capsule, UmbralMessageKit],
                    retain_cfrags: bool = False
                    ) -> Tuple[bool, Union[List['Ursula'], List['CapsuleFrag']]]:
 
@@ -808,27 +794,37 @@ class Bob(Character):
         self._completed_work_orders.save_work_order(work_order, as_replete=retain_cfrags)
 
         the_airing_of_grievances = []
+        verified_cfrags = []
         for capsule, pre_task in work_order.tasks.items():
-            if not pre_task.cfrag.verify_correctness(capsule):
+            try:
+                keys = message_kits_map[capsule].get_correctness_keys()
+                verified_cfrag = pre_task.cfrag.verify(capsule,
+                                                       verifying_pk=keys['verifying'],
+                                                       delegating_pk=keys['delegating'],
+                                                       receiving_pk=keys['receiving'])
+            except VerificationError:
                 # TODO: WARNING - This block is untested.
                 # I got a lot of problems with you people ...
                 the_airing_of_grievances.append(work_order.ursula)
+            else:
+                verified_cfrags.append(verified_cfrag) # FIXME: this is unused
+                pre_task.cfrag = verified_cfrag # FIXME: massive yikes, needs to be done properly
 
         if the_airing_of_grievances:
             return False, the_airing_of_grievances
         else:
-            return True, cfrags
+            return True, verified_cfrags
 
     def retrieve(self,
 
                  # Policy
                  *message_kits: UmbralMessageKit,
-                 alice_verifying_key: Union[UmbralPublicKey, bytes],
+                 alice_verifying_key: Union[PublicKey, bytes],
                  label: bytes,
 
                  # Source Authentication
                  enrico: "Enrico" = None,
-                 policy_encrypting_key: UmbralPublicKey = None,
+                 policy_encrypting_key: PublicKey = None,
 
                  # Retrieval Behaviour
                  retain_cfrags: bool = False,
@@ -838,8 +834,8 @@ class Bob(Character):
 
                  ) -> List[bytes]:
 
-        # Try our best to get an UmbralPublicKey from input
-        alice_verifying_key = UmbralPublicKey.from_bytes(bytes(alice_verifying_key))
+        # Try our best to get an umbral.PublicKey from input
+        alice_verifying_key = PublicKey.from_bytes(bytes(alice_verifying_key))
 
         if treasure_map is not None:
 
@@ -870,14 +866,15 @@ class Bob(Character):
         _unknown_ursulas, _known_ursulas, m = self.follow_treasure_map(treasure_map=treasure_map, block=True)
 
         # Part I: Assembling the WorkOrders.
-        capsules_to_activate = set(mk.capsule for mk in message_kits)
+
+        message_kits_map = {mk.capsule: mk for mk in message_kits}
 
         # Normalization
-        for message in message_kits:
-            message.ensure_correct_sender(enrico=enrico, policy_encrypting_key=policy_encrypting_key)
+        for message_kit in message_kits:
+            message_kit.ensure_correct_sender(enrico=enrico, policy_encrypting_key=policy_encrypting_key)
 
         # Sanity check: If we're not using attached cfrags, we don't want a Capsule which has them.
-        if not use_attached_cfrags and any(len(message.capsule) > 0 for message in message_kits):
+        if not use_attached_cfrags and any(len(message_kit) > 0 for message_kit in message_kits):
             raise TypeError(
                 "Not using cached retrievals, but the MessageKit's capsule has attached CFrags. "
                 "In order to retrieve this message, you must set cache=True. "
@@ -887,26 +884,24 @@ class Bob(Character):
         # We'll start by following the treasure map, setting the correctness keys, and attaching cfrags from
         # WorkOrders that we have already completed in the past.
 
-        for message in message_kits:
-            capsule = message.capsule
-
-            capsule.set_correctness_keys(receiving=self.public_keys(DecryptingPower))
-            capsule.set_correctness_keys(verifying=alice_verifying_key)
+        for message_kit in message_kits:
+            message_kit.set_correctness_keys(receiving=self.public_keys(DecryptingPower))
+            message_kit.set_correctness_keys(verifying=alice_verifying_key)
 
         new_work_orders, complete_work_orders = self.work_orders_for_capsules(
             treasure_map=treasure_map,
             alice_verifying_key=alice_verifying_key,
-            *capsules_to_activate)
+            *[mk.capsule for mk in message_kits])
 
         self.log.info(f"Found {len(complete_work_orders)} complete work orders "
-                      f"for Capsules ({capsules_to_activate}).")
+                      f"for message kits ({message_kits}).")
 
         if complete_work_orders:
             if use_precedent_work_orders:
                 for capsule, work_orders in complete_work_orders.items():
                     for work_order in work_orders:
                         cfrag_in_question = work_order.tasks[capsule].cfrag
-                        capsule.attach_cfrag(cfrag_in_question)
+                        message_kits_map[capsule].attach_cfrag(cfrag_in_question)
             else:
                 self.log.warn(
                     "Found existing complete WorkOrders, but use_precedent_work_orders is set to False.  To use Bob in 'KMS mode', set retain_cfrags=False as well.")
@@ -918,30 +913,31 @@ class Bob(Character):
             # TODO Optimization: Block here (or maybe even later) until map is done being followed (instead of blocking above). #1114
             the_airing_of_grievances = []
 
-            remaining_work_orders, capsules_to_activate = self._filter_work_orders_and_capsules(
-                new_work_orders, capsules_to_activate, m)
+            remaining_work_orders, remaining_capsules = self._filter_work_orders_and_capsules(
+                new_work_orders, message_kits, m)
 
             # If all the capsules are now activated, we can stop here.
-            if capsules_to_activate and remaining_work_orders:
+            if remaining_capsules and remaining_work_orders:
 
                 # OK, so we're going to need to do some network activity for this retrieval.  Let's make sure we've seeded.
                 if not self.done_seeding:
                     self.learn_from_teacher_node()
 
                 for work_order in remaining_work_orders:
-                    success, result = self._reencrypt(work_order, retain_cfrags)
+                    success, result = self._reencrypt(work_order, message_kits_map, retain_cfrags)
 
                     if not success:
                         the_airing_of_grievances.extend(result)
                         continue
 
                     for capsule, pre_task in work_order.tasks.items():
-                        capsule.attach_cfrag(pre_task.cfrag) # already verified, will not fail
-                        if len(capsule) >= m:
-                            capsules_to_activate.discard(capsule)
+                        message_kit = message_kits_map[capsule]
+                        message_kit.attach_cfrag(pre_task.cfrag)
+                        if len(message_kit) >= m:
+                            remaining_capsules.discard(capsule)
 
                     # If all the capsules are now activated, we can stop here.
-                    if not capsules_to_activate:
+                    if not remaining_capsules:
                         break
                 else:
                     raise Ursula.NotEnoughUrsulas(
@@ -954,13 +950,13 @@ class Bob(Character):
                 #  - There maybe enough cfrags to still open the capsule
                 #  - This line is unreachable when NotEnoughUrsulas
 
-            for message in message_kits:
-                delivered_cleartext = self.verify_from(message.sender, message, decrypt=True)
+            for message_kit in message_kits:
+                delivered_cleartext = self.verify_from(message_kit.sender, message_kit, decrypt=True)
                 cleartexts.append(delivered_cleartext)
         finally:
             if not retain_cfrags:
-                for message in message_kits:
-                    message.capsule.clear_cfrags()
+                for message_kit in message_kits:
+                    message_kit.clear_cfrags()
                 for work_order in new_work_orders.values():
                     work_order.sanitize()
 
@@ -983,7 +979,7 @@ class Bob(Character):
 
         search_boundary = 2
         target_nodes = []
-        target_hex_match = self.public_keys(DecryptingPower).hex()[1]
+        target_hex_match = bytes(self.public_keys(DecryptingPower)).hex()[1]
         while len(target_nodes) < no_less_than:
             target_nodes = []
             search_boundary += 2
@@ -1568,13 +1564,13 @@ class Ursula(Teacher, Character, Worker):
             public_address=ETH_ADDRESS_BYTE_LENGTH,
             domain=VariableLengthBytestring,
             timestamp=(int, 4, {'byteorder': 'big'}),
-            interface_signature=Signature,
+            interface_signature=signature_splitter,
 
             # FIXME: Fixed length doesn't work with federated. It was LENGTH_ECDSA_SIGNATURE_WITH_RECOVERY,
             decentralized_identity_evidence=VariableLengthBytestring,
 
-            verifying_key=(UmbralPublicKey, PUBLIC_KEY_LENGTH),
-            encrypting_key=(UmbralPublicKey, PUBLIC_KEY_LENGTH),
+            verifying_key=key_splitter,
+            encrypting_key=key_splitter,
             certificate=(load_pem_x509_certificate, VariableLengthBytestring, {"backend": default_backend()}),
             rest_interface=InterfaceInfo,
         )
@@ -1727,26 +1723,21 @@ class Ursula(Teacher, Character, Worker):
     # Re-Encryption
     #
 
-    def _reencrypt(self, kfrag: KFrag, work_order: 'WorkOrder', alice_verifying_key: UmbralPublicKey):
+    def _reencrypt(self, kfrag: VerifiedKeyFrag, work_order: 'WorkOrder', alice_verifying_key: PublicKey):
 
         # Prepare a bytestring for concatenating re-encrypted
         # capsule data for each work order task.
         cfrag_byte_stream = bytes()
         for capsule, task in work_order.tasks.items():
-            # Ursula signs on top of Bob's signature of each task.
-            # Now both are committed to the same task.  See #259.
-            reencryption_metadata = bytes(self.stamp(bytes(task.signature)))
-
-            # Ursula sets Alice's verifying key for capsule correctness verification.
-            capsule.set_correctness_keys(verifying=alice_verifying_key)
+            # See #259 for the discussion leading to the current protocol.
 
             # Then re-encrypts the fragment.
-            cfrag = pre.reencrypt(kfrag, capsule, metadata=reencryption_metadata)  # <--- pyUmbral
+            cfrag = reencrypt(capsule, kfrag)  # <--- pyUmbral
             self.log.info(f"Re-encrypted capsule {capsule} -> made {cfrag}.")
 
             # Next, Ursula signs to commit to her results.
             reencryption_signature = self.stamp(bytes(cfrag))
-            cfrag_byte_stream += VariableLengthBytestring(cfrag) + reencryption_signature
+            cfrag_byte_stream += bytes(cfrag) + bytes(reencryption_signature)
 
         # ... and finally returns all the re-encrypted bytes
         return cfrag_byte_stream
@@ -1839,7 +1830,7 @@ class Enrico(Character):
 
     def __init__(self,
                  is_me: bool = True,
-                 policy_encrypting_key: Optional[UmbralPublicKey] = None,
+                 policy_encrypting_key: Optional[PublicKey] = None,
                  controller: bool = True,
                  *args, **kwargs):
 

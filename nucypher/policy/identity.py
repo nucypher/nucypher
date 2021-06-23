@@ -27,12 +27,12 @@ import os
 from bytestring_splitter import VariableLengthBytestring, BytestringKwargifier
 from constant_sorrow.constants import ALICE, BOB, NO_SIGNATURE
 from hexbytes.main import HexBytes
-from umbral.keys import UmbralPublicKey
 
 from nucypher.characters.base import Character
 from nucypher.characters.lawful import Alice, Bob
 from nucypher.config.constants import DEFAULT_CONFIG_ROOT
 from nucypher.crypto.powers import SigningPower, DecryptingPower
+from nucypher.crypto.umbral_adapter import PublicKey
 
 
 class Card:
@@ -42,14 +42,14 @@ class Card:
 
     _alice_specification = dict(
         character_flag=(bytes, 8),
-        verifying_key=(UmbralPublicKey, 33),
+        verifying_key=(PublicKey, PublicKey.serialized_size()),
         nickname=(bytes, VariableLengthBytestring),
     )
 
     _bob_specification = dict(
         character_flag=(bytes, 8),
-        verifying_key=(UmbralPublicKey, 33),
-        encrypting_key=(UmbralPublicKey, 33),
+        verifying_key=(PublicKey, PublicKey.serialized_size()),
+        encrypting_key=(PublicKey, PublicKey.serialized_size()),
         nickname=(bytes, VariableLengthBytestring),
     )
 
@@ -80,8 +80,8 @@ class Card:
 
     def __init__(self,
                  character_flag: Union[ALICE, BOB],
-                 verifying_key: Union[UmbralPublicKey, bytes],
-                 encrypting_key: Optional[Union[UmbralPublicKey, bytes]] = None,
+                 verifying_key: Union[PublicKey, bytes],
+                 encrypting_key: Optional[Union[PublicKey, bytes]] = None,
                  nickname: Optional[Union[bytes, str]] = None):
 
         try:
@@ -91,11 +91,11 @@ class Card:
         self.__character_flag = character_flag
 
         if isinstance(verifying_key, bytes):
-            verifying_key = UmbralPublicKey.from_bytes(verifying_key)
+            verifying_key = PublicKey.from_bytes(verifying_key)
         self.__verifying_key = verifying_key    # signing public key
 
         if isinstance(encrypting_key, bytes):
-            encrypting_key = UmbralPublicKey.from_bytes(encrypting_key)
+            encrypting_key = PublicKey.from_bytes(encrypting_key)
         self.__encrypting_key = encrypting_key  # public key
 
         if isinstance(nickname, str):
@@ -251,11 +251,11 @@ class Card:
 
 
     @property
-    def verifying_key(self) -> UmbralPublicKey:
+    def verifying_key(self) -> PublicKey:
         return self.__verifying_key
 
     @property
-    def encrypting_key(self) -> UmbralPublicKey:
+    def encrypting_key(self) -> PublicKey:
         return self.__encrypting_key
 
     @property
