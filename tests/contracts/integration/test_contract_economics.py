@@ -15,55 +15,55 @@ You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
-
 import pytest
-
+from nucypher.blockchain.eth.agents import StakingEscrowAgent, NucypherTokenAgent, PolicyManagerAgent, ContractAgency
 from nucypher.blockchain.eth.signers.software import Web3Signer
 from nucypher.crypto.powers import TransactingPower
 
 # Experimental max error
+from tests.contracts.integration.utils import prepare_staker, commit_to_next_period
+
 MAX_ERROR_FIRST_PHASE = 1e-20
 MAX_ERROR_SECOND_PHASE = 5e-3
 MAX_PERIODS_SECOND_PHASE = 100
 
 
 @pytest.mark.nightly
-def test_reward(testerchain, agency, token_economics):
+def test_reward(testerchain, agency, token_economics, test_registry):
     testerchain.time_travel(hours=1)
-    token_agent, staking_agent, _policy_agent = agency
+    staking_agent = ContractAgency.get_agent(StakingEscrowAgent, registry=test_registry)
+    token_agent = ContractAgency.get_agent(NucypherTokenAgent, registry=test_registry)
+    _policy_agent = ContractAgency.get_agent(PolicyManagerAgent, registry=test_registry)
     origin = testerchain.etherbase_account
-    ursula = testerchain.ursula_account(0)
+    ursula1 = testerchain.ursula_account(0)
+    ursula2 = testerchain.ursula_account(1)
     origin_tpower = TransactingPower(signer=Web3Signer(client=testerchain.client), account=origin)
-    ursula_tpower = TransactingPower(signer=Web3Signer(client=testerchain.client), account=ursula)
+    ursula1_tpower = TransactingPower(signer=Web3Signer(client=testerchain.client), account=ursula1)
+    ursula2_tpower = TransactingPower(signer=Web3Signer(client=testerchain.client), account=ursula2)
 
     # Prepare one staker
-    _txhash = token_agent.transfer(amount=token_economics.minimum_allowed_locked,
-                                   target_address=ursula,
-                                   transacting_power=origin_tpower)
-    _txhash = token_agent.approve_transfer(amount=token_economics.minimum_allowed_locked,
-                                           spender_address=staking_agent.contract_address,
-                                           transacting_power=ursula_tpower)
-    _txhash = staking_agent.deposit_tokens(amount=token_economics.minimum_allowed_locked,
-                                           lock_periods=100 * token_economics.maximum_rewarded_periods,
-                                           transacting_power=ursula_tpower,
-                                           staker_address=ursula)
+    prepare_staker(origin_tpower, staking_agent, token_agent, token_economics, ursula1, ursula1_tpower, token_economics.minimum_allowed_locked)
+    prepare_staker(origin_tpower, staking_agent, token_agent, token_economics, ursula2, ursula2_tpower,
+                    token_economics.minimum_allowed_locked * 3)  # 3x min
 
-    _txhash = staking_agent.bond_worker(staker_address=ursula, worker_address=ursula)
-    _txhash = staking_agent.set_restaking(staker_address=ursula, value=False)
-
-    _txhash = staking_agent.commit_to_next_period(worker_address=ursula)
+    ursulas_tpowers = [ursula1_tpower, ursula2_tpower]
+    commit_to_next_period(staking_agent, ursulas_tpowers)
     testerchain.time_travel(periods=1)
-    _txhash = staking_agent.commit_to_next_period(worker_address=ursula)
-    assert staking_agent.calculate_staking_reward(staker_address=ursula) == 0
+    commit_to_next_period(staking_agent, ursulas_tpowers)
+
+    assert staking_agent.calculate_staking_reward(staker_address=ursula1) == 0
+    assert staking_agent.calculate_staking_reward(staker_address=ursula2) == 0
 
     # Get a reward
     switch = token_economics.first_phase_final_period()
     for i in range(1, switch + MAX_PERIODS_SECOND_PHASE):
         testerchain.time_travel(periods=1)
-        _txhash = staking_agent.commit_to_next_period(transacting_power=ursula_tpower)
-        contract_reward = staking_agent.calculate_staking_reward(staker_address=ursula)
+        commit_to_next_period(staking_agent, ursulas_tpowers)
+
+        ursula1_rewards = staking_agent.calculate_staking_reward(staker_address=ursula1)
+        ursula2_rewards = staking_agent.calculate_staking_reward(staker_address=ursula2)
         calculations_reward = token_economics.cumulative_rewards_at_period(i)
-        error = abs((contract_reward - calculations_reward) / calculations_reward)
+        error = abs((ursula1_rewards + ursula2_rewards - calculations_reward) / calculations_reward)
         if i <= switch:
             assert error < MAX_ERROR_FIRST_PHASE
         else:

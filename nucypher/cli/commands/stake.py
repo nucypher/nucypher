@@ -94,6 +94,8 @@ from nucypher.cli.literature import (
     FETCHING_INACTIVE_STAKES,
     MIGRATION_ALREADY_PERFORMED,
     CONFIRM_MANUAL_MIGRATION,
+    CONFIRM_INCREASING_STAKE_DISCLAIMER,
+    CONFIRM_MERGE_DISCLAIMER
 )
 from nucypher.cli.options import (
     group_options,
@@ -634,6 +636,7 @@ def increase(general_config: GroupGeneralConfig,
     #
 
     if not force:
+        click.confirm(CONFIRM_INCREASING_STAKE_DISCLAIMER, abort=True)
         lock_periods = current_stake.periods_remaining - 1
         current_period = STAKEHOLDER.staker.staking_agent.get_current_period()
         unlock_period = current_stake.final_locked_period + 1
@@ -1031,8 +1034,18 @@ def merge(general_config: GroupGeneralConfig,
                                                          s.final_locked_period == stake_1.final_locked_period)
 
     if not force:
-        click.confirm(CONFIRM_MERGE.format(stake_index_1=stake_1.index, stake_index_2=stake_2.index), abort=True)
+        if stake_1.first_locked_period != stake_2.first_locked_period:
+            # this condition means that a temporary sub-stake will need to be created as part of the merge
 
+            # Need to ensure that a commitment has occurred in the period after the sub-stake was created
+            # before merging to avoid issue observed in #2691
+            last_commitment = STAKEHOLDER.staker.last_committed_period
+            if last_commitment < (stake_1.first_locked_period + 1) \
+                    or last_commitment < (stake_2.first_locked_period + 1):
+                # show disclaimer - potential for issue seen in #2691
+                click.confirm(CONFIRM_MERGE_DISCLAIMER, abort=True)
+
+        click.confirm(CONFIRM_MERGE.format(stake_index_1=stake_1.index, stake_index_2=stake_2.index), abort=True)
 
     # Non-interactive: Consistency check to prevent the above agreement from going stale.
     last_second_current_period = STAKEHOLDER.staker.staking_agent.get_current_period()
