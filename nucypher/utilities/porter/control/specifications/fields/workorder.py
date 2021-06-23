@@ -18,6 +18,8 @@ from base64 import b64encode, b64decode
 
 from marshmallow import fields
 
+from nucypher.characters.control.specifications.exceptions import InvalidNativeDataTypes
+from nucypher.control.specifications.exceptions import InvalidInputData
 from nucypher.control.specifications.fields import BaseField
 from nucypher.policy.orders import WorkOrder as WorkOrderClass
 
@@ -27,7 +29,10 @@ class WorkOrder(BaseField, fields.Field):
         return b64encode(value.payload()).decode()
 
     def _deserialize(self, value, attr, data, **kwargs):
-        return b64decode(value)
+        try:
+            return b64decode(value)
+        except InvalidNativeDataTypes as e:
+            raise InvalidInputData(f"Could not parse {self.name}: {e}")
 
 
 class WorkOrderResult(BaseField, fields.Field):

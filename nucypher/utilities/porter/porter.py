@@ -72,7 +72,7 @@ the Pipe for nucypher network operations
     class UrsulaInfo:
         """Simple object that stores relevant Ursula information resulting from sampling."""
 
-        def __init__(self, checksum_address: str, uri: str, encrypting_key: PublicKey):
+        def __init__(self, checksum_address: ChecksumAddress, uri: str, encrypting_key: PublicKey):
             self.checksum_address = checksum_address
             self.uri = uri
             self.encrypting_key = encrypting_key
