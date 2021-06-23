@@ -92,7 +92,7 @@ class DecryptingKeypair(Keypair):
             cleartext = decrypt_reencrypted(self._privkey,
                                             message_kit._delegating_key,
                                             message_kit.capsule,
-                                            message_kit._cfrags,
+                                            list(message_kit._cfrags),
                                             message_kit.ciphertext)
         else:
             cleartext = decrypt_original(self._privkey,
