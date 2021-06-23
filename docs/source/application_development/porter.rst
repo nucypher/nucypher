@@ -25,8 +25,14 @@ Running Porter
 
     By default the Porter service will run on port 9155, unless specified otherwise.
 
-To run the Porter service over HTTPS, it will require a TLS key and a certificate. If desired, self-signed certificates
-can be created for the localhost using the ``openssl`` command:
+Security
+^^^^^^^^
+
+HTTPS
++++++
+To run the Porter service over HTTPS, it will require a TLS key (``--tls-key-filepath`` option) and a TLS certificate.
+
+If desired, keys and self-signed certificates can be created for the localhost using the ``openssl`` command:
 
 .. code:: bash
 
@@ -34,6 +40,21 @@ can be created for the localhost using the ``openssl`` command:
       -newkey rsa:2048 -nodes -sha256 \
       -subj '/CN=localhost' -extensions EXT -config <( \
         printf "[dn]\nCN=localhost\n[req]\ndistinguished_name = dn\n[EXT]\nsubjectAltName=DNS:localhost\nkeyUsage=digitalSignature\nextendedKeyUsage=serverAuth")
+
+.. important::
+
+    Self-signed certificates are not recommended, other than for testing.
+
+
+Authentication
+++++++++++++++
+Porter will allow the configuration of Basic Authentication out of the box via
+an `htpasswd <https://httpd.apache.org/docs/2.4/programs/htpasswd.html>`_ file. The use of Basic Authentication
+necessitates HTTPS since user credentials will be passed over the network as cleartext.
+
+Alternative authentication mechanisms can be implemented outside of Porter via an intermediary proxy service, for
+example an Nginx HTTPS reverse proxy.
+
 
 via Docker
 ^^^^^^^^^^
@@ -63,47 +84,62 @@ Run Porter within Docker without acquiring or installing the ``nucypher`` codeba
 
    For HTTPS service (on default port 443):
 
-   .. code:: bash
+   * Without Basic Authentication:
 
-       $ docker run -d --rm \
-          --name porter-https \
-          -v ~/.local/share/nucypher/:/root/.local/share/nucypher \
-          -v <TLS DIRECTORY>:/etc/porter-tls
-          -p 443:9155 \
-          nucypher/nucypher:latest \
-          nucypher porter run \
-          --provider <YOUR WEB3 PROVIDER URI> \
-          --network <NETWORK NAME> \
-          --tls-key-filepath /etc/porter-tls/<KEY FILENAME> \
-          --tls-certificate-filepath /etc/porter-tls/<CERT FILENAME>
+     .. code:: bash
 
-   The ``<TLS DIRECTORY>`` is expected to contain the TLS key file (``<KEY FILENAME>``) and the certificate (``<CERT FILENAME>``) to run Porter over HTTPS.
+         $ docker run -d --rm \
+            --name porter-https \
+            -v ~/.local/share/nucypher/:/root/.local/share/nucypher \
+            -v <TLS DIRECTORY>:/etc/porter \
+            -p 443:9155 \
+            nucypher/nucypher:latest \
+            nucypher porter run \
+            --provider <YOUR WEB3 PROVIDER URI> \
+            --network <NETWORK NAME> \
+            --tls-key-filepath /etc/porter/tls/<KEY FILENAME> \
+            --tls-certificate-filepath /etc/porter/tls/<CERT FILENAME>
 
-#. Porter will be available on default ports 80 (HTTP) or 443 (HTTPS).
+   * With Basic Authentication:
+
+     .. code:: bash
+
+         $ docker run -d --rm \
+            --name porter-https-auth \
+            -v ~/.local/share/nucypher/:/root/.local/share/nucypher \
+            -v <TLS DIRECTORY>:/etc/porter \
+            -v <HTPASSWD FILE>:/etc/porter/auth/htpasswd \
+            -p 443:9155 \
+            nucypher/nucypher:latest \
+            nucypher porter run \
+            --provider <YOUR WEB3 PROVIDER URI> \
+            --network <NETWORK NAME> \
+            --tls-key-filepath /etc/porter/tls/<KEY FILENAME> \
+            --tls-certificate-filepath /etc/porter/tls/<CERT FILENAME> \
+            --basic-auth-filepath /etc/porter/auth/htpasswd
+
+   The ``<TLS DIRECTORY>`` is expected to contain the TLS key file (``<KEY FILENAME>``) and the
+   certificate (``<CERT FILENAME>``) to run Porter over HTTPS.
+
+
+#. Porter will be available on default ports 80 (HTTP) or 443 (HTTPS). The porter service running will be one of
+   the following depending on the mode chosen:
+
+   * ``porter-http``
+   * ``porter-https``
+   * ``porter-https-auth``
 
 #. View Porter logs
 
    .. code:: bash
 
-       $ docker logs -f porter-http
-
-   or
-
-   .. code:: bash
-
-       $ docker logs -f porter-https
+       $ docker logs -f <PORTER SERVICE>
 
 #. Stop Porter service
 
    .. code:: bash
 
-       $ docker stop porter-http
-
-   or
-
-   .. code:: bash
-
-       $ docker stop porter-https
+       $ docker stop <PORTER SERVICE>
 
 
 via Docker Compose
@@ -111,8 +147,8 @@ via Docker Compose
 
 Docker Compose will start the Porter service within a Docker container.
 
-#. Acquire the ``nucypher`` codebase - see :ref:`acquire_codebase`. Note that there is no need
-   to install ``nucypher`` after acquiring the codebase.
+#. Acquire the ``nucypher`` codebase - see :ref:`acquire_codebase`. There is no need
+   to install ``nucypher`` after acquiring the codebase since Docker will be used.
 
 #. Set the required environment variables:
 
@@ -133,16 +169,24 @@ Docker Compose will start the Porter service within a Docker container.
 
          $ export NUCYPHER_NETWORK=<NETWORK NAME>
 
-   * (Optional) TLS directory variable containing the TLS key and the certificate to run Porter over HTTPS. The directory is expected to contain two files:
+   * *(Optional)* TLS directory variable containing the TLS key and the certificate to run Porter over HTTPS. The directory is expected to contain two files:
 
-        * ``key.pem`` - the TLS key
-        * ``cert.pem`` - the TLS certificate
+     * ``key.pem`` - the TLS key
+     * ``cert.pem`` - the TLS certificate
 
      Set the TLS directory environment variable
 
      .. code:: bash
 
          export TLS_DIR=<ABSOLUTE PATH TO TLS DIRECTORY>
+
+   * *(Optional)* Filepath to the htpasswd file for Basic Authentication
+
+     Set the htpasswd filepath environment variable
+
+     .. code:: bash
+
+         export HTPASSWD_FILE=<ABSOLUTE PATH TO HTPASSWD FILE>
 
 #. Run Porter service
 
@@ -154,23 +198,36 @@ Docker Compose will start the Porter service within a Docker container.
 
    For HTTPS service (on default port 443):
 
-   .. code:: bash
+   * Without Basic Authentication
 
-       $ docker-compose -f deploy/docker/porter/docker-compose.yml up -d porter-https
+     .. code:: bash
 
-#. Porter will be available on default ports 80 (HTTP) or 443 (HTTPS).
+         $ docker-compose -f deploy/docker/porter/docker-compose.yml up -d porter-https
+
+   * With Basic Authentication
+
+     .. code:: bash
+
+         $ docker-compose -f deploy/docker/porter/docker-compose.yml up -d porter-https-auth
+
+#. Porter will be available on default ports 80 (HTTP) or 443 (HTTPS). The porter service running will be one of
+   the following depending on the mode chosen:
+
+   * ``porter-http``
+   * ``porter-https``
+   * ``porter-https-auth``
 
 #. View Porter logs
 
    .. code:: bash
 
-       $ docker-compose -f deploy/docker/porter/docker-compose.yml logs -f <SERVICE_NAME>
+       $ docker-compose -f deploy/docker/porter/docker-compose.yml logs -f <PORTER SERVICE>
 
 #. Stop Porter service
 
    .. code:: bash
 
-       $ docker-compose -f deploy/docker/porter/docker-compose.yml down
+       $ docker-compose -f deploy/docker/porter/docker-compose.yml down <PORTER SERVICE>
 
 
 via CLI
@@ -180,55 +237,78 @@ Install ``nucypher`` - see :doc:`/references/pip-installation`.
 
 For a full list of CLI options, run:
 
-  .. code:: console
+.. code:: console
 
-      $ nucypher porter run --help
+  $ nucypher porter run --help
 
 
 * Run Porter service
+
   * Run via HTTP
 
-  .. code:: console
+    .. code:: console
 
-      $ nucypher porter run --provider <YOUR WEB3 PROVIDER URI> --network <NETWORK NAME>
+        $ nucypher porter run --provider <YOUR WEB3 PROVIDER URI> --network <NETWORK NAME>
 
 
-       ______
-      (_____ \           _
-       _____) )__   ____| |_  ____  ____
-      |  ____/ _ \ / ___)  _)/ _  )/ ___)
-      | |   | |_| | |   | |_( (/ /| |
-      |_|    \___/|_|    \___)____)_|
+         ______
+        (_____ \           _
+        _____) )__   ____| |_  ____  ____
+        |  ____/ _ \ / ___)  _)/ _  )/ ___)
+        | |   | |_| | |   | |_( (/ /| |
+        |_|    \___/|_|    \___)____)_|
 
-      the Pipe for nucypher network operations
+        the Pipe for nucypher network operations
 
-      Reading Latest Chaindata...
-      Network: <NETWORK NAME>
-      Provider: ...
-      Running Porter Web Controller at http://127.0.0.1:9155
+        Reading Latest Chaindata...
+        Network: <NETWORK NAME>
+        Provider: ...
+        Running Porter Web Controller at http://127.0.0.1:9155
 
   * Run via HTTPS
 
-  To run via HTTPS use the ``--tls-key-filepath`` and ``--tls-certificate-filepath`` options:
+    To run via HTTPS use the ``--tls-key-filepath`` and ``--tls-certificate-filepath`` options:
 
-  .. code:: console
+    .. code:: console
 
-      $ nucypher porter run --provider <YOUR WEB3 PROVIDER URI> --network <NETWORK NAME> --tls-key-filepath <TLS KEY FILEPATH> --tls-certificate-filepath <CERT FILEPATH>
+        $ nucypher porter run --provider <YOUR WEB3 PROVIDER URI> --network <NETWORK NAME> --tls-key-filepath <TLS KEY FILEPATH> --tls-certificate-filepath <CERT FILEPATH>
 
 
-       ______
-      (_____ \           _
-       _____) )__   ____| |_  ____  ____
-      |  ____/ _ \ / ___)  _)/ _  )/ ___)
-      | |   | |_| | |   | |_( (/ /| |
-      |_|    \___/|_|    \___)____)_|
+        ______
+        (_____ \           _
+        _____) )__   ____| |_  ____  ____
+        |  ____/ _ \ / ___)  _)/ _  )/ ___)
+        | |   | |_| | |   | |_( (/ /| |
+        |_|    \___/|_|    \___)____)_|
 
-      the Pipe for nucypher network operations
+        the Pipe for nucypher network operations
 
-      Reading Latest Chaindata...
-      Network: <NETWORK NAME>
-      Provider: ...
-      Running Porter Web Controller at https://127.0.0.1:9155
+        Reading Latest Chaindata...
+        Network: <NETWORK NAME>
+        Provider: ...
+        Running Porter Web Controller at https://127.0.0.1:9155
+
+    For HTTPS with Basic Authentication, add the ``--basic-auth-filepath`` option:
+
+    .. code:: console
+
+        $ nucypher porter run --provider <YOUR WEB3 PROVIDER URI> --network <NETWORK NAME> --tls-key-filepath <TLS KEY FILEPATH> --tls-certificate-filepath <CERT FILEPATH> --basic-auth-filepath <HTPASSWD FILE>
+
+
+        ______
+        (_____ \           _
+        _____) )__   ____| |_  ____  ____
+        |  ____/ _ \ / ___)  _)/ _  )/ ___)
+        | |   | |_| | |   | |_( (/ /| |
+        |_|    \___/|_|    \___)____)_|
+
+        the Pipe for nucypher network operations
+
+        Reading Latest Chaindata...
+        Network: <NETWORK NAME>
+        Provider: ...
+        Basic Authentication enabled
+        Running Porter Web Controller at https://127.0.0.1:9155
 
 
 API
@@ -295,7 +375,7 @@ Example Request
 +++++++++++++++
 .. code:: bash
 
-    curl -X GET <PORTER_URI>/get_ursulas \
+    curl -X GET <PORTER URI>/get_ursulas \
         -H "Content-Type: application/json" \
         -d '{"quantity": 5, "duration_periods": 4}'
 
@@ -369,7 +449,7 @@ Example Request
 +++++++++++++++
 .. code:: bash
 
-    curl -X POST <PORTER_URI>/publish_treasure_map \
+    curl -X POST <PORTER URI>/publish_treasure_map \
         -H "Content-Type: application/json" \
         -d '{"treasure_map": "Qld7S8sbKFCv2B8KxfJo4oxiTOjZ4VPyqTK5K1xK6DND6TbLg2hvlGaMV69aiiC5QfadB82w/5q1Sw+SNFHN2esWgAbs38QuUVUGCzDoWzQAAAGIAuhw12ZiPMNV8LaeWV8uUN+au2HGOjWilqtKsaP9fmnLAzFiTUAu9/VCxOLOQE88BPoWk1H7OxRLDEhnBVYyflpifKbOYItwLLTtWYVFRY90LtNSAzS8d3vNH4c3SHSZwYsCKY+5LvJ68GD0CqhydSxCcGckh0unttHrYGSOQsURUI4AAAEBsSMlukjA1WyYA+FouqkuRtk8bVHcYLqRUkK2n6dShEUGMuY1SzcAbBINvJYmQp+hhzK5m47AzCl463emXepYZQC/evytktG7yXxd3k8Ak+Qr7T4+G2VgJl4YrafTpIT6wowd+8u/SMSrrf/M41OhtLeBC4uDKjO3rYBQfVLTpEAgiX/9jxB80RtNMeCwgcieviAR5tlw2IlxVTEhxXbFeopcOZmfEuhVWqgBUfIakqsNCXkkubV0XS2l5G1vtTM8oNML0rP8PyKd4+0M5N6P/EQqFkHH93LCDD0IQBq9usm3MoJp0eT8N3m5gprI05drDh2xe/W6qnQfw3YXnjdvf2A=", \
              "bob_encrypting_key": "026d1f4ce5b2474e0dae499d6737a8d987ed3c9ab1a55e00f57ad2d8e81fe9e9ac"}'
@@ -417,7 +497,7 @@ Example Request
 +++++++++++++++
 .. code:: bash
 
-    curl -X GET <PORTER_URI>/get_treasure_map \
+    curl -X GET <PORTER URI>/get_treasure_map \
         -H "Content-Type: application/json" \
         -d '{"treasure_map_id": "f6ec73c93084ce91d5542a4ba6070071f5565112fe19b26ae9c960f9d658903a", \
              "bob_encrypting_key": "026d1f4ce5b2474e0dae499d6737a8d987ed3c9ab1a55e00f57ad2d8e81fe9e9ac"}'
