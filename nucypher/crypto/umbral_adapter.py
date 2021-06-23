@@ -15,11 +15,7 @@ You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
+# This module is used to have a single point where the Umbral implementation is chosen.
+# Do not import Umbral directly, use re-exports from this module.
 
-from bytestring_splitter import BytestringSplitter, VariableLengthBytestring
-from nucypher.crypto.umbral_adapter import CapsuleFrag, PublicKey, Capsule, Signature
-
-key_splitter = BytestringSplitter((PublicKey, PublicKey.serialized_size()))
-capsule_splitter = BytestringSplitter((Capsule, Capsule.serialized_size()))
-cfrag_splitter = BytestringSplitter((CapsuleFrag, CapsuleFrag.serialized_size()))
-signature_splitter = BytestringSplitter((Signature, Signature.serialized_size()))
+from umbral import *

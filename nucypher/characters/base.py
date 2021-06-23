@@ -34,7 +34,6 @@ from cryptography.exceptions import InvalidSignature
 from eth_keys import KeyAPI as EthKeyAPI
 from eth_utils import to_canonical_address, to_checksum_address
 from typing import ClassVar, Dict, List, Optional, Union
-from umbral import PublicKey, Signature
 
 from nucypher.acumen.nicknames import Nickname
 from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
@@ -57,6 +56,7 @@ from nucypher.crypto.signing import (
     StrangerStamp,
 )
 from nucypher.crypto.splitters import signature_splitter
+from nucypher.crypto.umbral_adapter import PublicKey, Signature
 from nucypher.network.middleware import RestMiddleware
 from nucypher.network.nodes import Learner
 

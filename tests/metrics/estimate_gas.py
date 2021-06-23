@@ -28,7 +28,6 @@ import re
 import tabulate
 import time
 from twisted.logger import ILogObserver, globalLogPublisher, jsonFileLogObserver
-from umbral import SecretKey, Signer
 from web3.contract import Contract
 
 from nucypher.blockchain.eth.registry import InMemoryContractRegistry
@@ -47,6 +46,7 @@ from nucypher.blockchain.eth.agents import (
 )
 from nucypher.blockchain.eth.constants import NUCYPHER_CONTRACT_NAMES, NULL_ADDRESS
 from nucypher.crypto.signing import SignatureStamp
+from nucypher.crypto.umbral_adapter import SecretKey, Signer
 from nucypher.exceptions import DevelopmentInstallationRequired
 from nucypher.policy.policies import Policy
 from nucypher.utilities.logging import Logger

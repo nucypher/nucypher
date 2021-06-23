@@ -16,10 +16,10 @@
 """
 
 from marshmallow import fields
-from umbral import PublicKey
 
 from nucypher.characters.control.specifications.exceptions import InvalidInputData, InvalidNativeDataTypes
 from nucypher.characters.control.specifications.fields.base import BaseField
+from nucypher.crypto.umbral_adapter import PublicKey
 
 
 class Key(BaseField, fields.Field):

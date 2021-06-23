@@ -19,10 +19,10 @@ import pytest
 import time
 from datetime import datetime
 from flask import Response
-from umbral import PublicKey
 from unittest.mock import patch
 
 from nucypher.characters.lawful import Ursula
+from nucypher.crypto.umbral_adapter import PublicKey
 from nucypher.datastore.base import RecordField
 from nucypher.network.nodes import Teacher
 from tests.markers import skip_on_circleci

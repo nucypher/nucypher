@@ -35,11 +35,11 @@ from eth_utils import is_checksum_address, to_checksum_address
 from ipaddress import IPv4Address
 from random import SystemRandom
 from typing import Tuple
-import umbral
-from umbral import SecretKey, PublicKey, Signature
 
 from nucypher.crypto.constants import SHA256
 from nucypher.crypto.kits import UmbralMessageKit
+import nucypher.crypto.umbral_adapter as umbral
+from nucypher.crypto.umbral_adapter import SecretKey, PublicKey, Signature
 
 SYSTEM_RAND = SystemRandom()
 _TLS_CURVE = ec.SECP384R1

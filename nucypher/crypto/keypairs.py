@@ -24,13 +24,13 @@ from constant_sorrow import constants
 from cryptography.hazmat.primitives.asymmetric import ec
 from hendrix.deploy.tls import HendrixDeployTLS
 from hendrix.facilities.services import ExistingKeyTLSContextFactory
-from umbral import SecretKey, PublicKey, Signature, Signer, decrypt_original, decrypt_reencrypted
 
 from nucypher.config.constants import MAX_UPLOAD_CONTENT_LENGTH
 from nucypher.crypto import api as API
 from nucypher.crypto.api import generate_teacher_certificate, _TLS_CURVE
 from nucypher.crypto.kits import MessageKit
 from nucypher.crypto.signing import SignatureStamp, StrangerStamp
+from nucypher.crypto.umbral_adapter import SecretKey, PublicKey, Signature, Signer, decrypt_original, decrypt_reencrypted
 from nucypher.network.resources import get_static_resources
 
 

@@ -18,11 +18,11 @@
 import functools
 import maya
 from typing import Union
-from umbral import PublicKey
 
 from nucypher.characters.control.specifications import alice, bob, enrico
 from nucypher.crypto.kits import UmbralMessageKit
 from nucypher.crypto.powers import DecryptingPower, SigningPower
+from nucypher.crypto.umbral_adapter import PublicKey
 from nucypher.crypto.utils import construct_policy_id
 from nucypher.network.middleware import RestMiddleware
 

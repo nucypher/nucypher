@@ -34,7 +34,6 @@ from mako import exceptions as mako_exceptions
 from mako.template import Template
 from maya import MayaDT
 from typing import Tuple
-from umbral import KeyFrag, VerificationError
 from web3.exceptions import TimeExhausted
 
 import nucypher
@@ -44,6 +43,7 @@ from nucypher.crypto.keypairs import HostingKeypair
 from nucypher.crypto.kits import UmbralMessageKit
 from nucypher.crypto.powers import KeyPairBasedPower, PowerUpError
 from nucypher.crypto.signing import InvalidSignature
+from nucypher.crypto.umbral_adapter import KeyFrag, VerificationError
 from nucypher.crypto.utils import canonical_address_from_umbral_key
 from nucypher.datastore.datastore import Datastore, RecordNotFound, DatastoreTransactionError
 from nucypher.datastore.models import PolicyArrangement, TreasureMap, Workorder

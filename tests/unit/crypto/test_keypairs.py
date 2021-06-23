@@ -18,9 +18,9 @@ import base64
 
 import sha3
 from constant_sorrow.constants import PUBLIC_ONLY
-from umbral import SecretKey
 
 from nucypher.crypto import keypairs
+from nucypher.crypto.umbral_adapter import SecretKey
 
 
 def test_gen_keypair_if_needed():

@@ -18,10 +18,10 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 from coincurve import PublicKey
 from eth_keys import KeyAPI as EthKeyAPI
 from typing import Any, Union
-from umbral import PublicKey
 
 from nucypher.crypto.api import keccak_digest
 from nucypher.crypto.signing import SignatureStamp
+from nucypher.crypto.umbral_adapter import PublicKey
 
 
 def fingerprint_from_key(public_key: Any):

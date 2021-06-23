@@ -20,9 +20,9 @@ import os
 import pytest
 import tempfile
 from pathlib import Path
-from umbral import SecretKey
 
 from nucypher.cli.main import nucypher_cli
+from nucypher.crypto.umbral_adapter import SecretKey
 from nucypher.policy.identity import Card
 
 

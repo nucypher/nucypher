@@ -20,13 +20,13 @@ import contextlib
 import socket
 from cryptography.x509 import Certificate
 from typing import Iterable, List, Optional, Set
-from umbral import SecretKey, Signer, encrypt, generate_kfrags, reencrypt
 
 from nucypher.blockchain.eth.actors import Staker
 from nucypher.blockchain.eth.interfaces import BlockchainInterface
 from nucypher.characters.lawful import Bob
 from nucypher.characters.lawful import Ursula
 from nucypher.config.characters import UrsulaConfiguration
+from nucypher.crypto.umbral_adapter import SecretKey, Signer, encrypt, generate_kfrags, reencrypt
 from nucypher.crypto.utils import canonical_address_from_umbral_key
 from nucypher.policy.collections import WorkOrder
 from tests.constants import NUMBER_OF_URSULAS_IN_DEVELOPMENT_NETWORK

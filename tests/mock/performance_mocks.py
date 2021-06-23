@@ -19,9 +19,9 @@ import tempfile
 from contextlib import contextmanager
 from unittest.mock import patch
 
+from nucypher.crypto.umbral_adapter import PublicKey, Signature
 from nucypher.network.server import make_rest_app
 from tests.mock.serials import good_serials
-from umbral import PublicKey, Signature
 
 mock_cert_storage = patch("nucypher.config.storages.ForgetfulNodeStorage.store_node_certificate",
                           new=lambda *args, **kwargs: "this_might_normally_be_a_filepath")

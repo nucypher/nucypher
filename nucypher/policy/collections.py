@@ -30,7 +30,6 @@ from cryptography.hazmat.backends.openssl import backend
 from cryptography.hazmat.primitives import hashes
 from eth_utils import to_canonical_address, to_checksum_address
 from typing import Optional, Tuple
-from umbral import PublicKey, Capsule
 
 from nucypher.blockchain.eth.constants import ETH_ADDRESS_BYTE_LENGTH, ETH_HASH_BYTE_LENGTH
 from nucypher.characters.lawful import Bob, Character
@@ -40,6 +39,7 @@ from nucypher.crypto.constants import HRAC_LENGTH
 from nucypher.crypto.kits import UmbralMessageKit
 from nucypher.crypto.signing import InvalidSignature, Signature, SignatureStamp
 from nucypher.crypto.splitters import capsule_splitter, cfrag_splitter, key_splitter, signature_splitter
+from nucypher.crypto.umbral_adapter import PublicKey, Capsule
 from nucypher.crypto.utils import (
     canonical_address_from_umbral_key,
 )

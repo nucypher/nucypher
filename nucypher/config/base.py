@@ -34,7 +34,6 @@ from constant_sorrow.constants import (
     LIVE_CONFIGURATION
 )
 from eth_utils.address import is_checksum_address
-from umbral import Signature
 
 from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
 from nucypher.blockchain.eth.networks import NetworksInventory
@@ -53,6 +52,7 @@ from nucypher.config.storages import (
     NodeStorage
 )
 from nucypher.crypto.powers import CryptoPower, CryptoPowerUp
+from nucypher.crypto.umbral_adapter import Signature
 from nucypher.network.middleware import RestMiddleware
 from nucypher.utilities.logging import Logger
 

@@ -39,7 +39,6 @@ from eth_account import Account
 from eth_keys import KeyAPI as EthKeyAPI
 from eth_utils import to_checksum_address
 from nacl.exceptions import CryptoError
-from umbral import SecretKey, PublicKey, SecretKeyFactory
 
 from nucypher.config.constants import DEFAULT_CONFIG_ROOT
 from nucypher.crypto.api import generate_teacher_certificate, _TLS_CURVE
@@ -51,6 +50,7 @@ from nucypher.crypto.passwords import (
     derive_key_material_from_password,
     )
 from nucypher.crypto.powers import (DecryptingPower, DerivedKeyBasedPower, KeyPairBasedPower, SigningPower)
+from nucypher.crypto.umbral_adapter import SecretKey, PublicKey, SecretKeyFactory
 from nucypher.network.server import TLSHostingPower
 from nucypher.utilities.logging import Logger
 

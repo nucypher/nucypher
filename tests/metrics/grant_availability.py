@@ -35,13 +35,13 @@ import shutil
 import time
 from eth_typing.evm import ChecksumAddress
 from typing import Set, Optional, List, Tuple
-from umbral import SecretKey
 from web3.main import Web3
 from web3.types import Wei
 
 from nucypher.network.middleware import RestMiddleware
 from nucypher.characters.lawful import Bob, Ursula, Alice
 from nucypher.config.characters import AliceConfiguration
+from nucypher.crypto.umbral_adapter import SecretKey
 from nucypher.policy.policies import Policy
 from nucypher.utilities.logging import GlobalLoggerSettings
 

@@ -19,13 +19,13 @@ import os
 import pytest
 from eth_tester.exceptions import TransactionFailed
 from eth_utils import to_canonical_address, to_wei
-from umbral import SecretKey, Signer
 from web3.contract import Contract
 
 from nucypher.blockchain.economics import BaseEconomics
 from nucypher.blockchain.eth.constants import NULL_ADDRESS
 from nucypher.crypto.api import sha256_digest
 from nucypher.crypto.signing import SignatureStamp
+from nucypher.crypto.umbral_adapter import SecretKey, Signer
 from nucypher.utilities.ethereum import to_32byte_hex
 
 

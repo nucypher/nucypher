@@ -19,9 +19,9 @@ from typing import Optional, Dict
 
 from bytestring_splitter import BytestringKwargifier, VariableLengthBytestring
 from constant_sorrow.constants import NOT_SIGNED, UNKNOWN_SENDER
-from umbral import PublicKey, VerifiedCapsuleFrag, Capsule
 
 from nucypher.crypto.splitters import capsule_splitter, key_splitter
+from nucypher.crypto.umbral_adapter import PublicKey, VerifiedCapsuleFrag, Capsule
 
 
 class CryptoKit:

@@ -19,10 +19,10 @@ import os
 import pytest
 from bytestring_splitter import VariableLengthBytestring
 from eth_utils import to_canonical_address
-from umbral import SecretKey, Signer
 
 from nucypher.blockchain.eth.constants import ETH_HASH_BYTE_LENGTH, LENGTH_ECDSA_SIGNATURE_WITH_RECOVERY
 from nucypher.crypto.signing import SignatureStamp, InvalidSignature
+from nucypher.crypto.umbral_adapter import SecretKey, Signer
 from nucypher.crypto.utils import canonical_address_from_umbral_key
 from nucypher.policy.collections import WorkOrder
 from nucypher.policy.policies import Arrangement

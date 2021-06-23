@@ -22,14 +22,13 @@ import pytest
 import shutil
 from pathlib import Path
 
-from umbral import SecretKey
-
 from nucypher.blockchain.eth.actors import Worker
 from nucypher.cli.main import nucypher_cli
 from nucypher.config.characters import AliceConfiguration, FelixConfiguration, UrsulaConfiguration
 from nucypher.config.constants import NUCYPHER_ENVVAR_KEYRING_PASSWORD, TEMPORARY_DOMAIN, \
     NUCYPHER_ENVVAR_ALICE_ETH_PASSWORD, NUCYPHER_ENVVAR_BOB_ETH_PASSWORD
 from nucypher.config.keyring import NucypherKeyring
+from nucypher.crypto.umbral_adapter import SecretKey
 from nucypher.network.nodes import Teacher
 from tests.constants import (
     INSECURE_DEVELOPMENT_PASSWORD,

@@ -19,7 +19,7 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 import os
 import pytest
 from eth_tester.exceptions import TransactionFailed
-from umbral import Signer, SecretKey, generate_kfrags, encrypt, reencrypt
+from nucypher.crypto.umbral_adapter import Signer, SecretKey, generate_kfrags, encrypt, reencrypt
 
 
 @pytest.fixture()

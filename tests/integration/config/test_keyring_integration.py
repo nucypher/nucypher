@@ -23,12 +23,12 @@ import pytest
 from constant_sorrow.constants import FEDERATED_ADDRESS
 from cryptography.hazmat.primitives.serialization import Encoding
 from flask import Flask
-from umbral import SecretKey, Signer
 
 from nucypher.characters.lawful import Alice, Bob, Ursula
 from nucypher.config.constants import TEMPORARY_DOMAIN
 from nucypher.config.keyring import NucypherKeyring
 from nucypher.crypto.powers import DecryptingPower, DelegatingPower
+from nucypher.crypto.umbral_adapter import SecretKey, Signer
 from nucypher.datastore.datastore import Datastore
 from nucypher.network.server import TLSHostingPower, ProxyRESTServer
 from nucypher.utilities.networking import LOOPBACK_ADDRESS
