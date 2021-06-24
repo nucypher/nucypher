@@ -14,14 +14,9 @@ GNU Affero General Public License for more details.
 You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
-import pytest
-from bytestring_splitter import BytestringSplitter, BytestringSplittingError
 
 from nucypher.characters.lawful import Enrico
-from nucypher.crypto.utils import secure_random
 from nucypher.crypto.kits import UmbralMessageKit
-from nucypher.crypto.signing import Signature
-from nucypher.crypto.splitters import signature_splitter
 
 
 def test_message_kit_serialization_via_enrico(enacted_federated_policy, federated_alice):

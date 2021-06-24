@@ -18,8 +18,9 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 
 import contextlib
 import socket
-from cryptography.x509 import Certificate
 from typing import Iterable, List, Optional, Set
+
+from cryptography.x509 import Certificate
 
 from nucypher.blockchain.eth.actors import Staker
 from nucypher.blockchain.eth.interfaces import BlockchainInterface
@@ -31,7 +32,6 @@ from nucypher.crypto.utils import canonical_address_from_umbral_key
 from nucypher.policy.collections import WorkOrder
 from tests.constants import NUMBER_OF_URSULAS_IN_DEVELOPMENT_NETWORK
 from tests.mock.datastore import MOCK_DB
-from tests.utils.blockchain import TesterBlockchain
 
 
 def select_test_port() -> int:

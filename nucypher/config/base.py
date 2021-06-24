@@ -55,7 +55,6 @@ from nucypher.crypto.powers import CryptoPower, CryptoPowerUp
 from nucypher.crypto.umbral_adapter import Signature
 from nucypher.network.middleware import RestMiddleware
 from nucypher.utilities.logging import Logger
-from umbral.signing import Signature
 
 
 class BaseConfiguration(ABC):

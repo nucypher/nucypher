@@ -23,7 +23,7 @@ from pathlib import Path
 
 import pytest
 from constant_sorrow.constants import KEYSTORE_LOCKED
-from cryptography.hazmat.primitives.serialization.base import Encoding
+from cryptography.hazmat.primitives._serialization import Encoding
 from mnemonic.mnemonic import Mnemonic
 
 from nucypher.crypto.keystore import (
@@ -31,8 +31,8 @@ from nucypher.crypto.keystore import (
     InvalidPassword,
     validate_keystore_filename,
     _MNEMONIC_LANGUAGE,
-    _derive_umbral_key,
-    _DELEGATING_INFO
+    _DELEGATING_INFO,
+    _derive_keying_material
 )
 from nucypher.crypto.keystore import (
     _assemble_keystore,
@@ -42,10 +42,10 @@ from nucypher.crypto.keystore import (
     _read_keystore
 )
 from nucypher.crypto.powers import DecryptingPower, SigningPower, DelegatingPower
+from nucypher.crypto.umbral_adapter import SecretKeyFactory
 from nucypher.network.server import TLSHostingPower
 from nucypher.utilities.networking import LOOPBACK_ADDRESS
 from tests.constants import INSECURE_DEVELOPMENT_PASSWORD
-from umbral.keys import UmbralKeyingMaterial
 
 
 def test_invalid_keystore_path_parts(tmp_path, tmp_path_factory):
@@ -241,7 +241,7 @@ def test_derive_signing_power(tmpdir):
     keystore = Keystore.generate(INSECURE_DEVELOPMENT_PASSWORD, keystore_dir=tmpdir)
     keystore.unlock(password=INSECURE_DEVELOPMENT_PASSWORD)
     signing_power = keystore.derive_crypto_power(power_class=SigningPower)
-    assert signing_power.public_key().hex()
+    assert bytes(signing_power.public_key()).hex()
     assert signing_power.keypair.fingerprint()
 
 
@@ -249,7 +249,7 @@ def test_derive_decrypting_power(tmpdir):
     keystore = Keystore.generate(INSECURE_DEVELOPMENT_PASSWORD, keystore_dir=tmpdir)
     keystore.unlock(password=INSECURE_DEVELOPMENT_PASSWORD)
     decrypting_power = keystore.derive_crypto_power(power_class=DecryptingPower)
-    assert decrypting_power.public_key().hex()
+    assert bytes(decrypting_power.public_key()).hex()
     assert decrypting_power.keypair.fingerprint()
 
 
@@ -257,9 +257,9 @@ def test_derive_delegating_power(tmpdir):
     keystore = Keystore.generate(INSECURE_DEVELOPMENT_PASSWORD, keystore_dir=tmpdir)
     keystore.unlock(password=INSECURE_DEVELOPMENT_PASSWORD)
     delegating_power = keystore.derive_crypto_power(power_class=DelegatingPower)
-    private_key = _derive_umbral_key(info=_DELEGATING_INFO, material=keystore._Keystore__secret)
-    keying_material = UmbralKeyingMaterial.from_bytes(private_key.to_bytes()).to_bytes()
-    assert delegating_power._DelegatingPower__umbral_keying_material.to_bytes() == keying_material
+    private_key = _derive_keying_material(info=_DELEGATING_INFO, material=keystore._Keystore__secret)
+    keying_material = bytes(SecretKeyFactory.from_bytes(bytes(private_key)))
+    assert bytes(delegating_power._DelegatingPower__umbral_keying_material) == keying_material
     assert delegating_power._get_privkey_from_label(label=b'some-label')
 
 

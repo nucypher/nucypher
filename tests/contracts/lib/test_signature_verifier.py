@@ -27,7 +27,6 @@ from eth_account.messages import HexBytes, SignableMessage, encode_defunct
 from eth_keys import KeyAPI as EthKeyAPI
 from eth_tester.exceptions import TransactionFailed
 from eth_utils import to_canonical_address, to_checksum_address, to_normalized_address
-from nucypher.crypto.api import keccak_digest, verify_eip_191
 
 from nucypher.crypto.umbral_adapter import SecretKey, PublicKey, Signer, Signature
 from nucypher.crypto.utils import (

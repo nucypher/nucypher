@@ -33,9 +33,9 @@ from nucypher.blockchain.eth.constants import ETH_ADDRESS_BYTE_LENGTH, ETH_HASH_
 from nucypher.characters.lawful import Bob, Character
 from nucypher.crypto.constants import HRAC_LENGTH
 from nucypher.crypto.kits import UmbralMessageKit
-from nucypher.crypto.signing import InvalidSignature, Signature, SignatureStamp
+from nucypher.crypto.signing import InvalidSignature, SignatureStamp
 from nucypher.crypto.splitters import capsule_splitter, cfrag_splitter, key_splitter, signature_splitter
-from nucypher.crypto.umbral_adapter import PublicKey, Capsule
+from nucypher.crypto.umbral_adapter import PublicKey, Capsule, Signature
 from nucypher.crypto.utils import (
     canonical_address_from_umbral_key,
     keccak_digest,
@@ -269,6 +269,7 @@ class SignedTreasureMap(TreasureMap):
             raise self.InvalidSignature(
                 "Can't cast a DecentralizedTreasureMap to bytes until it has a blockchain signature (otherwise, is it really a 'DecentralizedTreasureMap'?")
         return self._blockchain_signature + super().__bytes__()
+
 
 class WorkOrder:
     class PRETask:

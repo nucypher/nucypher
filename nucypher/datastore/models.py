@@ -14,10 +14,11 @@ GNU Affero General Public License for more details.
 You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
+
+
 from maya import MayaDT
 
-from nucypher.crypto.signing import Signature
-from nucypher.crypto.umbral_adapter import PublicKey, VerifiedKeyFrag
+from nucypher.crypto.umbral_adapter import PublicKey, VerifiedKeyFrag, Signature
 from nucypher.datastore.base import DatastoreRecord, RecordField
 
 

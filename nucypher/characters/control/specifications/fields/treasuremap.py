@@ -24,7 +24,6 @@ from nucypher.characters.control.specifications.exceptions import InvalidInputDa
 from nucypher.characters.control.specifications.fields.base import BaseField
 from nucypher.crypto.constants import HRAC_LENGTH
 from nucypher.crypto.kits import UmbralMessageKit
-from nucypher.crypto.signing import Signature
 from nucypher.crypto.splitters import signature_splitter
 
 

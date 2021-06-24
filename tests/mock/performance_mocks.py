@@ -15,7 +15,6 @@
  along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
-import tempfile
 from contextlib import contextmanager
 from unittest.mock import patch
 

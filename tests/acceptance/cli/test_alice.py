@@ -36,9 +36,10 @@ from tests.constants import (
 
 
 @mock.patch('nucypher.config.characters.AliceConfiguration.default_filepath', return_value='/non/existent/file')
-def test_missing_configuration_file(default_filepath_mock, click_runner):
+def test_missing_configuration_file(default_filepath_mock, click_runner, test_registry_source_manager):
     cmd_args = ('alice', 'run', '--network', TEMPORARY_DOMAIN)
-    result = click_runner.invoke(nucypher_cli, cmd_args, catch_exceptions=False)
+    env = {NUCYPHER_ENVVAR_KEYSTORE_PASSWORD: INSECURE_DEVELOPMENT_PASSWORD}
+    result = click_runner.invoke(nucypher_cli, cmd_args, catch_exceptions=False, env=env)
     assert result.exit_code != 0
     assert default_filepath_mock.called
     assert "nucypher alice init" in result.output

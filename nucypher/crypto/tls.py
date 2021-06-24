@@ -19,17 +19,19 @@
 import datetime
 import os
 from ipaddress import IPv4Address
-from typing import Tuple
+from typing import Tuple, ClassVar
 
 from cryptography import x509
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.backends.openssl.ec import _EllipticCurvePrivateKey
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.asymmetric import ec
-from cryptography.hazmat.primitives.asymmetric.ec import EllipticCurve, SECP256R1
+from cryptography.hazmat.primitives.asymmetric.ec import EllipticCurve
 from cryptography.hazmat.primitives.serialization import Encoding
 from cryptography.x509 import Certificate
 from cryptography.x509.oid import NameOID
+
+from nucypher.crypto.umbral_adapter import SecretKey
 
 _TLS_CERTIFICATE_ENCODING = Encoding.PEM
 _TLS_CURVE = ec.SECP384R1
@@ -60,17 +62,16 @@ def _read_tls_certificate(filepath: str) -> Certificate:
 
 
 def generate_self_signed_certificate(host: str,
-                                     private_key: _EllipticCurvePrivateKey = None,
+                                     private_key: SecretKey = None,
                                      days_valid: int = 365,
-                                     curve: EllipticCurve = _TLS_CURVE,
+                                     curve: ClassVar[EllipticCurve] = _TLS_CURVE,
                                      ) -> Tuple[Certificate, _EllipticCurvePrivateKey]:
 
     if private_key:
-        private_key = private_key.to_cryptography_privkey()
-        private_bn = private_key.private_numbers().private_value
-        private_key = default_backend().derive_elliptic_curve_private_key(private_bn, curve)
+        private_bn = int.from_bytes(bytes(private_key), 'big')
+        private_key = ec.derive_private_key(private_value=private_bn, curve=curve())
     else:
-        private_key = ec.generate_private_key(curve, default_backend())
+        private_key = ec.generate_private_key(curve(), default_backend())
     public_key = private_key.public_key()
 
     now = datetime.datetime.utcnow()

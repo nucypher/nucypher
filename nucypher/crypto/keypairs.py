@@ -33,12 +33,12 @@ from nucypher.crypto.tls import _read_tls_certificate, _TLS_CURVE, generate_self
 from nucypher.crypto.umbral_adapter import (
     SecretKey,
     PublicKey,
-    Signer,
     decrypt_original,
-    decrypt_reencrypted
+    decrypt_reencrypted,
+    Signature,
+    Signer
 )
 from nucypher.network.resources import get_static_resources
-from umbral.signing import Signature, Signer
 
 
 class Keypair(object):

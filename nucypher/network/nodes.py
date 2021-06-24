@@ -27,7 +27,8 @@ import time
 from bytestring_splitter import (
     BytestringSplitter,
     PartiallyKwargifiedBytes,
-    VariableLengthBytestring
+    VariableLengthBytestring,
+    BytestringSplittingError
 )
 from constant_sorrow import constant_or_bytes
 from constant_sorrow.constants import (
@@ -56,7 +57,6 @@ from nucypher.config.constants import SeednodeMetadata
 from nucypher.config.storages import ForgetfulNodeStorage
 from nucypher.crypto.kits import UmbralMessageKit
 from nucypher.crypto.powers import DecryptingPower, NoSigningPower, SigningPower
-from nucypher.crypto.signing import signature_splitter
 from nucypher.crypto.splitters import signature_splitter
 from nucypher.crypto.utils import recover_address_eip_191, verify_eip_191
 from nucypher.network import LEARNING_LOOP_VERSION
@@ -64,7 +64,7 @@ from nucypher.network.exceptions import NodeSeemsToBeDown
 from nucypher.network.middleware import RestMiddleware
 from nucypher.network.protocols import SuspiciousActivity
 from nucypher.utilities.logging import Logger
-from umbral.signing import Signature
+from nucypher.crypto.umbral_adapter import Signature
 
 TEACHER_NODES = {
     NetworksInventory.MAINNET: (
@@ -75,6 +75,7 @@ TEACHER_NODES = {
     NetworksInventory.LYNX: ('https://lynx.nucypher.network:9151',),
     NetworksInventory.IBEX: ('https://ibex.nucypher.network:9151',),
 }
+
 
 class NodeSprout(PartiallyKwargifiedBytes):
     """

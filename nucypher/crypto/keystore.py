@@ -20,6 +20,7 @@ import json
 import os
 import stat
 import string
+import time
 from json import JSONDecodeError
 from os.path import abspath
 from pathlib import Path
@@ -27,7 +28,6 @@ from secrets import token_bytes
 from typing import Callable, ClassVar, Dict, List, Union, Optional, Tuple
 
 import click
-import time
 from constant_sorrow.constants import KEYSTORE_LOCKED
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives.kdf.hkdf import HKDF
@@ -49,8 +49,8 @@ from nucypher.crypto.powers import (
     DelegatingPower
 )
 from nucypher.crypto.tls import generate_self_signed_certificate
+from nucypher.crypto.umbral_adapter import SecretKey, SecretKeyFactory
 from nucypher.network.server import TLSHostingPower
-from umbral.keys import UmbralPrivateKey
 
 # HKDF
 __HKDF_HASH_ALGORITHM = BLAKE2B
@@ -81,6 +81,7 @@ class InvalidPassword(ValueError):
 
 
 def __hkdf(key_material: bytes,
+           size: int,
            info: Optional[bytes] = None,
            salt: Optional[bytes] = None,
            ) -> bytes:
@@ -92,7 +93,7 @@ def __hkdf(key_material: bytes,
 
     kdf = HKDF(
         algorithm=__HKDF_HASH_ALGORITHM,
-        length=__WRAPPING_KEY_LENGTH,
+        length=size,
         salt=salt,
         info=info,
         backend=default_backend()
@@ -114,10 +115,15 @@ def _derive_wrapping_key(password: str, salt: bytes) -> bytes:
     return derived_key
 
 
-def _derive_umbral_key(material: bytes, info: bytes) -> UmbralPrivateKey:
-    material = __hkdf(key_material=material, info=info)
-    __private = UmbralPrivateKey.from_bytes(key_bytes=material)
+def _derive_umbral_key(material: bytes, info: bytes) -> SecretKey:
+    material = __hkdf(key_material=material, info=info, size=SecretKey.serialized_size())
+    __private = SecretKey.from_bytes(material)
     return __private
+
+
+def _derive_keying_material(material: bytes, info: bytes) -> bytes:
+    material = __hkdf(key_material=material, info=info, size=SecretKeyFactory.serialized_size())
+    return material
 
 
 def _assemble_keystore(encrypted_secret: bytes, salt: bytes) -> Dict[str, Union[str, bytes]]:
@@ -252,7 +258,7 @@ def _parse_path(path: Path) -> Tuple[int, str]:
     return created, keystore_id
 
 
-def _derive_hosting_power(host: str, private_key: UmbralPrivateKey) -> TLSHostingPower:
+def _derive_hosting_power(host: str, private_key: SecretKey) -> TLSHostingPower:
     certificate, private_key = generate_self_signed_certificate(host=host, private_key=private_key)
     keypair = HostingKeypair(host=host, private_key=private_key, certificate=certificate, generate_certificate=False)
     power = TLSHostingPower(keypair=keypair, host=host)
@@ -312,7 +318,7 @@ class Keystore:
 
         # Derive verifying key (used as ID)
         verifying_key = _derive_umbral_key(material=secret, info=_VERIFYING_INFO)
-        keystore_id = verifying_key.to_bytes().hex()[:Keystore._ID_SIZE]
+        keystore_id = bytes(verifying_key).hex()[:Keystore._ID_SIZE]
 
         # Generate paths
         keystore_dir = keystore_dir or Keystore._DEFAULT_DIR
@@ -424,7 +430,8 @@ class Keystore:
             power = power_class(keypair=keypair, *power_args, **power_kwargs)
 
         elif issubclass(power_class, DerivedKeyBasedPower):
-            power = power_class(keying_material=__private_key.to_bytes(), *power_args, **power_kwargs)
+            __secret_material = _derive_keying_material(material=self.__secret, info=info)
+            power = power_class(keying_material=__secret_material, *power_args, **power_kwargs)
 
         else:
             failure_message = f"{power_class.__name__} is an invalid type for deriving a CryptoPower."
