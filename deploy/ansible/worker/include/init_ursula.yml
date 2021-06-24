@@ -19,6 +19,7 @@
         name: ursula
         state: stopped
         image: "{{ nucypher_image | default('nucypher/nucypher:latest') }}"
+      ignore_errors: yes
 
     - name: Keep disk space clean by pruning unneeded docker debris
       become: yes
