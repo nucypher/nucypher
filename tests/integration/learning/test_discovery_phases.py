@@ -22,7 +22,7 @@ from flask import Response
 from unittest.mock import patch
 
 from nucypher.characters.lawful import Ursula
-from nucypher.crypto.umbral_adapter import PublicKey
+from nucypher.crypto.umbral_adapter import PublicKey, encrypt
 from nucypher.datastore.base import RecordField
 from nucypher.network.nodes import Teacher
 from tests.markers import skip_on_circleci
@@ -36,8 +36,6 @@ from tests.mock.performance_mocks import (
     mock_metadata_validation,
     mock_pubkey_from_bytes,
     mock_secret_source,
-    mock_signature_bytes,
-    mock_stamp_call,
     mock_verify_node
 )
 from tests.utils.middleware import SluggishLargeFleetMiddleware
@@ -77,7 +75,7 @@ def test_alice_can_learn_about_a_whole_bunch_of_ursulas(highperf_mocked_alice):
     actual_ursula.bytestring_of_known_nodes = lambda *args, **kwargs: _teacher_known_nodes_bytestring  # TODO: Formalize this?  #1537
 
     with mock_cert_storage, mock_cert_loading, mock_verify_node, mock_message_verification, mock_metadata_validation:
-        with mock_pubkey_from_bytes(), mock_stamp_call, mock_signature_bytes:
+        with mock_pubkey_from_bytes():
             started = time.time()
             highperf_mocked_alice.block_until_number_of_known_nodes_is(4000, learn_on_this_thread=True)
             ended = time.time()
@@ -115,19 +113,26 @@ def test_alice_verifies_ursula_just_in_time(fleet_of_highperf_mocked_ursulas,
     def mock_receive_treasure_map():
         return Response(bytes(), status=201)
 
+    def mock_encrypt(public_key, plaintext):
+        if not isinstance(public_key, PublicKey):
+            public_key = public_key.i_want_to_be_a_real_boy()
+        return encrypt(public_key, plaintext)
+
     with NotARestApp.replace_route("receive_treasure_map", mock_receive_treasure_map):
         with NotARestApp.replace_route("set_policy", mock_set_policy):
-            with patch('umbral.PublicKey.__eq__', lambda *args, **kwargs: True):
-                with patch('umbral.PublicKey.from_bytes',
+            with patch('nucypher.crypto.umbral_adapter.PublicKey.__eq__', lambda *args, **kwargs: True):
+                with patch('nucypher.crypto.umbral_adapter.PublicKey.from_bytes',
                            new=actual_random_key_instead):
                     with patch("nucypher.datastore.models.PolicyArrangement._alice_verifying_key",
                                new=not_public_key_record_field):
                         with mock_cert_loading, mock_metadata_validation, mock_message_verification:
                             with mock_secret_source():
-                                policy = highperf_mocked_alice.grant(
-                                    highperf_mocked_bob, b"any label", m=20, n=30,
-                                    expiration=maya.when('next week'),
-                                    publish_treasure_map=False)
+                                with patch('nucypher.crypto.umbral_adapter.encrypt',
+                                           new=mock_encrypt):
+                                    policy = highperf_mocked_alice.grant(
+                                        highperf_mocked_bob, b"any label", m=20, n=30,
+                                        expiration=maya.when('next week'),
+                                        publish_treasure_map=False)
     # TODO: Make some assertions about policy.
     total_verified = sum(node.verified_node for node in highperf_mocked_alice.known_nodes)
     # Alice may be able to verify more than `n`, but certainly not less,
@@ -170,7 +175,7 @@ def test_mass_treasure_map_placement(fleet_of_highperf_mocked_ursulas,
 
     policy = _POLICY_PRESERVER.pop()
 
-    with patch('umbral.PublicKey.__eq__', lambda *args, **kwargs: True), mock_metadata_validation:
+    with patch('nucypher.crypto.umbral_adapter.PublicKey.__eq__', lambda *args, **kwargs: True), mock_metadata_validation:
 
         started = datetime.now()
 
