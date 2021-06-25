@@ -881,24 +881,38 @@ def get_random_checksum_address():
 
 @pytest.fixture(scope="module")
 def fleet_of_highperf_mocked_ursulas(ursula_federated_test_config, request):
-    # good_serials = _determine_good_serials(10000, 50000)
+
+    mocks = (
+        mock_secret_source(),
+        mock_cert_storage,
+        mock_cert_loading,
+        mock_rest_app_creation,
+        mock_cert_generation,
+        mock_remember_node,
+        mock_message_verification,
+        )
+
     try:
         quantity = request.param
     except AttributeError:
         quantity = 5000  # Bigass fleet by default; that's kinda the point.
     with GlobalLoggerSettings.pause_all_logging_while():
-        with mock_secret_source():
-            with mock_cert_storage, mock_cert_loading, mock_rest_app_creation, mock_cert_generation, mock_remember_node, mock_message_verification:
-                _ursulas = make_federated_ursulas(ursula_config=ursula_federated_test_config,
-                                                  quantity=quantity, know_each_other=False)
-                all_ursulas = {u.checksum_address: u for u in _ursulas}
+        with contextlib.ExitStack() as stack:
 
-                for ursula in _ursulas:
-                    # FIXME #2588: FleetSensor should not own fully-functional Ursulas.
-                    # It only needs to see whatever public info we can normally get via REST.
-                    # Also sharing mutable Ursulas like that can lead to unpredictable results.
-                    ursula.known_nodes.current_state._nodes = all_ursulas
-                    ursula.known_nodes.current_state.checksum = b"This is a fleet state checksum..".hex()
+            for mock in mocks:
+                stack.enter_context(mock)
+
+            _ursulas = make_federated_ursulas(ursula_config=ursula_federated_test_config,
+                                              quantity=quantity, know_each_other=False)
+            all_ursulas = {u.checksum_address: u for u in _ursulas}
+
+            for ursula in _ursulas:
+                # FIXME #2588: FleetSensor should not own fully-functional Ursulas.
+                # It only needs to see whatever public info we can normally get via REST.
+                # Also sharing mutable Ursulas like that can lead to unpredictable results.
+                ursula.known_nodes.current_state._nodes = all_ursulas
+                ursula.known_nodes.current_state.checksum = b"This is a fleet state checksum..".hex()
+
     yield _ursulas
 
     for ursula in _ursulas:

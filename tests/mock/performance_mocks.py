@@ -67,7 +67,7 @@ class NotAPublicKey:
             self.serial = serial
 
     def __bytes__(self):
-        return b"\x03\ not a compress publickey:" + self.serial
+        return b"\x03  not a compress publickey:" + self.serial
 
     @classmethod
     def reset(cls):
@@ -81,13 +81,8 @@ class NotAPublicKey:
     def from_int(cls, serial):
         return cls(serial.to_bytes(cls._serial_bytes_length, byteorder="big"))
 
-    def to_bytes(self, *args, **kwargs):
-        return b"this is not a public key... but it is 64 bytes.. so, ya know" + self.serial
-
     def i_want_to_be_a_real_boy(self):
-        _umbral_pubkey = self._umbral_pubkey_from_bytes(bytes(self))
-        self.__dict__ = _umbral_pubkey.__dict__
-        self.__class__ = _umbral_pubkey.__class__
+        return self._umbral_pubkey_from_bytes(bytes(self))
 
     def __eq__(self, other):
         return bytes(self) == bytes(other)
@@ -95,23 +90,25 @@ class NotAPublicKey:
 
 class NotAPrivateKey:
 
-    fake_signature = Signature.from_bytes(
-        b'@\xbfS&\x97\xb3\x9e\x9e\xd3\\j\x9f\x0e\x8fY\x0c\xbeS\x08d\x0b%s\xf6\x17\xe2\xb6\xcd\x95u\xaapON\xd9E\xb3\x10M\xe1\xf4u\x0bL\x99q\xd6\r\x8e_\xe5I\x1e\xe5\xa2\xcf\xe5\x8be_\x077Gz'
-    )
-
     def public_key(self):
         return NotAPublicKey()
 
-    def sign(self, *args, **kwargs):
-        return b'0D\x02 @\xbfS&\x97\xb3\x9e\x9e\xd3\\j\x9f\x0e\x8fY\x0c\xbeS\x08d\x0b%s\xf6\x17\xe2\xb6\xcd\x95u\xaap\x02 ON\xd9E\xb3\x10M\xe1\xf4u\x0bL\x99q\xd6\r\x8e_\xe5I\x1e\xe5\xa2\xcf\xe5\x8be_\x077Gz'
 
-    @classmethod
-    def stamp(cls, *args, **kwargs):
-        return cls.fake_signature
+class NotASignature:
 
-    @classmethod
-    def signature_bytes(cls, *args, **kwargs):
-        return b'@\xbfS&\x97\xb3\x9e\x9e\xd3\\j\x9f\x0e\x8fY\x0c\xbeS\x08d\x0b%s\xf6\x17\xe2\xb6\xcd\x95u\xaapON\xd9E\xb3\x10M\xe1\xf4u\x0bL\x99q\xd6\r\x8e_\xe5I\x1e\xe5\xa2\xcf\xe5\x8be_\x077Gz'
+    fake_signature_bytes = b'@\xbfS&\x97\xb3\x9e\x9e\xd3\\j\x9f\x0e\x8fY\x0c\xbeS\x08d\x0b%s\xf6\x17\xe2\xb6\xcd\x95u\xaapON\xd9E\xb3\x10M\xe1\xf4u\x0bL\x99q\xd6\r\x8e_\xe5I\x1e\xe5\xa2\xcf\xe5\x8be_\x077Gz'
+
+    def __bytes__(self):
+        return self.fake_signature_bytes
+
+
+class NotASigner:
+
+    def __init__(self, secret_key):
+        self._secret_key = secret_key
+
+    def sign(self, message):
+        return NotASignature()
 
 
 class NotACert:
@@ -217,19 +214,16 @@ mock_metadata_validation = patch("nucypher.network.nodes.Teacher.validate_metada
 @contextmanager
 def mock_secret_source(*args, **kwargs):
     with patch("nucypher.crypto.keypairs.Keypair._private_key_source", new=lambda *args, **kwargs: NotAPrivateKey()):
-        yield
+        with patch("nucypher.crypto.keypairs.Signer", new=lambda *args, **kwargs: NotASigner(*args, **kwargs)):
+            yield
     NotAPublicKey.reset()
 
 
 @contextmanager
 def mock_pubkey_from_bytes(*args, **kwargs):
-    with patch('umbral.PublicKey.from_bytes', NotAPublicKey.from_bytes):
+    with patch('nucypher.crypto.umbral_adapter.PublicKey.from_bytes', NotAPublicKey.from_bytes):
         yield
     NotAPublicKey.reset()
-
-
-mock_stamp_call = patch('nucypher.crypto.signing.SignatureStamp.__call__', new=NotAPrivateKey.stamp)
-mock_signature_bytes = patch('umbral.Signature.__bytes__', new=NotAPrivateKey.signature_bytes)
 
 
 def _determine_good_serials(start, end):
