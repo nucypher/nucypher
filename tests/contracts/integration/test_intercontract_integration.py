@@ -313,7 +313,7 @@ def test_staking_before_initialization(testerchain,
     contracts_owners = sorted(contracts_owners)
 
     # Travel to the start of the next period to prevent problems with unexpected overflow first period
-    testerchain.time_travel(hours=10)
+    testerchain.time_travel(periods=1, periods_base=token_economics.seconds_per_period)
 
     # Give staker some coins
     tx = token.functions.transfer(staker1, 10000).transact({'from': creator})
@@ -1090,14 +1090,14 @@ def test_withdraw(testerchain,
     testerchain.wait_for_receipt(tx)
     tx = escrow.functions.commitToNextPeriod().transact({'from': staker3})
     testerchain.wait_for_receipt(tx)
-    testerchain.time_travel(hours=1)
+    testerchain.time_travel(hours=10)
     tx = escrow.functions.commitToNextPeriod().transact({'from': staker1})
     testerchain.wait_for_receipt(tx)
     tx = escrow.functions.commitToNextPeriod().transact({'from': staker2})
     testerchain.wait_for_receipt(tx)
     tx = escrow.functions.commitToNextPeriod().transact({'from': staker3})
     testerchain.wait_for_receipt(tx)
-    testerchain.time_travel(hours=1)
+    testerchain.time_travel(hours=10)
 
     # Can't prolong stake by too low duration
     with pytest.raises((TransactionFailed, ValueError)):
