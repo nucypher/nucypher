@@ -23,6 +23,7 @@ import shutil
 import tempfile
 from datetime import datetime, timedelta
 from functools import partial
+from pathlib import Path
 from typing import Callable, Tuple
 
 import maya
@@ -1066,3 +1067,16 @@ def stakeholder_configuration_file_location(custom_filepath):
 def mock_teacher_nodes(mocker):
     mock_nodes = tuple(u.rest_url() for u in MOCK_KNOWN_URSULAS_CACHE.values())[0:2]
     mocker.patch.dict(TEACHER_NODES, {TEMPORARY_DOMAIN: mock_nodes}, clear=True)
+
+
+#
+# Web Auth
+#
+@pytest.fixture(scope='module')
+def basic_auth_file(temp_dir_path):
+    basic_auth = Path(temp_dir_path) / 'htpasswd'
+    with basic_auth.open("w") as f:
+        # username: "admin", password: "admin"
+        f.write("admin:$apr1$hlEpWVoI$0qjykXrvdZ0yO2TnBggQO0\n")
+    yield basic_auth
+    basic_auth.unlink()
