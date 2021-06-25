@@ -16,11 +16,12 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
 import datetime
+
 import maya
 import pytest
 
 from nucypher.crypto.api import keccak_digest
-from nucypher.datastore.models import PolicyArrangement
+from nucypher.crypto.kits import PolicyMessageKit
 from nucypher.datastore.models import TreasureMap as DatastoreTreasureMap
 from nucypher.policy.maps import SignedTreasureMap
 
@@ -50,7 +51,10 @@ def test_decentralized_grant(blockchain_alice, blockchain_bob, blockchain_ursula
     for ursula in blockchain_ursulas:
         if ursula.checksum_address in policy.treasure_map.destinations:
             kfrag_kit = policy.treasure_map.destinations[ursula.checksum_address]
-            assert bool(kfrag_kit)  # TODO: try to decrypt?
+
+            # TODO: try to decrypt?
+            # TODO: Use a new type for EncryptedKFrags?
+            assert isinstance(kfrag_kit, PolicyMessageKit)
 
 
 def test_alice_sets_treasure_map_decentralized(enacted_blockchain_policy, blockchain_alice, blockchain_bob, blockchain_ursulas):

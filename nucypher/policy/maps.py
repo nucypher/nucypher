@@ -351,13 +351,13 @@ class SignedTreasureMap(TreasureMap):
 
         cls._splitters['unversioned'] = BytestringKwargifier(cls,
                                                              blockchain_signature=EIP712_MESSAGE_SIGNATURE_SIZE,
-                                                             public_signature=Signature,
+                                                             public_signature=signature_splitter,
                                                              hrac=(bytes, HRAC_LENGTH),
                                                              message_kit=(UmbralMessageKit, VariableLengthBytestring),
                                                              )
         cls._splitters[1] = TreasureMapSplitter(cls,
                                                 blockchain_signature=EIP712_MESSAGE_SIGNATURE_SIZE,
-                                                public_signature=Signature,
+                                                public_signature=signature_splitter,
                                                 hrac=(bytes, HRAC_LENGTH),
                                                 message_kit=(UmbralMessageKit, VariableLengthBytestring),
                                                 )
