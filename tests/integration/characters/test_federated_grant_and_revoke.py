@@ -54,7 +54,6 @@ def test_federated_grant(federated_alice, federated_bob, federated_ursulas):
             assert ursula.checksum_address in policy.treasure_map.destinations
 
 
-
 def test_federated_alice_can_decrypt(federated_alice, federated_bob):
     """
     Test that alice can decrypt data encrypted by an enrico
