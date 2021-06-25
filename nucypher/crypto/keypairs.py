@@ -99,16 +99,19 @@ class DecryptingKeypair(Keypair):
 
         :return: bytes
         """
-        if len(message_kit) > 0:
-            cleartext = decrypt_reencrypted(self._privkey,
-                                            message_kit._delegating_key,
-                                            message_kit.capsule,
-                                            list(message_kit._cfrags),
-                                            message_kit.ciphertext)
-        else:
-            cleartext = decrypt_original(self._privkey,
-                                         message_kit.capsule,
-                                         message_kit.ciphertext)
+        try:
+            if len(message_kit) > 0:
+                cleartext = decrypt_reencrypted(self._privkey,
+                                                message_kit._delegating_key,
+                                                message_kit.capsule,
+                                                list(message_kit._cfrags),
+                                                message_kit.ciphertext)
+            else:
+                cleartext = decrypt_original(self._privkey,
+                                             message_kit.capsule,
+                                             message_kit.ciphertext)
+        except ValueError as e:
+            raise self.DecryptionFailed() from e
 
         return cleartext
 

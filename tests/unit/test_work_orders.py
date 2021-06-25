@@ -22,6 +22,7 @@ import pytest
 from bytestring_splitter import VariableLengthBytestring
 
 from nucypher.blockchain.eth.constants import LENGTH_ECDSA_SIGNATURE_WITH_RECOVERY
+from nucypher.crypto.constants import ENCRYPTED_KFRAG_PAYLOAD_LENGTH
 from nucypher.crypto.signing import SignatureStamp, InvalidSignature
 from nucypher.crypto.umbral_adapter import SecretKey, Signer
 from nucypher.policy.orders import WorkOrder
@@ -100,7 +101,7 @@ def test_work_order_with_multiple_capsules(mock_ursula_reencrypts,
     material = [(task.capsule, task.signature, task.cfrag, task.cfrag_signature) for task in tasks]
     capsules, signatures, cfrags, cfrag_signatures = zip(*material)
 
-    mock_kfrag = os.urandom(606)
+    mock_kfrag = os.urandom(ENCRYPTED_KFRAG_PAYLOAD_LENGTH)
     identity_evidence = ursula.decentralized_identity_evidence
 
     # Test construction of WorkOrders by Bob
@@ -127,7 +128,7 @@ def test_work_order_with_multiple_capsules(mock_ursula_reencrypts,
         specification = task.get_specification(ursula_stamp=ursula.stamp,
                                                encrypted_kfrag=work_order.encrypted_kfrag,
                                                identity_evidence=identity_evidence)
-        assert work_order.tasks[capsule].signature.verify(specification, bob_verifying_pubkey)
+        assert work_order.tasks[capsule].signature.verify(bob_verifying_pubkey, specification)
     assert work_order.receipt_signature.verify(bob_verifying_pubkey, receipt_input)
     assert work_order.ursula == ursula
     assert not work_order.completed
