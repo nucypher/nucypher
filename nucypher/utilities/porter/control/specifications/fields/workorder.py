@@ -14,30 +14,15 @@
  You should have received a copy of the GNU Affero General Public License
  along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
-from base64 import b64encode, b64decode
 
-from marshmallow import fields
-
-from nucypher.characters.control.specifications.exceptions import InvalidNativeDataTypes
-from nucypher.control.specifications.exceptions import InvalidInputData
-from nucypher.control.specifications.fields import BaseField
+from nucypher.control.specifications.fields import Base64BytesRepresentation
 from nucypher.policy.orders import WorkOrder as WorkOrderClass
 
 
-class WorkOrder(BaseField, fields.Field):
+class WorkOrder(Base64BytesRepresentation):
     def _serialize(self, value: WorkOrderClass, attr, obj, **kwargs):
-        return b64encode(value.payload()).decode()
-
-    def _deserialize(self, value, attr, data, **kwargs):
-        try:
-            return b64decode(value)
-        except InvalidNativeDataTypes as e:
-            raise InvalidInputData(f"Could not parse {self.name}: {e}")
+        return super()._serialize(value.payload(), attr, obj, **kwargs)
 
 
-class WorkOrderResult(BaseField, fields.Field):
-    def _serialize(self, value, attr, obj, **kwargs):
-        return b64encode(bytes(value)).decode()
-
-    def _deserialize(self, value, attr, data, **kwargs):
-        return b64decode(value)
+class WorkOrderResult(Base64BytesRepresentation):
+    pass

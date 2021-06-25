@@ -172,6 +172,15 @@ the Pipe for nucypher network operations
         ursulas_info = successes.values()
         return list(ursulas_info)
 
+    def exec_work_order(self, ursula_checksum: ChecksumAddress, work_order_payload: bytes):
+        self.block_until_specific_nodes_are_known(addresses={ursula_checksum}, learn_on_this_thread=True)
+        ursula = self.known_nodes[ursula_checksum]
+        ursula_rest_response = self.network_middleware.send_work_order_payload_to_ursula_stub(
+            ursula=ursula,
+            payload=work_order_payload)
+        result = ursula_rest_response.content
+        return result
+
     def _make_staker_reservoir(self,
                                quantity: int,
                                duration_periods: int = None,  # optional for federated mode

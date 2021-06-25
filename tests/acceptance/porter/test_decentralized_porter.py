@@ -22,6 +22,7 @@ from nucypher.crypto.constants import HRAC_LENGTH
 from nucypher.crypto.powers import DecryptingPower
 from nucypher.policy.maps import TreasureMap
 from tests.utils.middleware import MockRestMiddleware
+from tests.utils.policy import work_order_setup
 
 
 def test_get_ursulas(blockchain_porter, blockchain_ursulas):
@@ -100,3 +101,24 @@ def test_publish_and_get_treasure_map(blockchain_porter,
     retrieved_treasure_map = blockchain_porter.get_treasure_map(map_identifier=map_id,
                                                                 bob_encrypting_key=blockchain_bob_encrypting_key)
     assert retrieved_treasure_map == treasure_map
+
+
+def test_exec_work_order(blockchain_porter,
+                         mocker,
+                         mock_ursula_reencrypts,
+                         blockchain_ursulas,
+                         blockchain_bob,
+                         blockchain_alice):
+    # Setup
+    ursula, work_order, expected_reencrypt_result = work_order_setup(mock_ursula_reencrypts,
+                                                                     blockchain_ursulas,
+                                                                     blockchain_bob,
+                                                                     blockchain_alice)
+    # use porter
+    mocked_response = mocker.Mock(content=expected_reencrypt_result)
+    mocker.patch.object(blockchain_porter.network_middleware,
+                        'send_work_order_payload_to_ursula_stub',  # stubbed method for now
+                        return_value=mocked_response)
+    result = blockchain_porter.exec_work_order(ursula_checksum=ursula.checksum_address,
+                                               work_order_payload=work_order.payload())
+    assert result == expected_reencrypt_result

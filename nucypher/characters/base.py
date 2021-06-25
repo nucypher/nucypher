@@ -68,7 +68,6 @@ class Character(Learner):
     _display_name_template = "({})⇀{}↽ ({})"  # Used in __repr__ and in cls.from_bytes
     _default_crypto_powerups = None
     _stamp = None
-    _crashed = False
 
     def __init__(self,
                  domain: str = None,

@@ -26,6 +26,9 @@ from nucypher.policy.maps import TreasureMap
 
 
 # should always be first test due to checks on response id
+from tests.utils.policy import work_order_setup
+
+
 def test_get_ursulas(federated_porter_rpc_controller, federated_ursulas):
     method = 'get_ursulas'
     expected_response_id = 0
@@ -122,3 +125,44 @@ def test_publish_and_get_treasure_map(federated_porter_rpc_controller,
     response = federated_porter_rpc_controller.send(request_data)
     assert response.success
     assert response.content['treasure_map'] == b64encode(bytes(enacted_federated_policy.treasure_map)).decode()
+
+
+def test_exec_work_order(federated_porter_rpc_controller,
+                         federated_porter,
+                         mocker,
+                         mock_ursula_reencrypts,
+                         federated_ursulas,
+                         federated_bob,
+                         federated_alice,
+                         get_random_checksum_address):
+    method = 'exec_work_order'
+    # Setup
+    ursula, work_order, expected_reencrypt_result = work_order_setup(mock_ursula_reencrypts,
+                                                                     federated_ursulas,
+                                                                     federated_bob,
+                                                                     federated_alice)
+    work_order_payload_b64 = b64encode(work_order.payload()).decode()
+
+    # Success
+    mocked_response = mocker.Mock(content=expected_reencrypt_result)
+    mocker.patch.object(federated_porter.network_middleware,
+                        'send_work_order_payload_to_ursula_stub',  # stubbed method for now
+                        return_value=mocked_response)
+    exec_work_order_params = {
+        'ursula': ursula.checksum_address,
+        'work_order_payload': work_order_payload_b64
+    }
+    request_data = {'method': method, 'params': exec_work_order_params}
+    response = federated_porter_rpc_controller.send(request_data)
+    assert response.success
+    work_order_result = response.content['work_order_result']
+    assert b64decode(work_order_result) == expected_reencrypt_result
+
+    # Failure
+    exec_work_order_params = {
+        'ursula': get_random_checksum_address(),  # unknown ursula
+        'work_order_payload': work_order_payload_b64
+    }
+    with pytest.raises(Learner.NotEnoughNodes):
+        request_data = {'method': method, 'params': exec_work_order_params}
+        federated_porter_rpc_controller.send(request_data)
