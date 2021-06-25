@@ -14,6 +14,7 @@ GNU Affero General Public License for more details.
 You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
+import contextlib
 import maya
 import pytest
 import time
@@ -98,14 +99,6 @@ def test_alice_verifies_ursula_just_in_time(fleet_of_highperf_mocked_ursulas,
     not_public_key_record_field = RecordField(NotAPublicKey, encode=bytes,
                                               decode=NotAPublicKey.from_bytes)
 
-    _umbral_pubkey_from_bytes = PublicKey.from_bytes
-
-    def actual_random_key_instead(*args, **kwargs):
-        _previous_bytes = args[0]
-        serial = _previous_bytes[-5:]
-        pubkey = NotAPublicKey(serial=serial)
-        return pubkey
-
     def mock_set_policy(id_as_hex):
         return ""
 
@@ -117,21 +110,29 @@ def test_alice_verifies_ursula_just_in_time(fleet_of_highperf_mocked_ursulas,
             public_key = public_key.i_want_to_be_a_real_boy()
         return encrypt(public_key, plaintext)
 
-    with NotARestApp.replace_route("receive_treasure_map", mock_receive_treasure_map):
-        with NotARestApp.replace_route("set_policy", mock_set_policy):
-            with patch('nucypher.crypto.umbral_adapter.PublicKey.__eq__', lambda *args, **kwargs: True):
-                with patch('nucypher.crypto.umbral_adapter.PublicKey.from_bytes',
-                           new=actual_random_key_instead):
-                    with patch("nucypher.datastore.models.PolicyArrangement._alice_verifying_key",
-                               new=not_public_key_record_field):
-                        with mock_cert_loading, mock_metadata_validation, mock_message_verification:
-                            with mock_secret_source():
-                                with patch('nucypher.crypto.umbral_adapter.encrypt',
-                                           new=mock_encrypt):
-                                    policy = highperf_mocked_alice.grant(
-                                        highperf_mocked_bob, b"any label", m=20, n=30,
-                                        expiration=maya.when('next week'),
-                                        publish_treasure_map=False)
+    mocks = (
+        NotARestApp.replace_route("receive_treasure_map", mock_receive_treasure_map),
+        NotARestApp.replace_route("set_policy", mock_set_policy),
+        patch('nucypher.crypto.umbral_adapter.PublicKey.__eq__', lambda *args, **kwargs: True),
+        mock_pubkey_from_bytes(),
+        mock_secret_source(),
+        mock_cert_loading,
+        mock_metadata_validation,
+        mock_message_verification,
+        patch("nucypher.datastore.models.PolicyArrangement._alice_verifying_key",
+              new=not_public_key_record_field),
+        patch('nucypher.crypto.umbral_adapter.encrypt', new=mock_encrypt),
+        )
+
+    with contextlib.ExitStack() as stack:
+        for mock in mocks:
+            stack.enter_context(mock)
+
+        policy = highperf_mocked_alice.grant(
+            highperf_mocked_bob, b"any label", m=20, n=30,
+            expiration=maya.when('next week'),
+            publish_treasure_map=False)
+
     # TODO: Make some assertions about policy.
     total_verified = sum(node.verified_node for node in highperf_mocked_alice.known_nodes)
     # Alice may be able to verify more than `n`, but certainly not less,
