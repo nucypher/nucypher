@@ -567,3 +567,52 @@ Example Response
        },
        "version": "5.2.0"
     }
+
+
+POST /exec_work_order
+^^^^^^^^^^^^^^^^^^^^^
+Use a work order to execute a re-encrypt operation on the network network as part of Bob's ``retrieve`` workflow.
+
+Parameters
+++++++++++
++----------------------------------+---------------+----------------------------------------+
+| **Parameter**                    | **Type**      | **Description**                        |
++==================================+===============+========================================+
+| ``ursula``                       | String        | | Checksum address corresponding to    |
+|                                  |               | | the Ursula to execute the work order.|
++----------------------------------+---------------+----------------------------------------+
+| ``work_order_payload``           | String        | Work order payload encoded as base64.  |
++----------------------------------+---------------+----------------------------------------+
+
+
+Returns
++++++++
+The result of the re-encryption operation performed on the work order payload:
+
+    * ``work_order_result`` - The result of the re-encryption operation returning combined cFrag and
+      signature bytes encoded as base64.
+
+Example Request
++++++++++++++++
+.. code:: bash
+
+    curl -X POST <PORTER URI>/exec_work_order \
+        -H "Content-Type: application/json" \
+        -d '{"ursula": "0xE57bFE9F44b819898F47BF37E5AF72a0783e1141", \
+             "work_order_payload": "QoQgOCRvtT4qG0nb5eDbfJ3vO6jMeoy9yp7lvezWKyNF0I6f/uQBPJed9FM7oc7jDAzqyDYD1C/1Cnab+kdobAJT7a3Z/KcOot4SwhgZ0eLGYVuhiAnXP9F7lBDosmvd2gAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA1I8O2JB/65y0K6m0dxmCpYJfsbpV63dMqcmTTPZAuWuA6LDyDa9JOqPF1OYQWHYi93wNLVLyHCLH6UEf5JOSgmgZOCPIzOaUpQMlr1rIDGExrF6zrLGpAwpPMMOzqa8tjiWHFaHWyLsUMyVKT8v1Psa/iIQ4NZDG+gKDSjgp33MbLml/ti+1p75M2ewuUbCjCWq5Mkf5ycqyEQUMt0IcTgNA6vxewmaBt7UTsYaUzkeTkNz/hLO9+ZFJ1NzJLxeweSqAiNQtfBvG7Fih6oaQT9uslu4QAwOTgolqkinEsoNx9XRL8Ocb8pO/5POBfPxiH8c2v5lrr6HhkAKAC5QODfegIToy29k0KIf3bCoqaVYncvjLJcum0AatnyOkYoV9Zf5wojvyFJE+MZ/homke4Yd8irUdoLSgxDuEDtyRNMuTpcHA37Z+npgp/zi0DQUvK35xZE+DmGYhaHTOPQesiTqyJc/Az22wtTfA3n9JwjSl6CjADGjHWgUPMQWzW8fqICo1iek2z7oFHM24yCtyvsEbC2Mm25LEZi/k2mfbgpNRg5PqW9qj/hTK19Cm4s0rlK7e2odCD5T3Iy0s6eg0KgR0RhT/ayH42be1FHgXFBFeABhm0fM8ZxorhMF1ce/yDPOaRZ8"}'
+
+Example Response
+++++++++++++++++
+.. code::
+
+    Status: 200 OK
+
+
+.. code:: json
+
+    {
+       "result": {
+          "work_order_result": "AAABpwIE30NxwNdRKKYbQ8g0/smtFuDoTPy8wrkJykX80A4LKAMQ4B9nUoyq9JHyDvnLXf314LrLA4roe/HuUXXNsF+6muWUZPwe8IA/SwkPJnpggGu0xQdVl3eMGpgHYL9pW3jWA0ztwFmQ6qpgJkXxdkK7j62kBSjzWTziWRaWzgd0bXRqA71fJSvQp/q2V5do3/g2BvqN8R22ZBxzn0s77p0s7LyIA+K1a1aMbR22OtpGdmUTbl3SK7gSYAVsHtpBbvok/FstA78AbixycMh5OgOXze62RMFXFvNeK5aw8vld0YefHkoWA+4YKNw8zddlhhH4jv8gXKxZQcdxA4tpxYiigTFuJFb4B/WzU9MEvZQUDfVVxtAgtpyTQaw+EFVc313bFrPjfZIhbodl2FBSa8HHbyU+zyuQbx3xIUcTXrkWCLV7+J6mrvjrJkGWH+AJAceN8P7uPvK101P5OKs6oiO1/voDPIOr0boQB6pE+gHGH56Eb8Q3W5uGJ9p2e2Ul90vMFRmMRLVvHToNrMgrMOLNa/TenaiAxK+xfiOnNNE0Mi3LQTAj0c+mTLM1fZ81zIgT0yQXJzfKfiiJuAN35e1JlgYISnxchLqv6gYldeRxx1Xz2v5TZtTvRjlP9PCEEaW4sQaqW+0AAAGnAghcC66v3rlE4nN8utPifyLlG6dwwg25KVfTwfjiqOagAsrrQEi1CHnTyFl50DSruaygVnPj+sCv/G9onIExiRv6dcjhZhASDM/2P67XlNiwn074GI5f8e1orNVcVXpvS+0DzdQxL+pbkmNDH6XkZjbAyYcJ+B8zPtcMeIlEhPEJz7ICxJ0agnJr6DgGNvsNXeGSDQWVHRAwPlTOvvh0lZnOvnICfMParvaZkDVft9z4x7HUTuvkJmEnp1qAGefyDx57MzACBbvqNTHVDhv4qDmfe0ynjIKO+1bYT8G4s7xmgmS9y8ECOO+/cX1z9MgijH4wZLG36kJq50BXXOU7U5yRvzQe4R0W2noI4lfmPg3bTqXQyZrvINVImvwuyvQMoQTDM9HFM4dUyN4vLDpSe3bHZmpTIpI8VtOMNUAo+wGzfBMEsSPAxJ/fOZCL33HTMIe0p+q4F9ksDNxO3XFHwEuMm2FuSRuQbnKUtxqXp4YiDdF2PKPKthfZ7WUZN+Z+wAjMzwE28Bf3m5SGZsXDQxaKTioWJUxDbzdHnpcI28+4srZVr2SU6GKR5yGDrAJxLf2Of4+UHK/UNakH45bWJfYq6Rr+iWe0aFHDtQHqkBtWWmvWJBLhyzsXnqBUhyKQr3DEZ3/R0wAAAacCq+RZNiJQx5WYQLVnrQefNU+A55LL75iRMOJRxukGlEoD5D30UIArtCv4d+iN6XLZhEM6Jsqg5ltPWfFZyRzHbb+StN+TFlQ/LDnFRPQ0MQpGMDjGckCqklZdn0NUGDkTcgOmyY2bhoGcgkob3QvlhSOYS/LPLRCnyn5fn0kABoNKagKuITPL9Tmg87k+yK9PQFu9P3cAOCvL/ZUPJSKI5r47HANuLdqh4zhfyAe5PW3qi7GnzRXRySA+6lImyD/nWqbb2gNv9MYrA2ioheO5jXA2uArwgZObnLApPsIc7Jwl1ko7KgJXN+EsBMdBHwz2Ps6LJt9z73y/HnuivgSNkssxZ8pIXqk9NGRwgBhP2DW0Ctl30bRNX6SIEcD/b0yzsfKIUQk3L7QwPYxE9iKicz608hLzrCUwmHoa8oWA/9dQks8KBD1tTrm0KM5fJcXonZHzeDFIYcHMDMu1PJkwFsLWRVTXJJBgDMUQJix9mpb3px0jMPjAZuDlpherQsLNNRQJq75pVu7hyKmeDAPBGhBNND2NxB3pg3RrFhShdosjpRP/gCJhuI0IdAnajYCG+vmIilyS/8oZomMEg6b8KChUOPVkp/VPFXUKow4jzLXjf7R9DJM/41Yn5ut7IaLi37X/jwwa"
+       },
+       "version": "5.2.0"
+    }
