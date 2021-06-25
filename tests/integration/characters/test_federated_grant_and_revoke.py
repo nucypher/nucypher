@@ -51,7 +51,7 @@ def test_federated_grant(federated_alice, federated_bob, federated_ursulas):
     # Let's look at the enacted arrangements.
     for ursula in federated_ursulas:
         if ursula.checksum_address in policy.treasure_map.destinations:
-            assert policy.treasure_map.destinations[ursula.checksum_address]
+            assert ursula.checksum_address in policy.treasure_map.destinations
 
 
 

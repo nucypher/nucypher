@@ -913,7 +913,7 @@ class Bob(Character):
             # TODO Optimization: Block here (or maybe even later) until map is done being followed (instead of blocking above). #1114
             the_airing_of_grievances = []
 
-            remaining_work_orders, capsules_to_activate = self._filter_work_orders_and_capsules(new_work_orders, capsules_to_activate, m)
+            remaining_work_orders, capsules_to_activate = self._filter_work_orders_and_capsules(new_work_orders, message_kits, m)
 
             # If all the capsules are now activated, we can stop here.
             if capsules_to_activate and remaining_work_orders:

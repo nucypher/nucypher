@@ -29,7 +29,7 @@ from umbral.keys import PublicKey
 from umbral.pre import Capsule
 from umbral.signing import Signature
 
-from nucypher.crypto.constants import WRIT_CHECKSUM_SIZE, SIGNED_WRIT_SIZE
+from nucypher.crypto.constants import WRIT_CHECKSUM_SIZE, SIGNED_WRIT_SIZE, ENCRYPTED_KFRAG_PAYLOAD_LENGTH
 from nucypher.crypto.kits import PolicyMessageKit
 from nucypher.crypto.signing import SignatureStamp, InvalidSignature
 from nucypher.crypto.splitters import key_splitter, capsule_splitter, cfrag_splitter, signature_splitter, hrac_splitter, \
@@ -93,7 +93,7 @@ class WorkOrder:
 
             expected_lengths = (
                 (stamp, 'ursula_stamp', PublicKey.serialized_size()),
-                (encrypted_kfrag, 'encrypted_kfrag', 619)  # TODO: Move "619" to constant and where?
+                (encrypted_kfrag, 'encrypted_kfrag', ENCRYPTED_KFRAG_PAYLOAD_LENGTH)
                 # NOTE: ursula_identity_evidence has a default value of b'' for federated mode.
             )
 
@@ -111,7 +111,7 @@ class WorkOrder:
         def __bytes__(self):
             data = bytes(self.capsule) + bytes(self.signature)
             if self.cfrag and self.cfrag_signature:
-                data += VariableLengthBytestring(self.cfrag) + bytes(self.cfrag_signature)
+                data += bytes(self.cfrag) + bytes(self.cfrag_signature)
             return data
 
         @classmethod
@@ -359,7 +359,7 @@ class Revocation:
     revocation_splitter = BytestringSplitter(
         (bytes, len(PREFIX)),
         (bytes, 20),   # ursula canonical address
-        (bytes, 606),  # encrypted kfrag payload (includes writ)
+        (bytes, ENCRYPTED_KFRAG_PAYLOAD_LENGTH),  # encrypted kfrag payload (includes writ)
         signature_splitter
     )
 
