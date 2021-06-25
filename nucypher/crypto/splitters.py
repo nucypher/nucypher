@@ -16,10 +16,15 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
 
-from bytestring_splitter import BytestringSplitter, VariableLengthBytestring
+from bytestring_splitter import BytestringSplitter
+from umbral.key_frag import KeyFrag
+
+from nucypher.crypto.constants import HRAC_LENGTH
 from nucypher.crypto.umbral_adapter import CapsuleFrag, PublicKey, Capsule, Signature
 
 key_splitter = BytestringSplitter((PublicKey, PublicKey.serialized_size()))
+signature_splitter = BytestringSplitter((Signature, Signature.serialized_size()))
 capsule_splitter = BytestringSplitter((Capsule, Capsule.serialized_size()))
 cfrag_splitter = BytestringSplitter((CapsuleFrag, CapsuleFrag.serialized_size()))
-signature_splitter = BytestringSplitter((Signature, Signature.serialized_size()))
+kfrag_splitter = BytestringSplitter((KeyFrag, KeyFrag.serialized_size()))
+hrac_splitter = BytestringSplitter((bytes, HRAC_LENGTH))

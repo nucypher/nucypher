@@ -40,7 +40,6 @@ def ursula(mocker):
 
 
 def test_pre_task(mock_ursula_reencrypts, ursula, get_random_checksum_address):
-    identity_evidence = ursula.decentralized_identity_evidence
     task = mock_ursula_reencrypts(ursula)
     cfrag = task.cfrag
     capsule = task.capsule

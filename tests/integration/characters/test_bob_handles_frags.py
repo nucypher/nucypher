@@ -20,7 +20,6 @@ import pytest_twisted
 from twisted.internet import threads
 from umbral import pre
 from umbral.capsule_frag import CapsuleFrag
-from umbral.cfrags import CapsuleFrag
 
 from nucypher.characters.lawful import Alice
 from nucypher.config.constants import TEMPORARY_DOMAIN
@@ -208,11 +207,14 @@ def test_bob_can_issue_a_work_order_to_a_specific_ursula(enacted_federated_polic
 
     # Ursula decrypts the encrypted KFrag
     encrypted_kfrag = enacted_federated_policy.treasure_map.destinations[ursula.checksum_address]
-    plaintext_kfrag_payload = ursula.verify_from(stranger=Alice.from_public_keys(verifying_key=enacted_federated_policy.alice_verifying_key),
+    alice = Alice.from_public_keys(verifying_key=enacted_federated_policy.alice_verifying_key)
+    plaintext_kfrag_payload = ursula.verify_from(stranger=alice,
                                                  message_kit=encrypted_kfrag,
                                                  decrypt=True)
     _signed_writ, the_kfrag = work_order.kfrag_payload_splitter(plaintext_kfrag_payload)
-    the_correct_cfrag = pre.reencrypt(the_kfrag, message_kit.capsule)
+
+    verified_kfrag = the_kfrag.verify(enacted_federated_policy.alice_verifying_key.as_umbral_pubkey())
+    the_correct_cfrag = pre.reencrypt(capsule=message_kit.capsule, kfrag=verified_kfrag)
 
     # The first CFRAG_LENGTH_WITHOUT_PROOF bytes (ie, the cfrag proper, not the proof material), are the same:
     assert bytes(the_cfrag)[:CapsuleFrag.serialized_size()] == bytes(the_correct_cfrag)[:CapsuleFrag.serialized_size()]  # It's the correct cfrag!

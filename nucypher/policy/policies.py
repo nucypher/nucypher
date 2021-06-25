@@ -28,11 +28,10 @@ from umbral.signing import Signature
 
 from nucypher.blockchain.eth.agents import StakersReservoir, StakingEscrowAgent
 from nucypher.blockchain.eth.constants import POLICY_ID_LENGTH
-from nucypher.characters.lawful import Alice, Ursula
 from nucypher.crypto.api import keccak_digest
-from nucypher.crypto.constants import HRAC_LENGTH, PUBLIC_KEY_LENGTH
+from nucypher.crypto.constants import HRAC_LENGTH
 from nucypher.crypto.kits import RevocationKit
-from nucypher.crypto.powers import DecryptingPower, SigningPower, TransactingPower
+from nucypher.crypto.powers import TransactingPower
 from nucypher.crypto.umbral_adapter import PublicKey, KeyFrag
 from nucypher.crypto.utils import construct_policy_id
 from nucypher.network.middleware import RestMiddleware
@@ -45,7 +44,7 @@ class Arrangement:
     A contract between Alice and a single Ursula.
     """
 
-    splitter = BytestringSplitter((PublicKey, PUBLIC_KEY_LENGTH),  # alice_verifying_key
+    splitter = BytestringSplitter((PublicKey, PublicKey.serialized_size()),  # alice_verifying_key
                                   (bytes, VariableLengthBytestring))     # expiration
 
     def __init__(self, alice_verifying_key: PublicKey, expiration: maya.MayaDT):
