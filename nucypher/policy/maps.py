@@ -28,9 +28,6 @@ from bytestring_splitter import (
 )
 from constant_sorrow.constants import NO_DECRYPTION_PERFORMED, NOT_SIGNED
 from eth_utils.address import to_checksum_address, to_canonical_address
-from umbral.key_frag import KeyFrag
-from umbral.keys import PublicKey
-from umbral.signing import Signature
 
 from nucypher.blockchain.eth.constants import ETH_ADDRESS_BYTE_LENGTH
 from nucypher.characters.base import Character
@@ -40,6 +37,7 @@ from nucypher.crypto.kits import UmbralMessageKit
 from nucypher.crypto.powers import DecryptingPower, SigningPower
 from nucypher.crypto.signing import SignatureStamp
 from nucypher.crypto.splitters import signature_splitter
+from nucypher.crypto.umbral_adapter import KeyFrag, PublicKey, Signature
 from nucypher.network.middleware import RestMiddleware
 
 

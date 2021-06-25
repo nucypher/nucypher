@@ -26,13 +26,12 @@ from nucypher.blockchain.eth.token import NU
 from nucypher.config.constants import TEMPORARY_DOMAIN
 from nucypher.crypto.powers import TransactingPower
 from nucypher.crypto.signing import SignatureStamp
-from umbral.keys import UmbralPrivateKey
-from umbral.signing import Signer
+from nucypher.crypto.umbral_adapter import SecretKeyFactory, Signer
 
 
 def mock_ursula(testerchain, account, mocker):
-    ursula_privkey = UmbralPrivateKey.gen_key()
-    ursula_stamp = SignatureStamp(verifying_key=ursula_privkey.pubkey,
+    ursula_privkey = SecretKeyFactory.random()
+    ursula_stamp = SignatureStamp(verifying_key=ursula_privkey.public_key(),
                                   signer=Signer(ursula_privkey))
 
     signed_stamp = testerchain.client.sign_message(account=account,

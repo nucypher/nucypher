@@ -23,17 +23,29 @@ import maya
 from bytestring_splitter import BytestringSplitter, VariableLengthBytestring
 from constant_sorrow.constants import CFRAG_NOT_RETAINED
 from eth_typing.evm import ChecksumAddress
-from eth_utils.address import to_checksum_address, to_canonical_address
-from umbral.capsule_frag import CapsuleFrag
-from umbral.keys import PublicKey
-from umbral.pre import Capsule
-from umbral.signing import Signature
+from eth_utils.address import to_canonical_address, to_checksum_address
 
-from nucypher.crypto.constants import WRIT_CHECKSUM_SIZE, SIGNED_WRIT_SIZE, ENCRYPTED_KFRAG_PAYLOAD_LENGTH
+from nucypher.crypto.constants import (
+    WRIT_CHECKSUM_SIZE,
+    SIGNED_WRIT_SIZE,
+    ENCRYPTED_KFRAG_PAYLOAD_LENGTH
+)
 from nucypher.crypto.kits import PolicyMessageKit
 from nucypher.crypto.signing import SignatureStamp, InvalidSignature
-from nucypher.crypto.splitters import key_splitter, capsule_splitter, cfrag_splitter, signature_splitter, hrac_splitter, \
+from nucypher.crypto.splitters import (
+    key_splitter,
+    capsule_splitter,
+    cfrag_splitter,
+    signature_splitter,
+    hrac_splitter,
     kfrag_splitter
+)
+from nucypher.crypto.umbral_adapter import (
+    Capsule,
+    CapsuleFrag,
+    PublicKey,
+    Signature
+)
 
 
 class WorkOrder:

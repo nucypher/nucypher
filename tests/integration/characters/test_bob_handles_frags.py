@@ -18,14 +18,13 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 import pytest
 import pytest_twisted
 from twisted.internet import threads
-from umbral import pre
-from umbral.capsule_frag import CapsuleFrag
 
 from nucypher.characters.lawful import Alice
 from nucypher.config.constants import TEMPORARY_DOMAIN
 from nucypher.crypto.keypairs import DecryptingKeypair
 from nucypher.crypto.kits import PolicyMessageKit
 from nucypher.crypto.powers import DecryptingPower
+from nucypher.crypto.umbral_adapter import reencrypt
 from nucypher.datastore.models import Workorder
 from tests.utils.middleware import MockRestMiddleware, NodeIsDownMiddleware
 
@@ -214,7 +213,7 @@ def test_bob_can_issue_a_work_order_to_a_specific_ursula(enacted_federated_polic
     _signed_writ, the_kfrag = work_order.kfrag_payload_splitter(plaintext_kfrag_payload)
 
     verified_kfrag = the_kfrag.verify(enacted_federated_policy.alice_verifying_key.as_umbral_pubkey())
-    the_correct_cfrag = pre.reencrypt(capsule=message_kit.capsule, kfrag=verified_kfrag)
+    reencrypt(capsule=message_kit.capsule, kfrag=verified_kfrag)
 
     # Now we'll show that Ursula saved the correct WorkOrder.
     with ursula.datastore.query_by(Workorder, filter_field='bob_verifying_key',

@@ -56,8 +56,6 @@ from twisted.internet import reactor, stdio, threads
 from twisted.internet.defer import Deferred
 from twisted.internet.task import LoopingCall
 from twisted.logger import Logger
-from umbral.key_frag import KeyFrag, VerifiedKeyFrag
-from umbral.signing import Signature
 from web3.types import TxReceipt
 
 import nucypher
@@ -90,7 +88,15 @@ from nucypher.crypto.powers import (
 )
 from nucypher.crypto.signing import InvalidSignature
 from nucypher.crypto.splitters import key_splitter, signature_splitter
-from nucypher.crypto.umbral_adapter import Capsule, PublicKey, VerificationError, reencrypt
+from nucypher.crypto.umbral_adapter import (
+    Capsule,
+    PublicKey,
+    VerificationError,
+    reencrypt,
+    KeyFrag,
+    VerifiedKeyFrag,
+    Signature
+)
 from nucypher.datastore.datastore import DatastoreTransactionError, RecordNotFound
 from nucypher.datastore.queries import find_expired_policies, find_expired_treasure_maps
 from nucypher.network.exceptions import NodeSeemsToBeDown
