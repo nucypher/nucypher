@@ -75,11 +75,10 @@ def test_alice_can_learn_about_a_whole_bunch_of_ursulas(highperf_mocked_alice):
     actual_ursula.bytestring_of_known_nodes = lambda *args, **kwargs: _teacher_known_nodes_bytestring  # TODO: Formalize this?  #1537
 
     with mock_cert_storage, mock_cert_loading, mock_verify_node, mock_message_verification, mock_metadata_validation:
-        with mock_pubkey_from_bytes():
-            started = time.time()
-            highperf_mocked_alice.block_until_number_of_known_nodes_is(4000, learn_on_this_thread=True)
-            ended = time.time()
-            elapsed = ended - started
+        started = time.time()
+        highperf_mocked_alice.block_until_number_of_known_nodes_is(4000, learn_on_this_thread=True)
+        ended = time.time()
+        elapsed = ended - started
 
     assert elapsed < 6  # 6 seconds is still a little long to discover 4000 out of 5000 nodes, but before starting the optimization that went with this test, this operation took about 18 minutes on jMyles' laptop.
     assert VerificationTracker.node_verifications == 1  # We have only verified the first Ursula.
