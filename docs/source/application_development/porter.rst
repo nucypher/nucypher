@@ -65,7 +65,7 @@ Run Porter within Docker without acquiring or installing the ``nucypher`` codeba
 
    .. code:: bash
 
-       docker pull nucypher/nucypher:latest
+       $ docker pull nucypher/nucypher:latest
 
 #. Run Porter service
 
@@ -178,7 +178,7 @@ Docker Compose will start the Porter service within a Docker container.
 
      .. code:: bash
 
-         export TLS_DIR=<ABSOLUTE PATH TO TLS DIRECTORY>
+         $ export TLS_DIR=<ABSOLUTE PATH TO TLS DIRECTORY>
 
    * *(Optional)* Filepath to the htpasswd file for Basic Authentication
 
@@ -186,7 +186,7 @@ Docker Compose will start the Porter service within a Docker container.
 
      .. code:: bash
 
-         export HTPASSWD_FILE=<ABSOLUTE PATH TO HTPASSWD FILE>
+         $ export HTPASSWD_FILE=<ABSOLUTE PATH TO HTPASSWD FILE>
 
 #. Run Porter service
 
