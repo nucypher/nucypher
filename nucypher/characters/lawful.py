@@ -57,8 +57,7 @@ from twisted.internet import reactor, stdio, threads
 from twisted.internet.defer import Deferred
 from twisted.internet.task import LoopingCall
 from twisted.logger import Logger
-from umbral.keys import UmbralPublicKey
-from umbral.kfrags import KFrag
+from umbral.key_frag import KeyFrag, VerifiedKeyFrag
 from web3.types import TxReceipt
 
 import nucypher
@@ -653,7 +652,7 @@ class Bob(Character):
         _hrac = keccak_digest(bytes(relayer_verifying_key) + self.stamp + label)[:HRAC_LENGTH]
         return _hrac
 
-    def construct_map_id(self, relayer_verifying_key: UmbralPublicKey, label: bytes):
+    def construct_map_id(self, relayer_verifying_key: PublicKey, label: bytes):
         hrac = self.construct_policy_hrac(relayer_verifying_key, label)
 
         # Ugh stupid federated only mode....
@@ -1014,7 +1013,7 @@ class Bob(Character):
 
                  ) -> List[bytes]:
 
-        # Try our best to get an UmbralPublicKeys from input
+        # Try our best to get an PublicKey instances from input
         alice_verifying_key = PublicKey.from_bytes(bytes(alice_verifying_key))
         if not relayer_verifying_key:
             # If an policy relay's verifying key is not passed, use the alice's by default.
@@ -1026,15 +1025,17 @@ class Bob(Character):
                                                     relayer_verifying_key=relayer_verifying_key,
                                                     label=label)
 
-        work_orders, message_kits_map = self._assemble_work_orders(*message_kits,
-                                                 label=label,
-                                                 enrico=enrico,
-                                                 policy_encrypting_key=policy_encrypting_key,
-                                                 alice_verifying_key=alice_verifying_key,
-                                                 relayer_verifying_key=relayer_verifying_key,
-                                                 treasure_map=treasure_map,
-                                                 use_attached_cfrags=use_attached_cfrags,
-                                                 use_precedent_work_orders=use_precedent_work_orders)
+        work_orders, message_kits_map = self._assemble_work_orders(
+            *message_kits,
+            label=label,
+            enrico=enrico,
+            policy_encrypting_key=policy_encrypting_key,
+            alice_verifying_key=alice_verifying_key,
+            relayer_verifying_key=relayer_verifying_key,
+            treasure_map=treasure_map,
+            use_attached_cfrags=use_attached_cfrags,
+            use_precedent_work_orders=use_precedent_work_orders
+        )
 
         cleartexts = self._get_cleartexts(*message_kits,
                                           message_kits_map=message_kits_map,
@@ -1804,10 +1805,10 @@ class Ursula(Teacher, Character, Worker):
 
     def verify_kfrag_authorization(self,
                                    alice: Alice,
-                                   kfrag: KFrag,
+                                   kfrag: KeyFrag,
                                    signed_writ: bytes,
                                    work_order: 'WorkOrder'
-                                   ) -> None:
+                                   ) -> VerifiedKeyFrag:
         from nucypher.policy.orders import WorkOrder  # TODO: resolve ciruclar dependency
 
         writ_hrac, writ_kfrag_checksum, writ_signature = WorkOrder.signed_writ_splitter(signed_writ)
@@ -1825,15 +1826,18 @@ class Ursula(Teacher, Character, Worker):
         if kfrag_checksum != writ_kfrag_checksum:
             raise Policy.Unauthorized  # Bob, Seriously?
 
-        if not kfrag.verify(signing_pubkey=alice.stamp.as_umbral_pubkey()):
+        try:
+            verified_kfrag = kfrag.verify(verifying_pk=alice.stamp.as_umbral_pubkey())
+        except VerificationError:
             raise Policy.Unauthorized  # WTF, Alice did not generate these KFrags.
 
         if writ_hrac in self.revoked_policies:
             # Note: This is only an off-chain and in-memory check.
             raise Policy.Unauthorized  # Denied
 
+        return verified_kfrag
 
-    def _reencrypt(self, kfrag: KFrag, work_order: 'WorkOrder', alice_verifying_key: PublicKey):
+    def _reencrypt(self, kfrag: KeyFrag, work_order: 'WorkOrder', alice_verifying_key: PublicKey):
 
         # Prepare a bytestring for concatenating re-encrypted
         # capsule data for each work order task.

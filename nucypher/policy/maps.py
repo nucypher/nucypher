@@ -15,13 +15,16 @@ You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
+
 from typing import Optional, Callable, Union, Sequence
 
 from bytestring_splitter import (
     BytestringSplitter,
     VariableLengthBytestring,
     BytestringKwargifier,
-    BytestringSplittingError, VersioningMixin, BrandingMixin
+    BytestringSplittingError,
+    VersioningMixin,
+    BrandingMixin
 )
 from constant_sorrow.constants import NO_DECRYPTION_PERFORMED, NOT_SIGNED
 from eth_utils.address import to_checksum_address, to_canonical_address
@@ -36,6 +39,7 @@ from nucypher.crypto.constants import HRAC_LENGTH, WRIT_CHECKSUM_SIZE, EIP712_ME
 from nucypher.crypto.kits import UmbralMessageKit
 from nucypher.crypto.powers import DecryptingPower, SigningPower
 from nucypher.crypto.signing import SignatureStamp
+from nucypher.crypto.splitters import signature_splitter
 from nucypher.network.middleware import RestMiddleware
 
 
@@ -149,15 +153,15 @@ class TreasureMap:
     def __new__(cls, *args, **kwargs):
 
         cls._splitters['unversioned'] = BytestringKwargifier(cls,
-                                                 public_signature=Signature,
-                                                 hrac=(bytes, HRAC_LENGTH),
-                                                 message_kit=(UmbralMessageKit, VariableLengthBytestring),
-                                                 )
+                                                             public_signature=signature_splitter,
+                                                             hrac=(bytes, HRAC_LENGTH),
+                                                             message_kit=(UmbralMessageKit, VariableLengthBytestring),
+                                                             )
         cls._splitters[1] = TreasureMapSplitter(cls,
-                                                 public_signature=Signature,
-                                                 hrac=(bytes, HRAC_LENGTH),
-                                                 message_kit=(UmbralMessageKit, VariableLengthBytestring),
-                                                 )
+                                                public_signature=signature_splitter,
+                                                hrac=(bytes, HRAC_LENGTH),
+                                                message_kit=(UmbralMessageKit, VariableLengthBytestring),
+                                                )
         return object.__new__(cls)
 
     @classmethod
@@ -188,7 +192,7 @@ class TreasureMap:
         self._id = keccak_digest(bytes(self._verifying_key) + bytes(self._hrac)).hex()
 
     def _set_payload(self) -> None:
-        self._payload = self._public_signature \
+        self._payload = bytes(self._public_signature) \
                         + self._hrac \
                         + bytes(VariableLengthBytestring(self.message_kit.to_bytes()))
 
@@ -234,7 +238,7 @@ class TreasureMap:
         this particular KFrag is authorized for use in the policy identified by this HRAC.
         """
         writ = self._hrac + keccak_digest(bytes(kfrag))[:WRIT_CHECKSUM_SIZE]
-        writ_signature = alice_stamp(writ)
+        writ_signature = bytes(alice_stamp(writ))
         signed_writ = writ + writ_signature
         return signed_writ
 
@@ -274,7 +278,7 @@ class TreasureMap:
 
     def public_verify(self) -> bool:
         message = bytes(self._verifying_key) + self._hrac
-        verified = self._public_signature.verify(message, self._verifying_key)
+        verified = self._public_signature.verify(self._verifying_key, message=message)
         if verified:
             return True
         else:

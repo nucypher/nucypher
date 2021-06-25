@@ -17,27 +17,23 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 
 
 from collections import OrderedDict
+from typing import Optional, Dict, Sequence, Union
 
 import maya
 from bytestring_splitter import BytestringSplitter, VariableLengthBytestring
 from constant_sorrow.constants import CFRAG_NOT_RETAINED
 from eth_typing.evm import ChecksumAddress
 from eth_utils.address import to_checksum_address, to_canonical_address
-from typing import Optional, Dict, Sequence, Union
-
-from nucypher.crypto.constants import HRAC_LENGTH, WRIT_CHECKSUM_SIZE, SIGNED_WRIT_SIZE
-from nucypher.crypto.kits import PolicyMessageKit
-from nucypher.crypto.signing import signature_splitter, SignatureStamp, InvalidSignature
-from nucypher.crypto.splitters import key_splitter, capsule_splitter, cfrag_splitter
-from nucypher.policy.maps import TreasureMap
-from umbral.cfrags import CapsuleFrag
-from umbral.keys import UmbralPublicKey
-from umbral.kfrags import KFrag
+from umbral.capsule_frag import CapsuleFrag
+from umbral.keys import PublicKey
 from umbral.pre import Capsule
 from umbral.signing import Signature
 
-hrac_splitter = BytestringSplitter((bytes, HRAC_LENGTH))
-kfrag_splitter = BytestringSplitter((KFrag, KFrag.expected_bytes_length()))
+from nucypher.crypto.constants import WRIT_CHECKSUM_SIZE, SIGNED_WRIT_SIZE
+from nucypher.crypto.kits import PolicyMessageKit
+from nucypher.crypto.signing import SignatureStamp, InvalidSignature
+from nucypher.crypto.splitters import key_splitter, capsule_splitter, cfrag_splitter, signature_splitter, hrac_splitter, \
+    kfrag_splitter
 
 
 class WorkOrder:
@@ -96,8 +92,8 @@ class WorkOrder:
             identity_evidence = bytes(identity_evidence)
 
             expected_lengths = (
-                (stamp, 'ursula_stamp', UmbralPublicKey.expected_bytes_length()),
-                (encrypted_kfrag, 'encrypted_kfrag', 606)  # TODO: Move "606" to constant and where?
+                (stamp, 'ursula_stamp', PublicKey.serialized_size()),
+                (encrypted_kfrag, 'encrypted_kfrag', 619)  # TODO: Move "619" to constant and where?
                 # NOTE: ursula_identity_evidence has a default value of b'' for federated mode.
             )
 
@@ -176,8 +172,8 @@ class WorkOrder:
     @classmethod
     def construct_by_bob(cls,
                          label: bytes,
-                         alice_verifying_key: UmbralPublicKey,
-                         relayer_verifying_key: UmbralPublicKey,
+                         alice_verifying_key: PublicKey,
+                         relayer_verifying_key: PublicKey,
                          capsules: Sequence,
                          ursula: 'Ursula',
                          bob: 'Bob',
@@ -255,13 +251,13 @@ class WorkOrder:
                                                    encrypted_kfrag=ekfrag,
                                                    identity_evidence=ursula_identity_evidence)
 
-            if not task.signature.verify(specification, bob_verifying):
+            if not task.signature.verify(bob_verifying, specification):
                 raise InvalidSignature()
 
         # Check receipt
         capsules = b''.join(map(bytes, tasks.keys()))
         receipt_bytes = cls.RECEIPT_HEADER + bytes(ursula.stamp) + bytes(ekfrag) + capsules
-        if not signature.verify(receipt_bytes, bob_verifying):
+        if not signature.verify(message=receipt_bytes, verifying_key=bob_verifying):
             raise InvalidSignature()
 
         from nucypher.characters.lawful import Bob
@@ -283,15 +279,9 @@ class WorkOrder:
         ursula_verifying_key = self.ursula.stamp.as_umbral_pubkey()
 
         for task, (cfrag, cfrag_signature) in zip(self.tasks.values(), cfrags_and_signatures):
-            # Validate re-encryption metadata
-            metadata_input = bytes(task.signature)
-            metadata_as_signature = Signature.from_bytes(cfrag.proof.metadata)
-            if not metadata_as_signature.verify(metadata_input, ursula_verifying_key):
-                raise InvalidSignature(f"Invalid metadata for {cfrag}.")
-                # TODO: Instead of raising, we should do something (#957)
 
             # Validate re-encryption signatures
-            if cfrag_signature.verify(bytes(cfrag), ursula_verifying_key):
+            if cfrag_signature.verify(ursula_verifying_key, bytes(cfrag)):
                 good_cfrags.append(cfrag)
             else:
                 raise InvalidSignature(f"{cfrag} is not properly signed by Ursula.")
@@ -370,7 +360,7 @@ class Revocation:
         (bytes, len(PREFIX)),
         (bytes, 20),   # ursula canonical address
         (bytes, 606),  # encrypted kfrag payload (includes writ)
-        Signature
+        signature_splitter
     )
 
     def __init__(self,
@@ -415,7 +405,7 @@ class Revocation:
                    encrypted_kfrag=ekfrag,
                    signature=signature)
 
-    def verify_signature(self, alice_verifying_key: 'UmbralPublicKey') -> bool:
+    def verify_signature(self, alice_verifying_key: 'PublicKey') -> bool:
         """
         Verifies the revocation was from the provided pubkey.
         """

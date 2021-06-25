@@ -28,7 +28,6 @@ from flask import Flask, Response, jsonify, request
 from mako import exceptions as mako_exceptions
 from mako.template import Template
 from maya import MayaDT
-from nucypher.crypto.api import InvalidNodeCertificate
 
 from nucypher.blockchain.eth.constants import NULL_ADDRESS
 from nucypher.blockchain.eth.utils import period_to_epoch
@@ -37,6 +36,7 @@ from nucypher.crypto.keypairs import HostingKeypair, DecryptingKeypair
 from nucypher.crypto.kits import PolicyMessageKit
 from nucypher.crypto.powers import KeyPairBasedPower, PowerUpError
 from nucypher.crypto.signing import InvalidSignature
+from nucypher.crypto.tls import InvalidNodeCertificate
 from nucypher.datastore.datastore import Datastore, RecordNotFound
 from nucypher.datastore.models import TreasureMap as TreasureMapModel
 from nucypher.datastore.models import Workorder as WorkOrderModel
@@ -222,10 +222,12 @@ def _make_rest_app(datastore: Datastore, this_node, domain: str, log: Logger) ->
         # Verify KFrag Authorization (offchain)
         signed_writ, kfrag = work_order.kfrag_payload_splitter(plaintext_kfrag_payload)
         try:
-            this_node.verify_kfrag_authorization(alice=policy_relayer,
-                                                 kfrag=kfrag,
-                                                 signed_writ=signed_writ,
-                                                 work_order=work_order)
+            verified_kfrag = this_node.verify_kfrag_authorization(
+                alice=policy_relayer,
+                kfrag=kfrag,
+                signed_writ=signed_writ,
+                work_order=work_order
+            )
         except Policy.Unauthorized:
             message = f'{bob_identity_message} Unauthorized work order.'
             log.info(message)
@@ -257,7 +259,7 @@ def _make_rest_app(datastore: Datastore, this_node, domain: str, log: Logger) ->
                 return Response(message, status=403)  # 403 - Forbidden
 
         # Re-encrypt
-        response = this_node._reencrypt(kfrag=kfrag,
+        response = this_node._reencrypt(kfrag=verified_kfrag,
                                         work_order=work_order,
                                         alice_verifying_key=alice_verifying_key)
 
