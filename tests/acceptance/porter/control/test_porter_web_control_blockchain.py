@@ -16,7 +16,7 @@
 """
 
 import json
-from base64 import b64encode
+from base64 import b64encode, b64decode
 
 import pytest
 from nucypher.crypto.umbral_adapter import PublicKey
@@ -26,6 +26,7 @@ from nucypher.crypto.powers import DecryptingPower
 from nucypher.network.nodes import Learner
 from nucypher.policy.maps import TreasureMap
 from tests.utils.middleware import MockRestMiddleware
+from tests.utils.policy import work_order_setup
 
 
 def test_get_ursulas(blockchain_porter_web_controller, blockchain_ursulas):
@@ -146,6 +147,50 @@ def test_publish_and_get_treasure_map(blockchain_porter_web_controller,
     assert response.status_code == 200
     response_data = json.loads(response.data)
     assert response_data['result']['treasure_map'] == b64encode(bytes(treasure_map)).decode()
+
+
+def test_exec_work_order(blockchain_porter_web_controller,
+                         blockchain_porter,
+                         mocker,
+                         mock_ursula_reencrypts,
+                         blockchain_ursulas,
+                         blockchain_bob,
+                         blockchain_alice,
+                         get_random_checksum_address):
+    # Send bad data to assert error return
+    response = blockchain_porter_web_controller.post('/exec_work_order', data=json.dumps({'bad': 'input'}))
+    assert response.status_code == 400
+
+    # Setup
+    ursula, work_order, expected_reencrypt_result = work_order_setup(mock_ursula_reencrypts,
+                                                                     blockchain_ursulas,
+                                                                     blockchain_bob,
+                                                                     blockchain_alice)
+    work_order_payload_b64 = b64encode(work_order.payload()).decode()
+
+    # Success
+    mocked_response = mocker.Mock(content=expected_reencrypt_result)
+    mocker.patch.object(blockchain_porter.network_middleware,
+                        'send_work_order_payload_to_ursula_stub',  # stubbed method for now
+                        return_value=mocked_response)
+    exec_work_order_params = {
+        'ursula': ursula.checksum_address,
+        'work_order_payload': work_order_payload_b64
+    }
+    response = blockchain_porter_web_controller.post('/exec_work_order', data=json.dumps(exec_work_order_params))
+    assert response.status_code == 200
+
+    response_data = json.loads(response.data)
+    work_order_result = response_data['result']['work_order_result']
+    assert b64decode(work_order_result) == expected_reencrypt_result
+
+    # Failure
+    exec_work_order_params = {
+        'ursula': get_random_checksum_address(),  # unknown ursula
+        'work_order_payload': work_order_payload_b64
+    }
+    with pytest.raises(Learner.NotEnoughNodes):
+        blockchain_porter_web_controller.post('/exec_work_order', data=json.dumps(exec_work_order_params))
 
 
 def test_get_ursulas_basic_auth(blockchain_porter_basic_auth_web_controller):

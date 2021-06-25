@@ -194,6 +194,8 @@ class Learner:
     __DEFAULT_NODE_STORAGE = ForgetfulNodeStorage
     __DEFAULT_MIDDLEWARE_CLASS = RestMiddleware
 
+    _crashed = False  # moved from Character - why was this in Character and not Learner before
+
     LEARNER_VERSION = LEARNING_LOOP_VERSION
     LOWEST_COMPATIBLE_VERSION = 2  # Disallow versions lower than this
 
@@ -657,8 +659,7 @@ class Learner:
                                              addresses: Set,
                                              timeout=LEARNING_TIMEOUT,
                                              allow_missing=0,
-                                             learn_on_this_thread=False,
-                                             verify_now=False):
+                                             learn_on_this_thread=False):
         start = maya.now()
         starting_round = self._learning_round
 

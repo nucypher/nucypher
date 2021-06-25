@@ -82,10 +82,9 @@ class PorterInterface(ControlInterface):
 
     @attach_schema(porter_schema.BobExecWorkOrder)
     def exec_work_order(self,
-                        ursula: str,
-                        work_order: bytes) -> dict:
-        # Steps (analogous to nucypher.character.control.interfaces):
-        # 1. creation of relevant objects / setup
-        # 2. call self.implementer.some_function() i.e. Porter learner has an associated function to call
-        # 3. create response
-        pass
+                        ursula: ChecksumAddress,
+                        work_order_payload: bytes) -> dict:
+        work_order_result = self.implementer.exec_work_order(ursula_checksum=ursula,
+                                                             work_order_payload=work_order_payload)
+        response_data = {'work_order_result': work_order_result}
+        return response_data

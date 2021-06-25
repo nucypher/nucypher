@@ -25,7 +25,6 @@ from constant_sorrow.constants import CERTIFICATE_NOT_SAVED, EXEMPT_FROM_VERIFIC
 from cryptography import x509
 from cryptography.hazmat.backends import default_backend
 
-from nucypher.blockchain.eth.networks import NetworksInventory
 from nucypher.crypto.splitters import cfrag_splitter, signature_splitter
 from nucypher.utilities.logging import Logger
 
@@ -230,6 +229,10 @@ class RestMiddleware:
             timeout=2
         )
         return response
+
+    def send_work_order_payload_to_ursula_stub(self, ursula, work_order_payload):
+        # stubbed for now until TMapConKFrags code is used
+        pass
 
     def check_rest_availability(self, initiator, responder):
         response = self.client.post(node_or_sprout=responder,

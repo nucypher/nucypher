@@ -14,6 +14,7 @@
  You should have received a copy of the GNU Affero General Public License
  along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
+import os
 from base64 import b64decode
 
 import pytest
@@ -21,6 +22,7 @@ from nucypher.crypto.umbral_adapter import PublicKey
 
 from nucypher.crypto.powers import DecryptingPower
 from nucypher.policy.maps import TreasureMap
+from tests.utils.policy import work_order_setup
 
 
 def test_get_ursulas(federated_porter, federated_ursulas):
@@ -94,3 +96,25 @@ def test_publish_and_get_treasure_map(federated_porter,
     treasure_map = federated_porter.get_treasure_map(map_identifier=map_id,
                                                      bob_encrypting_key=federated_bob.public_keys(DecryptingPower))
     assert treasure_map == enacted_federated_policy.treasure_map
+
+
+def test_exec_work_order(federated_porter,
+                         mocker,
+                         mock_ursula_reencrypts,
+                         federated_ursulas,
+                         federated_bob,
+                         federated_alice):
+    # Setup
+    ursula, work_order, expected_reencrypt_result = work_order_setup(mock_ursula_reencrypts,
+                                                                     federated_ursulas,
+                                                                     federated_bob,
+                                                                     federated_alice)
+
+    # use porter
+    mocked_response = mocker.Mock(content=expected_reencrypt_result)
+    mocker.patch.object(federated_porter.network_middleware,
+                        'send_work_order_payload_to_ursula_stub',  # stubbed method for now
+                        return_value=mocked_response)
+    result = federated_porter.exec_work_order(ursula_checksum=ursula.checksum_address,
+                                              work_order_payload=work_order.payload())
+    assert result == expected_reencrypt_result

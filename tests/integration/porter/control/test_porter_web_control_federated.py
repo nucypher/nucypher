@@ -24,6 +24,7 @@ from nucypher.crypto.umbral_adapter import PublicKey
 from nucypher.crypto.powers import DecryptingPower
 from nucypher.network.nodes import Learner
 from nucypher.policy.maps import TreasureMap
+from tests.utils.policy import work_order_setup
 
 
 def test_get_ursulas(federated_porter_web_controller, federated_ursulas):
@@ -150,6 +151,50 @@ def test_publish_and_get_treasure_map(federated_porter_web_controller,
     assert response_data['result']['treasure_map'] == b64encode(bytes(enacted_federated_policy.treasure_map)).decode()
 
 
+def test_exec_work_order(federated_porter_web_controller,
+                         federated_porter,
+                         mocker,
+                         mock_ursula_reencrypts,
+                         federated_ursulas,
+                         federated_bob,
+                         federated_alice,
+                         get_random_checksum_address):
+    # Send bad data to assert error return
+    response = federated_porter_web_controller.post('/exec_work_order', data=json.dumps({'bad': 'input'}))
+    assert response.status_code == 400
+
+    # Setup
+    ursula, work_order, expected_reencrypt_result = work_order_setup(mock_ursula_reencrypts,
+                                                                     federated_ursulas,
+                                                                     federated_bob,
+                                                                     federated_alice)
+    work_order_payload_b64 = b64encode(work_order.payload()).decode()
+
+    # Success
+    mocked_response = mocker.Mock(content=expected_reencrypt_result)
+    mocker.patch.object(federated_porter.network_middleware,
+                        'send_work_order_payload_to_ursula_stub',  # stubbed method for now
+                        return_value=mocked_response)
+    exec_work_order_params = {
+        'ursula': ursula.checksum_address,
+        'work_order_payload': work_order_payload_b64
+    }
+    response = federated_porter_web_controller.post('/exec_work_order', data=json.dumps(exec_work_order_params))
+    assert response.status_code == 200
+
+    response_data = json.loads(response.data)
+    work_order_result = response_data['result']['work_order_result']
+    assert b64decode(work_order_result) == expected_reencrypt_result
+
+    # Failure
+    exec_work_order_params = {
+        'ursula': get_random_checksum_address(),  # unknown ursula
+        'work_order_payload': work_order_payload_b64
+    }
+    with pytest.raises(Learner.NotEnoughNodes):
+        federated_porter_web_controller.post('/exec_work_order', data=json.dumps(exec_work_order_params))
+
+
 def test_endpoints_basic_auth(federated_porter_basic_auth_web_controller, random_federated_treasure_map_data):
     # /get_ursulas
     quantity = 4
@@ -178,6 +223,15 @@ def test_endpoints_basic_auth(federated_porter_basic_auth_web_controller, random
     }
     response = federated_porter_basic_auth_web_controller.post('/publish_treasure_map',
                                                                data=json.dumps(publish_treasure_map_params))
+    assert response.status_code == 401  # user not authenticated
+
+    # /exec_work_order
+    exec_work_order_params = {
+        'ursula': get_random_checksum_address(),
+        'work_order_payload': b64encode(b"some data").decode()
+    }
+    response = federated_porter_basic_auth_web_controller.post('/exec_work_order',
+                                                               data=json.dumps(exec_work_order_params))
     assert response.status_code == 401  # user not authenticated
 
     # try get_ursulas with authentication

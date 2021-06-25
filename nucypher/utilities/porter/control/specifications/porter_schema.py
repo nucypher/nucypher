@@ -164,7 +164,7 @@ class BobExecWorkOrder(BaseSchema):
         required=True,
         load_only=True,
         click=option_ursula())
-    work_order = fields.WorkOrder(
+    work_order_payload = fields.WorkOrder(
         required=True,
         load_only=True,
         click=click.option(
