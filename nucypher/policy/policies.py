@@ -25,7 +25,6 @@ from bytestring_splitter import BytestringSplitter, VariableLengthBytestring
 from eth_typing.evm import ChecksumAddress
 from nucypher.crypto.api import keccak_digest
 from twisted.internet import reactor
-from umbral.signing import Signature
 
 from nucypher.blockchain.eth.agents import StakersReservoir, StakingEscrowAgent
 from nucypher.blockchain.eth.constants import POLICY_ID_LENGTH
@@ -33,8 +32,9 @@ from nucypher.characters.lawful import Alice, Ursula
 from nucypher.crypto.constants import HRAC_LENGTH
 from nucypher.crypto.kits import RevocationKit
 from nucypher.crypto.powers import TransactingPower
-from nucypher.crypto.umbral_adapter import PublicKey, KeyFrag
-from nucypher.crypto.utils import keccak_digest, construct_policy_id
+from nucypher.crypto.utils import keccak_digest
+from nucypher.crypto.umbral_adapter import PublicKey, KeyFrag, Signature
+from nucypher.crypto.utils import construct_policy_id
 from nucypher.network.middleware import RestMiddleware
 from nucypher.utilities.concurrency import WorkerPool, AllAtOnceFactory
 from nucypher.utilities.logging import Logger

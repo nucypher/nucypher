@@ -18,11 +18,11 @@
 
 import os
 
-from umbral.key_frag import KeyFrag
+import pytest
 
 from nucypher.crypto.powers import DecryptingPower, SigningPower
+from nucypher.crypto.umbral_adapter import KeyFrag
 from nucypher.policy.maps import TreasureMap
-import pytest
 
 
 def test_complete_treasure_map_journey(federated_alice, federated_bob, federated_ursulas, mocker):

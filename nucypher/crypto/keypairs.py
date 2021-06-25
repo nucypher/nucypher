@@ -40,6 +40,7 @@ from nucypher.crypto.umbral_adapter import (
     decrypt_original,
     decrypt_reencrypted
 )
+from nucypher.network.resources import get_static_resources
 
 
 class Keypair(object):
