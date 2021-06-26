@@ -22,7 +22,7 @@ from pathlib import Path
 import json
 import random
 import time
-from base64 import b64decode, b64encode
+from base64 import b64encode
 from collections import OrderedDict, defaultdict, namedtuple
 from datetime import datetime
 from functools import partial
@@ -938,22 +938,12 @@ class Bob(Character):
 
         return cleartexts
 
-    def _handle_treasure_map(self, treasure_map, publisher_verifying_key: PublicKey, label: bytes):
+    def _handle_treasure_map(self,
+                             publisher_verifying_key: PublicKey,
+                             label: bytes,
+                             treasure_map: Optional['TreasureMap'] = None,
+                             ) -> 'TreasureMap':
         if treasure_map is not None:
-
-            if self.federated_only:
-                from nucypher.policy.maps import TreasureMap as _MapClass
-            else:
-                from nucypher.policy.maps import SignedTreasureMap as _MapClass
-
-            # TODO: This LBYL is ugly and fraught with danger.  NRN
-            if isinstance(treasure_map, bytes):
-                treasure_map = _MapClass.from_bytes(treasure_map)
-
-            if isinstance(treasure_map, str):
-                tmap_bytes = treasure_map.encode()
-                treasure_map = _MapClass.from_bytes(b64decode(tmap_bytes))
-
             self._try_orient(treasure_map, publisher_verifying_key)
             # self.treasure_maps[treasure_map.public_id()] = treasure_map # TODO: Can we?
         else:
@@ -973,11 +963,11 @@ class Bob(Character):
                  # Policy
                  *message_kits: UmbralMessageKit,
                  label: bytes,
-                 policy_encrypting_key: PublicKey = None,
-                 treasure_map: Union['TreasureMap', bytes] = None,
+                 policy_encrypting_key: Optional[PublicKey] = None,
+                 treasure_map: Optional['TreasureMap'] = None,
 
                  # Source Authentication
-                 enrico: "Enrico" = None,
+                 enrico: Optional["Enrico"] = None,
                  alice_verifying_key: Union[PublicKey, bytes],
                  publisher_verifying_key: Optional[Union[PublicKey, bytes]] = None,
 
@@ -988,13 +978,9 @@ class Bob(Character):
 
                  ) -> List[bytes]:
 
-        # Try our best to get an PublicKey instances from input
-        alice_verifying_key = PublicKey.from_bytes(bytes(alice_verifying_key))
         if not publisher_verifying_key:
             # If an policy relay's verifying key is not passed, use the alice's by default.
             publisher_verifying_key = alice_verifying_key
-        else:
-            publisher_verifying_key = PublicKey.from_bytes(bytes(publisher_verifying_key))
 
         treasure_map, m = self._handle_treasure_map(treasure_map=treasure_map,
                                                     publisher_verifying_key=publisher_verifying_key,

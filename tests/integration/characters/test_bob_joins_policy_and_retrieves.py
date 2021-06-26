@@ -217,15 +217,8 @@ def test_bob_retrieves_with_treasure_map(
         treasure_map=treasure_map)
 
     message_kit.clear_cfrags()  # Return back to a non re-encrypted state
-    # Serialized treasure map
-    text2 = federated_bob.retrieve(
-        message_kit,
-        enrico=enrico,
-        alice_verifying_key=alice_verifying_key,
-        label=enacted_federated_policy.label,
-        treasure_map=bytes(treasure_map))
 
-    assert text1[0] == text2[0] == b'Welcome to flippering number 2.'
+    assert text1 == [b'Welcome to flippering number 2.']
 
 
 def test_bob_retrieves_too_late(federated_bob, federated_ursulas,
