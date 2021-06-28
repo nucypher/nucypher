@@ -91,7 +91,7 @@ Run Porter within Docker without acquiring or installing the ``nucypher`` codeba
          $ docker run -d --rm \
             --name porter-https \
             -v ~/.local/share/nucypher/:/root/.local/share/nucypher \
-            -v <TLS DIRECTORY>:/etc/porter \
+            -v <TLS DIRECTORY>:/etc/porter/tls \
             -p 443:9155 \
             nucypher/nucypher:latest \
             nucypher porter run \
@@ -107,7 +107,7 @@ Run Porter within Docker without acquiring or installing the ``nucypher`` codeba
          $ docker run -d --rm \
             --name porter-https-auth \
             -v ~/.local/share/nucypher/:/root/.local/share/nucypher \
-            -v <TLS DIRECTORY>:/etc/porter \
+            -v <TLS DIRECTORY>:/etc/porter/tls \
             -v <HTPASSWD FILE>:/etc/porter/auth/htpasswd \
             -p 443:9155 \
             nucypher/nucypher:latest \
