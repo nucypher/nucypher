@@ -14,7 +14,7 @@
  You should have received a copy of the GNU Affero General Public License
  along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
-from typing import List, Optional, Iterable
+from typing import List, Optional, Sequence
 
 from constant_sorrow.constants import NO_CONTROL_PROTOCOL, NO_BLOCKCHAIN_CONNECTION
 from eth_typing import ChecksumAddress
@@ -63,6 +63,8 @@ the Pipe for nucypher network operations
     _LONG_LEARNING_DELAY = 30
     _ROUNDS_WITHOUT_NODES_AFTER_WHICH_TO_SLOW_DOWN = 25
 
+    DEFAULT_EXECUTION_TIMEOUT = 10  # 10s
+
     DEFAULT_PORT = 9155
 
     _interface_class = PorterInterface
@@ -110,28 +112,29 @@ the Pipe for nucypher network operations
             self.make_cli_controller()
         self.log.info(self.BANNER)
 
-    def get_treasure_map(self, map_identifier: str, bob_encrypting_key: UmbralPublicKey, timeout=3):
+    def get_treasure_map(self, map_identifier: str, bob_encrypting_key: UmbralPublicKey):
         return treasuremap.get_treasure_map_from_known_ursulas(learner=self,
                                                                map_identifier=map_identifier,
                                                                bob_encrypting_key=bob_encrypting_key,
-                                                               timeout=timeout)
+                                                               timeout=self.DEFAULT_EXECUTION_TIMEOUT)
 
     def publish_treasure_map(self, treasure_map_bytes: bytes, bob_encrypting_key: UmbralPublicKey) -> None:
         # TODO (#2516): remove hardcoding of 8 nodes
-        self.block_until_number_of_known_nodes_is(8, timeout=2, learn_on_this_thread=True)
+        self.block_until_number_of_known_nodes_is(8, timeout=self.DEFAULT_EXECUTION_TIMEOUT, learn_on_this_thread=True)
         target_nodes = treasuremap.find_matching_nodes(known_nodes=self.known_nodes,
                                                        bob_encrypting_key=bob_encrypting_key)
         treasure_map_publisher = TreasureMapPublisher(treasure_map_bytes=treasure_map_bytes,
                                                       nodes=target_nodes,
-                                                      network_middleware=self.network_middleware)
+                                                      network_middleware=self.network_middleware,
+                                                      timeout=self.DEFAULT_EXECUTION_TIMEOUT)
         treasure_map_publisher.start()  # let's do this
         treasure_map_publisher.block_until_success_is_reasonably_likely()
 
     def get_ursulas(self,
                     quantity: int,
                     duration_periods: int = None,  # optional for federated mode
-                    exclude_ursulas: Optional[Iterable[ChecksumAddress]] = None,
-                    include_ursulas: Optional[Iterable[ChecksumAddress]] = None) -> List[UrsulaInfo]:
+                    exclude_ursulas: Optional[Sequence[ChecksumAddress]] = None,
+                    include_ursulas: Optional[Sequence[ChecksumAddress]] = None) -> List[UrsulaInfo]:
         reservoir = self._make_staker_reservoir(quantity, duration_periods, exclude_ursulas, include_ursulas)
         value_factory = PrefetchStrategy(reservoir, quantity)
 
@@ -150,12 +153,15 @@ the Pipe for nucypher network operations
                                      uri=f"{ursula.rest_interface.formal_uri}",
                                      encrypting_key=ursula.public_keys(DecryptingPower))
 
-        self.block_until_number_of_known_nodes_is(quantity, learn_on_this_thread=True, eager=True)
+        self.block_until_number_of_known_nodes_is(quantity,
+                                                  timeout=self.DEFAULT_EXECUTION_TIMEOUT,
+                                                  learn_on_this_thread=True,
+                                                  eager=True)
 
         worker_pool = WorkerPool(worker=get_ursula_info,
                                  value_factory=value_factory,
                                  target_successes=quantity,
-                                 timeout=10,  # TODO what is a good timeout? Should we standardize for Porter?
+                                 timeout=self.DEFAULT_EXECUTION_TIMEOUT,
                                  stagger_timeout=1,
                                  threadpool_size=quantity)
         worker_pool.start()
@@ -166,11 +172,13 @@ the Pipe for nucypher network operations
     def _make_staker_reservoir(self,
                                quantity: int,
                                duration_periods: int = None,  # optional for federated mode
-                               exclude_ursulas: Optional[Iterable[ChecksumAddress]] = None,
-                               include_ursulas: Optional[Iterable[ChecksumAddress]] = None):
+                               exclude_ursulas: Optional[Sequence[ChecksumAddress]] = None,
+                               include_ursulas: Optional[Sequence[ChecksumAddress]] = None):
         if self.federated_only:
             sample_size = quantity - (len(include_ursulas) if include_ursulas else 0)
-            if not self.block_until_number_of_known_nodes_is(sample_size, learn_on_this_thread=True):
+            if not self.block_until_number_of_known_nodes_is(sample_size,
+                                                             timeout=self.DEFAULT_EXECUTION_TIMEOUT,
+                                                             learn_on_this_thread=True):
                 raise ValueError("Unable to learn about sufficient Ursulas")
             return make_federated_staker_reservoir(known_nodes=self.known_nodes,
                                                    exclude_addresses=exclude_ursulas,

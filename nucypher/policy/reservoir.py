@@ -45,7 +45,8 @@ def make_federated_staker_reservoir(known_nodes: FleetSensor,
 def make_decentralized_staker_reservoir(staking_agent: StakingEscrowAgent,
                                         duration_periods: int,
                                         exclude_addresses: Optional[Iterable[ChecksumAddress]] = None,
-                                        include_addresses: Optional[Iterable[ChecksumAddress]] = None):
+                                        include_addresses: Optional[Iterable[ChecksumAddress]] = None,
+                                        pagination_size: int = None):
     """
     Get a sampler object containing the currently registered stakers.
     """
@@ -56,7 +57,8 @@ def make_decentralized_staker_reservoir(staking_agent: StakingEscrowAgent,
     without_set = set(include_addresses) | set(exclude_addresses or ())
     try:
         reservoir = staking_agent.get_stakers_reservoir(duration=duration_periods,
-                                                        without=without_set)
+                                                        without=without_set,
+                                                        pagination_size=pagination_size)
     except StakingEscrowAgent.NotEnoughStakers:
         # TODO: do that in `get_stakers_reservoir()`?
         reservoir = StakersReservoir({})
