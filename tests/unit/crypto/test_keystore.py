@@ -125,12 +125,13 @@ def test_keystore_derive_crypto_power_without_unlock(tmpdir):
 
 
 def test_keystore_serializer():
-    encrypted_secret, salt = b'peanuts! Get your peanuts!', b'sea salt'
-    payload = _assemble_keystore(encrypted_secret=encrypted_secret, salt=salt)
+    encrypted_secret, psalt, wsalt = b'peanuts! Get your peanuts!', b'sea salt', b'bath salt'
+    payload = _assemble_keystore(encrypted_secret=encrypted_secret, password_salt=psalt, wrapper_salt=wsalt)
     serialized_payload = _serialize_keystore(payload)
     deserialized_key_data = _deserialize_keystore(serialized_payload)
     assert deserialized_key_data['key'] == encrypted_secret
-    assert deserialized_key_data['salt'] == salt
+    assert deserialized_key_data['password_salt'] == psalt
+    assert deserialized_key_data['wrapper_salt'] == wsalt
 
 
 def test_keystore_lock_unlock(tmpdir):
@@ -169,12 +170,13 @@ def test_keystore_lock_unlock(tmpdir):
 
 def test_write_keystore_file(temp_dir_path):
     temp_filepath = Path(temp_dir_path) / "test_private_key_serialization_file"
-    encrypted_secret, salt = b'peanuts! Get your peanuts!', b'sea salt'
-    payload = _assemble_keystore(encrypted_secret=encrypted_secret, salt=salt)
+    encrypted_secret, psalt, wsalt = b'peanuts! Get your peanuts!', b'sea salt', b'bath_salt'
+    payload = _assemble_keystore(encrypted_secret=encrypted_secret, password_salt=psalt, wrapper_salt=wsalt)
     _write_keystore(path=temp_filepath, payload=payload, serializer=_serialize_keystore)
     deserialized_payload_from_file = _read_keystore(path=temp_filepath, deserializer=_deserialize_keystore)
     assert deserialized_payload_from_file['key'] == encrypted_secret
-    assert deserialized_payload_from_file['salt'] == salt
+    assert deserialized_payload_from_file['password_salt'] == psalt
+    assert deserialized_payload_from_file['wrapper_salt'] == wsalt
 
 
 def test_decrypt_keystore(tmpdir, mocker):

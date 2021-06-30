@@ -20,7 +20,6 @@ import os
 import pytest
 from constant_sorrow.constants import NO_PASSWORD
 from mnemonic.mnemonic import Mnemonic
-from nacl.exceptions import CryptoError
 
 from nucypher.blockchain.eth.decorators import InvalidChecksumAddress
 from nucypher.characters.control.emitters import StdoutEmitter
@@ -37,7 +36,9 @@ from nucypher.cli.literature import (
     GENERIC_PASSWORD_PROMPT
 )
 from nucypher.config.base import CharacterConfiguration
+from nucypher.crypto import passwords
 from nucypher.crypto.keystore import Keystore
+from nucypher.crypto.passwords import SecretBoxAuthenticationError
 from tests.constants import INSECURE_DEVELOPMENT_PASSWORD
 
 
@@ -106,7 +107,7 @@ def test_get_nucypher_password(mock_stdin, mock_account, confirm, capsys):
 def test_unlock_nucypher_keystore_invalid_password(mocker, test_emitter, alice_blockchain_test_config, capsys, tmpdir):
 
     # Setup
-    mocker.patch.object(Keystore, '_Keystore__decrypt_keystore', side_effect=CryptoError)
+    mocker.patch.object(passwords, 'secret_box_decrypt', side_effect=SecretBoxAuthenticationError)
     mocker.patch.object(CharacterConfiguration,
                         'dev_mode',
                         return_value=False,
