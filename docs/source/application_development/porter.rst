@@ -65,7 +65,7 @@ Run Porter within Docker without acquiring or installing the ``nucypher`` codeba
 
    .. code:: bash
 
-       $ docker pull nucypher/nucypher:latest
+       $ docker pull nucypher/nucypher-porter:latest
 
 #. Run Porter service
 
@@ -77,7 +77,7 @@ Run Porter within Docker without acquiring or installing the ``nucypher`` codeba
           --name porter-http \
           -v ~/.local/share/nucypher/:/root/.local/share/nucypher \
           -p 80:9155 \
-          nucypher/nucypher:latest \
+          nucypher/nucypher-porter:latest \
           nucypher porter run \
           --provider <YOUR WEB3 PROVIDER URI> \
           --network <NETWORK NAME>
@@ -93,7 +93,7 @@ Run Porter within Docker without acquiring or installing the ``nucypher`` codeba
             -v ~/.local/share/nucypher/:/root/.local/share/nucypher \
             -v <TLS DIRECTORY>:/etc/porter/tls \
             -p 443:9155 \
-            nucypher/nucypher:latest \
+            nucypher/nucypher-porter:latest \
             nucypher porter run \
             --provider <YOUR WEB3 PROVIDER URI> \
             --network <NETWORK NAME> \
@@ -110,7 +110,7 @@ Run Porter within Docker without acquiring or installing the ``nucypher`` codeba
             -v <TLS DIRECTORY>:/etc/porter/tls \
             -v <HTPASSWD FILE>:/etc/porter/auth/htpasswd \
             -p 443:9155 \
-            nucypher/nucypher:latest \
+            nucypher/nucypher-porter:latest \
             nucypher porter run \
             --provider <YOUR WEB3 PROVIDER URI> \
             --network <NETWORK NAME> \
