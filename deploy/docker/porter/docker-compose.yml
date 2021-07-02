@@ -3,7 +3,7 @@ version: '3'
 services:
   porter-http:
     restart: on-failure
-    image: nucypher:latest
+    image: nucypher-porter
     build:
       context: ../../..
       dockerfile: deploy/docker/porter/Dockerfile
@@ -19,10 +19,7 @@ services:
 
   porter-https:
     restart: on-failure
-    image: nucypher:latest
-    build:
-      context: ../../..
-      dockerfile: deploy/docker/porter/Dockerfile
+    image: nucypher-porter
     ports:
       # Default Porter port
       - "443:9155"
@@ -38,10 +35,7 @@ services:
 
   porter-https-auth:
     restart: on-failure
-    image: nucypher:latest
-    build:
-      context: ../../..
-      dockerfile: deploy/docker/porter/Dockerfile
+    image: nucypher-porter
     ports:
       # Default Porter port
       - "443:9155"

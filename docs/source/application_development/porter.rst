@@ -227,7 +227,7 @@ Docker Compose will start the Porter service within a Docker container.
 
    .. code:: bash
 
-       $ docker-compose -f deploy/docker/porter/docker-compose.yml down <PORTER SERVICE>
+       $ docker-compose -f deploy/docker/porter/docker-compose.yml down
 
 
 via CLI
