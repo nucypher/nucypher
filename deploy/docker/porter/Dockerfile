@@ -1,4 +1,4 @@
-FROM nucypher:latest
+FROM nucypher/nucypher:latest
 
 # Update
 RUN apt update -y && apt upgrade -y
