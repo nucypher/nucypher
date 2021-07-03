@@ -18,8 +18,9 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 
 import contextlib
 import socket
-from cryptography.x509 import Certificate
 from typing import Iterable, List, Optional, Set
+
+from cryptography.x509 import Certificate
 
 from nucypher.blockchain.eth.actors import Staker
 from nucypher.blockchain.eth.interfaces import BlockchainInterface
@@ -64,9 +65,7 @@ def make_federated_ursulas(ursula_config: UrsulaConfiguration,
         starting_port = max(MOCK_KNOWN_URSULAS_CACHE.keys()) + 1
 
     federated_ursulas = set()
-
     for port in range(starting_port, starting_port+quantity):
-
         ursula = ursula_config.produce(rest_port=port + 100,
                                        db_filepath=MOCK_DB,
                                        **ursula_overrides)

@@ -82,7 +82,7 @@ alice_config = AliceConfiguration(
 
 alice_config.initialize(password=passphrase)
 
-alice_config.keyring.unlock(password=passphrase)
+alice_config.keystore.unlock(password=passphrase)
 alicia = alice_config.produce()
 
 # We will save Alicia's config to a file for later use

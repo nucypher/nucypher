@@ -15,20 +15,17 @@ You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
-from typing import Optional
 
+from cryptography.exceptions import InternalError
 from cryptography.hazmat.backends import default_backend
-from cryptography.hazmat.primitives.kdf.scrypt import Scrypt
 from cryptography.hazmat.primitives.kdf.hkdf import HKDF
-
-from nacl.secret import SecretBox
-from nacl.utils import random as nacl_random
+from cryptography.hazmat.primitives.kdf.scrypt import Scrypt
 from nacl.exceptions import CryptoError
+from nacl.secret import SecretBox
 
 from nucypher.crypto.constants import BLAKE2B
 
-
-__MASTER_KEY_LENGTH = 32 # This will be passed to HKDF, but it is not picky about the length
+__MASTER_KEY_LENGTH = 32  # This will be passed to HKDF, but it is not picky about the length
 __WRAPPING_KEY_LENGTH = SecretBox.KEY_SIZE
 __WRAPPING_KEY_INFO = b'NuCypher-KeyWrap'
 __HKDF_HASH_ALGORITHM = BLAKE2B

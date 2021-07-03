@@ -16,7 +16,7 @@
       with_items:
         - "{{geth_dir}}keystore"
         - /home/nucypher/nucypher/ursula.db
-        - /home/nucypher/nucypher/keyring/
+        - /home/nucypher/nucypher/keystore/
         - "{{geth_dir}}account.txt"
         - home/nucypher/nucypher/ursula.json
 
@@ -28,8 +28,7 @@
       with_items:
         - "{{geth_dir}}keystore"
         - /home/nucypher/nucypher/ursula.db
-        - /home/nucypher/nucypher/keyring/private
-        - /home/nucypher/nucypher/keyring/public
+        - /home/nucypher/nucypher/keystore
 
     - name: Restore Geth Keystore
       become: yes
@@ -41,25 +40,15 @@
       with_fileglob:
         - "{{restore_path}}{{geth_dir}}keystore/*"
 
-    - name: Restore private keyring
+    - name: Restore keystore
       become: yes
       copy:
         src: "{{ item }}"
-        dest: /home/nucypher/nucypher/keyring/private/
+        dest: /home/nucypher/nucypher/keystore
         owner: "nucypher"
         mode: 0600
       with_fileglob:
-        - "{{restore_path}}/home/nucypher/nucypher/keyring/private/*"
-
-    - name: Restore public keyring
-      become: yes
-      copy:
-        src: "{{ item }}"
-        dest: /home/nucypher/nucypher/keyring/public/
-        owner: "nucypher"
-        mode: 0600
-      with_fileglob:
-        - "{{restore_path}}/home/nucypher/nucypher/keyring/public/*"
+        - "{{restore_path}}/home/nucypher/nucypher/keystore/*"
 
     - name: Restore Ursula database files
       become: yes

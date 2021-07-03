@@ -17,9 +17,10 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 
 
 import inspect
+from typing import List, Optional, Tuple
+
 from eth_typing.evm import ChecksumAddress
 from hexbytes import HexBytes
-from typing import List, Optional, Tuple
 
 from nucypher.blockchain.eth.decorators import validate_checksum_address
 from nucypher.blockchain.eth.signers.base import Signer
@@ -245,14 +246,13 @@ class DerivedKeyBasedPower(CryptoPowerUp):
 
 class DelegatingPower(DerivedKeyBasedPower):
 
-    def __init__(self, keying_material: Optional[bytes] = None):
-        if keying_material is None:
-            self.__umbral_keying_material = SecretKeyFactory.random()
-        else:
-            self.__umbral_keying_material = SecretKeyFactory.from_bytes(keying_material)
+    def __init__(self, secret_key_factory: Optional[SecretKeyFactory] = None):
+        if not secret_key_factory:
+            secret_key_factory = SecretKeyFactory.random()
+        self.__secret_key_factory = secret_key_factory
 
     def _get_privkey_from_label(self, label):
-        return self.__umbral_keying_material.secret_key_by_label(label)
+        return self.__secret_key_factory.secret_key_by_label(label)
 
     def get_pubkey_from_label(self, label):
         return self._get_privkey_from_label(label).public_key()

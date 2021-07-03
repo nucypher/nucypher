@@ -17,6 +17,9 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 
 
 import contextlib
+from contextlib import suppress
+from typing import ClassVar, Dict, List, Optional, Union
+
 from constant_sorrow import default_constant_splitter
 from constant_sorrow.constants import (
     DO_NOT_SIGN,
@@ -29,19 +32,15 @@ from constant_sorrow.constants import (
     SIGNATURE_TO_FOLLOW,
     STRANGER
 )
-from contextlib import suppress
 from cryptography.exceptions import InvalidSignature
 from eth_keys import KeyAPI as EthKeyAPI
 from eth_utils import to_canonical_address, to_checksum_address
-from typing import ClassVar, Dict, List, Optional, Union
 
 from nucypher.acumen.nicknames import Nickname
-from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
 from nucypher.blockchain.eth.registry import BaseContractRegistry, InMemoryContractRegistry
 from nucypher.blockchain.eth.signers.base import Signer
 from nucypher.characters.control.controllers import CLIController, JSONRPCController
-from nucypher.config.keyring import NucypherKeyring
-from nucypher.crypto.api import encrypt_and_sign
+from nucypher.crypto.keystore import Keystore
 from nucypher.crypto.kits import UmbralMessageKit
 from nucypher.crypto.powers import (
     CryptoPower,
@@ -57,6 +56,7 @@ from nucypher.crypto.signing import (
 )
 from nucypher.crypto.splitters import signature_splitter
 from nucypher.crypto.umbral_adapter import PublicKey, Signature
+from nucypher.crypto.utils import encrypt_and_sign
 from nucypher.network.middleware import RestMiddleware
 from nucypher.network.nodes import Learner
 
@@ -76,7 +76,7 @@ class Character(Learner):
                  federated_only: bool = False,
                  checksum_address: str = None,
                  network_middleware: RestMiddleware = None,
-                 keyring: NucypherKeyring = None,
+                 keystore: Keystore = None,
                  crypto_power: CryptoPower = None,
                  crypto_power_ups: List[CryptoPowerUp] = None,
                  provider_uri: str = None,
@@ -138,18 +138,12 @@ class Character(Learner):
         # Keys & Powers
         #
 
-        if keyring:
-            keyring_root, keyring_checksum_address = keyring.keyring_root, keyring.checksum_address
-            if checksum_address and (keyring_checksum_address != checksum_address):
-                raise ValueError(f"Provided checksum address {checksum_address} "
-                                 f"does not match character's keyring checksum address {keyring_checksum_address}")
-            checksum_address = keyring_checksum_address
-
+        if keystore:
             crypto_power_ups = list()
             for power_up in self._default_crypto_powerups:
-                power = keyring.derive_crypto_power(power_class=power_up)
+                power = keystore.derive_crypto_power(power_class=power_up)
                 crypto_power_ups.append(power)
-        self.keyring = keyring
+        self.keystore = keystore
 
         if crypto_power and crypto_power_ups:
             raise ValueError("Pass crypto_power or crypto_power_ups (or neither), but not both.")
@@ -203,6 +197,7 @@ class Character(Learner):
                 try:
                     derived_federated_address = self.derive_federated_address()
                 except NoSigningPower:
+                    # TODO: Why allow such a character (without signing power) to be created at all?
                     derived_federated_address = NO_SIGNING_POWER.bool_value(False)
 
                 if checksum_address and (checksum_address != derived_federated_address):
@@ -225,7 +220,7 @@ class Character(Learner):
 
             verifying_key = self.public_keys(SigningPower)
             self._stamp = StrangerStamp(verifying_key)
-            self.keyring_root = STRANGER
+            self.keystore_dir = STRANGER
             self.network_middleware = STRANGER
             self.checksum_address = checksum_address
 

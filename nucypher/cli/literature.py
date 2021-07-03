@@ -426,11 +426,11 @@ Do not forget this password, and ideally store it using a password manager.
 
 COLLECT_ETH_PASSWORD = "Enter ethereum account password ({checksum_address})"
 
-COLLECT_NUCYPHER_PASSWORD = 'Enter nucypher keyring password'
+COLLECT_NUCYPHER_PASSWORD = 'Enter nucypher keystore password'
 
 GENERIC_PASSWORD_PROMPT = "Enter password"
 
-DECRYPTING_CHARACTER_KEYRING = 'Authenticating {name}'
+DECRYPTING_CHARACTER_KEYSTORE = 'Authenticating {name}'
 
 
 #

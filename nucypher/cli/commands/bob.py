@@ -200,7 +200,7 @@ class BobCharacterOptions:
         config = self.config_options.create_config(emitter, config_file)
         BOB = make_cli_character(character_config=config,
                                  emitter=emitter,
-                                 unlock_keyring=not self.config_options.dev,
+                                 unlock_keystore=not self.config_options.dev,
                                  unlock_signer=not config.federated_only and config.signer_uri,
                                  teacher_uri=self.teacher_uri,
                                  min_stake=self.min_stake,

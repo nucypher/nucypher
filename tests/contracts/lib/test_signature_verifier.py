@@ -17,8 +17,9 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 
 
 import os
-import pytest
+
 import coincurve
+import pytest
 from cryptography.hazmat.backends.openssl import backend
 from cryptography.hazmat.primitives import hashes
 from eth_account.account import Account
@@ -27,9 +28,12 @@ from eth_keys import KeyAPI as EthKeyAPI
 from eth_tester.exceptions import TransactionFailed
 from eth_utils import to_canonical_address, to_checksum_address, to_normalized_address
 
-from nucypher.crypto.api import keccak_digest, verify_eip_191
 from nucypher.crypto.umbral_adapter import SecretKey, PublicKey, Signer, Signature
-from nucypher.crypto.utils import canonical_address_from_umbral_key
+from nucypher.crypto.utils import (
+    canonical_address_from_umbral_key,
+    keccak_digest,
+    verify_eip_191
+)
 
 ALGORITHM_KECCAK256 = 0
 ALGORITHM_SHA256 = 1

@@ -16,18 +16,19 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
 import contextlib
-import time
 from collections import defaultdict, deque
 from contextlib import suppress
 from queue import Queue
-from typing import Iterable, List, Set, Tuple, Union
+from typing import Iterable, List, Set, Tuple, Union, Callable
 
 import maya
 import requests
+import time
 from bytestring_splitter import (
     BytestringSplitter,
     PartiallyKwargifiedBytes,
-    VariableLengthBytestring
+    VariableLengthBytestring,
+    BytestringSplittingError
 )
 from constant_sorrow import constant_or_bytes
 from constant_sorrow.constants import (
@@ -54,16 +55,16 @@ from nucypher.blockchain.eth.networks import NetworksInventory
 from nucypher.blockchain.eth.registry import BaseContractRegistry
 from nucypher.config.constants import SeednodeMetadata
 from nucypher.config.storages import ForgetfulNodeStorage
-from nucypher.crypto.api import InvalidNodeCertificate, recover_address_eip_191, verify_eip_191
 from nucypher.crypto.kits import UmbralMessageKit
 from nucypher.crypto.powers import DecryptingPower, NoSigningPower, SigningPower
 from nucypher.crypto.splitters import signature_splitter
-from nucypher.crypto.umbral_adapter import Signature
+from nucypher.crypto.utils import recover_address_eip_191, verify_eip_191
 from nucypher.network import LEARNING_LOOP_VERSION
 from nucypher.network.exceptions import NodeSeemsToBeDown
 from nucypher.network.middleware import RestMiddleware
 from nucypher.network.protocols import SuspiciousActivity
 from nucypher.utilities.logging import Logger
+from nucypher.crypto.umbral_adapter import Signature
 
 TEACHER_NODES = {
     NetworksInventory.MAINNET: (
@@ -74,6 +75,7 @@ TEACHER_NODES = {
     NetworksInventory.LYNX: ('https://lynx.nucypher.network:9151',),
     NetworksInventory.IBEX: ('https://ibex.nucypher.network:9151',),
 }
+
 
 class NodeSprout(PartiallyKwargifiedBytes):
     """
@@ -152,7 +154,7 @@ class NodeSprout(PartiallyKwargifiedBytes):
         self.__dict__ = mature_node.__dict__
 
         # As long as we're doing egregious workarounds, here's another one.  # TODO: 1481
-        filepath = mature_node._cert_store_function(certificate=mature_node.certificate)
+        filepath = mature_node._cert_store_function(certificate=mature_node.certificate, port=mature_node.rest_interface.port)
         mature_node.certificate_filepath = filepath
 
         _finishing_mutex.put(self)
@@ -424,10 +426,7 @@ class Learner:
             stranger_certificate = node.certificate
 
             # Store node's certificate - It has been seen.
-            try:
-                certificate_filepath = self.node_storage.store_node_certificate(certificate=stranger_certificate)
-            except InvalidNodeCertificate:
-                return False  # that was easy
+            certificate_filepath = self.node_storage.store_node_certificate(certificate=stranger_certificate, port=node.rest_interface.port)
 
             # In some cases (seed nodes or other temp stored certs),
             # this will update the filepath from the temp location to this one.
@@ -1021,7 +1020,7 @@ class Teacher:
                                      "We're version {}."
 
     @classmethod
-    def set_cert_storage_function(cls, node_storage_function):
+    def set_cert_storage_function(cls, node_storage_function: Callable):
         cls._cert_store_function = node_storage_function
 
     def mature(self, *args, **kwargs):
@@ -1205,7 +1204,7 @@ class Teacher:
         # The node's metadata is valid; let's be sure the interface is in order.
         if not certificate_filepath:
             if self.certificate_filepath is CERTIFICATE_NOT_SAVED:
-                self.certificate_filepath = self._cert_store_function(self.certificate)
+                self.certificate_filepath = self._cert_store_function(self.certificate, port=self.rest_interface.port)
             certificate_filepath = self.certificate_filepath
 
         response_data = network_middleware_client.node_information(host=self.rest_interface.host,

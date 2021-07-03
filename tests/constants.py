@@ -24,7 +24,7 @@ from random import SystemRandom
 from web3 import Web3
 
 from nucypher.blockchain.eth.token import NU
-from nucypher.config.constants import NUCYPHER_ENVVAR_KEYRING_PASSWORD, NUCYPHER_ENVVAR_WORKER_ETH_PASSWORD
+from nucypher.config.constants import NUCYPHER_ENVVAR_KEYSTORE_PASSWORD, NUCYPHER_ENVVAR_WORKER_ETH_PASSWORD
 
 #
 # Ursula
@@ -76,7 +76,7 @@ NUMBER_OF_ALLOCATIONS_IN_TESTS = 50  # TODO: Move to constants
 
 __valid_password_chars = string.ascii_uppercase + string.ascii_lowercase + string.digits
 
-INSECURE_DEVELOPMENT_PASSWORD = ''.join(SystemRandom().choice(__valid_password_chars) for _ in range(16))
+INSECURE_DEVELOPMENT_PASSWORD = ''.join(SystemRandom().choice(__valid_password_chars) for _ in range(32))
 
 #
 # Temporary Directories and Files
@@ -137,7 +137,7 @@ NO_ENTER = NO + '\n'
 
 FAKE_PASSWORD_CONFIRMED = '{password}\n{password}\n'.format(password=INSECURE_DEVELOPMENT_PASSWORD)
 
-CLI_TEST_ENV = {NUCYPHER_ENVVAR_KEYRING_PASSWORD: INSECURE_DEVELOPMENT_PASSWORD}
+CLI_TEST_ENV = {NUCYPHER_ENVVAR_KEYSTORE_PASSWORD: INSECURE_DEVELOPMENT_PASSWORD}
 
-CLI_ENV = {NUCYPHER_ENVVAR_KEYRING_PASSWORD: INSECURE_DEVELOPMENT_PASSWORD,
+CLI_ENV = {NUCYPHER_ENVVAR_KEYSTORE_PASSWORD: INSECURE_DEVELOPMENT_PASSWORD,
            NUCYPHER_ENVVAR_WORKER_ETH_PASSWORD: INSECURE_DEVELOPMENT_PASSWORD}

@@ -17,11 +17,15 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 
 import click
 import maya
+from constant_sorrow.constants import NO_KEYSTORE_ATTACHED
 
 from nucypher.blockchain.eth.sol.__conf__ import SOLIDITY_COMPILER_VERSION
 from nucypher.characters.banners import NUCYPHER_BANNER
-from nucypher.config.constants import DEFAULT_CONFIG_ROOT, USER_LOG_DIR, END_OF_POLICIES_PROBATIONARY_PERIOD
-from constant_sorrow.constants import NO_KEYRING_ATTACHED
+from nucypher.config.constants import (
+    DEFAULT_CONFIG_ROOT,
+    USER_LOG_DIR,
+    END_OF_POLICIES_PROBATIONARY_PERIOD
+)
 
 
 def echo_version(ctx, param, value):
@@ -41,35 +45,33 @@ def echo_solidity_version(ctx, param, value):
 def echo_config_root_path(ctx, param, value):
     if not value or ctx.resilient_parsing:
         return
-    click.secho(DEFAULT_CONFIG_ROOT)
+    click.secho(str(DEFAULT_CONFIG_ROOT.resolve()))
     ctx.exit()
 
 
 def echo_logging_root_path(ctx, param, value):
     if not value or ctx.resilient_parsing:
         return
-    click.secho(USER_LOG_DIR)
+    click.secho(str(USER_LOG_DIR.resolve()))
     ctx.exit()
 
 
 def paint_new_installation_help(emitter, new_configuration, filepath):
     character_config_class = new_configuration.__class__
     character_name = character_config_class.NAME.lower()
-
-    if new_configuration.keyring != NO_KEYRING_ATTACHED:
-        maybe_public_key = bytes(new_configuration.keyring.signing_public_key).hex()
+    if new_configuration.keystore != NO_KEYSTORE_ATTACHED:
+        maybe_public_key = new_configuration.keystore.id
     else:
-        maybe_public_key = "(no keyring attached)"
-
-    emitter.message(f"Generated keyring", color='green')
+        maybe_public_key = "(no keystore attached)"
+    emitter.message(f"Generated keystore", color='green')
     emitter.message(f"""
     
-Public key (stamp):   {maybe_public_key}
-Path to keyring: {new_configuration.keyring_root}
+Public Key:   {maybe_public_key}
+Path to Keystore: {new_configuration.keystore_dir}
 
 - You can share your public key with anyone. Others need it to interact with you.
 - Never share secret keys with anyone! 
-- Backup your keyring! Character keys are required to interact with the protocol!
+- Backup your keystore! Character keys are required to interact with the protocol!
 - Remember your password! Without the password, it's impossible to decrypt the key!
 
 """)

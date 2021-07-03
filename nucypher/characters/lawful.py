@@ -16,14 +16,20 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
 
-import json
-from collections import OrderedDict, defaultdict
-
 import contextlib
-import maya
+import json
 import random
-import time
 from base64 import b64decode, b64encode
+from collections import OrderedDict, defaultdict
+from datetime import datetime
+from functools import partial
+from json.decoder import JSONDecodeError
+from queue import Queue
+from random import shuffle
+from typing import Dict, Iterable, List, NamedTuple, Tuple, Union, Optional, Sequence, Set, Any
+
+import maya
+import time
 from bytestring_splitter import (
     BytestringKwargifier,
     BytestringSplitter,
@@ -43,19 +49,13 @@ from constant_sorrow.constants import (
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives.serialization import Encoding
 from cryptography.x509 import Certificate, NameOID, load_pem_x509_certificate
-from datetime import datetime
 from eth_typing.evm import ChecksumAddress
 from eth_utils import to_checksum_address
 from flask import Response, request
-from functools import partial
-from json.decoder import JSONDecodeError
-from queue import Queue
-from random import shuffle
 from twisted.internet import reactor, stdio, threads
 from twisted.internet.defer import Deferred
 from twisted.internet.task import LoopingCall
 from twisted.logger import Logger
-from typing import Dict, Iterable, List, NamedTuple, Tuple, Union, Optional, Sequence, Set, Any
 
 import nucypher
 from nucypher.acumen.nicknames import Nickname
@@ -74,7 +74,6 @@ from nucypher.characters.control.interfaces import AliceInterface, BobInterface,
 from nucypher.cli.processes import UrsulaCommandProtocol
 from nucypher.config.constants import END_OF_POLICIES_PROBATIONARY_PERIOD
 from nucypher.config.storages import ForgetfulNodeStorage, NodeStorage
-from nucypher.crypto.api import encrypt_and_sign, keccak_digest
 from nucypher.crypto.constants import HRAC_LENGTH
 from nucypher.crypto.keypairs import HostingKeypair
 from nucypher.crypto.kits import UmbralMessageKit
@@ -88,6 +87,7 @@ from nucypher.crypto.powers import (
 from nucypher.crypto.signing import InvalidSignature
 from nucypher.crypto.splitters import key_splitter, signature_splitter
 from nucypher.crypto.umbral_adapter import Capsule, PublicKey, VerifiedKeyFrag, Signature, VerificationError, reencrypt
+from nucypher.crypto.utils import keccak_digest, encrypt_and_sign
 from nucypher.datastore.datastore import DatastoreTransactionError, RecordNotFound
 from nucypher.datastore.queries import find_expired_policies, find_expired_treasure_maps
 from nucypher.network.exceptions import NodeSeemsToBeDown
@@ -1186,14 +1186,12 @@ class Ursula(Teacher, Character, Worker):
             # Pre-existing or injected power
             tls_hosting_power = self._crypto_power.power_ups(TLSHostingPower)
         except TLSHostingPower.not_found_error:
-            if self.keyring:
-                # Restore from TLS private key on-disk
-                tls_hosting_power = self.keyring.derive_crypto_power(TLSHostingPower, host=host)
+            if self.keystore:
+                # Derive TLS private key from seed
+                tls_hosting_power = self.keystore.derive_crypto_power(TLSHostingPower, host=host)
             else:
                 # Generate ephemeral private key ("Dev Mode")
-                tls_hosting_keypair = HostingKeypair(host=host,
-                                                     checksum_address=self.checksum_address,
-                                                     generate_certificate=True)
+                tls_hosting_keypair = HostingKeypair(host=host, generate_certificate=True)
                 tls_hosting_power = TLSHostingPower(keypair=tls_hosting_keypair, host=host)
             self._crypto_power.consume_power_up(tls_hosting_power)  # Consume!
         return tls_hosting_power
@@ -1514,11 +1512,6 @@ class Ursula(Teacher, Character, Worker):
         if network_middleware is None:
             network_middleware = RestMiddleware(registry=registry)
 
-        #
-        # WARNING: xxx Poison xxx
-        # Let's learn what we can about the ... "seednode".
-        #
-
         # Parse node URI
         host, port, staker_address = parse_node_uri(seed_uri)
 
@@ -1533,7 +1526,7 @@ class Ursula(Teacher, Character, Worker):
 
         # Create a temporary certificate storage area
         temp_node_storage = ForgetfulNodeStorage(federated_only=federated_only)
-        temp_certificate_filepath = temp_node_storage.store_node_certificate(certificate=certificate)
+        temp_certificate_filepath = temp_node_storage.store_node_certificate(certificate=certificate, port=port)
 
         # Load the host as a potential seed node
         potential_seed_node = cls.from_rest_url(

@@ -19,7 +19,7 @@
 import click
 
 from nucypher.blockchain.eth.signers.software import ClefSigner
-from nucypher.cli.actions.auth import get_client_password, get_nucypher_password
+from nucypher.cli.actions.auth import get_client_password, get_nucypher_password, recover_keystore
 from nucypher.cli.actions.configure import (
     destroy_configuration,
     handle_missing_configuration_file,
@@ -63,7 +63,7 @@ from nucypher.config.constants import (
     NUCYPHER_ENVVAR_WORKER_ETH_PASSWORD,
     TEMPORARY_DOMAIN
 )
-from nucypher.config.keyring import NucypherKeyring
+from nucypher.crypto.keystore import Keystore
 
 
 class UrsulaConfigOptions:
@@ -156,7 +156,7 @@ class UrsulaConfigOptions:
                 )
             except FileNotFoundError:
                 return handle_missing_configuration_file(character_config_class=UrsulaConfiguration, config_file=config_file)
-            except NucypherKeyring.AuthenticationFailed as e:
+            except Keystore.AuthenticationFailed as e:
                 emitter.echo(str(e), color='red', bold=True)
                 # TODO: Exit codes (not only for this, but for other exceptions)
                 return click.get_current_context().exit(1)
@@ -202,7 +202,7 @@ class UrsulaConfigOptions:
                        db_filepath=self.db_filepath,
                        domain=self.domain,
                        federated_only=self.federated_only,
-                       checksum_address=self.worker_address,
+                       worker_address=self.worker_address,
                        registry_filepath=self.registry_filepath,
                        provider_uri=self.provider_uri,
                        signer_uri=self.signer_uri,
@@ -263,7 +263,7 @@ class UrsulaCharacterOptions:
                                         emitter=emitter,
                                         min_stake=self.min_stake,
                                         teacher_uri=self.teacher_uri,
-                                        unlock_keyring=not self.config_options.dev,
+                                        unlock_keystore=not self.config_options.dev,
                                         client_password=__password,
                                         unlock_signer=False,  # Ursula's unlock is managed separately using client_password.
                                         lonely=self.config_options.lonely,
@@ -271,7 +271,7 @@ class UrsulaCharacterOptions:
                                         json_ipc=json_ipc)
             return ursula_config, URSULA
 
-        except NucypherKeyring.AuthenticationFailed as e:
+        except Keystore.AuthenticationFailed as e:
             emitter.echo(str(e), color='red', bold=True)
             # TODO: Exit codes (not only for this, but for other exceptions)
             return click.get_current_context().exit(1)
@@ -308,6 +308,16 @@ def init(general_config, config_options, force, config_root):
     ursula_config = config_options.generate_config(emitter, config_root, force)
     filepath = ursula_config.to_configuration_file()
     paint_new_installation_help(emitter, new_configuration=ursula_config, filepath=filepath)
+
+
+@ursula.command()
+@group_config_options
+@group_general_config
+def recover(general_config, config_options):
+    # TODO: Combine with work in PR #2682
+    # TODO: Integrate regeneration of configuration files
+    emitter = setup_emitter(general_config, config_options.worker_address)
+    recover_keystore(emitter=emitter)
 
 
 @ursula.command()

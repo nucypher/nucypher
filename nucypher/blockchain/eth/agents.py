@@ -54,7 +54,7 @@ from nucypher.blockchain.eth.decorators import contract_api
 from nucypher.blockchain.eth.events import ContractEvents
 from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
 from nucypher.blockchain.eth.registry import BaseContractRegistry
-from nucypher.crypto.api import sha256_digest
+from nucypher.crypto.utils import sha256_digest
 from nucypher.crypto.powers import TransactingPower
 from nucypher.types import (
     Agent,

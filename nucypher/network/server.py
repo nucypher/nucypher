@@ -16,28 +16,26 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
 
-import binascii
 import os
 import uuid
 import weakref
+from datetime import datetime, timedelta
+from typing import Tuple
+
+import binascii
 from bytestring_splitter import BytestringSplitter
 from constant_sorrow import constants
 from constant_sorrow.constants import (
     FLEET_STATES_MATCH,
     NO_BLOCKCHAIN_CONNECTION,
-    NO_KNOWN_NODES,
     RELAX
 )
-from datetime import datetime, timedelta
 from flask import Flask, Response, jsonify, request
 from mako import exceptions as mako_exceptions
 from mako.template import Template
 from maya import MayaDT
-from typing import Tuple
 from web3.exceptions import TimeExhausted
 
-import nucypher
-from nucypher.crypto.api import InvalidNodeCertificate
 from nucypher.config.constants import MAX_UPLOAD_CONTENT_LENGTH
 from nucypher.crypto.keypairs import HostingKeypair
 from nucypher.crypto.kits import UmbralMessageKit
@@ -162,9 +160,6 @@ def _make_rest_app(datastore: Datastore, this_node, domain: str, log: Logger) ->
                                                                                                certificate_filepath=certificate_filepath)
             except NodeSeemsToBeDown:
                 return Response({'error': 'Unreachable node'}, status=400)  # ... toasted
-
-            except InvalidNodeCertificate:
-                return Response({'error': 'Invalid TLS certificate - missing checksum address'}, status=400)  # ... invalid
 
             # Compare the results of the outer POST with the inner GET... yum
             if requesting_ursula_bytes == request.data:

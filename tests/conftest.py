@@ -19,6 +19,7 @@ from collections import defaultdict
 
 import lmdb
 import pytest
+from eth_utils.crypto import keccak
 
 from nucypher.characters.control.emitters import WebEmitter
 from nucypher.crypto.powers import TransactingPower
@@ -45,7 +46,7 @@ Learner._DEBUG_MODE = False
 
 
 @pytest.fixture(autouse=True, scope='session')
-def __very_pretty_and_insecure_scrypt_do_not_use():
+def __very_pretty_and_insecure_scrypt_do_not_use(request):
     """
     # WARNING: DO NOT USE THIS CODE ANYWHERE #
 
@@ -57,13 +58,10 @@ def __very_pretty_and_insecure_scrypt_do_not_use():
     from cryptography.hazmat.primitives.kdf.scrypt import Scrypt
     original_derivation_function = Scrypt.derive
 
-    # One-Time Insecure Password
-    insecure_password = bytes(INSECURE_DEVELOPMENT_PASSWORD, encoding='utf8')
-
     # Patch Method
-    def __insecure_derive(*args, **kwargs):
+    def __insecure_derive(_scrypt, key_material: bytes):
         """Temporarily replaces Scrypt.derive for mocking"""
-        return insecure_password
+        return keccak(key_material)
 
     # Disable Scrypt KDF
     Scrypt.derive = __insecure_derive

@@ -43,8 +43,8 @@ def test_alices_powers_are_persistent(federated_ursulas, tmpdir):
     # Generate keys and write them the disk
     alice_config.initialize(password=INSECURE_DEVELOPMENT_PASSWORD)
 
-    # Unlock Alice's keyring
-    alice_config.keyring.unlock(password=INSECURE_DEVELOPMENT_PASSWORD)
+    # Unlock Alice's keystore
+    alice_config.keystore.unlock(password=INSECURE_DEVELOPMENT_PASSWORD)
 
     # Produce an Alice
     alice = alice_config()  # or alice_config.produce()
@@ -98,9 +98,8 @@ def test_alices_powers_are_persistent(federated_ursulas, tmpdir):
         config_root=config_root
     )
 
-    # Alice unlocks her restored keyring from disk
-    new_alice_config.attach_keyring()
-    new_alice_config.keyring.unlock(password=INSECURE_DEVELOPMENT_PASSWORD)
+    # Alice unlocks her restored keystore from disk
+    new_alice_config.keystore.unlock(password=INSECURE_DEVELOPMENT_PASSWORD)
     new_alice = new_alice_config()
 
     # First, we check that her public keys are correctly restored

@@ -21,15 +21,15 @@ import os
 import re
 from abc import ABC, abstractmethod
 from decimal import Decimal
+from pathlib import Path
 from tempfile import TemporaryDirectory
 from typing import Union, Callable, Optional, List
 
 from constant_sorrow.constants import (
     UNKNOWN_VERSION,
     UNINITIALIZED_CONFIGURATION,
-    NO_KEYRING_ATTACHED,
+    NO_KEYSTORE_ATTACHED,
     NO_BLOCKCHAIN_CONNECTION,
-    FEDERATED_ADDRESS,
     DEVELOPMENT_CONFIGURATION,
     LIVE_CONFIGURATION
 )
@@ -45,12 +45,12 @@ from nucypher.blockchain.eth.registry import (
 from nucypher.blockchain.eth.signers import Signer
 from nucypher.characters.lawful import Ursula
 from nucypher.config import constants
-from nucypher.config.keyring import NucypherKeyring
 from nucypher.config.storages import (
     ForgetfulNodeStorage,
     LocalFileBasedNodeStorage,
     NodeStorage
 )
+from nucypher.crypto.keystore import Keystore
 from nucypher.crypto.powers import CryptoPower, CryptoPowerUp
 from nucypher.crypto.umbral_adapter import Signature
 from nucypher.network.middleware import RestMiddleware
@@ -312,16 +312,18 @@ class CharacterConfiguration(BaseConfiguration):
     'Sideways Engagement' of Character classes; a reflection of input parameters.
     """
 
-    VERSION = 2  # bump when static payload scheme changes
+    VERSION = 3  # bump when static payload scheme changes
 
     CHARACTER_CLASS = NotImplemented
     DEFAULT_CONTROLLER_PORT = NotImplemented
+    MNEMONIC_KEYSTORE = False
     DEFAULT_DOMAIN = NetworksInventory.DEFAULT
     DEFAULT_NETWORK_MIDDLEWARE = RestMiddleware
     TEMP_CONFIGURATION_DIR_PREFIX = 'tmp-nucypher'
     SIGNER_ENVVAR = None
 
-    # When we begin to support other threshold schemes, this will be one of the concepts that makes us want a factory.  #571
+    # When we begin to support other threshold schemes,
+    # this will be one of the concepts that makes us want a factory.  #571
     known_node_class = Ursula
 
     # Gas
@@ -336,7 +338,7 @@ class CharacterConfiguration(BaseConfiguration):
                       'gas_strategy',
                       'max_gas_price',  # gwei
                       'signer_uri',
-                      'keyring_root'
+                      'keystore_path'
                       )
 
     def __init__(self,
@@ -354,9 +356,9 @@ class CharacterConfiguration(BaseConfiguration):
                  checksum_address: str = None,
                  crypto_power: CryptoPower = None,
 
-                 # Keyring
-                 keyring: NucypherKeyring = None,
-                 keyring_root: str = None,
+                 # Keystore
+                 keystore: Keystore = None,
+                 keystore_path: Path = None,
 
                  # Learner
                  learn_on_same_thread: bool = False,
@@ -402,10 +404,12 @@ class CharacterConfiguration(BaseConfiguration):
         self.is_me = True
         self.checksum_address = checksum_address
 
-        # Keyring
+        # Keystore
         self.crypto_power = crypto_power
-        self.keyring = keyring or NO_KEYRING_ATTACHED
-        self.keyring_root = keyring_root or UNINITIALIZED_CONFIGURATION
+        if keystore_path and not keystore:
+            keystore = Keystore(keystore_path=keystore_path)
+        self.__keystore = self.__keystore = keystore or NO_KEYSTORE_ATTACHED.bool_value(False)
+        self.keystore_dir = Path(keystore.keystore_path).parent if keystore else UNINITIALIZED_CONFIGURATION
 
         # Contract Registry
         if registry and registry_filepath:
@@ -521,11 +525,18 @@ class CharacterConfiguration(BaseConfiguration):
     def __call__(self, **character_kwargs):
         return self.produce(**character_kwargs)
 
+    @property
+    def keystore(self) -> Keystore:
+        return self.__keystore
+
+    def attach_keystore(self, keystore: Keystore) -> None:
+        self.__keystore = keystore
+
     @classmethod
     def checksum_address_from_filepath(cls, filepath: str) -> str:
         pattern = re.compile(r'''
                              (^\w+)-
-                             (0x{1}         # Then, 0x the start of the string, exactly once
+                             (0x{1}           # Then, 0x the start of the string, exactly once
                              [0-9a-fA-F]{40}) # Followed by exactly 40 hex chars
                              ''',
                              re.VERBOSE)
@@ -587,8 +598,6 @@ class CharacterConfiguration(BaseConfiguration):
 
     def destroy(self) -> None:
         """Parse a node configuration and remove all associated files from the filesystem"""
-        self.attach_keyring()
-        self.keyring.destroy()
         os.remove(self.config_file_location)
 
     def generate_parameters(self, **overrides) -> dict:
@@ -655,13 +664,13 @@ class CharacterConfiguration(BaseConfiguration):
 
     def static_payload(self) -> dict:
         """Exported static configuration values for initializing Ursula"""
-
+        keystore_path = str(self.keystore.keystore_path) if self.keystore else None
         payload = dict(
 
             # Identity
             federated_only=self.federated_only,
             checksum_address=self.checksum_address,
-            keyring_root=self.keyring_root,
+            keystore_path=keystore_path,
 
             # Behavior
             domain=self.domain,
@@ -695,9 +704,12 @@ class CharacterConfiguration(BaseConfiguration):
 
         return payload
 
-    @property  # TODO: Graduate to a method and "derive" dynamic from static payload.
+    @property
     def dynamic_payload(self) -> dict:
-        """Exported dynamic configuration values for initializing Ursula"""
+        """
+        Exported dynamic configuration values for initializing Ursula.
+        These values are used to init a character instance but are not saved to the JSON configuration.
+        """
         payload = dict()
         if not self.federated_only:
             payload.update(dict(registry=self.registry, signer=self.signer))
@@ -705,7 +717,7 @@ class CharacterConfiguration(BaseConfiguration):
         payload.update(dict(network_middleware=self.network_middleware or self.DEFAULT_NETWORK_MIDDLEWARE(),
                             known_nodes=self.known_nodes,
                             node_storage=self.node_storage,
-                            keyring=self.keyring,
+                            keystore=self.keystore,
                             crypto_power_ups=self.derive_node_power_ups()))
 
         return payload
@@ -718,7 +730,7 @@ class CharacterConfiguration(BaseConfiguration):
     @property
     def runtime_filepaths(self) -> dict:
         filepaths = dict(config_root=self.config_root,
-                         keyring_root=self.keyring_root,
+                         keystore_dir=self.keystore_dir,
                          registry_filepath=self.registry_filepath)
         return filepaths
 
@@ -727,7 +739,7 @@ class CharacterConfiguration(BaseConfiguration):
         """Dynamically generate paths based on configuration root directory"""
         filepaths = dict(config_root=config_root,
                          config_file_location=os.path.join(config_root, cls.generate_filename()),
-                         keyring_root=os.path.join(config_root, 'keyring'))
+                         keystore_dir=os.path.join(config_root, 'keystore'))
         return filepaths
 
     def _cache_runtime_filepaths(self) -> None:
@@ -737,21 +749,11 @@ class CharacterConfiguration(BaseConfiguration):
             if getattr(self, field) is UNINITIALIZED_CONFIGURATION:
                 setattr(self, field, filepath)
 
-    def attach_keyring(self, checksum_address: str = None, *args, **kwargs) -> None:
-        account = checksum_address or self.checksum_address
-        if not account:
-            raise self.ConfigurationError("No account specified to unlock keyring")
-        if self.keyring is not NO_KEYRING_ATTACHED:
-            if self.keyring.checksum_address != account:
-                raise self.ConfigurationError("There is already a keyring attached to this configuration.")
-            return
-        self.keyring = NucypherKeyring(keyring_root=self.keyring_root, account=account, *args, **kwargs)
-
     def derive_node_power_ups(self) -> List[CryptoPowerUp]:
         power_ups = list()
         if self.is_me and not self.dev_mode:
             for power_class in self.CHARACTER_CLASS._default_crypto_powerups:
-                power_up = self.keyring.derive_crypto_power(power_class)
+                power_up = self.keystore.derive_crypto_power(power_class)
                 power_ups.append(power_up)
         return power_ups
 
@@ -766,7 +768,7 @@ class CharacterConfiguration(BaseConfiguration):
         # Persistent
         else:
             self._ensure_config_root_exists()
-            self.write_keyring(password=password)
+            self.write_keystore(password=password, interactive=self.MNEMONIC_KEYSTORE)
 
         self._cache_runtime_filepaths()
         self.node_storage.initialize()
@@ -780,27 +782,9 @@ class CharacterConfiguration(BaseConfiguration):
         self.log.debug(message)
         return self.config_root
 
-    def write_keyring(self, password: str, checksum_address: str = None, **generation_kwargs) -> NucypherKeyring:
-
-        # Configure checksum address
-        checksum_address = checksum_address or self.checksum_address
-        if self.federated_only:
-            checksum_address = FEDERATED_ADDRESS
-        elif not checksum_address:
-            raise self.ConfigurationError(f'No checksum address provided for decentralized configuration.')
-
-        # Generate new keys
-        self.keyring = NucypherKeyring.generate(password=password,
-                                                keyring_root=self.keyring_root,
-                                                checksum_address=checksum_address,
-                                                **generation_kwargs)
-
-        # In the case of a federated keyring generation,
-        # the generated federated address must be set here.
-        if self.federated_only:
-            self.checksum_address = self.keyring.checksum_address
-
-        return self.keyring
+    def write_keystore(self, password: str, interactive: bool = True) -> Keystore:
+        self.__keystore = Keystore.generate(password=password, keystore_dir=self.keystore_dir, interactive=interactive)
+        return self.keystore
 
     @classmethod
     def load_node_storage(cls, storage_payload: dict, federated_only: bool):

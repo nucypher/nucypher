@@ -177,7 +177,7 @@ def make_alice(known_nodes: Optional[Set[Ursula]] = None):
     )
 
     alice_config.initialize(password=INSECURE_PASSWORD)
-    alice_config.keyring.unlock(password=INSECURE_PASSWORD)
+    alice_config.keystore.unlock(password=INSECURE_PASSWORD)
     alice = alice_config.produce()
     alice.signer.unlock(account=ALICE_ADDRESS, password=SIGNER_PASSWORD)
     alice.start_learning_loop(now=True)

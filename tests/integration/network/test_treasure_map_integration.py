@@ -18,7 +18,7 @@
 import pytest
 
 from nucypher.characters.lawful import Ursula
-from nucypher.crypto.api import keccak_digest
+from nucypher.crypto.utils import keccak_digest
 from nucypher.datastore.models import TreasureMap as DatastoreTreasureMap
 from nucypher.policy.collections import TreasureMap as FederatedTreasureMap
 from tests.utils.middleware import MockRestMiddleware

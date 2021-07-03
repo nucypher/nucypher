@@ -32,7 +32,7 @@ from nucypher.characters.chaotic import Felix
 from nucypher.cli.literature import SUCCESSFUL_DESTRUCTION
 from nucypher.cli.main import nucypher_cli
 from nucypher.config.characters import FelixConfiguration
-from nucypher.config.constants import NUCYPHER_ENVVAR_KEYRING_PASSWORD, TEMPORARY_DOMAIN
+from nucypher.config.constants import NUCYPHER_ENVVAR_KEYSTORE_PASSWORD, TEMPORARY_DOMAIN
 from tests.constants import (INSECURE_DEVELOPMENT_PASSWORD, MOCK_CUSTOM_INSTALLATION_PATH_2, TEST_PROVIDER_URI)
 
 
@@ -58,7 +58,7 @@ def test_run_felix(click_runner, testerchain, agency_local_registry):
     os.environ['NUCYPHER_FELIX_DB_SECRET'] = INSECURE_DEVELOPMENT_PASSWORD
 
     # Test subproc (Click)
-    envvars = {NUCYPHER_ENVVAR_KEYRING_PASSWORD: INSECURE_DEVELOPMENT_PASSWORD,
+    envvars = {NUCYPHER_ENVVAR_KEYSTORE_PASSWORD: INSECURE_DEVELOPMENT_PASSWORD,
                'NUCYPHER_FELIX_DB_SECRET': INSECURE_DEVELOPMENT_PASSWORD,
                'NUCYPHER_WORKER_ETH_PASSWORD': INSECURE_DEVELOPMENT_PASSWORD,
                'FLASK_DEBUG': '1'}
@@ -105,8 +105,7 @@ def test_run_felix(click_runner, testerchain, agency_local_registry):
         felix_config = FelixConfiguration.from_configuration_file(filepath=configuration_file_location,
                                                                   registry_filepath=agency_local_registry.filepath)
 
-        felix_config.attach_keyring()
-        felix_config.keyring.unlock(password=INSECURE_DEVELOPMENT_PASSWORD)
+        felix_config.keystore.unlock(password=INSECURE_DEVELOPMENT_PASSWORD)
         felix = felix_config.produce()
 
         # Make a flask app

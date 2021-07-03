@@ -16,36 +16,24 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
 
-import datetime
-from collections import OrderedDict
-from queue import Queue, Empty
-from typing import Callable, Tuple, Sequence, Set, Optional, Iterable, List, Dict, Type
-
 import math
-import maya
-import random
-import time
 from abc import ABC, abstractmethod
+from typing import Tuple, Sequence, Optional, Iterable, List, Dict, Type
+
+import maya
 from bytestring_splitter import BytestringSplitter, VariableLengthBytestring
-from constant_sorrow.constants import NOT_SIGNED
 from eth_typing.evm import ChecksumAddress
 from hexbytes import HexBytes
-from twisted._threads import AlreadyQuit
 from twisted.internet import reactor
-from twisted.internet.defer import ensureDeferred, Deferred
-from twisted.python.threadpool import ThreadPool
 
-from nucypher.blockchain.eth.actors import BlockchainPolicyAuthor
-from nucypher.blockchain.eth.agents import PolicyManagerAgent, StakersReservoir, StakingEscrowAgent
+from nucypher.blockchain.eth.agents import StakersReservoir, StakingEscrowAgent
 from nucypher.characters.lawful import Alice, Ursula
-from nucypher.crypto.api import keccak_digest, secure_random
 from nucypher.crypto.constants import HRAC_LENGTH
 from nucypher.crypto.kits import RevocationKit
 from nucypher.crypto.powers import DecryptingPower, SigningPower, TransactingPower
 from nucypher.crypto.splitters import key_splitter
 from nucypher.crypto.umbral_adapter import PublicKey, KeyFrag
-from nucypher.crypto.utils import construct_policy_id
-from nucypher.network.exceptions import NodeSeemsToBeDown
+from nucypher.crypto.utils import construct_policy_id, secure_random, keccak_digest
 from nucypher.network.middleware import RestMiddleware
 from nucypher.utilities.concurrency import WorkerPool, AllAtOnceFactory
 from nucypher.utilities.logging import Logger
@@ -464,6 +452,11 @@ class Policy(ABC):
         Attempts to enact the policy, returns an `EnactedPolicy` object on success.
         """
 
+        # TODO: Why/is this needed here?
+        # Workaround for `RuntimeError: Learning loop is not running.  Start it with start_learning().`
+        if not self.alice._learning_task.running:
+            self.alice.start_learning_loop()
+
         arrangements = self._make_arrangements(network_middleware=network_middleware,
                                                handpicked_ursulas=handpicked_ursulas)
 
@@ -508,7 +501,6 @@ class Policy(ABC):
 
 
 class FederatedPolicy(Policy):
-
     from nucypher.policy.collections import TreasureMap as _treasure_map_class  # TODO: Circular Import
 
     def _not_enough_ursulas_exception(self):
@@ -531,7 +523,7 @@ class BlockchainPolicy(Policy):
     A collection of n Arrangements representing a single Policy
     """
 
-    from nucypher.policy.collections import SignedTreasureMap as _treasure_map_class  # TODO: Circular Import
+    from nucypher.policy.collections import SignedTreasureMap as _treasure_map_class
 
     class InvalidPolicyValue(ValueError):
         pass

@@ -19,14 +19,18 @@ import unittest
 
 import sha3
 
-from nucypher.crypto import api
+from nucypher.crypto.utils import (
+    secure_random_range,
+    secure_random,
+    keccak_digest
+)
 
 
 class TestCrypto(unittest.TestCase):
 
     def test_secure_random(self):
-        rand1 = api.secure_random(10)
-        rand2 = api.secure_random(10)
+        rand1 = secure_random(10)
+        rand2 = secure_random(10)
 
         self.assertNotEqual(rand1, rand2)
         self.assertEqual(bytes, type(rand1))
@@ -35,13 +39,13 @@ class TestCrypto(unittest.TestCase):
         self.assertEqual(10, len(rand2))
 
     def test_secure_random_range(self):
-        output = [api.secure_random_range(1, 3) for _ in range(20)]
+        output = [secure_random_range(1, 3) for _ in range(20)]
 
         # Test that highest output can be max-1
         self.assertNotIn(3, output)
 
         # Test that min is present
-        output = [api.secure_random_range(1, 2) for _ in range(20)]
+        output = [secure_random_range(1, 2) for _ in range(20)]
         self.assertNotIn(2, output)
         self.assertIn(1, output)
 
@@ -49,7 +53,7 @@ class TestCrypto(unittest.TestCase):
         data = b'this is a test'
 
         digest1 = sha3.keccak_256(data).digest()
-        digest2 = api.keccak_digest(data)
+        digest2 = keccak_digest(data)
 
         self.assertEqual(digest1, digest2)
 
@@ -57,6 +61,6 @@ class TestCrypto(unittest.TestCase):
         data = data.split()
 
         digest1 = sha3.keccak_256(b''.join(data)).digest()
-        digest2 = api.keccak_digest(*data)
+        digest2 = keccak_digest(*data)
 
         self.assertEqual(digest1, digest2)

@@ -16,18 +16,17 @@
 """
 
 import os
-from unittest.mock import Mock
+import tempfile
 
 import pytest
-import tempfile
-from constant_sorrow.constants import CERTIFICATE_NOT_SAVED, NO_KEYRING_ATTACHED
+from constant_sorrow.constants import CERTIFICATE_NOT_SAVED, NO_KEYSTORE_ATTACHED
 
-from tests.constants import MOCK_IP_ADDRESS
 from nucypher.blockchain.eth.actors import StakeHolder
 from nucypher.characters.chaotic import Felix
 from nucypher.characters.lawful import Alice, Bob, Ursula
 from nucypher.cli.actions.configure import destroy_configuration
 from nucypher.cli.literature import SUCCESSFUL_DESTRUCTION
+from nucypher.config.base import CharacterConfiguration
 from nucypher.config.characters import (
     AliceConfiguration,
     BobConfiguration,
@@ -36,11 +35,11 @@ from nucypher.config.characters import (
     UrsulaConfiguration
 )
 from nucypher.config.constants import TEMPORARY_DOMAIN
-from nucypher.config.keyring import NucypherKeyring
-from nucypher.config.base import CharacterConfiguration
 from nucypher.config.storages import ForgetfulNodeStorage
+from nucypher.crypto.keystore import Keystore
 from nucypher.crypto.umbral_adapter import SecretKey
-
+from tests.constants import INSECURE_DEVELOPMENT_PASSWORD
+from tests.constants import MOCK_IP_ADDRESS
 
 # Main Cast
 configurations = (AliceConfiguration, BobConfiguration, UrsulaConfiguration)
@@ -66,7 +65,7 @@ def test_federated_development_character_configurations(character, configuration
 
     assert config.is_me is True
     assert config.dev_mode is True
-    assert config.keyring == NO_KEYRING_ATTACHED
+    assert config.keystore == NO_KEYSTORE_ATTACHED
     assert config.provider_uri is None
 
     # Production
@@ -106,7 +105,7 @@ def test_federated_development_character_configurations(character, configuration
 
 # TODO: This test is unnecessarily slow due to the blockchain configurations. Perhaps we should mock them -- See #2230
 @pytest.mark.parametrize('configuration_class', all_configurations)
-def test_default_character_configuration_preservation(configuration_class, testerchain, test_registry_source_manager):
+def test_default_character_configuration_preservation(configuration_class, testerchain, test_registry_source_manager, mocker, tmpdir):
 
     configuration_class.DEFAULT_CONFIG_ROOT = '/tmp'
     fake_address = '0xdeadbeef'
@@ -127,13 +126,13 @@ def test_default_character_configuration_preservation(configuration_class, teste
 
     elif configuration_class == UrsulaConfiguration:
         # special case for rest_host & dev mode
-        # use keyring
-        keyring = Mock(spec=NucypherKeyring)
-        keyring.signing_public_key = SecretKey.random().public_key()
+        # use keystore
+        keystore = Keystore.generate(password=INSECURE_DEVELOPMENT_PASSWORD, keystore_dir=tmpdir)
+        keystore.signing_public_key = SecretKey.random().public_key()
         character_config = configuration_class(checksum_address=fake_address,
                                                domain=network,
                                                rest_host=MOCK_IP_ADDRESS,
-                                               keyring=keyring)
+                                               keystore=keystore)
 
     else:
         character_config = configuration_class(checksum_address=fake_address, domain=network)
@@ -166,7 +165,7 @@ def test_ursula_development_configuration(federated_only=True):
     config = UrsulaConfiguration(dev_mode=True, federated_only=federated_only)
     assert config.is_me is True
     assert config.dev_mode is True
-    assert config.keyring == NO_KEYRING_ATTACHED
+    assert config.keystore == NO_KEYSTORE_ATTACHED
 
     # Produce an Ursula
     ursula_one = config()
@@ -209,9 +208,9 @@ def test_destroy_configuration(config,
     config_file = config.filepath
 
     # Isolate from filesystem and Spy on the methods we're testing here
-    spy_keyring_attached = mocker.spy(CharacterConfiguration, 'attach_keyring')
+    spy_keystore_attached = mocker.spy(CharacterConfiguration, 'attach_keystore')
     mock_config_destroy = mocker.patch.object(CharacterConfiguration, 'destroy')
-    spy_keyring_destroy = mocker.spy(NucypherKeyring, 'destroy')
+    spy_keystore_destroy = mocker.spy(Keystore, 'destroy')
     mock_os_remove = mocker.patch('os.remove')
 
     # Test
@@ -221,8 +220,8 @@ def test_destroy_configuration(config,
     captured = capsys.readouterr()
     assert SUCCESSFUL_DESTRUCTION in captured.out
 
-    spy_keyring_attached.assert_called_once()
-    spy_keyring_destroy.assert_called_once()
+    spy_keystore_attached.assert_called_once()
+    spy_keystore_destroy.assert_called_once()
     mock_os_remove.assert_called_with(str(config_file))
 
     # Ensure all destroyed files belong to this Ursula

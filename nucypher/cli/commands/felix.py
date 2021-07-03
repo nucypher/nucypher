@@ -23,7 +23,7 @@ from nucypher.characters.control.emitters import StdoutEmitter
 from nucypher.cli.actions.auth import (
     get_client_password,
     get_nucypher_password,
-    unlock_nucypher_keyring
+    unlock_nucypher_keystore
 )
 from nucypher.cli.actions.configure import destroy_configuration, handle_missing_configuration_file
 from nucypher.cli.actions.select import select_config_file
@@ -161,7 +161,7 @@ class FelixCharacterOptions:
 
         try:
             # Authenticate
-            unlock_nucypher_keyring(emitter,
+            unlock_nucypher_keystore(emitter,
                                     character_configuration=felix_config,
                                     password=get_nucypher_password(emitter=emitter, confirm=False))
 

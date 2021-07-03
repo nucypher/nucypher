@@ -169,7 +169,7 @@ def test_staker_divide_stakes(click_runner,
     result = click_runner.invoke(nucypher_cli,
                                  divide_args,
                                  catch_exceptions=False,
-                                 env=dict(NUCYPHER_KEYRING_PASSWORD=INSECURE_DEVELOPMENT_PASSWORD))
+                                 env=dict(NUCYPHER_KEYSTORE_PASSWORD=INSECURE_DEVELOPMENT_PASSWORD))
     assert result.exit_code == 0
 
     stake_args = ('stake', 'list', '--config-file', stakeholder_configuration_file_location)
@@ -377,7 +377,7 @@ def test_ursula_init(click_runner,
 
     # Files and Directories
     assert os.path.isdir(custom_filepath), 'Configuration file does not exist'
-    assert os.path.isdir(os.path.join(custom_filepath, 'keyring')), 'Keyring does not exist'
+    assert os.path.isdir(os.path.join(custom_filepath, 'keystore')), 'KEYSTORE does not exist'
     assert os.path.isdir(os.path.join(custom_filepath, 'known_nodes')), 'known_nodes directory does not exist'
 
     custom_config_filepath = os.path.join(custom_filepath, UrsulaConfiguration.generate_filename())

@@ -25,7 +25,7 @@ from eth_tester.exceptions import ValidationError
 from nucypher.blockchain.eth.signers.software import Web3Signer
 from nucypher.characters.lawful import Alice, Ursula
 from nucypher.config.constants import TEMPORARY_DOMAIN
-from nucypher.crypto.api import encrypt_and_sign
+from nucypher.crypto.utils import encrypt_and_sign
 from nucypher.crypto.powers import CryptoPower, SigningPower, DecryptingPower, TransactingPower
 from nucypher.exceptions import DevelopmentInstallationRequired
 from nucypher.policy.collections import SignedTreasureMap
@@ -101,7 +101,7 @@ class Vladimir(Ursula):
             password = 'iamverybadass'
             blockchain.w3.provider.ethereum_tester.add_account(cls.fraud_key, password=password)
         except (ValidationError,):
-            # check if Vlad's key is already on the keyring...
+            # check if Vlad's key is already on the keystore...
             if cls.fraud_address in blockchain.client.accounts:
                 return True
             else:

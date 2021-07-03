@@ -14,13 +14,16 @@ GNU Affero General Public License for more details.
 You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
+
+
 import contextlib
-import maya
-import pytest
 import time
 from datetime import datetime
-from flask import Response
 from unittest.mock import patch
+
+import maya
+import pytest
+from flask import Response
 
 from nucypher.characters.lawful import Ursula
 from nucypher.crypto.umbral_adapter import PublicKey, encrypt

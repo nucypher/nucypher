@@ -15,11 +15,7 @@ You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
-
-from bytestring_splitter import BytestringSplitter
-
-from nucypher.crypto.api import keccak_digest
-from nucypher.crypto.umbral_adapter import Signature, Signer
+from nucypher.crypto.umbral_adapter import Signer
 
 
 class SignatureStamp(object):
@@ -69,6 +65,7 @@ class SignatureStamp(object):
 
         :return: Hexdigest fingerprint of key (keccak-256) in bytes
         """
+        from nucypher.crypto.utils import keccak_digest
         return keccak_digest(bytes(self)).hex().encode()
 
 

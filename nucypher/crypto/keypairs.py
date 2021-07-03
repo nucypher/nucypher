@@ -14,7 +14,8 @@ GNU Affero General Public License for more details.
 You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
-import base64
+
+
 from typing import Union
 
 import sha3
@@ -26,11 +27,17 @@ from hendrix.deploy.tls import HendrixDeployTLS
 from hendrix.facilities.services import ExistingKeyTLSContextFactory
 
 from nucypher.config.constants import MAX_UPLOAD_CONTENT_LENGTH
-from nucypher.crypto import api as API
-from nucypher.crypto.api import generate_teacher_certificate, _TLS_CURVE
 from nucypher.crypto.kits import MessageKit
 from nucypher.crypto.signing import SignatureStamp, StrangerStamp
-from nucypher.crypto.umbral_adapter import SecretKey, PublicKey, Signature, Signer, decrypt_original, decrypt_reencrypted
+from nucypher.crypto.tls import _read_tls_certificate, _TLS_CURVE, generate_self_signed_certificate
+from nucypher.crypto.umbral_adapter import (
+    SecretKey,
+    PublicKey,
+    decrypt_original,
+    decrypt_reencrypted,
+    Signature,
+    Signer
+)
 from nucypher.network.resources import get_static_resources
 
 
@@ -145,18 +152,15 @@ class HostingKeypair(Keypair):
                  ) -> None:
 
         if private_key:
-            if not certificate_filepath:
-                raise ValueError('public certificate required to load a hosting keypair.')
-            from nucypher.config.keyring import _read_tls_public_certificate
-            certificate = _read_tls_public_certificate(filepath=certificate_filepath)
+            if certificate_filepath:
+                certificate = _read_tls_certificate(filepath=certificate_filepath)
             super().__init__(private_key=private_key)
 
         elif certificate:
             super().__init__(public_key=certificate.public_key())
 
         elif certificate_filepath:
-            from nucypher.config.keyring import _read_tls_public_certificate
-            certificate = _read_tls_public_certificate(filepath=certificate_filepath)
+            certificate = _read_tls_certificate(filepath=certificate_filepath)
             super().__init__(public_key=certificate.public_key())
 
         elif generate_certificate:
@@ -164,11 +168,9 @@ class HostingKeypair(Keypair):
                 message = "If you don't supply a TLS certificate, one will be generated for you." \
                           "But for that, you need to pass a host and checksum address."
                 raise TypeError(message)
-
-            certificate, private_key = generate_teacher_certificate(host=host,
-                                                                    checksum_address=checksum_address,
-                                                                    private_key=private_key)
+            certificate, private_key = generate_self_signed_certificate(host=host, private_key=private_key)
             super().__init__(private_key=private_key)
+
         else:
             raise TypeError("You didn't provide a cert, but also told us not to generate keys.  Not sure what to do.")
 

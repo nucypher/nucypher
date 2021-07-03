@@ -50,7 +50,7 @@ class BaseTestNodeStorageBackends:
         node_storage.store_node_metadata(node=ursula)
 
         # Read Node
-        node_from_storage = node_storage.get(checksum_address=ursula.checksum_address,
+        node_from_storage = node_storage.get(stamp=ursula.stamp,
                                              federated_only=True)
         assert ursula == node_from_storage, "Node storage {} failed".format(node_storage)
 
@@ -78,34 +78,14 @@ class BaseTestNodeStorageBackends:
         # Read random nodes
         for i in range(3):
             random_node = all_known_nodes.pop()
-            random_node_from_storage = node_storage.get(checksum_address=random_node.checksum_address,
-                                                        federated_only=True)
+            random_node_from_storage = node_storage.get(stamp=random_node.stamp, federated_only=True)
             assert random_node.checksum_address == random_node_from_storage.checksum_address
 
-        return True
-
-    def _write_and_delete_metadata(self, ursula, node_storage):
-        # Write Node
-        node_storage.store_node_metadata(node=ursula)
-
-        # Delete Node
-        node_storage.remove(checksum_address=ursula.checksum_address, certificate=False)
-
-        # Read Node
-        with pytest.raises(NodeStorage.UnknownNode):
-            _node_from_storage = node_storage.get(checksum_address=ursula.checksum_address,
-                                                  federated_only=True)
-
-        # Read all nodes from storage
-        all_stored_nodes = node_storage.all(federated_only=True)
-        assert all_stored_nodes == set()
         return True
 
     #
     # Storage Backend Tests
     #
-    def test_delete_node_in_storage(self, light_ursula):
-        assert self._write_and_delete_metadata(ursula=light_ursula, node_storage=self.storage_backend)
 
     def test_read_and_write_to_storage(self, light_ursula):
         assert self._read_and_write_metadata(ursula=light_ursula, node_storage=self.storage_backend)
@@ -133,7 +113,7 @@ class TestTemporaryFileBasedNodeStorage(BaseTestNodeStorageBackends):
             file.write(Learner.LEARNER_VERSION.to_bytes(4, 'big') + b'invalid')
 
         with pytest.raises(TemporaryFileBasedNodeStorage.InvalidNodeMetadata):
-            self.storage_backend.get(checksum_address=some_node[:-5],
+            self.storage_backend.get(stamp=some_node[:-5],
                                      federated_only=True,
                                      certificate_only=False)
 
@@ -143,7 +123,7 @@ class TestTemporaryFileBasedNodeStorage(BaseTestNodeStorageBackends):
             file.write(b'meh')  # Versions are expected to be 4 bytes, but this is 3 bytes
 
         with pytest.raises(TemporaryFileBasedNodeStorage.InvalidNodeMetadata):
-            self.storage_backend.get(checksum_address=another_node[:-5],
+            self.storage_backend.get(stamp=another_node[:-5],
                                      federated_only=True,
                                      certificate_only=False)
 

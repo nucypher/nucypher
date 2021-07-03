@@ -26,7 +26,7 @@ from nucypher.blockchain.eth.token import StakeList
 from nucypher.cli.main import nucypher_cli
 from nucypher.config.characters import UrsulaConfiguration
 from nucypher.config.constants import (
-    NUCYPHER_ENVVAR_KEYRING_PASSWORD,
+    NUCYPHER_ENVVAR_KEYSTORE_PASSWORD,
     NUCYPHER_ENVVAR_WORKER_ETH_PASSWORD,
     TEMPORARY_DOMAIN
 )
@@ -73,7 +73,7 @@ def test_ursula_init_with_local_keystore_signer(click_runner,
                  '--signer', mock_signer_uri)
 
     cli_env = {
-        NUCYPHER_ENVVAR_KEYRING_PASSWORD:    password,
+        NUCYPHER_ENVVAR_KEYSTORE_PASSWORD:    password,
         NUCYPHER_ENVVAR_WORKER_ETH_PASSWORD: password,
     }
     result = click_runner.invoke(nucypher_cli,
@@ -93,10 +93,9 @@ def test_ursula_init_with_local_keystore_signer(click_runner,
     ursula_config = UrsulaConfiguration.from_configuration_file(custom_config_filepath, config_root=custom_filepath)
     assert ursula_config.signer_uri == mock_signer_uri
 
-    # Mock decryption of web3 client keyring
+    # Mock decryption of web3 client keystore
     mocker.patch.object(Account, 'decrypt', return_value=worker_account.privateKey)
-    ursula_config.attach_keyring(checksum_address=worker_account.address)
-    ursula_config.keyring.unlock(password=password)
+    ursula_config.keystore.unlock(password=password)
 
     # Produce an ursula with a Keystore signer correctly derived from the signer URI, and dont do anything else!
     mocker.patch.object(StakeList, 'refresh', autospec=True)

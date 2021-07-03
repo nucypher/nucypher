@@ -140,7 +140,7 @@ def test_alice_refuses_to_make_arrangement_unless_ursula_is_valid(blockchain_ali
 
     vladimir._Ursula__substantiate_stamp()
     vladimir._Teacher__interface_signature = signature
-    vladimir.node_storage.store_node_certificate(certificate=target.certificate)
+    vladimir.node_storage.store_node_certificate(certificate=target.certificate, port=vladimir.rest_interface.port)
 
     # Ideally, a fishy node shouldn't be present in `known_nodes`,
     # but I guess we're testing the case when it became fishy somewhere between we learned about it

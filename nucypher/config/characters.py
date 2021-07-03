@@ -33,7 +33,6 @@ from nucypher.config.constants import (
     NUCYPHER_ENVVAR_ALICE_ETH_PASSWORD,
     NUCYPHER_ENVVAR_BOB_ETH_PASSWORD
 )
-from nucypher.config.keyring import NucypherKeyring
 from nucypher.utilities.networking import LOOPBACK_ADDRESS
 
 
@@ -50,6 +49,7 @@ class UrsulaConfiguration(CharacterConfiguration):
     DEFAULT_AVAILABILITY_CHECKS = False
     LOCAL_SIGNERS_ALLOWED = True
     SIGNER_ENVVAR = NUCYPHER_ENVVAR_WORKER_ETH_PASSWORD
+    MNEMONIC_KEYSTORE = True
 
     def __init__(self,
                  rest_host: str = None,
@@ -84,7 +84,6 @@ class UrsulaConfiguration(CharacterConfiguration):
         """
         Extracts worker address by "peeking" inside the ursula configuration file.
         """
-
         checksum_address = cls.peek(filepath=filepath, field='checksum_address')
         federated = bool(cls.peek(filepath=filepath, field='federated_only'))
         if not federated:
@@ -101,7 +100,7 @@ class UrsulaConfiguration(CharacterConfiguration):
         return base_filepaths
 
     def generate_filepath(self, modifier: str = None, *args, **kwargs) -> str:
-        filepath = super().generate_filepath(modifier=modifier or bytes(self.keyring.signing_public_key).hex()[:8], *args, **kwargs)
+        filepath = super().generate_filepath(modifier=modifier or self.keystore.id[:8], *args, **kwargs)
         return filepath
 
     def static_payload(self) -> dict:
@@ -137,22 +136,6 @@ class UrsulaConfiguration(CharacterConfiguration):
             ursula.datastore_threadpool = MockDatastoreThreadPool()
 
         return ursula
-
-    def attach_keyring(self, checksum_address: str = None, *args, **kwargs) -> None:
-        if self.federated_only:
-            account = checksum_address or self.checksum_address
-        else:
-            account = checksum_address or self.worker_address
-        return super().attach_keyring(checksum_address=account)
-
-    def write_keyring(self, password: str, **generation_kwargs) -> NucypherKeyring:
-        keyring = super().write_keyring(password=password,
-                                        encrypting=True,
-                                        rest=True,
-                                        host=self.rest_host,
-                                        checksum_address=self.worker_address,
-                                        **generation_kwargs)
-        return keyring
 
     def destroy(self) -> None:
         if os.path.isfile(self.db_filepath):
@@ -217,12 +200,6 @@ class AliceConfiguration(CharacterConfiguration):
                 payload['payment_periods'] = self.payment_periods
         return {**super().static_payload(), **payload}
 
-    def write_keyring(self, password: str, **generation_kwargs) -> NucypherKeyring:
-        return super().write_keyring(password=password,
-                                     encrypting=True,
-                                     rest=False,
-                                     **generation_kwargs)
-
 
 class BobConfiguration(CharacterConfiguration):
     from nucypher.characters.lawful import Bob
@@ -230,7 +207,7 @@ class BobConfiguration(CharacterConfiguration):
     CHARACTER_CLASS = Bob
     NAME = CHARACTER_CLASS.__name__.lower()
     DEFAULT_CONTROLLER_PORT = 7151
-    DEFFAULT_STORE_POLICIES = True
+    DEFAULT_STORE_POLICIES = True
     DEFAULT_STORE_CARDS = True
     SIGNER_ENVVAR = NUCYPHER_ENVVAR_BOB_ETH_PASSWORD
 
@@ -241,18 +218,12 @@ class BobConfiguration(CharacterConfiguration):
     )
 
     def __init__(self,
-                 store_policies: bool = DEFFAULT_STORE_POLICIES,
+                 store_policies: bool = DEFAULT_STORE_POLICIES,
                  store_cards: bool = DEFAULT_STORE_CARDS,
                  *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.store_policies = store_policies
         self.store_cards = store_cards
-
-    def write_keyring(self, password: str, **generation_kwargs) -> NucypherKeyring:
-        return super().write_keyring(password=password,
-                                     encrypting=True,
-                                     rest=False,
-                                     **generation_kwargs)
 
     def static_payload(self) -> dict:
         payload = dict(
@@ -301,14 +272,6 @@ class FelixConfiguration(CharacterConfiguration):
          signer_uri=self.signer_uri
         )
         return {**super().static_payload(), **payload}
-
-    def write_keyring(self, password: str, **generation_kwargs) -> NucypherKeyring:
-        return super().write_keyring(password=password,
-                                     encrypting=True,  # TODO: #668
-                                     rest=True,
-                                     host=self.rest_host,
-                                     curve=self.tls_curve,
-                                     **generation_kwargs)
 
 
 class StakeHolderConfiguration(CharacterConfiguration):

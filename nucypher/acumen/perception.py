@@ -27,7 +27,7 @@ import maya
 from bytestring_splitter import BytestringSplitter
 from eth_typing import ChecksumAddress
 
-from nucypher.crypto.api import keccak_digest
+from ..crypto.utils import keccak_digest
 from nucypher.utilities.logging import Logger
 from .nicknames import Nickname
 

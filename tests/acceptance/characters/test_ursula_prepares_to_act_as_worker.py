@@ -21,7 +21,7 @@ from eth_account._utils.signing import to_standard_signature_bytes
 
 from nucypher.characters.lawful import Enrico
 from nucypher.characters.unlawful import Vladimir
-from nucypher.crypto.api import verify_eip_191
+from nucypher.crypto.utils import verify_eip_191
 from nucypher.crypto.powers import SigningPower
 from nucypher.policy.policies import BlockchainPolicy
 from tests.constants import INSECURE_DEVELOPMENT_PASSWORD

@@ -36,7 +36,7 @@ from pathlib import Path
 from ansible import context as ansible_context
 from nucypher.blockchain.eth.clients import PUBLIC_CHAINS
 from nucypher.blockchain.eth.networks import NetworksInventory
-from nucypher.config.constants import DEFAULT_CONFIG_ROOT, DEPLOY_DIR, NUCYPHER_ENVVAR_KEYRING_PASSWORD, \
+from nucypher.config.constants import DEFAULT_CONFIG_ROOT, DEPLOY_DIR, NUCYPHER_ENVVAR_KEYSTORE_PASSWORD, \
     NUCYPHER_ENVVAR_WORKER_ETH_PASSWORD
 
 NODE_CONFIG_STORAGE_KEY = 'worker-configs'
@@ -230,7 +230,7 @@ class BaseCloudNodeConfigurator:
 
             self.config = {
                 "namespace": self.namespace_network,
-                "keyringpassword": b64encode(os.urandom(64)).decode('utf-8'),
+                "keystorepassword": b64encode(os.urandom(64)).decode('utf-8'),
                 "ethpassword": b64encode(os.urandom(64)).decode('utf-8'),
             }
         # configure provider specific attributes
@@ -311,7 +311,7 @@ class BaseCloudNodeConfigurator:
         defaults = {
             'envvars':
                 [
-                    (NUCYPHER_ENVVAR_KEYRING_PASSWORD,  self.config['keyringpassword']),
+                    (NUCYPHER_ENVVAR_KEYSTORE_PASSWORD,  self.config['keystorepassword']),
                     (NUCYPHER_ENVVAR_WORKER_ETH_PASSWORD, self.config['ethpassword']),
                 ],
             'cliargs': [
