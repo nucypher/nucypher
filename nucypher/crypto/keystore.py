@@ -33,7 +33,6 @@ from mnemonic.mnemonic import Mnemonic
 
 from nucypher.characters.control.emitters import StdoutEmitter
 from nucypher.config.constants import DEFAULT_CONFIG_ROOT
-from nucypher.crypto.constants import BLAKE2B
 from nucypher.crypto.keypairs import HostingKeypair
 from nucypher.crypto.passwords import (
     secret_box_decrypt,
@@ -58,11 +57,10 @@ from nucypher.crypto.umbral_adapter import (
 from nucypher.network.server import TLSHostingPower
 
 # HKDF
-__HKDF_HASH_ALGORITHM = BLAKE2B
 __INFO_BASE = b'NuCypher/'
-_VERIFYING_INFO = __INFO_BASE + b'verify'
-_DECRYPTING_INFO = __INFO_BASE + b'encrypt'
-_DELEGATING_INFO = __INFO_BASE + b'delegate'
+_SIGNING_INFO = __INFO_BASE + b'signing'
+_DECRYPTING_INFO = __INFO_BASE + b'decrypting'
+_DELEGATING_INFO = __INFO_BASE + b'delegating'
 _TLS_INFO = __INFO_BASE + b'tls'
 
 # Wrapping key
@@ -240,7 +238,7 @@ class Keystore:
     _SUFFIX = 'priv'
 
     # Powers derivation
-    __HKDF_INFO = {SigningPower: _VERIFYING_INFO,
+    __HKDF_INFO = {SigningPower: _SIGNING_INFO,
                    DecryptingPower: _DECRYPTING_INFO,
                    DelegatingPower: _DELEGATING_INFO,
                    TLSHostingPower: _TLS_INFO}
@@ -287,7 +285,7 @@ class Keystore:
             raise InvalidPassword(''.join(failures))
 
         # Derive verifying key (for use as ID)
-        verifying_key = secret_key_factory_from_seed(secret).secret_key_by_label(_VERIFYING_INFO)
+        verifying_key = secret_key_factory_from_seed(secret).secret_key_by_label(_SIGNING_INFO)
         keystore_id = bytes(verifying_key).hex()[:Keystore._ID_SIZE]
 
         # Generate paths
