@@ -41,8 +41,8 @@ from nucypher.utilities.porter.porter import Porter
 @click.group()
 def porter():
     """
-    Porter management commands. Porter is the conduit between web apps and the nucypher network, that performs actions
-    on behalf of Alice and Bob.
+    Porter management commands. Porter is a web-service that is the conduit between applications and the
+    nucypher network, that performs actions on behalf of Alice and Bob.
     """
 
 
