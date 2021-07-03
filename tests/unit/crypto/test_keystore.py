@@ -32,7 +32,6 @@ from nucypher.crypto.keystore import (
     validate_keystore_filename,
     _MNEMONIC_LANGUAGE,
     _DELEGATING_INFO,
-    _derive_keying_material
 )
 from nucypher.crypto.keystore import (
     _assemble_keystore,
@@ -42,7 +41,10 @@ from nucypher.crypto.keystore import (
     _read_keystore
 )
 from nucypher.crypto.powers import DecryptingPower, SigningPower, DelegatingPower
-from nucypher.crypto.umbral_adapter import SecretKeyFactory
+from nucypher.crypto.umbral_adapter import (
+    secret_key_factory_from_seed,
+    secret_key_factory_from_secret_key_factory
+)
 from nucypher.network.server import TLSHostingPower
 from nucypher.utilities.networking import LOOPBACK_ADDRESS
 from tests.constants import INSECURE_DEVELOPMENT_PASSWORD
@@ -189,7 +191,7 @@ def test_decrypt_keystore(tmpdir, mocker):
     keystore.unlock(password=INSECURE_DEVELOPMENT_PASSWORD)
     mnemonic = Mnemonic(_MNEMONIC_LANGUAGE)
     words = spy.spy_return
-    secret = mnemonic.to_entropy(words)
+    secret = bytes(mnemonic.to_entropy(words))
     assert keystore._Keystore__secret == secret
 
     # Decrypt from keystore file
@@ -220,7 +222,7 @@ def test_restore_keystore_from_mnemonic(tmpdir, mocker):
     keystore.unlock(password=INSECURE_DEVELOPMENT_PASSWORD)
     mnemonic = Mnemonic(_MNEMONIC_LANGUAGE)
     words = spy.spy_return
-    secret = mnemonic.to_entropy(words)
+    secret = bytes(mnemonic.to_entropy(words))
     keystore_path = keystore.keystore_path
 
     # remove local and disk references, simulating a
@@ -259,9 +261,9 @@ def test_derive_delegating_power(tmpdir):
     keystore = Keystore.generate(INSECURE_DEVELOPMENT_PASSWORD, keystore_dir=tmpdir)
     keystore.unlock(password=INSECURE_DEVELOPMENT_PASSWORD)
     delegating_power = keystore.derive_crypto_power(power_class=DelegatingPower)
-    private_key = _derive_keying_material(info=_DELEGATING_INFO, material=keystore._Keystore__secret)
-    keying_material = bytes(SecretKeyFactory.from_bytes(bytes(private_key)))
-    assert bytes(delegating_power._DelegatingPower__umbral_keying_material) == keying_material
+    parent_skf = secret_key_factory_from_seed(keystore._Keystore__secret)
+    child_skf = secret_key_factory_from_secret_key_factory(skf=parent_skf, label=_DELEGATING_INFO)
+    assert bytes(delegating_power._DelegatingPower__secret_key_factory) == bytes(child_skf)
     assert delegating_power._get_privkey_from_label(label=b'some-label')
 
 

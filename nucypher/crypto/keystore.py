@@ -29,8 +29,6 @@ from typing import Callable, ClassVar, Dict, List, Union, Optional, Tuple
 
 import click
 from constant_sorrow.constants import KEYSTORE_LOCKED
-from cryptography.hazmat.backends import default_backend
-from cryptography.hazmat.primitives.kdf.hkdf import HKDF
 from mnemonic.mnemonic import Mnemonic
 
 from nucypher.characters.control.emitters import StdoutEmitter
@@ -52,7 +50,11 @@ from nucypher.crypto.powers import (
     DelegatingPower
 )
 from nucypher.crypto.tls import generate_self_signed_certificate
-from nucypher.crypto.umbral_adapter import SecretKey, SecretKeyFactory
+from nucypher.crypto.umbral_adapter import (
+    SecretKey,
+    secret_key_factory_from_seed,
+    secret_key_factory_from_secret_key_factory
+)
 from nucypher.network.server import TLSHostingPower
 
 # HKDF
@@ -79,38 +81,6 @@ __PRIVATE_MODE = stat.S_IRUSR | stat.S_IWUSR            # 0o600
 
 class InvalidPassword(ValueError):
     pass
-
-
-def __hkdf(key_material: bytes,
-           size: int,
-           info: Optional[bytes] = None,
-           salt: Optional[bytes] = None,
-           ) -> bytes:
-
-    if not salt and not info:
-        raise ValueError('Info or salt must be provided.')
-    info = info or bytes()
-    salt = salt or bytes()
-
-    kdf = HKDF(
-        algorithm=__HKDF_HASH_ALGORITHM,
-        length=size,
-        salt=salt,
-        info=info,
-        backend=default_backend()
-    )
-    return kdf.derive(key_material)
-
-
-def _derive_keying_material(material: bytes, info: bytes) -> bytes:
-    material = __hkdf(key_material=material, info=info, size=SecretKeyFactory.serialized_size())
-    return material
-
-
-def _derive_umbral_key(material: bytes, info: bytes) -> SecretKey:
-    material = __hkdf(key_material=material, info=info, size=SecretKey.serialized_size())
-    __private = SecretKey.from_bytes(material)
-    return __private
 
 
 def _assemble_keystore(encrypted_secret: bytes, password_salt: bytes, wrapper_salt: bytes) -> Dict[str, Union[str, bytes]]:
@@ -312,7 +282,7 @@ class Keystore:
             raise InvalidPassword(''.join(failures))
 
         # Derive verifying key (for use as ID)
-        verifying_key = _derive_umbral_key(material=secret, info=_VERIFYING_INFO)
+        verifying_key = secret_key_factory_from_seed(secret).secret_key_by_label(_VERIFYING_INFO)
         keystore_id = bytes(verifying_key).hex()[:Keystore._ID_SIZE]
 
         # Generate paths
@@ -352,7 +322,7 @@ class Keystore:
     def restore(cls, words: str, password: str, keystore_dir: Optional[Path] = None) -> 'Keystore':
         """Restore a keystore from seed words"""
         __mnemonic = Mnemonic(_MNEMONIC_LANGUAGE)
-        __secret = __mnemonic.to_entropy(words)
+        __secret = bytes(__mnemonic.to_entropy(words))
         path = Keystore.__save(secret=__secret, password=password, keystore_dir=keystore_dir)
         keystore = cls(keystore_path=path)
         return keystore
@@ -364,7 +334,7 @@ class Keystore:
         __words = mnemonic.generate(strength=_ENTROPY_BITS)
         if interactive:
             cls._confirm_generate(__words)
-        __secret = mnemonic.to_entropy(__words)
+        __secret = bytes(mnemonic.to_entropy(__words))
         path = Keystore.__save(secret=__secret, password=password, keystore_dir=keystore_dir)
         keystore = cls(keystore_path=path)
         return keystore
@@ -418,7 +388,7 @@ class Keystore:
             failure_message = f"{power_class.__name__} is an invalid type for deriving a CryptoPower"
             raise TypeError(failure_message)
         else:
-            __private_key = _derive_umbral_key(material=self.__secret, info=info)
+            __private_key = secret_key_factory_from_seed(self.__secret).secret_key_by_label(info)
 
         if power_class is TLSHostingPower:  # TODO: something more elegant?
             power = _derive_hosting_power(private_key=__private_key, *power_args, **power_kwargs)
@@ -428,8 +398,9 @@ class Keystore:
             power = power_class(keypair=keypair, *power_args, **power_kwargs)
 
         elif issubclass(power_class, DerivedKeyBasedPower):
-            __secret_material = _derive_keying_material(material=self.__secret, info=info)
-            power = power_class(keying_material=__secret_material, *power_args, **power_kwargs)
+            parent_skf = secret_key_factory_from_seed(self.__secret)
+            child_skf = secret_key_factory_from_secret_key_factory(parent_skf, label=_DELEGATING_INFO)
+            power = power_class(secret_key_factory=child_skf, *power_args, **power_kwargs)
 
         else:
             failure_message = f"{power_class.__name__} is an invalid type for deriving a CryptoPower."
