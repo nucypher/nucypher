@@ -146,22 +146,6 @@ class TreasureMap:
             splitter = cls._splitters['unversioned']  # TODO: In this case, it's still a map from a previous version - how will we handle sin KFrags?
         return splitter
 
-    _splitters = {}
-
-    def __new__(cls, *args, **kwargs):
-
-        cls._splitters['unversioned'] = BytestringKwargifier(cls,
-                                                             public_signature=signature_splitter,
-                                                             hrac=(bytes, HRAC_LENGTH),
-                                                             message_kit=(UmbralMessageKit, VariableLengthBytestring),
-                                                             )
-        cls._splitters[1] = TreasureMapSplitter(cls,
-                                                public_signature=signature_splitter,
-                                                hrac=(bytes, HRAC_LENGTH),
-                                                message_kit=(UmbralMessageKit, VariableLengthBytestring),
-                                                )
-        return object.__new__(cls)
-
     @classmethod
     def from_bytes(cls, bytes_representation: bytes, verify: bool = True) -> Union['TreasureMap', 'SignedTreasureMap']:
         splitter = cls.get_splitter(bytes_representation)
@@ -335,6 +319,24 @@ class TreasureMap:
         return treasure_map
 
 
+# FIXME: a dirty hack to make the tests pass. Fix it ASAP.
+# The problem with __new__ is that it does not get called before the first object of the class
+# is instantiated, so when we call `from_bytes()` for the first time, the `_splitters` dict
+# needs to already be populated.
+TreasureMap._splitters = {
+    'unversioned': BytestringKwargifier(TreasureMap,
+                                        public_signature=signature_splitter,
+                                        hrac=(bytes, HRAC_LENGTH),
+                                        message_kit=(UmbralMessageKit, VariableLengthBytestring),
+                                        ),
+    1: TreasureMapSplitter(TreasureMap,
+                           public_signature=signature_splitter,
+                           hrac=(bytes, HRAC_LENGTH),
+                           message_kit=(UmbralMessageKit, VariableLengthBytestring),
+                           )
+    }
+
+
 class SignedTreasureMap(TreasureMap):
 
     _BRAND = b'SM'
@@ -342,24 +344,6 @@ class SignedTreasureMap(TreasureMap):
     def __init__(self, blockchain_signature=NOT_SIGNED, *args, **kwargs):
         self._blockchain_signature = blockchain_signature
         super().__init__(*args, **kwargs)
-
-    def __new__(cls, *args, **kwargs):
-        # TODO: This is a little too brittle-and-repeaty for my tastes; maybe we modify
-        # BSS to allow summing *before* the prefix(es)?
-
-        cls._splitters['unversioned'] = BytestringKwargifier(cls,
-                                                             blockchain_signature=EIP712_MESSAGE_SIGNATURE_SIZE,
-                                                             public_signature=signature_splitter,
-                                                             hrac=(bytes, HRAC_LENGTH),
-                                                             message_kit=(UmbralMessageKit, VariableLengthBytestring),
-                                                             )
-        cls._splitters[1] = TreasureMapSplitter(cls,
-                                                blockchain_signature=EIP712_MESSAGE_SIGNATURE_SIZE,
-                                                public_signature=signature_splitter,
-                                                hrac=(bytes, HRAC_LENGTH),
-                                                message_kit=(UmbralMessageKit, VariableLengthBytestring),
-                                                )
-        return object.__new__(cls)
 
     def include_blockchain_signature(self, blockchain_signer):
         if self._payload is None:
@@ -380,3 +364,21 @@ class SignedTreasureMap(TreasureMap):
         if self._payload is None:
             self._set_payload()
         return self._BRAND + self._VERSION + self._blockchain_signature  + self._payload
+
+
+# FIXME: a dirty hack to make the tests pass. Fix it ASAP.
+# See the comment at `TreasureMap._splitters` above.
+SignedTreasureMap._splitters = {
+    'unversioned': BytestringKwargifier(SignedTreasureMap,
+                                        blockchain_signature=EIP712_MESSAGE_SIGNATURE_SIZE,
+                                        public_signature=signature_splitter,
+                                        hrac=(bytes, HRAC_LENGTH),
+                                        message_kit=(UmbralMessageKit, VariableLengthBytestring),
+                                        ),
+    1: TreasureMapSplitter(SignedTreasureMap,
+                           blockchain_signature=EIP712_MESSAGE_SIGNATURE_SIZE,
+                           public_signature=signature_splitter,
+                           hrac=(bytes, HRAC_LENGTH),
+                           message_kit=(UmbralMessageKit, VariableLengthBytestring),
+                           )
+    }
