@@ -75,6 +75,7 @@ _MNEMONIC_LANGUAGE = "english"
 
 # Keystore File
 FILE_ENCODING = 'utf-8'
+_KEYSTORE_VERSION = '2.0'
 __PRIVATE_FLAGS = os.O_WRONLY | os.O_CREAT | os.O_EXCL  # Write, Create, Non-Existing
 __PRIVATE_MODE = stat.S_IRUSR | stat.S_IWUSR            # 0o600
 
@@ -85,7 +86,7 @@ class InvalidPassword(ValueError):
 
 def _assemble_keystore(encrypted_secret: bytes, password_salt: bytes, wrapper_salt: bytes) -> Dict[str, Union[str, bytes]]:
     encoded_key_data = {
-        'version': '2.0',
+        'version': _KEYSTORE_VERSION,
         'created': str(time.time()),
         'key': encrypted_secret,
         'password_salt': password_salt,
@@ -151,6 +152,10 @@ def _deserialize_keystore(payload: bytes):
         payload = json.loads(payload)
     except JSONDecodeError:
         raise Keystore.Invalid("Invalid or corrupted key data")
+
+    # TODO: Handle Keystore versioning.
+    # version = payload['version']
+
     for field in ('key', 'password_salt', 'wrapper_salt'):
         payload[field] = bytes.fromhex(payload[field])
     return payload
