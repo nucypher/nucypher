@@ -9,6 +9,7 @@
         name: ursula
         state: stopped
         image: "{{ nucypher_image | default('nucypher/nucypher:latest') }}"
+      ignore_errors: yes
 
     - set_fact: restarting_geth=True
     - name: Stop Geth
