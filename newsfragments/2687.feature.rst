@@ -1,0 +1,1 @@
+Ursula no longer stores KFrags, instead Alice encrypts them inside the treasure map.  Allow the KFrag generator and policy publisher to be different entities.
