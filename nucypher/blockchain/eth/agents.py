@@ -338,7 +338,7 @@ class StakingEscrowAgent(EthereumContractAgent):
                                                                               start_index,
                                                                               pagination_size).call()
                 except Exception as e:
-                    if 'timeout = 5s' not in str(e):
+                    if 'timeout' not in str(e):
                         # exception unrelated to pagination size and timeout
                         raise e
                     elif pagination_size == 1 or attempts >= 3:
