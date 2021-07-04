@@ -312,6 +312,11 @@ class WebController(InterfaceControlServer):
             request_body = control_request.data or dict()
             if request_body:
                 request_body = json.loads(request_body)
+
+            # handle querystring args from flask eg. ?quantity=11&duration_periods=100
+            if hasattr(control_request, 'args'):
+                request_body.update(control_request.args)
+
             request_body.update(kwargs)
 
             if method_name not in self._get_interfaces():
