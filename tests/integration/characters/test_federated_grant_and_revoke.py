@@ -20,11 +20,9 @@ import datetime
 
 import maya
 import pytest
-from nucypher.crypto.api import keccak_digest
 
 from nucypher.characters.lawful import Enrico
 from nucypher.crypto.utils import keccak_digest
-from nucypher.policy.collections import Revocation
 from nucypher.policy.orders import Revocation
 
 

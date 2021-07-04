@@ -52,7 +52,6 @@ from cryptography.x509 import Certificate, NameOID, load_pem_x509_certificate
 from eth_typing.evm import ChecksumAddress
 from eth_utils import to_checksum_address
 from flask import Response, request
-from nucypher.crypto.api import encrypt_and_sign, keccak_digest
 from twisted.internet import reactor, stdio, threads
 from twisted.internet.defer import Deferred
 from twisted.internet.task import LoopingCall

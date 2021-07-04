@@ -23,12 +23,10 @@ from typing import Tuple, Sequence, Optional, Iterable, List, Dict, Type
 import maya
 from bytestring_splitter import BytestringSplitter, VariableLengthBytestring
 from eth_typing.evm import ChecksumAddress
-from nucypher.crypto.api import keccak_digest
 from twisted.internet import reactor
 
 from nucypher.blockchain.eth.agents import StakersReservoir, StakingEscrowAgent
 from nucypher.blockchain.eth.constants import POLICY_ID_LENGTH
-from nucypher.characters.lawful import Alice, Ursula
 from nucypher.crypto.constants import HRAC_LENGTH
 from nucypher.crypto.kits import RevocationKit
 from nucypher.crypto.powers import TransactingPower

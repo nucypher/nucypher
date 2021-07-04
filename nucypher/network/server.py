@@ -36,7 +36,6 @@ from nucypher.crypto.keypairs import HostingKeypair, DecryptingKeypair
 from nucypher.crypto.kits import PolicyMessageKit
 from nucypher.crypto.powers import KeyPairBasedPower, PowerUpError
 from nucypher.crypto.signing import InvalidSignature
-from nucypher.crypto.tls import InvalidNodeCertificate
 from nucypher.datastore.datastore import Datastore, RecordNotFound
 from nucypher.datastore.models import TreasureMap as TreasureMapModel
 from nucypher.datastore.models import Workorder as WorkOrderModel
@@ -400,9 +399,6 @@ def _make_rest_app(datastore: Datastore, this_node, domain: str, log: Logger) ->
                                                                                                certificate_filepath=certificate_filepath)
             except NodeSeemsToBeDown:
                 return Response({'error': 'Unreachable node'}, status=400)  # ... toasted
-
-            except InvalidNodeCertificate:
-                return Response({'error': 'Invalid TLS certificate - missing checksum address'}, status=400)  # ... invalid
 
             # Compare the results of the outer POST with the inner GET... yum
             if requesting_ursula_bytes == request.data:

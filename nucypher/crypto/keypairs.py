@@ -25,7 +25,6 @@ from constant_sorrow import constants
 from cryptography.hazmat.primitives.asymmetric import ec
 from hendrix.deploy.tls import HendrixDeployTLS
 from hendrix.facilities.services import ExistingKeyTLSContextFactory
-from nucypher.crypto.api import _TLS_CURVE
 from umbral.signing import Signer
 
 from nucypher.config.constants import MAX_UPLOAD_CONTENT_LENGTH

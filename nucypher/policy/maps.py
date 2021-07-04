@@ -31,13 +31,13 @@ from eth_utils.address import to_checksum_address, to_canonical_address
 
 from nucypher.blockchain.eth.constants import ETH_ADDRESS_BYTE_LENGTH
 from nucypher.characters.base import Character
-from nucypher.crypto.api import encrypt_and_sign, keccak_digest, verify_eip_191
 from nucypher.crypto.constants import HRAC_LENGTH, WRIT_CHECKSUM_SIZE, EIP712_MESSAGE_SIGNATURE_SIZE
 from nucypher.crypto.kits import UmbralMessageKit
 from nucypher.crypto.powers import DecryptingPower, SigningPower
 from nucypher.crypto.signing import SignatureStamp
 from nucypher.crypto.splitters import signature_splitter
 from nucypher.crypto.umbral_adapter import KeyFrag, PublicKey, Signature
+from nucypher.crypto.utils import keccak_digest, encrypt_and_sign, verify_eip_191
 from nucypher.network.middleware import RestMiddleware
 
 
