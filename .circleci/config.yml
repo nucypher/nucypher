@@ -880,12 +880,12 @@ jobs:
       - run:
           name: Build Porter Docker Image
           command: |
-            docker build -f deploy/docker/porter/Dockerfile --cache-from=nucypher-porter -t nucypher/nucypher-porter:circle .
+            docker build -f deploy/docker/porter/Dockerfile --cache-from=nucypher-porter -t nucypher/porter:circle .
       - run:
           name: Save Porter Docker Image Layer Cache
           command: |
             mkdir -p ~/docker
-            docker save -o ~/docker/nucypher-porter.tar nucypher/nucypher-porter:circle
+            docker save -o ~/docker/nucypher-porter.tar nucypher/porter:circle
       - save_cache:
           key: v1-{{ .Branch }}-{{ arch }}
           paths:
@@ -989,10 +989,10 @@ jobs:
           name: Push Tagged NuCypher Porter Docker Images
           command: |
             echo $DOCKER_PASSWORD | docker login -u $DOCKER_USERNAME --password-stdin
-            docker tag nucypher/nucypher-porter:circle nucypher/nucypher-porter:$CIRCLE_TAG
-            docker tag nucypher/nucypher-porter:circle nucypher/nucypher-porter:latest
-            docker push nucypher/nucypher-porter:$CIRCLE_TAG
-            docker push nucypher/nucypher-porter:latest
+            docker tag nucypher/porter:circle nucypher/porter:$CIRCLE_TAG
+            docker tag nucypher/porter:circle nucypher/porter:latest
+            docker push nucypher/porter:$CIRCLE_TAG
+            docker push nucypher/porter:latest
 
   statistical_tests:
       <<: *python_37_base

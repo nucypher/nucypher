@@ -23,7 +23,8 @@ Running Porter
 
 .. note::
 
-    By default the Porter service will run on port 9155, unless specified otherwise.
+    If running the Porter service using Docker or Docker Compose, it will run on port 80 (HTTP) or 443 (HTTPS). If
+    running via the CLI the default port is 9155, unless specified otherwise via the ``--http-port`` option.
 
 Security
 ^^^^^^^^
@@ -65,7 +66,7 @@ Run Porter within Docker without acquiring or installing the ``nucypher`` codeba
 
    .. code:: bash
 
-       $ docker pull nucypher/nucypher-porter:latest
+       $ docker pull nucypher/porter:latest
 
 #. Run Porter service
 
@@ -77,7 +78,7 @@ Run Porter within Docker without acquiring or installing the ``nucypher`` codeba
           --name porter-http \
           -v ~/.local/share/nucypher/:/root/.local/share/nucypher \
           -p 80:9155 \
-          nucypher/nucypher-porter:latest \
+          nucypher/porter:latest \
           nucypher porter run \
           --provider <YOUR WEB3 PROVIDER URI> \
           --network <NETWORK NAME>
@@ -93,7 +94,7 @@ Run Porter within Docker without acquiring or installing the ``nucypher`` codeba
             -v ~/.local/share/nucypher/:/root/.local/share/nucypher \
             -v <TLS DIRECTORY>:/etc/porter/tls \
             -p 443:9155 \
-            nucypher/nucypher-porter:latest \
+            nucypher/porter:latest \
             nucypher porter run \
             --provider <YOUR WEB3 PROVIDER URI> \
             --network <NETWORK NAME> \
@@ -110,7 +111,7 @@ Run Porter within Docker without acquiring or installing the ``nucypher`` codeba
             -v <TLS DIRECTORY>:/etc/porter/tls \
             -v <HTPASSWD FILE>:/etc/porter/auth/htpasswd \
             -p 443:9155 \
-            nucypher/nucypher-porter:latest \
+            nucypher/porter:latest \
             nucypher porter run \
             --provider <YOUR WEB3 PROVIDER URI> \
             --network <NETWORK NAME> \
