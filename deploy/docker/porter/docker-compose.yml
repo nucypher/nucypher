@@ -3,7 +3,7 @@ version: '3'
 services:
   porter-http:
     restart: on-failure
-    image: nucypher-porter:latest
+    image: porter:latest
     container_name: porter-http
     build:
       context: ../../..
@@ -20,7 +20,7 @@ services:
 
   porter-https:
     restart: on-failure
-    image: nucypher-porter:latest
+    image: porter:latest
     container_name: porter-https
     ports:
       # Default Porter port
@@ -37,7 +37,7 @@ services:
 
   porter-https-auth:
     restart: on-failure
-    image: nucypher-porter:latest
+    image: porter:latest
     container_name: porter-https-auth
     ports:
       # Default Porter port
