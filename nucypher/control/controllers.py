@@ -309,9 +309,8 @@ class WebController(InterfaceControlServer):
                            self.emitter.MethodNotFound)
 
         try:
-            request_body = control_request.data or dict()
-            if request_body:
-                request_body = json.loads(request_body)
+            request_data = control_request.data
+            request_body = json.loads(request_data) if request_data else dict()
 
             # handle query string parameters
             if hasattr(control_request, 'args'):
