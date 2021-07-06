@@ -30,6 +30,7 @@ from nucypher.blockchain.eth.constants import POLICY_ID_LENGTH
 from nucypher.crypto.constants import HRAC_LENGTH
 from nucypher.crypto.kits import RevocationKit
 from nucypher.crypto.powers import TransactingPower
+from nucypher.crypto.splitters import key_splitter
 from nucypher.crypto.utils import keccak_digest
 from nucypher.crypto.umbral_adapter import PublicKey, KeyFrag, Signature
 from nucypher.crypto.utils import construct_policy_id
@@ -43,8 +44,10 @@ class Arrangement:
     A contract between Alice and a single Ursula.
     """
 
-    splitter = BytestringSplitter((PublicKey, PublicKey.serialized_size()),  # alice_verifying_key
-                                  (bytes, VariableLengthBytestring))     # expiration
+    splitter = BytestringSplitter(
+        key_splitter,                      # alice_verifying_key
+        (bytes, VariableLengthBytestring)  # expiration
+    )
 
     def __init__(self, alice_verifying_key: PublicKey, expiration: maya.MayaDT):
         self.expiration = expiration
@@ -115,7 +118,7 @@ class TreasureMapPublisher:
 
             # OK, let's check: if any Ursulas claimed we didn't pay,
             # we need to re-evaluate our situation here.
-            claims_of_freeloading = sum(response.status_code == 402 for response in responses.values())
+            claims_of_freeloading = any(response.status_code == 402 for response in responses.values())
             if claims_of_freeloading:
                 raise Policy.Unpaid
 

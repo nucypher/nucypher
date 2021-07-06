@@ -832,14 +832,12 @@ class Bob(Character):
                                                        delegating_pk=keys['delegating'],
                                                        receiving_pk=keys['receiving'])
             except VerificationError:
-                # TODO: WARNING - This block is untested.
-                from nucypher.policy.disputes import IndisputableEvidence
-                evidence = IndisputableEvidence(task=pre_task, work_order=work_order)
+                # TODO: Implement slashing conditions here.
                 # I got a lot of problems with you people ...
                 the_airing_of_grievances.append(work_order.ursula)
             else:
-                verified_cfrags.append(verified_cfrag) # FIXME: this is unused
-                pre_task.cfrag = verified_cfrag # FIXME: massive yikes, needs to be done properly
+                verified_cfrags.append(verified_cfrag)  # FIXME: this is unused/unimplemented
+                pre_task.cfrag = verified_cfrag         # FIXME: massive yikes, needs to be done properly
 
         if the_airing_of_grievances:
             return False, the_airing_of_grievances
@@ -847,15 +845,15 @@ class Bob(Character):
             return True, verified_cfrags
 
     def _assemble_work_orders(self,
-                              *message_kits,
-                              enrico,
-                              policy_encrypting_key,
-                              use_attached_cfrags,
-                              publisher_verifying_key,
-                              alice_verifying_key,
-                              treasure_map,
-                              label,
-                              use_precedent_work_orders
+                              *message_kits: List[UmbralMessageKit],
+                              enrico: 'Enrico',
+                              policy_encrypting_key: PublicKey,
+                              use_attached_cfrags: bool,
+                              alice_verifying_key: PublicKey,
+                              publisher_verifying_key: Optional[PublicKey],
+                              treasure_map: Optional[TreasureMap],
+                              label: bytes,
+                              use_precedent_work_orders: bool
                               ):
 
         # Part I: Assembling the WorkOrders.
@@ -1003,20 +1001,18 @@ class Bob(Character):
                  # Policy
                  *message_kits: UmbralMessageKit,
                  label: bytes,
-
-                 # Alice(s)
-                 alice_verifying_key: Union[PublicKey, bytes],
-                 publisher_verifying_key: Optional[Union[PublicKey, bytes]] = None,
+                 policy_encrypting_key: PublicKey = None,
+                 treasure_map: Union['TreasureMap', bytes] = None,
 
                  # Source Authentication
                  enrico: "Enrico" = None,
-                 policy_encrypting_key: PublicKey = None,
+                 alice_verifying_key: Union[PublicKey, bytes],
+                 publisher_verifying_key: Optional[Union[PublicKey, bytes]] = None,
 
                  # Retrieval Behaviour
                  retain_cfrags: bool = False,
                  use_attached_cfrags: bool = False,
                  use_precedent_work_orders: bool = False,
-                 treasure_map: Union['TreasureMap', bytes] = None
 
                  ) -> List[bytes]:
 
