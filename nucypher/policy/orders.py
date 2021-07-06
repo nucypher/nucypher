@@ -144,7 +144,7 @@ class WorkOrder:
                  hrac: bytes,
                  encrypted_kfrag: bytes,
                  alice_verifying_key: bytes,
-                 relayer_verifying_key: bytes,
+                 publisher_verifying_key: bytes,
                  tasks: dict,
                  receipt_signature: Signature,
                  ursula: Optional['Ursula'] = None):
@@ -153,7 +153,7 @@ class WorkOrder:
         self.hrac = hrac
         self.ursula = ursula
         self.encrypted_kfrag = encrypted_kfrag
-        self.relayer_verifying_key = relayer_verifying_key
+        self.publisher_verifying_key = publisher_verifying_key
         self.alice_verifying_key = alice_verifying_key
         self.tasks = tasks
         self.receipt_signature = receipt_signature  # not a blockchain receipt
@@ -185,7 +185,7 @@ class WorkOrder:
     def construct_by_bob(cls,
                          label: bytes,
                          alice_verifying_key: PublicKey,
-                         relayer_verifying_key: PublicKey,
+                         publisher_verifying_key: PublicKey,
                          capsules: Sequence,
                          ursula: 'Ursula',
                          bob: 'Bob',
@@ -211,14 +211,14 @@ class WorkOrder:
         receipt = cls.make_receipt(tasks=tasks, ursula=ursula, encrypted_kfrag=encrypted_kfrag)
         receipt_signature = bob.stamp(receipt)
 
-        hrac = bob.construct_policy_hrac(relayer_verifying_key=relayer_verifying_key, label=label)
+        hrac = bob.construct_policy_hrac(publisher_verifying_key=publisher_verifying_key, label=label)
         return cls(bob=bob,
                    ursula=ursula,
                    hrac=hrac,
                    tasks=tasks,
                    receipt_signature=receipt_signature,
                    encrypted_kfrag=encrypted_kfrag,
-                   relayer_verifying_key=relayer_verifying_key,
+                   publisher_verifying_key=publisher_verifying_key,
                    alice_verifying_key=alice_verifying_key)
 
     def payload(self) -> bytes:
@@ -237,7 +237,7 @@ class WorkOrder:
         tasks_bytes = b''.join(bytes(item) for item in self.tasks.values())
         result = bytes(self.receipt_signature)                                   \
                  + bytes(self.alice_verifying_key)                               \
-                 + bytes(self.relayer_verifying_key)                             \
+                 + bytes(self.publisher_verifying_key)                             \
                  + bytes(self.bob.stamp)                                         \
                  + bytes(self.hrac)                                              \
                  + bytes(VariableLengthBytestring(self.encrypted_kfrag)) \
@@ -279,7 +279,7 @@ class WorkOrder:
                    ursula=ursula,
                    tasks=tasks,
                    encrypted_kfrag=ekfrag,
-                   relayer_verifying_key=publisher_verifying,
+                   publisher_verifying_key=publisher_verifying,
                    alice_verifying_key=authorizer_verifying,
                    receipt_signature=signature)
 

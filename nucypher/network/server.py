@@ -198,7 +198,7 @@ def _make_rest_app(datastore: Datastore, this_node, domain: str, log: Logger) ->
         # Alice & Relayer
         alice = _alice_class.from_public_keys(verifying_key=work_order.alice_verifying_key)
         alice_verifying_key = alice.stamp.as_umbral_pubkey()
-        policy_relayer = _alice_class.from_public_keys(verifying_key=work_order.relayer_verifying_key)
+        policy_relayer = _alice_class.from_public_keys(verifying_key=work_order.publisher_verifying_key)
 
         # Bob
         bob_ip_address = request.remote_addr

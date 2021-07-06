@@ -58,7 +58,7 @@ def test_bob_already_knows_all_nodes_in_treasure_map(enacted_federated_policy,
         federated_bob.remember_node(ursula)
 
     # Now, Bob can get the TreasureMap all by himself, and doesn't need a side channel.
-    the_map = federated_bob.get_treasure_map(relayer_verifying_key=federated_alice.stamp,
+    the_map = federated_bob.get_treasure_map(publisher_verifying_key=federated_alice.stamp,
                                              label=enacted_federated_policy.label)
     unknown, known = federated_bob.peek_at_treasure_map(treasure_map=the_map)
 
@@ -158,7 +158,7 @@ def test_bob_can_issue_a_work_order_to_a_specific_ursula(enacted_federated_polic
         message_kit.capsule,
         label=enacted_federated_policy.label,
         treasure_map=treasure_map,
-        relayer_verifying_key=federated_alice.stamp.as_umbral_pubkey(),
+        alice_verifying_key=federated_alice.stamp.as_umbral_pubkey(),
         num_ursulas=1)
 
     # Again: one Ursula, one work_order.
@@ -172,7 +172,7 @@ def test_bob_can_issue_a_work_order_to_a_specific_ursula(enacted_federated_polic
         message_kit.capsule,
         label=enacted_federated_policy.label,
         treasure_map=treasure_map,
-        relayer_verifying_key=federated_alice.stamp.as_umbral_pubkey(),
+        alice_verifying_key=federated_alice.stamp.as_umbral_pubkey(),
         num_ursulas=1)
 
     # The work order we just made is not yet complete, of course.
@@ -240,7 +240,7 @@ def test_bob_can_use_cfrag_attached_to_completed_workorder(enacted_federated_pol
         last_capsule_on_side_channel,
         label=enacted_federated_policy.label,
         treasure_map=enacted_federated_policy.treasure_map,
-        relayer_verifying_key=federated_alice.stamp.as_umbral_pubkey(),
+        alice_verifying_key=federated_alice.stamp.as_umbral_pubkey(),
         num_ursulas=1,
     )
 
@@ -290,7 +290,7 @@ def test_bob_remembers_that_he_has_cfrags_for_a_particular_capsule(enacted_feder
         last_capsule_on_side_channel,
         label=enacted_federated_policy.label,
         treasure_map=enacted_federated_policy.treasure_map,
-        relayer_verifying_key=federated_alice.stamp.as_umbral_pubkey(),
+        alice_verifying_key=federated_alice.stamp.as_umbral_pubkey(),
         num_ursulas=1)
     id_of_this_new_ursula, new_work_order = list(incomplete_work_orders.items())[0]
 
@@ -344,7 +344,7 @@ def test_bob_gathers_and_combines(enacted_federated_policy, federated_bob, feder
         the_message_kit.capsule,
         label=enacted_federated_policy.label,
         treasure_map=enacted_federated_policy.treasure_map,
-        relayer_verifying_key=federated_alice.stamp.as_umbral_pubkey(),
+        alice_verifying_key=federated_alice.stamp.as_umbral_pubkey(),
         num_ursulas=number_left_to_collect)
     _id_of_yet_another_ursula, new_work_order = list(new_incomplete_work_orders.items())[0]
 

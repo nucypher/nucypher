@@ -194,7 +194,7 @@ class BobInterface(CharacterPublicInterface):
         """
         Character control endpoint for joining a policy on the network.
         """
-        self.character.join_policy(label=label, relayer_verifying_key=alice_verifying_key)
+        self.character.join_policy(label=label, publisher_verifying_key=alice_verifying_key)
         response = {'policy_encrypting_key': 'OK'}  # FIXME
         return response
 
@@ -218,7 +218,7 @@ class BobInterface(CharacterPublicInterface):
                                          policy_encrypting_key=policy_encrypting_key,
                                          label=label)
 
-        self.character.join_policy(label=label, relayer_verifying_key=alice_verifying_key)
+        self.character.join_policy(label=label, publisher_verifying_key=alice_verifying_key)
 
         plaintexts = self.character.retrieve(message_kit,
                                              enrico=enrico,

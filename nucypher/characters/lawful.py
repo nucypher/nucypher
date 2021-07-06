@@ -629,8 +629,8 @@ class Bob(Character):
         except treasure_map.InvalidSignature:
             raise  # TODO: Maybe do something here?  NRN
 
-    def get_treasure_map(self, relayer_verifying_key: PublicKey, label: bytes):
-        map_identifier = self.construct_map_id(relayer_verifying_key=relayer_verifying_key, label=label)
+    def get_treasure_map(self, publisher_verifying_key: PublicKey, label: bytes):
+        map_identifier = self.construct_map_id(publisher_verifying_key=publisher_verifying_key, label=label)
 
         if not self.known_nodes and not self._learning_task.running:
             # Quick sanity check - if we don't know of *any* Ursulas, and we have no
@@ -644,25 +644,25 @@ class Bob(Character):
 
         treasure_map = self.get_treasure_map_from_known_ursulas(self.network_middleware, map_identifier)
 
-        self._try_orient(treasure_map, relayer_verifying_key)
+        self._try_orient(treasure_map, publisher_verifying_key)
         self.treasure_maps[map_identifier] = treasure_map  # TODO: make a part of _try_orient()?
         return treasure_map
 
     def make_compass_for_alice(self, alice):
         return partial(self.verify_from, alice, decrypt=True)
 
-    def construct_policy_hrac(self, relayer_verifying_key: Union[bytes, PublicKey], label: bytes) -> bytes:
-        _hrac = keccak_digest(bytes(relayer_verifying_key) + self.stamp + label)[:HRAC_LENGTH]
+    def construct_policy_hrac(self, publisher_verifying_key: Union[bytes, PublicKey], label: bytes) -> bytes:
+        _hrac = keccak_digest(bytes(publisher_verifying_key) + self.stamp + label)[:HRAC_LENGTH]
         return _hrac
 
-    def construct_map_id(self, relayer_verifying_key: PublicKey, label: bytes):
-        hrac = self.construct_policy_hrac(relayer_verifying_key, label)
+    def construct_map_id(self, publisher_verifying_key: PublicKey, label: bytes):
+        hrac = self.construct_policy_hrac(publisher_verifying_key, label)
 
         # Ugh stupid federated only mode....
         if not self.federated_only:
             map_id = hrac.hex()
         else:
-            map_id = keccak_digest(bytes(relayer_verifying_key) + hrac).hex()
+            map_id = keccak_digest(bytes(publisher_verifying_key) + hrac).hex()
 
         return map_id
 
@@ -713,15 +713,15 @@ class Bob(Character):
                                  label: bytes,
                                  treasure_map: 'TreasureMap',
                                  alice_verifying_key: PublicKey,
-                                 relayer_verifying_key: Optional[PublicKey] = None,
+                                 publisher_verifying_key: Optional[PublicKey] = None,
                                  num_ursulas: int = None,
                                  ) -> Tuple[Dict[ChecksumAddress, 'WorkOrder'], Dict['Capsule', 'WorkOrder']]:
 
         from nucypher.policy.orders import WorkOrder
 
-        if not relayer_verifying_key:
+        if not publisher_verifying_key:
             # Assume the policy publisher is the same as the KFrag generator by default.
-            relayer_verifying_key = alice_verifying_key
+            publisher_verifying_key = alice_verifying_key
 
         if not treasure_map:
             raise ValueError(f"Bob doesn't have a TreasureMap; can't generate work orders.")
@@ -748,7 +748,7 @@ class Bob(Character):
             ursula = self.known_nodes[ursula_address]
             if capsules_to_include:
                 work_order = WorkOrder.construct_by_bob(label=label,
-                                                        relayer_verifying_key=relayer_verifying_key,
+                                                        publisher_verifying_key=publisher_verifying_key,
                                                         alice_verifying_key=alice_verifying_key,
                                                         capsules=capsules_to_include,
                                                         ursula=ursula,
@@ -768,12 +768,12 @@ class Bob(Character):
 
     def join_policy(self,
                     label: bytes,
-                    relayer_verifying_key: PublicKey,
+                    publisher_verifying_key: PublicKey,
                     node_list: Optional[List['Ursula']] = None,
                     block: bool = False):
         if node_list:
             self._node_ids_to_learn_about_immediately.update(node_list)
-        treasure_map = self.get_treasure_map(relayer_verifying_key, label)
+        treasure_map = self.get_treasure_map(publisher_verifying_key, label)
         self.follow_treasure_map(treasure_map=treasure_map, block=block)
 
     def _filter_work_orders_and_capsules(self,
@@ -851,7 +851,7 @@ class Bob(Character):
                               enrico,
                               policy_encrypting_key,
                               use_attached_cfrags,
-                              relayer_verifying_key,
+                              publisher_verifying_key,
                               alice_verifying_key,
                               treasure_map,
                               label,
@@ -878,11 +878,11 @@ class Bob(Character):
 
         for message_kit in message_kits:
             message_kit.set_correctness_keys(receiving=self.public_keys(DecryptingPower))
-            message_kit.set_correctness_keys(verifying=relayer_verifying_key)
+            message_kit.set_correctness_keys(verifying=publisher_verifying_key)
 
         new_work_orders, complete_work_orders = self.work_orders_for_capsules(
             treasure_map=treasure_map,
-            relayer_verifying_key=relayer_verifying_key,
+            publisher_verifying_key=publisher_verifying_key,
             alice_verifying_key=alice_verifying_key,
             label=label,
             *[mk.capsule for mk in message_kits])
@@ -968,7 +968,7 @@ class Bob(Character):
 
         return cleartexts
 
-    def _handle_treasure_map(self, treasure_map, relayer_verifying_key: PublicKey, label: bytes):
+    def _handle_treasure_map(self, treasure_map, publisher_verifying_key: PublicKey, label: bytes):
         if treasure_map is not None:
 
             if self.federated_only:
@@ -984,15 +984,15 @@ class Bob(Character):
                 tmap_bytes = treasure_map.encode()
                 treasure_map = _MapClass.from_bytes(b64decode(tmap_bytes))
 
-            self._try_orient(treasure_map, relayer_verifying_key)
+            self._try_orient(treasure_map, publisher_verifying_key)
             # self.treasure_maps[treasure_map.public_id()] = treasure_map # TODO: Can we?
         else:
-            map_id = self.construct_map_id(relayer_verifying_key, label)
+            map_id = self.construct_map_id(publisher_verifying_key, label)
             try:
                 treasure_map = self.treasure_maps[map_id]
             except KeyError:
                 # If the treasure map is not known, join the policy as part of retrieval.
-                self.join_policy(label=label, relayer_verifying_key=relayer_verifying_key)
+                self.join_policy(label=label, publisher_verifying_key=publisher_verifying_key)
                 treasure_map = self.treasure_maps[map_id]
 
         _unknown_ursulas, _known_ursulas, m = self.follow_treasure_map(treasure_map=treasure_map, block=True)
@@ -1006,7 +1006,7 @@ class Bob(Character):
 
                  # Alice(s)
                  alice_verifying_key: Union[PublicKey, bytes],
-                 relayer_verifying_key: Optional[Union[PublicKey, bytes]] = None,
+                 publisher_verifying_key: Optional[Union[PublicKey, bytes]] = None,
 
                  # Source Authentication
                  enrico: "Enrico" = None,
@@ -1022,14 +1022,14 @@ class Bob(Character):
 
         # Try our best to get an PublicKey instances from input
         alice_verifying_key = PublicKey.from_bytes(bytes(alice_verifying_key))
-        if not relayer_verifying_key:
+        if not publisher_verifying_key:
             # If an policy relay's verifying key is not passed, use the alice's by default.
-            relayer_verifying_key = alice_verifying_key
+            publisher_verifying_key = alice_verifying_key
         else:
-            relayer_verifying_key = PublicKey.from_bytes(bytes(relayer_verifying_key))
+            publisher_verifying_key = PublicKey.from_bytes(bytes(publisher_verifying_key))
 
         treasure_map, m = self._handle_treasure_map(treasure_map=treasure_map,
-                                                    relayer_verifying_key=relayer_verifying_key,
+                                                    publisher_verifying_key=publisher_verifying_key,
                                                     label=label)
 
         work_orders, message_kits_map = self._assemble_work_orders(
@@ -1038,7 +1038,7 @@ class Bob(Character):
             enrico=enrico,
             policy_encrypting_key=policy_encrypting_key,
             alice_verifying_key=alice_verifying_key,
-            relayer_verifying_key=relayer_verifying_key,
+            publisher_verifying_key=publisher_verifying_key,
             treasure_map=treasure_map,
             use_attached_cfrags=use_attached_cfrags,
             use_precedent_work_orders=use_precedent_work_orders
