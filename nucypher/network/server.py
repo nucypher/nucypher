@@ -253,7 +253,7 @@ def _make_rest_app(datastore: Datastore, this_node, domain: str, log: Logger) ->
             except Policy.Inactive:
                 message = f"{bob_identity_message} Policy {hrac.hex()} is not active."
                 return Response(message, status=403)  # 403 - Forbidden
-            except this_node.Policy.Expired:
+            except this_node.PolicyInfo.Expired:
                 message = f"{bob_identity_message} Policy {hrac.hex()} is expired."
                 return Response(message, status=403)  # 403 - Forbidden
 

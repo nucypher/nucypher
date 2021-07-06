@@ -94,7 +94,7 @@ class StakerInfo(NamedTuple):
     # history: Tuple[NuNits, ...]
 
 
-class Policy(NamedTuple):
+class PolicyInfo(NamedTuple):
     disabled: bool
     sponsor: ChecksumAddress
     owner: ChecksumAddress
@@ -102,8 +102,15 @@ class Policy(NamedTuple):
     start_timestamp: int
     end_timestamp: int
 
+    # reserved but unused fields in the corresponding Solidity structure below
     # reserved_slot_1
     # reserved_slot_2
     # reserved_slot_3
     # reserved_slot_4
     # reserved_slot_5
+
+
+class ArrangementInfo(NamedTuple):
+    node: ChecksumAddress
+    downtime_index: int
+    last_refunded_period: int

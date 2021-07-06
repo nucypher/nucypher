@@ -123,7 +123,7 @@ class BaseActor:
                  registry: BaseContractRegistry,
                  transacting_power: Optional[TransactingPower] = None,
                  checksum_address: Optional[ChecksumAddress] = None,
-                 economics: BaseEconomics = None):
+                 economics: Optional[BaseEconomics] = None):
 
         if not (bool(checksum_address) ^ bool(transacting_power)):
             error = f'Pass transacting power or checksum address, got {checksum_address} and {transacting_power}.'

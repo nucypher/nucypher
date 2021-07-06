@@ -629,8 +629,8 @@ class Bob(Character):
         except treasure_map.InvalidSignature:
             raise  # TODO: Maybe do something here?  NRN
 
-    def get_treasure_map(self, alice_verifying_key, label):
-        map_identifier = self.construct_map_id(relayer_verifying_key=alice_verifying_key, label=label)
+    def get_treasure_map(self, relayer_verifying_key: PublicKey, label: bytes):
+        map_identifier = self.construct_map_id(relayer_verifying_key=relayer_verifying_key, label=label)
 
         if not self.known_nodes and not self._learning_task.running:
             # Quick sanity check - if we don't know of *any* Ursulas, and we have no
@@ -644,7 +644,7 @@ class Bob(Character):
 
         treasure_map = self.get_treasure_map_from_known_ursulas(self.network_middleware, map_identifier)
 
-        self._try_orient(treasure_map, alice_verifying_key)
+        self._try_orient(treasure_map, relayer_verifying_key)
         self.treasure_maps[map_identifier] = treasure_map  # TODO: make a part of _try_orient()?
         return treasure_map
 
@@ -712,16 +712,16 @@ class Bob(Character):
                                  *capsules,
                                  label: bytes,
                                  treasure_map: 'TreasureMap',
-                                 relayer_verifying_key: PublicKey,
-                                 alice_verifying_key: Optional[PublicKey] = None,
+                                 alice_verifying_key: PublicKey,
+                                 relayer_verifying_key: Optional[PublicKey] = None,
                                  num_ursulas: int = None,
                                  ) -> Tuple[Dict[ChecksumAddress, 'WorkOrder'], Dict['Capsule', 'WorkOrder']]:
 
         from nucypher.policy.orders import WorkOrder
 
-        if not alice_verifying_key:
+        if not relayer_verifying_key:
             # Assume the policy publisher is the same as the KFrag generator by default.
-            alice_verifying_key = relayer_verifying_key
+            relayer_verifying_key = alice_verifying_key
 
         if not treasure_map:
             raise ValueError(f"Bob doesn't have a TreasureMap; can't generate work orders.")
@@ -766,10 +766,14 @@ class Bob(Character):
 
         return incomplete_work_orders, complete_work_orders
 
-    def join_policy(self, label, alice_verifying_key, node_list=None, block=False):
+    def join_policy(self,
+                    label: bytes,
+                    relayer_verifying_key: PublicKey,
+                    node_list: Optional[List['Ursula']] = None,
+                    block: bool = False):
         if node_list:
             self._node_ids_to_learn_about_immediately.update(node_list)
-        treasure_map = self.get_treasure_map(alice_verifying_key, label)
+        treasure_map = self.get_treasure_map(relayer_verifying_key, label)
         self.follow_treasure_map(treasure_map=treasure_map, block=block)
 
     def _filter_work_orders_and_capsules(self,
@@ -988,7 +992,7 @@ class Bob(Character):
                 treasure_map = self.treasure_maps[map_id]
             except KeyError:
                 # If the treasure map is not known, join the policy as part of retrieval.
-                self.join_policy(label=label, alice_verifying_key=relayer_verifying_key)
+                self.join_policy(label=label, relayer_verifying_key=relayer_verifying_key)
                 treasure_map = self.treasure_maps[map_id]
 
         _unknown_ursulas, _known_ursulas, m = self.follow_treasure_map(treasure_map=treasure_map, block=True)

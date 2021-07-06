@@ -17,11 +17,11 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 
 
 import random
+import sys
 from bisect import bisect_right
-from collections import namedtuple
+from itertools import accumulate
 from typing import Dict, Iterable, List, Tuple, Type, Union, Any, Optional, cast, Iterator
 
-import sys
 from constant_sorrow.constants import (  # type: ignore
     CONTRACT_CALL,
     TRANSACTION,
@@ -31,7 +31,6 @@ from eth_typing.encoding import HexStr
 from eth_typing.evm import ChecksumAddress
 from eth_utils.address import to_checksum_address
 from hexbytes.main import HexBytes
-from itertools import accumulate
 from web3.contract import Contract, ContractFunction
 from web3.types import Wei, Timestamp, TxReceipt, TxParams, Nonce
 
@@ -56,8 +55,8 @@ from nucypher.blockchain.eth.decorators import contract_api
 from nucypher.blockchain.eth.events import ContractEvents
 from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
 from nucypher.blockchain.eth.registry import BaseContractRegistry
-from nucypher.crypto.utils import sha256_digest
 from nucypher.crypto.powers import TransactingPower
+from nucypher.crypto.utils import sha256_digest
 from nucypher.types import (
     Agent,
     NuNits,
@@ -70,7 +69,7 @@ from nucypher.types import (
     StakerInfo,
     PeriodDelta,
     StakingEscrowParameters,
-    Policy
+    PolicyInfo, ArrangementInfo
 )
 from nucypher.utilities.logging import Logger  # type: ignore
 
@@ -795,8 +794,6 @@ class PolicyManagerAgent(EthereumContractAgent):
         'finishUpgrade'
     )
 
-    ArrangementInfo = namedtuple('ArrangementInfo', ['node', 'downtime_index', 'last_refunded_period'])
-
     @contract_api(TRANSACTION)
     def create_policy(self,
                       policy_id: str,
@@ -819,20 +816,20 @@ class PolicyManagerAgent(EthereumContractAgent):
         return receipt
 
     @contract_api(CONTRACT_CALL)
-    def fetch_policy(self, policy_id: bytes) -> Policy:
+    def fetch_policy(self, policy_id: bytes) -> PolicyInfo:
         """
         Fetch raw stored blockchain data regarding the policy with the given policy ID.
         If `with_owner=True`, this method executes the equivalent of `getPolicyOwner`
         to avoid another call.
         """
         record = self.contract.functions.policies(policy_id).call()
-        policy = Policy(disabled=record[0],
-                        sponsor=record[1],
-                        # If the policyOwner addr is null, we return the sponsor addr instead of the owner.
-                        owner=record[1] if record[2] == NULL_ADDRESS else record[2],
-                        fee_rate=record[3],
-                        start_timestamp=record[4],
-                        end_timestamp=record[5])
+        policy = PolicyInfo(disabled=record[0],
+                            sponsor=record[1],
+                            # If the policyOwner addr is null, we return the sponsor addr instead of the owner.
+                            owner=record[1] if record[2] == NULL_ADDRESS else record[2],
+                            fee_rate=record[3],
+                            start_timestamp=record[4],
+                            end_timestamp=record[5])
         return policy
 
     @contract_api(TRANSACTION)
@@ -854,9 +851,9 @@ class PolicyManagerAgent(EthereumContractAgent):
         record_count = self.contract.functions.getArrangementsLength(policy_id).call()
         for index in range(record_count):
             arrangement = self.contract.functions.getArrangementInfo(policy_id, index).call()
-            yield self.ArrangementInfo(node=arrangement[0], 
-                                       downtime_index=arrangement[1],
-                                       last_refunded_period=arrangement[2])
+            yield ArrangementInfo(node=arrangement[0],
+                                  downtime_index=arrangement[1],
+                                  last_refunded_period=arrangement[2])
 
     @contract_api(TRANSACTION)
     def revoke_arrangement(self, policy_id: str, node_address: ChecksumAddress, transacting_power: TransactingPower) -> TxReceipt:

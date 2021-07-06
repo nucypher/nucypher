@@ -96,7 +96,7 @@ def test_bob_joins_policy_and_retrieves(federated_alice,
     try:
         # Now, Bob joins the policy
         bob.join_policy(label=label,
-                        alice_verifying_key=federated_alice.stamp,
+                        relayer_verifying_key=federated_alice.stamp,
                         block=True)
     except policy.treasure_map.NowhereToBeFound:
         maps = []
@@ -106,7 +106,7 @@ def test_bob_joins_policy_and_retrieves(federated_alice,
         if policy.treasure_map in maps:
             # This is a nice place to put a breakpoint to examine Bob's failure to join a policy.
             bob.join_policy(label=label,
-                            alice_verifying_key=federated_alice.stamp,
+                            relayer_verifying_key=federated_alice.stamp,
                             block=True)
             pytest.fail(f"Bob didn't find map {policy.treasure_map} even though it was available.  Come on, Bob.")
         else:

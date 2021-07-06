@@ -58,7 +58,7 @@ def test_bob_already_knows_all_nodes_in_treasure_map(enacted_federated_policy,
         federated_bob.remember_node(ursula)
 
     # Now, Bob can get the TreasureMap all by himself, and doesn't need a side channel.
-    the_map = federated_bob.get_treasure_map(alice_verifying_key=federated_alice.stamp,
+    the_map = federated_bob.get_treasure_map(relayer_verifying_key=federated_alice.stamp,
                                              label=enacted_federated_policy.label)
     unknown, known = federated_bob.peek_at_treasure_map(treasure_map=the_map)
 
