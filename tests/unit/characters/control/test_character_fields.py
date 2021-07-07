@@ -19,8 +19,7 @@ from base64 import b64encode, b64decode
 
 import maya
 import pytest
-from umbral.keys import UmbralPrivateKey
-from umbral.signing import Signer
+from nucypher.crypto.umbral_adapter import SecretKey, Signer
 
 from nucypher.crypto.kits import UmbralMessageKit as UmbralMessageKitClass
 
@@ -97,22 +96,22 @@ def test_date_time():
 def test_key():
     field = Key()
 
-    umbral_pub_key = UmbralPrivateKey.gen_key().pubkey
-    other_umbral_pub_key = UmbralPrivateKey.gen_key().pubkey
+    umbral_pub_key = SecretKey.random().public_key()
+    other_umbral_pub_key = SecretKey.random().public_key()
 
     serialized = field._serialize(value=umbral_pub_key, attr=None, obj=None)
     assert serialized == bytes(umbral_pub_key).hex()
     assert serialized != bytes(other_umbral_pub_key).hex()
 
     deserialized = field._deserialize(value=serialized, attr=None, data=None)
-    assert deserialized == umbral_pub_key
-    assert deserialized != other_umbral_pub_key
+    assert deserialized == bytes(umbral_pub_key)
+    assert deserialized != bytes(other_umbral_pub_key)
 
-    field._validate(value=umbral_pub_key.to_bytes())
-    field._validate(value=other_umbral_pub_key.to_bytes())
+    field._validate(value=bytes(umbral_pub_key))
+    field._validate(value=bytes(other_umbral_pub_key))
 
     with pytest.raises(InvalidInputData):
-        field._validate(value=b"UmbralPublicKey")
+        field._validate(value=b"PublicKey")
 
 
 def test_umbral_message_kit(enacted_federated_policy, federated_alice):
@@ -139,12 +138,12 @@ def test_umbral_message_kit(enacted_federated_policy, federated_alice):
 
 
 def test_umbral_signature():
-    umbral_priv_key = UmbralPrivateKey.gen_key()
+    umbral_priv_key = SecretKey.random()
     signer = Signer(umbral_priv_key)
 
     message = b'this is a message'
-    signature = signer(message)
-    other_signature = signer(b'this is a different message')
+    signature = signer.sign(message)
+    other_signature = signer.sign(b'this is a different message')
 
     field = UmbralSignature()
     serialized = field._serialize(value=signature, attr=None, obj=None)

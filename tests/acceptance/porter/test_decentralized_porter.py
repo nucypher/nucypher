@@ -16,11 +16,11 @@
 """
 
 import pytest
-from umbral.keys import UmbralPublicKey
+from nucypher.crypto.umbral_adapter import PublicKey
 
 from nucypher.crypto.constants import HRAC_LENGTH
 from nucypher.crypto.powers import DecryptingPower
-from nucypher.policy.collections import TreasureMap
+from nucypher.policy.maps import TreasureMap
 from tests.utils.middleware import MockRestMiddleware
 
 
@@ -78,7 +78,7 @@ def test_publish_and_get_treasure_map(blockchain_porter,
                                       idle_blockchain_policy):
     # ensure that random treasure map cannot be obtained since not available
     with pytest.raises(TreasureMap.NowhereToBeFound):
-        random_bob_encrypting_key = UmbralPublicKey.from_bytes(
+        random_bob_encrypting_key = PublicKey.from_bytes(
             bytes.fromhex("026d1f4ce5b2474e0dae499d6737a8d987ed3c9ab1a55e00f57ad2d8e81fe9e9ac"))
         random_treasure_map_id = "93a9482bdf3b4f2e9df906a35144ca84"
         assert len(bytes.fromhex(random_treasure_map_id)) == HRAC_LENGTH # non-federated is 16 bytes

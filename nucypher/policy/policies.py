@@ -25,9 +25,8 @@ from bytestring_splitter import BytestringSplitter, VariableLengthBytestring
 from eth_typing.evm import ChecksumAddress
 from twisted.internet import reactor
 
-from nucypher.blockchain.eth.agents import StakersReservoir, StakingEscrowAgent
 from nucypher.blockchain.eth.constants import POLICY_ID_LENGTH
-from nucypher.crypto.constants import HRAC_LENGTH, PUBLIC_KEY_LENGTH
+from nucypher.crypto.constants import HRAC_LENGTH
 from nucypher.crypto.kits import RevocationKit
 from nucypher.crypto.powers import TransactingPower
 from nucypher.crypto.splitters import key_splitter
@@ -83,7 +82,7 @@ class TreasureMapPublisher:
 
     def __init__(self,
                  treasure_map_bytes: bytes,
-                 nodes: Sequence[Ursula],
+                 nodes: Sequence['Ursula'],
                  network_middleware: RestMiddleware,
                  percent_to_complete_before_release: int = 5,
                  threadpool_size: int = 120,
@@ -92,7 +91,7 @@ class TreasureMapPublisher:
         self._total = len(nodes)
         self._block_until_this_many_are_complete = math.ceil(len(nodes) * percent_to_complete_before_release / 100)
 
-        def put_treasure_map_on_node(node: Ursula):
+        def put_treasure_map_on_node(node: 'Ursula'):
             try:
                 response = network_middleware.put_treasure_map_on_node(node=node,
                                                                        map_payload=treasure_map_bytes)

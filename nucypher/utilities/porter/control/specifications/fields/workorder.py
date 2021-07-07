@@ -19,7 +19,7 @@ from base64 import b64encode, b64decode
 from marshmallow import fields
 
 from nucypher.control.specifications.fields import BaseField
-from nucypher.policy.collections import WorkOrder as WorkOrderClass
+from nucypher.policy.orders import WorkOrder as WorkOrderClass
 
 
 class WorkOrder(BaseField, fields.Field):
