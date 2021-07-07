@@ -19,12 +19,12 @@ import json
 from base64 import b64encode
 
 import pytest
-from umbral.keys import UmbralPublicKey
+from nucypher.crypto.umbral_adapter import PublicKey
 
 from nucypher.crypto.constants import HRAC_LENGTH
 from nucypher.crypto.powers import DecryptingPower
 from nucypher.network.nodes import Learner
-from nucypher.policy.collections import TreasureMap
+from nucypher.policy.maps import TreasureMap
 from tests.utils.middleware import MockRestMiddleware
 
 
@@ -83,13 +83,13 @@ def test_publish_and_get_treasure_map(blockchain_porter_web_controller,
 
     # ensure that random treasure map cannot be obtained since not available
     with pytest.raises(TreasureMap.NowhereToBeFound):
-        random_bob_encrypting_key = UmbralPublicKey.from_bytes(
+        random_bob_encrypting_key = PublicKey.from_bytes(
             bytes.fromhex("026d1f4ce5b2474e0dae499d6737a8d987ed3c9ab1a55e00f57ad2d8e81fe9e9ac"))
         random_treasure_map_id = "93a9482bdf3b4f2e9df906a35144ca84"
         assert len(bytes.fromhex(random_treasure_map_id)) == HRAC_LENGTH  # non-federated is 16 bytes
         get_treasure_map_params = {
             'treasure_map_id': random_treasure_map_id,
-            'bob_encrypting_key': random_bob_encrypting_key.hex()
+            'bob_encrypting_key': bytes(random_bob_encrypting_key).hex()
         }
         blockchain_porter_web_controller.get('/get_treasure_map',
                                              data=json.dumps(get_treasure_map_params))
@@ -102,7 +102,7 @@ def test_publish_and_get_treasure_map(blockchain_porter_web_controller,
     treasure_map = enacted_policy.treasure_map
     publish_treasure_map_params = {
         'treasure_map': b64encode(bytes(treasure_map)).decode(),
-        'bob_encrypting_key': blockchain_bob_encrypting_key.hex()
+        'bob_encrypting_key': bytes(blockchain_bob_encrypting_key).hex()
     }
     response = blockchain_porter_web_controller.post('/publish_treasure_map', data=json.dumps(publish_treasure_map_params))
     assert response.status_code == 200
@@ -114,7 +114,7 @@ def test_publish_and_get_treasure_map(blockchain_porter_web_controller,
                                              enacted_policy.label)
     get_treasure_map_params = {
         'treasure_map_id': map_id,
-        'bob_encrypting_key': blockchain_bob_encrypting_key.hex()
+        'bob_encrypting_key': bytes(blockchain_bob_encrypting_key).hex()
     }
     response = blockchain_porter_web_controller.get('/get_treasure_map',
                                                     data=json.dumps(get_treasure_map_params))

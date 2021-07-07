@@ -18,12 +18,13 @@ import os
 from base64 import b64encode
 
 import pytest
-from umbral.keys import UmbralPrivateKey
 
 from nucypher.characters.control.specifications.fields import TreasureMap
 from nucypher.control.specifications.exceptions import InvalidArgumentCombo, InvalidInputData
+from nucypher.crypto.constants import ENCRYPTED_KFRAG_PAYLOAD_LENGTH
 from nucypher.crypto.powers import DecryptingPower
-from nucypher.policy.collections import WorkOrder as WorkOrderClass
+from nucypher.crypto.umbral_adapter import SecretKey
+from nucypher.policy.orders import WorkOrder as WorkOrderClass
 from nucypher.policy.policies import Arrangement
 from nucypher.utilities.porter.control.specifications.fields.ursulainfo import UrsulaInfo
 from nucypher.utilities.porter.control.specifications.porter_schema import (
@@ -139,7 +140,7 @@ def test_alice_get_ursulas_schema(get_random_checksum_address):
         ursula_info = {
             "checksum_address": get_random_checksum_address(),
             "uri": f"https://127.0.0.1:{port+i}",
-            "encrypting_key": UmbralPrivateKey.gen_key().pubkey
+            "encrypting_key": SecretKey.random().public_key()
         }
         ursulas_info.append(ursula_info)
 
@@ -269,19 +270,24 @@ def test_bob_exec_work_order(mock_ursula_reencrypts,
                              federated_ursulas,
                              get_random_checksum_address,
                              federated_bob,
-                             federated_alice):
+                             federated_alice,
+                             random_policy_label):
     # Setup
     ursula = list(federated_ursulas)[0]
     tasks = [mock_ursula_reencrypts(ursula) for _ in range(3)]
     material = [(task.capsule, task.signature, task.cfrag, task.cfrag_signature) for task in tasks]
     capsules, signatures, cfrags, cfrag_signatures = zip(*material)
 
-    arrangement_id = os.urandom(Arrangement.ID_LENGTH)
-    work_order = WorkOrderClass.construct_by_bob(arrangement_id=arrangement_id,
+    mock_kfrag = os.urandom(ENCRYPTED_KFRAG_PAYLOAD_LENGTH)
+
+    # Test construction of WorkOrders by Bob
+    work_order = WorkOrderClass.construct_by_bob(encrypted_kfrag=mock_kfrag,
                                                  bob=federated_bob,
-                                                 alice_verifying=federated_alice.stamp.as_umbral_pubkey(),
+                                                 relayer_verifying_key=federated_alice.stamp.as_umbral_pubkey(),
+                                                 alice_verifying_key=federated_alice.stamp.as_umbral_pubkey(),
                                                  ursula=ursula,
-                                                 capsules=capsules)
+                                                 capsules=capsules,
+                                                 label=random_policy_label)
 
     # Test Work Order
     work_order_bytes = work_order.payload()

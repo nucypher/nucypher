@@ -18,11 +18,10 @@ import os
 from base64 import b64encode
 
 import pytest
-from bytestring_splitter import VariableLengthBytestring
 
 from nucypher.control.specifications.exceptions import InvalidInputData
-from nucypher.policy.collections import WorkOrder as WorkOrderClass
-from nucypher.policy.policies import Arrangement
+from nucypher.crypto.constants import ENCRYPTED_KFRAG_PAYLOAD_LENGTH
+from nucypher.policy.orders import WorkOrder as WorkOrderClass
 from nucypher.utilities.porter.control.specifications.fields import (
     TreasureMapID,
     UrsulaChecksumAddress,
@@ -79,19 +78,24 @@ def test_work_order_field(mock_ursula_reencrypts,
                           federated_ursulas,
                           get_random_checksum_address,
                           federated_bob,
-                          federated_alice):
+                          federated_alice,
+                          random_policy_label):
     # Setup
     ursula = list(federated_ursulas)[0]
     tasks = [mock_ursula_reencrypts(ursula) for _ in range(3)]
     material = [(task.capsule, task.signature, task.cfrag, task.cfrag_signature) for task in tasks]
     capsules, signatures, cfrags, cfrag_signatures = zip(*material)
 
-    arrangement_id = os.urandom(Arrangement.ID_LENGTH)
-    work_order = WorkOrderClass.construct_by_bob(arrangement_id=arrangement_id,
+    mock_kfrag = os.urandom(ENCRYPTED_KFRAG_PAYLOAD_LENGTH)
+
+    # Test construction of WorkOrders by Bob
+    work_order = WorkOrderClass.construct_by_bob(encrypted_kfrag=mock_kfrag,
                                                  bob=federated_bob,
-                                                 alice_verifying=federated_alice.stamp.as_umbral_pubkey(),
+                                                 relayer_verifying_key=federated_alice.stamp.as_umbral_pubkey(),
+                                                 alice_verifying_key=federated_alice.stamp.as_umbral_pubkey(),
                                                  ursula=ursula,
-                                                 capsules=capsules)
+                                                 capsules=capsules,
+                                                 label=random_policy_label)
 
     # Test Work Order
     work_order_bytes = work_order.payload()
@@ -108,7 +112,7 @@ def test_work_order_field(mock_ursula_reencrypts,
     cfrag_byte_stream = bytes()
     for cfrag in cfrags:
         reencryption_signature = ursula.stamp(bytes(cfrag))
-        cfrag_byte_stream += VariableLengthBytestring(cfrag) + reencryption_signature
+        cfrag_byte_stream += bytes(cfrag) + bytes(reencryption_signature)
 
     field = WorkOrderResult()
     serialized = field._serialize(value=cfrag_byte_stream, attr=None, obj=None)

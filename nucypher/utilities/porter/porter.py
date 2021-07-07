@@ -19,7 +19,7 @@ from typing import List, Optional, Sequence
 from constant_sorrow.constants import NO_CONTROL_PROTOCOL, NO_BLOCKCHAIN_CONNECTION
 from eth_typing import ChecksumAddress
 from flask import request, Response
-from umbral.keys import UmbralPublicKey
+from nucypher.crypto.umbral_adapter import PublicKey
 
 from nucypher.blockchain.eth.agents import ContractAgency, StakingEscrowAgent
 from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
@@ -72,7 +72,7 @@ the Pipe for nucypher network operations
     class UrsulaInfo:
         """Simple object that stores relevant Ursula information resulting from sampling."""
 
-        def __init__(self, checksum_address: str, uri: str, encrypting_key: UmbralPublicKey):
+        def __init__(self, checksum_address: str, uri: str, encrypting_key: PublicKey):
             self.checksum_address = checksum_address
             self.uri = uri
             self.encrypting_key = encrypting_key
@@ -112,13 +112,13 @@ the Pipe for nucypher network operations
             self.make_cli_controller()
         self.log.info(self.BANNER)
 
-    def get_treasure_map(self, map_identifier: str, bob_encrypting_key: UmbralPublicKey):
+    def get_treasure_map(self, map_identifier: str, bob_encrypting_key: PublicKey):
         return treasuremap.get_treasure_map_from_known_ursulas(learner=self,
                                                                map_identifier=map_identifier,
                                                                bob_encrypting_key=bob_encrypting_key,
                                                                timeout=self.DEFAULT_EXECUTION_TIMEOUT)
 
-    def publish_treasure_map(self, treasure_map_bytes: bytes, bob_encrypting_key: UmbralPublicKey) -> None:
+    def publish_treasure_map(self, treasure_map_bytes: bytes, bob_encrypting_key: PublicKey) -> None:
         # TODO (#2516): remove hardcoding of 8 nodes
         self.block_until_number_of_known_nodes_is(8, timeout=self.DEFAULT_EXECUTION_TIMEOUT, learn_on_this_thread=True)
         target_nodes = treasuremap.find_matching_nodes(known_nodes=self.known_nodes,

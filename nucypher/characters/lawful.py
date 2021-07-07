@@ -75,8 +75,7 @@ from nucypher.config.constants import END_OF_POLICIES_PROBATIONARY_PERIOD
 from nucypher.config.storages import ForgetfulNodeStorage, NodeStorage
 from nucypher.control.controllers import WebController
 from nucypher.control.emitters import StdoutEmitter
-from nucypher.crypto.api import encrypt_and_sign, keccak_digest
-from nucypher.crypto.constants import HRAC_LENGTH, PUBLIC_KEY_LENGTH, WRIT_CHECKSUM_SIZE
+from nucypher.crypto.constants import HRAC_LENGTH, WRIT_CHECKSUM_SIZE
 from nucypher.crypto.keypairs import HostingKeypair
 from nucypher.crypto.kits import UmbralMessageKit
 from nucypher.crypto.powers import (

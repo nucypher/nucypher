@@ -17,7 +17,7 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 from random import shuffle
 
 import maya
-from umbral.keys import UmbralPublicKey
+from nucypher.crypto.umbral_adapter import PublicKey
 
 from nucypher.acumen.perception import FleetSensor
 from nucypher.crypto.signing import InvalidSignature
@@ -27,16 +27,16 @@ from nucypher.network.nodes import Learner
 
 def get_treasure_map_from_known_ursulas(learner: Learner,
                                         map_identifier: str,
-                                        bob_encrypting_key: UmbralPublicKey,
+                                        bob_encrypting_key: PublicKey,
                                         timeout=3):
     """
     Iterate through the nodes we know, asking for the TreasureMap.
     Return the first one who has it.
     """
     if learner.federated_only:
-        from nucypher.policy.collections import TreasureMap as _MapClass
+        from nucypher.policy.maps import TreasureMap as _MapClass
     else:
-        from nucypher.policy.collections import SignedTreasureMap as _MapClass
+        from nucypher.policy.maps import SignedTreasureMap as _MapClass
 
     start = maya.now()
 
@@ -79,7 +79,7 @@ def get_treasure_map_from_known_ursulas(learner: Learner,
 
 
 def find_matching_nodes(known_nodes: FleetSensor,
-                        bob_encrypting_key: UmbralPublicKey,
+                        bob_encrypting_key: PublicKey,
                         no_less_than=7):  # Somewhat arbitrary floor here.
     # Look for nodes whose checksum address has the second character of Bob's encrypting key in the first
     # few characters.
@@ -95,7 +95,7 @@ def find_matching_nodes(known_nodes: FleetSensor,
 
     search_boundary = 2
     target_nodes = []
-    target_hex_match = bob_encrypting_key.hex()[1]
+    target_hex_match = bytes(bob_encrypting_key).hex()[1]
     while len(target_nodes) < no_less_than:
         search_boundary += 2
         if search_boundary > 42:  # We've searched the entire string and can't match any.  TODO: Portable learning is a nice idea here.

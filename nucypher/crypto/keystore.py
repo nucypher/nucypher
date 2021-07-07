@@ -31,8 +31,8 @@ import click
 from constant_sorrow.constants import KEYSTORE_LOCKED
 from mnemonic.mnemonic import Mnemonic
 
-from nucypher.characters.control.emitters import StdoutEmitter
 from nucypher.config.constants import DEFAULT_CONFIG_ROOT
+from nucypher.control.emitters import StdoutEmitter
 from nucypher.crypto.keypairs import HostingKeypair
 from nucypher.crypto.passwords import (
     secret_box_decrypt,
