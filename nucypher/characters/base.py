@@ -40,6 +40,7 @@ from nucypher.acumen.nicknames import Nickname
 from nucypher.blockchain.eth.registry import BaseContractRegistry, InMemoryContractRegistry
 from nucypher.blockchain.eth.signers.base import Signer
 from nucypher.characters.control.controllers import CharacterCLIController
+from nucypher.control.controllers import JSONRPCController
 from nucypher.crypto.keystore import Keystore
 from nucypher.crypto.kits import UmbralMessageKit
 from nucypher.crypto.powers import (
