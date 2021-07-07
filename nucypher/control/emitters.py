@@ -254,14 +254,16 @@ class WebEmitter:
                   log_level: str = 'info',
                   response_code: int = 500):
 
-        message = f"{self} [{str(response_code)} - {error_message}] | ERROR: {str(e)}"
+        message = f"{self} [{str(response_code)} - {error_message}] | ERROR: {str(e) or type(e).__name__}"
         logger = getattr(self.log, log_level)
         # See #724 / 2156
         message_cleaned_for_logger = message.replace("{", "<^<").replace("}", ">^>")
         logger(message_cleaned_for_logger)
         if self.crash_on_error:
             raise e
-        return self.sink(str(e), status=response_code)
+
+        response_message = str(e) or type(e).__name__
+        return self.sink(response_message, status=response_code)
 
     def respond(self, response) -> Response:
         assembled_response = self.assemble_response(response=response)

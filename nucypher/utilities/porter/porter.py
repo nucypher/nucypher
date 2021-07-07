@@ -138,20 +138,23 @@ the Pipe for nucypher network operations
         reservoir = self._make_staker_reservoir(quantity, duration_periods, exclude_ursulas, include_ursulas)
         value_factory = PrefetchStrategy(reservoir, quantity)
 
-        def get_ursula_info(ursula_checksum):
+        def get_ursula_info(ursula_checksum) -> Porter.UrsulaInfo:
             if ursula_checksum not in self.known_nodes:
                 raise ValueError(f"{ursula_checksum} is not known")
 
             ursula = self.known_nodes[ursula_checksum]
+            try:
+                # verify node is valid
+                self.network_middleware.client.verify_and_parse_node_or_host_and_port(node_or_sprout=ursula,
+                                                                                      host=None,
+                                                                                      port=None)
 
-            # check connectivity - don't care about the result only that it worked without raising an exception
-            # TODO is this the best way to check connectivity?
-            _ = self.network_middleware.get_certificate(host=ursula.rest_interface.host,
-                                                        port=ursula.rest_interface.port)
-
-            return Porter.UrsulaInfo(checksum_address=ursula_checksum,
-                                     uri=f"{ursula.rest_interface.formal_uri}",
-                                     encrypting_key=ursula.public_keys(DecryptingPower))
+                return Porter.UrsulaInfo(checksum_address=ursula_checksum,
+                                         uri=f"{ursula.rest_interface.formal_uri}",
+                                         encrypting_key=ursula.public_keys(DecryptingPower))
+            except Exception as e:
+                self.log.debug(f"Unable to obtain Ursula information ({ursula_checksum}): {str(e)}")
+                raise
 
         self.block_until_number_of_known_nodes_is(quantity,
                                                   timeout=self.DEFAULT_EXECUTION_TIMEOUT,
