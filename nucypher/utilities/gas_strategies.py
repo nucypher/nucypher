@@ -79,7 +79,7 @@ def construct_datafeed_median_strategy(speed: Optional[str] = None) -> Callable:
 
         if prices:
             median_price = statistics.median(prices)
-            return median_price
+            return int(median_price)  # must return an int
         else:  # Worst-case scenario, we get the price from the ETH node itself
             return rpc_gas_price_strategy(web3, transaction_params)
     return datafeed_median_gas_price_strategy
