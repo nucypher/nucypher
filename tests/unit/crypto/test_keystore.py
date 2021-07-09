@@ -241,6 +241,33 @@ def test_restore_keystore_from_mnemonic(tmpdir, mocker):
     assert keystore._Keystore__secret == secret
 
 
+def test_import_custom_keystore(tmpdir):
+
+    # Too short - 32 bytes is required
+    custom_secret = b'tooshort'
+    with pytest.raises(ValueError, match="Entropy must be at least 32 bytes."):
+        _keystore = Keystore.import_secure(secret=custom_secret,
+                                           password=INSECURE_DEVELOPMENT_PASSWORD,
+                                           keystore_dir=tmpdir)
+
+    # Import private key
+    custom_secret = os.urandom(32)  # not secure but works
+    keystore = Keystore.import_secure(secret=custom_secret,
+                                      password=INSECURE_DEVELOPMENT_PASSWORD,
+                                      keystore_dir=tmpdir)
+    keystore.unlock(password=INSECURE_DEVELOPMENT_PASSWORD)
+    assert keystore._Keystore__secret == custom_secret
+    keystore.lock()
+
+    path = keystore.keystore_path
+    del keystore
+
+    # Restore custom secret from encrypted keystore file
+    keystore = Keystore(keystore_path=path)
+    keystore.unlock(password=INSECURE_DEVELOPMENT_PASSWORD)
+    assert keystore._Keystore__secret == custom_secret
+
+
 def test_derive_signing_power(tmpdir):
     keystore = Keystore.generate(INSECURE_DEVELOPMENT_PASSWORD, keystore_dir=tmpdir)
     keystore.unlock(password=INSECURE_DEVELOPMENT_PASSWORD)

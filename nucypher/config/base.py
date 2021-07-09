@@ -579,10 +579,10 @@ class CharacterConfiguration(BaseConfiguration):
         return super().update(filepath=self.config_file_location, **kwargs)
 
     @classmethod
-    def generate(cls, password: str, *args, **kwargs):
+    def generate(cls, password: str, secret_key: bytes, *args, **kwargs):
         """Shortcut: Hook-up a new initial installation and configuration."""
         node_config = cls(dev_mode=False, *args, **kwargs)
-        node_config.initialize(password=password)
+        node_config.initialize(secret_key=secret_key, password=password)
         return node_config
 
     def cleanup(self) -> None:
@@ -769,7 +769,7 @@ class CharacterConfiguration(BaseConfiguration):
                 power_ups.append(power_up)
         return power_ups
 
-    def initialize(self, password: str) -> Path:
+    def initialize(self, password: str, secret_key: Optional[bytes] = None) -> Path:
         """Initialize a new configuration and write installation files to disk."""
 
         # Development
@@ -780,7 +780,7 @@ class CharacterConfiguration(BaseConfiguration):
         # Persistent
         else:
             self._ensure_config_root_exists()
-            self.write_keystore(password=password, interactive=self.MNEMONIC_KEYSTORE)
+            self.write_keystore(secret_key=secret_key, password=password, interactive=self.MNEMONIC_KEYSTORE)
 
         self._cache_runtime_filepaths()
         self.node_storage.initialize()
@@ -794,8 +794,15 @@ class CharacterConfiguration(BaseConfiguration):
         self.log.debug(message)
         return self.config_root
 
-    def write_keystore(self, password: str, interactive: bool = True) -> Keystore:
-        self.__keystore = Keystore.generate(password=password, keystore_dir=self.keystore_dir, interactive=interactive)
+    def write_keystore(self, password: str, secret_key: Optional[bytes] = None, interactive: bool = True) -> Keystore:
+        if secret_key:
+            self.__keystore = Keystore.import_secure(secret=secret_key,
+                                                     password=password,
+                                                     keystore_dir=self.keystore_dir)
+        else:
+            self.__keystore = Keystore.generate(password=password,
+                                                keystore_dir=self.keystore_dir,
+                                                interactive=interactive)
         return self.keystore
 
     @classmethod

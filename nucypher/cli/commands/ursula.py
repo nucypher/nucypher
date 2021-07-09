@@ -161,7 +161,7 @@ class UrsulaConfigOptions:
                 # TODO: Exit codes (not only for this, but for other exceptions)
                 return click.get_current_context().exit(1)
 
-    def generate_config(self, emitter, config_root, force):
+    def generate_config(self, emitter, config_root, force, secret_key):
 
         if self.dev:
             raise RuntimeError('Persistent configurations cannot be created in development mode.')
@@ -180,6 +180,7 @@ class UrsulaConfigOptions:
             self.rest_host = collect_worker_ip_address(emitter, network=self.domain, force=force)
 
         return UrsulaConfiguration.generate(password=get_nucypher_password(emitter=emitter, confirm=True),
+                                            secret_key=bytes.fromhex(secret_key),
                                             config_root=config_root,
                                             rest_host=self.rest_host,
                                             rest_port=self.rest_port,
@@ -295,7 +296,8 @@ def ursula():
 @option_force
 @option_config_root
 @group_general_config
-def init(general_config, config_options, force, config_root):
+@click.option('--secret-key', help="An custom pre-secured secret hex blob to use for key derivations", type=click.STRING)
+def init(general_config, config_options, force, config_root, secret_key):
     """Create a new Ursula node configuration."""
     emitter = setup_emitter(general_config, config_options.worker_address)
     _pre_launch_warnings(emitter, dev=None, force=force)
@@ -305,7 +307,7 @@ def init(general_config, config_options, force, config_root):
         raise click.BadOptionUsage('--provider', message="--provider is required to initialize a new ursula.")
     if not config_options.federated_only and not config_options.domain:
         config_options.domain = select_network(emitter)
-    ursula_config = config_options.generate_config(emitter, config_root, force)
+    ursula_config = config_options.generate_config(emitter, config_root, force, secret_key)
     filepath = ursula_config.to_configuration_file()
     paint_new_installation_help(emitter, new_configuration=ursula_config, filepath=filepath)
 
