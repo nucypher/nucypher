@@ -138,7 +138,7 @@ class Decrypt(BaseSchema):
     label = character_fields.Label(
         required=True, load_only=True,
         click=options.option_label(required=True))
-    message_kit = character_fields.UmbralMessageKit(
+    message_kit = character_fields.PolicyMessageKit(
         load_only=True,
         click=options.option_message_kit(required=True))
 

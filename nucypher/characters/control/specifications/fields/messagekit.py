@@ -22,12 +22,12 @@ from marshmallow import fields
 from nucypher.characters.control.specifications.exceptions import InvalidNativeDataTypes
 from nucypher.control.specifications.exceptions import InvalidInputData
 from nucypher.control.specifications.fields.base import BaseField
-from nucypher.crypto.kits import UmbralMessageKit as UmbralMessageKitClass
+from nucypher.crypto.kits import PolicyMessageKit as PolicyMessageKitClass
 
 
-class UmbralMessageKit(BaseField, fields.Field):
+class PolicyMessageKit(BaseField, fields.Field):
 
-    def _serialize(self, value: UmbralMessageKitClass, attr, obj, **kwargs):
+    def _serialize(self, value: PolicyMessageKitClass, attr, obj, **kwargs):
         return b64encode(value.to_bytes()).decode()
 
     def _deserialize(self, value, attr, data, **kwargs):
@@ -40,6 +40,6 @@ class UmbralMessageKit(BaseField, fields.Field):
 
     def _validate(self, value):
         try:
-            UmbralMessageKitClass.from_bytes(value)
+            PolicyMessageKitClass.from_bytes(value)
         except InvalidNativeDataTypes as e:
             raise InvalidInputData(f"Could not parse {self.name}: {e}")

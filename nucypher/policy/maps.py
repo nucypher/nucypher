@@ -30,7 +30,7 @@ from eth_typing.evm import ChecksumAddress
 from nucypher.blockchain.eth.constants import ETH_ADDRESS_BYTE_LENGTH
 from nucypher.characters.base import Character
 from nucypher.crypto.constants import EIP712_MESSAGE_SIGNATURE_SIZE
-from nucypher.crypto.kits import UmbralMessageKit
+from nucypher.crypto.kits import PolicyMessageKit
 from nucypher.crypto.powers import DecryptingPower, SigningPower
 from nucypher.crypto.signing import SignatureStamp
 from nucypher.crypto.splitters import signature_splitter, kfrag_splitter
@@ -54,7 +54,7 @@ class TreasureMap:
 
     ursula_and_kfrag_payload_splitter = BytestringSplitter(
         (to_checksum_address, ETH_ADDRESS_BYTE_LENGTH),
-        (UmbralMessageKit, VariableLengthBytestring),
+        (PolicyMessageKit, VariableLengthBytestring),
     )
 
     @classmethod
@@ -203,7 +203,7 @@ class EncryptedTreasureMap:
     _splitter = BytestringSplitter(
         signature_splitter, # public signature
         hrac_splitter, # HRAC
-        (UmbralMessageKit, VariableLengthBytestring), # encrypted TreasureMap
+        (PolicyMessageKit, VariableLengthBytestring), # encrypted TreasureMap
         (bytes, EIP712_MESSAGE_SIGNATURE_SIZE)) # blockchain signature
 
     _EMPTY_BLOCKCHAIN_SIGNATURE = b'\x00' * EIP712_MESSAGE_SIGNATURE_SIZE
@@ -215,7 +215,7 @@ class EncryptedTreasureMap:
     def _sign(blockchain_signer: Callable[[bytes], bytes],
               public_signature: Signature,
               hrac: HRAC,
-              encrypted_tmap: UmbralMessageKit,
+              encrypted_tmap: PolicyMessageKit,
               ) -> bytes:
         # This method exists mainly to link this scheme to the corresponding test
         payload = bytes(public_signature) + bytes(hrac) + encrypted_tmap.to_bytes()
@@ -251,7 +251,7 @@ class EncryptedTreasureMap:
     def __init__(self,
                  hrac: HRAC,
                  public_signature: Signature,
-                 encrypted_tmap: UmbralMessageKit,
+                 encrypted_tmap: PolicyMessageKit,
                  blockchain_signature: Optional[bytes] = None,
                  ):
 

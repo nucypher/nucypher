@@ -178,9 +178,6 @@ class PolicyMessageKit(MessageKit):
                 "Need eiter `enrico` or `policy_encrypting_key` to be given.")
 
 
-UmbralMessageKit = PolicyMessageKit  # Temporarily, until serialization w/ Enrico's
-
-
 class RevocationKit:
 
     def __init__(self, treasure_map, signer: 'SignatureStamp'):

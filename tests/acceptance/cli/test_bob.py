@@ -30,7 +30,7 @@ from nucypher.cli.literature import SUCCESSFUL_DESTRUCTION, COLLECT_NUCYPHER_PAS
 from nucypher.cli.main import nucypher_cli
 from nucypher.config.characters import BobConfiguration
 from nucypher.config.constants import TEMPORARY_DOMAIN
-from nucypher.crypto.kits import UmbralMessageKit
+from nucypher.crypto.kits import PolicyMessageKit
 from nucypher.crypto.powers import SigningPower
 from nucypher.utilities.logging import GlobalLoggerSettings, Logger
 from nucypher.policy.identity import Card
@@ -151,7 +151,7 @@ def test_bob_retrieves_twice_via_cli(click_runner,
 
     message_kit_bytes = bytes(three_message_kits[0])
     message_kit_b64_bytes = b64encode(message_kit_bytes)
-    UmbralMessageKit.from_bytes(message_kit_bytes)
+    PolicyMessageKit.from_bytes(message_kit_bytes)
 
     retrieve_args = ('bob', 'retrieve',
                      '--mock-networking',

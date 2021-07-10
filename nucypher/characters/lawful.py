@@ -76,7 +76,7 @@ from nucypher.config.storages import ForgetfulNodeStorage, NodeStorage
 from nucypher.control.controllers import WebController
 from nucypher.control.emitters import StdoutEmitter
 from nucypher.crypto.keypairs import HostingKeypair
-from nucypher.crypto.kits import UmbralMessageKit
+from nucypher.crypto.kits import PolicyMessageKit
 from nucypher.crypto.powers import (
     DecryptingPower,
     DelegatingPower,
@@ -419,7 +419,7 @@ class Alice(Character, BlockchainPolicyAuthor):
         return receipt, failed
 
     def decrypt_message_kit(self,
-                            message_kit: UmbralMessageKit,
+                            message_kit: PolicyMessageKit,
                             data_source: Character,
                             label: bytes
                             ) -> List[bytes]:
@@ -697,7 +697,7 @@ class Bob(Character):
 
     def _filter_work_orders_and_capsules(self,
                                          work_orders: Dict[ChecksumAddress, 'WorkOrder'],
-                                         message_kits: Sequence['UmbralMessageKit'],
+                                         message_kits: Sequence['PolicyMessageKit'],
                                          threshold: int,
                                          ) -> Tuple[List['WorkOrder'], Set['Capsule']]:
         remaining_work_orders = []
@@ -712,7 +712,7 @@ class Bob(Character):
                    work_order: 'WorkOrder',
                    # TODO (#2028): it's kind of awkward to pass this mapping here,
                    # there should be a better way to handle this.
-                   message_kits_map: Dict[Capsule, UmbralMessageKit],
+                   message_kits_map: Dict[Capsule, PolicyMessageKit],
                    retain_cfrags: bool = False
                    ) -> Tuple[bool, Union[List['Ursula'], List['CapsuleFrag']]]:
 
@@ -769,7 +769,7 @@ class Bob(Character):
             return True, verified_cfrags
 
     def _assemble_work_orders(self,
-                              *message_kits: List[UmbralMessageKit],
+                              *message_kits: List[PolicyMessageKit],
                               enrico: 'Enrico',
                               policy_encrypting_key: PublicKey,
                               use_attached_cfrags: bool,
@@ -828,7 +828,7 @@ class Bob(Character):
 
     def _get_cleartexts(self,
                         *message_kits,
-                        message_kits_map: Dict[Capsule, UmbralMessageKit],
+                        message_kits_map: Dict[Capsule, PolicyMessageKit],
                         new_work_orders: Sequence['WorkOrder'],
                         threshold: int,
                         retain_cfrags: bool
@@ -911,7 +911,7 @@ class Bob(Character):
     def retrieve(self,
 
                  # Policy
-                 *message_kits: UmbralMessageKit,
+                 *message_kits: PolicyMessageKit,
                  label: bytes,
                  encrypted_treasure_map: Optional['EncryptedTreasureMap'] = None,
                  policy_encrypting_key: Optional[PublicKey] = None,
@@ -1829,7 +1829,7 @@ class Enrico(Character):
         if is_me:
             self.log.info(self.banner.format(policy_encrypting_key))
 
-    def encrypt_message(self, plaintext: bytes) -> Tuple[UmbralMessageKit, Signature]:
+    def encrypt_message(self, plaintext: bytes) -> Tuple[PolicyMessageKit, Signature]:
         # TODO: #2107 Rename to "encrypt"
         message_kit, signature = encrypt_and_sign(self.policy_pubkey,
                                                   plaintext=plaintext,

@@ -102,7 +102,7 @@ def test_messagekit_validation(capsule_side_channel):
 
     class MessageKitsOnly(BaseSchema):
 
-        mkit = fields.UmbralMessageKit()
+        mkit = fields.PolicyMessageKit()
 
     # this will raise a base64 error
     with pytest.raises(SpecificationError) as e:

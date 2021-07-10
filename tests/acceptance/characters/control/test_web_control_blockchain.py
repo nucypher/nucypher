@@ -24,7 +24,7 @@ import pytest
 from click.testing import CliRunner
 
 import nucypher
-from nucypher.crypto.kits import UmbralMessageKit
+from nucypher.crypto.kits import PolicyMessageKit
 from nucypher.crypto.powers import DecryptingPower
 from nucypher.policy.maps import TreasureMap, EncryptedTreasureMap
 
@@ -220,7 +220,7 @@ def test_enrico_web_character_control_encrypt_message(enrico_web_controller_test
     assert 'signature' in response_data['result']
 
     # Check that it serializes correctly.
-    message_kit = UmbralMessageKit.from_bytes(b64decode(response_data['result']['message_kit']))
+    message_kit = PolicyMessageKit.from_bytes(b64decode(response_data['result']['message_kit']))
 
     # Send bad data to assert error return
     response = enrico_web_controller_test_client.post('/encrypt_message', data=json.dumps({'bad': 'input'}))
@@ -296,7 +296,7 @@ def test_web_character_control_lifecycle(alice_web_controller_test_client,
     assert 'signature' in enrico_response_data['result']
 
     kit_bytes = b64decode(enrico_response_data['result']['message_kit'].encode())
-    bob_message_kit = UmbralMessageKit.from_bytes(kit_bytes)
+    bob_message_kit = PolicyMessageKit.from_bytes(kit_bytes)
 
     # Retrieve data via Bob control
     encoded_message_kit = b64encode(bob_message_kit.to_bytes()).decode()

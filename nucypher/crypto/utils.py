@@ -28,7 +28,7 @@ from eth_keys import KeyAPI as EthKeyAPI
 from eth_utils.address import to_checksum_address
 
 import nucypher.crypto.umbral_adapter as umbral
-from nucypher.crypto.kits import UmbralMessageKit
+from nucypher.crypto.kits import PolicyMessageKit
 from nucypher.crypto.signing import SignatureStamp
 from nucypher.crypto.umbral_adapter import Signature, PublicKey
 
@@ -132,7 +132,7 @@ def encrypt_and_sign(recipient_pubkey_enc: PublicKey,
                      plaintext: bytes,
                      signer: 'SignatureStamp',
                      sign_plaintext: bool = True
-                     ) -> Tuple[UmbralMessageKit, Signature]:
+                     ) -> Tuple[PolicyMessageKit, Signature]:
     if signer is not constants.DO_NOT_SIGN:
         # The caller didn't expressly tell us not to sign; we'll sign.
         if sign_plaintext:
@@ -145,13 +145,13 @@ def encrypt_and_sign(recipient_pubkey_enc: PublicKey,
             sig_header = constants.SIGNATURE_IS_ON_CIPHERTEXT
             capsule, ciphertext = umbral.encrypt(recipient_pubkey_enc, sig_header + plaintext)
             signature = signer(ciphertext)
-        message_kit = UmbralMessageKit(ciphertext=ciphertext, capsule=capsule,
+        message_kit = PolicyMessageKit(ciphertext=ciphertext, capsule=capsule,
                                        sender_verifying_key=signer.as_umbral_pubkey(),
                                        signature=signature)
     else:
         # Don't sign.
         signature = sig_header = constants.NOT_SIGNED
         capsule, ciphertext = umbral.encrypt(recipient_pubkey_enc, sig_header + plaintext)
-        message_kit = UmbralMessageKit(ciphertext=ciphertext, capsule=capsule)
+        message_kit = PolicyMessageKit(ciphertext=ciphertext, capsule=capsule)
 
     return message_kit, signature

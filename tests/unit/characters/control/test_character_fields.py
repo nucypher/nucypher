@@ -21,13 +21,13 @@ import maya
 import pytest
 from nucypher.crypto.umbral_adapter import SecretKey, Signer
 
-from nucypher.crypto.kits import UmbralMessageKit as UmbralMessageKitClass
+from nucypher.crypto.kits import PolicyMessageKit as PolicyMessageKitClass
 
 from nucypher.characters.control.specifications.fields import (
     DateTime,
     FileField,
     Key,
-    UmbralMessageKit,
+    PolicyMessageKit,
     UmbralSignature,
     EncryptedTreasureMap
 )
@@ -121,10 +121,10 @@ def test_umbral_message_kit(enacted_federated_policy, federated_alice):
     plaintext_bytes = bytes(message, encoding='utf-8')
     message_kit, signature = enrico.encrypt_message(plaintext=plaintext_bytes)
     message_kit_bytes = message_kit.to_bytes()
-    umbral_message_kit = UmbralMessageKitClass.from_bytes(message_kit_bytes)
+    umbral_message_kit = PolicyMessageKitClass.from_bytes(message_kit_bytes)
 
     # Test
-    field = UmbralMessageKit()
+    field = PolicyMessageKit()
     serialized = field._serialize(value=umbral_message_kit, attr=None, obj=None)
     assert serialized == b64encode(umbral_message_kit.to_bytes()).decode()
 
@@ -134,7 +134,7 @@ def test_umbral_message_kit(enacted_federated_policy, federated_alice):
     field._validate(value=umbral_message_kit.to_bytes())
 
     with pytest.raises(InvalidInputData):
-        field._validate(value=b"UmbralMessageKit")
+        field._validate(value=b"PolicyMessageKit")
 
 
 def test_umbral_signature():

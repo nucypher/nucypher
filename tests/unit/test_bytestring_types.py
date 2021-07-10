@@ -16,7 +16,7 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
 from nucypher.characters.lawful import Enrico
-from nucypher.crypto.kits import UmbralMessageKit
+from nucypher.crypto.kits import PolicyMessageKit
 
 
 def test_message_kit_serialization_via_enrico(federated_alice):
@@ -37,7 +37,7 @@ def test_message_kit_serialization_via_enrico(federated_alice):
     message_kit_bytes = message_kit.to_bytes()
 
     # Deserialize
-    the_same_message_kit = UmbralMessageKit.from_bytes(message_kit_bytes)
+    the_same_message_kit = PolicyMessageKit.from_bytes(message_kit_bytes)
 
     # Confirm
     assert message_kit_bytes == the_same_message_kit.to_bytes()

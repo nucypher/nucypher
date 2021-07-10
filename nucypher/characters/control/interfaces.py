@@ -23,7 +23,7 @@ import maya
 from nucypher.characters.base import Character
 from nucypher.characters.control.specifications import alice, bob, enrico
 from nucypher.control.interfaces import attach_schema, ControlInterface
-from nucypher.crypto.kits import UmbralMessageKit
+from nucypher.crypto.kits import PolicyMessageKit
 from nucypher.crypto.powers import DecryptingPower, SigningPower
 from nucypher.crypto.umbral_adapter import PublicKey
 from nucypher.network.middleware import RestMiddleware
@@ -132,7 +132,7 @@ class AliceInterface(CharacterPublicInterface):
         policy_encrypting_key = self.implementer.get_policy_encrypting_key_from_label(label)
 
         # TODO #846: May raise UnknownOpenSSLError and InvalidTag.
-        message_kit = UmbralMessageKit.from_bytes(message_kit)
+        message_kit = PolicyMessageKit.from_bytes(message_kit)
 
         enrico = Enrico.from_public_keys(
             verifying_key=message_kit.sender_verifying_key,
@@ -175,7 +175,7 @@ class BobInterface(CharacterPublicInterface):
 
         policy_encrypting_key = PublicKey.from_bytes(policy_encrypting_key)
         alice_verifying_key = PublicKey.from_bytes(alice_verifying_key)
-        message_kit = UmbralMessageKit.from_bytes(message_kit)  # TODO #846: May raise UnknownOpenSSLError and InvalidTag.
+        message_kit = PolicyMessageKit.from_bytes(message_kit)  # TODO #846: May raise UnknownOpenSSLError and InvalidTag.
 
         enrico = Enrico.from_public_keys(verifying_key=message_kit.sender_verifying_key,
                                          policy_encrypting_key=policy_encrypting_key,

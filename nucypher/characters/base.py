@@ -43,7 +43,7 @@ from nucypher.blockchain.eth.signers.base import Signer
 from nucypher.characters.control.controllers import CharacterCLIController
 from nucypher.control.controllers import JSONRPCController
 from nucypher.crypto.keystore import Keystore
-from nucypher.crypto.kits import UmbralMessageKit
+from nucypher.crypto.kits import PolicyMessageKit
 from nucypher.crypto.powers import (
     CryptoPower,
     CryptoPowerUp,
@@ -384,7 +384,7 @@ class Character(Learner):
 
     def verify_from(self,
                     stranger: 'Character',
-                    message_kit: Union[UmbralMessageKit, bytes],
+                    message_kit: Union[PolicyMessageKit, bytes],
                     signature: Signature = None,
                     decrypt=False,
                     label=None,
@@ -470,7 +470,7 @@ class Character(Learner):
         return cleartext
 
     def decrypt(self,
-                message_kit: UmbralMessageKit,
+                message_kit: PolicyMessageKit,
                 label: Optional[bytes] = None) -> bytes:
         if label and DelegatingPower in self._default_crypto_powerups:
             delegating_power = self._crypto_power.power_ups(DelegatingPower)

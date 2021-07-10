@@ -56,7 +56,7 @@ from nucypher.blockchain.eth.networks import NetworksInventory
 from nucypher.blockchain.eth.registry import BaseContractRegistry
 from nucypher.config.constants import SeednodeMetadata
 from nucypher.config.storages import ForgetfulNodeStorage
-from nucypher.crypto.kits import UmbralMessageKit
+from nucypher.crypto.kits import PolicyMessageKit
 from nucypher.crypto.powers import DecryptingPower, NoSigningPower, SigningPower
 from nucypher.crypto.splitters import signature_splitter
 from nucypher.crypto.signing import SignatureStamp
@@ -739,7 +739,7 @@ class Learner:
 
     def verify_from(self,
                     stranger: 'Teacher',
-                    message_kit: Union[UmbralMessageKit, bytes],
+                    message_kit: Union[PolicyMessageKit, bytes],
                     signature: Signature):
         #
         # Optional Sanity Check
