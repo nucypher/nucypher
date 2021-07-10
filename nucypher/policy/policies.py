@@ -31,7 +31,7 @@ from nucypher.crypto.kits import RevocationKit
 from nucypher.crypto.powers import TransactingPower
 from nucypher.crypto.splitters import key_splitter
 from nucypher.crypto.utils import keccak_digest
-from nucypher.crypto.umbral_adapter import PublicKey, KeyFrag, Signature
+from nucypher.crypto.umbral_adapter import PublicKey, VerifiedKeyFrag, Signature
 from nucypher.crypto.utils import construct_policy_id
 from nucypher.network.middleware import RestMiddleware
 from nucypher.policy.reservoir import (
@@ -196,7 +196,7 @@ class Policy(ABC):
                  label: bytes,
                  expiration: maya.MayaDT,
                  bob: 'Bob',
-                 kfrags: Sequence[KeyFrag],
+                 kfrags: Sequence[VerifiedKeyFrag],
                  public_key: PublicKey,
                  m: int,
                  ):
@@ -351,7 +351,7 @@ class Policy(ABC):
                                                                        bob=self.bob,
                                                                        label=self.label,
                                                                        ursulas=list(arrangements),
-                                                                       kfrags=self.kfrags,
+                                                                       verified_kfrags=self.kfrags,
                                                                        m=self.m)
         return treasure_map
 
@@ -418,7 +418,7 @@ class Policy(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def _make_enactment_payload(self, kfrag: KeyFrag) -> bytes:
+    def _make_enactment_payload(self, kfrag: VerifiedKeyFrag) -> bytes:
         """
         Serializes a given kfrag and policy publication transaction to send to Ursula.
         """

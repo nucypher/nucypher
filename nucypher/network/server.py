@@ -220,14 +220,21 @@ def _make_rest_app(datastore: Datastore, this_node, domain: str, log: Logger) ->
             return Response(response="KFrag decryption failed.", status=403)   # 403 - Forbidden
 
         # Verify KFrag Authorization (offchain)
-        signed_writ, kfrag = work_order.kfrag_payload_splitter(plaintext_kfrag_payload)
+        from nucypher.policy.maps import AuthorizedKeyFrag
         try:
-            verified_kfrag = this_node.verify_kfrag_authorization(
-                alice=policy_publisher,
-                kfrag=kfrag,
-                signed_writ=signed_writ,
-                work_order=work_order
-            )
+            authorized_kfrag = AuthorizedKeyFrag.from_bytes(plaintext_kfrag_payload)
+        except ValueError:
+            message = f'{bob_identity_message} Invalid AuthorizedKeyFrag.'
+            log.info(message)
+            this_node.suspicious_activities_witnessed['unauthorized'].append(message)
+            return Response(message, status=401)  # 401 - Unauthorized
+
+        try:
+            verified_kfrag = this_node.verify_kfrag_authorization(hrac=work_order.hrac,
+                                                                  author=alice,
+                                                                  publisher=policy_publisher,
+                                                                  authorized_kfrag=authorized_kfrag)
+
         except Policy.Unauthorized:
             message = f'{bob_identity_message} Unauthorized work order.'
             log.info(message)

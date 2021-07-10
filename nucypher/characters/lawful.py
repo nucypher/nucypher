@@ -108,7 +108,7 @@ from nucypher.network.nodes import NodeSprout, TEACHER_NODES, Teacher
 from nucypher.network.protocols import InterfaceInfo, parse_node_uri
 from nucypher.network.server import ProxyRESTServer, TLSHostingPower, make_rest_app
 from nucypher.network.trackers import AvailabilityTracker
-from nucypher.policy.maps import TreasureMap
+from nucypher.policy.maps import TreasureMap, AuthorizedKeyFrag
 from nucypher.policy.orders import WorkOrder
 from nucypher.policy.policies import Policy
 from nucypher.utilities.logging import Logger
@@ -1737,35 +1737,29 @@ class Ursula(Teacher, Character, Worker):
     #
 
     def verify_kfrag_authorization(self,
-                                   alice: Alice,
-                                   kfrag: KeyFrag,
-                                   signed_writ: bytes,
-                                   work_order: 'WorkOrder'
+                                   hrac: bytes,
+                                   author: Alice,
+                                   publisher: Alice,
+                                   authorized_kfrag: AuthorizedKeyFrag,
                                    ) -> VerifiedKeyFrag:
-        from nucypher.policy.orders import WorkOrder  # TODO: resolve ciruclar dependency
 
-        writ_hrac, writ_kfrag_checksum, writ_signature = WorkOrder.signed_writ_splitter(signed_writ)
-        reconstructed_writ = writ_hrac + writ_kfrag_checksum
+        # TODO: should it be a method of AuthorizedKeyFrag?
 
         try:
-            self.verify_from(alice, reconstructed_writ, signature=writ_signature)
+            self.verify_from(publisher, authorized_kfrag.writ, signature=authorized_kfrag.writ_signature)
         except InvalidSignature:
             # TODO (#2740): differentiate cases for Policy.Unauthorized
             raise Policy.Unauthorized  # This isn't from Alice (publisher).
 
-        if writ_hrac != work_order.hrac:  # Funky Workorder
+        if authorized_kfrag.hrac != hrac:  # Funky Workorder
             raise Policy.Unauthorized  # Bob, what the *hell* are you doing?
 
-        kfrag_checksum = keccak_digest(bytes(kfrag))[:WRIT_CHECKSUM_SIZE]
-        if kfrag_checksum != writ_kfrag_checksum:
-            raise Policy.Unauthorized  # Bob, Seriously?
-
         try:
-            verified_kfrag = kfrag.verify(verifying_pk=alice.stamp.as_umbral_pubkey())
+            verified_kfrag = authorized_kfrag.kfrag.verify(verifying_pk=author.stamp.as_umbral_pubkey())
         except VerificationError:
             raise Policy.Unauthorized  # WTF, Alice did not generate these KFrags.
 
-        if writ_hrac in self.revoked_policies:
+        if authorized_kfrag.hrac in self.revoked_policies:
             # Note: This is only an off-chain and in-memory check.
             raise Policy.Unauthorized  # Denied
 
