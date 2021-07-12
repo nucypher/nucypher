@@ -150,9 +150,7 @@ def test_publish_and_get_treasure_map(blockchain_porter_web_controller,
 
 
 def test_exec_work_order(blockchain_porter_web_controller,
-                         blockchain_porter,
-                         mocker,
-                         mock_ursula_reencrypts,
+                         random_blockchain_policy,
                          blockchain_ursulas,
                          blockchain_bob,
                          blockchain_alice,
@@ -162,19 +160,18 @@ def test_exec_work_order(blockchain_porter_web_controller,
     assert response.status_code == 400
 
     # Setup
-    ursula, work_order, expected_reencrypt_result = work_order_setup(mock_ursula_reencrypts,
-                                                                     blockchain_ursulas,
-                                                                     blockchain_bob,
-                                                                     blockchain_alice)
+    network_middleware = MockRestMiddleware()
+    # enact new random policy since idle_blockchain_policy/enacted_blockchain_policy already modified in previous tests
+    enacted_policy = random_blockchain_policy.enact(network_middleware=network_middleware,
+                                                    publish_treasure_map=False)  # enact but don't publish
+    ursula_address, work_order = work_order_setup(enacted_policy,
+                                                  blockchain_ursulas,
+                                                  blockchain_bob,
+                                                  blockchain_alice)
     work_order_payload_b64 = b64encode(work_order.payload()).decode()
 
-    # Success
-    mocked_response = mocker.Mock(content=expected_reencrypt_result)
-    mocker.patch.object(blockchain_porter.network_middleware,
-                        'send_work_order_payload_to_ursula_stub',  # stubbed method for now
-                        return_value=mocked_response)
     exec_work_order_params = {
-        'ursula': ursula.checksum_address,
+        'ursula': ursula_address,
         'work_order_payload': work_order_payload_b64
     }
     response = blockchain_porter_web_controller.post('/exec_work_order', data=json.dumps(exec_work_order_params))
@@ -182,7 +179,7 @@ def test_exec_work_order(blockchain_porter_web_controller,
 
     response_data = json.loads(response.data)
     work_order_result = response_data['result']['work_order_result']
-    assert b64decode(work_order_result) == expected_reencrypt_result
+    assert work_order_result
 
     # Failure
     exec_work_order_params = {

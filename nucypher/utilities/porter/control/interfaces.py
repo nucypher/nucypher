@@ -84,7 +84,7 @@ class PorterInterface(ControlInterface):
     def exec_work_order(self,
                         ursula: ChecksumAddress,
                         work_order_payload: bytes) -> dict:
-        work_order_result = self.implementer.exec_work_order(ursula_checksum=ursula,
+        work_order_result = self.implementer.exec_work_order(ursula_address=ursula,
                                                              work_order_payload=work_order_payload)
         response_data = {'work_order_result': work_order_result}
         return response_data

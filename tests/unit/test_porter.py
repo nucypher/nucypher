@@ -76,17 +76,17 @@ def test_ursula_checksum_address_field(get_random_checksum_address):
         field._deserialize(value="0xdeadbeef", attr=None, data=None)
 
 
-def test_work_order_field(mock_ursula_reencrypts,
+def test_work_order_field(enacted_federated_policy,
                           federated_ursulas,
-                          get_random_checksum_address,
                           federated_bob,
                           federated_alice,
-                          random_policy_label):
+                          get_random_checksum_address):
     # Setup
-    ursula, work_order, expected_reencrypt_result = work_order_setup(mock_ursula_reencrypts,
-                                                                     federated_ursulas,
-                                                                     federated_bob,
-                                                                     federated_alice)
+    ursula_address, work_order = work_order_setup(enacted_federated_policy,
+                                                  federated_ursulas,
+                                                  federated_bob,
+                                                  federated_alice)
+    reencrypt_result = b"cfrags and signatures"
 
     # Test Work Order
     work_order_bytes = work_order.payload()
@@ -99,11 +99,11 @@ def test_work_order_field(mock_ursula_reencrypts,
 
     # Test Work Order Result
     field = WorkOrderResult()
-    serialized = field._serialize(value=expected_reencrypt_result, attr=None, obj=None)
-    assert serialized == b64encode(expected_reencrypt_result).decode()
+    serialized = field._serialize(value=reencrypt_result, attr=None, obj=None)
+    assert serialized == b64encode(reencrypt_result).decode()
 
     deserialized = field.deserialize(value=serialized, attr=None, data=None)
-    assert deserialized == expected_reencrypt_result
+    assert deserialized == reencrypt_result
 
 
 def test_ursula_checksum_address_string_list_field(get_random_checksum_address):

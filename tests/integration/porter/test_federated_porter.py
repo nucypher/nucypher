@@ -18,9 +18,8 @@ import os
 from base64 import b64decode
 
 import pytest
-from nucypher.crypto.umbral_adapter import PublicKey
-
 from nucypher.crypto.powers import DecryptingPower
+from nucypher.crypto.umbral_adapter import PublicKey
 from nucypher.policy.maps import TreasureMap
 from tests.utils.policy import work_order_setup
 
@@ -99,22 +98,16 @@ def test_publish_and_get_treasure_map(federated_porter,
 
 
 def test_exec_work_order(federated_porter,
-                         mocker,
-                         mock_ursula_reencrypts,
                          federated_ursulas,
                          federated_bob,
-                         federated_alice):
+                         federated_alice,
+                         enacted_federated_policy):
     # Setup
-    ursula, work_order, expected_reencrypt_result = work_order_setup(mock_ursula_reencrypts,
-                                                                     federated_ursulas,
-                                                                     federated_bob,
-                                                                     federated_alice)
+    ursula_address, work_order = work_order_setup(enacted_federated_policy,
+                                                  federated_ursulas,
+                                                  federated_bob,
+                                                  federated_alice)
 
-    # use porter
-    mocked_response = mocker.Mock(content=expected_reencrypt_result)
-    mocker.patch.object(federated_porter.network_middleware,
-                        'send_work_order_payload_to_ursula_stub',  # stubbed method for now
-                        return_value=mocked_response)
-    result = federated_porter.exec_work_order(ursula_checksum=ursula.checksum_address,
+    result = federated_porter.exec_work_order(ursula_address=ursula_address,
                                               work_order_payload=work_order.payload())
-    assert result == expected_reencrypt_result
+    assert result, "valid result returned"
