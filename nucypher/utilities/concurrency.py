@@ -15,8 +15,9 @@ You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
-
+import io
 import time
+import traceback
 from queue import Queue, Empty
 from threading import Thread, Event, Lock, Timer, get_ident
 from typing import Callable, List, Any, Optional, Dict
@@ -88,6 +89,31 @@ class Future:
             raise exc_value
         else:
             return self._value.value
+
+
+def format_failures(failures: Dict) -> str:
+    """
+    Performs some basic formatting of the WorkerPool failures,
+    providing some context of why TimedOut/OutOfValues occurred.
+    """
+
+    if failures:
+        # Using one random failure to print the traceback.
+        # Most probably they're all the same anyway.
+        value = list(failures)[0]
+        _exception_cls, exception, tb = failures[value]
+
+        f = io.StringIO()
+        traceback.print_tb(tb, file=f)
+        traceback_str = f.getvalue()
+
+        return (f"{len(failures)} total failures recorded;\n"
+                f"for example, for the value {value}:\n"
+                f"{traceback_str}\n"
+                f"{exception}")
+
+    else:
+        return "0 total failures recorded"
 
 
 class WorkerPool:
@@ -206,9 +232,9 @@ class WorkerPool:
 
         result = self._target_value.get()
         if result == TIMEOUT_TRIGGERED:
-            raise self.TimedOut()
+            raise self.TimedOut(format_failures(self.get_failures()))
         elif result == PRODUCER_STOPPED:
-            raise self.OutOfValues()
+            raise self.OutOfValues(format_failures(self.get_failures()))
         return result
 
     def get_failures(self) -> Dict:
