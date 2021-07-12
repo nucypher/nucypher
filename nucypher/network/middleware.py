@@ -193,7 +193,8 @@ class RestMiddleware:
         return response
 
     def reencrypt(self, work_order):
-        ursula_rest_response = self.send_work_order_payload_to_ursula(work_order)
+        ursula_rest_response = self.send_work_order_payload_to_ursula(ursula=work_order.ursula,
+                                                                      work_order_payload=work_order.payload())
         splitter = cfrag_splitter + signature_splitter
         cfrags_and_signatures = splitter.repeat(ursula_rest_response.content)
         return cfrags_and_signatures
@@ -220,19 +221,14 @@ class RestMiddleware:
                                     timeout=2)
         return response
 
-    def send_work_order_payload_to_ursula(self, work_order):
-        payload = work_order.payload()
+    def send_work_order_payload_to_ursula(self, ursula: 'Ursula', work_order_payload: bytes):
         response = self.client.post(
-            node_or_sprout=work_order.ursula,
+            node_or_sprout=ursula,
             path=f"reencrypt",
-            data=payload,
+            data=work_order_payload,
             timeout=2
         )
         return response
-
-    def send_work_order_payload_to_ursula_stub(self, ursula, work_order_payload):
-        # stubbed for now until TMapConKFrags code is used
-        pass
 
     def check_rest_availability(self, initiator, responder):
         response = self.client.post(node_or_sprout=responder,

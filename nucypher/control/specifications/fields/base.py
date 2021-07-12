@@ -69,6 +69,7 @@ class PositiveInteger(Integer):
 
 
 class Base64BytesRepresentation(BaseField, fields.Field):
+    """Serializes/Deserializes any object's byte representation to/from bae64."""
     def _serialize(self, value, attr, obj, **kwargs):
         value_bytes = value if isinstance(value, bytes) else bytes(value)
         return b64encode(value_bytes).decode()
