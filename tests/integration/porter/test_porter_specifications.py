@@ -283,7 +283,7 @@ def test_bob_exec_work_order(mock_ursula_reencrypts,
     # Test construction of WorkOrders by Bob
     work_order = WorkOrderClass.construct_by_bob(encrypted_kfrag=mock_kfrag,
                                                  bob=federated_bob,
-                                                 relayer_verifying_key=federated_alice.stamp.as_umbral_pubkey(),
+                                                 publisher_verifying_key=federated_alice.stamp.as_umbral_pubkey(),
                                                  alice_verifying_key=federated_alice.stamp.as_umbral_pubkey(),
                                                  ursula=ursula,
                                                  capsules=capsules,
