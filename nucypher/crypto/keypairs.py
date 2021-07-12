@@ -25,6 +25,7 @@ from constant_sorrow import constants
 from cryptography.hazmat.primitives.asymmetric import ec
 from hendrix.deploy.tls import HendrixDeployTLS
 from hendrix.facilities.services import ExistingKeyTLSContextFactory
+from umbral.signing import Signer
 
 from nucypher.config.constants import MAX_UPLOAD_CONTENT_LENGTH
 from nucypher.crypto.kits import MessageKit
@@ -33,10 +34,10 @@ from nucypher.crypto.tls import _read_tls_certificate, _TLS_CURVE, generate_self
 from nucypher.crypto.umbral_adapter import (
     SecretKey,
     PublicKey,
-    decrypt_original,
-    decrypt_reencrypted,
     Signature,
-    Signer
+    Signer,
+    decrypt_original,
+    decrypt_reencrypted
 )
 from nucypher.network.resources import get_static_resources
 
@@ -86,6 +87,9 @@ class DecryptingKeypair(Keypair):
     A keypair for Umbral
     """
 
+    class DecryptionFailed(Exception):
+        """Raised when decryption fails."""
+
     def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
 
@@ -95,16 +99,19 @@ class DecryptingKeypair(Keypair):
 
         :return: bytes
         """
-        if len(message_kit) > 0:
-            cleartext = decrypt_reencrypted(self._privkey,
-                                            message_kit._delegating_key,
-                                            message_kit.capsule,
-                                            list(message_kit._cfrags),
-                                            message_kit.ciphertext)
-        else:
-            cleartext = decrypt_original(self._privkey,
-                                         message_kit.capsule,
-                                         message_kit.ciphertext)
+        try:
+            if len(message_kit) > 0:
+                cleartext = decrypt_reencrypted(self._privkey,
+                                                message_kit._delegating_key,
+                                                message_kit.capsule,
+                                                list(message_kit._cfrags),
+                                                message_kit.ciphertext)
+            else:
+                cleartext = decrypt_original(self._privkey,
+                                             message_kit.capsule,
+                                             message_kit.ciphertext)
+        except ValueError as e:
+            raise self.DecryptionFailed() from e
 
         return cleartext
 

@@ -15,10 +15,13 @@ You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
-from bisect import bisect_right
 
 import random
 import sys
+from bisect import bisect_right
+from itertools import accumulate
+from typing import Dict, Iterable, List, Tuple, Type, Union, Any, Optional, cast, Iterator
+
 from constant_sorrow.constants import (  # type: ignore
     CONTRACT_CALL,
     TRANSACTION,
@@ -28,8 +31,6 @@ from eth_typing.encoding import HexStr
 from eth_typing.evm import ChecksumAddress
 from eth_utils.address import to_checksum_address
 from hexbytes.main import HexBytes
-from itertools import accumulate
-from typing import Dict, Iterable, List, Tuple, Type, Union, Any, Optional, cast
 from web3.contract import Contract, ContractFunction
 from web3.types import Wei, Timestamp, TxReceipt, TxParams, Nonce
 
@@ -54,8 +55,8 @@ from nucypher.blockchain.eth.decorators import contract_api
 from nucypher.blockchain.eth.events import ContractEvents
 from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
 from nucypher.blockchain.eth.registry import BaseContractRegistry
-from nucypher.crypto.utils import sha256_digest
 from nucypher.crypto.powers import TransactingPower
+from nucypher.crypto.utils import sha256_digest
 from nucypher.types import (
     Agent,
     NuNits,
@@ -68,6 +69,7 @@ from nucypher.types import (
     StakerInfo,
     PeriodDelta,
     StakingEscrowParameters,
+    PolicyInfo, ArrangementInfo
 )
 from nucypher.utilities.logging import Logger  # type: ignore
 
@@ -814,29 +816,21 @@ class PolicyManagerAgent(EthereumContractAgent):
         return receipt
 
     @contract_api(CONTRACT_CALL)
-    def fetch_policy(self, policy_id: str, with_owner=False) -> Union[tuple, list]:
+    def fetch_policy(self, policy_id: bytes) -> PolicyInfo:
         """
         Fetch raw stored blockchain data regarding the policy with the given policy ID.
         If `with_owner=True`, this method executes the equivalent of `getPolicyOwner`
         to avoid another call.
         """
-        blockchain_record = self.contract.functions.policies(policy_id).call()
-        if with_owner:
-            # If the policyOwner addr is null, we return the sponsor addr instead of the owner.
-            owner_checksum_addr = blockchain_record[1] if blockchain_record[2] == NULL_ADDRESS else blockchain_record[2]
-            return blockchain_record, owner_checksum_addr
-        return blockchain_record
-
-    def fetch_arrangement_addresses_from_policy_txid(self, txhash: Union[str, bytes], timeout: int = 600) -> Iterable:
-        # TODO: Won't it be great when this is impossible?  #1274
-        _receipt = self.blockchain.client.wait_for_receipt(txhash, timeout=timeout)
-        transaction = self.blockchain.client.w3.eth.getTransaction(txhash)
-        try:
-            _signature, parameters = self.contract.decode_function_input(
-                self.blockchain.client.parse_transaction_data(transaction))
-        except AttributeError:
-            raise RuntimeError(f"Eth Client incompatibility issue: {self.blockchain.client} could not extract data from {transaction}")
-        return parameters['_nodes']
+        record = self.contract.functions.policies(policy_id).call()
+        policy = PolicyInfo(disabled=record[0],
+                            sponsor=record[1],
+                            # If the policyOwner addr is null, we return the sponsor addr instead of the owner.
+                            owner=record[1] if record[2] == NULL_ADDRESS else record[2],
+                            fee_rate=record[3],
+                            start_timestamp=record[4],
+                            end_timestamp=record[5])
+        return policy
 
     @contract_api(TRANSACTION)
     def revoke_policy(self, policy_id: bytes, transacting_power: TransactingPower) -> TxReceipt:
@@ -853,11 +847,13 @@ class PolicyManagerAgent(EthereumContractAgent):
         return receipt
 
     @contract_api(CONTRACT_CALL)
-    def fetch_policy_arrangements(self, policy_id: str) -> Iterable[Tuple[ChecksumAddress, int, int]]:
+    def fetch_policy_arrangements(self, policy_id: bytes) -> Iterator[ArrangementInfo]:
         record_count = self.contract.functions.getArrangementsLength(policy_id).call()
         for index in range(record_count):
             arrangement = self.contract.functions.getArrangementInfo(policy_id, index).call()
-            yield arrangement
+            yield ArrangementInfo(node=arrangement[0],
+                                  downtime_index=arrangement[1],
+                                  last_refunded_period=arrangement[2])
 
     @contract_api(TRANSACTION)
     def revoke_arrangement(self, policy_id: str, node_address: ChecksumAddress, transacting_power: TransactingPower) -> TxReceipt:
@@ -916,7 +912,7 @@ class AdjudicatorAgent(EthereumContractAgent):
     @contract_api(TRANSACTION)
     def evaluate_cfrag(self, evidence, transacting_power: TransactingPower) -> TxReceipt:
         """Submits proof that a worker created wrong CFrag"""
-        payload: TxParams = {'gas': Wei(500_000)}  # TODO #842: gas needed for use with geth.
+        payload: TxParams = {'gas': Wei(500_000)}  # TODO TransactionFails unless gas is provided.
         contract_function: ContractFunction = self.contract.functions.evaluateCFrag(*evidence.evaluation_arguments())
         receipt = self.blockchain.send_transaction(contract_function=contract_function,
                                                    transacting_power=transacting_power,

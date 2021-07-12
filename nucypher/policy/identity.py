@@ -16,14 +16,14 @@
 """
 
 
+import base64
+import hashlib
 import json
+import os
 from pathlib import Path
 from typing import Union, Optional, Dict, Callable
 
-import base64
 import constant_sorrow
-import hashlib
-import os
 from bytestring_splitter import VariableLengthBytestring, BytestringKwargifier
 from constant_sorrow.constants import ALICE, BOB, NO_SIGNATURE
 from hexbytes.main import HexBytes

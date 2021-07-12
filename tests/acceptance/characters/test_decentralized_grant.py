@@ -15,14 +15,16 @@ You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
+
 import datetime
+
 import maya
 import pytest
 
+from nucypher.crypto.kits import PolicyMessageKit
 from nucypher.crypto.utils import keccak_digest
-from nucypher.datastore.models import PolicyArrangement
 from nucypher.datastore.models import TreasureMap as DatastoreTreasureMap
-from nucypher.policy.collections import SignedTreasureMap as DecentralizedTreasureMap
+from nucypher.policy.maps import SignedTreasureMap
 
 
 def test_decentralized_grant(blockchain_alice, blockchain_bob, blockchain_ursulas):
@@ -49,12 +51,11 @@ def test_decentralized_grant(blockchain_alice, blockchain_bob, blockchain_ursula
     # Let's look at the enacted arrangements.
     for ursula in blockchain_ursulas:
         if ursula.checksum_address in policy.treasure_map.destinations:
-            arrangement_id = policy.treasure_map.destinations[ursula.checksum_address]
+            kfrag_kit = policy.treasure_map.destinations[ursula.checksum_address]
 
-            # Get the Arrangement from Ursula's datastore, looking up by the Arrangement ID.
-            with ursula.datastore.describe(PolicyArrangement, arrangement_id.hex()) as policy_arrangement:
-                retrieved_kfrag = policy_arrangement.kfrag
-            assert bool(retrieved_kfrag) # TODO: try to assemble them back?
+            # TODO: try to decrypt?
+            # TODO: Use a new type for EncryptedKFrags?
+            assert isinstance(kfrag_kit, PolicyMessageKit)
 
 
 def test_alice_sets_treasure_map_decentralized(enacted_blockchain_policy, blockchain_alice, blockchain_bob, blockchain_ursulas):
@@ -65,7 +66,7 @@ def test_alice_sets_treasure_map_decentralized(enacted_blockchain_policy, blockc
     found = 0
     for node in blockchain_bob.matching_nodes_among(blockchain_alice.known_nodes):
         with node.datastore.describe(DatastoreTreasureMap, treasure_map_hrac) as treasure_map_on_node:
-            assert DecentralizedTreasureMap.from_bytes(treasure_map_on_node.treasure_map) == enacted_blockchain_policy.treasure_map
+            assert SignedTreasureMap.from_bytes(treasure_map_on_node.treasure_map) == enacted_blockchain_policy.treasure_map
         found += 1
     assert found
 

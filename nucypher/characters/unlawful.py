@@ -28,7 +28,7 @@ from nucypher.config.constants import TEMPORARY_DOMAIN
 from nucypher.crypto.utils import encrypt_and_sign
 from nucypher.crypto.powers import CryptoPower, SigningPower, DecryptingPower, TransactingPower
 from nucypher.exceptions import DevelopmentInstallationRequired
-from nucypher.policy.collections import SignedTreasureMap
+from nucypher.policy.maps import SignedTreasureMap
 
 
 class Vladimir(Ursula):
@@ -137,16 +137,14 @@ class Amonia(Alice):
         return alice_clone
 
     @staticmethod
-    def enact_without_tabulating_responses(policy, network_middleware, arrangements, publication_transaction, **_kwargs):
+    def enact_without_tabulating_responses(policy, network_middleware, arrangements, **_kwargs):
         for ursula, kfrag in zip(arrangements, policy.kfrags):
             arrangement = arrangements[ursula]
-            payload = policy._make_enactment_payload(publication_transaction, kfrag)
+            payload = policy._make_enactment_payload(kfrag)
             message_kit, _signature = policy.alice.encrypt_for(ursula, payload)
 
             try:
-                network_middleware.enact_policy(ursula,
-                                                arrangement.id,
-                                                message_kit.to_bytes())
+                network_middleware.enact_policy(ursula, message_kit.to_bytes())
             except Exception as e:
                 # I don't care what went wrong - I will keep trying to ram arrangements through.
                 continue
@@ -181,7 +179,7 @@ class Amonia(Alice):
         an on-chain Policy using PolicyManager, I'm hoping Ursula won't notice.
         """
 
-        def publish_wrong_payee_address_to_blockchain(policy, _ursulas):
+        def publish_wrong_payee_address_to_blockchain(policy, ursulas):
             receipt = policy.alice.policy_agent.create_policy(
                 policy_id=policy.hrac,  # bytes16 _policyID
                 transacting_power=policy.alice.transacting_power,
@@ -245,4 +243,5 @@ class Amonia(Alice):
             like_a_map_but_awful.include_blockchain_signature(blockchain_signer=transacting_power.sign_message)
 
             # Sucker.
-            self.network_middleware.put_treasure_map_on_node(sucker_ursula, map_payload=bytes(like_a_map_but_awful))
+            response = self.network_middleware.put_treasure_map_on_node(sucker_ursula, map_payload=bytes(like_a_map_but_awful))
+            return response

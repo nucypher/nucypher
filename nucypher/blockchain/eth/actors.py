@@ -17,18 +17,19 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 
 
 import json
-import os
-from decimal import Decimal
-from typing import Callable, Union
-from typing import Dict, Iterable, List, Optional, Tuple
 
 import maya
+import os
 import time
 from constant_sorrow.constants import FULL, WORKER_NOT_RUNNING
+from datetime import datetime
+from decimal import Decimal
 from eth_tester.exceptions import TransactionFailed as TestTransactionFailed
 from eth_typing import ChecksumAddress
 from eth_utils import to_canonical_address
 from hexbytes import HexBytes
+from typing import Callable, Union
+from typing import Dict, Iterable, List, Optional, Tuple
 from web3 import Web3
 from web3.exceptions import ValidationError
 from web3.types import TxReceipt
@@ -62,7 +63,8 @@ from nucypher.blockchain.eth.constants import (
     DAO_AGENT,
     POLICY_MANAGER_CONTRACT_NAME,
     DISPATCHER_CONTRACT_NAME,
-    STAKING_ESCROW_CONTRACT_NAME
+    STAKING_ESCROW_CONTRACT_NAME,
+    POLICY_ID_LENGTH
 )
 from nucypher.blockchain.eth.decorators import (
     only_me,
@@ -120,7 +122,8 @@ class BaseActor:
                  domain: Optional[str],
                  registry: BaseContractRegistry,
                  transacting_power: Optional[TransactingPower] = None,
-                 checksum_address: Optional[ChecksumAddress] = None):
+                 checksum_address: Optional[ChecksumAddress] = None,
+                 economics: Optional[BaseEconomics] = None):
 
         if not (bool(checksum_address) ^ bool(transacting_power)):
             error = f'Pass transacting power or checksum address, got {checksum_address} and {transacting_power}.'
@@ -138,6 +141,7 @@ class BaseActor:
             else:
                 self.checksum_address = checksum_address
 
+        self.economics = economics or StandardTokenEconomics()
         self.transacting_power = transacting_power
         self.registry = registry
         self.network = domain
@@ -224,9 +228,8 @@ class ContractAdministrator(BaseActor):
     class UnknownContract(ValueError):
         pass
 
-    def __init__(self, economics: BaseEconomics = None, *args, **kwargs):
+    def __init__(self, *args, **kwargs):
         self.log = Logger("Deployment-Actor")
-        self.economics = economics or StandardTokenEconomics()
         self.deployers = {d.contract_name: d for d in self.all_deployer_classes}
         super().__init__(*args, **kwargs)
 
@@ -1067,6 +1070,7 @@ class Worker(NucypherTokenActor):
         """Raised when the Worker is not bonded to a Staker in the StakingEscrow contract."""
         crash_right_now = True
 
+
     def __init__(self,
                  is_me: bool,
                  work_tracker: WorkTracker = None,
@@ -1201,6 +1205,26 @@ class Worker(NucypherTokenActor):
         staker_address = self.checksum_address
         missing = self.staking_agent.get_missing_commitments(checksum_address=staker_address)
         return missing
+
+    def verify_policy_payment(self, hrac: bytes) -> None:
+        arrangements = self.policy_agent.fetch_policy_arrangements(policy_id=hrac)
+        members = set()
+        for arrangement in arrangements:
+            members.add(arrangement.node)
+            if self.checksum_address == arrangement.node:
+                return
+        else:
+            if not members:
+                raise Policy.Unknown(f'{hrac.hex()} is not a published policy.')
+            raise Policy.Unpaid(f"{hrac.hex()} is unpaid.")
+
+    def verify_active_policy(self, hrac: bytes) -> None:
+        policy = self.policy_agent.fetch_policy(policy_id=hrac)
+        if policy.disabled:
+            raise Policy.Inactive(f'{hrac.hex()} is a disabled policy.')
+        expired = datetime.utcnow() >= datetime.utcfromtimestamp(policy.end_timestamp)
+        if expired:
+            raise Policy.Expired(f'{hrac.hex()} is an expired policy.')
 
 
 class BlockchainPolicyAuthor(NucypherTokenActor):

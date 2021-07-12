@@ -19,10 +19,13 @@ import pytest
 import pytest_twisted
 from twisted.internet import threads
 
+from nucypher.characters.lawful import Alice
+from nucypher.config.constants import TEMPORARY_DOMAIN
+from nucypher.crypto.keypairs import DecryptingKeypair
 from nucypher.crypto.kits import PolicyMessageKit
 from nucypher.crypto.powers import DecryptingPower
-from nucypher.config.constants import TEMPORARY_DOMAIN
-from nucypher.datastore.models import PolicyArrangement, Workorder
+from nucypher.crypto.umbral_adapter import reencrypt
+from nucypher.datastore.models import Workorder
 from tests.utils.middleware import MockRestMiddleware, NodeIsDownMiddleware
 
 
@@ -55,7 +58,8 @@ def test_bob_already_knows_all_nodes_in_treasure_map(enacted_federated_policy,
         federated_bob.remember_node(ursula)
 
     # Now, Bob can get the TreasureMap all by himself, and doesn't need a side channel.
-    the_map = federated_bob.get_treasure_map(federated_alice.stamp, enacted_federated_policy.label)
+    the_map = federated_bob.get_treasure_map(publisher_verifying_key=federated_alice.stamp,
+                                             label=enacted_federated_policy.label)
     unknown, known = federated_bob.peek_at_treasure_map(treasure_map=the_map)
 
     # He finds that he didn't need to discover any new nodes...
@@ -120,8 +124,11 @@ def test_bob_can_follow_treasure_map_even_if_he_only_knows_of_one_node(enacted_f
     bob.disenchant()
 
 
-def test_bob_can_issue_a_work_order_to_a_specific_ursula(enacted_federated_policy, federated_bob,
-                                                         federated_alice, federated_ursulas, capsule_side_channel):
+def test_bob_can_issue_a_work_order_to_a_specific_ursula(enacted_federated_policy,
+                                                         federated_bob,
+                                                         federated_alice,
+                                                         federated_ursulas,
+                                                         capsule_side_channel):
     """
     Now that Bob has his list of Ursulas, he can issue a WorkOrder to one. Upon receiving the WorkOrder, Ursula
     saves it and responds by re-encrypting and giving Bob a cFrag.
@@ -149,6 +156,7 @@ def test_bob_can_issue_a_work_order_to_a_specific_ursula(enacted_federated_polic
                                      verifying=federated_alice.stamp.as_umbral_pubkey())
     work_orders, _ = federated_bob.work_orders_for_capsules(
         message_kit.capsule,
+        label=enacted_federated_policy.label,
         treasure_map=treasure_map,
         alice_verifying_key=federated_alice.stamp.as_umbral_pubkey(),
         num_ursulas=1)
@@ -162,6 +170,7 @@ def test_bob_can_issue_a_work_order_to_a_specific_ursula(enacted_federated_polic
     # This time, we'll tell Bob to cache it.
     retained_work_orders, _ = federated_bob.work_orders_for_capsules(
         message_kit.capsule,
+        label=enacted_federated_policy.label,
         treasure_map=treasure_map,
         alice_verifying_key=federated_alice.stamp.as_umbral_pubkey(),
         num_ursulas=1)
@@ -186,8 +195,8 @@ def test_bob_can_issue_a_work_order_to_a_specific_ursula(enacted_federated_polic
     # Having received the cFrag, Bob also saved the WorkOrder as complete.
     assert len(federated_bob._completed_work_orders.by_ursula[address]) == 1
 
-    # OK, so cool - Bob has his cFrag!  Let's make sure everything went properly.  First, we'll show that it is in fact
-    # the correct cFrag (ie, that Ursula performed re-encryption properly).
+    # OK, so cool - Bob has his cFrag!  Let's make sure everything went properly.
+    # First, we'll show that it is in fact the correct cFrag (ie, that Ursula performed re-encryption properly).
     for u in federated_ursulas:
         if u.rest_interface.port == work_order.ursula.rest_interface.port:
             ursula = u
@@ -195,8 +204,16 @@ def test_bob_can_issue_a_work_order_to_a_specific_ursula(enacted_federated_polic
     else:
         raise RuntimeError("We've lost track of the Ursula that has the WorkOrder. Can't really proceed.")
 
-    with ursula.datastore.describe(PolicyArrangement, work_order.arrangement_id.hex()) as policy_arrangement:
-        the_kfrag = policy_arrangement.kfrag
+    # Ursula decrypts the encrypted KFrag
+    encrypted_kfrag = enacted_federated_policy.treasure_map.destinations[ursula.checksum_address]
+    alice = Alice.from_public_keys(verifying_key=enacted_federated_policy.alice_verifying_key)
+    plaintext_kfrag_payload = ursula.verify_from(stranger=alice,
+                                                 message_kit=encrypted_kfrag,
+                                                 decrypt=True)
+    _signed_writ, the_kfrag = work_order.kfrag_payload_splitter(plaintext_kfrag_payload)
+
+    verified_kfrag = the_kfrag.verify(enacted_federated_policy.alice_verifying_key.as_umbral_pubkey())
+    reencrypt(capsule=message_kit.capsule, kfrag=verified_kfrag)
 
     # Now we'll show that Ursula saved the correct WorkOrder.
     with ursula.datastore.query_by(Workorder, filter_field='bob_verifying_key',
@@ -221,6 +238,7 @@ def test_bob_can_use_cfrag_attached_to_completed_workorder(enacted_federated_pol
 
     incomplete_work_orders, complete_work_orders = federated_bob.work_orders_for_capsules(
         last_capsule_on_side_channel,
+        label=enacted_federated_policy.label,
         treasure_map=enacted_federated_policy.treasure_map,
         alice_verifying_key=federated_alice.stamp.as_umbral_pubkey(),
         num_ursulas=1,
@@ -270,6 +288,7 @@ def test_bob_remembers_that_he_has_cfrags_for_a_particular_capsule(enacted_feder
     # The rest of this test will show that if Bob generates another WorkOrder, it's for a *different* Ursula.
     incomplete_work_orders, complete_work_orders = federated_bob.work_orders_for_capsules(
         last_capsule_on_side_channel,
+        label=enacted_federated_policy.label,
         treasure_map=enacted_federated_policy.treasure_map,
         alice_verifying_key=federated_alice.stamp.as_umbral_pubkey(),
         num_ursulas=1)
@@ -311,7 +330,7 @@ def test_bob_gathers_and_combines(enacted_federated_policy, federated_bob, feder
     assert len(federated_bob._completed_work_orders) < enacted_federated_policy.treasure_map.m
 
     # Bob can't decrypt yet with just two CFrags.  He needs to gather at least m.
-    with pytest.raises(ValueError):
+    with pytest.raises(DecryptingKeypair.DecryptionFailed):
         federated_bob.decrypt(the_message_kit)
 
     number_left_to_collect = enacted_federated_policy.treasure_map.m - len(federated_bob._completed_work_orders)
@@ -323,6 +342,7 @@ def test_bob_gathers_and_combines(enacted_federated_policy, federated_bob, feder
 
     new_incomplete_work_orders, _ = federated_bob.work_orders_for_capsules(
         the_message_kit.capsule,
+        label=enacted_federated_policy.label,
         treasure_map=enacted_federated_policy.treasure_map,
         alice_verifying_key=federated_alice.stamp.as_umbral_pubkey(),
         num_ursulas=number_left_to_collect)
@@ -543,8 +563,7 @@ def test_federated_retrieves_partially_then_finishes(federated_bob,
                                                      federated_alice,
                                                      capsule_side_channel,
                                                      enacted_federated_policy,
-                                                     federated_ursulas
-                                                     ):
+                                                     federated_ursulas):
     # Same setup as last time.
     capsule_side_channel.reset()
     the_message_kit = capsule_side_channel()
@@ -638,10 +657,9 @@ def test_federated_retrieves_partially_then_finishes(federated_bob,
 
 
 def test_bob_retrieves_multiple_messages_in_a_single_adventure(federated_bob,
-                                                   federated_alice,
-                                                   capsule_side_channel,
-                                                   enacted_federated_policy,
-                                                   ):
+                                                               federated_alice,
+                                                               capsule_side_channel,
+                                                               enacted_federated_policy):
     # The side channel delivers all that Bob needs at this point:
     # - A single MessageKit, containing a Capsule
     # - A representation of the data source

@@ -15,7 +15,6 @@ You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
-
 import contextlib
 import socket
 from typing import Iterable, List, Optional, Set
@@ -28,8 +27,7 @@ from nucypher.characters.lawful import Bob
 from nucypher.characters.lawful import Ursula
 from nucypher.config.characters import UrsulaConfiguration
 from nucypher.crypto.umbral_adapter import SecretKey, Signer, encrypt, generate_kfrags, reencrypt
-from nucypher.crypto.utils import canonical_address_from_umbral_key
-from nucypher.policy.collections import WorkOrder
+from nucypher.policy.orders import WorkOrder
 from tests.constants import NUMBER_OF_URSULAS_IN_DEVELOPMENT_NETWORK
 from tests.mock.datastore import MOCK_DB
 
@@ -177,16 +175,13 @@ def _mock_ursula_reencrypts(ursula):
                              sign_delegating_key=False,
                              sign_receiving_key=False)
 
+    # TODO: Is this needed?
+    # alice_address = canonical_address_from_umbral_key(signing_pubkey)
     ursula_pubkey = ursula.stamp.as_umbral_pubkey()
-
-    alice_address = canonical_address_from_umbral_key(signing_pubkey)
-    blockhash = bytes(32)
-
     specification = b''.join((bytes(capsule),
                               bytes(ursula_pubkey),
-                              bytes(ursula.decentralized_identity_evidence),
-                              alice_address,
-                              blockhash))
+                              bytes(ursula.decentralized_identity_evidence)
+                              ))
 
     bobs_signer = Signer(priv_key_bob)
     task_signature = bytes(bobs_signer.sign(specification))

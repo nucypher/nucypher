@@ -17,14 +17,10 @@
 
 from base64 import b64decode, b64encode
 
-from bytestring_splitter import BytestringSplitter, VariableLengthBytestring
 from marshmallow import fields
 
 from nucypher.characters.control.specifications.exceptions import InvalidInputData, InvalidNativeDataTypes
 from nucypher.characters.control.specifications.fields.base import BaseField
-from nucypher.crypto.constants import HRAC_LENGTH
-from nucypher.crypto.kits import UmbralMessageKit
-from nucypher.crypto.splitters import signature_splitter
 
 
 class TreasureMap(BaseField, fields.Field):
@@ -39,13 +35,17 @@ class TreasureMap(BaseField, fields.Field):
             raise InvalidInputData(f"Could not parse {self.name}: {e}")
 
     def _validate(self, value):
-
-        splitter = BytestringSplitter(signature_splitter,
-                                  (bytes, HRAC_LENGTH),  # hrac
-                                  (UmbralMessageKit, VariableLengthBytestring)
-                                  )  # TODO: USe the one from TMap
         try:
-            signature, hrac, tmap_message_kit = splitter(value)
-            return True
-        except InvalidNativeDataTypes as e:
-            raise InvalidInputData(f"Could not parse {self.name}: {e}")
+            # Unsigned TreasureMap (Federated)
+            from nucypher.policy.maps import TreasureMap as UnsignedTreasureMap
+            splitter = UnsignedTreasureMap.get_splitter(value)
+            splitter(value)
+        except InvalidNativeDataTypes:
+            try:
+                # Signed TreasureMap (Blockchain)
+                from nucypher.policy.maps import SignedTreasureMap
+                splitter = SignedTreasureMap.get_splitter(value)
+                splitter(value)
+            except InvalidNativeDataTypes as e:
+                raise InvalidInputData(f"Could not parse {self.name}: {e}")
+        return True

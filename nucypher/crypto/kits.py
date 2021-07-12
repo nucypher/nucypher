@@ -15,7 +15,9 @@ You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
-from typing import Optional, Dict
+
+from typing import Dict
+from typing import Optional
 
 from bytestring_splitter import BytestringKwargifier, VariableLengthBytestring
 from constant_sorrow.constants import NOT_SIGNED, UNKNOWN_SENDER
@@ -128,9 +130,6 @@ class MessageKit(CryptoKit):
     def signature(self):
         return self._signature
 
-    def __bytes__(self):
-        return bytes(self.capsule) + VariableLengthBytestring(self.ciphertext)
-
 
 class PolicyMessageKit(MessageKit):
     """
@@ -149,6 +148,9 @@ class PolicyMessageKit(MessageKit):
         # Here we set the delegating correctness key to the policy public key (which happens to be composed on enrico, but for which of course he doesn't have the corresponding private key).
         self.set_correctness_keys(delegating=enrico.policy_pubkey)
         self._sender = enrico
+
+    def __eq__(self, other):
+        return bytes(self) == bytes(other)
 
     def __bytes__(self):
         return super().to_bytes(include_alice_pubkey=True)
@@ -182,10 +184,12 @@ UmbralMessageKit = PolicyMessageKit  # Temporarily, until serialization w/ Enric
 class RevocationKit:
 
     def __init__(self, treasure_map, signer: 'SignatureStamp'):
-        from nucypher.policy.collections import Revocation
+        from nucypher.policy.orders import Revocation
         self.revocations = dict()
-        for node_id, arrangement_id in treasure_map:
-            self.revocations[node_id] = Revocation(arrangement_id, signer=signer)
+        for node_id, encrypted_kfrag in treasure_map:
+            self.revocations[node_id] = Revocation(ursula_checksum_address=node_id,
+                                                   encrypted_kfrag=encrypted_kfrag,
+                                                   signer=signer)
 
     def __iter__(self):
         return iter(self.revocations.values())

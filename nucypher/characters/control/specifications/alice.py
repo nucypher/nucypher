@@ -19,6 +19,7 @@
 import click
 from marshmallow import validates_schema
 
+from nucypher.characters.control.specifications.fields.treasuremap import TreasureMap
 from nucypher.characters.control.specifications import fields
 from nucypher.characters.control.specifications.base import BaseSchema
 from nucypher.characters.control.specifications.exceptions import InvalidArgumentCombo
@@ -100,7 +101,7 @@ class GrantPolicy(PolicyBaseSchema):
         click=options.option_label(required=False))
 
     # output fields
-    treasure_map = fields.TreasureMap(dump_only=True)
+    treasure_map = TreasureMap(dump_only=True)
     alice_verifying_key = fields.Key(dump_only=True)
 
 

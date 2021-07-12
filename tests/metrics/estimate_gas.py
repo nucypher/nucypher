@@ -44,7 +44,7 @@ from nucypher.blockchain.eth.agents import (
     PolicyManagerAgent,
     StakingEscrowAgent
 )
-from nucypher.blockchain.eth.constants import NUCYPHER_CONTRACT_NAMES, NULL_ADDRESS
+from nucypher.blockchain.eth.constants import NUCYPHER_CONTRACT_NAMES, NULL_ADDRESS, POLICY_ID_LENGTH
 from nucypher.crypto.signing import SignatureStamp
 from nucypher.crypto.umbral_adapter import SecretKey, Signer
 from nucypher.exceptions import DevelopmentInstallationRequired
@@ -288,8 +288,8 @@ def estimate_gas(analyzer: AnalyzeGas = None) -> None:
     #
     # Create policy
     #
-    policy_id_1 = os.urandom(int(Policy.POLICY_ID_LENGTH))
-    policy_id_2 = os.urandom(int(Policy.POLICY_ID_LENGTH))
+    policy_id_1 = os.urandom(int(POLICY_ID_LENGTH))
+    policy_id_2 = os.urandom(int(POLICY_ID_LENGTH))
     number_of_periods = 10
     rate = 100
     one_period = economics.hours_per_period * 60 * 60
@@ -364,9 +364,9 @@ def estimate_gas(analyzer: AnalyzeGas = None) -> None:
     #
     # Create policy with multiple pre-committed nodes
     #
-    policy_id_1 = os.urandom(int(Policy.POLICY_ID_LENGTH))
-    policy_id_2 = os.urandom(int(Policy.POLICY_ID_LENGTH))
-    policy_id_3 = os.urandom(int(Policy.POLICY_ID_LENGTH))
+    policy_id_1 = os.urandom(int(POLICY_ID_LENGTH))
+    policy_id_2 = os.urandom(int(POLICY_ID_LENGTH))
+    policy_id_3 = os.urandom(int(POLICY_ID_LENGTH))
     number_of_periods = 100
     value = 3 * number_of_periods * rate
     current_timestamp = testerchain.w3.eth.getBlock('latest').timestamp
@@ -393,9 +393,9 @@ def estimate_gas(analyzer: AnalyzeGas = None) -> None:
     #
     # Create policy again without pre-committed nodes
     #
-    policy_id_1 = os.urandom(int(Policy.POLICY_ID_LENGTH))
-    policy_id_2 = os.urandom(int(Policy.POLICY_ID_LENGTH))
-    policy_id_3 = os.urandom(int(Policy.POLICY_ID_LENGTH))
+    policy_id_1 = os.urandom(int(POLICY_ID_LENGTH))
+    policy_id_2 = os.urandom(int(POLICY_ID_LENGTH))
+    policy_id_3 = os.urandom(int(POLICY_ID_LENGTH))
     number_of_periods = 100
     value = number_of_periods * rate
     current_timestamp = testerchain.w3.eth.getBlock('latest').timestamp
@@ -444,8 +444,8 @@ def estimate_gas(analyzer: AnalyzeGas = None) -> None:
     #
     # Batch granting
     #
-    policy_id_1 = os.urandom(int(Policy.POLICY_ID_LENGTH))
-    policy_id_2 = os.urandom(int(Policy.POLICY_ID_LENGTH))
+    policy_id_1 = os.urandom(int(POLICY_ID_LENGTH))
+    policy_id_2 = os.urandom(int(POLICY_ID_LENGTH))
     current_timestamp = testerchain.w3.eth.getBlock('latest').timestamp
     end_timestamp = current_timestamp + (number_of_periods - 1) * one_period
     value = 3 * number_of_periods * rate

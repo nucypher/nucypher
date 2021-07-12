@@ -53,6 +53,9 @@ LENGTH_ECDSA_SIGNATURE_WITH_RECOVERY = 65
 MAX_UINT16 = 65535
 NULL_ADDRESS = '0x' + '0' * 40
 
+# NuCypher
+POLICY_ID_LENGTH = 16  # same as the HRAC size
+
 # Aragon DAO contract names
 
 DAO_AGENT_CONTRACT_NAME = 'Agent'
