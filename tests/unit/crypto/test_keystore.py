@@ -246,13 +246,13 @@ def test_import_custom_keystore(tmpdir):
     # Too short - 32 bytes is required
     custom_secret = b'tooshort'
     with pytest.raises(ValueError, match="Entropy must be at least 32 bytes."):
-        _keystore = Keystore.import_secure(secret=custom_secret,
+        _keystore = Keystore.import_secure(key_material=custom_secret,
                                            password=INSECURE_DEVELOPMENT_PASSWORD,
                                            keystore_dir=tmpdir)
 
     # Import private key
     custom_secret = os.urandom(32)  # not secure but works
-    keystore = Keystore.import_secure(secret=custom_secret,
+    keystore = Keystore.import_secure(key_material=custom_secret,
                                       password=INSECURE_DEVELOPMENT_PASSWORD,
                                       keystore_dir=tmpdir)
     keystore.unlock(password=INSECURE_DEVELOPMENT_PASSWORD)

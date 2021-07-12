@@ -321,13 +321,13 @@ class Keystore:
         return instance
 
     @classmethod
-    def import_secure(cls, secret: bytes, password: str, keystore_dir: Optional[Path] = None) -> 'Keystore':
+    def import_secure(cls, key_material: bytes, password: str, keystore_dir: Optional[Path] = None) -> 'Keystore':
         """
         Generate a Keystore using a a custom pre-secured entropy blob.
         This method of keystore creation does not generate a mnemonic phrase - it is assumed
         that the provided blob is recoverable and secure.
         """
-        path = Keystore.__save(secret=secret, password=password, keystore_dir=keystore_dir)
+        path = Keystore.__save(secret=key_material, password=password, keystore_dir=keystore_dir)
         keystore = cls(keystore_path=path)
         return keystore
 
