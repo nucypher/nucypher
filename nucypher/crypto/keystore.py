@@ -327,6 +327,9 @@ class Keystore:
         This method of keystore creation does not generate a mnemonic phrase - it is assumed
         that the provided blob is recoverable and secure.
         """
+        emitter = StdoutEmitter()
+        emitter.message(f'WARNING: Key importing assumes that you have already secured your secret '
+                        f'and can recover it. No mnemonic will be generated.\n', color='yellow')
         path = Keystore.__save(secret=key_material, password=password, keystore_dir=keystore_dir)
         keystore = cls(keystore_path=path)
         return keystore

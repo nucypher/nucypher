@@ -53,7 +53,8 @@ from nucypher.cli.options import (
     option_signer_uri,
     option_teacher_uri,
     option_lonely,
-    option_max_gas_price
+    option_max_gas_price,
+    option_key_material
 )
 from nucypher.cli.painting.help import paint_new_installation_help
 from nucypher.cli.types import EIP55_CHECKSUM_ADDRESS, NETWORK_PORT, WORKER_IP
@@ -296,7 +297,7 @@ def ursula():
 @option_force
 @option_config_root
 @group_general_config
-@click.option('--key-material', help="An custom pre-secured secret hex blob to use for key derivations", type=click.STRING)
+@option_key_material
 def init(general_config, config_options, force, config_root, key_material):
     """Create a new Ursula node configuration."""
     emitter = setup_emitter(general_config, config_options.worker_address)
@@ -307,7 +308,10 @@ def init(general_config, config_options, force, config_root, key_material):
         raise click.BadOptionUsage('--provider', message="--provider is required to initialize a new ursula.")
     if not config_options.federated_only and not config_options.domain:
         config_options.domain = select_network(emitter)
-    ursula_config = config_options.generate_config(emitter, config_root, force, key_material)
+    ursula_config = config_options.generate_config(emitter=emitter,
+                                                   config_root=config_root,
+                                                   force=force,
+                                                   key_material=key_material)
     filepath = ursula_config.to_configuration_file()
     paint_new_installation_help(emitter, new_configuration=ursula_config, filepath=filepath)
 

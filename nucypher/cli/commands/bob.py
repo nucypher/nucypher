@@ -14,6 +14,8 @@
  You should have received a copy of the GNU Affero General Public License
  along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
+
+
 from base64 import b64decode
 from pathlib import Path
 
@@ -50,7 +52,8 @@ from nucypher.cli.options import (
     option_signer_uri,
     option_teacher_uri,
     option_lonely,
-    option_max_gas_price
+    option_max_gas_price,
+    option_key_material
 )
 from nucypher.cli.painting.help import paint_new_installation_help
 from nucypher.cli.painting.policies import paint_single_card
@@ -133,7 +136,7 @@ class BobConfigOptions:
                 handle_missing_configuration_file(character_config_class=BobConfiguration,
                                                   config_file=config_file)
 
-    def generate_config(self, emitter: StdoutEmitter, config_root: Path) -> BobConfiguration:
+    def generate_config(self, emitter: StdoutEmitter, config_root: Path, key_material: str) -> BobConfiguration:
 
         checksum_address = self.checksum_address
         if not checksum_address and not self.federated_only:
@@ -143,6 +146,7 @@ class BobConfigOptions:
 
         return BobConfiguration.generate(
             password=get_nucypher_password(emitter=emitter, confirm=True),
+            key_material=bytes.fromhex(key_material) if key_material else None,
             config_root=config_root,
             checksum_address=checksum_address,
             domain=self.domain,
@@ -227,12 +231,15 @@ def bob():
 @option_federated_only
 @option_config_root
 @group_general_config
-def init(general_config, config_options, config_root):
+@option_key_material
+def init(general_config, config_options, config_root, key_material):
     """Create a brand new persistent Bob."""
     emitter = setup_emitter(general_config)
     if not config_root:
         config_root = general_config.config_root
-    new_bob_config = config_options.generate_config(emitter, config_root)
+    new_bob_config = config_options.generate_config(emitter=emitter,
+                                                    config_root=config_root,
+                                                    key_material=key_material)
     filepath = new_bob_config.to_configuration_file()
     paint_new_installation_help(emitter, new_configuration=new_bob_config, filepath=filepath)
 
