@@ -20,6 +20,7 @@ from base64 import b64encode
 import pytest
 
 from nucypher.control.specifications.exceptions import InvalidInputData
+from nucypher.control.specifications.fields import StringList
 from nucypher.crypto.constants import ENCRYPTED_KFRAG_PAYLOAD_LENGTH
 from nucypher.policy.orders import WorkOrder as WorkOrderClass
 from nucypher.utilities.porter.control.specifications.fields import (
@@ -120,3 +121,37 @@ def test_work_order_field(mock_ursula_reencrypts,
 
     deserialized = field.deserialize(value=serialized, attr=None, data=None)
     assert deserialized == cfrag_byte_stream
+
+
+def test_ursula_checksum_address_string_list_field(get_random_checksum_address):
+    ursula_1 = get_random_checksum_address()
+    ursula_2 = get_random_checksum_address()
+    ursula_3 = get_random_checksum_address()
+    ursula_4 = get_random_checksum_address()
+
+    assert ursula_1 != ursula_2
+    assert ursula_2 != ursula_3
+    assert ursula_3 != ursula_4
+
+    field = StringList(UrsulaChecksumAddress)
+
+    deserialized = field._deserialize(value=f"{ursula_1},{ursula_2},{ursula_3},{ursula_4}", attr=None, data=None)
+    assert deserialized == [ursula_1, ursula_2, ursula_3, ursula_4]
+
+    # list instead
+    data = [ursula_1, ursula_2, ursula_3, ursula_4]
+    deserialized = field._deserialize(value=data, attr=None, data=None)
+    assert deserialized == data
+
+    # single entry
+    deserialized = field._deserialize(value=f"{ursula_1}", attr=None, data=None)
+    assert deserialized == [ursula_1]
+
+    deserialized = field._deserialize(value=[ursula_1], attr=None, data=None)
+    assert deserialized == [ursula_1]
+
+    with pytest.raises(InvalidInputData):
+        field._deserialize(value="0xdeadbeef", attr=None, data=None)
+
+    with pytest.raises(InvalidInputData):
+        field._deserialize(value=f"{ursula_1},{ursula_2},{ursula_3},{ursula_4},0xdeadbeef", attr=None, data=None)
