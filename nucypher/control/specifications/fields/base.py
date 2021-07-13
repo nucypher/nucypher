@@ -42,6 +42,21 @@ class List(BaseField, fields.List):
     pass
 
 
+class StringList(List):
+    """
+    if input is not a list, splits on delimiter arg (defaults to ',')
+    and returns list
+    """
+
+    def __init__(self, *args, **kwargs):
+        self.delimiter = kwargs.pop('delimiter', ',')
+        super().__init__(*args, **kwargs)
+
+    def _deserialize(self, value, attr, data, **kwargs):
+        if type(value) is not list:
+            value =value.split(self.delimiter)
+        return super()._deserialize(value, attr, data, **kwargs)
+
 class Integer(BaseField, fields.Integer):
     click_type = click.INT
 
