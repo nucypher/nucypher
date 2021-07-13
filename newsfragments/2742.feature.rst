@@ -1,0 +1,1 @@
+Allow importing of secret key material for power derivations.
