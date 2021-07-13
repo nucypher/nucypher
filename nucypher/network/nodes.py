@@ -927,9 +927,12 @@ class Learner:
             # except sprout.Invalidsprout:
             #     self.log.warn(sprout.invalid_metadata_message.format(sprout))
 
-            except sprout.SuspiciousActivity:
-                message = f"Suspicious Activity: Discovered sprout with bad signature: {sprout}." \
-                          f"Propagated by: {current_teacher}"
+            # except sprout.SuspiciousActivity:
+            #     message = f"Suspicious Activity: Discovered sprout with bad signature: {sprout}." \
+            #               f"Propagated by: {current_teacher}"
+            #     self.log.warn(message)
+            except InvalidNodeCertificate as e:
+                message = f"Discovered sprout with invalid node certificate: {sprout}. Full error: {e.__str__()} "
                 self.log.warn(message)
 
         # Is cycling happening in the right order?
