@@ -60,6 +60,23 @@ def test_get_ursulas(federated_porter_web_controller, federated_ursulas):
         assert address not in returned_ursula_addresses
 
     #
+    # Test Query parameters
+    #
+    response = federated_porter_web_controller.get(f'/get_ursulas?quantity={quantity}'
+                                                   f'&duration_periods={duration}'
+                                                   f'&include_ursulas={",".join(include_ursulas)}'
+                                                   f'&exclude_ursulas={",".join(exclude_ursulas)}')
+    assert response.status_code == 200
+    response_data = json.loads(response.data)
+    ursulas_info = response_data['result']['ursulas']
+    returned_ursula_addresses = {ursula_info['checksum_address'] for ursula_info in ursulas_info}  # ensure no repeats
+    assert len(returned_ursula_addresses) == quantity
+    for address in include_ursulas:
+        assert address in returned_ursula_addresses
+    for address in exclude_ursulas:
+        assert address not in returned_ursula_addresses
+
+    #
     # Failure case
     #
     failed_ursula_params = dict(get_ursulas_params)
@@ -108,6 +125,13 @@ def test_publish_and_get_treasure_map(federated_porter_web_controller,
     }
     response = federated_porter_web_controller.get('/get_treasure_map',
                                                    data=json.dumps(get_treasure_map_params))
+    assert response.status_code == 200
+    response_data = json.loads(response.data)
+    assert response_data['result']['treasure_map'] == b64encode(bytes(random_treasure_map)).decode()
+
+    # try getting random treasure map using query parameters
+    response = federated_porter_web_controller.get(f'/get_treasure_map?treasure_map_id={random_treasure_map_id}'
+                                                   f'&bob_encrypting_key={bytes(random_bob_encrypting_key).hex()}')
     assert response.status_code == 200
     response_data = json.loads(response.data)
     assert response_data['result']['treasure_map'] == b64encode(bytes(random_treasure_map)).decode()
