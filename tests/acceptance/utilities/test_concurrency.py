@@ -131,12 +131,21 @@ def test_wait_for_successes_out_of_values(join_worker_pool):
 
     t_start = time.monotonic()
     pool.start()
-    with pytest.raises(WorkerPool.OutOfValues):
+    with pytest.raises(WorkerPool.OutOfValues) as exc_info:
         successes = pool.block_until_target_successes()
     t_end = time.monotonic()
 
     # We have roughly 2 workers per thread, so it shouldn't take longer than 1.5s (max timeout) * 2
     assert t_end - t_start < 4
+
+    message = str(exc_info.value)
+
+    # We had 20 workers set up to fail
+    assert "20 total failures recorded" in message
+
+    # This will be the last line in the displayed traceback;
+    # That's where the worker actually failed.
+    assert 'raise Exception(f"Worker for {value} failed")' in message
 
 
 def test_wait_for_successes_timed_out(join_worker_pool):
@@ -158,12 +167,17 @@ def test_wait_for_successes_timed_out(join_worker_pool):
 
     t_start = time.monotonic()
     pool.start()
-    with pytest.raises(WorkerPool.TimedOut):
+    with pytest.raises(WorkerPool.TimedOut) as exc_info:
         successes = pool.block_until_target_successes()
     t_end = time.monotonic()
 
     # Even though timeout is 1, there are long-running workers which we can't interupt.
     assert t_end - t_start < 3
+
+    message = str(exc_info.value)
+
+    # None of the workers actually failed, they just timed out
+    assert "0 total failures recorded" in message
 
 
 def test_join(join_worker_pool):
