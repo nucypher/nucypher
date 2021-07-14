@@ -86,6 +86,22 @@ def test_alice_get_ursulas_schema(get_random_checksum_address):
     updated_data['include_ursulas'] = include_ursulas
     AliceGetUrsulas().load(updated_data)
 
+    # list input formatted as ',' separated strings
+    updated_data = dict(required_data)
+    updated_data['exclude_ursulas'] = ','.join(exclude_ursulas)
+    updated_data['include_ursulas'] = ','.join(include_ursulas)
+    data = AliceGetUrsulas().load(updated_data)
+    assert data['exclude_ursulas'] == exclude_ursulas
+    assert data['include_ursulas'] == include_ursulas
+
+    # single value as string cast to list
+    updated_data = dict(required_data)
+    updated_data['exclude_ursulas'] = exclude_ursulas[0]
+    updated_data['include_ursulas'] = include_ursulas[0]
+    data = AliceGetUrsulas().load(updated_data)
+    assert data['exclude_ursulas'] == [exclude_ursulas[0]]
+    assert data['include_ursulas'] == [include_ursulas[0]]
+
     # invalid include entry
     updated_data = dict(required_data)
     updated_data['exclude_ursulas'] = exclude_ursulas

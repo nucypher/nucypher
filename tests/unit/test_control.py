@@ -17,7 +17,7 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 import pytest
 
 from nucypher.control.specifications.exceptions import InvalidInputData
-from nucypher.control.specifications.fields import PositiveInteger
+from nucypher.control.specifications.fields import PositiveInteger, StringList, String
 
 
 def test_positive_integer_field():
@@ -32,3 +32,15 @@ def test_positive_integer_field():
     for invalid_value in invalid_values:
         with pytest.raises(InvalidInputData):
             field._validate(value=invalid_value)
+
+
+def test_string_list_field():
+    field = StringList(String)
+
+    data = 'Cornsilk,November,Sienna,India'
+    deserialized = field._deserialize(value=data, attr=None, data=None)
+    assert deserialized == ['Cornsilk', 'November', 'Sienna', 'India']
+
+    data = ['Cornsilk', 'November', 'Sienna', 'India']
+    deserialized = field._deserialize(value=data, attr=None, data=None)
+    assert deserialized == data

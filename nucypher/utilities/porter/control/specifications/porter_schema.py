@@ -67,7 +67,7 @@ class AliceGetUrsulas(BaseSchema):
             type=click.INT, required=True))
 
     # optional
-    exclude_ursulas = base_fields.List(
+    exclude_ursulas = base_fields.StringList(
         fields.UrsulaChecksumAddress(),
         click=click.option(
             '--exclude-ursula',
@@ -80,7 +80,7 @@ class AliceGetUrsulas(BaseSchema):
         required=False,
         load_only=True)
 
-    include_ursulas = base_fields.List(
+    include_ursulas = base_fields.StringList(
         fields.UrsulaChecksumAddress(),
         click=click.option(
             '--include-ursula',
@@ -95,7 +95,7 @@ class AliceGetUrsulas(BaseSchema):
 
     # output
     ursulas = marshmallow_fields.List(marshmallow_fields.Nested(UrsulaInfo), dump_only=True)
-    
+
     @validates_schema
     def check_valid_quantity_and_include_ursulas(self, data, **kwargs):
         # TODO does this make sense - perhaps having extra ursulas could be a good thing if some are down or can't
