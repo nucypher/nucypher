@@ -62,6 +62,7 @@ from nucypher.config.storages import ForgetfulNodeStorage
 from nucypher.crypto.kits import UmbralMessageKit
 from nucypher.crypto.powers import DecryptingPower, NoSigningPower, SigningPower
 from nucypher.crypto.splitters import signature_splitter
+from nucypher.crypto.signing import SignatureStamp
 from nucypher.crypto.umbral_adapter import Signature
 from nucypher.crypto.utils import recover_address_eip_191, verify_eip_191
 from nucypher.network import LEARNING_LOOP_VERSION
@@ -123,8 +124,8 @@ class NodeSprout(PartiallyKwargifiedBytes):
         return version + b
 
     @property
-    def stamp(self) -> bytes:
-        return self.processed_objects['verifying_key'][0]
+    def stamp(self) -> SignatureStamp:
+        return SignatureStamp(self.verifying_key)
 
     @property
     def domain(self) -> str:
