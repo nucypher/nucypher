@@ -313,8 +313,8 @@ class WebController(InterfaceControlServer):
             if request_body:
                 request_body = json.loads(request_body)
 
-            # handle query string parameters for GET methods
-            if control_request.method == 'GET' and hasattr(control_request, 'args'):
+            # handle query string parameters
+            if hasattr(control_request, 'args'):
                 request_body.update(control_request.args)
 
             request_body.update(kwargs)
