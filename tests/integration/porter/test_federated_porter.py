@@ -14,13 +14,14 @@
  You should have received a copy of the GNU Affero General Public License
  along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
+import os
 from base64 import b64decode
 
 import pytest
-from nucypher.crypto.umbral_adapter import PublicKey
-
 from nucypher.crypto.powers import DecryptingPower
+from nucypher.crypto.umbral_adapter import PublicKey
 from nucypher.policy.maps import TreasureMap
+from tests.utils.policy import work_order_setup
 
 
 def test_get_ursulas(federated_porter, federated_ursulas):
@@ -94,3 +95,19 @@ def test_publish_and_get_treasure_map(federated_porter,
     treasure_map = federated_porter.get_treasure_map(map_identifier=map_id,
                                                      bob_encrypting_key=federated_bob.public_keys(DecryptingPower))
     assert treasure_map == enacted_federated_policy.treasure_map
+
+
+def test_exec_work_order(federated_porter,
+                         federated_ursulas,
+                         federated_bob,
+                         federated_alice,
+                         enacted_federated_policy):
+    # Setup
+    ursula_address, work_order = work_order_setup(enacted_federated_policy,
+                                                  federated_ursulas,
+                                                  federated_bob,
+                                                  federated_alice)
+
+    result = federated_porter.exec_work_order(ursula_address=ursula_address,
+                                              work_order_payload=work_order.payload())
+    assert result, "valid result returned"

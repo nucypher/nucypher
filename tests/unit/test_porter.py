@@ -14,21 +14,19 @@ GNU Affero General Public License for more details.
 You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
-import os
 from base64 import b64encode
 
 import pytest
 
 from nucypher.control.specifications.exceptions import InvalidInputData
 from nucypher.control.specifications.fields import StringList
-from nucypher.crypto.constants import ENCRYPTED_KFRAG_PAYLOAD_LENGTH
-from nucypher.policy.orders import WorkOrder as WorkOrderClass
 from nucypher.utilities.porter.control.specifications.fields import (
     TreasureMapID,
     UrsulaChecksumAddress,
     WorkOrder,
     WorkOrderResult
 )
+from tests.utils.policy import work_order_setup
 
 
 def test_treasure_map_id_field(enacted_federated_policy):
@@ -75,32 +73,20 @@ def test_ursula_checksum_address_field(get_random_checksum_address):
         field._deserialize(value="0xdeadbeef", attr=None, data=None)
 
 
-def test_work_order_field(mock_ursula_reencrypts,
+def test_work_order_field(enacted_federated_policy,
                           federated_ursulas,
-                          get_random_checksum_address,
                           federated_bob,
                           federated_alice,
-                          random_policy_label):
+                          get_random_checksum_address):
     # Setup
-    ursula = list(federated_ursulas)[0]
-    tasks = [mock_ursula_reencrypts(ursula) for _ in range(3)]
-    material = [(task.capsule, task.signature, task.cfrag, task.cfrag_signature) for task in tasks]
-    capsules, signatures, cfrags, cfrag_signatures = zip(*material)
-
-    mock_kfrag = os.urandom(ENCRYPTED_KFRAG_PAYLOAD_LENGTH)
-
-    # Test construction of WorkOrders by Bob
-    work_order = WorkOrderClass.construct_by_bob(encrypted_kfrag=mock_kfrag,
-                                                 bob=federated_bob,
-                                                 publisher_verifying_key=federated_alice.stamp.as_umbral_pubkey(),
-                                                 alice_verifying_key=federated_alice.stamp.as_umbral_pubkey(),
-                                                 ursula=ursula,
-                                                 capsules=capsules,
-                                                 label=random_policy_label)
+    ursula_address, work_order = work_order_setup(enacted_federated_policy,
+                                                  federated_ursulas,
+                                                  federated_bob,
+                                                  federated_alice)
+    reencrypt_result = b"cfrags and signatures"
 
     # Test Work Order
     work_order_bytes = work_order.payload()
-
     field = WorkOrder()
     serialized = field._serialize(value=work_order, attr=None, obj=None)
     assert serialized == b64encode(work_order_bytes).decode()
@@ -109,18 +95,12 @@ def test_work_order_field(mock_ursula_reencrypts,
     assert deserialized == work_order_bytes
 
     # Test Work Order Result
-    # TODO is this the correct way of doing this?
-    cfrag_byte_stream = bytes()
-    for cfrag in cfrags:
-        reencryption_signature = ursula.stamp(bytes(cfrag))
-        cfrag_byte_stream += bytes(cfrag) + bytes(reencryption_signature)
-
     field = WorkOrderResult()
-    serialized = field._serialize(value=cfrag_byte_stream, attr=None, obj=None)
-    assert serialized == b64encode(cfrag_byte_stream).decode()
+    serialized = field._serialize(value=reencrypt_result, attr=None, obj=None)
+    assert serialized == b64encode(reencrypt_result).decode()
 
     deserialized = field.deserialize(value=serialized, attr=None, data=None)
-    assert deserialized == cfrag_byte_stream
+    assert deserialized == reencrypt_result
 
 
 def test_ursula_checksum_address_string_list_field(get_random_checksum_address):

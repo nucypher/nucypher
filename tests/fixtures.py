@@ -280,6 +280,23 @@ def enacted_blockchain_policy(idle_blockchain_policy, blockchain_ursulas):
     return enacted_policy
 
 
+@pytest.fixture(scope="function")
+def random_blockchain_policy(testerchain, blockchain_alice, blockchain_bob, token_economics):
+    random_label = generate_random_label()
+    periods = token_economics.minimum_locked_periods // 2
+    days = periods * (token_economics.hours_per_period // 24)
+    now = testerchain.w3.eth.getBlock('latest').timestamp
+    expiration = maya.MayaDT(now).add(days=days - 1)
+    n = 3
+    m = 2
+    policy = blockchain_alice.create_policy(blockchain_bob,
+                                            label=random_label,
+                                            m=m, n=n,
+                                            value=n * periods * 100,
+                                            expiration=expiration)
+    return policy
+
+
 @pytest.fixture(scope="module")
 def capsule_side_channel(enacted_federated_policy):
     class _CapsuleSideChannel:

@@ -15,7 +15,7 @@
  along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
-from base64 import b64encode
+from base64 import b64encode, b64decode
 
 import pytest
 from nucypher.crypto.umbral_adapter import PublicKey
@@ -28,6 +28,9 @@ from tests.utils.middleware import MockRestMiddleware
 
 
 # should always be first test due to checks on response id
+from tests.utils.policy import work_order_setup
+
+
 def test_get_ursulas(blockchain_porter_rpc_controller, blockchain_ursulas):
     method = 'get_ursulas'
     expected_response_id = 0
@@ -120,3 +123,41 @@ def test_publish_and_get_treasure_map(blockchain_porter_rpc_controller,
     response = blockchain_porter_rpc_controller.send(request_data)
     assert response.success
     assert response.content['treasure_map'] == b64encode(bytes(treasure_map)).decode()
+
+
+def test_exec_work_order(blockchain_porter_rpc_controller,
+                         random_blockchain_policy,
+                         blockchain_ursulas,
+                         blockchain_bob,
+                         blockchain_alice,
+                         get_random_checksum_address):
+    method = 'exec_work_order'
+    # Setup
+    network_middleware = MockRestMiddleware()
+    # enact new random policy since idle_blockchain_policy/enacted_blockchain_policy already modified in previous tests
+    enacted_policy = random_blockchain_policy.enact(network_middleware=network_middleware,
+                                                    publish_treasure_map=False)  # enact but don't publish
+    ursula_address, work_order = work_order_setup(enacted_policy,
+                                                  blockchain_ursulas,
+                                                  blockchain_bob,
+                                                  blockchain_alice)
+    work_order_payload_b64 = b64encode(work_order.payload()).decode()
+
+    exec_work_order_params = {
+        'ursula': ursula_address,
+        'work_order_payload': work_order_payload_b64
+    }
+    request_data = {'method': method, 'params': exec_work_order_params}
+    response = blockchain_porter_rpc_controller.send(request_data)
+    assert response.success
+    work_order_result = response.content['work_order_result']
+    assert work_order_result
+
+    # Failure
+    exec_work_order_params = {
+        'ursula': get_random_checksum_address(),  # unknown ursula
+        'work_order_payload': work_order_payload_b64
+    }
+    with pytest.raises(Learner.NotEnoughNodes):
+        request_data = {'method': method, 'params': exec_work_order_params}
+        blockchain_porter_rpc_controller.send(request_data)

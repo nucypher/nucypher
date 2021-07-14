@@ -16,6 +16,7 @@
 """
 
 import json
+from urllib.parse import urlencode
 from base64 import b64encode
 
 import pytest
@@ -26,6 +27,7 @@ from nucypher.crypto.powers import DecryptingPower
 from nucypher.network.nodes import Learner
 from nucypher.policy.maps import TreasureMap
 from tests.utils.middleware import MockRestMiddleware
+from tests.utils.policy import work_order_setup
 
 
 def test_get_ursulas(blockchain_porter_web_controller, blockchain_ursulas):
@@ -122,7 +124,11 @@ def test_publish_and_get_treasure_map(blockchain_porter_web_controller,
         'treasure_map': b64encode(bytes(treasure_map)).decode(),
         'bob_encrypting_key': bytes(blockchain_bob_encrypting_key).hex()
     }
-    response = blockchain_porter_web_controller.post('/publish_treasure_map', data=json.dumps(publish_treasure_map_params))
+    # this query string is long (~6840 characters), but still seems to work ...
+    # json data payload is tested in federated tests
+    response = blockchain_porter_web_controller.post(f'/publish_treasure_map'
+                                                     f'?{urlencode(publish_treasure_map_params)}')
+
     assert response.status_code == 200
     response_data = json.loads(response.data)
     assert response_data['result']['published']
@@ -141,11 +147,53 @@ def test_publish_and_get_treasure_map(blockchain_porter_web_controller,
     assert response_data['result']['treasure_map'] == b64encode(bytes(treasure_map)).decode()
 
     # try getting recently published treasure map using query parameters
-    response = blockchain_porter_web_controller.get(f'/get_treasure_map?treasure_map_id={map_id}'
-                                                    f'&bob_encrypting_key={bytes(blockchain_bob_encrypting_key).hex()}')
+    response = blockchain_porter_web_controller.get(f'/get_treasure_map'
+                                                    f'?{urlencode(get_treasure_map_params)}')
     assert response.status_code == 200
     response_data = json.loads(response.data)
     assert response_data['result']['treasure_map'] == b64encode(bytes(treasure_map)).decode()
+
+
+def test_exec_work_order(blockchain_porter_web_controller,
+                         random_blockchain_policy,
+                         blockchain_ursulas,
+                         blockchain_bob,
+                         blockchain_alice,
+                         get_random_checksum_address):
+    # Send bad data to assert error return
+    response = blockchain_porter_web_controller.post('/exec_work_order', data=json.dumps({'bad': 'input'}))
+    assert response.status_code == 400
+
+    # Setup
+    network_middleware = MockRestMiddleware()
+    # enact new random policy since idle_blockchain_policy/enacted_blockchain_policy already modified in previous tests
+    enacted_policy = random_blockchain_policy.enact(network_middleware=network_middleware,
+                                                    publish_treasure_map=False)  # enact but don't publish
+    ursula_address, work_order = work_order_setup(enacted_policy,
+                                                  blockchain_ursulas,
+                                                  blockchain_bob,
+                                                  blockchain_alice)
+    work_order_payload_b64 = b64encode(work_order.payload()).decode()
+
+    exec_work_order_params = {
+        'ursula': ursula_address,
+        'work_order_payload': work_order_payload_b64
+    }
+    response = blockchain_porter_web_controller.post(f'/exec_work_order'
+                                                     f'?{urlencode(exec_work_order_params)}')
+    assert response.status_code == 200
+
+    response_data = json.loads(response.data)
+    work_order_result = response_data['result']['work_order_result']
+    assert work_order_result
+
+    # Failure
+    exec_work_order_params = {
+        'ursula': get_random_checksum_address(),  # unknown ursula
+        'work_order_payload': work_order_payload_b64
+    }
+    with pytest.raises(Learner.NotEnoughNodes):
+        blockchain_porter_web_controller.post('/exec_work_order', data=json.dumps(exec_work_order_params))
 
 
 def test_get_ursulas_basic_auth(blockchain_porter_basic_auth_web_controller):

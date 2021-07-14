@@ -25,14 +25,14 @@ from nucypher.crypto.constants import ENCRYPTED_KFRAG_PAYLOAD_LENGTH
 from nucypher.crypto.powers import DecryptingPower
 from nucypher.crypto.umbral_adapter import SecretKey
 from nucypher.policy.orders import WorkOrder as WorkOrderClass
-from nucypher.policy.policies import Arrangement
-from nucypher.utilities.porter.control.specifications.fields.ursulainfo import UrsulaInfo
+from nucypher.utilities.porter.control.specifications.fields import UrsulaInfoSchema
 from nucypher.utilities.porter.control.specifications.porter_schema import (
     AliceGetUrsulas,
     AlicePublishTreasureMap,
     BobGetTreasureMap,
     BobExecWorkOrder
 )
+from nucypher.utilities.porter.porter import Porter
 
 
 def test_alice_get_ursulas_schema(get_random_checksum_address):
@@ -153,15 +153,13 @@ def test_alice_get_ursulas_schema(get_random_checksum_address):
     expected_ursulas_info = []
     port = 11500
     for i in range(3):
-        ursula_info = {
-            "checksum_address": get_random_checksum_address(),
-            "uri": f"https://127.0.0.1:{port+i}",
-            "encrypting_key": SecretKey.random().public_key()
-        }
+        ursula_info = Porter.UrsulaInfo(get_random_checksum_address(),
+                                        f"https://127.0.0.1:{port+i}",
+                                        SecretKey.random().public_key())
         ursulas_info.append(ursula_info)
 
         # use schema to determine expected output (encrypting key gets changed to hex)
-        expected_ursulas_info.append(UrsulaInfo().dump(ursula_info))
+        expected_ursulas_info.append(UrsulaInfoSchema().dump(ursula_info))
 
     output = AliceGetUrsulas().dump(obj={'ursulas': ursulas_info})
     assert output == {"ursulas": expected_ursulas_info}
@@ -315,7 +313,7 @@ def test_bob_exec_work_order(mock_ursula_reencrypts,
     work_order_b64 = b64encode(work_order_bytes).decode()
     required_data = {
         'ursula': ursula.checksum_address,
-        'work_order': work_order_b64
+        'work_order_payload': work_order_b64
     }
 
     # required args
@@ -326,7 +324,7 @@ def test_bob_exec_work_order(mock_ursula_reencrypts,
     with pytest.raises(InvalidInputData):
         BobExecWorkOrder().load(updated_data)
 
-    updated_data = {k: v for k, v in required_data.items() if k != 'work_order'}
+    updated_data = {k: v for k, v in required_data.items() if k != 'work_order_payload'}
     with pytest.raises(InvalidInputData):
         BobExecWorkOrder().load(updated_data)
 

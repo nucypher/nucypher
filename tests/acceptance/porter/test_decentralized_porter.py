@@ -22,6 +22,7 @@ from nucypher.crypto.constants import HRAC_LENGTH
 from nucypher.crypto.powers import DecryptingPower
 from nucypher.policy.maps import TreasureMap
 from tests.utils.middleware import MockRestMiddleware
+from tests.utils.policy import work_order_setup
 
 
 def test_get_ursulas(blockchain_porter, blockchain_ursulas):
@@ -81,7 +82,7 @@ def test_publish_and_get_treasure_map(blockchain_porter,
         random_bob_encrypting_key = PublicKey.from_bytes(
             bytes.fromhex("026d1f4ce5b2474e0dae499d6737a8d987ed3c9ab1a55e00f57ad2d8e81fe9e9ac"))
         random_treasure_map_id = "93a9482bdf3b4f2e9df906a35144ca84"
-        assert len(bytes.fromhex(random_treasure_map_id)) == HRAC_LENGTH # non-federated is 16 bytes
+        assert len(bytes.fromhex(random_treasure_map_id)) == HRAC_LENGTH  # non-federated is 16 bytes
         blockchain_porter.get_treasure_map(map_identifier=random_treasure_map_id,
                                            bob_encrypting_key=random_bob_encrypting_key)
 
@@ -100,3 +101,23 @@ def test_publish_and_get_treasure_map(blockchain_porter,
     retrieved_treasure_map = blockchain_porter.get_treasure_map(map_identifier=map_id,
                                                                 bob_encrypting_key=blockchain_bob_encrypting_key)
     assert retrieved_treasure_map == treasure_map
+
+
+def test_exec_work_order(blockchain_porter,
+                         random_blockchain_policy,
+                         blockchain_ursulas,
+                         blockchain_bob,
+                         blockchain_alice):
+    # Setup
+    network_middleware = MockRestMiddleware()
+    # enact new random policy since idle_blockchain_policy/enacted_blockchain_policy already modified in previous tests
+    enacted_policy = random_blockchain_policy.enact(network_middleware=network_middleware,
+                                                    publish_treasure_map=False)  # enact but don't publish
+    ursula_address, work_order = work_order_setup(enacted_policy,
+                                                  blockchain_ursulas,
+                                                  blockchain_bob,
+                                                  blockchain_alice)
+    # use porter
+    result = blockchain_porter.exec_work_order(ursula_address=ursula_address,
+                                               work_order_payload=work_order.payload())
+    assert result

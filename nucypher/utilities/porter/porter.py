@@ -72,7 +72,7 @@ the Pipe for nucypher network operations
     class UrsulaInfo:
         """Simple object that stores relevant Ursula information resulting from sampling."""
 
-        def __init__(self, checksum_address: str, uri: str, encrypting_key: PublicKey):
+        def __init__(self, checksum_address: ChecksumAddress, uri: str, encrypting_key: PublicKey):
             self.checksum_address = checksum_address
             self.uri = uri
             self.encrypting_key = encrypting_key
@@ -138,22 +138,22 @@ the Pipe for nucypher network operations
         reservoir = self._make_staker_reservoir(quantity, duration_periods, exclude_ursulas, include_ursulas)
         value_factory = PrefetchStrategy(reservoir, quantity)
 
-        def get_ursula_info(ursula_checksum) -> Porter.UrsulaInfo:
-            if ursula_checksum not in self.known_nodes:
-                raise ValueError(f"{ursula_checksum} is not known")
+        def get_ursula_info(ursula_address) -> Porter.UrsulaInfo:
+            if ursula_address not in self.known_nodes:
+                raise ValueError(f"{ursula_address} is not known")
 
-            ursula = self.known_nodes[ursula_checksum]
+            ursula = self.known_nodes[ursula_address]
             try:
                 # verify node is valid
                 self.network_middleware.client.verify_and_parse_node_or_host_and_port(node_or_sprout=ursula,
                                                                                       host=None,
                                                                                       port=None)
 
-                return Porter.UrsulaInfo(checksum_address=ursula_checksum,
+                return Porter.UrsulaInfo(checksum_address=ursula_address,
                                          uri=f"{ursula.rest_interface.formal_uri}",
                                          encrypting_key=ursula.public_keys(DecryptingPower))
             except Exception as e:
-                self.log.debug(f"Unable to obtain Ursula information ({ursula_checksum}): {str(e)}")
+                self.log.debug(f"Unable to obtain Ursula information ({ursula_address}): {str(e)}")
                 raise
 
         self.block_until_number_of_known_nodes_is(quantity,
@@ -171,6 +171,15 @@ the Pipe for nucypher network operations
         successes = worker_pool.block_until_target_successes()
         ursulas_info = successes.values()
         return list(ursulas_info)
+
+    def exec_work_order(self, ursula_address: ChecksumAddress, work_order_payload: bytes) -> bytes:
+        self.block_until_specific_nodes_are_known(addresses={ursula_address}, learn_on_this_thread=True)
+        ursula = self.known_nodes[ursula_address]
+        ursula_rest_response = self.network_middleware.send_work_order_payload_to_ursula(
+            ursula=ursula,
+            work_order_payload=work_order_payload)
+        result = ursula_rest_response.content
+        return result
 
     def _make_staker_reservoir(self,
                                quantity: int,

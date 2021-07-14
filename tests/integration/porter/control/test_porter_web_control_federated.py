@@ -16,14 +16,15 @@
 """
 
 import json
-from base64 import b64decode, b64encode
+from urllib.parse import urlencode
+from base64 import b64encode
 
 import pytest
-from nucypher.crypto.umbral_adapter import PublicKey
 
 from nucypher.crypto.powers import DecryptingPower
 from nucypher.network.nodes import Learner
 from nucypher.policy.maps import TreasureMap
+from tests.utils.policy import work_order_setup
 
 
 def test_get_ursulas(federated_porter_web_controller, federated_ursulas):
@@ -130,8 +131,8 @@ def test_publish_and_get_treasure_map(federated_porter_web_controller,
     assert response_data['result']['treasure_map'] == b64encode(bytes(random_treasure_map)).decode()
 
     # try getting random treasure map using query parameters
-    response = federated_porter_web_controller.get(f'/get_treasure_map?treasure_map_id={random_treasure_map_id}'
-                                                   f'&bob_encrypting_key={bytes(random_bob_encrypting_key).hex()}')
+    response = federated_porter_web_controller.get(f'/get_treasure_map'
+                                                   f'?{urlencode(get_treasure_map_params)}')
     assert response.status_code == 200
     response_data = json.loads(response.data)
     assert response_data['result']['treasure_map'] == b64encode(bytes(random_treasure_map)).decode()
@@ -150,7 +151,47 @@ def test_publish_and_get_treasure_map(federated_porter_web_controller,
     assert response_data['result']['treasure_map'] == b64encode(bytes(enacted_federated_policy.treasure_map)).decode()
 
 
-def test_endpoints_basic_auth(federated_porter_basic_auth_web_controller, random_federated_treasure_map_data):
+def test_exec_work_order(federated_porter_web_controller,
+                         enacted_federated_policy,
+                         federated_ursulas,
+                         federated_bob,
+                         federated_alice,
+                         get_random_checksum_address):
+    # Send bad data to assert error return
+    response = federated_porter_web_controller.post('/exec_work_order', data=json.dumps({'bad': 'input'}))
+    assert response.status_code == 400
+
+    # Setup
+    ursula_address, work_order = work_order_setup(enacted_federated_policy,
+                                                  federated_ursulas,
+                                                  federated_bob,
+                                                  federated_alice)
+    work_order_payload_b64 = b64encode(work_order.payload()).decode()
+
+    # Success
+    exec_work_order_params = {
+        'ursula': ursula_address,
+        'work_order_payload': work_order_payload_b64
+    }
+    response = federated_porter_web_controller.post('/exec_work_order', data=json.dumps(exec_work_order_params))
+    assert response.status_code == 200
+
+    response_data = json.loads(response.data)
+    work_order_result = response_data['result']['work_order_result']
+    assert work_order_result
+
+    # Failure
+    exec_work_order_params = {
+        'ursula': get_random_checksum_address(),  # unknown ursula
+        'work_order_payload': work_order_payload_b64
+    }
+    with pytest.raises(Learner.NotEnoughNodes):
+        federated_porter_web_controller.post('/exec_work_order', data=json.dumps(exec_work_order_params))
+
+
+def test_endpoints_basic_auth(federated_porter_basic_auth_web_controller,
+                              random_federated_treasure_map_data,
+                              get_random_checksum_address):
     # /get_ursulas
     quantity = 4
     duration = 2  # irrelevant for federated (but required)
@@ -168,7 +209,8 @@ def test_endpoints_basic_auth(federated_porter_basic_auth_web_controller, random
         'treasure_map_id': random_treasure_map_id,
         'bob_encrypting_key': bytes(random_bob_encrypting_key).hex()
     }
-    response = federated_porter_basic_auth_web_controller.get('/get_treasure_map', data=json.dumps(get_treasure_map_params))
+    response = federated_porter_basic_auth_web_controller.get('/get_treasure_map',
+                                                              data=json.dumps(get_treasure_map_params))
     assert response.status_code == 401  # user not authenticated
 
     # /publish_treasure_map
@@ -178,6 +220,15 @@ def test_endpoints_basic_auth(federated_porter_basic_auth_web_controller, random
     }
     response = federated_porter_basic_auth_web_controller.post('/publish_treasure_map',
                                                                data=json.dumps(publish_treasure_map_params))
+    assert response.status_code == 401  # user not authenticated
+
+    # /exec_work_order
+    exec_work_order_params = {
+        'ursula': get_random_checksum_address(),
+        'work_order_payload': b64encode(b"some data").decode()
+    }
+    response = federated_porter_basic_auth_web_controller.post('/exec_work_order',
+                                                               data=json.dumps(exec_work_order_params))
     assert response.status_code == 401  # user not authenticated
 
     # try get_ursulas with authentication

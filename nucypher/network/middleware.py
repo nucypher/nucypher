@@ -25,7 +25,6 @@ from constant_sorrow.constants import CERTIFICATE_NOT_SAVED, EXEMPT_FROM_VERIFIC
 from cryptography import x509
 from cryptography.hazmat.backends import default_backend
 
-from nucypher.blockchain.eth.networks import NetworksInventory
 from nucypher.crypto.splitters import cfrag_splitter, signature_splitter
 from nucypher.utilities.logging import Logger
 
@@ -194,7 +193,8 @@ class RestMiddleware:
         return response
 
     def reencrypt(self, work_order):
-        ursula_rest_response = self.send_work_order_payload_to_ursula(work_order)
+        ursula_rest_response = self.send_work_order_payload_to_ursula(ursula=work_order.ursula,
+                                                                      work_order_payload=work_order.payload())
         splitter = cfrag_splitter + signature_splitter
         cfrags_and_signatures = splitter.repeat(ursula_rest_response.content)
         return cfrags_and_signatures
@@ -221,12 +221,11 @@ class RestMiddleware:
                                     timeout=2)
         return response
 
-    def send_work_order_payload_to_ursula(self, work_order):
-        payload = work_order.payload()
+    def send_work_order_payload_to_ursula(self, ursula: 'Ursula', work_order_payload: bytes):
         response = self.client.post(
-            node_or_sprout=work_order.ursula,
+            node_or_sprout=ursula,
             path=f"reencrypt",
-            data=payload,
+            data=work_order_payload,
             timeout=2
         )
         return response

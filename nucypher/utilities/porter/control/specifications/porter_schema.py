@@ -24,7 +24,6 @@ from nucypher.control.specifications.exceptions import InvalidArgumentCombo
 from nucypher.utilities.porter.control.specifications import fields
 from nucypher.characters.control.specifications import fields as character_fields
 from nucypher.cli import types
-from nucypher.utilities.porter.control.specifications.fields.ursulainfo import UrsulaInfo
 
 
 def option_ursula():
@@ -94,8 +93,8 @@ class AliceGetUrsulas(BaseSchema):
         load_only=True)
 
     # output
-    ursulas = marshmallow_fields.List(marshmallow_fields.Nested(UrsulaInfo), dump_only=True)
-
+    ursulas = marshmallow_fields.List(marshmallow_fields.Nested(fields.UrsulaInfoSchema), dump_only=True)
+    
     @validates_schema
     def check_valid_quantity_and_include_ursulas(self, data, **kwargs):
         # TODO does this make sense - perhaps having extra ursulas could be a good thing if some are down or can't
@@ -165,7 +164,7 @@ class BobExecWorkOrder(BaseSchema):
         required=True,
         load_only=True,
         click=option_ursula())
-    work_order = fields.WorkOrder(
+    work_order_payload = fields.WorkOrder(
         required=True,
         load_only=True,
         click=click.option(
