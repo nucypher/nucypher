@@ -25,7 +25,6 @@ from nucypher.crypto.constants import ENCRYPTED_KFRAG_PAYLOAD_LENGTH
 from nucypher.crypto.powers import DecryptingPower
 from nucypher.crypto.umbral_adapter import SecretKey
 from nucypher.policy.orders import WorkOrder as WorkOrderClass
-from nucypher.policy.policies import Arrangement
 from nucypher.utilities.porter.control.specifications.fields import UrsulaInfoSchema
 from nucypher.utilities.porter.control.specifications.porter_schema import (
     AliceGetUrsulas,
