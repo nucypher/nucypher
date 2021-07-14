@@ -341,6 +341,32 @@ getting involved. Please include contextual information about the sequence of st
 GitHub issue. For any questions, message us in our `Discord <https://discord.gg/7rmXa3S>`_.
 
 
+URL Query Parameters
+^^^^^^^^^^^^^^^^^^^^
+All parameters can be passed as either JSON data within the request or as query parameter strings in the URL.
+
+For ``List`` data types to be passed via a URL query parameter, the value should be provided as a comma-delimited
+String. For example, if a parameter is of type ``List[String]`` either a JSON list of Strings can be provided e.g.
+
+.. code:: bash
+
+    curl -X GET <PORTER URI>/<ENDPOINT> \
+        -H "Content-Type: application/json" \
+        -d '{"parameter_with_list_of_values": ["value1", "value2", "value3"]}'
+
+OR it can be provided via a URL query parameter
+
+.. code:: bash
+
+    curl -X GET <PORTER URI>/<ENDPOINT>?parameter_with_list_of_values=value1,value2,value3
+
+More examples shown below.
+
+.. important::
+
+    If URL query parameters are used and the URL becomes too long, the request may fail.
+
+
 GET /get_ursulas
 ^^^^^^^^^^^^^^^^
 Sample available Ursulas for a policy as part of Alice's ``grant`` workflow. Returns a list of Ursulas
@@ -364,6 +390,7 @@ Parameters
 |                                  |               | | include in the result.                      |
 +----------------------------------+---------------+-----------------------------------------------+
 
+
 Returns
 +++++++
 List of Ursulas with associated information:
@@ -378,7 +405,17 @@ Example Request
 
     curl -X GET <PORTER URI>/get_ursulas \
         -H "Content-Type: application/json" \
-        -d '{"quantity": 5, "duration_periods": 4}'
+        -d '{"quantity": 5,
+             "duration_periods": 4,
+             "include_ursulas": ["0xB04FcDF9327f65AB0107Ea95b78BB200C07FA752"],
+             "exclude_ursulas": ["0x5cF1703A1c99A4b42Eb056535840e93118177232", "0x9919C9f5CbBAA42CB3bEA153E14E16F85fEA5b5D"]}'
+
+OR
+
+.. code:: bash
+
+    curl -X GET "<PORTER URI>/get_ursulas?quantity=5&duration_periods=4&include_ursulas=0xB04FcDF9327f65AB0107Ea95b78BB200C07FA752&exclude_ursulas=0x5cF1703A1c99A4b42Eb056535840e93118177232,0x9919C9f5CbBAA42CB3bEA153E14E16F85fEA5b5D"
+
 
 Example Response
 ++++++++++++++++
@@ -455,6 +492,11 @@ Example Request
         -d '{"treasure_map": "Qld7S8sbKFCv2B8KxfJo4oxiTOjZ4VPyqTK5K1xK6DND6TbLg2hvlGaMV69aiiC5QfadB82w/5q1Sw+SNFHN2esWgAbs38QuUVUGCzDoWzQAAAGIAuhw12ZiPMNV8LaeWV8uUN+au2HGOjWilqtKsaP9fmnLAzFiTUAu9/VCxOLOQE88BPoWk1H7OxRLDEhnBVYyflpifKbOYItwLLTtWYVFRY90LtNSAzS8d3vNH4c3SHSZwYsCKY+5LvJ68GD0CqhydSxCcGckh0unttHrYGSOQsURUI4AAAEBsSMlukjA1WyYA+FouqkuRtk8bVHcYLqRUkK2n6dShEUGMuY1SzcAbBINvJYmQp+hhzK5m47AzCl463emXepYZQC/evytktG7yXxd3k8Ak+Qr7T4+G2VgJl4YrafTpIT6wowd+8u/SMSrrf/M41OhtLeBC4uDKjO3rYBQfVLTpEAgiX/9jxB80RtNMeCwgcieviAR5tlw2IlxVTEhxXbFeopcOZmfEuhVWqgBUfIakqsNCXkkubV0XS2l5G1vtTM8oNML0rP8PyKd4+0M5N6P/EQqFkHH93LCDD0IQBq9usm3MoJp0eT8N3m5gprI05drDh2xe/W6qnQfw3YXnjdvf2A=", \
              "bob_encrypting_key": "026d1f4ce5b2474e0dae499d6737a8d987ed3c9ab1a55e00f57ad2d8e81fe9e9ac"}'
 
+.. note::
+
+    If URL parameters are used for the ``/publish_treasure_map`` endpoint instead of JSON data, the request will fail because the URL becomes too long.
+
+
 Example Response
 ++++++++++++++++
 .. code::
@@ -500,8 +542,14 @@ Example Request
 
     curl -X GET <PORTER URI>/get_treasure_map \
         -H "Content-Type: application/json" \
-        -d '{"treasure_map_id": "f6ec73c93084ce91d5542a4ba6070071f5565112fe19b26ae9c960f9d658903a", \
+        -d '{"treasure_map_id": "f6ec73c93084ce91d5542a4ba6070071f5565112fe19b26ae9c960f9d658903a",
              "bob_encrypting_key": "026d1f4ce5b2474e0dae499d6737a8d987ed3c9ab1a55e00f57ad2d8e81fe9e9ac"}'
+
+OR
+
+.. code:: bash
+
+    curl -X GET "<PORTER URI>/get_treasure_map?treasure_map_id=f6ec73c93084ce91d5542a4ba6070071f5565112fe19b26ae9c960f9d658903a&bob_encrypting_key=026d1f4ce5b2474e0dae499d6737a8d987ed3c9ab1a55e00f57ad2d8e81fe9e9ac"
 
 Example Response
 ++++++++++++++++
