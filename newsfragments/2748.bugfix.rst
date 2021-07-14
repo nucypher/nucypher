@@ -1,0 +1,1 @@
+Fixed a problem with node metadata being stored to a file with an incorrect name
