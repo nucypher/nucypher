@@ -364,7 +364,8 @@ More examples shown below.
 
 .. important::
 
-    If URL query parameters are used and the URL becomes too long, the request may fail.
+    If URL query parameters are used and the URL becomes too long, the request will fail. There is no official limit,
+    but in most cases it will be 2048 characters.
 
 
 GET /get_ursulas
