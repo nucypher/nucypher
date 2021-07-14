@@ -348,6 +348,7 @@ GitHub issue. For any questions, message us in our `Discord <https://discord.gg/
 URL Query Parameters
 ^^^^^^^^^^^^^^^^^^^^
 All parameters can be passed as either JSON data within the request or as query parameter strings in the URL.
+Query parameters used within the URL will need to be URL encoded e.g. ``/`` in a base64 string becomes ``%2F`` etc.
 
 For ``List`` data types to be passed via a URL query parameter, the value should be provided as a comma-delimited
 String. For example, if a parameter is of type ``List[String]`` either a JSON list of Strings can be provided e.g.
@@ -368,8 +369,8 @@ More examples shown below.
 
 .. important::
 
-    If URL query parameters are used and the URL becomes too long, the request will fail. There is no official limit,
-    but in most cases it will be 2048 characters.
+    If URL query parameters are used and the URL becomes too long, the request will fail. There is no official limit
+    and it is dependent on the tool being used.
 
 
 GET /get_ursulas
@@ -494,12 +495,14 @@ Example Request
 
     curl -X POST <PORTER URI>/publish_treasure_map \
         -H "Content-Type: application/json" \
-        -d '{"treasure_map": "Qld7S8sbKFCv2B8KxfJo4oxiTOjZ4VPyqTK5K1xK6DND6TbLg2hvlGaMV69aiiC5QfadB82w/5q1Sw+SNFHN2esWgAbs38QuUVUGCzDoWzQAAAGIAuhw12ZiPMNV8LaeWV8uUN+au2HGOjWilqtKsaP9fmnLAzFiTUAu9/VCxOLOQE88BPoWk1H7OxRLDEhnBVYyflpifKbOYItwLLTtWYVFRY90LtNSAzS8d3vNH4c3SHSZwYsCKY+5LvJ68GD0CqhydSxCcGckh0unttHrYGSOQsURUI4AAAEBsSMlukjA1WyYA+FouqkuRtk8bVHcYLqRUkK2n6dShEUGMuY1SzcAbBINvJYmQp+hhzK5m47AzCl463emXepYZQC/evytktG7yXxd3k8Ak+Qr7T4+G2VgJl4YrafTpIT6wowd+8u/SMSrrf/M41OhtLeBC4uDKjO3rYBQfVLTpEAgiX/9jxB80RtNMeCwgcieviAR5tlw2IlxVTEhxXbFeopcOZmfEuhVWqgBUfIakqsNCXkkubV0XS2l5G1vtTM8oNML0rP8PyKd4+0M5N6P/EQqFkHH93LCDD0IQBq9usm3MoJp0eT8N3m5gprI05drDh2xe/W6qnQfw3YXnjdvf2A=", \
+        -d '{"treasure_map": "Qld7S8sbKFCv2B8KxfJo4oxiTOjZ4VPyqTK5K1xK6DND6TbLg2hvlGaMV69aiiC5QfadB82w/5q1Sw+SNFHN2e ...",
              "bob_encrypting_key": "026d1f4ce5b2474e0dae499d6737a8d987ed3c9ab1a55e00f57ad2d8e81fe9e9ac"}'
 
-.. note::
+OR
 
-    If URL parameters are used for the ``/publish_treasure_map`` endpoint instead of JSON data, the request will fail because the URL becomes too long.
+.. code:: bash
+
+    curl -X POST "<PORTER URI>/publish_treasure_map?treasure_map=Qld7S8sbKFCv2B8KxfJo4oxiTOjZ4VPyqTK5K1xK6DND6TbLg2hvlGaMV69aiiC5QfadB82w%2F5q1Sw%2BSNFHN2e ...&bob_encrypting_key=026d1f4ce5b2474e0dae499d6737a8d987ed3c9ab1a55e00f57ad2d8e81fe9e9ac"
 
 
 Example Response
@@ -603,8 +606,15 @@ Example Request
 
     curl -X POST <PORTER URI>/exec_work_order \
         -H "Content-Type: application/json" \
-        -d '{"ursula": "0xE57bFE9F44b819898F47BF37E5AF72a0783e1141", \
+        -d '{"ursula": "0xE57bFE9F44b819898F47BF37E5AF72a0783e1141",
              "work_order_payload": "QoQgOCRvtT4qG0nb5eDbfJ3vO6jMeoy9yp7lvezWKyNF0I6f/uQBPJed9FM7oc7jDAzqyDYD1C/1Cnab+kdobAJT7a3Z/KcOot4SwhgZ0eLGYVuhiAnXP9F7lBDosmvd2gAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA1I8O2JB/65y0K6m0dxmCpYJfsbpV63dMqcmTTPZAuWuA6LDyDa9JOqPF1OYQWHYi93wNLVLyHCLH6UEf5JOSgmgZOCPIzOaUpQMlr1rIDGExrF6zrLGpAwpPMMOzqa8tjiWHFaHWyLsUMyVKT8v1Psa/iIQ4NZDG+gKDSjgp33MbLml/ti+1p75M2ewuUbCjCWq5Mkf5ycqyEQUMt0IcTgNA6vxewmaBt7UTsYaUzkeTkNz/hLO9+ZFJ1NzJLxeweSqAiNQtfBvG7Fih6oaQT9uslu4QAwOTgolqkinEsoNx9XRL8Ocb8pO/5POBfPxiH8c2v5lrr6HhkAKAC5QODfegIToy29k0KIf3bCoqaVYncvjLJcum0AatnyOkYoV9Zf5wojvyFJE+MZ/homke4Yd8irUdoLSgxDuEDtyRNMuTpcHA37Z+npgp/zi0DQUvK35xZE+DmGYhaHTOPQesiTqyJc/Az22wtTfA3n9JwjSl6CjADGjHWgUPMQWzW8fqICo1iek2z7oFHM24yCtyvsEbC2Mm25LEZi/k2mfbgpNRg5PqW9qj/hTK19Cm4s0rlK7e2odCD5T3Iy0s6eg0KgR0RhT/ayH42be1FHgXFBFeABhm0fM8ZxorhMF1ce/yDPOaRZ8"}'
+
+OR
+
+.. code:: bash
+
+    curl -X POST "<PORTER URI>/exec_work_order?ursula=0xE57bFE9F44b819898F47BF37E5AF72a0783e1141&work_order_payload=QoQgOCRvtT4qG0nb5eDbfJ3vO6jMeoy9yp7lvezWKyNF0I6f%2FuQBPJed9FM7oc7jDAzqyDYD1C%2F1Cnab%2BkdobAJT7a3Z%2FKcOot4SwhgZ0eLGYVuhiAnXP9F7lBDosmvd2gAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA1I8O2JB%2F65y0K6m0dxmCpYJfsbpV63dMqcmTTPZAuWuA6LDyDa9JOqPF1OYQWHYi93wNLVLyHCLH6UEf5JOSgmgZOCPIzOaUpQMlr1rIDGExrF6zrLGpAwpPMMOzqa8tjiWHFaHWyLsUMyVKT8v1Psa%2FiIQ4NZDG%2BgKDSjgp33MbLml%2Fti%2B1p75M2ewuUbCjCWq5Mkf5ycqyEQUMt0IcTgNA6vxewmaBt7UTsYaUzkeTkNz%2FhLO9%2BZFJ1NzJLxeweSqAiNQtfBvG7Fih6oaQT9uslu4QAwOTgolqkinEsoNx9XRL8Ocb8pO%2F5POBfPxiH8c2v5lrr6HhkAKAC5QODfegIToy29k0KIf3bCoqaVYncvjLJcum0AatnyOkYoV9Zf5wojvyFJE%2BMZ%2Fhomke4Yd8irUdoLSgxDuEDtyRNMuTpcHA37Z%2Bnpgp%2Fzi0DQUvK35xZE%2BDmGYhaHTOPQesiTqyJc%2FAz22wtTfA3n9JwjSl6CjADGjHWgUPMQWzW8fqICo1iek2z7oFHM24yCtyvsEbC2Mm25LEZi%2Fk2mfbgpNRg5PqW9qj%2FhTK19Cm4s0rlK7e2odCD5T3Iy0s6eg0KgR0RhT%2FayH42be1FHgXFBFeABhm0fM8ZxorhMF1ce%2FyDPOaRZ8"
+
 
 Example Response
 ++++++++++++++++

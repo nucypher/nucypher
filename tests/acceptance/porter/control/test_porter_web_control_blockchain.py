@@ -16,7 +16,8 @@
 """
 
 import json
-from base64 import b64encode, b64decode
+from urllib.parse import urlencode
+from base64 import b64encode
 
 import pytest
 from nucypher.crypto.umbral_adapter import PublicKey
@@ -123,7 +124,11 @@ def test_publish_and_get_treasure_map(blockchain_porter_web_controller,
         'treasure_map': b64encode(bytes(treasure_map)).decode(),
         'bob_encrypting_key': bytes(blockchain_bob_encrypting_key).hex()
     }
-    response = blockchain_porter_web_controller.post('/publish_treasure_map', data=json.dumps(publish_treasure_map_params))
+    # this query string is long (~6840 characters), but still seems to work ...
+    # json data payload is tested in federated tests
+    response = blockchain_porter_web_controller.post(f'/publish_treasure_map'
+                                                     f'?{urlencode(publish_treasure_map_params)}')
+
     assert response.status_code == 200
     response_data = json.loads(response.data)
     assert response_data['result']['published']
@@ -142,8 +147,8 @@ def test_publish_and_get_treasure_map(blockchain_porter_web_controller,
     assert response_data['result']['treasure_map'] == b64encode(bytes(treasure_map)).decode()
 
     # try getting recently published treasure map using query parameters
-    response = blockchain_porter_web_controller.get(f'/get_treasure_map?treasure_map_id={map_id}'
-                                                    f'&bob_encrypting_key={bytes(blockchain_bob_encrypting_key).hex()}')
+    response = blockchain_porter_web_controller.get(f'/get_treasure_map'
+                                                    f'?{urlencode(get_treasure_map_params)}')
     assert response.status_code == 200
     response_data = json.loads(response.data)
     assert response_data['result']['treasure_map'] == b64encode(bytes(treasure_map)).decode()
@@ -174,7 +179,8 @@ def test_exec_work_order(blockchain_porter_web_controller,
         'ursula': ursula_address,
         'work_order_payload': work_order_payload_b64
     }
-    response = blockchain_porter_web_controller.post('/exec_work_order', data=json.dumps(exec_work_order_params))
+    response = blockchain_porter_web_controller.post(f'/exec_work_order'
+                                                     f'?{urlencode(exec_work_order_params)}')
     assert response.status_code == 200
 
     response_data = json.loads(response.data)

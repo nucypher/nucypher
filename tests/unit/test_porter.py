@@ -14,15 +14,12 @@ GNU Affero General Public License for more details.
 You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
-import os
 from base64 import b64encode
 
 import pytest
 
 from nucypher.control.specifications.exceptions import InvalidInputData
 from nucypher.control.specifications.fields import StringList
-from nucypher.crypto.constants import ENCRYPTED_KFRAG_PAYLOAD_LENGTH
-from nucypher.policy.orders import WorkOrder as WorkOrderClass
 from nucypher.utilities.porter.control.specifications.fields import (
     TreasureMapID,
     UrsulaChecksumAddress,
