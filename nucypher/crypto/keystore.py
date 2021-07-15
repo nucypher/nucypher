@@ -330,6 +330,8 @@ class Keystore:
         emitter = StdoutEmitter()
         emitter.message(f'WARNING: Key importing assumes that you have already secured your secret '
                         f'and can recover it. No mnemonic will be generated.\n', color='yellow')
+        if len(key_material) != SecretKey.serialized_size():
+            raise ValueError(f'Entropy bytes bust be exactly {SecretKey.serialized_size()}.')
         path = Keystore.__save(secret=key_material, password=password, keystore_dir=keystore_dir)
         keystore = cls(keystore_path=path)
         return keystore
