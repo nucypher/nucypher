@@ -931,12 +931,10 @@ class Learner:
                 message = f"Discovered sprout with invalid node certificate: {sprout}. Full error: {e.__str__()} "
                 self.log.warn(message)
 
-            # this next except block is erroring out at this time with an attribute error,
-            # so commented it out to allow other errors to be raised.
-            # except sprout.SuspiciousActivity:
-            #     message = f"Suspicious Activity: Discovered sprout with bad signature: {sprout}." \
-            #               f"Propagated by: {current_teacher}"
-            #     self.log.warn(message)
+            except SuspiciousActivity:
+                message = f"Suspicious Activity: Discovered sprout with bad signature: {sprout}." \
+                          f"Propagated by: {current_teacher}"
+                self.log.warn(message)
 
         # Is cycling happening in the right order?
         self.known_nodes.record_remote_fleet_state(
