@@ -348,8 +348,6 @@ class StakingEscrowAgent(EthereumContractAgent):
                         # reduce pagination size and retry
                         old_pagination_size = pagination_size
                         pagination_size = old_pagination_size // 2
-                        if pagination_size == 0:
-                            pagination_size = 1  # ensure never 0
                         self.log.debug(f"Failed stakers sampling using pagination size = {old_pagination_size}. "
                                        f"Retrying with size {pagination_size}")
                 else:

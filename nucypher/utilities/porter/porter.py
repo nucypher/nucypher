@@ -14,7 +14,7 @@
  You should have received a copy of the GNU Affero General Public License
  along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
-from typing import List, Optional, Sequence
+from typing import List, Optional, Sequence, NamedTuple
 
 from constant_sorrow.constants import NO_CONTROL_PROTOCOL, NO_BLOCKCHAIN_CONNECTION
 from eth_typing import ChecksumAddress
@@ -69,13 +69,11 @@ the Pipe for nucypher network operations
 
     _interface_class = PorterInterface
 
-    class UrsulaInfo:
+    class UrsulaInfo(NamedTuple):
         """Simple object that stores relevant Ursula information resulting from sampling."""
-
-        def __init__(self, checksum_address: ChecksumAddress, uri: str, encrypting_key: PublicKey):
-            self.checksum_address = checksum_address
-            self.uri = uri
-            self.encrypting_key = encrypting_key
+        checksum_address: ChecksumAddress
+        uri: str
+        encrypting_key: PublicKey
 
     def __init__(self,
                  domain: str = None,

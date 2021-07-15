@@ -23,6 +23,9 @@ from nucypher.crypto.umbral_adapter import PublicKey
 
 @pytest.fixture(scope='session')
 def random_federated_treasure_map_data():
+    #
+    # These values were obtained from running the federated heartbeat demo and printing the relevant values.
+    #
     random_bob_encrypting_key = PublicKey.from_bytes(
         bytes.fromhex("026d1f4ce5b2474e0dae499d6737a8d987ed3c9ab1a55e00f57ad2d8e81fe9e9ac"))
     random_treasure_map_id = "cc1c29dd2305483cc838cbcc5ecb5ef6edfd69ecadb0aa52b6b084b630989187"  # federated is 32 bytes
