@@ -1,0 +1,1 @@
+Stop writing bytes to log file which causes exceptions - instead write the hex representation.
