@@ -419,7 +419,7 @@ commands:
       - run: sudo chown -R circleci:circleci /usr/local/bin
       - run: sudo chown -R circleci:circleci /usr/local/lib/python3.7/site-packages
       - save_cache:
-          key: pip-v6-{{ .Branch }}-{{ checksum "Pipfile.lock" }}
+          key: pip-v7-{{ .Branch }}-{{ checksum "Pipfile.lock" }}
           paths:
             - "~/.local/bin"
             - "~/.local/lib/python3.7/site-packages"
@@ -434,7 +434,7 @@ commands:
       - run: sudo chown -R circleci:circleci /usr/local/bin
       - run: sudo chown -R circleci:circleci /usr/local/lib/python3.7/site-packages
       - restore_cache:  # ensure this step occurs *before* installing dependencies
-          key: pip-v6-{{ .Branch }}-{{ checksum "Pipfile.lock" }}
+          key: pip-v7-{{ .Branch }}-{{ checksum "Pipfile.lock" }}
       - restore_cache:
           key: solc-v2-{{ checksum "nucypher/blockchain/eth/sol/__conf__.py" }}
 
