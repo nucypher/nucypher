@@ -235,7 +235,7 @@ def patch_keystore(mock_accounts, monkeypatch, mocker):
             raise FileNotFoundError(f"No such file {full_path}")
         return account.address, dict(version=3, address=account.address)
 
-    mocker.patch('pathlib.Path.iterdir', return_value=list(mock_accounts.keys()))
+    mocker.patch('pathlib.Path.iterdir', return_value=[Path(key) for key in mock_accounts.keys()])
     monkeypatch.setattr(KeystoreSigner, '_KeystoreSigner__read_keystore', successful_mock_keyfile_reader)
     yield
     monkeypatch.delattr(KeystoreSigner, '_KeystoreSigner__read_keystore')

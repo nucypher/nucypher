@@ -107,7 +107,7 @@ def test_federated_development_character_configurations(character, configuration
 
 # TODO: This test is unnecessarily slow due to the blockchain configurations. Perhaps we should mock them -- See #2230
 @pytest.mark.parametrize('configuration_class', all_configurations)
-def test_default_character_configuration_preservation(configuration_class, testerchain, test_registry_source_manager, mocker, tmpdir):
+def test_default_character_configuration_preservation(configuration_class, testerchain, test_registry_source_manager, tmpdir):
 
     configuration_class.DEFAULT_CONFIG_ROOT = Path('/tmp')
     fake_address = '0xdeadbeef'

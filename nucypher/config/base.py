@@ -18,6 +18,7 @@
 
 import json
 import re
+import typing
 from abc import ABC, abstractmethod
 from decimal import Decimal
 from pathlib import Path, PosixPath
@@ -644,7 +645,7 @@ class CharacterConfiguration(BaseConfiguration):
         payload.update(dict(node_storage=node_storage, max_gas_price=max_gas_price))
         paths_only = [
             arg for (arg, type_) in get_type_hints(cls.__init__).items() 
-            if type_ == Path
+            if type_ == Path or type_ == typing.Optional[Path]
         ]
         for key in paths_only:
             if key in payload:

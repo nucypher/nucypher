@@ -253,14 +253,13 @@ class FelixConfiguration(CharacterConfiguration):
     NAME = CHARACTER_CLASS.__name__.lower()
 
     DEFAULT_DB_NAME = '{}.db'.format(NAME)
-    DEFAULT_DB_FILEPATH = DEFAULT_CONFIG_ROOT / DEFAULT_DB_NAME
     DEFAULT_REST_PORT = 6151
     DEFAULT_LEARNER_PORT = 9151
     DEFAULT_REST_HOST = LOOPBACK_ADDRESS
     __DEFAULT_TLS_CURVE = ec.SECP384R1
 
     def __init__(self,
-                 db_filepath: str = None,
+                 db_filepath: Path = None,
                  rest_host: str = None,
                  rest_port: int = None,
                  tls_curve: EllipticCurve = None,

@@ -15,14 +15,13 @@ You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
-import os
+import binascii
 import tempfile
 from abc import ABC, abstractmethod
 from pathlib import Path
 from typing import Any, Set, Union
 
 import OpenSSL
-import binascii
 from bytestring_splitter import BytestringSplittingError
 from cryptography import x509
 from cryptography.hazmat.backends import default_backend
@@ -336,9 +335,12 @@ class LocalFileBasedNodeStorage(NodeStorage):
     # Metadata
     #
 
-    def __generate_metadata_filepath(self, stamp: Union[SignatureStamp, str], metadata_dir: Path = None) -> Path:
+    def __generate_metadata_filepath(self, stamp: Union[SignatureStamp, bytes, str], metadata_dir: Path = None) -> Path:
         if isinstance(stamp, SignatureStamp):
-            stamp = bytes(stamp).hex()
+            stamp = bytes(stamp)
+        if isinstance(stamp, str):
+            stamp = bytes.fromhex(stamp)
+        stamp = stamp.hex()
         metadata_path = metadata_dir or self.metadata_dir / self.__METADATA_FILENAME_TEMPLATE.format(stamp)
         return metadata_path
 
@@ -396,7 +398,7 @@ class LocalFileBasedNodeStorage(NodeStorage):
             return known_nodes
 
     @validate_checksum_address
-    def get(self, stamp: str, federated_only: bool, certificate_only: bool = False):
+    def get(self, stamp: Union[SignatureStamp, str], federated_only: bool, certificate_only: bool = False):
         if certificate_only is True:
             certificate = self.__read_node_tls_certificate(stamp=stamp)
             return certificate
@@ -408,7 +410,7 @@ class LocalFileBasedNodeStorage(NodeStorage):
         certificate_filepath = self._write_tls_certificate(certificate=certificate, port=port, force=force)
         return certificate_filepath
 
-    def store_node_metadata(self, node, filepath: str = None) -> str:
+    def store_node_metadata(self, node, filepath: Path = None) -> Path:
         filepath = self.__generate_metadata_filepath(stamp=node.stamp, metadata_dir=filepath)
         self.__write_metadata(filepath=filepath, node=node)
         return filepath

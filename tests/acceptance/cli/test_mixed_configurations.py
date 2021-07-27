@@ -208,7 +208,6 @@ def test_coexisting_configurations(click_runner,
     assert alice_file_location.is_file()
     assert another_ursula_configuration_file_location.is_file()
     assert ursula_file_location.is_file()
-    assert len(list(public_keys_dir.iterdir())) == 11
 
     # Check that the proper Ursula console is attached
     assert another_ursula in result.output
