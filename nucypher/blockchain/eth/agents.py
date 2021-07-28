@@ -301,6 +301,10 @@ class StakingEscrowAgent(EthereumContractAgent):
             elif last_committed_period == current_period:
                 pending_stakers.append(staker)
             else:
+                locked_stake = self.non_withdrawable_stake(staker_address=staker)
+                if locked_stake == 0:
+                    # don't include stakers with expired stakes
+                    continue
                 missing_stakers.append(staker)
 
         return active_stakers, pending_stakers, missing_stakers
