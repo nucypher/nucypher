@@ -17,10 +17,11 @@
 from typing import List, Optional
 
 from eth_typing import ChecksumAddress
-from nucypher.crypto.umbral_adapter import PublicKey
 
 from nucypher.characters.control.specifications.fields import TreasureMap
 from nucypher.control.interfaces import ControlInterface, attach_schema
+from nucypher.control.specifications.base import BaseSchema
+from nucypher.crypto.umbral_adapter import PublicKey
 from nucypher.utilities.porter.control.specifications import porter_schema
 
 
@@ -28,7 +29,8 @@ class PorterInterface(ControlInterface):
     def __init__(self, porter: 'Porter' = None, *args, **kwargs):
         super().__init__(implementer=porter, *args, **kwargs)
         # set federated/non-federated context for publish treasure map schema
-        PorterInterface.publish_treasure_map._schema.context[TreasureMap.IS_FEDERATED_CONTEXT_KEY] = porter.federated_only
+        PorterInterface.publish_treasure_map._schema.context[
+            TreasureMap.IS_FEDERATED_CONTEXT_KEY] = porter.federated_only
 
     #
     # Alice Endpoints
@@ -88,3 +90,14 @@ class PorterInterface(ControlInterface):
                                                              work_order_payload=work_order_payload)
         response_data = {'work_order_result': work_order_result}
         return response_data
+
+    #
+    # Ursula Endpoints
+    #
+    @attach_schema(BaseSchema)
+    def proxy_consider_arrangement(self, proxy_destination: str, data: bytes) -> dict:
+        return self.implementer.proxy_consider_arrangement(ursula_uri=proxy_destination, data=data)
+
+    @attach_schema(BaseSchema)
+    def proxy_kfrag(self, proxy_destination: str, data: bytes, kfrag_id: str) -> dict:
+        return self.implementer.proxy_kfrag(ursula_uri=proxy_destination, data=data, kfrag_id=kfrag_id)

@@ -16,14 +16,16 @@
 """
 
 import json
-from urllib.parse import urlencode
 from base64 import b64encode
+from urllib.parse import urlencode
 
 import pytest
-from nucypher.crypto.umbral_adapter import PublicKey
+import pytest_twisted
+from twisted.internet import threads
 
 from nucypher.crypto.constants import HRAC_LENGTH
 from nucypher.crypto.powers import DecryptingPower
+from nucypher.crypto.umbral_adapter import PublicKey
 from nucypher.network.nodes import Learner
 from nucypher.policy.maps import TreasureMap
 from tests.utils.middleware import MockRestMiddleware
@@ -194,6 +196,38 @@ def test_exec_work_order(blockchain_porter_web_controller,
     }
     with pytest.raises(Learner.NotEnoughNodes):
         blockchain_porter_web_controller.post('/exec_work_order', data=json.dumps(exec_work_order_params))
+
+
+@pytest_twisted.inlineCallbacks
+def test_post_proxy_requests_to_ursula(blockchain_porter_web_controller, blockchain_ursulas):
+    node = blockchain_ursulas[0]
+    node_deployer = node.get_deployer()
+
+    node_deployer.addServices()
+    node_deployer.catalogServers(node_deployer.hendrix)
+    node_deployer.start()
+
+    def check_node_accepts_proxied_arrangement(node):
+        arrangement_as_bytes = bytes('fake-arrangement', 'utf-8')
+        response = blockchain_porter_web_controller.post(
+            '/proxy/consider_arrangement',
+            data=arrangement_as_bytes,
+            headers={'X-PROXY-DESTINATION': f'https://{node.rest_url()}', 'Content-Type': 'application/octet-stream'})
+        assert response.status_code == 200
+        return node
+
+    def check_node_accepts_kfrag(node):
+        kfrag_as_bytes = bytes('fake-kfrag', 'utf-8')
+        kfrag_id = 'fake-kfrag-id'
+        response = blockchain_porter_web_controller.post(
+            f'/proxy/kFrag/{kfrag_id}',
+            data=kfrag_as_bytes,
+            headers={'X-PROXY-DESTINATION': f'https://{node.rest_url()}', 'Content-Type': 'application/octet-stream'})
+        assert response.status_code == 200
+        return node
+
+    yield threads.deferToThread(check_node_accepts_proxied_arrangement, node)
+    yield threads.deferToThread(check_node_accepts_kfrag, node)
 
 
 def test_get_ursulas_basic_auth(blockchain_porter_basic_auth_web_controller):

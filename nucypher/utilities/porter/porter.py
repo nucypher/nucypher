@@ -14,29 +14,25 @@
  You should have received a copy of the GNU Affero General Public License
  along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
-from typing import List, Optional, Sequence, NamedTuple
+from typing import List, NamedTuple, Optional, Sequence
 
-from constant_sorrow.constants import NO_CONTROL_PROTOCOL, NO_BLOCKCHAIN_CONNECTION
+import requests
+from constant_sorrow.constants import NO_BLOCKCHAIN_CONNECTION, NO_CONTROL_PROTOCOL
 from eth_typing import ChecksumAddress
-from flask import request, Response
-from nucypher.crypto.umbral_adapter import PublicKey
+from flask import Response, request
 
 from nucypher.blockchain.eth.agents import ContractAgency, StakingEscrowAgent
 from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
 from nucypher.blockchain.eth.registry import BaseContractRegistry, InMemoryContractRegistry
-
 from nucypher.characters.lawful import Ursula
-
-from nucypher.control.controllers import WebController, JSONRPCController
+from nucypher.control.controllers import JSONRPCController, WebController
 from nucypher.crypto.powers import DecryptingPower
-from nucypher.network.nodes import Learner
+from nucypher.crypto.umbral_adapter import PublicKey
 from nucypher.network import treasuremap
+from nucypher.network.nodes import Learner
 from nucypher.policy.policies import TreasureMapPublisher
-from nucypher.policy.reservoir import (
-    make_federated_staker_reservoir,
-    make_decentralized_staker_reservoir,
-    PrefetchStrategy
-)
+from nucypher.policy.reservoir import (PrefetchStrategy, make_decentralized_staker_reservoir,
+                                       make_federated_staker_reservoir)
 from nucypher.utilities.concurrency import WorkerPool
 from nucypher.utilities.logging import Logger
 from nucypher.utilities.porter.control.controllers import PorterCLIController
@@ -179,6 +175,14 @@ the Pipe for nucypher network operations
         result = ursula_rest_response.content
         return result
 
+    def proxy_consider_arrangement(self, ursula_uri: str, data: bytes):
+        response = requests.post(f"{ursula_uri}/consider_arrangement", data=data, verify=False)
+        return response.content
+
+    def proxy_kfrag(self, ursula_uri: str, data: bytes, kfrag_id: str):
+        response = requests.post(f"{ursula_uri}/kFrag/{kfrag_id}", data=data, verify=False)
+        return response.content
+
     def _make_staker_reservoir(self,
                                quantity: int,
                                duration_periods: int = None,  # optional for federated mode
@@ -267,6 +271,18 @@ the Pipe for nucypher network operations
         def exec_work_order() -> Response:
             """Porter control endpoint for executing a PRE work order on behalf of Bob."""
             response = controller(method_name='exec_work_order', control_request=request)
+            return response
+
+        @porter_flask_control.route("/proxy/consider_arrangement", methods=['POST'])
+        def proxy_consider_arrangement() -> Response:
+            """Porter control endpoint for proxying an arrangement proposal to Ursula."""
+            response = controller(method_name='proxy_consider_arrangement', control_request=request)
+            return response
+
+        @porter_flask_control.route("/proxy/kFrag/<kfrag_id>", methods=['POST'])
+        def proxy_kfrag(kfrag_id: str) -> Response:
+            """Porter control endpoint for proxying a kFrag to Ursula."""
+            response = controller(method_name='proxy_kfrag', control_request=request, kfrag_id=kfrag_id)
             return response
 
         return controller

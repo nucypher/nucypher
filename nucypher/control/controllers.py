@@ -30,12 +30,12 @@ from twisted.internet import reactor, stdio
 
 from nucypher.cli.processes import JSONRPCLineReceiver
 from nucypher.config.constants import MAX_UPLOAD_CONTENT_LENGTH
-from nucypher.control.emitters import StdoutEmitter, JSONRPCStdoutEmitter, WebEmitter
+from nucypher.control.emitters import JSONRPCStdoutEmitter, StdoutEmitter, WebEmitter
 from nucypher.control.interfaces import ControlInterface
 from nucypher.control.specifications.exceptions import SpecificationError
 from nucypher.exceptions import DevelopmentInstallationRequired
 from nucypher.network.resources import get_static_resources
-from nucypher.utilities.logging import Logger, GlobalLoggerSettings
+from nucypher.utilities.logging import GlobalLoggerSettings, Logger
 
 
 class ControllerBase(ABC):
@@ -309,14 +309,25 @@ class WebController(InterfaceControlServer):
                            self.emitter.MethodNotFound)
 
         try:
+            # handle request headers
+            request_headers = control_request.headers
+            request_headers = {header.upper(): value for (header, value) in request_headers.items()}
+
             request_data = control_request.data
-            request_body = json.loads(request_data) if request_data else dict()
+            # handle bytes in request body
+            if request_headers.get('CONTENT-TYPE') == 'application/octet-stream':
+                request_body = {"data": bytes(request_data)}
+            # handle JSON in request body
+            else:
+                request_body = json.loads(request_data) if request_data else dict()
 
             # handle query string parameters
             if hasattr(control_request, 'args'):
                 request_body.update(control_request.args)
 
             request_body.update(kwargs)
+            if request_headers.get('X-PROXY-DESTINATION'):
+                request_body['proxy_destination'] = request_headers['X-PROXY-DESTINATION']
 
             if method_name not in self._get_interfaces():
                 raise self.emitter.MethodNotFound(f'No method called {method_name}')
