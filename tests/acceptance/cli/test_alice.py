@@ -15,13 +15,11 @@
  along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
-import os
-from pathlib import Path
 from unittest import mock
 from unittest.mock import PropertyMock
 
 from nucypher.cli.commands.alice import AliceConfigOptions
-from nucypher.cli.literature import SUCCESSFUL_DESTRUCTION, COLLECT_NUCYPHER_PASSWORD
+from nucypher.cli.literature import COLLECT_NUCYPHER_PASSWORD, SUCCESSFUL_DESTRUCTION
 from nucypher.cli.main import nucypher_cli
 from nucypher.config.base import CharacterConfiguration
 from nucypher.config.characters import AliceConfiguration
@@ -98,8 +96,6 @@ def test_alice_control_starts_with_mocked_keystore(click_runner, mocker, monkeyp
 
 
 def test_initialize_alice_with_custom_configuration_root(custom_filepath, click_runner, monkeypatch):
-    custom_filepath = Path(custom_filepath)
-
     monkeypatch.delenv(NUCYPHER_ENVVAR_KEYSTORE_PASSWORD, raising=False)
 
     # Use a custom local filepath for configuration
@@ -130,18 +126,16 @@ def test_initialize_alice_with_custom_configuration_root(custom_filepath, click_
 
 
 def test_alice_control_starts_with_preexisting_configuration(click_runner, custom_filepath):
-    custom_filepath = Path(custom_filepath)
     custom_config_filepath = custom_filepath / AliceConfiguration.generate_filename()
-    run_args = ('alice', 'run', '--dry-run', '--lonely', '--config-file', str(custom_config_filepath))
+    run_args = ('alice', 'run', '--dry-run', '--lonely', '--config-file', custom_config_filepath)
     result = click_runner.invoke(nucypher_cli, run_args, input=FAKE_PASSWORD_CONFIRMED)
     assert result.exit_code == 0, result.exception
 
 
 def test_alice_make_card(click_runner, custom_filepath, mocker):
-    custom_filepath = Path(custom_filepath)
     mock_save_card = mocker.patch.object(Card, 'save')
     custom_config_filepath = custom_filepath / AliceConfiguration.generate_filename()
-    command = ('alice', 'make-card', '--nickname', 'flora', '--config-file', str(custom_config_filepath))
+    command = ('alice', 'make-card', '--nickname', 'flora', '--config-file', custom_config_filepath)
     result = click_runner.invoke(nucypher_cli, command, input=FAKE_PASSWORD_CONFIRMED, catch_exceptions=False)
     assert result.exit_code == 0
     mock_save_card.assert_called_once()
@@ -174,9 +168,8 @@ def test_alice_public_keys(click_runner):
 
 
 def test_alice_view_preexisting_configuration(click_runner, custom_filepath):
-    custom_filepath = Path(custom_filepath)
     custom_config_filepath = custom_filepath / AliceConfiguration.generate_filename()
-    view_args = ('alice', 'config', '--config-file', str(custom_config_filepath))
+    view_args = ('alice', 'config', '--config-file', custom_config_filepath)
     result = click_runner.invoke(nucypher_cli, view_args, input=FAKE_PASSWORD_CONFIRMED)
     assert result.exit_code == 0
     assert "checksum_address" in result.output

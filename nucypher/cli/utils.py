@@ -15,7 +15,6 @@
  along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
-
 import os
 import shutil
 from distutils.util import strtobool
@@ -83,8 +82,8 @@ def make_cli_character(character_config,
     # Handle KEYSTORE
     if unlock_keystore:
         unlock_nucypher_keystore(emitter,
-                                character_configuration=character_config,
-                                password=get_nucypher_password(emitter=emitter, confirm=False))
+                                 character_configuration=character_config,
+                                 password=get_nucypher_password(emitter=emitter, confirm=False))
 
     # Handle Signer/Wallet
     if unlock_signer:
@@ -130,13 +129,12 @@ def make_cli_character(character_config,
 
 def establish_deployer_registry(emitter,
                                 network: str = None,
-                                registry_infile: str = None,
-                                registry_outfile: str = None,
+                                registry_infile: Path = None,
+                                registry_outfile: Path = None,
                                 use_existing_registry: bool = False,
                                 download_registry: bool = False,
                                 dev: bool = False
                                 ) -> BaseContractRegistry:
-
     if download_registry:
         registry = InMemoryContractRegistry.from_latest_publication(network=network)
         emitter.message(PRODUCTION_REGISTRY_ADVISORY.format(source=registry.source))
@@ -175,7 +173,7 @@ def get_registry(network: str, registry_filepath: Path = None) -> BaseContractRe
     return registry
 
 
-def connect_to_blockchain(emitter: StdoutEmitter, 
+def connect_to_blockchain(emitter: StdoutEmitter,
                           provider_uri: str,
                           debug: bool = False,
                           light: bool = False
@@ -203,7 +201,6 @@ def initialize_deployer_interface(emitter: StdoutEmitter,
                                   gas_strategy: str = None,
                                   max_gas_price: int = None
                                   ) -> BlockchainDeployerInterface:
-    
     if not BlockchainInterfaceFactory.is_interface_initialized(provider_uri=provider_uri):
         deployer_interface = BlockchainDeployerInterface(provider_uri=provider_uri,
                                                          poa=poa,
@@ -267,9 +264,9 @@ def retrieve_events(emitter: StdoutEmitter,
                     from_block: BlockIdentifier,
                     to_block: BlockIdentifier,
                     argument_filters: Dict,
-                    csv_output_file: Optional[str] = None) -> None:
+                    csv_output_file: Optional[Path] = None) -> None:
     if csv_output_file:
-        if Path(csv_output_file).exists():
+        if csv_output_file.exists():
             click.confirm(CONFIRM_OVERWRITE_EVENTS_CSV_FILE.format(csv_file=csv_output_file), abort=True)
         available_events = write_events_to_csv_file(csv_file=csv_output_file,
                                                     agent=agent,

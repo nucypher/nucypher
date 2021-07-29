@@ -15,12 +15,10 @@
  along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
-
 import json
-from pathlib import Path
+import shutil
 
 import pytest
-import shutil
 from cytoolz.dicttoolz import assoc
 from eth_account import Account
 from eth_account._utils.transactions import Transaction
@@ -130,7 +128,7 @@ def test_signer_reads_keystore_from_disk(mock_account, mock_key, temp_dir_path):
         mock_keystore_uri = f'keystore://{tmp_keystore}'
         signer = Signer.from_signer_uri(uri=mock_keystore_uri, testnet=True)
 
-        assert signer.path == str(tmp_keystore)
+        assert signer.path == tmp_keystore
         assert len(signer.accounts) == 1
         assert MOCK_KEYFILE['address'] in signer.accounts
 
@@ -145,7 +143,7 @@ def test_create_signer_from_keystore_directory(mock_account, mock_keystore):
 
     # Return a "real" account address from the keyfile
     signer = Signer.from_signer_uri(uri=mock_keystore_uri, testnet=True)  # type: KeystoreSigner
-    assert signer.path == str(mock_keystore_path)
+    assert signer.path == mock_keystore_path
     assert len(signer.accounts) == 1
     assert mock_account.address in signer.accounts
 
@@ -156,7 +154,7 @@ def test_create_signer_from_keystore_file(mock_account, mock_keystore):
 
     # Return a "real" account address from the keyfile
     signer = Signer.from_signer_uri(uri=mock_keystore_uri, testnet=True)  # type: KeystoreSigner
-    assert signer.path == str(mock_keystore_path)
+    assert signer.path == mock_keystore_path
     assert len(signer.accounts) == 1
     assert mock_account.address in signer.accounts
 

@@ -118,13 +118,13 @@ class ActorOptions:
                  provider_uri: str,
                  deployer_address: str,
                  contract_name: str,
-                 registry_infile: str,
-                 registry_outfile: str,
+                 registry_infile: Path,
+                 registry_outfile: Path,
                  hw_wallet: bool,
                  dev: bool,
                  force: bool,
                  poa: bool,
-                 config_root: str,
+                 config_root: Path,
                  etherscan: bool,
                  ignore_solidity_check,
                  gas_strategy: str,
@@ -393,7 +393,7 @@ def upgrade(general_config, actor_options, retarget, target_address, ignore_depl
         emitter.message(message, color='green')
         paint_multisig_proposed_transaction(emitter, transaction_proposal)  # TODO: Show decoded function too
 
-        filepath = f'proposal-{trustee.multisig_agent.contract_address[:8]}-TX-{transaction_proposal.nonce}.json'
+        filepath = Path(f'proposal-{trustee.multisig_agent.contract_address[:8]}-TX-{transaction_proposal.nonce}.json')
         transaction_proposal.write(filepath=filepath)
         emitter.echo(SUCCESSFUL_SAVE_MULTISIG_TX_PROPOSAL.format(filepath=filepath), color='blue', bold=True)
         return  # Exit

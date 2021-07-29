@@ -18,15 +18,20 @@
 
 import json
 import re
-import typing
 from abc import ABC, abstractmethod
 from decimal import Decimal
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from typing import Callable, List, Optional, Union, get_type_hints
 
-from constant_sorrow.constants import (DEVELOPMENT_CONFIGURATION, LIVE_CONFIGURATION, NO_BLOCKCHAIN_CONNECTION,
-                                       NO_KEYSTORE_ATTACHED, UNINITIALIZED_CONFIGURATION, UNKNOWN_VERSION)
+from constant_sorrow.constants import (
+    DEVELOPMENT_CONFIGURATION,
+    LIVE_CONFIGURATION,
+    NO_BLOCKCHAIN_CONNECTION,
+    NO_KEYSTORE_ATTACHED,
+    UNINITIALIZED_CONFIGURATION,
+    UNKNOWN_VERSION
+)
 from eth_utils.address import is_checksum_address
 
 from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
@@ -294,7 +299,7 @@ class BaseConfiguration(ABC):
         version = deserialized_payload.pop('version', UNKNOWN_VERSION)
         if version != cls.VERSION:
             label = f"'{payload_label}' " if payload_label else ""
-            raise cls.OldVersion(f"Configuration {label}is the wrong version "
+            raise cls.OldVersion(f"Configuration {label} is the wrong version "
                                  f"Expected version {cls.VERSION}; Got version {version}")
 
         if 'keyring_root' in deserialized_payload:
@@ -637,13 +642,15 @@ class CharacterConfiguration(BaseConfiguration):
 
         # Assemble
         payload.update(dict(node_storage=node_storage, max_gas_price=max_gas_price))
+        constructor_args = get_type_hints(cls.__init__)
+        constructor_args.update(get_type_hints(CharacterConfiguration.__init__))
         paths_only = [
-            arg for (arg, type_) in get_type_hints(cls.__init__).items() 
-            if type_ == Path or type_ == typing.Optional[Path]
+            arg for (arg, type_) in constructor_args.items()
+            if type_ == Path or type_ == Optional[Path]
         ]
         for key in paths_only:
             if key in payload:
-                payload[key] = Path(payload[key])
+                payload[key] = Path(payload[key]) if payload[key] else None
 
         # Filter out None values from **overrides to detect, well, overrides...
         # Acts as a shim for optional CLI flags.

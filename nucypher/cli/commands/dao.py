@@ -17,11 +17,12 @@
 
 import json
 import os
+from pathlib import Path
 
 import click
 
-from nucypher.blockchain.eth.networks import NetworksInventory
 from nucypher.blockchain.eth.actors import DaoActor
+from nucypher.blockchain.eth.networks import NetworksInventory
 from nucypher.blockchain.eth.signers.base import Signer
 from nucypher.blockchain.eth.signers.software import ClefSigner
 from nucypher.cli.actions.auth import get_client_password
@@ -35,7 +36,7 @@ from nucypher.cli.options import (
     option_registry_filepath,
     option_signer_uri,
     option_parameters, option_hw_wallet)
-from nucypher.cli.utils import setup_emitter, get_registry, connect_to_blockchain, initialize_deployer_interface
+from nucypher.cli.utils import setup_emitter, get_registry, initialize_deployer_interface
 from nucypher.config.constants import NUCYPHER_ENVVAR_PROVIDER_URI
 
 option_parameters.required = True
@@ -49,7 +50,7 @@ class DaoOptions:  # TODO: This class is essentially the same that WorkLock opti
                  participant_address: str,
                  signer_uri: str,
                  provider_uri: str,
-                 registry_filepath: str,
+                 registry_filepath: Path,
                  network: str):
 
         self.participant_address = participant_address

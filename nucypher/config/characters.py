@@ -56,6 +56,7 @@ class UrsulaConfiguration(CharacterConfiguration):
                  worker_address: str = None,
                  dev_mode: bool = False,
                  db_filepath: Path = None,
+                 keystore_path: Path = None,
                  rest_port: int = None,
                  certificate: Certificate = None,
                  availability_check: bool = None,
@@ -77,7 +78,7 @@ class UrsulaConfiguration(CharacterConfiguration):
         self.db_filepath = db_filepath or UNINITIALIZED_CONFIGURATION
         self.worker_address = worker_address
         self.availability_check = availability_check if availability_check is not None else self.DEFAULT_AVAILABILITY_CHECKS
-        super().__init__(dev_mode=dev_mode, *args, **kwargs)
+        super().__init__(dev_mode=dev_mode, keystore_path=keystore_path, *args, **kwargs)
 
     @classmethod
     def checksum_address_from_filepath(cls, filepath: Path) -> str:

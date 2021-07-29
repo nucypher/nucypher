@@ -15,11 +15,10 @@
  along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
-
 import datetime
-import os
 from ipaddress import IPv4Address
-from typing import Tuple, ClassVar
+from pathlib import Path
+from typing import ClassVar, Tuple
 
 from cryptography import x509
 from cryptography.hazmat.backends import default_backend
@@ -38,12 +37,12 @@ _TLS_CURVE = ec.SECP384R1
 
 
 def _write_tls_certificate(certificate: Certificate,
-                           full_filepath: str,
+                           full_filepath: Path,
                            force: bool = False,
-                           ) -> str:
-    cert_already_exists = os.path.isfile(full_filepath)
+                           ) -> Path:
+    cert_already_exists = full_filepath.is_file()
     if force is False and cert_already_exists:
-        raise FileExistsError('A TLS certificate already exists at {}.'.format(full_filepath))
+        raise FileExistsError('A TLS certificate already exists at {}.'.format(full_filepath.resolve()))
 
     with open(full_filepath, 'wb') as certificate_file:
         public_pem_bytes = certificate.public_bytes(_TLS_CERTIFICATE_ENCODING)
@@ -51,7 +50,7 @@ def _write_tls_certificate(certificate: Certificate,
     return full_filepath
 
 
-def _read_tls_certificate(filepath: str) -> Certificate:
+def _read_tls_certificate(filepath: Path) -> Certificate:
     """Deserialize an X509 certificate from a filepath"""
     try:
         with open(filepath, 'rb') as certificate_file:

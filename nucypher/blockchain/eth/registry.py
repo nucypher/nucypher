@@ -14,19 +14,17 @@ GNU Affero General Public License for more details.
 You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
-import json
-from json import JSONDecodeError
-
 import hashlib
-import os
-from pathlib import Path
-
-import requests
+import json
 import shutil
 import tempfile
 from abc import ABC, abstractmethod
-from constant_sorrow.constants import REGISTRY_COMMITTED
+from json import JSONDecodeError
+from pathlib import Path
 from typing import Dict, Iterator, List, Tuple, Type, Union
+
+import requests
+from constant_sorrow.constants import REGISTRY_COMMITTED
 
 from nucypher.blockchain.eth import CONTRACT_REGISTRY_BASE
 from nucypher.blockchain.eth.networks import NetworksInventory
@@ -98,23 +96,21 @@ class GithubRegistrySource(CanonicalRegistrySource):
 
 
 class EmbeddedRegistrySource(CanonicalRegistrySource):
-
     name = "Embedded Registry Source"
     is_primary = False
 
-    def get_publication_endpoint(self) -> str:
-        filepath = str(CONTRACT_REGISTRY_BASE / self.network / self.registry_name)
-        return filepath
+    def get_publication_endpoint(self) -> Path:
+        return CONTRACT_REGISTRY_BASE / self.network / self.registry_name
 
     def fetch_latest_publication(self) -> Union[str, bytes]:
         filepath = self.get_publication_endpoint()
-        self.logger.debug(f"Reading registry at {filepath}")
+        self.logger.debug(f"Reading registry at {filepath.absolute()}")
         try:
             with open(filepath, "r") as f:
                 registry_data = f.read()
             return registry_data
         except IOError as e:
-            error = f"Failed to read registry at {filepath}: {str(e)}"
+            error = f"Failed to read registry at {filepath.absolute()}: {str(e)}"
             raise self.RegistrySourceError(error)
 
 

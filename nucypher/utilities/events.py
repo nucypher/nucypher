@@ -16,6 +16,7 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 import csv
 from collections import OrderedDict
+from pathlib import Path
 from typing import Dict, Optional
 
 import maya
@@ -25,12 +26,11 @@ from nucypher.blockchain.eth.agents import EthereumContractAgent
 from nucypher.blockchain.eth.events import EventRecord
 
 
-def generate_events_csv_file(contract_name: str, event_name: str) -> str:
-    csv_output_file = f'{contract_name}_{event_name}_{maya.now().datetime().strftime("%Y-%m-%d_%H-%M-%S")}.csv'
-    return csv_output_file
+def generate_events_csv_filename(contract_name: str, event_name: str) -> str:
+    return f'{contract_name}_{event_name}_{maya.now().datetime().strftime("%Y-%m-%d_%H-%M-%S")}.csv'
 
 
-def write_events_to_csv_file(csv_file: str,
+def write_events_to_csv_file(csv_file: Path,
                              agent: EthereumContractAgent,
                              event_name: str,
                              argument_filters: Dict = None,

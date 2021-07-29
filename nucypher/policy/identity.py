@@ -19,19 +19,18 @@
 import base64
 import hashlib
 import json
-import os
 from pathlib import Path
-from typing import Union, Optional, Dict, Callable
+from typing import Callable, Dict, Optional, Union
 
 import constant_sorrow
-from bytestring_splitter import VariableLengthBytestring, BytestringKwargifier
+from bytestring_splitter import BytestringKwargifier, VariableLengthBytestring
 from constant_sorrow.constants import ALICE, BOB, NO_SIGNATURE
 from hexbytes.main import HexBytes
 
 from nucypher.characters.base import Character
 from nucypher.characters.lawful import Alice, Bob
 from nucypher.config.constants import DEFAULT_CONFIG_ROOT
-from nucypher.crypto.powers import SigningPower, DecryptingPower
+from nucypher.crypto.powers import DecryptingPower, SigningPower
 from nucypher.crypto.umbral_adapter import PublicKey
 
 
@@ -298,7 +297,7 @@ class Card:
             self.CARD_DIR.mkdir()
         if self.is_saved and not overwrite:
             raise FileExistsError('Card exists. Pass overwrite=True to allow this operation.')
-        with open(str(self.filepath), 'wb') as file:
+        with open(self.filepath, 'wb') as file:
             file.write(encoder(bytes(self)))
         return Path(self.filepath)
 
@@ -334,7 +333,7 @@ class Card:
         if not filepath:
             filepath = cls.lookup(identifier=identifier, card_dir=card_dir)
         try:
-            with open(str(filepath), 'rb') as file:
+            with open(filepath, 'rb') as file:
                 card_bytes = decoder(file.read())
         except FileNotFoundError:
             raise cls.UnknownCard

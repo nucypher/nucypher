@@ -19,7 +19,7 @@ import binascii
 import tempfile
 from abc import ABC, abstractmethod
 from pathlib import Path
-from typing import Any, Set, Union
+from typing import Any, Optional, Set, Union, get_type_hints
 
 import OpenSSL
 from bytestring_splitter import BytestringSplittingError
@@ -116,11 +116,11 @@ class NodeStorage(ABC):
         return certificate_filepath
 
     @abstractmethod
-    def store_node_certificate(self, certificate: Certificate, port: int) -> str:
+    def store_node_certificate(self, certificate: Certificate, port: int) -> Path:
         raise NotImplementedError
 
     @abstractmethod
-    def store_node_metadata(self, node, filepath: Path = None) -> str:
+    def store_node_metadata(self, node, filepath: Path = None) -> Path:
         """Save a single node's metadata and tls certificate"""
         raise NotImplementedError
 
@@ -207,7 +207,7 @@ class ForgetfulNodeStorage(NodeStorage):
             temp_certificate.unlink()
         return len(self.__temporary_certificates) == 0
 
-    def store_node_certificate(self, certificate: Certificate, port: int) -> str:
+    def store_node_certificate(self, certificate: Certificate, port: int) -> Path:
         filepath = self._write_tls_certificate(certificate=certificate, port=port)
         return filepath
 
@@ -435,9 +435,9 @@ class LocalFileBasedNodeStorage(NodeStorage):
     def payload(self) -> dict:
         payload = {
             'storage_type': self._name,
-            'storage_root': str(self.root_dir),
-            'metadata_dir': str(self.metadata_dir),
-            'certificates_dir': str(self.certificates_dir)
+            'storage_root': str(self.root_dir.absolute()),
+            'metadata_dir': str(self.metadata_dir.absolute()),
+            'certificates_dir': str(self.certificates_dir.absolute())
         }
         return payload
 
@@ -458,6 +458,15 @@ class LocalFileBasedNodeStorage(NodeStorage):
         if not storage_type == cls._name:
             raise cls.NodeStorageError("Wrong storage type. got {}".format(storage_type))
         del payload['storage_type']
+
+        paths_only = [
+            arg for (arg, type_) in get_type_hints(cls.__init__).items()
+            if type_ == Path or type_ == Optional[Path]
+        ]
+        for key in paths_only:
+            if key in payload:
+                payload[key] = Path(payload[key])
+
         return cls(*args, **payload, **kwargs)
 
     def initialize(self):

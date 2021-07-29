@@ -94,7 +94,7 @@ class BobConfigOptions:
         self.federated_only = federated_only
         self.lonely = lonely
 
-    def create_config(self, emitter: StdoutEmitter, config_file: str) -> BobConfiguration:
+    def create_config(self, emitter: StdoutEmitter, config_file: Path) -> BobConfiguration:
         if self.dev:
             return BobConfiguration(
                 emitter=emitter,
@@ -133,7 +133,7 @@ class BobConfigOptions:
                 handle_missing_configuration_file(character_config_class=BobConfiguration,
                                                   config_file=config_file)
 
-    def generate_config(self, emitter: StdoutEmitter, config_root: str) -> BobConfiguration:
+    def generate_config(self, emitter: StdoutEmitter, config_root: Path) -> BobConfiguration:
 
         checksum_address = self.checksum_address
         if not checksum_address and not self.federated_only:

@@ -22,7 +22,7 @@ from web3 import Web3
 
 from nucypher.blockchain.eth.actors import StakeHolder
 from nucypher.blockchain.eth.constants import MAX_UINT16
-from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory, BlockchainInterface
+from nucypher.blockchain.eth.interfaces import BlockchainInterface, BlockchainInterfaceFactory
 from nucypher.blockchain.eth.signers import TrezorSigner
 from nucypher.blockchain.eth.signers.software import ClefSigner
 from nucypher.blockchain.eth.token import NU, Stake
@@ -126,16 +126,17 @@ from nucypher.cli.painting.staking import (
 )
 from nucypher.cli.painting.transactions import paint_receipt_summary
 from nucypher.cli.types import (
+    DecimalRange,
     EIP55_CHECKSUM_ADDRESS,
-    GWEI,
-    DecimalRange
+    GWEI
 )
-from nucypher.cli.utils import setup_emitter, retrieve_events
+from nucypher.cli.utils import retrieve_events, setup_emitter
 from nucypher.config.characters import StakeHolderConfiguration
-from nucypher.utilities.events import generate_events_csv_file
+from nucypher.utilities.events import generate_events_csv_filename
 from nucypher.utilities.gas_strategies import construct_fixed_price_gas_strategy
 
-option_csv = click.option('--csv', help="Write event data to a CSV file using a default filename in the current directory",
+option_csv = click.option('--csv',
+                          help="Write event data to a CSV file using a default filename in the current directory",
                           default=False,
                           is_flag=True)
 option_csv_file = click.option('--csv-file',
@@ -1174,7 +1175,7 @@ def events(general_config, staker_options, config_file, event_name, from_block, 
     if csv or csv_output_file:
         if not csv_output_file:
             # use default file path if not specified
-            csv_output_file = generate_events_csv_file(contract_name=contract_name, event_name=event_name)
+            csv_output_file = generate_events_csv_filename(contract_name=contract_name, event_name=event_name)
 
     emitter.echo(f"Retrieving events from block {from_block} to {to_block}")
     title = f" {contract_name} Events ".center(40, "-")

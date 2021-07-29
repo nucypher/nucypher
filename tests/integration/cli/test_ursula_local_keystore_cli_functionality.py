@@ -17,6 +17,7 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 
 import json
 import secrets
+from pathlib import Path
 
 import pytest
 from eth_account import Account
@@ -30,8 +31,8 @@ from nucypher.config.constants import (
     NUCYPHER_ENVVAR_WORKER_ETH_PASSWORD,
     TEMPORARY_DOMAIN
 )
-from tests.utils.ursula import select_test_port
 from tests.constants import MOCK_IP_ADDRESS
+from tests.utils.ursula import select_test_port
 
 
 @pytest.fixture(scope='module')
@@ -104,8 +105,8 @@ def test_ursula_init_with_local_keystore_signer(click_runner,
 
     # Verify the keystore path is still preserved
     assert isinstance(ursula.signer, KeystoreSigner)
-    assert isinstance(ursula.signer.path, str), "Use str"
-    assert ursula.signer.path == str(mock_keystore_path)
+    assert isinstance(ursula.signer.path, Path), "Use pathlib.Path"
+    assert ursula.signer.path.absolute() == mock_keystore_path.absolute()
 
     # Show that we can produce the exact same signer as pre-config...
     assert pre_config_signer.path == ursula.signer.path
