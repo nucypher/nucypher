@@ -315,7 +315,7 @@ class WebController(InterfaceControlServer):
 
             request_data = control_request.data
             # handle bytes in request body
-            if request_headers.get('CONTENT-TYPE') == 'application/octet-stream':
+            if request_headers.get('CONTENT-TYPE') in ['application/octet-stream', 'application/x-www-form-urlencoded']:
                 request_body = {"data": bytes(request_data)}
             # handle JSON in request body
             else:
