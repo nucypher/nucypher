@@ -45,7 +45,7 @@ except IndexError:
     SEEDNODE_URI = "localhost:11500"
 
 
-TEMP_DOCTOR_DIR = Path(__file__).parent / "doctor-files"
+TEMP_DOCTOR_DIR = Path(__file__).parent.absolute() / "doctor-files"
 
 # Remove previous demo files and create new ones
 shutil.rmtree(TEMP_DOCTOR_DIR, ignore_errors=True)

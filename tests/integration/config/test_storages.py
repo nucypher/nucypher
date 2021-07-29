@@ -15,13 +15,13 @@ You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
-import os
-import pytest
 import tempfile
+
+import pytest
 
 from nucypher.characters.lawful import Ursula
 from nucypher.config.constants import TEMPORARY_DOMAIN
-from nucypher.config.storages import ForgetfulNodeStorage, NodeStorage, TemporaryFileBasedNodeStorage
+from nucypher.config.storages import ForgetfulNodeStorage, TemporaryFileBasedNodeStorage
 from nucypher.network.nodes import Learner
 from nucypher.utilities.networking import LOOPBACK_ADDRESS
 from tests.utils.ursula import MOCK_URSULA_STARTING_PORT
@@ -113,7 +113,7 @@ class TestTemporaryFileBasedNodeStorage(BaseTestNodeStorageBackends):
             file.write(Learner.LEARNER_VERSION.to_bytes(4, 'big') + b'invalid')
 
         with pytest.raises(TemporaryFileBasedNodeStorage.InvalidNodeMetadata):
-            self.storage_backend.get(stamp=str(some_node.name)[:-5],
+            self.storage_backend.get(stamp=some_node.name[:-5],
                                      federated_only=True,
                                      certificate_only=False)
 
@@ -123,7 +123,7 @@ class TestTemporaryFileBasedNodeStorage(BaseTestNodeStorageBackends):
             file.write(b'meh')  # Versions are expected to be 4 bytes, but this is 3 bytes
 
         with pytest.raises(TemporaryFileBasedNodeStorage.InvalidNodeMetadata):
-            self.storage_backend.get(stamp=str(another_node.name)[:-5],
+            self.storage_backend.get(stamp=another_node.name[:-5],
                                      federated_only=True,
                                      certificate_only=False)
 

@@ -21,18 +21,12 @@ import re
 import typing
 from abc import ABC, abstractmethod
 from decimal import Decimal
-from pathlib import Path, PosixPath
+from pathlib import Path
 from tempfile import TemporaryDirectory
-from typing import Union, Callable, Optional, List, get_type_hints
+from typing import Callable, List, Optional, Union, get_type_hints
 
-from constant_sorrow.constants import (
-    UNKNOWN_VERSION,
-    UNINITIALIZED_CONFIGURATION,
-    NO_KEYSTORE_ATTACHED,
-    NO_BLOCKCHAIN_CONNECTION,
-    DEVELOPMENT_CONFIGURATION,
-    LIVE_CONFIGURATION
-)
+from constant_sorrow.constants import (DEVELOPMENT_CONFIGURATION, LIVE_CONFIGURATION, NO_BLOCKCHAIN_CONNECTION,
+                                       NO_KEYSTORE_ATTACHED, UNINITIALIZED_CONFIGURATION, UNKNOWN_VERSION)
 from eth_utils.address import is_checksum_address
 
 from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
@@ -281,7 +275,7 @@ class BaseConfiguration(ABC):
         """Returns the JSON serialized output of `static_payload`"""
         def _stringify_paths(d: dict):
             for key, value in d.items():
-                if isinstance(value, PosixPath):
+                if isinstance(value, Path):
                     d[key] = str(value)
                 if isinstance(value, dict):
                     d[key] = _stringify_paths(value)
