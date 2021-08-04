@@ -99,13 +99,11 @@ class TreasureMapPublisher:
                 self.log.warn(f"Putting treasure map on {node} failed: {e}")
                 raise
 
-            if response.status_code == 201:
-                return response
-            else:
+            # Received an HTTP response
+            if response.status_code != 201:
                 message = f"Putting treasure map on {node} failed with response status: {response.status}"
                 self.log.warn(message)
-                # TODO: What happens if this is a 300 or 400 level response?
-                raise Exception(message)
+            return response
 
         self._worker_pool = WorkerPool(worker=put_treasure_map_on_node,
                                        value_factory=AllAtOnceFactory(nodes),
