@@ -19,7 +19,7 @@ import binascii
 import tempfile
 from abc import ABC, abstractmethod
 from pathlib import Path
-from typing import Any, Optional, Set, Union, get_type_hints
+from typing import Any, Set, Union
 
 import OpenSSL
 from bytestring_splitter import BytestringSplittingError
@@ -31,6 +31,7 @@ from cryptography.x509 import Certificate
 from nucypher.blockchain.eth.decorators import validate_checksum_address
 from nucypher.blockchain.eth.registry import BaseContractRegistry
 from nucypher.config.constants import DEFAULT_CONFIG_ROOT
+from nucypher.config.util import cast_paths_from
 from nucypher.crypto.signing import SignatureStamp
 from nucypher.utilities.logging import Logger
 
@@ -188,7 +189,7 @@ class ForgetfulNodeStorage(NodeStorage):
             certificate_only: bool = False):
 
         if not bool(stamp) ^ bool(host):
-            message = "Either pass checksum_address or host; Not both. Got ({} {})".format(checksum_address, host)
+            message = "Either pass stamp or host; Not both. Got ({} {})".format(stamp, host)
             raise ValueError(message)
 
         if certificate_only is True:
@@ -442,30 +443,13 @@ class LocalFileBasedNodeStorage(NodeStorage):
         return payload
 
     @classmethod
-    def format_payload(cls, payload: dict) -> dict:
-        output = {}
-        for key, value in payload.items():
-            if key in ['root_dir', 'metadata_dir', 'certificates_dir']:
-                output[key] = Path(payload[key])
-            else:
-                output[key] = payload[key]
-        return output
-
-    @classmethod
     def from_payload(cls, payload: dict, *args, **kwargs) -> 'LocalFileBasedNodeStorage':
-        payload = cls.format_payload(payload)
         storage_type = payload[cls._TYPE_LABEL]
         if not storage_type == cls._name:
             raise cls.NodeStorageError("Wrong storage type. got {}".format(storage_type))
         del payload['storage_type']
 
-        paths_only = [
-            arg for (arg, type_) in get_type_hints(cls.__init__).items()
-            if type_ == Path or type_ == Optional[Path]
-        ]
-        for key in paths_only:
-            if key in payload:
-                payload[key] = Path(payload[key])
+        payload = cast_paths_from(cls, payload)
 
         return cls(*args, **payload, **kwargs)
 

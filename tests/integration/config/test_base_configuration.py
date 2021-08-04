@@ -194,6 +194,7 @@ def test_configuration_preservation():
         # Ensure file contents are JSON deserializable
         deserialized_file_contents = json.loads(contents)
         del deserialized_file_contents['version']  # do not test version of config serialization here.
+        deserialized_file_contents['config_root'] = Path(deserialized_file_contents['config_root'])
 
         deserialized_payload = RestorableTestItem.deserialize(payload=contents)
         assert deserialized_payload == deserialized_file_contents

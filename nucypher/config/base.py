@@ -22,7 +22,7 @@ from abc import ABC, abstractmethod
 from decimal import Decimal
 from pathlib import Path
 from tempfile import TemporaryDirectory
-from typing import Callable, List, Optional, Union, get_type_hints
+from typing import Callable, List, Optional, Union
 
 from constant_sorrow.constants import (
     DEVELOPMENT_CONFIGURATION,
@@ -49,6 +49,7 @@ from nucypher.config.storages import (
     LocalFileBasedNodeStorage,
     NodeStorage
 )
+from nucypher.config.util import cast_paths_from
 from nucypher.crypto.keystore import Keystore
 from nucypher.crypto.powers import CryptoPower, CryptoPowerUp
 from nucypher.crypto.umbral_adapter import Signature
@@ -302,10 +303,7 @@ class BaseConfiguration(ABC):
             raise cls.OldVersion(f"Configuration {label} is the wrong version "
                                  f"Expected version {cls.VERSION}; Got version {version}")
 
-        if 'keyring_root' in deserialized_payload:
-            deserialized_payload['keyring_root'] = Path(deserialized_payload['keyring_root'])
-        if 'node_storage' in deserialized_payload:
-            deserialized_payload['node_storage'] = LocalFileBasedNodeStorage.format_payload(deserialized_payload['node_storage'])
+        deserialized_payload = cast_paths_from(cls, deserialized_payload)
         return deserialized_payload
 
     def update(self, filepath: Path = None, **updates) -> None:
@@ -642,15 +640,7 @@ class CharacterConfiguration(BaseConfiguration):
 
         # Assemble
         payload.update(dict(node_storage=node_storage, max_gas_price=max_gas_price))
-        constructor_args = get_type_hints(cls.__init__)
-        constructor_args.update(get_type_hints(CharacterConfiguration.__init__))
-        paths_only = [
-            arg for (arg, type_) in constructor_args.items()
-            if type_ == Path or type_ == Optional[Path]
-        ]
-        for key in paths_only:
-            if key in payload:
-                payload[key] = Path(payload[key]) if payload[key] else None
+        payload = cast_paths_from(cls, payload)
 
         # Filter out None values from **overrides to detect, well, overrides...
         # Acts as a shim for optional CLI flags.
