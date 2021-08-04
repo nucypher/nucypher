@@ -25,7 +25,6 @@ from bytestring_splitter import BytestringSplitter, VariableLengthBytestring
 from eth_typing.evm import ChecksumAddress
 from twisted.internet import reactor
 
-from nucypher.blockchain.eth.agents import StakersReservoir, StakingEscrowAgent
 from nucypher.blockchain.eth.constants import POLICY_ID_LENGTH
 from nucypher.crypto.constants import HRAC_LENGTH
 from nucypher.crypto.kits import RevocationKit
@@ -35,6 +34,12 @@ from nucypher.crypto.utils import keccak_digest
 from nucypher.crypto.umbral_adapter import PublicKey, KeyFrag, Signature
 from nucypher.crypto.utils import construct_policy_id
 from nucypher.network.middleware import RestMiddleware
+from nucypher.policy.reservoir import (
+    make_federated_staker_reservoir,
+    MergedReservoir,
+    PrefetchStrategy,
+    make_decentralized_staker_reservoir
+)
 from nucypher.utilities.concurrency import WorkerPool, AllAtOnceFactory
 from nucypher.utilities.logging import Logger
 
@@ -76,15 +81,31 @@ class TreasureMapPublisher:
     log = Logger('TreasureMapPublisher')
 
     def __init__(self,
-                 worker,
-                 nodes,
-                 percent_to_complete_before_release=5,
-                 threadpool_size=120,
-                 timeout=20):
+                 treasure_map_bytes: bytes,
+                 nodes: Sequence['Ursula'],
+                 network_middleware: RestMiddleware,
+                 percent_to_complete_before_release: int = 5,
+                 threadpool_size: int = 120,
+                 timeout: float = 20):
 
         self._total = len(nodes)
         self._block_until_this_many_are_complete = math.ceil(len(nodes) * percent_to_complete_before_release / 100)
-        self._worker_pool = WorkerPool(worker=worker,
+
+        def put_treasure_map_on_node(node: 'Ursula'):
+            try:
+                response = network_middleware.put_treasure_map_on_node(node=node,
+                                                                       map_payload=treasure_map_bytes)
+            except Exception as e:
+                self.log.warn(f"Putting treasure map on {node} failed: {e}")
+                raise
+
+            # Received an HTTP response
+            if response.status_code != 201:
+                message = f"Putting treasure map on {node} failed with response status: {response.status}"
+                self.log.warn(message)
+            return response
+
+        self._worker_pool = WorkerPool(worker=put_treasure_map_on_node,
                                        value_factory=AllAtOnceFactory(nodes),
                                        target_successes=self._block_until_this_many_are_complete,
                                        timeout=timeout,
@@ -129,49 +150,6 @@ class TreasureMapPublisher:
 
     def block_until_complete(self):
         self._worker_pool.join()
-
-
-class MergedReservoir:
-    """
-    A reservoir made of a list of addresses and a StakersReservoir.
-    Draws the values from the list first, then from StakersReservoir,
-    then returns None on subsequent calls.
-    """
-
-    def __init__(self, values: Iterable, reservoir: StakersReservoir):
-        self.values = list(values)
-        self.reservoir = reservoir
-
-    def __call__(self) -> Optional[ChecksumAddress]:
-        if self.values:
-            return self.values.pop(0)
-        elif len(self.reservoir) > 0:
-            return self.reservoir.draw(1)[0]
-        else:
-            return None
-
-
-class PrefetchStrategy:
-    """
-    Encapsulates the batch draw strategy from a reservoir.
-    Determines how many values to draw based on the number of values
-    that have already led to successes.
-    """
-
-    def __init__(self, reservoir: MergedReservoir, need_successes: int):
-        self.reservoir = reservoir
-        self.need_successes = need_successes
-
-    def __call__(self, successes: int) -> Optional[List[ChecksumAddress]]:
-        batch = []
-        for i in range(self.need_successes - successes):
-            value = self.reservoir()
-            if value is None:
-                break
-            batch.append(value)
-        if not batch:
-            return None
-        return batch
 
 
 class Policy(ABC):
@@ -384,22 +362,11 @@ class Policy(ABC):
         # TODO (#2516): remove hardcoding of 8 nodes
         self.alice.block_until_number_of_known_nodes_is(8, timeout=2, learn_on_this_thread=True)
         target_nodes = self.bob.matching_nodes_among(self.alice.known_nodes)
-        treasure_map_bytes = bytes(treasure_map)  # prevent the closure from holding the reference
+        treasure_map_bytes = bytes(treasure_map)  # prevent holding of the reference
 
-        def put_treasure_map_on_node(node):
-            try:
-                response = network_middleware.put_treasure_map_on_node(node=node, map_payload=treasure_map_bytes)
-            except Exception as e:
-                self.log.warn(f"Putting treasure map on {node} failed: {e}")
-                raise
-
-            # Received an HTTP response
-            if response.status_code != 201:
-                message = f"Putting treasure map on {node} failed with response status: {response.status}"
-                self.log.warn(message)
-            return response
-
-        return TreasureMapPublisher(worker=put_treasure_map_on_node, nodes=target_nodes)
+        return TreasureMapPublisher(treasure_map_bytes=treasure_map_bytes,
+                                    nodes=target_nodes,
+                                    network_middleware=network_middleware)
 
     def enact(self,
               network_middleware: RestMiddleware,
@@ -458,7 +425,6 @@ class Policy(ABC):
 
 
 class FederatedPolicy(Policy):
-
     from nucypher.policy.maps import TreasureMap as __map_class
     _treasure_map_class = __map_class
 
@@ -466,11 +432,8 @@ class FederatedPolicy(Policy):
         return Policy.NotEnoughUrsulas
 
     def _make_reservoir(self, handpicked_addresses):
-        addresses = {
-            ursula.checksum_address: 1 for ursula in self.alice.known_nodes
-            if ursula.checksum_address not in handpicked_addresses}
-
-        return MergedReservoir(handpicked_addresses, StakersReservoir(addresses))
+        return make_federated_staker_reservoir(known_nodes=self.alice.known_nodes,
+                                               include_addresses=handpicked_addresses)
 
     def _make_enactment_payload(self, kfrag) -> bytes:
         return bytes(kfrag)
@@ -551,14 +514,10 @@ class BlockchainPolicy(Policy):
         return params
 
     def _make_reservoir(self, handpicked_addresses):
-        try:
-            reservoir = self.alice.get_stakers_reservoir(duration=self.payment_periods,
-                                                         without=handpicked_addresses)
-        except StakingEscrowAgent.NotEnoughStakers:
-            # TODO: do that in `get_stakers_reservoir()`?
-            reservoir = StakersReservoir({})
-
-        return MergedReservoir(handpicked_addresses, reservoir)
+        staker_reservoir = make_decentralized_staker_reservoir(staking_agent=self.alice.staking_agent,
+                                                               duration_periods=self.payment_periods,
+                                                               include_addresses=handpicked_addresses)
+        return staker_reservoir
 
     def _publish_to_blockchain(self, ursulas) -> dict:
 

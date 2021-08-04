@@ -15,13 +15,14 @@
  along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
-import json
 
-import click
+import json
 import os
-from flask import Response
 from functools import partial
 from typing import Callable, Union
+
+import click
+from flask import Response
 
 import nucypher
 from nucypher.utilities.logging import Logger
@@ -226,7 +227,6 @@ class WebEmitter:
     class MethodNotFound(BaseException):
         """Cannot find interface method to handle request"""
 
-
     _crash_on_error_default = False
     transport_serializer = json.dumps
     _default_sink_callable = Response
@@ -248,27 +248,29 @@ class WebEmitter:
                          'version': str(nucypher.__version__)}
         return response_data
 
-    def exception(drone_character,
+    def exception(self,
                   e,
                   error_message: str,
                   log_level: str = 'info',
                   response_code: int = 500):
 
-        message = f"{drone_character} [{str(response_code)} - {error_message}] | ERROR: {str(e)}"
-        logger = getattr(drone_character.log, log_level)
+        message = f"{self} [{str(response_code)} - {error_message}] | ERROR: {str(e) or type(e).__name__}"
+        logger = getattr(self.log, log_level)
         # See #724 / 2156
         message_cleaned_for_logger = message.replace("{", "<^<").replace("}", ">^>")
         logger(message_cleaned_for_logger)
-        if drone_character.crash_on_error:
+        if self.crash_on_error:
             raise e
-        return drone_character.sink(str(e), status=response_code)
 
-    def respond(drone_character, response) -> Response:
-        assembled_response = drone_character.assemble_response(response=response)
+        response_message = str(e) or type(e).__name__
+        return self.sink(response_message, status=response_code)
+
+    def respond(self, response) -> Response:
+        assembled_response = self.assemble_response(response=response)
         serialized_response = WebEmitter.transport_serializer(assembled_response)
 
         # ---------- HTTP OUTPUT
-        response = drone_character.sink(response=serialized_response, status=200, content_type="application/javascript")
+        response = self.sink(response=serialized_response, status=200, content_type="application/javascript")
         return response
 
     def get_stream(self, *args, **kwargs):

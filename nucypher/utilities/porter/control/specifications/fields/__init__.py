@@ -15,13 +15,6 @@
  along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
-import click
-
-
-class BaseField:
-
-    click_type = click.STRING
-
-    def __init__(self, *args, **kwargs):
-        self.click = kwargs.pop('click', None)
-        super().__init__(*args, **kwargs)
+from nucypher.utilities.porter.control.specifications.fields.ursula import *
+from nucypher.utilities.porter.control.specifications.fields.treasuremapid import *
+from nucypher.utilities.porter.control.specifications.fields.workorder import *

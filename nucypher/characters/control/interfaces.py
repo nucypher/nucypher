@@ -15,12 +15,12 @@
  along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
-import functools
+import maya
 from typing import Union
 
-import maya
-
+from nucypher.characters.base import Character
 from nucypher.characters.control.specifications import alice, bob, enrico
+from nucypher.control.interfaces import attach_schema, ControlInterface
 from nucypher.crypto.kits import UmbralMessageKit
 from nucypher.crypto.powers import DecryptingPower, SigningPower
 from nucypher.crypto.umbral_adapter import PublicKey
@@ -28,41 +28,10 @@ from nucypher.crypto.utils import construct_policy_id
 from nucypher.network.middleware import RestMiddleware
 
 
-def attach_schema(schema):
-    def callable(func):
-        func._schema = schema()
+class CharacterPublicInterface(ControlInterface):
 
-        @functools.wraps(func)
-        def wrapped(*args, **kwargs):
-            return func(*args, **kwargs)
-
-        return wrapped
-
-    return callable
-
-
-class CharacterPublicInterface:
-
-    def __init__(self, character=None, *args, **kwargs):
-        self.character = character
-        super().__init__(*args, **kwargs)
-
-    @classmethod
-    def connect_cli(cls, action):
-        schema = getattr(cls, action)._schema
-
-        def callable(func):
-            c = func
-            for f in [f for f in schema.load_fields.values() if f.click]:
-                c = f.click(c)
-
-            @functools.wraps(func)
-            def wrapped(*args, **kwargs):
-                return c(*args, **kwargs)
-
-            return wrapped
-
-        return callable
+    def __init__(self, character: Character = None, *args, **kwargs):
+        super().__init__(implementer=character, *args, **kwargs)
 
 
 class AliceInterface(CharacterPublicInterface):
@@ -82,7 +51,7 @@ class AliceInterface(CharacterPublicInterface):
         bob = Bob.from_public_keys(encrypting_key=bob_encrypting_key,
                                    verifying_key=bob_verifying_key)
 
-        new_policy = self.character.create_policy(
+        new_policy = self.implementer.create_policy(
             bob=bob,
             label=label,
             m=m,
@@ -95,7 +64,7 @@ class AliceInterface(CharacterPublicInterface):
 
     @attach_schema(alice.DerivePolicyEncryptionKey)
     def derive_policy_encrypting_key(self, label: bytes) -> dict:
-        policy_encrypting_key = self.character.get_policy_encrypting_key_from_label(label)
+        policy_encrypting_key = self.implementer.get_policy_encrypting_key_from_label(label)
         response_data = {'policy_encrypting_key': policy_encrypting_key, 'label': label}
         return response_data
 
@@ -115,13 +84,13 @@ class AliceInterface(CharacterPublicInterface):
         bob = Bob.from_public_keys(encrypting_key=bob_encrypting_key,
                                    verifying_key=bob_verifying_key)
 
-        new_policy = self.character.grant(bob=bob,
-                                          label=label,
-                                          m=m,
-                                          n=n,
-                                          value=value,
-                                          rate=rate,
-                                          expiration=expiration)
+        new_policy = self.implementer.grant(bob=bob,
+                                            label=label,
+                                            m=m,
+                                            n=n,
+                                            value=value,
+                                            rate=rate,
+                                            expiration=expiration)
 
         new_policy.treasure_map_publisher.block_until_success_is_reasonably_likely()
 
@@ -136,16 +105,16 @@ class AliceInterface(CharacterPublicInterface):
 
         # TODO: Move deeper into characters
         policy_id = construct_policy_id(label, bob_verifying_key)
-        policy = self.character.active_policies[policy_id]
+        policy = self.implementer.active_policies[policy_id]
 
-        receipt, failed_revocations = self.character.revoke(policy)
+        receipt, failed_revocations = self.implementer.revoke(policy)
         if len(failed_revocations) > 0:
             for node_id, attempt in failed_revocations.items():
                 revocation, fail_reason = attempt
                 if fail_reason == RestMiddleware.NotFound:
                     del (failed_revocations[node_id])
         if len(failed_revocations) <= (policy.n - policy.treasure_map.m + 1):
-            del (self.character.active_policies[policy_id])
+            del (self.implementer.active_policies[policy_id])
 
         response_data = {'failed_revocations': len(failed_revocations)}
         return response_data
@@ -157,7 +126,7 @@ class AliceInterface(CharacterPublicInterface):
         """
 
         from nucypher.characters.lawful import Enrico
-        policy_encrypting_key = self.character.get_policy_encrypting_key_from_label(label)
+        policy_encrypting_key = self.implementer.get_policy_encrypting_key_from_label(label)
 
         # TODO #846: May raise UnknownOpenSSLError and InvalidTag.
         message_kit = UmbralMessageKit.from_bytes(message_kit)
@@ -168,7 +137,7 @@ class AliceInterface(CharacterPublicInterface):
             label=label
         )
 
-        plaintexts = self.character.decrypt_message_kit(
+        plaintexts = self.implementer.decrypt_message_kit(
             message_kit=message_kit,
             data_source=enrico,
             label=label
@@ -182,7 +151,7 @@ class AliceInterface(CharacterPublicInterface):
         """
         Character control endpoint for getting Alice's public keys.
         """
-        verifying_key = self.character.public_keys(SigningPower)
+        verifying_key = self.implementer.public_keys(SigningPower)
         response_data = {'alice_verifying_key': verifying_key}
         return response_data
 
@@ -194,7 +163,7 @@ class BobInterface(CharacterPublicInterface):
         """
         Character control endpoint for joining a policy on the network.
         """
-        self.character.join_policy(label=label, publisher_verifying_key=alice_verifying_key)
+        self.implementer.join_policy(label=label, publisher_verifying_key=alice_verifying_key)
         response = {'policy_encrypting_key': 'OK'}  # FIXME
         return response
 
@@ -218,13 +187,13 @@ class BobInterface(CharacterPublicInterface):
                                          policy_encrypting_key=policy_encrypting_key,
                                          label=label)
 
-        self.character.join_policy(label=label, publisher_verifying_key=alice_verifying_key)
+        self.implementer.join_policy(label=label, publisher_verifying_key=alice_verifying_key)
 
-        plaintexts = self.character.retrieve(message_kit,
-                                             enrico=enrico,
-                                             alice_verifying_key=alice_verifying_key,
-                                             label=label,
-                                             treasure_map=treasure_map)
+        plaintexts = self.implementer.retrieve(message_kit,
+                                               enrico=enrico,
+                                               alice_verifying_key=alice_verifying_key,
+                                               label=label,
+                                               treasure_map=treasure_map)
 
         response_data = {'cleartexts': plaintexts}
         return response_data
@@ -234,8 +203,8 @@ class BobInterface(CharacterPublicInterface):
         """
         Character control endpoint for getting Bob's encrypting and signing public keys
         """
-        verifying_key = self.character.public_keys(SigningPower)
-        encrypting_key = self.character.public_keys(DecryptingPower)
+        verifying_key = self.implementer.public_keys(SigningPower)
+        encrypting_key = self.implementer.public_keys(DecryptingPower)
         response_data = {'bob_encrypting_key': encrypting_key, 'bob_verifying_key': verifying_key}
         return response_data
 
@@ -248,6 +217,6 @@ class EnricoInterface(CharacterPublicInterface):
         Character control endpoint for encrypting data for a policy and
         receiving the messagekit (and signature) to give to Bob.
         """
-        message_kit, signature = self.character.encrypt_message(plaintext=plaintext)
+        message_kit, signature = self.implementer.encrypt_message(plaintext=plaintext)
         response_data = {'message_kit': message_kit, 'signature': signature}
         return response_data

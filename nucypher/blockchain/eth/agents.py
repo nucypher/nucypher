@@ -14,7 +14,7 @@ GNU Affero General Public License for more details.
 You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
-
+import os
 
 import random
 import sys
@@ -57,6 +57,11 @@ from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
 from nucypher.blockchain.eth.registry import BaseContractRegistry
 from nucypher.crypto.powers import TransactingPower
 from nucypher.crypto.utils import sha256_digest
+from nucypher.config.constants import (
+    NUCYPHER_ENVVAR_STAKERS_PAGINATION_SIZE_LIGHT_NODE,
+    NUCYPHER_ENVVAR_STAKERS_PAGINATION_SIZE
+)
+from nucypher.crypto.powers import TransactingPower
 from nucypher.types import (
     Agent,
     NuNits,
@@ -252,7 +257,10 @@ class StakingEscrowAgent(EthereumContractAgent):
         'finishUpgrade'
     )
 
-    DEFAULT_PAGINATION_SIZE: int = 30    # TODO: Use dynamic pagination size (see #1424)
+    DEFAULT_STAKER_PAGINATION_SIZE_LIGHT_NODE: int = int(os.environ.get(
+        NUCYPHER_ENVVAR_STAKERS_PAGINATION_SIZE_LIGHT_NODE, default=30))
+
+    DEFAULT_STAKER_PAGINATION_SIZE: int = int(os.environ.get(NUCYPHER_ENVVAR_STAKERS_PAGINATION_SIZE, default=1000))
 
     class NotEnoughStakers(Exception):
         """Raised when the are not enough stakers available to complete an operation"""
@@ -316,7 +324,8 @@ class StakingEscrowAgent(EthereumContractAgent):
             raise ValueError("Period must be > 0")
 
         if pagination_size is None:
-            pagination_size = StakingEscrowAgent.DEFAULT_PAGINATION_SIZE if self.blockchain.is_light else 0
+            pagination_size = self.DEFAULT_STAKER_PAGINATION_SIZE_LIGHT_NODE if self.blockchain.is_light else self.DEFAULT_STAKER_PAGINATION_SIZE
+            self.log.debug(f"Defaulting to pagination size {pagination_size}")
         elif pagination_size < 0:
             raise ValueError("Pagination size must be >= 0")
 
@@ -325,15 +334,34 @@ class StakingEscrowAgent(EthereumContractAgent):
             start_index: int = 0
             n_tokens: int = 0
             stakers: Dict[int, int] = dict()
-            active_stakers: Tuple[NuNits, List[List[int]]]
+            attempts = 0
             while start_index < num_stakers:
-                active_stakers = self.contract.functions.getActiveStakers(periods, start_index, pagination_size).call()
-                temp_locked_tokens, temp_stakers = active_stakers
-                # temp_stakers is a list of length-2 lists (address -> locked tokens)
-                temp_stakers_map = {address: locked_tokens for address, locked_tokens in temp_stakers}
-                n_tokens = n_tokens + temp_locked_tokens
-                stakers.update(temp_stakers_map)
-                start_index += pagination_size
+                try:
+                    attempts += 1
+                    active_stakers = self.contract.functions.getActiveStakers(periods,
+                                                                              start_index,
+                                                                              pagination_size).call()
+                except Exception as e:
+                    if 'timeout' not in str(e):
+                        # exception unrelated to pagination size and timeout
+                        raise e
+                    elif pagination_size == 1 or attempts >= 3:
+                        # we tried
+                        raise e
+                    else:
+                        # reduce pagination size and retry
+                        old_pagination_size = pagination_size
+                        pagination_size = old_pagination_size // 2
+                        self.log.debug(f"Failed stakers sampling using pagination size = {old_pagination_size}. "
+                                       f"Retrying with size {pagination_size}")
+                else:
+                    temp_locked_tokens, temp_stakers = active_stakers
+                    # temp_stakers is a list of length-2 lists (address -> locked tokens)
+                    temp_stakers_map = {address: locked_tokens for address, locked_tokens in temp_stakers}
+                    n_tokens = n_tokens + temp_locked_tokens
+                    stakers.update(temp_stakers_map)
+                    start_index += pagination_size
+
         else:
             n_tokens, temp_stakers = self.contract.functions.getActiveStakers(periods, 0, 0).call()
             stakers = {address: locked_tokens for address, locked_tokens in temp_stakers}

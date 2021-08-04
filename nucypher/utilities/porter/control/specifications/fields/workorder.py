@@ -15,16 +15,14 @@
  along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
-from marshmallow import INCLUDE, Schema
+from nucypher.control.specifications.fields import Base64BytesRepresentation
+from nucypher.policy.orders import WorkOrder as WorkOrderClass
 
-from nucypher.characters.control.specifications.exceptions import InvalidInputData
+
+class WorkOrder(Base64BytesRepresentation):
+    def _serialize(self, value: WorkOrderClass, attr, obj, **kwargs):
+        return super()._serialize(value.payload(), attr, obj, **kwargs)
 
 
-class BaseSchema(Schema):
-
-    class Meta:
-
-        unknown = INCLUDE   # pass through any data that isn't defined as a field
-
-    def handle_error(self, error, data, many, **kwargs):
-        raise InvalidInputData(error)
+class WorkOrderResult(Base64BytesRepresentation):
+    pass

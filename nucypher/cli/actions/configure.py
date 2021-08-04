@@ -21,7 +21,7 @@ from typing import Optional, Type, List
 
 import click
 
-from nucypher.characters.control.emitters import StdoutEmitter
+from nucypher.control.emitters import StdoutEmitter
 from nucypher.characters.lawful import Ursula
 from nucypher.cli.actions.confirm import confirm_destroy_configuration
 from nucypher.cli.literature import (

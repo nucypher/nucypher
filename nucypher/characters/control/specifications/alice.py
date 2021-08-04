@@ -19,36 +19,36 @@
 import click
 from marshmallow import validates_schema
 
-from nucypher.characters.control.specifications.fields.treasuremap import TreasureMap
-from nucypher.characters.control.specifications import fields
-from nucypher.characters.control.specifications.base import BaseSchema
-from nucypher.characters.control.specifications.exceptions import InvalidArgumentCombo
+from nucypher.characters.control.specifications import fields as character_fields
+from nucypher.control.specifications import fields as base_fields
+from nucypher.control.specifications.base import BaseSchema
+from nucypher.control.specifications.exceptions import InvalidArgumentCombo
 from nucypher.cli import options, types
 
 
 class PolicyBaseSchema(BaseSchema):
 
-    bob_encrypting_key = fields.Key(
+    bob_encrypting_key = character_fields.Key(
         required=True, load_only=True,
         click=click.option(
             '--bob-encrypting-key',
             '-bek',
             help="Bob's encrypting key as a hexadecimal string",
             type=click.STRING, required=False))
-    bob_verifying_key = fields.Key(
+    bob_verifying_key = character_fields.Key(
         required=True, load_only=True,
         click=click.option(
             '--bob-verifying-key',
             '-bvk',
             help="Bob's verifying key as a hexadecimal string",
             type=click.STRING, required=False))
-    m = fields.M(
+    m = character_fields.M(
         required=True, load_only=True,
         click=options.option_m)
-    n = fields.N(
+    n = character_fields.N(
         required=True, load_only=True,
         click=options.option_n)
-    expiration = fields.DateTime(
+    expiration = character_fields.DateTime(
         required=True, load_only=True,
         click=click.option(
             '--expiration',
@@ -57,18 +57,18 @@ class PolicyBaseSchema(BaseSchema):
     )
 
     # optional input
-    value = fields.Wei(
+    value = character_fields.Wei(
         load_only=True,
         click=click.option('--value', help="Total policy value (in Wei)", type=types.WEI))
 
-    rate = fields.Wei(
+    rate = character_fields.Wei(
         load_only=True,
         required=False,
         click=options.option_rate
     )
 
     # output
-    policy_encrypting_key = fields.Key(dump_only=True)
+    policy_encrypting_key = character_fields.Key(dump_only=True)
 
     @validates_schema
     def check_valid_n_and_m(self, data, **kwargs):
@@ -89,38 +89,40 @@ class PolicyBaseSchema(BaseSchema):
 
 class CreatePolicy(PolicyBaseSchema):
 
-    label = fields.Label(
+    label = character_fields.Label(
         required=True,
         click=options.option_label(required=True))
 
 
 class GrantPolicy(PolicyBaseSchema):
 
-    label = fields.Label(
+    label = character_fields.Label(
         load_only=True, required=True,
         click=options.option_label(required=False))
 
     # output fields
-    treasure_map = TreasureMap(dump_only=True)
-    alice_verifying_key = fields.Key(dump_only=True)
+    # treasure map only used for serialization so no need to provide federated/non-federated context
+    treasure_map = character_fields.TreasureMap(dump_only=True)
+
+    alice_verifying_key = character_fields.Key(dump_only=True)
 
 
 class DerivePolicyEncryptionKey(BaseSchema):
 
-    label = fields.Label(
+    label = character_fields.Label(
         required=True,
         click=options.option_label(required=True))
 
     # output
-    policy_encrypting_key = fields.Key(dump_only=True)
+    policy_encrypting_key = character_fields.Key(dump_only=True)
 
 
 class Revoke(BaseSchema):
 
-    label = fields.Label(
+    label = character_fields.Label(
         required=True, load_only=True,
         click=options.option_label(required=True))
-    bob_verifying_key = fields.Key(
+    bob_verifying_key = character_fields.Key(
         required=True, load_only=True,
         click=click.option(
             '--bob-verifying-key',
@@ -129,21 +131,21 @@ class Revoke(BaseSchema):
             required=True))
 
     # output
-    failed_revocations = fields.Integer(dump_only=True)
+    failed_revocations = base_fields.Integer(dump_only=True)
 
 
 class Decrypt(BaseSchema):
-    label = fields.Label(
+    label = character_fields.Label(
         required=True, load_only=True,
         click=options.option_label(required=True))
-    message_kit = fields.UmbralMessageKit(
+    message_kit = character_fields.UmbralMessageKit(
         load_only=True,
         click=options.option_message_kit(required=True))
 
     # output
-    cleartexts = fields.List(fields.Cleartext(), dump_only=True)
+    cleartexts = base_fields.List(character_fields.Cleartext(), dump_only=True)
 
 
 class PublicKeys(BaseSchema):
 
-    alice_verifying_key = fields.Key(dump_only=True)
+    alice_verifying_key = character_fields.Key(dump_only=True)

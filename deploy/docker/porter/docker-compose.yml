@@ -1,0 +1,55 @@
+version: '3'
+
+services:
+  porter-http:
+    restart: on-failure
+    image: porter:latest
+    container_name: porter-http
+    build:
+      context: ../../..
+      dockerfile: deploy/docker/porter/Dockerfile
+    ports:
+      # Default Porter port
+      - "80:9155"
+    volumes:
+      - .:/code
+      - ~/.local/share/nucypher:/nucypher
+    command: ["nucypher", "porter", "run",
+              "--provider", "${WEB3_PROVIDER_URI}",
+              "--network", "${NUCYPHER_NETWORK}"]
+
+  porter-https:
+    restart: on-failure
+    image: porter:latest
+    container_name: porter-https
+    ports:
+      # Default Porter port
+      - "443:9155"
+    volumes:
+      - .:/code
+      - ~/.local/share/nucypher:/nucypher
+      - "${TLS_DIR}:/etc/porter/tls/"
+    command: [ "nucypher", "porter", "run",
+               "--provider", "${WEB3_PROVIDER_URI}",
+               "--network", "${NUCYPHER_NETWORK}",
+               "--tls-key-filepath", "/etc/porter/tls/key.pem",
+               "--tls-certificate-filepath", "/etc/porter/tls/cert.pem"]
+
+  porter-https-auth:
+    restart: on-failure
+    image: porter:latest
+    container_name: porter-https-auth
+    ports:
+      # Default Porter port
+      - "443:9155"
+    volumes:
+      - .:/code
+      - ~/.local/share/nucypher:/nucypher
+      - "${TLS_DIR}:/etc/porter/tls/"
+      - "${HTPASSWD_FILE}:/etc/porter/auth/htpasswd"
+    command: [ "nucypher", "porter", "run",
+               "--provider", "${WEB3_PROVIDER_URI}",
+               "--network", "${NUCYPHER_NETWORK}",
+               "--tls-key-filepath", "/etc/porter/tls/key.pem",
+               "--tls-certificate-filepath", "/etc/porter/tls/cert.pem",
+               "--basic-auth-filepath", "/etc/porter/auth/htpasswd"]

@@ -714,3 +714,14 @@ CONFIRMING_ACTIVITY_NOW = "Making a commitment to period {committed_period}"
 SUCCESSFUL_CONFIRM_ACTIVITY = '\nCommitment was made to period #{committed_period} (starting at {date})'
 
 SUCCESSFUL_MANUALLY_SAVE_METADATA = "Successfully saved node metadata to {metadata_path}."
+
+
+#
+# Porter
+#
+
+PORTER_RUN_MESSAGE = "Running Porter Web Controller at {http_scheme}://127.0.0.1:{http_port}"
+
+BOTH_TLS_KEY_AND_CERTIFICATION_MUST_BE_PROVIDED = "Both --tls-key-filepath and --tls-certificate-filepath must be provided to launch porter with TLS; only one specified"
+
+BASIC_AUTH_REQUIRES_HTTPS = "Basic authentication can only be used with HTTPS. --tls-key-filepath and --tls-certificate-filepath must also be provided"

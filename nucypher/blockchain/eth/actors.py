@@ -102,7 +102,7 @@ from nucypher.blockchain.eth.utils import (
     prettify_eth_amount
 )
 from nucypher.characters.banners import STAKEHOLDER_BANNER
-from nucypher.characters.control.emitters import StdoutEmitter
+from nucypher.control.emitters import StdoutEmitter
 from nucypher.config.constants import DEFAULT_CONFIG_ROOT
 from nucypher.crypto.powers import TransactingPower
 from nucypher.types import NuNits, Period
@@ -1297,12 +1297,6 @@ class BlockchainPolicyAuthor(NucypherTokenActor):
         policy_end_time = dict(payment_periods=payment_periods, expiration=expiration)
         payload = {**blockchain_payload, **policy_end_time}
         return payload
-
-    def get_stakers_reservoir(self, **options) -> StakersReservoir:
-        """
-        Get a sampler object containing the currently registered stakers.
-        """
-        return self.staking_agent.get_stakers_reservoir(**options)
 
     def create_policy(self, *args, **kwargs):
         """

@@ -23,6 +23,7 @@ import shutil
 import tempfile
 from datetime import datetime, timedelta
 from functools import partial
+from pathlib import Path
 from typing import Callable, Tuple
 
 import maya
@@ -49,7 +50,7 @@ from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
 from nucypher.blockchain.eth.registry import InMemoryContractRegistry, LocalContractRegistry
 from nucypher.blockchain.eth.signers.software import Web3Signer
 from nucypher.blockchain.eth.token import NU
-from nucypher.characters.control.emitters import StdoutEmitter
+from nucypher.control.emitters import StdoutEmitter
 from nucypher.characters.lawful import Enrico
 from nucypher.config.characters import (
     AliceConfiguration,
@@ -63,6 +64,7 @@ from nucypher.crypto.powers import TransactingPower
 from nucypher.datastore import datastore
 from nucypher.network.nodes import TEACHER_NODES
 from nucypher.utilities.logging import GlobalLoggerSettings, Logger
+from nucypher.utilities.porter.porter import Porter
 from tests.constants import (
     BASE_TEMP_DIR,
     BASE_TEMP_PREFIX,
@@ -278,6 +280,23 @@ def enacted_blockchain_policy(idle_blockchain_policy, blockchain_ursulas):
     return enacted_policy
 
 
+@pytest.fixture(scope="function")
+def random_blockchain_policy(testerchain, blockchain_alice, blockchain_bob, token_economics):
+    random_label = generate_random_label()
+    periods = token_economics.minimum_locked_periods // 2
+    days = periods * (token_economics.hours_per_period // 24)
+    now = testerchain.w3.eth.getBlock('latest').timestamp
+    expiration = maya.MayaDT(now).add(days=days - 1)
+    n = 3
+    m = 2
+    policy = blockchain_alice.create_policy(blockchain_bob,
+                                            label=random_label,
+                                            m=m, n=n,
+                                            value=n * periods * 100,
+                                            expiration=expiration)
+    return policy
+
+
 @pytest.fixture(scope="module")
 def capsule_side_channel(enacted_federated_policy):
     class _CapsuleSideChannel:
@@ -416,6 +435,35 @@ def lonely_ursula_maker(ursula_federated_test_config):
     _maker = _PartialUrsulaMaker()
     yield _maker
     _maker.clean()
+
+
+#
+# Porter
+#
+@pytest.fixture(scope="module")
+def federated_porter(federated_ursulas):
+    porter = Porter(domain=TEMPORARY_DOMAIN,
+                    abort_on_learning_error=True,
+                    start_learning_now=True,
+                    known_nodes=federated_ursulas,
+                    verify_node_bonding=False,
+                    federated_only=True,
+                    network_middleware=MockRestMiddleware())
+    yield porter
+    porter.stop_learning_loop()
+
+
+@pytest.fixture(scope="module")
+def blockchain_porter(blockchain_ursulas, testerchain, test_registry):
+    porter = Porter(domain=TEMPORARY_DOMAIN,
+                    abort_on_learning_error=True,
+                    start_learning_now=True,
+                    known_nodes=blockchain_ursulas,
+                    provider_uri=TEST_PROVIDER_URI,
+                    registry=test_registry,
+                    network_middleware=MockRestMiddleware())
+    yield porter
+    porter.stop_learning_loop()
 
 
 #
@@ -1057,3 +1105,16 @@ def mock_teacher_nodes(mocker):
 def disable_interactive_keystore_generation(mocker):
     # Do not notify or confirm mnemonic seed words during tests normally
     mocker.patch.object(Keystore, '_confirm_generate')
+
+
+#
+# Web Auth
+#
+@pytest.fixture(scope='module')
+def basic_auth_file(temp_dir_path):
+    basic_auth = Path(temp_dir_path) / 'htpasswd'
+    with basic_auth.open("w") as f:
+        # username: "admin", password: "admin"
+        f.write("admin:$apr1$hlEpWVoI$0qjykXrvdZ0yO2TnBggQO0\n")
+    yield basic_auth
+    basic_auth.unlink()

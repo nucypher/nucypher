@@ -18,7 +18,7 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 
 import click
 
-from nucypher.characters.control.emitters import StdoutEmitter
+from nucypher.control.emitters import StdoutEmitter
 from nucypher.characters.control.interfaces import AliceInterface
 from nucypher.cli.actions.auth import get_nucypher_password
 from nucypher.cli.actions.collect import collect_bob_public_keys, collect_policy_parameters
@@ -362,7 +362,7 @@ def run(general_config, character_options, config_file, controller_port, dry_run
             controller = ALICE.make_web_controller(crash_on_error=general_config.debug)
             ALICE.log.info('Starting HTTP Character Web Controller')
             emitter.message(f'Running HTTP Alice Controller at http://localhost:{controller_port}')
-            return controller.start(http_port=controller_port, dry_run=dry_run)
+            return controller.start(port=controller_port, dry_run=dry_run)
 
     # Handle Crash
     except Exception as e:

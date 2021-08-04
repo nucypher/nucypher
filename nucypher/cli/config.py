@@ -19,7 +19,7 @@
 import click
 import os
 
-from nucypher.characters.control.emitters import JSONRPCStdoutEmitter, StdoutEmitter
+from nucypher.control.emitters import StdoutEmitter, JSONRPCStdoutEmitter
 from nucypher.cli.utils import get_env_bool
 from nucypher.cli.options import group_options
 from nucypher.config.constants import NUCYPHER_SENTRY_ENDPOINT

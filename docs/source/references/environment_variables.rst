@@ -19,6 +19,13 @@ General
     Password for the `nucypher` Keystore.
 * `NUCYPHER_PROVIDER_URI`
     Default Web3 node provider URI.
+* `NUCYPHER_STAKERS_PAGINATION_SIZE`
+    Default pagination size for the maximum number of active stakers to retrieve from StakingEscrow in
+    one contract call.
+* `NUCYPHER_STAKERS_PAGINATION_SIZE_LIGHT_NODE`
+    Default pagination size for the maximum number of active stakers to retrieve from StakingEscrow in
+    one contract call when a light node provider is being used.
+
 
 Alice
 -----
