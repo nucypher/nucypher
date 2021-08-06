@@ -104,7 +104,7 @@ class Web3Signer(Signer):
 
 
 class ClefSigner(Signer):
-    DEFAULT_IPC_PATH = '~/Library/Signer/clef.ipc' if sys.platform == 'darwin' else '~/.clef/clef.ipc'  # TODO: #1808
+    DEFAULT_IPC_PATH = Path('~/Library/Signer/clef.ipc' if sys.platform == 'darwin' else '~/.clef/clef.ipc')  # TODO: #1808
 
     SIGN_DATA_FOR_VALIDATOR = 'data/validator'   # a.k.a. EIP 191 version 0
     SIGN_DATA_FOR_CLIQUE = 'application/clique'  # not relevant for us
@@ -116,7 +116,7 @@ class ClefSigner(Signer):
     TIMEOUT = 180  # Default timeout for Clef of 180 seconds
 
     def __init__(self,
-                 ipc_path: str = DEFAULT_IPC_PATH,
+                 ipc_path: Path = DEFAULT_IPC_PATH,
                  timeout: int = TIMEOUT,
                  testnet: bool = False):
         super().__init__()
