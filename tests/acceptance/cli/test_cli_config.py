@@ -49,7 +49,7 @@ def test_initialize_via_cli(config_class, custom_filepath: Path, click_runner, m
     init_args = (command, 'init',
                  '--network', TEMPORARY_DOMAIN,
                  '--federated-only',
-                 '--config-root', custom_filepath)
+                 '--config-root', str(custom_filepath.absolute()))
 
     if config_class == UrsulaConfiguration:
         init_args += ('--rest-host', MOCK_IP_ADDRESS)
@@ -80,7 +80,7 @@ def test_reconfigure_via_cli(click_runner, custom_filepath: Path, config_class, 
     custom_config_filepath = custom_filepath / config_class.generate_filename()
 
     view_args = (config_class.CHARACTER_CLASS.__name__.lower(), 'config',
-                 '--config-file', custom_config_filepath,
+                 '--config-file', str(custom_config_filepath.absolute()),
                  '--debug')
 
     result = click_runner.invoke(nucypher_cli, view_args, env=ENV)
@@ -100,7 +100,7 @@ def test_reconfigure_via_cli(click_runner, custom_filepath: Path, config_class, 
 
     # Write
     view_args = (config_class.CHARACTER_CLASS.__name__.lower(), 'config',
-                 '--config-file', custom_config_filepath,
+                 '--config-file', str(custom_config_filepath.absolute()),
                  '--decentralized',
                  '--provider', TEST_PROVIDER_URI)
     result = click_runner.invoke(nucypher_cli, view_args, env=ENV)

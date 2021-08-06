@@ -50,7 +50,7 @@ def test_nucypher_deploy_inspect_no_deployments(click_runner, testerchain, new_l
 
     status_command = ('inspect',
                       '--provider', TEST_PROVIDER_URI,
-                      '--registry-infile', new_local_registry.filepath)
+                      '--registry-infile', str(new_local_registry.filepath.absolute()))
 
     result = click_runner.invoke(deploy, status_command, catch_exceptions=False)
     assert result.exit_code == 0
@@ -63,7 +63,7 @@ def test_set_range(click_runner, testerchain, agency_local_registry):
     status_command = ('set-range',
                       '--provider', TEST_PROVIDER_URI,
                       '--signer', TEST_PROVIDER_URI,
-                      '--registry-infile', agency_local_registry.filepath,
+                      '--registry-infile', str(agency_local_registry.filepath.absolute()),
                       '--minimum', minimum,
                       '--default', default,
                       '--network', TEMPORARY_DOMAIN,
@@ -88,7 +88,7 @@ def test_nucypher_deploy_inspect_fully_deployed(click_runner, agency_local_regis
     adjudicator_agent = ContractAgency.get_agent(AdjudicatorAgent, registry=agency_local_registry)
 
     status_command = ('inspect',
-                      '--registry-infile', agency_local_registry.filepath,
+                      '--registry-infile', str(agency_local_registry.filepath.absolute()),
                       '--network', TEMPORARY_DOMAIN,
                       '--provider', TEST_PROVIDER_URI)
 
@@ -120,7 +120,7 @@ def test_transfer_ownership(click_runner, testerchain, agency_local_registry):
     maclane = testerchain.unassigned_accounts[0]
 
     ownership_command = ('transfer-ownership',
-                         '--registry-infile', agency_local_registry.filepath,
+                         '--registry-infile', str(agency_local_registry.filepath.absolute()),
                          '--contract-name', STAKING_ESCROW_CONTRACT_NAME,
                          '--provider', TEST_PROVIDER_URI,
                          '--signer', TEST_PROVIDER_URI,
@@ -146,7 +146,7 @@ def test_transfer_ownership(click_runner, testerchain, agency_local_registry):
     ownership_command = ('transfer-ownership',
                          '--deployer-address', maclane,
                          '--contract-name', STAKING_ESCROW_CONTRACT_NAME,
-                         '--registry-infile', agency_local_registry.filepath,
+                         '--registry-infile', str(agency_local_registry.filepath.absolute()),
                          '--provider', TEST_PROVIDER_URI,
                          '--signer', TEST_PROVIDER_URI,
                          '--network', TEMPORARY_DOMAIN,
@@ -171,7 +171,7 @@ def test_transfer_ownership_staking_interface_router(click_runner, testerchain, 
     maclane = testerchain.unassigned_accounts[0]
 
     ownership_command = ('transfer-ownership',
-                         '--registry-infile', agency_local_registry.filepath,
+                         '--registry-infile', str(agency_local_registry.filepath.absolute()),
                          '--contract-name', StakingInterfaceDeployer.contract_name,
                          '--provider', TEST_PROVIDER_URI,
                          '--signer', TEST_PROVIDER_URI,
@@ -205,8 +205,8 @@ def test_bare_contract_deployment_to_alternate_registry(click_runner, agency_loc
                '--mode', 'bare',
                '--provider', TEST_PROVIDER_URI,
                '--signer', TEST_PROVIDER_URI,
-               '--registry-infile', agency_local_registry.filepath,
-               '--registry-outfile', ALTERNATE_REGISTRY_FILEPATH,
+               '--registry-infile', str(agency_local_registry.filepath.absolute()),
+               '--registry-outfile', str(ALTERNATE_REGISTRY_FILEPATH.absolute()),
                '--network', TEMPORARY_DOMAIN,
                '--ignore-deployed')
 
@@ -251,7 +251,7 @@ def test_manual_proxy_retargeting(monkeypatch, testerchain, click_runner, token_
                '--target-address', untargeted_deployment.address,
                '--provider', TEST_PROVIDER_URI,
                '--signer', TEST_PROVIDER_URI,
-               '--registry-infile', ALTERNATE_REGISTRY_FILEPATH,
+               '--registry-infile', str(ALTERNATE_REGISTRY_FILEPATH.absolute()),
                '--confirmations', 4,
                '--network', TEMPORARY_DOMAIN)
 
@@ -281,7 +281,7 @@ def test_manual_deployment_of_idle_network(click_runner):
                '--provider', TEST_PROVIDER_URI,
                '--network', TEMPORARY_DOMAIN,
                '--signer', TEST_PROVIDER_URI,
-               '--registry-infile', ALTERNATE_REGISTRY_FILEPATH_2)
+               '--registry-infile', str(ALTERNATE_REGISTRY_FILEPATH_2.absolute()))
 
     result = click_runner.invoke(deploy, command, input=user_input, catch_exceptions=False)
     assert result.exit_code == 0, result.output
@@ -299,7 +299,7 @@ def test_manual_deployment_of_idle_network(click_runner):
                '--provider', TEST_PROVIDER_URI,
                '--signer', TEST_PROVIDER_URI,
                '--network', TEMPORARY_DOMAIN,
-               '--registry-infile', ALTERNATE_REGISTRY_FILEPATH_2)
+               '--registry-infile', str(ALTERNATE_REGISTRY_FILEPATH_2.absolute()))
 
     result = click_runner.invoke(deploy, command, input=user_input, catch_exceptions=False)
     assert result.exit_code == 0
@@ -313,7 +313,7 @@ def test_manual_deployment_of_idle_network(click_runner):
                '--provider', TEST_PROVIDER_URI,
                '--signer', TEST_PROVIDER_URI,
                '--network', TEMPORARY_DOMAIN,
-               '--registry-infile', ALTERNATE_REGISTRY_FILEPATH_2)
+               '--registry-infile', str(ALTERNATE_REGISTRY_FILEPATH_2.absolute()))
 
     result = click_runner.invoke(deploy, command, input=user_input, catch_exceptions=False)
     assert result.exit_code == 0
@@ -327,7 +327,7 @@ def test_manual_deployment_of_idle_network(click_runner):
                '--provider', TEST_PROVIDER_URI,
                '--signer', TEST_PROVIDER_URI,
                '--network', TEMPORARY_DOMAIN,
-               '--registry-infile', ALTERNATE_REGISTRY_FILEPATH_2)
+               '--registry-infile', str(ALTERNATE_REGISTRY_FILEPATH_2.absolute()))
 
     result = click_runner.invoke(deploy, command, input=user_input, catch_exceptions=False)
     assert result.exit_code == 0
@@ -342,7 +342,7 @@ def test_manual_deployment_of_idle_network(click_runner):
                '--provider', TEST_PROVIDER_URI,
                '--signer', TEST_PROVIDER_URI,
                '--network', TEMPORARY_DOMAIN,
-               '--registry-infile', ALTERNATE_REGISTRY_FILEPATH_2)
+               '--registry-infile', str(ALTERNATE_REGISTRY_FILEPATH_2.absolute()))
 
     result = click_runner.invoke(deploy, command, input=user_input, catch_exceptions=False)
     assert result.exit_code == 0
@@ -357,7 +357,7 @@ def test_manual_deployment_of_idle_network(click_runner):
                '--provider', TEST_PROVIDER_URI,
                '--signer', TEST_PROVIDER_URI,
                '--network', TEMPORARY_DOMAIN,
-               '--registry-infile', ALTERNATE_REGISTRY_FILEPATH_2)
+               '--registry-infile', str(ALTERNATE_REGISTRY_FILEPATH_2.absolute()))
 
     user_input = '0\n' + YES_ENTER + YES_ENTER + INSECURE_DEVELOPMENT_PASSWORD
     result = click_runner.invoke(deploy, command, input=user_input, catch_exceptions=False)

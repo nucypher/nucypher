@@ -59,7 +59,7 @@ def test_initialize_alice_defaults(click_runner, mocker, custom_filepath, monkey
     # Use default alice init args
     init_args = ('alice', 'init',
                  '--network', TEMPORARY_DOMAIN,
-                 '--config-root', custom_filepath,
+                 '--config-root', str(custom_filepath.absolute()),
                  '--federated-only')
     result = click_runner.invoke(nucypher_cli, init_args, input=FAKE_PASSWORD_CONFIRMED, catch_exceptions=False)
     assert result.exit_code == 0
@@ -102,7 +102,7 @@ def test_initialize_alice_with_custom_configuration_root(custom_filepath, click_
     init_args = ('alice', 'init',
                  '--network', TEMPORARY_DOMAIN,
                  '--federated-only',
-                 '--config-root', custom_filepath)
+                 '--config-root', str(custom_filepath.absolute()))
 
     result = click_runner.invoke(nucypher_cli, init_args, input=FAKE_PASSWORD_CONFIRMED, catch_exceptions=False)
     assert result.exit_code == 0
@@ -127,7 +127,7 @@ def test_initialize_alice_with_custom_configuration_root(custom_filepath, click_
 
 def test_alice_control_starts_with_preexisting_configuration(click_runner, custom_filepath):
     custom_config_filepath = custom_filepath / AliceConfiguration.generate_filename()
-    run_args = ('alice', 'run', '--dry-run', '--lonely', '--config-file', custom_config_filepath)
+    run_args = ('alice', 'run', '--dry-run', '--lonely', '--config-file', str(custom_config_filepath.absolute()))
     result = click_runner.invoke(nucypher_cli, run_args, input=FAKE_PASSWORD_CONFIRMED)
     assert result.exit_code == 0, result.exception
 
@@ -135,7 +135,7 @@ def test_alice_control_starts_with_preexisting_configuration(click_runner, custo
 def test_alice_make_card(click_runner, custom_filepath, mocker):
     mock_save_card = mocker.patch.object(Card, 'save')
     custom_config_filepath = custom_filepath / AliceConfiguration.generate_filename()
-    command = ('alice', 'make-card', '--nickname', 'flora', '--config-file', custom_config_filepath)
+    command = ('alice', 'make-card', '--nickname', 'flora', '--config-file', str(custom_config_filepath.absolute()))
     result = click_runner.invoke(nucypher_cli, command, input=FAKE_PASSWORD_CONFIRMED, catch_exceptions=False)
     assert result.exit_code == 0
     mock_save_card.assert_called_once()
@@ -169,7 +169,7 @@ def test_alice_public_keys(click_runner):
 
 def test_alice_view_preexisting_configuration(click_runner, custom_filepath):
     custom_config_filepath = custom_filepath / AliceConfiguration.generate_filename()
-    view_args = ('alice', 'config', '--config-file', custom_config_filepath)
+    view_args = ('alice', 'config', '--config-file', str(custom_config_filepath.absolute()))
     result = click_runner.invoke(nucypher_cli, view_args, input=FAKE_PASSWORD_CONFIRMED)
     assert result.exit_code == 0
     assert "checksum_address" in result.output
@@ -181,7 +181,7 @@ def test_alice_view_preexisting_configuration(click_runner, custom_filepath):
 def test_alice_destroy(click_runner, custom_filepath):
     """Should be the last test since it deletes the configuration file"""
     custom_config_filepath = custom_filepath / AliceConfiguration.generate_filename()
-    destroy_args = ('alice', 'destroy', '--config-file', custom_config_filepath, '--force')
+    destroy_args = ('alice', 'destroy', '--config-file', str(custom_config_filepath.absolute()), '--force')
     result = click_runner.invoke(nucypher_cli, destroy_args, catch_exceptions=False)
     assert result.exit_code == 0
     assert SUCCESSFUL_DESTRUCTION in result.output

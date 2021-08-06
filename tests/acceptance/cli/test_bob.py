@@ -57,7 +57,7 @@ def test_initialize_bob_with_custom_configuration_root(click_runner, custom_file
     init_args = ('bob', 'init',
                  '--network', TEMPORARY_DOMAIN,
                  '--federated-only',
-                 '--config-root', custom_filepath)
+                 '--config-root', str(custom_filepath.absolute()))
     result = click_runner.invoke(nucypher_cli, init_args, input=FAKE_PASSWORD_CONFIRMED, catch_exceptions=False)
     assert result.exit_code == 0, result.exception
 
@@ -81,7 +81,7 @@ def test_initialize_bob_with_custom_configuration_root(click_runner, custom_file
 
 def test_bob_control_starts_with_preexisting_configuration(click_runner, custom_filepath: Path):
     custom_config_filepath = custom_filepath / BobConfiguration.generate_filename()
-    init_args = ('bob', 'run', '--dry-run', '--lonely', '--config-file', custom_config_filepath)
+    init_args = ('bob', 'run', '--dry-run', '--lonely', '--config-file', str(custom_config_filepath.absolute()))
     result = click_runner.invoke(nucypher_cli, init_args, input=FAKE_PASSWORD_CONFIRMED)
     assert result.exit_code == 0, result.exception
     assert "Bob Verifying Key" in result.output
@@ -91,7 +91,7 @@ def test_bob_control_starts_with_preexisting_configuration(click_runner, custom_
 def test_bob_make_card(click_runner, custom_filepath: Path, mocker):
     mock_save_card = mocker.patch.object(Card, 'save')
     custom_config_filepath = custom_filepath / BobConfiguration.generate_filename()
-    command = ('bob', 'make-card', '--nickname', 'anders', '--config-file', custom_config_filepath)
+    command = ('bob', 'make-card', '--nickname', 'anders', '--config-file', str(custom_config_filepath.absolute()))
     result = click_runner.invoke(nucypher_cli, command, input=FAKE_PASSWORD_CONFIRMED, catch_exceptions=False)
     assert result.exit_code == 0
     assert "Saved new character card " in result.output
@@ -100,7 +100,7 @@ def test_bob_make_card(click_runner, custom_filepath: Path, mocker):
 
 def test_bob_view_with_preexisting_configuration(click_runner, custom_filepath: Path):
     custom_config_filepath = custom_filepath / BobConfiguration.generate_filename()
-    view_args = ('bob', 'config', '--config-file', custom_config_filepath)
+    view_args = ('bob', 'config', '--config-file', str(custom_config_filepath.absolute()))
     result = click_runner.invoke(nucypher_cli, view_args, input=FAKE_PASSWORD_CONFIRMED)
     assert result.exit_code == 0, result.exception
     assert "checksum_address" in result.output
@@ -141,7 +141,7 @@ def test_bob_retrieves_twice_via_cli(click_runner,
     # Need to init so that the config file is made, even though we won't use this Bob.
     bob_init_args = ('bob', 'init',
                      '--network', TEMPORARY_DOMAIN,
-                     '--config-root', bob_config_root,
+                     '--config-root', str(bob_config_root.absolute()),
                      '--federated-only')
 
     envvars = {'NUCYPHER_KEYSTORE_PASSWORD': INSECURE_DEVELOPMENT_PASSWORD}
@@ -157,7 +157,7 @@ def test_bob_retrieves_twice_via_cli(click_runner,
                      '--mock-networking',
                      '--json-ipc',
                      '--teacher', teacher.seed_node_metadata(as_teacher_uri=True),
-                     '--config-file', bob_configuration_file_location,
+                     '--config-file', str(bob_configuration_file_location.absolute()),
                      '--message-kit', message_kit_b64_bytes,
                      '--label', label,
                      '--policy-encrypting-key', bytes(federated_alice.get_policy_encrypting_key_from_label(label)).hex(),
@@ -203,7 +203,7 @@ def test_bob_retrieves_twice_via_cli(click_runner,
 # NOTE: Should be the last test in this module since it deletes the configuration file
 def test_bob_destroy(click_runner, custom_filepath: Path):
     custom_config_filepath = custom_filepath / BobConfiguration.generate_filename()
-    destroy_args = ('bob', 'destroy', '--config-file', custom_config_filepath, '--force')
+    destroy_args = ('bob', 'destroy', '--config-file', str(custom_config_filepath.absolute()), '--force')
     result = click_runner.invoke(nucypher_cli, destroy_args, catch_exceptions=False)
     assert result.exit_code == 0, result.exception
     assert SUCCESSFUL_DESTRUCTION in result.output

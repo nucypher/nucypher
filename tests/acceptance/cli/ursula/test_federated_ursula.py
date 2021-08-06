@@ -70,7 +70,7 @@ def test_initialize_custom_configuration_root(click_runner, custom_filepath: Pat
     init_args = ('ursula', 'init',
                  '--network', TEMPORARY_DOMAIN,
                  '--federated-only',
-                 '--config-root', custom_filepath,
+                 '--config-root', str(custom_filepath.absolute()),
                  '--rest-host', MOCK_IP_ADDRESS,
                  '--rest-port', deploy_port)
     result = click_runner.invoke(nucypher_cli, init_args, input=FAKE_PASSWORD_CONFIRMED, catch_exceptions=False)
@@ -124,7 +124,7 @@ def test_ursula_view_configuration(custom_filepath: Path, click_runner, nominal_
     custom_config_filepath = custom_filepath / UrsulaConfiguration.generate_filename()
     assert custom_config_filepath.is_file(), 'Configuration file does not exist'
 
-    view_args = ('ursula', 'config', '--config-file', custom_config_filepath)
+    view_args = ('ursula', 'config', '--config-file', str(custom_config_filepath.absolute()))
 
     # View the configuration
     result = click_runner.invoke(nucypher_cli, view_args,
@@ -151,7 +151,7 @@ def test_run_federated_ursula_from_config_file(custom_filepath: Path, click_runn
                 '--dry-run',
                 '--interactive',
                 '--lonely',
-                '--config-file', custom_config_filepath)
+                '--config-file', str(custom_config_filepath.absolute()))
 
     result = click_runner.invoke(nucypher_cli, run_args,
                                  input='{}\nY\n'.format(INSECURE_DEVELOPMENT_PASSWORD),
@@ -187,7 +187,7 @@ def test_ursula_destroy_configuration(custom_filepath, click_runner):
     assert custom_config_filepath.is_file(), 'Configuration file does not exist'
 
     # Run the destroy command
-    destruction_args = ('ursula', 'destroy', '--config-file', custom_config_filepath)
+    destruction_args = ('ursula', 'destroy', '--config-file', str(custom_config_filepath.absolute()))
     result = click_runner.invoke(nucypher_cli, destruction_args,
                                  input='Y\n'.format(INSECURE_DEVELOPMENT_PASSWORD),
                                  catch_exceptions=False,

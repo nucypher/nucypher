@@ -66,11 +66,11 @@ def test_deploy_multisig_contract(click_runner,
     #
 
     command = ['contracts',
-               '--registry-infile', new_local_registry.filepath,
+               '--registry-infile', str(new_local_registry.filepath.absolute()),
                '--network', TEMPORARY_DOMAIN,
                '--provider', TEST_PROVIDER_URI,
                '--contract-name', 'MultiSig',
-               '--parameters', multisig_parameters_filepath]
+               '--parameters', str(multisig_parameters_filepath.absolute())]
 
     user_input = '0\n' + 'Y\n'
     result = click_runner.invoke(deploy, command, input=user_input, catch_exceptions=False)

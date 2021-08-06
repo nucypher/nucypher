@@ -66,10 +66,10 @@ def test_new_stakeholder(click_runner,
                          testerchain):
 
     init_args = ('stake', 'init-stakeholder',
-                 '--config-root', custom_filepath,
+                 '--config-root', str(custom_filepath.absolute()),
                  '--provider', TEST_PROVIDER_URI,
                  '--network', TEMPORARY_DOMAIN,
-                 '--registry-filepath', agency_local_registry.filepath)
+                 '--registry-filepath', str(agency_local_registry.filepath.absolute()))
 
     result = click_runner.invoke(nucypher_cli, init_args, catch_exceptions=False)
     assert result.exit_code == 0
@@ -100,7 +100,7 @@ def test_stake_init(click_runner,
     assert not stakes
 
     stake_args = ('stake', 'create',
-                  '--config-file', stakeholder_configuration_file_location,
+                  '--config-file', str(stakeholder_configuration_file_location.absolute()),
                   '--staking-address', manual_staker,
                   '--value', stake_value.to_tokens(),
                   '--lock-periods', token_economics.minimum_locked_periods,
@@ -142,7 +142,7 @@ def test_stake_list(click_runner,
                     testerchain):
 
     stake_args = ('stake', 'list',
-                  '--config-file', stakeholder_configuration_file_location)
+                  '--config-file', str(stakeholder_configuration_file_location.absolute()))
 
     user_input = INSECURE_DEVELOPMENT_PASSWORD
     result = click_runner.invoke(nucypher_cli, stake_args, input=user_input, catch_exceptions=False)
@@ -160,7 +160,7 @@ def test_staker_divide_stakes(click_runner,
                               agency_local_registry):
 
     divide_args = ('stake', 'divide',
-                   '--config-file', stakeholder_configuration_file_location,
+                   '--config-file', str(stakeholder_configuration_file_location.absolute()),
                    '--force',
                    '--staking-address', manual_staker,
                    '--index', 0,
@@ -173,7 +173,7 @@ def test_staker_divide_stakes(click_runner,
                                  env=dict(NUCYPHER_KEYSTORE_PASSWORD=INSECURE_DEVELOPMENT_PASSWORD))
     assert result.exit_code == 0
 
-    stake_args = ('stake', 'list', '--config-file', stakeholder_configuration_file_location)
+    stake_args = ('stake', 'list', '--config-file', str(stakeholder_configuration_file_location.absolute()))
 
     user_input = INSECURE_DEVELOPMENT_PASSWORD
     result = click_runner.invoke(nucypher_cli, stake_args, input=user_input, catch_exceptions=False)
@@ -189,7 +189,7 @@ def test_stake_prolong(click_runner,
                        stakeholder_configuration_file_location):
 
     prolong_args = ('stake', 'prolong',
-                    '--config-file', stakeholder_configuration_file_location,
+                    '--config-file', str(stakeholder_configuration_file_location.absolute()),
                     '--index', 0,
                     '--lock-periods', 1,
                     '--staking-address', manual_staker,
@@ -231,7 +231,7 @@ def test_stake_increase(click_runner,
     origin_stake = stakes[selection]
 
     stake_args = ('stake', 'increase',
-                  '--config-file', stakeholder_configuration_file_location,
+                  '--config-file', str(stakeholder_configuration_file_location.absolute()),
                   '--staking-address', manual_staker,
                   '--value', new_value.to_tokens(),
                   '--index', selection,
@@ -261,7 +261,7 @@ def test_merge_stakes(click_runner,
                       stake_value):
     # Prepare new stake
     stake_args = ('stake', 'create',
-                  '--config-file', stakeholder_configuration_file_location,
+                  '--config-file', str(stakeholder_configuration_file_location.absolute()),
                   '--staking-address', manual_staker,
                   '--value', stake_value.to_tokens(),
                   '--lock-periods', token_economics.minimum_locked_periods + 1,
@@ -282,7 +282,7 @@ def test_merge_stakes(click_runner,
     assert origin_stake_1.last_period == origin_stake_2.last_period
 
     stake_args = ('stake', 'merge',
-                  '--config-file', stakeholder_configuration_file_location,
+                  '--config-file', str(stakeholder_configuration_file_location.absolute()),
                   '--staking-address', manual_staker,
                   '--index-1', selection_1,
                   '--index-2', selection_2,
@@ -314,7 +314,7 @@ def test_remove_inactive(click_runner,
     assert original_stakes[selection].last_period == 1
 
     stake_args = ('stake', 'remove-inactive',
-                  '--config-file', stakeholder_configuration_file_location,
+                  '--config-file', str(stakeholder_configuration_file_location.absolute()),
                   '--staking-address', manual_staker,
                   '--index', selection,
                   '--force')
@@ -334,7 +334,7 @@ def test_stake_bond_worker(click_runner,
                            stakeholder_configuration_file_location):
 
     init_args = ('stake', 'bond-worker',
-                 '--config-file', stakeholder_configuration_file_location,
+                 '--config-file', str(stakeholder_configuration_file_location.absolute()),
                  '--staking-address', manual_staker,
                  '--worker-address', manual_worker,
                  '--force')
@@ -364,9 +364,9 @@ def test_ursula_init(click_runner,
     init_args = ('ursula', 'init',
                  '--network', TEMPORARY_DOMAIN,
                  '--worker-address', manual_worker,
-                 '--config-root', custom_filepath,
+                 '--config-root', str(custom_filepath.absolute()),
                  '--provider', TEST_PROVIDER_URI,
-                 '--registry-filepath', agency_local_registry.filepath,
+                 '--registry-filepath', str(agency_local_registry.filepath.absolute()),
                  '--rest-host', MOCK_IP_ADDRESS,
                  '--rest-port', deploy_port)
 
@@ -403,7 +403,7 @@ def test_ursula_run(click_runner,
     # Now start running your Ursula!
     init_args = ('ursula', 'run',
                  '--dry-run',
-                 '--config-file', custom_config_filepath)
+                 '--config-file', str(custom_config_filepath.absolute()))
 
     user_input = f'{INSECURE_DEVELOPMENT_PASSWORD}\n' * 2
     result = click_runner.invoke(nucypher_cli,
@@ -427,7 +427,7 @@ def test_stake_restake(click_runner,
 
     restake_args = ('stake', 'restake',
                     '--disable',
-                    '--config-file', stakeholder_configuration_file_location,
+                    '--config-file', str(stakeholder_configuration_file_location.absolute()),
                     '--staking-address', manual_staker,
                     '--force')
 
@@ -441,7 +441,7 @@ def test_stake_restake(click_runner,
 
     disable_args = ('stake', 'restake',
                     '--enable',
-                    '--config-file', stakeholder_configuration_file_location,
+                    '--config-file', str(stakeholder_configuration_file_location.absolute()),
                     '--staking-address', manual_staker,
                     '--force')
 
@@ -456,7 +456,7 @@ def test_stake_restake(click_runner,
     # Disable again
     disable_args = ('stake', 'restake',
                     '--disable',
-                    '--config-file', stakeholder_configuration_file_location,
+                    '--config-file', str(stakeholder_configuration_file_location.absolute()),
                     '--staking-address', manual_staker,
                     '--force')
 
@@ -481,7 +481,7 @@ def test_stake_winddown(click_runner,
 
     restake_args = ('stake', 'winddown',
                     '--enable',
-                    '--config-file', stakeholder_configuration_file_location,
+                    '--config-file', str(stakeholder_configuration_file_location.absolute()),
                     '--staking-address', manual_staker,
                     '--force')
 
@@ -495,7 +495,7 @@ def test_stake_winddown(click_runner,
 
     disable_args = ('stake', 'winddown',
                     '--disable',
-                    '--config-file', stakeholder_configuration_file_location,
+                    '--config-file', str(stakeholder_configuration_file_location.absolute()),
                     '--staking-address', manual_staker,
                     '--force')
 
@@ -522,7 +522,7 @@ def test_stake_snapshots(click_runner,
 
     restake_args = ('stake', 'snapshots',
                     '--disable',
-                    '--config-file', stakeholder_configuration_file_location,
+                    '--config-file', str(stakeholder_configuration_file_location.absolute()),
                     '--staking-address', manual_staker,
                     '--force')
 
@@ -536,7 +536,7 @@ def test_stake_snapshots(click_runner,
 
     disable_args = ('stake', 'snapshots',
                     '--enable',
-                    '--config-file', stakeholder_configuration_file_location,
+                    '--config-file', str(stakeholder_configuration_file_location.absolute()),
                     '--staking-address', manual_staker,
                     '--force')
 
@@ -680,7 +680,7 @@ def test_collect_rewards_integration(click_runner,
 
     # Collect Policy Fee
     collection_args = ('stake', 'rewards', 'withdraw',
-                       '--config-file', stakeholder_configuration_file_location,
+                       '--config-file', str(stakeholder_configuration_file_location.absolute()),
                        '--fees',
                        '--no-tokens',
                        '--staking-address', staker_address,
@@ -711,7 +711,7 @@ def test_collect_rewards_integration(click_runner,
     balance_before_collecting = staker.token_agent.get_balance(address=staker_address)
 
     collection_args = ('stake', 'rewards', 'withdraw',
-                       '--config-file', stakeholder_configuration_file_location,
+                       '--config-file', str(stakeholder_configuration_file_location.absolute()),
                        '--no-fees',
                        '--tokens',
                        '--staking-address', staker_address,
@@ -742,7 +742,7 @@ def test_stake_unbond_worker(click_runner,
     assert staker.worker_address == manual_worker
 
     init_args = ('stake', 'unbond-worker',
-                 '--config-file', stakeholder_configuration_file_location,
+                 '--config-file', str(stakeholder_configuration_file_location.absolute()),
                  '--staking-address', manual_staker,
                  '--force'
                  )
@@ -778,7 +778,7 @@ def test_set_min_rate(click_runner,
 
     restake_args = ('stake', 'set-min-rate',
                     '--min-rate', min_rate_in_gwei,
-                    '--config-file', stakeholder_configuration_file_location,
+                    '--config-file', str(stakeholder_configuration_file_location.absolute()),
                     '--staking-address', manual_staker,
                     '--force')
 
@@ -791,7 +791,7 @@ def test_set_min_rate(click_runner,
     assert "successfully set" in result.output
 
     stake_args = ('stake', 'list',
-                  '--config-file', stakeholder_configuration_file_location)
+                  '--config-file', str(stakeholder_configuration_file_location.absolute()))
 
     user_input = INSECURE_DEVELOPMENT_PASSWORD
     result = click_runner.invoke(nucypher_cli, stake_args, input=user_input, catch_exceptions=False)
@@ -813,7 +813,7 @@ def test_mint(click_runner,
     owned_tokens = staker.owned_tokens()
 
     mint_args = ('stake', 'mint',
-                 '--config-file', stakeholder_configuration_file_location,
+                 '--config-file', str(stakeholder_configuration_file_location.absolute()),
                  '--staking-address', manual_staker,
                  '--force')
 

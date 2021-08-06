@@ -65,9 +65,9 @@ def test_run_felix(click_runner, testerchain, agency_local_registry):
     # Felix creates a system configuration
     init_args = ('felix', 'init',
                  '--debug',
-                 '--registry-filepath', agency_local_registry.filepath,
+                 '--registry-filepath', str(agency_local_registry.filepath.absolute()),
                  '--checksum-address', testerchain.client.accounts[0],
-                 '--config-root', MOCK_CUSTOM_INSTALLATION_PATH_2,
+                 '--config-root', str(MOCK_CUSTOM_INSTALLATION_PATH_2.absolute()),
                  '--provider', TEST_PROVIDER_URI)
     _original_read_function = LocalContractRegistry.read
 
@@ -79,7 +79,7 @@ def test_run_felix(click_runner, testerchain, agency_local_registry):
     # Felix Creates a Database
     db_args = ('felix', 'createdb',
                '--debug',
-               '--config-file', configuration_file_location,
+               '--config-file', str(configuration_file_location.absolute()),
                '--provider', TEST_PROVIDER_URI)
 
     result = click_runner.invoke(nucypher_cli, db_args, catch_exceptions=False, env=envvars)
@@ -89,7 +89,7 @@ def test_run_felix(click_runner, testerchain, agency_local_registry):
     def run_felix():
         args = ('felix', 'run',
                 '--debug',
-                '--config-file', configuration_file_location,
+                '--config-file', str(configuration_file_location.absolute()),
                 '--provider', TEST_PROVIDER_URI,
                 '--dry-run')
 
@@ -155,7 +155,7 @@ def test_run_felix(click_runner, testerchain, agency_local_registry):
 
     # Felix view
     view_args = ('felix', 'view',
-                 '--config-file', configuration_file_location,
+                 '--config-file', str(configuration_file_location.absolute()),
                  '--provider', TEST_PROVIDER_URI)
     result = click_runner.invoke(nucypher_cli, view_args, catch_exceptions=False, env=envvars)
     assert result.exit_code == 0
@@ -165,7 +165,7 @@ def test_run_felix(click_runner, testerchain, agency_local_registry):
 
     # Felix accounts
     accounts_args = ('felix', 'accounts',
-                     '--config-file', configuration_file_location,
+                     '--config-file', str(configuration_file_location.absolute()),
                      '--provider', TEST_PROVIDER_URI)
     result = click_runner.invoke(nucypher_cli, accounts_args, catch_exceptions=False, env=envvars)
     assert result.exit_code == 0
@@ -173,7 +173,7 @@ def test_run_felix(click_runner, testerchain, agency_local_registry):
 
     # Felix destroy
     destroy_args = ('felix', 'destroy',
-                    '--config-file', configuration_file_location,
+                    '--config-file', str(configuration_file_location.absolute()),
                     '--provider', TEST_PROVIDER_URI,
                     '--force')
     result = click_runner.invoke(nucypher_cli, destroy_args, catch_exceptions=False, env=envvars)

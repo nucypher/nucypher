@@ -47,7 +47,7 @@ def test_deploy_single_contract(click_runner, tempfile_path):
     # Perform the Test
     command = ['contracts',
                '--contract-name', NucypherTokenAgent.contract_name,
-               '--registry-infile', tempfile_path,
+               '--registry-infile', str(tempfile_path.absolute()),
                '--provider', TEST_PROVIDER_URI,
                '--signer', TEST_PROVIDER_URI,
                '--network', TEMPORARY_DOMAIN,
@@ -64,7 +64,7 @@ def test_deploy_signer_uri_testnet_check(click_runner, mocker, tempfile_path):
     with patch('nucypher.blockchain.eth.actors.BaseActor.eth_balance', PropertyMock(return_value=0)):
         command = ['contracts',
                    '--contract-name', NucypherTokenAgent.contract_name,
-                   '--registry-infile', tempfile_path,
+                   '--registry-infile', str(tempfile_path.absolute()),
                    '--provider', TEST_PROVIDER_URI,
                    '--signer', TEST_PROVIDER_URI,
                    '--network', TEMPORARY_DOMAIN,
@@ -106,7 +106,7 @@ def test_upgrade_contracts(click_runner, test_registry_source_manager, test_regi
     #
 
     cli_action = 'upgrade'
-    base_command = ('--registry-infile', registry_filepath,
+    base_command = ('--registry-infile', str(registry_filepath.absolute()),
                     '--provider', TEST_PROVIDER_URI,
                     '--signer', TEST_PROVIDER_URI,
                     '--confirmations', 1,
@@ -235,7 +235,7 @@ def test_rollback(click_runner, testerchain, registry_filepath, agency):
 
         command = ('rollback',
                    '--contract-name', contract_name,
-                   '--registry-infile', registry_filepath,
+                   '--registry-infile', str(registry_filepath.absolute()),
                    '--network', TEMPORARY_DOMAIN,
                    '--provider', TEST_PROVIDER_URI,
                    '--signer', TEST_PROVIDER_URI
