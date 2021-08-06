@@ -40,7 +40,7 @@ from tests.utils.ursula import select_test_port, start_pytest_ursula_services
 
 
 @mock.patch('glob.glob', return_value=list())
-def test_missing_configuration_file(click_runner):
+def test_missing_configuration_file(_default_filepath_mock, click_runner):
     cmd_args = ('ursula', 'run', '--network', TEMPORARY_DOMAIN)
     result = click_runner.invoke(nucypher_cli, cmd_args, catch_exceptions=False)
     assert result.exit_code != 0
