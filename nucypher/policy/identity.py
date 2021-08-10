@@ -322,7 +322,7 @@ class Card:
     def load(cls,
              filepath: Optional[Path] = None,
              identifier: str = None,
-             card_dir: Path = None,
+             card_dir: Optional[Path] = None,
              decoder: Callable = base64.b64decode
              ) -> 'Card':
 

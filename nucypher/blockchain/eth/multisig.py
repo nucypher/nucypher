@@ -18,7 +18,7 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 import json
 from collections import namedtuple
 from pathlib import Path
-from typing import Any, Dict, Tuple
+from typing import Any, Dict, Optional, Tuple
 
 from bytestring_splitter import BytestringSplitter
 from eth_abi.packed import encode_single_packed
@@ -94,7 +94,7 @@ class Proposal:
         else:
             raise ValueError("This proposed TX doesn't have data")
 
-    def write(self, filepath: Path = None) -> Path:
+    def write(self, filepath: Path) -> Path:
         elements = vars(self)  # TODO: @kprasch, @jmyles  wdyt of using vars here?
         elements['data'] = elements['data'].hex()
         elements['digest'] = elements['digest'].hex()
@@ -103,7 +103,7 @@ class Proposal:
         return filepath
 
     @classmethod
-    def from_file(cls, filepath: Path = None) -> 'Proposal':
+    def from_file(cls, filepath: Path) -> 'Proposal':
         with open(filepath) as json_file:
             elements = json.load(json_file)
         elements['data'] = bytes.fromhex(elements['data'])

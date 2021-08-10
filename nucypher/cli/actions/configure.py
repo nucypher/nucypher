@@ -51,7 +51,7 @@ def forget(emitter: StdoutEmitter, configuration: CharacterConfiguration) -> Non
     emitter.message(SUCCESSFUL_FORGET_NODES, color='red')
 
 
-def get_config_filepaths(config_class: Type[CharacterConfiguration], config_root: Path = None) -> List:
+def get_config_filepaths(config_class: Type[CharacterConfiguration], config_root: Optional[Path] = None) -> List:
     #
     # Scrape disk for configuration files
     #
@@ -106,7 +106,7 @@ def destroy_configuration(emitter: StdoutEmitter,
 
 def handle_missing_configuration_file(character_config_class: Type[CharacterConfiguration],
                                       init_command_hint: str = None,
-                                      config_file: Path = None) -> None:
+                                      config_file: Optional[Path] = None) -> None:
     """Display a message explaining there is no configuration file to use and abort the current operation."""
     config_file_location = config_file or character_config_class.default_filepath()
     init_command = init_command_hint or f"{character_config_class.NAME} init"

@@ -15,7 +15,7 @@ You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 from pathlib import Path
-from typing import Union
+from typing import Optional, Union
 
 import sha3
 from OpenSSL.SSL import TLSv1_2_METHOD
@@ -152,7 +152,7 @@ class HostingKeypair(Keypair):
                  checksum_address: str = None,
                  private_key: Union[SecretKey, PublicKey] = None,
                  certificate=None,
-                 certificate_filepath: Path = None,
+                 certificate_filepath: Optional[Path] = None,
                  generate_certificate=False,
                  ) -> None:
 

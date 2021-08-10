@@ -21,7 +21,7 @@ from collections import defaultdict, deque
 from contextlib import suppress
 from pathlib import Path
 from queue import Queue
-from typing import Callable, Iterable, List, Set, Tuple, Union
+from typing import Callable, Iterable, List, Optional, Set, Tuple, Union
 
 import maya
 import requests
@@ -1173,7 +1173,7 @@ class Teacher:
     def verify_node(self,
                     network_middleware_client,
                     registry: BaseContractRegistry = None,
-                    certificate_filepath: Path = None,
+                    certificate_filepath: Optional[Path] = None,
                     force: bool = False
                     ) -> bool:
         """

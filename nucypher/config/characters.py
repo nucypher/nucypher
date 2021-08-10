@@ -28,7 +28,6 @@ from eth_utils import is_checksum_address
 from nucypher.blockchain.eth.actors import StakeHolder
 from nucypher.config.base import CharacterConfiguration
 from nucypher.config.constants import (
-    DEFAULT_CONFIG_ROOT,
     NUCYPHER_ENVVAR_WORKER_ETH_PASSWORD,
     NUCYPHER_ENVVAR_ALICE_ETH_PASSWORD,
     NUCYPHER_ENVVAR_BOB_ETH_PASSWORD
@@ -55,8 +54,8 @@ class UrsulaConfiguration(CharacterConfiguration):
                  rest_host: str = None,
                  worker_address: str = None,
                  dev_mode: bool = False,
-                 db_filepath: Path = None,
-                 keystore_path: Path = None,
+                 db_filepath: Optional[Path] = None,
+                 keystore_path: Optional[Path] = None,
                  rest_port: int = None,
                  certificate: Certificate = None,
                  availability_check: bool = None,
@@ -150,7 +149,7 @@ class UrsulaConfiguration(CharacterConfiguration):
         return deserialized_payload
 
     @classmethod
-    def assemble(cls, filepath: Path = None, **overrides) -> dict:
+    def assemble(cls, filepath: Optional[Path] = None, **overrides) -> dict:
         payload = super().assemble(filepath, **overrides)
         payload['db_filepath'] = Path(payload['db_filepath'])
         return payload
@@ -260,7 +259,7 @@ class FelixConfiguration(CharacterConfiguration):
     __DEFAULT_TLS_CURVE = ec.SECP384R1
 
     def __init__(self,
-                 db_filepath: Path = None,
+                 db_filepath: Optional[Path] = None,
                  rest_host: str = None,
                  rest_port: int = None,
                  tls_curve: EllipticCurve = None,
@@ -325,7 +324,7 @@ class StakeHolderConfiguration(CharacterConfiguration):
         pass
 
     @classmethod
-    def assemble(cls, filepath: Path = None, **overrides) -> dict:
+    def assemble(cls, filepath: Optional[Path] = None, **overrides) -> dict:
         payload = cls._read_configuration_file(filepath=filepath)
         # Filter out None values from **overrides to detect, well, overrides...
         # Acts as a shim for optional CLI flags.

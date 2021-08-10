@@ -21,7 +21,7 @@ import tempfile
 from abc import ABC, abstractmethod
 from json import JSONDecodeError
 from pathlib import Path
-from typing import Dict, Iterator, List, Tuple, Type, Union
+from typing import Dict, Iterator, List, Optional, Tuple, Type, Union
 
 import requests
 from constant_sorrow.constants import REGISTRY_COMMITTED
@@ -471,7 +471,7 @@ class InMemoryContractRegistry(BaseContractRegistry):
                 raise
         return registry_data
 
-    def commit(self, filepath: Path = None, overwrite: bool = False) -> Path:
+    def commit(self, filepath: Optional[Path] = None, overwrite: bool = False) -> Path:
         """writes the current state of the registry to a file"""
         if not filepath:
             filepath = DEFAULT_CONFIG_ROOT / self.REGISTRY_NAME

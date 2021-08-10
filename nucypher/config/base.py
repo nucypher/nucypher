@@ -133,8 +133,8 @@ class BaseConfiguration(ABC):
         pass
 
     def __init__(self,
-                 config_root: Path = None,
-                 filepath: Path = None,
+                 config_root: Optional[Path] = None,
+                 filepath: Optional[Path] = None,
                  *args, **kwargs):
 
         if self.NAME is NotImplemented:
@@ -188,7 +188,7 @@ class BaseConfiguration(ABC):
         return filename
 
     @classmethod
-    def default_filepath(cls, config_root: Path = None) -> Path:
+    def default_filepath(cls, config_root: Optional[Path] = None) -> Path:
         """
         Generates the default configuration filepath for the class.
 
@@ -198,7 +198,7 @@ class BaseConfiguration(ABC):
         default_path = (config_root or cls.DEFAULT_CONFIG_ROOT) / filename
         return default_path
 
-    def generate_filepath(self, filepath: Path = None, modifier: str = None, override: bool = False) -> Path:
+    def generate_filepath(self, filepath: Optional[Path] = None, modifier: str = None, override: bool = False) -> Path:
         """
         Generates a filepath for saving to writing to a configuration file.
 
@@ -248,14 +248,14 @@ class BaseConfiguration(ABC):
             raise cls.ConfigurationError(f"Cannot peek; No such configuration field '{field}', options are {list(payload.keys())}")
         return result
 
-    def to_configuration_file(self, filepath: Path = None, modifier: str = None, override: bool = False) -> Path:
+    def to_configuration_file(self, filepath: Optional[Path] = None, modifier: str = None, override: bool = False) -> Path:
         filepath = self.generate_filepath(filepath=filepath, modifier=modifier, override=override)
         self._ensure_config_root_exists()
         filepath = self._write_configuration_file(filepath=filepath, override=override)
         return filepath
 
     @classmethod
-    def from_configuration_file(cls, filepath: Path = None, **overrides) -> 'BaseConfiguration':
+    def from_configuration_file(cls, filepath: Optional[Path] = None, **overrides) -> 'BaseConfiguration':
         filepath = filepath or cls.default_filepath()
         payload = cls._read_configuration_file(filepath=filepath)
         instance = cls(filepath=filepath, **payload, **overrides)
@@ -284,11 +284,10 @@ class BaseConfiguration(ABC):
                 if isinstance(value, Path):
                     d[key] = str(value)
                 if isinstance(value, dict):
-                    d[key] = _stringify_paths(value)
-            return d
+                    _stringify_paths(value)
 
         payload = self.static_payload()
-        payload = _stringify_paths(payload)
+        _stringify_paths(payload)
         payload['version'] = self.VERSION
         serialized_payload = serializer(payload, indent=self.INDENTATION)
         return serialized_payload
@@ -306,7 +305,7 @@ class BaseConfiguration(ABC):
         deserialized_payload = cast_paths_from(cls, deserialized_payload)
         return deserialized_payload
 
-    def update(self, filepath: Path = None, **updates) -> None:
+    def update(self, filepath: Optional[Path] = None, **updates) -> None:
         for field, value in updates.items():
             try:
                 getattr(self, field)
@@ -356,8 +355,8 @@ class CharacterConfiguration(BaseConfiguration):
 
                  # Base
                  emitter=None,
-                 config_root: Path = None,
-                 filepath: Path = None,
+                 config_root: Optional[Path] = None,
+                 filepath: Optional[Path] = None,
 
                  # Mode
                  dev_mode: bool = False,
@@ -369,7 +368,7 @@ class CharacterConfiguration(BaseConfiguration):
 
                  # Keystore
                  keystore: Keystore = None,
-                 keystore_path: Path = None,
+                 keystore_path: Optional[Path] = None,
 
                  # Learner
                  learn_on_same_thread: bool = False,
@@ -399,7 +398,7 @@ class CharacterConfiguration(BaseConfiguration):
 
                  # Registry
                  registry: BaseContractRegistry = None,
-                 registry_filepath: Path = None,
+                 registry_filepath: Optional[Path] = None,
 
                  # Deployed Workers
                  worker_data: dict = None
@@ -627,7 +626,7 @@ class CharacterConfiguration(BaseConfiguration):
         return character
 
     @classmethod
-    def assemble(cls, filepath: Path = None, **overrides) -> dict:
+    def assemble(cls, filepath: Optional[Path] = None, **overrides) -> dict:
         """
         Warning: This method allows mutation and may result in an inconsistent configuration.
         """
@@ -650,7 +649,7 @@ class CharacterConfiguration(BaseConfiguration):
 
     @classmethod
     def from_configuration_file(cls,
-                                filepath: Path = None,
+                                filepath: Optional[Path] = None,
                                 **overrides  # < ---- Inlet for CLI Flags
                                 ) -> 'CharacterConfiguration':
         """Initialize a CharacterConfiguration from a JSON file."""
@@ -735,7 +734,7 @@ class CharacterConfiguration(BaseConfiguration):
 
         return payload
 
-    def generate_filepath(self, filepath: Path = None, modifier: str = None, override: bool = False) -> Path:
+    def generate_filepath(self, filepath: Optional[Path] = None, modifier: str = None, override: bool = False) -> Path:
         modifier = modifier or self.checksum_address
         filepath = super().generate_filepath(filepath=filepath, modifier=modifier, override=override)
         return filepath

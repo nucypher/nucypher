@@ -19,7 +19,7 @@ import binascii
 import tempfile
 from abc import ABC, abstractmethod
 from pathlib import Path
-from typing import Any, Set, Union
+from typing import Any, Optional, Set, Union
 
 import OpenSSL
 from bytestring_splitter import BytestringSplittingError
@@ -121,7 +121,7 @@ class NodeStorage(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def store_node_metadata(self, node, filepath: Path = None) -> Path:
+    def store_node_metadata(self, node, filepath: Optional[Path] = None) -> Path:
         """Save a single node's metadata and tls certificate"""
         raise NotImplementedError
 
@@ -164,7 +164,7 @@ class ForgetfulNodeStorage(NodeStorage):
     _name = ':memory:'
     __base_prefix = "nucypher-tmp-certs-"
 
-    def __init__(self, parent_dir: Path = None, *args, **kwargs) -> None:
+    def __init__(self, parent_dir: Optional[Path] = None, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
         self.__metadata = dict()
 
@@ -212,7 +212,7 @@ class ForgetfulNodeStorage(NodeStorage):
         filepath = self._write_tls_certificate(certificate=certificate, port=port)
         return filepath
 
-    def store_node_metadata(self, node, filepath: Path = None) -> bytes:
+    def store_node_metadata(self, node, filepath: Optional[Path] = None) -> bytes:
         self.__metadata[node.stamp] = node
         return self.__metadata[node.stamp]
 
@@ -255,10 +255,10 @@ class LocalFileBasedNodeStorage(NodeStorage):
         """Node metadata is corrupt or not possible to parse"""
 
     def __init__(self,
-                 config_root: Path = None,
-                 storage_root: Path = None,
-                 metadata_dir: Path = None,
-                 certificates_dir: Path = None,
+                 config_root: Optional[Path] = None,
+                 storage_root: Optional[Path] = None,
+                 metadata_dir: Optional[Path] = None,
+                 certificates_dir: Optional[Path] = None,
                  *args, **kwargs
                  ) -> None:
 
@@ -282,10 +282,10 @@ class LocalFileBasedNodeStorage(NodeStorage):
         return encoded_node
 
     @staticmethod
-    def _generate_storage_filepaths(config_root: Path = None,
-                                    storage_root: Path = None,
-                                    metadata_dir: Path = None,
-                                    certificates_dir: Path = None):
+    def _generate_storage_filepaths(config_root: Optional[Path] = None,
+                                    storage_root: Optional[Path] = None,
+                                    metadata_dir: Optional[Path] = None,
+                                    certificates_dir: Optional[Path] = None):
 
         storage_root = storage_root or ((config_root or DEFAULT_CONFIG_ROOT) / 'known_nodes')
         metadata_dir = metadata_dir or storage_root / 'metadata'
@@ -297,7 +297,7 @@ class LocalFileBasedNodeStorage(NodeStorage):
 
         return payload
 
-    def _cache_storage_filepaths(self, config_root: Path = None):
+    def _cache_storage_filepaths(self, config_root: Optional[Path] = None):
         filepaths = self._generate_storage_filepaths(config_root=config_root,
                                                      storage_root=self.root_dir,
                                                      metadata_dir=self.metadata_dir,
@@ -323,7 +323,7 @@ class LocalFileBasedNodeStorage(NodeStorage):
         return certificate_filepath
 
     @validate_checksum_address
-    def __read_node_tls_certificate(self, filepath: Path = None) -> Certificate:
+    def __read_node_tls_certificate(self, filepath: Optional[Path] = None) -> Certificate:
         """Deserialize an X509 certificate from a filepath"""
         try:
             with open(filepath, 'rb') as certificate_file:
@@ -336,7 +336,7 @@ class LocalFileBasedNodeStorage(NodeStorage):
     # Metadata
     #
 
-    def __generate_metadata_filepath(self, stamp: Union[SignatureStamp, bytes, str], metadata_dir: Path = None) -> Path:
+    def __generate_metadata_filepath(self, stamp: Union[SignatureStamp, bytes, str], metadata_dir: Optional[Path] = None) -> Path:
         if isinstance(stamp, SignatureStamp):
             stamp = bytes(stamp)
         if isinstance(stamp, str):
@@ -411,7 +411,7 @@ class LocalFileBasedNodeStorage(NodeStorage):
         certificate_filepath = self._write_tls_certificate(certificate=certificate, port=port, force=force)
         return certificate_filepath
 
-    def store_node_metadata(self, node, filepath: Path = None) -> Path:
+    def store_node_metadata(self, node, filepath: Optional[Path] = None) -> Path:
         filepath = self.__generate_metadata_filepath(stamp=node.stamp, metadata_dir=filepath)
         self.__write_metadata(filepath=filepath, node=node)
         return filepath

@@ -208,7 +208,7 @@ def select_network(emitter: StdoutEmitter) -> str:
 
 def select_config_file(emitter: StdoutEmitter,
                        config_class: Type[CharacterConfiguration],
-                       config_root: Path = None,
+                       config_root: Optional[Path] = None,
                        checksum_address: str = None,
                        ) -> Path:
     """

@@ -1101,9 +1101,9 @@ class Ursula(Teacher, Character, Worker):
                  is_me: bool = True,
 
                  certificate: Certificate = None,
-                 certificate_filepath: Path = None,
+                 certificate_filepath: Optional[Path] = None,
 
-                 db_filepath: Path = None,
+                 db_filepath: Optional[Path] = None,
                  interface_signature=None,
                  timestamp=None,
                  availability_check: bool = False,  # TODO: Remove from init

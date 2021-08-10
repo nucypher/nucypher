@@ -129,8 +129,8 @@ def make_cli_character(character_config,
 
 def establish_deployer_registry(emitter,
                                 network: str = None,
-                                registry_infile: Path = None,
-                                registry_outfile: Path = None,
+                                registry_infile: Optional[Path] = None,
+                                registry_outfile: Optional[Path] = None,
                                 use_existing_registry: bool = False,
                                 download_registry: bool = False,
                                 dev: bool = False
@@ -165,7 +165,7 @@ def establish_deployer_registry(emitter,
     return registry
 
 
-def get_registry(network: str, registry_filepath: Path = None) -> BaseContractRegistry:
+def get_registry(network: str, registry_filepath: Optional[Path] = None) -> BaseContractRegistry:
     if registry_filepath:
         registry = LocalContractRegistry(filepath=registry_filepath)
     else:
