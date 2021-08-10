@@ -339,7 +339,7 @@ class StakeHolderConfiguration(CharacterConfiguration):
                          config_file_location=config_root / cls.generate_filename())
         return filepaths
 
-    def initialize(self, password: str = None) -> Path:
+    def initialize(self, password: Optional[str] = None) -> Path:
         """Initialize a new configuration and write installation files to disk."""
 
         # Development

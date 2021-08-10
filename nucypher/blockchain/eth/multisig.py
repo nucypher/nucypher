@@ -18,7 +18,7 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 import json
 from collections import namedtuple
 from pathlib import Path
-from typing import Any, Dict, Optional, Tuple
+from typing import Any, Dict, Tuple
 
 from bytestring_splitter import BytestringSplitter
 from eth_abi.packed import encode_single_packed
