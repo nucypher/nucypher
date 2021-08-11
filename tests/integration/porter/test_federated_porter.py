@@ -15,7 +15,6 @@
  along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
-import pytest
 from tests.utils.policy import retrieval_request_setup
 
 
@@ -63,18 +62,16 @@ def test_get_ursulas(federated_porter, federated_ursulas):
         assert address not in returned_ursula_addresses
 
 
-@pytest.mark.skip("To be fixed in #2768")
-def test_exec_work_order(federated_porter,
+def test_retrieve_cfrags(federated_porter,
                          federated_ursulas,
                          federated_bob,
                          federated_alice,
                          enacted_federated_policy):
     # Setup
-    ursula_address, work_order = work_order_setup(enacted_federated_policy,
-                                                  federated_ursulas,
-                                                  federated_bob,
-                                                  federated_alice)
+    retrieval_args = retrieval_request_setup(enacted_federated_policy,
+                                             federated_bob,
+                                             federated_alice)
 
-    result = federated_porter.exec_work_order(ursula_address=ursula_address,
-                                              work_order_payload=work_order.payload())
+    result = federated_porter.retrieve_cfrags(**retrieval_args)
+
     assert result, "valid result returned"

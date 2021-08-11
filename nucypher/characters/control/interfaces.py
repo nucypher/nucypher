@@ -15,7 +15,6 @@
  along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
-from base64 import b64decode
 from typing import Union
 
 import maya
@@ -28,7 +27,6 @@ from nucypher.crypto.umbral_adapter import PublicKey
 from nucypher.network.middleware import RestMiddleware
 from nucypher.policy.hrac import HRAC
 from nucypher.policy.kits import MessageKit
-from nucypher.policy.maps import EncryptedTreasureMap
 
 
 class CharacterPublicInterface(ControlInterface):
@@ -166,20 +164,12 @@ class BobInterface(CharacterPublicInterface):
                              policy_encrypting_key: PublicKey,
                              alice_verifying_key: PublicKey,
                              message_kit: bytes,
-                             encrypted_treasure_map: Union[bytes, str, 'EncryptedTreasureMap']):
+                             encrypted_treasure_map: 'EncryptedTreasureMap'):
         """
         Character control endpoint for re-encrypting and decrypting policy data.
         """
-        from nucypher.characters.lawful import Enrico
 
         message_kit = MessageKit.from_bytes(message_kit)  # TODO #846: May raise UnknownOpenSSLError and InvalidTag.
-
-        if isinstance(encrypted_treasure_map, bytes):
-            encrypted_treasure_map = EncryptedTreasureMap.from_bytes(encrypted_treasure_map)
-
-        if isinstance(encrypted_treasure_map, str):
-            tmap_bytes = encrypted_treasure_map.encode()
-            encrypted_treasure_map = EncryptedTreasureMap.from_bytes(b64decode(tmap_bytes))
 
         plaintexts = self.implementer.retrieve_and_decrypt([message_kit],
                                                            policy_encrypting_key=policy_encrypting_key,

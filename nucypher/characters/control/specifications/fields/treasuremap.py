@@ -19,7 +19,6 @@ from base64 import b64decode, b64encode
 
 from marshmallow import fields
 
-from nucypher.characters.control.specifications.exceptions import InvalidNativeDataTypes
 from nucypher.control.specifications.exceptions import InvalidInputData
 from nucypher.control.specifications.fields.base import BaseField
 from nucypher.policy.maps import EncryptedTreasureMap as EncryptedTreasureMapClass
@@ -34,12 +33,7 @@ class EncryptedTreasureMap(BaseField, fields.Field):
 
     def _deserialize(self, value, attr, data, **kwargs):
         try:
-            return b64decode(value)
-        except InvalidNativeDataTypes as e:
-            raise InvalidInputData(f"Could not parse {self.name}: {e}")
-
-    def _validate(self, value):
-        try:
-            EncryptedTreasureMapClass.from_bytes(value)
+            treasure_map_bytes = b64decode(value)
+            return EncryptedTreasureMapClass.from_bytes(treasure_map_bytes)
         except Exception as e:
             raise InvalidInputData(f"Could not convert input for {self.name} to an EncryptedTreasureMap: {e}") from e

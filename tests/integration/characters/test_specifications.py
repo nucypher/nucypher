@@ -22,6 +22,7 @@ from base64 import b64encode
 import maya
 import pytest
 
+from nucypher.policy.maps import TreasureMap as TreasureMapClass
 from nucypher.characters.control.specifications import fields
 from nucypher.characters.control.specifications.alice import GrantPolicy
 from nucypher.characters.control.specifications.fields.treasuremap import EncryptedTreasureMap
@@ -95,7 +96,7 @@ def test_treasuremap_validation(enacted_federated_policy):
     tmap_bytes = bytes(enacted_federated_policy.treasure_map)
     tmap_b64 = b64encode(tmap_bytes)
     result = TreasureMapsOnly().load({'tmap': tmap_b64.decode()})
-    assert isinstance(result['tmap'], bytes)
+    assert isinstance(result['tmap'], TreasureMapClass)
 
 
 def test_messagekit_validation(capsule_side_channel):

@@ -106,7 +106,7 @@ def test_key():
     assert deserialized != other_umbral_pub_key
 
     with pytest.raises(InvalidInputData):
-        field._deserialize(value=b"PublicKey", attr=None, data=None)
+        field._deserialize(value=b"PublicKey".hex(), attr=None, data=None)
 
 
 def test_message_kit(enacted_federated_policy, federated_alice):
@@ -164,9 +164,7 @@ def test_treasure_map(enacted_federated_policy):
     assert serialized == b64encode(bytes(treasure_map)).decode()
 
     deserialized = field._deserialize(value=serialized, attr=None, data=None)
-    assert deserialized == bytes(treasure_map)
-
-    field._validate(value=bytes(treasure_map))
+    assert deserialized == treasure_map
 
     with pytest.raises(InvalidInputData):
-        field._validate(value=b"TreasureMap")
+        field._deserialize(value=b64encode(b"TreasureMap").decode(), attr=None, data=None)
