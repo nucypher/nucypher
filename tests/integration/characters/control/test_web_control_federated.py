@@ -172,7 +172,7 @@ def test_alice_character_control_decrypt(alice_web_controller_test_client,
 def test_bob_character_control_join_policy(bob_web_controller_test_client, federated_bob, federated_ursulas, enacted_federated_policy):
     request_data = {
         'label': enacted_federated_policy.label.decode(),
-        'alice_verifying_key': bytes(enacted_federated_policy.alice_verifying_key).hex(),
+        'publisher_verifying_key': bytes(enacted_federated_policy.publisher_verifying_key).hex(),
     }
 
     for ursula in federated_ursulas:
@@ -193,7 +193,7 @@ def test_bob_character_control_join_policy(bob_web_controller_test_client, feder
     assert response.status_code == 400
 
     # Missing Key results in bad request
-    del(request_data['alice_verifying_key'])
+    del(request_data['publisher_verifying_key'])
     response = bob_web_controller_test_client.post('/join_policy', data=json.dumps(request_data))
     assert response.status_code == 400
 

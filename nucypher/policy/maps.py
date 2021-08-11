@@ -178,7 +178,7 @@ class TreasureMap:
                         + self._hrac \
                         + bytes(VariableLengthBytestring(self.message_kit.to_bytes()))
 
-    def derive_hrac(self, alice_stamp: SignatureStamp, bob_verifying_key: PublicKey, label: bytes) -> None:
+    def derive_hrac(self, publisher_stamp: SignatureStamp, bob_verifying_key: PublicKey, label: bytes) -> None:
         """
         Here's our "hashed resource access code".
 
@@ -192,14 +192,14 @@ class TreasureMap:
 
         This way, Bob can generate it and use it to find the TreasureMap.
         """
-        self._hrac = keccak_digest(bytes(alice_stamp) + bytes(bob_verifying_key) + label)[:HRAC_LENGTH]
+        self._hrac = keccak_digest(bytes(publisher_stamp) + bytes(bob_verifying_key) + label)[:HRAC_LENGTH]
 
-    def prepare_for_publication(self, bob_encrypting_key, alice_stamp):
+    def prepare_for_publication(self, bob_encrypting_key, publisher_stamp):
         plaintext = self._m.to_bytes(1, "big") + self.nodes_as_bytes()
         self.message_kit, _signature_for_bob = encrypt_and_sign(bob_encrypting_key,
                                                                 plaintext=plaintext,
-                                                                signer=alice_stamp)
-        self._public_signature = alice_stamp(bytes(alice_stamp) + self._hrac)
+                                                                signer=publisher_stamp)
+        self._public_signature = publisher_stamp(bytes(publisher_stamp) + self._hrac)
         self._set_payload()
         self._set_id()
 
@@ -214,24 +214,24 @@ class TreasureMap:
                 nodes_as_bytes += (node_id + kfrag)
             return nodes_as_bytes
 
-    def _make_writ(self, kfrag, alice_stamp) -> bytes:
+    def _make_writ(self, kfrag, publisher_stamp) -> bytes:
         """
         Alice makes plain to Ursula that, upon decrypting this message,
         this particular KFrag is authorized for use in the policy identified by this HRAC.
         """
         writ = self._hrac + keccak_digest(bytes(kfrag))[:WRIT_CHECKSUM_SIZE]
-        writ_signature = bytes(alice_stamp(writ))
+        writ_signature = bytes(publisher_stamp(writ))
         signed_writ = writ + writ_signature
         return signed_writ
 
-    def _make_kfrag_payload(self, kfrag, alice_stamp) -> bytes:
+    def _make_kfrag_payload(self, kfrag, publisher_stamp) -> bytes:
         # The writ and the KFrag together represent a complete kfrag kit: the entirety of
         # the material needed for Ursula to assuredly service this policy.
-        signed_writ = self._make_writ(kfrag=kfrag, alice_stamp=alice_stamp)
+        signed_writ = self._make_writ(kfrag=kfrag, publisher_stamp=publisher_stamp)
         kfrag_payload = signed_writ + bytes(kfrag)
         return kfrag_payload
 
-    def add_kfrag(self, ursula, kfrag, alice_stamp: SignatureStamp) -> None:
+    def add_kfrag(self, ursula, kfrag, publisher_stamp: SignatureStamp) -> None:
         if self.destinations == NO_DECRYPTION_PERFORMED:
             # Unsure how this situation can arise, but let's raise an error just in case.
             raise TypeError("This TreasureMap is encrypted.  You can't add another node without decrypting it.")
@@ -242,10 +242,10 @@ class TreasureMap:
                 'Cannot add KFrag to TreasureMap without an HRAC set.  Call "derive_hrac" and try again.')
 
         # Encrypt this kfrag payload for Ursula.
-        kfrag_payload = self._make_kfrag_payload(kfrag=kfrag, alice_stamp=alice_stamp)
+        kfrag_payload = self._make_kfrag_payload(kfrag=kfrag, publisher_stamp=publisher_stamp)
         encrypted_kfrag, _signature = encrypt_and_sign(recipient_pubkey_enc=ursula.public_keys(DecryptingPower),
                                                        plaintext=kfrag_payload,
-                                                       signer=alice_stamp)
+                                                       signer=publisher_stamp)
 
         # Set the encrypted kfrag payload into the map.
         self.destinations[ursula.checksum_address] = encrypted_kfrag
@@ -290,19 +290,19 @@ class TreasureMap:
                 f"but requires interaction with {self._m} nodes.")
 
     @classmethod
-    def author(cls,
-               alice: 'Alice',
-               bob: 'Bob',
-               label: bytes,
-               ursulas: Sequence['Ursula'],
-               kfrags: Sequence[KeyFrag],
-               m: int
-               ) -> 'TreasureMap':
+    def construct_by_publisher(cls,
+                               publisher: 'Alice',
+                               bob: 'Bob',
+                               label: bytes,
+                               ursulas: Sequence['Ursula'],
+                               kfrags: Sequence[KeyFrag],
+                               m: int
+                               ) -> 'TreasureMap':
         """Create a new treasure map for a collection of ursulas and kfrags."""
 
         # The HRAC is needed to produce kfrag writs.
         treasure_map = cls(m=m)
-        treasure_map.derive_hrac(alice_stamp=alice.stamp,
+        treasure_map.derive_hrac(publisher_stamp=publisher.stamp,
                                  bob_verifying_key=bob.public_keys(SigningPower),
                                  label=label)
 
@@ -310,11 +310,11 @@ class TreasureMap:
         for ursula, kfrag in zip(ursulas, kfrags):
             treasure_map.add_kfrag(ursula=ursula,
                                    kfrag=kfrag,
-                                   alice_stamp=alice.stamp)
+                                   publisher_stamp=publisher.stamp)
 
         # Sign the map if needed before sending it out into the world.
         treasure_map.prepare_for_publication(bob_encrypting_key=bob.public_keys(DecryptingPower),
-                                             alice_stamp=alice.stamp)
+                                             publisher_stamp=publisher.stamp)
 
         return treasure_map
 

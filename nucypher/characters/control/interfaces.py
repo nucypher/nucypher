@@ -97,7 +97,9 @@ class AliceInterface(CharacterPublicInterface):
 
         response_data = {'treasure_map': new_policy.treasure_map,
                          'policy_encrypting_key': new_policy.public_key,
-                         'alice_verifying_key': new_policy.alice_verifying_key}
+                         # For the users of this interface, Publisher is always the same as Alice,
+                         # so we are only returning the Alice's key.
+                         'alice_verifying_key': self.implementer.stamp.as_umbral_pubkey()}
 
         return response_data
 
@@ -160,11 +162,11 @@ class AliceInterface(CharacterPublicInterface):
 class BobInterface(CharacterPublicInterface):
 
     @attach_schema(bob.JoinPolicy)
-    def join_policy(self, label: bytes, alice_verifying_key: bytes):
+    def join_policy(self, label: bytes, publisher_verifying_key: bytes):
         """
         Character control endpoint for joining a policy on the network.
         """
-        self.implementer.join_policy(label=label, publisher_verifying_key=alice_verifying_key)
+        self.implementer.join_policy(label=label, publisher_verifying_key=publisher_verifying_key)
         response = {'policy_encrypting_key': 'OK'}  # FIXME
         return response
 
@@ -195,7 +197,7 @@ class BobInterface(CharacterPublicInterface):
         else:
             from nucypher.policy.maps import SignedTreasureMap as _MapClass
 
-        # TODO: This LBYL is ugly and fraught with danger.  NRN
+        # TODO: This LBYL is ugly and fraught with danger.  NRN - #2751
         if isinstance(treasure_map, bytes):
             treasure_map = _MapClass.from_bytes(treasure_map)
 

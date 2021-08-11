@@ -78,7 +78,7 @@ def test_bob_can_retrieve_the_treasure_map_and_decrypt_it(federated_alice, feder
 
     # If Bob doesn't know about any Ursulas, he can't find the TreasureMap via the REST swarm:
     with pytest.raises(bob.NotEnoughTeachers):
-        treasure_map_from_wire = bob.get_treasure_map(federated_alice.stamp,
+        treasure_map_from_wire = bob.get_treasure_map(federated_alice.stamp.as_umbral_pubkey(),
                                                       enacted_federated_policy.label)
 
 
@@ -90,7 +90,7 @@ def test_bob_can_retrieve_the_treasure_map_and_decrypt_it(federated_alice, feder
     bob.learn_from_teacher_node(eager=True)
 
     # Now he'll have better success finding that map.
-    treasure_map_from_wire = bob.get_treasure_map(federated_alice.stamp,
+    treasure_map_from_wire = bob.get_treasure_map(federated_alice.stamp.as_umbral_pubkey(),
                                                   enacted_federated_policy.label)
 
     assert enacted_federated_policy.treasure_map == treasure_map_from_wire

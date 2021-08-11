@@ -266,7 +266,7 @@ class Alice(Character, BlockchainPolicyAuthor):
         if self.federated_only:
             # Use known nodes
             from nucypher.policy.policies import FederatedPolicy
-            policy = FederatedPolicy(alice=self, **payload)
+            policy = FederatedPolicy(publisher=self, **payload)
 
         else:
             # Sample from blockchain PolicyManager
@@ -624,8 +624,9 @@ class Bob(Character):
 
         return unknown_ursulas, known_ursulas, treasure_map.m
 
-    def _try_orient(self, treasure_map, alice_verifying_key):
-        alice = Alice.from_public_keys(verifying_key=alice_verifying_key)
+    def _try_orient(self, treasure_map, publisher_verifying_key):
+        # TODO: should be rather a Publisher character
+        alice = Alice.from_public_keys(verifying_key=publisher_verifying_key)
         compass = self.make_compass_for_alice(alice)
         try:
             treasure_map.orient(compass)
@@ -654,8 +655,8 @@ class Bob(Character):
     def make_compass_for_alice(self, alice):
         return partial(self.verify_from, alice, decrypt=True)
 
-    def construct_policy_hrac(self, publisher_verifying_key: Union[bytes, PublicKey], label: bytes) -> bytes:
-        _hrac = keccak_digest(bytes(publisher_verifying_key) + self.stamp + label)[:HRAC_LENGTH]
+    def construct_policy_hrac(self, publisher_verifying_key: PublicKey, label: bytes) -> bytes:
+        _hrac = keccak_digest(bytes(publisher_verifying_key) + bytes(self.stamp) + label)[:HRAC_LENGTH]
         return _hrac
 
     def construct_map_id(self, publisher_verifying_key: PublicKey, label: bytes):
@@ -979,7 +980,7 @@ class Bob(Character):
                  ) -> List[bytes]:
 
         if not publisher_verifying_key:
-            # If an policy relay's verifying key is not passed, use the alice's by default.
+            # If a policy publisher's verifying key is not passed, use Alice's by default.
             publisher_verifying_key = alice_verifying_key
 
         treasure_map, m = self._handle_treasure_map(treasure_map=treasure_map,
@@ -1749,7 +1750,8 @@ class Ursula(Teacher, Character, Worker):
         try:
             self.verify_from(alice, reconstructed_writ, signature=writ_signature)
         except InvalidSignature:
-            raise Policy.Unauthorized  # This isn't from Alice (relayer).
+            # TODO (#2740): differentiate cases for Policy.Unauthorized
+            raise Policy.Unauthorized  # This isn't from Alice (publisher).
 
         if writ_hrac != work_order.hrac:  # Funky Workorder
             raise Policy.Unauthorized  # Bob, what the *hell* are you doing?

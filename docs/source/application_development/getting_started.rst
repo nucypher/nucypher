@@ -368,7 +368,8 @@ to retrieve both of these from the application side channel first.
    alice_public_key = alice.public_keys(SigningPower)
    bob.join_policy(
        label=label,
-       alice_verifying_key=alice_public_key,
+       # We are using Alice both as a policy creator and as a publisher
+       publisher_verifying_key=alice_public_key,
    )
 
 

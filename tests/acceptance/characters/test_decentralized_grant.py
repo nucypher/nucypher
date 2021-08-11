@@ -81,7 +81,7 @@ def test_bob_retrieves_treasure_map_from_decentralized_node(enacted_blockchain_p
     bob.domain = None  # Bob has no knowledge of the network.
 
     with pytest.raises(bob.NotEnoughTeachers):
-        treasure_map_from_wire = bob.get_treasure_map(blockchain_alice.stamp,
+        treasure_map_from_wire = bob.get_treasure_map(blockchain_alice.stamp.as_umbral_pubkey(),
                                                       enacted_blockchain_policy.label)
 
     # Bob finds out about one Ursula (in the real world, a seed node, hardcoded based on his learning domain)
@@ -92,6 +92,6 @@ def test_bob_retrieves_treasure_map_from_decentralized_node(enacted_blockchain_p
     bob.learn_from_teacher_node(eager=True)
 
     # Now he'll have better success finding that map.
-    treasure_map_from_wire = bob.get_treasure_map(blockchain_alice.stamp,
+    treasure_map_from_wire = bob.get_treasure_map(blockchain_alice.stamp.as_umbral_pubkey(),
                                                   enacted_blockchain_policy.label)
     assert enacted_blockchain_policy.treasure_map == treasure_map_from_wire
