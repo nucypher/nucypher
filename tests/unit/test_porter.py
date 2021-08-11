@@ -20,10 +20,13 @@ import pytest
 
 from nucypher.control.specifications.exceptions import InvalidInputData
 from nucypher.control.specifications.fields import StringList
+from nucypher.crypto.kits import RetrievalKit as RetrievalKitClass
+from nucypher.crypto.umbral_adapter import SecretKey, encrypt
 from nucypher.utilities.porter.control.specifications.fields import (
     HRAC,
     UrsulaChecksumAddress,
 )
+from nucypher.utilities.porter.control.specifications.fields.retrieve import RetrievalKit
 from tests.utils.policy import retrieval_request_setup
 
 
@@ -131,3 +134,25 @@ def test_ursula_checksum_address_string_list_field(get_random_checksum_address):
 
     with pytest.raises(InvalidInputData):
         field._deserialize(value=f"{ursula_1},{ursula_2},{ursula_3},{ursula_4},0xdeadbeef", attr=None, data=None)
+
+
+def test_retrieval_kit_field():
+    encrypting_key = SecretKey.random().public_key()
+    capsule, _ = encrypt(encrypting_key, b'testing_retrieval_kit')
+
+    retrieval_kit = RetrievalKitClass(capsule, set())
+
+    field = RetrievalKit()
+    serialized = field._serialize(value=retrieval_kit, attr=None, obj=None)
+    assert serialized == b64encode(bytes(retrieval_kit)).decode()
+
+    deserialized = field.deserialize(value=serialized, attr=None, data=None)
+    assert isinstance(deserialized, RetrievalKitClass)
+    assert deserialized.capsule == capsule
+    assert len(deserialized.queried_addresses) == 0
+
+    with pytest.raises(InvalidInputData):
+        field.deserialize(value=b"non_base_64_data", attr=None, data=None)
+
+    with pytest.raises(InvalidInputData):
+        field.deserialize(value=b64encode(b"invalid_retrieval_kit_bytes").decode(), attr=None, data=None)
