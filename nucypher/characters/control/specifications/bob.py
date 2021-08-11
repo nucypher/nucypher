@@ -46,6 +46,16 @@ class RetrieveAndDecrypt(BaseSchema):
         load_only=True,
         click=options.option_message_kit(required=True)
     )
+    # optional
+    treasure_map = character_fields.TreasureMap(
+        required=False,
+        load_only=True,
+        click=click.option(
+            '--treasure-map',
+            '-t',
+            help="Treasure Map for retrieve",
+            type=click.STRING,
+            required=False))
 
     encrypted_treasure_map = EncryptedTreasureMap(required=True,
                                                   load_only=True,

@@ -81,29 +81,21 @@ def test_get_ursulas(blockchain_porter_rpc_controller, blockchain_ursulas):
         blockchain_porter_rpc_controller.send(request_data)
 
 
-@pytest.mark.skip("To be fixed in #2768")
-def test_exec_work_order(blockchain_porter_rpc_controller,
+@pytest.mark.skip("to be fixed with revamped retrieve protocol")
+def test_retrieve_cfrags(blockchain_porter_rpc_controller,
                          random_blockchain_policy,
                          blockchain_ursulas,
                          blockchain_bob,
                          blockchain_alice,
                          get_random_checksum_address):
-    method = 'exec_work_order'
+    method = 'retrieve_cfrags'
     # Setup
     network_middleware = MockRestMiddleware()
     # enact new random policy since idle_blockchain_policy/enacted_blockchain_policy already modified in previous tests
     enacted_policy = random_blockchain_policy.enact(network_middleware=network_middleware)
-    ursula_address, work_order = work_order_setup(enacted_policy,
-                                                  blockchain_ursulas,
-                                                  blockchain_bob,
-                                                  blockchain_alice)
-    work_order_payload_b64 = b64encode(work_order.payload()).decode()
+    retrieval_args = retrieval_request_setup(enacted_policy, blockchain_bob, blockchain_alice, encode_for_rest=True)
 
-    exec_work_order_params = {
-        'ursula': ursula_address,
-        'work_order_payload': work_order_payload_b64
-    }
-    request_data = {'method': method, 'params': exec_work_order_params}
+    request_data = {'method': method, 'params': retrieval_args}
     response = blockchain_porter_rpc_controller.send(request_data)
     assert response.success
     work_order_result = response.content['work_order_result']
