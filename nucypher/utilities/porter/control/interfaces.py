@@ -17,7 +17,6 @@
 from typing import List, Optional
 
 from eth_typing import ChecksumAddress
-from nucypher.crypto.umbral_adapter import PublicKey
 
 from nucypher.control.interfaces import ControlInterface, attach_schema
 from nucypher.utilities.porter.control.specifications import porter_schema

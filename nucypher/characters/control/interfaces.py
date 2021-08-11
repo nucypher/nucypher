@@ -41,8 +41,8 @@ class AliceInterface(CharacterPublicInterface):
 
     @attach_schema(alice.CreatePolicy)
     def create_policy(self,
-                      bob_encrypting_key: bytes,
-                      bob_verifying_key: bytes,
+                      bob_encrypting_key: PublicKey,
+                      bob_verifying_key: PublicKey,
                       label: bytes,
                       threshold: int,
                       shares: int,
@@ -73,8 +73,8 @@ class AliceInterface(CharacterPublicInterface):
 
     @attach_schema(alice.GrantPolicy)
     def grant(self,
-              bob_encrypting_key: bytes,
-              bob_verifying_key: bytes,
+              bob_encrypting_key: PublicKey,
+              bob_verifying_key: PublicKey,
               label: bytes,
               threshold: int,
               shares: int,
@@ -104,7 +104,7 @@ class AliceInterface(CharacterPublicInterface):
         return response_data
 
     @attach_schema(alice.Revoke)
-    def revoke(self, label: bytes, bob_verifying_key: bytes) -> dict:
+    def revoke(self, label: bytes, bob_verifying_key: PublicKey) -> dict:
 
         # TODO: Move deeper into characters
         policy_hrac = HRAC.derive(self.implementer.stamp.as_umbral_pubkey(), bob_verifying_key, label)
@@ -163,8 +163,8 @@ class BobInterface(CharacterPublicInterface):
 
     @attach_schema(bob.RetrieveAndDecrypt)
     def retrieve_and_decrypt(self,
-                             policy_encrypting_key: bytes,
-                             alice_verifying_key: bytes,
+                             policy_encrypting_key: PublicKey,
+                             alice_verifying_key: PublicKey,
                              message_kit: bytes,
                              encrypted_treasure_map: Union[bytes, str, 'EncryptedTreasureMap']):
         """
@@ -172,8 +172,6 @@ class BobInterface(CharacterPublicInterface):
         """
         from nucypher.characters.lawful import Enrico
 
-        policy_encrypting_key = PublicKey.from_bytes(policy_encrypting_key)
-        alice_verifying_key = PublicKey.from_bytes(alice_verifying_key)
         message_kit = MessageKit.from_bytes(message_kit)  # TODO #846: May raise UnknownOpenSSLError and InvalidTag.
 
         if isinstance(encrypted_treasure_map, bytes):

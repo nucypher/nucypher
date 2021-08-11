@@ -102,14 +102,11 @@ def test_key():
     assert serialized != bytes(other_umbral_pub_key).hex()
 
     deserialized = field._deserialize(value=serialized, attr=None, data=None)
-    assert deserialized == bytes(umbral_pub_key)
-    assert deserialized != bytes(other_umbral_pub_key)
-
-    field._validate(value=bytes(umbral_pub_key))
-    field._validate(value=bytes(other_umbral_pub_key))
+    assert deserialized == umbral_pub_key
+    assert deserialized != other_umbral_pub_key
 
     with pytest.raises(InvalidInputData):
-        field._validate(value=b"PublicKey")
+        field._deserialize(value=b"PublicKey", attr=None, data=None)
 
 
 def test_message_kit(enacted_federated_policy, federated_alice):

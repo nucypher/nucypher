@@ -299,8 +299,8 @@ class Character(Learner):
     @classmethod
     def from_public_keys(cls,
                          powers_and_material: Dict = None,
-                         verifying_key: Union[bytes, PublicKey] = None,
-                         encrypting_key: Union[bytes, PublicKey] = None,
+                         verifying_key: Union[PublicKey] = None,
+                         encrypting_key: Union[PublicKey] = None,
                          *args, **kwargs) -> 'Character':
         """
         Sometimes we discover a Character and, at the same moment,

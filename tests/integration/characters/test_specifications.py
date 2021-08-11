@@ -16,18 +16,19 @@
 """
 
 
+import datetime
 from base64 import b64encode
 
-import datetime
 import maya
 import pytest
 
-from nucypher.characters.control.specifications.fields.treasuremap import EncryptedTreasureMap
 from nucypher.characters.control.specifications import fields
 from nucypher.characters.control.specifications.alice import GrantPolicy
+from nucypher.characters.control.specifications.fields.treasuremap import EncryptedTreasureMap
 from nucypher.control.specifications.base import BaseSchema
 from nucypher.control.specifications.exceptions import SpecificationError, InvalidInputData, InvalidArgumentCombo
 from nucypher.crypto.powers import DecryptingPower
+from nucypher.crypto.umbral_adapter import PublicKey
 
 
 def test_various_field_validations_by_way_of_alice_grant(federated_bob):
@@ -132,21 +133,21 @@ def test_key_validation(federated_bob):
     class BobKeyInputRequirer(BaseSchema):
         bobkey = fields.Key()
 
-    with pytest.raises(SpecificationError) as e:
+    with pytest.raises(InvalidInputData) as e:
         BobKeyInputRequirer().load({'bobkey': "I am the key to nothing"})
     assert "non-hexadecimal number found in fromhex()" in str(e)
     assert "bobkey" in str(e)
 
-    with pytest.raises(SpecificationError) as e:
+    with pytest.raises(InvalidInputData) as e:
         BobKeyInputRequirer().load({'bobkey': "I am the key to nothing"})
     assert "non-hexadecimal number found in fromhex()" in str(e)
     assert "bobkey" in str(e)
 
-    with pytest.raises(SpecificationError) as e:
+    with pytest.raises(InvalidInputData) as e:
         # lets just take a couple bytes off
         BobKeyInputRequirer().load({'bobkey': "02f0cb3f3a33f16255d9b2586e6c56570aa07bbeb1157e169f1fb114ffb40037"})
     assert "Could not convert input for bobkey to an Umbral Key" in str(e)
     assert "xpected 33 bytes, got 32" in str(e)
 
     result = BobKeyInputRequirer().load(dict(bobkey=bytes(federated_bob.public_keys(DecryptingPower)).hex()))
-    assert isinstance(result['bobkey'], bytes)
+    assert isinstance(result['bobkey'], PublicKey)
