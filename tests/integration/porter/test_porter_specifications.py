@@ -163,7 +163,7 @@ def test_alice_revoke():
     pass  # TODO
 
 
-@pytest.mark.skip("To be fixed in #2768")
+@pytest.mark.skip("to be fixed later")
 def test_bob_exec_work_order(#mock_ursula_reencrypts,
                              federated_ursulas,
                              get_random_checksum_address,

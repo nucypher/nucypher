@@ -79,7 +79,7 @@ def test_get_ursulas(federated_porter_rpc_controller, federated_ursulas):
         federated_porter_rpc_controller.send(request_data)
 
 
-@pytest.mark.skip("To be fixed in #2768")
+@pytest.mark.skip("to be fixed later")
 def test_exec_work_order(federated_porter_rpc_controller,
                          enacted_federated_policy,
                          federated_ursulas,

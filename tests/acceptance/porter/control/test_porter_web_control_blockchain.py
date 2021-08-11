@@ -90,7 +90,7 @@ def test_get_ursulas(blockchain_porter_web_controller, blockchain_ursulas):
         blockchain_porter_web_controller.get('/get_ursulas', data=json.dumps(failed_ursula_params))
 
 
-@pytest.mark.skip("To be fixed in #2768")
+@pytest.mark.skip("to be fixed later")
 def test_exec_work_order(blockchain_porter_web_controller,
                          random_blockchain_policy,
                          blockchain_ursulas,
