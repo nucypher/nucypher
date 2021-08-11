@@ -21,12 +21,12 @@ import pytest
 from nucypher.control.specifications.exceptions import InvalidInputData
 from nucypher.control.specifications.fields import StringList
 from nucypher.crypto.kits import RetrievalKit as RetrievalKitClass
-from nucypher.crypto.umbral_adapter import SecretKey, encrypt
+from nucypher.crypto.umbral_adapter import SecretKey, encrypt, Capsule as CapsuleClass
 from nucypher.utilities.porter.control.specifications.fields import (
     HRAC,
     UrsulaChecksumAddress,
 )
-from nucypher.utilities.porter.control.specifications.fields.retrieve import RetrievalKit
+from nucypher.utilities.porter.control.specifications.fields.retrieve import RetrievalKit, Capsule
 from tests.utils.policy import retrieval_request_setup
 
 
@@ -156,3 +156,19 @@ def test_retrieval_kit_field():
 
     with pytest.raises(InvalidInputData):
         field.deserialize(value=b64encode(b"invalid_retrieval_kit_bytes").decode(), attr=None, data=None)
+
+
+def test_capsule_field():
+    encrypting_key = SecretKey.random().public_key()
+    capsule, _ = encrypt(encrypting_key, b'testing_retrieval_kit')
+
+    field = Capsule()
+    serialized = field._serialize(value=capsule, attr=None, obj=None)
+    assert serialized == b64encode(bytes(capsule)).decode()
+
+    deserialized = field._deserialize(value=serialized, attr=None, data=None)
+    assert isinstance(deserialized, CapsuleClass)
+    assert deserialized == capsule
+
+    with pytest.raises(InvalidInputData):
+        field._deserialize(value=b64encode(b"faux_capsule").decode(), attr=None, data=None)

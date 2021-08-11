@@ -164,7 +164,7 @@ class BobInterface(CharacterPublicInterface):
                              policy_encrypting_key: PublicKey,
                              alice_verifying_key: PublicKey,
                              message_kit: bytes,
-                             encrypted_treasure_map: 'EncryptedTreasureMap'):
+                             encrypted_treasure_map: 'EncryptedTreasureMap') -> dict:
         """
         Character control endpoint for re-encrypting and decrypting policy data.
         """
@@ -180,7 +180,7 @@ class BobInterface(CharacterPublicInterface):
         return response_data
 
     @attach_schema(bob.PublicKeys)
-    def public_keys(self):
+    def public_keys(self) -> dict:
         """
         Character control endpoint for getting Bob's encrypting and signing public keys
         """
@@ -193,7 +193,7 @@ class BobInterface(CharacterPublicInterface):
 class EnricoInterface(CharacterPublicInterface):
 
     @attach_schema(enrico.EncryptMessage)
-    def encrypt_message(self, plaintext: Union[str, bytes]):
+    def encrypt_message(self, plaintext: Union[str, bytes]) -> dict:
         """
         Character control endpoint for encrypting data for a policy and
         receiving the messagekit (and signature) to give to Bob.

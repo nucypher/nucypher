@@ -14,10 +14,13 @@
  You should have received a copy of the GNU Affero General Public License
  along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
-
+from marshmallow import fields
+from nucypher.control.specifications.base import BaseSchema
 from nucypher.control.specifications.exceptions import InvalidInputData
 from nucypher.control.specifications.fields import Base64BytesRepresentation
 from nucypher.crypto.kits import RetrievalKit as RetrievalKitClass
+from nucypher.crypto.umbral_adapter import Capsule as CapsuleClass, CapsuleFrag as CapsuleFragClass
+from nucypher.utilities.porter.control.specifications.fields import UrsulaChecksumAddress
 
 
 # TODO should this be moved to character control - would this be used by a Bob character control endpoint?
@@ -29,3 +32,27 @@ class RetrievalKit(Base64BytesRepresentation):
             return RetrievalKitClass.from_bytes(retrieval_kit_bytes)
         except Exception as e:
             raise InvalidInputData(f"Could not convert input for {self.name} to a valid checksum address: {e}")
+
+
+class Capsule(Base64BytesRepresentation):
+    def _deserialize(self, value, attr, data, **kwargs):
+        try:
+            capsule_bytes = super()._deserialize(value, attr, data, **kwargs)
+            return CapsuleClass.from_bytes(capsule_bytes)
+        except Exception as e:
+            raise InvalidInputData(f"Could not parse {self.name}: {e}")
+
+
+class CapsuleFrag(Base64BytesRepresentation):
+    def _deserialize(self, value, attr, data, **kwargs):
+        try:
+            capsule_bytes = super()._deserialize(value, attr, data, **kwargs)
+            return CapsuleFragClass.from_bytes(capsule_bytes)
+        except Exception as e:
+            raise InvalidInputData(f"Could not parse {self.name}: {e}")
+
+
+class RetrievalResultSchema(BaseSchema):
+    """Schema for the result of retrieve_cfrags."""
+    capsule = Capsule()
+    cfrags = fields.Dict(keys=UrsulaChecksumAddress(), values=CapsuleFrag())

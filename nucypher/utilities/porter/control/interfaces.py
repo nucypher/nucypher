@@ -19,6 +19,8 @@ from typing import List, Optional
 from eth_typing import ChecksumAddress
 
 from nucypher.control.interfaces import ControlInterface, attach_schema
+from nucypher.crypto.umbral_adapter import PublicKey
+from nucypher.policy.kits import RetrievalKit
 from nucypher.utilities.porter.control.specifications import porter_schema
 
 
@@ -40,9 +42,7 @@ class PorterInterface(ControlInterface):
                                                     exclude_ursulas=exclude_ursulas,
                                                     include_ursulas=include_ursulas)
 
-        response_data = {
-            "ursulas": ursulas_info
-        }
+        response_data = {"ursulas": ursulas_info}
         return response_data
 
     @attach_schema(porter_schema.AliceRevoke)
@@ -52,3 +52,24 @@ class PorterInterface(ControlInterface):
         # 2. call self.implementer.some_function() i.e. Porter learner has an associated function to call
         # 3. create response
         pass
+
+    @attach_schema(porter_schema.BobRetrieveCFrags)
+    def retrieve_cfrags(self,
+                        treasure_map: 'TreasureMap',
+                        retrieval_kits: List[RetrievalKit],
+                        alice_verifying_key: PublicKey,
+                        bob_encrypting_key: PublicKey,
+                        bob_verifying_key: PublicKey,
+                        policy_encrypting_key: PublicKey,
+                        publisher_verifying_key: Optional[PublicKey] = None,
+                        ) -> dict:
+        retrieval_results = self.implementer.retrieve_cfrags(treasure_map=treasure_map,
+                                                             retrieval_kits=retrieval_kits,
+                                                             alice_verifying_key=alice_verifying_key,
+                                                             bob_encrypting_key=bob_encrypting_key,
+                                                             bob_verifying_key=bob_verifying_key,
+                                                             policy_encrypting_key=policy_encrypting_key,
+                                                             publisher_verifying_key=publisher_verifying_key)
+        results = retrieval_results.results   # list of RetrievalResult objects
+        response_data = {'retrieve_results': results}
+        return response_data
