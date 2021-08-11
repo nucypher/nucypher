@@ -41,3 +41,7 @@ class UrsulaInfoSchema(BaseSchema):
     checksum_address = UrsulaChecksumAddress()
     uri = fields.URL()
     encrypting_key = Key()
+
+    # maintain field declaration ordering
+    class Meta:
+        ordered = True

@@ -56,3 +56,7 @@ class RetrievalResultSchema(BaseSchema):
     """Schema for the result of retrieve_cfrags."""
     capsule = Capsule()
     cfrags = fields.Dict(keys=UrsulaChecksumAddress(), values=CapsuleFrag())
+
+    # maintain field declaration ordering
+    class Meta:
+        ordered = True

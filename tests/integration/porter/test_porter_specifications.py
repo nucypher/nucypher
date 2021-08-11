@@ -14,19 +14,20 @@
  You should have received a copy of the GNU Affero General Public License
  along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
-import os
-from base64 import b64encode
+import random
 
 import pytest
 
+from nucypher.characters.control.specifications.fields import Key
 from nucypher.control.specifications.exceptions import InvalidArgumentCombo, InvalidInputData
 from nucypher.crypto.umbral_adapter import SecretKey
-from nucypher.policy.maps import AuthorizedKeyFrag
-from nucypher.utilities.porter.control.specifications.fields import UrsulaInfoSchema
+from nucypher.utilities.porter.control.specifications.fields import UrsulaInfoSchema, RetrievalResultSchema
 from nucypher.utilities.porter.control.specifications.porter_schema import (
     AliceGetUrsulas,
+    BobRetrieveCFrags
 )
 from nucypher.utilities.porter.porter import Porter
+from tests.utils.policy import retrieval_request_setup
 
 
 def test_alice_get_ursulas_schema(get_random_checksum_address):
@@ -163,57 +164,49 @@ def test_alice_revoke():
     pass  # TODO
 
 
-@pytest.mark.skip("to be fixed later")
-def test_bob_exec_work_order(#mock_ursula_reencrypts,
-                             federated_ursulas,
-                             get_random_checksum_address,
-                             federated_bob,
-                             federated_alice,
-                             random_policy_label):
-    # Setup
-    ursula = list(federated_ursulas)[0]
-    tasks = [mock_ursula_reencrypts(ursula) for _ in range(3)]
-    material = [(task.capsule, task.signature, task.cfrag, task.cfrag_signature) for task in tasks]
-    capsules, signatures, cfrags, cfrag_signatures = zip(*material)
-
-    mock_kfrag = os.urandom(AuthorizedKeyFrag.ENCRYPTED_SIZE)
-
-    # Test construction of WorkOrders by Bob
-    work_order = WorkOrderClass.construct_by_bob(encrypted_kfrag=mock_kfrag,
-                                                 bob=federated_bob,
-                                                 publisher_verifying_key=federated_alice.stamp.as_umbral_pubkey(),
-                                                 alice_verifying_key=federated_alice.stamp.as_umbral_pubkey(),
-                                                 ursula=ursula,
-                                                 capsules=capsules,
-                                                 label=random_policy_label)
-
-    # Test Work Order
-    work_order_bytes = work_order.payload()
+def test_retrieve_cfrags(federated_porter,
+                         enacted_federated_policy,
+                         federated_bob,
+                         federated_alice):
+    bob_retrieve_cfrags_schema = BobRetrieveCFrags()
 
     # no args
     with pytest.raises(InvalidInputData):
-        BobExecWorkOrder().load({})
+        bob_retrieve_cfrags_schema.load({})
 
-    work_order_b64 = b64encode(work_order_bytes).decode()
-    required_data = {
-        'ursula': ursula.checksum_address,
-        'work_order_payload': work_order_b64
-    }
+    # Setup
+    retrieval_args = retrieval_request_setup(enacted_federated_policy,
+                                             federated_bob,
+                                             federated_alice,
+                                             encode_for_rest=True)
+    bob_retrieve_cfrags_schema.load(retrieval_args)
 
-    # required args
-    BobExecWorkOrder().load(required_data)
+    # optional publisher_verifying_key
+    updated_data = dict(retrieval_args)
+    publisher_verifying_key = SecretKey.random().public_key()
+    updated_data['publisher_verifying_key'] = Key()._serialize(value=publisher_verifying_key, attr=None, obj=None)
+    bob_retrieve_cfrags_schema.load(retrieval_args)
 
-    # missing required args
-    updated_data = {k: v for k, v in required_data.items() if k != 'ursula'}
+    # missing required argument
+    updated_data = dict(retrieval_args)
+    key_to_remove = random.choice(list(updated_data.keys()))
+    del updated_data[key_to_remove]
     with pytest.raises(InvalidInputData):
-        BobExecWorkOrder().load(updated_data)
+        # missing arg
+        bob_retrieve_cfrags_schema.load(updated_data)
 
-    updated_data = {k: v for k, v in required_data.items() if k != 'work_order_payload'}
-    with pytest.raises(InvalidInputData):
-        BobExecWorkOrder().load(updated_data)
+    #
+    # Output i.e. dump
+    #
+    non_encoded_retrieval_args = retrieval_request_setup(enacted_federated_policy,
+                                                         federated_bob,
+                                                         federated_alice,
+                                                         encode_for_rest=False)
+    retrieval_results = federated_porter.retrieve_cfrags(**non_encoded_retrieval_args)
+    expected_retrieval_results_json = []
+    retrieval_result_schema = RetrievalResultSchema()
+    for result in retrieval_results.results:
+        expected_retrieval_results_json.append(retrieval_result_schema.dump(result))
 
-    # invalid ursula checksum address
-    updated_data = dict(required_data)
-    updated_data['ursula'] = "0xdeadbeef"
-    with pytest.raises(InvalidInputData):
-        BobExecWorkOrder().load(updated_data)
+    output = bob_retrieve_cfrags_schema.dump(obj={'retrieval_results': retrieval_results.results})
+    assert output == {"retrieval_results": expected_retrieval_results_json}

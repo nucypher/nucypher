@@ -19,8 +19,10 @@ import os
 import random
 import string
 
+from nucypher.characters.control.specifications.fields import TreasureMap, Key
 from nucypher.characters.lawful import Enrico
 from nucypher.crypto.powers import DecryptingPower
+from nucypher.utilities.porter.control.specifications.fields import RetrievalKit
 
 
 def generate_random_label() -> bytes:
@@ -51,13 +53,11 @@ def retrieval_request_setup(enacted_policy, bob, alice, encode_for_rest=False):
     original_message = ''.join(random.choice(string.ascii_lowercase) for i in range(20))  # random message
     message_kit = enrico.encrypt_message(original_message.encode())
 
-    # Shouldn't the controller be able to do it?
-    encode_bytes = (lambda x: bytes(x)) if encode_for_rest else (lambda x: x)
+    encode_bytes = (lambda field, obj: field()._serialize(value=obj, attr=None, obj=None)) if encode_for_rest else (lambda field, obj: obj)
 
-    return dict(treasure_map=encode_bytes(treasure_map),
-                retrieval_kits=[encode_bytes(message_kit.as_retrieval_kit())],
-                alice_verifying_key=encode_bytes(alice.stamp.as_umbral_pubkey()),
-                bob_encrypting_key=encode_bytes(bob.public_keys(DecryptingPower)),
-                bob_verifying_key=encode_bytes(bob.stamp.as_umbral_pubkey()),
-                policy_encrypting_key=encode_bytes(enacted_policy.public_key),
-                )
+    return dict(treasure_map=encode_bytes(TreasureMap, treasure_map),
+                retrieval_kits=[encode_bytes(RetrievalKit, message_kit.as_retrieval_kit())],
+                alice_verifying_key=encode_bytes(Key, alice.stamp.as_umbral_pubkey()),
+                bob_encrypting_key=encode_bytes(Key, bob.public_keys(DecryptingPower)),
+                bob_verifying_key=encode_bytes(Key, bob.stamp.as_umbral_pubkey()),
+                policy_encrypting_key=encode_bytes(Key, enacted_policy.public_key))
