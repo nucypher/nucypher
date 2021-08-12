@@ -1,0 +1,1 @@
+**Hotfix** - removed Etherchain as a datafeed for now since its format was modified and caused the gas price calculation to fail.
