@@ -4,6 +4,15 @@ Releases
 
 .. towncrier release notes start
 
+v5.3.1 (2021-08-12)
+-------------------
+
+Bugfixes
+~~~~~~~~
+
+- **Hotfix** - removed Etherchain as a datafeed for now since its format was modified and caused the gas price calculation to fail. (`#2769 <https://github.com/nucypher/nucypher/issues/2769>`__)
+
+
 v5.3.0 (2021-06-17)
 -------------------
 
