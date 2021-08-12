@@ -149,11 +149,11 @@ def test_unlock_nucypher_keystore_dev_mode(mocker, test_emitter, capsys, alice_b
 
 
 def test_unlock_nucypher_keystore(mocker,
-                                 test_emitter,
-                                 capsys,
-                                 alice_blockchain_test_config,
-                                 patch_keystore,
-                                 tmpdir):
+                                  test_emitter,
+                                  capsys,
+                                  alice_blockchain_test_config,
+                                  patch_keystore,
+                                  tmpdir):
 
     # Setup
     # Do not test "real" unlocking here, just the plumbing

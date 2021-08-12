@@ -20,7 +20,7 @@ import random
 
 import pytest
 from eth_utils import to_canonical_address
-from web3 import Web3, EthereumTesterProvider
+from web3 import EthereumTesterProvider, Web3
 
 from nucypher.blockchain.eth.aragon import CallScriptCodec, DAORegistry
 from nucypher.blockchain.eth.constants import DAO_INSTANCES_CONTRACT_TYPE
@@ -123,7 +123,7 @@ def create_mock_dao_registry():
     def _create_mock_dao_registry(path, registry_data):
         filepath = path / DAORegistry._REGISTRY_FILENAME
         path.mkdir(parents=True, exist_ok=True)
-        with open(str(filepath), 'w') as file:
+        with open(filepath, 'w') as file:
             json.dump(registry_data, file)
 
         return filepath

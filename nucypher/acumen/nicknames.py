@@ -15,15 +15,13 @@ You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
-
 import json
+from pathlib import Path
 from typing import List
 import random
-from os.path import abspath, dirname, join
 
-
-_HERE = abspath(dirname(__file__))
-with open(join(_HERE, 'web_colors.json')) as f:
+_HERE = Path(__file__).parent
+with open(_HERE / 'web_colors.json') as f:
     _COLORS = json.load(f)['colors']
 
 _SYMBOLS = {

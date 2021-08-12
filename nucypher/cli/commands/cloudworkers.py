@@ -405,7 +405,7 @@ def list_namespaces(general_config, network):
         return
 
     deployer = CloudDeployers.get_deployer('generic')(emitter, None, None, network=network, pre_config={"namespace": None})
-    for ns in os.listdir(deployer.network_config_path):
+    for ns in deployer.network_config_path.iterdir():
         emitter.echo(ns)
 
 

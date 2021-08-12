@@ -19,6 +19,8 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 import math
 import os
 import pprint
+from pathlib import Path
+
 from eth.typing import TransactionDict
 from typing import Callable, NamedTuple, Tuple, Union, Optional
 from typing import List
@@ -381,7 +383,7 @@ class BlockchainInterface:
 
             # auto-detect for file based ipc
             if not provider_scheme:
-                if os.path.exists(provider_uri):
+                if Path(provider_uri).is_file():
                     # file is available - assume ipc/file scheme
                     provider_scheme = 'file'
                     self.log.info(f"Auto-detected provider scheme as 'file://' for provider {provider_uri}")

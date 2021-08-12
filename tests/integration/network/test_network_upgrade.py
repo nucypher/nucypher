@@ -16,7 +16,8 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
 
-import os
+from pathlib import Path
+
 import pytest_twisted
 import requests
 from cryptography.hazmat.primitives import serialization
@@ -47,4 +48,4 @@ def test_federated_nodes_connect_via_tls_and_verify(lonely_ursula_maker):
             f.write(cert_bytes)
         yield threads.deferToThread(check_node_with_cert, node, "test-cert")
     finally:
-        os.remove("test-cert")
+        Path("test-cert").unlink()

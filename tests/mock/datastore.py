@@ -17,17 +17,19 @@
 
 from bisect import bisect_left
 from contextlib import contextmanager
+from pathlib import Path
+
 import lmdb
 from threading import Lock
 
 from constant_sorrow.constants import MOCK_DB
 
 
-def mock_lmdb_open(db_path, map_size=10485760):
+def mock_lmdb_open(db_path: Path, map_size=10485760):
     if db_path == MOCK_DB:
         return MockEnvironment()
     else:
-        return lmdb.Environment(db_path, map_size=map_size)
+        return lmdb.Environment(str(db_path), map_size=map_size)
 
 
 class MockEnvironment:

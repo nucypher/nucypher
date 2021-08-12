@@ -15,13 +15,13 @@ You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
-import os
-import pytest
 import tempfile
+
+import pytest
 
 from nucypher.characters.lawful import Ursula
 from nucypher.config.constants import TEMPORARY_DOMAIN
-from nucypher.config.storages import ForgetfulNodeStorage, NodeStorage, TemporaryFileBasedNodeStorage
+from nucypher.config.storages import ForgetfulNodeStorage, TemporaryFileBasedNodeStorage
 from nucypher.network.nodes import Learner
 from nucypher.utilities.networking import LOOPBACK_ADDRESS
 from tests.utils.ursula import MOCK_URSULA_STARTING_PORT
@@ -105,25 +105,25 @@ class TestTemporaryFileBasedNodeStorage(BaseTestNodeStorageBackends):
 
     def test_invalid_metadata(self, light_ursula):
         self._read_and_write_metadata(ursula=light_ursula, node_storage=self.storage_backend)
-        some_node, another_node, *other = os.listdir(self.storage_backend.metadata_dir)
+        some_node, another_node, *other = list(self.storage_backend.metadata_dir.iterdir())
 
         # Let's break the metadata (but not the version)
-        metadata_path = os.path.join(self.storage_backend.metadata_dir, some_node)
+        metadata_path = self.storage_backend.metadata_dir / some_node
         with open(metadata_path, 'wb') as file:
             file.write(Learner.LEARNER_VERSION.to_bytes(4, 'big') + b'invalid')
 
         with pytest.raises(TemporaryFileBasedNodeStorage.InvalidNodeMetadata):
-            self.storage_backend.get(stamp=some_node[:-5],
+            self.storage_backend.get(stamp=some_node.name[:-5],
                                      federated_only=True,
                                      certificate_only=False)
 
         # Let's break the metadata, by putting a completely wrong version
-        metadata_path = os.path.join(self.storage_backend.metadata_dir, another_node)
+        metadata_path = self.storage_backend.metadata_dir / another_node
         with open(metadata_path, 'wb') as file:
             file.write(b'meh')  # Versions are expected to be 4 bytes, but this is 3 bytes
 
         with pytest.raises(TemporaryFileBasedNodeStorage.InvalidNodeMetadata):
-            self.storage_backend.get(stamp=another_node[:-5],
+            self.storage_backend.get(stamp=another_node.name[:-5],
                                      federated_only=True,
                                      certificate_only=False)
 

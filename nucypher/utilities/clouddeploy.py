@@ -217,10 +217,10 @@ class BaseCloudNodeConfigurator:
             return
 
         # where we save our state data so we can remember the resources we created for future use
-        self.config_path = os.path.join(self.network_config_path, self.namespace, self.config_filename)
-        self.config_dir = os.path.dirname(self.config_path)
+        self.config_path = self.network_config_path / self.namespace / self.config_filename
+        self.config_dir = self.config_path.parent
 
-        if os.path.exists(self.config_path):
+        if self.config_path.exists():
             self.config = json.load(open(self.config_path))
             self.namespace_network = self.config['namespace']
         else:
@@ -262,8 +262,8 @@ class BaseCloudNodeConfigurator:
 
     def _write_config(self):
 
-        configdir = os.path.dirname(self.config_path)
-        os.makedirs(configdir, exist_ok=True)
+        config_dir = self.config_path.parent
+        config_dir.mkdir(parents=True, exist_ok=True)
 
         with open(self.config_path, 'w') as outfile:
             json.dump(self.config, outfile, indent=4)
@@ -388,7 +388,7 @@ class BaseCloudNodeConfigurator:
 
     @property
     def _inventory_template(self):
-        template_path = os.path.join(os.path.dirname(__file__), 'templates', 'cloud_deploy_ansible_inventory.mako')
+        template_path = Path(__file__).parent / 'templates' / 'cloud_deploy_ansible_inventory.mako'
         return Template(filename=template_path)
 
     def deploy_nucypher_on_existing_nodes(self, node_names, wipe_nucypher=False):
@@ -856,21 +856,21 @@ class AWSNodeConfigurator(BaseCloudNodeConfigurator):
 
     def _create_keypair(self):
         new_keypair_data = self.ec2Client.create_key_pair(KeyName=f'{self.namespace_network}')
-        outpath = Path(DEFAULT_CONFIG_ROOT).joinpath(NODE_CONFIG_STORAGE_KEY, f'{self.namespace_network}.awskeypair')
-        os.makedirs(os.path.dirname(outpath), exist_ok=True)
-        with open(outpath, 'w') as outfile:
+        out_path = DEFAULT_CONFIG_ROOT / NODE_CONFIG_STORAGE_KEY / f'{self.namespace_network}.awskeypair'
+        out_path.parent.mkdir(parents=True, exist_ok=True)
+        with open(out_path, 'w') as outfile:
             outfile.write(new_keypair_data['KeyMaterial'])
         # set local keypair permissions https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ec2-key-pairs.html
-        os.chmod(outpath, 0o400)
-        self.emitter.echo(f"a new aws keypair was saved to {outpath}, keep it safe.", color='yellow')
-        return new_keypair_data['KeyName'], outpath
+        out_path.chmod(0o400)
+        self.emitter.echo(f"a new aws keypair was saved to {out_path}, keep it safe.", color='yellow')
+        return new_keypair_data['KeyName'], out_path
 
     def _delete_keypair(self):
         # only use self.namespace here to avoid accidental deletions of pre-existing keypairs
         deleted_keypair_data = self.ec2Client.delete_key_pair(KeyName=f'{self.namespace_network}')
         if deleted_keypair_data['HTTPStatusCode'] == 200:
             outpath = Path(DEFAULT_CONFIG_ROOT).joinpath(NODE_CONFIG_STORAGE_KEY, f'{self.namespace_network}.awskeypair')
-            os.remove(outpath)
+            outpath.unlink()
             self.emitter.echo(f"keypair at {outpath}, was deleted", color='yellow')
 
     def _ensure_vpc(self):
@@ -1014,7 +1014,7 @@ class AWSNodeConfigurator(BaseCloudNodeConfigurator):
                 time.sleep(6)
                 self.ec2Client.delete_key_pair(KeyName=self.config.get('keypair'))
                 del self.config['keypair']
-                os.remove(self.config['keypair_path'])
+                self.config['keypair_path'].unlink()
                 del self.config['keypair_path']
                 self._write_config()
 
@@ -1072,7 +1072,7 @@ class GenericConfigurator(BaseCloudNodeConfigurator):
     provider_name = 'generic'
 
     def _write_config(self):
-        if not os.path.exists(self.config_path) and not self.action in self.NAMESSPACE_CREATE_ACTIONS:
+        if not self.config_path.exists() and self.action not in self.NAMESSPACE_CREATE_ACTIONS:
             raise AttributeError(f"Namespace/config '{self.namespace}' does not exist. Show existing namespaces: `nucypher cloudworkers list-namespaces` or create a namespace: `nucypher cloudworkers create`")
 
         super()._write_config()

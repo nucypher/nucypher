@@ -43,10 +43,10 @@ from tests.constants import (
 
 @pytest.fixture(scope='function')
 def custom_filepath():
-    _path = str(MOCK_CUSTOM_INSTALLATION_PATH)
+    _path = MOCK_CUSTOM_INSTALLATION_PATH
     shutil.rmtree(_path, ignore_errors=True)
-    assert not Path(_path).exists()
-    yield Path(_path)
+    assert not _path.exists()
+    yield _path
     shutil.rmtree(_path, ignore_errors=True)
 
 
@@ -54,7 +54,7 @@ def test_destroy_with_no_configurations(click_runner, custom_filepath):
     """Provide useful error messages when attempting to destroy when there is nothing to destroy"""
     assert not custom_filepath.exists()
     ursula_file_location = custom_filepath / 'ursula.json'
-    destruction_args = ('ursula', 'destroy', '--config-file', str(ursula_file_location))
+    destruction_args = ('ursula', 'destroy', '--config-file', str(ursula_file_location.absolute()))
     result = click_runner.invoke(nucypher_cli, destruction_args, catch_exceptions=False)
     assert result.exit_code == 2
     assert "Error: Invalid value for '--config-file':" in result.output
@@ -96,7 +96,7 @@ def test_coexisting_configurations(click_runner,
     assert not known_nodes_dir.exists()
 
     # Not the configuration root...
-    assert not os.path.isdir(custom_filepath)
+    assert not custom_filepath.is_dir()
 
     # ... nothing
     None
@@ -112,34 +112,34 @@ def test_coexisting_configurations(click_runner,
 
     # Felix creates a system configuration
     felix_init_args = ('felix', 'init',
-                       '--config-root', custom_filepath,
+                       '--config-root', str(custom_filepath.absolute()),
                        '--network', TEMPORARY_DOMAIN,
                        '--provider', TEST_PROVIDER_URI,
                        '--checksum-address', felix,
-                       '--registry-filepath', agency_local_registry.filepath,
+                       '--registry-filepath', str(agency_local_registry.filepath.absolute()),
                        '--debug')
 
     result = click_runner.invoke(nucypher_cli, felix_init_args, catch_exceptions=False, env=envvars)
     assert result.exit_code == 0
 
     # All configuration files still exist.
-    assert os.path.isdir(custom_filepath)
-    assert os.path.isfile(felix_file_location)
+    assert custom_filepath.is_dir()
+    assert felix_file_location.is_file()
 
     # Use a custom local filepath to init a persistent Alice
     alice_init_args = ('alice', 'init',
                        '--network', TEMPORARY_DOMAIN,
                        '--provider', TEST_PROVIDER_URI,
                        '--pay-with', alice,
-                       '--registry-filepath', agency_local_registry.filepath,
-                       '--config-root', custom_filepath)
+                       '--registry-filepath', str(agency_local_registry.filepath.absolute()),
+                       '--config-root', str(custom_filepath.absolute()))
 
     result = click_runner.invoke(nucypher_cli, alice_init_args, catch_exceptions=False, env=envvars)
     assert result.exit_code == 0
 
     # All configuration files still exist.
-    assert os.path.isfile(felix_file_location)
-    assert os.path.isfile(alice_file_location)
+    assert felix_file_location.is_file()
+    assert alice_file_location.is_file()
 
     # Use the same local filepath to init a persistent Ursula
     init_args = ('ursula', 'init',
@@ -147,16 +147,16 @@ def test_coexisting_configurations(click_runner,
                  '--provider', TEST_PROVIDER_URI,
                  '--worker-address', ursula,
                  '--rest-host', MOCK_IP_ADDRESS,
-                 '--registry-filepath', agency_local_registry.filepath,
-                 '--config-root', custom_filepath)
+                 '--registry-filepath', str(agency_local_registry.filepath.absolute()),
+                 '--config-root', str(custom_filepath.absolute()))
 
     result = click_runner.invoke(nucypher_cli, init_args, catch_exceptions=False, env=envvars)
     assert result.exit_code == 0, result.output
 
     # All configuration files still exist.
-    assert os.path.isfile(felix_file_location)
-    assert os.path.isfile(alice_file_location)
-    assert os.path.isfile(ursula_file_location)
+    assert felix_file_location.is_file()
+    assert alice_file_location.is_file()
+    assert ursula_file_location.is_file()
 
     key_spy = mocker.spy(Keystore, 'generate')
 
@@ -166,22 +166,22 @@ def test_coexisting_configurations(click_runner,
                  '--network', TEMPORARY_DOMAIN,
                  '--worker-address', another_ursula,
                  '--rest-host', MOCK_IP_ADDRESS_2,
-                 '--registry-filepath', agency_local_registry.filepath,
+                 '--registry-filepath', str(agency_local_registry.filepath.absolute()),
                  '--provider', TEST_PROVIDER_URI,
-                 '--config-root', custom_filepath)
+                 '--config-root', str(custom_filepath.absolute()))
 
     result = click_runner.invoke(nucypher_cli, init_args, catch_exceptions=False, env=envvars)
     assert result.exit_code == 0
 
     # All configuration files still exist.
-    assert os.path.isfile(felix_file_location)
-    assert os.path.isfile(alice_file_location)
+    assert felix_file_location.is_file()
+    assert alice_file_location.is_file()
 
     kid = key_spy.spy_return.id[:8]
     another_ursula_configuration_file_location = custom_filepath / UrsulaConfiguration.generate_filename(modifier=kid)
-    assert os.path.isfile(another_ursula_configuration_file_location)
+    assert another_ursula_configuration_file_location.is_file()
 
-    assert os.path.isfile(ursula_file_location)
+    assert ursula_file_location.is_file()
 
     #
     # Run
@@ -191,7 +191,7 @@ def test_coexisting_configurations(click_runner,
     run_args = ('ursula', 'run',
                 '--dry-run',
                 '--no-ip-checkup',
-                '--config-file', another_ursula_configuration_file_location)
+                '--config-file', str(another_ursula_configuration_file_location.absolute()))
 
     user_input = f'{INSECURE_DEVELOPMENT_PASSWORD}\n' * 2
 
@@ -204,10 +204,10 @@ def test_coexisting_configurations(click_runner,
     Worker.READY_TIMEOUT = None
 
     # All configuration files still exist.
-    assert os.path.isfile(felix_file_location)
-    assert os.path.isfile(alice_file_location)
-    assert os.path.isfile(another_ursula_configuration_file_location)
-    assert os.path.isfile(ursula_file_location)
+    assert felix_file_location.is_file()
+    assert alice_file_location.is_file()
+    assert another_ursula_configuration_file_location.is_file()
+    assert ursula_file_location.is_file()
 
     # Check that the proper Ursula console is attached
     assert another_ursula in result.output
@@ -218,26 +218,26 @@ def test_coexisting_configurations(click_runner,
 
     another_ursula_destruction_args = ('ursula', 'destroy',
                                        '--force',
-                                       '--config-file', another_ursula_configuration_file_location)
+                                       '--config-file', str(another_ursula_configuration_file_location.absolute()))
     result = click_runner.invoke(nucypher_cli, another_ursula_destruction_args, catch_exceptions=False, env=envvars)
     assert result.exit_code == 0
-    assert not os.path.isfile(another_ursula_configuration_file_location)
+    assert not another_ursula_configuration_file_location.is_file()
 
-    ursula_destruction_args = ('ursula', 'destroy', '--config-file', ursula_file_location)
+    ursula_destruction_args = ('ursula', 'destroy', '--config-file', str(ursula_file_location.absolute()))
     result = click_runner.invoke(nucypher_cli, ursula_destruction_args, input='Y', catch_exceptions=False, env=envvars)
     assert result.exit_code == 0
     assert 'y/N' in result.output
-    assert not os.path.isfile(ursula_file_location)
+    assert not ursula_file_location.is_file()
 
-    alice_destruction_args = ('alice', 'destroy', '--force', '--config-file', alice_file_location)
+    alice_destruction_args = ('alice', 'destroy', '--force', '--config-file', str(alice_file_location.absolute()))
     result = click_runner.invoke(nucypher_cli, alice_destruction_args, catch_exceptions=False, env=envvars)
     assert result.exit_code == 0
-    assert not os.path.isfile(alice_file_location)
+    assert not alice_file_location.is_file()
 
-    felix_destruction_args = ('felix', 'destroy', '--force', '--config-file', felix_file_location)
+    felix_destruction_args = ('felix', 'destroy', '--force', '--config-file', str(felix_file_location.absolute()))
     result = click_runner.invoke(nucypher_cli, felix_destruction_args, catch_exceptions=False, env=envvars)
     assert result.exit_code == 0
-    assert not os.path.isfile(felix_file_location)
+    assert not felix_file_location.is_file()
 
 
 def test_corrupted_configuration(click_runner,
@@ -265,7 +265,7 @@ def test_corrupted_configuration(click_runner,
                  '--worker-address', another_ursula,
                  '--network', TEMPORARY_DOMAIN,
                  '--rest-host', MOCK_IP_ADDRESS,
-                 '--config-root', custom_filepath,
+                 '--config-root', str(custom_filepath.absolute()),
                  )
 
     # Fails because password is too short and the command uses incomplete args (needs either -F or blockchain details)
@@ -276,7 +276,7 @@ def test_corrupted_configuration(click_runner,
         assert result.exit_code != 0
 
     # Ensure there is no unintentional file creation (keys, config, etc.)
-    top_level_config_root = os.listdir(custom_filepath)
+    top_level_config_root = [f.name for f in custom_filepath.iterdir()]
     assert 'ursula.config' not in top_level_config_root                         # no config file was created
 
     assert Path(custom_filepath).exists()
@@ -293,8 +293,8 @@ def test_corrupted_configuration(click_runner,
                  '--provider', TEST_PROVIDER_URI,
                  '--worker-address', another_ursula,
                  '--rest-host', MOCK_IP_ADDRESS,
-                 '--registry-filepath', agency_local_registry.filepath,
-                 '--config-root', custom_filepath)
+                 '--registry-filepath', str(agency_local_registry.filepath.absolute()),
+                 '--config-root', str(custom_filepath.absolute()))
 
     envvars = {NUCYPHER_ENVVAR_KEYSTORE_PASSWORD: INSECURE_DEVELOPMENT_PASSWORD}
     result = click_runner.invoke(nucypher_cli, init_args, catch_exceptions=False, env=envvars)
@@ -303,20 +303,20 @@ def test_corrupted_configuration(click_runner,
     default_filename = UrsulaConfiguration.generate_filename()
 
     # Ensure configuration creation
-    top_level_config_root = os.listdir(custom_filepath)
+    top_level_config_root = [f.name for f in custom_filepath.iterdir()]
     assert default_filename in top_level_config_root, "JSON configuration file was not created"
     for field in ['known_nodes', 'keystore', default_filename]:
         assert field in top_level_config_root
 
     # "Corrupt" the configuration by removing the contract registry
-    os.remove(agency_local_registry.filepath)
+    agency_local_registry.filepath.unlink()
 
     # Attempt destruction with invalid configuration (missing registry)
     ursula_file_location = custom_filepath / default_filename
-    destruction_args = ('ursula', 'destroy', '--debug', '--config-file', ursula_file_location)
+    destruction_args = ('ursula', 'destroy', '--debug', '--config-file', str(ursula_file_location.absolute()))
     result = click_runner.invoke(nucypher_cli, destruction_args, input='Y\n', catch_exceptions=False, env=envvars)
     assert result.exit_code == 0
 
     # Ensure character destruction
-    top_level_config_root = os.listdir(custom_filepath)
+    top_level_config_root = [f.name for f in custom_filepath.iterdir()]
     assert default_filename not in top_level_config_root  # config file was destroyed

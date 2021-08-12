@@ -14,7 +14,7 @@
  You should have received a copy of the GNU Affero General Public License
  along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
-
+from pathlib import Path
 
 import click
 
@@ -76,9 +76,9 @@ class UrsulaConfigOptions:
                  federated_only: bool,
                  rest_host: str,
                  rest_port: int,
-                 db_filepath: str,
+                 db_filepath: Path,
                  network: str,
-                 registry_filepath: str,
+                 registry_filepath: Path,
                  dev: bool,
                  poa: bool,
                  light: bool,

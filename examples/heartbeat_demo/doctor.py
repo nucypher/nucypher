@@ -16,11 +16,11 @@
 """
 
 import json
+from pathlib import Path
 from timeit import default_timer as timer
 
 import maya
 import msgpack
-import os
 import shutil
 import sys
 
@@ -45,8 +45,7 @@ except IndexError:
     SEEDNODE_URI = "localhost:11500"
 
 
-# TODO: path joins?
-TEMP_DOCTOR_DIR = "{}/doctor-files".format(os.path.dirname(os.path.abspath(__file__)))
+TEMP_DOCTOR_DIR = Path(__file__).parent.absolute() / "doctor-files"
 
 # Remove previous demo files and create new ones
 shutil.rmtree(TEMP_DOCTOR_DIR, ignore_errors=True)

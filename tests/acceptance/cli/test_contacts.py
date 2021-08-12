@@ -63,13 +63,15 @@ def bob_encrypting_key():
 
 
 def test_card_directory_autocreation(click_runner, mocker):
-    mocked_mkdir = mocker.patch('os.mkdir')
-    mocked_listdir = mocker.patch('os.listdir', side_effect=(FileNotFoundError, []))
-    command = ('contacts', 'list')  # form list command
+    mocked_is_dir = mocker.patch('pathlib.Path.is_dir', return_value=False)
+    mocked_mkdir = mocker.patch('pathlib.Path.mkdir')
+    mocked_listdir = mocker.patch('pathlib.Path.iterdir', return_value=[])
+    command = ('contacts', 'list')
     result = click_runner.invoke(nucypher_cli, command, catch_exceptions=False)
     assert result.exit_code == 0, result.output
+    mocked_is_dir.assert_called_once()
     mocked_mkdir.assert_called_once()
-    mocked_listdir.call_count = 2
+    mocked_listdir.assert_called_once()
 
 
 def test_list_cards_with_none_created(click_runner, certificates_tempdir):
@@ -87,11 +89,11 @@ def test_create_alice_card_interactive(click_runner, alice_verifying_key, alice_
         alice_nickname        # Nickname
     )
     user_input = '\n'.join(user_input)
-    assert len(os.listdir(Card.CARD_DIR)) == 0
+    assert len(list(Card.CARD_DIR.iterdir())) == 0
 
     # Let's play pretend: this alice does not have the card directory (yet)
-    mocker.patch('pathlib.Path.exists', return_value=False)
-    mocked_mkdir = mocker.patch('os.mkdir')
+    mocker.patch('pathlib.Path.is_dir', return_value=False)
+    mocked_mkdir = mocker.patch('pathlib.Path.mkdir')
 
     result = click_runner.invoke(nucypher_cli, command, input=user_input, catch_exceptions=False)
 
@@ -101,7 +103,7 @@ def test_create_alice_card_interactive(click_runner, alice_verifying_key, alice_
     assert result.exit_code == 0, result.output
     assert 'Enter Verifying Key' in result.output
     assert 'Saved new card' in result.output
-    assert len(os.listdir(Card.CARD_DIR)) == 1
+    assert len(list(Card.CARD_DIR.iterdir())) == 1
 
 
 def test_create_alice_card_inline(click_runner, alice_verifying_key, alice_nickname):
@@ -110,11 +112,11 @@ def test_create_alice_card_inline(click_runner, alice_verifying_key, alice_nickn
                '--verifying-key',  bytes(SecretKey.random().public_key()).hex(),
                '--nickname', 'philippa')
 
-    assert len(os.listdir(Card.CARD_DIR)) == 1
+    assert len(list(Card.CARD_DIR.iterdir())) == 1
     result = click_runner.invoke(nucypher_cli, command, catch_exceptions=False)
     assert result.exit_code == 0, result.output
     assert 'Saved new card' in result.output
-    assert len(os.listdir(Card.CARD_DIR)) == 2
+    assert len(list(Card.CARD_DIR.iterdir())) == 2
 
 
 def test_create_bob_card_interactive(click_runner, bob_nickname, bob_encrypting_key, bob_verifying_key):
@@ -127,13 +129,13 @@ def test_create_bob_card_interactive(click_runner, bob_nickname, bob_encrypting_
     )
     user_input = '\n'.join(user_input)
 
-    assert len(os.listdir(Card.CARD_DIR)) == 2
+    assert len(list(Card.CARD_DIR.iterdir())) == 2
     result = click_runner.invoke(nucypher_cli, command, input=user_input, catch_exceptions=False)
     assert result.exit_code == 0, result.output
     assert 'Enter Verifying Key' in result.output
     assert 'Enter Encrypting Key' in result.output
     assert 'Saved new card' in result.output
-    assert len(os.listdir(Card.CARD_DIR)) == 3
+    assert len(list(Card.CARD_DIR.iterdir())) == 3
 
 
 def test_create_bob_card_inline(click_runner, alice_verifying_key, alice_nickname):
@@ -143,11 +145,11 @@ def test_create_bob_card_inline(click_runner, alice_verifying_key, alice_nicknam
                '--encrypting-key', bytes(SecretKey.random().public_key()).hex(),
                '--nickname', 'hans')
 
-    assert len(os.listdir(Card.CARD_DIR)) == 3
+    assert len(list(Card.CARD_DIR.iterdir())) == 3
     result = click_runner.invoke(nucypher_cli, command, catch_exceptions=False)
     assert result.exit_code == 0, result.output
     assert 'Saved new card' in result.output
-    assert len(os.listdir(Card.CARD_DIR)) == 4
+    assert len(list(Card.CARD_DIR.iterdir())) == 4
 
 
 def test_show_unknown_card(click_runner, alice_nickname, alice_verifying_key):
@@ -177,7 +179,7 @@ def test_show_bob_card(click_runner, bob_nickname, bob_encrypting_key, bob_verif
 def test_list_card(click_runner, bob_nickname, bob_encrypting_key,
                    bob_verifying_key, alice_nickname, alice_verifying_key):
     command = ('contacts', 'list')
-    assert len(os.listdir(Card.CARD_DIR)) == 4
+    assert len(list(Card.CARD_DIR.iterdir())) == 4
     result = click_runner.invoke(nucypher_cli, command, catch_exceptions=False)
     assert result.exit_code == 0, result.output
     assert bob_nickname in result.output
@@ -189,8 +191,8 @@ def test_list_card(click_runner, bob_nickname, bob_encrypting_key,
 
 def test_delete_card(click_runner, bob_nickname):
     command = ('contacts', 'delete', '--id', bob_nickname, '--force')
-    assert len(os.listdir(Card.CARD_DIR)) == 4
+    assert len(list(Card.CARD_DIR.iterdir())) == 4
     result = click_runner.invoke(nucypher_cli, command, catch_exceptions=False)
     assert result.exit_code == 0, result.output
     assert 'Deleted card' in result.output
-    assert len(os.listdir(Card.CARD_DIR)) == 3
+    assert len(list(Card.CARD_DIR.iterdir())) == 3

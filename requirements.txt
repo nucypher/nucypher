@@ -10,10 +10,10 @@ blake2b-py==0.1.4
 bytestring-splitter==2.3.2
 cached-property==1.5.2
 certifi==2021.5.30
-cffi==1.14.5
-chardet==4.0.0; python_version >= '2.7' and python_version not in '3.0, 3.1, 3.2, 3.3, 3.4'
-click==7.1.2
-coincurve==15.0.0
+cffi==1.14.6
+charset-normalizer==2.0.4; python_version >= '3'
+click==8.0.1
+coincurve==15.0.1
 colorama==0.4.4
 constant-sorrow==0.1.0a9
 constantly==15.1.0
@@ -21,7 +21,7 @@ construct==2.10.67; python_version >= '3.6'
 cryptography==3.4.7
 cytoolz==0.11.0; implementation_name == 'cpython'
 dateparser==1.0.0; python_version >= '3.5'
-ecdsa==0.17.0; python_version >= '2.6' and python_version not in '3.0, 3.1, 3.2'
+ecdsa==0.18.0b1; python_version >= '2.6' and python_version not in '3.0, 3.1, 3.2'
 eth-abi==2.1.1; python_version >= '3.6' and python_version < '4'
 eth-account==0.5.4; python_version >= '3.6' and python_version < '4'
 eth-bloom==1.0.4; python_version >= '3.6' and python_version < '4'
@@ -37,22 +37,22 @@ flask==2.0.1
 greenlet==1.1.0; python_version >= '3'
 hendrix==3.4.0
 hexbytes==0.2.1; python_version >= '3.6' and python_version < '4'
-humanize==3.8.0; python_version >= '3.6'
+humanize==3.11.0; python_version >= '3.6'
 hyperlink==21.0.0
-idna==2.10; python_version >= '2.7' and python_version not in '3.0, 3.1, 3.2, 3.3'
+idna==3.2; python_version >= '3'
 incremental==21.3.0
 ipfshttpclient==0.7.0a1; python_full_version >= '3.5.4' and python_full_version not in '3.6.0, 3.6.1, 3.7.0, 3.7.1'
 itsdangerous==2.0.1; python_version >= '3.6'
 jinja2==3.0.1; python_version >= '3.6'
 jsonschema==3.2.0
-libusb1==1.9.2
+libusb1==1.9.3
 lmdb==1.2.1
 lru-dict==1.1.7
 mako==1.1.4
 markupsafe==2.0.1; python_version >= '3.6'
-marshmallow==3.12.1
+marshmallow==3.13.0
 maya==0.6.1
-mnemonic==0.19
+mnemonic==0.20; python_version >= '3.5'
 msgpack-python==0.5.6
 msgpack==1.0.2
 multiaddr==0.0.9; python_version >= '2.7' and python_version not in '3.0, 3.1, 3.2, 3.3'
@@ -60,11 +60,11 @@ mypy-extensions==0.4.3
 netaddr==0.8.0
 parsimonious==0.8.1
 pendulum==2.1.2; python_version >= '2.7' and python_version not in '3.0, 3.1, 3.2, 3.3, 3.4'
-pillow==8.2.0
+pillow==8.3.1; python_version >= '3.6'
 protobuf==3.17.3
 py-ecc==4.1.0; python_version >= '3.5' and python_version < '4'
 py-evm==0.4.0a4
-py-geth==3.1.0
+py-geth==3.4.0
 pyasn1-modules==0.2.8
 pyasn1==0.4.8
 pychalk==2.0.1
@@ -73,33 +73,33 @@ pycryptodome==3.10.1
 pyethash==0.1.27
 pynacl==1.4.0; python_version >= '2.7' and python_version not in '3.0, 3.1, 3.2, 3.3'
 pyopenssl==20.0.1
-pyrsistent==0.17.3; python_version >= '3.5'
+pyrsistent==0.18.0; python_version >= '3.6'
 pysha3==1.0.2
-python-dateutil==2.8.1; python_version >= '2.7' and python_version not in '3.0, 3.1, 3.2'
+python-dateutil==2.8.2; python_version >= '2.7' and python_version not in '3.0, 3.1, 3.2'
 pytz==2021.1
 pytzdata==2020.1; python_version >= '2.7' and python_version not in '3.0, 3.1, 3.2, 3.3'
-qrcode[pil]==6.1
-regex==2021.4.4
-requests==2.25.1
+qrcode[pil]==7.2
+regex==2021.8.3
+requests==2.26.0
 rlp==2.0.1
 semantic-version==2.8.5; python_version >= '2.7' and python_version not in '3.0, 3.1, 3.2, 3.3'
 service-identity==21.1.0
 six==1.16.0; python_version >= '2.7' and python_version not in '3.0, 3.1, 3.2'
 snaptime==0.2.4
 sortedcontainers==2.4.0
-sqlalchemy==1.4.18
+sqlalchemy==1.4.22
 tabulate==0.8.9
 toolz==0.11.1; python_version >= '3.5'
-trezor==0.12.2
+trezor==0.12.3
 trie==2.0.0a5; python_version >= '3.6' and python_version < '4'
-twisted==21.2.0; python_full_version >= '3.5.4'
+twisted==21.7.0; python_full_version >= '3.6.7'
 txaio==21.2.1; python_version >= '3.6'
 typing-extensions==3.10.0.0
 tzlocal==2.1
 umbral==0.2.0
-urllib3==1.26.5; python_version >= '2.7' and python_version not in '3.0, 3.1, 3.2, 3.3, 3.4' and python_version < '4'
+urllib3==1.26.6; python_version >= '2.7' and python_version not in '3.0, 3.1, 3.2, 3.3, 3.4' and python_version < '4'
 varint==1.0.2
-watchdog==2.1.2; python_version >= '3.6'
+watchdog==2.1.3; python_version >= '3.6'
 web3==5.12.3
 websockets==8.1; python_full_version >= '3.6.1'
 werkzeug==2.0.1; python_version >= '3.6'

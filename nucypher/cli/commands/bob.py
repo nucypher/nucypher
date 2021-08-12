@@ -15,6 +15,7 @@
  along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 from base64 import b64decode
+from pathlib import Path
 
 import click
 
@@ -68,7 +69,7 @@ class BobConfigOptions:
     def __init__(self, 
                  provider_uri: str,
                  network: str,
-                 registry_filepath: str,
+                 registry_filepath: Path,
                  checksum_address: str,
                  discovery_port: int,
                  dev: bool,
@@ -93,7 +94,7 @@ class BobConfigOptions:
         self.federated_only = federated_only
         self.lonely = lonely
 
-    def create_config(self, emitter: StdoutEmitter, config_file: str) -> BobConfiguration:
+    def create_config(self, emitter: StdoutEmitter, config_file: Path) -> BobConfiguration:
         if self.dev:
             return BobConfiguration(
                 emitter=emitter,
@@ -132,7 +133,7 @@ class BobConfigOptions:
                 handle_missing_configuration_file(character_config_class=BobConfiguration,
                                                   config_file=config_file)
 
-    def generate_config(self, emitter: StdoutEmitter, config_root: str) -> BobConfiguration:
+    def generate_config(self, emitter: StdoutEmitter, config_root: Path) -> BobConfiguration:
 
         checksum_address = self.checksum_address
         if not checksum_address and not self.federated_only:

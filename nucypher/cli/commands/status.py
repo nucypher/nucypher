@@ -16,6 +16,7 @@
 """
 
 import os
+from pathlib import Path
 
 import click
 
@@ -49,7 +50,7 @@ from nucypher.cli.utils import (
     parse_event_filters_into_argument_filters
 )
 from nucypher.config.constants import NUCYPHER_ENVVAR_PROVIDER_URI
-from nucypher.utilities.events import generate_events_csv_file
+from nucypher.utilities.events import generate_events_csv_filename
 
 
 class RegistryOptions:
@@ -85,7 +86,7 @@ option_csv = click.option('--csv',
                           is_flag=True)
 option_csv_file = click.option('--csv-file',
                                help="Write event data to the CSV file at specified filepath",
-                               type=click.Path(dir_okay=False))
+                               type=click.Path(dir_okay=False, path_type=Path))
 option_event_filters = click.option('--event-filter', '-f', 'event_filters',
                                     help="Event filter of the form <name>=<value>",
                                     multiple=True,
@@ -226,7 +227,7 @@ def events(general_config, registry_options, contract_name, from_block, to_block
             csv_output_file = csv_file
             if csv or csv_output_file:
                 if not csv_output_file:
-                    csv_output_file = generate_events_csv_file(contract_name=agent.contract_name, event_name=name)
+                    csv_output_file = generate_events_csv_filename(contract_name=agent.contract_name, event_name=name)
 
             retrieve_events(emitter=emitter,
                             agent=agent,

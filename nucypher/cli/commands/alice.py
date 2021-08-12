@@ -14,7 +14,7 @@ GNU Affero General Public License for more details.
 You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
-
+from pathlib import Path
 
 import click
 
@@ -84,7 +84,7 @@ class AliceConfigOptions:
                  federated_only: bool,
                  discovery_port: int,
                  pay_with: str,
-                 registry_filepath: str,
+                 registry_filepath: Path,
                  middleware: RestMiddleware,
                  gas_strategy: str,
                  max_gas_price: int,  # gwei
@@ -185,7 +185,7 @@ class AliceFullConfigOptions:
         self.n = n
         self.payment_periods = payment_periods
 
-    def generate_config(self, emitter: StdoutEmitter, config_root: str) -> AliceConfiguration:
+    def generate_config(self, emitter: StdoutEmitter, config_root: Path) -> AliceConfiguration:
 
         opts = self.config_options
 

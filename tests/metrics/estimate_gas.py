@@ -20,11 +20,12 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 
 
 import json
-from os.path import abspath, dirname
 
 import io
 import os
 import re
+from pathlib import Path
+
 import tabulate
 import time
 from twisted.logger import ILogObserver, globalLogPublisher, jsonFileLogObserver
@@ -69,7 +70,7 @@ class AnalyzeGas:
     # Logging
     LOG_NAME = 'estimate-gas'
     LOG_FILENAME = '{}.log.json'.format(LOG_NAME)
-    OUTPUT_DIR = os.path.join(abspath(dirname(__file__)), 'results')
+    OUTPUT_DIR = Path(__file__).parent / 'results'
     JSON_OUTPUT_FILENAME = '{}.json'.format(LOG_NAME)
 
     _PATTERN = re.compile(r'''
@@ -87,8 +88,8 @@ class AnalyzeGas:
         self.log = Logger(self.__class__.__name__)
         self.gas_estimations = dict()
 
-        if not os.path.isdir(self.OUTPUT_DIR):
-            os.mkdir(self.OUTPUT_DIR)
+        if not self.OUTPUT_DIR.is_dir():
+            self.OUTPUT_DIR.mkdir()
 
     @provider(ILogObserver)
     def __call__(self, event, *args, **kwargs) -> None:
@@ -115,14 +116,14 @@ class AnalyzeGas:
 
         epoch_time = str(int(time.time()))
         timestamped_filename = '{}-{}'.format(epoch_time, self.JSON_OUTPUT_FILENAME)
-        filepath = os.path.join(self.OUTPUT_DIR, timestamped_filename)
+        filepath = self.OUTPUT_DIR / timestamped_filename
         with open(filepath, 'w') as file:
             file.write(json.dumps(self.gas_estimations, indent=4))
 
     def start_collection(self) -> None:
         print("Starting Data Collection...")
 
-        json_filepath = os.path.join(self.OUTPUT_DIR, AnalyzeGas.LOG_FILENAME)
+        json_filepath = self.OUTPUT_DIR / AnalyzeGas.LOG_FILENAME
         json_io = io.open(json_filepath, "w")
         json_observer = jsonFileLogObserver(json_io)
         globalLogPublisher.addObserver(json_observer)

@@ -203,13 +203,12 @@ def validate_keystore_filename(path: Path) -> None:
 def _parse_path(path: Path) -> Tuple[int, str]:
 
     # validate keystore file
-    path = Path(path)
     if not path.exists():
-        raise Keystore.NotFound(f"Keystore '{path}' does not exist.")
+        raise Keystore.NotFound(f"Keystore '{path.absolute()}' does not exist.")
     if not path.is_file():
         raise ValueError('Keystore path must be a file.')
     if not path.match(f'*{Keystore._DELIMITER}*.{Keystore._SUFFIX}'):
-        Keystore.Invalid(f'{path} is not a valid keystore filename')
+        Keystore.Invalid(f'{path.absolute()} is not a valid keystore filename')
 
     # dissect keystore filename
     validate_keystore_filename(path)

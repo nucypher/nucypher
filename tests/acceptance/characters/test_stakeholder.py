@@ -37,8 +37,8 @@ def test_software_stakeholder_configuration(testerchain,
     path = stakeholder_config_file_location
 
     # Save the stakeholder JSON config
-    stakeholder_configuration.to_configuration_file(filepath=str(path))
-    with open(str(path), 'r') as file:
+    stakeholder_configuration.to_configuration_file(filepath=path)
+    with open(path, 'r') as file:
 
         # Ensure file contents are serializable
         contents = file.read()

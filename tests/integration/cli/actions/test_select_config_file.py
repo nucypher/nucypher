@@ -29,17 +29,17 @@ from nucypher.cli.literature import NO_CONFIGURATIONS_ON_DISK, DEFAULT_TO_LONE_C
 def test_select_config_file_with_no_config_files(test_emitter,
                                                  capsys,
                                                  alice_blockchain_test_config,
-                                                 tmpdir):
+                                                 temp_dir_path):
 
     # Setup
     config_class = alice_blockchain_test_config
 
     # Prove there are no config files on the disk.
-    assert not os.listdir(tmpdir)
+    assert not list(temp_dir_path.iterdir())
     with pytest.raises(click.Abort):
         select_config_file(emitter=test_emitter,
                            config_class=config_class,
-                           config_root=tmpdir)
+                           config_root=temp_dir_path)
 
     # Ensure we notified the user accurately.
     captured = capsys.readouterr()
@@ -51,12 +51,12 @@ def test_select_config_file_with_no_config_files(test_emitter,
 def test_auto_select_config_file(test_emitter,
                                  capsys,
                                  alice_blockchain_test_config,
-                                 tmpdir,
+                                 temp_dir_path,
                                  mock_stdin):
     """Only one configuration was found, so it was chosen automatically"""
 
     config_class = alice_blockchain_test_config
-    config_path = Path(tmpdir) / config_class.generate_filename()
+    config_path = temp_dir_path / config_class.generate_filename()
 
     # Make one configuration
     config_class.to_configuration_file(filepath=config_path)
@@ -64,10 +64,10 @@ def test_auto_select_config_file(test_emitter,
 
     result = select_config_file(emitter=test_emitter,
                                 config_class=config_class,
-                                config_root=tmpdir)
+                                config_root=temp_dir_path)
 
     # ... ensure the correct account was selected
-    assert result == str(config_path)
+    assert result == config_path
 
     # ... the user was *not* prompted
     # If they were, `mock_stdin` would complain.
@@ -81,7 +81,7 @@ def test_auto_select_config_file(test_emitter,
 def test_interactive_select_config_file(test_emitter,
                                         capsys,
                                         alice_blockchain_test_config,
-                                        tmpdir,
+                                        temp_dir_path,
                                         mock_stdin,
                                         mock_accounts,
                                         patch_keystore):
@@ -93,19 +93,19 @@ def test_interactive_select_config_file(test_emitter,
     config_class = config.__class__
 
     # Make one configuration...
-    config_path = Path(tmpdir) / config_class.generate_filename()
+    config_path = temp_dir_path / config_class.generate_filename()
     config.to_configuration_file(filepath=config_path)
     assert config_path.exists()
     select_config_file(emitter=test_emitter,
                        config_class=config_class,
-                       config_root=tmpdir)
+                       config_root=temp_dir_path)
 
     # ... and then a bunch more
     accounts = list(mock_accounts.items())
     filenames = dict()
     for filename, account in accounts:
         config.checksum_address = account.address
-        config_path = Path(tmpdir) / config.generate_filename(modifier=account.address)
+        config_path = temp_dir_path / config.generate_filename(modifier=account.address)
         path = config.to_configuration_file(filepath=config_path, modifier=account.address)
         filenames[path] = account.address
         assert config_path.exists()
@@ -113,7 +113,7 @@ def test_interactive_select_config_file(test_emitter,
     mock_stdin.line(str(user_input))
     result = select_config_file(emitter=test_emitter,
                                 config_class=config_class,
-                                config_root=tmpdir)
+                                config_root=temp_dir_path)
 
     captured = capsys.readouterr()
     for filename, account in accounts:

@@ -16,18 +16,17 @@
 """
 
 import json
-import os
-import stat
 import sys
 from json.decoder import JSONDecodeError
-from typing import List, Dict, Tuple
+from pathlib import Path
+from typing import Dict, List, Tuple
 from urllib.parse import urlparse
 
 from cytoolz.dicttoolz import dissoc
 from eth_account.account import Account
 from eth_account.messages import encode_defunct
 from eth_account.signers.local import LocalAccount
-from eth_utils.address import to_checksum_address, is_address
+from eth_utils.address import is_address, to_checksum_address
 from eth_utils.applicators import apply_formatters_to_dict
 from hexbytes.main import HexBytes
 from web3.main import Web3
@@ -105,8 +104,7 @@ class Web3Signer(Signer):
 
 
 class ClefSigner(Signer):
-
-    DEFAULT_IPC_PATH = '~/Library/Signer/clef.ipc' if sys.platform == 'darwin' else '~/.clef/clef.ipc'  #TODO: #1808
+    DEFAULT_IPC_PATH = Path('~/Library/Signer/clef.ipc' if sys.platform == 'darwin' else '~/.clef/clef.ipc')  # TODO: #1808
 
     SIGN_DATA_FOR_VALIDATOR = 'data/validator'   # a.k.a. EIP 191 version 0
     SIGN_DATA_FOR_CLIQUE = 'application/clique'  # not relevant for us
@@ -118,7 +116,7 @@ class ClefSigner(Signer):
     TIMEOUT = 180  # Default timeout for Clef of 180 seconds
 
     def __init__(self,
-                 ipc_path: str = DEFAULT_IPC_PATH,
+                 ipc_path: Path = DEFAULT_IPC_PATH,
                  timeout: int = TIMEOUT,
                  testnet: bool = False):
         super().__init__()
@@ -242,7 +240,7 @@ class KeystoreSigner(Signer):
         Keystore must be in the geth wallet format.
         """
 
-    def __init__(self, path: str, testnet: bool = False):
+    def __init__(self, path: Path, testnet: bool = False):
         super().__init__()
         self.__path = path
         self.__keys = dict()
@@ -260,22 +258,17 @@ class KeystoreSigner(Signer):
     def uri_scheme(cls) -> str:
         return 'keystore'
 
-    def __read_keystore(self, path: str) -> None:
+    def __read_keystore(self, path: Path) -> None:
         """Read the keystore directory from the disk and populate accounts."""
         try:
-            st_mode = os.stat(path=path).st_mode
-            if stat.S_ISDIR(st_mode):
-                paths = (entry.path for entry in os.scandir(path=path) if entry.is_file())
-            elif stat.S_ISREG(st_mode):
+            if path.is_dir():
+                paths = (entry for entry in path.iterdir() if entry.is_file())
+            elif path.is_file():
                 paths = (path,)
             else:
                 raise self.InvalidSignerURI(f'Invalid keystore file or directory "{path}"')
         except FileNotFoundError:
-            if not path:
-                message = 'Blank signer URI - No keystore path provided'
-            else:
-                message = f'No such keystore file or directory "{path}"'
-            raise self.InvalidSignerURI(message)
+            raise self.InvalidSignerURI(f'No such keystore file or directory "{path}"')
         except OSError as exc:
             raise self.InvalidSignerURI(f'Error accessing keystore file or directory "{path}": {exc}')
         for path in paths:
@@ -283,14 +276,14 @@ class KeystoreSigner(Signer):
             self.__keys[account] = key_metadata
 
     @staticmethod
-    def __read_keyfile(path: str) -> tuple:
+    def __read_keyfile(path: Path) -> tuple:
         """Read an individual keystore key file from the disk"""
         with open(path, 'r') as keyfile:
             key_metadata = json.load(keyfile)
         address = key_metadata['address']
         return address, key_metadata
 
-    def __handle_keyfile(self, path: str) -> Tuple[str, dict]:
+    def __handle_keyfile(self, path: Path) -> Tuple[str, dict]:
         """
         Read a single keystore file from the disk and return its decoded json contents then internally
         cache it on the keystore instance. Raises InvalidKeyfile if the keyfile is missing or corrupted.
@@ -328,7 +321,7 @@ class KeystoreSigner(Signer):
     #
 
     @property
-    def path(self) -> str:
+    def path(self) -> Path:
         """Read only access to the keystore path"""
         return self.__path
 
@@ -338,7 +331,10 @@ class KeystoreSigner(Signer):
         decoded_uri = urlparse(uri)
         if decoded_uri.scheme != cls.uri_scheme() or decoded_uri.netloc:
             raise cls.InvalidSignerURI(uri)
-        return cls(path=decoded_uri.path, testnet=testnet)
+        path = decoded_uri.path
+        if not path:
+            raise cls.InvalidSignerURI('Blank signer URI - No keystore path provided')
+        return cls(path=Path(path), testnet=testnet)
 
     @validate_checksum_address
     def is_device(self, account: str) -> bool:

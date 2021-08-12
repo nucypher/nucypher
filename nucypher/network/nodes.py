@@ -19,20 +19,17 @@ import contextlib
 import time
 from collections import defaultdict, deque
 from contextlib import suppress
+from pathlib import Path
 from queue import Queue
-from typing import Callable
-from typing import Iterable, List
-from typing import Set, Tuple, Union
+from typing import Callable, Iterable, List, Optional, Set, Tuple, Union
 
 import maya
 import requests
 from bytestring_splitter import (
     BytestringSplitter,
+    BytestringSplittingError,
     PartiallyKwargifiedBytes,
     VariableLengthBytestring
-)
-from bytestring_splitter import (
-    BytestringSplittingError
 )
 from constant_sorrow import constant_or_bytes
 from constant_sorrow.constants import (
@@ -972,7 +969,7 @@ class Teacher:
     def __init__(self,
                  domain: str,  # TODO: Consider using a Domain type
                  certificate: Certificate,
-                 certificate_filepath: str,
+                 certificate_filepath: Path,
                  interface_signature=NOT_SIGNED.bool_value(False),
                  timestamp=NOT_SIGNED,
                  decentralized_identity_evidence=NOT_SIGNED,
@@ -1176,7 +1173,7 @@ class Teacher:
     def verify_node(self,
                     network_middleware_client,
                     registry: BaseContractRegistry = None,
-                    certificate_filepath: str = None,
+                    certificate_filepath: Optional[Path] = None,
                     force: bool = False
                     ) -> bool:
         """

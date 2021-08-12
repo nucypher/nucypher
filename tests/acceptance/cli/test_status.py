@@ -37,7 +37,7 @@ from tests.constants import FEE_RATE_RANGE, TEST_PROVIDER_URI, INSECURE_DEVELOPM
 def test_nucypher_status_network(click_runner, testerchain, agency_local_registry):
 
     network_command = ('network',
-                       '--registry-filepath', agency_local_registry.filepath,
+                       '--registry-filepath', str(agency_local_registry.filepath.absolute()),
                        '--provider', TEST_PROVIDER_URI,
                        '--network', TEMPORARY_DOMAIN)
 
@@ -62,7 +62,7 @@ def test_nucypher_status_stakers(click_runner, agency_local_registry, stakers):
 
     # Get all stakers info
     stakers_command = ('stakers',
-                       '--registry-filepath', agency_local_registry.filepath,
+                       '--registry-filepath', str(agency_local_registry.filepath.absolute()),
                        '--provider', TEST_PROVIDER_URI,
                        '--network', TEMPORARY_DOMAIN)
 
@@ -80,7 +80,7 @@ def test_nucypher_status_stakers(click_runner, agency_local_registry, stakers):
     some_dude = random.choice(stakers)
     staking_address = some_dude.checksum_address
     stakers_command = ('stakers', '--staking-address', staking_address,
-                       '--registry-filepath', agency_local_registry.filepath,
+                       '--registry-filepath', str(agency_local_registry.filepath.absolute()),
                        '--provider', TEST_PROVIDER_URI,
                        '--network', TEMPORARY_DOMAIN)
 
@@ -104,7 +104,7 @@ def test_nucypher_status_fee_range(click_runner, agency_local_registry, stakers)
 
     # Get information about global fee range (minimum rate, default rate, maximum rate)
     stakers_command = ('fee-range',
-                       '--registry-filepath', agency_local_registry.filepath,
+                       '--registry-filepath', str(agency_local_registry.filepath),
                        '--provider', TEST_PROVIDER_URI,
                        '--network', TEMPORARY_DOMAIN)
 
@@ -128,7 +128,7 @@ def test_nucypher_status_locked_tokens(click_runner, testerchain, agency_local_r
 
     periods = 2
     status_command = ('locked-tokens',
-                      '--registry-filepath', agency_local_registry.filepath,
+                      '--registry-filepath', str(agency_local_registry.filepath.absolute()),
                       '--provider', TEST_PROVIDER_URI,
                       '--network', TEMPORARY_DOMAIN,
                       '--periods', periods)
@@ -144,7 +144,7 @@ def test_nucypher_status_locked_tokens(click_runner, testerchain, agency_local_r
         assert re.search(f"Min: {all_locked} - Max: {all_locked}", result.output, re.MULTILINE)
 
 
-def test_nucypher_status_events(click_runner, testerchain, agency_local_registry, stakers, tmpdir):
+def test_nucypher_status_events(click_runner, testerchain, agency_local_registry, stakers, temp_dir_path):
     # All workers make a commitment
     staking_agent = ContractAgency.get_agent(StakingEscrowAgent, registry=agency_local_registry)
     starting_block_number = testerchain.get_block_number()
@@ -188,7 +188,7 @@ def test_nucypher_status_events(click_runner, testerchain, agency_local_registry
     #
     # CSV output
     #
-    csv_file = Path(tmpdir) / 'status_events_output.csv'
+    csv_file = temp_dir_path / 'status_events_output.csv'
     csv_status_command = ('events',
                           '--provider', TEST_PROVIDER_URI,
                           '--network', TEMPORARY_DOMAIN,
@@ -196,7 +196,7 @@ def test_nucypher_status_events(click_runner, testerchain, agency_local_registry
                           '--contract-name', 'StakingEscrow',
                           '--from-block', starting_block_number,
                           '--event-filter', f'staker={first_staker.checksum_address}',
-                          '--csv-file', csv_file)
+                          '--csv-file', str(csv_file.absolute()))
     result = click_runner.invoke(status, csv_status_command, catch_exceptions=False)
     assert re.search(f'StakingEscrow::CommitmentMade events written to {csv_file}', result.output, re.MULTILINE), result.output
     assert csv_file.exists(), 'events output to csv file'

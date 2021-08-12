@@ -18,6 +18,7 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 
 import contextlib
 from contextlib import suppress
+from pathlib import Path
 from typing import ClassVar, Dict, List, Optional, Union
 
 from constant_sorrow import default_constant_splitter
@@ -345,7 +346,7 @@ class Character(Learner):
         known_node_class.set_federated_mode(federated_only)
 
     # TODO: Unused
-    def store_metadata(self, filepath: str) -> str:
+    def store_metadata(self, filepath: Path) -> Path:
         """
         Save this node to the disk.
         :param filepath: Output filepath to save node metadata.

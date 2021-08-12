@@ -14,9 +14,8 @@ GNU Affero General Public License for more details.
 You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
-
-
-from typing import Union
+from pathlib import Path
+from typing import Optional, Union
 
 import sha3
 from OpenSSL.SSL import TLSv1_2_METHOD
@@ -25,7 +24,6 @@ from constant_sorrow import constants
 from cryptography.hazmat.primitives.asymmetric import ec
 from hendrix.deploy.tls import HendrixDeployTLS
 from hendrix.facilities.services import ExistingKeyTLSContextFactory
-from nucypher.crypto.umbral_adapter import Signer
 
 from nucypher.config.constants import MAX_UPLOAD_CONTENT_LENGTH
 from nucypher.crypto.kits import MessageKit
@@ -154,7 +152,7 @@ class HostingKeypair(Keypair):
                  checksum_address: str = None,
                  private_key: Union[SecretKey, PublicKey] = None,
                  certificate=None,
-                 certificate_filepath: str = None,
+                 certificate_filepath: Optional[Path] = None,
                  generate_certificate=False,
                  ) -> None:
 

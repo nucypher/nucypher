@@ -14,6 +14,7 @@ GNU Affero General Public License for more details.
 You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
+from pathlib import Path
 
 import pytest
 
@@ -28,7 +29,7 @@ def test_contract_registry(tempfile_path):
         BaseContractRegistry(filepath='test')
 
     with pytest.raises(BaseContractRegistry.RegistryError):
-        bad_registry = LocalContractRegistry(filepath='/fake/file/path/registry.json')
+        bad_registry = LocalContractRegistry(filepath=Path('/fake/file/path/registry.json'))
         bad_registry.search(contract_address='0xdeadbeef')
 
     # Tests everything is as it should be when initially created

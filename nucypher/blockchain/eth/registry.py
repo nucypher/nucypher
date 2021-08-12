@@ -14,18 +14,17 @@ GNU Affero General Public License for more details.
 You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
-import json
-from json import JSONDecodeError
-from os.path import abspath, dirname
-
 import hashlib
-import os
-import requests
+import json
 import shutil
 import tempfile
 from abc import ABC, abstractmethod
+from json import JSONDecodeError
+from pathlib import Path
+from typing import Dict, Iterator, List, Optional, Tuple, Type, Union
+
+import requests
 from constant_sorrow.constants import REGISTRY_COMMITTED
-from typing import Dict, Iterator, List, Tuple, Type, Union
 
 from nucypher.blockchain.eth import CONTRACT_REGISTRY_BASE
 from nucypher.blockchain.eth.networks import NetworksInventory
@@ -97,23 +96,21 @@ class GithubRegistrySource(CanonicalRegistrySource):
 
 
 class EmbeddedRegistrySource(CanonicalRegistrySource):
-
     name = "Embedded Registry Source"
     is_primary = False
 
-    def get_publication_endpoint(self) -> str:
-        filepath = str(CONTRACT_REGISTRY_BASE / self.network / self.registry_name)
-        return filepath
+    def get_publication_endpoint(self) -> Path:
+        return CONTRACT_REGISTRY_BASE / self.network / self.registry_name
 
     def fetch_latest_publication(self) -> Union[str, bytes]:
         filepath = self.get_publication_endpoint()
-        self.logger.debug(f"Reading registry at {filepath}")
+        self.logger.debug(f"Reading registry at {filepath.absolute()}")
         try:
             with open(filepath, "r") as f:
                 registry_data = f.read()
             return registry_data
         except IOError as e:
-            error = f"Failed to read registry at {filepath}: {str(e)}"
+            error = f"Failed to read registry at {filepath.absolute()}: {str(e)}"
             raise self.RegistrySourceError(error)
 
 
@@ -345,7 +342,7 @@ class LocalContractRegistry(BaseContractRegistry):
 
     REGISTRY_TYPE = 'contract'
 
-    def __init__(self, filepath: str, *args, **kwargs):
+    def __init__(self, filepath: Path, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.__filepath = filepath
         self.log.info(f"Using {self.REGISTRY_TYPE} registry {filepath}")
@@ -355,10 +352,10 @@ class LocalContractRegistry(BaseContractRegistry):
         return r
 
     @property
-    def filepath(self) -> str:
-        return str(self.__filepath)
+    def filepath(self) -> Path:
+        return self.__filepath
 
-    def _swap_registry(self, filepath: str) -> bool:
+    def _swap_registry(self, filepath: Path) -> bool:
         self.__filepath = filepath
         return True
 
@@ -398,7 +395,7 @@ class LocalContractRegistry(BaseContractRegistry):
         it will _overwrite_ everything in it.
         """
         # Ensure parent path exists
-        os.makedirs(abspath(dirname(self.__filepath)), exist_ok=True)
+        self.__filepath.parent.mkdir(parents=True, exist_ok=True)
 
         with open(self.__filepath, 'w') as registry_file:
             registry_file.seek(0)
@@ -408,7 +405,7 @@ class LocalContractRegistry(BaseContractRegistry):
         self._id = None
 
     def _destroy(self) -> None:
-        os.remove(self.filepath)
+        self.filepath.unlink()
 
     @classmethod
     def from_dict(cls, payload: dict, **overrides) -> 'LocalContractRegistry':
@@ -432,12 +429,12 @@ class TemporaryContractRegistry(LocalContractRegistry):
         with open(self.filepath, 'w') as registry_file:
             registry_file.write('')
 
-    def commit(self, filepath) -> str:
+    def commit(self, filepath) -> Path:
         """writes the current state of the registry to a file"""
         self.log.info("Committing temporary registry to {}".format(filepath))
         self._swap_registry(filepath)                     # I'll allow it
 
-        if os.path.exists(filepath):
+        if filepath.exists():
             self.log.debug("Removing registry {}".format(filepath))
             self.clear()                                  # clear prior sim runs
 
@@ -457,7 +454,7 @@ class InMemoryContractRegistry(BaseContractRegistry):
     def clear(self):
         self.__registry_data = None
 
-    def _swap_registry(self, filepath: str) -> bool:
+    def _swap_registry(self, filepath: Path) -> bool:
         raise NotImplementedError
 
     def write(self, registry_data: list) -> None:
@@ -474,12 +471,12 @@ class InMemoryContractRegistry(BaseContractRegistry):
                 raise
         return registry_data
 
-    def commit(self, filepath: str = None, overwrite: bool = False) -> str:
+    def commit(self, filepath: Optional[Path] = None, overwrite: bool = False) -> Path:
         """writes the current state of the registry to a file"""
         if not filepath:
-            filepath = os.path.join(DEFAULT_CONFIG_ROOT, self.REGISTRY_NAME)
+            filepath = DEFAULT_CONFIG_ROOT / self.REGISTRY_NAME
         self.log.info("Committing in-memory registry to disk.")
-        if os.path.exists(filepath) and not overwrite:
+        if filepath.exists() and not overwrite:
             existing_registry = LocalContractRegistry(filepath=filepath)
             raise self.CantOverwriteRegistry(f"Registry #{existing_registry.id[:16]} exists at {filepath} "
                                              f"while writing Registry #{self.id[:16]}).  "

@@ -15,14 +15,13 @@ You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
-import os
+import binascii
 import tempfile
 from abc import ABC, abstractmethod
 from pathlib import Path
-from typing import Any, Set, Union
+from typing import Any, Optional, Set, Union
 
 import OpenSSL
-import binascii
 from bytestring_splitter import BytestringSplittingError
 from cryptography import x509
 from cryptography.hazmat.backends import default_backend
@@ -32,6 +31,7 @@ from cryptography.x509 import Certificate
 from nucypher.blockchain.eth.decorators import validate_checksum_address
 from nucypher.blockchain.eth.registry import BaseContractRegistry
 from nucypher.config.constants import DEFAULT_CONFIG_ROOT
+from nucypher.config.util import cast_paths_from
 from nucypher.crypto.signing import SignatureStamp
 from nucypher.utilities.logging import Logger
 
@@ -93,7 +93,7 @@ class NodeStorage(ABC):
     def _write_tls_certificate(self,
                                port: int,  # used to avoid duplicate certs with the same IP
                                certificate: Certificate,
-                               force: bool = True) -> str:
+                               force: bool = True) -> Path:
 
         # Read
         x509 = OpenSSL.crypto.X509.from_cryptography(certificate)
@@ -103,12 +103,12 @@ class NodeStorage(ABC):
         host = common_name_on_certificate
 
         certificate_filepath = self.generate_certificate_filepath(host=host, port=port)
-        certificate_already_exists = os.path.isfile(certificate_filepath)
+        certificate_already_exists = certificate_filepath.is_file()
         if force is False and certificate_already_exists:
             raise FileExistsError('A TLS certificate already exists at {}.'.format(certificate_filepath))
 
         # Write
-        os.makedirs(os.path.dirname(certificate_filepath), exist_ok=True)
+        certificate_filepath.parent.mkdir(parents=True, exist_ok=True)
         with open(certificate_filepath, 'wb') as certificate_file:
             public_pem_bytes = certificate.public_bytes(self.TLS_CERTIFICATE_ENCODING)
             certificate_file.write(public_pem_bytes)
@@ -117,16 +117,16 @@ class NodeStorage(ABC):
         return certificate_filepath
 
     @abstractmethod
-    def store_node_certificate(self, certificate: Certificate, port: int) -> str:
+    def store_node_certificate(self, certificate: Certificate, port: int) -> Path:
         raise NotImplementedError
 
     @abstractmethod
-    def store_node_metadata(self, node, filepath: str = None) -> str:
+    def store_node_metadata(self, node, filepath: Optional[Path] = None) -> Path:
         """Save a single node's metadata and tls certificate"""
         raise NotImplementedError
 
     @abstractmethod
-    def generate_certificate_filepath(self, host: str, port: int) -> str:
+    def generate_certificate_filepath(self, host: str, port: int) -> Path:
         raise NotImplementedError
 
     @abstractmethod
@@ -164,14 +164,14 @@ class ForgetfulNodeStorage(NodeStorage):
     _name = ':memory:'
     __base_prefix = "nucypher-tmp-certs-"
 
-    def __init__(self, parent_dir: str = None, *args, **kwargs) -> None:
+    def __init__(self, parent_dir: Optional[Path] = None, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
         self.__metadata = dict()
 
         # Certificates
         self.__certificates = dict()
         self.__temporary_certificates = list()
-        self._temp_certificates_dir = tempfile.mkdtemp(prefix=self.__base_prefix, dir=parent_dir)
+        self._temp_certificates_dir = Path(tempfile.mkdtemp(prefix=self.__base_prefix, dir=parent_dir))
 
     @property
     def source(self) -> str:
@@ -189,7 +189,7 @@ class ForgetfulNodeStorage(NodeStorage):
             certificate_only: bool = False):
 
         if not bool(stamp) ^ bool(host):
-            message = "Either pass checksum_address or host; Not both. Got ({} {})".format(checksum_address, host)
+            message = "Either pass stamp or host; Not both. Got ({} {})".format(stamp, host)
             raise ValueError(message)
 
         if certificate_only is True:
@@ -205,20 +205,20 @@ class ForgetfulNodeStorage(NodeStorage):
 
     def forget(self) -> bool:
         for temp_certificate in self.__temporary_certificates:
-            os.remove(temp_certificate)
+            temp_certificate.unlink()
         return len(self.__temporary_certificates) == 0
 
-    def store_node_certificate(self, certificate: Certificate, port: int) -> str:
+    def store_node_certificate(self, certificate: Certificate, port: int) -> Path:
         filepath = self._write_tls_certificate(certificate=certificate, port=port)
         return filepath
 
-    def store_node_metadata(self, node, filepath: str = None) -> bytes:
+    def store_node_metadata(self, node, filepath: Optional[Path] = None) -> bytes:
         self.__metadata[node.stamp] = node
         return self.__metadata[node.stamp]
 
-    def generate_certificate_filepath(self, host: str, port: int) -> str:
+    def generate_certificate_filepath(self, host: str, port: int) -> Path:
         filename = f'{host}:{port}.pem'
-        filepath = os.path.join(self._temp_certificates_dir, filename)
+        filepath = self._temp_certificates_dir / filename
         return filepath
 
     def clear(self, metadata: bool = True, certificates: bool = True) -> None:
@@ -255,10 +255,10 @@ class LocalFileBasedNodeStorage(NodeStorage):
         """Node metadata is corrupt or not possible to parse"""
 
     def __init__(self,
-                 config_root: str = None,
-                 storage_root: str = None,
-                 metadata_dir: str = None,
-                 certificates_dir: str = None,
+                 config_root: Optional[Path] = None,
+                 storage_root: Optional[Path] = None,
+                 metadata_dir: Optional[Path] = None,
+                 certificates_dir: Optional[Path] = None,
                  *args, **kwargs
                  ) -> None:
 
@@ -271,7 +271,7 @@ class LocalFileBasedNodeStorage(NodeStorage):
         self._cache_storage_filepaths(config_root=config_root)
 
     @property
-    def source(self) -> str:
+    def source(self) -> Path:
         """Human readable source string"""
         return self.root_dir
 
@@ -282,14 +282,14 @@ class LocalFileBasedNodeStorage(NodeStorage):
         return encoded_node
 
     @staticmethod
-    def _generate_storage_filepaths(config_root: str = None,
-                                    storage_root: str = None,
-                                    metadata_dir: str = None,
-                                    certificates_dir: str = None):
+    def _generate_storage_filepaths(config_root: Optional[Path] = None,
+                                    storage_root: Optional[Path] = None,
+                                    metadata_dir: Optional[Path] = None,
+                                    certificates_dir: Optional[Path] = None):
 
-        storage_root = storage_root or os.path.join(config_root or DEFAULT_CONFIG_ROOT, 'known_nodes')
-        metadata_dir = metadata_dir or os.path.join(storage_root, 'metadata')
-        certificates_dir = certificates_dir or os.path.join(storage_root, 'certificates')
+        storage_root = storage_root or ((config_root or DEFAULT_CONFIG_ROOT) / 'known_nodes')
+        metadata_dir = metadata_dir or storage_root / 'metadata'
+        certificates_dir = certificates_dir or storage_root / 'certificates'
 
         payload = {'storage_root': storage_root,
                    'metadata_dir': metadata_dir,
@@ -297,7 +297,7 @@ class LocalFileBasedNodeStorage(NodeStorage):
 
         return payload
 
-    def _cache_storage_filepaths(self, config_root: str = None):
+    def _cache_storage_filepaths(self, config_root: Optional[Path] = None):
         filepaths = self._generate_storage_filepaths(config_root=config_root,
                                                      storage_root=self.root_dir,
                                                      metadata_dir=self.metadata_dir,
@@ -314,23 +314,20 @@ class LocalFileBasedNodeStorage(NodeStorage):
     def __get_certificate_filename(self, host: str, port: int) -> str:
         return f'{host}:{port}.{Encoding.PEM.name.lower()}'
 
-    def __get_certificate_filepath(self, certificate_filename: str) -> str:
-        return os.path.join(self.certificates_dir, certificate_filename)
+    def __get_certificate_filepath(self, certificate_filename: str) -> Path:
+        return self.certificates_dir / certificate_filename
 
-    def generate_certificate_filepath(self, host: str, port: int) -> str:
+    def generate_certificate_filepath(self, host: str, port: int) -> Path:
         certificate_filename = self.__get_certificate_filename(host=host, port=port)
         certificate_filepath = self.__get_certificate_filepath(certificate_filename=certificate_filename)
         return certificate_filepath
 
     @validate_checksum_address
-    def __read_node_tls_certificate(self, filepath: str) -> Certificate:
+    def __read_node_tls_certificate(self, filepath: Optional[Path] = None) -> Certificate:
         """Deserialize an X509 certificate from a filepath"""
         try:
             with open(filepath, 'rb') as certificate_file:
                 certificate = x509.load_pem_x509_certificate(certificate_file.read(), backend=default_backend())
-                # Sanity check:
-                # Validate the checksum address inside the cert as a consistency check against
-                # nodes that may have been altered on the disk somehow.
                 return certificate
         except FileNotFoundError:
             raise FileNotFoundError("No SSL certificate found at {}".format(filepath))
@@ -339,14 +336,16 @@ class LocalFileBasedNodeStorage(NodeStorage):
     # Metadata
     #
 
-    def __generate_metadata_filepath(self, stamp: Union[SignatureStamp, str], metadata_dir: str = None) -> str:
+    def __generate_metadata_filepath(self, stamp: Union[SignatureStamp, bytes, str], metadata_dir: Optional[Path] = None) -> Path:
         if isinstance(stamp, SignatureStamp):
-            stamp = bytes(stamp).hex()
-        metadata_path = os.path.join(metadata_dir or self.metadata_dir,
-                                     self.__METADATA_FILENAME_TEMPLATE.format(stamp))
+            stamp = bytes(stamp)
+        if isinstance(stamp, str):
+            stamp = bytes.fromhex(stamp)
+        stamp = stamp.hex()
+        metadata_path = metadata_dir or self.metadata_dir / self.__METADATA_FILENAME_TEMPLATE.format(stamp)
         return metadata_path
 
-    def __read_metadata(self, filepath: str):
+    def __read_metadata(self, filepath: Path):
 
         from nucypher.characters.lawful import Ursula
 
@@ -362,8 +361,8 @@ class LocalFileBasedNodeStorage(NodeStorage):
 
         return node
 
-    def __write_metadata(self, filepath: str, node):
-        os.makedirs(os.path.dirname(filepath), exist_ok=True)
+    def __write_metadata(self, filepath: Path, node):
+        filepath.parent.mkdir(parents=True, exist_ok=True)
         with open(filepath, "wb") as f:
             f.write(self.encode_node_bytes(bytes(node)))
         self.log.info("Wrote new node metadata to filesystem {}".format(filepath))
@@ -373,13 +372,13 @@ class LocalFileBasedNodeStorage(NodeStorage):
     # API
     #
     def all(self, federated_only: bool, certificates_only: bool = False) -> Set[Union[Any, Certificate]]:
-        filenames = os.listdir(self.certificates_dir if certificates_only else self.metadata_dir)
+        filenames = list((self.certificates_dir if certificates_only else self.metadata_dir).iterdir())
         self.log.info("Found {} known node metadata files at {}".format(len(filenames), self.metadata_dir))
 
         known_certificates = set()
         if certificates_only:
             for filename in filenames:
-                certificate = self.__read_node_tls_certificate(os.path.join(self.certificates_dir, filename))
+                certificate = self.__read_node_tls_certificate(self.certificates_dir / filename)
                 known_certificates.add(certificate)
             return known_certificates
 
@@ -387,7 +386,7 @@ class LocalFileBasedNodeStorage(NodeStorage):
             known_nodes = set()
             invalid_metadata = []
             for filename in filenames:
-                metadata_path = os.path.join(self.metadata_dir, filename)
+                metadata_path = self.metadata_dir / filename
                 try:
                     node = self.__read_metadata(filepath=metadata_path)
                 except self.NodeStorageError:
@@ -400,7 +399,7 @@ class LocalFileBasedNodeStorage(NodeStorage):
             return known_nodes
 
     @validate_checksum_address
-    def get(self, stamp: str, federated_only: bool, certificate_only: bool = False):
+    def get(self, stamp: Union[SignatureStamp, str], federated_only: bool, certificate_only: bool = False):
         if certificate_only is True:
             certificate = self.__read_node_tls_certificate(stamp=stamp)
             return certificate
@@ -412,7 +411,7 @@ class LocalFileBasedNodeStorage(NodeStorage):
         certificate_filepath = self._write_tls_certificate(certificate=certificate, port=port, force=force)
         return certificate_filepath
 
-    def store_node_metadata(self, node, filepath: str = None) -> str:
+    def store_node_metadata(self, node, filepath: Optional[Path] = None) -> Path:
         filepath = self.__generate_metadata_filepath(stamp=node.stamp, metadata_dir=filepath)
         self.__write_metadata(filepath=filepath, node=node)
         return filepath
@@ -420,16 +419,12 @@ class LocalFileBasedNodeStorage(NodeStorage):
     def clear(self, metadata: bool = True, certificates: bool = True) -> None:
         """Forget all stored nodes and certificates"""
 
-        def __destroy_dir_contents(path) -> None:
-            try:
-                paths_to_remove = os.listdir(path)
-            except FileNotFoundError:
+        def __destroy_dir_contents(path: Path) -> None:
+            if not path.is_dir():
                 return
-            else:
-                for file in paths_to_remove:
-                    file_path = os.path.join(path, file)
-                    if os.path.isfile(file_path):
-                        os.unlink(file_path)
+            for dir_item in path.iterdir():
+                if dir_item.is_file():
+                    dir_item.unlink()
 
         if metadata is True:
             __destroy_dir_contents(self.metadata_dir)
@@ -441,9 +436,9 @@ class LocalFileBasedNodeStorage(NodeStorage):
     def payload(self) -> dict:
         payload = {
             'storage_type': self._name,
-            'storage_root': self.root_dir,
-            'metadata_dir': self.metadata_dir,
-            'certificates_dir': self.certificates_dir
+            'storage_root': str(self.root_dir.absolute()),
+            'metadata_dir': str(self.metadata_dir.absolute()),
+            'certificates_dir': str(self.certificates_dir.absolute())
         }
         return payload
 
@@ -454,13 +449,15 @@ class LocalFileBasedNodeStorage(NodeStorage):
             raise cls.NodeStorageError("Wrong storage type. got {}".format(storage_type))
         del payload['storage_type']
 
+        payload = cast_paths_from(cls, payload)
+
         return cls(*args, **payload, **kwargs)
 
     def initialize(self):
         storage_dirs = (self.root_dir, self.metadata_dir, self.certificates_dir)
         for storage_dir in storage_dirs:
             try:
-                os.mkdir(storage_dir, mode=0o755)
+                storage_dir.mkdir(mode=0o755)
             except FileExistsError:
                 message = "There are pre-existing files at {}".format(self.root_dir)
                 self.log.info(message)
@@ -492,9 +489,9 @@ class TemporaryFileBasedNodeStorage(LocalFileBasedNodeStorage):
         self.root_dir = self.__temp_root_dir
 
         # Metadata
-        self.__temp_metadata_dir = str(Path(self.__temp_root_dir) / "metadata")
+        self.__temp_metadata_dir = Path(self.__temp_root_dir) / "metadata"
         self.metadata_dir = self.__temp_metadata_dir
 
         # Certificates
-        self.__temp_certificates_dir = str(Path(self.__temp_root_dir) / "certs")
+        self.__temp_certificates_dir = Path(self.__temp_root_dir) / "certs"
         self.certificates_dir = self.__temp_certificates_dir

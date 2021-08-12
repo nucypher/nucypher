@@ -325,8 +325,8 @@ class ContractAdministrator(BaseActor):
     def save_deployment_receipts(self, receipts: dict, filename_prefix: str = 'deployment') -> str:
         config_root = DEFAULT_CONFIG_ROOT  # We force the use of the default here.
         filename = f'{filename_prefix}-receipts-{self.deployer_address[:6]}-{maya.now().epoch}.json'
-        filepath = os.path.join(config_root, filename)
-        os.makedirs(config_root, exist_ok=True)
+        filepath = config_root / filename
+        config_root.mkdir(parents=True, exist_ok=True)
         with open(filepath, 'w') as file:
             data = dict()
             for contract_name, contract_receipts in receipts.items():
