@@ -25,11 +25,6 @@ from constant_sorrow.constants import CFRAG_NOT_RETAINED
 from eth_typing.evm import ChecksumAddress
 from eth_utils.address import to_canonical_address, to_checksum_address
 
-from nucypher.crypto.constants import (
-    WRIT_CHECKSUM_SIZE,
-    SIGNED_WRIT_SIZE,
-    ENCRYPTED_KFRAG_PAYLOAD_LENGTH
-)
 from nucypher.crypto.kits import PolicyMessageKit
 from nucypher.crypto.signing import SignatureStamp, InvalidSignature
 from nucypher.crypto.splitters import (
@@ -46,6 +41,7 @@ from nucypher.crypto.umbral_adapter import (
     PublicKey,
     Signature
 )
+from nucypher.policy.maps import AuthorizedKeyFrag
 
 
 class WorkOrder:
@@ -65,17 +61,6 @@ class WorkOrder:
         + key_splitter                    \
         + hrac_splitter                   \
         + BytestringSplitter((bytes, VariableLengthBytestring))
-
-    # HRAC
-    # kfrag checksum
-    # alice signature
-    signed_writ_splitter = hrac_splitter                  \
-        + BytestringSplitter((bytes, WRIT_CHECKSUM_SIZE)) \
-        + signature_splitter                              \
-
-    # signed writ
-    # kfrag
-    kfrag_payload_splitter = BytestringSplitter((bytes, SIGNED_WRIT_SIZE)) + kfrag_splitter
 
     class PRETask:
 
@@ -105,7 +90,7 @@ class WorkOrder:
 
             expected_lengths = (
                 (stamp, 'ursula_stamp', PublicKey.serialized_size()),
-                (encrypted_kfrag, 'encrypted_kfrag', ENCRYPTED_KFRAG_PAYLOAD_LENGTH)
+                (encrypted_kfrag, 'encrypted_kfrag', AuthorizedKeyFrag.ENCRYPTED_SIZE)
                 # NOTE: ursula_identity_evidence has a default value of b'' for federated mode.
             )
 
@@ -371,7 +356,7 @@ class Revocation:
     revocation_splitter = BytestringSplitter(
         (bytes, len(PREFIX)),
         (bytes, 20),   # ursula canonical address
-        (bytes, ENCRYPTED_KFRAG_PAYLOAD_LENGTH),  # encrypted kfrag payload (includes writ)
+        (bytes, AuthorizedKeyFrag.ENCRYPTED_SIZE),  # encrypted kfrag payload (includes writ)
         signature_splitter
     )
 

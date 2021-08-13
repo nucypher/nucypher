@@ -20,7 +20,6 @@ import random
 import string
 
 from nucypher.characters.lawful import Enrico
-from nucypher.crypto.constants import ENCRYPTED_KFRAG_PAYLOAD_LENGTH
 from nucypher.crypto.powers import DecryptingPower
 from nucypher.policy.orders import WorkOrder
 

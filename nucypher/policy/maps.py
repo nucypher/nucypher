@@ -31,7 +31,7 @@ from eth_utils.address import to_checksum_address, to_canonical_address
 
 from nucypher.blockchain.eth.constants import ETH_ADDRESS_BYTE_LENGTH
 from nucypher.characters.base import Character
-from nucypher.crypto.constants import HRAC_LENGTH, WRIT_CHECKSUM_SIZE, EIP712_MESSAGE_SIGNATURE_SIZE
+from nucypher.crypto.constants import HRAC_LENGTH, EIP712_MESSAGE_SIGNATURE_SIZE
 from nucypher.crypto.kits import UmbralMessageKit
 from nucypher.crypto.powers import DecryptingPower, SigningPower
 from nucypher.crypto.signing import SignatureStamp
@@ -43,16 +43,22 @@ from nucypher.network.middleware import RestMiddleware
 
 class AuthorizedKeyFrag:
 
+    _WRIT_CHECKSUM_SIZE = 32
+
+    # The size of a serialized message kit encrypting an AuthorizedKeyFrag.
+    # Depends on encryption parameters in Umbral, has to be hardcoded.
+    ENCRYPTED_SIZE = 619
+
     _splitter = BytestringSplitter(
         hrac_splitter, # HRAC
-        BytestringSplitter((bytes, WRIT_CHECKSUM_SIZE)), # kfrag checksum
+        BytestringSplitter((bytes, _WRIT_CHECKSUM_SIZE)), # kfrag checksum
         signature_splitter, # Publisher's signature
         kfrag_splitter,
         )
 
     @staticmethod
     def _kfrag_checksum(kfrag: KeyFrag) -> bytes:
-        return keccak_digest(bytes(kfrag))[:WRIT_CHECKSUM_SIZE]
+        return keccak_digest(bytes(kfrag))[:AuthorizedKeyFrag._WRIT_CHECKSUM_SIZE]
 
     @classmethod
     def construct_by_publisher(cls,

@@ -21,9 +21,9 @@ import pytest
 
 from nucypher.characters.control.specifications.fields import TreasureMap
 from nucypher.control.specifications.exceptions import InvalidArgumentCombo, InvalidInputData
-from nucypher.crypto.constants import ENCRYPTED_KFRAG_PAYLOAD_LENGTH
 from nucypher.crypto.powers import DecryptingPower
 from nucypher.crypto.umbral_adapter import SecretKey
+from nucypher.policy.maps import AuthorizedKeyFrag
 from nucypher.policy.orders import WorkOrder as WorkOrderClass
 from nucypher.utilities.porter.control.specifications.fields import UrsulaInfoSchema
 from nucypher.utilities.porter.control.specifications.porter_schema import (
@@ -292,7 +292,7 @@ def test_bob_exec_work_order(mock_ursula_reencrypts,
     material = [(task.capsule, task.signature, task.cfrag, task.cfrag_signature) for task in tasks]
     capsules, signatures, cfrags, cfrag_signatures = zip(*material)
 
-    mock_kfrag = os.urandom(ENCRYPTED_KFRAG_PAYLOAD_LENGTH)
+    mock_kfrag = os.urandom(AuthorizedKeyFrag.ENCRYPTED_SIZE)
 
     # Test construction of WorkOrders by Bob
     work_order = WorkOrderClass.construct_by_bob(encrypted_kfrag=mock_kfrag,
