@@ -21,12 +21,12 @@ from marshmallow import fields
 
 from nucypher.control.specifications.exceptions import InvalidInputData
 from nucypher.control.specifications.fields.base import BaseField
-from nucypher.policy.maps import EncryptedTreasureMap as EncryptedTreasureMapClass
+from nucypher.policy.maps import EncryptedTreasureMap as EncryptedTreasureMapClass, TreasureMap as TreaureMapClass
 
 
 class EncryptedTreasureMap(BaseField, fields.Field):
     """
-    JSON Parameter representation of TreasureMap.
+    JSON Parameter representation of EncryptedTreasureMap.
     """
     def _serialize(self, value, attr, obj, **kwargs):
         return b64encode(bytes(value)).decode()
@@ -37,3 +37,18 @@ class EncryptedTreasureMap(BaseField, fields.Field):
             return EncryptedTreasureMapClass.from_bytes(treasure_map_bytes)
         except Exception as e:
             raise InvalidInputData(f"Could not convert input for {self.name} to an EncryptedTreasureMap: {e}") from e
+
+
+class TreasureMap(BaseField, fields.Field):
+    """
+    JSON Parameter representation of (decrypted) TreasureMap.
+    """
+    def _serialize(self, value, attr, obj, **kwargs):
+        return b64encode(bytes(value)).decode()
+
+    def _deserialize(self, value, attr, data, **kwargs):
+        try:
+            treasure_map_bytes = b64decode(value)
+            return TreaureMapClass.from_bytes(treasure_map_bytes)
+        except Exception as e:
+            raise InvalidInputData(f"Could not convert input for {self.name} to a TreaureMap: {e}") from e

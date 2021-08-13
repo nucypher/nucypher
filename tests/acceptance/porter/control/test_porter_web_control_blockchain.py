@@ -16,16 +16,12 @@
 """
 
 import json
-from urllib.parse import urlencode
+import os
 from base64 import b64encode
 
 import pytest
-from nucypher.crypto.umbral_adapter import PublicKey
 
-from nucypher.crypto.powers import DecryptingPower
 from nucypher.network.nodes import Learner
-from nucypher.policy.hrac import HRAC
-from nucypher.policy.maps import TreasureMap
 from tests.utils.middleware import MockRestMiddleware
 from tests.utils.policy import retrieval_request_setup
 
@@ -90,46 +86,37 @@ def test_get_ursulas(blockchain_porter_web_controller, blockchain_ursulas):
         blockchain_porter_web_controller.get('/get_ursulas', data=json.dumps(failed_ursula_params))
 
 
-@pytest.mark.skip("to be fixed later")
-def test_exec_work_order(blockchain_porter_web_controller,
+def test_retrieve_cfrags(blockchain_porter_web_controller,
                          random_blockchain_policy,
-                         blockchain_ursulas,
                          blockchain_bob,
-                         blockchain_alice,
-                         get_random_checksum_address):
+                         blockchain_alice):
     # Send bad data to assert error return
-    response = blockchain_porter_web_controller.post('/exec_work_order', data=json.dumps({'bad': 'input'}))
+    response = blockchain_porter_web_controller.post('/retrieve_cfrags', data=json.dumps({'bad': 'input'}))
     assert response.status_code == 400
 
     # Setup
     network_middleware = MockRestMiddleware()
     # enact new random policy since idle_blockchain_policy/enacted_blockchain_policy already modified in previous tests
     enacted_policy = random_blockchain_policy.enact(network_middleware=network_middleware)
-    ursula_address, work_order = work_order_setup(enacted_policy,
-                                                  blockchain_ursulas,
-                                                  blockchain_bob,
-                                                  blockchain_alice)
-    work_order_payload_b64 = b64encode(work_order.payload()).decode()
+    retrieve_cfrags_params = retrieval_request_setup(enacted_policy,
+                                                     blockchain_bob,
+                                                     blockchain_alice,
+                                                     encode_for_rest=True)
 
-    exec_work_order_params = {
-        'ursula': ursula_address,
-        'work_order_payload': work_order_payload_b64
-    }
-    response = blockchain_porter_web_controller.post(f'/exec_work_order'
-                                                     f'?{urlencode(exec_work_order_params)}')
+    # Success
+    response = blockchain_porter_web_controller.post('/retrieve_cfrags', data=json.dumps(retrieve_cfrags_params))
     assert response.status_code == 200
 
     response_data = json.loads(response.data)
-    work_order_result = response_data['result']['work_order_result']
-    assert work_order_result
+    results = response_data['result']['retrieval_results']
+    assert results
 
     # Failure
-    exec_work_order_params = {
-        'ursula': get_random_checksum_address(),  # unknown ursula
-        'work_order_payload': work_order_payload_b64
-    }
-    with pytest.raises(Learner.NotEnoughNodes):
-        blockchain_porter_web_controller.post('/exec_work_order', data=json.dumps(exec_work_order_params))
+    failure_retrieve_cfrags_params = dict(retrieve_cfrags_params)
+    # use invalid treasure map bytes
+    failure_retrieve_cfrags_params['treasure_map'] = b64encode(os.urandom(32)).decode()
+    response = blockchain_porter_web_controller.post('/retrieve_cfrags', data=json.dumps(failure_retrieve_cfrags_params))
+    assert response.status_code == 400  # invalid treasure map provided
 
 
 def test_get_ursulas_basic_auth(blockchain_porter_basic_auth_web_controller):

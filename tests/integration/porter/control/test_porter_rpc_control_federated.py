@@ -19,8 +19,8 @@ from base64 import b64encode
 
 import pytest
 
+from nucypher.control.specifications.exceptions import InvalidInputData
 from nucypher.network.nodes import Learner
-# should always be first test due to checks on response id
 from tests.utils.policy import retrieval_request_setup
 
 
@@ -72,37 +72,31 @@ def test_get_ursulas(federated_porter_rpc_controller, federated_ursulas):
         federated_porter_rpc_controller.send(request_data)
 
 
-@pytest.mark.skip("to be fixed later")
-def test_exec_work_order(federated_porter_rpc_controller,
+def test_retrieve_cfrags(federated_porter_rpc_controller,
                          enacted_federated_policy,
-                         federated_ursulas,
                          federated_bob,
                          federated_alice,
-                         get_random_checksum_address):
-    method = 'exec_work_order'
+                         random_federated_treasure_map_data):
+    method = 'retrieve_cfrags'
+
     # Setup
-    ursula_address, work_order = work_order_setup(enacted_federated_policy,
-                                                  federated_ursulas,
-                                                  federated_bob,
-                                                  federated_alice)
+    retrieve_cfrags_params = retrieval_request_setup(enacted_federated_policy,
+                                                     federated_bob,
+                                                     federated_alice,
+                                                     encode_for_rest=True)
 
-    work_order_payload_b64 = b64encode(work_order.payload()).decode()
-
-    exec_work_order_params = {
-        'ursula': ursula_address,
-        'work_order_payload': work_order_payload_b64
-    }
-    request_data = {'method': method, 'params': exec_work_order_params}
+    # Success
+    request_data = {'method': method, 'params': retrieve_cfrags_params}
     response = federated_porter_rpc_controller.send(request_data)
     assert response.success
-    work_order_result = response.content['work_order_result']
-    assert work_order_result
 
-    # Failure
-    exec_work_order_params = {
-        'ursula': get_random_checksum_address(),  # unknown ursula
-        'work_order_payload': work_order_payload_b64
-    }
-    with pytest.raises(Learner.NotEnoughNodes):
-        request_data = {'method': method, 'params': exec_work_order_params}
+    results = response.data['result']['retrieval_results']
+    assert results
+
+    # Failure - use encrypted treasure map
+    failure_retrieve_cfrags_params = dict(retrieve_cfrags_params)
+    _, _, random_treasure_map = random_federated_treasure_map_data
+    failure_retrieve_cfrags_params['treasure_map'] = b64encode(bytes(random_treasure_map)).decode()
+    request_data = {'method': method, 'params': failure_retrieve_cfrags_params}
+    with pytest.raises(InvalidInputData):
         federated_porter_rpc_controller.send(request_data)

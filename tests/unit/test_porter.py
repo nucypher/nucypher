@@ -27,7 +27,6 @@ from nucypher.utilities.porter.control.specifications.fields import (
     UrsulaChecksumAddress,
 )
 from nucypher.utilities.porter.control.specifications.fields.retrieve import RetrievalKit, Capsule
-from tests.utils.policy import retrieval_request_setup
 
 
 def test_hrac_field(enacted_federated_policy):
@@ -69,37 +68,6 @@ def test_ursula_checksum_address_field(get_random_checksum_address):
 
     with pytest.raises(InvalidInputData):
         field._deserialize(value="0xdeadbeef", attr=None, data=None)
-
-
-@pytest.mark.skip("To be fixed by follow-up PR")
-def test_reencryption_request_field(enacted_federated_policy,
-                                    federated_ursulas,
-                                    federated_bob,
-                                    federated_alice,
-                                    get_random_checksum_address):
-    # Setup
-    ursula_address, request = retrieval_request_setup(enacted_federated_policy,
-                                                         federated_ursulas,
-                                                         federated_bob,
-                                                         federated_alice)
-    reencrypt_result = b"cfrags and signatures"
-
-    # Test Work Order
-    request_bytes = bytes(request)
-    field = ReencryptionRequest()
-    serialized = field._serialize(value=request, attr=None, obj=None)
-    assert serialized == b64encode(request_bytes).decode()
-
-    deserialized = field._deserialize(value=serialized, attr=None, data=None)
-    assert deserialized == request_bytes
-
-    # Test Work Order Result
-    field = ReencryptionResult()
-    serialized = field._serialize(value=reencrypt_result, attr=None, obj=None)
-    assert serialized == b64encode(reencrypt_result).decode()
-
-    deserialized = field.deserialize(value=serialized, attr=None, data=None)
-    assert deserialized == reencrypt_result
 
 
 def test_ursula_checksum_address_string_list_field(get_random_checksum_address):

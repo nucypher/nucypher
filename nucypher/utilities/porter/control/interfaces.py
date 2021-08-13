@@ -71,5 +71,5 @@ class PorterInterface(ControlInterface):
                                                              policy_encrypting_key=policy_encrypting_key,
                                                              publisher_verifying_key=publisher_verifying_key)
         results = retrieval_results.results   # list of RetrievalResult objects
-        response_data = {'retrieve_results': results}
+        response_data = {'retrieval_results': results}
         return response_data

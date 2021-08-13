@@ -84,48 +84,44 @@ def test_get_ursulas(federated_porter_web_controller, federated_ursulas):
         federated_porter_web_controller.get('/get_ursulas', data=json.dumps(failed_ursula_params))
 
 
-@pytest.mark.skip("to be fixed later")
-def test_exec_work_order(federated_porter_web_controller,
+def test_retrieve_cfrags(federated_porter_web_controller,
                          enacted_federated_policy,
-                         federated_ursulas,
                          federated_bob,
                          federated_alice,
-                         get_random_checksum_address):
+                         random_federated_treasure_map_data):
     # Send bad data to assert error return
-    response = federated_porter_web_controller.post('/exec_work_order', data=json.dumps({'bad': 'input'}))
+    response = federated_porter_web_controller.post('/retrieve_cfrags', data=json.dumps({'bad': 'input'}))
     assert response.status_code == 400
 
     # Setup
-    ursula_address, work_order = work_order_setup(enacted_federated_policy,
-                                                  federated_ursulas,
-                                                  federated_bob,
-                                                  federated_alice)
-    work_order_payload_b64 = b64encode(work_order.payload()).decode()
+    retrieve_cfrags_params = retrieval_request_setup(enacted_federated_policy,
+                                                     federated_bob,
+                                                     federated_alice,
+                                                     encode_for_rest=True)
 
     # Success
-    exec_work_order_params = {
-        'ursula': ursula_address,
-        'work_order_payload': work_order_payload_b64
-    }
-    response = federated_porter_web_controller.post('/exec_work_order', data=json.dumps(exec_work_order_params))
+    response = federated_porter_web_controller.post('/retrieve_cfrags', data=json.dumps(retrieve_cfrags_params))
     assert response.status_code == 200
 
     response_data = json.loads(response.data)
-    work_order_result = response_data['result']['work_order_result']
-    assert work_order_result
+    results = response_data['result']['retrieval_results']
+    assert results
 
     # Failure
-    exec_work_order_params = {
-        'ursula': get_random_checksum_address(),  # unknown ursula
-        'work_order_payload': work_order_payload_b64
-    }
-    with pytest.raises(Learner.NotEnoughNodes):
-        federated_porter_web_controller.post('/exec_work_order', data=json.dumps(exec_work_order_params))
+    failure_retrieve_cfrags_params = dict(retrieve_cfrags_params)
+
+    # use encrpyted treasure map
+    _, _, random_treasure_map = random_federated_treasure_map_data
+    failure_retrieve_cfrags_params['treasure_map'] = b64encode(bytes(random_treasure_map)).decode()
+    response = federated_porter_web_controller.post('/retrieve_cfrags', data=json.dumps(failure_retrieve_cfrags_params))
+    assert response.status_code == 400  # invalid treasure map provided
 
 
 def test_endpoints_basic_auth(federated_porter_basic_auth_web_controller,
                               random_federated_treasure_map_data,
-                              get_random_checksum_address):
+                              enacted_federated_policy,
+                              federated_bob,
+                              federated_alice):
     # /get_ursulas
     quantity = 4
     duration = 2  # irrelevant for federated (but required)
@@ -136,13 +132,13 @@ def test_endpoints_basic_auth(federated_porter_basic_auth_web_controller,
     response = federated_porter_basic_auth_web_controller.get('/get_ursulas', data=json.dumps(get_ursulas_params))
     assert response.status_code == 401  # user unauthorized
 
-    # /exec_work_order
-    exec_work_order_params = {
-        'ursula': get_random_checksum_address(),
-        'work_order_payload': b64encode(b"some data").decode()
-    }
-    response = federated_porter_basic_auth_web_controller.post('/exec_work_order',
-                                                               data=json.dumps(exec_work_order_params))
+    # /retrieve_cfrags
+    retrieve_cfrags_params = retrieval_request_setup(enacted_federated_policy,
+                                                     federated_bob,
+                                                     federated_alice,
+                                                     encode_for_rest=True)
+    response = federated_porter_basic_auth_web_controller.post('/retrieve_cfrags',
+                                                               data=json.dumps(retrieve_cfrags_params))
     assert response.status_code == 401  # user not authenticated
 
     # try get_ursulas with authentication
