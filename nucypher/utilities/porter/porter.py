@@ -112,6 +112,10 @@ the Pipe for nucypher network operations
                     exclude_ursulas: Optional[Sequence[ChecksumAddress]] = None,
                     include_ursulas: Optional[Sequence[ChecksumAddress]] = None) -> List[UrsulaInfo]:
         reservoir = self._make_staker_reservoir(quantity, duration_periods, exclude_ursulas, include_ursulas)
+
+        if len(reservoir) < quantity:
+            raise ValueError(f"Requested quantity={quantity} Ursulas, but only {len(reservoir)} are available")
+
         value_factory = PrefetchStrategy(reservoir, quantity)
 
         def get_ursula_info(ursula_address) -> Porter.UrsulaInfo:
