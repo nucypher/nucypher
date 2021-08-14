@@ -14,9 +14,9 @@
  You should have received a copy of the GNU Affero General Public License
  along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
-from typing import List, Optional, Sequence, NamedTuple
+from typing import List, NamedTuple, Optional, Sequence
 
-from constant_sorrow.constants import NO_CONTROL_PROTOCOL, NO_BLOCKCHAIN_CONNECTION
+from constant_sorrow.constants import NO_BLOCKCHAIN_CONNECTION, NO_CONTROL_PROTOCOL
 from eth_typing import ChecksumAddress
 from flask import request, Response
 
@@ -24,7 +24,7 @@ from nucypher.blockchain.eth.agents import ContractAgency, StakingEscrowAgent
 from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
 from nucypher.blockchain.eth.registry import BaseContractRegistry, InMemoryContractRegistry
 from nucypher.characters.lawful import Ursula
-from nucypher.control.controllers import WebController, JSONRPCController
+from nucypher.control.controllers import JSONRPCController, WebController
 from nucypher.crypto.powers import DecryptingPower
 from nucypher.crypto.umbral_adapter import PublicKey
 from nucypher.network.nodes import Learner
@@ -113,9 +113,6 @@ the Pipe for nucypher network operations
                     include_ursulas: Optional[Sequence[ChecksumAddress]] = None) -> List[UrsulaInfo]:
         reservoir = self._make_staker_reservoir(quantity, duration_periods, exclude_ursulas, include_ursulas)
 
-        if len(reservoir) < quantity:
-            raise ValueError(f"Requested quantity={quantity} Ursulas, but only {len(reservoir)} are available")
-
         value_factory = PrefetchStrategy(reservoir, quantity)
 
         def get_ursula_info(ursula_address) -> Porter.UrsulaInfo:
@@ -141,14 +138,25 @@ the Pipe for nucypher network operations
                                                   learn_on_this_thread=True,
                                                   eager=True)
 
+        timeout = 1  # self.DEFAULT_EXECUTION_TIMEOUT
         worker_pool = WorkerPool(worker=get_ursula_info,
                                  value_factory=value_factory,
                                  target_successes=quantity,
-                                 timeout=self.DEFAULT_EXECUTION_TIMEOUT,
+                                 timeout=timeout,
                                  stagger_timeout=1,
                                  threadpool_size=quantity)
         worker_pool.start()
-        successes = worker_pool.block_until_target_successes()
+        try:
+            successes = worker_pool.block_until_target_successes()
+        except WorkerPool.OutOfValues as e:
+            msg = f"Failed to get requested number of Ursulas ({quantity})"
+            self.log.debug(f"{msg}:\n{str(e)}")
+            raise RuntimeError(msg)
+        except WorkerPool.TimedOut as e:
+            msg = f"Requests to Ursulas timed-out after {timeout} seconds"
+            self.log.debug(f"{msg}:\n{str(e)}")
+            raise RuntimeError(msg)
+
         ursulas_info = successes.values()
         return list(ursulas_info)
 
