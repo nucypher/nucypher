@@ -22,7 +22,7 @@ import datetime
 import maya
 import pytest
 
-from nucypher.characters.control.specifications.fields.treasuremap import TreasureMap
+from nucypher.characters.control.specifications.fields.treasuremap import EncryptedTreasureMap
 from nucypher.characters.control.specifications import fields
 from nucypher.characters.control.specifications.alice import GrantPolicy
 from nucypher.control.specifications.base import BaseSchema
@@ -73,7 +73,7 @@ def test_treasuremap_validation(enacted_federated_policy):
     """Tell people exactly what's wrong with their treasuremaps"""
 
     class TreasureMapsOnly(BaseSchema):
-        tmap = TreasureMap(federated_only=True)
+        tmap = EncryptedTreasureMap(federated_only=True)
 
     # this will raise a base64 error
     with pytest.raises(SpecificationError) as e:

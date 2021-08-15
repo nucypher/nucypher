@@ -114,7 +114,7 @@ class AliceGetUrsulas(BaseSchema):
 
 
 class AlicePublishTreasureMap(BaseSchema):
-    treasure_map = character_fields.TreasureMap(
+    treasure_map = character_fields.EncryptedTreasureMap(
         required=True,
         load_only=True,
         click=click.option(
@@ -156,7 +156,7 @@ class BobGetTreasureMap(BaseSchema):
 
     # output
     # treasure map only used for serialization so no need to provide federated/non-federated context
-    treasure_map = character_fields.TreasureMap(dump_only=True)
+    treasure_map = character_fields.EncryptedTreasureMap(dump_only=True)
 
 
 class BobExecWorkOrder(BaseSchema):

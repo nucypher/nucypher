@@ -38,7 +38,7 @@ from nucypher.crypto.kits import PolicyMessageKit
 from nucypher.crypto.powers import KeyPairBasedPower, PowerUpError
 from nucypher.crypto.signing import InvalidSignature
 from nucypher.datastore.datastore import Datastore, RecordNotFound
-from nucypher.datastore.models import TreasureMap as TreasureMapModel
+from nucypher.datastore.models import EncryptedTreasureMap as TreasureMapModel
 from nucypher.datastore.models import Workorder as WorkOrderModel
 from nucypher.network import LEARNING_LOOP_VERSION
 from nucypher.network.exceptions import NodeSeemsToBeDown

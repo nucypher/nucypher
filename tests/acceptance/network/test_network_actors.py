@@ -27,7 +27,7 @@ from nucypher.acumen.perception import FleetSensor
 from nucypher.characters.unlawful import Vladimir
 from nucypher.config.constants import TEMPORARY_DOMAIN
 from nucypher.crypto.powers import SigningPower
-from nucypher.datastore.models import TreasureMap
+from nucypher.datastore.models import EncryptedTreasureMap
 from tests.utils.middleware import MockRestMiddleware
 
 
@@ -177,7 +177,7 @@ def test_treasure_map_cannot_be_duplicated_again(blockchain_ursulas,
     # We need a real one to access its datastore.
     first_completed_ursula = [ursula for ursula in matching_ursulas if ursula in completed_ursulas][0]
 
-    with first_completed_ursula.datastore.describe(TreasureMap, policy.treasure_map._hrac.hex()) as saved_map_record:
+    with first_completed_ursula.datastore.describe(EncryptedTreasureMap, policy.treasure_map.hrac) as saved_map_record:
         assert saved_map_record.treasure_map == bytes(policy.treasure_map)
 
     # This Ursula was actually a Vladimir.

@@ -23,7 +23,7 @@ import pytest
 
 from nucypher.crypto.kits import PolicyMessageKit
 from nucypher.crypto.utils import keccak_digest
-from nucypher.datastore.models import TreasureMap as DatastoreTreasureMap
+from nucypher.datastore.models import EncryptedTreasureMap as DatastoreTreasureMap
 from nucypher.policy.maps import SignedTreasureMap
 
 

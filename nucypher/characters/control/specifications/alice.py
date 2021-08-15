@@ -102,7 +102,7 @@ class GrantPolicy(PolicyBaseSchema):
 
     # output fields
     # treasure map only used for serialization so no need to provide federated/non-federated context
-    treasure_map = character_fields.TreasureMap(dump_only=True)
+    treasure_map = character_fields.EncryptedTreasureMap(dump_only=True)
 
     alice_verifying_key = character_fields.Key(dump_only=True)
 

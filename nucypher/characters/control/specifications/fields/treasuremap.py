@@ -24,7 +24,7 @@ from nucypher.control.specifications.exceptions import InvalidInputData
 from nucypher.control.specifications.fields.base import BaseField
 
 
-class TreasureMap(BaseField, fields.Field):
+class EncryptedTreasureMap(BaseField, fields.Field):
     """
     JSON Parameter representation of TreasureMap.
 

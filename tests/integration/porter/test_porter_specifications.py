@@ -19,7 +19,7 @@ from base64 import b64encode
 
 import pytest
 
-from nucypher.characters.control.specifications.fields import TreasureMap
+from nucypher.characters.control.specifications.fields import EncryptedTreasureMap
 from nucypher.control.specifications.exceptions import InvalidArgumentCombo, InvalidInputData
 from nucypher.crypto.powers import DecryptingPower
 from nucypher.crypto.umbral_adapter import SecretKey
@@ -169,7 +169,7 @@ def test_alice_publish_treasure_map_schema_federated_context(enacted_federated_p
     # since federated, schema's context must be set - so create one schema
     # and reuse (it doesn't hold state other than the context)
     alice_publish_treasure_map_schema = AlicePublishTreasureMap()
-    alice_publish_treasure_map_schema.context[TreasureMap.IS_FEDERATED_CONTEXT_KEY] = True
+    alice_publish_treasure_map_schema.context[EncryptedTreasureMap.IS_FEDERATED_CONTEXT_KEY] = True
 
     # no args
     with pytest.raises(InvalidInputData):
@@ -214,7 +214,7 @@ def test_alice_publish_treasure_map_schema_federated_context(enacted_federated_p
     assert output == response_data
 
     # setting federated context to False fails
-    alice_publish_treasure_map_schema.context[TreasureMap.IS_FEDERATED_CONTEXT_KEY] = False
+    alice_publish_treasure_map_schema.context[EncryptedTreasureMap.IS_FEDERATED_CONTEXT_KEY] = False
     with pytest.raises(InvalidInputData):
         # failed because non-federated (blockchain) treasure map expected, but instead federated treasure map provided
         alice_publish_treasure_map_schema.load(required_data)

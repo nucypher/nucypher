@@ -20,7 +20,7 @@ import pytest
 
 from nucypher.characters.lawful import Ursula
 from nucypher.crypto.utils import keccak_digest
-from nucypher.datastore.models import TreasureMap as DatastoreTreasureMap
+from nucypher.datastore.models import EncryptedTreasureMap as DatastoreTreasureMap
 from nucypher.policy.maps import TreasureMap as FederatedTreasureMap
 
 
