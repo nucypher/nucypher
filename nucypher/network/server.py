@@ -308,25 +308,22 @@ def _make_rest_app(datastore: Datastore, this_node, domain: str, log: Logger) ->
         We set the datastore identifier as the HRAC.
         """
 
-        if not this_node.federated_only:
-            from nucypher.policy.maps import SignedTreasureMap as _MapClass
-        else:
-            from nucypher.policy.maps import TreasureMap as _MapClass
+        from nucypher.policy.maps import EncryptedTreasureMap
 
         # Step 1: First, we verify the signature of the received treasure map.
         # This step also deserializes the treasure map if it's signed correctly.
         try:
-            received_treasure_map = _MapClass.from_bytes(bytes_representation=request.data, verify=True)
-        except _MapClass.InvalidSignature:
-            log.info(f"Bad TreasureMap HRAC Signature; not storing for HRAC {received_treasure_map._hrac.hex()}")
+            received_treasure_map = EncryptedTreasureMap.from_bytes(request.data)
+        except EncryptedTreasureMap.InvalidSignature:
+            log.info(f"Bad TreasureMap HRAC Signature; not storing for HRAC {received_treasure_map.hrac.hex()}")
             return Response("This TreasureMap's HRAC is not properly signed.", status=401)
 
-        hrac = received_treasure_map._hrac
+        hrac = received_treasure_map.hrac
 
         # Step 2: Check if we already have the treasure map.
         try:
             with datastore.describe(TreasureMapModel, hrac) as stored_treasure_map:
-                if _MapClass.from_bytes(stored_treasure_map.treasure_map) == received_treasure_map:
+                if EncryptedTreasureMap.from_bytes(stored_treasure_map.treasure_map) == received_treasure_map:
                     return Response("Already have this map.", status=303)
         except RecordNotFound:
             # This appears to be a new treasure map that we don't have!
@@ -336,7 +333,7 @@ def _make_rest_app(datastore: Datastore, this_node, domain: str, log: Logger) ->
         # treasure map is valid pursuant to an active policy.
         # We also set the expiration from the data on the blockchain here.
         if not this_node.federated_only:
-            policy = this_node.policy_agent.fetch_policy(policy_id=received_treasure_map._hrac)
+            policy = this_node.policy_agent.fetch_policy(policy_id=received_treasure_map.hrac)
             # If the Policy doesn't exist, the policy_data is all zeros.
             if policy.sponsor is NULL_ADDRESS:
                 log.info(f"TreasureMap is for non-existent Policy; not storing {hrac.hex()}")

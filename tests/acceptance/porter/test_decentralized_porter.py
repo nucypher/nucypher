@@ -18,7 +18,6 @@
 import pytest
 from nucypher.crypto.umbral_adapter import PublicKey
 
-from nucypher.crypto.constants import HRAC_LENGTH
 from nucypher.crypto.powers import DecryptingPower
 from nucypher.policy.maps import TreasureMap
 from tests.utils.middleware import MockRestMiddleware
@@ -82,7 +81,7 @@ def test_publish_and_get_treasure_map(blockchain_porter,
         random_bob_encrypting_key = PublicKey.from_bytes(
             bytes.fromhex("026d1f4ce5b2474e0dae499d6737a8d987ed3c9ab1a55e00f57ad2d8e81fe9e9ac"))
         random_hrac = bytes.fromhex("93a9482bdf3b4f2e9df906a35144ca84")
-        assert len(random_hrac) == HRAC_LENGTH
+        assert len(random_hrac) == TreasureMap.HRAC_LENGTH
         blockchain_porter.get_treasure_map(hrac=random_hrac,
                                            bob_encrypting_key=random_bob_encrypting_key)
 
@@ -100,7 +99,7 @@ def test_publish_and_get_treasure_map(blockchain_porter,
                                                 enacted_policy.label)
     retrieved_treasure_map = blockchain_porter.get_treasure_map(hrac=hrac,
                                                                 bob_encrypting_key=blockchain_bob_encrypting_key)
-    assert retrieved_treasure_map == treasure_map
+    assert retrieved_treasure_map.hrac == treasure_map.hrac
 
 
 def test_exec_work_order(blockchain_porter,

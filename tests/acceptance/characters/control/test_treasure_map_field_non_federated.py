@@ -25,7 +25,7 @@ from nucypher.control.specifications.exceptions import InvalidInputData
 def test_treasure_map(enacted_blockchain_policy):
     treasure_map = enacted_blockchain_policy.treasure_map
 
-    field = EncryptedTreasureMap(federated_only=False)
+    field = EncryptedTreasureMap()
     serialized = field._serialize(value=treasure_map, attr=None, obj=None)
     assert serialized == b64encode(bytes(treasure_map)).decode()
 

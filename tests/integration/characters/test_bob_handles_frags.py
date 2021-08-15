@@ -30,20 +30,19 @@ from nucypher.policy.maps import AuthorizedKeyFrag
 from tests.utils.middleware import MockRestMiddleware, NodeIsDownMiddleware
 
 
-def test_bob_cannot_follow_the_treasure_map_in_isolation(enacted_federated_policy, federated_bob):
+def test_bob_cannot_follow_the_treasure_map_in_isolation(federated_treasure_map, federated_bob):
     # Assume for the moment that Bob has already received a TreasureMap, perhaps via a side channel.
-    hrac, treasure_map = enacted_federated_policy.hrac, enacted_federated_policy.treasure_map
 
     # Bob knows of no Ursulas.
     assert len(federated_bob.known_nodes) == 0
 
     # He can't successfully follow the TreasureMap until he learns of a node to ask.
-    unknown, known = federated_bob.peek_at_treasure_map(treasure_map=treasure_map)
+    unknown, known = federated_bob.peek_at_treasure_map(treasure_map=federated_treasure_map)
     assert len(known) == 0
 
     # TODO: Show that even with learning loop going, nothing happens here.
     # Probably use Clock?
-    federated_bob.follow_treasure_map(treasure_map=treasure_map)
+    federated_bob.follow_treasure_map(treasure_map=federated_treasure_map)
     assert len(known) == 0
 
 
@@ -67,11 +66,11 @@ def test_bob_already_knows_all_nodes_in_treasure_map(enacted_federated_policy,
     assert len(unknown) == 0
 
     # ...because he already knew of all the Ursulas on the map.
-    assert len(known) == len(enacted_federated_policy.treasure_map)
+    assert len(known) == enacted_federated_policy.n
 
 
 @pytest_twisted.inlineCallbacks
-def test_bob_can_follow_treasure_map_even_if_he_only_knows_of_one_node(enacted_federated_policy,
+def test_bob_can_follow_treasure_map_even_if_he_only_knows_of_one_node(federated_treasure_map,
                                                                        federated_ursulas,
                                                                        certificates_tempdir):
     """
@@ -90,7 +89,6 @@ def test_bob_can_follow_treasure_map_even_if_he_only_knows_of_one_node(enacted_f
               federated_only=True)
 
     # Again, let's assume that he received the TreasureMap via a side channel.
-    hrac, treasure_map = enacted_federated_policy.hrac, enacted_federated_policy.treasure_map
 
     # Now, let's create a scenario in which Bob knows of only one node.
     assert len(bob.known_nodes) == 0
@@ -99,13 +97,13 @@ def test_bob_can_follow_treasure_map_even_if_he_only_knows_of_one_node(enacted_f
     assert len(bob.known_nodes) == 1
 
     # This time, when he follows the TreasureMap...
-    unknown_nodes, known_nodes = bob.peek_at_treasure_map(treasure_map=treasure_map)
+    unknown_nodes, known_nodes = bob.peek_at_treasure_map(treasure_map=federated_treasure_map)
 
     # Bob already knew about one node; the rest are unknown.
-    assert len(unknown_nodes) == len(treasure_map) - 1
+    assert len(unknown_nodes) == len(federated_treasure_map) - 1
 
     # He needs to actually follow the treasure map to get the rest.
-    bob.follow_treasure_map(treasure_map=treasure_map)
+    bob.follow_treasure_map(treasure_map=federated_treasure_map)
 
     # The nodes in the learning loop are now his top target, but he's not learning yet.
     assert not bob._learning_task.running
@@ -121,11 +119,12 @@ def test_bob_can_follow_treasure_map_even_if_he_only_knows_of_one_node(enacted_f
     yield d
 
     # ...and he now has no more unknown_nodes.
-    assert len(bob.known_nodes) == len(treasure_map)
+    assert len(bob.known_nodes) == len(federated_treasure_map)
     bob.disenchant()
 
 
 def test_bob_can_issue_a_work_order_to_a_specific_ursula(enacted_federated_policy,
+                                                         federated_treasure_map,
                                                          federated_bob,
                                                          federated_alice,
                                                          federated_ursulas,
@@ -139,10 +138,9 @@ def test_bob_can_issue_a_work_order_to_a_specific_ursula(enacted_federated_polic
     """
 
     # We pick up our story with Bob already having followed the treasure map above, ie:
-    hrac, treasure_map = enacted_federated_policy.hrac, enacted_federated_policy.treasure_map
     federated_bob.start_learning_loop()
 
-    federated_bob.follow_treasure_map(treasure_map=treasure_map, block=True, timeout=1)
+    federated_bob.follow_treasure_map(treasure_map=federated_treasure_map, block=True, timeout=1)
 
     assert len(federated_bob.known_nodes) == len(federated_ursulas)
 
@@ -158,7 +156,7 @@ def test_bob_can_issue_a_work_order_to_a_specific_ursula(enacted_federated_polic
     work_orders, _ = federated_bob.work_orders_for_capsules(
         message_kit.capsule,
         label=enacted_federated_policy.label,
-        treasure_map=treasure_map,
+        treasure_map=federated_treasure_map,
         alice_verifying_key=federated_alice.stamp.as_umbral_pubkey(),
         num_ursulas=1)
 
@@ -172,7 +170,7 @@ def test_bob_can_issue_a_work_order_to_a_specific_ursula(enacted_federated_polic
     retained_work_orders, _ = federated_bob.work_orders_for_capsules(
         message_kit.capsule,
         label=enacted_federated_policy.label,
-        treasure_map=treasure_map,
+        treasure_map=federated_treasure_map,
         alice_verifying_key=federated_alice.stamp.as_umbral_pubkey(),
         num_ursulas=1)
 
@@ -206,7 +204,7 @@ def test_bob_can_issue_a_work_order_to_a_specific_ursula(enacted_federated_polic
         raise RuntimeError("We've lost track of the Ursula that has the WorkOrder. Can't really proceed.")
 
     # Ursula decrypts the encrypted KFrag
-    encrypted_kfrag = enacted_federated_policy.treasure_map.destinations[ursula.checksum_address]
+    encrypted_kfrag = federated_treasure_map.destinations[ursula.checksum_address]
     alice = Alice.from_public_keys(verifying_key=federated_alice.stamp.as_umbral_pubkey())
     plaintext_kfrag_payload = ursula.verify_from(stranger=alice,
                                                  message_kit=encrypted_kfrag,
@@ -227,6 +225,7 @@ def test_bob_can_issue_a_work_order_to_a_specific_ursula(enacted_federated_polic
 
 
 def test_bob_can_use_cfrag_attached_to_completed_workorder(enacted_federated_policy,
+                                                           federated_treasure_map,
                                                            federated_alice,
                                                            federated_bob,
                                                            federated_ursulas,
@@ -243,7 +242,7 @@ def test_bob_can_use_cfrag_attached_to_completed_workorder(enacted_federated_pol
     incomplete_work_orders, complete_work_orders = federated_bob.work_orders_for_capsules(
         last_capsule_on_side_channel,
         label=enacted_federated_policy.label,
-        treasure_map=enacted_federated_policy.treasure_map,
+        treasure_map=federated_treasure_map,
         alice_verifying_key=federated_alice.stamp.as_umbral_pubkey(),
         num_ursulas=1,
     )
@@ -262,9 +261,12 @@ def test_bob_can_use_cfrag_attached_to_completed_workorder(enacted_federated_pol
         federated_bob._reencrypt(new_work_order, message_kit_dict)
 
 
-def test_bob_remembers_that_he_has_cfrags_for_a_particular_capsule(enacted_federated_policy, federated_alice,
+def test_bob_remembers_that_he_has_cfrags_for_a_particular_capsule(enacted_federated_policy,
+                                                                   federated_treasure_map,
+                                                                   federated_alice,
                                                                    federated_bob,
-                                                                   federated_ursulas, capsule_side_channel):
+                                                                   federated_ursulas,
+                                                                   capsule_side_channel):
     # In our last episode, Bob made a single WorkOrder...
     work_orders = list(federated_bob._completed_work_orders.by_ursula.values())
     assert len(work_orders) == 1
@@ -293,7 +295,7 @@ def test_bob_remembers_that_he_has_cfrags_for_a_particular_capsule(enacted_feder
     incomplete_work_orders, complete_work_orders = federated_bob.work_orders_for_capsules(
         last_capsule_on_side_channel,
         label=enacted_federated_policy.label,
-        treasure_map=enacted_federated_policy.treasure_map,
+        treasure_map=federated_treasure_map,
         alice_verifying_key=federated_alice.stamp.as_umbral_pubkey(),
         num_ursulas=1)
     id_of_this_new_ursula, new_work_order = list(incomplete_work_orders.items())[0]
@@ -321,7 +323,7 @@ def test_bob_remembers_that_he_has_cfrags_for_a_particular_capsule(enacted_feder
     last_message_kit_on_side_channel.attach_cfrag(new_cfrag)
 
 
-def test_bob_gathers_and_combines(enacted_federated_policy, federated_bob, federated_alice, capsule_side_channel):
+def test_bob_gathers_and_combines(enacted_federated_policy, federated_treasure_map, federated_bob, federated_alice, capsule_side_channel):
     # The side channel delivers all that Bob needs at this point:
     # - A single MessageKit, containing a Capsule
     # - A representation of the data source
@@ -331,13 +333,13 @@ def test_bob_gathers_and_combines(enacted_federated_policy, federated_bob, feder
     assert len(federated_bob._completed_work_orders) == 2
 
     # ...but the policy requires us to collect more cfrags.
-    assert len(federated_bob._completed_work_orders) < enacted_federated_policy.treasure_map.m
+    assert len(federated_bob._completed_work_orders) < federated_treasure_map.m
 
     # Bob can't decrypt yet with just two CFrags.  He needs to gather at least m.
     with pytest.raises(DecryptingKeypair.DecryptionFailed):
         federated_bob.decrypt(the_message_kit)
 
-    number_left_to_collect = enacted_federated_policy.treasure_map.m - len(federated_bob._completed_work_orders)
+    number_left_to_collect = federated_treasure_map.m - len(federated_bob._completed_work_orders)
 
     the_message_kit.set_correctness_keys(
         delegating=the_data_source.policy_pubkey,
@@ -347,7 +349,7 @@ def test_bob_gathers_and_combines(enacted_federated_policy, federated_bob, feder
     new_incomplete_work_orders, _ = federated_bob.work_orders_for_capsules(
         the_message_kit.capsule,
         label=enacted_federated_policy.label,
-        treasure_map=enacted_federated_policy.treasure_map,
+        treasure_map=federated_treasure_map,
         alice_verifying_key=federated_alice.stamp.as_umbral_pubkey(),
         num_ursulas=number_left_to_collect)
     _id_of_yet_another_ursula, new_work_order = list(new_incomplete_work_orders.items())[0]

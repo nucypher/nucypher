@@ -103,7 +103,7 @@ def test_publish_and_get_treasure_map(federated_porter_web_controller,
     # ensure that random treasure map cannot be obtained since not available
     with pytest.raises(TreasureMap.NowhereToBeFound):
         get_treasure_map_params = {
-            'hrac': random_treasure_map._hrac.hex(),
+            'hrac': random_treasure_map.hrac.hex(),
             'bob_encrypting_key': bytes(random_bob_encrypting_key).hex()
         }
         federated_porter_web_controller.get('/get_treasure_map', data=json.dumps(get_treasure_map_params))
@@ -121,7 +121,7 @@ def test_publish_and_get_treasure_map(federated_porter_web_controller,
 
     # try getting the random treasure map now
     get_treasure_map_params = {
-        'hrac': random_treasure_map._hrac.hex(),
+        'hrac': random_treasure_map.hrac.hex(),
         'bob_encrypting_key': bytes(random_bob_encrypting_key).hex()
     }
     response = federated_porter_web_controller.get('/get_treasure_map',
@@ -206,7 +206,7 @@ def test_endpoints_basic_auth(federated_porter_basic_auth_web_controller,
 
     # /get_treasure_map
     get_treasure_map_params = {
-        'hrac': random_treasure_map._hrac.hex(),
+        'hrac': random_treasure_map.hrac.hex(),
         'bob_encrypting_key': bytes(random_bob_encrypting_key).hex()
     }
     response = federated_porter_basic_auth_web_controller.get('/get_treasure_map',

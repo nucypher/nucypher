@@ -77,7 +77,6 @@ from nucypher.config.constants import END_OF_POLICIES_PROBATIONARY_PERIOD
 from nucypher.config.storages import ForgetfulNodeStorage, NodeStorage
 from nucypher.control.controllers import WebController
 from nucypher.control.emitters import StdoutEmitter
-from nucypher.crypto.constants import HRAC_LENGTH
 from nucypher.crypto.keypairs import HostingKeypair
 from nucypher.crypto.kits import UmbralMessageKit
 from nucypher.crypto.powers import (
@@ -108,7 +107,7 @@ from nucypher.network.nodes import NodeSprout, TEACHER_NODES, Teacher
 from nucypher.network.protocols import InterfaceInfo, parse_node_uri
 from nucypher.network.server import ProxyRESTServer, TLSHostingPower, make_rest_app
 from nucypher.network.trackers import AvailabilityTracker
-from nucypher.policy.maps import TreasureMap, AuthorizedKeyFrag
+from nucypher.policy.maps import TreasureMap, EncryptedTreasureMap, AuthorizedKeyFrag
 from nucypher.policy.orders import WorkOrder
 from nucypher.policy.policies import Policy
 from nucypher.utilities.logging import Logger
@@ -404,7 +403,7 @@ class Alice(Character, BlockchainPolicyAuthor):
             """
             try:
                 # Wait for a revocation threshold of nodes to be known ((n - m) + 1)
-                revocation_threshold = ((policy.n - policy.treasure_map.m) + 1)
+                revocation_threshold = ((policy.n - policy.m) + 1)
                 self.block_until_specific_nodes_are_known(
                     policy.revocation_kit.revokable_addresses,
                     allow_missing=(policy.n - revocation_threshold))
@@ -624,13 +623,13 @@ class Bob(Character):
 
         return unknown_ursulas, known_ursulas, treasure_map.m
 
-    def _try_orient(self, treasure_map, publisher_verifying_key):
+    def _try_orient(self, enc_treasure_map, publisher_verifying_key):
         # TODO: should be rather a Publisher character
         alice = Alice.from_public_keys(verifying_key=publisher_verifying_key)
         compass = self.make_compass_for_alice(alice)
         try:
-            treasure_map.orient(compass)
-        except treasure_map.InvalidSignature:
+            return enc_treasure_map.orient(compass)
+        except EncryptedTreasureMap.InvalidSignature:
             raise  # TODO: Maybe do something here?  NRN
 
     def get_treasure_map(self, publisher_verifying_key: PublicKey, label: bytes):
@@ -646,9 +645,9 @@ class Bob(Character):
             if not self.known_nodes:
                 raise self.NotEnoughTeachers("Can't retrieve without knowing about any nodes at all.  Pass a teacher or seed node.")
 
-        treasure_map = self.get_treasure_map_from_known_ursulas(hrac)
+        enc_treasure_map = self.get_treasure_map_from_known_ursulas(hrac)
 
-        self._try_orient(treasure_map, publisher_verifying_key)
+        treasure_map = self._try_orient(enc_treasure_map, publisher_verifying_key)
         self.treasure_maps[hrac] = treasure_map
         return treasure_map
 
@@ -656,7 +655,9 @@ class Bob(Character):
         return partial(self.verify_from, alice, decrypt=True)
 
     def construct_policy_hrac(self, publisher_verifying_key: PublicKey, label: bytes) -> bytes:
-        _hrac = keccak_digest(bytes(publisher_verifying_key) + bytes(self.stamp) + label)[:HRAC_LENGTH]
+        _hrac = TreasureMap.derive_hrac(publisher_verifying_key=publisher_verifying_key,
+                                        bob_verifying_key=self.stamp.as_umbral_pubkey(),
+                                        label=label)
         return _hrac
 
     def get_treasure_map_from_known_ursulas(self, hrac: bytes, timeout=3):
@@ -931,11 +932,11 @@ class Bob(Character):
     def _handle_treasure_map(self,
                              publisher_verifying_key: PublicKey,
                              label: bytes,
-                             treasure_map: Optional['TreasureMap'] = None,
+                             enc_treasure_map: Optional['EncryptedTreasureMap'] = None,
                              ) -> 'TreasureMap':
-        if treasure_map is not None:
-            self._try_orient(treasure_map, publisher_verifying_key)
-            # self.treasure_maps[treasure_map.hrac] = treasure_map # TODO: Can we?
+        if enc_treasure_map is not None:
+            treasure_map = self._try_orient(enc_treasure_map, publisher_verifying_key)
+            self.treasure_maps[treasure_map.hrac] = treasure_map
         else:
             hrac = self.construct_policy_hrac(publisher_verifying_key, label)
             try:
@@ -954,7 +955,7 @@ class Bob(Character):
                  *message_kits: UmbralMessageKit,
                  label: bytes,
                  policy_encrypting_key: Optional[PublicKey] = None,
-                 treasure_map: Optional['TreasureMap'] = None,
+                 treasure_map: Optional['EncryptedTreasureMap'] = None,
 
                  # Source Authentication
                  enrico: Optional["Enrico"] = None,
@@ -972,7 +973,7 @@ class Bob(Character):
             # If a policy publisher's verifying key is not passed, use Alice's by default.
             publisher_verifying_key = alice_verifying_key
 
-        treasure_map, m = self._handle_treasure_map(treasure_map=treasure_map,
+        treasure_map, m = self._handle_treasure_map(enc_treasure_map=treasure_map,
                                                     publisher_verifying_key=publisher_verifying_key,
                                                     label=label)
 

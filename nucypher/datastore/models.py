@@ -51,7 +51,7 @@ class Workorder(DatastoreRecord):
 
 
 class EncryptedTreasureMap(DatastoreRecord):
-    # Ideally this is a `policy.collections.TreasureMap`, but it causes a huge
+    # Ideally this is a `policy.maps.EncryptedTreasureMap`, but it causes a huge
     # circular import due to `Bob` and `Character` in `policy.collections`.
     # TODO #2126
     _treasure_map = RecordField(bytes)

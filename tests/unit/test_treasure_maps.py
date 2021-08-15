@@ -20,50 +20,55 @@ import os
 
 import pytest
 
-from nucypher.crypto.powers import DecryptingPower, SigningPower
 from nucypher.crypto.umbral_adapter import KeyFrag
-from nucypher.policy.maps import TreasureMap, AuthorizedKeyFrag
+from nucypher.policy.maps import TreasureMap, EncryptedTreasureMap, AuthorizedKeyFrag
 
 
 def test_complete_treasure_map_journey(federated_alice, federated_bob, federated_ursulas, idle_federated_policy, mocker):
 
-    treasure_map = TreasureMap(m=1)
+    label = "chili con carne 🔥".encode('utf-8')
+    kfrags = idle_federated_policy.kfrags
+    ursulas = list(federated_ursulas)[:len(kfrags)]
 
-    bob_encrypting_key = federated_bob.public_keys(DecryptingPower)
-    bob_verifying_key = federated_bob.public_keys(SigningPower)
+    treasure_map = TreasureMap.construct_by_publisher(publisher=federated_alice,
+                                                      bob=federated_bob,
+                                                      label=label,
+                                                      ursulas=ursulas,
+                                                      verified_kfrags=kfrags,
+                                                      m=1)
 
-    kfrag = idle_federated_policy.kfrags[0]
-    make_kfrag_payload_spy = mocker.spy(AuthorizedKeyFrag, '__bytes__')
-
-    treasure_map.derive_hrac(publisher_stamp=federated_alice.stamp,
-                             bob_verifying_key=bob_verifying_key,
-                             label="chili con carne 🔥".encode('utf-8'))
-
-    encrypted_kfrags = dict()
-    for ursula in federated_ursulas:
-        treasure_map.add_kfrag(ursula, kfrag, federated_alice.stamp)
-        encrypted_kfrags[ursula.checksum_address] = make_kfrag_payload_spy.spy_return
-
-    treasure_map.prepare_for_publication(bob_encrypting_key=bob_encrypting_key,
-                                         publisher_stamp=federated_alice.stamp)
-
-    ursula_rolodex = {u.checksum_address: u for u in federated_ursulas}
+    ursula_rolodex = {u.checksum_address: u for u in ursulas}
     for ursula_address, encrypted_kfrag in treasure_map.destinations.items():
         assert ursula_address in ursula_rolodex
         ursula = ursula_rolodex[ursula_address]
-        kfrag_payload = encrypted_kfrags[ursula.checksum_address]
-        assert kfrag_payload == ursula.verify_from(federated_alice, encrypted_kfrag, decrypt=True)  # FIXME: 2203
+        auth_kfrag_bytes = ursula.verify_from(federated_alice, encrypted_kfrag, decrypt=True)  # FIXME: 2203
+        auth_kfrag = AuthorizedKeyFrag.from_bytes(auth_kfrag_bytes)
+        ursula.verify_kfrag_authorization(hrac=treasure_map.hrac,
+                                          author=federated_alice,
+                                          publisher=federated_alice,
+                                          authorized_kfrag=auth_kfrag)
 
     serialized_map = bytes(treasure_map)
     # ...
     deserialized_map = TreasureMap.from_bytes(serialized_map)
 
-    compass = federated_bob.make_compass_for_alice(federated_alice)
-    deserialized_map.orient(compass)
+    assert treasure_map.destinations == deserialized_map.destinations
+    assert treasure_map.hrac == deserialized_map.hrac
 
-    assert treasure_map.m == deserialized_map.m == 1
-    assert set(treasure_map.destinations) == set(deserialized_map.destinations)
-    assert treasure_map == deserialized_map
+
+    enc_treasure_map = treasure_map.prepare_for_publication(publisher=federated_alice,
+                                                            bob=federated_bob)
+
+    enc_serialized_map = bytes(enc_treasure_map)
+    # ...
+    enc_deserialized_map = EncryptedTreasureMap.from_bytes(enc_serialized_map)
+
+    compass = federated_bob.make_compass_for_alice(federated_alice)
+    decrypted_map = enc_deserialized_map.orient(compass)
+
+    assert treasure_map.m == decrypted_map.m == 1
+    assert treasure_map.destinations == decrypted_map.destinations
+    assert treasure_map.hrac == decrypted_map.hrac
 
 
 @pytest.mark.skip(reason='Backwards-incompatible with umbral 0.2+')

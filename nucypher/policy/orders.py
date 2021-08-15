@@ -32,7 +32,6 @@ from nucypher.crypto.splitters import (
     capsule_splitter,
     cfrag_splitter,
     signature_splitter,
-    hrac_splitter,
     kfrag_splitter
 )
 from nucypher.crypto.umbral_adapter import (
@@ -41,7 +40,7 @@ from nucypher.crypto.umbral_adapter import (
     PublicKey,
     Signature
 )
-from nucypher.policy.maps import AuthorizedKeyFrag
+from nucypher.policy.maps import AuthorizedKeyFrag, TreasureMap
 
 
 class WorkOrder:
@@ -59,7 +58,7 @@ class WorkOrder:
         + key_splitter                    \
         + key_splitter                    \
         + key_splitter                    \
-        + hrac_splitter                   \
+        + BytestringSplitter((bytes, TreasureMap.HRAC_LENGTH)) \
         + BytestringSplitter((bytes, VariableLengthBytestring))
 
     class PRETask:

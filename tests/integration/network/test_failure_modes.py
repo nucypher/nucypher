@@ -87,7 +87,7 @@ def test_alice_can_grant_even_when_the_first_nodes_she_tries_are_down(federated_
     # policy = alice_grant_action()
 
     # The number of actually enacted arrangements is exactly equal to n.
-    assert len(policy.treasure_map.destinations) == n
+    assert policy.n == n
 
 
 def test_node_has_changed_cert(federated_alice, federated_ursulas):

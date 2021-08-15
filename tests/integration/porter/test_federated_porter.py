@@ -77,7 +77,7 @@ def test_publish_and_get_treasure_map(federated_porter,
 
     # ensure that random treasure map cannot be obtained since not available
     with pytest.raises(TreasureMap.NowhereToBeFound):
-        federated_porter.get_treasure_map(hrac=random_treasure_map._hrac,
+        federated_porter.get_treasure_map(hrac=random_treasure_map.hrac,
                                           bob_encrypting_key=random_bob_encrypting_key)
 
     # publish the random treasure map
@@ -85,16 +85,16 @@ def test_publish_and_get_treasure_map(federated_porter,
                                           bob_encrypting_key=random_bob_encrypting_key)
 
     # try getting the random treasure map now
-    treasure_map = federated_porter.get_treasure_map(hrac=random_treasure_map._hrac,
+    treasure_map = federated_porter.get_treasure_map(hrac=random_treasure_map.hrac,
                                                      bob_encrypting_key=random_bob_encrypting_key)
-    assert treasure_map._hrac == random_treasure_map._hrac
+    assert treasure_map.hrac == random_treasure_map.hrac
 
     # try getting an already existing policy
     hrac = federated_bob.construct_policy_hrac(federated_alice.stamp.as_umbral_pubkey(),
                                                enacted_federated_policy.label)
     treasure_map = federated_porter.get_treasure_map(hrac=hrac,
                                                      bob_encrypting_key=federated_bob.public_keys(DecryptingPower))
-    assert treasure_map == enacted_federated_policy.treasure_map
+    assert treasure_map.hrac == enacted_federated_policy.hrac
 
 
 def test_exec_work_order(federated_porter,

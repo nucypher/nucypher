@@ -20,7 +20,7 @@ from marshmallow import fields
 from nucypher.characters.control.specifications.exceptions import InvalidNativeDataTypes
 from nucypher.control.specifications.exceptions import InvalidInputData
 from nucypher.control.specifications.fields.base import BaseField
-from nucypher.crypto.constants import HRAC_LENGTH
+from nucypher.policy.maps import TreasureMap
 
 
 class HRAC(BaseField, fields.String):
@@ -40,5 +40,5 @@ class HRAC(BaseField, fields.String):
         if not isinstance(value, bytes):
             raise InvalidInputData(f"Could not convert input for {self.name} to a valid TreasureMap HRAC: must be a bytestring")
 
-        if len(value) != HRAC_LENGTH:
+        if len(value) != TreasureMap.HRAC_LENGTH:
             raise InvalidInputData(f"Could not convert input for {self.name} to a valid TreasureMap HRAC: invalid length")

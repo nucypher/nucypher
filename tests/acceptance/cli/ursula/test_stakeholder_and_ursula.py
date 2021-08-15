@@ -619,7 +619,8 @@ def test_collect_rewards_integration(click_runner,
                                                handpicked_ursulas={ursula})
 
     # Ensure that the handpicked Ursula was selected for the policy
-    assert ursula.checksum_address in blockchain_policy.treasure_map.destinations
+    treasure_map = blockchain_bob._try_orient(blockchain_policy.treasure_map, blockchain_policy.publisher_verifying_key)
+    assert ursula.checksum_address in treasure_map.destinations
 
     # Bob learns about the new staker and joins the policy
     blockchain_bob.start_learning_loop()

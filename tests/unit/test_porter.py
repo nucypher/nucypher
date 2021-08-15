@@ -30,7 +30,7 @@ from tests.utils.policy import work_order_setup
 
 
 def test_hrac_field(enacted_federated_policy):
-    hrac = enacted_federated_policy.treasure_map._hrac
+    hrac = enacted_federated_policy.treasure_map.hrac
 
     field = HRAC()
     serialized = field._serialize(value=hrac, attr=None, obj=None)

@@ -116,7 +116,7 @@ class AliceInterface(CharacterPublicInterface):
                 revocation, fail_reason = attempt
                 if fail_reason == RestMiddleware.NotFound:
                     del (failed_revocations[node_id])
-        if len(failed_revocations) <= (policy.n - policy.treasure_map.m + 1):
+        if len(failed_revocations) <= (policy.n - policy.m + 1):
             del (self.implementer.active_policies[policy_id])
 
         response_data = {'failed_revocations': len(failed_revocations)}
@@ -192,18 +192,14 @@ class BobInterface(CharacterPublicInterface):
 
         self.implementer.join_policy(label=label, publisher_verifying_key=alice_verifying_key)
 
-        if self.implementer.federated_only:
-            from nucypher.policy.maps import TreasureMap as _MapClass
-        else:
-            from nucypher.policy.maps import SignedTreasureMap as _MapClass
+        from nucypher.policy.maps import EncryptedTreasureMap
 
-        # TODO: This LBYL is ugly and fraught with danger.  NRN - #2751
         if isinstance(treasure_map, bytes):
-            treasure_map = _MapClass.from_bytes(treasure_map)
+            treasure_map = EncryptedTreasureMap.from_bytes(treasure_map)
 
         if isinstance(treasure_map, str):
             tmap_bytes = treasure_map.encode()
-            treasure_map = _MapClass.from_bytes(b64decode(tmap_bytes))
+            treasure_map = EncryptedTreasureMap.from_bytes(b64decode(tmap_bytes))
 
         plaintexts = self.implementer.retrieve(message_kit,
                                                enrico=enrico,
