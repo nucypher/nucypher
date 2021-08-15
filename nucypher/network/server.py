@@ -290,7 +290,7 @@ def _make_rest_app(datastore: Datastore, this_node, domain: str, log: Logger) ->
     def provide_treasure_map(identifier):
         headers = {'Content-Type': 'application/octet-stream'}
         try:
-            with datastore.describe(TreasureMapModel, identifier) as stored_treasure_map:
+            with datastore.describe(TreasureMapModel, bytes.fromhex(identifier)) as stored_treasure_map:
                 response = Response(stored_treasure_map.treasure_map, headers=headers)
             log.info(f"{this_node} providing TreasureMap {identifier}")
         except RecordNotFound:
@@ -305,9 +305,7 @@ def _make_rest_app(datastore: Datastore, this_node, domain: str, log: Logger) ->
         the treasure map by first validating the request and the received
         treasure map itself.
 
-        We set the datastore identifier as the HRAC if the node is running
-        as a decentralized node. Otherwise, we use the map_id in
-        federated mode.
+        We set the datastore identifier as the HRAC.
         """
 
         if not this_node.federated_only:
@@ -323,17 +321,11 @@ def _make_rest_app(datastore: Datastore, this_node, domain: str, log: Logger) ->
             log.info(f"Bad TreasureMap HRAC Signature; not storing for HRAC {received_treasure_map._hrac.hex()}")
             return Response("This TreasureMap's HRAC is not properly signed.", status=401)
 
-        # Additionally, we determine the map identifier from the type of node.
-        # If the node is federated, we also set the expiration for a week.
-        if not this_node.federated_only:
-            map_identifier = received_treasure_map._hrac.hex()
-        else:
-            map_identifier = received_treasure_map.public_id()
-            expiration_date = MayaDT.from_datetime(datetime.utcnow() + timedelta(days=7))
+        hrac = received_treasure_map._hrac
 
         # Step 2: Check if we already have the treasure map.
         try:
-            with datastore.describe(TreasureMapModel, map_identifier) as stored_treasure_map:
+            with datastore.describe(TreasureMapModel, hrac) as stored_treasure_map:
                 if _MapClass.from_bytes(stored_treasure_map.treasure_map) == received_treasure_map:
                     return Response("Already have this map.", status=303)
         except RecordNotFound:
@@ -347,23 +339,26 @@ def _make_rest_app(datastore: Datastore, this_node, domain: str, log: Logger) ->
             policy = this_node.policy_agent.fetch_policy(policy_id=received_treasure_map._hrac)
             # If the Policy doesn't exist, the policy_data is all zeros.
             if policy.sponsor is NULL_ADDRESS:
-                log.info(f"TreasureMap is for non-existent Policy; not storing {map_identifier}")
+                log.info(f"TreasureMap is for non-existent Policy; not storing {hrac.hex()}")
                 return Response("The Policy for this TreasureMap doesn't exist.", status=409)
 
             # Check that this treasure map is from Alice per the Policy.
             if not received_treasure_map.verify_blockchain_signature(checksum_address=policy.owner):
-                log.info(f"Bad TreasureMap ID; not storing {map_identifier}")
+                log.info(f"Bad TreasureMap ID; not storing {hrac.hex()}")
                 return Response("This TreasureMap doesn't match a paid Policy.", status=402)
 
             # Check that this treasure map is valid for the Policy datetime and that it's not disabled.
             if policy.disabled or datetime.utcnow() >= datetime.utcfromtimestamp(policy.end_timestamp):
-                log.info(f"Received TreasureMap for an expired/disabled policy; not storing {map_identifier}")
+                log.info(f"Received TreasureMap for an expired/disabled policy; not storing {hrac.hex()}")
                 return Response("This TreasureMap is for an expired/disabled policy.", status=403)
             expiration_date = MayaDT.from_datetime(datetime.utcfromtimestamp(policy.end_timestamp))
+        else:
+            # If the node is federated, we also set the expiration for a week.
+            expiration_date = MayaDT.from_datetime(datetime.utcnow() + timedelta(days=7))
 
         # Step 4: Finally, we store our treasure map under its identifier!
-        log.info(f"{this_node} storing TreasureMap {map_identifier}")
-        with datastore.describe(TreasureMapModel, map_identifier, writeable=True) as new_treasure_map:
+        log.info(f"{this_node} storing TreasureMap {hrac.hex()}")
+        with datastore.describe(TreasureMapModel, hrac, writeable=True) as new_treasure_map:
             new_treasure_map.treasure_map = bytes(received_treasure_map)
             new_treasure_map.expiration = expiration_date
         return Response("Treasure map stored!", status=201)

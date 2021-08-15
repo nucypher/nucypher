@@ -26,7 +26,7 @@ from nucypher.network.nodes import Learner
 
 
 def get_treasure_map_from_known_ursulas(learner: Learner,
-                                        map_identifier: str,
+                                        hrac: bytes,
                                         bob_encrypting_key: PublicKey,
                                         timeout=3):
     """
@@ -50,11 +50,11 @@ def get_treasure_map_from_known_ursulas(learner: Learner,
 
         for node in nodes_with_map:
             try:
-                response = learner.network_middleware.get_treasure_map_from_node(node, map_identifier)
+                response = learner.network_middleware.get_treasure_map_from_node(node, hrac)
             except (*NodeSeemsToBeDown, learner.NotEnoughNodes):
                 continue
             except learner.network_middleware.NotFound:
-                learner.log.info(f"Node {node} claimed not to have TreasureMap {map_identifier}")
+                learner.log.info(f"Node {node} claimed not to have TreasureMap {hrac.hex()}")
                 continue
             except node.NotStaking:
                 # TODO this wasn't here before - check with myles
@@ -75,7 +75,7 @@ def get_treasure_map_from_known_ursulas(learner: Learner,
 
         if (start - maya.now()).seconds > timeout:
             raise _MapClass.NowhereToBeFound(f"Asked {len(learner.known_nodes)} nodes, "
-                                             f"but none had map {map_identifier}")
+                                             f"but none had map {hrac.hex()}")
 
 
 def find_matching_nodes(known_nodes: FleetSensor,

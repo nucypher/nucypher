@@ -565,7 +565,7 @@ class Bob(Character):
 
     def peek_at_treasure_map(self, treasure_map):
         """
-        Take a quick gander at the TreasureMap matching map_id to see which
+        Take a quick gander at the TreasureMap to see which
         nodes are already known to us.
 
         Don't do any learning, pinging, or anything other than just seeing
@@ -634,7 +634,7 @@ class Bob(Character):
             raise  # TODO: Maybe do something here?  NRN
 
     def get_treasure_map(self, publisher_verifying_key: PublicKey, label: bytes):
-        map_identifier = self.construct_map_id(publisher_verifying_key=publisher_verifying_key, label=label)
+        hrac = self.construct_policy_hrac(publisher_verifying_key=publisher_verifying_key, label=label)
 
         if not self.known_nodes and not self._learning_task.running:
             # Quick sanity check - if we don't know of *any* Ursulas, and we have no
@@ -646,10 +646,10 @@ class Bob(Character):
             if not self.known_nodes:
                 raise self.NotEnoughTeachers("Can't retrieve without knowing about any nodes at all.  Pass a teacher or seed node.")
 
-        treasure_map = self.get_treasure_map_from_known_ursulas(map_identifier)
+        treasure_map = self.get_treasure_map_from_known_ursulas(hrac)
 
         self._try_orient(treasure_map, publisher_verifying_key)
-        self.treasure_maps[map_identifier] = treasure_map  # TODO: make a part of _try_orient()?
+        self.treasure_maps[hrac] = treasure_map
         return treasure_map
 
     def make_compass_for_alice(self, alice):
@@ -659,25 +659,14 @@ class Bob(Character):
         _hrac = keccak_digest(bytes(publisher_verifying_key) + bytes(self.stamp) + label)[:HRAC_LENGTH]
         return _hrac
 
-    def construct_map_id(self, publisher_verifying_key: PublicKey, label: bytes):
-        hrac = self.construct_policy_hrac(publisher_verifying_key, label)
-
-        # Ugh stupid federated only mode....
-        if not self.federated_only:
-            map_id = hrac.hex()
-        else:
-            map_id = keccak_digest(bytes(publisher_verifying_key) + hrac).hex()
-
-        return map_id
-
-    def get_treasure_map_from_known_ursulas(self, map_identifier: str, timeout=3):
+    def get_treasure_map_from_known_ursulas(self, hrac: bytes, timeout=3):
         """
         Iterate through the nodes we know, asking for the TreasureMap.
         Return the first one who has it.
         """
         bob_encrypting_key = self.public_keys(DecryptingPower)
         return treasuremap.get_treasure_map_from_known_ursulas(learner=self,
-                                                               map_identifier=map_identifier,
+                                                               hrac=hrac,
                                                                bob_encrypting_key=bob_encrypting_key,
                                                                timeout=timeout)
 
@@ -946,15 +935,15 @@ class Bob(Character):
                              ) -> 'TreasureMap':
         if treasure_map is not None:
             self._try_orient(treasure_map, publisher_verifying_key)
-            # self.treasure_maps[treasure_map.public_id()] = treasure_map # TODO: Can we?
+            # self.treasure_maps[treasure_map.hrac] = treasure_map # TODO: Can we?
         else:
-            map_id = self.construct_map_id(publisher_verifying_key, label)
+            hrac = self.construct_policy_hrac(publisher_verifying_key, label)
             try:
-                treasure_map = self.treasure_maps[map_id]
+                treasure_map = self.treasure_maps[hrac]
             except KeyError:
                 # If the treasure map is not known, join the policy as part of retrieval.
                 self.join_policy(label=label, publisher_verifying_key=publisher_verifying_key)
-                treasure_map = self.treasure_maps[map_id]
+                treasure_map = self.treasure_maps[hrac]
 
         _unknown_ursulas, _known_ursulas, m = self.follow_treasure_map(treasure_map=treasure_map, block=True)
         return treasure_map, m

@@ -72,10 +72,10 @@ class PorterInterface(ControlInterface):
     #
     @attach_schema(porter_schema.BobGetTreasureMap)
     def get_treasure_map(self,
-                         treasure_map_id: str,
+                         hrac: bytes,
                          bob_encrypting_key: bytes) -> dict:
         bob_enc_key = PublicKey.from_bytes(bob_encrypting_key)
-        treasure_map = self.implementer.get_treasure_map(map_identifier=treasure_map_id,
+        treasure_map = self.implementer.get_treasure_map(hrac=hrac,
                                                          bob_encrypting_key=bob_enc_key)
         response_data = {'treasure_map': treasure_map}
         return response_data

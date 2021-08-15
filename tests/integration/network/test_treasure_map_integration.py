@@ -37,10 +37,10 @@ def test_alice_sets_treasure_map(federated_alice, federated_bob, enacted_federat
     """
     Having enacted all the policies of a PolicyGroup, Alice creates a TreasureMap and ...... TODO
     """
-    treasure_map_id = enacted_federated_policy.treasure_map.public_id()
+    hrac = enacted_federated_policy.treasure_map._hrac
     found = 0
     for node in federated_bob.matching_nodes_among(federated_alice.known_nodes):
-        with node.datastore.describe(DatastoreTreasureMap, treasure_map_id) as treasure_map_on_node:
+        with node.datastore.describe(DatastoreTreasureMap, hrac) as treasure_map_on_node:
             assert FederatedTreasureMap.from_bytes(treasure_map_on_node.treasure_map) == enacted_federated_policy.treasure_map
         found += 1
     assert found
@@ -52,16 +52,13 @@ def test_treasure_map_stored_by_ursula_is_the_correct_one_for_bob(federated_alic
     The TreasureMap given by Alice to Ursula is the correct one for Bob; he can decrypt and read it.
     """
 
-    treasure_map_id = enacted_federated_policy.treasure_map.public_id()
+    hrac = enacted_federated_policy.treasure_map._hrac
     an_ursula = federated_bob.matching_nodes_among(federated_ursulas)[0]
-    with an_ursula.datastore.describe(DatastoreTreasureMap, treasure_map_id) as treasure_map_record:
+    with an_ursula.datastore.describe(DatastoreTreasureMap, hrac) as treasure_map_record:
         treasure_map_on_network = FederatedTreasureMap.from_bytes(treasure_map_record.treasure_map)
 
     hrac_by_bob = federated_bob.construct_policy_hrac(federated_alice.stamp, enacted_federated_policy.label)
     assert enacted_federated_policy.hrac == hrac_by_bob
-
-    map_id_by_bob = federated_bob.construct_map_id(federated_alice.stamp, enacted_federated_policy.label)
-    assert map_id_by_bob == treasure_map_on_network.public_id()
 
 
 def test_bob_can_retrieve_the_treasure_map_and_decrypt_it(federated_alice, federated_bob, enacted_federated_policy):

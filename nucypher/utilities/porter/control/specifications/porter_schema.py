@@ -140,13 +140,13 @@ class AliceRevoke(BaseSchema):
 # Bob Endpoints
 #
 class BobGetTreasureMap(BaseSchema):
-    treasure_map_id = fields.TreasureMapID(
+    hrac = fields.HRAC(
         required=True,
         load_only=True,
         click=click.option(
-            '--treasure-map-id',
-            '-tid',
-            help="Treasure Map ID as hex",
+            '--hrac',
+            '-h',
+            help="Policy HRAC as hex",
             type=click.STRING,
             required=True))
     bob_encrypting_key = character_fields.Key(

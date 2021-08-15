@@ -532,7 +532,7 @@ Parameters
 +----------------------------------+---------------+----------------------------------------+
 | **Parameter**                    | **Type**      | **Description**                        |
 +==================================+===============+========================================+
-| ``treasure_map_id``              | String        | Treasure map identifier.               |
+| ``hrac``                         | String        | Policy HRAC.                           |
 +----------------------------------+---------------+----------------------------------------+
 | ``bob_encrypting_key``           | String        | Bob's encrypting key encoded as hex.   |
 +----------------------------------+---------------+----------------------------------------+
@@ -550,14 +550,14 @@ Example Request
 
     curl -X GET <PORTER URI>/get_treasure_map \
         -H "Content-Type: application/json" \
-        -d '{"treasure_map_id": "f6ec73c93084ce91d5542a4ba6070071f5565112fe19b26ae9c960f9d658903a",
+        -d '{"hrac": "f6ec73c93084ce91d5542a4ba6070071",
              "bob_encrypting_key": "026d1f4ce5b2474e0dae499d6737a8d987ed3c9ab1a55e00f57ad2d8e81fe9e9ac"}'
 
 OR
 
 .. code:: bash
 
-    curl -X GET "<PORTER URI>/get_treasure_map?treasure_map_id=f6ec73c93084ce91d5542a4ba6070071f5565112fe19b26ae9c960f9d658903a&bob_encrypting_key=026d1f4ce5b2474e0dae499d6737a8d987ed3c9ab1a55e00f57ad2d8e81fe9e9ac"
+    curl -X GET "<PORTER URI>/get_treasure_map?hrac=f6ec73c93084ce91d5542a4ba6070071&bob_encrypting_key=026d1f4ce5b2474e0dae499d6737a8d987ed3c9ab1a55e00f57ad2d8e81fe9e9ac"
 
 Example Response
 ++++++++++++++++

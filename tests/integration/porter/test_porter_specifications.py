@@ -233,12 +233,12 @@ def test_bob_get_treasure_map(enacted_federated_policy, federated_alice, federat
     with pytest.raises(InvalidInputData):
         BobGetTreasureMap().load({})
 
-    treasure_map_id = federated_bob.construct_map_id(federated_alice.stamp, enacted_federated_policy.label)
+    hrac = federated_bob.construct_policy_hrac(federated_alice.stamp.as_umbral_pubkey(), enacted_federated_policy.label)
     bob_encrypting_key = federated_bob.public_keys(DecryptingPower)
     bob_encrypting_key_hex = bytes(bob_encrypting_key).hex()
 
     required_data = {
-        'treasure_map_id': treasure_map_id,
+        'hrac': hrac.hex(),
         'bob_encrypting_key': bob_encrypting_key_hex
     }
 
@@ -247,11 +247,11 @@ def test_bob_get_treasure_map(enacted_federated_policy, federated_alice, federat
 
     # random 16-byte length map id
     updated_data = dict(required_data)
-    updated_data['treasure_map_id'] = "93a9482bdf3b4f2e9df906a35144ca93"
+    updated_data['hrac'] = "93a9482bdf3b4f2e9df906a35144ca93"
     BobGetTreasureMap().load(updated_data)
 
     # missing required args
-    updated_data = {k: v for k, v in required_data.items() if k != 'treasure_map_id'}
+    updated_data = {k: v for k, v in required_data.items() if k != 'hrac'}
     with pytest.raises(InvalidInputData):
         BobGetTreasureMap().load(updated_data)
 
@@ -261,7 +261,7 @@ def test_bob_get_treasure_map(enacted_federated_policy, federated_alice, federat
 
     # invalid treasure map id
     updated_data = dict(required_data)
-    updated_data['treasure_map_id'] = b'fake_id'.hex()
+    updated_data['hrac'] = b'fake_id'.hex()
     with pytest.raises(InvalidInputData):
         BobGetTreasureMap().load(updated_data)
 

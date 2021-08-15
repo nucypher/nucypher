@@ -62,7 +62,7 @@ def test_alice_sets_treasure_map_decentralized(enacted_blockchain_policy, blockc
     """
     Same as test_alice_sets_treasure_map except with a blockchain policy.
     """
-    treasure_map_hrac = enacted_blockchain_policy.treasure_map._hrac[:16].hex()
+    treasure_map_hrac = enacted_blockchain_policy.treasure_map._hrac
     found = 0
     for node in blockchain_bob.matching_nodes_among(blockchain_alice.known_nodes):
         with node.datastore.describe(DatastoreTreasureMap, treasure_map_hrac) as treasure_map_on_node:

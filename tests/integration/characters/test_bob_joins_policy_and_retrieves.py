@@ -38,7 +38,7 @@ def test_federated_bob_full_retrieve_flow(federated_ursulas,
                                           enacted_federated_policy):
     # Assume for the moment that Bob has already received a TreasureMap.
     treasure_map = enacted_federated_policy.treasure_map
-    federated_bob.treasure_maps[treasure_map.public_id()] = treasure_map
+    federated_bob.treasure_maps[treasure_map._hrac] = treasure_map
 
     for ursula in federated_ursulas:
         federated_bob.remember_node(ursula)
