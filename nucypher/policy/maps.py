@@ -37,11 +37,10 @@ from nucypher.crypto.splitters import signature_splitter, kfrag_splitter
 from nucypher.crypto.umbral_adapter import KeyFrag, VerifiedKeyFrag, PublicKey, Signature
 from nucypher.crypto.utils import keccak_digest, encrypt_and_sign, verify_eip_191
 from nucypher.network.middleware import RestMiddleware
+from nucypher.policy.hrac import HRAC, hrac_splitter
 
 
 class TreasureMap:
-
-    HRAC_LENGTH = 16
 
     class NowhereToBeFound(RestMiddleware.NotFound):
         """
@@ -56,7 +55,7 @@ class TreasureMap:
 
     main_splitter = BytestringSplitter(
         (int, 1, {'byteorder': 'big'}),
-        (bytes, HRAC_LENGTH),
+        hrac_splitter,
     )
 
     ursula_and_kfrag_payload_splitter = BytestringSplitter(
@@ -64,28 +63,11 @@ class TreasureMap:
         (UmbralMessageKit, VariableLengthBytestring),
     )
 
-    @staticmethod
-    def derive_hrac(publisher_verifying_key: PublicKey, bob_verifying_key: PublicKey, label: bytes) -> bytes:
-        """
-        Here's our "hashed resource access code".
-
-        A hash of:
-        * Alice's public key
-        * Bob's public key
-        * the label
-
-        Alice and Bob have all the information they need to construct this.
-        Ursula does not, so we share it with her.
-
-        This way, Bob can generate it and use it to find the TreasureMap.
-        """
-        return keccak_digest(bytes(publisher_verifying_key) + bytes(bob_verifying_key) + label)[:TreasureMap.HRAC_LENGTH]
-
     @classmethod
     def construct_by_publisher(cls,
+                               hrac: HRAC,
                                publisher: 'Alice',
                                bob: 'Bob',
-                               label: bytes,
                                ursulas: Sequence['Ursula'],
                                verified_kfrags: Sequence[VerifiedKeyFrag],
                                m: int,
@@ -99,11 +81,6 @@ class TreasureMap:
             raise ValueError(
                 f"The number of destinations ({len(ursulas)}) "
                 f"must be equal or greater than the threshold ({m})")
-
-        # The HRAC is needed to produce kfrag writs.
-        hrac = cls.derive_hrac(publisher_verifying_key=publisher.stamp.as_umbral_pubkey(),
-                               bob_verifying_key=bob.public_keys(SigningPower),
-                               label=label)
 
         # Encrypt each kfrag for an Ursula.
         destinations = {}
@@ -121,7 +98,7 @@ class TreasureMap:
 
     def __init__(self,
                  m: int,
-                 hrac: bytes,
+                 hrac: HRAC,
                  destinations: Dict[ChecksumAddress, bytes],
                  ):
         self.m = m
@@ -141,7 +118,7 @@ class TreasureMap:
         return nodes_as_bytes
 
     def __bytes__(self):
-        return self.m.to_bytes(1, "big") + self.hrac + self._nodes_as_bytes()
+        return self.m.to_bytes(1, "big") + bytes(self.hrac) + self._nodes_as_bytes()
 
     @classmethod
     def from_bytes(cls, data):
@@ -169,7 +146,7 @@ class AuthorizedKeyFrag:
     ENCRYPTED_SIZE = 619
 
     _splitter = BytestringSplitter(
-        (bytes, TreasureMap.HRAC_LENGTH), # HRAC
+        hrac_splitter, # HRAC
         (bytes, _WRIT_CHECKSUM_SIZE), # kfrag checksum
         signature_splitter, # Publisher's signature
         kfrag_splitter,
@@ -181,7 +158,7 @@ class AuthorizedKeyFrag:
 
     @classmethod
     def construct_by_publisher(cls,
-                               hrac: bytes,
+                               hrac: HRAC,
                                verified_kfrag: VerifiedKeyFrag,
                                publisher_stamp: SignatureStamp,
                                ) -> 'AuthorizedKeyFrag':
@@ -192,17 +169,17 @@ class AuthorizedKeyFrag:
         # Alice makes plain to Ursula that, upon decrypting this message,
         # this particular KFrag is authorized for use in the policy identified by this HRAC.
         kfrag_checksum = cls._kfrag_checksum(kfrag)
-        writ = hrac + kfrag_checksum
+        writ = bytes(hrac) + kfrag_checksum
         writ_signature = publisher_stamp(writ)
 
         # The writ and the KFrag together represent a complete kfrag kit: the entirety of
         # the material needed for Ursula to assuredly service this policy.
         return cls(hrac, kfrag_checksum, writ_signature, kfrag)
 
-    def __init__(self, hrac: bytes, kfrag_checksum: bytes, writ_signature: Signature, kfrag: KeyFrag):
+    def __init__(self, hrac: HRAC, kfrag_checksum: bytes, writ_signature: Signature, kfrag: KeyFrag):
         self.hrac = hrac
         self.kfrag_checksum = kfrag_checksum
-        self.writ = hrac + kfrag_checksum
+        self.writ = bytes(hrac) + kfrag_checksum
         self.writ_signature = writ_signature
         self.kfrag = kfrag
 
@@ -226,7 +203,7 @@ class EncryptedTreasureMap:
 
     _splitter = BytestringSplitter(
         signature_splitter,
-        (bytes, TreasureMap.HRAC_LENGTH),
+        hrac_splitter,
         (UmbralMessageKit, VariableLengthBytestring),
         (bytes, 1))
 
@@ -236,7 +213,7 @@ class EncryptedTreasureMap:
     @staticmethod
     def _make_blockchain_signature(blockchain_signer, public_signature, hrac, encrypted_tmap):
         # This method exists mainly to link this scheme to the corresponding test
-        payload = bytes(public_signature) + hrac + encrypted_tmap.to_bytes()
+        payload = bytes(public_signature) + bytes(hrac) + encrypted_tmap.to_bytes()
         return blockchain_signer(payload)
 
     @classmethod
@@ -249,7 +226,7 @@ class EncryptedTreasureMap:
         encrypted_tmap, _signature_for_bob = encrypt_and_sign(bob_encrypting_key,
                                                               plaintext=bytes(treasure_map),
                                                               signer=publisher.stamp)
-        public_signature = publisher.stamp(bytes(publisher.stamp) + treasure_map.hrac)
+        public_signature = publisher.stamp(bytes(publisher.stamp) + bytes(treasure_map.hrac))
 
         if blockchain_signer is not None:
             blockchain_signature = EncryptedTreasureMap._make_blockchain_signature(
@@ -280,7 +257,7 @@ class EncryptedTreasureMap:
 
     def __bytes__(self):
         return (bytes(self._public_signature) +
-                self.hrac +
+                bytes(self.hrac) +
                 bytes(VariableLengthBytestring(self._encrypted_tmap.to_bytes())) +
                 # Other variants:
                 # - store all zeros if no blockchain signature
@@ -292,13 +269,13 @@ class EncryptedTreasureMap:
     def verify_blockchain_signature(self, checksum_address):
         if self._blockchain_signature is None:
             raise ValueError("This EncryptedTreasureMap is not blockchain-signed")
-        payload = bytes(self._public_signature) + self.hrac + self._encrypted_tmap.to_bytes()
+        payload = bytes(self._public_signature) + bytes(self.hrac) + self._encrypted_tmap.to_bytes()
         return verify_eip_191(message=payload,
                               signature=self._blockchain_signature,
                               address=checksum_address)
 
     def _public_verify(self) -> bool:
-        message = bytes(self._verifying_key) + self.hrac
+        message = bytes(self._verifying_key) + bytes(self.hrac)
         if not self._public_signature.verify(self._verifying_key, message=message):
             raise self.InvalidSignature("This TreasureMap is not properly publicly signed by Alice.")
 

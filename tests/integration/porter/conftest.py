@@ -19,6 +19,7 @@ from base64 import b64decode
 import pytest
 
 from nucypher.crypto.powers import DecryptingPower
+from nucypher.policy.hrac import HRAC
 from nucypher.policy.maps import TreasureMap
 
 
@@ -29,9 +30,12 @@ def random_federated_treasure_map_data(federated_alice, federated_bob, federated
     threshold = 2
     num_kfrags = threshold + 1
     _policy_key, kfrags = federated_alice.generate_kfrags(bob=federated_bob, label=label, m=threshold, n=num_kfrags)
-    random_treasure_map = TreasureMap.construct_by_publisher(publisher=federated_alice,
+    hrac = HRAC.derive(publisher_verifying_key=federated_alice.stamp.as_umbral_pubkey(),
+                       bob_verifying_key=federated_bob.stamp.as_umbral_pubkey(),
+                       label=label)
+    random_treasure_map = TreasureMap.construct_by_publisher(hrac=hrac,
+                                                             publisher=federated_alice,
                                                              bob=federated_bob,
-                                                             label=label,
                                                              ursulas=list(federated_ursulas)[:num_kfrags],
                                                              verified_kfrags=kfrags,
                                                              m=threshold)

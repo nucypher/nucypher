@@ -20,25 +20,22 @@ from marshmallow import fields
 from nucypher.characters.control.specifications.exceptions import InvalidNativeDataTypes
 from nucypher.control.specifications.exceptions import InvalidInputData
 from nucypher.control.specifications.fields.base import BaseField
-from nucypher.policy.maps import TreasureMap
+from nucypher.policy.hrac import HRAC as HRACClass
 
 
 class HRAC(BaseField, fields.String):
 
     def _serialize(self, value, attr, obj, **kwargs):
-        return value.hex()
+        return bytes(value).hex()
 
     def _deserialize(self, value, attr, data, **kwargs):
-        if isinstance(value, bytes):
-            return value
         try:
             return bytes.fromhex(value)
         except InvalidNativeDataTypes as e:
-            raise InvalidInputData(f"Could not convert input for {self.name} to an HRAC: {e}")
+            raise InvalidInputData(f"Could not convert input for {self.name} to a valid HRAC serialization: {e}")
 
     def _validate(self, value):
-        if not isinstance(value, bytes):
-            raise InvalidInputData(f"Could not convert input for {self.name} to a valid TreasureMap HRAC: must be a bytestring")
-
-        if len(value) != TreasureMap.HRAC_LENGTH:
-            raise InvalidInputData(f"Could not convert input for {self.name} to a valid TreasureMap HRAC: invalid length")
+        try:
+            HRACClass.from_bytes(value)
+        except InvalidNativeDataTypes as e:
+            raise InvalidInputData(f"Could not convert input for {self.name} to a valid HRAC: {e}")

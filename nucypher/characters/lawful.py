@@ -107,6 +107,7 @@ from nucypher.network.nodes import NodeSprout, TEACHER_NODES, Teacher
 from nucypher.network.protocols import InterfaceInfo, parse_node_uri
 from nucypher.network.server import ProxyRESTServer, TLSHostingPower, make_rest_app
 from nucypher.network.trackers import AvailabilityTracker
+from nucypher.policy.hrac import HRAC
 from nucypher.policy.maps import TreasureMap, EncryptedTreasureMap, AuthorizedKeyFrag
 from nucypher.policy.orders import WorkOrder
 from nucypher.policy.policies import Policy
@@ -210,9 +211,9 @@ class Alice(Character, BlockchainPolicyAuthor):
         Adds a Policy object that is active on the NuCypher network to Alice's
         `active_policies` dictionary by the policy ID.
         """
-        if active_policy.id in self.active_policies:
+        if active_policy.hrac in self.active_policies:
             raise KeyError("Policy already exists in active_policies.")
-        self.active_policies[active_policy.id] = active_policy
+        self.active_policies[active_policy.hrac] = active_policy
 
     def generate_kfrags(self,
                         bob: 'Bob',
@@ -391,7 +392,7 @@ class Alice(Character, BlockchainPolicyAuthor):
         receipt, failed = dict(), dict()
 
         if onchain and (not self.federated_only):
-            receipt = self.policy_agent.revoke_policy(policy_id=policy.hrac,
+            receipt = self.policy_agent.revoke_policy(policy_id=bytes(policy.hrac),
                                                       transacting_power=self._crypto_power.power_ups(TransactingPower))
 
         if offchain:
@@ -654,11 +655,10 @@ class Bob(Character):
     def make_compass_for_alice(self, alice):
         return partial(self.verify_from, alice, decrypt=True)
 
-    def construct_policy_hrac(self, publisher_verifying_key: PublicKey, label: bytes) -> bytes:
-        _hrac = TreasureMap.derive_hrac(publisher_verifying_key=publisher_verifying_key,
-                                        bob_verifying_key=self.stamp.as_umbral_pubkey(),
-                                        label=label)
-        return _hrac
+    def construct_policy_hrac(self, publisher_verifying_key: PublicKey, label: bytes) -> HRAC:
+        return HRAC.derive(publisher_verifying_key=publisher_verifying_key,
+                           bob_verifying_key=self.stamp.as_umbral_pubkey(),
+                           label=label)
 
     def get_treasure_map_from_known_ursulas(self, hrac: bytes, timeout=3):
         """
@@ -1727,7 +1727,7 @@ class Ursula(Teacher, Character, Worker):
     #
 
     def verify_kfrag_authorization(self,
-                                   hrac: bytes,
+                                   hrac: HRAC,
                                    author: Alice,
                                    publisher: Alice,
                                    authorized_kfrag: AuthorizedKeyFrag,

@@ -41,10 +41,6 @@ def test_decentralized_grant(blockchain_alice, blockchain_bob, blockchain_ursula
                                     rate=int(1e18),  # one ether
                                     expiration=policy_end_datetime)
 
-    # Check the policy ID
-    policy_id = keccak_digest(label + bytes(blockchain_bob.stamp))
-    assert policy_id == policy.id
-
     treasure_map = blockchain_bob._try_orient(policy.treasure_map, policy.publisher_verifying_key)
 
     # The number of actually enacted arrangements is exactly equal to n.
@@ -67,7 +63,7 @@ def test_alice_sets_treasure_map_decentralized(enacted_blockchain_policy, blockc
     treasure_map_hrac = enacted_blockchain_policy.treasure_map.hrac
     found = 0
     for node in blockchain_bob.matching_nodes_among(blockchain_alice.known_nodes):
-        with node.datastore.describe(DatastoreTreasureMap, treasure_map_hrac) as treasure_map_on_node:
+        with node.datastore.describe(DatastoreTreasureMap, bytes(treasure_map_hrac).hex()) as treasure_map_on_node:
             assert EncryptedTreasureMap.from_bytes(treasure_map_on_node.treasure_map).hrac == enacted_blockchain_policy.hrac
         found += 1
     assert found

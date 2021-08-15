@@ -23,11 +23,12 @@ from nucypher.acumen.perception import FleetSensor
 from nucypher.crypto.signing import InvalidSignature
 from nucypher.network.exceptions import NodeSeemsToBeDown
 from nucypher.network.nodes import Learner
+from nucypher.policy.hrac import HRAC
 from nucypher.policy.maps import TreasureMap, EncryptedTreasureMap
 
 
 def get_treasure_map_from_known_ursulas(learner: Learner,
-                                        hrac: bytes,
+                                        hrac: HRAC,
                                         bob_encrypting_key: PublicKey,
                                         timeout=3):
     """
@@ -50,7 +51,7 @@ def get_treasure_map_from_known_ursulas(learner: Learner,
             except (*NodeSeemsToBeDown, learner.NotEnoughNodes):
                 continue
             except learner.network_middleware.NotFound:
-                learner.log.info(f"Node {node} claimed not to have TreasureMap {hrac.hex()}")
+                learner.log.info(f"Node {node} claimed not to have TreasureMap {hrac}")
                 continue
             except node.NotStaking:
                 # TODO this wasn't here before - check with myles
@@ -71,7 +72,7 @@ def get_treasure_map_from_known_ursulas(learner: Learner,
 
         if (start - maya.now()).seconds > timeout:
             raise TreasureMap.NowhereToBeFound(f"Asked {len(learner.known_nodes)} nodes, "
-                                               f"but none had map {hrac.hex()}")
+                                               f"but none had map {hrac}")
 
 
 def find_matching_nodes(known_nodes: FleetSensor,

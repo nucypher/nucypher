@@ -25,8 +25,8 @@ from nucypher.control.interfaces import attach_schema, ControlInterface
 from nucypher.crypto.kits import UmbralMessageKit
 from nucypher.crypto.powers import DecryptingPower, SigningPower
 from nucypher.crypto.umbral_adapter import PublicKey
-from nucypher.crypto.utils import construct_policy_id
 from nucypher.network.middleware import RestMiddleware
+from nucypher.policy.hrac import HRAC
 
 
 class CharacterPublicInterface(ControlInterface):
@@ -107,8 +107,8 @@ class AliceInterface(CharacterPublicInterface):
     def revoke(self, label: bytes, bob_verifying_key: bytes) -> dict:
 
         # TODO: Move deeper into characters
-        policy_id = construct_policy_id(label, bob_verifying_key)
-        policy = self.implementer.active_policies[policy_id]
+        policy_hrac = HRAC.derive(self.implementer.stamp.as_umbral_pubkey(), bob_verifying_key, label)
+        policy = self.implementer.active_policies[policy_hrac]
 
         receipt, failed_revocations = self.implementer.revoke(policy)
         if len(failed_revocations) > 0:
@@ -117,7 +117,7 @@ class AliceInterface(CharacterPublicInterface):
                 if fail_reason == RestMiddleware.NotFound:
                     del (failed_revocations[node_id])
         if len(failed_revocations) <= (policy.n - policy.m + 1):
-            del (self.implementer.active_policies[policy_id])
+            del (self.implementer.active_policies[policy_hrac])
 
         response_data = {'failed_revocations': len(failed_revocations)}
         return response_data

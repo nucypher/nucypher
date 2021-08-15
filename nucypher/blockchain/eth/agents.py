@@ -828,7 +828,7 @@ class PolicyManagerAgent(EthereumContractAgent):
 
     @contract_api(TRANSACTION)
     def create_policy(self,
-                      policy_id: str,
+                      policy_id: bytes,
                       transacting_power: TransactingPower,
                       value: Wei,
                       end_timestamp: Timestamp,
@@ -888,19 +888,19 @@ class PolicyManagerAgent(EthereumContractAgent):
                                   last_refunded_period=arrangement[2])
 
     @contract_api(TRANSACTION)
-    def revoke_arrangement(self, policy_id: str, node_address: ChecksumAddress, transacting_power: TransactingPower) -> TxReceipt:
+    def revoke_arrangement(self, policy_id: bytes, node_address: ChecksumAddress, transacting_power: TransactingPower) -> TxReceipt:
         contract_function: ContractFunction = self.contract.functions.revokeArrangement(policy_id, node_address)
         receipt = self.blockchain.send_transaction(contract_function=contract_function, transacting_power=transacting_power)
         return receipt
 
     @contract_api(TRANSACTION)
-    def calculate_refund(self, policy_id: str, transacting_power: TransactingPower) -> TxReceipt:
+    def calculate_refund(self, policy_id: bytes, transacting_power: TransactingPower) -> TxReceipt:
         contract_function: ContractFunction = self.contract.functions.calculateRefundValue(policy_id)
         receipt = self.blockchain.send_transaction(contract_function=contract_function, transacting_power=transacting_power)
         return receipt
 
     @contract_api(TRANSACTION)
-    def collect_refund(self, policy_id: str, transacting_power: TransactingPower) -> TxReceipt:
+    def collect_refund(self, policy_id: bytes, transacting_power: TransactingPower) -> TxReceipt:
         contract_function: ContractFunction = self.contract.functions.refund(policy_id)
         receipt = self.blockchain.send_transaction(contract_function=contract_function, transacting_power=transacting_power)
         return receipt

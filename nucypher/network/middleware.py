@@ -210,7 +210,7 @@ class RestMiddleware:
 
     def get_treasure_map_from_node(self, node, hrac):
         response = self.client.get(node_or_sprout=node,
-                                   path=f"treasure_map/{hrac.hex()}",
+                                   path=f"treasure_map/{bytes(hrac).hex()}",
                                    timeout=2)
         return response
 

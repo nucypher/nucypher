@@ -21,6 +21,7 @@ import pytest
 from nucypher.characters.lawful import Ursula
 from nucypher.crypto.utils import keccak_digest
 from nucypher.datastore.models import EncryptedTreasureMap as DatastoreTreasureMap
+from nucypher.policy.hrac import HRAC
 from nucypher.policy.maps import EncryptedTreasureMap
 
 
@@ -28,9 +29,10 @@ def test_alice_creates_policy_with_correct_hrac(federated_alice, federated_bob, 
     """
     Alice creates a Policy.  It has the proper HRAC, unique per her, Bob, and the label
     """
-    assert idle_federated_policy.hrac == keccak_digest(bytes(federated_alice.stamp)
-                                                       + bytes(federated_bob.stamp)
-                                                       + idle_federated_policy.label)[:16]
+    # TODO: what are we actually testing here?
+    assert idle_federated_policy.hrac == HRAC.derive(federated_alice.stamp.as_umbral_pubkey(),
+                                                     federated_bob.stamp.as_umbral_pubkey(),
+                                                     idle_federated_policy.label)
 
 
 def test_alice_sets_treasure_map(federated_alice, federated_bob, enacted_federated_policy):
@@ -40,7 +42,7 @@ def test_alice_sets_treasure_map(federated_alice, federated_bob, enacted_federat
     hrac = enacted_federated_policy.treasure_map.hrac
     found = 0
     for node in federated_bob.matching_nodes_among(federated_alice.known_nodes):
-        with node.datastore.describe(DatastoreTreasureMap, hrac) as treasure_map_on_node:
+        with node.datastore.describe(DatastoreTreasureMap, bytes(hrac).hex()) as treasure_map_on_node:
             assert EncryptedTreasureMap.from_bytes(treasure_map_on_node.treasure_map).hrac == enacted_federated_policy.hrac
         found += 1
     assert found
@@ -54,7 +56,7 @@ def test_treasure_map_stored_by_ursula_is_the_correct_one_for_bob(federated_alic
 
     hrac = enacted_federated_policy.treasure_map.hrac
     an_ursula = federated_bob.matching_nodes_among(federated_ursulas)[0]
-    with an_ursula.datastore.describe(DatastoreTreasureMap, hrac) as treasure_map_record:
+    with an_ursula.datastore.describe(DatastoreTreasureMap, bytes(hrac).hex()) as treasure_map_record:
         treasure_map_on_network = EncryptedTreasureMap.from_bytes(treasure_map_record.treasure_map)
 
     hrac_by_bob = federated_bob.construct_policy_hrac(federated_alice.stamp, enacted_federated_policy.label)

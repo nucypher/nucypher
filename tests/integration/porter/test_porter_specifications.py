@@ -230,7 +230,7 @@ def test_bob_get_treasure_map(enacted_federated_policy, federated_alice, federat
     bob_encrypting_key_hex = bytes(bob_encrypting_key).hex()
 
     required_data = {
-        'hrac': hrac.hex(),
+        'hrac': bytes(hrac).hex(),
         'bob_encrypting_key': bob_encrypting_key_hex
     }
 

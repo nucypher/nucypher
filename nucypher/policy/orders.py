@@ -40,6 +40,7 @@ from nucypher.crypto.umbral_adapter import (
     PublicKey,
     Signature
 )
+from nucypher.policy.hrac import HRAC, hrac_splitter
 from nucypher.policy.maps import AuthorizedKeyFrag, TreasureMap
 
 
@@ -58,7 +59,7 @@ class WorkOrder:
         + key_splitter                    \
         + key_splitter                    \
         + key_splitter                    \
-        + BytestringSplitter((bytes, TreasureMap.HRAC_LENGTH)) \
+        + hrac_splitter \
         + BytestringSplitter((bytes, VariableLengthBytestring))
 
     class PRETask:
@@ -125,7 +126,7 @@ class WorkOrder:
 
     def __init__(self,
                  bob: 'Bob',
-                 hrac: bytes,
+                 hrac: HRAC,
                  encrypted_kfrag: bytes,
                  alice_verifying_key: bytes,
                  publisher_verifying_key: bytes,

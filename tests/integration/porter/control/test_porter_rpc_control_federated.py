@@ -89,7 +89,7 @@ def test_publish_and_get_treasure_map(federated_porter_rpc_controller,
     # ensure that random treasure map cannot be obtained since not available
     with pytest.raises(TreasureMap.NowhereToBeFound):
         get_treasure_map_params = {
-            'hrac': random_treasure_map.hrac.hex(),
+            'hrac': bytes(random_treasure_map.hrac).hex(),
             'bob_encrypting_key': bytes(random_bob_encrypting_key).hex()
         }
         request_data = {'method': 'get_treasure_map', 'params': get_treasure_map_params}
@@ -106,7 +106,7 @@ def test_publish_and_get_treasure_map(federated_porter_rpc_controller,
 
     # try getting the random treasure map now
     get_treasure_map_params = {
-        'hrac': random_treasure_map.hrac.hex(),
+        'hrac': bytes(random_treasure_map.hrac).hex(),
         'bob_encrypting_key': bytes(random_bob_encrypting_key).hex()
     }
     request_data = {'method': 'get_treasure_map', 'params': get_treasure_map_params}
@@ -118,7 +118,7 @@ def test_publish_and_get_treasure_map(federated_porter_rpc_controller,
     hrac = federated_bob.construct_policy_hrac(federated_alice.stamp.as_umbral_pubkey(),
                                                enacted_federated_policy.label)
     get_treasure_map_params = {
-        'hrac': hrac.hex(),
+        'hrac': bytes(hrac).hex(),
         'bob_encrypting_key': bytes(federated_bob.public_keys(DecryptingPower)).hex()
     }
     request_data = {'method': 'get_treasure_map', 'params': get_treasure_map_params}

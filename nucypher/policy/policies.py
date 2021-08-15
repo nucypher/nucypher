@@ -25,14 +25,13 @@ from bytestring_splitter import BytestringSplitter, VariableLengthBytestring
 from eth_typing.evm import ChecksumAddress
 from twisted.internet import reactor
 
-from nucypher.blockchain.eth.constants import POLICY_ID_LENGTH
 from nucypher.crypto.kits import RevocationKit
 from nucypher.crypto.powers import TransactingPower, DecryptingPower
 from nucypher.crypto.splitters import key_splitter
 from nucypher.crypto.utils import keccak_digest
 from nucypher.crypto.umbral_adapter import PublicKey, VerifiedKeyFrag, Signature
-from nucypher.crypto.utils import construct_policy_id
 from nucypher.network.middleware import RestMiddleware
+from nucypher.policy.hrac import HRAC
 from nucypher.policy.maps import TreasureMap
 from nucypher.policy.reservoir import (
     make_federated_staker_reservoir,
@@ -157,8 +156,6 @@ class Policy(ABC):
     An edict by Alice, arranged with n Ursulas, to perform re-encryption for a specific Bob.
     """
 
-    ID_LENGTH = POLICY_ID_LENGTH
-
     log = Logger("Policy")
 
     class PolicyException(Exception):
@@ -215,8 +212,6 @@ class Policy(ABC):
         self.public_key = public_key
         self.expiration = expiration
 
-        self._id = construct_policy_id(self.label, bytes(self.bob.stamp))
-
         """
         # TODO: #180 - This attribute is hanging on for dear life.
         After 180 is closed, it can be completely deprecated.
@@ -231,12 +226,12 @@ class Policy(ABC):
         Alice and Bob have all the information they need to construct this.
         'Ursula' does not, so we share it with her.
         """
-        self.hrac = TreasureMap.derive_hrac(publisher_verifying_key=self.publisher.stamp.as_umbral_pubkey(),
-                                            bob_verifying_key=self.bob.stamp.as_umbral_pubkey(),
-                                            label=self.label)
+        self.hrac = HRAC.derive(publisher_verifying_key=self.publisher.stamp.as_umbral_pubkey(),
+                                bob_verifying_key=self.bob.stamp.as_umbral_pubkey(),
+                                label=self.label)
 
     def __repr__(self):
-        return f"{self.__class__.__name__}:{self._id.hex()[:6]}"
+        return f"{self.__class__.__name__}:{bytes(self.hrac).hex()[:6]}"
 
     @abstractmethod
     def _make_reservoir(self, handpicked_addresses: Sequence[ChecksumAddress]) -> MergedReservoir:
@@ -380,9 +375,9 @@ class Policy(ABC):
 
         self._enact_arrangements(arrangements)
 
-        treasure_map = TreasureMap.construct_by_publisher(publisher=self.publisher,
+        treasure_map = TreasureMap.construct_by_publisher(hrac=self.hrac,
+                                                          publisher=self.publisher,
                                                           bob=self.bob,
-                                                          label=self.label,
                                                           ursulas=list(arrangements),
                                                           verified_kfrags=self.kfrags,
                                                           m=self.m)
@@ -395,8 +390,7 @@ class Policy(ABC):
         # TODO: Signal revocation without using encrypted kfrag
         revocation_kit = RevocationKit(treasure_map=treasure_map, signer=self.publisher.stamp)
 
-        enacted_policy = EnactedPolicy(self._id,
-                                       self.hrac,
+        enacted_policy = EnactedPolicy(self.hrac,
                                        self.label,
                                        self.public_key,
                                        treasure_map.m,
@@ -522,7 +516,7 @@ class BlockchainPolicy(Policy):
 
         # Transact  # TODO: Move this logic to BlockchainPolicyActor
         receipt = self.publisher.policy_agent.create_policy(
-            policy_id=self.hrac,  # bytes16 _policyID
+            policy_id=bytes(self.hrac),  # bytes16 _policyID
             transacting_power=self.publisher.transacting_power,
             value=self.value,
             end_timestamp=self.expiration.epoch,  # uint16 _numberOfPeriods
@@ -533,7 +527,7 @@ class BlockchainPolicy(Policy):
         return receipt['transactionHash']
 
     def _make_enactment_payload(self, kfrag) -> bytes:
-        return bytes(self.hrac)[:self.ID_LENGTH] + bytes(kfrag)
+        return bytes(self.hrac) + bytes(kfrag)
 
     def _enact_arrangements(self, arrangements: Dict['Ursula', Arrangement]) -> None:
         self._publish_to_blockchain(ursulas=list(arrangements))
@@ -549,8 +543,7 @@ class BlockchainPolicy(Policy):
 class EnactedPolicy:
 
     def __init__(self,
-                 id: bytes,
-                 hrac: bytes,
+                 hrac: HRAC,
                  label: bytes,
                  public_key: PublicKey,
                  m: int,
@@ -560,7 +553,6 @@ class EnactedPolicy:
                  publisher_verifying_key: PublicKey,
                  ):
 
-        self.id = id # TODO: is it even used anywhere?
         self.hrac = hrac
         self.label = label
         self.public_key = public_key

@@ -34,12 +34,12 @@ def test_hrac_field(enacted_federated_policy):
 
     field = HRAC()
     serialized = field._serialize(value=hrac, attr=None, obj=None)
-    assert serialized == hrac.hex()
+    assert serialized == bytes(hrac).hex()
 
     deserialized = field._deserialize(value=serialized, attr=None, data=None)
-    assert deserialized == hrac
+    assert deserialized == bytes(hrac)
 
-    field._validate(value=hrac)
+    field._validate(value=bytes(hrac))
     with pytest.raises(InvalidInputData):
         field._validate(value=b'not hrac')
 

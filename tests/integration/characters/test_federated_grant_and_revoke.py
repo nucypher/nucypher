@@ -36,13 +36,9 @@ def test_federated_grant(federated_alice, federated_bob, federated_ursulas):
     # Create the Policy, granting access to Bob
     policy = federated_alice.grant(federated_bob, label, m=m, n=n, expiration=policy_end_datetime)
 
-    # Check the policy ID
-    policy_id = keccak_digest(policy.label + bytes(federated_bob.stamp))
-    assert policy_id == policy.id
-
     # Check Alice's active policies
-    assert policy_id in federated_alice.active_policies
-    assert federated_alice.active_policies[policy_id] == policy
+    assert policy.hrac in federated_alice.active_policies
+    assert federated_alice.active_policies[policy.hrac] == policy
 
     treasure_map = federated_bob._try_orient(policy.treasure_map, policy.publisher_verifying_key)
 
