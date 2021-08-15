@@ -41,8 +41,8 @@ def test_various_field_validations_by_way_of_alice_grant(federated_bob):
     data = {
         'bob_encrypting_key': bytes(bob_encrypting_key).hex(),
         'bob_verifying_key': bytes(federated_bob.stamp).hex(),
-        'm': 5,
-        'n': 6,
+        'threshold': 5,
+        'shares': 6,
         'expiration': (maya.now() + datetime.timedelta(days=3)).iso8601(),
         'label': 'cats the animal',
         'rate': 1000,
@@ -59,12 +59,12 @@ def test_various_field_validations_by_way_of_alice_grant(federated_bob):
     assert result['label'] == b'cats the animal'
 
     # validate that negative "m" value fails
-    data['m'] = -5
+    data['threshold'] = -5
     with pytest.raises(SpecificationError) as e:
         GrantPolicy().load(data)
 
     # validate that m > n fails validation
-    data['m'] = data['n'] + 19
+    data['threshold'] = data['shares'] + 19
     with pytest.raises(SpecificationError) as e:
         GrantPolicy().load(data)
 

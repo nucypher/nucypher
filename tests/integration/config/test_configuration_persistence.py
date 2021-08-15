@@ -64,14 +64,14 @@ def test_alices_powers_are_persistent(federated_ursulas, temp_dir_path):
     policy_pubkey = alice.get_policy_encrypting_key_from_label(label)
 
     # Now, let's create a policy for some Bob.
-    m, n = 3, 4
+    threshold, shares = 3, 4
     policy_end_datetime = maya.now() + datetime.timedelta(days=5)
 
     bob = Bob(federated_only=True,
               start_learning_now=False,
               network_middleware=MockRestMiddleware())
 
-    bob_policy = alice.grant(bob, label, m=m, n=n, expiration=policy_end_datetime)
+    bob_policy = alice.grant(bob, label, threshold=threshold, shares=shares, expiration=policy_end_datetime)
 
     assert policy_pubkey == bob_policy.public_key
 
@@ -113,9 +113,9 @@ def test_alices_powers_are_persistent(federated_ursulas, temp_dir_path):
     # Alice creates a new policy for Roberto. Note how all the parameters
     # except for the label (i.e., recipient, m, n, policy_end) are different
     # from previous policy
-    m, n = 2, 5
+    threshold, shares = 2, 5
     policy_end_datetime = maya.now() + datetime.timedelta(days=3)
-    roberto_policy = new_alice.grant(roberto, label, m=m, n=n, expiration=policy_end_datetime)
+    roberto_policy = new_alice.grant(roberto, label, threshold=threshold, shares=shares, expiration=policy_end_datetime)
 
     # Both policies must share the same public key (i.e., the policy public key)
     assert policy_pubkey == roberto_policy.public_key

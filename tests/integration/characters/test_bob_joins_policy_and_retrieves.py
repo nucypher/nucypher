@@ -27,7 +27,7 @@ from twisted.internet.task import Clock
 from nucypher.characters.lawful import Bob, Enrico, Ursula
 from nucypher.config.constants import TEMPORARY_DOMAIN
 from nucypher.policy.maps import TreasureMap
-from tests.constants import (MOCK_POLICY_DEFAULT_M, NUMBER_OF_URSULAS_IN_DEVELOPMENT_NETWORK)
+from tests.constants import NUMBER_OF_URSULAS_IN_DEVELOPMENT_NETWORK
 from tests.utils.middleware import MockRestMiddleware
 
 
@@ -80,13 +80,13 @@ def test_bob_joins_policy_and_retrieves(federated_alice,
 
     # Alice creates a policy granting access to Bob
     # Just for fun, let's assume she distributes KFrags among Ursulas unknown to Bob
-    n = NUMBER_OF_URSULAS_IN_DEVELOPMENT_NETWORK - 2
+    shares = NUMBER_OF_URSULAS_IN_DEVELOPMENT_NETWORK - 2
     label = b'label://' + os.urandom(32)
     contract_end_datetime = maya.now() + datetime.timedelta(days=5)
     policy = federated_alice.grant(bob=bob,
                                    label=label,
-                                   m=3,
-                                   n=n,
+                                   threshold=3,
+                                   shares=shares,
                                    expiration=contract_end_datetime,
                                    handpicked_ursulas=set(rest_of_ursulas),
                                    )

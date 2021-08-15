@@ -42,12 +42,12 @@ class PolicyBaseSchema(BaseSchema):
             '-bvk',
             help="Bob's verifying key as a hexadecimal string",
             type=click.STRING, required=False))
-    m = character_fields.M(
+    threshold = character_fields.Threshold(
         required=True, load_only=True,
-        click=options.option_m)
-    n = character_fields.N(
+        click=options.option_threshold)
+    shares = character_fields.Shares(
         required=True, load_only=True,
-        click=options.option_n)
+        click=options.option_shares)
     expiration = character_fields.DateTime(
         required=True, load_only=True,
         click=click.option(
@@ -73,8 +73,8 @@ class PolicyBaseSchema(BaseSchema):
     @validates_schema
     def check_valid_n_and_m(self, data, **kwargs):
         # ensure that n is greater than or equal to m
-        if not (0 < data['m'] <= data['n']):
-            raise InvalidArgumentCombo(f"N and M must satisfy 0 < M ≤ N")
+        if not (0 < data['threshold'] <= data['shares']):
+            raise InvalidArgumentCombo(f"`shares` and `threshold` must satisfy 0 < threshold ≤ shares")
 
     @validates_schema
     def check_rate_or_value_not_both(self, data, **kwargs):

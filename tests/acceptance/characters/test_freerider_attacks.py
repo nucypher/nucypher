@@ -33,15 +33,15 @@ def test_policy_simple_sinpa(blockchain_ursulas, blockchain_alice, blockchain_bo
     """
     amonia = Amonia.from_lawful_alice(blockchain_alice)
     # Setup the policy details
-    n = 3
+    shares = 3
     policy_end_datetime = maya.now() + datetime.timedelta(days=35)
     label = b"this_is_the_path_to_which_access_is_being_granted"
 
     with pytest.raises(Policy.Unpaid):
         _bupkiss_policy = amonia.grant_without_paying(bob=blockchain_bob,
                                                       label=label,
-                                                      m=2,
-                                                      n=n,
+                                                      threshold=2,
+                                                      shares=shares,
                                                       rate=int(1e18),  # one ether
                                                       expiration=policy_end_datetime)
 
@@ -66,14 +66,14 @@ def test_try_to_post_free_arrangement_by_hacking_enact(blockchain_ursulas, block
     """
     amonia = Amonia.from_lawful_alice(blockchain_alice)
     # Setup the policy details
-    n = 3
+    shares = 3
     policy_end_datetime = maya.now() + datetime.timedelta(days=35)
     label = b"another_path"
 
     bupkiss_policy = amonia.circumvent_safegaurds_and_grant_without_paying(bob=blockchain_bob,
                                                                            label=label,
-                                                                           m=2,
-                                                                           n=n,
+                                                                           threshold=2,
+                                                                           shares=shares,
                                                                            rate=int(1e18),  # one ether
                                                                            expiration=policy_end_datetime,
                                                                            publish_treasure_map=False)
@@ -108,7 +108,7 @@ def test_pay_a_flunky_instead_of_the_arranged_ursula(blockchain_alice, blockchai
     flunkies = [blockchain_ursulas[5], blockchain_ursulas[6], blockchain_ursulas[7]]
 
     # Setup the policy details
-    n = 3
+    shares = 3
     policy_end_datetime = maya.now() + datetime.timedelta(days=35)
     label = b"back_and_forth_forever"
 
@@ -116,8 +116,8 @@ def test_pay_a_flunky_instead_of_the_arranged_ursula(blockchain_alice, blockchai
                                                                ursulas_to_pay_instead=flunkies,
                                                                bob=blockchain_bob,
                                                                label=label,
-                                                               m=2,
-                                                               n=n,
+                                                               threshold=2,
+                                                               shares=shares,
                                                                rate=int(1e18),  # one ether
                                                                expiration=policy_end_datetime,
                                                                publish_treasure_map=False)
@@ -148,14 +148,14 @@ def test_pay_a_flunky_instead_of_the_arranged_ursula(blockchain_alice, blockchai
 def test_put_additional_treasure_map_on_network(blockchain_ursulas, blockchain_alice, blockchain_bob, agency, testerchain):
     amonia = Amonia.from_lawful_alice(blockchain_alice)
     # Setup the policy details
-    n = 3
+    shares = 3
     policy_end_datetime = maya.now() + datetime.timedelta(days=35)
     label = b"this_is_another_path_to_which_access_is_being_granted"
 
     policy = amonia.grant(bob=blockchain_bob,
                           label=label,
-                          m=2,
-                          n=n,
+                          threshold=2,
+                          shares=shares,
                           rate=int(1e18),  # one ether
                           expiration=policy_end_datetime)
     sucker = blockchain_ursulas[0]

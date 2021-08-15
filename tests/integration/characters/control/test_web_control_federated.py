@@ -115,8 +115,8 @@ def test_alice_character_control_revoke(alice_web_controller_test_client, federa
         'bob_encrypting_key': bytes(bob_pubkey_enc).hex(),
         'bob_verifying_key': bytes(federated_bob.stamp).hex(),
         'label': 'test-revoke',
-        'm': 2,
-        'n': 3,
+        'threshold': 2,
+        'shares': 3,
         'expiration': (maya.now() + datetime.timedelta(days=3)).iso8601(),
     }
     response = alice_web_controller_test_client.put('/grant', data=json.dumps(grant_request_data))
@@ -286,8 +286,8 @@ def test_web_character_control_lifecycle(alice_web_controller_test_client,
     alice_request_data = {
         'bob_encrypting_key': bob_encrypting_key_hex,
         'bob_verifying_key': bob_verifying_key_hex,
-        'm': 1,
-        'n': 1,
+        'threshold': 1,
+        'shares': 1,
         'label': random_label,
         'expiration': (maya.now() + datetime.timedelta(days=3)).iso8601(),  # TODO
     }

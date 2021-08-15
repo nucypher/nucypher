@@ -111,10 +111,10 @@ remote_bob = Bob.from_public_keys(encrypting_key=encrypting_key, verifying_key=v
 # trusting 2 of 3 nodes paying each of them 50 gwei per period.
 expiration = maya.now() + datetime.timedelta(days=1)
 rate = Web3.toWei(50, 'gwei')
-m, n = 2, 3
+threshold, shares = 2, 3
 
 # Alice grants access to Bob...
-alice.grant(remote_bob, label, m=m, n=n, rate=rate, expiration=expiration)
+alice.grant(remote_bob, label, threshold=threshold, shares=shares, rate=rate, expiration=expiration)
 
 # ...and then disappears from the internet.
 #

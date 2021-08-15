@@ -108,7 +108,7 @@ def test_alice_web_character_control_grant_error_messages(alice_web_controller_t
     method_name, params = grant_control_request
     endpoint = f'/{method_name}'
 
-    params['m'] = params['n'] + 1
+    params['threshold'] = params['shares'] + 1
 
     response = alice_web_controller_test_client.put(endpoint, data=json.dumps(params))
     assert response.status_code == 400
@@ -121,8 +121,8 @@ def test_alice_character_control_revoke(alice_web_controller_test_client, blockc
         'bob_encrypting_key': bytes(bob_pubkey_enc).hex(),
         'bob_verifying_key': bytes(blockchain_bob.stamp).hex(),
         'label': 'test-revoke',
-        'm': 2,
-        'n': 3,
+        'threshold': 2,
+        'shares': 3,
         'expiration': (maya.now() + datetime.timedelta(days=35)).iso8601(),
         'value': 100500 * 3 * 3,
     }
@@ -290,8 +290,8 @@ def test_web_character_control_lifecycle(alice_web_controller_test_client,
     alice_request_data = {
         'bob_encrypting_key': bob_encrypting_key_hex,
         'bob_verifying_key': bob_verifying_key_hex,
-        'm': 1,
-        'n': 1,
+        'threshold': 1,
+        'shares': 1,
         'label': random_label,
         'expiration': (maya.now() + datetime.timedelta(days=35)).iso8601(),
         'value': 3 * 10 ** 10

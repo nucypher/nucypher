@@ -106,7 +106,7 @@ MOCK_PROVIDER_URI = 'tester://mock'
 # Node Configuration
 #
 
-MOCK_POLICY_DEFAULT_M = 3
+MOCK_POLICY_DEFAULT_THRESHOLD = 3
 
 # These IP addresses are reserved for usage in documentation
 # https://tools.ietf.org/html/rfc5737

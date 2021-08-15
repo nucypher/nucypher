@@ -133,7 +133,7 @@ def test_alice_verifies_ursula_just_in_time(fleet_of_highperf_mocked_ursulas,
             stack.enter_context(mock)
 
         policy = highperf_mocked_alice.grant(
-            highperf_mocked_bob, b"any label", m=20, n=30,
+            highperf_mocked_bob, b"any label", threshold=20, shares=30,
             expiration=maya.when('next week'),
             publish_treasure_map=False)
 

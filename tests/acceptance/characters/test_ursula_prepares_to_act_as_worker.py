@@ -138,13 +138,13 @@ def test_blockchain_ursulas_reencrypt(blockchain_ursulas, blockchain_alice, bloc
     label = b'bbo'
 
     # TODO: Make sample selection buffer configurable - #1061
-    m = n = 10
+    threshold = shares = 10
     expiration = maya.now() + datetime.timedelta(days=35)
 
     _policy = blockchain_alice.grant(bob=blockchain_bob,
                                      label=label,
-                                     m=m,
-                                     n=n,
+                                     threshold=threshold,
+                                     shares=shares,
                                      expiration=expiration,
                                      value=policy_value)
 
@@ -170,7 +170,7 @@ def test_blockchain_ursulas_reencrypt(blockchain_ursulas, blockchain_alice, bloc
     with pytest.raises(BlockchainPolicy.NotEnoughBlockchainUrsulas):
         _policy = blockchain_alice.grant(bob=blockchain_bob,
                                          label=b'another-label',
-                                         m=m,
-                                         n=n,
+                                         threshold=threshold,
+                                         shares=shares,
                                          expiration=expiration,
                                          value=policy_value)

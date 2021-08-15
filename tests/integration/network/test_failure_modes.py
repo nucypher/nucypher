@@ -31,7 +31,7 @@ from tests.utils.ursula import make_federated_ursulas
 
 
 def test_alice_can_grant_even_when_the_first_nodes_she_tries_are_down(federated_alice, federated_bob, federated_ursulas):
-    m, n = 2, 3
+    threshold, shares = 2, 3
     policy_end_datetime = maya.now() + datetime.timedelta(days=5)
     label = b"this_is_the_path_to_which_access_is_being_granted"
     federated_alice.known_nodes.current_state._nodes = {}
@@ -47,8 +47,8 @@ def test_alice_can_grant_even_when_the_first_nodes_she_tries_are_down(federated_
     alice_grant_action = partial(federated_alice.grant,
                                  federated_bob,
                                  label,
-                                 m=m,
-                                 n=n,
+                                 threshold=threshold,
+                                 shares=shares,
                                  expiration=policy_end_datetime,
                                  timeout=.1)
 
@@ -87,7 +87,7 @@ def test_alice_can_grant_even_when_the_first_nodes_she_tries_are_down(federated_
     # policy = alice_grant_action()
 
     # The number of actually enacted arrangements is exactly equal to n.
-    assert policy.n == n
+    assert policy.shares == shares
 
 
 def test_node_has_changed_cert(federated_alice, federated_ursulas):

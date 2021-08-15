@@ -1288,7 +1288,7 @@ class BlockchainPolicyAuthor(NucypherTokenActor):
             payment_periods += 1  # Number of all included periods
 
         from nucypher.policy.policies import BlockchainPolicy
-        blockchain_payload = BlockchainPolicy.generate_policy_parameters(n=number_of_ursulas,
+        blockchain_payload = BlockchainPolicy.generate_policy_parameters(shares=number_of_ursulas,
                                                                          payment_periods=payment_periods,
                                                                          value=value,
                                                                          rate=rate)

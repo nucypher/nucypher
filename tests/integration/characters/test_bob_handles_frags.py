@@ -66,7 +66,7 @@ def test_bob_already_knows_all_nodes_in_treasure_map(enacted_federated_policy,
     assert len(unknown) == 0
 
     # ...because he already knew of all the Ursulas on the map.
-    assert len(known) == enacted_federated_policy.n
+    assert len(known) == enacted_federated_policy.shares
 
 
 @pytest_twisted.inlineCallbacks
@@ -333,13 +333,13 @@ def test_bob_gathers_and_combines(enacted_federated_policy, federated_treasure_m
     assert len(federated_bob._completed_work_orders) == 2
 
     # ...but the policy requires us to collect more cfrags.
-    assert len(federated_bob._completed_work_orders) < federated_treasure_map.m
+    assert len(federated_bob._completed_work_orders) < federated_treasure_map.threshold
 
-    # Bob can't decrypt yet with just two CFrags.  He needs to gather at least m.
+    # Bob can't decrypt yet with just two CFrags.  He needs to gather at least `threshold`.
     with pytest.raises(DecryptingKeypair.DecryptionFailed):
         federated_bob.decrypt(the_message_kit)
 
-    number_left_to_collect = federated_treasure_map.m - len(federated_bob._completed_work_orders)
+    number_left_to_collect = federated_treasure_map.threshold - len(federated_bob._completed_work_orders)
 
     the_message_kit.set_correctness_keys(
         delegating=the_data_source.policy_pubkey,

@@ -64,17 +64,17 @@ class TreasureMap:
                                bob: 'Bob',
                                ursulas: Sequence['Ursula'],
                                verified_kfrags: Sequence[VerifiedKeyFrag],
-                               m: int,
+                               threshold: int,
                                ) -> 'TreasureMap':
         """Create a new treasure map for a collection of ursulas and kfrags."""
 
-        if m < 1 or m > 255:
+        if threshold < 1 or threshold > 255:
             raise ValueError("The threshold must be between 1 and 255.")
 
-        if len(ursulas) < m:
+        if len(ursulas) < threshold:
             raise ValueError(
                 f"The number of destinations ({len(ursulas)}) "
-                f"must be equal or greater than the threshold ({m})")
+                f"must be equal or greater than the threshold ({threshold})")
 
         # Encrypt each kfrag for an Ursula.
         destinations = {}
@@ -88,14 +88,14 @@ class TreasureMap:
 
             destinations[ursula.checksum_address] = encrypted_kfrag
 
-        return cls(m=m, hrac=hrac, destinations=destinations)
+        return cls(threshold=threshold, hrac=hrac, destinations=destinations)
 
     def __init__(self,
-                 m: int,
+                 threshold: int,
                  hrac: HRAC,
                  destinations: Dict[ChecksumAddress, bytes],
                  ):
-        self.m = m
+        self.threshold = threshold
         self.destinations = destinations
         self.hrac = hrac
 
@@ -118,17 +118,17 @@ class TreasureMap:
         return nodes_as_bytes
 
     def __bytes__(self):
-        return self.m.to_bytes(1, "big") + bytes(self.hrac) + self._nodes_as_bytes()
+        return self.threshold.to_bytes(1, "big") + bytes(self.hrac) + self._nodes_as_bytes()
 
     @classmethod
     def from_bytes(cls, data: bytes):
         try:
-            m, hrac, remainder = cls.main_splitter(data, return_remainder=True)
+            threshold, hrac, remainder = cls.main_splitter(data, return_remainder=True)
             ursula_and_kfrags = cls.ursula_and_kfrag_payload_splitter.repeat(remainder)
         except BytestringSplittingError as e:
             raise ValueError('Invalid treasure map contents.') from e
         destinations = {u: k for u, k in ursula_and_kfrags}
-        return cls(m, hrac, destinations)
+        return cls(threshold, hrac, destinations)
 
     def __iter__(self):
         return iter(self.destinations.items())

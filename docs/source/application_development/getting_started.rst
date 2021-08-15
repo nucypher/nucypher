@@ -230,8 +230,8 @@ Alice can grant access to Bob using his public keys:
    policy = alice.grant(
        bob,
        label=b'my-secret-stuff',   # Send to Bob via side channel
-       m=2,                        # Threshold shares for access
-       n=3,                        # Total nodes with shares
+       threshold=2,                # Threshold shares for access
+       shares=3,               # Total nodes with shares
        rate=Web3.toWei(50, 'gwei'),  # 50 Gwei is the minimum rate (per node per period)
        expiration= maya.now() + timedelta(days=5)  # Five days from now
     )
@@ -281,8 +281,8 @@ software wallet and an existing keystore:
     policy = alice.grant(
         bob,
         label=b'my-secret-stuff',     # Send to Bob via side channel
-        m=2,                          # Threshold shares for access
-        n=3,                          # Total nodes with shares
+        threshold=2,                  # Threshold shares for access
+        shares=3,                 # Total nodes with shares
         rate=Web3.toWei(50, 'gwei'),  # 50 Gwei is the minimum rate (per node per period)
         expiration= maya.now() + timedelta(days=5)  # Five days from now
      )

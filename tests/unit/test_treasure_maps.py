@@ -40,7 +40,7 @@ def test_complete_treasure_map_journey(federated_alice, federated_bob, federated
                                                       bob=federated_bob,
                                                       ursulas=ursulas,
                                                       verified_kfrags=kfrags,
-                                                      m=1)
+                                                      threshold=1)
 
     ursula_rolodex = {u.checksum_address: u for u in ursulas}
     for ursula_address, encrypted_kfrag in treasure_map.destinations.items():
@@ -71,7 +71,7 @@ def test_complete_treasure_map_journey(federated_alice, federated_bob, federated
     decrypted_map = federated_bob._decrypt_treasure_map(enc_deserialized_map,
                                                         federated_alice.stamp.as_umbral_pubkey())
 
-    assert treasure_map.m == decrypted_map.m == 1
+    assert treasure_map.threshold == decrypted_map.threshold == 1
     assert treasure_map.destinations == decrypted_map.destinations
     assert treasure_map.hrac == decrypted_map.hrac
 
@@ -93,7 +93,7 @@ def test_treasure_map_versioning(mocker, federated_alice, federated_bob, federat
                                                       label=b'still Bill',
                                                       ursulas=list(federated_ursulas)[:len(kfrags)],
                                                       verified_kfrags=kfrags,
-                                                      m=2)
+                                                      threshold=2)
 
     # Good version (baseline)
     serialized_map = bytes(treasure_map)

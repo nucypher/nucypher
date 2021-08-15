@@ -29,12 +29,12 @@ from nucypher.policy.orders import Revocation
 
 def test_federated_grant(federated_alice, federated_bob, federated_ursulas):
     # Setup the policy details
-    m, n = 2, 3
+    threshold, shares = 2, 3
     policy_end_datetime = maya.now() + datetime.timedelta(days=5)
     label = b"this_is_the_path_to_which_access_is_being_granted"
 
     # Create the Policy, granting access to Bob
-    policy = federated_alice.grant(federated_bob, label, m=m, n=n, expiration=policy_end_datetime)
+    policy = federated_alice.grant(federated_bob, label, threshold=threshold, shares=shares, expiration=policy_end_datetime)
 
     # Check Alice's active policies
     assert policy.hrac in federated_alice.active_policies
@@ -43,8 +43,8 @@ def test_federated_grant(federated_alice, federated_bob, federated_ursulas):
     treasure_map = federated_bob._decrypt_treasure_map(policy.treasure_map,
                                                        policy.publisher_verifying_key)
 
-    # The number of actually enacted arrangements is exactly equal to n.
-    assert len(treasure_map.destinations) == n
+    # The number of actually enacted arrangements is exactly equal to shares.
+    assert len(treasure_map.destinations) == shares
 
     # Let's look at the enacted arrangements.
     for ursula in federated_ursulas:
@@ -63,15 +63,15 @@ def test_federated_alice_can_decrypt(federated_alice, federated_bob):
     """
 
     # Setup the policy details
-    m, n = 2, 3
+    threshold, shares = 2, 3
     policy_end_datetime = maya.now() + datetime.timedelta(days=5)
     label = b"this_is_the_path_to_which_access_is_being_granted"
 
     policy = federated_alice.create_policy(
         bob=federated_bob,
         label=label,
-        m=m,
-        n=n,
+        threshold=threshold,
+        shares=shares,
         expiration=policy_end_datetime,
     )
 
@@ -99,11 +99,11 @@ def test_federated_alice_can_decrypt(federated_alice, federated_bob):
 @pytest.mark.skip("Needs rework post-TMcKF")  # TODO
 @pytest.mark.usefixtures('federated_ursulas')
 def test_revocation(federated_alice, federated_bob):
-    m, n = 2, 3
+    threshold, shares = 2, 3
     policy_end_datetime = maya.now() + datetime.timedelta(days=5)
     label = b"revocation test"
 
-    policy = federated_alice.grant(federated_bob, label, m=m, n=n, expiration=policy_end_datetime)
+    policy = federated_alice.grant(federated_bob, label, threshold=threshold, shares=shares, expiration=policy_end_datetime)
 
     for node_id, encrypted_kfrag in policy.treasure_map:
         assert policy.revocation_kit[node_id]
