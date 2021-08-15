@@ -105,11 +105,17 @@ class TreasureMap:
         self.destinations = destinations
         self.hrac = hrac
 
-    def prepare_for_publication(self, publisher, bob, blockchain_signer=None):
-        return EncryptedTreasureMap.construct_by_publisher(
-            self, publisher, bob, blockchain_signer=blockchain_signer)
+    def prepare_for_publication(self,
+                                publisher: 'Alice',
+                                bob: 'Bob',
+                                blockchain_signer: Optional[Callable[[bytes], bytes]] = None,
+                                ) -> 'EncryptedTreasureMap':
+        return EncryptedTreasureMap.construct_by_publisher(treasure_map=self,
+                                                           publisher=publisher,
+                                                           bob=bob,
+                                                           blockchain_signer=blockchain_signer)
 
-    def _nodes_as_bytes(self):
+    def _nodes_as_bytes(self) -> bytes:
         nodes_as_bytes = b""
         for ursula_address, encrypted_kfrag in self.destinations.items():
             node_id = to_canonical_address(ursula_address)
@@ -121,7 +127,7 @@ class TreasureMap:
         return self.m.to_bytes(1, "big") + bytes(self.hrac) + self._nodes_as_bytes()
 
     @classmethod
-    def from_bytes(cls, data):
+    def from_bytes(cls, data: bytes):
         try:
             m, hrac, remainder = cls.main_splitter(data, return_remainder=True)
             ursula_and_kfrags = cls.ursula_and_kfrag_payload_splitter.repeat(remainder)
@@ -211,13 +217,22 @@ class EncryptedTreasureMap:
         InvalidSignature  # Raised when the public signature (typically intended for Ursula) is not valid.
 
     @staticmethod
-    def _make_blockchain_signature(blockchain_signer, public_signature, hrac, encrypted_tmap):
+    def _make_blockchain_signature(blockchain_signer: Callable[[bytes], bytes],
+                                   public_signature: Signature,
+                                   hrac: HRAC,
+                                   encrypted_tmap: UmbralMessageKit,
+                                   ) -> bytes:
         # This method exists mainly to link this scheme to the corresponding test
         payload = bytes(public_signature) + bytes(hrac) + encrypted_tmap.to_bytes()
         return blockchain_signer(payload)
 
     @classmethod
-    def construct_by_publisher(cls, treasure_map, publisher, bob, blockchain_signer=None):
+    def construct_by_publisher(cls,
+                               treasure_map: TreasureMap,
+                               publisher: 'Alice',
+                               bob: 'Bob',
+                               blockchain_signer: Optional[Callable[[bytes], bytes]] = None,
+                               ) -> 'EncryptedTreasureMap':
         # TODO: `publisher` here can be different from the one in TreasureMap, it seems.
         # Do we ever cross-check them? Do we want to enforce them to be the same?
 
@@ -236,14 +251,20 @@ class EncryptedTreasureMap:
 
         return cls(treasure_map.hrac, public_signature, encrypted_tmap, blockchain_signature=blockchain_signature)
 
-    def __init__(self, hrac, public_signature, encrypted_tmap, blockchain_signature=None):
+    def __init__(self,
+                 hrac: HRAC,
+                 public_signature: Signature,
+                 encrypted_tmap: UmbralMessageKit,
+                 blockchain_signature: Optional[bytes] = None,
+                 ):
+
         self.hrac = hrac
         self._public_signature = public_signature
         self._verifying_key = encrypted_tmap.sender_verifying_key
         self._encrypted_tmap = encrypted_tmap
         self._blockchain_signature = blockchain_signature
 
-    def orient(self, compass: Callable):
+    def orient(self, compass: Callable[[bytes], Signature]) -> TreasureMap:
         """
         When Bob receives the TreasureMap, he'll pass a compass (a callable which can verify and decrypt the
         payload message kit).
@@ -266,7 +287,7 @@ class EncryptedTreasureMap:
                 (b'\x00' if self._blockchain_signature is None else (b'\x01' + bytes(self._blockchain_signature)))
                 )
 
-    def verify_blockchain_signature(self, checksum_address):
+    def verify_blockchain_signature(self, checksum_address: ChecksumAddress) -> bool:
         if self._blockchain_signature is None:
             raise ValueError("This EncryptedTreasureMap is not blockchain-signed")
         payload = bytes(self._public_signature) + bytes(self.hrac) + self._encrypted_tmap.to_bytes()
@@ -274,13 +295,13 @@ class EncryptedTreasureMap:
                               signature=self._blockchain_signature,
                               address=checksum_address)
 
-    def _public_verify(self) -> bool:
+    def _public_verify(self):
         message = bytes(self._verifying_key) + bytes(self.hrac)
         if not self._public_signature.verify(self._verifying_key, message=message):
             raise self.InvalidSignature("This TreasureMap is not properly publicly signed by Alice.")
 
     @classmethod
-    def from_bytes(cls, data):
+    def from_bytes(cls, data: bytes):
         try:
             public_signature, hrac, message_kit, bc_sig, remainder = cls._splitter(data, return_remainder=True)
             if bc_sig == b'\x01':
