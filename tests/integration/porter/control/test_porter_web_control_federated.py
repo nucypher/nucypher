@@ -19,7 +19,8 @@
 import json
 from base64 import b64encode
 
-from tests.utils.policy import retrieval_request_setup
+from nucypher.utilities.porter.control.specifications.fields import Capsule
+from tests.utils.policy import retrieval_request_setup, retrieval_params_decode_from_rest
 
 
 def test_get_ursulas(federated_porter_web_controller, federated_ursulas):
@@ -81,7 +82,8 @@ def test_get_ursulas(federated_porter_web_controller, federated_ursulas):
     assert response.status_code == 500
 
 
-def test_retrieve_cfrags(federated_porter_web_controller,
+def test_retrieve_cfrags(federated_porter,
+                         federated_porter_web_controller,
                          enacted_federated_policy,
                          federated_bob,
                          federated_alice,
@@ -101,13 +103,23 @@ def test_retrieve_cfrags(federated_porter_web_controller,
     assert response.status_code == 200
 
     response_data = json.loads(response.data)
-    results = response_data['result']['retrieval_results']
-    assert results
+    retrieval_results = response_data['result']['retrieval_results']
+    assert retrieval_results
+
+    # expected results - can only compare capsules, ursulas are randomized to obtain cfrags
+    retrieve_args = retrieval_params_decode_from_rest(retrieve_cfrags_params)
+    expected_results = federated_porter.retrieve_cfrags(**retrieve_args).results
+    capsule_field = Capsule()
+    assert len(retrieval_results) == len(expected_results)
+    for i, result in enumerate(retrieval_results):
+        # compare capsule
+        capsule = capsule_field._deserialize(value=result['capsule'], attr=None, data=None)
+        assert capsule == expected_results[i].capsule
 
     # Failure
     failure_retrieve_cfrags_params = dict(retrieve_cfrags_params)
 
-    # use encrpyted treasure map
+    # use encrypted treasure map
     _, _, random_treasure_map = random_federated_treasure_map_data
     failure_retrieve_cfrags_params['treasure_map'] = b64encode(bytes(random_treasure_map)).decode()
     response = federated_porter_web_controller.post('/retrieve_cfrags', data=json.dumps(failure_retrieve_cfrags_params))

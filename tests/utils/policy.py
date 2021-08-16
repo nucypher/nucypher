@@ -18,8 +18,9 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 import os
 import random
 import string
+from typing import Dict
 
-from nucypher.characters.control.specifications.fields import TreasureMap, Key, DecryptedTreasureMap
+from nucypher.characters.control.specifications.fields import Key, DecryptedTreasureMap
 from nucypher.characters.lawful import Enrico
 from nucypher.crypto.powers import DecryptingPower
 from nucypher.utilities.porter.control.specifications.fields import RetrievalKit
@@ -38,7 +39,7 @@ def generate_random_label() -> bytes:
     return bytes(random_label, encoding='utf-8')
 
 
-def retrieval_request_setup(enacted_policy, bob, alice, encode_for_rest=False):
+def retrieval_request_setup(enacted_policy, bob, alice, encode_for_rest=False) -> Dict:
 
     treasure_map = bob._decrypt_treasure_map(enacted_policy.treasure_map)
 
@@ -62,3 +63,13 @@ def retrieval_request_setup(enacted_policy, bob, alice, encode_for_rest=False):
                 bob_encrypting_key=encode_bytes(Key, bob.public_keys(DecryptingPower)),
                 bob_verifying_key=encode_bytes(Key, bob.stamp.as_umbral_pubkey()),
                 policy_encrypting_key=encode_bytes(Key, enacted_policy.public_key))
+
+
+def retrieval_params_decode_from_rest(retrieval_params: Dict) -> Dict:
+    decode_bytes = (lambda field, data: field()._deserialize(value=data, attr=None, data=None))
+    return dict(treasure_map=decode_bytes(DecryptedTreasureMap, retrieval_params['treasure_map']),
+                retrieval_kits=[decode_bytes(RetrievalKit, kit) for kit in retrieval_params['retrieval_kits']],
+                alice_verifying_key=decode_bytes(Key, retrieval_params['alice_verifying_key']),
+                bob_encrypting_key=decode_bytes(Key, retrieval_params['bob_encrypting_key']),
+                bob_verifying_key=decode_bytes(Key, retrieval_params['bob_verifying_key']),
+                policy_encrypting_key=decode_bytes(Key, retrieval_params['policy_encrypting_key']))

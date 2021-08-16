@@ -19,8 +19,9 @@ import json
 import os
 from base64 import b64encode
 
+from nucypher.utilities.porter.control.specifications.fields import Capsule
 from tests.utils.middleware import MockRestMiddleware
-from tests.utils.policy import retrieval_request_setup
+from tests.utils.policy import retrieval_request_setup, retrieval_params_decode_from_rest
 
 
 def test_get_ursulas(blockchain_porter_web_controller, blockchain_ursulas):
@@ -83,7 +84,8 @@ def test_get_ursulas(blockchain_porter_web_controller, blockchain_ursulas):
     assert response.status_code == 500
 
 
-def test_retrieve_cfrags(blockchain_porter_web_controller,
+def test_retrieve_cfrags(blockchain_porter,
+                         blockchain_porter_web_controller,
                          random_blockchain_policy,
                          blockchain_bob,
                          blockchain_alice):
@@ -105,8 +107,18 @@ def test_retrieve_cfrags(blockchain_porter_web_controller,
     assert response.status_code == 200
 
     response_data = json.loads(response.data)
-    results = response_data['result']['retrieval_results']
-    assert results
+    retrieval_results = response_data['result']['retrieval_results']
+    assert retrieval_results
+
+    # expected results - can only compare capsules, ursulas are randomized to obtain cfrags
+    retrieve_args = retrieval_params_decode_from_rest(retrieve_cfrags_params)
+    expected_results = blockchain_porter.retrieve_cfrags(**retrieve_args).results
+    capsule_field = Capsule()
+    assert len(retrieval_results) == len(expected_results)
+    for i, result in enumerate(retrieval_results):
+        # compare capsule
+        capsule = capsule_field._deserialize(value=result['capsule'], attr=None, data=None)
+        assert capsule == expected_results[i].capsule
 
     # Failure
     failure_retrieve_cfrags_params = dict(retrieve_cfrags_params)

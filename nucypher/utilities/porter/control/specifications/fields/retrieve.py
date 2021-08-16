@@ -46,8 +46,8 @@ class Capsule(Base64BytesRepresentation):
 class CapsuleFrag(Base64BytesRepresentation):
     def _deserialize(self, value, attr, data, **kwargs):
         try:
-            capsule_bytes = super()._deserialize(value, attr, data, **kwargs)
-            return CapsuleFragClass.from_bytes(capsule_bytes)
+            capsule_frag_bytes = super()._deserialize(value, attr, data, **kwargs)
+            return CapsuleFragClass.from_bytes(capsule_frag_bytes)
         except Exception as e:
             raise InvalidInputData(f"Could not parse {self.name}: {e}")
 
