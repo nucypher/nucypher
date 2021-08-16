@@ -351,7 +351,7 @@ All parameters can be passed as either JSON data within the request or as query 
 Query parameters used within the URL will need to be URL encoded e.g. ``/`` in a base64 string becomes ``%2F`` etc.
 
 For ``List`` data types to be passed via a URL query parameter, the value should be provided as a comma-delimited
-String. For example, if a parameter is of type ``List[String]`` either a JSON list of Strings can be provided e.g.
+String. For example, if a parameter is of type ``List[String]`` either a JSON list of strings can be provided e.g.
 
 .. code:: bash
 
@@ -387,12 +387,12 @@ Parameters
 +----------------------------------+---------------+-----------------------------------------------+
 | ``duration_periods``             | Integer       | Number of periods required for the policy.    |
 +----------------------------------+---------------+-----------------------------------------------+
-| ``include_ursulas`` *(Optional)* | List[Strings] | | List of Ursula checksum addresses to        |
+| ``include_ursulas`` *(Optional)* | List[String]  | | List of Ursula checksum addresses to        |
 |                                  |               | | give preference to. If any of these Ursulas |
 |                                  |               | | are unavailable, they will not be included  |
 |                                  |               | | in result.                                  |
 +----------------------------------+---------------+-----------------------------------------------+
-| ``exclude_ursulas`` *(Optional)* | List[Strings] | | List of Ursula checksum addresses to not    |
+| ``exclude_ursulas`` *(Optional)* | List[String]  | | List of Ursula checksum addresses to not    |
 |                                  |               | | include in the result.                      |
 +----------------------------------+---------------+-----------------------------------------------+
 
@@ -466,44 +466,59 @@ Example Response
     }
 
 
-POST /exec_work_order
+POST /retrieve_cfrags
 ^^^^^^^^^^^^^^^^^^^^^
-Use a work order to execute a re-encrypt operation on the network network as part of Bob's ``retrieve`` workflow.
+Get data re-encrypted by the network as part of Bob's ``retrieve`` workflow.
 
 Parameters
 ++++++++++
-+----------------------------------+---------------+----------------------------------------+
-| **Parameter**                    | **Type**      | **Description**                        |
-+==================================+===============+========================================+
-| ``ursula``                       | String        | | Checksum address corresponding to    |
-|                                  |               | | the Ursula to execute the work order.|
-+----------------------------------+---------------+----------------------------------------+
-| ``work_order_payload``           | String        | Work order payload encoded as base64.  |
-+----------------------------------+---------------+----------------------------------------+
++-------------------------------------------+---------------+----------------------------------------+
+| **Parameter**                             | **Type**      | **Description**                        |
++===========================================+===============+========================================+
+| ``treasure_map``                          | String        | | Decrypted treasure map bytes encoded |
+|                                           |               | | as base64.                           |
++-------------------------------------------+---------------+----------------------------------------+
+| ``retrieval_kits``                        | List[String]  | | List of retrieval kits bytes encoded |
+|                                           |               | | as base64.                           |
++-------------------------------------------+---------------+----------------------------------------+
+| ``alice_verifying_key``                   | String        | Alice's verifying key encoded as hex.  |
++-------------------------------------------+---------------+----------------------------------------+
+| ``bob_encrypting_key``                    | String        | Bob's encrypting key encoded as hex.   |
++-------------------------------------------+---------------+----------------------------------------+
+| ``bob_verifying_key``                     | String        | Bob's verifying key encoded as hex.    |
++-------------------------------------------+---------------+----------------------------------------+
+| ``policy_encrypting_key``                 | String        | | Encrypting key used for the policy   |
+|                                           |               | | encoded as hex.                      |
++-------------------------------------------+---------------+----------------------------------------+
+| ``publisher_verifying_key`` *(Optional)*  | String        | Treasure map publisher's verifying key |
+|                                           |               | | encoded as hex.                      |
++-------------------------------------------+---------------+----------------------------------------+
 
 
 Returns
 +++++++
-The result of the re-encryption operation performed on the work order payload:
+The result of the re-encryption operations performed:
 
-    * ``work_order_result`` - The result of the re-encryption operation returning combined cFrag and
-      associated signature bytes encoded as base64, i.e. it is of the format
-      ``base64(<cfrag_1> || <cfrag_1_signature> || <cfrag_2> || <cfrag_2_signature> ...)``.
+    * ``retrieval_results`` - The list of retrieval results of the re-encryption operations containing capsules, and associated cfrags produced by different ursulas.
 
 Example Request
 +++++++++++++++
 .. code:: bash
 
-    curl -X POST <PORTER URI>/exec_work_order \
+    curl -X POST <PORTER URI>/retrieve_cfrags \
         -H "Content-Type: application/json" \
-        -d '{"ursula": "0xE57bFE9F44b819898F47BF37E5AF72a0783e1141",
-             "work_order_payload": "QoQgOCRvtT4qG0nb5eDbfJ3vO6jMeoy9yp7lvezWKyNF0I6f/uQBPJed9FM7oc7jDAzqyDYD1C/1Cnab+kdobAJT7a3Z/KcOot4SwhgZ0eLGYVuhiAnXP9F7lBDosmvd2gAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA1I8O2JB/65y0K6m0dxmCpYJfsbpV63dMqcmTTPZAuWuA6LDyDa9JOqPF1OYQWHYi93wNLVLyHCLH6UEf5JOSgmgZOCPIzOaUpQMlr1rIDGExrF6zrLGpAwpPMMOzqa8tjiWHFaHWyLsUMyVKT8v1Psa/iIQ4NZDG+gKDSjgp33MbLml/ti+1p75M2ewuUbCjCWq5Mkf5ycqyEQUMt0IcTgNA6vxewmaBt7UTsYaUzkeTkNz/hLO9+ZFJ1NzJLxeweSqAiNQtfBvG7Fih6oaQT9uslu4QAwOTgolqkinEsoNx9XRL8Ocb8pO/5POBfPxiH8c2v5lrr6HhkAKAC5QODfegIToy29k0KIf3bCoqaVYncvjLJcum0AatnyOkYoV9Zf5wojvyFJE+MZ/homke4Yd8irUdoLSgxDuEDtyRNMuTpcHA37Z+npgp/zi0DQUvK35xZE+DmGYhaHTOPQesiTqyJc/Az22wtTfA3n9JwjSl6CjADGjHWgUPMQWzW8fqICo1iek2z7oFHM24yCtyvsEbC2Mm25LEZi/k2mfbgpNRg5PqW9qj/hTK19Cm4s0rlK7e2odCD5T3Iy0s6eg0KgR0RhT/ayH42be1FHgXFBFeABhm0fM8ZxorhMF1ce/yDPOaRZ8"}'
+        -d '{"treasure_map": "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",
+             "retrieval_kits": ["gANDYgMKitDPd/QttLGy+s7Oacnm8pfbl3Qs2UD3IS1d9wF3awJsXnjFq7OkRQE45DV4+Ma2lDSJ5SeKEBqJK5GdPMB6CRwJ1hX7Y5SYgzpZtr/Z5/S3DHgVKn+8fWX92FaqEXIGcQBjYnVpbHRpbnMKc2V0CnEBXXEChXEDUnEEhnEFLg=="],
+             "alice_verifying_key": "02d3389864e9e7206ae1d18301bbd67ad8e0bdf257b3085c9aa13e9438ff9133f2",
+             "bob_encrypting_key": "03d41cb7aa2df98cb9fb1591b5556363862a367faae6d0e4874a860321141788cb",
+             "bob_verifying_key": "039c19e5d44b016af126d89488c4ae5599e0fde9ea30047754d1fe173d05eee468",
+             "policy_encrypting_key": "02cdb2cec70b568c0624b72450c2043836aa831b06b196a50db461e87acddb791e"}'
 
 OR
 
 .. code:: bash
 
-    curl -X POST "<PORTER URI>/exec_work_order?ursula=0xE57bFE9F44b819898F47BF37E5AF72a0783e1141&work_order_payload=QoQgOCRvtT4qG0nb5eDbfJ3vO6jMeoy9yp7lvezWKyNF0I6f%2FuQBPJed9FM7oc7jDAzqyDYD1C%2F1Cnab%2BkdobAJT7a3Z%2FKcOot4SwhgZ0eLGYVuhiAnXP9F7lBDosmvd2gAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA1I8O2JB%2F65y0K6m0dxmCpYJfsbpV63dMqcmTTPZAuWuA6LDyDa9JOqPF1OYQWHYi93wNLVLyHCLH6UEf5JOSgmgZOCPIzOaUpQMlr1rIDGExrF6zrLGpAwpPMMOzqa8tjiWHFaHWyLsUMyVKT8v1Psa%2FiIQ4NZDG%2BgKDSjgp33MbLml%2Fti%2B1p75M2ewuUbCjCWq5Mkf5ycqyEQUMt0IcTgNA6vxewmaBt7UTsYaUzkeTkNz%2FhLO9%2BZFJ1NzJLxeweSqAiNQtfBvG7Fih6oaQT9uslu4QAwOTgolqkinEsoNx9XRL8Ocb8pO%2F5POBfPxiH8c2v5lrr6HhkAKAC5QODfegIToy29k0KIf3bCoqaVYncvjLJcum0AatnyOkYoV9Zf5wojvyFJE%2BMZ%2Fhomke4Yd8irUdoLSgxDuEDtyRNMuTpcHA37Z%2Bnpgp%2Fzi0DQUvK35xZE%2BDmGYhaHTOPQesiTqyJc%2FAz22wtTfA3n9JwjSl6CjADGjHWgUPMQWzW8fqICo1iek2z7oFHM24yCtyvsEbC2Mm25LEZi%2Fk2mfbgpNRg5PqW9qj%2FhTK19Cm4s0rlK7e2odCD5T3Iy0s6eg0KgR0RhT%2FayH42be1FHgXFBFeABhm0fM8ZxorhMF1ce%2FyDPOaRZ8"
+    curl -X POST "<PORTER URI>/retrieve_crags?retrieval_kits=%5B%27gANDYgMKitDPd%2FQttLGy%2Bs7Oacnm8pfbl3Qs2UD3IS1d9wF3awJsXnjFq7OkRQE45DV4%2BMa2lDSJ5SeKEBqJK5GdPMB6CRwJ1hX7Y5SYgzpZtr%2FZ5%2FS3DHgVKn%2B8fWX92FaqEXIGcQBjYnVpbHRpbnMKc2V0CnEBXXEChXEDUnEEhnEFLg%3D%3D%27%5D&alice_verifying_key=02d3389864e9e7206ae1d18301bbd67ad8e0bdf257b3085c9aa13e9438ff9133f2&bob_encrypting_key=03d41cb7aa2df98cb9fb1591b5556363862a367faae6d0e4874a860321141788cb&bob_verifying_key=039c19e5d44b016af126d89488c4ae5599e0fde9ea30047754d1fe173d05eee468&policy_encrypting_key=02cdb2cec70b568c0624b72450c2043836aa831b06b196a50db461e87acddb791e&treasure_map=ivOS2%2FMarBpkLAksM0O%2BpgLUHAV%2F0ceIBarBKwqUpAXARhpvuwAAAm0DoDAtioScWJSHWNGzQd9pMGW2dRF4IvJX%2FExALF6AcLICLCBP%2Btte8QR4l0GLNy3YwK4oO8f8Ht0Ij%2Bv0feWWwgeo3R7FVeC4ExDuYvgdsV6jCP3vqZnLphIPk8LQeo1XVAABAtM4mGTp5yBq4dGDAbvWetjgvfJXswhcmqE%2BlDj%2FkTPyAAAB5H0rD40N1u5Ct455sh4SicbHTGsXcRSt%2FadeHVl3zylNpWDsFbeon7VI5fGGmWLAKmCJ5ARU1Mgfwg0pfsXDgHTky6XOeXnNw630z9muBE4NMUiESOQm%2FRAsphMR%2FDEIMRaCgjhaE2diVdVAm15JjRXV9JN5gAp58Y1ecPcWR2lMcgAMHBFMX60bpbgjySha94Hwb0kR2SKIFkPQnuMljoQxutTDAyh55eE2sHf9ZOAVZkpKQu8NkaWy7adx%2F1QefezNbngX9c2yYml133Al4oGrLWYA3fnbod2Y6F1oeG5As5ZIW%2FO8k7Rf%2B3i9a%2BDS1i%2BKbgETHQGxOkQSpNPUmwJjtzDJQ1xFMmKkxgwUtXenfyrzDDPU6EQloWK2PmyTD%2FhSKHLpkLyzYp95gadzDiS8RlOnNw%2FuP8vfMPSrXYGZSKXvHvlrQxKOjnF7FrheauwwRPjM0yYTftPs3jNkZwCTl%2BEwn6NdLur927SeGyAB3gHCjHenje%2B3hU1jsn%2FmwfwLJwSMT7V0rbXV6I0NYhjQy2Ajj%2B7ev%2FNSvRdeneeYTU3iHoO6nIhWHBLVExWafu59B6hhsm261kvXw718eiUcL%2B1X1eZ5WApplCuXGQV7L6DZxlQPanRJy7BZZQmFwEUoMCnx9mGbOKmNbeCADx3vwKY5nrbTDAAAAm0Cccv5a3jS2QiICCzCyA0Ot3U7VT1F3d%2BB3cHcmv8DaCwDODb8IadnsiVK%2BdfbPLn3ne%2Blm8d9yqhh6bLi6KNDb6yiWrjWnd4Irnnh3amMwik00vdyQKYvdsaSEJqtVLmtcQABAtM4mGTp5yBq4dGDAbvWetjgvfJXswhcmqE%2BlDj%2FkTPyAAAB5Do%2Feww%2BG709VPQwkxd0tRFyJh97Wcb5uSGs%2B4fK9O%2B5CTf5rDQSO3ueWLRF4ytRzd3QjK6%2B8FlXsJQM5n5pGLUNNWpUlimk2MmPaLehC9uGBfQzoTfQof%2BU8CBXkTTnRi0IeAYMq8eiuEnNR%2FoOJjpjuwgZH4gue%2FsSDF8FyhFU4SwF%2FWdjLg0FgmZzRlqABNXeE8vOofydEMYgUMPd8qxjimAGhkYlBUNjlme4BUdA2AqndMttpc3y9ILTobaGSnjgWfq9Ztw%2Fn72scPI11T%2BYMaaXd33dacNPx%2BpVzcgqi358PT8WQ6U3n%2B1be8mhF8VGEO7%2F5zLFHECRCv06erER8ChTZvr4rb8Y0xRCz%2FpatllLqvWZkGSmotmsi9qAptgG%2FXkozOZIqmBuM2AuQTwaePyuJzelc5xD51OlkQRahV6%2Bok3CokckwtOXtC6dzq4dmh03Uj5ZeKj8IgITDPN6jCf5TwLmXSuEGl5W%2FxmrEUeNlrthlJm7Cdd1NpLn3RZNCgSS4%2BPw9cpY6fj%2FmF8yR0erf9Tkrxr7FXzSe%2FUWkfeB3aQPulP4U3nM7vJIz9DBcJxtdozfqHchZ%2FK%2BVnaW%2F7IlNhvu3Cwk%2BN3D9sUwf%2FuHQuE%2FQSsYZ0fjUCnB1UgJMjho5Sd4CHLNoCFroNj71YtnpdXjUQAAAm0D5ITdM1U28%2B6%2FLU%2B%2BJw%2FUTMOefScVULkEyaojkyJK574Dc96zie3HtMN0ahALfOg5yn2z2zZpwqsLk9mpT23GD8AYR55RcvLHGIjJTubtuMINy7ZBgbZmisPDt5DvHVKj1wABAtM4mGTp5yBq4dGDAbvWetjgvfJXswhcmqE%2BlDj%2FkTPyAAAB5B9Wn5rfJ8LS81DIkZj6By39KZPYLoNSpR%2BVEZsLaSEo%2FHTMG43Q%2FgG%2FYjZMQHBEZwleE1H35P3EuDlWOriEQxveH7ihmHVSDfj8R%2B6xo%2F263QCLqtg9djSFPW7h6QRx5JBM%2BWABcmIZQrAvMDe1q7F8VOGRDMf8tW%2F7sySMFn9pQ7735kasw8iNsGPX9gVNcncSuh8hmgWGzwciUU%2FY5SYmQvl0Oc15G5%2FkFhIA9nDVfZR4sMBRB9ApYbnNYsxtH12wWhTo04hPEGfzsqKK10muLy%2Bqpo3VBhX24HPTBAvYm68f0UVD%2Ba0cZWmgYKypmMqApJ87RnPvXbE3rmKepJM8u02O4X1OBlfDZBrTsbCbMxeniS6bzE6VPE62jOW6GIuyV6%2BNQS3PZTuTWG%2Fp7T5n2EC%2FPf%2FCvGLq41gQDU9VT2aCbHkbr9C0klVJfUwqdE%2F51zLmcY8wpx3P%2BOS%2BlrIjxQzOpWSKQfsNyt1DhKpKb5Y1wWrUGm6s0sBEG7FQK2SmWMhpjB36ZRdmtQ8%2Fmvh20KELR6W%2BocGosR20TXdGINzJEnobbTkkGNz2sqzePvL7Ql5Utc%2FGCaZYC2yIvJEGBOSBVtKvwqTOaMOFTaCIx4R5f3X17umkMD1YCvir39cREkU%3D"
 
 
 Example Response
@@ -517,7 +532,15 @@ Example Response
 
     {
        "result": {
-          "work_order_result": "AAABpwIE30NxwNdRKKYbQ8g0/smtFuDoTPy8wrkJykX80A4LKAMQ4B9nUoyq9JHyDvnLXf314LrLA4roe/HuUXXNsF+6muWUZPwe8IA/SwkPJnpggGu0xQdVl3eMGpgHYL9pW3jWA0ztwFmQ6qpgJkXxdkK7j62kBSjzWTziWRaWzgd0bXRqA71fJSvQp/q2V5do3/g2BvqN8R22ZBxzn0s77p0s7LyIA+K1a1aMbR22OtpGdmUTbl3SK7gSYAVsHtpBbvok/FstA78AbixycMh5OgOXze62RMFXFvNeK5aw8vld0YefHkoWA+4YKNw8zddlhhH4jv8gXKxZQcdxA4tpxYiigTFuJFb4B/WzU9MEvZQUDfVVxtAgtpyTQaw+EFVc313bFrPjfZIhbodl2FBSa8HHbyU+zyuQbx3xIUcTXrkWCLV7+J6mrvjrJkGWH+AJAceN8P7uPvK101P5OKs6oiO1/voDPIOr0boQB6pE+gHGH56Eb8Q3W5uGJ9p2e2Ul90vMFRmMRLVvHToNrMgrMOLNa/TenaiAxK+xfiOnNNE0Mi3LQTAj0c+mTLM1fZ81zIgT0yQXJzfKfiiJuAN35e1JlgYISnxchLqv6gYldeRxx1Xz2v5TZtTvRjlP9PCEEaW4sQaqW+0AAAGnAghcC66v3rlE4nN8utPifyLlG6dwwg25KVfTwfjiqOagAsrrQEi1CHnTyFl50DSruaygVnPj+sCv/G9onIExiRv6dcjhZhASDM/2P67XlNiwn074GI5f8e1orNVcVXpvS+0DzdQxL+pbkmNDH6XkZjbAyYcJ+B8zPtcMeIlEhPEJz7ICxJ0agnJr6DgGNvsNXeGSDQWVHRAwPlTOvvh0lZnOvnICfMParvaZkDVft9z4x7HUTuvkJmEnp1qAGefyDx57MzACBbvqNTHVDhv4qDmfe0ynjIKO+1bYT8G4s7xmgmS9y8ECOO+/cX1z9MgijH4wZLG36kJq50BXXOU7U5yRvzQe4R0W2noI4lfmPg3bTqXQyZrvINVImvwuyvQMoQTDM9HFM4dUyN4vLDpSe3bHZmpTIpI8VtOMNUAo+wGzfBMEsSPAxJ/fOZCL33HTMIe0p+q4F9ksDNxO3XFHwEuMm2FuSRuQbnKUtxqXp4YiDdF2PKPKthfZ7WUZN+Z+wAjMzwE28Bf3m5SGZsXDQxaKTioWJUxDbzdHnpcI28+4srZVr2SU6GKR5yGDrAJxLf2Of4+UHK/UNakH45bWJfYq6Rr+iWe0aFHDtQHqkBtWWmvWJBLhyzsXnqBUhyKQr3DEZ3/R0wAAAacCq+RZNiJQx5WYQLVnrQefNU+A55LL75iRMOJRxukGlEoD5D30UIArtCv4d+iN6XLZhEM6Jsqg5ltPWfFZyRzHbb+StN+TFlQ/LDnFRPQ0MQpGMDjGckCqklZdn0NUGDkTcgOmyY2bhoGcgkob3QvlhSOYS/LPLRCnyn5fn0kABoNKagKuITPL9Tmg87k+yK9PQFu9P3cAOCvL/ZUPJSKI5r47HANuLdqh4zhfyAe5PW3qi7GnzRXRySA+6lImyD/nWqbb2gNv9MYrA2ioheO5jXA2uArwgZObnLApPsIc7Jwl1ko7KgJXN+EsBMdBHwz2Ps6LJt9z73y/HnuivgSNkssxZ8pIXqk9NGRwgBhP2DW0Ctl30bRNX6SIEcD/b0yzsfKIUQk3L7QwPYxE9iKicz608hLzrCUwmHoa8oWA/9dQks8KBD1tTrm0KM5fJcXonZHzeDFIYcHMDMu1PJkwFsLWRVTXJJBgDMUQJix9mpb3px0jMPjAZuDlpherQsLNNRQJq75pVu7hyKmeDAPBGhBNND2NxB3pg3RrFhShdosjpRP/gCJhuI0IdAnajYCG+vmIilyS/8oZomMEg6b8KChUOPVkp/VPFXUKow4jzLXjf7R9DJM/41Yn5ut7IaLi37X/jwwa"
+          "retrieval_results": [
+             {
+                "capsule": "AwqK0M939C20sbL6zs5pyebyl9uXdCzZQPchLV33AXdrAmxeeMWrs6RFATjkNXj4xraUNInlJ4oQGokrkZ08wHoJHAnWFftjlJiDOlm2v9nn9LcMeBUqf7x9Zf3YVqoRcgY=",
+                "cfrags": {
+                   "0xd41c057fd1c78805AAC12B0A94a405c0461A6FBb": "Alvyx0r4IXvOWppw8jzbdx/8lIhL36ZAhbvNcTfo4KC6AqUxu6iP9gOVSaiehZAAQ89ho9MIGyDYdJIjg/dRkR1DuNX9qLnhAsg+qJvGcPpEXHNG0L2WHxe+AUNqtOSnwiEDegcnRTgUFyR4gfs6/M49/t8iXuXJcT6Szcwtx2JlZtACpa4KPLa5hFgI67rkiZQTqzn/aLPEzdD1zhhUyaHpJXoDfXLdpQmyEl8aI7ZOsBLh6PtPlx86/cvU0NOsR8wIoYUDe7BiAijbjo4VtcYrfvzu9CWRiWb0TQQJO6v47am/RPUD6NTr5+S/m+EvGK22L7XWtMHw7X2M380i4z2X1jxeYZaLmtuJJLAQL61kEIFv/1afCVDe+odbZ0Wivq3EiQzd0UcYRcvhIyGJdBksGv4GjfXSNNl6OCn1ny1Cn056juxGQs3yxzQZvfEN0UAOsI5IcTvOh3/kBNGfJGH+Qfv/CKc=",
+                   "0x68E527780872cda0216Ba0d8fBD58b67a5D5e351": "AvGBNjTE1WrgQLkDP0ViipGoSjlaq0Plge6szUOasYsnAnB7Q0OKN52h3kyEax8bTFA8uqQ1mg8/X+ccRnda7bjyQu3Oep16gNGkNItWo0Eb7XC8ZDnAJMe6VrQMeq4l6EQDegcnRTgUFyR4gfs6/M49/t8iXuXJcT6Szcwtx2JlZtADcS7sUWM293AkLyacmHcj/ohsWrhSTqyyV8oCzVeCR9ICLqSTeEjoYyBhRseKvU+OObMv+Vi9kW68SEbHJFZhpHgC1UsJjSTGH1hpBxYUpQcaFU4O+nafk1NIQcEfDY9xKLYD2FAkkVF0OcSaeSNCcgWmBnDYY1n9lnQbF4gvumFoO91+19DjGTa/lY0e/GWI0HrZ3D7Qe8uMUD5LZIth9RHdVgT8WFrVd7Wg47/ieMPbW/zNJ0jKgnlmgcUH4v+VSvvqWCL3cqm83psyABURpMntldLubCBgTrK8vCHP/C0Aduo="
+                }
+             }
+          ]
        },
        "version": "6.0.0"
     }
