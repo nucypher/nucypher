@@ -132,7 +132,7 @@ class BobRetrieveCFrags(BaseSchema):
             help="Treasure Map for retrieval",
             type=click.STRING,
             required=True))
-    retrieval_kits = base_fields.List(
+    retrieval_kits = base_fields.StringList(
         fields.RetrievalKit(),
         click=click.option(
             '--retrieval-kits',

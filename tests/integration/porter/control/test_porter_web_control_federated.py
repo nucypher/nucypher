@@ -116,6 +116,13 @@ def test_retrieve_cfrags(federated_porter,
         capsule = capsule_field._deserialize(value=result['capsule'], attr=None, data=None)
         assert capsule == expected_results[i].capsule
 
+    # try same retrieval using query parameters
+    url_retrieve_params = dict(retrieve_cfrags_params)
+    url_retrieve_params['retrieval_kits'] = ",".join(retrieve_cfrags_params['retrieval_kits'])   # adjust for list
+    response = federated_porter_web_controller.post(f'/retrieve_cfrags'
+                                                    f'?{urlencode(url_retrieve_params)}')
+    assert response.status_code == 200
+
     # Failure
     failure_retrieve_cfrags_params = dict(retrieve_cfrags_params)
 
