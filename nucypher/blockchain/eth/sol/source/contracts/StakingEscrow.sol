@@ -12,15 +12,7 @@ import "contracts/proxy/Upgradeable.sol";
 import "zeppelin/math/SafeMath.sol";
 import "zeppelin/math/Math.sol";
 import "zeppelin/token/ERC20/SafeERC20.sol";
-import "zeppelin/token/ERC20/IERC20.sol";
 
-
-/**
-* @notice TToken interface
-*/
-interface TTokenInterface is IERC20 {
-    function nuToT(uint256 _amount) external view returns (uint256);
-}
 
 
 /**
@@ -88,13 +80,10 @@ contract StakingEscrowStub is Upgradeable {
 contract StakingEscrow is Upgradeable, IERC900History {
 
     using AdditionalMath for uint256;
-//    using AdditionalMath for uint32;
-//    using AdditionalMath for uint16;
     using Bits for uint256;
     using SafeMath for uint256;
     using Snapshot for uint128[];
     using SafeERC20 for NuCypherToken;
-    using SafeERC20 for TTokenInterface;
 
     // TODO docs
     event RewardAdded(uint256 reward);
@@ -112,14 +101,7 @@ contract StakingEscrow is Upgradeable, IERC900History {
     * @param staker Staker address
     * @param value Amount withdraws (in NuNits)
     */
-    event NUWithdrawn(address indexed staker, uint256 value);
-
-    /**
-    * @notice Signals that T tokens were withdrawn to the staker
-    * @param staker Staker address
-    * @param value Amount withdraws (in NuNits)
-    */
-    event TWithdrawn(address indexed staker, uint256 value);
+    event Withdrawn(address indexed staker, uint256 value);
 
     /**
     * @notice Signals that the staker was slashed
@@ -141,34 +123,28 @@ contract StakingEscrow is Upgradeable, IERC900History {
     event WorkMeasurementSet(address indexed staker, bool measureWork);
 
     struct StakerInfo {
-        uint256 nuValue;
+        uint256 value;
         uint16 stub1; // former slot for currentCommittedPeriod // TODO combine 4 slots?
         uint16 stub2; // former slot for nextCommittedPeriod
         uint16 stub3; // former slot for lastCommittedPeriod
         uint16 stub4; // former slot for lockReStakeUntilPeriod
-        uint256 completedWork;
+        uint256 completedWork; // TODO ???
         uint16 stub5; // former slot for workerStartPeriod
         address worker;
         uint256 flags; // uint256 to acquire whole slot and minimize operations on it
 
         uint256 workerStartTimestamp;
-        uint256 tValue;
         uint256 startUnstakingTimestamp;
-        uint256 tReward;
-        uint256 rewardPerTokenPaid;
+
+        uint256 reservedSlot3;
+        uint256 reservedSlot4;
+        uint256 reservedSlot5;
 
         uint256[] stub6; // former slot for pastDowntime
         uint256[] stub7; // former slot for subStakes
-        uint128[] history; // TODO two snapshots?
+        uint128[] history; // TODO ???
 
     }
-
-    uint128 constant MAX_UINT128 = uint128(0) - 1;
-
-    // used only for upgrading
-    uint16 internal constant RESERVED_PERIOD = 0;
-//    uint16 internal constant MAX_CHECKED_VALUES = 5;
-    uint16 internal constant MAX_UINT16 = 65535;
 
     // indices for flags
     uint8 internal constant RE_STAKE_DISABLED_INDEX = 0;
@@ -180,14 +156,10 @@ contract StakingEscrow is Upgradeable, IERC900History {
     uint128 public immutable formerTotalNUSupply;
 
     uint256 public immutable minWorkerSeconds;
-    uint256 public immutable minAllowableLockedTokens;
-    uint256 public immutable maxAllowableLockedTokens;
 
     uint256 public immutable minUnstakingDuration;
-    uint256 public immutable rewardDuration;
 
     NuCypherToken public immutable nuToken;
-    TTokenInterface public immutable tToken;
     AdjudicatorInterface public immutable adjudicator;
     WorkLockInterface public immutable workLock;
 
@@ -209,53 +181,32 @@ contract StakingEscrow is Upgradeable, IERC900History {
     mapping (uint16 => uint256) stub7; // last former slot for lockedPerPeriod
 
     uint256 public totalNUStaked;
-    uint256 public totalTStaked;
-
-    uint256 public periodFinish = 0;
-    uint256 public rewardRate = 0;
-    uint256 public lastUpdateTime;
-    uint256 public rewardPerTokenStored;
 
     /**
     * @notice Constructor sets address of token contract and parameters for staking
     * @param _nuToken NuCypher token contract
-    * @param _tToken T token contract
     * @param _adjudicator Adjudicator contract
     * @param _workLock WorkLock contract. Zero address if there is no WorkLock
-    * @param _minAllowableLockedTokens Min amount of tokens that can be locked
-    * @param _maxAllowableLockedTokens Max amount of tokens that can be locked
     * @param _minWorkerSeconds Min amount of seconds while a worker can't be changed
      * @param _minUnstakingDuration Min unstaking duration (in sec) to be eligible for staking
-     * @param _rewardDuration Duration of one reward cycle
     */
     constructor(
         NuCypherToken _nuToken,
-        TTokenInterface _tToken,
         AdjudicatorInterface _adjudicator,
         WorkLockInterface _workLock,
-        uint256 _minAllowableLockedTokens,
-        uint256 _maxAllowableLockedTokens,
         uint256 _minWorkerSeconds,
-        uint256 _minUnstakingDuration,
-        uint256 _rewardDuration
-    )
-    {
-        require(_maxAllowableLockedTokens != 0 && _rewardDuration != 0);
-        minAllowableLockedTokens = _minAllowableLockedTokens;
-        maxAllowableLockedTokens = _maxAllowableLockedTokens;
+        uint256 _minUnstakingDuration
+    ) {
         minWorkerSeconds = _minWorkerSeconds;
         minUnstakingDuration = _minUnstakingDuration;
-        rewardDuration = _rewardDuration;
 
         uint256 localNUTotalSupply = _nuToken.totalSupply();
         require(localNUTotalSupply > 0 &&
-            _tToken.totalSupply() > 0 &&
             _adjudicator.rewardCoefficient() != 0 &&
             (address(_workLock) == address(0) || _workLock.token() == _nuToken));
 
         formerTotalNUSupply = uint128(localNUTotalSupply);
         nuToken = _nuToken;
-        tToken = _tToken;
         adjudicator = _adjudicator;
         workLock = _workLock;
     }
@@ -265,78 +216,8 @@ contract StakingEscrow is Upgradeable, IERC900History {
     */
     modifier onlyStaker()
     {
-        StakerInfo storage info = stakerInfo[msg.sender];
-        require(info.nuValue > 0 || info.tValue > 0);
+        require(stakerInfo[msg.sender].value > 0);
         _;
-    }
-
-    modifier updateReward(address _staker) {
-        rewardPerTokenStored = rewardPerToken();
-        lastUpdateTime = lastTimeRewardApplicable();
-        if (_staker != address(0)) {
-            StakerInfo storage info = stakerInfo[_staker];
-            info.tReward = earned(_staker);
-            info.rewardPerTokenPaid = rewardPerTokenStored;
-        }
-        _;
-    }
-
-    //------------------------Reward------------------------------
-
-    function totalStaked() public view returns (uint256) {
-        return totalTStaked + tToken.nuToT(totalNUStaked);
-    }
-
-    function lastTimeRewardApplicable() public view returns (uint256) {
-        return Math.min(block.timestamp, periodFinish);
-    }
-
-    function rewardPerToken() public view returns (uint256) {
-        uint256 staked = totalStaked();
-        if (staked == 0) {
-            return rewardPerTokenStored;
-        }
-        return
-            rewardPerTokenStored.add(
-                lastTimeRewardApplicable()
-                    .sub(lastUpdateTime)
-                    .mul(rewardRate)
-                    .mul(1e18)
-                    .div(staked)
-            );
-    }
-
-    function earned(address _staker) public view returns (uint256) {
-        StakerInfo storage info = stakerInfo[_staker];
-        return
-            getStakedTokens(_staker)
-                .mul(rewardPerToken().sub(info.rewardPerTokenPaid))
-                .div(1e18)
-                .add(info.tReward);
-    }
-
-    function withdrawReward() public updateReward(msg.sender) {
-        uint256 reward = earned(msg.sender);
-        if (reward > 0) {
-            stakerInfo[msg.sender].tReward = 0;
-            tToken.safeTransfer(msg.sender, reward);
-            emit RewardPaid(msg.sender, reward);
-        }
-    }
-
-    function pushReward(uint256 _reward) external updateReward(address(0)) {
-        require(_reward > 0);
-        tToken.safeTransfer(msg.sender, _reward);
-        if (block.timestamp >= periodFinish) {
-            rewardRate = _reward.div(rewardDuration);
-        } else {
-            uint256 remaining = periodFinish.sub(block.timestamp);
-            uint256 leftover = remaining.mul(rewardRate);
-            rewardRate = _reward.add(leftover).div(rewardDuration);
-        }
-        lastUpdateTime = block.timestamp;
-        periodFinish = block.timestamp.add(rewardDuration);
-        emit RewardAdded(_reward);
     }
 
     //------------------------Main getters------------------------
@@ -344,16 +225,7 @@ contract StakingEscrow is Upgradeable, IERC900History {
     * @notice Get all tokens belonging to the staker
     */
     function getAllTokens(address _staker) external view returns (uint256) {
-        StakerInfo storage info = stakerInfo[_staker];
-        return info.tValue.add(tToken.nuToT(info.nuValue)).add(info.tReward);
-    }
-
-    /**
-    * @notice Get all tokens belonging to the staker
-    */
-    function getStakedTokens(address _staker) public view returns (uint256) {
-        StakerInfo storage info = stakerInfo[_staker];
-        return info.tValue.add(tToken.nuToT(info.nuValue));
+        return stakerInfo[_staker].value;
     }
 
     /**
@@ -399,10 +271,10 @@ contract StakingEscrow is Upgradeable, IERC900History {
         for (uint256 i = _startIndex; i < endIndex; i++) {
             address staker = stakers[i];
             StakerInfo storage info = stakerInfo[staker];
-            if ((info.nuValue == 0 && info.tValue == 0) || info.startUnstakingTimestamp != 0) {
+            if (info.value == 0 || info.startUnstakingTimestamp != 0) {
                 continue;
             }
-            uint256 staked = getStakedTokens(staker);
+            uint256 staked = info.value;
             activeStakers[resultIndex][0] = uint256(staker);
             activeStakers[resultIndex++][1] = staked;
             allStakedTokens = allStakedTokens.add(staked);
@@ -464,7 +336,7 @@ contract StakingEscrow is Upgradeable, IERC900History {
             // Specified worker is already in use
             require(stakerFromWorker[_worker] == address(0));
             // Specified worker is a staker
-            require(stakerInfo[_worker].nuValue == 0 || stakerInfo[_worker].tValue == 0 || _worker == msg.sender);
+            require(stakerInfo[_worker].value == 0 || _worker == msg.sender);
             // Set new worker->staker relation
             stakerFromWorker[_worker] = msg.sender;
         }
@@ -502,60 +374,30 @@ contract StakingEscrow is Upgradeable, IERC900History {
     */
     function addSnapshot(StakerInfo storage _info, int256 _addition) internal {
         if(!_info.flags.bitSet(SNAPSHOTS_DISABLED_INDEX)){
-            _info.history.addSnapshot(_info.nuValue);
+            _info.history.addSnapshot(_info.value);
             uint256 lastGlobalBalance = uint256(balanceHistory.lastValue());
             balanceHistory.addSnapshot(lastGlobalBalance.addSigned(_addition));
         }
     }
 
     /**
-    * @notice Implementation of the receiveApproval(address,uint256,address,bytes) method
-    * (see NuCypherToken contract). Deposit all tokens that were approved to transfer
-    * @param _from Staker
-    * @param _value Amount of tokens to deposit
-    * @param _tokenContract Token contract address
-    * @notice (param _extraData) Amount of periods during which tokens will be unlocked when wind down is enabled
-    */
-    function receiveApproval(
-        address _from,
-        uint256 _value,
-        address _tokenContract,
-        bytes calldata /* _extraData */
-    )
-        external
-    {
-        require(_tokenContract == address(nuToken) && msg.sender == address(nuToken));
-        deposit(_from, _from, _value);
-    }
-
-    /**
-    * @notice Deposit tokens and create new sub-stake. Use this method to become a staker
-    * @param _staker Staker
-    * @param _value Amount of tokens to deposit
-    */
-    function deposit(address _staker, uint256 _value) external {
-        deposit(_staker, msg.sender, _value);
-    }
-
-    /**
-    * @notice Deposit T tokens
+    * @notice Deposit NU tokens
     * @param _staker Staker
     * @param _payer Owner of tokens
     * @param _value Amount of tokens to deposit
     */
-    function deposit(address _staker, address _payer, uint256 _value) internal updateReward(_staker) {
+    function deposit(address _staker, address _payer, uint256 _value) internal {
         require(_value != 0);
         StakerInfo storage info = stakerInfo[_staker];
         // A staker can't be a worker for another staker
         require(stakerFromWorker[_staker] == address(0) || stakerFromWorker[_staker] == info.worker);
         require(info.startUnstakingTimestamp == 0); // TODO allow to topup after unstaking?
         // initial stake of the staker
-        if (info.nuValue == 0 && info.tValue == 0 && info.workerStartTimestamp == 0) { // TODO ???
+        if (info.value == 0 && info.workerStartTimestamp == 0) { // TODO ???
             stakers.push(_staker);
         }
-        tToken.safeTransferFrom(_payer, address(this), _value);
-        info.tValue += _value;
-        totalTStaked += _value;
+        nuToken.safeTransferFrom(_payer, address(this), _value);
+        info.value += _value;
 
         addSnapshot(info, int256(_value));
         emit Deposited(_staker, _value);
@@ -566,7 +408,7 @@ contract StakingEscrow is Upgradeable, IERC900History {
     */
     function startUnstaking() external {
         StakerInfo storage info = stakerInfo[msg.sender];
-        require((info.nuValue > 0 || info.tValue > 0) && info.startUnstakingTimestamp == 0); // TODO extract
+        require(info.value > 0 && info.startUnstakingTimestamp == 0); // TODO extract
         info.startUnstakingTimestamp = block.timestamp;
     }
 
@@ -574,40 +416,19 @@ contract StakingEscrow is Upgradeable, IERC900History {
     * @notice Withdraw available amount of NU tokens to staker
     * @param _value Amount of tokens to withdraw
     */
-    function withdrawNU(uint256 _value) external onlyStaker updateReward(msg.sender) {
+    function withdraw(uint256 _value) external onlyStaker {
         StakerInfo storage info = stakerInfo[msg.sender];
-        require(_value <= info.nuValue &&
+        require(_value <= info.value &&
                 info.startUnstakingTimestamp + minUnstakingDuration >= block.timestamp);
-        info.nuValue -= _value;
+        info.value -= _value;
         totalNUStaked -= _value; // TODO protection?
-        if (info.nuValue == 0 && info.tValue == 0) {
+        if (info.value == 0) {
             info.startUnstakingTimestamp = 0;
         }
 
         addSnapshot(info, - int256(_value)); // TODO
         nuToken.safeTransfer(msg.sender, _value);
-        emit NUWithdrawn(msg.sender, _value);
-
-        autoUnbondWorker(msg.sender, info);
-    }
-
-    /**
-    * @notice Withdraw available amount of T tokens to staker
-    * @param _value Amount of tokens to withdraw
-    */
-    function withdrawT(uint256 _value) external onlyStaker updateReward(msg.sender) {
-        StakerInfo storage info = stakerInfo[msg.sender];
-        require(_value <= info.tValue &&
-                info.startUnstakingTimestamp + minUnstakingDuration >= block.timestamp);
-        info.tValue -= _value;
-        totalTStaked -= _value;
-        if (info.nuValue == 0 && info.tValue == 0) {
-            info.startUnstakingTimestamp = 0;
-        }
-
-        addSnapshot(info, - int256(_value)); // TODO
-        tToken.safeTransfer(msg.sender, _value);
-        emit TWithdrawn(msg.sender, _value);
+        emit Withdrawn(msg.sender, _value);
 
         autoUnbondWorker(msg.sender, info);
     }
@@ -616,8 +437,7 @@ contract StakingEscrow is Upgradeable, IERC900History {
     * @notice Unbond worker if staker withdraws last portion of NU and T
     */
     function autoUnbondWorker(address _staker, StakerInfo storage _info) internal {
-        if (_info.nuValue == 0 &&
-            _info.tValue == 0 &&
+        if (_info.value == 0 &&
             _info.worker != address(0))
         {
             stakerFromWorker[_info.worker] = address(0);
@@ -641,7 +461,7 @@ contract StakingEscrow is Upgradeable, IERC900History {
         address _investigator,
         uint256 _reward
     )
-        external updateReward(_staker)
+        external
     {
         // TODO
 //        require(msg.sender == address(adjudicator));
