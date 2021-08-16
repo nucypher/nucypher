@@ -9,7 +9,7 @@ import "zeppelin/math/Math.sol";
 import "zeppelin/utils/Address.sol";
 import "contracts/lib/AdditionalMath.sol";
 import "contracts/lib/SignatureVerifier.sol";
-import "contracts/StakingEscrow.sol";
+import "contracts/PREStakingApp.sol";
 import "contracts/NuCypherToken.sol";
 import "contracts/proxy/Upgradeable.sol";
 
@@ -109,9 +109,7 @@ contract PolicyManager is Upgradeable {
     // controlled overflow to get max int256
     int256 public constant DEFAULT_FEE_DELTA = int256((uint256(0) - 1) >> 1);
 
-    StakingEscrow public immutable escrow;
-    uint32 public immutable genesisSecondsPerPeriod;
-    uint32 public immutable secondsPerPeriod;
+    PREStakingApp public immutable stakingApp;
 
     mapping (bytes16 => Policy) public policies;
     mapping (address => NodeInfo) public nodes;
@@ -119,72 +117,12 @@ contract PolicyManager is Upgradeable {
     uint64 public resetTimestamp;
 
     /**
-    * @notice Constructor sets address of the escrow contract
-    * @dev Put same address in both inputs variables except when migration is happening
-    * @param _escrowDispatcher Address of escrow dispatcher
-    * @param _escrowImplementation Address of escrow implementation
+    * @notice Constructor sets address of the PREStakingApp contract
+    * @param _stakingApp Address of staking application
     */
-    constructor(StakingEscrow _escrowDispatcher, StakingEscrow _escrowImplementation) {
-        escrow = _escrowDispatcher;
-        // if the input address is not the StakingEscrow then calling `secondsPerPeriod` will throw error
-        uint32 localSecondsPerPeriod = _escrowImplementation.secondsPerPeriod();
-        require(localSecondsPerPeriod > 0);
-        secondsPerPeriod = localSecondsPerPeriod;
-        uint32 localgenesisSecondsPerPeriod = _escrowImplementation.genesisSecondsPerPeriod();
-        require(localgenesisSecondsPerPeriod > 0);
-        genesisSecondsPerPeriod = localgenesisSecondsPerPeriod;
-        // handle case when we deployed new StakingEscrow but not yet upgraded
-        if (_escrowDispatcher != _escrowImplementation) {
-            require(_escrowDispatcher.secondsPerPeriod() == localSecondsPerPeriod ||
-                _escrowDispatcher.secondsPerPeriod() == localgenesisSecondsPerPeriod);
-        }
-    }
-
-    /**
-    * @dev Checks that sender is the StakingEscrow contract
-    */
-    modifier onlyEscrowContract()
-    {
-        require(msg.sender == address(escrow));
-        _;
-    }
-
-    /**
-    * @return Number of current period
-    */
-    function getCurrentPeriod() public view returns (uint16) {
-        return uint16(block.timestamp / secondsPerPeriod);
-    }
-
-    /**
-    * @return Recalculate period value using new basis
-    */
-    function recalculatePeriod(uint16 _period) internal view returns (uint16) {
-        return uint16(uint256(_period) * genesisSecondsPerPeriod / secondsPerPeriod);
-    }
-
-    /**
-    * @notice Register a node
-    * @param _node Node address
-    * @param _period Initial period
-    */
-    function register(address _node, uint16 _period) external onlyEscrowContract {
-        NodeInfo storage nodeInfo = nodes[_node];
-        require(nodeInfo.previousFeePeriod == 0 && _period < getCurrentPeriod());
-        nodeInfo.previousFeePeriod = _period;
-    }
-
-    /**
-    * @notice Migrate from the old period length to the new one
-    * @param _node Node address
-    */
-    function migrate(address _node) external onlyEscrowContract {
-        NodeInfo storage nodeInfo = nodes[_node];
-        // with previous period length any previousFeePeriod will be greater than current period
-        // this is a sign of not migrated node
-        require(nodeInfo.previousFeePeriod >= getCurrentPeriod());
-        nodeInfo.previousFeePeriod = recalculatePeriod(nodeInfo.previousFeePeriod);
-        nodeInfo.feeRate = 0;
+    constructor(PREStakingApp _stakingApp) {
+        stakingApp = _stakingApp;
+        require(address(_stakingApp.token()) != address(0));
     }
 
     /**
@@ -253,26 +191,26 @@ contract PolicyManager is Upgradeable {
     )
         external payable
     {
-        require(
-            _endTimestamp > block.timestamp &&
-            msg.value > 0
-        );
-
-        require(address(this).balance <= MAX_BALANCE);
-        uint16 currentPeriod = getCurrentPeriod();
-        uint16 endPeriod = uint16(_endTimestamp / secondsPerPeriod) + 1;
-        uint256 numberOfPeriods = endPeriod - currentPeriod;
-
-        uint128 feeRate = uint128(msg.value.div(_nodes.length) / numberOfPeriods);
-        require(feeRate > 0 && feeRate * numberOfPeriods * _nodes.length  == msg.value);
-
-        Policy storage policy = createPolicy(_policyId, _policyOwner, _endTimestamp, feeRate, _nodes.length);
-
-        for (uint256 i = 0; i < _nodes.length; i++) {
-            address node = _nodes[i];
-            addFeeToNode(currentPeriod, endPeriod, node, feeRate, int256(feeRate));
-            policy.arrangements.push(ArrangementInfo(node, 0, 0));
-        }
+//        require(
+//            _endTimestamp > block.timestamp &&
+//            msg.value > 0
+//        );
+//
+//        require(address(this).balance <= MAX_BALANCE);
+//        uint16 currentPeriod = getCurrentPeriod();
+//        uint16 endPeriod = uint16(_endTimestamp / secondsPerPeriod) + 1;
+//        uint256 numberOfPeriods = endPeriod - currentPeriod;
+//
+//        uint128 feeRate = uint128(msg.value.div(_nodes.length) / numberOfPeriods);
+//        require(feeRate > 0 && feeRate * numberOfPeriods * _nodes.length  == msg.value);
+//
+//        Policy storage policy = createPolicy(_policyId, _policyOwner, _endTimestamp, feeRate, _nodes.length);
+//
+//        for (uint256 i = 0; i < _nodes.length; i++) {
+//            address node = _nodes[i];
+//            addFeeToNode(currentPeriod, endPeriod, node, feeRate, int256(feeRate));
+//            policy.arrangements.push(ArrangementInfo(node, 0, 0));
+//        }
     }
 
     /**
@@ -291,34 +229,34 @@ contract PolicyManager is Upgradeable {
     )
         external payable
     {
-        require(
-            _endTimestamp > block.timestamp &&
-            msg.value > 0 &&
-            _policyIds.length > 1
-        );
-
-        require(address(this).balance <= MAX_BALANCE);
-        uint16 currentPeriod = getCurrentPeriod();
-        uint16 endPeriod = uint16(_endTimestamp / secondsPerPeriod) + 1;
-        uint256 numberOfPeriods = endPeriod - currentPeriod;
-
-        uint128 feeRate = uint128(msg.value.div(_nodes.length) / numberOfPeriods / _policyIds.length);
-        require(feeRate > 0 && feeRate * numberOfPeriods * _nodes.length * _policyIds.length == msg.value);
-
-        for (uint256 i = 0; i < _policyIds.length; i++) {
-            Policy storage policy = createPolicy(_policyIds[i], _policyOwner, _endTimestamp, feeRate, _nodes.length);
-
-            for (uint256 j = 0; j < _nodes.length; j++) {
-                policy.arrangements.push(ArrangementInfo(_nodes[j], 0, 0));
-            }
-        }
-
-        int256 fee = int256(_policyIds.length * feeRate);
-
-        for (uint256 i = 0; i < _nodes.length; i++) {
-            address node = _nodes[i];
-            addFeeToNode(currentPeriod, endPeriod, node, feeRate, fee);
-        }
+//        require(
+//            _endTimestamp > block.timestamp &&
+//            msg.value > 0 &&
+//            _policyIds.length > 1
+//        );
+//
+//        require(address(this).balance <= MAX_BALANCE);
+//        uint16 currentPeriod = getCurrentPeriod();
+//        uint16 endPeriod = uint16(_endTimestamp / secondsPerPeriod) + 1;
+//        uint256 numberOfPeriods = endPeriod - currentPeriod;
+//
+//        uint128 feeRate = uint128(msg.value.div(_nodes.length) / numberOfPeriods / _policyIds.length);
+//        require(feeRate > 0 && feeRate * numberOfPeriods * _nodes.length * _policyIds.length == msg.value);
+//
+//        for (uint256 i = 0; i < _policyIds.length; i++) {
+//            Policy storage policy = createPolicy(_policyIds[i], _policyOwner, _endTimestamp, feeRate, _nodes.length);
+//
+//            for (uint256 j = 0; j < _nodes.length; j++) {
+//                policy.arrangements.push(ArrangementInfo(_nodes[j], 0, 0));
+//            }
+//        }
+//
+//        int256 fee = int256(_policyIds.length * feeRate);
+//
+//        for (uint256 i = 0; i < _nodes.length; i++) {
+//            address node = _nodes[i];
+//            addFeeToNode(currentPeriod, endPeriod, node, feeRate, fee);
+//        }
     }
 
     /**
@@ -339,30 +277,30 @@ contract PolicyManager is Upgradeable {
         internal returns (Policy storage policy)
     {
         policy = policies[_policyId];
-        require(
-            _policyId != RESERVED_POLICY_ID &&
-            policy.feeRate == 0 &&
-            !policy.disabled
-        );
-
-        policy.sponsor = msg.sender;
-        policy.startTimestamp = uint64(block.timestamp);
-        policy.endTimestamp = _endTimestamp;
-        policy.feeRate = _feeRate;
-
-        if (_policyOwner != msg.sender && _policyOwner != address(0)) {
-            policy.owner = _policyOwner;
-        }
-
-        emit PolicyCreated(
-            _policyId,
-            msg.sender,
-            _policyOwner == address(0) ? msg.sender : _policyOwner,
-            _feeRate,
-            policy.startTimestamp,
-            policy.endTimestamp,
-            _nodesLength
-        );
+//        require(
+//            _policyId != RESERVED_POLICY_ID &&
+//            policy.feeRate == 0 &&
+//            !policy.disabled
+//        );
+//
+//        policy.sponsor = msg.sender;
+//        policy.startTimestamp = uint64(block.timestamp);
+//        policy.endTimestamp = _endTimestamp;
+//        policy.feeRate = _feeRate;
+//
+//        if (_policyOwner != msg.sender && _policyOwner != address(0)) {
+//            policy.owner = _policyOwner;
+//        }
+//
+//        emit PolicyCreated(
+//            _policyId,
+//            msg.sender,
+//            _policyOwner == address(0) ? msg.sender : _policyOwner,
+//            _feeRate,
+//            policy.startTimestamp,
+//            policy.endTimestamp,
+//            _nodesLength
+//        );
     }
 
     /**
@@ -382,30 +320,30 @@ contract PolicyManager is Upgradeable {
     )
         internal
     {
-        require(_node != RESERVED_NODE);
-        NodeInfo storage nodeInfo = nodes[_node];
-        require(nodeInfo.previousFeePeriod != 0 &&
-            nodeInfo.previousFeePeriod < _currentPeriod &&
-            _feeRate >= getMinFeeRate(nodeInfo));
-        // Check default value for feeDelta
-        if (nodeInfo.feeDelta[_currentPeriod] == DEFAULT_FEE_DELTA) {
-            nodeInfo.feeDelta[_currentPeriod] = _overallFeeRate;
-        } else {
-            // Overflow protection removed, because ETH total supply less than uint255/int256
-            nodeInfo.feeDelta[_currentPeriod] += _overallFeeRate;
-        }
-        if (nodeInfo.feeDelta[_endPeriod] == DEFAULT_FEE_DELTA) {
-            nodeInfo.feeDelta[_endPeriod] = -_overallFeeRate;
-        } else {
-            nodeInfo.feeDelta[_endPeriod] -= _overallFeeRate;
-        }
-        // Reset to default value if needed
-        if (nodeInfo.feeDelta[_currentPeriod] == 0) {
-            nodeInfo.feeDelta[_currentPeriod] = DEFAULT_FEE_DELTA;
-        }
-        if (nodeInfo.feeDelta[_endPeriod] == 0) {
-            nodeInfo.feeDelta[_endPeriod] = DEFAULT_FEE_DELTA;
-        }
+//        require(_node != RESERVED_NODE);
+//        NodeInfo storage nodeInfo = nodes[_node];
+//        require(nodeInfo.previousFeePeriod != 0 &&
+//            nodeInfo.previousFeePeriod < _currentPeriod &&
+//            _feeRate >= getMinFeeRate(nodeInfo));
+//        // Check default value for feeDelta
+//        if (nodeInfo.feeDelta[_currentPeriod] == DEFAULT_FEE_DELTA) {
+//            nodeInfo.feeDelta[_currentPeriod] = _overallFeeRate;
+//        } else {
+//            // Overflow protection removed, because ETH total supply less than uint255/int256
+//            nodeInfo.feeDelta[_currentPeriod] += _overallFeeRate;
+//        }
+//        if (nodeInfo.feeDelta[_endPeriod] == DEFAULT_FEE_DELTA) {
+//            nodeInfo.feeDelta[_endPeriod] = -_overallFeeRate;
+//        } else {
+//            nodeInfo.feeDelta[_endPeriod] -= _overallFeeRate;
+//        }
+//        // Reset to default value if needed
+//        if (nodeInfo.feeDelta[_currentPeriod] == 0) {
+//            nodeInfo.feeDelta[_currentPeriod] = DEFAULT_FEE_DELTA;
+//        }
+//        if (nodeInfo.feeDelta[_endPeriod] == 0) {
+//            nodeInfo.feeDelta[_endPeriod] = DEFAULT_FEE_DELTA;
+//        }
     }
 
     /**
@@ -414,62 +352,6 @@ contract PolicyManager is Upgradeable {
     function getPolicyOwner(bytes16 _policyId) public view returns (address) {
         Policy storage policy = policies[_policyId];
         return policy.owner == address(0) ? policy.sponsor : policy.owner;
-    }
-
-    /**
-    * @notice Call from StakingEscrow to update node info once per period.
-    * Set default `feeDelta` value for specified period and update node fee
-    * @param _node Node address
-    * @param _processedPeriod1 Processed period
-    * @param _processedPeriod2 Processed period
-    * @param _periodToSetDefault Period to set
-    */
-    function ping(
-        address _node,
-        uint16 _processedPeriod1,
-        uint16 _processedPeriod2,
-        uint16 _periodToSetDefault
-    )
-        external onlyEscrowContract
-    {
-        NodeInfo storage node = nodes[_node];
-        // protection from calling not migrated node, see migrate()
-        require(node.previousFeePeriod <= getCurrentPeriod());
-        if (_processedPeriod1 != 0) {
-            updateFee(node, _processedPeriod1);
-        }
-        if (_processedPeriod2 != 0) {
-            updateFee(node, _processedPeriod2);
-        }
-        // This code increases gas cost for node in trade of decreasing cost for policy sponsor
-        if (_periodToSetDefault != 0 && node.feeDelta[_periodToSetDefault] == 0) {
-            node.feeDelta[_periodToSetDefault] = DEFAULT_FEE_DELTA;
-        }
-    }
-
-    /**
-    * @notice Update node fee
-    * @param _info Node info structure
-    * @param _period Processed period
-    */
-    function updateFee(NodeInfo storage _info, uint16 _period) internal {
-        if (_info.previousFeePeriod == 0 || _period <= _info.previousFeePeriod) {
-            return;
-        }
-        for (uint16 i = _info.previousFeePeriod + 1; i <= _period; i++) {
-            int256 delta = _info.feeDelta[i];
-            if (delta == DEFAULT_FEE_DELTA) {
-                // gas refund
-                _info.feeDelta[i] = 0;
-                continue;
-            }
-
-            _info.feeRate = _info.feeRate.addSigned(delta);
-            // gas refund
-            _info.feeDelta[i] = 0;
-        }
-        _info.previousFeePeriod = _period;
-        _info.fee += uint128(_info.feeRate);
     }
 
     /**
@@ -501,45 +383,45 @@ contract PolicyManager is Upgradeable {
     function calculateRefundValue(Policy storage _policy, ArrangementInfo storage _arrangement)
         internal view returns (uint256 refundValue, uint256 indexOfDowntimePeriods, uint16 lastRefundedPeriod)
     {
-        uint16 policyStartPeriod = uint16(_policy.startTimestamp / secondsPerPeriod);
-        uint16 maxPeriod = AdditionalMath.min16(getCurrentPeriod(), uint16(_policy.endTimestamp / secondsPerPeriod));
-        uint16 minPeriod = AdditionalMath.max16(policyStartPeriod, _arrangement.lastRefundedPeriod);
-        uint16 downtimePeriods = 0;
-        uint256 length = escrow.getPastDowntimeLength(_arrangement.node);
-        uint256 initialIndexOfDowntimePeriods;
-        if (_arrangement.lastRefundedPeriod == 0) {
-            initialIndexOfDowntimePeriods = escrow.findIndexOfPastDowntime(_arrangement.node, policyStartPeriod);
-        } else {
-            initialIndexOfDowntimePeriods = _arrangement.indexOfDowntimePeriods;
-        }
-
-        for (indexOfDowntimePeriods = initialIndexOfDowntimePeriods;
-             indexOfDowntimePeriods < length;
-             indexOfDowntimePeriods++)
-        {
-            (uint16 startPeriod, uint16 endPeriod) =
-                escrow.getPastDowntime(_arrangement.node, indexOfDowntimePeriods);
-            if (startPeriod > maxPeriod) {
-                break;
-            } else if (endPeriod < minPeriod) {
-                continue;
-            }
-            downtimePeriods += AdditionalMath.min16(maxPeriod, endPeriod)
-                .sub16(AdditionalMath.max16(minPeriod, startPeriod)) + 1;
-            if (maxPeriod <= endPeriod) {
-                break;
-            }
-        }
-
-        uint16 lastCommittedPeriod = escrow.getLastCommittedPeriod(_arrangement.node);
-        if (indexOfDowntimePeriods == length && lastCommittedPeriod < maxPeriod) {
-            // Overflow protection removed:
-            // lastCommittedPeriod < maxPeriod and minPeriod <= maxPeriod + 1
-            downtimePeriods += maxPeriod - AdditionalMath.max16(minPeriod - 1, lastCommittedPeriod);
-        }
-
-        refundValue = _policy.feeRate * downtimePeriods;
-        lastRefundedPeriod = maxPeriod + 1;
+//        uint16 policyStartPeriod = uint16(_policy.startTimestamp / secondsPerPeriod);
+//        uint16 maxPeriod = AdditionalMath.min16(getCurrentPeriod(), uint16(_policy.endTimestamp / secondsPerPeriod));
+//        uint16 minPeriod = AdditionalMath.max16(policyStartPeriod, _arrangement.lastRefundedPeriod);
+//        uint16 downtimePeriods = 0;
+//        uint256 length = escrow.getPastDowntimeLength(_arrangement.node);
+//        uint256 initialIndexOfDowntimePeriods;
+//        if (_arrangement.lastRefundedPeriod == 0) {
+//            initialIndexOfDowntimePeriods = escrow.findIndexOfPastDowntime(_arrangement.node, policyStartPeriod);
+//        } else {
+//            initialIndexOfDowntimePeriods = _arrangement.indexOfDowntimePeriods;
+//        }
+//
+//        for (indexOfDowntimePeriods = initialIndexOfDowntimePeriods;
+//             indexOfDowntimePeriods < length;
+//             indexOfDowntimePeriods++)
+//        {
+//            (uint16 startPeriod, uint16 endPeriod) =
+//                escrow.getPastDowntime(_arrangement.node, indexOfDowntimePeriods);
+//            if (startPeriod > maxPeriod) {
+//                break;
+//            } else if (endPeriod < minPeriod) {
+//                continue;
+//            }
+//            downtimePeriods += AdditionalMath.min16(maxPeriod, endPeriod)
+//                .sub16(AdditionalMath.max16(minPeriod, startPeriod)) + 1;
+//            if (maxPeriod <= endPeriod) {
+//                break;
+//            }
+//        }
+//
+//        uint16 lastCommittedPeriod = escrow.getLastCommittedPeriod(_arrangement.node);
+//        if (indexOfDowntimePeriods == length && lastCommittedPeriod < maxPeriod) {
+//            // Overflow protection removed:
+//            // lastCommittedPeriod < maxPeriod and minPeriod <= maxPeriod + 1
+//            downtimePeriods += maxPeriod - AdditionalMath.max16(minPeriod - 1, lastCommittedPeriod);
+//        }
+//
+//        refundValue = _policy.feeRate * downtimePeriods;
+//        lastRefundedPeriod = maxPeriod + 1;
     }
 
     /**
@@ -551,83 +433,83 @@ contract PolicyManager is Upgradeable {
     function refundInternal(bytes16 _policyId, address _node, bool _forceRevoke)
         internal returns (uint256 refundValue)
     {
-        refundValue = 0;
-        Policy storage policy = policies[_policyId];
-        require(!policy.disabled && policy.startTimestamp >= resetTimestamp);
-        uint16 endPeriod = uint16(policy.endTimestamp / secondsPerPeriod) + 1;
-        uint256 numberOfActive = policy.arrangements.length;
-        uint256 i = 0;
-        for (; i < policy.arrangements.length; i++) {
-            ArrangementInfo storage arrangement = policy.arrangements[i];
-            address node = arrangement.node;
-            if (node == RESERVED_NODE || _node != RESERVED_NODE && _node != node) {
-                numberOfActive--;
-                continue;
-            }
-            uint256 nodeRefundValue;
-            (nodeRefundValue, arrangement.indexOfDowntimePeriods, arrangement.lastRefundedPeriod) =
-                calculateRefundValue(policy, arrangement);
-            if (_forceRevoke) {
-                NodeInfo storage nodeInfo = nodes[node];
-
-                // Check default value for feeDelta
-                uint16 lastRefundedPeriod = arrangement.lastRefundedPeriod;
-                if (nodeInfo.feeDelta[lastRefundedPeriod] == DEFAULT_FEE_DELTA) {
-                    nodeInfo.feeDelta[lastRefundedPeriod] = -int256(policy.feeRate);
-                } else {
-                    nodeInfo.feeDelta[lastRefundedPeriod] -= int256(policy.feeRate);
-                }
-                if (nodeInfo.feeDelta[endPeriod] == DEFAULT_FEE_DELTA) {
-                    nodeInfo.feeDelta[endPeriod] = int256(policy.feeRate);
-                } else {
-                    nodeInfo.feeDelta[endPeriod] += int256(policy.feeRate);
-                }
-
-                // Reset to default value if needed
-                if (nodeInfo.feeDelta[lastRefundedPeriod] == 0) {
-                    nodeInfo.feeDelta[lastRefundedPeriod] = DEFAULT_FEE_DELTA;
-                }
-                if (nodeInfo.feeDelta[endPeriod] == 0) {
-                    nodeInfo.feeDelta[endPeriod] = DEFAULT_FEE_DELTA;
-                }
-                nodeRefundValue += uint256(endPeriod - lastRefundedPeriod) * policy.feeRate;
-            }
-            if (_forceRevoke || arrangement.lastRefundedPeriod >= endPeriod) {
-                arrangement.node = RESERVED_NODE;
-                arrangement.indexOfDowntimePeriods = 0;
-                arrangement.lastRefundedPeriod = 0;
-                numberOfActive--;
-                emit ArrangementRevoked(_policyId, msg.sender, node, nodeRefundValue);
-            } else {
-                emit RefundForArrangement(_policyId, msg.sender, node, nodeRefundValue);
-            }
-
-            refundValue += nodeRefundValue;
-            if (_node != RESERVED_NODE) {
-               break;
-            }
-        }
-        address payable policySponsor = policy.sponsor;
-        if (_node == RESERVED_NODE) {
-            if (numberOfActive == 0) {
-                policy.disabled = true;
-                // gas refund
-                policy.sponsor = address(0);
-                policy.owner = address(0);
-                policy.feeRate = 0;
-                policy.startTimestamp = 0;
-                policy.endTimestamp = 0;
-                emit PolicyRevoked(_policyId, msg.sender, refundValue);
-            } else {
-                emit RefundForPolicy(_policyId, msg.sender, refundValue);
-            }
-        } else {
-            // arrangement not found
-            require(i < policy.arrangements.length);
-        }
-        if (refundValue > 0) {
-            policySponsor.sendValue(refundValue);
-        }
+//        refundValue = 0;
+//        Policy storage policy = policies[_policyId];
+//        require(!policy.disabled && policy.startTimestamp >= resetTimestamp);
+//        uint16 endPeriod = uint16(policy.endTimestamp / secondsPerPeriod) + 1;
+//        uint256 numberOfActive = policy.arrangements.length;
+//        uint256 i = 0;
+//        for (; i < policy.arrangements.length; i++) {
+//            ArrangementInfo storage arrangement = policy.arrangements[i];
+//            address node = arrangement.node;
+//            if (node == RESERVED_NODE || _node != RESERVED_NODE && _node != node) {
+//                numberOfActive--;
+//                continue;
+//            }
+//            uint256 nodeRefundValue;
+//            (nodeRefundValue, arrangement.indexOfDowntimePeriods, arrangement.lastRefundedPeriod) =
+//                calculateRefundValue(policy, arrangement);
+//            if (_forceRevoke) {
+//                NodeInfo storage nodeInfo = nodes[node];
+//
+//                // Check default value for feeDelta
+//                uint16 lastRefundedPeriod = arrangement.lastRefundedPeriod;
+//                if (nodeInfo.feeDelta[lastRefundedPeriod] == DEFAULT_FEE_DELTA) {
+//                    nodeInfo.feeDelta[lastRefundedPeriod] = -int256(policy.feeRate);
+//                } else {
+//                    nodeInfo.feeDelta[lastRefundedPeriod] -= int256(policy.feeRate);
+//                }
+//                if (nodeInfo.feeDelta[endPeriod] == DEFAULT_FEE_DELTA) {
+//                    nodeInfo.feeDelta[endPeriod] = int256(policy.feeRate);
+//                } else {
+//                    nodeInfo.feeDelta[endPeriod] += int256(policy.feeRate);
+//                }
+//
+//                // Reset to default value if needed
+//                if (nodeInfo.feeDelta[lastRefundedPeriod] == 0) {
+//                    nodeInfo.feeDelta[lastRefundedPeriod] = DEFAULT_FEE_DELTA;
+//                }
+//                if (nodeInfo.feeDelta[endPeriod] == 0) {
+//                    nodeInfo.feeDelta[endPeriod] = DEFAULT_FEE_DELTA;
+//                }
+//                nodeRefundValue += uint256(endPeriod - lastRefundedPeriod) * policy.feeRate;
+//            }
+//            if (_forceRevoke || arrangement.lastRefundedPeriod >= endPeriod) {
+//                arrangement.node = RESERVED_NODE;
+//                arrangement.indexOfDowntimePeriods = 0;
+//                arrangement.lastRefundedPeriod = 0;
+//                numberOfActive--;
+//                emit ArrangementRevoked(_policyId, msg.sender, node, nodeRefundValue);
+//            } else {
+//                emit RefundForArrangement(_policyId, msg.sender, node, nodeRefundValue);
+//            }
+//
+//            refundValue += nodeRefundValue;
+//            if (_node != RESERVED_NODE) {
+//               break;
+//            }
+//        }
+//        address payable policySponsor = policy.sponsor;
+//        if (_node == RESERVED_NODE) {
+//            if (numberOfActive == 0) {
+//                policy.disabled = true;
+//                // gas refund
+//                policy.sponsor = address(0);
+//                policy.owner = address(0);
+//                policy.feeRate = 0;
+//                policy.startTimestamp = 0;
+//                policy.endTimestamp = 0;
+//                emit PolicyRevoked(_policyId, msg.sender, refundValue);
+//            } else {
+//                emit RefundForPolicy(_policyId, msg.sender, refundValue);
+//            }
+//        } else {
+//            // arrangement not found
+//            require(i < policy.arrangements.length);
+//        }
+//        if (refundValue > 0) {
+//            policySponsor.sendValue(refundValue);
+//        }
     }
 
     /**
@@ -638,25 +520,25 @@ contract PolicyManager is Upgradeable {
     function calculateRefundValueInternal(bytes16 _policyId, address _node)
         internal view returns (uint256 refundValue)
     {
-        refundValue = 0;
-        Policy storage policy = policies[_policyId];
-        require((policy.owner == msg.sender || policy.sponsor == msg.sender) && !policy.disabled);
-        uint256 i = 0;
-        for (; i < policy.arrangements.length; i++) {
-            ArrangementInfo storage arrangement = policy.arrangements[i];
-            if (arrangement.node == RESERVED_NODE || _node != RESERVED_NODE && _node != arrangement.node) {
-                continue;
-            }
-            (uint256 nodeRefundValue,,) = calculateRefundValue(policy, arrangement);
-            refundValue += nodeRefundValue;
-            if (_node != RESERVED_NODE) {
-               break;
-            }
-        }
-        if (_node != RESERVED_NODE) {
-            // arrangement not found
-            require(i < policy.arrangements.length);
-        }
+//        refundValue = 0;
+//        Policy storage policy = policies[_policyId];
+//        require((policy.owner == msg.sender || policy.sponsor == msg.sender) && !policy.disabled);
+//        uint256 i = 0;
+//        for (; i < policy.arrangements.length; i++) {
+//            ArrangementInfo storage arrangement = policy.arrangements[i];
+//            if (arrangement.node == RESERVED_NODE || _node != RESERVED_NODE && _node != arrangement.node) {
+//                continue;
+//            }
+//            (uint256 nodeRefundValue,,) = calculateRefundValue(policy, arrangement);
+//            refundValue += nodeRefundValue;
+//            if (_node != RESERVED_NODE) {
+//               break;
+//            }
+//        }
+//        if (_node != RESERVED_NODE) {
+//            // arrangement not found
+//            require(i < policy.arrangements.length);
+//        }
     }
 
     /**
@@ -851,66 +733,66 @@ contract PolicyManager is Upgradeable {
     /// @dev the `onlyWhileUpgrading` modifier works through a call to the parent `verifyState`
     function verifyState(address _testTarget) public override virtual {
         super.verifyState(_testTarget);
-        require(uint64(delegateGet(_testTarget, this.resetTimestamp.selector)) == resetTimestamp);
-
-        Range memory rangeToCheck = delegateGetFeeRateRange(_testTarget);
-        require(feeRateRange.min == rangeToCheck.min &&
-            feeRateRange.defaultValue == rangeToCheck.defaultValue &&
-            feeRateRange.max == rangeToCheck.max);
-
-        Policy storage policy = policies[RESERVED_POLICY_ID];
-        Policy memory policyToCheck = delegateGetPolicy(_testTarget, RESERVED_POLICY_ID);
-        require(policyToCheck.sponsor == policy.sponsor &&
-            policyToCheck.owner == policy.owner &&
-            policyToCheck.feeRate == policy.feeRate &&
-            policyToCheck.startTimestamp == policy.startTimestamp &&
-            policyToCheck.endTimestamp == policy.endTimestamp &&
-            policyToCheck.disabled == policy.disabled);
-
-        require(delegateGet(_testTarget, this.getArrangementsLength.selector, RESERVED_POLICY_ID) ==
-            policy.arrangements.length);
-        if (policy.arrangements.length > 0) {
-            ArrangementInfo storage arrangement = policy.arrangements[0];
-            ArrangementInfo memory arrangementToCheck = delegateGetArrangementInfo(
-                _testTarget, RESERVED_POLICY_ID, 0);
-            require(arrangementToCheck.node == arrangement.node &&
-                arrangementToCheck.indexOfDowntimePeriods == arrangement.indexOfDowntimePeriods &&
-                arrangementToCheck.lastRefundedPeriod == arrangement.lastRefundedPeriod);
-        }
-
-        NodeInfo storage nodeInfo = nodes[RESERVED_NODE];
-        MemoryNodeInfo memory nodeInfoToCheck = delegateGetNodeInfo(_testTarget, RESERVED_NODE);
-        require(nodeInfoToCheck.fee == nodeInfo.fee &&
-            nodeInfoToCheck.feeRate == nodeInfo.feeRate &&
-            nodeInfoToCheck.previousFeePeriod == nodeInfo.previousFeePeriod &&
-            nodeInfoToCheck.minFeeRate == nodeInfo.minFeeRate);
-
-        require(int256(delegateGet(_testTarget, this.getNodeFeeDelta.selector,
-            bytes32(bytes20(RESERVED_NODE)), bytes32(uint256(11)))) == getNodeFeeDelta(RESERVED_NODE, 11));
+//        require(uint64(delegateGet(_testTarget, this.resetTimestamp.selector)) == resetTimestamp);
+//
+//        Range memory rangeToCheck = delegateGetFeeRateRange(_testTarget);
+//        require(feeRateRange.min == rangeToCheck.min &&
+//            feeRateRange.defaultValue == rangeToCheck.defaultValue &&
+//            feeRateRange.max == rangeToCheck.max);
+//
+//        Policy storage policy = policies[RESERVED_POLICY_ID];
+//        Policy memory policyToCheck = delegateGetPolicy(_testTarget, RESERVED_POLICY_ID);
+//        require(policyToCheck.sponsor == policy.sponsor &&
+//            policyToCheck.owner == policy.owner &&
+//            policyToCheck.feeRate == policy.feeRate &&
+//            policyToCheck.startTimestamp == policy.startTimestamp &&
+//            policyToCheck.endTimestamp == policy.endTimestamp &&
+//            policyToCheck.disabled == policy.disabled);
+//
+//        require(delegateGet(_testTarget, this.getArrangementsLength.selector, RESERVED_POLICY_ID) ==
+//            policy.arrangements.length);
+//        if (policy.arrangements.length > 0) {
+//            ArrangementInfo storage arrangement = policy.arrangements[0];
+//            ArrangementInfo memory arrangementToCheck = delegateGetArrangementInfo(
+//                _testTarget, RESERVED_POLICY_ID, 0);
+//            require(arrangementToCheck.node == arrangement.node &&
+//                arrangementToCheck.indexOfDowntimePeriods == arrangement.indexOfDowntimePeriods &&
+//                arrangementToCheck.lastRefundedPeriod == arrangement.lastRefundedPeriod);
+//        }
+//
+//        NodeInfo storage nodeInfo = nodes[RESERVED_NODE];
+//        MemoryNodeInfo memory nodeInfoToCheck = delegateGetNodeInfo(_testTarget, RESERVED_NODE);
+//        require(nodeInfoToCheck.fee == nodeInfo.fee &&
+//            nodeInfoToCheck.feeRate == nodeInfo.feeRate &&
+//            nodeInfoToCheck.previousFeePeriod == nodeInfo.previousFeePeriod &&
+//            nodeInfoToCheck.minFeeRate == nodeInfo.minFeeRate);
+//
+//        require(int256(delegateGet(_testTarget, this.getNodeFeeDelta.selector,
+//            bytes32(bytes20(RESERVED_NODE)), bytes32(uint256(11)))) == getNodeFeeDelta(RESERVED_NODE, 11));
     }
 
     /// @dev the `onlyWhileUpgrading` modifier works through a call to the parent `finishUpgrade`
     function finishUpgrade(address _target) public override virtual {
         super.finishUpgrade(_target);
 
-        if (resetTimestamp == 0) {
-            resetTimestamp = uint64(block.timestamp);
-        }
-
-        // Create fake Policy and NodeInfo to use them in verifyState(address)
-        Policy storage policy = policies[RESERVED_POLICY_ID];
-        policy.sponsor = msg.sender;
-        policy.owner = address(this);
-        policy.startTimestamp = 1;
-        policy.endTimestamp = 2;
-        policy.feeRate = 3;
-        policy.disabled = true;
-        policy.arrangements.push(ArrangementInfo(RESERVED_NODE, 11, 22));
-        NodeInfo storage nodeInfo = nodes[RESERVED_NODE];
-        nodeInfo.fee = 100;
-        nodeInfo.feeRate = 33;
-        nodeInfo.previousFeePeriod = 44;
-        nodeInfo.feeDelta[11] = 55;
-        nodeInfo.minFeeRate = 777;
+//        if (resetTimestamp == 0) {
+//            resetTimestamp = uint64(block.timestamp);
+//        }
+//
+//        // Create fake Policy and NodeInfo to use them in verifyState(address)
+//        Policy storage policy = policies[RESERVED_POLICY_ID];
+//        policy.sponsor = msg.sender;
+//        policy.owner = address(this);
+//        policy.startTimestamp = 1;
+//        policy.endTimestamp = 2;
+//        policy.feeRate = 3;
+//        policy.disabled = true;
+//        policy.arrangements.push(ArrangementInfo(RESERVED_NODE, 11, 22));
+//        NodeInfo storage nodeInfo = nodes[RESERVED_NODE];
+//        nodeInfo.fee = 100;
+//        nodeInfo.feeRate = 33;
+//        nodeInfo.previousFeePeriod = 44;
+//        nodeInfo.feeDelta[11] = 55;
+//        nodeInfo.minFeeRate = 777;
     }
 }

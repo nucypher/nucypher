@@ -62,7 +62,7 @@ contract Adjudicator is Upgradeable {
         uint256 _rewardCoefficient
     ) {
         // Sanity checks.
-        require(_escrow.secondsPerPeriod() > 0 &&  // This contract has an escrow, and it's not the null address.
+        require(address(_escrow.token()) != address(0) &&  // This contract has an escrow, and it's not the null address.
             // The reward and penalty coefficients are set.
             _percentagePenaltyCoefficient != 0 &&
             _rewardCoefficient != 0);

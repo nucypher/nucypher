@@ -85,10 +85,6 @@ contract StakingEscrow is Upgradeable, IERC900History {
     using Snapshot for uint128[];
     using SafeERC20 for NuCypherToken;
 
-    // TODO docs
-    event RewardAdded(uint256 reward);
-    event RewardPaid(address indexed staker, uint256 reward);
-
     /**
     * @notice Signals that tokens were deposited
     * @param staker Staker address
@@ -111,6 +107,13 @@ contract StakingEscrow is Upgradeable, IERC900History {
     * @param reward Value of reward provided to investigator (in NuNits)
     */
     event Slashed(address indexed staker, uint256 penalty, address indexed investigator, uint256 reward);
+
+    /**
+    * @notice Signals that the snapshot parameter was activated/deactivated
+    * @param staker Staker address
+    * @param snapshotsEnabled Updated parameter value
+    */
+    event SnapshotSet(address indexed staker, bool snapshotsEnabled);
 
     /**
     * @notice Signals that a worker was bonded to the staker
@@ -146,52 +149,45 @@ contract StakingEscrow is Upgradeable, IERC900History {
 
     }
 
-    // indices for flags
-    uint8 internal constant RE_STAKE_DISABLED_INDEX = 0;
-    uint8 internal constant WIND_DOWN_INDEX = 1;
+    // indices for flags (0, 1, and 4 were in use, skip it in future)
     uint8 internal constant MEASURE_WORK_INDEX = 2;
     uint8 internal constant SNAPSHOTS_DISABLED_INDEX = 3;
-    uint8 internal constant MIGRATED_INDEX = 4;
-
-    uint128 public immutable formerTotalNUSupply;
 
     uint256 public immutable minWorkerSeconds;
 
     uint256 public immutable minUnstakingDuration;
 
-    NuCypherToken public immutable nuToken;
+    NuCypherToken public immutable token;
     AdjudicatorInterface public immutable adjudicator;
     WorkLockInterface public immutable workLock;
 
     uint128 stub1; // former slot for previousPeriodSupply
-    uint128 totalNUSupply; // former slot for currentPeriodSupply
-    uint16 stub2; // former slot for currentMintingPeriod
+    uint128 stub2; // former slot for currentPeriodSupply
+    uint16 stub3; // former slot for currentMintingPeriod
 
     mapping (address => StakerInfo) public stakerInfo;
     address[] public stakers;
     mapping (address => address) public stakerFromWorker;
 
-    mapping (uint16 => uint256) stub3; // former slot for lockedPerPeriod
+    mapping (uint16 => uint256) stub4; // former slot for lockedPerPeriod
     uint128[] public balanceHistory;
 
-    address stub4; // former slot for PolicyManager
-    address stub5; // former slot for Adjudicator
-    address stub6; // former slot for WorkLock
+    address stub5; // former slot for PolicyManager
+    address stub6; // former slot for Adjudicator
+    address stub7; // former slot for WorkLock
 
-    mapping (uint16 => uint256) stub7; // last former slot for lockedPerPeriod
-
-    uint256 public totalNUStaked;
+    mapping (uint16 => uint256) stub8; // last former slot for lockedPerPeriod
 
     /**
     * @notice Constructor sets address of token contract and parameters for staking
-    * @param _nuToken NuCypher token contract
+    * @param _token NuCypher token contract
     * @param _adjudicator Adjudicator contract
     * @param _workLock WorkLock contract. Zero address if there is no WorkLock
     * @param _minWorkerSeconds Min amount of seconds while a worker can't be changed
      * @param _minUnstakingDuration Min unstaking duration (in sec) to be eligible for staking
     */
     constructor(
-        NuCypherToken _nuToken,
+        NuCypherToken _token,
         AdjudicatorInterface _adjudicator,
         WorkLockInterface _workLock,
         uint256 _minWorkerSeconds,
@@ -200,13 +196,11 @@ contract StakingEscrow is Upgradeable, IERC900History {
         minWorkerSeconds = _minWorkerSeconds;
         minUnstakingDuration = _minUnstakingDuration;
 
-        uint256 localNUTotalSupply = _nuToken.totalSupply();
-        require(localNUTotalSupply > 0 &&
+        require(_token.totalSupply() > 0 &&
             _adjudicator.rewardCoefficient() != 0 &&
-            (address(_workLock) == address(0) || _workLock.token() == _nuToken));
+            (address(_workLock) == address(0) || _workLock.token() == _token));
 
-        formerTotalNUSupply = uint128(localNUTotalSupply);
-        nuToken = _nuToken;
+        token = _token;
         adjudicator = _adjudicator;
         workLock = _workLock;
     }
@@ -233,19 +227,13 @@ contract StakingEscrow is Upgradeable, IERC900History {
     */
     function getFlags(address _staker)
         external view returns (
-            bool windDown,
-            bool reStake,
             bool measureWork,
-            bool snapshots,
-            bool migrated
+            bool snapshots
         )
     {
         StakerInfo storage info = stakerInfo[_staker];
-        windDown = info.flags.bitSet(WIND_DOWN_INDEX);
-        reStake = !info.flags.bitSet(RE_STAKE_DISABLED_INDEX);
         measureWork = info.flags.bitSet(MEASURE_WORK_INDEX);
         snapshots = !info.flags.bitSet(SNAPSHOTS_DISABLED_INDEX);
-        migrated = info.flags.bitSet(MIGRATED_INDEX);
     }
 
     /**
@@ -365,6 +353,28 @@ contract StakingEscrow is Upgradeable, IERC900History {
         deposit(_staker, msg.sender, _value);
     }
 
+    /**
+    * @notice Activate/deactivate taking snapshots of balances
+    * @param _enableSnapshots True to activate snapshots, False to deactivate
+    */
+    function setSnapshots(bool _enableSnapshots) external {
+        StakerInfo storage info = stakerInfo[msg.sender];
+        if (info.flags.bitSet(SNAPSHOTS_DISABLED_INDEX) == !_enableSnapshots) {
+            return;
+        }
+
+        uint256 lastGlobalBalance = uint256(balanceHistory.lastValue());
+        if(_enableSnapshots){
+            info.history.addSnapshot(info.value);
+            balanceHistory.addSnapshot(lastGlobalBalance + info.value);
+        } else {
+            info.history.addSnapshot(0);
+            balanceHistory.addSnapshot(lastGlobalBalance - info.value);
+        }
+        info.flags = info.flags.toggleBit(SNAPSHOTS_DISABLED_INDEX);
+
+        emit SnapshotSet(msg.sender, _enableSnapshots);
+    }
 
     /**
     * @notice Adds a new snapshot to both the staker and global balance histories,
@@ -396,7 +406,7 @@ contract StakingEscrow is Upgradeable, IERC900History {
         if (info.value == 0 && info.workerStartTimestamp == 0) { // TODO ???
             stakers.push(_staker);
         }
-        nuToken.safeTransferFrom(_payer, address(this), _value);
+        token.safeTransferFrom(_payer, address(this), _value);
         info.value += _value;
 
         addSnapshot(info, int256(_value));
@@ -421,13 +431,12 @@ contract StakingEscrow is Upgradeable, IERC900History {
         require(_value <= info.value &&
                 info.startUnstakingTimestamp + minUnstakingDuration >= block.timestamp);
         info.value -= _value;
-        totalNUStaked -= _value; // TODO protection?
         if (info.value == 0) {
             info.startUnstakingTimestamp = 0;
         }
 
         addSnapshot(info, - int256(_value)); // TODO
-        nuToken.safeTransfer(msg.sender, _value);
+        token.safeTransfer(msg.sender, _value);
         emit Withdrawn(msg.sender, _value);
 
         autoUnbondWorker(msg.sender, info);
@@ -463,30 +472,23 @@ contract StakingEscrow is Upgradeable, IERC900History {
     )
         external
     {
-        // TODO
-//        require(msg.sender == address(adjudicator));
-//        require(_penalty > 0);
-//        StakerInfo storage info = stakerInfo[_staker];
-//        require(info.flags.bitSet(MIGRATED_INDEX));
-//        if (info.nuValue <= _penalty) {
-//            _penalty = info.nuValue;
-//        }
-//        info.nuValue -= _penalty;
-//        if (_reward > _penalty) {
-//            _reward = _penalty;
-//        }
-//
-//        emit Slashed(_staker, _penalty, _investigator, _reward);
-//        if (_penalty > _reward) {
-//            unMint(_penalty - _reward);
-//        }
-//        // TODO change to withdrawal pattern (#1499)
-//        if (_reward > 0) {
-//            nuToken.safeTransfer(_investigator, _reward);
-//        }
-//
-//        addSnapshot(info, - int256(_penalty));
+        require(msg.sender == address(adjudicator)); // TODO allow KEaNU token staking too
+        require(_penalty > 0);
+        StakerInfo storage info = stakerInfo[_staker];
+        if (info.value <= _penalty) {
+            _penalty = info.value;
+        }
+        info.value -= _penalty;
+        if (_reward > _penalty) {
+            _reward = _penalty;
+        }
 
+        emit Slashed(_staker, _penalty, _investigator, _reward);
+        if (_reward > 0) {
+            token.safeTransfer(_investigator, _reward);
+        }
+
+        addSnapshot(info, - int256(_penalty));
     }
 
     //-------------Additional getters for stakers info-------------
@@ -527,67 +529,37 @@ contract StakingEscrow is Upgradeable, IERC900History {
     /// @dev the `onlyWhileUpgrading` modifier works through a call to the parent `verifyState`
     function verifyState(address _testTarget) public override virtual {
         super.verifyState(_testTarget);
-//        require(delegateGet(_testTarget, this.lockedPerPeriod.selector,
-//            bytes32(bytes2(RESERVED_PERIOD))) == lockedPerPeriod[RESERVED_PERIOD]);
-//        require(address(delegateGet(_testTarget, this.stakerFromWorker.selector, bytes32(0))) ==
-//            stakerFromWorker[address(0)]);
-//
-//        require(delegateGet(_testTarget, this.getStakersLength.selector) == stakers.length);
-//        if (stakers.length == 0) {
-//            return;
-//        }
-//        address stakerAddress = stakers[0];
-//        require(address(uint160(delegateGet(_testTarget, this.stakers.selector, 0))) == stakerAddress);
-//        StakerInfo storage info = stakerInfo[stakerAddress];
-//        bytes32 staker = bytes32(uint256(stakerAddress));
-//        StakerInfo memory infoToCheck = delegateGetStakerInfo(_testTarget, staker);
-//        require(infoToCheck.nuValue == info.nuValue &&
-//            infoToCheck.currentCommittedPeriod == info.currentCommittedPeriod &&
-//            infoToCheck.nextCommittedPeriod == info.nextCommittedPeriod &&
-//            infoToCheck.flags == info.flags &&
-//            infoToCheck.lastCommittedPeriod == info.lastCommittedPeriod &&
-//            infoToCheck.completedWork == info.completedWork &&
-//            infoToCheck.worker == info.worker &&
-//            infoToCheck.workerStartPeriod == info.workerStartPeriod);
-//
-//        require(delegateGet(_testTarget, this.getPastDowntimeLength.selector, staker) ==
-//            info.pastDowntime.length);
-//        for (uint256 i = 0; i < info.pastDowntime.length && i < MAX_CHECKED_VALUES; i++) {
-//            Downtime storage downtime = info.pastDowntime[i];
-//            Downtime memory downtimeToCheck = delegateGetPastDowntime(_testTarget, staker, i);
-//            require(downtimeToCheck.startPeriod == downtime.startPeriod &&
-//                downtimeToCheck.endPeriod == downtime.endPeriod);
-//        }
-//
-//        require(delegateGet(_testTarget, this.getSubStakesLength.selector, staker) == info.subStakes.length);
-//        for (uint256 i = 0; i < info.subStakes.length && i < MAX_CHECKED_VALUES; i++) {
-//            SubStakeInfo storage subStakeInfo = info.subStakes[i];
-//            SubStakeInfo memory subStakeInfoToCheck = delegateGetSubStakeInfo(_testTarget, staker, i);
-//            require(subStakeInfoToCheck.firstPeriod == subStakeInfo.firstPeriod &&
-//                subStakeInfoToCheck.lastPeriod == subStakeInfo.lastPeriod &&
-//                subStakeInfoToCheck.unlockingDuration == subStakeInfo.unlockingDuration &&
-//                subStakeInfoToCheck.lockedValue == subStakeInfo.lockedValue);
-//        }
-//
-//        // it's not perfect because checks not only slot value but also decoding
-//        // at least without additional functions
-//        require(delegateGet(_testTarget, this.totalStakedForAt.selector, staker, bytes32(block.number)) ==
-//            totalStakedForAt(stakerAddress, block.number));
-//        require(delegateGet(_testTarget, this.totalStakedAt.selector, bytes32(block.number)) ==
-//            totalStakedAt(block.number));
-//
-//        if (info.worker != address(0)) {
-//            require(address(delegateGet(_testTarget, this.stakerFromWorker.selector, bytes32(uint256(info.worker)))) ==
-//                stakerFromWorker[info.worker]);
-//        }
+        require(address(delegateGet(_testTarget, this.stakerFromWorker.selector, bytes32(0))) ==
+            stakerFromWorker[address(0)]);
+
+        require(delegateGet(_testTarget, this.getStakersLength.selector) == stakers.length);
+        if (stakers.length == 0) {
+            return;
+        }
+        address stakerAddress = stakers[0];
+        require(address(uint160(delegateGet(_testTarget, this.stakers.selector, 0))) == stakerAddress);
+        StakerInfo storage info = stakerInfo[stakerAddress];
+        bytes32 staker = bytes32(uint256(stakerAddress));
+        StakerInfo memory infoToCheck = delegateGetStakerInfo(_testTarget, staker);
+        require(infoToCheck.value == info.value &&
+            infoToCheck.workerStartTimestamp == info.workerStartTimestamp &&
+            infoToCheck.startUnstakingTimestamp == info.startUnstakingTimestamp);
+
+        // it's not perfect because checks not only slot value but also decoding
+        // at least without additional functions
+        require(delegateGet(_testTarget, this.totalStakedForAt.selector, staker, bytes32(block.number)) ==
+            totalStakedForAt(stakerAddress, block.number));
+        require(delegateGet(_testTarget, this.totalStakedAt.selector, bytes32(block.number)) ==
+            totalStakedAt(block.number));
+
+        if (info.worker != address(0)) {
+            require(address(delegateGet(_testTarget, this.stakerFromWorker.selector, bytes32(uint256(info.worker)))) ==
+                stakerFromWorker[info.worker]);
+        }
     }
 
     /// @dev the `onlyWhileUpgrading` modifier works through a call to the parent `finishUpgrade`
     function finishUpgrade(address _target) public override virtual {
         super.finishUpgrade(_target);
-        totalNUStaked = nuToken.balanceOf(address(this)) - (formerTotalNUSupply - totalNUSupply); // TODO ???
-
-        // Create fake worker
-        stakerFromWorker[address(0)] = address(this);
     }
 }

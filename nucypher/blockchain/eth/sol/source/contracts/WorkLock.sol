@@ -8,8 +8,22 @@ import "zeppelin/token/ERC20/SafeERC20.sol";
 import "zeppelin/utils/Address.sol";
 import "zeppelin/ownership/Ownable.sol";
 import "contracts/NuCypherToken.sol";
-import "contracts/StakingEscrow.sol";
 import "contracts/lib/AdditionalMath.sol";
+
+
+/**
+* @notice StakingEscrow interface
+*/
+interface StakingEscrowInterface {
+    function secondsPerPeriod() external view returns (uint32);
+    function token() external view returns (NuCypherToken);
+    function minLockedPeriods() external view returns (uint16);
+    function maxAllowableLockedTokens() external view returns (uint256);
+    function minAllowableLockedTokens() external view returns (uint256);
+    function getCompletedWork(address) external view returns (uint256);
+    function setWorkMeasurement(address, bool) external returns (uint256);
+    function depositFromWorkLock(address _staker, uint256 _value, uint16 _unlockingDuration) external;
+}
 
 
 /**
@@ -43,7 +57,7 @@ contract WorkLock is Ownable {
     uint256 private constant MAX_ETH_SUPPLY = 2e10 ether;
 
     NuCypherToken public immutable token;
-    StakingEscrow public immutable escrow;
+    StakingEscrowInterface public immutable escrow;
 
     /*
     * @dev WorkLock calculations:
@@ -96,7 +110,7 @@ contract WorkLock is Ownable {
     */
     constructor(
         NuCypherToken _token,
-        StakingEscrow _escrow,
+        StakingEscrowInterface _escrow,
         uint256 _startBidDate,
         uint256 _endBidDate,
         uint256 _endCancellationDate,

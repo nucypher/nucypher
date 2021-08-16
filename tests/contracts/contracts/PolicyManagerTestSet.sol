@@ -4,7 +4,7 @@ pragma solidity ^0.7.0;
 
 
 import "contracts/PolicyManager.sol";
-import "contracts/StakingEscrow.sol";
+import "contracts/PREStakingApp.sol";
 
 
 /**
@@ -12,7 +12,7 @@ import "contracts/StakingEscrow.sol";
 */
 contract PolicyManagerBad is PolicyManager {
 
-    constructor(StakingEscrow _escrow) PolicyManager(_escrow, _escrow) {
+    constructor(PREStakingApp _stakingApp) PolicyManager(_stakingApp) {
     }
 
     function getNodeFeeDelta(address, uint16) public view override returns (int256) {}
@@ -27,7 +27,7 @@ contract PolicyManagerV2Mock is PolicyManager {
 
     uint256 public valueToCheck;
 
-    constructor(StakingEscrow _escrow) PolicyManager(_escrow, _escrow) {
+    constructor(PREStakingApp _stakingApp) PolicyManager(_stakingApp) {
     }
 
     function setValueToCheck(uint256 _valueToCheck) public {
@@ -40,113 +40,7 @@ contract PolicyManagerV2Mock is PolicyManager {
     }
 }
 
-
-/**
-* @notice Contract for using in PolicyManager tests
-*/
-contract StakingEscrowForPolicyMock {
-
-    struct Downtime {
-        uint16 startPeriod;
-        uint16 endPeriod;
-    }
-
-    uint32 public immutable genesisSecondsPerPeriod;
-    uint32 public immutable secondsPerPeriod;
-
-    PolicyManager public policyManager;
-    uint16 public lastCommittedPeriod;
-    Downtime[] public downtime;
-
-    /**
-    * @param _genesisHoursPerPeriod Size of period in hours at genesis
-    * @param _hoursPerPeriod Size of period in hours
-    */
-    constructor(uint16 _genesisHoursPerPeriod, uint16 _hoursPerPeriod) {
-        secondsPerPeriod = _hoursPerPeriod * uint32(1 hours);
-        genesisSecondsPerPeriod = _genesisHoursPerPeriod * uint32(1 hours);
-    }
-
-    /**
-    * @return Number of current period
-    */
-    function getCurrentPeriod() public view returns (uint16) {
-        return uint16(block.timestamp / secondsPerPeriod);
-    }
-
-    /**
-    * @notice Set last committed period
-    */
-    function setLastCommittedPeriod(uint16 _lastCommittedPeriod) external {
-        lastCommittedPeriod = _lastCommittedPeriod;
-    }
-
-    /**
-    * @notice Add downtime period
-    */
-    function pushDowntimePeriod(uint16 _startPeriod, uint16 _endPeriod) external {
-        downtime.push(Downtime(_startPeriod, _endPeriod));
-    }
-
-    /**
-    * @notice Emulate ping method call
-    */
-    function ping(
-        address _node,
-        uint16 _processedPeriod1,
-        uint16 _processedPeriod2,
-        uint16 _periodToSetDefault
-    ) external {
-        policyManager.ping(_node, _processedPeriod1, _processedPeriod2, _periodToSetDefault);
-    }
-
-    /**
-    * @notice Emulate migrate method call
-    */
-    function migrate(address _node) external {
-        policyManager.migrate(_node);
-    }
-
-    /**
-    * @notice Set policy manager address
-    */
-    function setPolicyManager(PolicyManager _policyManager) external {
-        policyManager = _policyManager;
-    }
-
-    function getPastDowntimeLength(address) public view returns (uint256) {
-        return downtime.length;
-    }
-
-    function getPastDowntime(address, uint256 _index)
-        public view returns (uint16 startPeriod, uint16 endPeriod)
-    {
-        Downtime storage data = downtime[_index];
-        startPeriod = data.startPeriod;
-        endPeriod = data.endPeriod;
-    }
-
-    function getLastCommittedPeriod(address) public view returns (uint256) {
-        return lastCommittedPeriod;
-    }
-
-    function register(address _node, uint16 _period) public {
-        policyManager.register(_node, _period);
-    }
-
-    function register(address _node) external {
-        register(_node, getCurrentPeriod() - 1);
-    }
-
-    function findIndexOfPastDowntime(address, uint16 _period) external view returns (uint256 index) {
-        for (index = 0; index < downtime.length; index++) {
-            if (_period <= downtime[index].endPeriod) {
-                return index;
-            }
-        }
-    }
-
-}
+// TODO PREStakingAPP mock
 
 
 /**
@@ -154,7 +48,7 @@ contract StakingEscrowForPolicyMock {
 */
 contract ExtendedPolicyManager is PolicyManager {
 
-    constructor(StakingEscrow _escrow) PolicyManager(_escrow, _escrow) {
+    constructor(PREStakingApp _stakingApp) PolicyManager(_stakingApp) {
     }
 
     function setNodeFeeDelta(address _node, uint16 _period, int256 _value) external {

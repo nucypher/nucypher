@@ -6,68 +6,6 @@ pragma solidity ^0.7.0;
 import "contracts/StakingEscrow.sol";
 import "contracts/NuCypherToken.sol";
 
-/**
-* @notice Enhanced version of StakingEscrow to use in tests
-*/
-contract EnhancedStakingEscrow is StakingEscrow {
-    using AdditionalMath for uint16;
-
-    constructor(
-        NuCypherToken _token,
-        PolicyManagerInterface _policyManager,
-        AdjudicatorInterface _adjudicator,
-        WorkLockInterface _workLock,
-        uint32 _genesisHoursPerPeriod,
-        uint32 _hoursPerPeriod,
-        uint256 _issuanceDecayCoefficient,
-        uint256 _lockDurationCoefficient1,
-        uint256 _lockDurationCoefficient2,
-        uint16 _maximumRewardedPeriods,
-        uint256 _firstPhaseTotalSupply,
-        uint256 _firstPhaseMaxIssuance,
-        uint16 _minLockedPeriods,
-        uint256 _minAllowableLockedTokens,
-        uint256 _maxAllowableLockedTokens,
-        uint16 _minWorkerPeriods
-    )
-        StakingEscrow(
-            _token,
-            _policyManager,
-            _adjudicator,
-            _workLock,
-            _genesisHoursPerPeriod,
-            _hoursPerPeriod,
-            _issuanceDecayCoefficient,
-            _lockDurationCoefficient1,
-            _lockDurationCoefficient2,
-            _maximumRewardedPeriods,
-            _firstPhaseTotalSupply,
-            _firstPhaseMaxIssuance,
-            _minLockedPeriods,
-            _minAllowableLockedTokens,
-            _maxAllowableLockedTokens,
-            _minWorkerPeriods
-        )
-    {
-    }
-
-    /**
-    * @notice Get the value of locked tokens for a staker in a previous period
-    * @dev Information may be incorrect for rewarded or not committed surpassed period
-    * @param _staker Staker
-    * @param _periods Amount of periods that will be subtracted from the current period
-    */
-    function getLockedTokensInPast(address _staker, uint16 _periods)
-        external view returns (uint256 lockedValue)
-    {
-        StakerInfo storage info = stakerInfo[_staker];
-        uint16 currentPeriod = getCurrentPeriod();
-        uint16 previousPeriod = currentPeriod.sub16(_periods);
-        return getLockedTokens(info, currentPeriod, previousPeriod);
-    }
-
-}
-
 
 /**
 * @notice Upgrade to this contract must lead to fail
@@ -75,45 +13,23 @@ contract EnhancedStakingEscrow is StakingEscrow {
 contract StakingEscrowBad is StakingEscrow {
 
     constructor(
-        NuCypherToken _token,
-        PolicyManagerInterface _policyManager,
+        NuCypherToken _nuToken,
         AdjudicatorInterface _adjudicator,
         WorkLockInterface _workLock,
-        uint32 _genesisHoursPerPeriod,
-        uint32 _hoursPerPeriod,
-        uint256 _issuanceDecayCoefficient,
-        uint256 _lockDurationCoefficient1,
-        uint256 _lockDurationCoefficient2,
-        uint16 _maximumRewardedPeriods,
-        uint256 _firstPhaseTotalSupply,
-        uint256 _firstPhaseMaxIssuance,
-        uint16 _minLockedPeriods,
-        uint256 _minAllowableLockedTokens,
-        uint256 _maxAllowableLockedTokens,
-        uint16 _minWorkerPeriods
+        uint256 _minWorkerSeconds,
+        uint256 _minUnstakingDuration
     )
         StakingEscrow(
-            _token,
-            _policyManager,
+            _nuToken,
             _adjudicator,
             _workLock,
-            _genesisHoursPerPeriod,
-            _hoursPerPeriod,
-            _issuanceDecayCoefficient,
-            _lockDurationCoefficient1,
-            _lockDurationCoefficient2,
-            _maximumRewardedPeriods,
-            _firstPhaseTotalSupply,
-            _firstPhaseMaxIssuance,
-            _minLockedPeriods,
-            _minAllowableLockedTokens,
-            _maxAllowableLockedTokens,
-            _minWorkerPeriods
+            _minWorkerSeconds,
+            _minUnstakingDuration
         )
     {
     }
 
-    function getSubStakeInfo(address, uint256) public view override returns (uint16, uint16, uint16, uint128) {}
+    // TODO override something
 
 }
 
@@ -126,43 +42,21 @@ contract StakingEscrowV2Mock is StakingEscrow {
     uint256 public valueToCheck;
 
     constructor(
-        NuCypherToken _token,
-        PolicyManagerInterface _policyManager,
+        NuCypherToken _nuToken,
         AdjudicatorInterface _adjudicator,
         WorkLockInterface _workLock,
-        uint32 _genesisHoursPerPeriod,
-        uint32 _hoursPerPeriod,
-        uint256 _issuanceDecayCoefficient,
-        uint256 _lockDurationCoefficient1,
-        uint256 _lockDurationCoefficient2,
-        uint16 _maximumRewardedPeriods,
-        uint256 _firstPhaseTotalSupply,
-        uint256 _firstPhaseMaxIssuance,
-        uint16 _minLockedPeriods,
-        uint256 _minAllowableLockedTokens,
-        uint256 _maxAllowableLockedTokens,
-        uint16 _minWorkerPeriods
+        uint256 _minWorkerSeconds,
+        uint256 _minUnstakingDuration
     )
         StakingEscrow(
-            _token,
-            _policyManager,
+            _nuToken,
             _adjudicator,
             _workLock,
-            _genesisHoursPerPeriod,
-            _hoursPerPeriod,
-            _issuanceDecayCoefficient,
-            _lockDurationCoefficient1,
-            _lockDurationCoefficient2,
-            _maximumRewardedPeriods,
-            _firstPhaseTotalSupply,
-            _firstPhaseMaxIssuance,
-            _minLockedPeriods,
-            _minAllowableLockedTokens,
-            _maxAllowableLockedTokens,
-            _minWorkerPeriods
+            _minWorkerSeconds,
+            _minUnstakingDuration
         )
     {
-        valueToCheck = _minWorkerPeriods;
+        valueToCheck = _minWorkerSeconds;
     }
 
     function setValueToCheck(uint256 _valueToCheck) public {
@@ -179,54 +73,6 @@ contract StakingEscrowV2Mock is StakingEscrow {
         valueToCheck = escrow.valueToCheck();
         emit UpgradeFinished(_target, msg.sender);
     }
-}
-
-
-/**
-* @notice Contract for testing staking escrow contract
-*/
-contract PolicyManagerForStakingEscrowMock {
-
-    uint32 public secondsPerPeriod;
-    StakingEscrow public escrow;
-    mapping (address => uint16[]) public nodes;
-    mapping (address => uint256) public migratedNodes;
-
-    constructor(address, uint32 _secondsPerPeriod) {
-        secondsPerPeriod = _secondsPerPeriod;
-    }
-
-    function setStakingEscrow(StakingEscrow _escrow) external {
-        escrow = _escrow;
-    }
-
-    function register(address _node, uint16 _period) external {
-        nodes[_node].push(_period);
-    }
-
-    function migrate(address _node) external {
-        migratedNodes[_node]++;
-    }
-
-    function ping(
-        address _node,
-        uint16 _processedPeriod1,
-        uint16 _processedPeriod2,
-        uint16 _periodToSetDefault
-    ) external {
-        nodes[_node].push(_processedPeriod1);
-        nodes[_node].push(_processedPeriod2);
-        nodes[_node].push(_periodToSetDefault);
-    }
-
-    function getPeriodsLength(address _node) public view returns (uint256) {
-        return nodes[_node].length;
-    }
-
-    function getPeriod(address _node, uint256 _index) public view returns (uint16) {
-        return nodes[_node][_index];
-    }
-
 }
 
 
@@ -273,15 +119,6 @@ contract Intermediary {
 
     function bondWorker(address _worker) external {
         escrow.bondWorker(_worker);
-    }
-
-    function deposit(uint256 _value, uint16 _periods) external {
-        token.approve(address(escrow), _value);
-        escrow.deposit(address(this), _value, _periods);
-    }
-
-    function commitToNextPeriod() external {
-        escrow.commitToNextPeriod();
     }
 
 }
