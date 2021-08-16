@@ -19,9 +19,6 @@
 import json
 from base64 import b64encode
 
-import pytest
-
-from nucypher.network.nodes import Learner
 from tests.utils.policy import retrieval_request_setup
 
 
@@ -80,8 +77,8 @@ def test_get_ursulas(federated_porter_web_controller, federated_ursulas):
     #
     failed_ursula_params = dict(get_ursulas_params)
     failed_ursula_params['quantity'] = len(federated_ursulas_list) + 1  # too many to get
-    with pytest.raises(Learner.NotEnoughNodes):
-        federated_porter_web_controller.get('/get_ursulas', data=json.dumps(failed_ursula_params))
+    response = federated_porter_web_controller.get('/get_ursulas', data=json.dumps(failed_ursula_params))
+    assert response.status_code == 500
 
 
 def test_retrieve_cfrags(federated_porter_web_controller,
