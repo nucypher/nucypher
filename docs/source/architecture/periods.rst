@@ -1,12 +1,50 @@
-Period Duration
-===============
+Periods
+=======
 
-In the NuCypher Network, a *Period* is the minimum unit for policy duration. This applies to sharing policy durations
+In the NuCypher Network, a *Period* is the minimum unit of time for policy duration. This applies to sharing policy durations
 and also corresponds to the frequency that Workers must make an on-chain commitment to being online and available.
 Periods begin at UTC midnight.
 
+
+Worker Period Commitment
+------------------------
+Once per period, Workers commit to being available to the Network for the next period via the ``commitToNextPeriod()``
+operation in the ``StakingEscrow`` contract. This operation is performed automatically by a running Worker node and
+consists of two parts:
+
+#. Indicate availability for work in the next period.
+#. Mint staking rewards for the previous period if availability was previously indicated.
+
+In other words, committing to a period is prospective, and minting rewards is retrospective. To illustrate the process,
+here is a simplified example:
+
+.. image:: ../.static/img/period_commitment.png
+    :target: ../.static/img/period_commitment.png
+
+* *Period 5*: A stake is created, and a Worker is initiated and started.
+* *Period 5*: Worker calls ``commitToNextPeriod()`` to indicate availability for Period 6 (the next period) - the
+  first period of availability. The Worker was unavailable during Period 4 (previous period), so there are no staking
+  rewards to mint.
+* *Period 6*: Worker calls ``commitToNextPeriod()`` to indicate availability for Period 7 (the next period). The Worker
+  did not indicate availability for Period 5 (previous period) since it only started in Period 5, so there are no
+  staking rewards to mint.
+* *Period 6*: Worker successfully provides availability for work.
+* *[Repeat]*
+
+    * *Period 7*: Worker calls ``commitToNextPeriod()`` to indicate availability for Period 8. Since the Worker
+      indicated its availability for the previous period (Period 6), staking rewards are minted for Period 6
+    * *Period 7*: Worker successfully provides availability for work
+
+.. note::
+
+    The last two bullet points are repeated for subsequent periods moving forward.
+
+
+Period Duration
+---------------
+
 Genesis
--------
++++++++
 
 At the Network launch on October 15th, 2020, the duration of a period was 24 hours. As a result, before UTC midnight,
 Workers needed to make a per period (daily) on-chain commitment transactions indicating availability for the subsequent
@@ -35,7 +73,7 @@ competitive break-even policy fee price points for network usage which is likely
 
 
 7-Day Period
-------------
+++++++++++++
 
 A `proposal to increase the protocol period duration <https://dao.nucypher.com/t/1-improve-staker-p-l-by-increasing-period-duration/110>`_,
 outlining the pros and cons, was put forth to the :doc:`NuCypher DAO </architecture/dao>`, and a 7-day period duration
