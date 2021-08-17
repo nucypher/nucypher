@@ -187,7 +187,7 @@ def test_bob_retrieves_with_treasure_map(
         enrico=enrico,
         alice_verifying_key=alice_verifying_key,
         label=enacted_federated_policy.label,
-        treasure_map=treasure_map)
+        encrypted_treasure_map=treasure_map)
 
     message_kit.clear_cfrags()  # Return back to a non re-encrypted state
 
@@ -218,7 +218,7 @@ def test_bob_retrieves_too_late(federated_bob, federated_ursulas,
         enrico=enrico,
         alice_verifying_key=alice_verifying_key,
         label=enacted_federated_policy.label,
-        treasure_map=treasure_map,
+        encrypted_treasure_map=treasure_map,
         use_attached_cfrags=False)
 
     # Check that Bob can't get the treasure map after the policy is expired

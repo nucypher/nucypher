@@ -61,15 +61,15 @@ def test_complete_treasure_map_journey(federated_alice, federated_bob, federated
     assert treasure_map.hrac == deserialized_map.hrac
 
 
-    enc_treasure_map = treasure_map.prepare_for_publication(publisher=federated_alice,
-                                                            bob=federated_bob)
+    enc_treasure_map = treasure_map.encrypt(publisher=federated_alice,
+                                            bob=federated_bob)
 
     enc_serialized_map = bytes(enc_treasure_map)
     # ...
     enc_deserialized_map = EncryptedTreasureMap.from_bytes(enc_serialized_map)
 
-    compass = federated_bob.make_compass_for_alice(federated_alice)
-    decrypted_map = enc_deserialized_map.orient(compass)
+    decryptor = federated_bob.make_decryptor_for_alice(federated_alice)
+    decrypted_map = enc_deserialized_map.decrypt(decryptor)
 
     assert treasure_map.m == decrypted_map.m == 1
     assert treasure_map.destinations == decrypted_map.destinations

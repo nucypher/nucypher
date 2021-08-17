@@ -27,6 +27,7 @@ from nucypher.crypto.powers import DecryptingPower, SigningPower
 from nucypher.crypto.umbral_adapter import PublicKey
 from nucypher.network.middleware import RestMiddleware
 from nucypher.policy.hrac import HRAC
+from nucypher.policy.maps import EncryptedTreasureMap
 
 
 class CharacterPublicInterface(ControlInterface):
@@ -192,8 +193,6 @@ class BobInterface(CharacterPublicInterface):
 
         self.implementer.join_policy(label=label, publisher_verifying_key=alice_verifying_key)
 
-        from nucypher.policy.maps import EncryptedTreasureMap
-
         if isinstance(treasure_map, bytes):
             treasure_map = EncryptedTreasureMap.from_bytes(treasure_map)
 
@@ -205,7 +204,7 @@ class BobInterface(CharacterPublicInterface):
                                                enrico=enrico,
                                                alice_verifying_key=alice_verifying_key,
                                                label=label,
-                                               treasure_map=treasure_map)
+                                               encrypted_treasure_map=treasure_map)
 
         response_data = {'cleartexts': plaintexts}
         return response_data

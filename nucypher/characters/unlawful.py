@@ -232,7 +232,7 @@ class Amonia(Alice):
 
             # I'll sign it again, so that it appears to match the policy for which I already paid.
             transacting_power = self._crypto_power.power_ups(TransactingPower)
-            like_a_map_but_awful._blockchain_signature = EncryptedTreasureMap._make_blockchain_signature(
+            like_a_map_but_awful._blockchain_signature = EncryptedTreasureMap._sign(
                 blockchain_signer=transacting_power.sign_message,
                 public_signature=like_a_map_but_awful._public_signature,
                 hrac=like_a_map_but_awful.hrac,

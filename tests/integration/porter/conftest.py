@@ -40,7 +40,7 @@ def random_federated_treasure_map_data(federated_alice, federated_bob, federated
                                                              verified_kfrags=kfrags,
                                                              m=threshold)
 
-    enc_treasure_map = random_treasure_map.prepare_for_publication(publisher=federated_alice,
-                                                                   bob=federated_bob)
+    enc_treasure_map = random_treasure_map.encrypt(publisher=federated_alice,
+                                                   bob=federated_bob)
 
     yield federated_bob.public_keys(DecryptingPower), enc_treasure_map

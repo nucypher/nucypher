@@ -228,7 +228,7 @@ def _make_rest_app(datastore: Datastore, this_node, domain: str, log: Logger) ->
             message = f'{bob_identity_message} Invalid AuthorizedKeyFrag.'
             log.info(message)
             this_node.suspicious_activities_witnessed['unauthorized'].append(message)
-            return Response(message, status=401)  # 401 - Unauthorized
+            return Response(message, status=400)  # 400 - General error
 
         try:
             verified_kfrag = this_node.verify_kfrag_authorization(hrac=work_order.hrac,
@@ -294,7 +294,7 @@ def _make_rest_app(datastore: Datastore, this_node, domain: str, log: Logger) ->
         try:
             hrac_obj = HRAC.from_bytes(bytes.fromhex(hrac))
         except ValueError:
-            return Response(f"Invalid HRAC format (got: {hrac}).", status=401)
+            return Response(f"Invalid HRAC format (got: {hrac}).", status=400)
 
         try:
             with datastore.describe(TreasureMapModel, hrac) as stored_treasure_map:

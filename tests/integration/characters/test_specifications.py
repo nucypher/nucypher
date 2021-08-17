@@ -87,8 +87,8 @@ def test_treasuremap_validation(enacted_federated_policy):
     with pytest.raises(InvalidInputData) as e:
         TreasureMapsOnly().load({'tmap': "VGhpcyBpcyB0b3RhbGx5IG5vdCBhIHRyZWFzdXJlbWFwLg=="})
 
-    assert "Could not convert input for tmap" in str(e)
-    assert "Invalid treasure map contents" in str(e)
+    assert "Could not convert input for tmap to an EncryptedTreasureMap" in str(e)
+    assert "Invalid encrypted treasure map contents." in str(e)
 
     # a valid treasuremap for once...
     tmap_bytes = bytes(enacted_federated_policy.treasure_map)

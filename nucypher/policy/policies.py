@@ -354,7 +354,7 @@ class Policy(ABC):
                                     network_middleware=network_middleware)
 
     def _encrypt_treasure_map(self, treasure_map):
-        return treasure_map.prepare_for_publication(self.publisher, self.bob)
+        return treasure_map.encrypt(self.publisher, self.bob)
 
     def enact(self,
               network_middleware: RestMiddleware,
@@ -534,10 +534,9 @@ class BlockchainPolicy(Policy):
 
     def _encrypt_treasure_map(self, treasure_map):
         transacting_power = self.publisher._crypto_power.power_ups(TransactingPower)
-        return treasure_map.prepare_for_publication(
-            self.publisher,
-            self.bob,
-            blockchain_signer=transacting_power.sign_message)
+        return treasure_map.encrypt(publisher=self.publisher,
+                                    bob=self.bob,
+                                    blockchain_signer=transacting_power.sign_message)
 
 
 class EnactedPolicy:

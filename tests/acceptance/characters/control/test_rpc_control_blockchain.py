@@ -79,7 +79,7 @@ def test_bob_rpc_character_control_retrieve_with_tmap(
     tmap_bytes = bytes(enc_wrong_tmap)
     tmap_64 = b64encode(tmap_bytes).decode()
     request_data['params']['treasure_map'] = tmap_64
-    with pytest.raises(TreasureMap.IsDisorienting):
+    with pytest.raises(ValueError):
         bob_rpc_controller.send(request_data)
 
 

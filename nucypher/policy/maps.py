@@ -47,12 +47,6 @@ class TreasureMap:
         Called when no known nodes have it.
         """
 
-    class IsDisorienting(Exception):
-        """
-        Called when an oriented TreasureMap lists fewer than m destinations, which
-        leaves Bob disoriented.
-        """
-
     main_splitter = BytestringSplitter(
         (int, 1, {'byteorder': 'big'}),
         hrac_splitter,
@@ -105,11 +99,11 @@ class TreasureMap:
         self.destinations = destinations
         self.hrac = hrac
 
-    def prepare_for_publication(self,
-                                publisher: 'Alice',
-                                bob: 'Bob',
-                                blockchain_signer: Optional[Callable[[bytes], bytes]] = None,
-                                ) -> 'EncryptedTreasureMap':
+    def encrypt(self,
+                publisher: 'Alice',
+                bob: 'Bob',
+                blockchain_signer: Optional[Callable[[bytes], bytes]] = None,
+                ) -> 'EncryptedTreasureMap':
         return EncryptedTreasureMap.construct_by_publisher(treasure_map=self,
                                                            publisher=publisher,
                                                            bob=bob,
@@ -132,7 +126,7 @@ class TreasureMap:
             m, hrac, remainder = cls.main_splitter(data, return_remainder=True)
             ursula_and_kfrags = cls.ursula_and_kfrag_payload_splitter.repeat(remainder)
         except BytestringSplittingError as e:
-            raise cls.IsDisorienting('Invalid treasure map contents.') from e
+            raise ValueError('Invalid treasure map contents.') from e
         destinations = {u: k for u, k in ursula_and_kfrags}
         return cls(m, hrac, destinations)
 
@@ -208,20 +202,20 @@ class AuthorizedKeyFrag:
 class EncryptedTreasureMap:
 
     _splitter = BytestringSplitter(
-        signature_splitter,
-        hrac_splitter,
-        (UmbralMessageKit, VariableLengthBytestring),
-        (bytes, 1))
+        signature_splitter, # public signature
+        hrac_splitter, # HRAC
+        (UmbralMessageKit, VariableLengthBytestring), # encrypted TreasureMap
+        (bytes, 1)) # threshold
 
     from nucypher.crypto.signing import \
         InvalidSignature  # Raised when the public signature (typically intended for Ursula) is not valid.
 
     @staticmethod
-    def _make_blockchain_signature(blockchain_signer: Callable[[bytes], bytes],
-                                   public_signature: Signature,
-                                   hrac: HRAC,
-                                   encrypted_tmap: UmbralMessageKit,
-                                   ) -> bytes:
+    def _sign(blockchain_signer: Callable[[bytes], bytes],
+              public_signature: Signature,
+              hrac: HRAC,
+              encrypted_tmap: UmbralMessageKit,
+              ) -> bytes:
         # This method exists mainly to link this scheme to the corresponding test
         payload = bytes(public_signature) + bytes(hrac) + encrypted_tmap.to_bytes()
         return blockchain_signer(payload)
@@ -244,8 +238,10 @@ class EncryptedTreasureMap:
         public_signature = publisher.stamp(bytes(publisher.stamp) + bytes(treasure_map.hrac))
 
         if blockchain_signer is not None:
-            blockchain_signature = EncryptedTreasureMap._make_blockchain_signature(
-                blockchain_signer, public_signature, treasure_map.hrac, encrypted_tmap)
+            blockchain_signature = EncryptedTreasureMap._sign(blockchain_signer=blockchain_signer,
+                                                              public_signature=public_signature,
+                                                              hrac=treasure_map.hrac,
+                                                              encrypted_tmap=encrypted_tmap)
         else:
             blockchain_signature = None
 
@@ -264,13 +260,13 @@ class EncryptedTreasureMap:
         self._encrypted_tmap = encrypted_tmap
         self._blockchain_signature = blockchain_signature
 
-    def orient(self, compass: Callable[[bytes], Signature]) -> TreasureMap:
+    def decrypt(self, decryptor: Callable[[bytes], bytes]) -> TreasureMap:
         """
-        When Bob receives the TreasureMap, he'll pass a compass (a callable which can verify and decrypt the
+        When Bob receives the TreasureMap, he'll pass a decryptor (a callable which can verify and decrypt the
         payload message kit).
         """
         try:
-            map_in_the_clear = compass(self._encrypted_tmap)
+            map_in_the_clear = decryptor(self._encrypted_tmap)
         except Character.InvalidSignature:
             raise self.InvalidSignature("This TreasureMap does not contain the correct signature from Alice to Bob.")
 
@@ -309,7 +305,7 @@ class EncryptedTreasureMap:
             else:
                 blockchain_signature = None
         except BytestringSplittingError as e:
-            raise TreasureMap.IsDisorienting('Invalid treasure map contents.') from e
+            raise ValueError('Invalid encrypted treasure map contents.') from e
 
         result = cls(hrac, public_signature, message_kit, blockchain_signature=blockchain_signature)
         result._public_verify()
