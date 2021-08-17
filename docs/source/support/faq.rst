@@ -36,7 +36,7 @@ to provide service.
 1 period is 7 days, and periods always start on Thursdays at midnight UTC.
 
 At Network launch, 1 period was 24 hours, but this was updated by a NuCypher DAO proposal to be
-7 days (see :doc:`/architecture/period_duration`).
+7 days (see :doc:`/architecture/periods`).
 
 
 Using the Network

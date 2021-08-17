@@ -134,7 +134,7 @@ Whitepapers
    architecture/rewards_and_service_fees
    architecture/sub_stakes
    architecture/slashing
-   architecture/period_duration
+   architecture/periods
    architecture/staking_contracts
 .. TODO perhaps categorize architecture section
 
