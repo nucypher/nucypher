@@ -16,12 +16,11 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
 import io
-import time
-import traceback
-from queue import Queue, Empty
-from threading import Thread, Event, Lock, Timer, get_ident
-from typing import Callable, List, Any, Optional, Dict
 import sys
+import traceback
+from queue import Queue
+from threading import Thread, Event, Lock
+from typing import Callable, List, Any, Optional, Dict
 
 from constant_sorrow.constants import PRODUCER_STOPPED, TIMEOUT_TRIGGERED
 from twisted.python.threadpool import ThreadPool
@@ -91,31 +90,6 @@ class Future:
             return self._value.value
 
 
-def format_failures(failures: Dict) -> str:
-    """
-    Performs some basic formatting of the WorkerPool failures,
-    providing some context of why TimedOut/OutOfValues occurred.
-    """
-
-    if failures:
-        # Using one random failure to print the traceback.
-        # Most probably they're all the same anyway.
-        value = list(failures)[0]
-        _exception_cls, exception, tb = failures[value]
-
-        f = io.StringIO()
-        traceback.print_tb(tb, file=f)
-        traceback_str = f.getvalue()
-
-        return (f"{len(failures)} total failures recorded;\n"
-                f"for example, for the value {value}:\n"
-                f"{traceback_str}\n"
-                f"{exception}")
-
-    else:
-        return "0 total failures recorded"
-
-
 class WorkerPool:
     """
     A generalized class that can start multiple workers in a thread pool with values
@@ -125,10 +99,10 @@ class WorkerPool:
     """
 
     class TimedOut(Exception):
-        "Raised if waiting for the target number of successes timed out."
+        """Raised if waiting for the target number of successes timed out."""
 
     class OutOfValues(Exception):
-        "Raised if the value factory is out of values, but the target number was not reached."
+        """Raised if the value factory is out of values, but the target number was not reached."""
 
     def __init__(self,
                  worker: Callable[[Any], Any],
@@ -232,9 +206,9 @@ class WorkerPool:
 
         result = self._target_value.get()
         if result == TIMEOUT_TRIGGERED:
-            raise self.TimedOut(format_failures(self.get_failures()))
+            raise self.TimedOut(self._format_failures(result))
         elif result == PRODUCER_STOPPED:
-            raise self.OutOfValues(format_failures(self.get_failures()))
+            raise self.OutOfValues(self._format_failures(result))
         return result
 
     def get_failures(self) -> Dict:
@@ -336,3 +310,24 @@ class WorkerPool:
                 break
 
         self._result_queue.put(PRODUCER_STOPPED)
+
+    def _format_failures(self, result) -> str:
+        """
+        Performs some basic formatting of the WorkerPool failures,
+        providing some context of why TimedOut/OutOfValues occurred.
+        """
+        failures = self.get_failures()
+        failure_result = ""
+        if result == TIMEOUT_TRIGGERED:
+            failure_result = f"Execution timed out after {self._timeout}s"
+        elif result == PRODUCER_STOPPED:
+            failure_result = f"Execution stopped before completion - not enough available values"
+
+        if failures:
+            # Using one random failure
+            # Most probably they're all the same anyway.
+            value = list(failures)[0]
+            _exception_cls, exception, tb = failures[value]
+            return f"{failure_result} ({len(failures)} failures recorded); for example, {exception}"
+        else:
+            return failure_result

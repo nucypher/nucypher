@@ -112,7 +112,6 @@ the Pipe for nucypher network operations
                     exclude_ursulas: Optional[Sequence[ChecksumAddress]] = None,
                     include_ursulas: Optional[Sequence[ChecksumAddress]] = None) -> List[UrsulaInfo]:
         reservoir = self._make_staker_reservoir(quantity, duration_periods, exclude_ursulas, include_ursulas)
-
         value_factory = PrefetchStrategy(reservoir, quantity)
 
         def get_ursula_info(ursula_address) -> Porter.UrsulaInfo:
@@ -138,25 +137,14 @@ the Pipe for nucypher network operations
                                                   learn_on_this_thread=True,
                                                   eager=True)
 
-        timeout = self.DEFAULT_EXECUTION_TIMEOUT
         worker_pool = WorkerPool(worker=get_ursula_info,
                                  value_factory=value_factory,
                                  target_successes=quantity,
-                                 timeout=timeout,
+                                 timeout=self.DEFAULT_EXECUTION_TIMEOUT,
                                  stagger_timeout=1,
                                  threadpool_size=quantity)
         worker_pool.start()
-        try:
-            successes = worker_pool.block_until_target_successes()
-        except WorkerPool.OutOfValues as e:
-            msg = f"Failed to get requested number of Ursulas ({quantity})"
-            self.log.debug(f"{msg}:\n{str(e)}")
-            raise RuntimeError(msg)
-        except WorkerPool.TimedOut as e:
-            msg = f"Requests to Ursulas timed-out after {timeout} seconds"
-            self.log.debug(f"{msg}:\n{str(e)}")
-            raise RuntimeError(msg)
-
+        successes = worker_pool.block_until_target_successes()
         ursulas_info = successes.values()
         return list(ursulas_info)
 
