@@ -15,6 +15,7 @@
  along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
+from base64 import b64decode
 import maya
 from typing import Union
 
@@ -96,7 +97,9 @@ class AliceInterface(CharacterPublicInterface):
 
         response_data = {'treasure_map': new_policy.treasure_map,
                          'policy_encrypting_key': new_policy.public_key,
-                         'alice_verifying_key': new_policy.alice_verifying_key}
+                         # For the users of this interface, Publisher is always the same as Alice,
+                         # so we are only returning the Alice's key.
+                         'alice_verifying_key': self.implementer.stamp.as_umbral_pubkey()}
 
         return response_data
 
@@ -159,11 +162,11 @@ class AliceInterface(CharacterPublicInterface):
 class BobInterface(CharacterPublicInterface):
 
     @attach_schema(bob.JoinPolicy)
-    def join_policy(self, label: bytes, alice_verifying_key: bytes):
+    def join_policy(self, label: bytes, publisher_verifying_key: bytes):
         """
         Character control endpoint for joining a policy on the network.
         """
-        self.implementer.join_policy(label=label, publisher_verifying_key=alice_verifying_key)
+        self.implementer.join_policy(label=label, publisher_verifying_key=publisher_verifying_key)
         response = {'policy_encrypting_key': 'OK'}  # FIXME
         return response
 
@@ -188,6 +191,19 @@ class BobInterface(CharacterPublicInterface):
                                          label=label)
 
         self.implementer.join_policy(label=label, publisher_verifying_key=alice_verifying_key)
+
+        if self.implementer.federated_only:
+            from nucypher.policy.maps import TreasureMap as _MapClass
+        else:
+            from nucypher.policy.maps import SignedTreasureMap as _MapClass
+
+        # TODO: This LBYL is ugly and fraught with danger.  NRN - #2751
+        if isinstance(treasure_map, bytes):
+            treasure_map = _MapClass.from_bytes(treasure_map)
+
+        if isinstance(treasure_map, str):
+            tmap_bytes = treasure_map.encode()
+            treasure_map = _MapClass.from_bytes(b64decode(tmap_bytes))
 
         plaintexts = self.implementer.retrieve(message_kit,
                                                enrico=enrico,

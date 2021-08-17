@@ -121,7 +121,7 @@ def join_control_request(federated_bob, enacted_federated_policy):
 
     params = {
         'label': enacted_federated_policy.label.decode(),
-        'alice_verifying_key': bytes(enacted_federated_policy.alice_verifying_key).hex(),
+        'publisher_verifying_key': bytes(enacted_federated_policy.publisher_verifying_key).hex(),
     }
     return method_name, params
 
@@ -134,7 +134,7 @@ def retrieve_control_request(federated_bob, enacted_federated_policy, capsule_si
     params = {
         'label': enacted_federated_policy.label.decode(),
         'policy_encrypting_key': bytes(enacted_federated_policy.public_key).hex(),
-        'alice_verifying_key': bytes(enacted_federated_policy.alice_verifying_key).hex(),
+        'alice_verifying_key': bytes(enacted_federated_policy.publisher_verifying_key).hex(),
         'message_kit': b64encode(message_kit.to_bytes()).decode(),
     }
     return method_name, params

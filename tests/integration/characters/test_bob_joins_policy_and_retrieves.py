@@ -96,7 +96,7 @@ def test_bob_joins_policy_and_retrieves(federated_alice,
     try:
         # Now, Bob joins the policy
         bob.join_policy(label=label,
-                        publisher_verifying_key=federated_alice.stamp,
+                        publisher_verifying_key=federated_alice.stamp.as_umbral_pubkey(),
                         block=True)
     except policy.treasure_map.NowhereToBeFound:
         maps = []
@@ -106,7 +106,7 @@ def test_bob_joins_policy_and_retrieves(federated_alice,
         if policy.treasure_map in maps:
             # This is a nice place to put a breakpoint to examine Bob's failure to join a policy.
             bob.join_policy(label=label,
-                            publisher_verifying_key=federated_alice.stamp,
+                            publisher_verifying_key=federated_alice.stamp.as_umbral_pubkey(),
                             block=True)
             pytest.fail(f"Bob didn't find map {policy.treasure_map} even though it was available.  Come on, Bob.")
         else:
@@ -202,7 +202,7 @@ def test_bob_retrieves_with_treasure_map(
     enrico = capsule_side_channel.enrico
     message_kit = capsule_side_channel()
     treasure_map = enacted_federated_policy.treasure_map
-    alice_verifying_key = enacted_federated_policy.alice_verifying_key
+    alice_verifying_key = enacted_federated_policy.publisher_verifying_key
 
     # Teach Bob about the network
     federated_bob.remember_node(list(federated_ursulas)[0])
@@ -217,15 +217,8 @@ def test_bob_retrieves_with_treasure_map(
         treasure_map=treasure_map)
 
     message_kit.clear_cfrags()  # Return back to a non re-encrypted state
-    # Serialized treasure map
-    text2 = federated_bob.retrieve(
-        message_kit,
-        enrico=enrico,
-        alice_verifying_key=alice_verifying_key,
-        label=enacted_federated_policy.label,
-        treasure_map=bytes(treasure_map))
 
-    assert text1[0] == text2[0] == b'Welcome to flippering number 2.'
+    assert text1 == [b'Welcome to flippering number 2.']
 
 
 def test_bob_retrieves_too_late(federated_bob, federated_ursulas,
@@ -244,7 +237,7 @@ def test_bob_retrieves_too_late(federated_bob, federated_ursulas,
     enrico = capsule_side_channel.enrico
     message_kit = capsule_side_channel()
     treasure_map = enacted_federated_policy.treasure_map
-    alice_verifying_key = enacted_federated_policy.alice_verifying_key
+    alice_verifying_key = enacted_federated_policy.publisher_verifying_key
 
     # with pytest.raises(Ursula.NotEnoughUrsulas):
     federated_bob.retrieve(

@@ -26,6 +26,7 @@ from nucypher.crypto.kits import PolicyMessageKit
 from nucypher.crypto.powers import DecryptingPower
 from nucypher.crypto.umbral_adapter import reencrypt
 from nucypher.datastore.models import Workorder
+from nucypher.policy.maps import AuthorizedKeyFrag
 from tests.utils.middleware import MockRestMiddleware, NodeIsDownMiddleware
 
 
@@ -58,7 +59,7 @@ def test_bob_already_knows_all_nodes_in_treasure_map(enacted_federated_policy,
         federated_bob.remember_node(ursula)
 
     # Now, Bob can get the TreasureMap all by himself, and doesn't need a side channel.
-    the_map = federated_bob.get_treasure_map(publisher_verifying_key=federated_alice.stamp,
+    the_map = federated_bob.get_treasure_map(publisher_verifying_key=federated_alice.stamp.as_umbral_pubkey(),
                                              label=enacted_federated_policy.label)
     unknown, known = federated_bob.peek_at_treasure_map(treasure_map=the_map)
 
@@ -206,13 +207,16 @@ def test_bob_can_issue_a_work_order_to_a_specific_ursula(enacted_federated_polic
 
     # Ursula decrypts the encrypted KFrag
     encrypted_kfrag = enacted_federated_policy.treasure_map.destinations[ursula.checksum_address]
-    alice = Alice.from_public_keys(verifying_key=enacted_federated_policy.alice_verifying_key)
+    alice = Alice.from_public_keys(verifying_key=federated_alice.stamp.as_umbral_pubkey())
     plaintext_kfrag_payload = ursula.verify_from(stranger=alice,
                                                  message_kit=encrypted_kfrag,
                                                  decrypt=True)
-    _signed_writ, the_kfrag = work_order.kfrag_payload_splitter(plaintext_kfrag_payload)
+    authorized_kfrag = AuthorizedKeyFrag.from_bytes(plaintext_kfrag_payload)
+    verified_kfrag = ursula.verify_kfrag_authorization(hrac=work_order.hrac,
+                                                       author=alice,
+                                                       publisher=alice,
+                                                       authorized_kfrag=authorized_kfrag)
 
-    verified_kfrag = the_kfrag.verify(enacted_federated_policy.alice_verifying_key.as_umbral_pubkey())
     reencrypt(capsule=message_kit.capsule, kfrag=verified_kfrag)
 
     # Now we'll show that Ursula saved the correct WorkOrder.

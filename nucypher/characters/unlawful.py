@@ -141,7 +141,7 @@ class Amonia(Alice):
         for ursula, kfrag in zip(arrangements, policy.kfrags):
             arrangement = arrangements[ursula]
             payload = policy._make_enactment_payload(kfrag)
-            message_kit, _signature = policy.alice.encrypt_for(ursula, payload)
+            message_kit, _signature = policy.publisher.encrypt_for(ursula, payload)
 
             try:
                 network_middleware.enact_policy(ursula, message_kit.to_bytes())
@@ -180,9 +180,9 @@ class Amonia(Alice):
         """
 
         def publish_wrong_payee_address_to_blockchain(policy, ursulas):
-            receipt = policy.alice.policy_agent.create_policy(
+            receipt = policy.publisher.policy_agent.create_policy(
                 policy_id=policy.hrac,  # bytes16 _policyID
-                transacting_power=policy.alice.transacting_power,
+                transacting_power=policy.publisher.transacting_power,
                 value=policy.value,
                 end_timestamp=policy.expiration.epoch,  # uint16 _numberOfPeriods
                 node_addresses=[f.checksum_address for f in ursulas_to_pay_instead]  # address[] memory _nodes

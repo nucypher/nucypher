@@ -196,10 +196,10 @@ def _make_rest_app(datastore: Datastore, this_node, domain: str, log: Logger) ->
         if hrac in this_node.revoked_policies:
             return Response(response="Invalid KFrag sender.", status=401)  # 401 - Unauthorized
 
-        # Alice & Relayer
+        # Alice & Publisher
         alice = _alice_class.from_public_keys(verifying_key=work_order.alice_verifying_key)
         alice_verifying_key = alice.stamp.as_umbral_pubkey()
-        policy_relayer = _alice_class.from_public_keys(verifying_key=work_order.publisher_verifying_key)
+        policy_publisher = _alice_class.from_public_keys(verifying_key=work_order.publisher_verifying_key)
 
         # Bob
         bob_ip_address = request.remote_addr
@@ -220,14 +220,21 @@ def _make_rest_app(datastore: Datastore, this_node, domain: str, log: Logger) ->
             return Response(response="KFrag decryption failed.", status=403)   # 403 - Forbidden
 
         # Verify KFrag Authorization (offchain)
-        signed_writ, kfrag = work_order.kfrag_payload_splitter(plaintext_kfrag_payload)
+        from nucypher.policy.maps import AuthorizedKeyFrag
         try:
-            verified_kfrag = this_node.verify_kfrag_authorization(
-                alice=policy_relayer,
-                kfrag=kfrag,
-                signed_writ=signed_writ,
-                work_order=work_order
-            )
+            authorized_kfrag = AuthorizedKeyFrag.from_bytes(plaintext_kfrag_payload)
+        except ValueError:
+            message = f'{bob_identity_message} Invalid AuthorizedKeyFrag.'
+            log.info(message)
+            this_node.suspicious_activities_witnessed['unauthorized'].append(message)
+            return Response(message, status=401)  # 401 - Unauthorized
+
+        try:
+            verified_kfrag = this_node.verify_kfrag_authorization(hrac=work_order.hrac,
+                                                                  author=alice,
+                                                                  publisher=policy_publisher,
+                                                                  authorized_kfrag=authorized_kfrag)
+
         except Policy.Unauthorized:
             message = f'{bob_identity_message} Unauthorized work order.'
             log.info(message)
@@ -241,7 +248,7 @@ def _make_rest_app(datastore: Datastore, this_node, domain: str, log: Logger) ->
                 this_node.verify_policy_payment(hrac=hrac)
             except Policy.Unpaid:
                 message = f"{bob_identity_message} Policy {hrac.hex()} is unpaid."
-                record = (policy_relayer, message)
+                record = (policy_publisher, message)
                 this_node.suspicious_activities_witnessed['freeriders'].append(record)
                 return Response(message, status=402)  # 402 - Payment Required
             except Policy.Unknown:

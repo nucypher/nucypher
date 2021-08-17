@@ -1,0 +1,1 @@
+Separated Alice and Publisher roles internally and in relevant public APIs

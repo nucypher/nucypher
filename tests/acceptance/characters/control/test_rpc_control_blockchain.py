@@ -71,10 +71,10 @@ def test_bob_rpc_character_control_retrieve_with_tmap(
     # Make a wrong (empty) treasure map
 
     wrong_tmap = SignedTreasureMap(m=0)
-    wrong_tmap.derive_hrac(alice_stamp=blockchain_alice.stamp, bob_verifying_key=blockchain_bob.stamp, label=b"Wrong")
+    wrong_tmap.derive_hrac(publisher_stamp=blockchain_alice.stamp, bob_verifying_key=blockchain_bob.stamp, label=b"Wrong")
     wrong_tmap.prepare_for_publication(
         bob_encrypting_key=blockchain_bob.public_keys(DecryptingPower),
-        alice_stamp=blockchain_alice.stamp)
+        publisher_stamp=blockchain_alice.stamp)
     wrong_tmap._blockchain_signature = b"this is not a signature, but we don't need one for this test....."  # ...because it only matters when Ursula looks at it. (65 bytes)
 
     assert len(wrong_tmap._blockchain_signature) == EIP712_MESSAGE_SIGNATURE_SIZE

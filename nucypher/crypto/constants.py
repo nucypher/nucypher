@@ -22,9 +22,6 @@ from cryptography.hazmat.primitives import hashes
 HRAC_LENGTH = 16
 SIGNATURE_SIZE = 64
 EIP712_MESSAGE_SIGNATURE_SIZE = 65
-WRIT_CHECKSUM_SIZE = 32
-SIGNED_WRIT_SIZE = HRAC_LENGTH + WRIT_CHECKSUM_SIZE + SIGNATURE_SIZE
-ENCRYPTED_KFRAG_PAYLOAD_LENGTH = 619 # Depends on encryption parameters in Umbral, has to be hardcoded
 
 # Digest Lengths
 KECCAK_DIGEST_LENGTH = 32

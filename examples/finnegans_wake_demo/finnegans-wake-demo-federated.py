@@ -96,7 +96,7 @@ assert policy.public_key == policy_public_key
 policy.treasure_map_publisher.block_until_complete()
 
 # Alice puts her public key somewhere for Bob to find later...
-alice_verifying_key = bytes(alice.stamp)
+alice_verifying_key = alice.stamp.as_umbral_pubkey()
 
 # ...and then disappears from the internet.
 #
@@ -144,7 +144,7 @@ for counter, plaintext in enumerate(finnegans_wake):
     # The matter of whether encryption makes the passage more or less readable
     # is left to the reader to determine.
     single_passage_ciphertext, _signature = enrico.encrypt_message(plaintext)
-    data_source_public_key = bytes(enrico.stamp)
+    data_source_public_key = enrico.stamp.as_umbral_pubkey()
     del enrico
 
     ###############

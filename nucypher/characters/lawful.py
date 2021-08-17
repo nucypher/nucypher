@@ -22,7 +22,7 @@ from pathlib import Path
 import json
 import random
 import time
-from base64 import b64decode, b64encode
+from base64 import b64encode
 from collections import OrderedDict, defaultdict, namedtuple
 from datetime import datetime
 from functools import partial
@@ -77,7 +77,7 @@ from nucypher.config.constants import END_OF_POLICIES_PROBATIONARY_PERIOD
 from nucypher.config.storages import ForgetfulNodeStorage, NodeStorage
 from nucypher.control.controllers import WebController
 from nucypher.control.emitters import StdoutEmitter
-from nucypher.crypto.constants import HRAC_LENGTH, WRIT_CHECKSUM_SIZE
+from nucypher.crypto.constants import HRAC_LENGTH
 from nucypher.crypto.keypairs import HostingKeypair
 from nucypher.crypto.kits import UmbralMessageKit
 from nucypher.crypto.powers import (
@@ -108,7 +108,7 @@ from nucypher.network.nodes import NodeSprout, TEACHER_NODES, Teacher
 from nucypher.network.protocols import InterfaceInfo, parse_node_uri
 from nucypher.network.server import ProxyRESTServer, TLSHostingPower, make_rest_app
 from nucypher.network.trackers import AvailabilityTracker
-from nucypher.policy.maps import TreasureMap
+from nucypher.policy.maps import TreasureMap, AuthorizedKeyFrag
 from nucypher.policy.orders import WorkOrder
 from nucypher.policy.policies import Policy
 from nucypher.utilities.logging import Logger
@@ -266,7 +266,7 @@ class Alice(Character, BlockchainPolicyAuthor):
         if self.federated_only:
             # Use known nodes
             from nucypher.policy.policies import FederatedPolicy
-            policy = FederatedPolicy(alice=self, **payload)
+            policy = FederatedPolicy(publisher=self, **payload)
 
         else:
             # Sample from blockchain PolicyManager
@@ -624,8 +624,9 @@ class Bob(Character):
 
         return unknown_ursulas, known_ursulas, treasure_map.m
 
-    def _try_orient(self, treasure_map, alice_verifying_key):
-        alice = Alice.from_public_keys(verifying_key=alice_verifying_key)
+    def _try_orient(self, treasure_map, publisher_verifying_key):
+        # TODO: should be rather a Publisher character
+        alice = Alice.from_public_keys(verifying_key=publisher_verifying_key)
         compass = self.make_compass_for_alice(alice)
         try:
             treasure_map.orient(compass)
@@ -654,8 +655,8 @@ class Bob(Character):
     def make_compass_for_alice(self, alice):
         return partial(self.verify_from, alice, decrypt=True)
 
-    def construct_policy_hrac(self, publisher_verifying_key: Union[bytes, PublicKey], label: bytes) -> bytes:
-        _hrac = keccak_digest(bytes(publisher_verifying_key) + self.stamp + label)[:HRAC_LENGTH]
+    def construct_policy_hrac(self, publisher_verifying_key: PublicKey, label: bytes) -> bytes:
+        _hrac = keccak_digest(bytes(publisher_verifying_key) + bytes(self.stamp) + label)[:HRAC_LENGTH]
         return _hrac
 
     def construct_map_id(self, publisher_verifying_key: PublicKey, label: bytes):
@@ -938,22 +939,12 @@ class Bob(Character):
 
         return cleartexts
 
-    def _handle_treasure_map(self, treasure_map, publisher_verifying_key: PublicKey, label: bytes):
+    def _handle_treasure_map(self,
+                             publisher_verifying_key: PublicKey,
+                             label: bytes,
+                             treasure_map: Optional['TreasureMap'] = None,
+                             ) -> 'TreasureMap':
         if treasure_map is not None:
-
-            if self.federated_only:
-                from nucypher.policy.maps import TreasureMap as _MapClass
-            else:
-                from nucypher.policy.maps import SignedTreasureMap as _MapClass
-
-            # TODO: This LBYL is ugly and fraught with danger.  NRN
-            if isinstance(treasure_map, bytes):
-                treasure_map = _MapClass.from_bytes(treasure_map)
-
-            if isinstance(treasure_map, str):
-                tmap_bytes = treasure_map.encode()
-                treasure_map = _MapClass.from_bytes(b64decode(tmap_bytes))
-
             self._try_orient(treasure_map, publisher_verifying_key)
             # self.treasure_maps[treasure_map.public_id()] = treasure_map # TODO: Can we?
         else:
@@ -973,11 +964,11 @@ class Bob(Character):
                  # Policy
                  *message_kits: UmbralMessageKit,
                  label: bytes,
-                 policy_encrypting_key: PublicKey = None,
-                 treasure_map: Union['TreasureMap', bytes] = None,
+                 policy_encrypting_key: Optional[PublicKey] = None,
+                 treasure_map: Optional['TreasureMap'] = None,
 
                  # Source Authentication
-                 enrico: "Enrico" = None,
+                 enrico: Optional["Enrico"] = None,
                  alice_verifying_key: Union[PublicKey, bytes],
                  publisher_verifying_key: Optional[Union[PublicKey, bytes]] = None,
 
@@ -988,13 +979,9 @@ class Bob(Character):
 
                  ) -> List[bytes]:
 
-        # Try our best to get an PublicKey instances from input
-        alice_verifying_key = PublicKey.from_bytes(bytes(alice_verifying_key))
         if not publisher_verifying_key:
-            # If an policy relay's verifying key is not passed, use the alice's by default.
+            # If a policy publisher's verifying key is not passed, use Alice's by default.
             publisher_verifying_key = alice_verifying_key
-        else:
-            publisher_verifying_key = PublicKey.from_bytes(bytes(publisher_verifying_key))
 
         treasure_map, m = self._handle_treasure_map(treasure_map=treasure_map,
                                                     publisher_verifying_key=publisher_verifying_key,
@@ -1750,34 +1737,29 @@ class Ursula(Teacher, Character, Worker):
     #
 
     def verify_kfrag_authorization(self,
-                                   alice: Alice,
-                                   kfrag: KeyFrag,
-                                   signed_writ: bytes,
-                                   work_order: 'WorkOrder'
+                                   hrac: bytes,
+                                   author: Alice,
+                                   publisher: Alice,
+                                   authorized_kfrag: AuthorizedKeyFrag,
                                    ) -> VerifiedKeyFrag:
-        from nucypher.policy.orders import WorkOrder  # TODO: resolve ciruclar dependency
 
-        writ_hrac, writ_kfrag_checksum, writ_signature = WorkOrder.signed_writ_splitter(signed_writ)
-        reconstructed_writ = writ_hrac + writ_kfrag_checksum
+        # TODO: should it be a method of AuthorizedKeyFrag?
 
         try:
-            self.verify_from(alice, reconstructed_writ, signature=writ_signature)
+            self.verify_from(publisher, authorized_kfrag.writ, signature=authorized_kfrag.writ_signature)
         except InvalidSignature:
-            raise Policy.Unauthorized  # This isn't from Alice (relayer).
+            # TODO (#2740): differentiate cases for Policy.Unauthorized
+            raise Policy.Unauthorized  # This isn't from Alice (publisher).
 
-        if writ_hrac != work_order.hrac:  # Funky Workorder
+        if authorized_kfrag.hrac != hrac:  # Funky Workorder
             raise Policy.Unauthorized  # Bob, what the *hell* are you doing?
 
-        kfrag_checksum = keccak_digest(bytes(kfrag))[:WRIT_CHECKSUM_SIZE]
-        if kfrag_checksum != writ_kfrag_checksum:
-            raise Policy.Unauthorized  # Bob, Seriously?
-
         try:
-            verified_kfrag = kfrag.verify(verifying_pk=alice.stamp.as_umbral_pubkey())
+            verified_kfrag = authorized_kfrag.kfrag.verify(verifying_pk=author.stamp.as_umbral_pubkey())
         except VerificationError:
             raise Policy.Unauthorized  # WTF, Alice did not generate these KFrags.
 
-        if writ_hrac in self.revoked_policies:
+        if authorized_kfrag.hrac in self.revoked_policies:
             # Note: This is only an off-chain and in-memory check.
             raise Policy.Unauthorized  # Denied
 

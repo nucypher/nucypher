@@ -178,7 +178,7 @@ def test_alice_character_control_decrypt(alice_web_controller_test_client,
 def test_bob_character_control_join_policy(bob_web_controller_test_client, enacted_blockchain_policy, blockchain_alice, blockchain_bob, blockchain_ursulas):
     request_data = {
         'label': enacted_blockchain_policy.label.decode(),
-        'alice_verifying_key': bytes(enacted_blockchain_policy.alice_verifying_key).hex(),
+        'publisher_verifying_key': bytes(enacted_blockchain_policy.publisher_verifying_key).hex(),
     }
 
     for ursula in blockchain_ursulas:
@@ -199,7 +199,7 @@ def test_bob_character_control_join_policy(bob_web_controller_test_client, enact
     assert response.status_code == 400
 
     # Missing Key results in bad request
-    del (request_data['alice_verifying_key'])
+    del (request_data['publisher_verifying_key'])
     response = bob_web_controller_test_client.post('/join_policy', data=json.dumps(request_data))
     assert response.status_code == 400
 

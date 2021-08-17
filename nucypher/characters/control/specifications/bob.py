@@ -28,11 +28,11 @@ class JoinPolicy(BaseSchema):  #TODO:  this doesn't have a cli implementation
     label = character_fields.Label(
         load_only=True, required=True,
         click=options.option_label(required=True))
-    alice_verifying_key = character_fields.Key(
+    publisher_verifying_key = character_fields.Key(
         load_only=True, required=True,
         click=click.option(
-            '--alice-verifying-key',
-            '-avk',
+            '--publisher-verifying-key',
+            '-pvk',
             help="Alice's verifying key as a hexadecimal string",
             required=False, type=click.STRING,))
 
