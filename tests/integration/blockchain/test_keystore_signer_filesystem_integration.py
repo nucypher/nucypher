@@ -21,7 +21,7 @@ import shutil
 import pytest
 from cytoolz.dicttoolz import assoc
 from eth_account import Account
-from eth_account._utils.transactions import Transaction
+from eth_account._utils.legacy_transactions import Transaction
 from eth_utils.address import to_checksum_address
 from hexbytes.main import HexBytes
 
