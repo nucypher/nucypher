@@ -65,21 +65,22 @@ def max_price_gas_strategy_wrapper(gas_strategy: Callable, max_gas_price_wei: in
 
 def construct_datafeed_median_strategy(speed: Optional[str] = None) -> Callable:
     def datafeed_median_gas_price_strategy(web3: Web3, transaction_params: TxParams = None) -> Wei:
-        feeds = (UpvestGasPriceDatafeed, EtherchainGasPriceDatafeed, ZoltuGasPriceDatafeed)
+        feeds = (UpvestGasPriceDatafeed, ZoltuGasPriceDatafeed)  # removed EtherchainGasPriceDatafeed due to EIP-1559
 
         prices = []
         for gas_price_feed_class in feeds:
             try:
                 gas_strategy = gas_price_feed_class.construct_gas_strategy(speed=speed)
                 gas_price = gas_strategy(web3, transaction_params)
-            except Datafeed.DatafeedError:
+            except Exception:
+                # some problem; onward and upward
                 continue
             else:
                 prices.append(gas_price)
 
         if prices:
             median_price = statistics.median(prices)
-            return median_price
+            return int(median_price)  # must return an int
         else:  # Worst-case scenario, we get the price from the ETH node itself
             return rpc_gas_price_strategy(web3, transaction_params)
     return datafeed_median_gas_price_strategy
