@@ -138,7 +138,7 @@ the Pipe for nucypher network operations
                                                   learn_on_this_thread=True,
                                                   eager=True)
 
-        timeout = 1  # self.DEFAULT_EXECUTION_TIMEOUT
+        timeout = self.DEFAULT_EXECUTION_TIMEOUT
         worker_pool = WorkerPool(worker=get_ursula_info,
                                  value_factory=value_factory,
                                  target_successes=quantity,
