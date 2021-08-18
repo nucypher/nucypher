@@ -205,7 +205,9 @@ class EncryptedTreasureMap:
         signature_splitter, # public signature
         hrac_splitter, # HRAC
         (UmbralMessageKit, VariableLengthBytestring), # encrypted TreasureMap
-        (bytes, 1)) # threshold
+        (bytes, EIP712_MESSAGE_SIGNATURE_SIZE)) # blockchain signature
+
+    _EMPTY_BLOCKCHAIN_SIGNATURE = b'\x00' * EIP712_MESSAGE_SIGNATURE_SIZE
 
     from nucypher.crypto.signing import \
         InvalidSignature  # Raised when the public signature (typically intended for Ursula) is not valid.
@@ -268,19 +270,20 @@ class EncryptedTreasureMap:
         try:
             map_in_the_clear = decryptor(self._encrypted_tmap)
         except Character.InvalidSignature:
-            raise self.InvalidSignature("This TreasureMap does not contain the correct signature from Alice to Bob.")
+            raise self.InvalidSignature("This TreasureMap does not contain the correct signature "
+                                        "from the publisher to Bob.")
 
         return TreasureMap.from_bytes(map_in_the_clear)
 
     def __bytes__(self):
+        if self._blockchain_signature:
+            signature = self._blockchain_signature
+        else:
+            signature = self._EMPTY_BLOCKCHAIN_SIGNATURE
         return (bytes(self._public_signature) +
                 bytes(self.hrac) +
                 bytes(VariableLengthBytestring(self._encrypted_tmap.to_bytes())) +
-                # Other variants:
-                # - store all zeros if no blockchain signature
-                # - store the flag too in addition to all zeros, for added sanity check
-                # - use a faux blockchain signer in federated case
-                (b'\x00' if self._blockchain_signature is None else (b'\x01' + bytes(self._blockchain_signature)))
+                signature
                 )
 
     def verify_blockchain_signature(self, checksum_address: ChecksumAddress) -> bool:
@@ -299,10 +302,8 @@ class EncryptedTreasureMap:
     @classmethod
     def from_bytes(cls, data: bytes):
         try:
-            public_signature, hrac, message_kit, bc_sig, remainder = cls._splitter(data, return_remainder=True)
-            if bc_sig == b'\x01':
-                blockchain_signature, = BytestringSplitter((bytes, EIP712_MESSAGE_SIGNATURE_SIZE))(remainder)
-            else:
+            public_signature, hrac, message_kit, blockchain_signature = cls._splitter(data)
+            if blockchain_signature == cls._EMPTY_BLOCKCHAIN_SIGNATURE:
                 blockchain_signature = None
         except BytestringSplittingError as e:
             raise ValueError('Invalid encrypted treasure map contents.') from e

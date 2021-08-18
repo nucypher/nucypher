@@ -68,8 +68,8 @@ def test_complete_treasure_map_journey(federated_alice, federated_bob, federated
     # ...
     enc_deserialized_map = EncryptedTreasureMap.from_bytes(enc_serialized_map)
 
-    decryptor = federated_bob.make_decryptor_for_alice(federated_alice)
-    decrypted_map = enc_deserialized_map.decrypt(decryptor)
+    decrypted_map = federated_bob._decrypt_treasure_map(enc_deserialized_map,
+                                                        federated_alice.stamp.as_umbral_pubkey())
 
     assert treasure_map.m == decrypted_map.m == 1
     assert treasure_map.destinations == decrypted_map.destinations

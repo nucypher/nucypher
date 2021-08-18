@@ -624,14 +624,11 @@ class Bob(Character):
 
         return unknown_ursulas, known_ursulas, treasure_map.m
 
-    def _try_orient(self, encrypted_treasure_map, publisher_verifying_key):
-        # TODO: should be rather a Publisher character
-        alice = Alice.from_public_keys(verifying_key=publisher_verifying_key)
-        decryptor = self.make_decryptor_for_alice(alice)
-        try:
-            return encrypted_treasure_map.decrypt(decryptor)
-        except EncryptedTreasureMap.InvalidSignature:
-            raise  # TODO: Maybe do something here?  NRN
+    def _decrypt_treasure_map(self,
+                              encrypted_treasure_map: EncryptedTreasureMap,
+                              publisher_verifying_key: PublicKey):
+        publisher = Alice.from_public_keys(verifying_key=publisher_verifying_key)
+        return encrypted_treasure_map.decrypt(partial(self.verify_from, publisher, decrypt=True))
 
     def get_treasure_map(self, publisher_verifying_key: PublicKey, label: bytes):
         hrac = self.construct_policy_hrac(publisher_verifying_key=publisher_verifying_key, label=label)
@@ -648,12 +645,9 @@ class Bob(Character):
 
         encrypted_treasure_map = self.get_treasure_map_from_known_ursulas(hrac)
 
-        treasure_map = self._try_orient(encrypted_treasure_map, publisher_verifying_key)
+        treasure_map = self._decrypt_treasure_map(encrypted_treasure_map, publisher_verifying_key)
         self.treasure_maps[hrac] = treasure_map
         return treasure_map
-
-    def make_decryptor_for_alice(self, alice):
-        return partial(self.verify_from, alice, decrypt=True)
 
     def construct_policy_hrac(self, publisher_verifying_key: PublicKey, label: bytes) -> HRAC:
         return HRAC.derive(publisher_verifying_key=publisher_verifying_key,
@@ -934,8 +928,8 @@ class Bob(Character):
                              label: bytes,
                              encrypted_treasure_map: Optional['EncryptedTreasureMap'] = None,
                              ) -> 'TreasureMap':
-        if encrypted_treasure_map is not None:
-            treasure_map = self._try_orient(encrypted_treasure_map, publisher_verifying_key)
+        if encrypted_treasure_map:
+            treasure_map = self._decrypt_treasure_map(encrypted_treasure_map, publisher_verifying_key)
             self.treasure_maps[treasure_map.hrac] = treasure_map
         else:
             hrac = self.construct_policy_hrac(publisher_verifying_key, label)

@@ -42,7 +42,8 @@ def work_order_setup(enacted_policy,
                      bob,
                      alice):
 
-    treasure_map = bob._try_orient(enacted_policy.treasure_map, enacted_policy.publisher_verifying_key)
+    treasure_map = bob._decrypt_treasure_map(enacted_policy.treasure_map,
+                                             enacted_policy.publisher_verifying_key)
 
     # We pick up our story with Bob already having followed the treasure map above, ie:
     bob.start_learning_loop()

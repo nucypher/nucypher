@@ -25,11 +25,11 @@ class HRAC:
     "hashed resource access code".
 
     A hash of:
-    * Alice's public key
-    * Bob's public key
+    * Publisher's verifying key
+    * Bob's verifying key
     * the label
 
-    Alice and Bob have all the information they need to construct this.
+    Publisher and Bob have all the information they need to construct this.
     Ursula does not, so we share it with her.
 
     This way, Bob can generate it and use it to find the TreasureMap.
