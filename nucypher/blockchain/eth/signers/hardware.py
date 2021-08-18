@@ -17,7 +17,7 @@
 
 
 import rlp
-from eth_account._utils.transactions import assert_valid_fields, Transaction
+from eth_account._utils.legacy_transactions import assert_valid_fields, Transaction
 from eth_utils.address import to_canonical_address
 from eth_utils.applicators import apply_key_map, apply_formatters_to_dict
 from eth_utils.conversions import to_int

@@ -9,7 +9,7 @@ python_version = "3"
 [packages]
 # NuCypher
 constant-sorrow = ">=0.1.0a9"
-bytestring-splitter = ">=1.3.0"
+bytestring-splitter = ">=2.4.0"
 hendrix = ">=3.4"
 lmdb = "*"
 umbral = ">=0.2"
@@ -54,7 +54,7 @@ pytest-mock = "*"
 pytest-timeout = "*"
 # Tools
 hypothesis = "*"
-pre-commit = "*"
+pre-commit = "2.12.1"
 pyflakes = "*"
 bandit = "*"
 mypy = "*"

@@ -17,7 +17,7 @@
 
 
 import pytest
-from eth_account._utils.transactions import Transaction
+from eth_account._utils.legacy_transactions import Transaction
 from eth_utils import to_checksum_address
 
 from nucypher.blockchain.eth.signers.software import Web3Signer
@@ -76,7 +76,7 @@ def test_transacting_power_sign_transaction(testerchain):
     signed_transaction = power.sign_transaction(transaction_dict=transaction_dict)
 
     # Demonstrate that the transaction is valid RLP encoded.
-    from eth_account._utils.transactions import Transaction
+    from eth_account._utils.legacy_transactions import Transaction
     restored_transaction = Transaction.from_bytes(serialized_bytes=signed_transaction)
     restored_dict = restored_transaction.as_dict()
     assert to_checksum_address(restored_dict['to']) == transaction_dict['to']
