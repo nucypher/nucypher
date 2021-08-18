@@ -1,13 +1,11 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-pragma solidity ^0.7.0;
+pragma solidity ^0.8.0;
 
 
 import "zeppelin/token/ERC20/SafeERC20.sol";
-import "zeppelin/math/SafeMath.sol";
 import "zeppelin/math/Math.sol";
 import "zeppelin/utils/Address.sol";
-import "contracts/lib/AdditionalMath.sol";
 import "contracts/lib/SignatureVerifier.sol";
 import "contracts/PREStakingApp.sol";
 import "contracts/NuCypherToken.sol";
@@ -21,10 +19,6 @@ import "contracts/proxy/Upgradeable.sol";
 */
 contract PolicyManager is Upgradeable {
     using SafeERC20 for NuCypherToken;
-    using SafeMath for uint256;
-    using AdditionalMath for uint256;
-    using AdditionalMath for int256;
-    using AdditionalMath for uint16;
     using Address for address payable;
 
     event PolicyCreated(
@@ -358,7 +352,7 @@ contract PolicyManager is Upgradeable {
     * @notice Withdraw fee by node
     */
     function withdraw() external returns (uint256) {
-        return withdraw(msg.sender);
+        return withdraw(payable(msg.sender));
     }
 
     /**
@@ -570,7 +564,7 @@ contract PolicyManager is Upgradeable {
     * @return Revocation hash, EIP191 version 0x45 ('E')
     */
     function getRevocationHash(bytes16 _policyId, address _node) public view returns (bytes32) {
-        return SignatureVerifier.hashEIP191(abi.encodePacked(_policyId, _node), byte(0x45));
+        return SignatureVerifier.hashEIP191(abi.encodePacked(_policyId, _node), bytes1(0x45));
     }
 
     /**
@@ -714,7 +708,7 @@ contract PolicyManager is Upgradeable {
     function delegateGetNodeInfo(address _target, address _node)
         internal returns (MemoryNodeInfo memory result)
     {
-        bytes32 memoryAddress = delegateGetData(_target, this.nodes.selector, 1, bytes32(uint256(_node)), 0);
+        bytes32 memoryAddress = delegateGetData(_target, this.nodes.selector, 1, bytes32(uint256(uint160(_node))), 0);
         assembly {
             result := memoryAddress
         }

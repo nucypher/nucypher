@@ -1,9 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-pragma solidity ^0.7.0;
-
-
-import "zeppelin/math/SafeMath.sol";
+pragma solidity ^0.8.0;
 
 
 /**
@@ -11,7 +8,6 @@ import "zeppelin/math/SafeMath.sol";
 * @notice Multi-signature contract with off-chain signing
 */
 contract MultiSig {
-    using SafeMath for uint256;
 
     event Executed(address indexed sender, uint256 indexed nonce, address indexed destination, uint256 value);
     event OwnerAdded(address indexed owner);
@@ -72,7 +68,7 @@ contract MultiSig {
         public view returns (bytes32)
     {
         return keccak256(
-            abi.encodePacked(byte(0x19), byte(0), address(this), _sender, _destination, _value, _data, _nonce));
+            abi.encodePacked(bytes1(0x19), bytes1(0), address(this), _sender, _destination, _value, _data, _nonce));
     }
 
     /**
@@ -107,7 +103,7 @@ contract MultiSig {
         }
 
         emit Executed(msg.sender, nonce, _destination, _value);
-        nonce = nonce.add(1);
+        nonce = nonce + 1;
         (bool callSuccess,) = _destination.call{value: _value}(_data);
         require(callSuccess);
     }

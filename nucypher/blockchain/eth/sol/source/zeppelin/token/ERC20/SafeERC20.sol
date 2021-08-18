@@ -1,10 +1,9 @@
 // SPDX-License-Identifier: MIT
 
-pragma solidity ^0.7.0;
+pragma solidity ^0.8.0;
 
 
 import "zeppelin/token/ERC20/IERC20.sol";
-import "zeppelin/math/SafeMath.sol";
 
 
 /**
@@ -14,7 +13,6 @@ import "zeppelin/math/SafeMath.sol";
  * which allows you to call the safe operations as `token.safeTransfer(...)`, etc.
  */
 library SafeERC20 {
-    using SafeMath for uint256;
 
     function safeTransfer(IERC20 token, address to, uint256 value) internal {
         require(token.transfer(to, value));
@@ -33,12 +31,12 @@ library SafeERC20 {
     }
 
     function safeIncreaseAllowance(IERC20 token, address spender, uint256 value) internal {
-        uint256 newAllowance = token.allowance(address(this), spender).add(value);
+        uint256 newAllowance = token.allowance(address(this), spender) + value;
         require(token.approve(spender, newAllowance));
     }
 
     function safeDecreaseAllowance(IERC20 token, address spender, uint256 value) internal {
-        uint256 newAllowance = token.allowance(address(this), spender).sub(value);
+        uint256 newAllowance = token.allowance(address(this), spender) - value;
         require(token.approve(spender, newAllowance));
     }
 }

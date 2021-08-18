@@ -1,12 +1,11 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-pragma solidity ^0.7.0;
+pragma solidity ^0.8.0;
 
 import "contracts/lib/ReEncryptionValidator.sol";
 import "contracts/lib/SignatureVerifier.sol";
 import "contracts/StakingEscrow.sol";
 import "contracts/proxy/Upgradeable.sol";
-import "zeppelin/math/SafeMath.sol";
 import "zeppelin/math/Math.sol";
 
 
@@ -17,7 +16,6 @@ import "zeppelin/math/Math.sol";
 */
 contract Adjudicator is Upgradeable {
 
-    using SafeMath for uint256;
     using UmbralDeserializer for bytes;
 
     event CFragEvaluated(
@@ -156,7 +154,7 @@ contract Adjudicator is Upgradeable {
 
         // 4. Extract worker address from stamp signature.
         address worker = SignatureVerifier.recover(
-            SignatureVerifier.hashEIP191(stamp, byte(0x45)), // Currently, we use version E (0x45) of EIP191 signatures
+            SignatureVerifier.hashEIP191(stamp, bytes1(0x45)), // Currently, we use version E (0x45) of EIP191 signatures
             _workerIdentityEvidence);
         address staker = escrow.stakerFromWorker(worker);
         require(staker != address(0), "Worker must be related to a staker");
@@ -181,11 +179,11 @@ contract Adjudicator is Upgradeable {
     function calculatePenaltyAndReward(address _staker, uint256 _stakerValue)
         internal returns (uint256 penalty, uint256 reward)
     {
-        penalty = basePenalty.add(penaltyHistoryCoefficient.mul(penaltyHistory[_staker]));
-        penalty = Math.min(penalty, _stakerValue.div(percentagePenaltyCoefficient));
-        reward = penalty.div(rewardCoefficient);
+        penalty = basePenalty + penaltyHistoryCoefficient * penaltyHistory[_staker];
+        penalty = Math.min(penalty, _stakerValue / percentagePenaltyCoefficient);
+        reward = penalty / rewardCoefficient;
         // TODO add maximum condition or other overflow protection or other penalty condition (#305?)
-        penaltyHistory[_staker] = penaltyHistory[_staker].add(1);
+        penaltyHistory[_staker] = penaltyHistory[_staker] + 1;
     }
 
     /// @dev the `onlyWhileUpgrading` modifier works through a call to the parent `verifyState`

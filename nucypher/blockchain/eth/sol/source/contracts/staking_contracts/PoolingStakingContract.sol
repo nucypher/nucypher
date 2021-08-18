@@ -1,10 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-pragma solidity ^0.7.0;
+pragma solidity ^0.8.0;
 
 
 import "zeppelin/ownership/Ownable.sol";
-import "zeppelin/math/SafeMath.sol";
 import "contracts/staking_contracts/AbstractStakingContract.sol";
 
 
@@ -12,7 +11,6 @@ import "contracts/staking_contracts/AbstractStakingContract.sol";
 * @notice Contract acts as delegate for sub-stakers and owner
 **/
 contract PoolingStakingContract is AbstractStakingContract, Ownable {
-    using SafeMath for uint256;
     using Address for address payable;
     using SafeERC20 for NuCypherToken;
 
@@ -77,7 +75,7 @@ contract PoolingStakingContract is AbstractStakingContract, Ownable {
     function depositTokens(uint256 _value) external {
         require(depositIsEnabled, "Deposit must be enabled");
         require(_value > 0, "Value must be not empty");
-        totalDepositedTokens = totalDepositedTokens.add(_value);
+        totalDepositedTokens += _value;
         Delegator storage delegator = delegators[msg.sender];
         delegator.depositedTokens += _value;
         token.safeTransferFrom(msg.sender, address(this), _value);
@@ -101,7 +99,7 @@ contract PoolingStakingContract is AbstractStakingContract, Ownable {
     * @notice Get cumulative reward
     */
     function getCumulativeReward() public view returns (uint256) {
-        return getAvailableReward().add(totalWithdrawnReward);
+        return getAvailableReward() + totalWithdrawnReward;
     }
 
     /**
@@ -112,12 +110,12 @@ contract PoolingStakingContract is AbstractStakingContract, Ownable {
 
         uint256 maxAllowableReward;
         if (totalDepositedTokens != 0) {
-            maxAllowableReward = reward.mul(ownerFraction).div(totalDepositedTokens.add(ownerFraction));
+            maxAllowableReward = reward * ownerFraction / (totalDepositedTokens + ownerFraction);
         } else {
             maxAllowableReward = reward;
         }
 
-        return maxAllowableReward.sub(ownerWithdrawnReward);
+        return maxAllowableReward - ownerWithdrawnReward;
     }
 
     /**
@@ -130,8 +128,8 @@ contract PoolingStakingContract is AbstractStakingContract, Ownable {
 
         uint256 reward = getCumulativeReward();
         Delegator storage delegator = delegators[_delegator];
-        uint256 maxAllowableReward = reward.mul(delegator.depositedTokens)
-            .div(totalDepositedTokens.add(ownerFraction));
+        uint256 maxAllowableReward = reward * delegator.depositedTokens
+            / (totalDepositedTokens + ownerFraction);
 
         return maxAllowableReward > delegator.withdrawnReward ? maxAllowableReward - delegator.withdrawnReward : 0;
     }
@@ -147,8 +145,8 @@ contract PoolingStakingContract is AbstractStakingContract, Ownable {
             availableReward = balance;
         }
         require(availableReward > 0, "There is no available reward to withdraw");
-        ownerWithdrawnReward  = ownerWithdrawnReward.add(availableReward);
-        totalWithdrawnReward = totalWithdrawnReward.add(availableReward);
+        ownerWithdrawnReward  = ownerWithdrawnReward + availableReward;
+        totalWithdrawnReward = totalWithdrawnReward + availableReward;
 
         token.safeTransfer(msg.sender, availableReward);
         emit TokensWithdrawn(msg.sender, availableReward, 0);
@@ -172,13 +170,13 @@ contract PoolingStakingContract is AbstractStakingContract, Ownable {
             delegator.withdrawnReward += _value;
             totalWithdrawnReward += _value;
         } else {
-            delegator.withdrawnReward = delegator.withdrawnReward.add(availableReward);
-            totalWithdrawnReward = totalWithdrawnReward.add(availableReward);
+            delegator.withdrawnReward = delegator.withdrawnReward + availableReward;
+            totalWithdrawnReward = totalWithdrawnReward + availableReward;
 
             uint256 depositToWithdraw = _value - availableReward;
             uint256 newDepositedTokens = delegator.depositedTokens - depositToWithdraw;
-            uint256 newWithdrawnReward = delegator.withdrawnReward.mul(newDepositedTokens).div(delegator.depositedTokens);
-            uint256 newWithdrawnETH = delegator.withdrawnETH.mul(newDepositedTokens).div(delegator.depositedTokens);
+            uint256 newWithdrawnReward = delegator.withdrawnReward * newDepositedTokens / delegator.depositedTokens;
+            uint256 newWithdrawnETH = delegator.withdrawnETH * newDepositedTokens / delegator.depositedTokens;
             totalDepositedTokens -= depositToWithdraw;
             totalWithdrawnReward -= (delegator.withdrawnReward - newWithdrawnReward);
             totalWithdrawnETH -= (delegator.withdrawnETH - newWithdrawnETH);
@@ -197,10 +195,10 @@ contract PoolingStakingContract is AbstractStakingContract, Ownable {
     function getAvailableOwnerETH() public view returns (uint256) {
         // TODO boilerplate code
         uint256 balance = address(this).balance;
-        balance = balance.add(totalWithdrawnETH);
-        uint256 maxAllowableETH = balance.mul(ownerFraction).div(totalDepositedTokens.add(ownerFraction));
+        balance = balance + totalWithdrawnETH;
+        uint256 maxAllowableETH = balance * ownerFraction / (totalDepositedTokens + ownerFraction);
 
-        uint256 availableETH = maxAllowableETH.sub(ownerWithdrawnETH);
+        uint256 availableETH = maxAllowableETH - ownerWithdrawnETH;
         if (availableETH > balance) {
             availableETH = balance;
         }
@@ -214,11 +212,11 @@ contract PoolingStakingContract is AbstractStakingContract, Ownable {
         Delegator storage delegator = delegators[_delegator];
         // TODO boilerplate code
         uint256 balance = address(this).balance;
-        balance = balance.add(totalWithdrawnETH);
-        uint256 maxAllowableETH = balance.mul(delegator.depositedTokens)
-            .div(totalDepositedTokens.add(ownerFraction));
+        balance += totalWithdrawnETH;
+        uint256 maxAllowableETH = balance * delegator.depositedTokens
+            / (totalDepositedTokens + ownerFraction);
 
-        uint256 availableETH = maxAllowableETH.sub(delegator.withdrawnETH);
+        uint256 availableETH = maxAllowableETH - delegator.withdrawnETH;
         if (availableETH > balance) {
             availableETH = balance;
         }
@@ -232,10 +230,10 @@ contract PoolingStakingContract is AbstractStakingContract, Ownable {
         uint256 availableETH = getAvailableOwnerETH();
         require(availableETH > 0, "There is no available ETH to withdraw");
 
-        ownerWithdrawnETH = ownerWithdrawnETH.add(availableETH);
-        totalWithdrawnETH = totalWithdrawnETH.add(availableETH);
+        ownerWithdrawnETH += availableETH;
+        totalWithdrawnETH += availableETH;
 
-        msg.sender.sendValue(availableETH);
+        payable(msg.sender).sendValue(availableETH);
         emit ETHWithdrawn(msg.sender, availableETH);
     }
 
@@ -247,10 +245,10 @@ contract PoolingStakingContract is AbstractStakingContract, Ownable {
         require(availableETH > 0, "There is no available ETH to withdraw");
 
         Delegator storage delegator = delegators[msg.sender];
-        delegator.withdrawnETH = delegator.withdrawnETH.add(availableETH);
+        delegator.withdrawnETH = delegator.withdrawnETH + availableETH;
 
-        totalWithdrawnETH = totalWithdrawnETH.add(availableETH);
-        msg.sender.sendValue(availableETH);
+        totalWithdrawnETH = totalWithdrawnETH + availableETH;
+        payable(msg.sender).sendValue(availableETH);
         emit ETHWithdrawn(msg.sender, availableETH);
     }
 

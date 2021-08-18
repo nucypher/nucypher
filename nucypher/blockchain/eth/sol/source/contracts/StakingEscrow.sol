@@ -1,15 +1,13 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-pragma solidity ^0.7.0; // TODO
+pragma solidity ^0.8.0;
 
 
 import "aragon/interfaces/IERC900History.sol";
 import "contracts/NuCypherToken.sol";
 import "contracts/lib/Bits.sol";
 import "contracts/lib/Snapshot.sol";
-import "contracts/lib/AdditionalMath.sol";
 import "contracts/proxy/Upgradeable.sol";
-import "zeppelin/math/SafeMath.sol";
 import "zeppelin/math/Math.sol";
 import "zeppelin/token/ERC20/SafeERC20.sol";
 
@@ -64,7 +62,7 @@ contract StakingEscrowStub is Upgradeable {
         super.verifyState(_testTarget);
 
         // we have to use real values even though this is a stub
-        require(address(delegateGet(_testTarget, this.token.selector)) == address(token));
+        require(address(uint160(delegateGet(_testTarget, this.token.selector))) == address(token));
         require(delegateGet(_testTarget, this.minAllowableLockedTokens.selector) == minAllowableLockedTokens);
         require(delegateGet(_testTarget, this.maxAllowableLockedTokens.selector) == maxAllowableLockedTokens);
     }
@@ -79,9 +77,7 @@ contract StakingEscrowStub is Upgradeable {
 */
 contract StakingEscrow is Upgradeable, IERC900History {
 
-    using AdditionalMath for uint256;
     using Bits for uint256;
-    using SafeMath for uint256;
     using Snapshot for uint128[];
     using SafeERC20 for NuCypherToken;
 
@@ -263,9 +259,9 @@ contract StakingEscrow is Upgradeable, IERC900History {
                 continue;
             }
             uint256 staked = info.value;
-            activeStakers[resultIndex][0] = uint256(staker);
+            activeStakers[resultIndex][0] = uint256(uint160(staker));
             activeStakers[resultIndex++][1] = staked;
-            allStakedTokens = allStakedTokens.add(staked);
+            allStakedTokens += staked;
         }
         assembly {
             mstore(activeStakers, resultIndex)
@@ -315,7 +311,7 @@ contract StakingEscrow is Upgradeable, IERC900History {
         require(_worker != info.worker);
         if (info.worker != address(0)) { // If this staker had a worker ...
             // Check that enough time has passed to change it
-            require(block.timestamp >= info.workerStartTimestamp.add(minWorkerSeconds));
+            require(block.timestamp >= info.workerStartTimestamp + minWorkerSeconds);
             // Remove the old relation "worker->staker"
             stakerFromWorker[info.worker] = address(0);
         }
@@ -386,7 +382,7 @@ contract StakingEscrow is Upgradeable, IERC900History {
         if(!_info.flags.bitSet(SNAPSHOTS_DISABLED_INDEX)){
             _info.history.addSnapshot(_info.value);
             uint256 lastGlobalBalance = uint256(balanceHistory.lastValue());
-            balanceHistory.addSnapshot(lastGlobalBalance.addSigned(_addition));
+            balanceHistory.addSnapshot(lastGlobalBalance + (_addition >= 0 ? uint256(_addition) : uint256(-_addition)));
         }
     }
 
@@ -529,7 +525,7 @@ contract StakingEscrow is Upgradeable, IERC900History {
     /// @dev the `onlyWhileUpgrading` modifier works through a call to the parent `verifyState`
     function verifyState(address _testTarget) public override virtual {
         super.verifyState(_testTarget);
-        require(address(delegateGet(_testTarget, this.stakerFromWorker.selector, bytes32(0))) ==
+        require(address(uint160(delegateGet(_testTarget, this.stakerFromWorker.selector, bytes32(0)))) ==
             stakerFromWorker[address(0)]);
 
         require(delegateGet(_testTarget, this.getStakersLength.selector) == stakers.length);
@@ -539,7 +535,7 @@ contract StakingEscrow is Upgradeable, IERC900History {
         address stakerAddress = stakers[0];
         require(address(uint160(delegateGet(_testTarget, this.stakers.selector, 0))) == stakerAddress);
         StakerInfo storage info = stakerInfo[stakerAddress];
-        bytes32 staker = bytes32(uint256(stakerAddress));
+        bytes32 staker = bytes32(uint256(uint160(stakerAddress)));
         StakerInfo memory infoToCheck = delegateGetStakerInfo(_testTarget, staker);
         require(infoToCheck.value == info.value &&
             infoToCheck.workerStartTimestamp == info.workerStartTimestamp &&
@@ -553,7 +549,7 @@ contract StakingEscrow is Upgradeable, IERC900History {
             totalStakedAt(block.number));
 
         if (info.worker != address(0)) {
-            require(address(delegateGet(_testTarget, this.stakerFromWorker.selector, bytes32(uint256(info.worker)))) ==
+            require(address(uint160(delegateGet(_testTarget, this.stakerFromWorker.selector, bytes32(uint256(uint160(info.worker)))))) ==
                 stakerFromWorker[info.worker]);
         }
     }

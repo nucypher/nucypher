@@ -1,9 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-pragma solidity ^0.7.0; // TODO
+pragma solidity ^0.8.0;
 
 
-import "zeppelin/math/SafeMath.sol";
 import "zeppelin/math/Math.sol";
 import "zeppelin/token/ERC20/SafeERC20.sol";
 import "zeppelin/token/ERC20/IERC20.sol";
@@ -24,7 +23,6 @@ interface ITokenStaking {
 */
 contract PREStakingApp {
 
-    using SafeMath for uint256;
     using SafeERC20 for IERC20;
 
     // TODO docs
@@ -102,22 +100,20 @@ contract PREStakingApp {
             return rewardPerTokenStored;
         }
         return
-            rewardPerTokenStored.add(
-                lastTimeRewardApplicable()
-                    .sub(lastUpdateTime)
-                    .mul(rewardRate)
-                    .mul(1e18)
-                    .div(staked)
-            );
+            rewardPerTokenStored +
+                (lastTimeRewardApplicable() - lastUpdateTime)
+                * rewardRate
+                * 1e18
+                / staked;
     }
 
     function earned(address _staker) public view returns (uint256) {
         RewardInfo storage info = rewardInfo[_staker];
         return
             tokenStaking.getAllocated(_staker, address(this))
-                .mul(rewardPerToken().sub(info.rewardPerTokenPaid))
-                .div(1e18)
-                .add(info.tReward);
+                * (rewardPerToken() - info.rewardPerTokenPaid)
+                / 1e18
+                + info.tReward;
     }
 
     function withdrawReward() public updateReward(msg.sender) {
@@ -133,14 +129,14 @@ contract PREStakingApp {
         require(_reward > 0);
         token.safeTransfer(msg.sender, _reward);
         if (block.timestamp >= periodFinish) {
-            rewardRate = _reward.div(rewardDuration);
+            rewardRate = _reward / rewardDuration;
         } else {
-            uint256 remaining = periodFinish.sub(block.timestamp);
-            uint256 leftover = remaining.mul(rewardRate);
-            rewardRate = _reward.add(leftover).div(rewardDuration);
+            uint256 remaining = periodFinish - block.timestamp;
+            uint256 leftover = remaining * rewardRate;
+            rewardRate = (_reward + leftover) / rewardDuration;
         }
         lastUpdateTime = block.timestamp;
-        periodFinish = block.timestamp.add(rewardDuration);
+        periodFinish = block.timestamp + rewardDuration;
         emit RewardAdded(_reward);
     }
 

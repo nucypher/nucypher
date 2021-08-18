@@ -1,14 +1,13 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-pragma solidity ^0.7.0;
+pragma solidity ^0.8.0; // TODO use 0.7.x version and revert changes ?
 
 
-import "zeppelin/math/SafeMath.sol";
 import "zeppelin/token/ERC20/SafeERC20.sol";
 import "zeppelin/utils/Address.sol";
+import "zeppelin/math/Math.sol";
 import "zeppelin/ownership/Ownable.sol";
 import "contracts/NuCypherToken.sol";
-import "contracts/lib/AdditionalMath.sol";
 
 
 /**
@@ -31,8 +30,6 @@ interface StakingEscrowInterface {
 */
 contract WorkLock is Ownable {
     using SafeERC20 for NuCypherToken;
-    using SafeMath for uint256;
-    using AdditionalMath for uint256;
     using Address for address payable;
     using Address for address;
 
@@ -172,7 +169,7 @@ contract WorkLock is Ownable {
 
         uint256 bonusETH = _ethAmount - minAllowedBid;
         uint256 bonusTokenSupply = tokenSupply - bidders.length * minAllowableLockedTokens;
-        return minAllowableLockedTokens + bonusETH.mul(bonusTokenSupply).div(bonusETHSupply);
+        return minAllowableLockedTokens + bonusETH * bonusTokenSupply / bonusETHSupply;
     }
 
     /**
@@ -181,7 +178,7 @@ contract WorkLock is Ownable {
     function ethToWork(uint256 _ethAmount, uint256 _tokenSupply, uint256 _ethSupply)
         internal view returns (uint256)
     {
-        return _ethAmount.mul(_tokenSupply).mul(SLOWING_REFUND).divCeil(_ethSupply.mul(boostingRefund));
+        return Math.ceilDiv(_ethAmount* _tokenSupply * SLOWING_REFUND, _ethSupply * boostingRefund);
     }
 
     /**
@@ -250,7 +247,7 @@ contract WorkLock is Ownable {
     function workToETH(uint256 _completedWork, uint256 _ethSupply, uint256 _tokenSupply)
         internal view returns (uint256)
     {
-        return _completedWork.mul(_ethSupply).mul(boostingRefund).div(_tokenSupply.mul(SLOWING_REFUND));
+        return _completedWork * _ethSupply * boostingRefund / (_tokenSupply * SLOWING_REFUND);
     }
 
     /**
@@ -287,7 +284,7 @@ contract WorkLock is Ownable {
     */
     function getRemainingWork(address _bidder) external view returns (uint256) {
         WorkInfo storage info = workInfo[_bidder];
-        uint256 completedWork = escrow.getCompletedWork(_bidder).sub(info.completedWork);
+        uint256 completedWork = escrow.getCompletedWork(_bidder) - info.completedWork;
         uint256 remainingWork = ethToWork(info.depositedETH);
         if (remainingWork <= completedWork) {
             return 0;
@@ -316,12 +313,12 @@ contract WorkLock is Ownable {
             require(bidders.length < tokenSupply / minAllowableLockedTokens, "Not enough tokens for more bidders");
             info.index = uint128(bidders.length);
             bidders.push(msg.sender);
-            bonusETHSupply = bonusETHSupply.add(msg.value - minAllowedBid);
+            bonusETHSupply += msg.value - minAllowedBid;
         } else {
-            bonusETHSupply = bonusETHSupply.add(msg.value);
+            bonusETHSupply += msg.value;
         }
 
-        info.depositedETH = info.depositedETH.add(msg.value);
+        info.depositedETH += msg.value;
         emit Bid(msg.sender, msg.value);
     }
 
@@ -347,9 +344,9 @@ contract WorkLock is Ownable {
         bidders.pop();
 
         if (refundETH > minAllowedBid) {
-            bonusETHSupply = bonusETHSupply.sub(refundETH - minAllowedBid);
+            bonusETHSupply -= refundETH - minAllowedBid;
         }
-        msg.sender.sendValue(refundETH);
+        payable(msg.sender).sendValue(refundETH);
         emit Canceled(msg.sender, refundETH);
     }
 
@@ -382,7 +379,7 @@ contract WorkLock is Ownable {
         uint256 length = _biddersForRefund.length;
         require(length > 0, "Must be at least one bidder for a refund");
 
-        uint256 minNumberOfBidders = tokenSupply.divCeil(maxAllowableLockedTokens);
+        uint256 minNumberOfBidders = Math.ceilDiv(tokenSupply, maxAllowableLockedTokens);
         if (bidders.length < minNumberOfBidders) {
             internalShutdown();
             return;
@@ -427,10 +424,11 @@ contract WorkLock is Ownable {
         uint256 maxBonusTokens = maxAllowableLockedTokens - minAllowableLockedTokens;
         uint256 minBonusETH = minBid - minAllowedBid;
         uint256 bonusTokenSupply = tokenSupply - bidders.length * minAllowableLockedTokens;
-        uint256 refundETH = minBonusETH.mul(bonusTokenSupply)
-                                .sub(maxBonusTokens.mul(bonusETHSupply))
-                                .divCeil(bonusTokenSupply - maxBonusTokens.mul(length));
-        uint256 resultBid = minBid.sub(refundETH);
+        uint256 refundETH = Math.ceilDiv(
+            minBonusETH * bonusTokenSupply - maxBonusTokens * bonusETHSupply,
+            bonusTokenSupply - maxBonusTokens * length
+        );
+        uint256 resultBid = minBid - refundETH;
         bonusETHSupply -= length * refundETH;
         for (uint256 i = 0; i < length; i++) {
             address bidder = _biddersForRefund[i];
@@ -458,7 +456,7 @@ contract WorkLock is Ownable {
         uint256 refund = compensation[msg.sender];
         require(refund > 0, "There is no compensation");
         compensation[msg.sender] = 0;
-        msg.sender.sendValue(refund);
+        payable(msg.sender).sendValue(refund);
         emit CompensationWithdrawn(msg.sender, refund);
     }
 
@@ -481,7 +479,7 @@ contract WorkLock is Ownable {
 
         uint256 maxBonusTokens = maxAllowableLockedTokens - minAllowableLockedTokens;
         uint256 bonusTokenSupply = tokenSupply - bidders.length * minAllowableLockedTokens;
-        uint256 maxBidFromMaxStake = minAllowedBid + maxBonusTokens.mul(bonusETHSupply).div(bonusTokenSupply);
+        uint256 maxBidFromMaxStake = minAllowedBid + maxBonusTokens * bonusETHSupply / bonusTokenSupply;
 
 
         while (index < bidders.length && gasleft() > _gasToSaveState) {
@@ -533,7 +531,7 @@ contract WorkLock is Ownable {
         }
 
         uint256 currentWork = escrow.getCompletedWork(_bidder);
-        uint256 completedWork = currentWork.sub(info.completedWork);
+        uint256 completedWork = currentWork - info.completedWork;
         // no work that has been completed since last refund
         if (completedWork == 0) {
             return 0;
@@ -558,12 +556,12 @@ contract WorkLock is Ownable {
         if (refundETH == info.depositedETH) {
             escrow.setWorkMeasurement(msg.sender, false);
         }
-        info.depositedETH = info.depositedETH.sub(refundETH);
+        info.depositedETH -= refundETH;
         // convert refund back to work to eliminate potential rounding errors
         uint256 completedWork = ethToWork(refundETH, info.depositedETH);
 
-        info.completedWork = info.completedWork.add(completedWork);
+        info.completedWork += completedWork;
         emit Refund(msg.sender, refundETH, completedWork);
-        msg.sender.sendValue(refundETH);
+        payable(msg.sender).sendValue(refundETH);
     }
 }
