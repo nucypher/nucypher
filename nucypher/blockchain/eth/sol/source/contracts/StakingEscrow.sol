@@ -127,8 +127,8 @@ contract StakingEscrow is Upgradeable, IERC900History {
         uint16 stub2; // former slot for nextCommittedPeriod
         uint16 stub3; // former slot for lastCommittedPeriod
         uint16 stub4; // former slot for lockReStakeUntilPeriod
-        uint256 completedWork; // TODO ???
-        uint16 stub5; // former slot for workerStartPeriod
+        uint256 stub5; // former slot for completedWork
+        uint16 stub6; // former slot for workerStartPeriod
         address worker;
         uint256 flags; // uint256 to acquire whole slot and minimize operations on it
 
@@ -139,14 +139,13 @@ contract StakingEscrow is Upgradeable, IERC900History {
         uint256 reservedSlot4;
         uint256 reservedSlot5;
 
-        uint256[] stub6; // former slot for pastDowntime
-        uint256[] stub7; // former slot for subStakes
+        uint256[] stub7; // former slot for pastDowntime
+        uint256[] stub8; // former slot for subStakes
         uint128[] history; // TODO ???
 
     }
 
-    // indices for flags (0, 1, and 4 were in use, skip it in future)
-    uint8 internal constant MEASURE_WORK_INDEX = 2;
+    // indices for flags (0, 1, 2, and 4 were in use, skip it in future)
     uint8 internal constant SNAPSHOTS_DISABLED_INDEX = 3;
 
     uint256 public immutable minWorkerSeconds;
@@ -223,12 +222,10 @@ contract StakingEscrow is Upgradeable, IERC900History {
     */
     function getFlags(address _staker)
         external view returns (
-            bool measureWork,
             bool snapshots
         )
     {
         StakerInfo storage info = stakerInfo[_staker];
-        measureWork = info.flags.bitSet(MEASURE_WORK_INDEX);
         snapshots = !info.flags.bitSet(SNAPSHOTS_DISABLED_INDEX);
     }
 
@@ -279,26 +276,20 @@ contract StakingEscrow is Upgradeable, IERC900History {
     * @notice Get work that completed by the staker
     */
     function getCompletedWork(address _staker) external view returns (uint256) {
-        return stakerInfo[_staker].completedWork;
+        return token.totalSupply();
     }
 
 
     //------------------------Main methods------------------------
     /**
-    * @notice Start or stop measuring the work of a staker
+    * @notice Stub for WorkLock
     * @param _staker Staker
     * @param _measureWork Value for `measureWork` parameter
     * @return Work that was previously done
     */
     function setWorkMeasurement(address _staker, bool _measureWork) external returns (uint256) {
         require(msg.sender == address(workLock));
-        StakerInfo storage info = stakerInfo[_staker];
-        if (info.flags.bitSet(MEASURE_WORK_INDEX) == _measureWork) {
-            return info.completedWork;
-        }
-        info.flags = info.flags.toggleBit(MEASURE_WORK_INDEX);
-        emit WorkMeasurementSet(_staker, _measureWork);
-        return info.completedWork;
+        return 0;
     }
 
     /**
