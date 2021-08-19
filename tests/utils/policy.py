@@ -42,8 +42,10 @@ def work_order_setup(enacted_policy,
                      bob,
                      alice):
 
+    treasure_map = bob._decrypt_treasure_map(enacted_policy.treasure_map,
+                                             enacted_policy.publisher_verifying_key)
+
     # We pick up our story with Bob already having followed the treasure map above, ie:
-    treasure_map = enacted_policy.treasure_map
     bob.start_learning_loop()
 
     bob.follow_treasure_map(treasure_map=treasure_map, block=True, timeout=1)

@@ -25,8 +25,9 @@ from nucypher.control.interfaces import attach_schema, ControlInterface
 from nucypher.crypto.kits import UmbralMessageKit
 from nucypher.crypto.powers import DecryptingPower, SigningPower
 from nucypher.crypto.umbral_adapter import PublicKey
-from nucypher.crypto.utils import construct_policy_id
 from nucypher.network.middleware import RestMiddleware
+from nucypher.policy.hrac import HRAC
+from nucypher.policy.maps import EncryptedTreasureMap
 
 
 class CharacterPublicInterface(ControlInterface):
@@ -107,8 +108,8 @@ class AliceInterface(CharacterPublicInterface):
     def revoke(self, label: bytes, bob_verifying_key: bytes) -> dict:
 
         # TODO: Move deeper into characters
-        policy_id = construct_policy_id(label, bob_verifying_key)
-        policy = self.implementer.active_policies[policy_id]
+        policy_hrac = HRAC.derive(self.implementer.stamp.as_umbral_pubkey(), bob_verifying_key, label)
+        policy = self.implementer.active_policies[policy_hrac]
 
         receipt, failed_revocations = self.implementer.revoke(policy)
         if len(failed_revocations) > 0:
@@ -116,8 +117,8 @@ class AliceInterface(CharacterPublicInterface):
                 revocation, fail_reason = attempt
                 if fail_reason == RestMiddleware.NotFound:
                     del (failed_revocations[node_id])
-        if len(failed_revocations) <= (policy.n - policy.treasure_map.m + 1):
-            del (self.implementer.active_policies[policy_id])
+        if len(failed_revocations) <= (policy.n - policy.m + 1):
+            del (self.implementer.active_policies[policy_hrac])
 
         response_data = {'failed_revocations': len(failed_revocations)}
         return response_data
@@ -192,24 +193,18 @@ class BobInterface(CharacterPublicInterface):
 
         self.implementer.join_policy(label=label, publisher_verifying_key=alice_verifying_key)
 
-        if self.implementer.federated_only:
-            from nucypher.policy.maps import TreasureMap as _MapClass
-        else:
-            from nucypher.policy.maps import SignedTreasureMap as _MapClass
-
-        # TODO: This LBYL is ugly and fraught with danger.  NRN - #2751
         if isinstance(treasure_map, bytes):
-            treasure_map = _MapClass.from_bytes(treasure_map)
+            treasure_map = EncryptedTreasureMap.from_bytes(treasure_map)
 
         if isinstance(treasure_map, str):
             tmap_bytes = treasure_map.encode()
-            treasure_map = _MapClass.from_bytes(b64decode(tmap_bytes))
+            treasure_map = EncryptedTreasureMap.from_bytes(b64decode(tmap_bytes))
 
         plaintexts = self.implementer.retrieve(message_kit,
                                                enrico=enrico,
                                                alice_verifying_key=alice_verifying_key,
                                                label=label,
-                                               treasure_map=treasure_map)
+                                               encrypted_treasure_map=treasure_map)
 
         response_data = {'cleartexts': plaintexts}
         return response_data

@@ -72,10 +72,15 @@ def test_alice_rpc_character_control_grant(alice_rpc_test_client, grant_control_
     assert 'jsonrpc' in response.data
 
 
-def test_bob_rpc_character_control_join_policy(bob_rpc_controller, join_control_request, enacted_federated_policy, federated_bob, federated_ursulas):
+def test_bob_rpc_character_control_join_policy(bob_rpc_controller,
+                                               join_control_request,
+                                               federated_treasure_map,
+                                               enacted_federated_policy,
+                                               federated_bob,
+                                               federated_ursulas):
 
     for ursula in federated_ursulas:
-        if ursula.checksum_address in enacted_federated_policy.treasure_map.destinations:
+        if ursula.checksum_address in federated_treasure_map.destinations:
             # Simulate passing in a teacher-uri
             federated_bob.remember_node(ursula)
             break

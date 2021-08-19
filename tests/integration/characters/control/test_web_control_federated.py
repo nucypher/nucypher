@@ -27,7 +27,7 @@ from click.testing import CliRunner
 import nucypher
 from nucypher.crypto.kits import UmbralMessageKit
 from nucypher.crypto.powers import DecryptingPower
-from nucypher.policy.maps import TreasureMap
+from nucypher.policy.maps import EncryptedTreasureMap
 
 click_runner = CliRunner()
 
@@ -89,8 +89,8 @@ def test_alice_web_character_control_grant(alice_web_controller_test_client, gra
     assert 'alice_verifying_key' in response_data['result']
 
     map_bytes = b64decode(response_data['result']['treasure_map'])
-    encrypted_map = TreasureMap.from_bytes(map_bytes)
-    assert encrypted_map._hrac is not None
+    encrypted_map = EncryptedTreasureMap.from_bytes(map_bytes)
+    assert encrypted_map.hrac is not None
 
     # Send bad data to assert error returns
     response = alice_web_controller_test_client.put(endpoint, data=json.dumps({'bad': 'input'}))
@@ -169,14 +169,18 @@ def test_alice_character_control_decrypt(alice_web_controller_test_client,
     assert response.status_code == 405
 
 
-def test_bob_character_control_join_policy(bob_web_controller_test_client, federated_bob, federated_ursulas, enacted_federated_policy):
+def test_bob_character_control_join_policy(bob_web_controller_test_client,
+                                           federated_bob,
+                                           federated_ursulas,
+                                           federated_treasure_map,
+                                           enacted_federated_policy):
     request_data = {
         'label': enacted_federated_policy.label.decode(),
         'publisher_verifying_key': bytes(enacted_federated_policy.publisher_verifying_key).hex(),
     }
 
     for ursula in federated_ursulas:
-        if ursula.checksum_address in enacted_federated_policy.treasure_map.destinations:
+        if ursula.checksum_address in federated_treasure_map.destinations:
             # Simulate passing in a teacher-uri
             federated_bob.remember_node(ursula)
             break

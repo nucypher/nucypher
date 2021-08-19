@@ -208,9 +208,9 @@ class RestMiddleware:
         )
         return response
 
-    def get_treasure_map_from_node(self, node, map_identifier):
+    def get_treasure_map_from_node(self, node, hrac):
         response = self.client.get(node_or_sprout=node,
-                                   path=f"treasure_map/{map_identifier}",
+                                   path=f"treasure_map/{bytes(hrac).hex()}",
                                    timeout=2)
         return response
 

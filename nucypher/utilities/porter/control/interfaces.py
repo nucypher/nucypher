@@ -19,7 +19,6 @@ from typing import List, Optional
 from eth_typing import ChecksumAddress
 from nucypher.crypto.umbral_adapter import PublicKey
 
-from nucypher.characters.control.specifications.fields import TreasureMap
 from nucypher.control.interfaces import ControlInterface, attach_schema
 from nucypher.utilities.porter.control.specifications import porter_schema
 
@@ -27,8 +26,6 @@ from nucypher.utilities.porter.control.specifications import porter_schema
 class PorterInterface(ControlInterface):
     def __init__(self, porter: 'Porter' = None, *args, **kwargs):
         super().__init__(implementer=porter, *args, **kwargs)
-        # set federated/non-federated context for publish treasure map schema
-        PorterInterface.publish_treasure_map._schema.context[TreasureMap.IS_FEDERATED_CONTEXT_KEY] = porter.federated_only
 
     #
     # Alice Endpoints
@@ -72,10 +69,10 @@ class PorterInterface(ControlInterface):
     #
     @attach_schema(porter_schema.BobGetTreasureMap)
     def get_treasure_map(self,
-                         treasure_map_id: str,
+                         hrac: bytes,
                          bob_encrypting_key: bytes) -> dict:
         bob_enc_key = PublicKey.from_bytes(bob_encrypting_key)
-        treasure_map = self.implementer.get_treasure_map(map_identifier=treasure_map_id,
+        treasure_map = self.implementer.get_treasure_map(hrac=hrac,
                                                          bob_encrypting_key=bob_enc_key)
         response_data = {'treasure_map': treasure_map}
         return response_data

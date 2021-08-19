@@ -147,7 +147,7 @@ def test_work_order_with_multiple_capsules(mock_ursula_reencrypts,
                        + bytes(federated_alice.stamp)                \
                        + bytes(federated_alice.stamp)                \
                        + bytes(federated_bob.stamp)                  \
-                       + work_order.hrac                             \
+                       + bytes(work_order.hrac)                      \
                        + bytes(VariableLengthBytestring(mock_kfrag)) \
                        + tasks_bytes
 

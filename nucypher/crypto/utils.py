@@ -35,14 +35,6 @@ from nucypher.crypto.umbral_adapter import Signature, PublicKey
 SYSTEM_RAND = SystemRandom()
 
 
-def construct_policy_id(label: bytes, stamp: bytes) -> bytes:
-    """
-    Forms an ID unique to the policy per label and Bob's signing pubkey via
-    a keccak hash of the two.
-    """
-    return keccak_digest(label + stamp)
-
-
 def canonical_address_from_umbral_key(public_key: Union[PublicKey, SignatureStamp]) -> bytes:
     if isinstance(public_key, SignatureStamp):
         public_key = public_key.as_umbral_pubkey()

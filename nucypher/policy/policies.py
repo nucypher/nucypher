@@ -25,15 +25,14 @@ from bytestring_splitter import BytestringSplitter, VariableLengthBytestring
 from eth_typing.evm import ChecksumAddress
 from twisted.internet import reactor
 
-from nucypher.blockchain.eth.constants import POLICY_ID_LENGTH
-from nucypher.crypto.constants import HRAC_LENGTH
 from nucypher.crypto.kits import RevocationKit
-from nucypher.crypto.powers import TransactingPower
+from nucypher.crypto.powers import TransactingPower, DecryptingPower
 from nucypher.crypto.splitters import key_splitter
 from nucypher.crypto.utils import keccak_digest
 from nucypher.crypto.umbral_adapter import PublicKey, VerifiedKeyFrag, Signature
-from nucypher.crypto.utils import construct_policy_id
 from nucypher.network.middleware import RestMiddleware
+from nucypher.policy.hrac import HRAC
+from nucypher.policy.maps import TreasureMap
 from nucypher.policy.reservoir import (
     make_federated_staker_reservoir,
     MergedReservoir,
@@ -157,8 +156,6 @@ class Policy(ABC):
     An edict by Alice, arranged with n Ursulas, to perform re-encryption for a specific Bob.
     """
 
-    ID_LENGTH = POLICY_ID_LENGTH
-
     log = Logger("Policy")
 
     class PolicyException(Exception):
@@ -215,8 +212,6 @@ class Policy(ABC):
         self.public_key = public_key
         self.expiration = expiration
 
-        self._id = construct_policy_id(self.label, bytes(self.bob.stamp))
-
         """
         # TODO: #180 - This attribute is hanging on for dear life.
         After 180 is closed, it can be completely deprecated.
@@ -231,10 +226,12 @@ class Policy(ABC):
         Alice and Bob have all the information they need to construct this.
         'Ursula' does not, so we share it with her.
         """
-        self.hrac = keccak_digest(bytes(self.publisher.stamp) + bytes(self.bob.stamp) + self.label)[:HRAC_LENGTH]
+        self.hrac = HRAC.derive(publisher_verifying_key=self.publisher.stamp.as_umbral_pubkey(),
+                                bob_verifying_key=self.bob.stamp.as_umbral_pubkey(),
+                                label=self.label)
 
     def __repr__(self):
-        return f"{self.__class__.__name__}:{self._id.hex()[:6]}"
+        return f"{self.__class__.__name__}:{bytes(self.hrac).hex()[:6]}"
 
     @abstractmethod
     def _make_reservoir(self, handpicked_addresses: Sequence[ChecksumAddress]) -> MergedReservoir:
@@ -342,21 +339,8 @@ class Policy(ABC):
 
         return accepted_arrangements
 
-    def _make_treasure_map(self,
-                           network_middleware: RestMiddleware,
-                           arrangements: Dict['Ursula', Arrangement],
-                           ) -> 'TreasureMap':
-        """Author a new treasure map for this policy as Alice.."""
-        treasure_map = self._treasure_map_class.construct_by_publisher(publisher=self.publisher,
-                                                                       bob=self.bob,
-                                                                       label=self.label,
-                                                                       ursulas=list(arrangements),
-                                                                       verified_kfrags=self.kfrags,
-                                                                       m=self.m)
-        return treasure_map
-
     def _make_publisher(self,
-                        treasure_map: 'TreasureMap',
+                        treasure_map: 'EncryptedTreasureMap',
                         network_middleware: RestMiddleware,
                         ) -> TreasureMapPublisher:
 
@@ -368,6 +352,9 @@ class Policy(ABC):
         return TreasureMapPublisher(treasure_map_bytes=treasure_map_bytes,
                                     nodes=target_nodes,
                                     network_middleware=network_middleware)
+
+    def _encrypt_treasure_map(self, treasure_map):
+        return treasure_map.encrypt(self.publisher, self.bob)
 
     def enact(self,
               network_middleware: RestMiddleware,
@@ -388,18 +375,26 @@ class Policy(ABC):
 
         self._enact_arrangements(arrangements)
 
-        treasure_map = self._make_treasure_map(network_middleware=network_middleware,
-                                               arrangements=arrangements)
-        treasure_map_publisher = self._make_publisher(treasure_map=treasure_map,
+        treasure_map = TreasureMap.construct_by_publisher(hrac=self.hrac,
+                                                          publisher=self.publisher,
+                                                          bob=self.bob,
+                                                          ursulas=list(arrangements),
+                                                          verified_kfrags=self.kfrags,
+                                                          m=self.m)
+
+        enc_treasure_map = self._encrypt_treasure_map(treasure_map)
+
+        treasure_map_publisher = self._make_publisher(treasure_map=enc_treasure_map,
                                                       network_middleware=network_middleware)
 
-        revocation_kit = RevocationKit(treasure_map=treasure_map, signer=self.publisher.stamp)  # TODO: Signal revocation without using encrypted kfrag
+        # TODO: Signal revocation without using encrypted kfrag
+        revocation_kit = RevocationKit(treasure_map=treasure_map, signer=self.publisher.stamp)
 
-        enacted_policy = EnactedPolicy(self._id,
-                                       self.hrac,
+        enacted_policy = EnactedPolicy(self.hrac,
                                        self.label,
                                        self.public_key,
-                                       treasure_map,
+                                       treasure_map.m,
+                                       enc_treasure_map,
                                        treasure_map_publisher,
                                        revocation_kit,
                                        self.publisher.stamp.as_umbral_pubkey())
@@ -426,8 +421,6 @@ class Policy(ABC):
 
 
 class FederatedPolicy(Policy):
-    from nucypher.policy.maps import TreasureMap as __map_class
-    _treasure_map_class = __map_class
 
     def _not_enough_ursulas_exception(self):
         return Policy.NotEnoughUrsulas
@@ -444,9 +437,6 @@ class BlockchainPolicy(Policy):
     """
     A collection of n Arrangements representing a single Policy
     """
-
-    from nucypher.policy.maps import SignedTreasureMap as __map_class
-    _treasure_map_class = __map_class
 
     class InvalidPolicyValue(ValueError):
         pass
@@ -526,7 +516,7 @@ class BlockchainPolicy(Policy):
 
         # Transact  # TODO: Move this logic to BlockchainPolicyActor
         receipt = self.publisher.policy_agent.create_policy(
-            policy_id=self.hrac,  # bytes16 _policyID
+            policy_id=bytes(self.hrac),  # bytes16 _policyID
             transacting_power=self.publisher.transacting_power,
             value=self.value,
             end_timestamp=self.expiration.epoch,  # uint16 _numberOfPeriods
@@ -537,43 +527,39 @@ class BlockchainPolicy(Policy):
         return receipt['transactionHash']
 
     def _make_enactment_payload(self, kfrag) -> bytes:
-        return bytes(self.hrac)[:self.ID_LENGTH] + bytes(kfrag)
+        return bytes(self.hrac) + bytes(kfrag)
 
     def _enact_arrangements(self, arrangements: Dict['Ursula', Arrangement]) -> None:
         self._publish_to_blockchain(ursulas=list(arrangements))
 
-    def _make_treasure_map(self,
-                           network_middleware: RestMiddleware,
-                           arrangements: Dict['Ursula', Arrangement],
-                           ) -> 'TreasureMap':
-
-        treasure_map = super()._make_treasure_map(network_middleware, arrangements)
+    def _encrypt_treasure_map(self, treasure_map):
         transacting_power = self.publisher._crypto_power.power_ups(TransactingPower)
-        treasure_map.include_blockchain_signature(transacting_power.sign_message)
-        return treasure_map
+        return treasure_map.encrypt(publisher=self.publisher,
+                                    bob=self.bob,
+                                    blockchain_signer=transacting_power.sign_message)
 
 
 class EnactedPolicy:
 
     def __init__(self,
-                 id: bytes,
-                 hrac: bytes,
+                 hrac: HRAC,
                  label: bytes,
                  public_key: PublicKey,
-                 treasure_map: 'TreasureMap',
+                 m: int,
+                 treasure_map: 'EncryptedTreasureMap',
                  treasure_map_publisher: TreasureMapPublisher,
                  revocation_kit: RevocationKit,
                  publisher_verifying_key: PublicKey,
                  ):
 
-        self.id = id # TODO: is it even used anywhere?
         self.hrac = hrac
         self.label = label
         self.public_key = public_key
         self.treasure_map = treasure_map
         self.treasure_map_publisher = treasure_map_publisher
         self.revocation_kit = revocation_kit
-        self.n = len(self.treasure_map.destinations)
+        self.m = m
+        self.n = len(self.revocation_kit)
         self.publisher_verifying_key = publisher_verifying_key
 
     def publish_treasure_map(self):

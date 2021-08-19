@@ -245,6 +245,15 @@ def enacted_federated_policy(idle_federated_policy, federated_ursulas):
 
 
 @pytest.fixture(scope="module")
+def federated_treasure_map(enacted_federated_policy, federated_bob):
+    """
+    The unencrypted treasure map corresponding to the one in `enacted_federated_policy`
+    """
+    yield federated_bob._decrypt_treasure_map(enacted_federated_policy.treasure_map,
+                                              enacted_federated_policy.publisher_verifying_key)
+
+
+@pytest.fixture(scope="module")
 def idle_blockchain_policy(testerchain, blockchain_alice, blockchain_bob, token_economics):
     """
     Creates a Policy, in a manner typical of how Alice might do it, with a unique label
@@ -279,6 +288,15 @@ def enacted_blockchain_policy(idle_blockchain_policy, blockchain_ursulas):
                                                   handpicked_ursulas=list(blockchain_ursulas))
     enacted_policy.treasure_map_publisher.block_until_complete()
     return enacted_policy
+
+
+@pytest.fixture(scope="module")
+def blockchain_treasure_map(enacted_blockchain_policy, blockchain_bob):
+    """
+    The unencrypted treasure map corresponding to the one in `enacted_blockchain_policy`
+    """
+    yield blockchain_bob._decrypt_treasure_map(enacted_blockchain_policy.treasure_map,
+                                               enacted_blockchain_policy.publisher_verifying_key)
 
 
 @pytest.fixture(scope="function")

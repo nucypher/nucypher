@@ -20,12 +20,13 @@ import pytest
 from eth_tester.exceptions import TransactionFailed
 from web3.contract import Contract
 
+from nucypher.blockchain.eth.constants import POLICY_ID_LENGTH
+
+
 FEE_FIELD = 0
 PREVIOUS_FEE_PERIOD_FIELD = 1
 FEE_RATE_FIELD = 2
 MIN_FEE_RATE_FIELD = 3
-
-POLICY_ID_LENGTH = 16
 
 
 def test_policy_manager_migration(testerchain, token_economics, deploy_contract):

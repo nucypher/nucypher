@@ -38,11 +38,12 @@ from nucypher.crypto.kits import PolicyMessageKit
 from nucypher.crypto.powers import KeyPairBasedPower, PowerUpError
 from nucypher.crypto.signing import InvalidSignature
 from nucypher.datastore.datastore import Datastore, RecordNotFound
-from nucypher.datastore.models import TreasureMap as TreasureMapModel
+from nucypher.datastore.models import EncryptedTreasureMap as TreasureMapModel
 from nucypher.datastore.models import Workorder as WorkOrderModel
 from nucypher.network import LEARNING_LOOP_VERSION
 from nucypher.network.exceptions import NodeSeemsToBeDown
 from nucypher.network.protocols import InterfaceInfo
+from nucypher.policy.hrac import HRAC
 from nucypher.utilities.logging import Logger
 
 HERE = BASE_DIR = Path(__file__).parent
@@ -190,7 +191,7 @@ def _make_rest_app(datastore: Datastore, this_node, domain: str, log: Logger) ->
         work_order_payload = request.data
         work_order = WorkOrder.from_rest_payload(rest_payload=work_order_payload, ursula=this_node)
         hrac = work_order.hrac
-        log.info(f"Work Order from {work_order.bob} for policy {hrac.hex()}, signed {work_order.receipt_signature}")
+        log.info(f"Work Order from {work_order.bob} for policy {hrac}, signed {work_order.receipt_signature}")
 
         # Right off the bat, if this HRAC is already known to be revoked, reject the order.
         if hrac in this_node.revoked_policies:
@@ -227,7 +228,7 @@ def _make_rest_app(datastore: Datastore, this_node, domain: str, log: Logger) ->
             message = f'{bob_identity_message} Invalid AuthorizedKeyFrag.'
             log.info(message)
             this_node.suspicious_activities_witnessed['unauthorized'].append(message)
-            return Response(message, status=401)  # 401 - Unauthorized
+            return Response(message, status=400)  # 400 - General error
 
         try:
             verified_kfrag = this_node.verify_kfrag_authorization(hrac=work_order.hrac,
@@ -247,22 +248,22 @@ def _make_rest_app(datastore: Datastore, this_node, domain: str, log: Logger) ->
             try:
                 this_node.verify_policy_payment(hrac=hrac)
             except Policy.Unpaid:
-                message = f"{bob_identity_message} Policy {hrac.hex()} is unpaid."
+                message = f"{bob_identity_message} Policy {hrac} is unpaid."
                 record = (policy_publisher, message)
                 this_node.suspicious_activities_witnessed['freeriders'].append(record)
                 return Response(message, status=402)  # 402 - Payment Required
             except Policy.Unknown:
-                message = f"{bob_identity_message} Policy {hrac.hex()} is not a published policy."
+                message = f"{bob_identity_message} Policy {hrac} is not a published policy."
                 return Response(message, status=404)  # 404 - Not Found
 
             # Verify Active Policy (onchain)
             try:
                 this_node.verify_active_policy(hrac=hrac)
             except Policy.Inactive:
-                message = f"{bob_identity_message} Policy {hrac.hex()} is not active."
+                message = f"{bob_identity_message} Policy {hrac} is not active."
                 return Response(message, status=403)  # 403 - Forbidden
             except this_node.PolicyInfo.Expired:
-                message = f"{bob_identity_message} Policy {hrac.hex()} is expired."
+                message = f"{bob_identity_message} Policy {hrac} is expired."
                 return Response(message, status=403)  # 403 - Forbidden
 
         # Re-encrypt
@@ -286,16 +287,22 @@ def _make_rest_app(datastore: Datastore, this_node, domain: str, log: Logger) ->
         # TODO: Implement offchain revocation.
         return Response(status=200)
 
-    @rest_app.route('/treasure_map/<identifier>')
-    def provide_treasure_map(identifier):
+    @rest_app.route('/treasure_map/<hrac>')
+    def provide_treasure_map(hrac):
         headers = {'Content-Type': 'application/octet-stream'}
+
         try:
-            with datastore.describe(TreasureMapModel, identifier) as stored_treasure_map:
+            hrac_obj = HRAC.from_bytes(bytes.fromhex(hrac))
+        except ValueError:
+            return Response(f"Invalid HRAC format (got: {hrac}).", status=400)
+
+        try:
+            with datastore.describe(TreasureMapModel, hrac) as stored_treasure_map:
                 response = Response(stored_treasure_map.treasure_map, headers=headers)
-            log.info(f"{this_node} providing TreasureMap {identifier}")
+            log.info(f"{this_node} providing TreasureMap {hrac_obj}")
         except RecordNotFound:
-            log.info(f"{this_node} doesn't have requested TreasureMap under {identifier}")
-            response = Response(f"No Treasure Map with identifier {identifier}", status=404, headers=headers)
+            log.info(f"{this_node} doesn't have requested TreasureMap under {hrac_obj}")
+            response = Response(f"No Treasure Map with identifier {hrac_obj}", status=404, headers=headers)
         return response
 
     @rest_app.route('/treasure_map/', methods=['POST'])
@@ -305,36 +312,25 @@ def _make_rest_app(datastore: Datastore, this_node, domain: str, log: Logger) ->
         the treasure map by first validating the request and the received
         treasure map itself.
 
-        We set the datastore identifier as the HRAC if the node is running
-        as a decentralized node. Otherwise, we use the map_id in
-        federated mode.
+        We set the datastore identifier as the HRAC.
         """
 
-        if not this_node.federated_only:
-            from nucypher.policy.maps import SignedTreasureMap as _MapClass
-        else:
-            from nucypher.policy.maps import TreasureMap as _MapClass
+        from nucypher.policy.maps import EncryptedTreasureMap
 
         # Step 1: First, we verify the signature of the received treasure map.
         # This step also deserializes the treasure map if it's signed correctly.
         try:
-            received_treasure_map = _MapClass.from_bytes(bytes_representation=request.data, verify=True)
-        except _MapClass.InvalidSignature:
-            log.info(f"Bad TreasureMap HRAC Signature; not storing for HRAC {received_treasure_map._hrac.hex()}")
+            received_treasure_map = EncryptedTreasureMap.from_bytes(request.data)
+        except EncryptedTreasureMap.InvalidSignature:
+            log.info(f"Bad TreasureMap HRAC Signature; not storing for HRAC {received_treasure_map.hrac}")
             return Response("This TreasureMap's HRAC is not properly signed.", status=401)
 
-        # Additionally, we determine the map identifier from the type of node.
-        # If the node is federated, we also set the expiration for a week.
-        if not this_node.federated_only:
-            map_identifier = received_treasure_map._hrac.hex()
-        else:
-            map_identifier = received_treasure_map.public_id()
-            expiration_date = MayaDT.from_datetime(datetime.utcnow() + timedelta(days=7))
+        hrac = received_treasure_map.hrac
 
         # Step 2: Check if we already have the treasure map.
         try:
-            with datastore.describe(TreasureMapModel, map_identifier) as stored_treasure_map:
-                if _MapClass.from_bytes(stored_treasure_map.treasure_map) == received_treasure_map:
+            with datastore.describe(TreasureMapModel, bytes(hrac).hex()) as stored_treasure_map:
+                if EncryptedTreasureMap.from_bytes(stored_treasure_map.treasure_map) == received_treasure_map:
                     return Response("Already have this map.", status=303)
         except RecordNotFound:
             # This appears to be a new treasure map that we don't have!
@@ -344,26 +340,29 @@ def _make_rest_app(datastore: Datastore, this_node, domain: str, log: Logger) ->
         # treasure map is valid pursuant to an active policy.
         # We also set the expiration from the data on the blockchain here.
         if not this_node.federated_only:
-            policy = this_node.policy_agent.fetch_policy(policy_id=received_treasure_map._hrac)
+            policy = this_node.policy_agent.fetch_policy(policy_id=bytes(received_treasure_map.hrac))
             # If the Policy doesn't exist, the policy_data is all zeros.
             if policy.sponsor is NULL_ADDRESS:
-                log.info(f"TreasureMap is for non-existent Policy; not storing {map_identifier}")
+                log.info(f"TreasureMap is for non-existent Policy; not storing {hrac}")
                 return Response("The Policy for this TreasureMap doesn't exist.", status=409)
 
             # Check that this treasure map is from Alice per the Policy.
             if not received_treasure_map.verify_blockchain_signature(checksum_address=policy.owner):
-                log.info(f"Bad TreasureMap ID; not storing {map_identifier}")
+                log.info(f"Bad TreasureMap ID; not storing {hrac}")
                 return Response("This TreasureMap doesn't match a paid Policy.", status=402)
 
             # Check that this treasure map is valid for the Policy datetime and that it's not disabled.
             if policy.disabled or datetime.utcnow() >= datetime.utcfromtimestamp(policy.end_timestamp):
-                log.info(f"Received TreasureMap for an expired/disabled policy; not storing {map_identifier}")
+                log.info(f"Received TreasureMap for an expired/disabled policy; not storing {hrac}")
                 return Response("This TreasureMap is for an expired/disabled policy.", status=403)
             expiration_date = MayaDT.from_datetime(datetime.utcfromtimestamp(policy.end_timestamp))
+        else:
+            # If the node is federated, we also set the expiration for a week.
+            expiration_date = MayaDT.from_datetime(datetime.utcnow() + timedelta(days=7))
 
         # Step 4: Finally, we store our treasure map under its identifier!
-        log.info(f"{this_node} storing TreasureMap {map_identifier}")
-        with datastore.describe(TreasureMapModel, map_identifier, writeable=True) as new_treasure_map:
+        log.info(f"{this_node} storing TreasureMap {hrac}")
+        with datastore.describe(TreasureMapModel, bytes(hrac).hex(), writeable=True) as new_treasure_map:
             new_treasure_map.treasure_map = bytes(received_treasure_map)
             new_treasure_map.expiration = expiration_date
         return Response("Treasure map stored!", status=201)

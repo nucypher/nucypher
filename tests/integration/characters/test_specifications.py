@@ -22,7 +22,7 @@ import datetime
 import maya
 import pytest
 
-from nucypher.characters.control.specifications.fields.treasuremap import TreasureMap
+from nucypher.characters.control.specifications.fields.treasuremap import EncryptedTreasureMap
 from nucypher.characters.control.specifications import fields
 from nucypher.characters.control.specifications.alice import GrantPolicy
 from nucypher.control.specifications.base import BaseSchema
@@ -73,7 +73,7 @@ def test_treasuremap_validation(enacted_federated_policy):
     """Tell people exactly what's wrong with their treasuremaps"""
 
     class TreasureMapsOnly(BaseSchema):
-        tmap = TreasureMap(federated_only=True)
+        tmap = EncryptedTreasureMap()
 
     # this will raise a base64 error
     with pytest.raises(SpecificationError) as e:
@@ -87,8 +87,8 @@ def test_treasuremap_validation(enacted_federated_policy):
     with pytest.raises(InvalidInputData) as e:
         TreasureMapsOnly().load({'tmap': "VGhpcyBpcyB0b3RhbGx5IG5vdCBhIHRyZWFzdXJlbWFwLg=="})
 
-    assert "Could not parse tmap" in str(e)
-    assert "Can't split a message with more bytes than the original splittable" in str(e)
+    assert "Could not convert input for tmap to an EncryptedTreasureMap" in str(e)
+    assert "Invalid encrypted treasure map contents." in str(e)
 
     # a valid treasuremap for once...
     tmap_bytes = bytes(enacted_federated_policy.treasure_map)

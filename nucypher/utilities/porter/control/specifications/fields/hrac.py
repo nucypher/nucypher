@@ -17,15 +17,25 @@
 
 from marshmallow import fields
 
+from nucypher.characters.control.specifications.exceptions import InvalidNativeDataTypes
 from nucypher.control.specifications.exceptions import InvalidInputData
 from nucypher.control.specifications.fields.base import BaseField
-from nucypher.crypto.constants import HRAC_LENGTH, KECCAK_DIGEST_LENGTH
+from nucypher.policy.hrac import HRAC as HRACClass
 
 
-class TreasureMapID(BaseField, fields.String):
+class HRAC(BaseField, fields.String):
+
+    def _serialize(self, value, attr, obj, **kwargs):
+        return bytes(value).hex()
+
+    def _deserialize(self, value, attr, data, **kwargs):
+        try:
+            return bytes.fromhex(value)
+        except InvalidNativeDataTypes as e:
+            raise InvalidInputData(f"Could not convert input for {self.name} to a valid HRAC serialization: {e}")
 
     def _validate(self, value):
-        treasure_map_id = bytes.fromhex(value)
-        # FIXME federated has map id length 32 bytes but decentralized has length 16 bytes ... huh? - #2725
-        if len(treasure_map_id) != KECCAK_DIGEST_LENGTH and len(treasure_map_id) != HRAC_LENGTH:
-            raise InvalidInputData(f"Could not convert input for {self.name} to a valid TreasureMap ID: invalid length")
+        try:
+            HRACClass.from_bytes(value)
+        except InvalidNativeDataTypes as e:
+            raise InvalidInputData(f"Could not convert input for {self.name} to a valid HRAC: {e}")

@@ -64,7 +64,6 @@ from nucypher.blockchain.eth.constants import (
     POLICY_MANAGER_CONTRACT_NAME,
     DISPATCHER_CONTRACT_NAME,
     STAKING_ESCROW_CONTRACT_NAME,
-    POLICY_ID_LENGTH
 )
 from nucypher.blockchain.eth.decorators import (
     only_me,
@@ -105,6 +104,7 @@ from nucypher.characters.banners import STAKEHOLDER_BANNER
 from nucypher.control.emitters import StdoutEmitter
 from nucypher.config.constants import DEFAULT_CONFIG_ROOT
 from nucypher.crypto.powers import TransactingPower
+from nucypher.policy.hrac import HRAC
 from nucypher.types import NuNits, Period
 from nucypher.utilities.logging import Logger
 
@@ -1206,8 +1206,8 @@ class Worker(NucypherTokenActor):
         missing = self.staking_agent.get_missing_commitments(checksum_address=staker_address)
         return missing
 
-    def verify_policy_payment(self, hrac: bytes) -> None:
-        arrangements = self.policy_agent.fetch_policy_arrangements(policy_id=hrac)
+    def verify_policy_payment(self, hrac: HRAC) -> None:
+        arrangements = self.policy_agent.fetch_policy_arrangements(policy_id=bytes(hrac))
         members = set()
         for arrangement in arrangements:
             members.add(arrangement.node)
@@ -1215,16 +1215,16 @@ class Worker(NucypherTokenActor):
                 return
         else:
             if not members:
-                raise Policy.Unknown(f'{hrac.hex()} is not a published policy.')
-            raise Policy.Unpaid(f"{hrac.hex()} is unpaid.")
+                raise Policy.Unknown(f'{hrac} is not a published policy.')
+            raise Policy.Unpaid(f"{hrac} is unpaid.")
 
-    def verify_active_policy(self, hrac: bytes) -> None:
-        policy = self.policy_agent.fetch_policy(policy_id=hrac)
+    def verify_active_policy(self, hrac: HRAC) -> None:
+        policy = self.policy_agent.fetch_policy(policy_id=bytes(hrac))
         if policy.disabled:
-            raise Policy.Inactive(f'{hrac.hex()} is a disabled policy.')
+            raise Policy.Inactive(f'{hrac} is a disabled policy.')
         expired = datetime.utcnow() >= datetime.utcfromtimestamp(policy.end_timestamp)
         if expired:
-            raise Policy.Expired(f'{hrac.hex()} is an expired policy.')
+            raise Policy.Expired(f'{hrac} is an expired policy.')
 
 
 class BlockchainPolicyAuthor(NucypherTokenActor):

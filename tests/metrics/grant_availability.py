@@ -138,7 +138,7 @@ def collect(alice: Alice,
         else:
             success += 1
             policies[bytes(policy.public_key).hex()] = policy  # track
-            print(f"PEK:{bytes(policy.public_key).hex()} | HRAC {policy.hrac.hex()}")
+            print(f"PEK:{bytes(policy.public_key).hex()} | {policy.hrac}")
 
         # timeit
         end = maya.now()

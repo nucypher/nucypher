@@ -23,8 +23,8 @@ import pytest
 
 from nucypher.crypto.kits import PolicyMessageKit
 from nucypher.crypto.utils import keccak_digest
-from nucypher.datastore.models import TreasureMap as DatastoreTreasureMap
-from nucypher.policy.maps import SignedTreasureMap
+from nucypher.datastore.models import EncryptedTreasureMap as DatastoreTreasureMap
+from nucypher.policy.maps import EncryptedTreasureMap
 
 
 def test_decentralized_grant(blockchain_alice, blockchain_bob, blockchain_ursulas):
@@ -41,17 +41,16 @@ def test_decentralized_grant(blockchain_alice, blockchain_bob, blockchain_ursula
                                     rate=int(1e18),  # one ether
                                     expiration=policy_end_datetime)
 
-    # Check the policy ID
-    policy_id = keccak_digest(label + bytes(blockchain_bob.stamp))
-    assert policy_id == policy.id
+    treasure_map = blockchain_bob._decrypt_treasure_map(policy.treasure_map,
+                                                        policy.publisher_verifying_key)
 
     # The number of actually enacted arrangements is exactly equal to n.
-    assert len(policy.treasure_map.destinations) == n
+    assert len(treasure_map.destinations) == n
 
     # Let's look at the enacted arrangements.
     for ursula in blockchain_ursulas:
-        if ursula.checksum_address in policy.treasure_map.destinations:
-            kfrag_kit = policy.treasure_map.destinations[ursula.checksum_address]
+        if ursula.checksum_address in treasure_map.destinations:
+            kfrag_kit = treasure_map.destinations[ursula.checksum_address]
 
             # TODO: try to decrypt?
             # TODO: Use a new type for EncryptedKFrags?
@@ -62,11 +61,11 @@ def test_alice_sets_treasure_map_decentralized(enacted_blockchain_policy, blockc
     """
     Same as test_alice_sets_treasure_map except with a blockchain policy.
     """
-    treasure_map_hrac = enacted_blockchain_policy.treasure_map._hrac[:16].hex()
+    treasure_map_hrac = enacted_blockchain_policy.treasure_map.hrac
     found = 0
     for node in blockchain_bob.matching_nodes_among(blockchain_alice.known_nodes):
-        with node.datastore.describe(DatastoreTreasureMap, treasure_map_hrac) as treasure_map_on_node:
-            assert SignedTreasureMap.from_bytes(treasure_map_on_node.treasure_map) == enacted_blockchain_policy.treasure_map
+        with node.datastore.describe(DatastoreTreasureMap, bytes(treasure_map_hrac).hex()) as treasure_map_on_node:
+            assert EncryptedTreasureMap.from_bytes(treasure_map_on_node.treasure_map).hrac == enacted_blockchain_policy.hrac
         found += 1
     assert found
 
@@ -94,4 +93,4 @@ def test_bob_retrieves_treasure_map_from_decentralized_node(enacted_blockchain_p
     # Now he'll have better success finding that map.
     treasure_map_from_wire = bob.get_treasure_map(blockchain_alice.stamp.as_umbral_pubkey(),
                                                   enacted_blockchain_policy.label)
-    assert enacted_blockchain_policy.treasure_map == treasure_map_from_wire
+    assert enacted_blockchain_policy.treasure_map.hrac == treasure_map_from_wire.hrac

@@ -21,6 +21,7 @@ import datetime
 import maya
 import pytest
 
+from nucypher.crypto.kits import PolicyMessageKit
 from nucypher.characters.lawful import Enrico
 from nucypher.crypto.utils import keccak_digest
 from nucypher.policy.orders import Revocation
@@ -35,21 +36,24 @@ def test_federated_grant(federated_alice, federated_bob, federated_ursulas):
     # Create the Policy, granting access to Bob
     policy = federated_alice.grant(federated_bob, label, m=m, n=n, expiration=policy_end_datetime)
 
-    # Check the policy ID
-    policy_id = keccak_digest(policy.label + bytes(federated_bob.stamp))
-    assert policy_id == policy.id
-
     # Check Alice's active policies
-    assert policy_id in federated_alice.active_policies
-    assert federated_alice.active_policies[policy_id] == policy
+    assert policy.hrac in federated_alice.active_policies
+    assert federated_alice.active_policies[policy.hrac] == policy
+
+    treasure_map = federated_bob._decrypt_treasure_map(policy.treasure_map,
+                                                       policy.publisher_verifying_key)
 
     # The number of actually enacted arrangements is exactly equal to n.
-    assert len(policy.treasure_map.destinations) == n
+    assert len(treasure_map.destinations) == n
 
     # Let's look at the enacted arrangements.
     for ursula in federated_ursulas:
-        if ursula.checksum_address in policy.treasure_map.destinations:
-            assert ursula.checksum_address in policy.treasure_map.destinations
+        if ursula.checksum_address in treasure_map.destinations:
+            kfrag_kit = treasure_map.destinations[ursula.checksum_address]
+
+            # TODO: try to decrypt?
+            # TODO: Use a new type for EncryptedKFrags?
+            assert isinstance(kfrag_kit, PolicyMessageKit)
 
 
 def test_federated_alice_can_decrypt(federated_alice, federated_bob):

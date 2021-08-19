@@ -29,7 +29,7 @@ from nucypher.characters.control.specifications.fields import (
     Key,
     UmbralMessageKit,
     UmbralSignature,
-    TreasureMap
+    EncryptedTreasureMap
 )
 from nucypher.characters.lawful import Enrico
 from nucypher.control.specifications.exceptions import InvalidInputData
@@ -164,7 +164,7 @@ def test_umbral_signature():
 def test_treasure_map(enacted_federated_policy):
     treasure_map = enacted_federated_policy.treasure_map
 
-    field = TreasureMap(federated_only=True)
+    field = EncryptedTreasureMap()
     serialized = field._serialize(value=treasure_map, attr=None, obj=None)
     assert serialized == b64encode(bytes(treasure_map)).decode()
 

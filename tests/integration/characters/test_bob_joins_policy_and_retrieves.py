@@ -35,10 +35,10 @@ def test_federated_bob_full_retrieve_flow(federated_ursulas,
                                           federated_bob,
                                           federated_alice,
                                           capsule_side_channel,
+                                          federated_treasure_map,
                                           enacted_federated_policy):
     # Assume for the moment that Bob has already received a TreasureMap.
-    treasure_map = enacted_federated_policy.treasure_map
-    federated_bob.treasure_maps[treasure_map.public_id()] = treasure_map
+    federated_bob.treasure_maps[federated_treasure_map.hrac] = federated_treasure_map
 
     for ursula in federated_ursulas:
         federated_bob.remember_node(ursula)
@@ -98,12 +98,8 @@ def test_bob_joins_policy_and_retrieves(federated_alice,
         bob.join_policy(label=label,
                         publisher_verifying_key=federated_alice.stamp.as_umbral_pubkey(),
                         block=True)
-    except policy.treasure_map.NowhereToBeFound:
-        maps = []
-        for ursula in federated_ursulas:
-            for map in ursula.treasure_maps.values():
-                maps.append(map)
-        if policy.treasure_map in maps:
+    except TreasureMap.NowhereToBeFound:
+        if policy.treasure_map.hrac in ursula.treasure_maps:
             # This is a nice place to put a breakpoint to examine Bob's failure to join a policy.
             bob.join_policy(label=label,
                             publisher_verifying_key=federated_alice.stamp.as_umbral_pubkey(),
@@ -173,29 +169,6 @@ def test_bob_joins_policy_and_retrieves(federated_alice,
     bob.disenchant()
 
 
-def test_treasure_map_serialization(enacted_federated_policy, federated_alice, federated_bob):
-    treasure_map = enacted_federated_policy.treasure_map
-    assert treasure_map.m is not None
-    assert treasure_map.m != NO_DECRYPTION_PERFORMED
-    assert treasure_map.m == MOCK_POLICY_DEFAULT_M, 'm value is not correct'
-
-    serialized_map = bytes(treasure_map)
-    deserialized_map = TreasureMap.from_bytes(serialized_map)
-    assert deserialized_map._hrac == treasure_map._hrac
-
-    # TreasureMap is currently encrypted
-    with pytest.raises(TypeError):
-        deserialized_map.m
-
-    with pytest.raises(TypeError):
-        deserialized_map.destinations
-
-    compass = federated_bob.make_compass_for_alice(federated_alice)
-    deserialized_map.orient(compass)
-    assert deserialized_map.m == treasure_map.m
-    assert deserialized_map.destinations == treasure_map.destinations
-
-
 def test_bob_retrieves_with_treasure_map(
         federated_bob, federated_ursulas,
         enacted_federated_policy, capsule_side_channel):
@@ -214,7 +187,7 @@ def test_bob_retrieves_with_treasure_map(
         enrico=enrico,
         alice_verifying_key=alice_verifying_key,
         label=enacted_federated_policy.label,
-        treasure_map=treasure_map)
+        encrypted_treasure_map=treasure_map)
 
     message_kit.clear_cfrags()  # Return back to a non re-encrypted state
 
@@ -245,7 +218,7 @@ def test_bob_retrieves_too_late(federated_bob, federated_ursulas,
         enrico=enrico,
         alice_verifying_key=alice_verifying_key,
         label=enacted_federated_policy.label,
-        treasure_map=treasure_map,
+        encrypted_treasure_map=treasure_map,
         use_attached_cfrags=False)
 
     # Check that Bob can't get the treasure map after the policy is expired

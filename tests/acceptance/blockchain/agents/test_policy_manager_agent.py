@@ -23,6 +23,7 @@ import pytest
 from eth_tester.exceptions import TransactionFailed
 from eth_utils import is_checksum_address, to_wei
 
+from nucypher.blockchain.eth.constants import POLICY_ID_LENGTH
 from nucypher.blockchain.eth.signers.software import Web3Signer
 from nucypher.crypto.powers import TransactingPower
 from nucypher.blockchain.eth.agents import ContractAgency, PolicyManagerAgent, StakingEscrowAgent, NucypherTokenAgent
@@ -35,7 +36,7 @@ MockPolicyMetadata = collections.namedtuple('MockPolicyMetadata', 'policy_id aut
 def policy_meta(testerchain, agency, token_economics, blockchain_ursulas, test_registry):
     policy_agent = ContractAgency.get_agent(PolicyManagerAgent, registry=test_registry)
     staking_agent = ContractAgency.get_agent(StakingEscrowAgent, registry=test_registry)
-    _policy_id = os.urandom(16)
+    _policy_id = os.urandom(POLICY_ID_LENGTH)
     staker_addresses = list(staking_agent.get_stakers_reservoir(duration=1).draw(3))
     number_of_periods = 10
     now = testerchain.w3.eth.getBlock('latest').timestamp
@@ -54,7 +55,7 @@ def policy_meta(testerchain, agency, token_economics, blockchain_ursulas, test_r
 def test_create_policy(testerchain, agency, token_economics, test_registry):
     staking_agent = ContractAgency.get_agent(StakingEscrowAgent, registry=test_registry)
     policy_agent = ContractAgency.get_agent(PolicyManagerAgent, registry=test_registry)
-    policy_id = os.urandom(16)
+    policy_id = os.urandom(POLICY_ID_LENGTH)
     node_addresses = list(staking_agent.get_stakers_reservoir(duration=1).draw(3))
     now = testerchain.w3.eth.getBlock('latest').timestamp
     tpower = TransactingPower(account=testerchain.alice_account, signer=Web3Signer(testerchain.client))

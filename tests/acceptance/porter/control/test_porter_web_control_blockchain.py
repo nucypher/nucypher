@@ -22,9 +22,9 @@ from base64 import b64encode
 import pytest
 from nucypher.crypto.umbral_adapter import PublicKey
 
-from nucypher.crypto.constants import HRAC_LENGTH
 from nucypher.crypto.powers import DecryptingPower
 from nucypher.network.nodes import Learner
+from nucypher.policy.hrac import HRAC
 from nucypher.policy.maps import TreasureMap
 from tests.utils.middleware import MockRestMiddleware
 from tests.utils.policy import work_order_setup
@@ -105,10 +105,10 @@ def test_publish_and_get_treasure_map(blockchain_porter_web_controller,
     with pytest.raises(TreasureMap.NowhereToBeFound):
         random_bob_encrypting_key = PublicKey.from_bytes(
             bytes.fromhex("026d1f4ce5b2474e0dae499d6737a8d987ed3c9ab1a55e00f57ad2d8e81fe9e9ac"))
-        random_treasure_map_id = "93a9482bdf3b4f2e9df906a35144ca84"
-        assert len(bytes.fromhex(random_treasure_map_id)) == HRAC_LENGTH  # non-federated is 16 bytes
+        random_hrac = "93a9482bdf3b4f2e9df906a35144ca84"
+        assert len(bytes.fromhex(random_hrac)) == HRAC.SIZE
         get_treasure_map_params = {
-            'treasure_map_id': random_treasure_map_id,
+            'hrac': random_hrac,
             'bob_encrypting_key': bytes(random_bob_encrypting_key).hex()
         }
         blockchain_porter_web_controller.get('/get_treasure_map',
@@ -134,10 +134,10 @@ def test_publish_and_get_treasure_map(blockchain_porter_web_controller,
     assert response_data['result']['published']
 
     # try getting the recently published treasure map
-    map_id = blockchain_bob.construct_map_id(blockchain_alice.stamp,
-                                             enacted_policy.label)
+    hrac = blockchain_bob.construct_policy_hrac(blockchain_alice.stamp.as_umbral_pubkey(),
+                                                enacted_policy.label)
     get_treasure_map_params = {
-        'treasure_map_id': map_id,
+        'hrac': bytes(hrac).hex(),
         'bob_encrypting_key': bytes(blockchain_bob_encrypting_key).hex()
     }
     response = blockchain_porter_web_controller.get('/get_treasure_map',

@@ -98,12 +98,12 @@ def test_publish_and_get_treasure_map(federated_porter_web_controller,
     response = federated_porter_web_controller.post('/publish_treasure_map', data=json.dumps({'bad': 'input'}))
     assert response.status_code == 400
 
-    random_bob_encrypting_key, random_treasure_map_id, random_treasure_map = random_federated_treasure_map_data
+    random_bob_encrypting_key, random_treasure_map = random_federated_treasure_map_data
 
     # ensure that random treasure map cannot be obtained since not available
     with pytest.raises(TreasureMap.NowhereToBeFound):
         get_treasure_map_params = {
-            'treasure_map_id': random_treasure_map_id,
+            'hrac': bytes(random_treasure_map.hrac).hex(),
             'bob_encrypting_key': bytes(random_bob_encrypting_key).hex()
         }
         federated_porter_web_controller.get('/get_treasure_map', data=json.dumps(get_treasure_map_params))
@@ -121,7 +121,7 @@ def test_publish_and_get_treasure_map(federated_porter_web_controller,
 
     # try getting the random treasure map now
     get_treasure_map_params = {
-        'treasure_map_id': random_treasure_map_id,
+        'hrac': bytes(random_treasure_map.hrac).hex(),
         'bob_encrypting_key': bytes(random_bob_encrypting_key).hex()
     }
     response = federated_porter_web_controller.get('/get_treasure_map',
@@ -138,10 +138,10 @@ def test_publish_and_get_treasure_map(federated_porter_web_controller,
     assert response_data['result']['treasure_map'] == b64encode(bytes(random_treasure_map)).decode()
 
     # try getting an already existing policy
-    map_id = federated_bob.construct_map_id(federated_alice.stamp,
-                                            enacted_federated_policy.label)
+    hrac = federated_bob.construct_policy_hrac(federated_alice.stamp.as_umbral_pubkey(),
+                                               enacted_federated_policy.label)
     get_treasure_map_params = {
-        'treasure_map_id': map_id,
+        'hrac': bytes(hrac).hex(),
         'bob_encrypting_key': bytes(federated_bob.public_keys(DecryptingPower)).hex()
     }
     response = federated_porter_web_controller.get('/get_treasure_map',
@@ -202,11 +202,11 @@ def test_endpoints_basic_auth(federated_porter_basic_auth_web_controller,
     response = federated_porter_basic_auth_web_controller.get('/get_ursulas', data=json.dumps(get_ursulas_params))
     assert response.status_code == 401  # user unauthorized
 
-    random_bob_encrypting_key, random_treasure_map_id, random_treasure_map = random_federated_treasure_map_data
+    random_bob_encrypting_key, random_treasure_map = random_federated_treasure_map_data
 
     # /get_treasure_map
     get_treasure_map_params = {
-        'treasure_map_id': random_treasure_map_id,
+        'hrac': bytes(random_treasure_map.hrac).hex(),
         'bob_encrypting_key': bytes(random_bob_encrypting_key).hex()
     }
     response = federated_porter_basic_auth_web_controller.get('/get_treasure_map',

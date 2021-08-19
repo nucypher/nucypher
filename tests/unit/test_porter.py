@@ -21,7 +21,7 @@ import pytest
 from nucypher.control.specifications.exceptions import InvalidInputData
 from nucypher.control.specifications.fields import StringList
 from nucypher.utilities.porter.control.specifications.fields import (
-    TreasureMapID,
+    HRAC,
     UrsulaChecksumAddress,
     WorkOrder,
     WorkOrderResult
@@ -29,22 +29,19 @@ from nucypher.utilities.porter.control.specifications.fields import (
 from tests.utils.policy import work_order_setup
 
 
-def test_treasure_map_id_field(enacted_federated_policy):
-    treasure_map_id_hex = enacted_federated_policy.treasure_map.public_id()
-    other_hex = b"some date".hex()  # length is not 32-bytes
+def test_hrac_field(enacted_federated_policy):
+    hrac = enacted_federated_policy.treasure_map.hrac
 
-    field = TreasureMapID()
-    serialized = field._serialize(value=treasure_map_id_hex, attr=None, obj=None)
-    assert serialized == treasure_map_id_hex
-    assert serialized != other_hex
+    field = HRAC()
+    serialized = field._serialize(value=hrac, attr=None, obj=None)
+    assert serialized == bytes(hrac).hex()
 
     deserialized = field._deserialize(value=serialized, attr=None, data=None)
-    assert deserialized == treasure_map_id_hex
-    assert deserialized != other_hex
+    assert deserialized == bytes(hrac)
 
-    field._validate(value=treasure_map_id_hex)
+    field._validate(value=bytes(hrac))
     with pytest.raises(InvalidInputData):
-        field._validate(value=other_hex)
+        field._validate(value=b'not hrac')
 
 
 def test_ursula_checksum_address_field(get_random_checksum_address):

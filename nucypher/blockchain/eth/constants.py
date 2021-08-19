@@ -54,7 +54,8 @@ MAX_UINT16 = 65535
 NULL_ADDRESS = '0x' + '0' * 40
 
 # NuCypher
-POLICY_ID_LENGTH = 16  # same as the HRAC size
+# TODO: this is equal to HRAC.SIZE.
+POLICY_ID_LENGTH = 16
 
 # Aragon DAO contract names
 

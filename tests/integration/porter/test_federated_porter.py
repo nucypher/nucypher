@@ -73,28 +73,28 @@ def test_publish_and_get_treasure_map(federated_porter,
                                       federated_bob,
                                       enacted_federated_policy,
                                       random_federated_treasure_map_data):
-    random_bob_encrypting_key, random_treasure_map_id, random_treasure_map = random_federated_treasure_map_data
+    random_bob_encrypting_key, random_treasure_map = random_federated_treasure_map_data
 
     # ensure that random treasure map cannot be obtained since not available
     with pytest.raises(TreasureMap.NowhereToBeFound):
-        federated_porter.get_treasure_map(map_identifier=random_treasure_map_id,
+        federated_porter.get_treasure_map(hrac=random_treasure_map.hrac,
                                           bob_encrypting_key=random_bob_encrypting_key)
 
     # publish the random treasure map
-    federated_porter.publish_treasure_map(treasure_map_bytes=random_treasure_map,
+    federated_porter.publish_treasure_map(treasure_map_bytes=bytes(random_treasure_map),
                                           bob_encrypting_key=random_bob_encrypting_key)
 
     # try getting the random treasure map now
-    treasure_map = federated_porter.get_treasure_map(map_identifier=random_treasure_map_id,
+    treasure_map = federated_porter.get_treasure_map(hrac=random_treasure_map.hrac,
                                                      bob_encrypting_key=random_bob_encrypting_key)
-    assert treasure_map.public_id() == random_treasure_map_id
+    assert treasure_map.hrac == random_treasure_map.hrac
 
     # try getting an already existing policy
-    map_id = federated_bob.construct_map_id(federated_alice.stamp,
-                                            enacted_federated_policy.label)
-    treasure_map = federated_porter.get_treasure_map(map_identifier=map_id,
+    hrac = federated_bob.construct_policy_hrac(federated_alice.stamp.as_umbral_pubkey(),
+                                               enacted_federated_policy.label)
+    treasure_map = federated_porter.get_treasure_map(hrac=hrac,
                                                      bob_encrypting_key=federated_bob.public_keys(DecryptingPower))
-    assert treasure_map == enacted_federated_policy.treasure_map
+    assert treasure_map.hrac == enacted_federated_policy.hrac
 
 
 def test_exec_work_order(federated_porter,

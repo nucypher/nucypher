@@ -114,7 +114,7 @@ class AliceGetUrsulas(BaseSchema):
 
 
 class AlicePublishTreasureMap(BaseSchema):
-    treasure_map = character_fields.TreasureMap(
+    treasure_map = character_fields.EncryptedTreasureMap(
         required=True,
         load_only=True,
         click=click.option(
@@ -140,13 +140,13 @@ class AliceRevoke(BaseSchema):
 # Bob Endpoints
 #
 class BobGetTreasureMap(BaseSchema):
-    treasure_map_id = fields.TreasureMapID(
+    hrac = fields.HRAC(
         required=True,
         load_only=True,
         click=click.option(
-            '--treasure-map-id',
-            '-tid',
-            help="Treasure Map ID as hex",
+            '--hrac',
+            '-h',
+            help="Policy HRAC as hex",
             type=click.STRING,
             required=True))
     bob_encrypting_key = character_fields.Key(
@@ -156,7 +156,7 @@ class BobGetTreasureMap(BaseSchema):
 
     # output
     # treasure map only used for serialization so no need to provide federated/non-federated context
-    treasure_map = character_fields.TreasureMap(dump_only=True)
+    treasure_map = character_fields.EncryptedTreasureMap(dump_only=True)
 
 
 class BobExecWorkOrder(BaseSchema):

@@ -110,9 +110,9 @@ the Pipe for nucypher network operations
             self.make_cli_controller()
         self.log.info(self.BANNER)
 
-    def get_treasure_map(self, map_identifier: str, bob_encrypting_key: PublicKey):
+    def get_treasure_map(self, hrac: bytes, bob_encrypting_key: PublicKey):
         return treasuremap.get_treasure_map_from_known_ursulas(learner=self,
-                                                               map_identifier=map_identifier,
+                                                               hrac=hrac,
                                                                bob_encrypting_key=bob_encrypting_key,
                                                                timeout=self.DEFAULT_EXECUTION_TIMEOUT)
 
