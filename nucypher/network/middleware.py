@@ -16,10 +16,11 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
 
-import requests
 import socket
 import ssl
 import time
+
+import requests
 from bytestring_splitter import VariableLengthBytestring
 from constant_sorrow.constants import CERTIFICATE_NOT_SAVED, EXEMPT_FROM_VERIFICATION
 from cryptography import x509
@@ -206,19 +207,6 @@ class RestMiddleware:
             path=f"revoke",
             data=bytes(revocation),
         )
-        return response
-
-    def get_treasure_map_from_node(self, node, hrac):
-        response = self.client.get(node_or_sprout=node,
-                                   path=f"treasure_map/{bytes(hrac).hex()}",
-                                   timeout=2)
-        return response
-
-    def put_treasure_map_on_node(self, node, map_payload):
-        response = self.client.post(node_or_sprout=node,
-                                    path=f"treasure_map/",
-                                    data=map_payload,
-                                    timeout=2)
         return response
 
     def send_work_order_payload_to_ursula(self, ursula: 'Ursula', work_order_payload: bytes):
