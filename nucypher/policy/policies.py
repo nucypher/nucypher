@@ -101,7 +101,7 @@ class TreasureMapPublisher:
 
             # Received an HTTP response
             if response.status_code != 201:
-                message = f"Putting treasure map on {node} failed with response status: {response.status}"
+                message = f"Putting treasure map on {node} failed with response status: {response.status_code}"
                 self.log.warn(message)
             return response
 

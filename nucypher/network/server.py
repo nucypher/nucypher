@@ -344,9 +344,9 @@ def _make_rest_app(datastore: Datastore, this_node, domain: str, log: Logger) ->
         # treasure map is valid pursuant to an active policy.
         # We also set the expiration from the data on the blockchain here.
         if not this_node.federated_only:
-            policy = this_node.policy_agent.fetch_policy(policy_id=received_treasure_map._hrac)
+            policy = this_node.policy_agent.fetch_policy(policy_id=received_treasure_map._hrac.hex())
             # If the Policy doesn't exist, the policy_data is all zeros.
-            if policy.sponsor is NULL_ADDRESS:
+            if policy.sponsor == NULL_ADDRESS:
                 log.info(f"TreasureMap is for non-existent Policy; not storing {map_identifier}")
                 return Response("The Policy for this TreasureMap doesn't exist.", status=409)
 
