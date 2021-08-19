@@ -76,5 +76,5 @@ TEMPORARY_DOMAIN = ":temporary-domain:"  # for use with `--dev` node runtimes
 NUCYPHER_EVENTS_THROTTLE_MAX_BLOCKS = 'NUCYPHER_EVENTS_THROTTLE_MAX_BLOCKS'
 
 
-# Probationary period (see #2353, #2584)
-END_OF_POLICIES_PROBATIONARY_PERIOD = MayaDT.from_iso8601('2021-08-31T23:59:59.0Z')
+# Probationary period (see #2779)
+END_OF_POLICIES_PROBATIONARY_PERIOD = MayaDT.from_iso8601('2021-10-31T23:59:59.0Z')
