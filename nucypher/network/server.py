@@ -16,34 +16,28 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
 
-import os
 import uuid
 import weakref
 from pathlib import Path
-
-from datetime import datetime, timedelta
 from typing import Tuple
+
 from constant_sorrow import constants
 from constant_sorrow.constants import FLEET_STATES_MATCH, RELAX, NOT_STAKING
 from flask import Flask, Response, jsonify, request
 from mako import exceptions as mako_exceptions
 from mako.template import Template
-from maya import MayaDT
 
-from nucypher.blockchain.eth.constants import NULL_ADDRESS
 from nucypher.blockchain.eth.utils import period_to_epoch
 from nucypher.config.constants import MAX_UPLOAD_CONTENT_LENGTH
 from nucypher.crypto.keypairs import HostingKeypair, DecryptingKeypair
 from nucypher.crypto.kits import PolicyMessageKit
 from nucypher.crypto.powers import KeyPairBasedPower, PowerUpError
 from nucypher.crypto.signing import InvalidSignature
-from nucypher.datastore.datastore import Datastore, RecordNotFound
-from nucypher.datastore.models import EncryptedTreasureMap as TreasureMapModel
+from nucypher.datastore.datastore import Datastore
 from nucypher.datastore.models import Workorder as WorkOrderModel
 from nucypher.network import LEARNING_LOOP_VERSION
 from nucypher.network.exceptions import NodeSeemsToBeDown
 from nucypher.network.protocols import InterfaceInfo
-from nucypher.policy.hrac import HRAC
 from nucypher.utilities.logging import Logger
 
 HERE = BASE_DIR = Path(__file__).parent
@@ -286,86 +280,6 @@ def _make_rest_app(datastore: Datastore, this_node, domain: str, log: Logger) ->
         revocation = Revocation.from_bytes(request.data)
         # TODO: Implement offchain revocation.
         return Response(status=200)
-
-    @rest_app.route('/treasure_map/<hrac>')
-    def provide_treasure_map(hrac):
-        headers = {'Content-Type': 'application/octet-stream'}
-
-        try:
-            hrac_obj = HRAC.from_bytes(bytes.fromhex(hrac))
-        except ValueError:
-            return Response(f"Invalid HRAC format (got: {hrac}).", status=400)
-
-        try:
-            with datastore.describe(TreasureMapModel, hrac) as stored_treasure_map:
-                response = Response(stored_treasure_map.treasure_map, headers=headers)
-            log.info(f"{this_node} providing TreasureMap {hrac_obj}")
-        except RecordNotFound:
-            log.info(f"{this_node} doesn't have requested TreasureMap under {hrac_obj}")
-            response = Response(f"No Treasure Map with identifier {hrac_obj}", status=404, headers=headers)
-        return response
-
-    @rest_app.route('/treasure_map/', methods=['POST'])
-    def receive_treasure_map():
-        """
-        Okay, so we've received a TreasureMap to store. We begin verifying
-        the treasure map by first validating the request and the received
-        treasure map itself.
-
-        We set the datastore identifier as the HRAC.
-        """
-
-        from nucypher.policy.maps import EncryptedTreasureMap
-
-        # Step 1: First, we verify the signature of the received treasure map.
-        # This step also deserializes the treasure map if it's signed correctly.
-        try:
-            received_treasure_map = EncryptedTreasureMap.from_bytes(request.data)
-        except EncryptedTreasureMap.InvalidSignature:
-            log.info(f"Bad TreasureMap HRAC Signature; not storing for HRAC {received_treasure_map.hrac}")
-            return Response("This TreasureMap's HRAC is not properly signed.", status=401)
-
-        hrac = received_treasure_map.hrac
-
-        # Step 2: Check if we already have the treasure map.
-        try:
-            with datastore.describe(TreasureMapModel, bytes(hrac).hex()) as stored_treasure_map:
-                if EncryptedTreasureMap.from_bytes(stored_treasure_map.treasure_map) == received_treasure_map:
-                    return Response("Already have this map.", status=303)
-        except RecordNotFound:
-            # This appears to be a new treasure map that we don't have!
-            pass
-
-        # Step 3: If the node is decentralized, we check that the received
-        # treasure map is valid pursuant to an active policy.
-        # We also set the expiration from the data on the blockchain here.
-        if not this_node.federated_only:
-            policy = this_node.policy_agent.fetch_policy(policy_id=bytes(received_treasure_map.hrac))
-            # If the Policy doesn't exist, the policy_data is all zeros.
-            if policy.sponsor is NULL_ADDRESS:
-                log.info(f"TreasureMap is for non-existent Policy; not storing {hrac}")
-                return Response("The Policy for this TreasureMap doesn't exist.", status=409)
-
-            # Check that this treasure map is from Alice per the Policy.
-            if not received_treasure_map.verify_blockchain_signature(checksum_address=policy.owner):
-                log.info(f"Bad TreasureMap ID; not storing {hrac}")
-                return Response("This TreasureMap doesn't match a paid Policy.", status=402)
-
-            # Check that this treasure map is valid for the Policy datetime and that it's not disabled.
-            if policy.disabled or datetime.utcnow() >= datetime.utcfromtimestamp(policy.end_timestamp):
-                log.info(f"Received TreasureMap for an expired/disabled policy; not storing {hrac}")
-                return Response("This TreasureMap is for an expired/disabled policy.", status=403)
-            expiration_date = MayaDT.from_datetime(datetime.utcfromtimestamp(policy.end_timestamp))
-        else:
-            # If the node is federated, we also set the expiration for a week.
-            expiration_date = MayaDT.from_datetime(datetime.utcnow() + timedelta(days=7))
-
-        # Step 4: Finally, we store our treasure map under its identifier!
-        log.info(f"{this_node} storing TreasureMap {hrac}")
-        with datastore.describe(TreasureMapModel, bytes(hrac).hex(), writeable=True) as new_treasure_map:
-            new_treasure_map.treasure_map = bytes(received_treasure_map)
-            new_treasure_map.expiration = expiration_date
-        return Response("Treasure map stored!", status=201)
 
     @rest_app.route("/ping", methods=['GET', 'POST'])
     def ping():
