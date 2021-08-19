@@ -16,7 +16,6 @@
 """
 
 import random
-import re
 import time
 from typing import Iterable, Tuple
 
@@ -173,7 +172,7 @@ def test_wait_for_successes_out_of_values(join_worker_pool):
 
     # This will be the last line in the displayed traceback;
     # That's where the worker actually failed. (Worker for {value} failed)
-    assert re.search('for example, for .*: Worker for .* failed', message)
+    assert 'raise Exception(f"Worker for {value} failed")' in message
 
 
 def test_wait_for_successes_timed_out(join_worker_pool):

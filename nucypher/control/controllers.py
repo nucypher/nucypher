@@ -35,6 +35,7 @@ from nucypher.control.interfaces import ControlInterface
 from nucypher.control.specifications.exceptions import SpecificationError
 from nucypher.exceptions import DevelopmentInstallationRequired
 from nucypher.network.resources import get_static_resources
+from nucypher.utilities.concurrency import WorkerPool
 from nucypher.utilities.logging import Logger, GlobalLoggerSettings
 
 
@@ -350,6 +351,32 @@ class WebController(InterfaceControlServer):
         #
         # Unhandled Server Errors
         #
+        except WorkerPool.WorkerPoolException as e:
+            # special case since WorkerPoolException contain stack traces - not ideal for returning from REST endpoints
+            __exception_code = 500
+            if self.crash_on_error:
+                raise
+
+            if isinstance(e, WorkerPool.TimedOut):
+                message_prefix = f"Execution timed out after {e.timeout}s"
+            else:
+                message_prefix = f"Execution failed - no more values to try"
+
+            # get random failure for context
+            if e.failures:
+                value = list(e.failures)[0]
+                _, exception, _ = e.failures[value]
+                msg = f"{message_prefix} ({len(e.failures)} concurrent failures recorded); " \
+                      f"for example, for {value}: {exception}"
+            else:
+                msg = message_prefix
+
+            return self.emitter.exception(
+                e=RuntimeError(msg),
+                log_level='warn',
+                response_code=__exception_code,
+                error_message=WebController._captured_status_codes[__exception_code])
+
         except Exception as e:
             __exception_code = 500
             if self.crash_on_error:

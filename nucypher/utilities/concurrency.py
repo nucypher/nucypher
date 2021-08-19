@@ -101,23 +101,28 @@ class WorkerPool:
     class WorkerPoolException(Exception):
         """Generalized exception class for WorkerPool failures."""
         def __init__(self, message_prefix: str, failures: Dict):
-            self._failures = failures
+            self.failures = failures
 
             # craft message
             msg = message_prefix
-            if self._failures:
+            if self.failures:
                 # Using one random failure
                 # Most probably they're all the same anyway.
-                value = list(self._failures)[0]
-                _, exception, _ = self._failures[value]
-                msg = f"{message_prefix} ({len(self._failures)} failures recorded); " \
-                      f"for example, for {value}: {exception}"
+                value = list(self.failures)[0]
+                _, exception, tb = self.failures[value]
+                f = io.StringIO()
+                traceback.print_tb(tb, file=f)
+                traceback_str = f.getvalue()
+                msg = (f"{message_prefix} ({len(self.failures)} failures recorded); "
+                       f"for example, for {value}:\n"
+                       f"{traceback_str}\n"
+                       f"{exception}")
             super().__init__(msg)
 
         def get_tracebacks(self) -> Dict[Any, str]:
             """Returns values and associated tracebacks of execution failures."""
             exc_tracebacks = {}
-            for value, exc_info in self._failures.items():
+            for value, exc_info in self.failures.items():
                 _, exception, tb = exc_info
                 f = io.StringIO()
                 traceback.print_tb(tb, file=f)
@@ -128,6 +133,7 @@ class WorkerPool:
     class TimedOut(WorkerPoolException):
         """Raised if waiting for the target number of successes timed out."""
         def __init__(self, timeout: float, *args, **kwargs):
+            self.timeout = timeout
             super().__init__(message_prefix=f"Execution timed out after {timeout}s",
                              *args, **kwargs)
 
