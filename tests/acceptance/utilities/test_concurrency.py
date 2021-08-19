@@ -158,14 +158,22 @@ def test_wait_for_successes_out_of_values(join_worker_pool):
 
     message = str(exc_info.value)
 
-    assert "Execution stopped before completion - not enough available values"
+    assert "Execution stopped before completion - not enough available values" in message
 
     # We had 20 workers set up to fail
-    assert "20 failures recorded" in message
+    num_expected_failures = 20
+    assert f"{num_expected_failures} failures recorded" in message
+
+    # check tracebacks
+    tracebacks = exc_info.value.get_tracebacks()
+    assert len(tracebacks) == num_expected_failures
+    for value, traceback in tracebacks.items():
+        assert 'raise Exception(f"Worker for {value} failed")' in traceback
+        assert f'Worker for {value} failed' in traceback
 
     # This will be the last line in the displayed traceback;
     # That's where the worker actually failed. (Worker for {value} failed)
-    assert re.search('for example, Worker for .* failed', message)
+    assert re.search('for example, for .*: Worker for .* failed', message)
 
 
 def test_wait_for_successes_timed_out(join_worker_pool):

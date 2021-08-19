@@ -98,11 +98,44 @@ class WorkerPool:
     (a worker returning something without throwing an exception).
     """
 
-    class TimedOut(Exception):
-        """Raised if waiting for the target number of successes timed out."""
+    class WorkerPoolException(Exception):
+        """Generalized exception class for WorkerPool failures."""
+        def __init__(self, message_prefix: str, failures: Dict):
+            self._failures = failures
 
-    class OutOfValues(Exception):
+            # craft message
+            msg = message_prefix
+            if self._failures:
+                # Using one random failure
+                # Most probably they're all the same anyway.
+                value = list(self._failures)[0]
+                _, exception, _ = self._failures[value]
+                msg = f"{message_prefix} ({len(self._failures)} failures recorded); " \
+                      f"for example, for {value}: {exception}"
+            super().__init__(msg)
+
+        def get_tracebacks(self) -> Dict[Any, str]:
+            """Returns values and associated tracebacks of execution failures."""
+            exc_tracebacks = {}
+            for value, exc_info in self._failures.items():
+                _, exception, tb = exc_info
+                f = io.StringIO()
+                traceback.print_tb(tb, file=f)
+                exc_tracebacks[value] = f"{f.getvalue()}\n{exception}"
+
+            return exc_tracebacks
+
+    class TimedOut(WorkerPoolException):
+        """Raised if waiting for the target number of successes timed out."""
+        def __init__(self, timeout: float, *args, **kwargs):
+            super().__init__(message_prefix=f"Execution timed out after {timeout}s",
+                             *args, **kwargs)
+
+    class OutOfValues(WorkerPoolException):
         """Raised if the value factory is out of values, but the target number was not reached."""
+        def __init__(self, *args, **kwargs):
+            super().__init__(message_prefix="Execution stopped before completion - not enough available values",
+                             *args, **kwargs)
 
     def __init__(self,
                  worker: Callable[[Any], Any],
@@ -206,9 +239,9 @@ class WorkerPool:
 
         result = self._target_value.get()
         if result == TIMEOUT_TRIGGERED:
-            raise self.TimedOut(self._format_failures(result))
+            raise self.TimedOut(timeout=self._timeout, failures=self.get_failures())
         elif result == PRODUCER_STOPPED:
-            raise self.OutOfValues(self._format_failures(result))
+            raise self.OutOfValues(failures=self.get_failures())
         return result
 
     def get_failures(self) -> Dict:
@@ -310,24 +343,3 @@ class WorkerPool:
                 break
 
         self._result_queue.put(PRODUCER_STOPPED)
-
-    def _format_failures(self, result) -> str:
-        """
-        Performs some basic formatting of the WorkerPool failures,
-        providing some context of why TimedOut/OutOfValues occurred.
-        """
-        failures = self.get_failures()
-        failure_result = ""
-        if result == TIMEOUT_TRIGGERED:
-            failure_result = f"Execution timed out after {self._timeout}s"
-        elif result == PRODUCER_STOPPED:
-            failure_result = f"Execution stopped before completion - not enough available values"
-
-        if failures:
-            # Using one random failure
-            # Most probably they're all the same anyway.
-            value = list(failures)[0]
-            _exception_cls, exception, tb = failures[value]
-            return f"{failure_result} ({len(failures)} failures recorded); for example, {exception}"
-        else:
-            return failure_result
