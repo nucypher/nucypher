@@ -642,9 +642,6 @@ class Bob(Character):
                                                                bob_encrypting_key=bob_encrypting_key,
                                                                timeout=timeout)
 
-    def make_compass_for_alice(self, alice):
-        return partial(self.verify_from, alice, decrypt=True)
-
     def work_orders_for_capsules(self,
                                  *capsules,
                                  label: bytes,
@@ -903,21 +900,11 @@ class Bob(Character):
 
     def _handle_treasure_map(self,
                              publisher_verifying_key: PublicKey,
-                             label: bytes,
-                             encrypted_treasure_map: Optional['EncryptedTreasureMap'] = None,
-                             ) -> 'TreasureMap':
-        if encrypted_treasure_map:
-            treasure_map = self._decrypt_treasure_map(encrypted_treasure_map, publisher_verifying_key)
-            self.treasure_maps[treasure_map.hrac] = treasure_map
-        else:
-            hrac = self.construct_policy_hrac(publisher_verifying_key, label)
-            try:
-                treasure_map = self.treasure_maps[hrac]
-            except KeyError:
-                # If the treasure map is not known, join the policy as part of retrieval.
-                self.join_policy(label=label, publisher_verifying_key=publisher_verifying_key)
-                treasure_map = self.treasure_maps[hrac]
-
+                             encrypted_treasure_map: Optional['EncryptedTreasureMap']
+                             ) -> Tuple['TreasureMap', int]:
+        """Decrypt and cache the treasure map by Bob."""
+        treasure_map: TreasureMap = self._decrypt_treasure_map(encrypted_treasure_map, publisher_verifying_key)
+        self.treasure_maps[treasure_map.hrac] = treasure_map
         _unknown_ursulas, _known_ursulas, threshold = self.follow_treasure_map(treasure_map=treasure_map, block=True)
         return treasure_map, threshold
 
@@ -926,8 +913,9 @@ class Bob(Character):
                  # Policy
                  *message_kits: UmbralMessageKit,
                  label: bytes,
+                 encrypted_treasure_map: ['EncryptedTreasureMap'],
+
                  policy_encrypting_key: Optional[PublicKey] = None,
-                 encrypted_treasure_map: Optional['EncryptedTreasureMap'] = None,
 
                  # Source Authentication
                  enrico: Optional["Enrico"] = None,
@@ -944,10 +932,8 @@ class Bob(Character):
         if not publisher_verifying_key:
             # If a policy publisher's verifying key is not passed, use Alice's by default.
             publisher_verifying_key = alice_verifying_key
-
         treasure_map, threshold = self._handle_treasure_map(encrypted_treasure_map=encrypted_treasure_map,
-                                                            publisher_verifying_key=publisher_verifying_key,
-                                                            label=label)
+                                                            publisher_verifying_key=publisher_verifying_key)
 
         work_orders, message_kits_map = self._assemble_work_orders(
             *message_kits,
