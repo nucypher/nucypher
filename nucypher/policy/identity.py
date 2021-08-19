@@ -99,7 +99,7 @@ class Card:
 
         if isinstance(nickname, str):
             nickname = nickname.encode()
-        self.__nickname = nickname
+        self.__nickname = nickname or None
 
         self.__validate()
 
@@ -140,6 +140,8 @@ class Card:
         payload = self.__payload
         if self.nickname:
             payload += VariableLengthBytestring(self.__nickname)
+        else:
+            payload += VariableLengthBytestring(b'')
         return payload
 
     def __hex__(self) -> str:
