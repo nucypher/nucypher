@@ -366,13 +366,9 @@ class Alice(Character, BlockchainPolicyAuthor):
         self.log.debug(f"Enacting {policy} ... ")
         # TODO: Make it optional to publish to blockchain?  Or is this presumptive based on the `Policy` type?
         enacted_policy = policy.enact(network_middleware=self.network_middleware,
-                                      handpicked_ursulas=handpicked_ursulas,
-                                      publish_treasure_map=publish_treasure_map)
+                                      handpicked_ursulas=handpicked_ursulas)
 
         self.add_active_policy(enacted_policy)
-
-        if publish_treasure_map and block_until_success_is_reasonably_likely:
-            enacted_policy.treasure_map_publisher.block_until_success_is_reasonably_likely()
         return enacted_policy
 
     def get_policy_encrypting_key_from_label(self, label: bytes) -> PublicKey:
@@ -630,25 +626,6 @@ class Bob(Character):
         publisher = Alice.from_public_keys(verifying_key=publisher_verifying_key)
         return encrypted_treasure_map.decrypt(partial(self.verify_from, publisher, decrypt=True))
 
-    def get_treasure_map(self, publisher_verifying_key: PublicKey, label: bytes):
-        hrac = self.construct_policy_hrac(publisher_verifying_key=publisher_verifying_key, label=label)
-
-        if not self.known_nodes and not self._learning_task.running:
-            # Quick sanity check - if we don't know of *any* Ursulas, and we have no
-            # plans to learn about any more, than this function will surely fail.
-            if not self.done_seeding:
-                self.learn_from_teacher_node()
-
-            # If we still don't know of any nodes, we gotta bail.
-            if not self.known_nodes:
-                raise self.NotEnoughTeachers("Can't retrieve without knowing about any nodes at all.  Pass a teacher or seed node.")
-
-        encrypted_treasure_map = self.get_treasure_map_from_known_ursulas(hrac)
-
-        treasure_map = self._decrypt_treasure_map(encrypted_treasure_map, publisher_verifying_key)
-        self.treasure_maps[hrac] = treasure_map
-        return treasure_map
-
     def construct_policy_hrac(self, publisher_verifying_key: PublicKey, label: bytes) -> HRAC:
         return HRAC.derive(publisher_verifying_key=publisher_verifying_key,
                            bob_verifying_key=self.stamp.as_umbral_pubkey(),
@@ -664,6 +641,9 @@ class Bob(Character):
                                                                hrac=hrac,
                                                                bob_encrypting_key=bob_encrypting_key,
                                                                timeout=timeout)
+
+    def make_compass_for_alice(self, alice):
+        return partial(self.verify_from, alice, decrypt=True)
 
     def work_orders_for_capsules(self,
                                  *capsules,
@@ -724,13 +704,11 @@ class Bob(Character):
         return incomplete_work_orders, complete_work_orders
 
     def join_policy(self,
-                    label: bytes,
-                    publisher_verifying_key: PublicKey,
+                    treasure_map: TreasureMap,
                     node_list: Optional[List['Ursula']] = None,
-                    block: bool = False):
+                    block: bool = False) -> None:
         if node_list:
             self._node_ids_to_learn_about_immediately.update(node_list)
-        treasure_map = self.get_treasure_map(publisher_verifying_key, label)
         self.follow_treasure_map(treasure_map=treasure_map, block=block)
 
     def _filter_work_orders_and_capsules(self,
