@@ -51,9 +51,11 @@ class Retrieve(BaseSchema):
         click=options.option_message_kit(required=False)
     )
 
-    cleartexts = base_fields.List(character_fields.Cleartext(), dump_only=True)
+    treasure_map = EncryptedTreasureMap(required=True,
+                                        load_only=True,
+                                        click=options.option_treasure_map)
 
-    treasure_map = EncryptedTreasureMap(required=True, load_only=True)
+    cleartexts = base_fields.List(character_fields.Cleartext(), dump_only=True)
 
 
 class PublicKeys(BaseSchema):

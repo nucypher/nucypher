@@ -50,13 +50,13 @@ def test_bob_rpc_character_control_retrieve_with_tmap(
     assert response.data['result']['cleartexts'][0] == 'Welcome to flippering number 1.'
 
     # Make a wrong treasure map
-    enc_wrong_tmap = bytes(enacted_blockchain_policy.treasure_map)[:-1]
+    enc_wrong_tmap = bytes(enacted_blockchain_policy.treasure_map)[1:-1]
 
     tmap_bytes = bytes(enc_wrong_tmap)
     tmap_64 = b64encode(tmap_bytes).decode()
     request_data['params']['treasure_map'] = tmap_64
-    # with pytest.raises(ValueError):
-    bob_rpc_controller.send(request_data)
+    with pytest.raises(ValueError):
+        bob_rpc_controller.send(request_data)
 
 
 def test_alice_rpc_character_control_create_policy(alice_rpc_test_client, create_policy_control_request):

@@ -70,9 +70,6 @@ class MockSideChannel:
     def save_policy(self, policy: PolicyAndLabel):
         self.__policies.append(policy)
 
-    def save_treasure_map(self, treasure_map: EncryptedTreasureMap):
-        self.__treasure_map.append(treasure_map)
-
     def fetch_policy(self) -> PolicyAndLabel:
         if self.__policies:
             policy = self.__policies[0]
@@ -92,6 +89,13 @@ class MockSideChannel:
     def fetch_bob_public_keys(self) -> BobPublicKeys:
         policy = self.__bob_public_keys.pop()
         return policy
+
+    def save_treasure_map(self, treasure_map: EncryptedTreasureMap):
+        self.__treasure_map.append(treasure_map)
+
+    def fetch_treasure_map(self) -> EncryptedTreasureMap:
+        tmap = self.__treasure_map.pop()
+        return tmap
 
 
 def run_entire_cli_lifecycle(click_runner,
@@ -359,7 +363,7 @@ def run_entire_cli_lifecycle(click_runner,
                          '--config-file', str(bob_configuration_file_location.absolute()),
                          '--message-kit', ciphertext_message_kit,
                          '--label', label,
-                         '--treasure-map', bytes(policy[0].treasure_map).decode(),
+                         '--treasure-map', side_channel.fetch_treasure_map(),
                          '--policy-encrypting-key', policy_encrypting_key,
                          '--alice-verifying-key', alice_signing_key)
 

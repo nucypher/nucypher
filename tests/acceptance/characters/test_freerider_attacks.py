@@ -43,7 +43,7 @@ def test_policy_simple_sinpa(blockchain_ursulas,
     bupkiss_policy = amonia.grant_without_paying(bob=blockchain_bob,
                                                  label=label,
                                                  threshold=2,
-                                                 n=shares,
+                                                 shares=shares,
                                                  rate=int(1e18),  # one ether
                                                  expiration=policy_end_datetime)
 
