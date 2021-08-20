@@ -67,15 +67,6 @@ class PorterInterface(ControlInterface):
     #
     # Bob Endpoints
     #
-    @attach_schema(porter_schema.BobGetTreasureMap)
-    def get_treasure_map(self,
-                         hrac: bytes,
-                         bob_encrypting_key: bytes) -> dict:
-        bob_enc_key = PublicKey.from_bytes(bob_encrypting_key)
-        treasure_map = self.implementer.get_treasure_map(hrac=hrac,
-                                                         bob_encrypting_key=bob_enc_key)
-        response_data = {'treasure_map': treasure_map}
-        return response_data
 
     @attach_schema(porter_schema.BobExecWorkOrder)
     def exec_work_order(self,

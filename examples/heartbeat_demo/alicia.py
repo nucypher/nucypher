@@ -142,7 +142,6 @@ policy = alicia.grant(bob=doctor_strange,
                       threshold=threshold,
                       shares=shares,
                       expiration=policy_end_datetime)
-policy.treasure_map_publisher.block_until_complete()
 print("Done!")
 
 # For the demo, we need a way to share with Bob some additional info

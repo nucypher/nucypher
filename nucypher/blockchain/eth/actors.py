@@ -105,6 +105,7 @@ from nucypher.control.emitters import StdoutEmitter
 from nucypher.config.constants import DEFAULT_CONFIG_ROOT
 from nucypher.crypto.powers import TransactingPower
 from nucypher.policy.hrac import HRAC
+from nucypher.policy.policies import Policy
 from nucypher.types import NuNits, Period
 from nucypher.utilities.logging import Logger
 

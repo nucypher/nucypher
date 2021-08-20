@@ -93,7 +93,6 @@ remote_bob = Bob.from_public_keys(encrypting_key=encrypting_key, verifying_key=v
 policy = alice.grant(remote_bob, label, threshold=threshold, shares=shares, expiration=policy_end_datetime)
 
 assert policy.public_key == policy_public_key
-policy.treasure_map_publisher.block_until_complete()
 
 # Alice puts her public key somewhere for Bob to find later...
 alice_verifying_key = alice.stamp.as_umbral_pubkey()

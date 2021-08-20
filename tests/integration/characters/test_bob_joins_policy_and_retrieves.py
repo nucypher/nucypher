@@ -52,16 +52,16 @@ def test_federated_bob_full_retrieve_flow(federated_ursulas,
     delivered_cleartexts = federated_bob.retrieve(the_message_kit,
                                                   enrico=capsule_side_channel.enrico,
                                                   alice_verifying_key=alices_verifying_key,
-                                                  label=enacted_federated_policy.label)
+                                                  label=enacted_federated_policy.label,
+                                                  encrypted_treasure_map=enacted_federated_policy.treasure_map)
 
     # We show that indeed this is the passage originally encrypted by the Enrico.
     assert b"Welcome to flippering number 1." == delivered_cleartexts[0]
 
 
-def test_bob_joins_policy_and_retrieves(federated_alice,
-                                        federated_ursulas,
-                                        certificates_tempdir,
-                                        ):
+def test_bob_retrieves(federated_alice,
+                       federated_ursulas,
+                       certificates_tempdir):
     # Let's partition Ursulas in two parts
     a_couple_of_ursulas = list(federated_ursulas)[:2]
     rest_of_ursulas = list(federated_ursulas)[2:]
@@ -93,24 +93,6 @@ def test_bob_joins_policy_and_retrieves(federated_alice,
 
     assert label == policy.label
 
-    try:
-        # Now, Bob joins the policy
-        bob.join_policy(label=label,
-                        publisher_verifying_key=federated_alice.stamp.as_umbral_pubkey(),
-                        block=True)
-    except TreasureMap.NowhereToBeFound:
-        if policy.treasure_map.hrac in ursula.treasure_maps:
-            # This is a nice place to put a breakpoint to examine Bob's failure to join a policy.
-            bob.join_policy(label=label,
-                            publisher_verifying_key=federated_alice.stamp.as_umbral_pubkey(),
-                            block=True)
-            pytest.fail(f"Bob didn't find map {policy.treasure_map} even though it was available.  Come on, Bob.")
-        else:
-            pytest.fail(f"It seems that Alice didn't publish {policy.treasure_map}.  Come on, Alice.")
-
-    # In the end, Bob should know all the Ursulas
-    assert len(bob.known_nodes) == len(federated_ursulas)
-
     # Enrico becomes
     enrico = Enrico(policy_encrypting_key=policy.public_key)
 
@@ -124,7 +106,8 @@ def test_bob_joins_policy_and_retrieves(federated_alice,
                                         enrico=enrico,
                                         alice_verifying_key=alices_verifying_key,
                                         label=policy.label,
-                                        retain_cfrags=True)
+                                        retain_cfrags=True,
+                                        encrypted_treasure_map=policy.treasure_map)
 
     assert plaintext == delivered_cleartexts[0]
 
@@ -133,13 +116,15 @@ def test_bob_joins_policy_and_retrieves(federated_alice,
         delivered_cleartexts = bob.retrieve(message_kit,
                                             enrico=enrico,
                                             alice_verifying_key=alices_verifying_key,
-                                            label=policy.label)
+                                            label=policy.label,
+                                            encrypted_treasure_map=policy.treasure_map)
 
     cleartexts_delivered_a_second_time = bob.retrieve(message_kit,
                                                       enrico=enrico,
                                                       alice_verifying_key=alices_verifying_key,
                                                       label=policy.label,
-                                                      use_attached_cfrags=True)
+                                                      use_attached_cfrags=True,
+                                                      encrypted_treasure_map=policy.treasure_map)
 
     # Indeed, they're the same cleartexts.
     assert delivered_cleartexts == cleartexts_delivered_a_second_time
@@ -154,7 +139,8 @@ def test_bob_joins_policy_and_retrieves(federated_alice,
                                enrico=enrico,
                                alice_verifying_key=alices_verifying_key,
                                label=policy.label,
-                               use_precedent_work_orders=True)
+                               use_precedent_work_orders=True,
+                               encrypted_treasure_map=policy.treasure_map)
     assert _cleartexts == delivered_cleartexts  # TODO: 892
 
     # OK, but we imagine that the message_kit is fresh here.
@@ -164,7 +150,8 @@ def test_bob_joins_policy_and_retrieves(federated_alice,
     _cleartexts = bob.retrieve(message_kit,
                                enrico=enrico,
                                alice_verifying_key=alices_verifying_key,
-                               label=policy.label)
+                               label=policy.label,
+                               encrypted_treasure_map=policy.treasure_map)
 
     bob.disenchant()
 
@@ -220,7 +207,3 @@ def test_bob_retrieves_too_late(federated_bob, federated_ursulas,
         label=enacted_federated_policy.label,
         encrypted_treasure_map=treasure_map,
         use_attached_cfrags=False)
-
-    # Check that Bob can't get the treasure map after the policy is expired
-    with pytest.raises(TreasureMap.NowhereToBeFound):
-        federated_bob.get_treasure_map(alice_verifying_key, label=enacted_federated_policy.label)

@@ -17,49 +17,58 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 
 
 import datetime
+
 import maya
 import pytest
 
+from nucypher.characters.lawful import Enrico, Ursula
 from nucypher.characters.unlawful import Amonia
-from nucypher.datastore.datastore import RecordNotFound
-from nucypher.datastore.queries import find_policy_arrangements
-from nucypher.network.middleware import RestMiddleware
-from nucypher.policy.policies import Policy
 
 
-def test_policy_simple_sinpa(blockchain_ursulas, blockchain_alice, blockchain_bob, agency, testerchain):
+def test_policy_simple_sinpa(blockchain_ursulas,
+                             blockchain_alice,
+                             blockchain_bob,
+                             agency,
+                             testerchain):
     """
     Making a Policy without paying.
     """
     amonia = Amonia.from_lawful_alice(blockchain_alice)
+
     # Setup the policy details
     shares = 3
     policy_end_datetime = maya.now() + datetime.timedelta(days=35)
     label = b"this_is_the_path_to_which_access_is_being_granted"
 
-    with pytest.raises(Policy.Unpaid):
-        _bupkiss_policy = amonia.grant_without_paying(bob=blockchain_bob,
-                                                      label=label,
-                                                      threshold=2,
-                                                      shares=shares,
-                                                      rate=int(1e18),  # one ether
-                                                      expiration=policy_end_datetime)
+    bupkiss_policy = amonia.grant_without_paying(bob=blockchain_bob,
+                                                 label=label,
+                                                 threshold=2,
+                                                 n=shares,
+                                                 rate=int(1e18),  # one ether
+                                                 expiration=policy_end_datetime)
+
+    # Enrico becomes
+    enrico = Enrico(policy_encrypting_key=bupkiss_policy.public_key)
+    plaintext = b"A crafty campaign"
+    message_kit, _signature = enrico.encrypt_message(plaintext)
+
+    with pytest.raises(Ursula.NotEnoughUrsulas):  # Return a more descriptive request error?
+        blockchain_bob.retrieve(message_kit,
+                                enrico=enrico,
+                                alice_verifying_key=amonia.stamp,
+                                label=bupkiss_policy.label,
+                                retain_cfrags=True,
+                                encrypted_treasure_map=bupkiss_policy.treasure_map)
 
     for ursula in blockchain_ursulas:
         # Reset the Ursula for the next test.
         ursula.suspicious_activities_witnessed['freeriders'] = []
 
-        # TODO: Show that there is no KFrag available to Bob
 
-        # try:
-        #     with ursula.datastore.query_by(PolicyArrangement, writeable=True) as arrangements:
-        #         [arrangement.delete() for arrangement in arrangements]
-        # except RecordNotFound:
-        #     # No records were found; this Ursula didn't have the arrangement.
-        #     continue
-
-
-def test_try_to_post_free_arrangement_by_hacking_enact(blockchain_ursulas, blockchain_alice, blockchain_bob, agency,
+def test_try_to_post_free_arrangement_by_hacking_enact(blockchain_ursulas,
+                                                       blockchain_alice,
+                                                       blockchain_bob,
+                                                       agency,
                                                        testerchain):
     """
     This time we won't rely on the tabulation in Alice's enact() to catch the problem.
@@ -78,29 +87,34 @@ def test_try_to_post_free_arrangement_by_hacking_enact(blockchain_ursulas, block
                                                                            expiration=policy_end_datetime,
                                                                            publish_treasure_map=False)
 
-    for ursula in blockchain_ursulas:
-        # Even though the grant executed without error...
-        try:
-            with find_policy_arrangements(ursula.datastore) as all_arrangements:
-                arrangement = all_arrangements[0] # ...and Ursula did save the Arrangement after considering it...
-                with pytest.raises(AttributeError):
-                    should_error = arrangement.kfrag  # ...Ursula did *not* save a KFrag and will not service this Policy.
+    # Enrico becomes
+    enrico = Enrico(policy_encrypting_key=bupkiss_policy.public_key)
+    plaintext = b"A crafty campaign"
+    message_kit, _signature = enrico.encrypt_message(plaintext)
 
-                # Additionally, Ursula logged Amonia as a freerider:
-                freeriders = ursula.suspicious_activities_witnessed['freeriders']
-                assert len(freeriders) == 1
-                assert freeriders[0][0] == amonia
+    with pytest.raises(Ursula.NotEnoughUrsulas):  # Return a more descriptive request error?
+        blockchain_bob.retrieve(message_kit,
+                                enrico=enrico,
+                                alice_verifying_key=amonia.stamp,
+                                label=bupkiss_policy.label,
+                                retain_cfrags=True,
+                                encrypted_treasure_map=bupkiss_policy.treasure_map)
 
-                # Reset the Ursula for the next test.
-                ursula.suspicious_activities_witnessed['freeriders'] = []
-                for arrangement in all_arrangements:
-                    arrangement.delete()
-        except RecordNotFound:
-            # No records were found; this Ursula didn't have the arrangement.
-            continue
+    # for ursula in blockchain_ursulas:
+    #     # Even though the grant executed without error...
+    #     # Additionally, Ursula logged Amonia as a freerider:
+    #     freeriders = ursula.suspicious_activities_witnessed['freeriders']
+    #     assert len(freeriders) == 1
+    #     assert freeriders[0][0] == amonia
+    #
+    #     # Reset the Ursula for the next test.
+    #     ursula.suspicious_activities_witnessed['freeriders'] = []
 
 
-def test_pay_a_flunky_instead_of_the_arranged_ursula(blockchain_alice, blockchain_bob, blockchain_ursulas,
+@pytest.mark.skip
+def test_pay_a_flunky_instead_of_the_arranged_ursula(blockchain_alice,
+                                                     blockchain_bob,
+                                                     blockchain_ursulas,
                                                      ursula_decentralized_test_config,
                                                      testerchain):
     amonia = Amonia.from_lawful_alice(blockchain_alice)
@@ -122,45 +136,26 @@ def test_pay_a_flunky_instead_of_the_arranged_ursula(blockchain_alice, blockchai
                                                                expiration=policy_end_datetime,
                                                                publish_treasure_map=False)
 
+    # Enrico becomes
+    enrico = Enrico(policy_encrypting_key=bupkiss_policy.public_key)
+    plaintext = b"A crafty campaign"
+    message_kit, _signature = enrico.encrypt_message(plaintext)
+
+    with pytest.raises(Ursula.NotEnoughUrsulas):  # Return a more descriptive request error?
+        blockchain_bob.retrieve(message_kit,
+                                enrico=enrico,
+                                alice_verifying_key=amonia.stamp,
+                                label=bupkiss_policy.label,
+                                retain_cfrags=True,
+                                encrypted_treasure_map=bupkiss_policy.treasure_map)
+
     # Same exact set of assertions as the last test:
     for ursula in blockchain_ursulas:
         # Even though the grant executed without error...
-        try:
-            with find_policy_arrangements(ursula.datastore) as all_arrangements:
-                arrangement = all_arrangements[0] # ...and Ursula did save the Arrangement after considering it...
-                with pytest.raises(AttributeError):
-                    should_error = arrangement.kfrag # ...Ursula did *not* save a KFrag and will not service this Policy.
+        # Additionally, Ursula logged Amonia as a freerider:
+        freeriders = ursula.suspicious_activities_witnessed['freeriders']
+        assert len(freeriders) == 1
+        assert freeriders[0][0] == amonia
 
-                # Additionally, Ursula logged Amonia as a freerider:
-                freeriders = ursula.suspicious_activities_witnessed['freeriders']
-                assert len(freeriders) == 1
-                assert freeriders[0][0] == amonia
-
-                # Reset the Ursula for the next test.
-                ursula.suspicious_activities_witnessed['freeriders'] = []
-                for arrangement in all_arrangements:
-                    arrangement.delete()
-        except RecordNotFound:
-            # No records were found; this Ursula didn't have the arrangement.
-            continue
-
-
-def test_put_additional_treasure_map_on_network(blockchain_ursulas, blockchain_alice, blockchain_bob, agency, testerchain):
-    amonia = Amonia.from_lawful_alice(blockchain_alice)
-    # Setup the policy details
-    shares = 3
-    policy_end_datetime = maya.now() + datetime.timedelta(days=35)
-    label = b"this_is_another_path_to_which_access_is_being_granted"
-
-    policy = amonia.grant(bob=blockchain_bob,
-                          label=label,
-                          threshold=2,
-                          shares=shares,
-                          rate=int(1e18),  # one ether
-                          expiration=policy_end_datetime)
-    sucker = blockchain_ursulas[0]
-
-    # This should 409 because Ursula won't be able to find an HRAC on-chain
-    # with the modified HRAC.
-    response = amonia.use_ursula_as_an_involuntary_and_unbeknownst_cdn(policy, blockchain_bob, sucker_ursula=blockchain_ursulas[0])
-    assert response.status_code == 402
+        # Reset the Ursula for the next test.
+        ursula.suspicious_activities_witnessed['freeriders'] = []

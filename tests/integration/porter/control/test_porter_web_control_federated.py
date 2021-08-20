@@ -16,14 +16,11 @@
 """
 
 import json
-from urllib.parse import urlencode
 from base64 import b64encode
 
 import pytest
 
-from nucypher.crypto.powers import DecryptingPower
 from nucypher.network.nodes import Learner
-from nucypher.policy.maps import TreasureMap
 from tests.utils.policy import work_order_setup
 
 
@@ -84,71 +81,6 @@ def test_get_ursulas(federated_porter_web_controller, federated_ursulas):
     failed_ursula_params['quantity'] = len(federated_ursulas_list) + 1  # too many to get
     with pytest.raises(Learner.NotEnoughNodes):
         federated_porter_web_controller.get('/get_ursulas', data=json.dumps(failed_ursula_params))
-
-
-def test_publish_and_get_treasure_map(federated_porter_web_controller,
-                                      federated_alice,
-                                      federated_bob,
-                                      enacted_federated_policy,
-                                      random_federated_treasure_map_data):
-    # Send bad data to assert error return
-    response = federated_porter_web_controller.get('/get_treasure_map', data=json.dumps({'bad': 'input'}))
-    assert response.status_code == 400
-
-    response = federated_porter_web_controller.post('/publish_treasure_map', data=json.dumps({'bad': 'input'}))
-    assert response.status_code == 400
-
-    random_bob_encrypting_key, random_treasure_map = random_federated_treasure_map_data
-
-    # ensure that random treasure map cannot be obtained since not available
-    with pytest.raises(TreasureMap.NowhereToBeFound):
-        get_treasure_map_params = {
-            'hrac': bytes(random_treasure_map.hrac).hex(),
-            'bob_encrypting_key': bytes(random_bob_encrypting_key).hex()
-        }
-        federated_porter_web_controller.get('/get_treasure_map', data=json.dumps(get_treasure_map_params))
-
-    # publish the random treasure map
-    publish_treasure_map_params = {
-        'treasure_map': b64encode(bytes(random_treasure_map)).decode(),
-        'bob_encrypting_key': bytes(random_bob_encrypting_key).hex()
-    }
-    response = federated_porter_web_controller.post('/publish_treasure_map',
-                                                    data=json.dumps(publish_treasure_map_params))
-    assert response.status_code == 200
-    response_data = json.loads(response.data)
-    assert response_data['result']['published']
-
-    # try getting the random treasure map now
-    get_treasure_map_params = {
-        'hrac': bytes(random_treasure_map.hrac).hex(),
-        'bob_encrypting_key': bytes(random_bob_encrypting_key).hex()
-    }
-    response = federated_porter_web_controller.get('/get_treasure_map',
-                                                   data=json.dumps(get_treasure_map_params))
-    assert response.status_code == 200
-    response_data = json.loads(response.data)
-    assert response_data['result']['treasure_map'] == b64encode(bytes(random_treasure_map)).decode()
-
-    # try getting random treasure map using query parameters
-    response = federated_porter_web_controller.get(f'/get_treasure_map'
-                                                   f'?{urlencode(get_treasure_map_params)}')
-    assert response.status_code == 200
-    response_data = json.loads(response.data)
-    assert response_data['result']['treasure_map'] == b64encode(bytes(random_treasure_map)).decode()
-
-    # try getting an already existing policy
-    hrac = federated_bob.construct_policy_hrac(federated_alice.stamp.as_umbral_pubkey(),
-                                               enacted_federated_policy.label)
-    get_treasure_map_params = {
-        'hrac': bytes(hrac).hex(),
-        'bob_encrypting_key': bytes(federated_bob.public_keys(DecryptingPower)).hex()
-    }
-    response = federated_porter_web_controller.get('/get_treasure_map',
-                                                   data=json.dumps(get_treasure_map_params))
-    assert response.status_code == 200
-    response_data = json.loads(response.data)
-    assert response_data['result']['treasure_map'] == b64encode(bytes(enacted_federated_policy.treasure_map)).decode()
 
 
 def test_exec_work_order(federated_porter_web_controller,

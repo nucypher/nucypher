@@ -117,17 +117,6 @@ def grant_control_request(blockchain_bob):
     return method_name, params
 
 
-@pytest.fixture(scope='module')
-def join_control_request(blockchain_alice, blockchain_bob, enacted_blockchain_policy):
-    method_name = 'join_policy'
-
-    params = {
-        'label': enacted_blockchain_policy.label.decode(),
-        'publisher_verifying_key': bytes(enacted_blockchain_policy.publisher_verifying_key).hex(),
-    }
-    return method_name, params
-
-
 @pytest.fixture(scope='function')
 def retrieve_control_request(blockchain_alice, blockchain_bob, enacted_blockchain_policy, capsule_side_channel_blockchain):
     capsule_side_channel_blockchain.reset()
@@ -139,6 +128,7 @@ def retrieve_control_request(blockchain_alice, blockchain_bob, enacted_blockchai
         'policy_encrypting_key': bytes(enacted_blockchain_policy.public_key).hex(),
         'alice_verifying_key': bytes(enacted_blockchain_policy.publisher_verifying_key).hex(),
         'message_kit': b64encode(message_kit.to_bytes()).decode(),
+        'treasure_map': b64encode(bytes(enacted_blockchain_policy.treasure_map)).decode()
     }
     return method_name, params
 

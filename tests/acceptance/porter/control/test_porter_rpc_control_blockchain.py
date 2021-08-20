@@ -81,50 +81,6 @@ def test_get_ursulas(blockchain_porter_rpc_controller, blockchain_ursulas):
         blockchain_porter_rpc_controller.send(request_data)
 
 
-def test_publish_and_get_treasure_map(blockchain_porter_rpc_controller,
-                                      blockchain_alice,
-                                      blockchain_bob,
-                                      idle_blockchain_policy):
-    # ensure that random treasure map cannot be obtained since not available
-    with pytest.raises(TreasureMap.NowhereToBeFound):
-        random_bob_encrypting_key = PublicKey.from_bytes(
-            bytes.fromhex("026d1f4ce5b2474e0dae499d6737a8d987ed3c9ab1a55e00f57ad2d8e81fe9e9ac"))
-        random_hrac = "93a9482bdf3b4f2e9df906a35144ca84"
-        assert len(bytes.fromhex(random_hrac)) == HRAC.SIZE
-        get_treasure_map_params = {
-            'hrac': random_hrac,
-            'bob_encrypting_key': bytes(random_bob_encrypting_key).hex()
-        }
-        request_data = {'method': 'get_treasure_map', 'params': get_treasure_map_params}
-        blockchain_porter_rpc_controller.send(request_data)
-
-    blockchain_bob_encrypting_key = blockchain_bob.public_keys(DecryptingPower)
-    # try publishing a new policy
-    network_middleware = MockRestMiddleware()
-    enacted_policy = idle_blockchain_policy.enact(network_middleware=network_middleware,
-                                                  publish_treasure_map=False)  # enact but don't publish
-    treasure_map = enacted_policy.treasure_map
-    publish_treasure_map_params = {
-        'treasure_map': b64encode(bytes(treasure_map)).decode(),
-        'bob_encrypting_key': bytes(blockchain_bob_encrypting_key).hex()
-    }
-    request_data = {'method': 'publish_treasure_map', 'params': publish_treasure_map_params}
-    response = blockchain_porter_rpc_controller.send(request_data)
-    assert response.success
-
-    # try getting the recently published treasure map
-    hrac = blockchain_bob.construct_policy_hrac(blockchain_alice.stamp.as_umbral_pubkey(),
-                                                enacted_policy.label)
-    get_treasure_map_params = {
-        'hrac': bytes(hrac).hex(),
-        'bob_encrypting_key': bytes(blockchain_bob_encrypting_key).hex()
-    }
-    request_data = {'method': 'get_treasure_map', 'params': get_treasure_map_params}
-    response = blockchain_porter_rpc_controller.send(request_data)
-    assert response.success
-    assert response.content['treasure_map'] == b64encode(bytes(treasure_map)).decode()
-
-
 def test_exec_work_order(blockchain_porter_rpc_controller,
                          random_blockchain_policy,
                          blockchain_ursulas,
@@ -135,8 +91,7 @@ def test_exec_work_order(blockchain_porter_rpc_controller,
     # Setup
     network_middleware = MockRestMiddleware()
     # enact new random policy since idle_blockchain_policy/enacted_blockchain_policy already modified in previous tests
-    enacted_policy = random_blockchain_policy.enact(network_middleware=network_middleware,
-                                                    publish_treasure_map=False)  # enact but don't publish
+    enacted_policy = random_blockchain_policy.enact(network_middleware=network_middleware)  # enact but don't publish
     ursula_address, work_order = work_order_setup(enacted_policy,
                                                   blockchain_ursulas,
                                                   blockchain_bob,

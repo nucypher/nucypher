@@ -155,9 +155,9 @@ def test_blockchain_ursulas_reencrypt(blockchain_ursulas, blockchain_alice, bloc
     message_kit, signature = enrico.encrypt_message(message)
 
     blockchain_bob.start_learning_loop(now=True)
-    blockchain_bob.join_policy(label, blockchain_alice.stamp.as_umbral_pubkey())
 
     plaintext = blockchain_bob.retrieve(message_kit,
+                                        encrypted_treasure_map=_policy.treasure_map,
                                         alice_verifying_key=blockchain_alice.stamp.as_umbral_pubkey(),
                                         label=label,
                                         enrico=enrico)
