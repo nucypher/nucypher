@@ -700,14 +700,6 @@ class Bob(Character):
 
         return incomplete_work_orders, complete_work_orders
 
-    def join_policy(self,
-                    treasure_map: TreasureMap,
-                    node_list: Optional[List['Ursula']] = None,
-                    block: bool = False) -> None:
-        if node_list:
-            self._node_ids_to_learn_about_immediately.update(node_list)
-        self.follow_treasure_map(treasure_map=treasure_map, block=block)
-
     def _filter_work_orders_and_capsules(self,
                                          work_orders: Dict[ChecksumAddress, 'WorkOrder'],
                                          message_kits: Sequence['UmbralMessageKit'],
@@ -984,15 +976,6 @@ class Bob(Character):
             Character control endpoint for getting Bob's encrypting and signing public keys
             """
             return controller(method_name='public_keys', control_request=request)
-
-        @bob_control.route('/join_policy', methods=['POST'])
-        def join_policy():
-            """
-            Character control endpoint for joining a policy on the network.
-
-            This is an unfinished endpoint. You're probably looking for retrieve.
-            """
-            return controller(method_name='join_policy', control_request=request)
 
         @bob_control.route('/retrieve', methods=['POST'])
         def retrieve():

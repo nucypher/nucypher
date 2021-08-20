@@ -260,18 +260,8 @@ class Policy(ABC):
 
         return accepted_arrangements
 
-    def _make_treasure_map(self,
-                           network_middleware: RestMiddleware,
-                           arrangements: Dict['Ursula', Arrangement],
-                           ) -> 'TreasureMap':
-        """Author a new treasure map for this policy as Alice.."""
-        treasure_map = self._treasure_map_class.construct_by_publisher(publisher=self.publisher,
-                                                                       bob=self.bob,
-                                                                       label=self.label,
-                                                                       ursulas=list(arrangements),
-                                                                       verified_kfrags=self.kfrags,
-                                                                       m=self.m)
-        return treasure_map
+    def _encrypt_treasure_map(self, treasure_map):
+        return treasure_map.encrypt(self.publisher, self.bob)
 
     def enact(self,
               network_middleware: RestMiddleware,
