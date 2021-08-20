@@ -55,7 +55,7 @@ ursula = Ursula.from_seed_and_stake_info(seed_uri=SEEDNODE_URI, federated_only=T
 
 # Here are our Policy details.
 policy_end_datetime = maya.now() + datetime.timedelta(days=1)
-m, n = 2, 3
+threshold, shares = 2, 3
 label = b"secret/files/and/stuff"
 
 
@@ -90,7 +90,7 @@ policy_public_key = alice.get_policy_encrypting_key_from_label(label)
 
 # Alice grant access to Bob. She already knows Bob's public keys from a side-channel.
 remote_bob = Bob.from_public_keys(encrypting_key=encrypting_key, verifying_key=verifying_key)
-policy = alice.grant(remote_bob, label, m=m, n=n, expiration=policy_end_datetime)
+policy = alice.grant(remote_bob, label, threshold=threshold, shares=shares, expiration=policy_end_datetime)
 
 assert policy.public_key == policy_public_key
 policy.treasure_map_publisher.block_until_complete()

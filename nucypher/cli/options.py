@@ -53,16 +53,16 @@ option_max_gas_price = click.option('--max-gas-price', help="Maximum acceptable 
 option_hw_wallet = click.option('--hw-wallet/--no-hw-wallet')
 option_light = click.option('--light', help="Indicate that node is light", is_flag=True, default=None)
 option_lonely = click.option('--lonely', help="Do not connect to seednodes", is_flag=True)
-option_m = click.option('--m', help="M-Threshold KFrags", type=click.INT)
 option_min_stake = click.option('--min-stake', help="The minimum stake the teacher must have to be locally accepted.", type=STAKED_TOKENS_RANGE, default=MIN_ALLOWED_LOCKED_TOKENS)
-option_n = click.option('--n', help="N-Total KFrags", type=click.INT)
 option_parameters = click.option('--parameters', help="Filepath to a JSON file containing additional parameters", type=EXISTING_READABLE_FILE)
 option_participant_address = click.option('--participant-address', help="Participant's checksum address.", type=EIP55_CHECKSUM_ADDRESS)
 option_poa = click.option('--poa/--disable-poa', help="Inject POA middleware", is_flag=True, default=None)
 option_registry_filepath = click.option('--registry-filepath', help="Custom contract registry filepath", type=EXISTING_READABLE_FILE)
+option_shares = click.option('--shares', '-n', help="N-Total shares", type=click.INT)
 option_signer_uri = click.option('--signer', 'signer_uri', '-S', default=None, type=str)
 option_staking_address = click.option('--staking-address', help="Address of a NuCypher staker", type=EIP55_CHECKSUM_ADDRESS)
 option_teacher_uri = click.option('--teacher', 'teacher_uri', help="An Ursula URI to start learning from (seednode)", type=click.STRING)
+option_threshold = click.option('--threshold', '-m', help="M-Threshold KFrags", type=click.INT)
 _option_middleware = click.option('-Z', '--mock-networking', help="Use in-memory transport instead of networking", count=True)
 
 # Avoid circular input

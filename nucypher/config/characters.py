@@ -164,8 +164,8 @@ class AliceConfiguration(CharacterConfiguration):
     DEFAULT_CONTROLLER_PORT = 8151
 
     # TODO: Best (Sane) Defaults
-    DEFAULT_M = 2
-    DEFAULT_N = 3
+    DEFAULT_THRESHOLD = 2
+    DEFAULT_SHARES = 3
 
     DEFAULT_STORE_POLICIES = True
     DEFAULT_STORE_CARDS = True
@@ -179,8 +179,8 @@ class AliceConfiguration(CharacterConfiguration):
     )
 
     def __init__(self,
-                 m: int = None,
-                 n: int = None,
+                 threshold: int = None,
+                 shares: int = None,
                  rate: int = None,
                  payment_periods: int = None,
                  store_policies: bool = DEFAULT_STORE_POLICIES,
@@ -188,8 +188,8 @@ class AliceConfiguration(CharacterConfiguration):
                  *args, **kwargs):
 
         super().__init__(*args, **kwargs)
-        self.m = m or self.DEFAULT_M
-        self.n = n or self.DEFAULT_N
+        self.threshold = threshold or self.DEFAULT_THRESHOLD
+        self.shares = shares or self.DEFAULT_SHARES
 
         # if not self.federated_only:  # TODO: why not?
         self.rate = rate
@@ -200,8 +200,8 @@ class AliceConfiguration(CharacterConfiguration):
 
     def static_payload(self) -> dict:
         payload = dict(
-            m=self.m,
-            n=self.n,
+            threshold=self.threshold,
+            shares=self.shares,
             store_policies=self.store_policies,
             store_cards=self.store_cards
         )

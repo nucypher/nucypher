@@ -43,8 +43,8 @@ class AliceInterface(CharacterPublicInterface):
                       bob_encrypting_key: bytes,
                       bob_verifying_key: bytes,
                       label: bytes,
-                      m: int,
-                      n: int,
+                      threshold: int,
+                      shares: int,
                       expiration: maya.MayaDT,
                       value: int = None
                       ) -> dict:
@@ -56,8 +56,8 @@ class AliceInterface(CharacterPublicInterface):
         new_policy = self.implementer.create_policy(
             bob=bob,
             label=label,
-            m=m,
-            n=n,
+            threshold=threshold,
+            shares=shares,
             expiration=expiration,
             value=value
         )
@@ -75,8 +75,8 @@ class AliceInterface(CharacterPublicInterface):
               bob_encrypting_key: bytes,
               bob_verifying_key: bytes,
               label: bytes,
-              m: int,
-              n: int,
+              threshold: int,
+              shares: int,
               expiration: maya.MayaDT,
               value: int = None,
               rate: int = None,
@@ -88,8 +88,8 @@ class AliceInterface(CharacterPublicInterface):
 
         new_policy = self.implementer.grant(bob=bob,
                                             label=label,
-                                            m=m,
-                                            n=n,
+                                            threshold=threshold,
+                                            shares=shares,
                                             value=value,
                                             rate=rate,
                                             expiration=expiration)
@@ -117,7 +117,7 @@ class AliceInterface(CharacterPublicInterface):
                 revocation, fail_reason = attempt
                 if fail_reason == RestMiddleware.NotFound:
                     del (failed_revocations[node_id])
-        if len(failed_revocations) <= (policy.n - policy.m + 1):
+        if len(failed_revocations) <= (policy.shares - policy.threshold + 1):
             del (self.implementer.active_policies[policy_hrac])
 
         response_data = {'failed_revocations': len(failed_revocations)}

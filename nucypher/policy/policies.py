@@ -195,7 +195,7 @@ class Policy(ABC):
                  bob: 'Bob',
                  kfrags: Sequence[VerifiedKeyFrag],
                  public_key: PublicKey,
-                 m: int,
+                 threshold: int,
                  ):
 
         """
@@ -203,8 +203,8 @@ class Policy(ABC):
         :param label: The identity of the resource to which Bob is granted access.
         """
 
-        self.m = m
-        self.n = len(kfrags)
+        self.threshold = threshold
+        self.shares = len(kfrags)
         self.publisher = publisher
         self.label = label
         self.bob = bob
@@ -287,7 +287,7 @@ class Policy(ABC):
                            ) -> Dict['Ursula', Arrangement]:
         """
         Pick some Ursula addresses and send them arrangement proposals.
-        Returns a dictionary of Ursulas to Arrangements if it managed to get `n` responses.
+        Returns a dictionary of Ursulas to Arrangements if it managed to get `shares` responses.
         """
 
         if handpicked_ursulas is None:
@@ -295,19 +295,19 @@ class Policy(ABC):
         handpicked_addresses = [ChecksumAddress(ursula.checksum_address) for ursula in handpicked_ursulas]
 
         reservoir = self._make_reservoir(handpicked_addresses)
-        value_factory = PrefetchStrategy(reservoir, self.n)
+        value_factory = PrefetchStrategy(reservoir, self.shares)
 
         def worker(address):
             return self._propose_arrangement(address, network_middleware)
 
-        self.publisher.block_until_number_of_known_nodes_is(self.n, learn_on_this_thread=True, eager=True)
+        self.publisher.block_until_number_of_known_nodes_is(self.shares, learn_on_this_thread=True, eager=True)
 
         worker_pool = WorkerPool(worker=worker,
                                  value_factory=value_factory,
-                                 target_successes=self.n,
+                                 target_successes=self.shares,
                                  timeout=timeout,
                                  stagger_timeout=1,
-                                 threadpool_size=self.n)
+                                 threadpool_size=self.shares)
         worker_pool.start()
         try:
             successes = worker_pool.block_until_target_successes()
@@ -324,7 +324,7 @@ class Policy(ABC):
 
         accepted_addresses = ", ".join(ursula.checksum_address for ursula in accepted_arrangements)
 
-        if len(accepted_arrangements) < self.n:
+        if len(accepted_arrangements) < self.shares:
 
             rejected_proposals = "\n".join(f"{address}: {value}" for address, (type_, value, traceback) in failures.items())
 
@@ -380,7 +380,7 @@ class Policy(ABC):
                                                           bob=self.bob,
                                                           ursulas=list(arrangements),
                                                           verified_kfrags=self.kfrags,
-                                                          m=self.m)
+                                                          threshold=self.threshold)
 
         enc_treasure_map = self._encrypt_treasure_map(treasure_map)
 
@@ -393,7 +393,7 @@ class Policy(ABC):
         enacted_policy = EnactedPolicy(self.hrac,
                                        self.label,
                                        self.public_key,
-                                       treasure_map.m,
+                                       treasure_map.threshold,
                                        enc_treasure_map,
                                        treasure_map_publisher,
                                        revocation_kit,
@@ -463,21 +463,21 @@ class BlockchainPolicy(Policy):
         return BlockchainPolicy.NotEnoughBlockchainUrsulas
 
     def _validate_fee_value(self) -> None:
-        rate_per_period = self.value // self.n // self.payment_periods  # wei
-        recalculated_value = self.payment_periods * rate_per_period * self.n
+        rate_per_period = self.value // self.shares // self.payment_periods  # wei
+        recalculated_value = self.payment_periods * rate_per_period * self.shares
         if recalculated_value != self.value:
             raise ValueError(f"Invalid policy value calculation - "
-                             f"{self.value} can't be divided into {self.n} staker payments per period "
+                             f"{self.value} can't be divided into {self.shares} staker payments per period "
                              f"for {self.payment_periods} periods without a remainder")
 
     @staticmethod
-    def generate_policy_parameters(n: int,
+    def generate_policy_parameters(shares: int,
                                    payment_periods: int,
                                    value: int = None,
                                    rate: int = None) -> dict:
 
         # Check for negative inputs
-        if sum(True for i in (n, payment_periods, value, rate) if i is not None and i < 0) > 0:
+        if sum(True for i in (shares, payment_periods, value, rate) if i is not None and i < 0) > 0:
             raise BlockchainPolicy.InvalidPolicyValue(f"Negative policy parameters are not allowed. Be positive.")
 
         # Check for policy params
@@ -487,13 +487,13 @@ class BlockchainPolicy(Policy):
                                                           f"Got value: {value} and rate: {rate}")
 
         if value is None:
-            value = rate * payment_periods * n
+            value = rate * payment_periods * shares
 
         else:
-            value_per_node = value // n
-            if value_per_node * n != value:
+            value_per_node = value // shares
+            if value_per_node * shares != value:
                 raise BlockchainPolicy.InvalidPolicyValue(f"Policy value of ({value} wei) cannot be"
-                                                          f" divided by N ({n}) without a remainder.")
+                                                          f" divided by N ({shares}) without a remainder.")
 
             rate = value_per_node // payment_periods
             if rate * payment_periods != value_per_node:
@@ -545,7 +545,7 @@ class EnactedPolicy:
                  hrac: HRAC,
                  label: bytes,
                  public_key: PublicKey,
-                 m: int,
+                 threshold: int,
                  treasure_map: 'EncryptedTreasureMap',
                  treasure_map_publisher: TreasureMapPublisher,
                  revocation_kit: RevocationKit,
@@ -558,8 +558,8 @@ class EnactedPolicy:
         self.treasure_map = treasure_map
         self.treasure_map_publisher = treasure_map_publisher
         self.revocation_kit = revocation_kit
-        self.m = m
-        self.n = len(self.revocation_kit)
+        self.threshold = threshold
+        self.shares = len(self.revocation_kit)
         self.publisher_verifying_key = publisher_verifying_key
 
     def publish_treasure_map(self):

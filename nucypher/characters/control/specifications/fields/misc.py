@@ -19,11 +19,11 @@ from nucypher.control.specifications.fields.base import Integer, PositiveInteger
 from nucypher.cli import types
 
 
-class M(PositiveInteger):
+class Threshold(PositiveInteger):
     pass
 
 
-class N(PositiveInteger):
+class Shares(PositiveInteger):
     pass
 
 

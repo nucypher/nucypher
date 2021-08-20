@@ -132,8 +132,8 @@ class Alice(Character, BlockchainPolicyAuthor):
                  checksum_address: str = None,
 
                  # M of N
-                 m: int = None,
-                 n: int = None,
+                 threshold: Optional[int] = None,
+                 shares: Optional[int] = None,
 
                  # Policy Value
                  rate: int = None,
@@ -157,14 +157,14 @@ class Alice(Character, BlockchainPolicyAuthor):
         self.timeout = timeout
 
         if is_me:
-            self.m = m
-            self.n = n
+            self.threshold = threshold
+            self.shares = shares
 
             self._policy_queue = Queue()
             self._policy_queue.put(READY)
         else:
-            self.m = STRANGER_ALICE
-            self.n = STRANGER_ALICE
+            self.threshold = STRANGER_ALICE
+            self.shares = STRANGER_ALICE
 
         Character.__init__(self,
                            known_node_class=Ursula,
@@ -218,8 +218,8 @@ class Alice(Character, BlockchainPolicyAuthor):
     def generate_kfrags(self,
                         bob: 'Bob',
                         label: bytes,
-                        m: int = None,
-                        n: int = None
+                        threshold: int = None,
+                        shares: int = None
                         ) -> List:
         """
         Generates re-encryption key frags ("KFrags") and returns them.
@@ -237,8 +237,8 @@ class Alice(Character, BlockchainPolicyAuthor):
         policy_key_and_kfrags = delegating_power.generate_kfrags(bob_pubkey_enc=bob_encrypting_key,
                                                                  signer=self.stamp.as_umbral_signer(),
                                                                  label=label,
-                                                                 m=m or self.m,
-                                                                 n=n or self.n)
+                                                                 threshold=threshold or self.threshold,
+                                                                 shares=shares or self.shares)
         return policy_key_and_kfrags
 
     def create_policy(self, bob: "Bob", label: bytes, **policy_params):
@@ -248,19 +248,19 @@ class Alice(Character, BlockchainPolicyAuthor):
         """
 
         policy_params = self.generate_policy_parameters(**policy_params)
-        N = policy_params.pop('n')
+        shares = policy_params.pop('shares')
 
         # Generate KFrags
         public_key, kfrags = self.generate_kfrags(bob=bob,
                                                   label=label,
-                                                  m=policy_params['m'],
-                                                  n=N)
+                                                  threshold=policy_params['threshold'],
+                                                  shares=shares)
 
         payload = dict(label=label,
                        bob=bob,
                        kfrags=kfrags,
                        public_key=public_key,
-                       m=policy_params['m'],
+                       threshold=policy_params['threshold'],
                        expiration=policy_params['expiration'])
 
         if self.federated_only:
@@ -276,8 +276,8 @@ class Alice(Character, BlockchainPolicyAuthor):
         return policy
 
     def generate_policy_parameters(self,
-                                   m: int = None,
-                                   n: int = None,
+                                   threshold: int = None,
+                                   shares: int = None,
                                    payment_periods: int = None,
                                    expiration: maya.MayaDT = None,
                                    *args, **kwargs
@@ -290,9 +290,9 @@ class Alice(Character, BlockchainPolicyAuthor):
             raise ValueError("Policy end time must be specified as 'expiration' or 'payment_periods', got neither.")
 
         # Merge injected and default params.
-        m = m or self.m
-        n = n or self.n
-        base_payload = dict(m=m, n=n, expiration=expiration)
+        threshold = threshold or self.threshold
+        shares = shares or self.shares
+        base_payload = dict(threshold=threshold, shares=shares, expiration=expiration)
 
         if self.federated_only:
             if not expiration:
@@ -305,7 +305,7 @@ class Alice(Character, BlockchainPolicyAuthor):
                 raise ValueError(f'Expiration must be in the future ({expiration} is earlier than blocktime {blocktime}).')
 
             # Calculate Policy Rate and Value
-            payload = super().generate_policy_parameters(number_of_ursulas=n,
+            payload = super().generate_policy_parameters(number_of_ursulas=shares,
                                                          payment_periods=payment_periods,
                                                          expiration=expiration,
                                                          *args, **kwargs)
@@ -352,8 +352,8 @@ class Alice(Character, BlockchainPolicyAuthor):
         #
 
         # If we're federated only, we need to block to make sure we have enough nodes.
-        if self.federated_only and len(self.known_nodes) < policy.n:
-            good_to_go = self.block_until_number_of_known_nodes_is(number_of_nodes_to_know=policy.n,
+        if self.federated_only and len(self.known_nodes) < policy.shares:
+            good_to_go = self.block_until_number_of_known_nodes_is(number_of_nodes_to_know=policy.shares,
                                                                    learn_on_this_thread=True,
                                                                    timeout=timeout)
             if not good_to_go:
@@ -361,7 +361,7 @@ class Alice(Character, BlockchainPolicyAuthor):
                     "To make a Policy in federated mode, you need to know about "
                     "all the Ursulas you need (in this case, {}); there's no other way to "
                     "know which nodes to use.  Either pass them here or when you make the Policy, "
-                    "or run the learning loop on a network with enough Ursulas.".format(policy.n))
+                    "or run the learning loop on a network with enough Ursulas.".format(policy.shares))
 
         self.log.debug(f"Enacting {policy} ... ")
         # TODO: Make it optional to publish to blockchain?  Or is this presumptive based on the `Policy` type?
@@ -404,10 +404,10 @@ class Alice(Character, BlockchainPolicyAuthor):
             """
             try:
                 # Wait for a revocation threshold of nodes to be known ((n - m) + 1)
-                revocation_threshold = ((policy.n - policy.m) + 1)
+                revocation_threshold = ((policy.shares - policy.threshold) + 1)
                 self.block_until_specific_nodes_are_known(
                     policy.revocation_kit.revokable_addresses,
-                    allow_missing=(policy.n - revocation_threshold))
+                    allow_missing=(policy.shares - revocation_threshold))
             except self.NotEnoughTeachers:
                 raise  # TODO  NRN
 
@@ -622,7 +622,7 @@ class Bob(Character):
                                                           allow_missing=allow_missing,
                                                           learn_on_this_thread=True)
 
-        return unknown_ursulas, known_ursulas, treasure_map.m
+        return unknown_ursulas, known_ursulas, treasure_map.threshold
 
     def _decrypt_treasure_map(self,
                               encrypted_treasure_map: EncryptedTreasureMap,
@@ -736,10 +736,10 @@ class Bob(Character):
     def _filter_work_orders_and_capsules(self,
                                          work_orders: Dict[ChecksumAddress, 'WorkOrder'],
                                          message_kits: Sequence['UmbralMessageKit'],
-                                         m: int,
+                                         threshold: int,
                                          ) -> Tuple[List['WorkOrder'], Set['Capsule']]:
         remaining_work_orders = []
-        remaining_capsules = {mk.capsule for mk in message_kits if len(mk) < m}
+        remaining_capsules = {mk.capsule for mk in message_kits if len(mk) < threshold}
         for work_order in work_orders.values():
             if not work_order.tasks.keys().isdisjoint(remaining_capsules):
                 remaining_work_orders.append(work_order)
@@ -863,7 +863,7 @@ class Bob(Character):
                         *message_kits,
                         message_kits_map: Dict[Capsule, UmbralMessageKit],
                         new_work_orders: Sequence['WorkOrder'],
-                        m: int,
+                        threshold: int,
                         retain_cfrags: bool
                         ) -> List[bytes]:
 
@@ -875,7 +875,7 @@ class Bob(Character):
             # TODO Optimization: Block here (or maybe even later) until map is done being followed (instead of blocking above). #1114
             the_airing_of_grievances = []
 
-            remaining_work_orders, capsules_to_activate = self._filter_work_orders_and_capsules(new_work_orders, message_kits, m)
+            remaining_work_orders, capsules_to_activate = self._filter_work_orders_and_capsules(new_work_orders, message_kits, threshold)
 
             # If all the capsules are now activated, we can stop here.
             if capsules_to_activate and remaining_work_orders:
@@ -894,14 +894,14 @@ class Bob(Character):
                     for capsule, pre_task in work_order.tasks.items():
                         message_kit = message_kits_map[capsule]
                         message_kit.attach_cfrag(pre_task.cfrag)
-                        if len(message_kit) >= m:
+                        if len(message_kit) >= threshold:
                             capsules_to_activate.discard(capsule)
 
                     # If all the capsules are now activated, we can stop here.
                     if not capsules_to_activate:
                         break
                 else:
-                    raise Ursula.NotEnoughUrsulas("Unable to reach m Ursulas.  See the logs for which Ursulas are down or noncompliant.")
+                    raise Ursula.NotEnoughUrsulas(f"Unable to reach {threshold} Ursulas.  See the logs for which Ursulas are down or noncompliant.")
 
             if the_airing_of_grievances:
                 # ... and now you're gonna hear about it!
@@ -940,8 +940,8 @@ class Bob(Character):
                 self.join_policy(label=label, publisher_verifying_key=publisher_verifying_key)
                 treasure_map = self.treasure_maps[hrac]
 
-        _unknown_ursulas, _known_ursulas, m = self.follow_treasure_map(treasure_map=treasure_map, block=True)
-        return treasure_map, m
+        _unknown_ursulas, _known_ursulas, threshold = self.follow_treasure_map(treasure_map=treasure_map, block=True)
+        return treasure_map, threshold
 
     def retrieve(self,
 
@@ -967,9 +967,9 @@ class Bob(Character):
             # If a policy publisher's verifying key is not passed, use Alice's by default.
             publisher_verifying_key = alice_verifying_key
 
-        treasure_map, m = self._handle_treasure_map(encrypted_treasure_map=encrypted_treasure_map,
-                                                    publisher_verifying_key=publisher_verifying_key,
-                                                    label=label)
+        treasure_map, threshold = self._handle_treasure_map(encrypted_treasure_map=encrypted_treasure_map,
+                                                            publisher_verifying_key=publisher_verifying_key,
+                                                            label=label)
 
         work_orders, message_kits_map = self._assemble_work_orders(
             *message_kits,
@@ -987,7 +987,7 @@ class Bob(Character):
                                           message_kits_map=message_kits_map,
                                           new_work_orders=work_orders.new,
                                           retain_cfrags=retain_cfrags,
-                                          m=m)
+                                          threshold=threshold)
 
         return cleartexts
 

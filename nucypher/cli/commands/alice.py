@@ -44,16 +44,16 @@ from nucypher.cli.options import (
     option_force,
     option_hw_wallet,
     option_light,
-    option_m,
     option_middleware,
     option_min_stake,
-    option_n,
     option_network,
+    option_shares,
     option_poa,
     option_provider_uri,
     option_registry_filepath,
     option_signer_uri,
     option_teacher_uri,
+    option_threshold,
     option_lonely,
     option_max_gas_price
 )
@@ -177,12 +177,12 @@ class AliceFullConfigOptions:
 
     __option_name__ = 'full_config_options'
 
-    def __init__(self, config_options, poa: bool, light: bool, m: int, n: int, payment_periods: int):
+    def __init__(self, config_options, poa: bool, light: bool, threshold: int, shares: int, payment_periods: int):
         self.config_options = config_options
         self.poa = poa
         self.light = light
-        self.m = m
-        self.n = n
+        self.threshold = threshold
+        self.shares = shares
         self.payment_periods = payment_periods
 
     def generate_config(self, emitter: StdoutEmitter, config_root: Path) -> AliceConfiguration:
@@ -216,8 +216,8 @@ class AliceFullConfigOptions:
             registry_filepath=opts.registry_filepath,
             poa=self.poa,
             light=self.light,
-            m=self.m,
-            n=self.n,
+            threshold=self.threshold,
+            shares=self.shares,
             payment_periods=self.payment_periods)
 
     def get_updates(self) -> dict:
@@ -230,8 +230,8 @@ class AliceFullConfigOptions:
                        registry_filepath=opts.registry_filepath,
                        poa=self.poa,
                        light=self.light,
-                       m=self.m,
-                       n=self.n,
+                       threshold=self.threshold,
+                       shares=self.shares,
                        payment_periods=self.payment_periods)
         # Depends on defaults being set on Configuration classes, filtrates None values
         updates = {k: v for k, v in payload.items() if v is not None}
@@ -243,8 +243,8 @@ group_full_config_options = group_options(
     config_options=group_config_options,
     poa=option_poa,
     light=option_light,
-    m=option_m,
-    n=option_n,
+    threshold=option_threshold,
+    shares=option_shares,
     payment_periods=option_payment_periods
 )
 
@@ -434,7 +434,8 @@ def grant(general_config,
           value,
           rate,
           expiration,
-          m, n,
+          threshold,
+          shares,
           character_options,
           config_file,
           force):
@@ -475,8 +476,8 @@ def grant(general_config,
             force=force,
             bob_identifier=bob_public_keys.verifying_key[:8],
             label=label,
-            m=m,
-            n=n,
+            threshold=threshold,
+            shares=shares,
             rate=rate,
             value=value,
             expiration=expiration
@@ -486,8 +487,8 @@ def grant(general_config,
         'bob_encrypting_key': bob_public_keys.encrypting_key,
         'bob_verifying_key': bob_public_keys.verifying_key,
         'label': policy.label,
-        'm': policy.m,
-        'n': policy.n,
+        'threshold': policy.threshold,
+        'shares': policy.shares,
         'expiration': policy.expiration,
     }
     if not ALICE.federated_only:

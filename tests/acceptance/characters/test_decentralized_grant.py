@@ -29,23 +29,23 @@ from nucypher.policy.maps import EncryptedTreasureMap
 
 def test_decentralized_grant(blockchain_alice, blockchain_bob, blockchain_ursulas):
     # Setup the policy details
-    n = 3
+    shares = 3
     policy_end_datetime = maya.now() + datetime.timedelta(days=35)
     label = b"this_is_the_path_to_which_access_is_being_granted"
 
     # Create the Policy, Granting access to Bob
     policy = blockchain_alice.grant(bob=blockchain_bob,
                                     label=label,
-                                    m=2,
-                                    n=n,
+                                    threshold=2,
+                                    shares=shares,
                                     rate=int(1e18),  # one ether
                                     expiration=policy_end_datetime)
 
     treasure_map = blockchain_bob._decrypt_treasure_map(policy.treasure_map,
                                                         policy.publisher_verifying_key)
 
-    # The number of actually enacted arrangements is exactly equal to n.
-    assert len(treasure_map.destinations) == n
+    # The number of actually enacted arrangements is exactly equal to shares.
+    assert len(treasure_map.destinations) == shares
 
     # Let's look at the enacted arrangements.
     for ursula in blockchain_ursulas:

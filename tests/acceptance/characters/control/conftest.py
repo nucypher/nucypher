@@ -93,8 +93,8 @@ def create_policy_control_request(blockchain_bob):
         'bob_encrypting_key': bytes(bob_pubkey_enc).hex(),
         'bob_verifying_key': bytes(blockchain_bob.stamp).hex(),
         'label': b64encode(bytes(b'test')).decode(),
-        'm': 2,
-        'n': 3,
+        'threshold': 2,
+        'shares': 3,
         'expiration': (maya.now() + datetime.timedelta(days=35)).iso8601(),
         'value': 3 * 3 * 10 ** 16
     }
@@ -109,8 +109,8 @@ def grant_control_request(blockchain_bob):
         'bob_encrypting_key': bytes(bob_pubkey_enc).hex(),
         'bob_verifying_key': bytes(blockchain_bob.stamp).hex(),
         'label': 'test',
-        'm': 2,
-        'n': 3,
+        'threshold': 2,
+        'shares': 3,
         'expiration': (maya.now() + datetime.timedelta(days=35)).iso8601(),
         'value': 3 * 3 * 10 ** 16
     }

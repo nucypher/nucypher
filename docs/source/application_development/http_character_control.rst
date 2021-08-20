@@ -63,8 +63,8 @@ The character control API uses JSON for all its endpoints. A request may look li
         'bob_verifying_key': '02ce770f45fecbbee0630129cce0da4fffc0c4276093bdb3f83ecf1ed824e2696c',
         'bob_encrypting_key': '0324df67664e6ea40f2eea8037c994debd4caa42117fe86cdb8cab6ac7728751ad',
         'label': 'spın̈al-tap-covers',
-        'm': 2,
-        'n': 3,
+        'threshold': 2,
+        'shares': 3,
         'expiration': '2019-02-14T22:23:10.771093Z',
     }
 

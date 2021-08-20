@@ -77,7 +77,7 @@ from tests.constants import (
     MIN_STAKE_FOR_TESTS,
     MOCK_CUSTOM_INSTALLATION_PATH,
     MOCK_CUSTOM_INSTALLATION_PATH_2,
-    MOCK_POLICY_DEFAULT_M,
+    MOCK_POLICY_DEFAULT_THRESHOLD,
     MOCK_REGISTRY_FILEPATH,
     NUMBER_OF_URSULAS_IN_DEVELOPMENT_NETWORK,
     TEST_GAS_LIMIT,
@@ -220,13 +220,13 @@ def idle_federated_policy(federated_alice, federated_bob):
     """
     Creates a Policy, in a manner typical of how Alice might do it, with a unique label
     """
-    m = MOCK_POLICY_DEFAULT_M
-    n = NUMBER_OF_URSULAS_IN_DEVELOPMENT_NETWORK
+    threshold = MOCK_POLICY_DEFAULT_THRESHOLD
+    shares = NUMBER_OF_URSULAS_IN_DEVELOPMENT_NETWORK
     random_label = generate_random_label()
     policy = federated_alice.create_policy(federated_bob,
                                            label=random_label,
-                                           m=m,
-                                           n=n,
+                                           threshold=threshold,
+                                           shares=shares,
                                            expiration=maya.now() + timedelta(days=5))
     return policy
 
@@ -263,12 +263,13 @@ def idle_blockchain_policy(testerchain, blockchain_alice, blockchain_bob, token_
     days = periods * (token_economics.hours_per_period // 24)
     now = testerchain.w3.eth.getBlock('latest').timestamp
     expiration = maya.MayaDT(now).add(days=days - 1)
-    n = 3
-    m = 2
+    shares = 3
+    threshold = 2
     policy = blockchain_alice.create_policy(blockchain_bob,
                                             label=random_label,
-                                            m=m, n=n,
-                                            value=n * periods * 100,
+                                            threshold=threshold,
+                                            shares=shares,
+                                            value=shares * periods * 100,
                                             expiration=expiration)
     return policy
 
@@ -306,12 +307,13 @@ def random_blockchain_policy(testerchain, blockchain_alice, blockchain_bob, toke
     days = periods * (token_economics.hours_per_period // 24)
     now = testerchain.w3.eth.getBlock('latest').timestamp
     expiration = maya.MayaDT(now).add(days=days - 1)
-    n = 3
-    m = 2
+    shares = 3
+    threshold = 2
     policy = blockchain_alice.create_policy(blockchain_bob,
                                             label=random_label,
-                                            m=m, n=n,
-                                            value=n * periods * 100,
+                                            threshold=threshold,
+                                            shares=shares,
+                                            value=shares * periods * 100,
                                             expiration=expiration)
     return policy
 

@@ -155,7 +155,7 @@ def confirm_staged_grant(emitter, grant_request: Dict, federated: bool, seconds_
         emitter.echo(tabulate(table, tablefmt="simple"))
         return
 
-    period_rate = Web3.fromWei(pretty_request['n'] * pretty_request['rate'], 'gwei')
+    period_rate = Web3.fromWei(pretty_request['shares'] * pretty_request['rate'], 'gwei')
     pretty_request['rate'] = f"{pretty_request['rate']} wei/period * {pretty_request['n']} nodes"
 
     expiration = pretty_request['expiration']
@@ -165,9 +165,9 @@ def confirm_staged_grant(emitter, grant_request: Dict, federated: bool, seconds_
     pretty_request['expiration'] = f"{pretty_request['expiration']} ({periods} periods)"
 
     # M of N
-    pretty_request['Threshold Shares'] = f"{pretty_request['m']} of {pretty_request['n']}"
-    del pretty_request['m']
-    del pretty_request['n']
+    pretty_request['Threshold Shares'] = f"{pretty_request['threshold']} of {pretty_request['shares']}"
+    del pretty_request['threshold']
+    del pretty_request['shares']
 
     def prettify_field(field):
         field_words = [word.capitalize() for word in field.split('_')]

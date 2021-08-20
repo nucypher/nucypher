@@ -57,7 +57,7 @@ Alice Grants Access To Secret
     >     --bob-encrypting-key 0202a6be8e400acdd50db42f8b4c62241b61461a08462731efc064b86d63c7cf6f \
     >     --label <LABEL> \
     >     --expiration 2019-12-20T10:07:50Z \
-    >     --m 1 --n 1 --value 1 --debug
+    >     -m 1 -n 1 --value 1 --debug
 
 Output:
 

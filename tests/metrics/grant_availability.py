@@ -75,8 +75,8 @@ INSECURE_PASSWORD: str = "METRICS_INSECURE_DEVELOPMENT_PASSWORD"
 TEMP_ALICE_DIR: Path = Path('/', 'tmp', 'grant-metrics')
 
 # Policy Parameters
-M: int = 1
-N: int = 1
+THRESHOLD: int = 1
+SHARES: int = 1
 RATE: Wei = Web3.toWei(50, 'gwei')
 DURATION: datetime.timedelta = datetime.timedelta(days=1)
 
@@ -112,7 +112,8 @@ def metric_grant(alice, handpicked_ursulas: Optional[Set[Ursula]] = None) -> Pol
     """Perform a granting operation for metrics collection."""
     label = f'{LABEL_PREFIX}{LABEL_SUFFIXER()}'.encode()
     policy_end_datetime = maya.now() + DURATION
-    policy = alice.grant(m=M, n=N,
+    policy = alice.grant(threshold=THRESHOLD,
+                         shares=SHARES,
                          handpicked_ursulas=handpicked_ursulas,
                          expiration=policy_end_datetime,
                          bob=BOB,

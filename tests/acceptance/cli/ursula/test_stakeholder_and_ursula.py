@@ -606,14 +606,15 @@ def test_collect_rewards_integration(click_runner,
     # Alice creates a policy and grants Bob access
     blockchain_alice.selection_buffer = 1
 
-    M, N = 1, 1
+    threshold, shares = 1, 1
     duration_in_periods = 3
     days = (duration_in_periods - 1) * (token_economics.hours_per_period // 24)
     now = testerchain.w3.eth.getBlock('latest').timestamp
     expiration = maya.MayaDT(now).add(days=days)
     blockchain_policy = blockchain_alice.grant(bob=blockchain_bob,
                                                label=random_policy_label,
-                                               m=M, n=N,
+                                               threshold=threshold,
+                                               shares=shares,
                                                value=policy_value,
                                                expiration=expiration,
                                                handpicked_ursulas={ursula})

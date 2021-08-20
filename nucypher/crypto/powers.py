@@ -261,8 +261,8 @@ class DelegatingPower(DerivedKeyBasedPower):
                         bob_pubkey_enc,
                         signer,
                         label: bytes,
-                        m: int,
-                        n: int
+                        threshold: int,
+                        shares: int
                         ) -> Tuple[PublicKey, List]:
         """
         Generates re-encryption key frags ("KFrags") and returns them.
@@ -270,15 +270,15 @@ class DelegatingPower(DerivedKeyBasedPower):
         These KFrags can be used by Ursula to re-encrypt a Capsule for Bob so
         that he can activate the Capsule.
         :param bob_pubkey_enc: Bob's public key
-        :param m: Minimum number of KFrags needed to rebuild ciphertext
-        :param n: Total number of KFrags to generate
+        :param threshold: Minimum number of KFrags needed to rebuild ciphertext
+        :param shares: Total number of KFrags to generate
         """
 
         __private_key = self._get_privkey_from_label(label)
         kfrags = generate_kfrags(delegating_sk=__private_key,
                                  receiving_pk=bob_pubkey_enc,
-                                 threshold=m,
-                                 num_kfrags=n,
+                                 threshold=threshold,
+                                 num_kfrags=shares,
                                  signer=signer,
                                  sign_delegating_key=False,
                                  sign_receiving_key=False,
