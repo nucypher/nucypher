@@ -118,9 +118,7 @@ del alice
 # Bob the BUIDLer  ##
 #####################
 
-bob.join_policy(label, alice_verifying_key)
-
-# Now that Bob has joined the Policy, let's show how Enrico the Encryptor
+# Now let's show how Enrico the Encryptor
 # can share data with the members of this Policy and then how Bob retrieves it.
 # In order to avoid re-encrypting the entire book in this demo, we only read some lines.
 with open(BOOK_PATH, 'rb') as file:

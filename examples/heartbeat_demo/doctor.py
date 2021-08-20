@@ -88,11 +88,7 @@ policy_pubkey = PublicKey.from_bytes(bytes.fromhex(policy_data["policy_pubkey"])
 alices_sig_pubkey = PublicKey.from_bytes(bytes.fromhex(policy_data["alice_sig_pubkey"]))
 label = policy_data["label"].encode()
 
-print("The Doctor joins policy for label '{}'".format(label.decode("utf-8")))
-doctor.join_policy(label, alices_sig_pubkey)
-
-# Now that the Doctor joined the policy in the NuCypher network,
-# he can retrieve encrypted data which he can decrypt with his private key.
+# The Doctor can retrieve encrypted data which he can decrypt with his private key.
 # But first we need some encrypted data!
 # Let's read the file produced by the heart monitor and unpack the MessageKits,
 # which are the individual ciphertexts.
