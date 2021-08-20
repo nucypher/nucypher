@@ -127,7 +127,7 @@ def retrieve_control_request(blockchain_alice, blockchain_bob, enacted_blockchai
         'label': enacted_blockchain_policy.label.decode(),
         'policy_encrypting_key': bytes(enacted_blockchain_policy.public_key).hex(),
         'alice_verifying_key': bytes(enacted_blockchain_policy.publisher_verifying_key).hex(),
-        'message_kit': b64encode(message_kit.to_bytes()).decode(),
+        'message_kit': b64encode(bytes(message_kit)).decode(),
         'treasure_map': b64encode(bytes(enacted_blockchain_policy.treasure_map)).decode()
     }
     return method_name, params

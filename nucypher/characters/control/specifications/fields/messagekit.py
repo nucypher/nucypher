@@ -28,7 +28,7 @@ from nucypher.crypto.kits import MessageKit as MessageKitClass
 class MessageKit(BaseField, fields.Field):
 
     def _serialize(self, value: MessageKitClass, attr, obj, **kwargs):
-        return b64encode(value.to_bytes()).decode()
+        return b64encode(bytes(value)).decode()
 
     def _deserialize(self, value, attr, data, **kwargs):
         if isinstance(value, bytes):

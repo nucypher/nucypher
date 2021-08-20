@@ -144,7 +144,7 @@ class Amonia(Alice):
             message_kit, _signature = policy.publisher.encrypt_for(ursula, payload)
 
             try:
-                network_middleware.enact_policy(ursula, message_kit.to_bytes())
+                network_middleware.enact_policy(ursula, bytes(message_kit))
             except Exception as e:
                 # I don't care what went wrong - I will keep trying to ram arrangements through.
                 continue

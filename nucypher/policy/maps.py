@@ -112,7 +112,7 @@ class TreasureMap:
         nodes_as_bytes = b""
         for ursula_address, encrypted_kfrag in self.destinations.items():
             node_id = to_canonical_address(ursula_address)
-            kfrag = bytes(VariableLengthBytestring(encrypted_kfrag.to_bytes()))
+            kfrag = bytes(VariableLengthBytestring(bytes(encrypted_kfrag)))
             nodes_as_bytes += (node_id + kfrag)
         return nodes_as_bytes
 
@@ -218,7 +218,7 @@ class EncryptedTreasureMap:
               encrypted_tmap: MessageKit,
               ) -> bytes:
         # This method exists mainly to link this scheme to the corresponding test
-        payload = bytes(public_signature) + bytes(hrac) + encrypted_tmap.to_bytes()
+        payload = bytes(public_signature) + bytes(hrac) + bytes(encrypted_tmap)
         return blockchain_signer(payload)
 
     @classmethod
@@ -281,14 +281,14 @@ class EncryptedTreasureMap:
             signature = self._EMPTY_BLOCKCHAIN_SIGNATURE
         return (bytes(self._public_signature) +
                 bytes(self.hrac) +
-                bytes(VariableLengthBytestring(self._encrypted_tmap.to_bytes())) +
+                bytes(VariableLengthBytestring(bytes(self._encrypted_tmap))) +
                 signature
                 )
 
     def verify_blockchain_signature(self, checksum_address: ChecksumAddress) -> bool:
         if self._blockchain_signature is None:
             raise ValueError("This EncryptedTreasureMap is not blockchain-signed")
-        payload = bytes(self._public_signature) + bytes(self.hrac) + self._encrypted_tmap.to_bytes()
+        payload = bytes(self._public_signature) + bytes(self.hrac) + bytes(self._encrypted_tmap)
         return verify_eip_191(message=payload,
                               signature=self._blockchain_signature,
                               address=checksum_address)

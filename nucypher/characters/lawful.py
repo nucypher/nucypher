@@ -1893,7 +1893,7 @@ class Enrico(Character):
 
             response_data = {
                 'result': {
-                    'message_kit': b64encode(message_kit.to_bytes()).decode(),  # FIXME, but NRN
+                    'message_kit': b64encode(bytes(message_kit)).decode(),  # FIXME, but NRN
                     'signature': b64encode(bytes(signature)).decode(),
                 },
                 'version': str(nucypher.__version__)

@@ -144,7 +144,7 @@ def test_alice_character_control_decrypt(alice_web_controller_test_client,
 
     label = enacted_federated_policy.label.decode()
     policy_encrypting_key = bytes(enacted_federated_policy.public_key).hex()
-    message_kit = b64encode(message_kit.to_bytes()).decode()
+    message_kit = b64encode(bytes(message_kit)).decode()
 
     request_data = {
         'label': label,
@@ -295,7 +295,7 @@ def test_web_character_control_lifecycle(alice_web_controller_test_client,
     bob_message_kit = MessageKit.from_bytes(kit_bytes)
 
     # Retrieve data via Bob control
-    encoded_message_kit = b64encode(bob_message_kit.to_bytes()).decode()
+    encoded_message_kit = b64encode(bytes(bob_message_kit)).decode()
 
     bob_request_data = {
         'label': random_label,
