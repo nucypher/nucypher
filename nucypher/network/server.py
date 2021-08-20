@@ -30,7 +30,7 @@ from mako.template import Template
 from nucypher.blockchain.eth.utils import period_to_epoch
 from nucypher.config.constants import MAX_UPLOAD_CONTENT_LENGTH
 from nucypher.crypto.keypairs import DecryptingKeypair
-from nucypher.crypto.kits import PolicyMessageKit
+from nucypher.crypto.kits import MessageKit
 from nucypher.crypto.powers import KeyPairBasedPower, PowerUpError
 from nucypher.crypto.signing import InvalidSignature
 from nucypher.datastore.datastore import Datastore
@@ -204,7 +204,7 @@ def _make_rest_app(datastore: Datastore, this_node, domain: str, log: Logger) ->
         bob_identity_message = f"[{bob_ip_address}] Bob({bytes(bob.stamp).hex()})"
 
         # Verify & Decrypt KFrag Payload
-        encrypted_kfrag_payload = PolicyMessageKit.from_bytes(work_order.encrypted_kfrag)
+        encrypted_kfrag_payload = MessageKit.from_bytes(work_order.encrypted_kfrag)
         try:
             plaintext_kfrag_payload = this_node.verify_from(stranger=alice,
                                                             message_kit=encrypted_kfrag_payload,

@@ -22,7 +22,7 @@ from twisted.internet import threads
 from nucypher.characters.lawful import Alice
 from nucypher.config.constants import TEMPORARY_DOMAIN
 from nucypher.crypto.keypairs import DecryptingKeypair
-from nucypher.crypto.kits import PolicyMessageKit
+from nucypher.crypto.kits import MessageKit
 from nucypher.crypto.powers import DecryptingPower
 from nucypher.crypto.umbral_adapter import reencrypt
 from nucypher.datastore.models import Workorder
@@ -695,9 +695,9 @@ def test_bob_retrieves_multiple_messages_in_a_single_adventure(federated_bob,
 
     alices_verifying_key = federated_alice.stamp.as_umbral_pubkey()
 
-    delivered_cleartexts = federated_bob.retrieve(PolicyMessageKit.from_bytes(message1_bytes),
-                                                  PolicyMessageKit.from_bytes(message2_bytes),
-                                                  PolicyMessageKit.from_bytes(message3_bytes),
+    delivered_cleartexts = federated_bob.retrieve(MessageKit.from_bytes(message1_bytes),
+                                                  MessageKit.from_bytes(message2_bytes),
+                                                  MessageKit.from_bytes(message3_bytes),
                                                   alice_verifying_key=alices_verifying_key,
                                                   label=enacted_federated_policy.label,
                                                   use_precedent_work_orders=True,

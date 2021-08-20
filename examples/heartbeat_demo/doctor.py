@@ -27,7 +27,7 @@ import sys
 from nucypher.characters.lawful import Bob, Enrico, Ursula
 from nucypher.config.constants import TEMPORARY_DOMAIN
 from nucypher.crypto.keypairs import DecryptingKeypair, SigningKeypair
-from nucypher.crypto.kits import PolicyMessageKit
+from nucypher.crypto.kits import MessageKit
 from nucypher.crypto.powers import DecryptingPower, SigningPower
 from nucypher.crypto.umbral_adapter import PublicKey
 from nucypher.network.middleware import RestMiddleware
@@ -95,7 +95,7 @@ treasure_map = EncryptedTreasureMap.from_bytes(base64.b64decode(policy_data["tre
 # Let's read the file produced by the heart monitor and unpack the MessageKits,
 # which are the individual ciphertexts.
 data = msgpack.load(open("heart_data.msgpack", "rb"), raw=False)
-message_kits = (PolicyMessageKit.from_bytes(k) for k in data['kits'])
+message_kits = (MessageKit.from_bytes(k) for k in data['kits'])
 
 # The doctor also needs to create a view of the Data Source from its public keys
 data_source = Enrico.from_public_keys(

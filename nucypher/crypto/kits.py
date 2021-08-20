@@ -45,7 +45,7 @@ class CryptoKit:
         return cls.split_bytes(some_bytes)
 
 
-class MessageKit(CryptoKit):
+class BaseMessageKit(CryptoKit):
     """
     All the components needed to transmit and verify an encrypted message.
     """
@@ -131,7 +131,7 @@ class MessageKit(CryptoKit):
         return self._signature
 
 
-class PolicyMessageKit(MessageKit):
+class MessageKit(BaseMessageKit):
     """
     A MessageKit which includes sufficient additional information to be retrieved on the NuCypher Network.
     """

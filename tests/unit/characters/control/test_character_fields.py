@@ -21,13 +21,13 @@ import maya
 import pytest
 from nucypher.crypto.umbral_adapter import SecretKey, Signer
 
-from nucypher.crypto.kits import PolicyMessageKit as PolicyMessageKitClass
+from nucypher.crypto.kits import MessageKit as MessageKitClass
 
 from nucypher.characters.control.specifications.fields import (
     DateTime,
     FileField,
     Key,
-    PolicyMessageKit,
+    MessageKit,
     UmbralSignature,
     EncryptedTreasureMap
 )
@@ -114,27 +114,27 @@ def test_key():
         field._validate(value=b"PublicKey")
 
 
-def test_umbral_message_kit(enacted_federated_policy, federated_alice):
+def test_message_kit(enacted_federated_policy, federated_alice):
     # Setup
     enrico = Enrico.from_alice(federated_alice, label=enacted_federated_policy.label)
     message = 'this is a message'
     plaintext_bytes = bytes(message, encoding='utf-8')
     message_kit, signature = enrico.encrypt_message(plaintext=plaintext_bytes)
     message_kit_bytes = message_kit.to_bytes()
-    umbral_message_kit = PolicyMessageKitClass.from_bytes(message_kit_bytes)
+    message_kit = MessageKitClass.from_bytes(message_kit_bytes)
 
     # Test
-    field = PolicyMessageKit()
-    serialized = field._serialize(value=umbral_message_kit, attr=None, obj=None)
-    assert serialized == b64encode(umbral_message_kit.to_bytes()).decode()
+    field = MessageKit()
+    serialized = field._serialize(value=message_kit, attr=None, obj=None)
+    assert serialized == b64encode(message_kit.to_bytes()).decode()
 
     deserialized = field._deserialize(value=serialized, attr=None, data=None)
     assert deserialized == b64decode(serialized)
 
-    field._validate(value=umbral_message_kit.to_bytes())
+    field._validate(value=message_kit.to_bytes())
 
     with pytest.raises(InvalidInputData):
-        field._validate(value=b"PolicyMessageKit")
+        field._validate(value=b"MessageKit")
 
 
 def test_umbral_signature():

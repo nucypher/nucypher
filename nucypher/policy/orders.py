@@ -25,7 +25,7 @@ from constant_sorrow.constants import CFRAG_NOT_RETAINED
 from eth_typing.evm import ChecksumAddress
 from eth_utils.address import to_canonical_address, to_checksum_address
 
-from nucypher.crypto.kits import PolicyMessageKit
+from nucypher.crypto.kits import MessageKit
 from nucypher.crypto.signing import SignatureStamp, InvalidSignature
 from nucypher.crypto.splitters import (
     key_splitter,
@@ -80,7 +80,7 @@ class WorkOrder:
 
         def get_specification(self,
                               ursula_stamp: SignatureStamp,
-                              encrypted_kfrag: Union[PolicyMessageKit, bytes],
+                              encrypted_kfrag: Union[MessageKit, bytes],
                               identity_evidence: Optional[bytes] = b''
                               ) -> bytes:
 
@@ -159,7 +159,7 @@ class WorkOrder:
     @staticmethod
     def make_receipt(tasks: Dict,
                      ursula: 'Ursula',
-                     encrypted_kfrag: Union[PolicyMessageKit, bytes]
+                     encrypted_kfrag: Union[MessageKit, bytes]
                      ) -> bytes:
         # TODO: What is the goal of the receipt and where can it be used?
         capsules = b''.join(map(bytes, tasks.keys()))

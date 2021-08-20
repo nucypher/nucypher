@@ -33,7 +33,7 @@ from nucypher.cli.main import nucypher_cli
 from nucypher.config.characters import AliceConfiguration, BobConfiguration
 from nucypher.config.constants import NUCYPHER_ENVVAR_KEYSTORE_PASSWORD, TEMPORARY_DOMAIN, \
     NUCYPHER_ENVVAR_ALICE_ETH_PASSWORD, NUCYPHER_ENVVAR_BOB_ETH_PASSWORD
-from nucypher.crypto.kits import PolicyMessageKit
+from nucypher.crypto.kits import MessageKit
 from nucypher.policy.maps import EncryptedTreasureMap
 from nucypher.utilities.logging import GlobalLoggerSettings
 from tests.constants import INSECURE_DEVELOPMENT_PASSWORD, TEST_PROVIDER_URI
@@ -61,7 +61,7 @@ class MockSideChannel:
     def save_message_kit(self, message_kit: str) -> None:
         self.__message_kits.append(message_kit)
 
-    def fetch_message_kit(self) -> PolicyMessageKit:
+    def fetch_message_kit(self) -> MessageKit:
         if self.__message_kits:
             message_kit = self.__message_kits.pop()
             return message_kit

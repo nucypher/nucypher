@@ -45,7 +45,7 @@ class Retrieve(BaseSchema):
             type=click.STRING,
             required=False)
     )
-    message_kit = character_fields.PolicyMessageKit(
+    message_kit = character_fields.MessageKit(
         required=True,
         load_only=True,
         click=options.option_message_kit(required=False)
