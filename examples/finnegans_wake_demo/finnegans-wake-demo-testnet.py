@@ -114,7 +114,7 @@ rate = Web3.toWei(50, 'gwei')
 threshold, shares = 2, 3
 
 # Alice grants access to Bob...
-alice.grant(remote_bob, label, threshold=threshold, shares=shares, rate=rate, expiration=expiration)
+policy = alice.grant(remote_bob, label, threshold=threshold, shares=shares, rate=rate, expiration=expiration)
 
 # ...and then disappears from the internet.
 #
@@ -156,7 +156,8 @@ for counter, plaintext in enumerate(finnegans_wake):
     cleartexts = bob.retrieve(ciphertext,
                               label=label,
                               policy_encrypting_key=policy_public_key,
-                              alice_verifying_key=alice_verifying_key)
+                              alice_verifying_key=alice_verifying_key,
+                              encrypted_treasure_map=policy.treasure_map)
 
     # We show that indeed this is the passage originally encrypted by Enrico.
     assert plaintext == cleartexts[0]

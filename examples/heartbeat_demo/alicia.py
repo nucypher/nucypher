@@ -14,7 +14,7 @@
  You should have received a copy of the GNU Affero General Public License
  along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
-
+import base64
 import datetime
 import sys
 import json
@@ -150,6 +150,7 @@ policy_info = {
     "policy_pubkey": bytes(policy.public_key).hex(),
     "alice_sig_pubkey": bytes(alicia.stamp).hex(),
     "label": label.decode("utf-8"),
+    "treasure_map": base64.b64encode(bytes(policy.treasure_map)).decode()
 }
 
 filename = POLICY_FILENAME
