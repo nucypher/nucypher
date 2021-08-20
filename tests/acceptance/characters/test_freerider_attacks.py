@@ -17,17 +17,18 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 
 
 import datetime
+
 import maya
 import pytest
 
 from nucypher.characters.unlawful import Amonia
 from nucypher.datastore.datastore import RecordNotFound
 from nucypher.datastore.queries import find_policy_arrangements
-from nucypher.network.middleware import RestMiddleware
 from nucypher.policy.policies import Policy
+from nucypher.types import PolicyInfo
 
 
-def test_policy_simple_sinpa(blockchain_ursulas, blockchain_alice, blockchain_bob, agency, testerchain):
+def test_policy_simple_sinpa(blockchain_ursulas, blockchain_alice, blockchain_bob, mocker):
     """
     Making a Policy without paying.
     """
@@ -37,13 +38,18 @@ def test_policy_simple_sinpa(blockchain_ursulas, blockchain_alice, blockchain_bo
     policy_end_datetime = maya.now() + datetime.timedelta(days=35)
     label = b"this_is_the_path_to_which_access_is_being_granted"
 
+    fake_address = '0x' + '0' * 39 + '1'
+    fake_policy = PolicyInfo(sponsor=fake_address, owner=fake_address, disabled=False, fee_rate=0, start_timestamp=0,
+                             end_timestamp=0)
+    mocker.patch("nucypher.blockchain.eth.agents.PolicyManagerAgent.fetch_policy", return_value=fake_policy)
+
     with pytest.raises(Policy.Unpaid):
-        _bupkiss_policy = amonia.grant_without_paying(bob=blockchain_bob,
-                                                      label=label,
-                                                      m=2,
-                                                      n=n,
-                                                      rate=int(1e18),  # one ether
-                                                      expiration=policy_end_datetime)
+        amonia.grant_without_paying(bob=blockchain_bob,
+                                    label=label,
+                                    m=2,
+                                    n=n,
+                                    rate=int(1e18),  # one ether
+                                    expiration=policy_end_datetime)
 
     for ursula in blockchain_ursulas:
         # Reset the Ursula for the next test.
@@ -163,4 +169,4 @@ def test_put_additional_treasure_map_on_network(blockchain_ursulas, blockchain_a
     # This should 409 because Ursula won't be able to find an HRAC on-chain
     # with the modified HRAC.
     response = amonia.use_ursula_as_an_involuntary_and_unbeknownst_cdn(policy, blockchain_bob, sucker_ursula=blockchain_ursulas[0])
-    assert response.status_code == 402
+    assert response.status_code == 409
