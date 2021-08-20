@@ -1,0 +1,1 @@
+``m`` and ``n`` parameters can no longer be used in character control and Python API; ``--m`` and ``--n`` are no longer supported by the CLI (``-m`` and ``-n`` still are; the long versions are now ``--threshold`` and ``--shares``)

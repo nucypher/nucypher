@@ -1,0 +1,1 @@
+Changed the names of ``m`` and ``n`` parameters to ``threshold`` and ``shares`` throughout the API.
