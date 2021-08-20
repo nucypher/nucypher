@@ -46,7 +46,8 @@ from nucypher.crypto.powers import (
     KeyPairBasedPower,
     SigningPower,
     CryptoPowerUp,
-    DelegatingPower
+    DelegatingPower,
+    TLSHostingPower,
 )
 from nucypher.crypto.tls import generate_self_signed_certificate
 from nucypher.crypto.umbral_adapter import (
@@ -54,7 +55,6 @@ from nucypher.crypto.umbral_adapter import (
     secret_key_factory_from_seed,
     secret_key_factory_from_secret_key_factory
 )
-from nucypher.network.server import TLSHostingPower
 
 # HKDF
 __INFO_BASE = b'NuCypher/'

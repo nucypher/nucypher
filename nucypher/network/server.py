@@ -29,7 +29,7 @@ from mako.template import Template
 
 from nucypher.blockchain.eth.utils import period_to_epoch
 from nucypher.config.constants import MAX_UPLOAD_CONTENT_LENGTH
-from nucypher.crypto.keypairs import HostingKeypair, DecryptingKeypair
+from nucypher.crypto.keypairs import DecryptingKeypair
 from nucypher.crypto.kits import PolicyMessageKit
 from nucypher.crypto.powers import KeyPairBasedPower, PowerUpError
 from nucypher.crypto.signing import InvalidSignature
@@ -345,29 +345,3 @@ def _make_rest_app(datastore: Datastore, this_node, domain: str, log: Logger) ->
         return Response(response=content, headers=headers)
 
     return rest_app
-
-
-class TLSHostingPower(KeyPairBasedPower):
-    _keypair_class = HostingKeypair
-    provides = ("get_deployer",)
-
-    class NoHostingPower(PowerUpError):
-        pass
-
-    not_found_error = NoHostingPower
-
-    def __init__(self,
-                 host: str,
-                 public_certificate=None,
-                 public_certificate_filepath=None,
-                 *args, **kwargs) -> None:
-
-        if public_certificate and public_certificate_filepath:
-            # TODO: Design decision here: if they do pass both, and they're identical, do we let that slide?  NRN
-            raise ValueError("Pass either a public_certificate or a public_certificate_filepath, not both.")
-
-        if public_certificate:
-            kwargs['keypair'] = HostingKeypair(certificate=public_certificate, host=host)
-        elif public_certificate_filepath:
-            kwargs['keypair'] = HostingKeypair(certificate_filepath=public_certificate_filepath, host=host)
-        super().__init__(*args, **kwargs)

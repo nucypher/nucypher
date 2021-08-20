@@ -27,10 +27,10 @@ from flask import Flask
 from nucypher.characters.lawful import Alice, Bob, Ursula
 from nucypher.config.constants import TEMPORARY_DOMAIN
 from nucypher.crypto.keystore import Keystore
-from nucypher.crypto.powers import DecryptingPower, DelegatingPower
+from nucypher.crypto.powers import DecryptingPower, DelegatingPower, TLSHostingPower
 from nucypher.crypto.umbral_adapter import SecretKey, Signer
 from nucypher.datastore.datastore import Datastore
-from nucypher.network.server import TLSHostingPower, ProxyRESTServer
+from nucypher.network.server import ProxyRESTServer
 from nucypher.utilities.networking import LOOPBACK_ADDRESS
 from tests.constants import INSECURE_DEVELOPMENT_PASSWORD
 from tests.utils.matchers import IsType

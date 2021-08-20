@@ -82,7 +82,8 @@ from nucypher.crypto.powers import (
     DelegatingPower,
     PowerUpError,
     SigningPower,
-    TransactingPower
+    TransactingPower,
+    TLSHostingPower,
 )
 from nucypher.crypto.signing import InvalidSignature
 from nucypher.crypto.splitters import key_splitter, signature_splitter, cfrag_splitter
@@ -103,7 +104,7 @@ from nucypher.network.exceptions import NodeSeemsToBeDown
 from nucypher.network.middleware import RestMiddleware
 from nucypher.network.nodes import NodeSprout, TEACHER_NODES, Teacher
 from nucypher.network.protocols import InterfaceInfo, parse_node_uri
-from nucypher.network.server import ProxyRESTServer, TLSHostingPower, make_rest_app
+from nucypher.network.server import ProxyRESTServer, make_rest_app
 from nucypher.network.trackers import AvailabilityTracker
 from nucypher.policy.hrac import HRAC
 from nucypher.policy.maps import TreasureMap, EncryptedTreasureMap, AuthorizedKeyFrag
