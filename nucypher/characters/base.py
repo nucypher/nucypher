@@ -43,7 +43,6 @@ from nucypher.blockchain.eth.signers.base import Signer
 from nucypher.characters.control.controllers import CharacterCLIController
 from nucypher.control.controllers import JSONRPCController
 from nucypher.crypto.keystore import Keystore
-from nucypher.crypto.kits import MessageKit
 from nucypher.crypto.powers import (
     CryptoPower,
     CryptoPowerUp,
@@ -61,6 +60,7 @@ from nucypher.crypto.umbral_adapter import PublicKey, Signature
 from nucypher.crypto.utils import encrypt_and_sign
 from nucypher.network.middleware import RestMiddleware
 from nucypher.network.nodes import Learner
+from nucypher.policy.kits import MessageKit
 
 
 class Character(Learner):

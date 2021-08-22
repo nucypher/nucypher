@@ -22,10 +22,10 @@ from twisted.internet import threads
 from nucypher.characters.lawful import Alice
 from nucypher.config.constants import TEMPORARY_DOMAIN
 from nucypher.crypto.keypairs import DecryptingKeypair
-from nucypher.crypto.kits import MessageKit
 from nucypher.crypto.powers import DecryptingPower
 from nucypher.crypto.umbral_adapter import reencrypt
 from nucypher.datastore.models import Workorder
+from nucypher.policy.kits import MessageKit
 from nucypher.policy.maps import AuthorizedKeyFrag
 from tests.utils.middleware import MockRestMiddleware, NodeIsDownMiddleware
 

@@ -30,7 +30,6 @@ from eth_typing.evm import ChecksumAddress
 from nucypher.blockchain.eth.constants import ETH_ADDRESS_BYTE_LENGTH
 from nucypher.characters.base import Character
 from nucypher.crypto.constants import EIP712_MESSAGE_SIGNATURE_SIZE
-from nucypher.crypto.kits import MessageKit
 from nucypher.crypto.powers import DecryptingPower, SigningPower
 from nucypher.crypto.signing import SignatureStamp
 from nucypher.crypto.splitters import signature_splitter, kfrag_splitter
@@ -38,6 +37,7 @@ from nucypher.crypto.umbral_adapter import KeyFrag, VerifiedKeyFrag, PublicKey, 
 from nucypher.crypto.utils import keccak_digest, encrypt_and_sign, verify_eip_191
 from nucypher.network.middleware import RestMiddleware
 from nucypher.policy.hrac import HRAC, hrac_splitter
+from nucypher.policy.kits import MessageKit
 
 
 class TreasureMap:

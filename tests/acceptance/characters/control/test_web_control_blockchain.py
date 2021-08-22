@@ -24,8 +24,8 @@ import pytest
 from click.testing import CliRunner
 
 import nucypher
-from nucypher.crypto.kits import MessageKit
 from nucypher.crypto.powers import DecryptingPower
+from nucypher.policy.kits import MessageKit
 from nucypher.policy.maps import TreasureMap, EncryptedTreasureMap
 
 click_runner = CliRunner()

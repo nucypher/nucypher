@@ -22,7 +22,7 @@ from marshmallow import fields
 from nucypher.characters.control.specifications.exceptions import InvalidNativeDataTypes
 from nucypher.control.specifications.exceptions import InvalidInputData
 from nucypher.control.specifications.fields.base import BaseField
-from nucypher.crypto.kits import MessageKit as MessageKitClass
+from nucypher.policy.kits import MessageKit as MessageKitClass
 
 
 class MessageKit(BaseField, fields.Field):

@@ -30,7 +30,6 @@ from nucypher.cli.literature import SUCCESSFUL_DESTRUCTION, COLLECT_NUCYPHER_PAS
 from nucypher.cli.main import nucypher_cli
 from nucypher.config.characters import BobConfiguration
 from nucypher.config.constants import TEMPORARY_DOMAIN
-from nucypher.crypto.kits import MessageKit
 from nucypher.crypto.powers import SigningPower
 from nucypher.utilities.logging import GlobalLoggerSettings, Logger
 from nucypher.policy.identity import Card
@@ -39,6 +38,7 @@ from tests.constants import (
     INSECURE_DEVELOPMENT_PASSWORD,
     MOCK_CUSTOM_INSTALLATION_PATH
 )
+from nucypher.policy.kits import MessageKit
 
 log = Logger()
 

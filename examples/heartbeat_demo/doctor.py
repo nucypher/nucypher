@@ -27,11 +27,11 @@ import sys
 from nucypher.characters.lawful import Bob, Enrico, Ursula
 from nucypher.config.constants import TEMPORARY_DOMAIN
 from nucypher.crypto.keypairs import DecryptingKeypair, SigningKeypair
-from nucypher.crypto.kits import MessageKit
 from nucypher.crypto.powers import DecryptingPower, SigningPower
 from nucypher.crypto.umbral_adapter import PublicKey
 from nucypher.network.middleware import RestMiddleware
 from nucypher.policy.maps import EncryptedTreasureMap
+from nucypher.policy.kits import MessageKit
 from nucypher.utilities.logging import GlobalLoggerSettings
 
 GlobalLoggerSettings.start_console_logging()

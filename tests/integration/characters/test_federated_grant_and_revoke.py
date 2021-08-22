@@ -21,9 +21,9 @@ import datetime
 import maya
 import pytest
 
-from nucypher.crypto.kits import MessageKit
 from nucypher.characters.lawful import Enrico
 from nucypher.crypto.utils import keccak_digest
+from nucypher.policy.kits import MessageKit
 from nucypher.policy.orders import Revocation
 
 

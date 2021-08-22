@@ -28,9 +28,9 @@ from eth_keys import KeyAPI as EthKeyAPI
 from eth_utils.address import to_checksum_address
 
 import nucypher.crypto.umbral_adapter as umbral
-from nucypher.crypto.kits import MessageKit
 from nucypher.crypto.signing import SignatureStamp
 from nucypher.crypto.umbral_adapter import Signature, PublicKey
+from nucypher.policy.kits import MessageKit
 
 SYSTEM_RAND = SystemRandom()
 

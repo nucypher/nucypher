@@ -56,7 +56,6 @@ from nucypher.blockchain.eth.networks import NetworksInventory
 from nucypher.blockchain.eth.registry import BaseContractRegistry
 from nucypher.config.constants import SeednodeMetadata
 from nucypher.config.storages import ForgetfulNodeStorage
-from nucypher.crypto.kits import MessageKit
 from nucypher.crypto.powers import DecryptingPower, NoSigningPower, SigningPower
 from nucypher.crypto.splitters import signature_splitter
 from nucypher.crypto.signing import SignatureStamp
@@ -66,6 +65,7 @@ from nucypher.network import LEARNING_LOOP_VERSION
 from nucypher.network.exceptions import NodeSeemsToBeDown
 from nucypher.network.middleware import RestMiddleware
 from nucypher.network.protocols import SuspiciousActivity
+from nucypher.policy.kits import MessageKit
 from nucypher.utilities.logging import Logger
 
 TEACHER_NODES = {

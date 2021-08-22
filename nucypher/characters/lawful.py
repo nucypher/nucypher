@@ -76,7 +76,6 @@ from nucypher.config.storages import ForgetfulNodeStorage, NodeStorage
 from nucypher.control.controllers import WebController
 from nucypher.control.emitters import StdoutEmitter
 from nucypher.crypto.keypairs import HostingKeypair
-from nucypher.crypto.kits import MessageKit
 from nucypher.crypto.powers import (
     DecryptingPower,
     DelegatingPower,
@@ -107,6 +106,7 @@ from nucypher.network.protocols import InterfaceInfo, parse_node_uri
 from nucypher.network.server import ProxyRESTServer, make_rest_app
 from nucypher.network.trackers import AvailabilityTracker
 from nucypher.policy.hrac import HRAC
+from nucypher.policy.kits import MessageKit
 from nucypher.policy.maps import TreasureMap, EncryptedTreasureMap, AuthorizedKeyFrag
 from nucypher.policy.orders import WorkOrder
 from nucypher.policy.policies import Policy

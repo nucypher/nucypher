@@ -16,7 +16,7 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
 from nucypher.characters.lawful import Enrico
-from nucypher.crypto.kits import MessageKit
+from nucypher.policy.kits import MessageKit
 
 
 def test_message_kit_serialization_via_enrico(federated_alice):

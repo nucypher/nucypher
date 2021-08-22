@@ -25,7 +25,6 @@ from constant_sorrow.constants import CFRAG_NOT_RETAINED
 from eth_typing.evm import ChecksumAddress
 from eth_utils.address import to_canonical_address, to_checksum_address
 
-from nucypher.crypto.kits import MessageKit
 from nucypher.crypto.signing import SignatureStamp, InvalidSignature
 from nucypher.crypto.splitters import (
     key_splitter,
@@ -41,6 +40,7 @@ from nucypher.crypto.umbral_adapter import (
     Signature
 )
 from nucypher.policy.hrac import HRAC, hrac_splitter
+from nucypher.policy.kits import MessageKit
 from nucypher.policy.maps import AuthorizedKeyFrag, TreasureMap
 
 

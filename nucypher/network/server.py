@@ -30,7 +30,6 @@ from mako.template import Template
 from nucypher.blockchain.eth.utils import period_to_epoch
 from nucypher.config.constants import MAX_UPLOAD_CONTENT_LENGTH
 from nucypher.crypto.keypairs import DecryptingKeypair
-from nucypher.crypto.kits import MessageKit
 from nucypher.crypto.powers import KeyPairBasedPower, PowerUpError
 from nucypher.crypto.signing import InvalidSignature
 from nucypher.datastore.datastore import Datastore
@@ -38,6 +37,8 @@ from nucypher.datastore.models import Workorder as WorkOrderModel
 from nucypher.network import LEARNING_LOOP_VERSION
 from nucypher.network.exceptions import NodeSeemsToBeDown
 from nucypher.network.protocols import InterfaceInfo
+from nucypher.policy.hrac import HRAC
+from nucypher.policy.kits import MessageKit
 from nucypher.utilities.logging import Logger
 
 HERE = BASE_DIR = Path(__file__).parent
