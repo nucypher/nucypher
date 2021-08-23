@@ -121,7 +121,7 @@ class AliceInterface(CharacterPublicInterface):
         return response_data
 
     @attach_schema(alice.Decrypt)
-    def decrypt(self, label: bytes, message_kit: bytes) -> dict:
+    def decrypt(self, label: bytes, message_kit: MessageKit) -> dict:
         """
         Character control endpoint to allow Alice to decrypt her own data.
         """
@@ -130,7 +130,6 @@ class AliceInterface(CharacterPublicInterface):
         policy_encrypting_key = self.implementer.get_policy_encrypting_key_from_label(label)
 
         # TODO #846: May raise UnknownOpenSSLError and InvalidTag.
-        message_kit = MessageKit.from_bytes(message_kit)
 
         enrico = Enrico.from_public_keys(
             verifying_key=message_kit.sender_verifying_key,
@@ -163,14 +162,11 @@ class BobInterface(CharacterPublicInterface):
     def retrieve_and_decrypt(self,
                              policy_encrypting_key: PublicKey,
                              alice_verifying_key: PublicKey,
-                             message_kit: bytes,
+                             message_kit: MessageKit,
                              encrypted_treasure_map: 'EncryptedTreasureMap') -> dict:
         """
         Character control endpoint for re-encrypting and decrypting policy data.
         """
-
-        message_kit = MessageKit.from_bytes(message_kit)  # TODO #846: May raise UnknownOpenSSLError and InvalidTag.
-
         plaintexts = self.implementer.retrieve_and_decrypt([message_kit],
                                                            policy_encrypting_key=policy_encrypting_key,
                                                            alice_verifying_key=alice_verifying_key,

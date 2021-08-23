@@ -124,12 +124,10 @@ def test_message_kit(enacted_federated_policy, federated_alice):
     assert serialized == b64encode(bytes(message_kit)).decode()
 
     deserialized = field._deserialize(value=serialized, attr=None, data=None)
-    assert deserialized == b64decode(serialized)
-
-    field._validate(value=bytes(message_kit))
+    assert deserialized == message_kit
 
     with pytest.raises(InvalidInputData):
-        field._validate(value=b"MessageKit")
+        field._deserialize(value=b"MessageKit", attr=None, data=None)
 
 
 def test_umbral_signature():

@@ -110,13 +110,13 @@ def test_retrieval_kit_field():
     serialized = field._serialize(value=retrieval_kit, attr=None, obj=None)
     assert serialized == b64encode(bytes(retrieval_kit)).decode()
 
-    deserialized = field.deserialize(value=serialized, attr=None, data=None)
+    deserialized = field._deserialize(value=serialized, attr=None, data=None)
     assert isinstance(deserialized, RetrievalKitClass)
     assert deserialized.capsule == capsule
     assert len(deserialized.queried_addresses) == 0
 
     with pytest.raises(InvalidInputData):
-        field.deserialize(value=b"non_base_64_data", attr=None, data=None)
+        field._deserialize(value=b"non_base_64_data", attr=None, data=None)
 
     with pytest.raises(InvalidInputData):
-        field.deserialize(value=b64encode(b"invalid_retrieval_kit_bytes").decode(), attr=None, data=None)
+        field._deserialize(value=b64encode(b"invalid_retrieval_kit_bytes").decode(), attr=None, data=None)
