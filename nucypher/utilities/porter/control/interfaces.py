@@ -21,6 +21,7 @@ from eth_typing import ChecksumAddress
 from nucypher.control.interfaces import ControlInterface, attach_schema
 from nucypher.crypto.umbral_adapter import PublicKey
 from nucypher.policy.kits import RetrievalKit
+from nucypher.policy.maps import TreasureMap
 from nucypher.utilities.porter.control.specifications import porter_schema
 
 
@@ -55,7 +56,7 @@ class PorterInterface(ControlInterface):
 
     @attach_schema(porter_schema.BobRetrieveCFrags)
     def retrieve_cfrags(self,
-                        treasure_map: 'TreasureMap',
+                        treasure_map: TreasureMap,
                         retrieval_kits: List[RetrievalKit],
                         alice_verifying_key: PublicKey,
                         bob_encrypting_key: PublicKey,
@@ -70,6 +71,6 @@ class PorterInterface(ControlInterface):
                                                              bob_verifying_key=bob_verifying_key,
                                                              policy_encrypting_key=policy_encrypting_key,
                                                              publisher_verifying_key=publisher_verifying_key)
-        results = retrieval_results.results   # list of RetrievalResult objects
+        results = retrieval_results   # list of RetrievalResult objects
         response_data = {'retrieval_results': results}
         return response_data

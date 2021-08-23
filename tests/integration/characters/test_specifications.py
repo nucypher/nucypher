@@ -22,14 +22,14 @@ from base64 import b64encode
 import maya
 import pytest
 
-from nucypher.policy.maps import TreasureMap as TreasureMapClass
 from nucypher.characters.control.specifications import fields
 from nucypher.characters.control.specifications.alice import GrantPolicy
-from nucypher.characters.control.specifications.fields.treasuremap import EncryptedTreasureMap
+from nucypher.characters.control.specifications.fields.treasuremap import EncryptedTreasureMap, TreasureMap
 from nucypher.control.specifications.base import BaseSchema
 from nucypher.control.specifications.exceptions import SpecificationError, InvalidInputData, InvalidArgumentCombo
 from nucypher.crypto.powers import DecryptingPower
 from nucypher.crypto.umbral_adapter import PublicKey
+from nucypher.policy.maps import EncryptedTreasureMap as EncryptedTreasureMapClass, TreasureMap as TreasureMapClass
 
 
 def test_various_field_validations_by_way_of_alice_grant(federated_bob):
@@ -52,7 +52,7 @@ def test_various_field_validations_by_way_of_alice_grant(federated_bob):
     }
 
     # validate data with both rate and value fails validation
-    with pytest.raises(InvalidArgumentCombo) as e:
+    with pytest.raises(InvalidArgumentCombo):
         GrantPolicy().load(data)
 
     # remove value and now it works
@@ -62,24 +62,27 @@ def test_various_field_validations_by_way_of_alice_grant(federated_bob):
 
     # validate that negative "m" value fails
     data['threshold'] = -5
-    with pytest.raises(SpecificationError) as e:
+    with pytest.raises(SpecificationError):
         GrantPolicy().load(data)
 
     # validate that m > n fails validation
     data['threshold'] = data['shares'] + 19
-    with pytest.raises(SpecificationError) as e:
+    with pytest.raises(SpecificationError):
         GrantPolicy().load(data)
 
 
-def test_treasuremap_validation(enacted_federated_policy):
+def test_treasure_map_validation(enacted_federated_policy,
+                                 federated_bob):
     """Tell people exactly what's wrong with their treasuremaps"""
-
-    class TreasureMapsOnly(BaseSchema):
+    #
+    # encrypted treasure map
+    #
+    class EncryptedTreasureMapsOnly(BaseSchema):
         tmap = EncryptedTreasureMap()
 
     # this will raise a base64 error
     with pytest.raises(SpecificationError) as e:
-        TreasureMapsOnly().load({'tmap': "your face looks like a treasure map"})
+        EncryptedTreasureMapsOnly().load({'tmap': "your face looks like a treasure map"})
 
     # assert that field name is in the error message
     assert "Could not parse tmap" in str(e)
@@ -87,7 +90,7 @@ def test_treasuremap_validation(enacted_federated_policy):
 
     # valid base64 but invalid treasuremap
     with pytest.raises(InvalidInputData) as e:
-        TreasureMapsOnly().load({'tmap': "VGhpcyBpcyB0b3RhbGx5IG5vdCBhIHRyZWFzdXJlbWFwLg=="})
+        EncryptedTreasureMapsOnly().load({'tmap': "VGhpcyBpcyB0b3RhbGx5IG5vdCBhIHRyZWFzdXJlbWFwLg=="})
 
     assert "Could not convert input for tmap to an EncryptedTreasureMap" in str(e)
     assert "Invalid encrypted treasure map contents." in str(e)
@@ -95,7 +98,36 @@ def test_treasuremap_validation(enacted_federated_policy):
     # a valid treasuremap for once...
     tmap_bytes = bytes(enacted_federated_policy.treasure_map)
     tmap_b64 = b64encode(tmap_bytes)
-    result = TreasureMapsOnly().load({'tmap': tmap_b64.decode()})
+    result = EncryptedTreasureMapsOnly().load({'tmap': tmap_b64.decode()})
+    assert isinstance(result['tmap'], EncryptedTreasureMapClass)
+
+    #
+    # unencrypted treasure map
+    #
+    class UnenncryptedTreasureMapsOnly(BaseSchema):
+        tmap = TreasureMap()
+
+    # this will raise a base64 error
+    with pytest.raises(SpecificationError) as e:
+        UnenncryptedTreasureMapsOnly().load({'tmap': "your face looks like a treasure map"})
+
+    # assert that field name is in the error message
+    assert "Could not parse tmap" in str(e)
+    assert "Invalid base64-encoded string" in str(e)
+
+    # valid base64 but invalid treasuremap
+    with pytest.raises(InvalidInputData) as e:
+        UnenncryptedTreasureMapsOnly().load({'tmap': "VGhpcyBpcyB0b3RhbGx5IG5vdCBhIHRyZWFzdXJlbWFwLg=="})
+
+    assert "Could not convert input for tmap to a TreasureMap" in str(e)
+    assert "Invalid treasure map contents." in str(e)
+
+    # a valid treasuremap
+    decrypted_treasure_map = federated_bob._decrypt_treasure_map(enacted_federated_policy.treasure_map,
+                                                                 enacted_federated_policy.publisher_verifying_key)
+    tmap_bytes = bytes(decrypted_treasure_map)
+    tmap_b64 = b64encode(tmap_bytes).decode()
+    result = UnenncryptedTreasureMapsOnly().load({'tmap': tmap_b64})
     assert isinstance(result['tmap'], TreasureMapClass)
 
 

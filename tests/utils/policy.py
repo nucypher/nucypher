@@ -20,7 +20,7 @@ import random
 import string
 from typing import Dict
 
-from nucypher.characters.control.specifications.fields import Key, DecryptedTreasureMap
+from nucypher.characters.control.specifications.fields import Key, TreasureMap
 from nucypher.characters.lawful import Enrico
 from nucypher.crypto.powers import DecryptingPower
 from nucypher.utilities.porter.control.specifications.fields import RetrievalKit
@@ -47,7 +47,8 @@ def retrieval_request_setup(enacted_policy, bob, alice, encode_for_rest=False) -
     bob.start_learning_loop()
 
     bob.follow_treasure_map(treasure_map=treasure_map, block=True, timeout=1)
-    decrypted_map = treasure_map.as_decrypted_map()
+    decrypted_treasure_map = bob._decrypt_treasure_map(enacted_policy.treasure_map,
+                                                       enacted_policy.publisher_verifying_key)
 
     # We'll test against just a single Ursula - here, we make a WorkOrder for just one.
     # We can pass any number of capsules as args; here we pass just one.
@@ -57,7 +58,7 @@ def retrieval_request_setup(enacted_policy, bob, alice, encode_for_rest=False) -
 
     encode_bytes = (lambda field, obj: field()._serialize(value=obj, attr=None, obj=None)) if encode_for_rest else (lambda field, obj: obj)
 
-    return dict(treasure_map=encode_bytes(DecryptedTreasureMap, decrypted_map),
+    return dict(treasure_map=encode_bytes(TreasureMap, decrypted_treasure_map),
                 retrieval_kits=[encode_bytes(RetrievalKit, message_kit.as_retrieval_kit())],
                 alice_verifying_key=encode_bytes(Key, alice.stamp.as_umbral_pubkey()),
                 bob_encrypting_key=encode_bytes(Key, bob.public_keys(DecryptingPower)),
@@ -67,7 +68,7 @@ def retrieval_request_setup(enacted_policy, bob, alice, encode_for_rest=False) -
 
 def retrieval_params_decode_from_rest(retrieval_params: Dict) -> Dict:
     decode_bytes = (lambda field, data: field()._deserialize(value=data, attr=None, data=None))
-    return dict(treasure_map=decode_bytes(DecryptedTreasureMap, retrieval_params['treasure_map']),
+    return dict(treasure_map=decode_bytes(TreasureMap, retrieval_params['treasure_map']),
                 retrieval_kits=[decode_bytes(RetrievalKit, kit) for kit in retrieval_params['retrieval_kits']],
                 alice_verifying_key=decode_bytes(Key, retrieval_params['alice_verifying_key']),
                 bob_encrypting_key=decode_bytes(Key, retrieval_params['bob_encrypting_key']),

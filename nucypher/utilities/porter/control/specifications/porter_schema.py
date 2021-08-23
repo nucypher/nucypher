@@ -17,15 +17,15 @@
 
 
 import click
-from marshmallow import validates_schema
 from marshmallow import fields as marshmallow_fields
+from marshmallow import validates_schema
 
-from nucypher.control.specifications.base import BaseSchema
-from nucypher.control.specifications import fields as base_fields
-from nucypher.control.specifications.exceptions import InvalidArgumentCombo
-from nucypher.utilities.porter.control.specifications import fields
 from nucypher.characters.control.specifications import fields as character_fields
 from nucypher.cli import types
+from nucypher.control.specifications import fields as base_fields
+from nucypher.control.specifications.base import BaseSchema
+from nucypher.control.specifications.exceptions import InvalidArgumentCombo
+from nucypher.utilities.porter.control.specifications import fields
 
 
 def option_ursula():

@@ -17,8 +17,7 @@
 
 from marshmallow import fields
 
-from nucypher.characters.control.specifications.exceptions import InvalidNativeDataTypes
-from nucypher.control.specifications.exceptions import InvalidInputData
+from nucypher.control.specifications.exceptions import InvalidInputData, InvalidNativeDataTypes
 from nucypher.control.specifications.fields.base import BaseField
 from nucypher.policy.hrac import HRAC as HRACClass
 
@@ -30,12 +29,7 @@ class HRAC(BaseField, fields.String):
 
     def _deserialize(self, value, attr, data, **kwargs):
         try:
-            return bytes.fromhex(value)
-        except InvalidNativeDataTypes as e:
-            raise InvalidInputData(f"Could not convert input for {self.name} to a valid HRAC serialization: {e}")
-
-    def _validate(self, value):
-        try:
-            HRACClass.from_bytes(value)
+            hrac_bytes = bytes.fromhex(value)
+            return HRACClass.from_bytes(hrac_bytes)
         except InvalidNativeDataTypes as e:
             raise InvalidInputData(f"Could not convert input for {self.name} to a valid HRAC: {e}")

@@ -14,8 +14,6 @@
  You should have received a copy of the GNU Affero General Public License
  along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
-
-
 from base64 import b64encode
 
 import pytest
@@ -34,10 +32,10 @@ def test_enrico_rpc_character_control_encrypt_message(enrico_rpc_controller_test
                                            interface=EnricoInterface)
 
 
-def test_bob_rpc_character_control_retrieve_with_tmap(
-        enacted_blockchain_policy, blockchain_bob, blockchain_alice,
-        bob_rpc_controller, retrieve_control_request):
-
+def test_bob_rpc_character_control_retrieve_with_tmap(enacted_blockchain_policy,
+                                                      blockchain_bob,
+                                                      bob_rpc_controller,
+                                                      retrieve_control_request):
     # So that this test can run even independently.
     if not blockchain_bob.done_seeding:
         blockchain_bob.learn_from_teacher_node()

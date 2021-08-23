@@ -15,11 +15,12 @@
  along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 from marshmallow import fields
+
 from nucypher.control.specifications.base import BaseSchema
 from nucypher.control.specifications.exceptions import InvalidInputData
 from nucypher.control.specifications.fields import Base64BytesRepresentation
-from nucypher.crypto.kits import RetrievalKit as RetrievalKitClass
-from nucypher.crypto.umbral_adapter import Capsule as CapsuleClass, CapsuleFrag as CapsuleFragClass
+from nucypher.crypto.umbral_adapter import CapsuleFrag as CapsuleFragClass
+from nucypher.policy.kits import RetrievalKit as RetrievalKitClass
 from nucypher.utilities.porter.control.specifications.fields import UrsulaChecksumAddress
 
 
@@ -34,16 +35,7 @@ class RetrievalKit(Base64BytesRepresentation):
             raise InvalidInputData(f"Could not convert input for {self.name} to a valid checksum address: {e}")
 
 
-class Capsule(Base64BytesRepresentation):
-    def _deserialize(self, value, attr, data, **kwargs):
-        try:
-            capsule_bytes = super()._deserialize(value, attr, data, **kwargs)
-            return CapsuleClass.from_bytes(capsule_bytes)
-        except Exception as e:
-            raise InvalidInputData(f"Could not parse {self.name}: {e}")
-
-
-class CapsuleFrag(Base64BytesRepresentation):
+class VerifiedCapsuleFrag(Base64BytesRepresentation):
     def _deserialize(self, value, attr, data, **kwargs):
         try:
             capsule_frag_bytes = super()._deserialize(value, attr, data, **kwargs)
@@ -54,8 +46,7 @@ class CapsuleFrag(Base64BytesRepresentation):
 
 class RetrievalResultSchema(BaseSchema):
     """Schema for the result of retrieve_cfrags."""
-    capsule = Capsule()
-    cfrags = fields.Dict(keys=UrsulaChecksumAddress(), values=CapsuleFrag())
+    cfrags = fields.Dict(keys=UrsulaChecksumAddress(), values=VerifiedCapsuleFrag())
 
     # maintain field declaration ordering
     class Meta:

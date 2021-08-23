@@ -475,8 +475,8 @@ Parameters
 +-------------------------------------------+---------------+----------------------------------------+
 | **Parameter**                             | **Type**      | **Description**                        |
 +===========================================+===============+========================================+
-| ``treasure_map``                          | String        | | Decrypted treasure map bytes encoded |
-|                                           |               | | as base64.                           |
+| ``treasure_map``                          | String        | | Unencrypted treasure map bytes       |
+|                                           |               | | encoded as base64.                   |
 +-------------------------------------------+---------------+----------------------------------------+
 | ``retrieval_kits``                        | List[String]  | | List of retrieval kits bytes encoded |
 |                                           |               | | as base64.                           |

@@ -18,8 +18,8 @@
 import json
 import os
 from base64 import b64encode
+from urllib.parse import urlencode
 
-from nucypher.utilities.porter.control.specifications.fields import Capsule
 from tests.utils.middleware import MockRestMiddleware
 from tests.utils.policy import retrieval_request_setup, retrieval_params_decode_from_rest
 
@@ -110,15 +110,10 @@ def test_retrieve_cfrags(blockchain_porter,
     retrieval_results = response_data['result']['retrieval_results']
     assert retrieval_results
 
-    # expected results - can only compare capsules, ursulas are randomized to obtain cfrags
+    # expected results - can only compare length of results, ursulas are randomized to obtain cfrags
     retrieve_args = retrieval_params_decode_from_rest(retrieve_cfrags_params)
-    expected_results = blockchain_porter.retrieve_cfrags(**retrieve_args).results
-    capsule_field = Capsule()
+    expected_results = blockchain_porter.retrieve_cfrags(**retrieve_args)
     assert len(retrieval_results) == len(expected_results)
-    for i, result in enumerate(retrieval_results):
-        # compare capsule
-        capsule = capsule_field._deserialize(value=result['capsule'], attr=None, data=None)
-        assert capsule == expected_results[i].capsule
 
     # try same retrieval using query parameters
     url_retrieve_params = dict(retrieve_cfrags_params)
