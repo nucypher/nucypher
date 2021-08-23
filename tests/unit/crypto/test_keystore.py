@@ -41,6 +41,7 @@ from nucypher.crypto.keystore import (
     _read_keystore
 )
 from nucypher.crypto.powers import DecryptingPower, SigningPower, DelegatingPower
+from nucypher.crypto.umbral_adapter import SecretKey
 from nucypher.crypto.umbral_adapter import (
     secret_key_factory_from_seed,
     secret_key_factory_from_secret_key_factory
@@ -239,6 +240,40 @@ def test_restore_keystore_from_mnemonic(tmpdir, mocker):
     keystore = Keystore.restore(words=words, password='ANewHope')
     keystore.unlock(password='ANewHope')
     assert keystore._Keystore__secret == secret
+
+
+def test_import_custom_keystore(tmpdir):
+
+    # Too short - 32 bytes is required
+    custom_secret = b'tooshort'
+    with pytest.raises(ValueError, match=f'Entropy bytes bust be exactly {SecretKey.serialized_size()}.'):
+        _keystore = Keystore.import_secure(key_material=custom_secret,
+                                           password=INSECURE_DEVELOPMENT_PASSWORD,
+                                           keystore_dir=tmpdir)
+
+    # Too short - 32 bytes is required
+    custom_secret = b'thisisabunchofbytesthatisabittoolong'
+    with pytest.raises(ValueError, match=f'Entropy bytes bust be exactly {SecretKey.serialized_size()}.'):
+        _keystore = Keystore.import_secure(key_material=custom_secret,
+                                           password=INSECURE_DEVELOPMENT_PASSWORD,
+                                           keystore_dir=tmpdir)
+
+    # Import private key
+    custom_secret = os.urandom(SecretKey.serialized_size())  # insecure but works
+    keystore = Keystore.import_secure(key_material=custom_secret,
+                                      password=INSECURE_DEVELOPMENT_PASSWORD,
+                                      keystore_dir=tmpdir)
+    keystore.unlock(password=INSECURE_DEVELOPMENT_PASSWORD)
+    assert keystore._Keystore__secret == custom_secret
+    keystore.lock()
+
+    path = keystore.keystore_path
+    del keystore
+
+    # Restore custom secret from encrypted keystore file
+    keystore = Keystore(keystore_path=path)
+    keystore.unlock(password=INSECURE_DEVELOPMENT_PASSWORD)
+    assert keystore._Keystore__secret == custom_secret
 
 
 def test_derive_signing_power(tmpdir):

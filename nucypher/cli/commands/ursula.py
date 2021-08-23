@@ -53,7 +53,8 @@ from nucypher.cli.options import (
     option_signer_uri,
     option_teacher_uri,
     option_lonely,
-    option_max_gas_price
+    option_max_gas_price,
+    option_key_material
 )
 from nucypher.cli.painting.help import paint_new_installation_help
 from nucypher.cli.types import EIP55_CHECKSUM_ADDRESS, NETWORK_PORT, WORKER_IP
@@ -161,7 +162,7 @@ class UrsulaConfigOptions:
                 # TODO: Exit codes (not only for this, but for other exceptions)
                 return click.get_current_context().exit(1)
 
-    def generate_config(self, emitter, config_root, force):
+    def generate_config(self, emitter, config_root, force, key_material):
 
         if self.dev:
             raise RuntimeError('Persistent configurations cannot be created in development mode.')
@@ -180,6 +181,7 @@ class UrsulaConfigOptions:
             self.rest_host = collect_worker_ip_address(emitter, network=self.domain, force=force)
 
         return UrsulaConfiguration.generate(password=get_nucypher_password(emitter=emitter, confirm=True),
+                                            key_material=bytes.fromhex(key_material) if key_material else None,
                                             config_root=config_root,
                                             rest_host=self.rest_host,
                                             rest_port=self.rest_port,
@@ -295,7 +297,8 @@ def ursula():
 @option_force
 @option_config_root
 @group_general_config
-def init(general_config, config_options, force, config_root):
+@option_key_material
+def init(general_config, config_options, force, config_root, key_material):
     """Create a new Ursula node configuration."""
     emitter = setup_emitter(general_config, config_options.worker_address)
     _pre_launch_warnings(emitter, dev=None, force=force)
@@ -305,7 +308,10 @@ def init(general_config, config_options, force, config_root):
         raise click.BadOptionUsage('--provider', message="--provider is required to initialize a new ursula.")
     if not config_options.federated_only and not config_options.domain:
         config_options.domain = select_network(emitter)
-    ursula_config = config_options.generate_config(emitter, config_root, force)
+    ursula_config = config_options.generate_config(emitter=emitter,
+                                                   config_root=config_root,
+                                                   force=force,
+                                                   key_material=key_material)
     filepath = ursula_config.to_configuration_file()
     paint_new_installation_help(emitter, new_configuration=ursula_config, filepath=filepath)
 

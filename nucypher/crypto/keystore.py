@@ -321,6 +321,22 @@ class Keystore:
         return instance
 
     @classmethod
+    def import_secure(cls, key_material: bytes, password: str, keystore_dir: Optional[Path] = None) -> 'Keystore':
+        """
+        Generate a Keystore using a a custom pre-secured entropy blob.
+        This method of keystore creation does not generate a mnemonic phrase - it is assumed
+        that the provided blob is recoverable and secure.
+        """
+        emitter = StdoutEmitter()
+        emitter.message(f'WARNING: Key importing assumes that you have already secured your secret '
+                        f'and can recover it. No mnemonic will be generated.\n', color='yellow')
+        if len(key_material) != SecretKey.serialized_size():
+            raise ValueError(f'Entropy bytes bust be exactly {SecretKey.serialized_size()}.')
+        path = Keystore.__save(secret=key_material, password=password, keystore_dir=keystore_dir)
+        keystore = cls(keystore_path=path)
+        return keystore
+
+    @classmethod
     def restore(cls, words: str, password: str, keystore_dir: Optional[Path] = None) -> 'Keystore':
         """Restore a keystore from seed words"""
         __mnemonic = Mnemonic(_MNEMONIC_LANGUAGE)
