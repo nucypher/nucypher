@@ -23,6 +23,7 @@ import pytest
 
 from nucypher.characters.lawful import Enrico, Ursula
 from nucypher.characters.unlawful import Amonia
+from nucypher.network.middleware import RestMiddleware
 
 
 def test_policy_simple_sinpa(blockchain_ursulas,
@@ -84,8 +85,7 @@ def test_try_to_post_free_arrangement_by_hacking_enact(blockchain_ursulas,
                                                                            threshold=2,
                                                                            shares=shares,
                                                                            rate=int(1e18),  # one ether
-                                                                           expiration=policy_end_datetime,
-                                                                           publish_treasure_map=False)
+                                                                           expiration=policy_end_datetime)
 
     # Enrico becomes
     enrico = Enrico(policy_encrypting_key=bupkiss_policy.public_key)
@@ -100,18 +100,7 @@ def test_try_to_post_free_arrangement_by_hacking_enact(blockchain_ursulas,
                                 retain_cfrags=True,
                                 encrypted_treasure_map=bupkiss_policy.treasure_map)
 
-    # for ursula in blockchain_ursulas:
-    #     # Even though the grant executed without error...
-    #     # Additionally, Ursula logged Amonia as a freerider:
-    #     freeriders = ursula.suspicious_activities_witnessed['freeriders']
-    #     assert len(freeriders) == 1
-    #     assert freeriders[0][0] == amonia
-    #
-    #     # Reset the Ursula for the next test.
-    #     ursula.suspicious_activities_witnessed['freeriders'] = []
 
-
-@pytest.mark.skip
 def test_pay_a_flunky_instead_of_the_arranged_ursula(blockchain_alice,
                                                      blockchain_bob,
                                                      blockchain_ursulas,
@@ -133,29 +122,17 @@ def test_pay_a_flunky_instead_of_the_arranged_ursula(blockchain_alice,
                                                                threshold=2,
                                                                shares=shares,
                                                                rate=int(1e18),  # one ether
-                                                               expiration=policy_end_datetime,
-                                                               publish_treasure_map=False)
+                                                               expiration=policy_end_datetime)
 
     # Enrico becomes
     enrico = Enrico(policy_encrypting_key=bupkiss_policy.public_key)
     plaintext = b"A crafty campaign"
     message_kit, _signature = enrico.encrypt_message(plaintext)
 
-    with pytest.raises(Ursula.NotEnoughUrsulas):  # Return a more descriptive request error?
+    with pytest.raises(RestMiddleware.PaymentRequired):
         blockchain_bob.retrieve(message_kit,
                                 enrico=enrico,
                                 alice_verifying_key=amonia.stamp,
                                 label=bupkiss_policy.label,
                                 retain_cfrags=True,
                                 encrypted_treasure_map=bupkiss_policy.treasure_map)
-
-    # Same exact set of assertions as the last test:
-    for ursula in blockchain_ursulas:
-        # Even though the grant executed without error...
-        # Additionally, Ursula logged Amonia as a freerider:
-        freeriders = ursula.suspicious_activities_witnessed['freeriders']
-        assert len(freeriders) == 1
-        assert freeriders[0][0] == amonia
-
-        # Reset the Ursula for the next test.
-        ursula.suspicious_activities_witnessed['freeriders'] = []

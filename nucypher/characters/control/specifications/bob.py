@@ -51,7 +51,7 @@ class Retrieve(BaseSchema):
         click=options.option_message_kit(required=False)
     )
 
-    treasure_map = EncryptedTreasureMap(required=True,
+    treasure_map = EncryptedTreasureMap(required=False,
                                         load_only=True,
                                         click=options.option_treasure_map)
 

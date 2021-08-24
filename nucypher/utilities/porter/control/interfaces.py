@@ -46,16 +46,6 @@ class PorterInterface(ControlInterface):
         }
         return response_data
 
-    @attach_schema(porter_schema.AlicePublishTreasureMap)
-    def publish_treasure_map(self,
-                             treasure_map: bytes,
-                             bob_encrypting_key: bytes) -> dict:
-        bob_enc_key = PublicKey.from_bytes(bob_encrypting_key)
-        self.implementer.publish_treasure_map(treasure_map_bytes=treasure_map,
-                                              bob_encrypting_key=bob_enc_key)
-        response_data = {'published': True}  # always True - if publish failed, an exception is raised by implementer
-        return response_data
-
     @attach_schema(porter_schema.AliceRevoke)
     def revoke(self) -> dict:
         # Steps (analogous to nucypher.character.control.interfaces):

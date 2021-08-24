@@ -135,26 +135,6 @@ def test_endpoints_basic_auth(federated_porter_basic_auth_web_controller,
     response = federated_porter_basic_auth_web_controller.get('/get_ursulas', data=json.dumps(get_ursulas_params))
     assert response.status_code == 401  # user unauthorized
 
-    random_bob_encrypting_key, random_treasure_map = random_federated_treasure_map_data
-
-    # /get_treasure_map
-    get_treasure_map_params = {
-        'hrac': bytes(random_treasure_map.hrac).hex(),
-        'bob_encrypting_key': bytes(random_bob_encrypting_key).hex()
-    }
-    response = federated_porter_basic_auth_web_controller.get('/get_treasure_map',
-                                                              data=json.dumps(get_treasure_map_params))
-    assert response.status_code == 401  # user not authenticated
-
-    # /publish_treasure_map
-    publish_treasure_map_params = {
-        'treasure_map': b64encode(bytes(random_treasure_map)).decode(),
-        'bob_encrypting_key': bytes(random_bob_encrypting_key).hex()
-    }
-    response = federated_porter_basic_auth_web_controller.post('/publish_treasure_map',
-                                                               data=json.dumps(publish_treasure_map_params))
-    assert response.status_code == 401  # user not authenticated
-
     # /exec_work_order
     exec_work_order_params = {
         'ursula': get_random_checksum_address(),

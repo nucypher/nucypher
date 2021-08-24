@@ -220,11 +220,11 @@ class WorkOrder:
 
         """
         tasks_bytes = b''.join(bytes(item) for item in self.tasks.values())
-        result = bytes(self.receipt_signature)                                   \
-                 + bytes(self.alice_verifying_key)                               \
-                 + bytes(self.publisher_verifying_key)                             \
-                 + bytes(self.bob.stamp)                                         \
-                 + bytes(self.hrac)                                              \
+        result = bytes(self.receipt_signature)                           \
+                 + bytes(self.alice_verifying_key)                       \
+                 + bytes(self.publisher_verifying_key)                   \
+                 + bytes(self.bob.stamp)                                 \
+                 + bytes(self.hrac)                                      \
                  + bytes(VariableLengthBytestring(self.encrypted_kfrag)) \
                  + tasks_bytes
         return result
