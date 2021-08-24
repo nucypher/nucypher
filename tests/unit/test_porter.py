@@ -100,20 +100,28 @@ def test_ursula_checksum_address_string_list_field(get_random_checksum_address):
         field._deserialize(value=f"{ursula_1},{ursula_2},{ursula_3},{ursula_4},0xdeadbeef", attr=None, data=None)
 
 
-def test_retrieval_kit_field():
-    encrypting_key = SecretKey.random().public_key()
-    capsule, _ = encrypt(encrypting_key, b'testing_retrieval_kit')
-
-    retrieval_kit = RetrievalKitClass(capsule, set())
-
+def test_retrieval_kit_field(get_random_checksum_address):
     field = RetrievalKit()
-    serialized = field._serialize(value=retrieval_kit, attr=None, obj=None)
-    assert serialized == b64encode(bytes(retrieval_kit)).decode()
 
-    deserialized = field._deserialize(value=serialized, attr=None, data=None)
-    assert isinstance(deserialized, RetrievalKitClass)
-    assert deserialized.capsule == capsule
-    assert len(deserialized.queried_addresses) == 0
+    def run_tests_on_kit(kit: RetrievalKitClass):
+        serialized = field._serialize(value=kit, attr=None, obj=None)
+        assert serialized == b64encode(bytes(kit)).decode()
+
+        deserialized = field._deserialize(value=serialized, attr=None, data=None)
+        assert isinstance(deserialized, RetrievalKitClass)
+        assert deserialized.capsule == kit.capsule
+        assert deserialized.queried_addresses == kit.queried_addresses
+
+    # kit with list of ursulas
+    encrypting_key = SecretKey.random().public_key()
+    capsule, _ = encrypt(encrypting_key, b'testing retrieval kit with 2 ursulas')
+    ursulas = [get_random_checksum_address(), get_random_checksum_address()]
+    run_tests_on_kit(kit=RetrievalKitClass(capsule, ursulas))
+
+    # kit with no ursulas
+    encrypting_key = SecretKey.random().public_key()
+    capsule, _ = encrypt(encrypting_key, b'testing retrieval kit with no ursulas')
+    run_tests_on_kit(kit=RetrievalKitClass(capsule, []))
 
     with pytest.raises(InvalidInputData):
         field._deserialize(value=b"non_base_64_data", attr=None, data=None)
