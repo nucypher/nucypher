@@ -91,7 +91,7 @@ def test_exec_work_order(blockchain_porter_rpc_controller,
     # Setup
     network_middleware = MockRestMiddleware()
     # enact new random policy since idle_blockchain_policy/enacted_blockchain_policy already modified in previous tests
-    enacted_policy = random_blockchain_policy.enact(network_middleware=network_middleware)  # enact but don't publish
+    enacted_policy = random_blockchain_policy.enact(network_middleware=network_middleware)
     ursula_address, work_order = work_order_setup(enacted_policy,
                                                   blockchain_ursulas,
                                                   blockchain_bob,

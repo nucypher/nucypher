@@ -893,7 +893,7 @@ class Bob(Character):
     def _handle_treasure_map(self,
                              publisher_verifying_key: PublicKey,
                              label: bytes,
-                             encrypted_treasure_map: Optional['EncryptedTreasureMap']
+                             encrypted_treasure_map: Optional['EncryptedTreasureMap'] = None
                              ) -> Tuple['TreasureMap', int]:
         """Decrypt and cache the treasure map by Bob."""
         if encrypted_treasure_map:

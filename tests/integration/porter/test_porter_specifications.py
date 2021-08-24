@@ -20,15 +20,12 @@ from base64 import b64encode
 import pytest
 
 from nucypher.control.specifications.exceptions import InvalidArgumentCombo, InvalidInputData
-from nucypher.crypto.powers import DecryptingPower
 from nucypher.crypto.umbral_adapter import SecretKey
 from nucypher.policy.maps import AuthorizedKeyFrag
 from nucypher.policy.orders import WorkOrder as WorkOrderClass
 from nucypher.utilities.porter.control.specifications.fields import UrsulaInfoSchema
 from nucypher.utilities.porter.control.specifications.porter_schema import (
     AliceGetUrsulas,
-    AlicePublishTreasureMap,
-    BobGetTreasureMap,
     BobExecWorkOrder
 )
 from nucypher.utilities.porter.porter import Porter
