@@ -67,9 +67,9 @@ def test_retrieve_cfrags(federated_porter,
                          federated_alice,
                          enacted_federated_policy):
     # Setup
-    retrieval_args = retrieval_request_setup(enacted_federated_policy,
-                                             federated_bob,
-                                             federated_alice)
+    retrieval_args, _ = retrieval_request_setup(enacted_federated_policy,
+                                                federated_bob,
+                                                federated_alice)
 
     result = federated_porter.retrieve_cfrags(**retrieval_args)
 

@@ -20,6 +20,10 @@ import json
 from base64 import b64encode
 from urllib.parse import urlencode
 
+from nucypher.characters.lawful import Enrico
+from nucypher.crypto.powers import DecryptingPower
+from nucypher.policy.orders import RetrievalResult
+from nucypher.utilities.porter.control.specifications.fields import RetrievalResultSchema
 from tests.utils.policy import retrieval_request_setup, retrieval_params_decode_from_rest
 
 
@@ -93,12 +97,18 @@ def test_retrieve_cfrags(federated_porter,
     assert response.status_code == 400
 
     # Setup
-    retrieve_cfrags_params = retrieval_request_setup(enacted_federated_policy,
-                                                     federated_bob,
-                                                     federated_alice,
-                                                     encode_for_rest=True)
+    original_message = b'The paradox of education is precisely this - that as one begins to become ' \
+                       b'conscious one begins to examine the society in which ' \
+                       b'he is (they are) being educated.'  # - James Baldwin
+    retrieve_cfrags_params, message_kit = retrieval_request_setup(enacted_federated_policy,
+                                                                  federated_bob,
+                                                                  federated_alice,
+                                                                  original_message=original_message,
+                                                                  encode_for_rest=True)
 
+    #
     # Success
+    #
     response = federated_porter_web_controller.post('/retrieve_cfrags', data=json.dumps(retrieve_cfrags_params))
     assert response.status_code == 200
 
@@ -111,16 +121,43 @@ def test_retrieve_cfrags(federated_porter,
     expected_results = federated_porter.retrieve_cfrags(**retrieve_args)
     assert len(retrieval_results) == len(expected_results)
 
-    # try same retrieval using query parameters
+    # check that the re-encryption performed was valid
+    treasure_map = federated_bob._decrypt_treasure_map(enacted_federated_policy.treasure_map,
+                                                       enacted_federated_policy.publisher_verifying_key)
+    policy_message_kit = message_kit.as_policy_kit(policy_key=enacted_federated_policy.public_key,
+                                                   threshold=treasure_map.threshold)
+    assert len(retrieval_results) == 1
+    field = RetrievalResultSchema()
+    cfrags = field.load(retrieval_results[0])['cfrags']
+    verified_cfrags = {}
+    for ursula, cfrag in cfrags.items():
+        # need to obtain verified cfrags (verified cfrags are not deserializable, only non-verified cfrags)
+        verified_cfrag = cfrag.verify(capsule=policy_message_kit.message_kit.capsule,
+                                      verifying_pk=federated_alice.stamp.as_umbral_pubkey(),
+                                      delegating_pk=enacted_federated_policy.public_key,
+                                      receiving_pk=federated_bob.public_keys(DecryptingPower))
+        verified_cfrags[ursula] = verified_cfrag
+    retrieval_result_object = RetrievalResult(cfrags=verified_cfrags)
+    policy_message_kit = policy_message_kit.with_result(retrieval_result_object)
+
+    assert policy_message_kit.is_decryptable_by_receiver()
+    enrico = Enrico.from_public_keys(verifying_key=policy_message_kit.sender_verifying_key)
+    cleartext = federated_bob.verify_from(enrico, policy_message_kit, decrypt=True)
+    assert cleartext == original_message
+
+    #
+    # Try same retrieval using query parameters
+    #
     url_retrieve_params = dict(retrieve_cfrags_params)
     url_retrieve_params['retrieval_kits'] = ",".join(retrieve_cfrags_params['retrieval_kits'])   # adjust for list
     response = federated_porter_web_controller.post(f'/retrieve_cfrags'
                                                     f'?{urlencode(url_retrieve_params)}')
     assert response.status_code == 200
 
+    #
     # Failure
+    #
     failure_retrieve_cfrags_params = dict(retrieve_cfrags_params)
-
     # use encrypted treasure map
     _, random_treasure_map = random_federated_treasure_map_data
     failure_retrieve_cfrags_params['treasure_map'] = b64encode(bytes(random_treasure_map)).decode()
@@ -144,10 +181,10 @@ def test_endpoints_basic_auth(federated_porter_basic_auth_web_controller,
     assert response.status_code == 401  # user unauthorized
 
     # /retrieve_cfrags
-    retrieve_cfrags_params = retrieval_request_setup(enacted_federated_policy,
-                                                     federated_bob,
-                                                     federated_alice,
-                                                     encode_for_rest=True)
+    retrieve_cfrags_params, _ = retrieval_request_setup(enacted_federated_policy,
+                                                        federated_bob,
+                                                        federated_alice,
+                                                        encode_for_rest=True)
     response = federated_porter_basic_auth_web_controller.post('/retrieve_cfrags',
                                                                data=json.dumps(retrieve_cfrags_params))
     assert response.status_code == 401  # user not authenticated

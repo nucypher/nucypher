@@ -35,7 +35,7 @@ class RetrievalKit(Base64BytesRepresentation):
             raise InvalidInputData(f"Could not convert input for {self.name} to a valid checksum address: {e}")
 
 
-class VerifiedCapsuleFrag(Base64BytesRepresentation):
+class CapsuleFrag(Base64BytesRepresentation):
     def _deserialize(self, value, attr, data, **kwargs):
         try:
             capsule_frag_bytes = super()._deserialize(value, attr, data, **kwargs)
@@ -46,7 +46,7 @@ class VerifiedCapsuleFrag(Base64BytesRepresentation):
 
 class RetrievalResultSchema(BaseSchema):
     """Schema for the result of retrieve_cfrags."""
-    cfrags = fields.Dict(keys=UrsulaChecksumAddress(), values=VerifiedCapsuleFrag())
+    cfrags = fields.Dict(keys=UrsulaChecksumAddress(), values=CapsuleFrag())
 
     # maintain field declaration ordering
     class Meta:

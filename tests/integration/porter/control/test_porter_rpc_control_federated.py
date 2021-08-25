@@ -81,10 +81,10 @@ def test_retrieve_cfrags(federated_porter,
     method = 'retrieve_cfrags'
 
     # Setup
-    retrieve_cfrags_params = retrieval_request_setup(enacted_federated_policy,
-                                                     federated_bob,
-                                                     federated_alice,
-                                                     encode_for_rest=True)
+    retrieve_cfrags_params, _ = retrieval_request_setup(enacted_federated_policy,
+                                                        federated_bob,
+                                                        federated_alice,
+                                                        encode_for_rest=True)
 
     # Success
     request_data = {'method': method, 'params': retrieve_cfrags_params}

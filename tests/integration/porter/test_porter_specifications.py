@@ -175,10 +175,10 @@ def test_bob_retrieve_cfrags(federated_porter,
         bob_retrieve_cfrags_schema.load({})
 
     # Setup
-    retrieval_args = retrieval_request_setup(enacted_federated_policy,
-                                             federated_bob,
-                                             federated_alice,
-                                             encode_for_rest=True)
+    retrieval_args, _ = retrieval_request_setup(enacted_federated_policy,
+                                                federated_bob,
+                                                federated_alice,
+                                                encode_for_rest=True)
     bob_retrieve_cfrags_schema.load(retrieval_args)
 
     # optional publisher_verifying_key
@@ -198,10 +198,10 @@ def test_bob_retrieve_cfrags(federated_porter,
     #
     # Output i.e. dump
     #
-    non_encoded_retrieval_args = retrieval_request_setup(enacted_federated_policy,
-                                                         federated_bob,
-                                                         federated_alice,
-                                                         encode_for_rest=False)
+    non_encoded_retrieval_args, _ = retrieval_request_setup(enacted_federated_policy,
+                                                            federated_bob,
+                                                            federated_alice,
+                                                            encode_for_rest=False)
     retrieval_results = federated_porter.retrieve_cfrags(**non_encoded_retrieval_args)
     expected_retrieval_results_json = []
     retrieval_result_schema = RetrievalResultSchema()
