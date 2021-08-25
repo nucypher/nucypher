@@ -90,6 +90,39 @@ class Future:
             return self._value.value
 
 
+class WorkerPoolException(Exception):
+    """Generalized exception class for WorkerPool failures."""
+    def __init__(self, message_prefix: str, failures: Dict):
+        self.failures = failures
+
+        # craft message
+        msg = message_prefix
+        if self.failures:
+            # Using one random failure
+            # Most probably they're all the same anyway.
+            value = list(self.failures)[0]
+            _, exception, tb = self.failures[value]
+            f = io.StringIO()
+            traceback.print_tb(tb, file=f)
+            traceback_str = f.getvalue()
+            msg = (f"{message_prefix} ({len(self.failures)} failures recorded); "
+                   f"for example, for {value}:\n"
+                   f"{traceback_str}\n"
+                   f"{exception}")
+        super().__init__(msg)
+
+    def get_tracebacks(self) -> Dict[Any, str]:
+        """Returns values and associated tracebacks of execution failures."""
+        exc_tracebacks = {}
+        for value, exc_info in self.failures.items():
+            _, exception, tb = exc_info
+            f = io.StringIO()
+            traceback.print_tb(tb, file=f)
+            exc_tracebacks[value] = f"{f.getvalue()}\n{exception}"
+
+        return exc_tracebacks
+
+
 class WorkerPool:
     """
     A generalized class that can start multiple workers in a thread pool with values
@@ -97,38 +130,6 @@ class WorkerPool:
     and wait for their completion and a given number of successes
     (a worker returning something without throwing an exception).
     """
-
-    class WorkerPoolException(Exception):
-        """Generalized exception class for WorkerPool failures."""
-        def __init__(self, message_prefix: str, failures: Dict):
-            self.failures = failures
-
-            # craft message
-            msg = message_prefix
-            if self.failures:
-                # Using one random failure
-                # Most probably they're all the same anyway.
-                value = list(self.failures)[0]
-                _, exception, tb = self.failures[value]
-                f = io.StringIO()
-                traceback.print_tb(tb, file=f)
-                traceback_str = f.getvalue()
-                msg = (f"{message_prefix} ({len(self.failures)} failures recorded); "
-                       f"for example, for {value}:\n"
-                       f"{traceback_str}\n"
-                       f"{exception}")
-            super().__init__(msg)
-
-        def get_tracebacks(self) -> Dict[Any, str]:
-            """Returns values and associated tracebacks of execution failures."""
-            exc_tracebacks = {}
-            for value, exc_info in self.failures.items():
-                _, exception, tb = exc_info
-                f = io.StringIO()
-                traceback.print_tb(tb, file=f)
-                exc_tracebacks[value] = f"{f.getvalue()}\n{exception}"
-
-            return exc_tracebacks
 
     class TimedOut(WorkerPoolException):
         """Raised if waiting for the target number of successes timed out."""

@@ -35,7 +35,7 @@ from nucypher.control.interfaces import ControlInterface
 from nucypher.control.specifications.exceptions import SpecificationError
 from nucypher.exceptions import DevelopmentInstallationRequired
 from nucypher.network.resources import get_static_resources
-from nucypher.utilities.concurrency import WorkerPool
+from nucypher.utilities.concurrency import WorkerPool, WorkerPoolException
 from nucypher.utilities.logging import Logger, GlobalLoggerSettings
 
 
@@ -351,7 +351,7 @@ class WebController(InterfaceControlServer):
         #
         # Unhandled Server Errors
         #
-        except WorkerPool.WorkerPoolException as e:
+        except WorkerPoolException as e:
             # special case since WorkerPoolException contain stack traces - not ideal for returning from REST endpoints
             __exception_code = 500
             if self.crash_on_error:
