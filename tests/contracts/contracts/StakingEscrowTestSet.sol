@@ -16,6 +16,7 @@ contract StakingEscrowBad is StakingEscrow {
         NuCypherToken _nuToken,
         AdjudicatorInterface _adjudicator,
         WorkLockInterface _workLock,
+        ITokenStaking _tokenStaking,
         uint256 _minWorkerSeconds,
         uint256 _minUnstakingDuration
     )
@@ -23,6 +24,7 @@ contract StakingEscrowBad is StakingEscrow {
             _nuToken,
             _adjudicator,
             _workLock,
+            _tokenStaking,
             _minWorkerSeconds,
             _minUnstakingDuration
         )
@@ -45,6 +47,7 @@ contract StakingEscrowV2Mock is StakingEscrow {
         NuCypherToken _nuToken,
         AdjudicatorInterface _adjudicator,
         WorkLockInterface _workLock,
+        ITokenStaking _tokenStaking,
         uint256 _minWorkerSeconds,
         uint256 _minUnstakingDuration
     )
@@ -52,6 +55,7 @@ contract StakingEscrowV2Mock is StakingEscrow {
             _nuToken,
             _adjudicator,
             _workLock,
+            _tokenStaking,
             _minWorkerSeconds,
             _minUnstakingDuration
         )

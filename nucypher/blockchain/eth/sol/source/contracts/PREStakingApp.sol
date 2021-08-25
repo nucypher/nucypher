@@ -6,22 +6,15 @@ pragma solidity ^0.8.0;
 import "zeppelin/math/Math.sol";
 import "zeppelin/token/ERC20/SafeERC20.sol";
 import "zeppelin/token/ERC20/IERC20.sol";
-
-
-/**
-* @notice TokenStaking interface
-*/
-interface ITokenStaking {
-    function allocatedPerApp(address) external view returns (uint256);
-    function getAllocated(address, address) external view returns (uint256);
-}
+import "contracts/threshold/IApplication.sol";
+import "contracts/threshold/ITokenStaking.sol";
 
 
 /**
 * @title PRE Staking Application
 * @notice Contract distributes rewards for participating in app and slashes for violating rules
 */
-contract PREStakingApp {
+contract PREStakingApp is IApplication {
 
     using SafeERC20 for IERC20;
 
@@ -47,6 +40,7 @@ contract PREStakingApp {
 
 
     struct RewardInfo {
+        uint256 allocated;
         uint256 tReward;
         uint256 rewardPerTokenPaid;
     }
@@ -62,6 +56,7 @@ contract PREStakingApp {
     uint256 public rewardRate = 0;
     uint256 public lastUpdateTime;
     uint256 public rewardPerTokenStored;
+    uint256 public allocatedOverall;
 
     /**
     * @notice Constructor sets address of token contract and parameters for staking
@@ -95,8 +90,7 @@ contract PREStakingApp {
     }
 
     function rewardPerToken() public view returns (uint256) {
-        uint256 staked = tokenStaking.allocatedPerApp(address(this));
-        if (staked == 0) {
+        if (allocatedOverall == 0) {
             return rewardPerTokenStored;
         }
         return
@@ -104,16 +98,12 @@ contract PREStakingApp {
                 (lastTimeRewardApplicable() - lastUpdateTime)
                 * rewardRate
                 * 1e18
-                / staked;
+                / allocatedOverall;
     }
 
     function earned(address _staker) public view returns (uint256) {
         RewardInfo storage info = rewardInfo[_staker];
-        return
-            tokenStaking.getAllocated(_staker, address(this))
-                * (rewardPerToken() - info.rewardPerTokenPaid)
-                / 1e18
-                + info.tReward;
+        return info.allocated * (rewardPerToken() - info.rewardPerTokenPaid) / 1e18 + info.tReward;
     }
 
     function withdrawReward() public updateReward(msg.sender) {
@@ -149,6 +139,23 @@ contract PREStakingApp {
         require(_value <= info.tReward);
         info.tReward -= _value;
         emit Withdrawn(msg.sender, _value);
+    }
+
+    /**
+    * @notice Recalculate reward and store allocation
+    * @param _staker Address of staker
+    * @param _allocated Amount of allocated tokens to PRE application by staker
+    * @param _allocationPerApp Amount of allocated tokens to PRE application by all stakers
+    */
+    function receiveAllocation(address _staker, uint256 _allocated, uint256 _allocationPerApp)
+        external override updateReward(_staker)
+    {
+        require(msg.sender == address(tokenStaking));
+        require(_staker != address(0));
+
+        rewardInfo[_staker].allocated = _allocated;
+        allocatedOverall = _allocationPerApp;
+        // TODO emit event
     }
 
 

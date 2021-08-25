@@ -10,7 +10,8 @@ import "contracts/lib/Snapshot.sol";
 import "contracts/proxy/Upgradeable.sol";
 import "zeppelin/math/Math.sol";
 import "zeppelin/token/ERC20/SafeERC20.sol";
-
+import "contracts/threshold/IStakingProvider.sol";
+import "contracts/threshold/ITokenStaking.sol";
 
 
 /**
@@ -27,6 +28,7 @@ interface AdjudicatorInterface {
 interface WorkLockInterface {
     function token() external view returns (NuCypherToken);
 }
+
 
 /**
 * @title StakingEscrowStub
@@ -75,7 +77,7 @@ contract StakingEscrowStub is Upgradeable {
 * Each staker that locks their tokens will receive some compensation
 * @dev |v6.1.1|
 */
-contract StakingEscrow is Upgradeable, IERC900History {
+contract StakingEscrow is Upgradeable, IERC900History, IStakingProvider {
 
     using Bits for uint256;
     using Snapshot for uint128[];
@@ -155,6 +157,7 @@ contract StakingEscrow is Upgradeable, IERC900History {
     NuCypherToken public immutable token;
     AdjudicatorInterface public immutable adjudicator;
     WorkLockInterface public immutable workLock;
+    ITokenStaking public immutable tokenStaking;
 
     uint128 stub1; // former slot for previousPeriodSupply
     uint128 stub2; // former slot for currentPeriodSupply
@@ -178,13 +181,15 @@ contract StakingEscrow is Upgradeable, IERC900History {
     * @param _token NuCypher token contract
     * @param _adjudicator Adjudicator contract
     * @param _workLock WorkLock contract. Zero address if there is no WorkLock
+    * @param _tokenStaking T token staking contract
     * @param _minWorkerSeconds Min amount of seconds while a worker can't be changed
-     * @param _minUnstakingDuration Min unstaking duration (in sec) to be eligible for staking
+    * @param _minUnstakingDuration Min unstaking duration (in sec) to be eligible for staking
     */
     constructor(
         NuCypherToken _token,
         AdjudicatorInterface _adjudicator,
         WorkLockInterface _workLock,
+        ITokenStaking _tokenStaking,
         uint256 _minWorkerSeconds,
         uint256 _minUnstakingDuration
     ) {
@@ -198,6 +203,7 @@ contract StakingEscrow is Upgradeable, IERC900History {
         token = _token;
         adjudicator = _adjudicator;
         workLock = _workLock;
+        tokenStaking = _tokenStaking;
     }
 
     /**
@@ -277,6 +283,22 @@ contract StakingEscrow is Upgradeable, IERC900History {
     */
     function getCompletedWork(address _staker) external view returns (uint256) {
         return token.totalSupply();
+    }
+
+    /**
+     * @notice Returns the locked stake amount and unstaking duration for `staker`
+     */
+    function getStakeInfo(address staker)
+        external view override returns (uint256 stakeAmount, uint256 unstakingDuration) {
+        StakerInfo storage info = stakerInfo[msg.sender];
+        stakeAmount = info.value;
+        if (info.startUnstakingTimestamp == 0) {
+            unstakingDuration = minUnstakingDuration;
+        } else {
+            unstakingDuration = block.timestamp >= info.startUnstakingTimestamp ?
+                block.timestamp - info.startUnstakingTimestamp :
+                0;
+        }
     }
 
 
@@ -476,6 +498,11 @@ contract StakingEscrow is Upgradeable, IERC900History {
         }
 
         addSnapshot(info, - int256(_penalty));
+    }
+
+    // TODO
+    function slashStaker(address staker, bytes calldata penaltyData) external override {
+
     }
 
     //-------------Additional getters for stakers info-------------
