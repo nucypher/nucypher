@@ -192,8 +192,7 @@ class Amonia(Alice):
 
         with patch("nucypher.policy.policies.BlockchainPolicy._publish_to_blockchain",
                    publish_wrong_payee_address_to_blockchain):
-            with patch("nucypher.policy.policies.Policy._enact_arrangements", self.enact_without_tabulating_responses):
-                return super().grant(handpicked_ursulas=ursulas_to_trick_into_working_for_free, *args, **kwargs)
+            return super().grant(handpicked_ursulas=ursulas_to_trick_into_working_for_free, *args, **kwargs)
 
     def use_ursula_as_an_involuntary_and_unbeknownst_cdn(self, policy, bob, sucker_ursula):
         """

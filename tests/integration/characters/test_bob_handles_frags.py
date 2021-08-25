@@ -58,8 +58,8 @@ def test_bob_already_knows_all_nodes_in_treasure_map(enacted_federated_policy,
         federated_bob.remember_node(ursula)
 
     # Now, Bob can get the TreasureMap all by himself, and doesn't need a side channel.
-    the_map = federated_bob.get_treasure_map(publisher_verifying_key=federated_alice.stamp.as_umbral_pubkey(),
-                                             label=enacted_federated_policy.label)
+    the_map = federated_bob._decrypt_treasure_map(enacted_federated_policy.treasure_map,
+                                                  publisher_verifying_key=federated_alice.stamp)
     unknown, known = federated_bob.peek_at_treasure_map(treasure_map=the_map)
 
     # He finds that he didn't need to discover any new nodes...
@@ -383,17 +383,18 @@ def test_federated_bob_retrieves_a_single_message(federated_bob,
     delivered_cleartexts = federated_bob.retrieve(the_message_kit,
                                                   enrico=capsule_side_channel.enrico,
                                                   alice_verifying_key=alices_verifying_key,
-                                                  label=enacted_federated_policy.label)
+                                                  label=enacted_federated_policy.label,
+                                                  encrypted_treasure_map=enacted_federated_policy.treasure_map)
 
     # We show that indeed this is the passage originally encrypted by the Enrico.
     assert b"Welcome to flippering number 1." == delivered_cleartexts[0]
 
 
 def test_federated_bob_retrieves_multiple_messages_from_same_enrico(federated_bob,
-                                                   federated_alice,
-                                                   capsule_side_channel,
-                                                   enacted_federated_policy,
-                                                   ):
+                                                                    federated_alice,
+                                                                    capsule_side_channel,
+                                                                    enacted_federated_policy,
+                                                                    ):
     # The side channel delivers all that Bob needs at this point:
     # - A single MessageKit, containing a Capsule
     # - A representation of the data source
@@ -406,7 +407,8 @@ def test_federated_bob_retrieves_multiple_messages_from_same_enrico(federated_bo
     delivered_cleartexts = federated_bob.retrieve(*three_message_kits,
                                                   enrico=capsule_side_channel.enrico,
                                                   alice_verifying_key=alices_verifying_key,
-                                                  label=enacted_federated_policy.label)
+                                                  label=enacted_federated_policy.label,
+                                                  encrypted_treasure_map=enacted_federated_policy.treasure_map)
 
     assert b"Welcome to flippering number 1." == delivered_cleartexts[0]
     assert b"Welcome to flippering number 2." == delivered_cleartexts[1]
@@ -414,10 +416,10 @@ def test_federated_bob_retrieves_multiple_messages_from_same_enrico(federated_bo
 
 
 def test_federated_bob_retrieves_multiple_messages_from_different_enricos(federated_bob,
-                                                   federated_alice,
-                                                   capsule_side_channel,
-                                                   enacted_federated_policy,
-                                                   ):
+                                                                          federated_alice,
+                                                                          capsule_side_channel,
+                                                                          enacted_federated_policy,
+                                                                          ):
     # The side channel delivers all that Bob needs at this point:
     # - A single MessageKit, containing a Capsule
     # - A representation of the data source
@@ -434,7 +436,8 @@ def test_federated_bob_retrieves_multiple_messages_from_different_enricos(federa
                                                   message2,
                                                   message3,
                                                   alice_verifying_key=alices_verifying_key,
-                                                  label=enacted_federated_policy.label)
+                                                  label=enacted_federated_policy.label,
+                                                  encrypted_treasure_map=enacted_federated_policy.treasure_map)
 
     assert b"Welcome to flippering number 0." == delivered_cleartexts[0]
     assert b"Welcome to flippering number 0." == delivered_cleartexts[1]
@@ -457,7 +460,8 @@ def test_federated_bob_retrieves_twice_without_retaining_cfrags(federated_bob,
     delivered_cleartexts = federated_bob.retrieve(the_message_kit,
                                                   enrico=capsule_side_channel.enrico,
                                                   alice_verifying_key=alices_verifying_key,
-                                                  label=enacted_federated_policy.label)
+                                                  label=enacted_federated_policy.label,
+                                                  encrypted_treasure_map=enacted_federated_policy.treasure_map)
 
     # We show that indeed this is the passage originally encrypted by the Enrico.
     assert b"Welcome to flippering number 1." == delivered_cleartexts[0]
@@ -466,7 +470,8 @@ def test_federated_bob_retrieves_twice_without_retaining_cfrags(federated_bob,
                                                   enrico=capsule_side_channel.enrico,
                                                   alice_verifying_key=alices_verifying_key,
                                                   label=enacted_federated_policy.label,
-                                                  use_precedent_work_orders=True)
+                                                  use_precedent_work_orders=True,
+                                                  encrypted_treasure_map=enacted_federated_policy.treasure_map)
 
     # We show that indeed this is the passage originally encrypted by the Enrico.
     assert b"Welcome to flippering number 1." == delivered_cleartexts[0]
@@ -485,7 +490,8 @@ def test_federated_bob_retrieves_twice_by_retaining_cfrags(federated_bob,
                                                   enrico=capsule_side_channel.enrico,
                                                   alice_verifying_key=alices_verifying_key,
                                                   label=enacted_federated_policy.label,
-                                                  retain_cfrags=True)
+                                                  retain_cfrags=True,
+                                                  encrypted_treasure_map=enacted_federated_policy.treasure_map)
     assert b"Welcome to flippering number 1." == delivered_cleartexts[0]
 
     # Can't retrieve this message again.
@@ -501,7 +507,8 @@ def test_federated_bob_retrieves_twice_by_retaining_cfrags(federated_bob,
                                                   enrico=capsule_side_channel.enrico,
                                                   alice_verifying_key=alices_verifying_key,
                                                   label=enacted_federated_policy.label,
-                                                  use_attached_cfrags=True)
+                                                  use_attached_cfrags=True,
+                                                  encrypted_treasure_map=enacted_federated_policy.treasure_map)
 
     assert b"Welcome to flippering number 1." == delivered_cleartexts[0]
 
@@ -544,7 +551,8 @@ def test_federated_bob_cannot_resume_retrieval_without_caching(federated_bob,
         federated_bob.retrieve(the_message_kit,
                                enrico=capsule_side_channel.enrico,
                                alice_verifying_key=alices_verifying_key,
-                               label=enacted_federated_policy.label)
+                               label=enacted_federated_policy.label,
+                               encrypted_treasure_map=enacted_federated_policy.treasure_map)
 
     # Since we weren't caching, there are no attached Cfrags.
     assert len(the_message_kit) == 0
@@ -562,7 +570,8 @@ def test_federated_bob_cannot_resume_retrieval_without_caching(federated_bob,
         federated_bob.retrieve(the_message_kit,
                                enrico=capsule_side_channel.enrico,
                                alice_verifying_key=alices_verifying_key,
-                               label=enacted_federated_policy.label)
+                               label=enacted_federated_policy.label,
+                               encrypted_treasure_map=enacted_federated_policy.treasure_map)
 
 
 def test_federated_retrieves_partially_then_finishes(federated_bob,
@@ -602,7 +611,8 @@ def test_federated_retrieves_partially_then_finishes(federated_bob,
                                enrico=capsule_side_channel.enrico,
                                alice_verifying_key=alices_verifying_key,
                                label=enacted_federated_policy.label,
-                               retain_cfrags=True)
+                               retain_cfrags=True,
+                               encrypted_treasure_map=enacted_federated_policy.treasure_map)
 
     # Since we were caching, there are now 2 attached cfrags.
     assert len(the_message_kit) == 2
@@ -631,6 +641,7 @@ def test_federated_retrieves_partially_then_finishes(federated_bob,
                                                   label=enacted_federated_policy.label,
                                                   retain_cfrags=True,
                                                   use_attached_cfrags=True,
+                                                  encrypted_treasure_map=enacted_federated_policy.treasure_map
                                                   )
 
     assert b"Welcome to flippering number 1." == delivered_cleartexts[0]
@@ -644,7 +655,8 @@ def test_federated_retrieves_partially_then_finishes(federated_bob,
                                                   alice_verifying_key=alices_verifying_key,
                                                   label=enacted_federated_policy.label,
                                                   retain_cfrags=True,
-                                                  use_attached_cfrags=True)
+                                                  use_attached_cfrags=True,
+                                                  encrypted_treasure_map=enacted_federated_policy.treasure_map)
 
     assert b"Welcome to flippering number 1." == delivered_cleartexts[0]
 
@@ -656,7 +668,8 @@ def test_federated_retrieves_partially_then_finishes(federated_bob,
                                                   enrico=capsule_side_channel.enrico,
                                                   alice_verifying_key=alices_verifying_key,
                                                   label=enacted_federated_policy.label,
-                                                  use_precedent_work_orders=True)
+                                                  use_precedent_work_orders=True,
+                                                  encrypted_treasure_map=enacted_federated_policy.treasure_map)
 
     assert b"Welcome to flippering number 1." == delivered_cleartexts[0]
     federated_bob.network_middleware.all_nodes_up()
@@ -688,7 +701,8 @@ def test_bob_retrieves_multiple_messages_in_a_single_adventure(federated_bob,
                                                   alice_verifying_key=alices_verifying_key,
                                                   label=enacted_federated_policy.label,
                                                   use_precedent_work_orders=True,
-                                                  policy_encrypting_key=enacted_federated_policy.public_key)
+                                                  policy_encrypting_key=enacted_federated_policy.public_key,
+                                                  encrypted_treasure_map=enacted_federated_policy.treasure_map)
 
     assert b"Welcome to flippering number 0." == delivered_cleartexts[0]
     assert b"Welcome to flippering number 0." == delivered_cleartexts[1]

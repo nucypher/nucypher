@@ -134,8 +134,7 @@ def test_alice_verifies_ursula_just_in_time(fleet_of_highperf_mocked_ursulas,
 
         policy = highperf_mocked_alice.grant(
             highperf_mocked_bob, b"any label", threshold=20, shares=30,
-            expiration=maya.when('next week'),
-            publish_treasure_map=False)
+            expiration=maya.when('next week'))
 
     # TODO: Make some assertions about policy.
     total_verified = sum(node.verified_node for node in highperf_mocked_alice.known_nodes)
@@ -143,83 +142,3 @@ def test_alice_verifies_ursula_just_in_time(fleet_of_highperf_mocked_ursulas,
     # otherwise `grant()` would fail.
     assert total_verified >= 30
     _POLICY_PRESERVER.append(policy)
-
-
-# @pytest_twisted.inlineCallbacks   # TODO: Why does this, in concert with yield policy.treasure_map_publisher.when_complete, hang?
-@skip_on_circleci  # TODO: #2552 Taking 6-10 seconds on CircleCI, passing locally.
-def test_mass_treasure_map_placement(fleet_of_highperf_mocked_ursulas,
-                                     highperf_mocked_alice,
-                                     highperf_mocked_bob):
-    """
-    Large-scale map placement with a middleware that simulates network latency.
-
-    In three parts.
-    """
-    # The nodes who match the map distribution criteria.
-    nodes_we_expect_to_have_the_map = highperf_mocked_bob.matching_nodes_among(fleet_of_highperf_mocked_ursulas)
-
-    Teacher.verify_node = lambda *args, **kwargs: None
-
-    # # # Loop through and instantiate actual rest apps so as not to pollute the time measurement (doesn't happen in real world).
-    for node in nodes_we_expect_to_have_the_map:
-        # Causes rest app to be made (happens JIT in other testS)
-        highperf_mocked_alice.network_middleware.client.parse_node_or_host_and_port(node)
-
-        # Setup a dict to "store" treasure maps to skip over the datastore
-        node.treasure_maps = dict()
-
-        def _partial_rest_app(node):
-            def faster_receive_map(*args, **kwargs):
-                node._its_down_there_somewhere_let_me_take_another_look = True
-                return Response(bytes(b"Sure, we stored it."), status=201)
-            return faster_receive_map
-        node.rest_app._actual_rest_app.view_functions._view_functions_registry['receive_treasure_map'] = _partial_rest_app(node)
-
-    highperf_mocked_alice.network_middleware = SluggishLargeFleetMiddleware()
-
-    policy = _POLICY_PRESERVER.pop()
-
-    with patch('nucypher.crypto.umbral_adapter.PublicKey.__eq__', lambda *args, **kwargs: True), mock_metadata_validation:
-
-        started = datetime.now()
-
-        # PART I: The function returns sychronously and quickly.
-
-        # defer.setDebugging(False)  # Debugging messes up the timing here; comment this line out if you actually need it.
-
-        policy.publish_treasure_map()  # returns quickly.
-
-        # defer.setDebugging(True)
-
-        # PART II: We block for a little while to ensure that the distribution is going well.
-        nodes_that_have_the_map_when_we_unblock = policy.treasure_map_publisher.block_until_success_is_reasonably_likely()
-        little_while_ended_at = datetime.now()
-
-        # The number of nodes having the map is at least the minimum to have unblocked.
-        assert len(nodes_that_have_the_map_when_we_unblock) >= policy.treasure_map_publisher._block_until_this_many_are_complete
-
-        # The number of nodes having the map is approximately the number you'd expect from full utilization of Alice's publication threadpool.
-        # TODO: This line fails sometimes because the loop goes too fast.
-        # assert len(nodes_that_have_the_map_when_we_unblock) == pytest.approx(policy.treasure_map_publisher._block_until_this_many_are_complete, .2)
-
-        # PART III: Having made proper assertions about the publication call and the first block, we allow the rest to
-        # happen in the background and then ensure that each phase was timely.
-
-        # This will block until the distribution is complete.
-        policy.treasure_map_publisher.block_until_complete()
-        complete_distribution_time = datetime.now() - started
-        partial_blocking_duration = little_while_ended_at - started
-        # Before Treasure Island (1741), this process took about 3 minutes.
-        if partial_blocking_duration.total_seconds() > 10:
-            pytest.fail(
-                f"Took too long ({partial_blocking_duration}) to contact {len(nodes_that_have_the_map_when_we_unblock)} nodes ({complete_distribution_time} total.)")
-
-        # TODO: Assert that no nodes outside those expected received the map.
-        assert complete_distribution_time.total_seconds() < 20
-        # But with debuggers and other processes running on laptops, we give a little leeway.
-
-        # We have the same number of successful responses as nodes we expected to have the map.
-        assert len(policy.treasure_map_publisher.completed) == len(nodes_we_expect_to_have_the_map)
-        nodes_that_got_the_map = sum(
-            u._its_down_there_somewhere_let_me_take_another_look is True for u in nodes_we_expect_to_have_the_map)
-        assert nodes_that_got_the_map == len(nodes_we_expect_to_have_the_map)

@@ -336,20 +336,3 @@ class WorkerPool:
                 break
 
         self._result_queue.put(PRODUCER_STOPPED)
-
-
-class AllAtOnceFactory:
-    """
-    A simple value factory that returns all its values in a single batch.
-    """
-
-    def __init__(self, values):
-        self.values = values
-        self._produced = False
-
-    def __call__(self, _successes):
-        if self._produced:
-            return None
-        else:
-            self._produced = True
-            return self.values

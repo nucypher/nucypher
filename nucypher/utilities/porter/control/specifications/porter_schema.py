@@ -14,6 +14,8 @@
  You should have received a copy of the GNU Affero General Public License
  along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
+
+
 import click
 from marshmallow import validates_schema
 from marshmallow import fields as marshmallow_fields
@@ -113,25 +115,6 @@ class AliceGetUrsulas(BaseSchema):
                                        f"common entries {common_ursulas}")
 
 
-class AlicePublishTreasureMap(BaseSchema):
-    treasure_map = character_fields.EncryptedTreasureMap(
-        required=True,
-        load_only=True,
-        click=click.option(
-            '--treasure-map',
-            '-t',
-            help="Treasure Map to publish",
-            type=click.STRING,
-            required=True))
-    bob_encrypting_key = character_fields.Key(
-        required=True,
-        load_only=True,
-        click=option_bob_encrypting_key())
-
-    # output
-    published = marshmallow_fields.Bool(dump_only=True)
-
-
 class AliceRevoke(BaseSchema):
     pass  # TODO need to understand revoke process better
 
@@ -139,25 +122,6 @@ class AliceRevoke(BaseSchema):
 #
 # Bob Endpoints
 #
-class BobGetTreasureMap(BaseSchema):
-    hrac = fields.HRAC(
-        required=True,
-        load_only=True,
-        click=click.option(
-            '--hrac',
-            '-h',
-            help="Policy HRAC as hex",
-            type=click.STRING,
-            required=True))
-    bob_encrypting_key = character_fields.Key(
-        required=True,
-        load_only=True,
-        click=option_bob_encrypting_key())
-
-    # output
-    # treasure map only used for serialization so no need to provide federated/non-federated context
-    treasure_map = character_fields.EncryptedTreasureMap(dump_only=True)
-
 
 class BobExecWorkOrder(BaseSchema):
     ursula = fields.UrsulaChecksumAddress(

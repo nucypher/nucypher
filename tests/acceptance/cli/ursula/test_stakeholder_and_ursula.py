@@ -627,7 +627,6 @@ def test_collect_rewards_integration(click_runner,
     # Bob learns about the new staker and joins the policy
     blockchain_bob.start_learning_loop()
     blockchain_bob.remember_node(node=ursula)
-    blockchain_bob.join_policy(random_policy_label, bytes(blockchain_alice.stamp))
 
     # Enrico Encrypts (of course)
     enrico = Enrico(policy_encrypting_key=blockchain_policy.public_key,
@@ -647,7 +646,8 @@ def test_collect_rewards_integration(click_runner,
         cleartexts = blockchain_bob.retrieve(ciphertext,
                                              enrico=enrico,
                                              alice_verifying_key=verifying_key,
-                                             label=random_policy_label)
+                                             label=random_policy_label,
+                                             encrypted_treasure_map=blockchain_policy.treasure_map)
         assert random_data == cleartexts[0]
 
         # Ursula Staying online and the clock advancing

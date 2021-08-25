@@ -93,7 +93,6 @@ remote_bob = Bob.from_public_keys(encrypting_key=encrypting_key, verifying_key=v
 policy = alice.grant(remote_bob, label, threshold=threshold, shares=shares, expiration=policy_end_datetime)
 
 assert policy.public_key == policy_public_key
-policy.treasure_map_publisher.block_until_complete()
 
 # Alice puts her public key somewhere for Bob to find later...
 alice_verifying_key = alice.stamp.as_umbral_pubkey()
@@ -118,9 +117,7 @@ del alice
 # Bob the BUIDLer  ##
 #####################
 
-bob.join_policy(label, alice_verifying_key)
-
-# Now that Bob has joined the Policy, let's show how Enrico the Encryptor
+# Now let's show how Enrico the Encryptor
 # can share data with the members of this Policy and then how Bob retrieves it.
 # In order to avoid re-encrypting the entire book in this demo, we only read some lines.
 with open(BOOK_PATH, 'rb') as file:
@@ -155,7 +152,8 @@ for counter, plaintext in enumerate(finnegans_wake):
     delivered_cleartexts = bob.retrieve(single_passage_ciphertext,
                                         policy_encrypting_key=policy_public_key,
                                         alice_verifying_key=alice_verifying_key,
-                                        label=label)
+                                        label=label,
+                                        encrypted_treasure_map=policy.treasure_map)
 
     # We show that indeed this is the passage originally encrypted by Enrico.
     assert plaintext == delivered_cleartexts[0]

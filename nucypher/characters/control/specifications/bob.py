@@ -19,26 +19,9 @@ import click
 
 import nucypher.control.specifications.fields as base_fields
 from nucypher.characters.control.specifications import fields as character_fields
+from nucypher.characters.control.specifications.fields.treasuremap import EncryptedTreasureMap
 from nucypher.control.specifications.base import BaseSchema
 from nucypher.cli import options
-
-
-class JoinPolicy(BaseSchema):  #TODO:  this doesn't have a cli implementation
-
-    label = character_fields.Label(
-        load_only=True, required=True,
-        click=options.option_label(required=True))
-    publisher_verifying_key = character_fields.Key(
-        load_only=True, required=True,
-        click=click.option(
-            '--publisher-verifying-key',
-            '-pvk',
-            help="Alice's verifying key as a hexadecimal string",
-            required=False, type=click.STRING,))
-
-    policy_encrypting_key = base_fields.String(dump_only=True)
-    # this should be a Key Field
-    # but bob.join_policy outputs {'policy_encrypting_key': 'OK'}
 
 
 class Retrieve(BaseSchema):
@@ -67,6 +50,10 @@ class Retrieve(BaseSchema):
         load_only=True,
         click=options.option_message_kit(required=False)
     )
+
+    treasure_map = EncryptedTreasureMap(required=False,
+                                        load_only=True,
+                                        click=options.option_treasure_map)
 
     cleartexts = base_fields.List(character_fields.Cleartext(), dump_only=True)
 

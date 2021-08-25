@@ -353,6 +353,7 @@ def retrieve(general_config,
              label,
              policy_encrypting_key,
              alice_verifying_key,
+             treasure_map,
              message_kit,
              ipfs,
              alice,
@@ -409,6 +410,7 @@ def retrieve(general_config,
         'policy_encrypting_key': policy_encrypting_key,
         'alice_verifying_key': alice_verifying_key,
         'message_kit': message_kit,
+        'treasure_map': treasure_map
     }
 
     response = BOB.controller.retrieve(request=bob_request_data)

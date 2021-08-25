@@ -14,7 +14,7 @@
  You should have received a copy of the GNU Affero General Public License
  along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
-
+import base64
 import datetime
 import sys
 import json
@@ -142,7 +142,6 @@ policy = alicia.grant(bob=doctor_strange,
                       threshold=threshold,
                       shares=shares,
                       expiration=policy_end_datetime)
-policy.treasure_map_publisher.block_until_complete()
 print("Done!")
 
 # For the demo, we need a way to share with Bob some additional info
@@ -151,6 +150,7 @@ policy_info = {
     "policy_pubkey": bytes(policy.public_key).hex(),
     "alice_sig_pubkey": bytes(alicia.stamp).hex(),
     "label": label.decode("utf-8"),
+    "treasure_map": base64.b64encode(bytes(policy.treasure_map)).decode()
 }
 
 filename = POLICY_FILENAME

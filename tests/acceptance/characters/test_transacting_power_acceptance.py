@@ -15,6 +15,7 @@ You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
+
 from eth_account._utils.legacy_transactions import Transaction
 from eth_utils import to_checksum_address
 

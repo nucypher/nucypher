@@ -19,19 +19,15 @@ from typing import List, Optional, Sequence, NamedTuple
 from constant_sorrow.constants import NO_CONTROL_PROTOCOL, NO_BLOCKCHAIN_CONNECTION
 from eth_typing import ChecksumAddress
 from flask import request, Response
-from nucypher.crypto.umbral_adapter import PublicKey
 
 from nucypher.blockchain.eth.agents import ContractAgency, StakingEscrowAgent
 from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
 from nucypher.blockchain.eth.registry import BaseContractRegistry, InMemoryContractRegistry
-
 from nucypher.characters.lawful import Ursula
-
 from nucypher.control.controllers import WebController, JSONRPCController
 from nucypher.crypto.powers import DecryptingPower
+from nucypher.crypto.umbral_adapter import PublicKey
 from nucypher.network.nodes import Learner
-from nucypher.network import treasuremap
-from nucypher.policy.policies import TreasureMapPublisher
 from nucypher.policy.reservoir import (
     make_federated_staker_reservoir,
     make_decentralized_staker_reservoir,
@@ -109,24 +105,6 @@ the Pipe for nucypher network operations
             # TODO need to understand this better - only made it analogous to what was done for characters
             self.make_cli_controller()
         self.log.info(self.BANNER)
-
-    def get_treasure_map(self, hrac: bytes, bob_encrypting_key: PublicKey):
-        return treasuremap.get_treasure_map_from_known_ursulas(learner=self,
-                                                               hrac=hrac,
-                                                               bob_encrypting_key=bob_encrypting_key,
-                                                               timeout=self.DEFAULT_EXECUTION_TIMEOUT)
-
-    def publish_treasure_map(self, treasure_map_bytes: bytes, bob_encrypting_key: PublicKey) -> None:
-        # TODO (#2516): remove hardcoding of 8 nodes
-        self.block_until_number_of_known_nodes_is(8, timeout=self.DEFAULT_EXECUTION_TIMEOUT, learn_on_this_thread=True)
-        target_nodes = treasuremap.find_matching_nodes(known_nodes=self.known_nodes,
-                                                       bob_encrypting_key=bob_encrypting_key)
-        treasure_map_publisher = TreasureMapPublisher(treasure_map_bytes=treasure_map_bytes,
-                                                      nodes=target_nodes,
-                                                      network_middleware=self.network_middleware,
-                                                      timeout=self.DEFAULT_EXECUTION_TIMEOUT)
-        treasure_map_publisher.start()  # let's do this
-        treasure_map_publisher.block_until_success_is_reasonably_likely()
 
     def get_ursulas(self,
                     quantity: int,
@@ -245,22 +223,10 @@ the Pipe for nucypher network operations
             response = controller(method_name='get_ursulas', control_request=request)
             return response
 
-        @porter_flask_control.route("/publish_treasure_map", methods=['POST'])
-        def publish_treasure_map() -> Response:
-            """Porter control endpoint for publishing a treasure map on behalf of Alice."""
-            response = controller(method_name='publish_treasure_map', control_request=request)
-            return response
-
         @porter_flask_control.route("/revoke", methods=['POST'])
         def revoke():
             """Porter control endpoint for off-chain revocation of a policy on behalf of Alice."""
             response = controller(method_name='revoke', control_request=request)
-            return response
-
-        @porter_flask_control.route('/get_treasure_map', methods=['GET'])
-        def get_treasure_map() -> Response:
-            """Porter control endpoint for retrieving a treasure map on behalf of Bob."""
-            response = controller(method_name='get_treasure_map', control_request=request)
             return response
 
         @porter_flask_control.route("/exec_work_order", methods=['POST'])

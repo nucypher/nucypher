@@ -16,10 +16,11 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
 
-import requests
 import socket
 import ssl
 import time
+
+import requests
 from bytestring_splitter import VariableLengthBytestring
 from constant_sorrow.constants import CERTIFICATE_NOT_SAVED, EXEMPT_FROM_VERIFICATION
 from cryptography import x509
@@ -124,8 +125,14 @@ class NucypherMiddlewareClient:
                 elif cleaned_response.status_code == 404:
                     m = f"While trying to {method_name} {args} ({kwargs}), server 404'd.  Response: {cleaned_response.content}"
                     raise RestMiddleware.NotFound(m)
+                elif cleaned_response.status_code == 402:
+                    # TODO: Use this as a hook to prompt Bob's payment for policy sponsorship
+                    # https://getyarn.io/yarn-clip/ce0d37ba-4984-4210-9a40-c9c9859a3164
+                    raise RestMiddleware.PaymentRequired(cleaned_response.content)
+                elif cleaned_response.status_code == 403:
+                    raise RestMiddleware.Unauthorized(cleaned_response.content)
                 else:
-                    return cleaned_response
+                    raise RestMiddleware.UnexpectedResponse(cleaned_response.content, status=cleaned_response.status_code)
             return cleaned_response
 
         return method_wrapper
@@ -155,6 +162,16 @@ class RestMiddleware:
         def __init__(self, reason, *args, **kwargs):
             self.reason = reason
             super().__init__(message=reason, status=400, *args, **kwargs)
+
+    class PaymentRequired(UnexpectedResponse):
+        """Raised for HTTP 402"""
+        def __init__(self, *args, **kwargs):
+            super().__init__(status=402, *args, **kwargs)
+
+    class Unauthorized(UnexpectedResponse):
+        """Raised for HTTP 403"""
+        def __init__(self, *args, **kwargs):
+            super().__init__(status=403, *args, **kwargs)
 
     def __init__(self, registry=None):
         self.client = self._client_class(registry)
@@ -192,13 +209,6 @@ class RestMiddleware:
                                     timeout=120)  # TODO: What is an appropriate timeout here?
         return response
 
-    def reencrypt(self, work_order):
-        ursula_rest_response = self.send_work_order_payload_to_ursula(ursula=work_order.ursula,
-                                                                      work_order_payload=work_order.payload())
-        splitter = cfrag_splitter + signature_splitter
-        cfrags_and_signatures = splitter.repeat(ursula_rest_response.content)
-        return cfrags_and_signatures
-
     def revoke_arrangement(self, ursula, revocation):
         # TODO: Implement revocation confirmations
         response = self.client.post(
@@ -206,19 +216,6 @@ class RestMiddleware:
             path=f"revoke",
             data=bytes(revocation),
         )
-        return response
-
-    def get_treasure_map_from_node(self, node, hrac):
-        response = self.client.get(node_or_sprout=node,
-                                   path=f"treasure_map/{bytes(hrac).hex()}",
-                                   timeout=2)
-        return response
-
-    def put_treasure_map_on_node(self, node, map_payload):
-        response = self.client.post(node_or_sprout=node,
-                                    path=f"treasure_map/",
-                                    data=map_payload,
-                                    timeout=2)
         return response
 
     def send_work_order_payload_to_ursula(self, ursula: 'Ursula', work_order_payload: bytes):

@@ -16,8 +16,9 @@
 """
 
 from base64 import b64decode
-import maya
 from typing import Union
+
+import maya
 
 from nucypher.characters.base import Character
 from nucypher.characters.control.specifications import alice, bob, enrico
@@ -94,8 +95,6 @@ class AliceInterface(CharacterPublicInterface):
                                             rate=rate,
                                             expiration=expiration)
 
-        new_policy.treasure_map_publisher.block_until_success_is_reasonably_likely()
-
         response_data = {'treasure_map': new_policy.treasure_map,
                          'policy_encrypting_key': new_policy.public_key,
                          # For the users of this interface, Publisher is always the same as Alice,
@@ -162,22 +161,13 @@ class AliceInterface(CharacterPublicInterface):
 
 class BobInterface(CharacterPublicInterface):
 
-    @attach_schema(bob.JoinPolicy)
-    def join_policy(self, label: bytes, publisher_verifying_key: bytes):
-        """
-        Character control endpoint for joining a policy on the network.
-        """
-        self.implementer.join_policy(label=label, publisher_verifying_key=publisher_verifying_key)
-        response = {'policy_encrypting_key': 'OK'}  # FIXME
-        return response
-
     @attach_schema(bob.Retrieve)
     def retrieve(self,
                  label: bytes,
                  policy_encrypting_key: bytes,
                  alice_verifying_key: bytes,
                  message_kit: bytes,
-                 treasure_map: Union[bytes, str, 'TreasureMap'] = None):
+                 treasure_map: Union[bytes, str, 'TreasureMap']):
         """
         Character control endpoint for re-encrypting and decrypting policy data.
         """
@@ -190,8 +180,6 @@ class BobInterface(CharacterPublicInterface):
         enrico = Enrico.from_public_keys(verifying_key=message_kit.sender_verifying_key,
                                          policy_encrypting_key=policy_encrypting_key,
                                          label=label)
-
-        self.implementer.join_policy(label=label, publisher_verifying_key=alice_verifying_key)
 
         if isinstance(treasure_map, bytes):
             treasure_map = EncryptedTreasureMap.from_bytes(treasure_map)

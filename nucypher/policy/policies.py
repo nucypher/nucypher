@@ -16,19 +16,16 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
 
-import math
 from abc import ABC, abstractmethod
-from typing import Tuple, Sequence, Optional, Iterable, List, Dict, Type
+from typing import Tuple, Sequence, Optional, Iterable, Dict, Type
 
 import maya
 from bytestring_splitter import BytestringSplitter, VariableLengthBytestring
 from eth_typing.evm import ChecksumAddress
-from twisted.internet import reactor
 
 from nucypher.crypto.kits import RevocationKit
-from nucypher.crypto.powers import TransactingPower, DecryptingPower
+from nucypher.crypto.powers import TransactingPower
 from nucypher.crypto.splitters import key_splitter
-from nucypher.crypto.utils import keccak_digest
 from nucypher.crypto.umbral_adapter import PublicKey, VerifiedKeyFrag, Signature
 from nucypher.network.middleware import RestMiddleware
 from nucypher.policy.hrac import HRAC
@@ -39,7 +36,7 @@ from nucypher.policy.reservoir import (
     PrefetchStrategy,
     make_decentralized_staker_reservoir
 )
-from nucypher.utilities.concurrency import WorkerPool, AllAtOnceFactory
+from nucypher.utilities.concurrency import WorkerPool
 from nucypher.utilities.logging import Logger
 
 
@@ -73,82 +70,6 @@ class Arrangement:
 
     def __repr__(self):
         return f"Arrangement(publisher={self.publisher_verifying_key})"
-
-
-class TreasureMapPublisher:
-
-    log = Logger('TreasureMapPublisher')
-
-    def __init__(self,
-                 treasure_map_bytes: bytes,
-                 nodes: Sequence['Ursula'],
-                 network_middleware: RestMiddleware,
-                 percent_to_complete_before_release: int = 5,
-                 threadpool_size: int = 120,
-                 timeout: float = 20):
-
-        self._total = len(nodes)
-        self._block_until_this_many_are_complete = math.ceil(len(nodes) * percent_to_complete_before_release / 100)
-
-        def put_treasure_map_on_node(node: 'Ursula'):
-            try:
-                response = network_middleware.put_treasure_map_on_node(node=node,
-                                                                       map_payload=treasure_map_bytes)
-            except Exception as e:
-                self.log.warn(f"Putting treasure map on {node} failed: {e}")
-                raise
-
-            # Received an HTTP response
-            if response.status_code != 201:
-                message = f"Putting treasure map on {node} failed with response status: {response.status}"
-                self.log.warn(message)
-            return response
-
-        self._worker_pool = WorkerPool(worker=put_treasure_map_on_node,
-                                       value_factory=AllAtOnceFactory(nodes),
-                                       target_successes=self._block_until_this_many_are_complete,
-                                       timeout=timeout,
-                                       stagger_timeout=0,
-                                       threadpool_size=threadpool_size)
-
-    @property
-    def completed(self):
-        # TODO: lock dict before copying?
-        return self._worker_pool.get_successes()
-
-    def start(self):
-        self.log.info(f"TreasureMapPublisher starting")
-        self._worker_pool.start()
-        if reactor.running:
-            reactor.callInThread(self.block_until_complete)
-
-    def block_until_success_is_reasonably_likely(self):
-        # Note: `OutOfValues`/`TimedOut` may be raised here, which means we didn't even get to
-        # `percent_to_complete_before_release` successes. For now just letting it fire.
-        self._worker_pool.block_until_target_successes()
-        completed = self.completed
-        self.log.debug(f"The minimal amount of nodes ({len(completed)}) were contacted "
-                       "while blocking for treasure map publication.")
-
-        successes = self._worker_pool.get_successes()
-        responses = {ursula.checksum_address: status for ursula, status in successes.items()}
-        if not all(response.status_code == 201 for response in responses.values()):
-            report = "\n".join(f"{address}: {status}" for address, status in responses.items())
-            self.log.debug(f"Policy enactment failed. Request statuses:\n{report}")
-
-            # OK, let's check: if any Ursulas claimed we didn't pay,
-            # we need to re-evaluate our situation here.
-            claims_of_freeloading = any(response.status_code == 402 for response in responses.values())
-            if claims_of_freeloading:
-                raise Policy.Unpaid
-
-            # otherwise just raise a more generic error
-            raise Policy.EnactmentError(report)
-
-        return completed
-
-    def block_until_complete(self):
-        self._worker_pool.join()
 
 
 class Policy(ABC):
@@ -339,27 +260,12 @@ class Policy(ABC):
 
         return accepted_arrangements
 
-    def _make_publisher(self,
-                        treasure_map: 'EncryptedTreasureMap',
-                        network_middleware: RestMiddleware,
-                        ) -> TreasureMapPublisher:
-
-        # TODO (#2516): remove hardcoding of 8 nodes
-        self.publisher.block_until_number_of_known_nodes_is(8, timeout=2, learn_on_this_thread=True)
-        target_nodes = self.bob.matching_nodes_among(self.publisher.known_nodes)
-        treasure_map_bytes = bytes(treasure_map)  # prevent holding of the reference
-
-        return TreasureMapPublisher(treasure_map_bytes=treasure_map_bytes,
-                                    nodes=target_nodes,
-                                    network_middleware=network_middleware)
-
     def _encrypt_treasure_map(self, treasure_map):
         return treasure_map.encrypt(self.publisher, self.bob)
 
     def enact(self,
               network_middleware: RestMiddleware,
               handpicked_ursulas: Optional[Iterable['Ursula']] = None,
-              publish_treasure_map: bool = True,
               ) -> 'EnactedPolicy':
         """
         Attempts to enact the policy, returns an `EnactedPolicy` object on success.
@@ -384,9 +290,6 @@ class Policy(ABC):
 
         enc_treasure_map = self._encrypt_treasure_map(treasure_map)
 
-        treasure_map_publisher = self._make_publisher(treasure_map=enc_treasure_map,
-                                                      network_middleware=network_middleware)
-
         # TODO: Signal revocation without using encrypted kfrag
         revocation_kit = RevocationKit(treasure_map=treasure_map, signer=self.publisher.stamp)
 
@@ -395,12 +298,8 @@ class Policy(ABC):
                                        self.public_key,
                                        treasure_map.threshold,
                                        enc_treasure_map,
-                                       treasure_map_publisher,
                                        revocation_kit,
                                        self.publisher.stamp.as_umbral_pubkey())
-
-        if publish_treasure_map is True:
-            enacted_policy.publish_treasure_map()
 
         return enacted_policy
 
@@ -547,20 +446,14 @@ class EnactedPolicy:
                  public_key: PublicKey,
                  threshold: int,
                  treasure_map: 'EncryptedTreasureMap',
-                 treasure_map_publisher: TreasureMapPublisher,
                  revocation_kit: RevocationKit,
-                 publisher_verifying_key: PublicKey,
-                 ):
+                 publisher_verifying_key: PublicKey):
 
         self.hrac = hrac
         self.label = label
         self.public_key = public_key
         self.treasure_map = treasure_map
-        self.treasure_map_publisher = treasure_map_publisher
         self.revocation_kit = revocation_kit
         self.threshold = threshold
         self.shares = len(self.revocation_kit)
         self.publisher_verifying_key = publisher_verifying_key
-
-    def publish_treasure_map(self):
-        self.treasure_map_publisher.start()

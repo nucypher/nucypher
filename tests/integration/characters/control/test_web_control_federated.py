@@ -169,39 +169,6 @@ def test_alice_character_control_decrypt(alice_web_controller_test_client,
     assert response.status_code == 405
 
 
-def test_bob_character_control_join_policy(bob_web_controller_test_client,
-                                           federated_bob,
-                                           federated_ursulas,
-                                           federated_treasure_map,
-                                           enacted_federated_policy):
-    request_data = {
-        'label': enacted_federated_policy.label.decode(),
-        'publisher_verifying_key': bytes(enacted_federated_policy.publisher_verifying_key).hex(),
-    }
-
-    for ursula in federated_ursulas:
-        if ursula.checksum_address in federated_treasure_map.destinations:
-            # Simulate passing in a teacher-uri
-            federated_bob.remember_node(ursula)
-            break
-    else:
-        # Shouldn't happen
-        raise Exception("No known Ursulas present in the treasure map destinations")
-
-    response = bob_web_controller_test_client.post('/join_policy', data=json.dumps(request_data))
-    assert b'{"result": {"policy_encrypting_key": "OK"}' in response.data  # TODO
-    assert response.status_code == 200
-
-    # Send bad data to assert error returns
-    response = bob_web_controller_test_client.post('/join_policy', data=json.dumps({'bad': 'input'}))
-    assert response.status_code == 400
-
-    # Missing Key results in bad request
-    del(request_data['publisher_verifying_key'])
-    response = bob_web_controller_test_client.post('/join_policy', data=json.dumps(request_data))
-    assert response.status_code == 400
-
-
 def test_bob_web_character_control_retrieve(bob_web_controller_test_client, retrieve_control_request):
     method_name, params = retrieve_control_request
     endpoint = f'/{method_name}'
@@ -335,6 +302,7 @@ def test_web_character_control_lifecycle(alice_web_controller_test_client,
         'policy_encrypting_key': policy_pubkey_enc_hex,
         'alice_verifying_key': alice_verifying_key_hex,
         'message_kit': encoded_message_kit,
+        'treasure_map':  alice_response_data['result']['treasure_map']
     }
 
     # Give bob a node to remember

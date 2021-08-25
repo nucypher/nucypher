@@ -14,39 +14,15 @@
  You should have received a copy of the GNU Affero General Public License
  along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
-import os
-import pytest
+
+
 from base64 import b64encode
 
+import pytest
+
 from nucypher.characters.control.interfaces import AliceInterface
-from nucypher.characters.control.interfaces import BobInterface, EnricoInterface
-from nucypher.crypto.constants import EIP712_MESSAGE_SIGNATURE_SIZE
-from nucypher.crypto.powers import DecryptingPower
-from nucypher.policy.maps import TreasureMap
+from nucypher.characters.control.interfaces import EnricoInterface
 from tests.utils.controllers import get_fields, validate_json_rpc_response_data
-
-
-def test_bob_rpc_character_control_join_policy(bob_rpc_controller,
-                                               join_control_request,
-                                               blockchain_treasure_map,
-                                               enacted_blockchain_policy,
-                                               blockchain_bob,
-                                               blockchain_ursulas):
-    for ursula in blockchain_ursulas:
-        if ursula.checksum_address in blockchain_treasure_map.destinations:
-            # Simulate passing in a teacher-uri
-            blockchain_bob.remember_node(ursula)
-            break
-    else:
-        # Shouldn't happen
-        raise Exception("No known Ursulas present in the treasure map destinations")
-
-    method_name, params = join_control_request
-    request_data = {'method': method_name, 'params': params}
-    response = bob_rpc_controller.send(request_data)
-    assert validate_json_rpc_response_data(response=response,
-                                           method_name=method_name,
-                                           interface=BobInterface)
 
 
 def test_enrico_rpc_character_control_encrypt_message(enrico_rpc_controller_test_client, encrypt_control_request):
@@ -74,7 +50,7 @@ def test_bob_rpc_character_control_retrieve_with_tmap(
     assert response.data['result']['cleartexts'][0] == 'Welcome to flippering number 1.'
 
     # Make a wrong treasure map
-    enc_wrong_tmap = bytes(enacted_blockchain_policy.treasure_map)[:-1]
+    enc_wrong_tmap = bytes(enacted_blockchain_policy.treasure_map)[1:-1]
 
     tmap_bytes = bytes(enc_wrong_tmap)
     tmap_64 = b64encode(tmap_bytes).decode()

@@ -239,8 +239,6 @@ def enacted_federated_policy(idle_federated_policy, federated_ursulas):
     # REST call happens here, as does population of TreasureMap.
     enacted_policy = idle_federated_policy.enact(network_middleware=network_middleware,
                                                  handpicked_ursulas=federated_ursulas)
-    enacted_policy.treasure_map_publisher.block_until_complete()
-
     return enacted_policy
 
 
@@ -287,7 +285,6 @@ def enacted_blockchain_policy(idle_blockchain_policy, blockchain_ursulas):
     # REST call happens here, as does population of TreasureMap.
     enacted_policy = idle_blockchain_policy.enact(network_middleware=network_middleware,
                                                   handpicked_ursulas=list(blockchain_ursulas))
-    enacted_policy.treasure_map_publisher.block_until_complete()
     return enacted_policy
 
 

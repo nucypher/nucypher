@@ -14,7 +14,7 @@
  You should have received a copy of the GNU Affero General Public License
  along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
-
+import base64
 import json
 from pathlib import Path
 from timeit import default_timer as timer
@@ -31,6 +31,7 @@ from nucypher.crypto.kits import UmbralMessageKit
 from nucypher.crypto.powers import DecryptingPower, SigningPower
 from nucypher.crypto.umbral_adapter import PublicKey
 from nucypher.network.middleware import RestMiddleware
+from nucypher.policy.maps import EncryptedTreasureMap
 from nucypher.utilities.logging import GlobalLoggerSettings
 
 GlobalLoggerSettings.start_console_logging()
@@ -87,12 +88,9 @@ with open("policy-metadata.json", 'r') as f:
 policy_pubkey = PublicKey.from_bytes(bytes.fromhex(policy_data["policy_pubkey"]))
 alices_sig_pubkey = PublicKey.from_bytes(bytes.fromhex(policy_data["alice_sig_pubkey"]))
 label = policy_data["label"].encode()
+treasure_map = EncryptedTreasureMap.from_bytes(base64.b64decode(policy_data["treasure_map"].encode()))
 
-print("The Doctor joins policy for label '{}'".format(label.decode("utf-8")))
-doctor.join_policy(label, alices_sig_pubkey)
-
-# Now that the Doctor joined the policy in the NuCypher network,
-# he can retrieve encrypted data which he can decrypt with his private key.
+# The Doctor can retrieve encrypted data which he can decrypt with his private key.
 # But first we need some encrypted data!
 # Let's read the file produced by the heart monitor and unpack the MessageKits,
 # which are the individual ciphertexts.
@@ -112,7 +110,8 @@ for message_kit in message_kits:
         message_kit,
         label=label,
         enrico=data_source,
-        alice_verifying_key=alices_sig_pubkey
+        alice_verifying_key=alices_sig_pubkey,
+        encrypted_treasure_map=treasure_map
     )
     end = timer()
 

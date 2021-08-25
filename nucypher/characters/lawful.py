@@ -17,16 +17,14 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 
 
 import contextlib
-from pathlib import Path
-
 import json
-import random
 import time
 from base64 import b64encode
 from collections import OrderedDict, defaultdict, namedtuple
 from datetime import datetime
 from functools import partial
 from json.decoder import JSONDecodeError
+from pathlib import Path
 from queue import Queue
 from random import shuffle
 from typing import Dict, Iterable, List, NamedTuple, Tuple, Union, Optional, Sequence, Set, Any
@@ -87,7 +85,7 @@ from nucypher.crypto.powers import (
     TransactingPower
 )
 from nucypher.crypto.signing import InvalidSignature
-from nucypher.crypto.splitters import key_splitter, signature_splitter
+from nucypher.crypto.splitters import key_splitter, signature_splitter, cfrag_splitter
 from nucypher.crypto.umbral_adapter import (
     Capsule,
     PublicKey,
@@ -97,7 +95,7 @@ from nucypher.crypto.umbral_adapter import (
     VerifiedKeyFrag,
     Signature
 )
-from nucypher.crypto.utils import keccak_digest, encrypt_and_sign
+from nucypher.crypto.utils import encrypt_and_sign
 from nucypher.datastore.datastore import DatastoreTransactionError, RecordNotFound
 from nucypher.datastore.queries import find_expired_policies, find_expired_treasure_maps
 from nucypher.network import treasuremap
@@ -326,8 +324,6 @@ class Alice(Character, BlockchainPolicyAuthor):
               label: bytes,
               handpicked_ursulas: set = None,
               timeout: int = None,
-              publish_treasure_map: bool = True,
-              block_until_success_is_reasonably_likely: bool = True,
               **policy_params):
 
         timeout = timeout or self.timeout
@@ -364,15 +360,10 @@ class Alice(Character, BlockchainPolicyAuthor):
                     "or run the learning loop on a network with enough Ursulas.".format(policy.shares))
 
         self.log.debug(f"Enacting {policy} ... ")
-        # TODO: Make it optional to publish to blockchain?  Or is this presumptive based on the `Policy` type?
         enacted_policy = policy.enact(network_middleware=self.network_middleware,
-                                      handpicked_ursulas=handpicked_ursulas,
-                                      publish_treasure_map=publish_treasure_map)
+                                      handpicked_ursulas=handpicked_ursulas)
 
         self.add_active_policy(enacted_policy)
-
-        if publish_treasure_map and block_until_success_is_reasonably_likely:
-            enacted_policy.treasure_map_publisher.block_until_success_is_reasonably_likely()
         return enacted_policy
 
     def get_policy_encrypting_key_from_label(self, label: bytes) -> PublicKey:
@@ -630,25 +621,6 @@ class Bob(Character):
         publisher = Alice.from_public_keys(verifying_key=publisher_verifying_key)
         return encrypted_treasure_map.decrypt(partial(self.verify_from, publisher, decrypt=True))
 
-    def get_treasure_map(self, publisher_verifying_key: PublicKey, label: bytes):
-        hrac = self.construct_policy_hrac(publisher_verifying_key=publisher_verifying_key, label=label)
-
-        if not self.known_nodes and not self._learning_task.running:
-            # Quick sanity check - if we don't know of *any* Ursulas, and we have no
-            # plans to learn about any more, than this function will surely fail.
-            if not self.done_seeding:
-                self.learn_from_teacher_node()
-
-            # If we still don't know of any nodes, we gotta bail.
-            if not self.known_nodes:
-                raise self.NotEnoughTeachers("Can't retrieve without knowing about any nodes at all.  Pass a teacher or seed node.")
-
-        encrypted_treasure_map = self.get_treasure_map_from_known_ursulas(hrac)
-
-        treasure_map = self._decrypt_treasure_map(encrypted_treasure_map, publisher_verifying_key)
-        self.treasure_maps[hrac] = treasure_map
-        return treasure_map
-
     def construct_policy_hrac(self, publisher_verifying_key: PublicKey, label: bytes) -> HRAC:
         return HRAC.derive(publisher_verifying_key=publisher_verifying_key,
                            bob_verifying_key=self.stamp.as_umbral_pubkey(),
@@ -723,16 +695,6 @@ class Bob(Character):
 
         return incomplete_work_orders, complete_work_orders
 
-    def join_policy(self,
-                    label: bytes,
-                    publisher_verifying_key: PublicKey,
-                    node_list: Optional[List['Ursula']] = None,
-                    block: bool = False):
-        if node_list:
-            self._node_ids_to_learn_about_immediately.update(node_list)
-        treasure_map = self.get_treasure_map(publisher_verifying_key, label)
-        self.follow_treasure_map(treasure_map=treasure_map, block=block)
-
     def _filter_work_orders_and_capsules(self,
                                          work_orders: Dict[ChecksumAddress, 'WorkOrder'],
                                          message_kits: Sequence['UmbralMessageKit'],
@@ -760,7 +722,10 @@ class Bob(Character):
 
         # We don't have enough CFrags yet.  Let's get another one from a WorkOrder.
         try:
-            cfrags_and_signatures = self.network_middleware.reencrypt(work_order)
+            ursula_rest_response = self.network_middleware.send_work_order_payload_to_ursula(
+                ursula=work_order.ursula,
+                work_order_payload=work_order.payload()
+            )
         except NodeSeemsToBeDown as e:
             # TODO: What to do here?  Ursula isn't supposed to be down.  NRN
             self.log.info(f"Ursula ({work_order.ursula}) seems to be down while trying to complete WorkOrder: {work_order}")
@@ -773,7 +738,9 @@ class Bob(Character):
         except self.network_middleware.UnexpectedResponse:
             raise # TODO: Handle this
 
-        cfrags = work_order.complete(cfrags_and_signatures)
+        splitter = cfrag_splitter + signature_splitter
+        cfrags_and_signatures = splitter.repeat(ursula_rest_response.content)
+        work_order.complete(cfrags_and_signatures)
 
         # TODO: hopefully GIL will allow this to execute concurrently...
         # or we'll have to modify tests that rely on it
@@ -926,20 +893,18 @@ class Bob(Character):
     def _handle_treasure_map(self,
                              publisher_verifying_key: PublicKey,
                              label: bytes,
-                             encrypted_treasure_map: Optional['EncryptedTreasureMap'] = None,
-                             ) -> 'TreasureMap':
+                             encrypted_treasure_map: Optional['EncryptedTreasureMap'] = None
+                             ) -> Tuple['TreasureMap', int]:
+        """Decrypt and cache the treasure map by Bob."""
         if encrypted_treasure_map:
-            treasure_map = self._decrypt_treasure_map(encrypted_treasure_map, publisher_verifying_key)
+            treasure_map: TreasureMap = self._decrypt_treasure_map(encrypted_treasure_map, publisher_verifying_key)
             self.treasure_maps[treasure_map.hrac] = treasure_map
         else:
-            hrac = self.construct_policy_hrac(publisher_verifying_key, label)
+            hrac = HRAC.derive(publisher_verifying_key=publisher_verifying_key, bob_verifying_key=self.stamp, label=label)
             try:
                 treasure_map = self.treasure_maps[hrac]
             except KeyError:
-                # If the treasure map is not known, join the policy as part of retrieval.
-                self.join_policy(label=label, publisher_verifying_key=publisher_verifying_key)
-                treasure_map = self.treasure_maps[hrac]
-
+                raise ValueError(f"Treasure map for HRAC({hrac}) is not cached.")
         _unknown_ursulas, _known_ursulas, threshold = self.follow_treasure_map(treasure_map=treasure_map, block=True)
         return treasure_map, threshold
 
@@ -948,8 +913,8 @@ class Bob(Character):
                  # Policy
                  *message_kits: UmbralMessageKit,
                  label: bytes,
-                 policy_encrypting_key: Optional[PublicKey] = None,
                  encrypted_treasure_map: Optional['EncryptedTreasureMap'] = None,
+                 policy_encrypting_key: Optional[PublicKey] = None,
 
                  # Source Authentication
                  enrico: Optional["Enrico"] = None,
@@ -966,7 +931,6 @@ class Bob(Character):
         if not publisher_verifying_key:
             # If a policy publisher's verifying key is not passed, use Alice's by default.
             publisher_verifying_key = alice_verifying_key
-
         treasure_map, threshold = self._handle_treasure_map(encrypted_treasure_map=encrypted_treasure_map,
                                                             publisher_verifying_key=publisher_verifying_key,
                                                             label=label)
@@ -1020,15 +984,6 @@ class Bob(Character):
             Character control endpoint for getting Bob's encrypting and signing public keys
             """
             return controller(method_name='public_keys', control_request=request)
-
-        @bob_control.route('/join_policy', methods=['POST'])
-        def join_policy():
-            """
-            Character control endpoint for joining a policy on the network.
-
-            This is an unfinished endpoint. You're probably looking for retrieve.
-            """
-            return controller(method_name='join_policy', control_request=request)
 
         @bob_control.route('/retrieve', methods=['POST'])
         def retrieve():

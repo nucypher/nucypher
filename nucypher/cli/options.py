@@ -64,6 +64,7 @@ option_signer_uri = click.option('--signer', 'signer_uri', '-S', default=None, t
 option_staking_address = click.option('--staking-address', help="Address of a NuCypher staker", type=EIP55_CHECKSUM_ADDRESS)
 option_teacher_uri = click.option('--teacher', 'teacher_uri', help="An Ursula URI to start learning from (seednode)", type=click.STRING)
 option_threshold = click.option('--threshold', '-m', help="M-Threshold KFrags", type=click.INT)
+option_treasure_map = click.option('--treasure-map', 'treasure_map', help="Encrypted treasure map as base64 for retrieval", type=click.STRING)
 _option_middleware = click.option('-Z', '--mock-networking', help="Use in-memory transport instead of networking", count=True)
 
 # Avoid circular input

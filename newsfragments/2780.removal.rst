@@ -1,0 +1,2 @@
+Removal of treasure map storage functionality and supporting publication APIs from the decentralized network.
+Encrypted treasure maps must be obtained from side channels instead of Ursulas on the network (unless cached).
