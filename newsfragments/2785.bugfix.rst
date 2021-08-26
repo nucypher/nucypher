@@ -1,0 +1,1 @@
+Minor memory improvement when collecting staker/worker metrics for prometheus.
