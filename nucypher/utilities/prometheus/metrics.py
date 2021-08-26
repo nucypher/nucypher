@@ -309,19 +309,16 @@ def create_staking_events_metric_collectors(ursula: 'Ursula', metrics_prefix: st
 
 def create_worklock_events_metric_collectors(ursula: 'Ursula', metrics_prefix: str) -> List[MetricsCollector]:
     """Create collectors for worklock-related events."""
-    collectors: List[MetricsCollector] = []
-    staker_address = ursula.checksum_address
-
     # Refund
-    collectors.append(WorkLockRefundEventMetricsCollector(
+    collectors: List[MetricsCollector] = [WorkLockRefundEventMetricsCollector(
         event_args_config={
             "refundETH": (Gauge, f'{metrics_prefix}_worklock_refund_refundETH',
                           'Refunded ETH'),
         },
-        staker_address=staker_address,
+        staker_address=ursula.checksum_address,
         contract_agent_class=WorkLockAgent,
         contract_registry=ursula.registry
-    ))
+    )]
 
     return collectors
 

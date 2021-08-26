@@ -98,8 +98,8 @@ class ContractEventsThrottler:
         self.to_block = to_block if to_block is not None else agent.blockchain.client.block_number
         # validity check of block range
         if self.to_block < self.from_block:
-            raise ValueError(f"Invalid events block range: to_block {self.to_block} must be greater than or equal "
-                             f"to from_block {self.from_block}")
+            raise ValueError(f"Invalid events block range: to_block ({self.to_block}) must be ≥ "
+                             f"from_block ({self.from_block})")
 
         self.max_blocks_per_call = max_blocks_per_call
         self.argument_filters = argument_filters
