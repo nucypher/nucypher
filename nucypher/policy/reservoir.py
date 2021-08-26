@@ -14,7 +14,7 @@ GNU Affero General Public License for more details.
 You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
-from typing import Iterable, Optional, List
+from typing import Iterable, List, Optional
 
 from eth_typing import ChecksumAddress
 

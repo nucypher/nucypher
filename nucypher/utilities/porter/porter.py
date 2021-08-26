@@ -14,9 +14,9 @@
  You should have received a copy of the GNU Affero General Public License
  along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
-from typing import List, Optional, Sequence, NamedTuple
+from typing import List, NamedTuple, Optional, Sequence
 
-from constant_sorrow.constants import NO_CONTROL_PROTOCOL, NO_BLOCKCHAIN_CONNECTION
+from constant_sorrow.constants import NO_BLOCKCHAIN_CONNECTION, NO_CONTROL_PROTOCOL
 from eth_typing import ChecksumAddress
 from flask import request, Response
 
@@ -24,7 +24,7 @@ from nucypher.blockchain.eth.agents import ContractAgency, StakingEscrowAgent
 from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
 from nucypher.blockchain.eth.registry import BaseContractRegistry, InMemoryContractRegistry
 from nucypher.characters.lawful import Ursula
-from nucypher.control.controllers import WebController, JSONRPCController
+from nucypher.control.controllers import JSONRPCController, WebController
 from nucypher.crypto.powers import DecryptingPower
 from nucypher.crypto.umbral_adapter import PublicKey
 from nucypher.network.nodes import Learner

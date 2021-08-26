@@ -254,7 +254,8 @@ class WebEmitter:
                   log_level: str = 'info',
                   response_code: int = 500):
 
-        message = f"{self} [{str(response_code)} - {error_message}] | ERROR: {str(e) or type(e).__name__}"
+        exception = f"{type(e).__name__}: {str(e)}" if str(e) else type(e).__name__
+        message = f"{self} [{str(response_code)} - {error_message}] | ERROR: {exception}"
         logger = getattr(self.log, log_level)
         # See #724 / 2156
         message_cleaned_for_logger = message.replace("{", "<^<").replace("}", ">^>")

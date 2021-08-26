@@ -17,7 +17,7 @@
 
 import random
 import time
-from typing import Iterable, Tuple, List, Callable
+from typing import Iterable, Tuple
 
 import pytest
 
@@ -157,11 +157,21 @@ def test_wait_for_successes_out_of_values(join_worker_pool):
 
     message = str(exc_info.value)
 
+    assert "Execution stopped before completion - not enough available values" in message
+
     # We had 20 workers set up to fail
-    assert "20 total failures recorded" in message
+    num_expected_failures = 20
+    assert f"{num_expected_failures} failures recorded" in message
+
+    # check tracebacks
+    tracebacks = exc_info.value.get_tracebacks()
+    assert len(tracebacks) == num_expected_failures
+    for value, traceback in tracebacks.items():
+        assert 'raise Exception(f"Worker for {value} failed")' in traceback
+        assert f'Worker for {value} failed' in traceback
 
     # This will be the last line in the displayed traceback;
-    # That's where the worker actually failed.
+    # That's where the worker actually failed. (Worker for {value} failed)
     assert 'raise Exception(f"Worker for {value} failed")' in message
 
 
@@ -179,7 +189,8 @@ def test_wait_for_successes_timed_out(join_worker_pool):
         seed=123)
 
     factory = AllAtOnceFactory(list(outcomes))
-    pool = WorkerPool(worker, factory, target_successes=10, timeout=1, threadpool_size=30)
+    timeout = 1
+    pool = WorkerPool(worker, factory, target_successes=10, timeout=timeout, threadpool_size=30)
     join_worker_pool(pool)
 
     t_start = time.monotonic()
@@ -194,7 +205,7 @@ def test_wait_for_successes_timed_out(join_worker_pool):
     message = str(exc_info.value)
 
     # None of the workers actually failed, they just timed out
-    assert "0 total failures recorded" in message
+    assert f"Execution timed out after {timeout}s" == message
 
 
 def test_join(join_worker_pool):

@@ -16,12 +16,11 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
 import io
-import time
-import traceback
-from queue import Queue, Empty
-from threading import Thread, Event, Lock, Timer, get_ident
-from typing import Callable, List, Any, Optional, Dict
 import sys
+import traceback
+from queue import Queue
+from threading import Thread, Event, Lock
+from typing import Callable, List, Any, Optional, Dict
 
 from constant_sorrow.constants import PRODUCER_STOPPED, TIMEOUT_TRIGGERED
 from twisted.python.threadpool import ThreadPool
@@ -91,29 +90,37 @@ class Future:
             return self._value.value
 
 
-def format_failures(failures: Dict) -> str:
-    """
-    Performs some basic formatting of the WorkerPool failures,
-    providing some context of why TimedOut/OutOfValues occurred.
-    """
+class WorkerPoolException(Exception):
+    """Generalized exception class for WorkerPool failures."""
+    def __init__(self, message_prefix: str, failures: Dict):
+        self.failures = failures
 
-    if failures:
-        # Using one random failure to print the traceback.
-        # Most probably they're all the same anyway.
-        value = list(failures)[0]
-        _exception_cls, exception, tb = failures[value]
+        # craft message
+        msg = message_prefix
+        if self.failures:
+            # Using one random failure
+            # Most probably they're all the same anyway.
+            value = list(self.failures)[0]
+            _, exception, tb = self.failures[value]
+            f = io.StringIO()
+            traceback.print_tb(tb, file=f)
+            traceback_str = f.getvalue()
+            msg = (f"{message_prefix} ({len(self.failures)} failures recorded); "
+                   f"for example, for {value}:\n"
+                   f"{traceback_str}\n"
+                   f"{exception}")
+        super().__init__(msg)
 
-        f = io.StringIO()
-        traceback.print_tb(tb, file=f)
-        traceback_str = f.getvalue()
+    def get_tracebacks(self) -> Dict[Any, str]:
+        """Returns values and associated tracebacks of execution failures."""
+        exc_tracebacks = {}
+        for value, exc_info in self.failures.items():
+            _, exception, tb = exc_info
+            f = io.StringIO()
+            traceback.print_tb(tb, file=f)
+            exc_tracebacks[value] = f"{f.getvalue()}\n{exception}"
 
-        return (f"{len(failures)} total failures recorded;\n"
-                f"for example, for the value {value}:\n"
-                f"{traceback_str}\n"
-                f"{exception}")
-
-    else:
-        return "0 total failures recorded"
+        return exc_tracebacks
 
 
 class WorkerPool:
@@ -124,11 +131,18 @@ class WorkerPool:
     (a worker returning something without throwing an exception).
     """
 
-    class TimedOut(Exception):
-        "Raised if waiting for the target number of successes timed out."
+    class TimedOut(WorkerPoolException):
+        """Raised if waiting for the target number of successes timed out."""
+        def __init__(self, timeout: float, *args, **kwargs):
+            self.timeout = timeout
+            super().__init__(message_prefix=f"Execution timed out after {timeout}s",
+                             *args, **kwargs)
 
-    class OutOfValues(Exception):
-        "Raised if the value factory is out of values, but the target number was not reached."
+    class OutOfValues(WorkerPoolException):
+        """Raised if the value factory is out of values, but the target number was not reached."""
+        def __init__(self, *args, **kwargs):
+            super().__init__(message_prefix="Execution stopped before completion - not enough available values",
+                             *args, **kwargs)
 
     def __init__(self,
                  worker: Callable[[Any], Any],
@@ -232,9 +246,9 @@ class WorkerPool:
 
         result = self._target_value.get()
         if result == TIMEOUT_TRIGGERED:
-            raise self.TimedOut(format_failures(self.get_failures()))
+            raise self.TimedOut(timeout=self._timeout, failures=self.get_failures())
         elif result == PRODUCER_STOPPED:
-            raise self.OutOfValues(format_failures(self.get_failures()))
+            raise self.OutOfValues(failures=self.get_failures())
         return result
 
     def get_failures(self) -> Dict:
