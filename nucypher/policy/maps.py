@@ -61,7 +61,6 @@ class TreasureMap:
     def construct_by_publisher(cls,
                                hrac: HRAC,
                                publisher: 'Alice',
-                               bob: 'Bob',
                                ursulas: Sequence['Ursula'],
                                verified_kfrags: Sequence[VerifiedKeyFrag],
                                threshold: int,

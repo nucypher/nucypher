@@ -283,7 +283,6 @@ class Policy(ABC):
 
         treasure_map = TreasureMap.construct_by_publisher(hrac=self.hrac,
                                                           publisher=self.publisher,
-                                                          bob=self.bob,
                                                           ursulas=list(arrangements),
                                                           verified_kfrags=self.kfrags,
                                                           threshold=self.threshold)

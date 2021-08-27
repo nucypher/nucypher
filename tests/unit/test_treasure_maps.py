@@ -37,7 +37,6 @@ def test_complete_treasure_map_journey(federated_alice, federated_bob, federated
 
     treasure_map = TreasureMap.construct_by_publisher(hrac=hrac,
                                                       publisher=federated_alice,
-                                                      bob=federated_bob,
                                                       ursulas=ursulas,
                                                       verified_kfrags=kfrags,
                                                       threshold=1)
@@ -89,7 +88,6 @@ def test_treasure_map_versioning(mocker, federated_alice, federated_bob, federat
 
     treasure_map = TreasureMap.construct_by_publisher(hrac=hrac,
                                                       publisher=federated_alice,
-                                                      bob=federated_bob,
                                                       label=b'still Bill',
                                                       ursulas=list(federated_ursulas)[:len(kfrags)],
                                                       verified_kfrags=kfrags,

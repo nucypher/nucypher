@@ -35,7 +35,6 @@ def random_federated_treasure_map_data(federated_alice, federated_bob, federated
                        label=label)
     random_treasure_map = TreasureMap.construct_by_publisher(hrac=hrac,
                                                              publisher=federated_alice,
-                                                             bob=federated_bob,
                                                              ursulas=list(federated_ursulas)[:shares],
                                                              verified_kfrags=kfrags,
                                                              threshold=threshold)
