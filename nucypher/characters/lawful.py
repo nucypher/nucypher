@@ -95,7 +95,6 @@ from nucypher.crypto.umbral_adapter import (
     VerifiedKeyFrag,
     Signature
 )
-from nucypher.crypto.utils import encrypt_and_sign
 from nucypher.datastore.datastore import DatastoreTransactionError, RecordNotFound
 from nucypher.datastore.queries import find_expired_policies, find_expired_treasure_maps
 from nucypher.network import treasuremap
@@ -1832,9 +1831,9 @@ class Enrico(Character):
 
     def encrypt_message(self, plaintext: bytes) -> Tuple[MessageKit, Signature]:
         # TODO: #2107 Rename to "encrypt"
-        message_kit, signature = encrypt_and_sign(self.policy_pubkey,
-                                                  plaintext=plaintext,
-                                                  signer=self.stamp)
+        message_kit, signature = MessageKit.author(recipient_key=self.policy_pubkey,
+                                                   plaintext=plaintext,
+                                                   signer=self.stamp)
         message_kit.policy_pubkey = self.policy_pubkey  # TODO: We can probably do better here.  NRN
         return message_kit, signature
 

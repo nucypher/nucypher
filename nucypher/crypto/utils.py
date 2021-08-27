@@ -16,10 +16,9 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
 from secrets import SystemRandom
-from typing import Union, Tuple
+from typing import Union
 
 import sha3
-from constant_sorrow import constants
 from cryptography.hazmat.backends.openssl.backend import backend
 from cryptography.hazmat.primitives import hashes
 from eth_account.account import Account
@@ -27,10 +26,8 @@ from eth_account.messages import encode_defunct
 from eth_keys import KeyAPI as EthKeyAPI
 from eth_utils.address import to_checksum_address
 
-import nucypher.crypto.umbral_adapter as umbral
 from nucypher.crypto.signing import SignatureStamp
 from nucypher.crypto.umbral_adapter import Signature, PublicKey
-from nucypher.policy.kits import MessageKit
 
 SYSTEM_RAND = SystemRandom()
 
@@ -126,32 +123,3 @@ def verify_eip_191(address: str, message: bytes, signature: bytes) -> bool:
     recovered_address = recover_address_eip_191(message=message, signature=signature)
     signature_is_valid = recovered_address == to_checksum_address(address)
     return signature_is_valid
-
-
-def encrypt_and_sign(recipient_pubkey_enc: PublicKey,
-                     plaintext: bytes,
-                     signer: 'SignatureStamp',
-                     sign_plaintext: bool = True
-                     ) -> Tuple[MessageKit, Signature]:
-    if signer is not constants.DO_NOT_SIGN:
-        # The caller didn't expressly tell us not to sign; we'll sign.
-        if sign_plaintext:
-            # Sign first, encrypt second.
-            sig_header = constants.SIGNATURE_TO_FOLLOW
-            signature = signer(plaintext)
-            capsule, ciphertext = umbral.encrypt(recipient_pubkey_enc, sig_header + bytes(signature) + plaintext)
-        else:
-            # Encrypt first, sign second.
-            sig_header = constants.SIGNATURE_IS_ON_CIPHERTEXT
-            capsule, ciphertext = umbral.encrypt(recipient_pubkey_enc, sig_header + plaintext)
-            signature = signer(ciphertext)
-        message_kit = MessageKit(ciphertext=ciphertext, capsule=capsule,
-                                       sender_verifying_key=signer.as_umbral_pubkey(),
-                                       signature=signature)
-    else:
-        # Don't sign.
-        signature = sig_header = constants.NOT_SIGNED
-        capsule, ciphertext = umbral.encrypt(recipient_pubkey_enc, sig_header + plaintext)
-        message_kit = MessageKit(ciphertext=ciphertext, capsule=capsule)
-
-    return message_kit, signature

@@ -25,10 +25,10 @@ from eth_tester.exceptions import ValidationError
 from nucypher.blockchain.eth.signers.software import Web3Signer
 from nucypher.characters.lawful import Alice, Ursula
 from nucypher.config.constants import TEMPORARY_DOMAIN
-from nucypher.crypto.utils import encrypt_and_sign
 from nucypher.crypto.powers import CryptoPower, SigningPower, DecryptingPower, TransactingPower
 from nucypher.exceptions import DevelopmentInstallationRequired
 from nucypher.policy.hrac import HRAC
+from nucypher.policy.kits import MessageKit
 from nucypher.policy.maps import EncryptedTreasureMap
 
 
@@ -215,8 +215,8 @@ class Amonia(Alice):
         for i in range(50):
             # I'll include a small portion of this awful film in a new message kit.  We don't care about the signature for bob.
             not_the_bees = b"Not the bees!" + int(i).to_bytes(length=4, byteorder="big")
-            like_a_map_but_awful._encrypted_tmap, _signature_for_bob_which_is_never_Used = encrypt_and_sign(
-                bob.public_keys(DecryptingPower),
+            like_a_map_but_awful._encrypted_tmap, _signature_for_bob_which_is_never_Used = MessageKit.author(
+                recipient_key=bob.public_keys(DecryptingPower),
                 plaintext=not_the_bees,
                 signer=self.stamp,
             )

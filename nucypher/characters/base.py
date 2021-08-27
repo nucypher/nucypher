@@ -57,7 +57,6 @@ from nucypher.crypto.signing import (
 )
 from nucypher.crypto.splitters import signature_splitter
 from nucypher.crypto.umbral_adapter import PublicKey, Signature
-from nucypher.crypto.utils import encrypt_and_sign
 from nucypher.network.middleware import RestMiddleware
 from nucypher.network.nodes import Learner
 from nucypher.policy.kits import MessageKit
@@ -376,10 +375,10 @@ class Character(Learner):
         """
         signer = self.stamp if sign else DO_NOT_SIGN
 
-        message_kit, signature = encrypt_and_sign(recipient_pubkey_enc=recipient.public_keys(DecryptingPower),
-                                                  plaintext=plaintext,
-                                                  signer=signer,
-                                                  sign_plaintext=sign_plaintext)
+        message_kit, signature = MessageKit.author(recipient_key=recipient.public_keys(DecryptingPower),
+                                                   plaintext=plaintext,
+                                                   signer=signer,
+                                                   sign_plaintext=sign_plaintext)
         return message_kit, signature
 
     def verify_from(self,

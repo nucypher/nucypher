@@ -16,14 +16,15 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
 
-from typing import Dict
-from typing import Optional
+from typing import Dict, Optional, Tuple
 
 from bytestring_splitter import BytestringKwargifier, VariableLengthBytestring
 from constant_sorrow.constants import NOT_SIGNED, UNKNOWN_SENDER
+from constant_sorrow import constants
 
 from nucypher.crypto.splitters import capsule_splitter, key_splitter
-from nucypher.crypto.umbral_adapter import PublicKey, VerifiedCapsuleFrag, Capsule
+import nucypher.crypto.umbral_adapter as umbral # need it to mock `umbral.encrypt`
+from nucypher.crypto.umbral_adapter import PublicKey, VerifiedCapsuleFrag, Capsule, Signature
 
 
 class CryptoKit:
@@ -135,6 +136,37 @@ class MessageKit(BaseMessageKit):
     """
     A MessageKit which includes sufficient additional information to be retrieved on the NuCypher Network.
     """
+
+    @classmethod
+    def author(cls,
+               recipient_key: PublicKey,
+               plaintext: bytes,
+               signer: 'SignatureStamp',
+               sign_plaintext: bool = True
+               ) -> Tuple['MessageKit', Signature]:
+        if signer is not constants.DO_NOT_SIGN:
+            # The caller didn't expressly tell us not to sign; we'll sign.
+            if sign_plaintext:
+                # Sign first, encrypt second.
+                sig_header = constants.SIGNATURE_TO_FOLLOW
+                signature = signer(plaintext)
+                capsule, ciphertext = umbral.encrypt(recipient_key, sig_header + bytes(signature) + plaintext)
+            else:
+                # Encrypt first, sign second.
+                sig_header = constants.SIGNATURE_IS_ON_CIPHERTEXT
+                capsule, ciphertext = umbral.encrypt(recipient_key, sig_header + plaintext)
+                signature = signer(ciphertext)
+            message_kit = MessageKit(ciphertext=ciphertext, capsule=capsule,
+                                           sender_verifying_key=signer.as_umbral_pubkey(),
+                                           signature=signature)
+        else:
+            # Don't sign.
+            signature = sig_header = constants.NOT_SIGNED
+            capsule, ciphertext = umbral.encrypt(recipient_key, sig_header + plaintext)
+            message_kit = MessageKit(ciphertext=ciphertext, capsule=capsule)
+
+        return message_kit, signature
+
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self._sender = UNKNOWN_SENDER.bool_value(False)

@@ -34,7 +34,7 @@ from nucypher.crypto.powers import DecryptingPower, SigningPower
 from nucypher.crypto.signing import SignatureStamp
 from nucypher.crypto.splitters import signature_splitter, kfrag_splitter
 from nucypher.crypto.umbral_adapter import KeyFrag, VerifiedKeyFrag, PublicKey, Signature
-from nucypher.crypto.utils import keccak_digest, encrypt_and_sign, verify_eip_191
+from nucypher.crypto.utils import keccak_digest, verify_eip_191
 from nucypher.network.middleware import RestMiddleware
 from nucypher.policy.hrac import HRAC, hrac_splitter
 from nucypher.policy.kits import MessageKit
@@ -81,9 +81,9 @@ class TreasureMap:
             kfrag_payload = bytes(AuthorizedKeyFrag.construct_by_publisher(hrac=hrac,
                                                                            verified_kfrag=verified_kfrag,
                                                                            publisher_stamp=publisher.stamp))
-            encrypted_kfrag, _signature = encrypt_and_sign(recipient_pubkey_enc=ursula.public_keys(DecryptingPower),
-                                                           plaintext=kfrag_payload,
-                                                           signer=publisher.stamp)
+            encrypted_kfrag, _signature = MessageKit.author(recipient_key=ursula.public_keys(DecryptingPower),
+                                                            plaintext=kfrag_payload,
+                                                            signer=publisher.stamp)
 
             destinations[ursula.checksum_address] = encrypted_kfrag
 
@@ -233,9 +233,9 @@ class EncryptedTreasureMap:
 
         bob_encrypting_key = bob.public_keys(DecryptingPower)
 
-        encrypted_tmap, _signature_for_bob = encrypt_and_sign(bob_encrypting_key,
-                                                              plaintext=bytes(treasure_map),
-                                                              signer=publisher.stamp)
+        encrypted_tmap, _signature_for_bob = MessageKit.author(recipient_key=bob_encrypting_key,
+                                                               plaintext=bytes(treasure_map),
+                                                               signer=publisher.stamp)
         public_signature = publisher.stamp(bytes(publisher.stamp) + bytes(treasure_map.hrac))
 
         if blockchain_signer is not None:
