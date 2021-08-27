@@ -132,7 +132,7 @@ from nucypher.cli.types import (
 )
 from nucypher.cli.utils import retrieve_events, setup_emitter
 from nucypher.config.characters import StakeHolderConfiguration
-from nucypher.utilities.events import generate_events_csv_filename
+from nucypher.utilities.events import generate_events_csv_filepath
 from nucypher.utilities.gas_strategies import construct_fixed_price_gas_strategy
 
 option_csv = click.option('--csv',
@@ -1175,7 +1175,7 @@ def events(general_config, staker_options, config_file, event_name, from_block, 
     if csv or csv_output_file:
         if not csv_output_file:
             # use default file path if not specified
-            csv_output_file = generate_events_csv_filename(contract_name=contract_name, event_name=event_name)
+            csv_output_file = generate_events_csv_filepath(contract_name=contract_name, event_name=event_name)
 
     emitter.echo(f"Retrieving events from block {from_block} to {to_block}")
     title = f" {contract_name} Events ".center(40, "-")
