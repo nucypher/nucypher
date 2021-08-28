@@ -50,7 +50,7 @@ from nucypher.cli.utils import (
     parse_event_filters_into_argument_filters
 )
 from nucypher.config.constants import NUCYPHER_ENVVAR_PROVIDER_URI
-from nucypher.utilities.events import generate_events_csv_filename
+from nucypher.utilities.events import generate_events_csv_filepath
 
 
 class RegistryOptions:
@@ -227,7 +227,7 @@ def events(general_config, registry_options, contract_name, from_block, to_block
             csv_output_file = csv_file
             if csv or csv_output_file:
                 if not csv_output_file:
-                    csv_output_file = generate_events_csv_filename(contract_name=agent.contract_name, event_name=name)
+                    csv_output_file = generate_events_csv_filepath(contract_name=agent.contract_name, event_name=name)
 
             retrieve_events(emitter=emitter,
                             agent=agent,

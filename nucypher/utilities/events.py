@@ -26,8 +26,8 @@ from nucypher.blockchain.eth.agents import EthereumContractAgent
 from nucypher.blockchain.eth.events import EventRecord
 
 
-def generate_events_csv_filename(contract_name: str, event_name: str) -> str:
-    return f'{contract_name}_{event_name}_{maya.now().datetime().strftime("%Y-%m-%d_%H-%M-%S")}.csv'
+def generate_events_csv_filepath(contract_name: str, event_name: str) -> Path:
+    return Path(f'{contract_name}_{event_name}_{maya.now().datetime().strftime("%Y-%m-%d_%H-%M-%S")}.csv')
 
 
 def write_events_to_csv_file(csv_file: Path,
