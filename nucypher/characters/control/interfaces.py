@@ -27,6 +27,7 @@ from nucypher.crypto.umbral_adapter import PublicKey
 from nucypher.network.middleware import RestMiddleware
 from nucypher.policy.hrac import HRAC
 from nucypher.policy.kits import MessageKit
+from nucypher.policy.maps import EncryptedTreasureMap
 
 
 class CharacterPublicInterface(ControlInterface):
@@ -163,7 +164,7 @@ class BobInterface(CharacterPublicInterface):
                              policy_encrypting_key: PublicKey,
                              alice_verifying_key: PublicKey,
                              message_kit: MessageKit,
-                             encrypted_treasure_map: 'EncryptedTreasureMap') -> dict:
+                             encrypted_treasure_map: EncryptedTreasureMap) -> dict:
         """
         Character control endpoint for re-encrypting and decrypting policy data.
         """
