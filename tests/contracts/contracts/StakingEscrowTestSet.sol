@@ -17,16 +17,14 @@ contract StakingEscrowBad is StakingEscrow {
         AdjudicatorInterface _adjudicator,
         WorkLockInterface _workLock,
         ITokenStaking _tokenStaking,
-        uint256 _minWorkerSeconds,
-        uint256 _minUnstakingDuration
+        uint256 _minWorkerSeconds
     )
         StakingEscrow(
             _nuToken,
             _adjudicator,
             _workLock,
             _tokenStaking,
-            _minWorkerSeconds,
-            _minUnstakingDuration
+            _minWorkerSeconds
         )
     {
     }
@@ -48,16 +46,14 @@ contract StakingEscrowV2Mock is StakingEscrow {
         AdjudicatorInterface _adjudicator,
         WorkLockInterface _workLock,
         ITokenStaking _tokenStaking,
-        uint256 _minWorkerSeconds,
-        uint256 _minUnstakingDuration
+        uint256 _minWorkerSeconds
     )
         StakingEscrow(
             _nuToken,
             _adjudicator,
             _workLock,
             _tokenStaking,
-            _minWorkerSeconds,
-            _minUnstakingDuration
+            _minWorkerSeconds
         )
     {
         valueToCheck = _minWorkerSeconds;

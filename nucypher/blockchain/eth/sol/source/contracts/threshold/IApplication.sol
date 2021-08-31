@@ -17,6 +17,17 @@ interface IApplication {
     function receiveAllocation(
         address staker,
         uint256 allocated,
+        uint256 deallocated,
         uint256 allocationPerApp
     ) external;
+
+    /**
+     * @dev Get deallocation duration from application
+     */
+    function deallocationDuration() external returns (uint256);
+
+    /**
+     * @dev Get min allocation size from application
+     */
+    function minAllocationSize() external returns (uint256);
 }

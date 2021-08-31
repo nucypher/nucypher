@@ -10,7 +10,6 @@ import "contracts/lib/Snapshot.sol";
 import "contracts/proxy/Upgradeable.sol";
 import "zeppelin/math/Math.sol";
 import "zeppelin/token/ERC20/SafeERC20.sol";
-import "contracts/threshold/IStakingProvider.sol";
 import "contracts/threshold/ITokenStaking.sol";
 
 
@@ -77,7 +76,7 @@ contract StakingEscrowStub is Upgradeable {
 * Each staker that locks their tokens will receive some compensation
 * @dev |v6.1.1|
 */
-contract StakingEscrow is Upgradeable, IERC900History, IStakingProvider {
+contract StakingEscrow is Upgradeable, IERC900History {
 
     using Bits for uint256;
     using Snapshot for uint128[];
@@ -135,8 +134,8 @@ contract StakingEscrow is Upgradeable, IERC900History, IStakingProvider {
         uint256 flags; // uint256 to acquire whole slot and minimize operations on it
 
         uint256 workerStartTimestamp;
-        uint256 startUnstakingTimestamp;
 
+        uint256 reservedSlot2;
         uint256 reservedSlot3;
         uint256 reservedSlot4;
         uint256 reservedSlot5;
@@ -151,8 +150,6 @@ contract StakingEscrow is Upgradeable, IERC900History, IStakingProvider {
     uint8 internal constant SNAPSHOTS_DISABLED_INDEX = 3;
 
     uint256 public immutable minWorkerSeconds;
-
-    uint256 public immutable minUnstakingDuration;
 
     NuCypherToken public immutable token;
     AdjudicatorInterface public immutable adjudicator;
@@ -183,18 +180,15 @@ contract StakingEscrow is Upgradeable, IERC900History, IStakingProvider {
     * @param _workLock WorkLock contract. Zero address if there is no WorkLock
     * @param _tokenStaking T token staking contract
     * @param _minWorkerSeconds Min amount of seconds while a worker can't be changed
-    * @param _minUnstakingDuration Min unstaking duration (in sec) to be eligible for staking
     */
     constructor(
         NuCypherToken _token,
         AdjudicatorInterface _adjudicator,
         WorkLockInterface _workLock,
         ITokenStaking _tokenStaking,
-        uint256 _minWorkerSeconds,
-        uint256 _minUnstakingDuration
+        uint256 _minWorkerSeconds
     ) {
         minWorkerSeconds = _minWorkerSeconds;
-        minUnstakingDuration = _minUnstakingDuration;
 
         require(_token.totalSupply() > 0 &&
             _adjudicator.rewardCoefficient() != 0 &&
@@ -236,42 +230,6 @@ contract StakingEscrow is Upgradeable, IERC900History, IStakingProvider {
     }
 
     /**
-    * @notice Get the value of staked tokens for active stakers as well as stakers and their staked tokens
-    * @param _startIndex Start index for looking in stakers array
-    * @param _maxStakers Max stakers for looking, if set 0 then all will be used
-    * @return allStakedTokens Sum of staked tokens for active stakers
-    * @return activeStakers Array of stakers and their staked tokens. Stakers addresses stored as uint256
-    * @dev Note that activeStakers[0] in an array of uint256, but you want addresses. Careful when used directly!
-    */
-    function getActiveStakers(uint256 _startIndex, uint256 _maxStakers)
-        external view returns (uint256 allStakedTokens, uint256[2][] memory activeStakers)
-    {
-        uint256 endIndex = stakers.length;
-        require(_startIndex < endIndex);
-        if (_maxStakers != 0 && _startIndex + _maxStakers < endIndex) {
-            endIndex = _startIndex + _maxStakers;
-        }
-        activeStakers = new uint256[2][](endIndex - _startIndex);
-        allStakedTokens = 0;
-
-        uint256 resultIndex = 0;
-        for (uint256 i = _startIndex; i < endIndex; i++) {
-            address staker = stakers[i];
-            StakerInfo storage info = stakerInfo[staker];
-            if (info.value == 0 || info.startUnstakingTimestamp != 0) {
-                continue;
-            }
-            uint256 staked = info.value;
-            activeStakers[resultIndex][0] = uint256(uint160(staker));
-            activeStakers[resultIndex++][1] = staked;
-            allStakedTokens += staked;
-        }
-        assembly {
-            mstore(activeStakers, resultIndex)
-        }
-    }
-
-    /**
     * @notice Get worker using staker's address
     */
     function getWorkerFromStaker(address _staker) external view returns (address) {
@@ -283,22 +241,6 @@ contract StakingEscrow is Upgradeable, IERC900History, IStakingProvider {
     */
     function getCompletedWork(address _staker) external view returns (uint256) {
         return token.totalSupply();
-    }
-
-    /**
-     * @notice Returns the locked stake amount and unstaking duration for `staker`
-     */
-    function getStakeInfo(address staker)
-        external view override returns (uint256 stakeAmount, uint256 unstakingDuration) {
-        StakerInfo storage info = stakerInfo[msg.sender];
-        stakeAmount = info.value;
-        if (info.startUnstakingTimestamp == 0) {
-            unstakingDuration = minUnstakingDuration;
-        } else {
-            unstakingDuration = block.timestamp >= info.startUnstakingTimestamp ?
-                block.timestamp - info.startUnstakingTimestamp :
-                0;
-        }
     }
 
 
@@ -359,7 +301,17 @@ contract StakingEscrow is Upgradeable, IERC900History, IStakingProvider {
         external
     {
         require(msg.sender == address(workLock));
-        deposit(_staker, msg.sender, _value);
+        require(_value != 0);
+        StakerInfo storage info = stakerInfo[_staker];
+        // A staker can't be a worker for another staker
+        require(stakerFromWorker[_staker] == address(0) || stakerFromWorker[_staker] == info.worker);
+        // initial stake of the staker
+        stakers.push(_staker);
+        token.safeTransferFrom(msg.sender, address(this), _value);
+        info.value += _value;
+
+        addSnapshot(info, int256(_value));
+        emit Deposited(_staker, _value);
     }
 
     /**
@@ -400,49 +352,14 @@ contract StakingEscrow is Upgradeable, IERC900History, IStakingProvider {
     }
 
     /**
-    * @notice Deposit NU tokens
-    * @param _staker Staker
-    * @param _payer Owner of tokens
-    * @param _value Amount of tokens to deposit
-    */
-    function deposit(address _staker, address _payer, uint256 _value) internal {
-        require(_value != 0);
-        StakerInfo storage info = stakerInfo[_staker];
-        // A staker can't be a worker for another staker
-        require(stakerFromWorker[_staker] == address(0) || stakerFromWorker[_staker] == info.worker);
-        require(info.startUnstakingTimestamp == 0); // TODO allow to topup after unstaking?
-        // initial stake of the staker
-        if (info.value == 0 && info.workerStartTimestamp == 0) { // TODO ???
-            stakers.push(_staker);
-        }
-        token.safeTransferFrom(_payer, address(this), _value);
-        info.value += _value;
-
-        addSnapshot(info, int256(_value));
-        emit Deposited(_staker, _value);
-    }
-
-    /**
-    * @notice Start unstaking process
-    */
-    function startUnstaking() external {
-        StakerInfo storage info = stakerInfo[msg.sender];
-        require(info.value > 0 && info.startUnstakingTimestamp == 0); // TODO extract
-        info.startUnstakingTimestamp = block.timestamp;
-    }
-
-    /**
     * @notice Withdraw available amount of NU tokens to staker
     * @param _value Amount of tokens to withdraw
     */
     function withdraw(uint256 _value) external onlyStaker {
         StakerInfo storage info = stakerInfo[msg.sender];
         require(_value <= info.value &&
-                info.startUnstakingTimestamp + minUnstakingDuration >= block.timestamp);
+                _value <= tokenStaking.getAvailableToWithdraw(msg.sender, ITokenStaking.StakingProvider.NU));
         info.value -= _value;
-        if (info.value == 0) {
-            info.startUnstakingTimestamp = 0;
-        }
 
         addSnapshot(info, - int256(_value)); // TODO
         token.safeTransfer(msg.sender, _value);
@@ -500,11 +417,6 @@ contract StakingEscrow is Upgradeable, IERC900History, IStakingProvider {
         addSnapshot(info, - int256(_penalty));
     }
 
-    // TODO
-    function slashStaker(address staker, bytes calldata penaltyData) external override {
-
-    }
-
     //-------------Additional getters for stakers info-------------
     /**
     * @notice Return the length of the array of stakers
@@ -556,8 +468,7 @@ contract StakingEscrow is Upgradeable, IERC900History, IStakingProvider {
         bytes32 staker = bytes32(uint256(uint160(stakerAddress)));
         StakerInfo memory infoToCheck = delegateGetStakerInfo(_testTarget, staker);
         require(infoToCheck.value == info.value &&
-            infoToCheck.workerStartTimestamp == info.workerStartTimestamp &&
-            infoToCheck.startUnstakingTimestamp == info.startUnstakingTimestamp);
+            infoToCheck.workerStartTimestamp == info.workerStartTimestamp);
 
         // it's not perfect because checks not only slot value but also decoding
         // at least without additional functions

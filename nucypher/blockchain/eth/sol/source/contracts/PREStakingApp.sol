@@ -46,11 +46,14 @@ contract PREStakingApp is IApplication {
     }
 
     uint256 public immutable rewardDuration;
+    uint256 public immutable override deallocationDuration;
+    uint256 public immutable override minAllocationSize;
 
     IERC20 public immutable token;
     ITokenStaking public immutable tokenStaking;
 
     mapping (address => RewardInfo) public rewardInfo;
+    address[] public stakers;
 
     uint256 public periodFinish = 0;
     uint256 public rewardRate = 0;
@@ -64,15 +67,32 @@ contract PREStakingApp is IApplication {
     * @param _tokenStaking T token staking contract
     * @param _rewardDuration Duration of one reward cycle
     */
-    constructor(IERC20 _token, ITokenStaking _tokenStaking, uint256 _rewardDuration) {
+    constructor(
+        IERC20 _token,
+        ITokenStaking _tokenStaking,
+        uint256 _rewardDuration,
+        uint256 _deallocationDuration,
+        uint256 _minAllocationSize
+    ) {
         require(_rewardDuration != 0 &&
+            _deallocationDuration != 0 &&
+            _minAllocationSize != 0 &&
             _token.totalSupply() > 0);
         rewardDuration = _rewardDuration;
+        deallocationDuration = _deallocationDuration;
+        minAllocationSize = _minAllocationSize;
         token = _token;
         tokenStaking = _tokenStaking;
     }
 
     modifier updateReward(address _staker) {
+        updateRewardInternal(_staker);
+        _;
+    }
+
+    //------------------------Reward------------------------------
+
+    function updateRewardInternal(address _staker) internal {
         rewardPerTokenStored = rewardPerToken();
         lastUpdateTime = lastTimeRewardApplicable();
         if (_staker != address(0)) {
@@ -80,10 +100,8 @@ contract PREStakingApp is IApplication {
             info.tReward = earned(_staker);
             info.rewardPerTokenPaid = rewardPerTokenStored;
         }
-        _;
-    }
 
-    //------------------------Reward------------------------------
+    }
 
     function lastTimeRewardApplicable() public view returns (uint256) {
         return Math.min(block.timestamp, periodFinish);
@@ -145,17 +163,68 @@ contract PREStakingApp is IApplication {
     * @notice Recalculate reward and store allocation
     * @param _staker Address of staker
     * @param _allocated Amount of allocated tokens to PRE application by staker
+    * @param _allocated Amount of tokens in deallocation process
     * @param _allocationPerApp Amount of allocated tokens to PRE application by all stakers
     */
-    function receiveAllocation(address _staker, uint256 _allocated, uint256 _allocationPerApp)
-        external override updateReward(_staker)
+    function receiveAllocation(
+        address _staker,
+        uint256 _allocated,
+        uint256 _deallocated,
+        uint256 _allocationPerApp
+    )
+        external override
     {
         require(msg.sender == address(tokenStaking));
         require(_staker != address(0));
 
-        rewardInfo[_staker].allocated = _allocated;
+        RewardInfo storage info = rewardInfo[_staker];
+        if (info.rewardPerTokenPaid == 0) {
+            stakers.push(_staker);
+        }
+
+        updateRewardInternal(_staker);
+
+        info.allocated = _allocated;
         allocatedOverall = _allocationPerApp;
         // TODO emit event
+    }
+
+    //-------------------------Main-------------------------
+
+    /**
+    * @notice Get the value of allocated tokens for active stakers as well as stakers and their allocated tokens
+    * @param _startIndex Start index for looking in stakers array
+    * @param _maxStakers Max stakers for looking, if set 0 then all will be used
+    * @return allAllocatedTokens Sum of allocated tokens for active stakers
+    * @return activeStakers Array of stakers and their allocated tokens. Stakers addresses stored as uint256
+    * @dev Note that activeStakers[0] in an array of uint256, but you want addresses. Careful when used directly!
+    */
+    function getActiveStakers(uint256 _startIndex, uint256 _maxStakers)
+        external view returns (uint256 allAllocatedTokens, uint256[2][] memory activeStakers)
+    {
+        uint256 endIndex = stakers.length;
+        require(_startIndex < endIndex);
+        if (_maxStakers != 0 && _startIndex + _maxStakers < endIndex) {
+            endIndex = _startIndex + _maxStakers;
+        }
+        activeStakers = new uint256[2][](endIndex - _startIndex);
+        allAllocatedTokens = 0;
+
+        uint256 resultIndex = 0;
+        for (uint256 i = _startIndex; i < endIndex; i++) {
+            address staker = stakers[i];
+            RewardInfo storage info = rewardInfo[staker];
+            if (info.allocated == 0) {
+                continue;
+            }
+            uint256 allocated = info.allocated;
+            activeStakers[resultIndex][0] = uint256(uint160(staker));
+            activeStakers[resultIndex++][1] = allocated;
+            allAllocatedTokens += allocated;
+        }
+        assembly {
+            mstore(activeStakers, resultIndex)
+        }
     }
 
 
