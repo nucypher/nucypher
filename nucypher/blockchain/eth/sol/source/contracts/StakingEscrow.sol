@@ -135,8 +135,9 @@ contract StakingEscrow is Upgradeable, IERC900History {
 
         uint256 workerStartTimestamp;
 
-        uint256 reservedSlot2;
-        uint256 reservedSlot3;
+        uint256 vestingReleaseTimestamp;
+        uint256 vestingReleaseRate;
+
         uint256 reservedSlot4;
         uint256 reservedSlot5;
 
@@ -357,7 +358,7 @@ contract StakingEscrow is Upgradeable, IERC900History {
     */
     function withdraw(uint256 _value) external onlyStaker {
         StakerInfo storage info = stakerInfo[msg.sender];
-        require(_value <= info.value &&
+        require(_value + getVestedTokens(msg.sender) <= info.value &&
                 _value <= tokenStaking.getAvailableToWithdraw(msg.sender, ITokenStaking.StakingProvider.NU));
         info.value -= _value;
 
@@ -381,6 +382,37 @@ contract StakingEscrow is Upgradeable, IERC900History {
         }
     }
 
+    /**
+    * @notice Returns amount of not released yet tokens for staker
+    */
+    function getVestedTokens(address _staker) public view returns (uint256) {
+        StakerInfo storage info = stakerInfo[_staker];
+        if (info.vestingReleaseTimestamp <= block.timestamp) {
+            return 0;
+        }
+        return (block.timestamp - info.vestingReleaseTimestamp) * info.vestingReleaseRate;
+    }
+
+    /**
+    * @notice Setup vesting parameters
+    */
+    function setupVesting(
+        address[] calldata _stakers,
+        uint256[] calldata _releaseTimestamp,
+        uint256[] calldata _releaseRate
+    ) external onlyOwner {
+        require(_stakers.length == _releaseTimestamp.length &&
+            _releaseTimestamp.length == _releaseRate.length);
+        for (uint256 i = 0; i < _stakers.length; i++) {
+            address staker = _stakers[i];
+            StakerInfo storage info = stakerInfo[staker];
+            require(info.vestingReleaseTimestamp == 0); // set only once
+            info.vestingReleaseTimestamp = _releaseTimestamp[i];
+            info.vestingReleaseRate = _releaseRate[i];
+            require(getVestedTokens(staker) <= info.value);
+            // TODO emit event
+        }
+    }
 
     //-------------------------Slashing-------------------------
     /**
@@ -468,7 +500,9 @@ contract StakingEscrow is Upgradeable, IERC900History {
         bytes32 staker = bytes32(uint256(uint160(stakerAddress)));
         StakerInfo memory infoToCheck = delegateGetStakerInfo(_testTarget, staker);
         require(infoToCheck.value == info.value &&
-            infoToCheck.workerStartTimestamp == info.workerStartTimestamp);
+            infoToCheck.workerStartTimestamp == info.workerStartTimestamp &&
+            infoToCheck.vestingReleaseTimestamp == info.vestingReleaseTimestamp &&
+            infoToCheck.vestingReleaseRate == info.vestingReleaseRate);
 
         // it's not perfect because checks not only slot value but also decoding
         // at least without additional functions
