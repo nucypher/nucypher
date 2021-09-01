@@ -4,7 +4,7 @@ pragma solidity ^0.8.0;
 
 import "contracts/lib/ReEncryptionValidator.sol";
 import "contracts/lib/SignatureVerifier.sol";
-import "contracts/StakingEscrow.sol";
+import "contracts/PREStakingApp.sol";
 import "contracts/proxy/Upgradeable.sol";
 import "zeppelin/math/Math.sol";
 
@@ -33,7 +33,7 @@ contract Adjudicator is Upgradeable {
     bytes32 constant RESERVED_CAPSULE_AND_CFRAG_BYTES = bytes32(0);
     address constant RESERVED_ADDRESS = address(0);
 
-    StakingEscrow public immutable escrow;
+    PREStakingApp public immutable preStakingApp;
     SignatureVerifier.HashAlgorithm public immutable hashAlgorithm;
     uint256 public immutable basePenalty;
     uint256 public immutable penaltyHistoryCoefficient;
@@ -44,7 +44,7 @@ contract Adjudicator is Upgradeable {
     mapping (bytes32 => bool) public evaluatedCFrags;
 
     /**
-    * @param _escrow Escrow contract
+    * @param _preStakingApp PREStakingApp contract
     * @param _hashAlgorithm Hashing algorithm
     * @param _basePenalty Base for the penalty calculation
     * @param _penaltyHistoryCoefficient Coefficient for calculating the penalty depending on the history
@@ -52,7 +52,7 @@ contract Adjudicator is Upgradeable {
     * @param _rewardCoefficient Coefficient for calculating the reward
     */
     constructor(
-        StakingEscrow _escrow,
+        PREStakingApp _preStakingApp,
         SignatureVerifier.HashAlgorithm _hashAlgorithm,
         uint256 _basePenalty,
         uint256 _penaltyHistoryCoefficient,
@@ -60,11 +60,11 @@ contract Adjudicator is Upgradeable {
         uint256 _rewardCoefficient
     ) {
         // Sanity checks.
-        require(address(_escrow.token()) != address(0) &&  // This contract has an escrow, and it's not the null address.
+        require(address(_preStakingApp.token()) != address(0) &&  // This contract has an app, and it's not the null address.
             // The reward and penalty coefficients are set.
             _percentagePenaltyCoefficient != 0 &&
             _rewardCoefficient != 0);
-        escrow = _escrow;
+        preStakingApp = _preStakingApp;
         hashAlgorithm = _hashAlgorithm;
         basePenalty = _basePenalty;
         percentagePenaltyCoefficient = _percentagePenaltyCoefficient;
@@ -156,17 +156,17 @@ contract Adjudicator is Upgradeable {
         address worker = SignatureVerifier.recover(
             SignatureVerifier.hashEIP191(stamp, bytes1(0x45)), // Currently, we use version E (0x45) of EIP191 signatures
             _workerIdentityEvidence);
-        address staker = escrow.stakerFromWorker(worker);
+        address staker = preStakingApp.stakerFromWorker(worker);
         require(staker != address(0), "Worker must be related to a staker");
 
         // 5. Check that staker can be slashed
-        uint256 stakerValue = escrow.getAllTokens(staker);
+        uint256 stakerValue = preStakingApp.getAllTokens(staker);
         require(stakerValue > 0, "Staker has no tokens");
 
         // 6. If CFrag was incorrect, slash staker
         if (!cFragIsCorrect) {
             (uint256 penalty, uint256 reward) = calculatePenaltyAndReward(staker, stakerValue);
-            escrow.slashStaker(staker, penalty, msg.sender, reward);
+            preStakingApp.slashStaker(staker, penalty, msg.sender, reward);
             emit IncorrectCFragVerdict(evaluationHash, worker, staker);
         }
     }

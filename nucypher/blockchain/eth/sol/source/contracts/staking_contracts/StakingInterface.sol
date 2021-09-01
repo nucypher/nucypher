@@ -103,14 +103,14 @@ contract StakingInterface is BaseStakingInterface {
     {
     }
 
-    /**
-    * @notice Bond worker in the staking escrow
-    * @param _worker Worker address
-    */
-    function bondWorker(address _worker) public onlyDelegateCall {
-        escrow.bondWorker(_worker);
-        emit WorkerBonded(msg.sender, _worker);
-    }
+//    /**
+//    * @notice Bond worker in the staking escrow
+//    * @param _worker Worker address
+//    */
+//    function bondWorker(address _worker) public onlyDelegateCall { // TODO change to app call
+//        escrow.bondWorker(_worker);
+//        emit WorkerBonded(msg.sender, _worker);
+//    }
 
     /**
     * @notice Withdraw available amount of tokens from the staking escrow to the staking contract

@@ -36,26 +36,15 @@ interface WorkLockInterface {
 */
 contract StakingEscrowStub is Upgradeable {
     NuCypherToken public immutable token;
-    uint256 public immutable minAllowableLockedTokens;
-    uint256 public immutable maxAllowableLockedTokens;
 
     /**
     * @notice Predefines some variables for use when deploying other contracts
     * @param _token Token contract
-    * @param _minAllowableLockedTokens Min amount of tokens that can be locked
-    * @param _maxAllowableLockedTokens Max amount of tokens that can be locked
     */
-    constructor(
-        NuCypherToken _token,
-        uint256 _minAllowableLockedTokens,
-        uint256 _maxAllowableLockedTokens
-    ) {
-        require(_token.totalSupply() > 0 &&
-            _maxAllowableLockedTokens != 0);
+    constructor(NuCypherToken _token) {
+        require(_token.totalSupply() > 0);
 
         token = _token;
-        minAllowableLockedTokens = _minAllowableLockedTokens;
-        maxAllowableLockedTokens = _maxAllowableLockedTokens;
     }
 
     /// @dev the `onlyWhileUpgrading` modifier works through a call to the parent `verifyState`
@@ -64,8 +53,6 @@ contract StakingEscrowStub is Upgradeable {
 
         // we have to use real values even though this is a stub
         require(address(uint160(delegateGet(_testTarget, this.token.selector))) == address(token));
-        require(delegateGet(_testTarget, this.minAllowableLockedTokens.selector) == minAllowableLockedTokens);
-        require(delegateGet(_testTarget, this.maxAllowableLockedTokens.selector) == maxAllowableLockedTokens);
     }
 }
 
@@ -112,13 +99,6 @@ contract StakingEscrow is Upgradeable, IERC900History {
     */
     event SnapshotSet(address indexed staker, bool snapshotsEnabled);
 
-    /**
-    * @notice Signals that a worker was bonded to the staker
-    * @param staker Staker address
-    * @param worker Worker address
-    */
-    event WorkerBonded(address indexed staker, address indexed worker);
-
     /// internal event
     event WorkMeasurementSet(address indexed staker, bool measureWork);
 
@@ -130,27 +110,25 @@ contract StakingEscrow is Upgradeable, IERC900History {
         uint16 stub4; // former slot for lockReStakeUntilPeriod
         uint256 stub5; // former slot for completedWork
         uint16 stub6; // former slot for workerStartPeriod
-        address worker;
+        address stub7; // former slot for worker
         uint256 flags; // uint256 to acquire whole slot and minimize operations on it
-
-        uint256 workerStartTimestamp;
 
         uint256 vestingReleaseTimestamp;
         uint256 vestingReleaseRate;
 
+        uint256 reservedSlot3;
         uint256 reservedSlot4;
         uint256 reservedSlot5;
 
-        uint256[] stub7; // former slot for pastDowntime
-        uint256[] stub8; // former slot for subStakes
+        uint256[] stub8; // former slot for pastDowntime
+        uint256[] stub9; // former slot for subStakes
         uint128[] history; // TODO ???
 
     }
 
     // indices for flags (0, 1, 2, and 4 were in use, skip it in future)
     uint8 internal constant SNAPSHOTS_DISABLED_INDEX = 3;
-
-    uint256 public immutable minWorkerSeconds;
+    uint8 internal constant MERGED_INDEX = 5;
 
     NuCypherToken public immutable token;
     AdjudicatorInterface public immutable adjudicator;
@@ -163,16 +141,16 @@ contract StakingEscrow is Upgradeable, IERC900History {
 
     mapping (address => StakerInfo) public stakerInfo;
     address[] public stakers;
-    mapping (address => address) public stakerFromWorker;
+    mapping (address => address) stub4; // former slot for stakerFromWorker
 
-    mapping (uint16 => uint256) stub4; // former slot for lockedPerPeriod
+    mapping (uint16 => uint256) stub5; // former slot for lockedPerPeriod
     uint128[] public balanceHistory;
 
-    address stub5; // former slot for PolicyManager
-    address stub6; // former slot for Adjudicator
-    address stub7; // former slot for WorkLock
+    address stub6; // former slot for PolicyManager
+    address stub7; // former slot for Adjudicator
+    address stub8; // former slot for WorkLock
 
-    mapping (uint16 => uint256) stub8; // last former slot for lockedPerPeriod
+    mapping (uint16 => uint256) stub9; // last former slot for lockedPerPeriod
 
     /**
     * @notice Constructor sets address of token contract and parameters for staking
@@ -180,17 +158,13 @@ contract StakingEscrow is Upgradeable, IERC900History {
     * @param _adjudicator Adjudicator contract
     * @param _workLock WorkLock contract. Zero address if there is no WorkLock
     * @param _tokenStaking T token staking contract
-    * @param _minWorkerSeconds Min amount of seconds while a worker can't be changed
     */
     constructor(
         NuCypherToken _token,
         AdjudicatorInterface _adjudicator,
         WorkLockInterface _workLock,
-        ITokenStaking _tokenStaking,
-        uint256 _minWorkerSeconds
+        ITokenStaking _tokenStaking
     ) {
-        minWorkerSeconds = _minWorkerSeconds;
-
         require(_token.totalSupply() > 0 &&
             _adjudicator.rewardCoefficient() != 0 &&
             (address(_workLock) == address(0) || _workLock.token() == _token));
@@ -223,18 +197,13 @@ contract StakingEscrow is Upgradeable, IERC900History {
     */
     function getFlags(address _staker)
         external view returns (
-            bool snapshots
+            bool snapshots,
+            bool merged
         )
     {
         StakerInfo storage info = stakerInfo[_staker];
         snapshots = !info.flags.bitSet(SNAPSHOTS_DISABLED_INDEX);
-    }
-
-    /**
-    * @notice Get worker using staker's address
-    */
-    function getWorkerFromStaker(address _staker) external view returns (address) {
-        return stakerInfo[_staker].worker;
+        merged = info.flags.bitSet(MERGED_INDEX);
     }
 
     /**
@@ -258,37 +227,6 @@ contract StakingEscrow is Upgradeable, IERC900History {
     }
 
     /**
-    * @notice Bond worker
-    * @param _worker Worker address. Must be a real address, not a contract
-    */
-    function bondWorker(address _worker) external onlyStaker {
-        StakerInfo storage info = stakerInfo[msg.sender];
-        // Specified worker is already bonded with this staker
-        require(_worker != info.worker);
-        if (info.worker != address(0)) { // If this staker had a worker ...
-            // Check that enough time has passed to change it
-            require(block.timestamp >= info.workerStartTimestamp + minWorkerSeconds);
-            // Remove the old relation "worker->staker"
-            stakerFromWorker[info.worker] = address(0);
-        }
-
-        if (_worker != address(0)) {
-            // Specified worker is already in use
-            require(stakerFromWorker[_worker] == address(0));
-            // Specified worker is a staker
-            require(stakerInfo[_worker].value == 0 || _worker == msg.sender);
-            // Set new worker->staker relation
-            stakerFromWorker[_worker] = msg.sender;
-        }
-
-        // Bond new worker (or unbond if _worker == address(0))
-        info.worker = _worker;
-        info.workerStartTimestamp = block.timestamp;
-        emit WorkerBonded(msg.sender, _worker);
-    }
-
-
-    /**
     * @notice Deposit tokens from WorkLock contract
     * @param _staker Staker address
     * @param _value Amount of tokens to deposit
@@ -304,8 +242,6 @@ contract StakingEscrow is Upgradeable, IERC900History {
         require(msg.sender == address(workLock));
         require(_value != 0);
         StakerInfo storage info = stakerInfo[_staker];
-        // A staker can't be a worker for another staker
-        require(stakerFromWorker[_staker] == address(0) || stakerFromWorker[_staker] == info.worker);
         // initial stake of the staker
         stakers.push(_staker);
         token.safeTransferFrom(msg.sender, address(this), _value);
@@ -358,28 +294,14 @@ contract StakingEscrow is Upgradeable, IERC900History {
     */
     function withdraw(uint256 _value) external onlyStaker {
         StakerInfo storage info = stakerInfo[msg.sender];
-        require(_value + getVestedTokens(msg.sender) <= info.value &&
-                _value <= tokenStaking.getAvailableToWithdraw(msg.sender, ITokenStaking.StakingProvider.NU));
+        require(info.flags.bitSet(MERGED_INDEX) &&
+            _value + getVestedTokens(msg.sender) <= info.value &&
+            _value <= tokenStaking.getAvailableToWithdraw(msg.sender, ITokenStaking.StakingProvider.NU));
         info.value -= _value;
 
         addSnapshot(info, - int256(_value)); // TODO
         token.safeTransfer(msg.sender, _value);
         emit Withdrawn(msg.sender, _value);
-
-        autoUnbondWorker(msg.sender, info);
-    }
-
-    /**
-    * @notice Unbond worker if staker withdraws last portion of NU and T
-    */
-    function autoUnbondWorker(address _staker, StakerInfo storage _info) internal {
-        if (_info.value == 0 &&
-            _info.worker != address(0))
-        {
-            stakerFromWorker[_info.worker] = address(0);
-            _info.worker = address(0);
-            emit WorkerBonded(_staker, address(0));
-        }
     }
 
     /**
@@ -412,6 +334,18 @@ contract StakingEscrow is Upgradeable, IERC900History {
             require(getVestedTokens(staker) <= info.value);
             // TODO emit event
         }
+    }
+
+    /**
+    * @notice Confirm migration to threshold network
+    */
+    function confirmMerge() external onlyStaker {
+        uint256 unallocated = tokenStaking.getAvailableToWithdraw(msg.sender, ITokenStaking.StakingProvider.NU);
+        StakerInfo storage info = stakerInfo[msg.sender];
+        require(!info.flags.bitSet(MERGED_INDEX) &&
+            unallocated <= 1e5); // TODO ???
+        info.flags = info.flags.toggleBit(MERGED_INDEX);
+        // TODO emit event
     }
 
     //-------------------------Slashing-------------------------
@@ -487,8 +421,8 @@ contract StakingEscrow is Upgradeable, IERC900History {
     /// @dev the `onlyWhileUpgrading` modifier works through a call to the parent `verifyState`
     function verifyState(address _testTarget) public override virtual {
         super.verifyState(_testTarget);
-        require(address(uint160(delegateGet(_testTarget, this.stakerFromWorker.selector, bytes32(0)))) ==
-            stakerFromWorker[address(0)]);
+//        require(address(uint160(delegateGet(_testTarget, this.stakerFromWorker.selector, bytes32(0)))) ==
+//            stakerFromWorker[address(0)]);
 
         require(delegateGet(_testTarget, this.getStakersLength.selector) == stakers.length);
         if (stakers.length == 0) {
@@ -500,7 +434,7 @@ contract StakingEscrow is Upgradeable, IERC900History {
         bytes32 staker = bytes32(uint256(uint160(stakerAddress)));
         StakerInfo memory infoToCheck = delegateGetStakerInfo(_testTarget, staker);
         require(infoToCheck.value == info.value &&
-            infoToCheck.workerStartTimestamp == info.workerStartTimestamp &&
+//            infoToCheck.workerStartTimestamp == info.workerStartTimestamp &&
             infoToCheck.vestingReleaseTimestamp == info.vestingReleaseTimestamp &&
             infoToCheck.vestingReleaseRate == info.vestingReleaseRate);
 
@@ -511,10 +445,10 @@ contract StakingEscrow is Upgradeable, IERC900History {
         require(delegateGet(_testTarget, this.totalStakedAt.selector, bytes32(block.number)) ==
             totalStakedAt(block.number));
 
-        if (info.worker != address(0)) {
-            require(address(uint160(delegateGet(_testTarget, this.stakerFromWorker.selector, bytes32(uint256(uint160(info.worker)))))) ==
-                stakerFromWorker[info.worker]);
-        }
+//        if (info.worker != address(0)) {
+//            require(address(uint160(delegateGet(_testTarget, this.stakerFromWorker.selector, bytes32(uint256(uint160(info.worker)))))) ==
+//                stakerFromWorker[info.worker]);
+//        }
     }
 
     /// @dev the `onlyWhileUpgrading` modifier works through a call to the parent `finishUpgrade`

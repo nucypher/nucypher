@@ -4,7 +4,7 @@ pragma solidity ^0.8.0;
 
 
 import "contracts/Adjudicator.sol";
-import "contracts/StakingEscrow.sol";
+import "contracts/PREStakingApp.sol";
 import "contracts/lib/SignatureVerifier.sol";
 import "contracts/proxy/Upgradeable.sol";
 
@@ -12,7 +12,7 @@ import "contracts/proxy/Upgradeable.sol";
 /**
 * @notice Contract for testing the Adjudicator contract
 */
-contract StakingEscrowForAdjudicatorMock {
+contract PREStakingAppForAdjudicatorMock {
 
     uint32 public immutable secondsPerPeriod = 1;
     mapping (address => uint256) public stakerInfo;
@@ -65,7 +65,7 @@ contract AdjudicatorV2Mock is Adjudicator {
     uint256 public valueToCheck;
 
     constructor(
-        StakingEscrow _escrow,
+        PREStakingApp _app,
         SignatureVerifier.HashAlgorithm _hashAlgorithm,
         uint256 _basePenalty,
         uint256 _percentagePenalty,
@@ -73,7 +73,7 @@ contract AdjudicatorV2Mock is Adjudicator {
         uint256 _rewardCoefficient
     )
         Adjudicator(
-            _escrow,
+            _app,
             _hashAlgorithm,
             _basePenalty,
             _percentagePenalty,

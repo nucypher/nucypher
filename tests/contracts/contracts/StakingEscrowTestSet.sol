@@ -16,15 +16,13 @@ contract StakingEscrowBad is StakingEscrow {
         NuCypherToken _nuToken,
         AdjudicatorInterface _adjudicator,
         WorkLockInterface _workLock,
-        ITokenStaking _tokenStaking,
-        uint256 _minWorkerSeconds
+        ITokenStaking _tokenStaking
     )
         StakingEscrow(
             _nuToken,
             _adjudicator,
             _workLock,
-            _tokenStaking,
-            _minWorkerSeconds
+            _tokenStaking
         )
     {
     }
@@ -45,18 +43,16 @@ contract StakingEscrowV2Mock is StakingEscrow {
         NuCypherToken _nuToken,
         AdjudicatorInterface _adjudicator,
         WorkLockInterface _workLock,
-        ITokenStaking _tokenStaking,
-        uint256 _minWorkerSeconds
+        ITokenStaking _tokenStaking
     )
         StakingEscrow(
             _nuToken,
             _adjudicator,
             _workLock,
-            _tokenStaking,
-            _minWorkerSeconds
+            _tokenStaking
         )
     {
-        valueToCheck = _minWorkerSeconds;
+        valueToCheck = uint256(uint160(address(_nuToken)));
     }
 
     function setValueToCheck(uint256 _valueToCheck) public {
@@ -104,24 +100,24 @@ contract AdjudicatorForStakingEscrowMock {
     }
 }
 
-/**
-* @notice Intermediary contract for testing worker
-*/
-contract Intermediary {
-
-    NuCypherToken immutable token;
-    StakingEscrow immutable escrow;
-
-    constructor(NuCypherToken _token, StakingEscrow _escrow) {
-        token = _token;
-        escrow = _escrow;
-    }
-
-    function bondWorker(address _worker) external {
-        escrow.bondWorker(_worker);
-    }
-
-}
+///**
+//* @notice Intermediary contract for testing worker
+//*/
+//contract Intermediary { // TODO move to app tests
+//
+//    NuCypherToken immutable token;
+//    StakingEscrow immutable escrow;
+//
+//    constructor(NuCypherToken _token, StakingEscrow _escrow) {
+//        token = _token;
+//        escrow = _escrow;
+//    }
+//
+//    function bondWorker(address _worker) external {
+//        escrow.bondWorker(_worker);
+//    }
+//
+//}
 
 
 /**
