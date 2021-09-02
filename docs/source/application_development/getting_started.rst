@@ -382,7 +382,7 @@ Then Bob can retrieve and decrypt the message kit:
 
    cleartexts = bob.retrieve(
        label=label,
-       message_kit=message_kit,
-       data_source=enrico,
+       message_kits=[message_kit],
+       enrico=enrico,
        alice_verifying_key=alice_public_key
    )

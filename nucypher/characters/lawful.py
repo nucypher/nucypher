@@ -749,7 +749,7 @@ class Bob(Character):
         retrieval_kits = [message_kit.as_retrieval_kit() for message_kit in message_kits]
 
         # Retrieve capsule frags
-        client = RetrievalClient(self)
+        client = RetrievalClient(learner=self)
         retrieval_results = client.retrieve_cfrags(
             treasure_map=treasure_map,
             retrieval_kits=retrieval_kits,
@@ -842,12 +842,12 @@ class RetrievalClient:
         self._learner = learner
         self.log = Logger(self.__class__.__name__)
 
-    def _reencrypt(self,
-                   ursula: 'Ursula',
-                   reencryption_request: 'ReencryptionRequest',
-                   delegating_key: PublicKey,
-                   receiving_key: PublicKey,
-                   ) -> Dict['Capsule', 'VerifiedCapsuleFrag']:
+    def _request_reencryption(self,
+                              ursula: 'Ursula',
+                              reencryption_request: 'ReencryptionRequest',
+                              delegating_key: PublicKey,
+                              receiving_key: PublicKey,
+                              ) -> Dict['Capsule', 'VerifiedCapsuleFrag']:
         """
         Sends a reencryption request to a single Ursula and processes the results.
 
@@ -949,7 +949,7 @@ class RetrievalClient:
         retrieval_plan = RetrievalPlan(treasure_map=treasure_map, retrieval_kits=retrieval_kits)
 
         while not retrieval_plan.is_complete():
-            # Currently we'll only query one Ursula once during the retrieval.
+            # TODO (#2789): Currently we'll only query one Ursula once during the retrieval.
             # Alternatively we may re-query Ursulas that were offline until the timeout expires.
 
             work_order = retrieval_plan.get_work_order()
@@ -966,12 +966,12 @@ class RetrievalClient:
                 publisher_verifying_key=publisher_verifying_key)
 
             try:
-                cfrags = self._reencrypt(ursula=ursula,
-                                         reencryption_request=reencryption_request,
-                                         delegating_key=policy_encrypting_key,
-                                         receiving_key=bob_encrypting_key)
+                cfrags = self._request_reencryption(ursula=ursula,
+                                                    reencryption_request=reencryption_request,
+                                                    delegating_key=policy_encrypting_key,
+                                                    receiving_key=bob_encrypting_key)
             except Exception as e:
-                # TODO: at this point we can separate the exceptions to "acceptable"
+                # TODO (#2789): at this point we can separate the exceptions to "acceptable"
                 # (Ursula is not reachable) and "unacceptable" (Ursula provided bad results).
                 continue
 

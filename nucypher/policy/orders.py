@@ -287,6 +287,12 @@ class ReencryptionResponse:
     @classmethod
     def from_bytes(cls, data: bytes):
         signature, cfrags_bytes = signature_splitter(data, return_remainder=True)
+
+        # We would never send a request with no capsules, so there should be cfrags.
+        # The splitter would fail anyway, this just makes the error message more clear.
+        if not cfrags_bytes:
+            raise ValueError("ReencryptionResponse contains no cfrags")
+
         cfrags = cfrag_splitter.repeat(cfrags_bytes)
         return cls(cfrags, signature)
 
