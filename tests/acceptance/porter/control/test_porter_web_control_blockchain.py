@@ -20,8 +20,11 @@ import os
 from base64 import b64encode
 from urllib.parse import urlencode
 
+from constant_sorrow import default_constant_splitter
+
 from nucypher.characters.lawful import Enrico
 from nucypher.crypto.powers import DecryptingPower
+from nucypher.crypto.splitters import signature_splitter
 from nucypher.policy.orders import RetrievalResult
 from nucypher.utilities.porter.control.specifications.fields import RetrievalResultSchema
 from tests.utils.middleware import MockRestMiddleware
@@ -143,8 +146,10 @@ def test_retrieve_cfrags(blockchain_porter,
     policy_message_kit = policy_message_kit.with_result(retrieval_result_object)
 
     assert policy_message_kit.is_decryptable_by_receiver()
-    enrico = Enrico.from_public_keys(verifying_key=policy_message_kit.sender_verifying_key)
-    cleartext = blockchain_bob.verify_from(enrico, policy_message_kit, decrypt=True)
+    cleartext_with_sig_header = blockchain_bob._crypto_power.power_ups(DecryptingPower).keypair.decrypt(policy_message_kit)
+    sig_header, remainder = default_constant_splitter(cleartext_with_sig_header, return_remainder=True)
+    signature_from_kit, cleartext = signature_splitter(remainder, return_remainder=True)
+    assert signature_from_kit.verify(message=cleartext, verifying_key=policy_message_kit.sender_verifying_key)
     assert cleartext == original_message
 
     #
