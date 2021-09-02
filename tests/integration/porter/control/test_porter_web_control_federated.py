@@ -122,8 +122,7 @@ def test_retrieve_cfrags(federated_porter,
     assert len(retrieval_results) == len(expected_results)
 
     # check that the re-encryption performed was valid
-    treasure_map = federated_bob._decrypt_treasure_map(enacted_federated_policy.treasure_map,
-                                                       enacted_federated_policy.publisher_verifying_key)
+    treasure_map = retrieve_args['treasure_map']
     policy_message_kit = message_kit.as_policy_kit(policy_key=enacted_federated_policy.public_key,
                                                    threshold=treasure_map.threshold)
     assert len(retrieval_results) == 1
