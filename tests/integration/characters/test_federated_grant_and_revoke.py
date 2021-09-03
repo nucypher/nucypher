@@ -40,8 +40,7 @@ def test_federated_grant(federated_alice, federated_bob, federated_ursulas):
     assert policy.hrac in federated_alice.active_policies
     assert federated_alice.active_policies[policy.hrac] == policy
 
-    treasure_map = federated_bob._decrypt_treasure_map(policy.treasure_map,
-                                                       policy.publisher_verifying_key)
+    treasure_map = federated_bob._decrypt_treasure_map(policy.treasure_map)
 
     # The number of actually enacted arrangements is exactly equal to shares.
     assert len(treasure_map.destinations) == shares

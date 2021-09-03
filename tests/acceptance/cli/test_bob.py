@@ -159,7 +159,6 @@ def test_bob_retrieves_twice_via_cli(click_runner,
                      '--teacher', teacher.seed_node_metadata(as_teacher_uri=True),
                      '--config-file', str(bob_configuration_file_location.absolute()),
                      '--message-kit', message_kit_b64_bytes,
-                     '--label', label,
                      '--policy-encrypting-key', bytes(federated_alice.get_policy_encrypting_key_from_label(label)).hex(),
                      '--alice-verifying-key', bytes(federated_alice.public_keys(SigningPower)).hex()
                      )

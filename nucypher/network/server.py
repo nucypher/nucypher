@@ -201,10 +201,9 @@ def _make_rest_app(datastore: Datastore, this_node, domain: str, log: Logger) ->
         bob_identity_message = f"[{bob_ip_address}] Bob({bytes(bob.stamp).hex()})"
 
         # Verify & Decrypt KFrag Payload
-        encrypted_kfrag_payload = MessageKit.from_bytes(reenc_request.encrypted_kfrag)
         try:
             plaintext_kfrag_payload = this_node.verify_from(stranger=alice,
-                                                            message_kit=encrypted_kfrag_payload,
+                                                            message_kit=reenc_request.encrypted_kfrag,
                                                             decrypt=True)
         except InvalidSignature:
             return Response(response="Invalid KFrag sender.", status=401)  # 401 - Unauthorized

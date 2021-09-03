@@ -37,8 +37,6 @@ def test_federated_bob_full_retrieve_flow(federated_ursulas,
                                           capsule_side_channel,
                                           federated_treasure_map,
                                           enacted_federated_policy):
-    # Assume for the moment that Bob has already received a TreasureMap.
-    federated_bob.treasure_maps[federated_treasure_map.hrac] = federated_treasure_map
 
     for ursula in federated_ursulas:
         federated_bob.remember_node(ursula)
@@ -52,7 +50,6 @@ def test_federated_bob_full_retrieve_flow(federated_ursulas,
     delivered_cleartexts = federated_bob.retrieve([the_message_kit],
                                                   enrico=capsule_side_channel.enrico,
                                                   alice_verifying_key=alices_verifying_key,
-                                                  label=enacted_federated_policy.label,
                                                   encrypted_treasure_map=enacted_federated_policy.treasure_map)
 
     # We show that indeed this is the passage originally encrypted by the Enrico.
@@ -105,7 +102,6 @@ def test_bob_retrieves(federated_alice,
     delivered_cleartexts = bob.retrieve([message_kit],
                                         enrico=enrico,
                                         alice_verifying_key=alices_verifying_key,
-                                        label=policy.label,
                                         cache_cfrags=True,
                                         encrypted_treasure_map=policy.treasure_map)
 
@@ -114,7 +110,6 @@ def test_bob_retrieves(federated_alice,
     cleartexts_delivered_a_second_time = bob.retrieve([message_kit],
                                                       enrico=enrico,
                                                       alice_verifying_key=alices_verifying_key,
-                                                      label=policy.label,
                                                       use_cached_cfrags=True,
                                                       encrypted_treasure_map=policy.treasure_map)
 
@@ -130,7 +125,6 @@ def test_bob_retrieves(federated_alice,
     _cleartexts = bob.retrieve([message_kit],
                                enrico=enrico,
                                alice_verifying_key=alices_verifying_key,
-                               label=policy.label,
                                use_cached_cfrags=True,
                                encrypted_treasure_map=policy.treasure_map)
     assert _cleartexts == delivered_cleartexts  # TODO: 892
@@ -155,7 +149,6 @@ def test_bob_retrieves_with_treasure_map(
         [message_kit],
         enrico=enrico,
         alice_verifying_key=alice_verifying_key,
-        label=enacted_federated_policy.label,
         encrypted_treasure_map=treasure_map)
 
     assert text1 == [b'Welcome to flippering number 2.']
@@ -184,6 +177,5 @@ def test_bob_retrieves_too_late(federated_bob, federated_ursulas,
         [message_kit],
         enrico=enrico,
         alice_verifying_key=alice_verifying_key,
-        label=enacted_federated_policy.label,
         encrypted_treasure_map=treasure_map,
         use_cached_cfrags=False)

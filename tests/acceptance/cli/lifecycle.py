@@ -362,7 +362,6 @@ def run_entire_cli_lifecycle(click_runner,
                          '--teacher', teacher_uri,
                          '--config-file', str(bob_configuration_file_location.absolute()),
                          '--message-kit', ciphertext_message_kit,
-                         '--label', label,
                          '--treasure-map', side_channel.fetch_treasure_map(),
                          '--policy-encrypting-key', policy_encrypting_key,
                          '--alice-verifying-key', alice_signing_key)

@@ -54,8 +54,7 @@ def test_bob_already_knows_all_nodes_in_treasure_map(enacted_federated_policy,
         federated_bob.remember_node(ursula)
 
     # Now, Bob can get the TreasureMap all by himself, and doesn't need a side channel.
-    the_map = federated_bob._decrypt_treasure_map(enacted_federated_policy.treasure_map,
-                                                  publisher_verifying_key=federated_alice.stamp)
+    the_map = federated_bob._decrypt_treasure_map(enacted_federated_policy.treasure_map)
     unknown, known = federated_bob.peek_at_treasure_map(treasure_map=the_map)
 
     # He finds that he didn't need to discover any new nodes...
@@ -123,7 +122,6 @@ def _policy_info_kwargs(enacted_policy):
     return dict(
         encrypted_treasure_map=enacted_policy.treasure_map,
         policy_encrypting_key=enacted_policy.public_key,
-        label=enacted_policy.label,
         alice_verifying_key=enacted_policy.publisher_verifying_key,
         )
 

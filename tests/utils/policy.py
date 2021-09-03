@@ -38,8 +38,7 @@ def generate_random_label() -> bytes:
 
 def retrieval_request_setup(enacted_policy, bob, alice, encode_for_rest=False):
 
-    treasure_map = bob._decrypt_treasure_map(enacted_policy.treasure_map,
-                                             enacted_policy.publisher_verifying_key)
+    treasure_map = bob._decrypt_treasure_map(enacted_policy.treasure_map)
 
     # We pick up our story with Bob already having followed the treasure map above, ie:
     bob.start_learning_loop()

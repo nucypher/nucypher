@@ -91,11 +91,14 @@ class TreasureMap:
     def __init__(self,
                  threshold: int,
                  hrac: HRAC,
-                 destinations: Dict[ChecksumAddress, bytes],
+                 destinations: Dict[ChecksumAddress, MessageKit],
                  ):
         self.threshold = threshold
         self.destinations = destinations
         self.hrac = hrac
+
+        # A little awkward, but saves us a key length in serialization
+        self.publisher_verifying_key = list(destinations.values())[0].sender_verifying_key
 
     def encrypt(self,
                 publisher: 'Alice',
@@ -257,7 +260,7 @@ class EncryptedTreasureMap:
 
         self.hrac = hrac
         self._public_signature = public_signature
-        self._verifying_key = encrypted_tmap.sender_verifying_key
+        self.publisher_verifying_key = encrypted_tmap.sender_verifying_key
         self._encrypted_tmap = encrypted_tmap
         self._blockchain_signature = blockchain_signature
 
@@ -294,9 +297,9 @@ class EncryptedTreasureMap:
                               address=checksum_address)
 
     def _public_verify(self):
-        message = bytes(self._verifying_key) + bytes(self.hrac)
-        if not self._public_signature.verify(self._verifying_key, message=message):
-            raise self.InvalidSignature("This TreasureMap is not properly publicly signed by Alice.")
+        message = bytes(self.publisher_verifying_key) + bytes(self.hrac)
+        if not self._public_signature.verify(self.publisher_verifying_key, message=message):
+            raise self.InvalidSignature("This TreasureMap is not properly publicly signed by the publisher.")
 
     @classmethod
     def from_bytes(cls, data: bytes):

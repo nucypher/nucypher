@@ -163,11 +163,10 @@ class BobInterface(CharacterPublicInterface):
 
     @attach_schema(bob.Retrieve)
     def retrieve(self,
-                 label: bytes,
                  policy_encrypting_key: bytes,
                  alice_verifying_key: bytes,
                  message_kit: bytes,
-                 treasure_map: Union[bytes, str, 'TreasureMap']):
+                 encrypted_treasure_map: Union[bytes, str, 'EncryptedTreasureMap']):
         """
         Character control endpoint for re-encrypting and decrypting policy data.
         """
@@ -178,21 +177,19 @@ class BobInterface(CharacterPublicInterface):
         message_kit = MessageKit.from_bytes(message_kit)  # TODO #846: May raise UnknownOpenSSLError and InvalidTag.
 
         enrico = Enrico.from_public_keys(verifying_key=message_kit.sender_verifying_key,
-                                         policy_encrypting_key=policy_encrypting_key,
-                                         label=label)
+                                         policy_encrypting_key=policy_encrypting_key)
 
-        if isinstance(treasure_map, bytes):
-            treasure_map = EncryptedTreasureMap.from_bytes(treasure_map)
+        if isinstance(encrypted_treasure_map, bytes):
+            encrypted_treasure_map = EncryptedTreasureMap.from_bytes(encrypted_treasure_map)
 
-        if isinstance(treasure_map, str):
-            tmap_bytes = treasure_map.encode()
-            treasure_map = EncryptedTreasureMap.from_bytes(b64decode(tmap_bytes))
+        if isinstance(encrypted_treasure_map, str):
+            tmap_bytes = encrypted_treasure_map.encode()
+            encrypted_treasure_map = EncryptedTreasureMap.from_bytes(b64decode(tmap_bytes))
 
         plaintexts = self.implementer.retrieve([message_kit],
                                                enrico=enrico,
                                                alice_verifying_key=alice_verifying_key,
-                                               label=label,
-                                               encrypted_treasure_map=treasure_map)
+                                               encrypted_treasure_map=encrypted_treasure_map)
 
         response_data = {'cleartexts': plaintexts}
         return response_data

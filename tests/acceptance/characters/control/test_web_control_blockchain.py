@@ -201,7 +201,7 @@ def test_bob_web_character_control_retrieve_with_tmap(
         enacted_blockchain_policy, bob_web_controller_test_client, retrieve_control_request):
     tmap_64 = b64encode(bytes(enacted_blockchain_policy.treasure_map)).decode()
     method_name, params = retrieve_control_request
-    params['treasure_map'] = tmap_64
+    params['encrypted_treasure_map'] = tmap_64
     endpoint = f'/{method_name}'
 
     response = bob_web_controller_test_client.post(endpoint, data=json.dumps(params))
@@ -300,11 +300,10 @@ def test_web_character_control_lifecycle(alice_web_controller_test_client,
     encoded_message_kit = b64encode(bytes(bob_message_kit)).decode()
 
     bob_request_data = {
-        'label': random_label,
         'policy_encrypting_key': policy_pubkey_enc_hex,
         'alice_verifying_key': alice_verifying_key_hex,
         'message_kit': encoded_message_kit,
-        'treasure_map': alice_response_data['result']['treasure_map']
+        'encrypted_treasure_map': alice_response_data['result']['treasure_map']
     }
 
     # Give bob a node to remember

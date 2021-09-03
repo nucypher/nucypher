@@ -296,11 +296,10 @@ def test_web_character_control_lifecycle(alice_web_controller_test_client,
     encoded_message_kit = b64encode(bytes(bob_message_kit)).decode()
 
     bob_request_data = {
-        'label': random_label,
         'policy_encrypting_key': policy_pubkey_enc_hex,
         'alice_verifying_key': alice_verifying_key_hex,
         'message_kit': encoded_message_kit,
-        'treasure_map':  alice_response_data['result']['treasure_map']
+        'encrypted_treasure_map': alice_response_data['result']['treasure_map']
     }
 
     # Give bob a node to remember

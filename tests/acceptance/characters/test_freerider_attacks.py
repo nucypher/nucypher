@@ -57,7 +57,6 @@ def test_policy_simple_sinpa(blockchain_ursulas,
         blockchain_bob.retrieve([message_kit],
                                 enrico=enrico,
                                 alice_verifying_key=amonia.stamp,
-                                label=bupkiss_policy.label,
                                 cache_cfrags=True,
                                 encrypted_treasure_map=bupkiss_policy.treasure_map)
 
@@ -96,7 +95,6 @@ def test_try_to_post_free_arrangement_by_hacking_enact(blockchain_ursulas,
         blockchain_bob.retrieve([message_kit],
                                 enrico=enrico,
                                 alice_verifying_key=amonia.stamp,
-                                label=bupkiss_policy.label,
                                 cache_cfrags=True,
                                 encrypted_treasure_map=bupkiss_policy.treasure_map)
 
@@ -133,6 +131,5 @@ def test_pay_a_flunky_instead_of_the_arranged_ursula(blockchain_alice,
         blockchain_bob.retrieve([message_kit],
                                 enrico=enrico,
                                 alice_verifying_key=amonia.stamp,
-                                label=bupkiss_policy.label,
                                 cache_cfrags=True,
                                 encrypted_treasure_map=bupkiss_policy.treasure_map)

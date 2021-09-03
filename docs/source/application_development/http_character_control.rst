@@ -131,8 +131,8 @@ This endpoint controls the ``Alice.grant`` method.
     - ``value``-- an integer
 - Returns:
     - ``treasure_map`` -- encoded as base64
-    - ``policy_encrypting_pubkey`` -- encoded as hex
-    - ``alice_verifying_pubkey`` -- encoded as hex
+    - ``policy_encrypting_key`` -- encoded as hex
+    - ``alice_verifying_key`` -- encoded as hex
 
 For more details on these arguments, see the nucypher documentation on the ``Alice.grant`` Python API method.
 
@@ -147,9 +147,9 @@ This endpoint controls the ``Bob.retrieve`` method.
 - URL: ``/retrieve``
 - HTTP Method: ``POST``
 - Required arguments:
-    - ``policy_encrypting_pubkey`` -- encoded as hex
-    - ``alice_verifying_pubkey`` -- encoded as hex
-    - ``label`` -- a unicode string
+    - ``policy_encrypting_key`` -- encoded as hex
+    - ``alice_verifying_key`` -- encoded as hex
+    - ``encrypted_treasure_map`` -- encoded as base64
     - ``message_kit`` -- encoded as base64
 - Returns: a JSON-array of base64-encoded decrypted plaintexts as ``cleartexts``
 

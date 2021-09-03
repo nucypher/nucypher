@@ -198,8 +198,7 @@ class ReencryptionRequest:
     _splitter = (hrac_splitter +
                  key_splitter +
                  key_splitter +
-                 key_splitter +
-                 BytestringSplitter((bytes, VariableLengthBytestring)))
+                 BytestringSplitter((MessageKit, VariableLengthBytestring)))
 
     @classmethod
     def from_work_order(cls,
@@ -207,12 +206,10 @@ class ReencryptionRequest:
                         treasure_map: TreasureMap,
                         alice_verifying_key: PublicKey,
                         bob_verifying_key: PublicKey,
-                        publisher_verifying_key: PublicKey,
                         ) -> 'ReencryptionRequest':
         return cls(hrac=treasure_map.hrac,
                    alice_verifying_key=alice_verifying_key,
                    bob_verifying_key=bob_verifying_key,
-                   publisher_verifying_key=publisher_verifying_key,
                    encrypted_kfrag=treasure_map.destinations[work_order.ursula_address],
                    capsules=work_order.capsules,
                    )
@@ -221,14 +218,12 @@ class ReencryptionRequest:
                  hrac: HRAC,
                  alice_verifying_key: PublicKey,
                  bob_verifying_key: PublicKey,
-                 publisher_verifying_key: PublicKey,
-                 encrypted_kfrag: bytes,
+                 encrypted_kfrag: MessageKit,
                  capsules: List[Capsule]):
 
         self.hrac = hrac
         self._alice_verifying_key = alice_verifying_key
         self._bob_verifying_key = bob_verifying_key
-        self._publisher_verifying_key = publisher_verifying_key
         self.encrypted_kfrag = encrypted_kfrag
         self.capsules = capsules
 
@@ -236,16 +231,15 @@ class ReencryptionRequest:
         return (bytes(self.hrac) +
                 bytes(self._alice_verifying_key) +
                 bytes(self._bob_verifying_key) +
-                bytes(self._publisher_verifying_key) +
-                VariableLengthBytestring(self.encrypted_kfrag) +
+                VariableLengthBytestring(bytes(self.encrypted_kfrag)) +
                 b''.join(bytes(capsule) for capsule in self.capsules)
                 )
 
     @classmethod
     def from_bytes(cls, data: bytes):
-        hrac, alice_vk, bob_vk, publisher_vk, ekfrag, remainder = cls._splitter(data, return_remainder=True)
+        hrac, alice_vk, bob_vk, ekfrag, remainder = cls._splitter(data, return_remainder=True)
         capsules = capsule_splitter.repeat(remainder)
-        return cls(hrac, alice_vk, bob_vk, publisher_vk, ekfrag, capsules)
+        return cls(hrac, alice_vk, bob_vk, ekfrag, capsules)
 
     def alice(self) -> 'Alice':
         from nucypher.characters.lawful import Alice
@@ -257,7 +251,7 @@ class ReencryptionRequest:
 
     def publisher(self) -> 'Alice':
         from nucypher.characters.lawful import Alice
-        return Alice.from_public_keys(verifying_key=self._publisher_verifying_key)
+        return Alice.from_public_keys(verifying_key=self.encrypted_kfrag.sender_verifying_key)
 
 
 class ReencryptionResponse:

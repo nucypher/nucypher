@@ -41,8 +41,7 @@ def test_decentralized_grant(blockchain_alice, blockchain_bob, blockchain_ursula
                                     rate=int(1e18),  # one ether
                                     expiration=policy_end_datetime)
 
-    treasure_map = blockchain_bob._decrypt_treasure_map(policy.treasure_map,
-                                                        policy.publisher_verifying_key)
+    treasure_map = blockchain_bob._decrypt_treasure_map(policy.treasure_map)
 
     # The number of actually enacted arrangements is exactly equal to shares.
     assert len(treasure_map.destinations) == shares

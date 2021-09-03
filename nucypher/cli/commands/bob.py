@@ -350,7 +350,6 @@ def make_card(general_config, character_options, config_file, nickname):
 def retrieve(general_config,
              character_options,
              config_file,
-             label,
              policy_encrypting_key,
              alice_verifying_key,
              treasure_map,
@@ -401,16 +400,12 @@ def retrieve(general_config,
         if not policy_encrypting_key:
             policy_encrypting_key = click.prompt("Enter policy public key", type=click.STRING)
 
-        if not label:
-            label = click.prompt("Enter label to retrieve", type=click.STRING)
-
     # Request
     bob_request_data = {
-        'label': label,
         'policy_encrypting_key': policy_encrypting_key,
         'alice_verifying_key': alice_verifying_key,
         'message_kit': message_kit,
-        'treasure_map': treasure_map
+        'encrypted_treasure_map': treasure_map
     }
 
     response = BOB.controller.retrieve(request=bob_request_data)

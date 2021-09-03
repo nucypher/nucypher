@@ -526,7 +526,6 @@ class Bob(Character):
 
     def __init__(self,
                  is_me: bool = True,
-                 treasure_maps: Optional[Dict] = None,
                  controller: bool = True,
                  verify_node_bonding: bool = False,
                  provider_uri: str = None,
@@ -542,9 +541,8 @@ class Bob(Character):
         if controller:
             self.make_cli_controller()
 
-        if not treasure_maps:
-            treasure_maps = dict()
-        self.treasure_maps = treasure_maps
+        # Cache of decrypted treasure maps
+        self._treasure_maps: Dict[HRAC, TreasureMap] = {}
 
         self._retrieval_history = RetrievalHistory()
 
@@ -617,11 +615,9 @@ class Bob(Character):
                                                           allow_missing=allow_missing,
                                                           learn_on_this_thread=True)
 
-    def _decrypt_treasure_map(self,
-                              encrypted_treasure_map: EncryptedTreasureMap,
-                              publisher_verifying_key: PublicKey):
+    def _decrypt_treasure_map(self, encrypted_treasure_map: EncryptedTreasureMap) -> TreasureMap:
 
-        publisher = Alice.from_public_keys(verifying_key=publisher_verifying_key)
+        publisher = Alice.from_public_keys(verifying_key=encrypted_treasure_map.publisher_verifying_key)
 
         def decryptor(ciphertext):
             try:
@@ -633,53 +629,11 @@ class Bob(Character):
 
         return encrypted_treasure_map.decrypt(decryptor)
 
-    def construct_policy_hrac(self, publisher_verifying_key: PublicKey, label: bytes) -> HRAC:
-        return HRAC.derive(publisher_verifying_key=publisher_verifying_key,
-                           bob_verifying_key=self.stamp.as_umbral_pubkey(),
-                           label=label)
-
-    def get_treasure_map_from_known_ursulas(self, hrac: bytes, timeout=3):
-        """
-        Iterate through the nodes we know, asking for the TreasureMap.
-        Return the first one who has it.
-        """
-        bob_encrypting_key = self.public_keys(DecryptingPower)
-        return treasuremap.get_treasure_map_from_known_ursulas(learner=self,
-                                                               hrac=hrac,
-                                                               bob_encrypting_key=bob_encrypting_key,
-                                                               timeout=timeout)
-
-    def _handle_treasure_map(self,
-                             publisher_verifying_key: PublicKey,
-                             label: bytes,
-                             encrypted_treasure_map: Optional['EncryptedTreasureMap'] = None
-                             ) -> Tuple['TreasureMap', int]:
-        """Decrypt and cache the treasure map by Bob."""
-        if encrypted_treasure_map:
-            treasure_map: TreasureMap = self._decrypt_treasure_map(encrypted_treasure_map, publisher_verifying_key)
-            self.treasure_maps[treasure_map.hrac] = treasure_map
-        else:
-            hrac = HRAC.derive(publisher_verifying_key=publisher_verifying_key, bob_verifying_key=self.stamp, label=label)
-            try:
-                treasure_map = self.treasure_maps[hrac]
-            except KeyError:
-                raise ValueError(f"Treasure map for HRAC({hrac}) is not cached.")
-        self.follow_treasure_map(treasure_map=treasure_map, block=True)
-        return treasure_map
-
     def retrieve_cfrags(
             self,
             message_kits: Sequence[Union[MessageKit, PolicyMessageKit]],
-
-            # Policy
-            # TODO: use a policy object?
-            label: bytes,
-
-            # KeyFrag signer's key
-            alice_verifying_key: PublicKey,
-
-            # TreasureMap publisher's key
-            publisher_verifying_key: Optional[PublicKey] = None,
+            alice_verifying_key: PublicKey, # KeyFrag signer's key
+            encrypted_treasure_map: EncryptedTreasureMap,
 
             # Optional policy-related args
             policy_encrypting_key: Optional[PublicKey] = None,
@@ -688,7 +642,6 @@ class Bob(Character):
             # Retrieval Behaviour
             cache_cfrags: bool = False,
             use_cached_cfrags: bool = False,
-            encrypted_treasure_map: Optional['EncryptedTreasureMap'] = None,
             ) -> List[PolicyMessageKit]:
         """
         Attempts to retrieve reencrypted capsule fragments
@@ -710,15 +663,13 @@ class Bob(Character):
         several retrieval attempts.
         """
 
-        if not publisher_verifying_key:
-            # If a policy publisher's verifying key is not passed, use Alice's by default.
-            publisher_verifying_key = alice_verifying_key
-
-        # Have to fetch the treasure map first to find out what the threshold is.
-        # Otherwise we could check the message kits for completeness right away.
-        treasure_map = self._handle_treasure_map(encrypted_treasure_map=encrypted_treasure_map,
-                                                 publisher_verifying_key=publisher_verifying_key,
-                                                 label=label)
+        if encrypted_treasure_map.hrac in self._treasure_maps:
+            # A small optimization to avoid multiple treasure map decryptions.
+            treasure_map = self._treasure_maps[encrypted_treasure_map.hrac]
+        else:
+            # Have to decrypt the treasure map first to find out what the threshold is.
+            # Otherwise we could check the message kits for completeness right away.
+            treasure_map = self._decrypt_treasure_map(encrypted_treasure_map)
 
         # Check that the sender is set correctly. See #2743
         if enrico:
@@ -756,8 +707,7 @@ class Bob(Character):
             alice_verifying_key=alice_verifying_key,
             bob_encrypting_key=self.public_keys(DecryptingPower),
             bob_verifying_key=self.stamp.as_umbral_pubkey(),
-            policy_encrypting_key=policy_encrypting_key,
-            publisher_verifying_key=publisher_verifying_key)
+            policy_encrypting_key=policy_encrypting_key)
 
         # Refill message kits with newly retrieved capsule frags
         results = []
@@ -923,22 +873,13 @@ class RetrievalClient:
 
     def retrieve_cfrags(
             self,
-
             treasure_map: TreasureMap,
-
             retrieval_kits: Sequence[RetrievalKit],
-
             alice_verifying_key: PublicKey, # KeyFrag signer's key
             bob_encrypting_key: PublicKey, # User's public key (reencryption target)
             bob_verifying_key: PublicKey,
             policy_encrypting_key: PublicKey, # Key used to create the policy
-
-            # TreasureMap publisher's key
-            publisher_verifying_key: Optional[PublicKey] = None,
             ) -> List[RetrievalResult]:
-
-        if publisher_verifying_key is None:
-            publisher_verifying_key = alice_verifying_key
 
         # TODO: why is it here? This code shouldn't know about these details.
         # OK, so we're going to need to do some network activity for this retrieval.
@@ -962,8 +903,7 @@ class RetrievalClient:
                 work_order=work_order,
                 treasure_map=treasure_map,
                 alice_verifying_key=alice_verifying_key,
-                bob_verifying_key=bob_verifying_key,
-                publisher_verifying_key=publisher_verifying_key)
+                bob_verifying_key=bob_verifying_key)
 
             try:
                 cfrags = self._request_reencryption(ursula=ursula,
@@ -973,6 +913,7 @@ class RetrievalClient:
             except Exception as e:
                 # TODO (#2789): at this point we can separate the exceptions to "acceptable"
                 # (Ursula is not reachable) and "unacceptable" (Ursula provided bad results).
+                self.log.warn(f"Ursula {ursula} failed to reencrypt: {e}")
                 continue
 
             retrieval_plan.update(work_order, cfrags)

@@ -25,11 +25,7 @@ from nucypher.cli import options
 
 
 class Retrieve(BaseSchema):
-    label = character_fields.Label(
-        required=True,
-        load_only=True,
-        click=options.option_label(required=False)
-    )
+
     policy_encrypting_key = character_fields.Key(
         required=True,
         load_only=True,
@@ -51,9 +47,9 @@ class Retrieve(BaseSchema):
         click=options.option_message_kit(required=False)
     )
 
-    treasure_map = EncryptedTreasureMap(required=False,
-                                        load_only=True,
-                                        click=options.option_treasure_map)
+    encrypted_treasure_map = EncryptedTreasureMap(required=True,
+                                                  load_only=True,
+                                                  click=options.option_treasure_map)
 
     cleartexts = base_fields.List(character_fields.Cleartext(), dump_only=True)
 

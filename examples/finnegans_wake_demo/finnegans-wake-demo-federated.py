@@ -152,7 +152,6 @@ for counter, plaintext in enumerate(finnegans_wake):
     delivered_cleartexts = bob.retrieve([single_passage_message_kit],
                                         policy_encrypting_key=policy_public_key,
                                         alice_verifying_key=alice_verifying_key,
-                                        label=label,
                                         encrypted_treasure_map=policy.treasure_map)
 
     # We show that indeed this is the passage originally encrypted by Enrico.
