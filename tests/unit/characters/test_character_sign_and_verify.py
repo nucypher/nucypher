@@ -121,7 +121,6 @@ def test_anybody_can_encrypt():
 
     cleartext = b"This is Officer Rod Farva. Come in, Ursula!  Come in Ursula!"
 
-    ciphertext, signature = someone.encrypt_for(bob, cleartext, sign=False)
+    ciphertext = someone.encrypt_for(bob, cleartext, sign=False)
 
-    assert signature == constants.NOT_SIGNED
     assert ciphertext is not None

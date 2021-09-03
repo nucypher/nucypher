@@ -640,10 +640,10 @@ def test_collect_rewards_integration(click_runner,
 
         # Encrypt
         random_data = os.urandom(random.randrange(20, 100))
-        ciphertext, signature = enrico.encrypt_message(plaintext=random_data)
+        message_kit = enrico.encrypt_message(plaintext=random_data)
 
         # Decrypt
-        cleartexts = blockchain_bob.retrieve(ciphertext,
+        cleartexts = blockchain_bob.retrieve(message_kit,
                                              enrico=enrico,
                                              alice_verifying_key=verifying_key,
                                              label=random_policy_label,

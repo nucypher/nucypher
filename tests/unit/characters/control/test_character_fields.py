@@ -117,7 +117,7 @@ def test_message_kit(enacted_federated_policy, federated_alice):
     enrico = Enrico.from_alice(federated_alice, label=enacted_federated_policy.label)
     message = 'this is a message'
     plaintext_bytes = bytes(message, encoding='utf-8')
-    message_kit, signature = enrico.encrypt_message(plaintext=plaintext_bytes)
+    message_kit = enrico.encrypt_message(plaintext=plaintext_bytes)
     message_kit_bytes = bytes(message_kit)
     message_kit = MessageKitClass.from_bytes(message_kit_bytes)
 

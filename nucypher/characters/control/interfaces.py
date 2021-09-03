@@ -216,6 +216,6 @@ class EnricoInterface(CharacterPublicInterface):
         Character control endpoint for encrypting data for a policy and
         receiving the messagekit (and signature) to give to Bob.
         """
-        message_kit, signature = self.implementer.encrypt_message(plaintext=plaintext)
-        response_data = {'message_kit': message_kit, 'signature': signature}
+        message_kit = self.implementer.encrypt_message(plaintext=plaintext)
+        response_data = {'message_kit': message_kit}
         return response_data

@@ -51,7 +51,7 @@ def test_policy_simple_sinpa(blockchain_ursulas,
     # Enrico becomes
     enrico = Enrico(policy_encrypting_key=bupkiss_policy.public_key)
     plaintext = b"A crafty campaign"
-    message_kit, _signature = enrico.encrypt_message(plaintext)
+    message_kit = enrico.encrypt_message(plaintext)
 
     with pytest.raises(Ursula.NotEnoughUrsulas):  # Return a more descriptive request error?
         blockchain_bob.retrieve(message_kit,
@@ -90,7 +90,7 @@ def test_try_to_post_free_arrangement_by_hacking_enact(blockchain_ursulas,
     # Enrico becomes
     enrico = Enrico(policy_encrypting_key=bupkiss_policy.public_key)
     plaintext = b"A crafty campaign"
-    message_kit, _signature = enrico.encrypt_message(plaintext)
+    message_kit = enrico.encrypt_message(plaintext)
 
     with pytest.raises(Ursula.NotEnoughUrsulas):  # Return a more descriptive request error?
         blockchain_bob.retrieve(message_kit,
@@ -127,7 +127,7 @@ def test_pay_a_flunky_instead_of_the_arranged_ursula(blockchain_alice,
     # Enrico becomes
     enrico = Enrico(policy_encrypting_key=bupkiss_policy.public_key)
     plaintext = b"A crafty campaign"
-    message_kit, _signature = enrico.encrypt_message(plaintext)
+    message_kit = enrico.encrypt_message(plaintext)
 
     with pytest.raises(RestMiddleware.PaymentRequired):
         blockchain_bob.retrieve(message_kit,

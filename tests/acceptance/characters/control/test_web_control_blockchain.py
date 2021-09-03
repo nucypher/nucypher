@@ -217,7 +217,6 @@ def test_enrico_web_character_control_encrypt_message(enrico_web_controller_test
 
     response_data = json.loads(response.data)
     assert 'message_kit' in response_data['result']
-    assert 'signature' in response_data['result']
 
     # Check that it serializes correctly.
     message_kit = MessageKit.from_bytes(b64decode(response_data['result']['message_kit']))
@@ -293,7 +292,6 @@ def test_web_character_control_lifecycle(alice_web_controller_test_client,
 
     enrico_response_data = json.loads(response.data)
     assert 'message_kit' in enrico_response_data['result']
-    assert 'signature' in enrico_response_data['result']
 
     kit_bytes = b64decode(enrico_response_data['result']['message_kit'].encode())
     bob_message_kit = MessageKit.from_bytes(kit_bytes)

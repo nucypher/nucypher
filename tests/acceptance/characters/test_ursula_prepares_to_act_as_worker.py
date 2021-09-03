@@ -152,7 +152,7 @@ def test_blockchain_ursulas_reencrypt(blockchain_ursulas, blockchain_alice, bloc
 
     message = b"Oh, this isn't even BO. This is beyond BO. It's BBO."
 
-    message_kit, signature = enrico.encrypt_message(message)
+    message_kit = enrico.encrypt_message(message)
 
     blockchain_bob.start_learning_loop(now=True)
 

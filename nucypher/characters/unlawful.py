@@ -115,7 +115,7 @@ class Vladimir(Ursula):
         that Ursula will store it for me for free.
         """
         old_message_kit = legit_treasure_map._encrypted_tmap
-        new_message_kit, _signature = self.encrypt_for(self, b"I want to store this message for free.")
+        new_message_kit = self.encrypt_for(self, b"I want to store this message for free.")
         legit_treasure_map._encrypted_tmap = new_message_kit
         # I'll copy Alice's key so that Ursula thinks that the HRAC has been properly signed.
         legit_treasure_map._encrypted_tmap.sender_verifying_key = old_message_kit.sender_verifying_key
@@ -141,7 +141,7 @@ class Amonia(Alice):
         for ursula, kfrag in zip(arrangements, policy.kfrags):
             arrangement = arrangements[ursula]
             payload = policy._make_enactment_payload(kfrag)
-            message_kit, _signature = policy.publisher.encrypt_for(ursula, payload)
+            message_kit = policy.publisher.encrypt_for(ursula, payload)
 
             try:
                 network_middleware.enact_policy(ursula, bytes(message_kit))
@@ -215,7 +215,7 @@ class Amonia(Alice):
         for i in range(50):
             # I'll include a small portion of this awful film in a new message kit.  We don't care about the signature for bob.
             not_the_bees = b"Not the bees!" + int(i).to_bytes(length=4, byteorder="big")
-            like_a_map_but_awful._encrypted_tmap, _signature_for_bob_which_is_never_Used = MessageKit.author(
+            like_a_map_but_awful._encrypted_tmap = MessageKit.author(
                 recipient_key=bob.public_keys(DecryptingPower),
                 plaintext=not_the_bees,
                 signer=self.stamp,

@@ -359,7 +359,7 @@ class Character(Learner):
                     plaintext: bytes,
                     sign: bool = True,
                     sign_plaintext=True,
-                    ) -> tuple:
+                    ) -> MessageKit:
         """
         Encrypts plaintext for recipient actor. Optionally signs the message as well.
 
@@ -375,11 +375,11 @@ class Character(Learner):
         """
         signer = self.stamp if sign else DO_NOT_SIGN
 
-        message_kit, signature = MessageKit.author(recipient_key=recipient.public_keys(DecryptingPower),
-                                                   plaintext=plaintext,
-                                                   signer=signer,
-                                                   sign_plaintext=sign_plaintext)
-        return message_kit, signature
+        message_kit = MessageKit.author(recipient_key=recipient.public_keys(DecryptingPower),
+                                        plaintext=plaintext,
+                                        signer=signer,
+                                        sign_plaintext=sign_plaintext)
+        return message_kit
 
     def verify_from(self,
                     stranger: 'Character',

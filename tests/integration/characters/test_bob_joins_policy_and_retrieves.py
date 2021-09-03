@@ -97,7 +97,7 @@ def test_bob_retrieves(federated_alice,
     enrico = Enrico(policy_encrypting_key=policy.public_key)
 
     plaintext = b"What's your approach?  Mississippis or what?"
-    message_kit, _signature = enrico.encrypt_message(plaintext)
+    message_kit = enrico.encrypt_message(plaintext)
 
     alices_verifying_key = federated_alice.stamp.as_umbral_pubkey()
 

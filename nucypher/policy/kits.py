@@ -143,7 +143,7 @@ class MessageKit(BaseMessageKit):
                plaintext: bytes,
                signer: 'SignatureStamp',
                sign_plaintext: bool = True
-               ) -> Tuple['MessageKit', Signature]:
+               ) -> 'MessageKit':
         if signer is not constants.DO_NOT_SIGN:
             # The caller didn't expressly tell us not to sign; we'll sign.
             if sign_plaintext:
@@ -157,15 +157,15 @@ class MessageKit(BaseMessageKit):
                 capsule, ciphertext = umbral.encrypt(recipient_key, sig_header + plaintext)
                 signature = signer(ciphertext)
             message_kit = MessageKit(ciphertext=ciphertext, capsule=capsule,
-                                           sender_verifying_key=signer.as_umbral_pubkey(),
-                                           signature=signature)
+                                     sender_verifying_key=signer.as_umbral_pubkey(),
+                                     signature=signature)
         else:
             # Don't sign.
-            signature = sig_header = constants.NOT_SIGNED
+            sig_header = constants.NOT_SIGNED
             capsule, ciphertext = umbral.encrypt(recipient_key, sig_header + plaintext)
             message_kit = MessageKit(ciphertext=ciphertext, capsule=capsule)
 
-        return message_kit, signature
+        return message_kit
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)

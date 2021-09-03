@@ -144,7 +144,7 @@ for counter, plaintext in enumerate(finnegans_wake):
     # The matter of whether encryption makes the passage more or less readable
     # is left to the reader to determine.  Many data sources (Enricos) can
     # encrypt fot the policy's public key.
-    ciphertext, _signature = enrico.encrypt_message(plaintext)
+    message_kit = enrico.encrypt_message(plaintext)
     enrico_public_key = bytes(enrico.stamp)
     del enrico
 
@@ -153,7 +153,7 @@ for counter, plaintext in enumerate(finnegans_wake):
     ###############
 
     # Now Bob can retrieve the original message by requesting re-encryption from nodes.
-    cleartexts = bob.retrieve(ciphertext,
+    cleartexts = bob.retrieve(message_kit,
                               label=label,
                               policy_encrypting_key=policy_public_key,
                               alice_verifying_key=alice_verifying_key,

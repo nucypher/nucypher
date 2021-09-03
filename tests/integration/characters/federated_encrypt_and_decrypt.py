@@ -35,7 +35,7 @@ def test_sign_cleartext_and_encrypt(federated_alice, federated_bob):
     """
     message = b"Have you accepted my answer on StackOverflow yet?"
 
-    message_kit, _signature = federated_alice.encrypt_for(federated_bob, message,
+    message_kit = federated_alice.encrypt_for(federated_bob, message,
                                                           sign_plaintext=True)
 
     # Notice that our function still returns the signature here, in case federated_alice
@@ -57,9 +57,9 @@ def test_encrypt_and_sign_the_ciphertext(federated_alice, federated_bob):
     publicly without disclosing contents.
     """
     message = b"We have a reaaall problem."
-    message_kit, signature = federated_alice.encrypt_for(federated_bob, message,
+    message_kit = federated_alice.encrypt_for(federated_bob, message,
                                                          sign_plaintext=False)
-    cleartext = federated_bob.verify_from(federated_alice, message_kit, signature, decrypt=True)
+    cleartext = federated_bob.verify_from(federated_alice, message_kit, decrypt=True)
     assert cleartext == message
 
 
@@ -70,9 +70,9 @@ def test_encrypt_and_sign_including_signature_in_both_places(federated_alice, fe
     verify_from() (eg, gleaned over a side-channel).
     """
     message = b"We have a reaaall problem."
-    message_kit, signature = federated_alice.encrypt_for(federated_bob, message,
+    message_kit = federated_alice.encrypt_for(federated_bob, message,
                                                          sign_plaintext=True)
-    cleartext = federated_bob.verify_from(federated_alice, message_kit, signature,
+    cleartext = federated_bob.verify_from(federated_alice, message_kit,
                                           decrypt=True)
     assert cleartext == message
 
@@ -89,11 +89,9 @@ def test_encrypt_but_do_not_sign(federated_alice, federated_bob):
     # Alice might also want to encrypt a message but *not* sign it, in order
     # to refrain from creating evidence that can prove she was the
     # original sender.
-    message_kit, not_signature = federated_alice.encrypt_for(federated_bob, message, sign=False)
+    message_kit = federated_alice.encrypt_for(federated_bob, message, sign=False)
 
     # The message is not signed...
-    assert not_signature == constants.NOT_SIGNED
-
     # ...and thus, the message is not verified.
     with pytest.raises(InvalidSignature):
         federated_bob.verify_from(federated_alice, message_kit, decrypt=True)
@@ -107,12 +105,11 @@ def test_alice_can_decrypt(federated_alice):
     enrico = Enrico(policy_encrypting_key=policy_pubkey)
 
     message = b"boring test message"
-    message_kit, signature = enrico.encrypt_message(plaintext=message)
+    message_kit = enrico.encrypt_message(plaintext=message)
 
     # Interesting thing: if Alice wants to decrypt, she needs to provide the label directly.
     cleartext = federated_alice.verify_from(stranger=enrico,
                                             message_kit=message_kit,
-                                            signature=signature,
                                             decrypt=True,
                                             label=label)
     assert cleartext == message

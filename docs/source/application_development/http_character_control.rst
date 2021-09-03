@@ -167,6 +167,6 @@ This endpoint controls the ``Enrico.encrypt_message`` method.
 - HTTP Method: ``POST``
 - Required arguments:
     - ``message`` -- encoded as base64
-- Returns: ``message_kit`` and ``signature`` encoded as base64
+- Returns: ``message_kit`` encoded as base64
 
 For more details on these arguments, see the nucypher documentation on the ``Enrico.encrypt_message`` Python API method.

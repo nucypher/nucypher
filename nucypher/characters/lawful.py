@@ -1829,13 +1829,13 @@ class Enrico(Character):
         if is_me:
             self.log.info(self.banner.format(policy_encrypting_key))
 
-    def encrypt_message(self, plaintext: bytes) -> Tuple[MessageKit, Signature]:
+    def encrypt_message(self, plaintext: bytes) -> MessageKit:
         # TODO: #2107 Rename to "encrypt"
-        message_kit, signature = MessageKit.author(recipient_key=self.policy_pubkey,
-                                                   plaintext=plaintext,
-                                                   signer=self.stamp)
+        message_kit = MessageKit.author(recipient_key=self.policy_pubkey,
+                                        plaintext=plaintext,
+                                        signer=self.stamp)
         message_kit.policy_pubkey = self.policy_pubkey  # TODO: We can probably do better here.  NRN
-        return message_kit, signature
+        return message_kit
 
     @classmethod
     def from_alice(cls, alice: Alice, label: bytes):
@@ -1888,12 +1888,11 @@ class Enrico(Character):
                 return Response(str(e), status=400)
 
             # Encrypt
-            message_kit, signature = drone_enrico.encrypt_message(bytes(message, encoding='utf-8'))
+            message_kit = drone_enrico.encrypt_message(bytes(message, encoding='utf-8'))
 
             response_data = {
                 'result': {
                     'message_kit': b64encode(bytes(message_kit)).decode(),  # FIXME, but NRN
-                    'signature': b64encode(bytes(signature)).decode(),
                 },
                 'version': str(nucypher.__version__)
             }
