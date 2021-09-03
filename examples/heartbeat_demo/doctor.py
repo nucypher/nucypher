@@ -97,18 +97,12 @@ treasure_map = EncryptedTreasureMap.from_bytes(base64.b64decode(policy_data["tre
 data = msgpack.load(open("heart_data.msgpack", "rb"), raw=False)
 message_kits = (MessageKit.from_bytes(k) for k in data['kits'])
 
-# The doctor also needs to create a view of the Data Source from its public keys
-data_source = Enrico.from_public_keys(
-    verifying_key=data['data_source'],
-    policy_encrypting_key=policy_pubkey
-)
-
 # Now he can ask the NuCypher network to get a re-encrypted version of each MessageKit.
 for message_kit in message_kits:
     start = timer()
     retrieved_plaintexts = doctor.retrieve(
         [message_kit],
-        enrico=data_source,
+        policy_encrypting_key=policy_pubkey,
         alice_verifying_key=alices_sig_pubkey,
         encrypted_treasure_map=treasure_map
     )

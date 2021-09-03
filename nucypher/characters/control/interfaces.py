@@ -176,9 +176,6 @@ class BobInterface(CharacterPublicInterface):
         alice_verifying_key = PublicKey.from_bytes(alice_verifying_key)
         message_kit = MessageKit.from_bytes(message_kit)  # TODO #846: May raise UnknownOpenSSLError and InvalidTag.
 
-        enrico = Enrico.from_public_keys(verifying_key=message_kit.sender_verifying_key,
-                                         policy_encrypting_key=policy_encrypting_key)
-
         if isinstance(encrypted_treasure_map, bytes):
             encrypted_treasure_map = EncryptedTreasureMap.from_bytes(encrypted_treasure_map)
 
@@ -187,7 +184,7 @@ class BobInterface(CharacterPublicInterface):
             encrypted_treasure_map = EncryptedTreasureMap.from_bytes(b64decode(tmap_bytes))
 
         plaintexts = self.implementer.retrieve([message_kit],
-                                               enrico=enrico,
+                                               policy_encrypting_key=policy_encrypting_key,
                                                alice_verifying_key=alice_verifying_key,
                                                encrypted_treasure_map=encrypted_treasure_map)
 

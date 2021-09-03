@@ -634,12 +634,7 @@ class Bob(Character):
             message_kits: Sequence[Union[MessageKit, PolicyMessageKit]],
             alice_verifying_key: PublicKey, # KeyFrag signer's key
             encrypted_treasure_map: EncryptedTreasureMap,
-
-            # Optional policy-related args
-            policy_encrypting_key: Optional[PublicKey] = None,
-            enrico: Optional["Enrico"] = None,
-
-            # Retrieval Behaviour
+            policy_encrypting_key: PublicKey, # TODO: #2792
             cache_cfrags: bool = False,
             use_cached_cfrags: bool = False,
             ) -> List[PolicyMessageKit]:
@@ -670,18 +665,6 @@ class Bob(Character):
             # Have to decrypt the treasure map first to find out what the threshold is.
             # Otherwise we could check the message kits for completeness right away.
             treasure_map = self._decrypt_treasure_map(encrypted_treasure_map)
-
-        # Check that the sender is set correctly. See #2743
-        if enrico:
-            if policy_encrypting_key is None:
-                policy_encrypting_key = enrico.policy_pubkey
-            else:
-                assert enrico.policy_encrypting_key == policy_encrypting_key
-            for message_kit in message_kits:
-                assert message_kit.sender_verifying_key == enrico.stamp.as_umbral_pubkey()
-        else:
-            if policy_encrypting_key is None:
-                raise ValueError("Either `enrico` or `policy_encrypting_key` must be specified")
 
         # Normalize input
         message_kits: List[PolicyMessageKit] = [

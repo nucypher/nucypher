@@ -29,22 +29,22 @@ class Retrieve(BaseSchema):
     policy_encrypting_key = character_fields.Key(
         required=True,
         load_only=True,
-        click=options.option_policy_encrypting_key(required=False)
+        click=options.option_policy_encrypting_key(required=True)
     )
     alice_verifying_key = character_fields.Key(
-        required=False,
+        required=True,
         load_only=True,
         click=click.option(
             '--alice-verifying-key',
             '-avk',
             help="Alice's verifying key as a hexadecimal string",
             type=click.STRING,
-            required=False)
+            required=True)
     )
     message_kit = character_fields.MessageKit(
         required=True,
         load_only=True,
-        click=options.option_message_kit(required=False)
+        click=options.option_message_kit(required=True)
     )
 
     encrypted_treasure_map = EncryptedTreasureMap(required=True,
