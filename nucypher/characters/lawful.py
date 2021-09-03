@@ -110,7 +110,6 @@ from nucypher.policy.orders import (
         RetrievalWorkOrder,
         ReencryptionRequest,
         ReencryptionResponse,
-        RetrievalHistory,
         RetrievalPlan,
         RetrievalResult,
         )
@@ -544,8 +543,6 @@ class Bob(Character):
         # Cache of decrypted treasure maps
         self._treasure_maps: Dict[HRAC, TreasureMap] = {}
 
-        self._retrieval_history = RetrievalHistory()
-
         self.log = Logger(self.__class__.__name__)
         if is_me:
             self.log.info(self.banner)
@@ -635,8 +632,6 @@ class Bob(Character):
             alice_verifying_key: PublicKey, # KeyFrag signer's key
             encrypted_treasure_map: EncryptedTreasureMap,
             policy_encrypting_key: PublicKey, # TODO: #2792
-            cache_cfrags: bool = False,
-            use_cached_cfrags: bool = False,
             ) -> List[PolicyMessageKit]:
         """
         Attempts to retrieve reencrypted capsule fragments
@@ -645,12 +640,6 @@ class Bob(Character):
         Accepts both "clean" message kits (obtained from a side channel)
         and "loaded" ones (with earlier retrieved capsule frags attached,
         along with the addresses of Ursulas they were obtained from).
-
-        If ``cache_cfrags`` is ``True``, retrieved cfrags will be saved in this object,
-        along with the respective Ursula addresses.
-
-        If ``use_cached_cfrags`` is ``True``, previously retrieved cfrags will be used
-        to fulfill the request, and the corresponding Ursulas will not be queried.
 
         Returns a list of loaded message kits corresponding to the input list,
         with the kits containing the capsule fragments obtained during the retrieval.
@@ -673,12 +662,6 @@ class Bob(Character):
             for message_kit in message_kits
             ]
 
-        # Update message kits from cache
-        if use_cached_cfrags:
-            message_kits = [
-                message_kit.with_result(self._retrieval_history.by_capsule(message_kit.capsule))
-                for message_kit in message_kits]
-
         # Clear up all unrelated information from message kits before retrieval.
         retrieval_kits = [message_kit.as_retrieval_kit() for message_kit in message_kits]
 
@@ -696,10 +679,6 @@ class Bob(Character):
         results = []
         for message_kit, retrieval_result in zip(message_kits, retrieval_results):
             results.append(message_kit.with_result(retrieval_result))
-
-            # Update the cache
-            if cache_cfrags:
-                self._retrieval_history.update(message_kit.capsule, retrieval_result)
 
         return results
 

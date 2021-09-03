@@ -46,27 +46,6 @@ from nucypher.policy.kits import MessageKit
 from nucypher.policy.maps import AuthorizedKeyFrag, TreasureMap
 
 
-class RetrievalHistory:
-    """
-    A cache of retrieved cfrags.
-    """
-
-    def __init__(self):
-        self._cache_by_capsule: Dict[Capsule, RetrievalResult] = {}
-
-    def update(self, capsule: Capsule, result: 'RetrievalResult'):
-        """
-        Saves the results of retrieval into the cache.
-        """
-        self._cache_by_capsule[capsule] = self.by_capsule(capsule).with_result(result)
-
-    def by_capsule(self, capsule: Capsule) -> 'RetrievalResult':
-        """
-        Returns all the cached retrieval resutls for a given capsule.
-        """
-        return self._cache_by_capsule.get(capsule, RetrievalResult.empty())
-
-
 class RetrievalPlan:
     """
     An emphemeral object providing a service of selecting Ursulas for reencryption requests

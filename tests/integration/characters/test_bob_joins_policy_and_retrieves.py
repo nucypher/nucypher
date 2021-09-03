@@ -102,7 +102,6 @@ def test_bob_retrieves(federated_alice,
     delivered_cleartexts = bob.retrieve([message_kit],
                                         policy_encrypting_key=policy.public_key,
                                         alice_verifying_key=alices_verifying_key,
-                                        cache_cfrags=True,
                                         encrypted_treasure_map=policy.treasure_map)
 
     assert plaintext == delivered_cleartexts[0]
@@ -110,7 +109,6 @@ def test_bob_retrieves(federated_alice,
     cleartexts_delivered_a_second_time = bob.retrieve([message_kit],
                                                       policy_encrypting_key=policy.public_key,
                                                       alice_verifying_key=alices_verifying_key,
-                                                      use_cached_cfrags=True,
                                                       encrypted_treasure_map=policy.treasure_map)
 
     # Indeed, they're the same cleartexts.
@@ -125,7 +123,6 @@ def test_bob_retrieves(federated_alice,
     _cleartexts = bob.retrieve([message_kit],
                                policy_encrypting_key=policy.public_key,
                                alice_verifying_key=alices_verifying_key,
-                               use_cached_cfrags=True,
                                encrypted_treasure_map=policy.treasure_map)
     assert _cleartexts == delivered_cleartexts  # TODO: 892
 
@@ -177,5 +174,4 @@ def test_bob_retrieves_too_late(federated_bob, federated_ursulas,
         [message_kit],
         policy_encrypting_key=enacted_federated_policy.public_key,
         alice_verifying_key=alice_verifying_key,
-        encrypted_treasure_map=treasure_map,
-        use_cached_cfrags=False)
+        encrypted_treasure_map=treasure_map)

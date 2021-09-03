@@ -166,52 +166,6 @@ def test_single_retrieve(enacted_federated_policy, federated_bob, federated_ursu
     assert cleartexts == messages
 
 
-def test_use_cached_cfrags(enacted_federated_policy, federated_bob, federated_ursulas):
-
-    federated_bob.start_learning_loop()
-    messages, message_kits = _make_message_kits(enacted_federated_policy.public_key)
-
-    ursulas = list(federated_ursulas)
-
-    # All Ursulas are down except for two
-    federated_bob.network_middleware = NodeIsDownMiddleware()
-
-    for ursula in ursulas[2:]:
-        federated_bob.network_middleware.node_is_down(ursula)
-
-    # We can't decrypt, but we still have cfrags from two Ursulas,
-    # and we cache them in `federated_bob`
-    with pytest.raises(RuntimeError):
-        cleartexts = federated_bob.retrieve(
-            message_kits=message_kits,
-            cache_cfrags=True,
-            **_policy_info_kwargs(enacted_federated_policy),
-            )
-
-    # Now the remaining two Ursulas go down.
-    for ursula in ursulas[:2]:
-        federated_bob.network_middleware.node_is_down(ursula)
-
-    # ...but one other comes up.
-    federated_bob.network_middleware.node_is_up(ursulas[2])
-
-    # If we don't use the cache, we still can't decrypt - only one cfrag is available.
-    with pytest.raises(RuntimeError):
-        cleartexts = federated_bob.retrieve(
-            message_kits=message_kits,
-            **_policy_info_kwargs(enacted_federated_policy),
-            )
-
-    # With the cache enabled, we have two cfrags in the cache + one cfrag from the available Ursula
-    cleartexts = federated_bob.retrieve(
-        message_kits=message_kits,
-        use_cached_cfrags=True,
-        **_policy_info_kwargs(enacted_federated_policy),
-        )
-
-    assert cleartexts == messages
-
-
 def test_use_external_cache(enacted_federated_policy, federated_bob, federated_ursulas):
 
     federated_bob.start_learning_loop()
