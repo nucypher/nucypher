@@ -73,7 +73,7 @@ The character control API endpoints expect `all` keys to be encoded as hex.
 
 Now, look at ``label``. Notice that it's a unicode string. How else could you properly write important stuff like "`Spın̈al Tap`"?
 
-Integers, in our case ``m`` and ``n`` can be passed as is without encoding.
+Integers, in our case ``threshold`` and ``shares`` can be passed as is without encoding.
 
 A datetime, like ``expiration``, must be passed in as an ISO-8601 formatted datetime string.
 
@@ -125,8 +125,8 @@ This endpoint controls the ``Alice.grant`` method.
     - ``bob_verifying_key`` -- encoded as hex
     - ``bob_encrypting_key`` -- encoded as hex
     - ``label`` -- a unicode string
-    - ``m`` -- an integer
-    - ``n`` -- an integer
+    - ``threshold`` -- an integer
+    - ``shares`` -- an integer
     - ``expiration`` -- an ISO-8601 formatted datetime string
     - ``value``-- an integer
 - Returns:
