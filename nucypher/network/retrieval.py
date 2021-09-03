@@ -251,6 +251,40 @@ class RetrievalClient:
         self._learner = learner
         self.log = Logger(self.__class__.__name__)
 
+    def _ensure_ursula_availability(self, treasure_map: TreasureMap, timeout=10):
+        """
+        Make sure we know enough nodes from the treasure map to decrypt;
+        otherwise block and wait for them to come online.
+        """
+
+        # OK, so we're going to need to do some network activity for this retrieval.
+        # Let's make sure we've seeded.
+        if not self._learner.done_seeding:
+            self._learner.learn_from_teacher_node()
+
+        ursulas_in_map = treasure_map.destinations.keys()
+        all_known_ursulas = self._learner.known_nodes.addresses()
+
+        # Push all unknown Ursulas from the map in the queue for learning
+        unknown_ursulas = ursulas_in_map - all_known_ursulas
+        if unknown_ursulas:
+            self._learner.learn_about_specific_nodes(unknown_ursulas)
+
+        # How many nodes over the threshold we want to know (just in case)
+        redundancy = 0
+
+        # If we know enough to decrypt, we can proceed.
+        known_ursulas = ursulas_in_map & all_known_ursulas
+
+        if len(known_ursulas) - redundancy >= treasure_map.threshold:
+            return
+
+        allow_missing = max(len(unknown_ursulas) - redundancy, 0)
+        self._learner.block_until_specific_nodes_are_known(unknown_ursulas,
+                                                           timeout=timeout,
+                                                           allow_missing=allow_missing,
+                                                           learn_on_this_thread=True)
+
     def _request_reencryption(self,
                               ursula: 'Ursula',
                               reencryption_request: 'ReencryptionRequest',
@@ -340,11 +374,7 @@ class RetrievalClient:
             policy_encrypting_key: PublicKey, # Key used to create the policy
             ) -> List[RetrievalResult]:
 
-        # TODO: why is it here? This code shouldn't know about these details.
-        # OK, so we're going to need to do some network activity for this retrieval.
-        # Let's make sure we've seeded.
-        if not self._learner.done_seeding:
-            self._learner.learn_from_teacher_node()
+        self._ensure_ursula_availability(treasure_map)
 
         retrieval_plan = RetrievalPlan(treasure_map=treasure_map, retrieval_kits=retrieval_kits)
 

@@ -541,66 +541,6 @@ class Bob(Character):
         card = Card.from_character(self)
         return card
 
-    def peek_at_treasure_map(self, treasure_map):
-        """
-        Take a quick gander at the TreasureMap to see which
-        nodes are already known to us.
-
-        Don't do any learning, pinging, or anything other than just seeing
-        whether we know or don't know the nodes.
-
-        Return two sets: nodes that are unknown to us, nodes that are known to us.
-        """
-
-        # The intersection of the map and our known nodes will be the known Ursulas...
-        known_treasure_ursulas = treasure_map.destinations.keys() & self.known_nodes.addresses()
-
-        # while the difference will be the unknown Ursulas.
-        unknown_treasure_ursulas = treasure_map.destinations.keys() - self.known_nodes.addresses()
-
-        return unknown_treasure_ursulas, known_treasure_ursulas
-
-    def follow_treasure_map(self,
-                            treasure_map=None,
-                            block=False,
-                            new_thread=False,
-                            timeout=10,
-                            allow_missing=0):
-        """
-        Follows a known TreasureMap.
-
-        Determines which Ursulas are known and which are unknown.
-
-        If block, will block until either unknown nodes are discovered or until timeout seconds have elapsed.
-        After timeout seconds, if more than allow_missing nodes are still unknown, raises NotEnoughUrsulas.
-
-        If block and new_thread, does the same thing but on a different thread, returning a Deferred which
-        fires after the blocking has concluded.
-
-        Otherwise, returns (unknown_nodes, known_nodes).
-
-        # TODO: Check if nodes are up, declare them phantom if not.  567
-        """
-        unknown_ursulas, known_ursulas = self.peek_at_treasure_map(treasure_map=treasure_map)
-
-        if unknown_ursulas:
-            self.learn_about_specific_nodes(unknown_ursulas)
-
-        # TODO: what does this even do?
-        self._push_certain_newly_discovered_nodes_here(known_ursulas, unknown_ursulas)
-
-        if block:
-            if new_thread:
-                return threads.deferToThread(self.block_until_specific_nodes_are_known,
-                                             unknown_ursulas,
-                                             timeout=timeout,
-                                             allow_missing=allow_missing)
-            else:
-                self.block_until_specific_nodes_are_known(unknown_ursulas,
-                                                          timeout=timeout,
-                                                          allow_missing=allow_missing,
-                                                          learn_on_this_thread=True)
-
     def _decrypt_treasure_map(self, encrypted_treasure_map: EncryptedTreasureMap) -> TreasureMap:
 
         publisher = Alice.from_public_keys(verifying_key=encrypted_treasure_map.publisher_verifying_key)

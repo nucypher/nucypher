@@ -255,7 +255,6 @@ class Learner:
         self.learn_on_same_thread = learn_on_same_thread
 
         self._abort_on_learning_error = abort_on_learning_error
-        self._learning_listeners = defaultdict(list)
         self._node_ids_to_learn_about_immediately = set()
 
         self.__known_nodes = self.tracker_class(domain=domain, this_node=self if include_self_in_the_state else None)
@@ -463,10 +462,6 @@ class Learner:
 
             # TODO: What about InvalidNode?  (for that matter, any SuspiciousActivity)  1714, 567 too really
 
-        listeners = self._learning_listeners.pop(node.checksum_address, tuple())
-
-        for listener in listeners:
-            listener.add(node.checksum_address)
         self._node_ids_to_learn_about_immediately.discard(node.checksum_address)
 
         if record_fleet_state:
@@ -708,14 +703,6 @@ class Learner:
                     self._ROUNDS_WITHOUT_NODES_AFTER_WHICH_TO_SLOW_DOWN,
                     self._LONG_LEARNING_DELAY))
                 self._learning_task.interval = self._LONG_LEARNING_DELAY
-
-    def _push_certain_newly_discovered_nodes_here(self, queue_to_push, node_addresses):
-        """
-        If any node_addresses are discovered, push them to queue_to_push.
-        """
-        for node_address in node_addresses:
-            self.log.info("Adding listener for {}".format(node_address))
-            self._learning_listeners[node_address].append(queue_to_push)
 
     def network_bootstrap(self, node_list: list) -> None:
         for node_addr, port in node_list:

@@ -19,103 +19,12 @@ import pytest
 import pytest_twisted
 from twisted.internet import threads
 
-from nucypher.characters.lawful import Enrico
+from nucypher.characters.lawful import Enrico, Bob
 from nucypher.config.constants import TEMPORARY_DOMAIN
+from nucypher.network.retrieval import RetrievalClient
 from nucypher.policy.kits import RetrievalKit
 
 from tests.utils.middleware import MockRestMiddleware, NodeIsDownMiddleware
-
-
-def test_bob_cannot_follow_the_treasure_map_in_isolation(federated_treasure_map, federated_bob):
-    # Assume for the moment that Bob has already received a TreasureMap, perhaps via a side channel.
-
-    # Bob knows of no Ursulas.
-    assert len(federated_bob.known_nodes) == 0
-
-    # He can't successfully follow the TreasureMap until he learns of a node to ask.
-    unknown, known = federated_bob.peek_at_treasure_map(treasure_map=federated_treasure_map)
-    assert len(known) == 0
-
-    # TODO: Show that even with learning loop going, nothing happens here.
-    # Probably use Clock?
-    federated_bob.follow_treasure_map(treasure_map=federated_treasure_map)
-    assert len(known) == 0
-
-
-def test_bob_already_knows_all_nodes_in_treasure_map(enacted_federated_policy,
-                                                     federated_ursulas,
-                                                     federated_bob,
-                                                     federated_alice):
-    # Bob knows of no Ursulas.
-    assert len(federated_bob.known_nodes) == 0
-
-    # Now we'll inform Bob of some Ursulas.
-    for ursula in federated_ursulas:
-        federated_bob.remember_node(ursula)
-
-    # Now, Bob can get the TreasureMap all by himself, and doesn't need a side channel.
-    the_map = federated_bob._decrypt_treasure_map(enacted_federated_policy.treasure_map)
-    unknown, known = federated_bob.peek_at_treasure_map(treasure_map=the_map)
-
-    # He finds that he didn't need to discover any new nodes...
-    assert len(unknown) == 0
-
-    # ...because he already knew of all the Ursulas on the map.
-    assert len(known) == enacted_federated_policy.shares
-
-
-@pytest_twisted.inlineCallbacks
-def test_bob_can_follow_treasure_map_even_if_he_only_knows_of_one_node(federated_treasure_map,
-                                                                       federated_ursulas,
-                                                                       certificates_tempdir):
-    """
-    Similar to above, but this time, we'll show that if Bob can connect to a single node, he can
-    learn enough to follow the TreasureMap.
-
-    Also, we'll get the TreasureMap from the hrac alone (ie, not via a side channel).
-    """
-
-    from nucypher.characters.lawful import Bob
-
-    bob = Bob(network_middleware=MockRestMiddleware(),
-              domain=TEMPORARY_DOMAIN,
-              start_learning_now=False,
-              abort_on_learning_error=True,
-              federated_only=True)
-
-    # Again, let's assume that he received the TreasureMap via a side channel.
-
-    # Now, let's create a scenario in which Bob knows of only one node.
-    assert len(bob.known_nodes) == 0
-    first_ursula = list(federated_ursulas).pop(0)
-    bob.remember_node(first_ursula)
-    assert len(bob.known_nodes) == 1
-
-    # This time, when he follows the TreasureMap...
-    unknown_nodes, known_nodes = bob.peek_at_treasure_map(treasure_map=federated_treasure_map)
-
-    # Bob already knew about one node; the rest are unknown.
-    assert len(unknown_nodes) == len(federated_treasure_map) - 1
-
-    # He needs to actually follow the treasure map to get the rest.
-    bob.follow_treasure_map(treasure_map=federated_treasure_map)
-
-    # The nodes in the learning loop are now his top target, but he's not learning yet.
-    assert not bob._learning_task.running
-
-    # ...so he hasn't learned anything (ie, Bob still knows of just one node).
-    assert len(bob.known_nodes) == 1
-
-    # Now, we'll start his learning loop.
-    bob.start_learning_loop()
-
-    # ...and block until the unknown_nodes have all been found.
-    d = threads.deferToThread(bob.block_until_specific_nodes_are_known, unknown_nodes)
-    yield d
-
-    # ...and he now has no more unknown_nodes.
-    assert len(bob.known_nodes) == len(federated_treasure_map)
-    bob.disenchant()
 
 
 def _policy_info_kwargs(enacted_policy):
