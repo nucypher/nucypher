@@ -306,7 +306,7 @@ def test_web_character_control_lifecycle(alice_web_controller_test_client,
     teacher = list(federated_ursulas)[1]
     federated_bob.remember_node(teacher)
 
-    response = bob_web_controller_test_client.post('/retrieve', data=json.dumps(bob_request_data))
+    response = bob_web_controller_test_client.post('/retrieve_and_decrypt', data=json.dumps(bob_request_data))
     assert response.status_code == 200
 
     bob_response_data = json.loads(response.data)

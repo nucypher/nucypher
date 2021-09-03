@@ -642,10 +642,10 @@ def test_collect_rewards_integration(click_runner,
         message_kit = enrico.encrypt_message(plaintext=random_data)
 
         # Decrypt
-        cleartexts = blockchain_bob.retrieve([message_kit],
-                                             policy_encrypting_key=blockchain_policy.public_key,
-                                             alice_verifying_key=verifying_key,
-                                             encrypted_treasure_map=blockchain_policy.treasure_map)
+        cleartexts = blockchain_bob.retrieve_and_decrypt([message_kit],
+                                                         policy_encrypting_key=blockchain_policy.public_key,
+                                                         alice_verifying_key=verifying_key,
+                                                         encrypted_treasure_map=blockchain_policy.treasure_map)
         assert random_data == cleartexts[0]
 
         # Ursula Staying online and the clock advancing

@@ -356,7 +356,7 @@ def run_entire_cli_lifecycle(click_runner,
 
         alice_signing_key = side_channel.fetch_alice_pubkey()
 
-        retrieve_args = ('bob', 'retrieve',
+        retrieve_args = ('bob', 'retrieve-and-decrypt',
                          '--mock-networking',
                          '--json-ipc',
                          '--teacher', teacher_uri,

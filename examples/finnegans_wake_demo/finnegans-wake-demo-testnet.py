@@ -153,10 +153,10 @@ for counter, plaintext in enumerate(finnegans_wake):
     ###############
 
     # Now Bob can retrieve the original message by requesting re-encryption from nodes.
-    cleartexts = bob.retrieve([message_kit],
-                              policy_encrypting_key=policy_public_key,
-                              alice_verifying_key=alice_verifying_key,
-                              encrypted_treasure_map=policy.treasure_map)
+    cleartexts = bob.retrieve_and_decrypt([message_kit],
+                                          policy_encrypting_key=policy_public_key,
+                                          alice_verifying_key=alice_verifying_key,
+                                          encrypted_treasure_map=policy.treasure_map)
 
     # We show that indeed this is the passage originally encrypted by Enrico.
     assert plaintext == cleartexts[0]

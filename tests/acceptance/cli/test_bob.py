@@ -153,7 +153,7 @@ def test_bob_retrieves_twice_via_cli(click_runner,
     message_kit_b64_bytes = b64encode(message_kit_bytes)
     MessageKit.from_bytes(message_kit_bytes)
 
-    retrieve_args = ('bob', 'retrieve',
+    retrieve_args = ('bob', 'retrieve-and-decrypt',
                      '--mock-networking',
                      '--json-ipc',
                      '--teacher', teacher.seed_node_metadata(as_teacher_uri=True),

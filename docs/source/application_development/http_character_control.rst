@@ -144,7 +144,7 @@ retrieve
 
 This endpoint controls the ``Bob.retrieve`` method.
 
-- URL: ``/retrieve``
+- URL: ``/retrieve_and_decrypt``
 - HTTP Method: ``POST``
 - Required arguments:
     - ``policy_encrypting_key`` -- encoded as hex

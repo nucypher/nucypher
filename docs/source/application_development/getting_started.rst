@@ -360,7 +360,7 @@ Then Bob can retrieve and decrypt the message kit:
 
 .. code-block:: python
 
-   cleartexts = bob.retrieve(
+   cleartexts = bob.retrieve_and_decrypt(
        message_kits=[message_kit],
        policy_encrypting_key=policy.public_key,
        alice_verifying_key=alice_public_key,

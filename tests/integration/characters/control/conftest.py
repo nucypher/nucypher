@@ -117,7 +117,7 @@ def grant_control_request(federated_bob):
 
 @pytest.fixture(scope='module')
 def retrieve_control_request(federated_bob, enacted_federated_policy, capsule_side_channel):
-    method_name = 'retrieve'
+    method_name = 'retrieve_and_decrypt'
     message_kit = capsule_side_channel()
 
     params = {

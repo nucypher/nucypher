@@ -555,7 +555,7 @@ class Bob(Character):
 
         return encrypted_treasure_map.decrypt(decryptor)
 
-    def retrieve_cfrags(
+    def retrieve(
             self,
             message_kits: Sequence[Union[MessageKit, PolicyMessageKit]],
             alice_verifying_key: PublicKey, # KeyFrag signer's key
@@ -611,15 +611,15 @@ class Bob(Character):
 
         return results
 
-    def retrieve(self, *args, **kwds) -> List[bytes]:
+    def retrieve_and_decrypt(self, *args, **kwds) -> List[bytes]:
         """
         Attempts to retrieve reencrypted capsule fragments from Ursulas
         and decrypt the ciphertexts in the given message kits.
 
-        See ``retrieve_cfrags()`` for the parameter list.
+        See ``retrieve()`` for the parameter list.
         """
 
-        message_kits = self.retrieve_cfrags(*args, **kwds)
+        message_kits = self.retrieve(*args, **kwds)
 
         for message_kit in message_kits:
             if not message_kit.is_decryptable_by_receiver():
@@ -663,13 +663,13 @@ class Bob(Character):
             """
             return controller(method_name='public_keys', control_request=request)
 
-        @bob_control.route('/retrieve', methods=['POST'])
-        def retrieve():
+        @bob_control.route('/retrieve_and_decrypt', methods=['POST'])
+        def retrieve_and_decrypt():
             """
             Character control endpoint for re-encrypting and decrypting policy
             data.
             """
-            return controller(method_name='retrieve', control_request=request)
+            return controller(method_name='retrieve_and_decrypt', control_request=request)
 
         return controller
 

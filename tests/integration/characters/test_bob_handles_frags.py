@@ -67,7 +67,7 @@ def test_single_retrieve(enacted_federated_policy, federated_bob, federated_ursu
     federated_bob.start_learning_loop()
     messages, message_kits = _make_message_kits(enacted_federated_policy.public_key)
 
-    cleartexts = federated_bob.retrieve(
+    cleartexts = federated_bob.retrieve_and_decrypt(
         message_kits=message_kits,
         **_policy_info_kwargs(enacted_federated_policy),
         )
@@ -88,7 +88,7 @@ def test_use_external_cache(enacted_federated_policy, federated_bob, federated_u
         federated_bob.network_middleware.node_is_down(ursula)
 
     # Fetch what we can without decrypting
-    loaded_message_kits = federated_bob.retrieve_cfrags(
+    loaded_message_kits = federated_bob.retrieve(
         message_kits=message_kits,
         **_policy_info_kwargs(enacted_federated_policy),
         )
@@ -104,7 +104,7 @@ def test_use_external_cache(enacted_federated_policy, federated_bob, federated_u
     federated_bob.network_middleware.node_is_up(ursulas[2])
 
     # Try again, building on top of the existing cache
-    loaded_message_kits = federated_bob.retrieve_cfrags(
+    loaded_message_kits = federated_bob.retrieve(
         message_kits=loaded_message_kits,
         **_policy_info_kwargs(enacted_federated_policy),
         )
@@ -116,7 +116,7 @@ def test_use_external_cache(enacted_federated_policy, federated_bob, federated_u
     for ursula in ursulas:
         federated_bob.network_middleware.node_is_down(ursula)
 
-    cleartexts = federated_bob.retrieve(
+    cleartexts = federated_bob.retrieve_and_decrypt(
         message_kits=loaded_message_kits,
         **_policy_info_kwargs(enacted_federated_policy),
         )

@@ -54,10 +54,10 @@ def test_policy_simple_sinpa(blockchain_ursulas,
     message_kit = enrico.encrypt_message(plaintext)
 
     with pytest.raises(Ursula.NotEnoughUrsulas):  # Return a more descriptive request error?
-        blockchain_bob.retrieve([message_kit],
-                                policy_encrypting_key=bupkiss_policy.public_key,
-                                alice_verifying_key=amonia.stamp,
-                                encrypted_treasure_map=bupkiss_policy.treasure_map)
+        blockchain_bob.retrieve_and_decrypt([message_kit],
+                                            policy_encrypting_key=bupkiss_policy.public_key,
+                                            alice_verifying_key=amonia.stamp,
+                                            encrypted_treasure_map=bupkiss_policy.treasure_map)
 
     for ursula in blockchain_ursulas:
         # Reset the Ursula for the next test.
@@ -91,10 +91,10 @@ def test_try_to_post_free_arrangement_by_hacking_enact(blockchain_ursulas,
     message_kit = enrico.encrypt_message(plaintext)
 
     with pytest.raises(Ursula.NotEnoughUrsulas):  # Return a more descriptive request error?
-        blockchain_bob.retrieve([message_kit],
-                                policy_encrypting_key=bupkiss_policy.public_key,
-                                alice_verifying_key=amonia.stamp,
-                                encrypted_treasure_map=bupkiss_policy.treasure_map)
+        blockchain_bob.retrieve_and_decrypt([message_kit],
+                                            policy_encrypting_key=bupkiss_policy.public_key,
+                                            alice_verifying_key=amonia.stamp,
+                                            encrypted_treasure_map=bupkiss_policy.treasure_map)
 
 
 def test_pay_a_flunky_instead_of_the_arranged_ursula(blockchain_alice,
@@ -126,7 +126,7 @@ def test_pay_a_flunky_instead_of_the_arranged_ursula(blockchain_alice,
     message_kit = enrico.encrypt_message(plaintext)
 
     with pytest.raises(Ursula.NotEnoughUrsulas):
-        blockchain_bob.retrieve([message_kit],
-                                policy_encrypting_key=bupkiss_policy.public_key,
-                                alice_verifying_key=amonia.stamp,
-                                encrypted_treasure_map=bupkiss_policy.treasure_map)
+        blockchain_bob.retrieve_and_decrypt([message_kit],
+                                            policy_encrypting_key=bupkiss_policy.public_key,
+                                            alice_verifying_key=amonia.stamp,
+                                            encrypted_treasure_map=bupkiss_policy.treasure_map)

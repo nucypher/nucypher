@@ -100,7 +100,7 @@ message_kits = (MessageKit.from_bytes(k) for k in data['kits'])
 # Now he can ask the NuCypher network to get a re-encrypted version of each MessageKit.
 for message_kit in message_kits:
     start = timer()
-    retrieved_plaintexts = doctor.retrieve(
+    retrieved_plaintexts = doctor.retrieve_and_decrypt(
         [message_kit],
         policy_encrypting_key=policy_pubkey,
         alice_verifying_key=alices_sig_pubkey,

@@ -24,7 +24,7 @@ from nucypher.control.specifications.base import BaseSchema
 from nucypher.cli import options
 
 
-class Retrieve(BaseSchema):
+class RetrieveAndDecrypt(BaseSchema):
 
     policy_encrypting_key = character_fields.Key(
         required=True,

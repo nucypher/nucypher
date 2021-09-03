@@ -343,21 +343,21 @@ def make_card(general_config, character_options, config_file, nickname):
 @option_config_file
 @group_general_config
 @option_force
-@BobInterface.connect_cli('retrieve')
+@BobInterface.connect_cli('retrieve_and_decrypt')
 @click.option('--alice', type=click.STRING, help="The card id or nickname of a stored Alice card.")
 @click.option('--ipfs', help="Download an encrypted message from IPFS at the specified gateway URI")
 @click.option('--decode', help="Decode base64 plaintext messages", is_flag=True)
-def retrieve(general_config,
-             character_options,
-             config_file,
-             policy_encrypting_key,
-             alice_verifying_key,
-             treasure_map,
-             message_kit,
-             ipfs,
-             alice,
-             decode,
-             force):
+def retrieve_and_decrypt(general_config,
+                         character_options,
+                         config_file,
+                         policy_encrypting_key,
+                         alice_verifying_key,
+                         treasure_map,
+                         message_kit,
+                         ipfs,
+                         alice,
+                         decode,
+                         force):
     """Obtain plaintext from encrypted data, if access was granted."""
 
     # Setup
@@ -408,7 +408,7 @@ def retrieve(general_config,
         'encrypted_treasure_map': treasure_map
     }
 
-    response = BOB.controller.retrieve(request=bob_request_data)
+    response = BOB.controller.retrieve_and_decrypt(request=bob_request_data)
     if decode:
         messages = list([b64decode(r).decode() for r in response['cleartexts']])
         emitter.echo('----------Messages----------')

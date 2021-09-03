@@ -47,10 +47,10 @@ def test_federated_bob_full_retrieve_flow(federated_ursulas,
     the_message_kit = capsule_side_channel()
     alices_verifying_key = federated_alice.stamp.as_umbral_pubkey()
 
-    delivered_cleartexts = federated_bob.retrieve([the_message_kit],
-                                                  policy_encrypting_key=enacted_federated_policy.public_key,
-                                                  alice_verifying_key=alices_verifying_key,
-                                                  encrypted_treasure_map=enacted_federated_policy.treasure_map)
+    delivered_cleartexts = federated_bob.retrieve_and_decrypt([the_message_kit],
+                                                              policy_encrypting_key=enacted_federated_policy.public_key,
+                                                              alice_verifying_key=alices_verifying_key,
+                                                              encrypted_treasure_map=enacted_federated_policy.treasure_map)
 
     # We show that indeed this is the passage originally encrypted by the Enrico.
     assert b"Welcome to flippering number 1." == delivered_cleartexts[0]
@@ -99,17 +99,17 @@ def test_bob_retrieves(federated_alice,
     alices_verifying_key = federated_alice.stamp.as_umbral_pubkey()
 
     # Bob takes the message_kit and retrieves the message within
-    delivered_cleartexts = bob.retrieve([message_kit],
-                                        policy_encrypting_key=policy.public_key,
-                                        alice_verifying_key=alices_verifying_key,
-                                        encrypted_treasure_map=policy.treasure_map)
+    delivered_cleartexts = bob.retrieve_and_decrypt([message_kit],
+                                                    policy_encrypting_key=policy.public_key,
+                                                    alice_verifying_key=alices_verifying_key,
+                                                    encrypted_treasure_map=policy.treasure_map)
 
     assert plaintext == delivered_cleartexts[0]
 
-    cleartexts_delivered_a_second_time = bob.retrieve([message_kit],
-                                                      policy_encrypting_key=policy.public_key,
-                                                      alice_verifying_key=alices_verifying_key,
-                                                      encrypted_treasure_map=policy.treasure_map)
+    cleartexts_delivered_a_second_time = bob.retrieve_and_decrypt([message_kit],
+                                                                  policy_encrypting_key=policy.public_key,
+                                                                  alice_verifying_key=alices_verifying_key,
+                                                                  encrypted_treasure_map=policy.treasure_map)
 
     # Indeed, they're the same cleartexts.
     assert delivered_cleartexts == cleartexts_delivered_a_second_time
@@ -120,10 +120,10 @@ def test_bob_retrieves(federated_alice,
 
     # One thing to note here is that Bob *can* still retrieve with the cached CFrags,
     # even though this Policy has been revoked.  #892
-    _cleartexts = bob.retrieve([message_kit],
-                               policy_encrypting_key=policy.public_key,
-                               alice_verifying_key=alices_verifying_key,
-                               encrypted_treasure_map=policy.treasure_map)
+    _cleartexts = bob.retrieve_and_decrypt([message_kit],
+                                           policy_encrypting_key=policy.public_key,
+                                           alice_verifying_key=alices_verifying_key,
+                                           encrypted_treasure_map=policy.treasure_map)
     assert _cleartexts == delivered_cleartexts  # TODO: 892
 
     bob.disenchant()
@@ -142,7 +142,7 @@ def test_bob_retrieves_with_treasure_map(
     federated_bob.learn_from_teacher_node(eager=True)
 
     # Deserialized treasure map
-    text1 = federated_bob.retrieve(
+    text1 = federated_bob.retrieve_and_decrypt(
         [message_kit],
         policy_encrypting_key=enacted_federated_policy.public_key,
         alice_verifying_key=alice_verifying_key,
@@ -170,7 +170,7 @@ def test_bob_retrieves_too_late(federated_bob, federated_ursulas,
     alice_verifying_key = enacted_federated_policy.publisher_verifying_key
 
     # with pytest.raises(Ursula.NotEnoughUrsulas):
-    federated_bob.retrieve(
+    federated_bob.retrieve_and_decrypt(
         [message_kit],
         policy_encrypting_key=enacted_federated_policy.public_key,
         alice_verifying_key=alice_verifying_key,

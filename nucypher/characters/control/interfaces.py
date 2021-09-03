@@ -161,12 +161,12 @@ class AliceInterface(CharacterPublicInterface):
 
 class BobInterface(CharacterPublicInterface):
 
-    @attach_schema(bob.Retrieve)
-    def retrieve(self,
-                 policy_encrypting_key: bytes,
-                 alice_verifying_key: bytes,
-                 message_kit: bytes,
-                 encrypted_treasure_map: Union[bytes, str, 'EncryptedTreasureMap']):
+    @attach_schema(bob.RetrieveAndDecrypt)
+    def retrieve_and_decrypt(self,
+                             policy_encrypting_key: bytes,
+                             alice_verifying_key: bytes,
+                             message_kit: bytes,
+                             encrypted_treasure_map: Union[bytes, str, 'EncryptedTreasureMap']):
         """
         Character control endpoint for re-encrypting and decrypting policy data.
         """
@@ -183,10 +183,10 @@ class BobInterface(CharacterPublicInterface):
             tmap_bytes = encrypted_treasure_map.encode()
             encrypted_treasure_map = EncryptedTreasureMap.from_bytes(b64decode(tmap_bytes))
 
-        plaintexts = self.implementer.retrieve([message_kit],
-                                               policy_encrypting_key=policy_encrypting_key,
-                                               alice_verifying_key=alice_verifying_key,
-                                               encrypted_treasure_map=encrypted_treasure_map)
+        plaintexts = self.implementer.retrieve_and_decrypt([message_kit],
+                                                           policy_encrypting_key=policy_encrypting_key,
+                                                           alice_verifying_key=alice_verifying_key,
+                                                           encrypted_treasure_map=encrypted_treasure_map)
 
         response_data = {'cleartexts': plaintexts}
         return response_data

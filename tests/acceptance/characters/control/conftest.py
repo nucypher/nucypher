@@ -120,7 +120,7 @@ def grant_control_request(blockchain_bob):
 @pytest.fixture(scope='function')
 def retrieve_control_request(blockchain_alice, blockchain_bob, enacted_blockchain_policy, capsule_side_channel_blockchain):
     capsule_side_channel_blockchain.reset()
-    method_name = 'retrieve'
+    method_name = 'retrieve_and_decrypt'
     message_kit = capsule_side_channel_blockchain()
 
     params = {
