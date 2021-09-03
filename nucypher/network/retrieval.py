@@ -15,24 +15,20 @@ You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
-
-from collections import OrderedDict, defaultdict
+from collections import defaultdict
 import random
-from typing import Optional, Dict, Sequence, Union, List, Set
+from typing import Dict, Sequence, List
 
-import maya
 from bytestring_splitter import BytestringSplitter, VariableLengthBytestring
-from constant_sorrow.constants import CFRAG_NOT_RETAINED
 from eth_typing.evm import ChecksumAddress
-from eth_utils.address import to_canonical_address, to_checksum_address
+from twisted.logger import Logger
 
 from nucypher.crypto.signing import SignatureStamp, InvalidSignature
 from nucypher.crypto.splitters import (
-    key_splitter,
     capsule_splitter,
     cfrag_splitter,
+    key_splitter,
     signature_splitter,
-    kfrag_splitter
 )
 from nucypher.crypto.umbral_adapter import (
     Capsule,
@@ -40,10 +36,13 @@ from nucypher.crypto.umbral_adapter import (
     PublicKey,
     Signature,
     VerifiedCapsuleFrag,
+    VerificationError,
 )
+from nucypher.network.exceptions import NodeSeemsToBeDown
+from nucypher.network.nodes import Learner
 from nucypher.policy.hrac import HRAC, hrac_splitter
-from nucypher.policy.kits import MessageKit
-from nucypher.policy.maps import AuthorizedKeyFrag, TreasureMap
+from nucypher.policy.kits import MessageKit, RetrievalKit, RetrievalResult
+from nucypher.policy.maps import TreasureMap
 
 
 class RetrievalPlan:
@@ -52,7 +51,7 @@ class RetrievalPlan:
     during retrieval.
     """
 
-    def __init__(self, treasure_map: TreasureMap, retrieval_kits: Sequence['RetrievalKit']):
+    def __init__(self, treasure_map: TreasureMap, retrieval_kits: Sequence[RetrievalKit]):
 
         # Record the retrieval kits order
         self._capsules = [retrieval_kit.capsule for retrieval_kit in retrieval_kits]
@@ -127,36 +126,6 @@ class RetrievalPlan:
 
     def results(self) -> List['RetrievalResult']:
         return [RetrievalResult(self._results[capsule]) for capsule in self._capsules]
-
-
-class RetrievalResult:
-    """
-    An object representing retrieval results for a single capsule.
-    """
-
-    @classmethod
-    def empty(cls):
-        return cls({})
-
-    def __init__(self, cfrags: Dict[ChecksumAddress, VerifiedCapsuleFrag]):
-        self.cfrags = cfrags
-
-    def addresses(self) -> Set[ChecksumAddress]:
-        return set(self.cfrags)
-
-    def with_result(self, result: 'RetrievalResult') -> 'RetrievalResult':
-        """
-        Joins two RetrievalResult objects.
-
-        If both objects contain cfrags from the same Ursula,
-        the one from `result` will be kept.
-        """
-        # TODO: would `+` or `|` operator be more suitable here?
-
-        # TODO: check for overlap?
-        new_cfrags = dict(self.cfrags)
-        new_cfrags.update(result.cfrags)
-        return RetrievalResult(cfrags=new_cfrags)
 
 
 class RetrievalWorkOrder:
@@ -273,69 +242,139 @@ class ReencryptionResponse:
         return bytes(self.signature) + b''.join(bytes(cfrag) for cfrag in self.cfrags)
 
 
-
-class Revocation:
+class RetrievalClient:
     """
-    Represents a string used by characters to perform a revocation on a specific
-    Ursula. It's a bytestring made of the following format:
-    REVOKE-<arrangement id to revoke><signature of the previous string>
-    This is sent as a payload in a DELETE method to the /KFrag/ endpoint.
+    Capsule frag retrieval machinery shared between Bob and Porter.
     """
 
-    PREFIX = b'REVOKE-'
-    revocation_splitter = BytestringSplitter(
-        (bytes, len(PREFIX)),
-        (bytes, 20),   # ursula canonical address
-        (bytes, AuthorizedKeyFrag.ENCRYPTED_SIZE),  # encrypted kfrag payload (includes writ)
-        signature_splitter
-    )
+    def __init__(self, learner: Learner):
+        self._learner = learner
+        self.log = Logger(self.__class__.__name__)
 
-    def __init__(self,
-                 ursula_checksum_address: ChecksumAddress,  # TODO: Use staker address instead (what if the staker rebonds)?
-                 encrypted_kfrag: bytes,
-                 signer: 'SignatureStamp' = None,
-                 signature: Signature = None):
-
-        self.ursula_checksum_address = ursula_checksum_address
-        self.encrypted_kfrag = encrypted_kfrag
-
-        if not (bool(signer) ^ bool(signature)):
-            raise ValueError("Either pass a signer or a signature; not both.")
-        elif signer:
-            self.signature = signer(self.payload)
-        elif signature:
-            self.signature = signature
-
-    def __bytes__(self):
-        return self.payload + bytes(self.signature)
-
-    def __repr__(self):
-        return bytes(self)
-
-    def __len__(self):
-        return len(bytes(self))
-
-    def __eq__(self, other):
-        return bytes(self) == bytes(other)
-
-    @property
-    def payload(self):
-        return self.PREFIX                                          \
-               + to_canonical_address(self.ursula_checksum_address) \
-               + bytes(self.encrypted_kfrag)                        \
-
-    @classmethod
-    def from_bytes(cls, revocation_bytes):
-        prefix, ursula_canonical_address, ekfrag, signature = cls.revocation_splitter(revocation_bytes)
-        ursula_checksum_address = to_checksum_address(ursula_canonical_address)
-        return cls(ursula_checksum_address=ursula_checksum_address,
-                   encrypted_kfrag=ekfrag,
-                   signature=signature)
-
-    def verify_signature(self, alice_verifying_key: 'PublicKey') -> bool:
+    def _request_reencryption(self,
+                              ursula: 'Ursula',
+                              reencryption_request: 'ReencryptionRequest',
+                              delegating_key: PublicKey,
+                              receiving_key: PublicKey,
+                              ) -> Dict['Capsule', 'VerifiedCapsuleFrag']:
         """
-        Verifies the revocation was from the provided pubkey.
+        Sends a reencryption request to a single Ursula and processes the results.
+
+        Returns reencrypted capsule frags matched to corresponding capsules.
         """
-        if not self.signature.verify(self.payload, alice_verifying_key):
-            raise InvalidSignature(f"Revocation has an invalid signature: {self.signature}")
-        return True
+
+        middleware = self._learner.network_middleware
+
+        try:
+            response = middleware.reencrypt(ursula, bytes(reencryption_request))
+        except NodeSeemsToBeDown as e:
+            # TODO: What to do here?  Ursula isn't supposed to be down.  NRN
+            message = (f"Ursula ({ursula}) seems to be down "
+                       f"while trying to complete ReencryptionRequest: {reencryption_request}")
+            self.log.info(message)
+            raise RuntimeError(message) from e
+        except middleware.NotFound as e:
+            # This Ursula claims not to have a matching KFrag.  Maybe this has been revoked?
+            # TODO: What's the thing to do here?
+            # Do we want to track these Ursulas in some way in case they're lying?  #567
+            message = (f"Ursula ({ursula}) claims not to have the KFrag "
+                       f"to complete ReencryptionRequest: {reencryption_request}. "
+                       f"Has access been revoked?")
+            self.log.warn(message)
+            raise RuntimeError(message) from e
+        except middleware.UnexpectedResponse:
+            raise # TODO: Handle this
+
+        try:
+            reencryption_response = ReencryptionResponse.from_bytes(response.content)
+        except Exception as e:
+            message = f"Ursula ({ursula}) returned an invalid response: {e}."
+            self.log.warn(message)
+            raise RuntimeError(message)
+
+        if len(reencryption_request.capsules) != len(reencryption_response.cfrags):
+            message = (f"Ursula ({ursula}) gave back the wrong number of cfrags. "
+                       "She's up to something.")
+            self.log.warn(message)
+            raise RuntimeError(message)
+
+        ursula_verifying_key = ursula.stamp.as_umbral_pubkey()
+        capsules_bytes = b''.join(bytes(capsule) for capsule in reencryption_request.capsules)
+        cfrags_bytes = b''.join(bytes(cfrag) for cfrag in reencryption_response.cfrags)
+
+        # Validate re-encryption signature
+        if not reencryption_response.signature.verify(ursula_verifying_key, capsules_bytes + cfrags_bytes):
+            message = (f"{reencryption_request.capsules} and {reencryption_response.cfrags} "
+                        "are not properly signed by Ursula.")
+            self.log.warn(message)
+            # TODO: Instead of raising, we should do something (#957)
+            raise InvalidSignature(message)
+
+        verified_cfrags = {}
+
+        for capsule, cfrag in zip(reencryption_request.capsules, reencryption_response.cfrags):
+
+            # TODO: should we allow partially valid responses?
+
+            # Verify cfrags
+            try:
+                verified_cfrag = cfrag.verify(capsule,
+                                              verifying_pk=reencryption_request._alice_verifying_key,
+                                              delegating_pk=delegating_key,
+                                              receiving_pk=receiving_key)
+            except VerificationError:
+                # In future we may want to remember this Ursula and do something about it
+                raise
+
+            verified_cfrags[capsule] = verified_cfrag
+
+        return verified_cfrags
+
+    def retrieve_cfrags(
+            self,
+            treasure_map: TreasureMap,
+            retrieval_kits: Sequence[RetrievalKit],
+            alice_verifying_key: PublicKey, # KeyFrag signer's key
+            bob_encrypting_key: PublicKey, # User's public key (reencryption target)
+            bob_verifying_key: PublicKey,
+            policy_encrypting_key: PublicKey, # Key used to create the policy
+            ) -> List[RetrievalResult]:
+
+        # TODO: why is it here? This code shouldn't know about these details.
+        # OK, so we're going to need to do some network activity for this retrieval.
+        # Let's make sure we've seeded.
+        if not self._learner.done_seeding:
+            self._learner.learn_from_teacher_node()
+
+        retrieval_plan = RetrievalPlan(treasure_map=treasure_map, retrieval_kits=retrieval_kits)
+
+        while not retrieval_plan.is_complete():
+            # TODO (#2789): Currently we'll only query one Ursula once during the retrieval.
+            # Alternatively we may re-query Ursulas that were offline until the timeout expires.
+
+            work_order = retrieval_plan.get_work_order()
+
+            if work_order.ursula_address not in self._learner.known_nodes:
+                continue
+
+            ursula = self._learner.known_nodes[work_order.ursula_address]
+            reencryption_request = ReencryptionRequest.from_work_order(
+                work_order=work_order,
+                treasure_map=treasure_map,
+                alice_verifying_key=alice_verifying_key,
+                bob_verifying_key=bob_verifying_key)
+
+            try:
+                cfrags = self._request_reencryption(ursula=ursula,
+                                                    reencryption_request=reencryption_request,
+                                                    delegating_key=policy_encrypting_key,
+                                                    receiving_key=bob_encrypting_key)
+            except Exception as e:
+                # TODO (#2789): at this point we can separate the exceptions to "acceptable"
+                # (Ursula is not reachable) and "unacceptable" (Ursula provided bad results).
+                self.log.warn(f"Ursula {ursula} failed to reencrypt: {e}")
+                continue
+
+            retrieval_plan.update(work_order, cfrags)
+
+        return retrieval_plan.results()

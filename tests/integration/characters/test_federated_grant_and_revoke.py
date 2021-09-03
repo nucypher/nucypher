@@ -24,7 +24,7 @@ import pytest
 from nucypher.characters.lawful import Enrico
 from nucypher.crypto.utils import keccak_digest
 from nucypher.policy.kits import MessageKit
-from nucypher.policy.orders import Revocation
+from nucypher.policy.revocation import Revocation
 
 
 def test_federated_grant(federated_alice, federated_bob, federated_ursulas):

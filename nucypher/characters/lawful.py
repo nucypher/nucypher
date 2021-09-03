@@ -20,9 +20,7 @@ import contextlib
 import json
 import time
 from base64 import b64encode
-from collections import OrderedDict, defaultdict, namedtuple
 from datetime import datetime
-from functools import partial
 from json.decoder import JSONDecodeError
 from pathlib import Path
 from queue import Queue
@@ -84,15 +82,12 @@ from nucypher.crypto.powers import (
     TLSHostingPower,
 )
 from nucypher.crypto.signing import InvalidSignature
-from nucypher.crypto.splitters import key_splitter, signature_splitter, cfrag_splitter
+from nucypher.crypto.splitters import key_splitter, signature_splitter
 from nucypher.crypto.umbral_adapter import (
-    Capsule,
     PublicKey,
     VerificationError,
     reencrypt,
-    KeyFrag,
     VerifiedKeyFrag,
-    Signature
 )
 from nucypher.datastore.datastore import DatastoreTransactionError, RecordNotFound
 from nucypher.datastore.queries import find_expired_policies, find_expired_treasure_maps
@@ -101,18 +96,12 @@ from nucypher.network.exceptions import NodeSeemsToBeDown
 from nucypher.network.middleware import RestMiddleware
 from nucypher.network.nodes import NodeSprout, TEACHER_NODES, Teacher
 from nucypher.network.protocols import InterfaceInfo, parse_node_uri
+from nucypher.network.retrieval import RetrievalClient, ReencryptionResponse
 from nucypher.network.server import ProxyRESTServer, make_rest_app
 from nucypher.network.trackers import AvailabilityTracker
 from nucypher.policy.hrac import HRAC
-from nucypher.policy.kits import MessageKit, PolicyMessageKit, RetrievalKit
+from nucypher.policy.kits import MessageKit, PolicyMessageKit
 from nucypher.policy.maps import TreasureMap, EncryptedTreasureMap, AuthorizedKeyFrag
-from nucypher.policy.orders import (
-        RetrievalWorkOrder,
-        ReencryptionRequest,
-        ReencryptionResponse,
-        RetrievalPlan,
-        RetrievalResult,
-        )
 from nucypher.policy.policies import Policy
 from nucypher.utilities.logging import Logger
 from nucypher.utilities.networking import validate_worker_ip
@@ -743,144 +732,6 @@ class Bob(Character):
             return controller(method_name='retrieve', control_request=request)
 
         return controller
-
-
-class RetrievalClient:
-    """
-    Capsule frag retrieval machinery shared between Bob and Porter.
-    """
-
-    def __init__(self, learner: Learner):
-        self._learner = learner
-        self.log = Logger(self.__class__.__name__)
-
-    def _request_reencryption(self,
-                              ursula: 'Ursula',
-                              reencryption_request: 'ReencryptionRequest',
-                              delegating_key: PublicKey,
-                              receiving_key: PublicKey,
-                              ) -> Dict['Capsule', 'VerifiedCapsuleFrag']:
-        """
-        Sends a reencryption request to a single Ursula and processes the results.
-
-        Returns reencrypted capsule frags matched to corresponding capsules.
-        """
-
-        middleware = self._learner.network_middleware
-
-        try:
-            response = middleware.reencrypt(ursula, bytes(reencryption_request))
-        except NodeSeemsToBeDown as e:
-            # TODO: What to do here?  Ursula isn't supposed to be down.  NRN
-            message = (f"Ursula ({ursula}) seems to be down "
-                       f"while trying to complete ReencryptionRequest: {reencryption_request}")
-            self.log.info(message)
-            raise RuntimeError(message) from e
-        except middleware.NotFound as e:
-            # This Ursula claims not to have a matching KFrag.  Maybe this has been revoked?
-            # TODO: What's the thing to do here?
-            # Do we want to track these Ursulas in some way in case they're lying?  #567
-            message = (f"Ursula ({ursula}) claims not to have the KFrag "
-                       f"to complete ReencryptionRequest: {reencryption_request}. "
-                       f"Has access been revoked?")
-            self.log.warn(message)
-            raise RuntimeError(message) from e
-        except middleware.UnexpectedResponse:
-            raise # TODO: Handle this
-
-        try:
-            reencryption_response = ReencryptionResponse.from_bytes(response.content)
-        except Exception as e:
-            message = f"Ursula ({ursula}) returned an invalid response: {e}."
-            self.log.warn(message)
-            raise RuntimeError(message)
-
-        if len(reencryption_request.capsules) != len(reencryption_response.cfrags):
-            message = (f"Ursula ({ursula}) gave back the wrong number of cfrags. "
-                       "She's up to something.")
-            self.log.warn(message)
-            raise RuntimeError(message)
-
-        ursula_verifying_key = ursula.stamp.as_umbral_pubkey()
-        capsules_bytes = b''.join(bytes(capsule) for capsule in reencryption_request.capsules)
-        cfrags_bytes = b''.join(bytes(cfrag) for cfrag in reencryption_response.cfrags)
-
-        # Validate re-encryption signature
-        if not reencryption_response.signature.verify(ursula_verifying_key, capsules_bytes + cfrags_bytes):
-            message = (f"{reencryption_request.capsules} and {reencryption_response.cfrags} "
-                        "are not properly signed by Ursula.")
-            self.log.warn(message)
-            # TODO: Instead of raising, we should do something (#957)
-            raise InvalidSignature(message)
-
-        verified_cfrags = {}
-
-        for capsule, cfrag in zip(reencryption_request.capsules, reencryption_response.cfrags):
-
-            # TODO: should we allow partially valid responses?
-
-            # Verify cfrags
-            try:
-                verified_cfrag = cfrag.verify(capsule,
-                                              verifying_pk=reencryption_request._alice_verifying_key,
-                                              delegating_pk=delegating_key,
-                                              receiving_pk=receiving_key)
-            except VerificationError:
-                # In future we may want to remember this Ursula and do something about it
-                raise
-
-            verified_cfrags[capsule] = verified_cfrag
-
-        return verified_cfrags
-
-    def retrieve_cfrags(
-            self,
-            treasure_map: TreasureMap,
-            retrieval_kits: Sequence[RetrievalKit],
-            alice_verifying_key: PublicKey, # KeyFrag signer's key
-            bob_encrypting_key: PublicKey, # User's public key (reencryption target)
-            bob_verifying_key: PublicKey,
-            policy_encrypting_key: PublicKey, # Key used to create the policy
-            ) -> List[RetrievalResult]:
-
-        # TODO: why is it here? This code shouldn't know about these details.
-        # OK, so we're going to need to do some network activity for this retrieval.
-        # Let's make sure we've seeded.
-        if not self._learner.done_seeding:
-            self._learner.learn_from_teacher_node()
-
-        retrieval_plan = RetrievalPlan(treasure_map=treasure_map, retrieval_kits=retrieval_kits)
-
-        while not retrieval_plan.is_complete():
-            # TODO (#2789): Currently we'll only query one Ursula once during the retrieval.
-            # Alternatively we may re-query Ursulas that were offline until the timeout expires.
-
-            work_order = retrieval_plan.get_work_order()
-
-            if work_order.ursula_address not in self._learner.known_nodes:
-                continue
-
-            ursula = self._learner.known_nodes[work_order.ursula_address]
-            reencryption_request = ReencryptionRequest.from_work_order(
-                work_order=work_order,
-                treasure_map=treasure_map,
-                alice_verifying_key=alice_verifying_key,
-                bob_verifying_key=bob_verifying_key)
-
-            try:
-                cfrags = self._request_reencryption(ursula=ursula,
-                                                    reencryption_request=reencryption_request,
-                                                    delegating_key=policy_encrypting_key,
-                                                    receiving_key=bob_encrypting_key)
-            except Exception as e:
-                # TODO (#2789): at this point we can separate the exceptions to "acceptable"
-                # (Ursula is not reachable) and "unacceptable" (Ursula provided bad results).
-                self.log.warn(f"Ursula {ursula} failed to reencrypt: {e}")
-                continue
-
-            retrieval_plan.update(work_order, cfrags)
-
-        return retrieval_plan.results()
 
 
 class Ursula(Teacher, Character, Worker):

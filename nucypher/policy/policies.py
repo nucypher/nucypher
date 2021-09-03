@@ -28,7 +28,6 @@ from nucypher.crypto.splitters import key_splitter
 from nucypher.crypto.umbral_adapter import PublicKey, VerifiedKeyFrag, Signature
 from nucypher.network.middleware import RestMiddleware
 from nucypher.policy.hrac import HRAC
-from nucypher.policy.kits import RevocationKit
 from nucypher.policy.maps import TreasureMap
 from nucypher.policy.reservoir import (
     make_federated_staker_reservoir,
@@ -36,6 +35,7 @@ from nucypher.policy.reservoir import (
     PrefetchStrategy,
     make_decentralized_staker_reservoir
 )
+from nucypher.policy.revocation import RevocationKit
 from nucypher.utilities.concurrency import WorkerPool
 from nucypher.utilities.logging import Logger
 

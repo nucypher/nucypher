@@ -16,12 +16,11 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
 
-from typing import Dict, NamedTuple, Optional, Tuple, List, Iterable
+from typing import Dict, Optional, Iterable, Set
 
-from bytestring_splitter import BytestringSplitter, BytestringKwargifier, VariableLengthBytestring
+from bytestring_splitter import BytestringSplitter, VariableLengthBytestring
 from constant_sorrow.constants import (
     NOT_SIGNED,
-    UNKNOWN_SENDER,
     DO_NOT_SIGN,
     SIGNATURE_TO_FOLLOW,
     SIGNATURE_IS_ON_CIPHERTEXT,
@@ -30,7 +29,12 @@ from constant_sorrow.constants import (
 from eth_typing import ChecksumAddress
 from eth_utils import to_checksum_address, to_canonical_address
 
-from nucypher.crypto.splitters import capsule_splitter, key_splitter, signature_splitter, checksum_address_splitter
+from nucypher.crypto.splitters import (
+    capsule_splitter,
+    key_splitter,
+    signature_splitter,
+    checksum_address_splitter,
+    )
 import nucypher.crypto.umbral_adapter as umbral # need it to mock `umbral.encrypt`
 from nucypher.crypto.umbral_adapter import PublicKey, VerifiedCapsuleFrag, Capsule, Signature
 
@@ -171,8 +175,6 @@ class PolicyMessageKit:
                          policy_key: PublicKey,
                          threshold: int
                          ) -> 'PolicyMessageKit':
-        # TODO: can we get rid of circular dependency?
-        from nucypher.policy.orders import RetrievalResult
         return cls(policy_key, threshold, RetrievalResult.empty(), message_kit)
 
     def as_retrieval_kit(self) -> RetrievalKit:
@@ -216,39 +218,32 @@ class PolicyMessageKit:
                                 message_kit=self.message_kit)
 
 
-class RevocationKit:
+# TODO: a better name?
+class RetrievalResult:
+    """
+    An object representing retrieval results for a single capsule.
+    """
 
-    def __init__(self, treasure_map, signer: 'SignatureStamp'):
-        from nucypher.policy.orders import Revocation
-        self.revocations = dict()
-        for node_id, encrypted_kfrag in treasure_map:
-            self.revocations[node_id] = Revocation(ursula_checksum_address=node_id,
-                                                   encrypted_kfrag=encrypted_kfrag,
-                                                   signer=signer)
+    @classmethod
+    def empty(cls):
+        return cls({})
 
-    def __iter__(self):
-        return iter(self.revocations.values())
+    def __init__(self, cfrags: Dict[ChecksumAddress, VerifiedCapsuleFrag]):
+        self.cfrags = cfrags
 
-    def __getitem__(self, node_id):
-        return self.revocations[node_id]
+    def addresses(self) -> Set[ChecksumAddress]:
+        return set(self.cfrags)
 
-    def __len__(self):
-        return len(self.revocations)
-
-    def __eq__(self, other):
-        return self.revocations == other.revocations
-
-    @property
-    def revokable_addresses(self):
+    def with_result(self, result: 'RetrievalResult') -> 'RetrievalResult':
         """
-        Returns a Set of revokable addresses in the checksum address formatting
-        """
-        return set(self.revocations.keys())
+        Joins two RetrievalResult objects.
 
-    def add_confirmation(self, node_id, signed_receipt):
+        If both objects contain cfrags from the same Ursula,
+        the one from `result` will be kept.
         """
-        Adds a signed confirmation of Ursula's ability to revoke the arrangement.
-        """
-        # TODO: Verify Ursula's signature
-        # TODO: Implement receipts
-        raise NotImplementedError
+        # TODO: would `+` or `|` operator be more suitable here?
+
+        # TODO: check for overlap?
+        new_cfrags = dict(self.cfrags)
+        new_cfrags.update(result.cfrags)
+        return RetrievalResult(cfrags=new_cfrags)

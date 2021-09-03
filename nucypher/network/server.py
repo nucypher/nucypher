@@ -34,12 +34,13 @@ from nucypher.crypto.powers import KeyPairBasedPower, PowerUpError
 from nucypher.crypto.signing import InvalidSignature
 from nucypher.datastore.datastore import Datastore
 from nucypher.datastore.models import ReencryptionRequest as ReencryptionRequestModel
-from nucypher.policy.orders import ReencryptionRequest, ReencryptionResponse
 from nucypher.network import LEARNING_LOOP_VERSION
 from nucypher.network.exceptions import NodeSeemsToBeDown
 from nucypher.network.protocols import InterfaceInfo
+from nucypher.network.retrieval import ReencryptionRequest, ReencryptionResponse
 from nucypher.policy.hrac import HRAC
 from nucypher.policy.kits import MessageKit
+from nucypher.policy.revocation import Revocation
 from nucypher.utilities.logging import Logger
 
 HERE = BASE_DIR = Path(__file__).parent
@@ -271,7 +272,6 @@ def _make_rest_app(datastore: Datastore, this_node, domain: str, log: Logger) ->
 
     @rest_app.route('/revoke', methods=['POST'])
     def revoke():
-        from nucypher.policy.orders import Revocation
         revocation = Revocation.from_bytes(request.data)
         # TODO: Implement offchain revocation.
         return Response(status=200)
