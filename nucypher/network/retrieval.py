@@ -270,16 +270,15 @@ class RetrievalClient:
         if unknown_ursulas:
             self._learner.learn_about_specific_nodes(unknown_ursulas)
 
-        # How many nodes over the threshold we want to know (just in case)
-        redundancy = 0
-
         # If we know enough to decrypt, we can proceed.
         known_ursulas = ursulas_in_map & all_known_ursulas
-
-        if len(known_ursulas) - redundancy >= treasure_map.threshold:
+        if len(known_ursulas) >= treasure_map.threshold:
             return
 
-        allow_missing = max(len(unknown_ursulas) - redundancy, 0)
+        # | <--- shares                                            ---> |
+        # | <--- threshold               ---> | <--- allow_missing ---> |
+        # | <--- known_ursulas ---> | <--- unknown_ursulas         ---> |
+        allow_missing = len(treasure_map.destinations) - treasure_map.threshold
         self._learner.block_until_specific_nodes_are_known(unknown_ursulas,
                                                            timeout=timeout,
                                                            allow_missing=allow_missing,
