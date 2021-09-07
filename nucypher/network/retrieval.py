@@ -310,8 +310,7 @@ class RetrievalClient:
             # This Ursula claims not to have a matching KFrag.  Maybe this has been revoked?
             # TODO: What's the thing to do here?
             # Do we want to track these Ursulas in some way in case they're lying?  #567
-            message = (f"Ursula ({ursula}) claims not to have the KFrag "
-                       f"to complete ReencryptionRequest: {reencryption_request}. "
+            message = (f"Ursula ({ursula}) claims not to not know of the policy {reencryption_request.hrac}. "
                        f"Has access been revoked?")
             self.log.warn(message)
             raise RuntimeError(message) from e
