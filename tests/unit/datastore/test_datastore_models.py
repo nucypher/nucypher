@@ -20,7 +20,7 @@ import pytest
 import tempfile
 from nucypher.crypto import keypairs
 from nucypher.datastore import datastore
-from nucypher.datastore.models import PolicyArrangement, EncryptedTreasureMap, ReencryptionRequest
+from nucypher.datastore.models import PolicyArrangement, ReencryptionRequest
 
 
 def test_policy_arrangement_model(mock_or_real_datastore):
@@ -73,24 +73,3 @@ def test_reencryption_request_model(mock_or_real_datastore):
         # Should be deleted now.
         with pytest.raises(AttributeError):
             should_error = work_order.arrangement_id
-
-
-def test_treasure_map_model(mock_or_real_datastore):
-    storage = mock_or_real_datastore
-
-    hrac = 'beef'
-    fake_treasure_map_data = b'My Little TreasureMap'
-
-    with storage.describe(EncryptedTreasureMap, hrac, writeable=True) as treasure_map:
-        treasure_map.treasure_map = fake_treasure_map_data
-
-    with storage.describe(EncryptedTreasureMap, hrac) as treasure_map:
-        assert treasure_map.treasure_map == b'My Little TreasureMap'
-
-    # Test delete
-    with storage.describe(EncryptedTreasureMap, hrac, writeable=True) as treasure_map:
-        treasure_map.delete()
-
-        # Should be deleted now.
-        with pytest.raises(AttributeError):
-            should_error = treasure_map.treasure_map

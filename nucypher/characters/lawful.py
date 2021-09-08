@@ -90,7 +90,7 @@ from nucypher.crypto.umbral_adapter import (
     VerifiedKeyFrag,
 )
 from nucypher.datastore.datastore import DatastoreTransactionError, RecordNotFound
-from nucypher.datastore.queries import find_expired_policies, find_expired_treasure_maps
+from nucypher.datastore.queries import find_expired_policies
 from nucypher.network.exceptions import NodeSeemsToBeDown
 from nucypher.network.middleware import RestMiddleware
 from nucypher.network.nodes import NodeSprout, TEACHER_NODES, Teacher
@@ -860,19 +860,6 @@ class Ursula(Teacher, Character, Worker):
         else:
             if result > 0:
                 self.log.debug(f"Pruned {result} policy arrangements.")
-
-        try:
-            with find_expired_treasure_maps(self.datastore, now) as expired_treasure_maps:
-                for treasure_map in expired_treasure_maps:
-                    treasure_map.delete()
-                result = len(expired_treasure_maps)
-        except RecordNotFound:
-            self.log.debug("No expired treasure maps found.")
-        except DatastoreTransactionError:
-            self.log.warn(f"Failed to prune expired treasure maps; DB session rolled back.")
-        else:
-            if result > 0:
-                self.log.debug(f"Pruned {result} treasure maps.")
 
     def __preflight(self) -> None:
         """Called immediately before running services

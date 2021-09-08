@@ -27,7 +27,6 @@ from nucypher.acumen.perception import FleetSensor
 from nucypher.characters.unlawful import Vladimir
 from nucypher.config.constants import TEMPORARY_DOMAIN
 from nucypher.crypto.powers import SigningPower
-from nucypher.datastore.models import EncryptedTreasureMap
 from tests.utils.middleware import MockRestMiddleware
 
 
