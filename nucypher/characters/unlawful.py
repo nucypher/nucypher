@@ -109,21 +109,6 @@ class Vladimir(Ursula):
                 raise
         return True
 
-    def publish_fraudulent_treasure_map(self, legit_treasure_map, target_node):
-        """
-        If I see a TreasureMap being published, I can substitute my own payload and hope
-        that Ursula will store it for me for free.
-        """
-        old_message_kit = legit_treasure_map._encrypted_tmap
-        new_message_kit = self.encrypt_for(self, b"I want to store this message for free.")
-        legit_treasure_map._encrypted_tmap = new_message_kit
-        # I'll copy Alice's key so that Ursula thinks that the HRAC has been properly signed.
-        legit_treasure_map._encrypted_tmap.sender_verifying_key = old_message_kit.sender_verifying_key
-
-        response = self.network_middleware.put_treasure_map_on_node(node=target_node,
-                                                                    map_payload=bytes(legit_treasure_map))
-        return response
-
 
 class Amonia(Alice):
     """

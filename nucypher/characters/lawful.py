@@ -91,7 +91,6 @@ from nucypher.crypto.umbral_adapter import (
 )
 from nucypher.datastore.datastore import DatastoreTransactionError, RecordNotFound
 from nucypher.datastore.queries import find_expired_policies, find_expired_treasure_maps
-from nucypher.network import treasuremap
 from nucypher.network.exceptions import NodeSeemsToBeDown
 from nucypher.network.middleware import RestMiddleware
 from nucypher.network.nodes import NodeSprout, TEACHER_NODES, Teacher
@@ -632,14 +631,6 @@ class Bob(Character):
             cleartexts.append(cleartext)
 
         return cleartexts
-
-    def matching_nodes_among(self,
-                             nodes: FleetSensor,
-                             no_less_than=7):  # Somewhat arbitrary floor here.
-        bob_encrypting_key = self.public_keys(DecryptingPower)
-        return treasuremap.find_matching_nodes(known_nodes=nodes,
-                                               bob_encrypting_key=bob_encrypting_key,
-                                               no_less_than=no_less_than)
 
     def make_web_controller(drone_bob, crash_on_error: bool = False):
         app_name = bytes(drone_bob.stamp).hex()[:6]
