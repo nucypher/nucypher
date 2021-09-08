@@ -65,7 +65,7 @@ from nucypher.network import LEARNING_LOOP_VERSION
 from nucypher.network.exceptions import NodeSeemsToBeDown
 from nucypher.network.middleware import RestMiddleware
 from nucypher.network.protocols import SuspiciousActivity
-from nucypher.policy.kits import MessageKit
+from nucypher.policy.kits import MessageKit, PolicyMessageKit
 from nucypher.utilities.logging import Logger
 
 TEACHER_NODES = {
@@ -739,7 +739,7 @@ class Learner:
 
     def verify_from(self,
                     stranger: 'Teacher',
-                    message_kit: Union[MessageKit, bytes],
+                    message_kit: Union[MessageKit, PolicyMessageKit, bytes],
                     signature: Signature):
         #
         # Optional Sanity Check

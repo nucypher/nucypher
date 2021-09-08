@@ -16,125 +16,28 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
 
-from typing import Dict, Optional, Tuple
+from typing import Dict, NamedTuple, Optional, Tuple, List, Iterable
 
-from bytestring_splitter import BytestringKwargifier, VariableLengthBytestring
-from constant_sorrow.constants import NOT_SIGNED, UNKNOWN_SENDER
-from constant_sorrow import constants
+from bytestring_splitter import BytestringSplitter, BytestringKwargifier, VariableLengthBytestring
+from constant_sorrow.constants import (
+    NOT_SIGNED,
+    UNKNOWN_SENDER,
+    DO_NOT_SIGN,
+    SIGNATURE_TO_FOLLOW,
+    SIGNATURE_IS_ON_CIPHERTEXT,
+    NOT_SIGNED,
+    )
+from eth_typing import ChecksumAddress
+from eth_utils import to_checksum_address, to_canonical_address
 
-from nucypher.crypto.splitters import capsule_splitter, key_splitter
+from nucypher.crypto.splitters import capsule_splitter, key_splitter, signature_splitter, checksum_address_splitter
 import nucypher.crypto.umbral_adapter as umbral # need it to mock `umbral.encrypt`
 from nucypher.crypto.umbral_adapter import PublicKey, VerifiedCapsuleFrag, Capsule, Signature
 
 
-class CryptoKit:
-    """
-    A package of discrete items, meant to be sent over the wire or saved to disk (in either case, as bytes),
-    capable of performing a distinct cryptological function.
-    """
-    splitter = None
-
-    @classmethod
-    def split_bytes(cls, some_bytes):
-        if not cls.splitter:
-            raise TypeError("This kit doesn't have a splitter defined.")
-        splitter = cls.splitter()
-        return splitter(some_bytes)
-
-    @classmethod
-    def from_bytes(cls, some_bytes):
-        return cls.split_bytes(some_bytes)
-
-
-class BaseMessageKit(CryptoKit):
+class MessageKit:
     """
     All the components needed to transmit and verify an encrypted message.
-    """
-
-    def __init__(self,
-                 capsule: Capsule,
-                 sender_verifying_key: Optional[PublicKey] = None,
-                 ciphertext: bytes = None,
-                 signature=NOT_SIGNED) -> None:
-
-        self.ciphertext = ciphertext
-        self.capsule = capsule
-        self.sender_verifying_key = sender_verifying_key
-        self._signature = signature
-
-        self._cfrags = set()
-        self._delegating_key = None
-        self._receiving_key = None
-        self._verifying_key = None
-
-    def attach_cfrag(self, cfrag: VerifiedCapsuleFrag):
-        # TODO: check that the cfrag belongs to this capsule?
-        self._cfrags.add(cfrag)
-
-    def clear_cfrags(self):
-        self._cfrags = set()
-
-    def set_correctness_keys(self,
-                             delegating: Optional[PublicKey] = None,
-                             receiving: Optional[PublicKey] = None,
-                             verifying: Optional[PublicKey] = None):
-
-        # TODO (#2028): remove the need in sanity checks
-
-        if self._delegating_key is None:
-            self._delegating_key = delegating
-        elif delegating is not None and delegating != self._delegating_key:
-            raise Exception("Replacing an existing delegating key")
-
-        if self._receiving_key is None:
-            self._receiving_key = receiving
-        elif receiving is not None and receiving != self._receiving_key:
-            raise Exception("Replacing an existing receiving key")
-
-        if self._verifying_key is None:
-            self._verifying_key = verifying
-        elif verifying is not None and verifying != self._verifying_key:
-            raise Exception("Replacing an existing verifying key")
-
-    def get_correctness_keys(self) -> Dict[str, PublicKey]:
-        return dict(delegating=self._delegating_key,
-                    receiving=self._receiving_key,
-                    verifying=self._verifying_key)
-
-    def __len__(self):
-        # TODO: may be better to just have a "has enough cfrags" method
-        return len(self._cfrags)
-
-    def __str__(self):
-        return f"{self.__class__.__name__}({self.capsule}, {len(self)} cfrags)"
-
-    def to_bytes(self, include_alice_pubkey=True):
-        # We include the capsule first.
-        as_bytes = bytes(self.capsule)
-
-        # Then, before the ciphertext, we see if we're including alice's public key.
-        # We want to put that first because it's typically of known length.
-        if include_alice_pubkey and self.sender_verifying_key:
-            as_bytes += bytes(self.sender_verifying_key)
-
-        as_bytes += VariableLengthBytestring(self.ciphertext)
-        return as_bytes
-
-    @classmethod
-    def splitter(cls, *args, **kwargs):
-        return BytestringKwargifier(cls,
-                                    capsule=capsule_splitter,
-                                    sender_verifying_key=key_splitter,
-                                    ciphertext=VariableLengthBytestring)
-
-    @property
-    def signature(self):
-        return self._signature
-
-
-class MessageKit(BaseMessageKit):
-    """
-    A MessageKit which includes sufficient additional information to be retrieved on the NuCypher Network.
     """
 
     @classmethod
@@ -144,70 +47,173 @@ class MessageKit(BaseMessageKit):
                signer: 'SignatureStamp',
                sign_plaintext: bool = True
                ) -> 'MessageKit':
-        if signer is not constants.DO_NOT_SIGN:
+        if signer is not DO_NOT_SIGN:
             # The caller didn't expressly tell us not to sign; we'll sign.
             if sign_plaintext:
                 # Sign first, encrypt second.
-                sig_header = constants.SIGNATURE_TO_FOLLOW
+                sig_header = SIGNATURE_TO_FOLLOW
                 signature = signer(plaintext)
                 capsule, ciphertext = umbral.encrypt(recipient_key, sig_header + bytes(signature) + plaintext)
+                signature_in_kit = None
             else:
                 # Encrypt first, sign second.
-                sig_header = constants.SIGNATURE_IS_ON_CIPHERTEXT
+                sig_header = SIGNATURE_IS_ON_CIPHERTEXT
                 capsule, ciphertext = umbral.encrypt(recipient_key, sig_header + plaintext)
                 signature = signer(ciphertext)
-            message_kit = MessageKit(ciphertext=ciphertext, capsule=capsule,
-                                     sender_verifying_key=signer.as_umbral_pubkey(),
-                                     signature=signature)
+                signature_in_kit = signature
+            message_kit = cls(ciphertext=ciphertext,
+                              capsule=capsule,
+                              sender_verifying_key=signer.as_umbral_pubkey(),
+                              signature=signature_in_kit)
         else:
             # Don't sign.
-            sig_header = constants.NOT_SIGNED
+            sig_header = NOT_SIGNED
             capsule, ciphertext = umbral.encrypt(recipient_key, sig_header + plaintext)
-            message_kit = MessageKit(ciphertext=ciphertext, capsule=capsule)
+            message_kit = cls(ciphertext=ciphertext, capsule=capsule)
 
         return message_kit
 
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self._sender = UNKNOWN_SENDER.bool_value(False)
-
-    @property
-    def sender(self):
-        return self._sender
-
-    @sender.setter
-    def sender(self, enrico):
-        # Here we set the delegating correctness key to the policy public key (which happens to be composed on enrico, but for which of course he doesn't have the corresponding private key).
-        self.set_correctness_keys(delegating=enrico.policy_pubkey)
-        self._sender = enrico
+    def __init__(self,
+                 capsule: Capsule,
+                 ciphertext: bytes,
+                 sender_verifying_key: Optional[PublicKey] = None,
+                 signature: Optional[Signature] = None,
+                 ):
+        self.ciphertext = ciphertext
+        self.capsule = capsule
+        self.sender_verifying_key = sender_verifying_key
+        self.signature = signature
 
     def __eq__(self, other):
-        return bytes(self) == bytes(other)
+        return (self.ciphertext == other.ciphertext and
+                self.capsule == other.capsule and
+                self.sender_verifying_key == other.sender_verifying_key and
+                self.signature == other.signature)
+
+    def __str__(self):
+        return f"{self.__class__.__name__}({self.capsule})"
 
     def __bytes__(self):
-        return super().to_bytes(include_alice_pubkey=True)
+        return (bytes(self.capsule) +
+                (b'\x00' if self.signature is None else (b'\x01' + bytes(self.signature))) +
+                (b'\x00' if self.sender_verifying_key is None else (b'\x01' + bytes(self.sender_verifying_key))) +
+                VariableLengthBytestring(self.ciphertext))
 
-    def ensure_correct_sender(self,
-                              enrico: Optional["Enrico"] = None,
-                              policy_encrypting_key: Optional[PublicKey] = None):
-        """
-        Make sure that the sender of the message kit is set and corresponds to
-        the given ``enrico``, or create it from the given ``policy_encrypting_key``.
-        """
-        if self.sender:
-            if enrico and self.sender != enrico:
-                raise ValueError(f"Mismatched sender: the object has {self.sender}, provided {enrico}")
-        elif enrico:
-            self.sender = enrico
-        elif self.sender_verifying_key and policy_encrypting_key:
-            # Well, after all, this is all we *really* need.
-            from nucypher.characters.lawful import Enrico
-            self.sender = Enrico.from_public_keys(verifying_key=self.sender_verifying_key,
-                                                  policy_encrypting_key=policy_encrypting_key)
+    @classmethod
+    def from_bytes(cls, data: bytes):
+        splitter = BytestringSplitter(
+            capsule_splitter,
+            (bytes, 1))
+
+        capsule, signature_flag, remainder = splitter(data, return_remainder=True)
+
+        if signature_flag == b'\x00':
+            signature = None
+        elif signature_flag == b'\x01':
+            signature, remainder = signature_splitter(remainder, return_remainder=True)
         else:
-            raise ValueError(
-                "No information provided to set the message kit sender. "
-                "Need eiter `enrico` or `policy_encrypting_key` to be given.")
+            raise ValueError("Incorrect format for the signature flag")
+
+        splitter = BytestringSplitter(
+            (bytes, 1))
+
+        key_flag, remainder = splitter(remainder, return_remainder=True)
+
+        if key_flag == b'\x00':
+            sender_verifying_key = None
+        elif key_flag == b'\x01':
+            sender_verifying_key, remainder = key_splitter(remainder, return_remainder=True)
+        else:
+            raise ValueError("Incorrect format of the sender's key flag")
+
+        ciphertext, = BytestringSplitter(VariableLengthBytestring)(remainder)
+
+        return cls(capsule, ciphertext, signature=signature, sender_verifying_key=sender_verifying_key)
+
+    def as_policy_kit(self, policy_key: PublicKey, threshold: int) -> 'PolicyMessageKit':
+        return PolicyMessageKit.from_message_kit(self, policy_key, threshold)
+
+    def as_retrieval_kit(self) -> 'RetrievalKit':
+        return RetrievalKit(self.capsule, set())
+
+
+class RetrievalKit:
+    """
+    An object encapsulating the information necessary for retrieval of cfrags from Ursulas.
+    Contains the capsule and the checksum addresses of Ursulas from which the requester
+    already received cfrags.
+    """
+
+    def __init__(self, capsule: Capsule, queried_addresses: Iterable[ChecksumAddress]):
+        self.capsule = capsule
+        # Can store cfrags too, if we're worried about Ursulas supplying duplicate ones.
+        self.queried_addresses = set(queried_addresses)
+
+    def __bytes__(self):
+        return (bytes(self.capsule) +
+                b''.join(to_canonical_address(address) for address in self.queried_addresses))
+
+    @classmethod
+    def from_bytes(cls, data: bytes):
+        capsule, remainder = capsule_splitter(data, return_remainder=True)
+        if remainder:
+            addresses_as_bytes = checksum_address_splitter.repeat(remainder)
+        else:
+            addresses_as_bytes = ()
+        return cls(capsule, set(to_checksum_address(address) for address in addresses_as_bytes))
+
+
+class PolicyMessageKit:
+
+    @classmethod
+    def from_message_kit(cls,
+                         message_kit: MessageKit,
+                         policy_key: PublicKey,
+                         threshold: int
+                         ) -> 'PolicyMessageKit':
+        # TODO: can we get rid of circular dependency?
+        from nucypher.policy.orders import RetrievalResult
+        return cls(policy_key, threshold, RetrievalResult.empty(), message_kit)
+
+    def as_retrieval_kit(self) -> RetrievalKit:
+        return RetrievalKit(self.capsule, self._result.addresses())
+
+    def __init__(self,
+                 policy_key: PublicKey,
+                 threshold: int,
+                 result: 'RetrievalResult',
+                 message_kit: MessageKit,
+                 ):
+        self.message_kit = message_kit
+        self.policy_key = policy_key
+        self.threshold = threshold
+        self._result = result
+
+        # FIXME: temporarily, for compatibility with decrypt()
+        self._cfrags = set(self._result.cfrags.values())
+
+    # FIXME: temporary exposing message kit info to help `verify_from()`
+
+    @property
+    def capsule(self) -> Capsule:
+        return self.message_kit.capsule
+
+    @property
+    def ciphertext(self) -> bytes:
+        return self.message_kit.ciphertext
+
+    @property
+    def sender_verifying_key(self) -> PublicKey:
+        return self.message_kit.sender_verifying_key
+
+    def is_decryptable_by_receiver(self) -> bool:
+        return len(self._result.cfrags) >= self.threshold
+
+    def with_result(self, result: 'RetrievalResult') -> 'PolicyMessageKit':
+        return PolicyMessageKit(policy_key=self.policy_key,
+                                threshold=self.threshold,
+                                result=self._result.with_result(result),
+                                message_kit=self.message_kit)
 
 
 class RevocationKit:

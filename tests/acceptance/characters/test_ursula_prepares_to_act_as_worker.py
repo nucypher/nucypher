@@ -156,12 +156,12 @@ def test_blockchain_ursulas_reencrypt(blockchain_ursulas, blockchain_alice, bloc
 
     blockchain_bob.start_learning_loop(now=True)
 
-    plaintext = blockchain_bob.retrieve(message_kit,
-                                        encrypted_treasure_map=_policy.treasure_map,
-                                        alice_verifying_key=blockchain_alice.stamp.as_umbral_pubkey(),
-                                        label=label,
-                                        enrico=enrico)
-    assert plaintext[0] == message
+    plaintexts = blockchain_bob.retrieve([message_kit],
+                                         label=_policy.label,
+                                         encrypted_treasure_map=_policy.treasure_map,
+                                         alice_verifying_key=blockchain_alice.stamp.as_umbral_pubkey(),
+                                         enrico=enrico)
+    assert plaintexts == [message]
 
     # Let's consider also that a node may be down when granting
     blockchain_alice.network_middleware = NodeIsDownMiddleware()

@@ -27,7 +27,7 @@ from nucypher.network.nodes import Learner
 from nucypher.policy.hrac import HRAC
 from nucypher.policy.maps import TreasureMap
 from tests.utils.middleware import MockRestMiddleware
-from tests.utils.policy import work_order_setup
+from tests.utils.policy import retrieval_request_setup
 
 
 def test_get_ursulas(blockchain_porter_web_controller, blockchain_ursulas):
@@ -90,6 +90,7 @@ def test_get_ursulas(blockchain_porter_web_controller, blockchain_ursulas):
         blockchain_porter_web_controller.get('/get_ursulas', data=json.dumps(failed_ursula_params))
 
 
+@pytest.mark.skip("To be fixed in #2768")
 def test_exec_work_order(blockchain_porter_web_controller,
                          random_blockchain_policy,
                          blockchain_ursulas,

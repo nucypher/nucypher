@@ -33,7 +33,8 @@ from nucypher.crypto.keypairs import DecryptingKeypair
 from nucypher.crypto.powers import KeyPairBasedPower, PowerUpError
 from nucypher.crypto.signing import InvalidSignature
 from nucypher.datastore.datastore import Datastore
-from nucypher.datastore.models import Workorder as WorkOrderModel
+from nucypher.datastore.models import ReencryptionRequest as ReencryptionRequestModel
+from nucypher.policy.orders import ReencryptionRequest, ReencryptionResponse
 from nucypher.network import LEARNING_LOOP_VERSION
 from nucypher.network.exceptions import NodeSeemsToBeDown
 from nucypher.network.protocols import InterfaceInfo
@@ -100,7 +101,6 @@ def make_rest_app(
 def _make_rest_app(datastore: Datastore, this_node, domain: str, log: Logger) -> Flask:
 
     # TODO: Avoid circular imports :-(
-    from nucypher.policy.orders import WorkOrder
     from nucypher.characters.lawful import Alice, Bob, Ursula
     from nucypher.policy.policies import Arrangement
     from nucypher.policy.policies import Policy
@@ -182,30 +182,26 @@ def _make_rest_app(datastore: Datastore, this_node, domain: str, log: Logger) ->
     def reencrypt():
         # TODO: Cache & Optimize
 
-        # Work Order
-        work_order_payload = request.data
-        work_order = WorkOrder.from_rest_payload(rest_payload=work_order_payload, ursula=this_node)
-        hrac = work_order.hrac
-        log.info(f"Work Order from {work_order.bob} for policy {hrac}, signed {work_order.receipt_signature}")
+        reenc_request = ReencryptionRequest.from_bytes(request.data)
+        hrac = reenc_request.hrac
+        bob = reenc_request.bob()
+        log.info(f"Work Order from {bob} for policy {hrac}")
 
         # Right off the bat, if this HRAC is already known to be revoked, reject the order.
         if hrac in this_node.revoked_policies:
             return Response(response="Invalid KFrag sender.", status=401)  # 401 - Unauthorized
 
         # Alice & Publisher
-        alice = _alice_class.from_public_keys(verifying_key=work_order.alice_verifying_key)
-        alice_verifying_key = alice.stamp.as_umbral_pubkey()
-        policy_publisher = _alice_class.from_public_keys(verifying_key=work_order.publisher_verifying_key)
+        alice = reenc_request.alice()
+        policy_publisher = reenc_request.publisher()
 
         # Bob
         bob_ip_address = request.remote_addr
-        bob_verifying_key = work_order.bob.stamp.as_umbral_pubkey()
-        bob = _bob_class.from_public_keys(verifying_key=bob_verifying_key)
-        bob_workorder_signature = work_order.receipt_signature
+        bob_verifying_key = bob.stamp.as_umbral_pubkey()
         bob_identity_message = f"[{bob_ip_address}] Bob({bytes(bob.stamp).hex()})"
 
         # Verify & Decrypt KFrag Payload
-        encrypted_kfrag_payload = MessageKit.from_bytes(work_order.encrypted_kfrag)
+        encrypted_kfrag_payload = MessageKit.from_bytes(reenc_request.encrypted_kfrag)
         try:
             plaintext_kfrag_payload = this_node.verify_from(stranger=alice,
                                                             message_kit=encrypted_kfrag_payload,
@@ -226,7 +222,7 @@ def _make_rest_app(datastore: Datastore, this_node, domain: str, log: Logger) ->
             return Response(message, status=400)  # 400 - General error
 
         try:
-            verified_kfrag = this_node.verify_kfrag_authorization(hrac=work_order.hrac,
+            verified_kfrag = this_node.verify_kfrag_authorization(hrac=reenc_request.hrac,
                                                                   author=alice,
                                                                   publisher=policy_publisher,
                                                                   authorized_kfrag=authorized_kfrag)
@@ -262,18 +258,17 @@ def _make_rest_app(datastore: Datastore, this_node, domain: str, log: Logger) ->
                 return Response(message, status=403)  # 403 - Forbidden
 
         # Re-encrypt
+        # TODO: return a sensible response if it fails
         response = this_node._reencrypt(kfrag=verified_kfrag,
-                                        work_order=work_order,
-                                        alice_verifying_key=alice_verifying_key)
+                                        capsules=reenc_request.capsules)
 
         # Now, Ursula saves evidence of this workorder to her database...
         # Note: we give the work order a random ID to store it under.
-        with datastore.describe(WorkOrderModel, str(uuid.uuid4()), writeable=True) as new_workorder:
-            new_workorder.bob_verifying_key = bob_verifying_key
-            new_workorder.bob_signature = bob_workorder_signature
+        with datastore.describe(ReencryptionRequestModel, str(uuid.uuid4()), writeable=True) as new_request:
+            new_request.bob_verifying_key = bob_verifying_key
 
         headers = {'Content-Type': 'application/octet-stream'}
-        return Response(headers=headers, response=response)
+        return Response(headers=headers, response=bytes(response))
 
     @rest_app.route('/revoke', methods=['POST'])
     def revoke():

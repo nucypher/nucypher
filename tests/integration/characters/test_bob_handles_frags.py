@@ -19,14 +19,10 @@ import pytest
 import pytest_twisted
 from twisted.internet import threads
 
-from nucypher.characters.lawful import Alice
+from nucypher.characters.lawful import Enrico
 from nucypher.config.constants import TEMPORARY_DOMAIN
-from nucypher.crypto.keypairs import DecryptingKeypair
-from nucypher.crypto.powers import DecryptingPower
-from nucypher.crypto.umbral_adapter import reencrypt
-from nucypher.datastore.models import Workorder
-from nucypher.policy.kits import MessageKit
-from nucypher.policy.maps import AuthorizedKeyFrag
+from nucypher.policy.kits import RetrievalKit
+
 from tests.utils.middleware import MockRestMiddleware, NodeIsDownMiddleware
 
 
@@ -123,587 +119,145 @@ def test_bob_can_follow_treasure_map_even_if_he_only_knows_of_one_node(federated
     bob.disenchant()
 
 
-def test_bob_can_issue_a_work_order_to_a_specific_ursula(enacted_federated_policy,
-                                                         federated_treasure_map,
-                                                         federated_bob,
-                                                         federated_alice,
-                                                         federated_ursulas,
-                                                         capsule_side_channel):
-    """
-    Now that Bob has his list of Ursulas, he can issue a WorkOrder to one. Upon receiving the WorkOrder, Ursula
-    saves it and responds by re-encrypting and giving Bob a cFrag.
+def _policy_info_kwargs(enacted_policy):
+    return dict(
+        encrypted_treasure_map=enacted_policy.treasure_map,
+        policy_encrypting_key=enacted_policy.public_key,
+        label=enacted_policy.label,
+        alice_verifying_key=enacted_policy.publisher_verifying_key,
+        )
 
-    This is a multipart test; it shows proper relations between the Characters Ursula and Bob and also proper
-    interchange between a KeyFrag, Capsule, and CFrag object in the context of REST-driven proxy re-encryption.
-    """
 
-    # We pick up our story with Bob already having followed the treasure map above, ie:
+def _make_message_kits(policy_pubkey):
+    messages = [b"plaintext1", b"plaintext2", b"plaintext3"]
+
+    message_kits = []
+    for message in messages:
+        # Using different Enricos, because why not.
+        enrico = Enrico(policy_encrypting_key=policy_pubkey)
+        message_kit = enrico.encrypt_message(message)
+        message_kits.append(message_kit)
+
+    return messages, message_kits
+
+
+def test_retrieval_kit(enacted_federated_policy, federated_ursulas):
+    messages, message_kits = _make_message_kits(enacted_federated_policy.public_key)
+
+    capsule = message_kits[0].capsule
+    addresses = [ursula.checksum_address for ursula in list(federated_ursulas)[:2]]
+
+    retrieval_kit = RetrievalKit(capsule, addresses)
+    serialized = bytes(retrieval_kit)
+    retrieval_kit_back = RetrievalKit.from_bytes(serialized)
+
+    assert retrieval_kit.capsule == retrieval_kit_back.capsule
+    assert retrieval_kit.queried_addresses == retrieval_kit_back.queried_addresses
+
+
+def test_single_retrieve(enacted_federated_policy, federated_bob, federated_ursulas):
+
     federated_bob.start_learning_loop()
+    messages, message_kits = _make_message_kits(enacted_federated_policy.public_key)
 
-    federated_bob.follow_treasure_map(treasure_map=federated_treasure_map, block=True, timeout=1)
+    cleartexts = federated_bob.retrieve(
+        message_kits=message_kits,
+        **_policy_info_kwargs(enacted_federated_policy),
+        )
 
-    assert len(federated_bob.known_nodes) == len(federated_ursulas)
+    assert cleartexts == messages
 
-    # Bob has no saved work orders yet, ever.
-    assert len(federated_bob._completed_work_orders) == 0
 
-    # We'll test against just a single Ursula - here, we make a WorkOrder for just one.
-    # We can pass any number of capsules as args; here we pass just one.
-    message_kit = capsule_side_channel()
-    message_kit.set_correctness_keys(delegating=enacted_federated_policy.public_key,
-                                     receiving=federated_bob.public_keys(DecryptingPower),
-                                     verifying=federated_alice.stamp.as_umbral_pubkey())
-    work_orders, _ = federated_bob.work_orders_for_capsules(
-        message_kit.capsule,
-        label=enacted_federated_policy.label,
-        treasure_map=federated_treasure_map,
-        alice_verifying_key=federated_alice.stamp.as_umbral_pubkey(),
-        num_ursulas=1)
+def test_use_cached_cfrags(enacted_federated_policy, federated_bob, federated_ursulas):
 
-    # Again: one Ursula, one work_order.
-    assert len(work_orders) == 1
+    federated_bob.start_learning_loop()
+    messages, message_kits = _make_message_kits(enacted_federated_policy.public_key)
 
-    # Since we didn't tell Bob to cache the WorkOrders, Bob didn't save it.
-    assert len(federated_bob._completed_work_orders) == 0
+    ursulas = list(federated_ursulas)
 
-    # This time, we'll tell Bob to cache it.
-    retained_work_orders, _ = federated_bob.work_orders_for_capsules(
-        message_kit.capsule,
-        label=enacted_federated_policy.label,
-        treasure_map=federated_treasure_map,
-        alice_verifying_key=federated_alice.stamp.as_umbral_pubkey(),
-        num_ursulas=1)
-
-    # The work order we just made is not yet complete, of course.
-    address, work_order = list(retained_work_orders.items())[0]
-    assert work_order.completed is False
-
-    # **** RE-ENCRYPTION HAPPENS HERE! ****
-    _success, cfrags = federated_bob._reencrypt(work_order, {message_kit.capsule: message_kit}, retain_cfrags=True)
-
-    # We only gave one Capsule, so we only got one cFrag.
-    assert len(cfrags) == 1
-    the_cfrag = cfrags[0]
-
-    # ...and the work order is complete.
-    assert work_order.completed
-
-    # Attach the CFrag to the Capsule.
-    message_kit.attach_cfrag(the_cfrag)
-
-    # Having received the cFrag, Bob also saved the WorkOrder as complete.
-    assert len(federated_bob._completed_work_orders.by_ursula[address]) == 1
-
-    # OK, so cool - Bob has his cFrag!  Let's make sure everything went properly.
-    # First, we'll show that it is in fact the correct cFrag (ie, that Ursula performed re-encryption properly).
-    for u in federated_ursulas:
-        if u.rest_interface.port == work_order.ursula.rest_interface.port:
-            ursula = u
-            break
-    else:
-        raise RuntimeError("We've lost track of the Ursula that has the WorkOrder. Can't really proceed.")
-
-    # Ursula decrypts the encrypted KFrag
-    encrypted_kfrag = federated_treasure_map.destinations[ursula.checksum_address]
-    alice = Alice.from_public_keys(verifying_key=federated_alice.stamp.as_umbral_pubkey())
-    plaintext_kfrag_payload = ursula.verify_from(stranger=alice,
-                                                 message_kit=encrypted_kfrag,
-                                                 decrypt=True)
-    authorized_kfrag = AuthorizedKeyFrag.from_bytes(plaintext_kfrag_payload)
-    verified_kfrag = ursula.verify_kfrag_authorization(hrac=work_order.hrac,
-                                                       author=alice,
-                                                       publisher=alice,
-                                                       authorized_kfrag=authorized_kfrag)
-
-    reencrypt(capsule=message_kit.capsule, kfrag=verified_kfrag)
-
-    # Now we'll show that Ursula saved the correct WorkOrder.
-    with ursula.datastore.query_by(Workorder, filter_field='bob_verifying_key',
-            filter_func=lambda bob_key: bob_key == federated_bob.stamp.as_umbral_pubkey()) as work_orders_from_bob:
-        assert len(work_orders_from_bob) == 1
-        assert work_orders_from_bob[0].bob_signature == work_order.receipt_signature
-
-
-def test_bob_can_use_cfrag_attached_to_completed_workorder(enacted_federated_policy,
-                                                           federated_treasure_map,
-                                                           federated_alice,
-                                                           federated_bob,
-                                                           federated_ursulas,
-                                                           capsule_side_channel):
-    # In our last episode, Bob made a single WorkOrder...
-    work_orders = list(federated_bob._completed_work_orders.by_ursula.values())
-    assert len(work_orders) == 1
-
-    # ...and it matched the last capsule that came through the side channel.
-    last_message_kit_on_side_channel = capsule_side_channel.messages[-1][0]
-    last_capsule_on_side_channel = last_message_kit_on_side_channel.capsule
-    old_work_order = work_orders[0][last_capsule_on_side_channel]
-
-    incomplete_work_orders, complete_work_orders = federated_bob.work_orders_for_capsules(
-        last_capsule_on_side_channel,
-        label=enacted_federated_policy.label,
-        treasure_map=federated_treasure_map,
-        alice_verifying_key=federated_alice.stamp.as_umbral_pubkey(),
-        num_ursulas=1,
-    )
-
-    # Here we show that this WorkOrder is still saved, replete with the CFrag.
-    work_orders_for_this_capsule = federated_bob._completed_work_orders._latest_replete[last_capsule_on_side_channel]
-    new_work_order = list(work_orders_for_this_capsule.values())[0]
-    assert old_work_order == new_work_order
-
-    # We already got a CFrag for this WorkOrder, a couple of tests ago.
-    assert old_work_order.tasks[last_capsule_on_side_channel].cfrag
-
-    # As such, we will get TypeError if we try to get CFrags again.
-    message_kit_dict = {last_message_kit_on_side_channel.capsule: last_message_kit_on_side_channel}
-    with pytest.raises(TypeError):
-        federated_bob._reencrypt(new_work_order, message_kit_dict)
-
-
-def test_bob_remembers_that_he_has_cfrags_for_a_particular_capsule(enacted_federated_policy,
-                                                                   federated_treasure_map,
-                                                                   federated_alice,
-                                                                   federated_bob,
-                                                                   federated_ursulas,
-                                                                   capsule_side_channel):
-    # In our last episode, Bob made a single WorkOrder...
-    work_orders = list(federated_bob._completed_work_orders.by_ursula.values())
-    assert len(work_orders) == 1
-
-    # ...and it matched the last capsule that came through the side channel.
-    last_message_kit_on_side_channel = capsule_side_channel.messages[-1][0]
-    last_capsule_on_side_channel = last_message_kit_on_side_channel.capsule
-    first_and_only_work_order = work_orders[0]
-    list_of_one_capsule = list(first_and_only_work_order.keys())
-    capsule_as_saved = list_of_one_capsule[0]
-    # Indeed, they're the same capsule.
-    assert capsule_as_saved == last_capsule_on_side_channel
-    assert len(federated_bob._completed_work_orders.by_capsule(last_capsule_on_side_channel)) == 1
-
-    # ...and he used it to obtain a CFrag from Ursula.
-    assert len(last_message_kit_on_side_channel) == 1
-
-    # He can also get a dict of {Ursula:WorkOrder} by looking them up from the capsule.
-    work_orders_by_capsule = federated_bob._completed_work_orders.by_capsule(capsule_as_saved)
-
-    # Bob has just one WorkOrder from that one Ursula.
-    assert len(work_orders_by_capsule) == 1
-    saved_work_order = list(work_orders_by_capsule.values())[0]
-
-    # The rest of this test will show that if Bob generates another WorkOrder, it's for a *different* Ursula.
-    incomplete_work_orders, complete_work_orders = federated_bob.work_orders_for_capsules(
-        last_capsule_on_side_channel,
-        label=enacted_federated_policy.label,
-        treasure_map=federated_treasure_map,
-        alice_verifying_key=federated_alice.stamp.as_umbral_pubkey(),
-        num_ursulas=1)
-    id_of_this_new_ursula, new_work_order = list(incomplete_work_orders.items())[0]
-
-    # This new Ursula isn't the same one to whom we've already issued a WorkOrder.
-    id_of_ursula_from_whom_we_already_have_a_cfrag = list(work_orders_by_capsule.keys())[0]
-    assert id_of_ursula_from_whom_we_already_have_a_cfrag != id_of_this_new_ursula
-
-    # ...and, although this WorkOrder has the same capsules as the saved one...
-    for (new_item, saved_item) in zip(new_work_order.tasks.values(), saved_work_order.tasks.values()):
-        assert new_item.capsule == saved_item.capsule
-
-    # ...it's not the same WorkOrder.
-    assert new_work_order != saved_work_order
-
-    # This WorkOrder has never been completed
-    message_kit_dict = {last_capsule_on_side_channel: last_message_kit_on_side_channel}
-    _success, cfrags = federated_bob._reencrypt(new_work_order, message_kit_dict, retain_cfrags=True)
-
-    # Again: one Capsule, one cFrag.
-    assert len(cfrags) == 1
-    new_cfrag = cfrags[0]
-
-    # Attach the CFrag to the Capsule.
-    last_message_kit_on_side_channel.attach_cfrag(new_cfrag)
-
-
-def test_bob_gathers_and_combines(enacted_federated_policy, federated_treasure_map, federated_bob, federated_alice, capsule_side_channel):
-    # The side channel delivers all that Bob needs at this point:
-    # - A single MessageKit, containing a Capsule
-    # - A representation of the data source
-    the_message_kit, the_data_source = capsule_side_channel.messages[-1]
-
-    # Bob has saved two WorkOrders so far.
-    assert len(federated_bob._completed_work_orders) == 2
-
-    # ...but the policy requires us to collect more cfrags.
-    assert len(federated_bob._completed_work_orders) < federated_treasure_map.threshold
-
-    # Bob can't decrypt yet with just two CFrags.  He needs to gather at least `threshold`.
-    with pytest.raises(DecryptingKeypair.DecryptionFailed):
-        federated_bob.decrypt(the_message_kit)
-
-    number_left_to_collect = federated_treasure_map.threshold - len(federated_bob._completed_work_orders)
-
-    the_message_kit.set_correctness_keys(
-        delegating=the_data_source.policy_pubkey,
-        receiving=federated_bob.public_keys(DecryptingPower),
-        verifying=federated_alice.stamp.as_umbral_pubkey())
-
-    new_incomplete_work_orders, _ = federated_bob.work_orders_for_capsules(
-        the_message_kit.capsule,
-        label=enacted_federated_policy.label,
-        treasure_map=federated_treasure_map,
-        alice_verifying_key=federated_alice.stamp.as_umbral_pubkey(),
-        num_ursulas=number_left_to_collect)
-    _id_of_yet_another_ursula, new_work_order = list(new_incomplete_work_orders.items())[0]
-
-    _success, cfrags = federated_bob._reencrypt(new_work_order, {the_message_kit.capsule: the_message_kit})
-    cfrag = cfrags[0]
-
-    the_message_kit.attach_cfrag(cfrags[0])
-
-    # Now.
-    # At long last.
-    cleartext = federated_bob.verify_from(the_data_source,
-                                          the_message_kit,
-                                          decrypt=True)
-    assert cleartext == b'Welcome to flippering number 1.'
-
-
-def test_federated_bob_retrieves_a_single_message(federated_bob,
-                                                  federated_alice,
-                                                  capsule_side_channel,
-                                                  enacted_federated_policy,
-                                                  ):
-    # The side channel delivers all that Bob needs at this point:
-    # - A single MessageKit, containing a Capsule
-    # - A representation of the data source
-    capsule_side_channel.reset()
-    the_message_kit = capsule_side_channel()
-
-    alices_verifying_key = federated_alice.stamp.as_umbral_pubkey()
-
-    delivered_cleartexts = federated_bob.retrieve(the_message_kit,
-                                                  enrico=capsule_side_channel.enrico,
-                                                  alice_verifying_key=alices_verifying_key,
-                                                  label=enacted_federated_policy.label,
-                                                  encrypted_treasure_map=enacted_federated_policy.treasure_map)
-
-    # We show that indeed this is the passage originally encrypted by the Enrico.
-    assert b"Welcome to flippering number 1." == delivered_cleartexts[0]
-
-
-def test_federated_bob_retrieves_multiple_messages_from_same_enrico(federated_bob,
-                                                                    federated_alice,
-                                                                    capsule_side_channel,
-                                                                    enacted_federated_policy,
-                                                                    ):
-    # The side channel delivers all that Bob needs at this point:
-    # - A single MessageKit, containing a Capsule
-    # - A representation of the data source
-    capsule_side_channel.reset()
-
-    three_message_kits = [capsule_side_channel(), capsule_side_channel(), capsule_side_channel()]
-
-    alices_verifying_key = federated_alice.stamp.as_umbral_pubkey()
-
-    delivered_cleartexts = federated_bob.retrieve(*three_message_kits,
-                                                  enrico=capsule_side_channel.enrico,
-                                                  alice_verifying_key=alices_verifying_key,
-                                                  label=enacted_federated_policy.label,
-                                                  encrypted_treasure_map=enacted_federated_policy.treasure_map)
-
-    assert b"Welcome to flippering number 1." == delivered_cleartexts[0]
-    assert b"Welcome to flippering number 2." == delivered_cleartexts[1]
-    assert b"Welcome to flippering number 3." == delivered_cleartexts[2]
-
-
-def test_federated_bob_retrieves_multiple_messages_from_different_enricos(federated_bob,
-                                                                          federated_alice,
-                                                                          capsule_side_channel,
-                                                                          enacted_federated_policy,
-                                                                          ):
-    # The side channel delivers all that Bob needs at this point:
-    # - A single MessageKit, containing a Capsule
-    # - A representation of the data source
-    message1, enrico1 = capsule_side_channel.reset()  # First message
-    message2, enrico2 = capsule_side_channel.reset()  # Second message
-    message3, enrico3 = capsule_side_channel.reset()  # Third message
-
-    alices_verifying_key = federated_alice.stamp.as_umbral_pubkey()
-    message1.sender = enrico1
-    message2.sender = enrico2
-    message3.sender = enrico3
-
-    delivered_cleartexts = federated_bob.retrieve(message1,
-                                                  message2,
-                                                  message3,
-                                                  alice_verifying_key=alices_verifying_key,
-                                                  label=enacted_federated_policy.label,
-                                                  encrypted_treasure_map=enacted_federated_policy.treasure_map)
-
-    assert b"Welcome to flippering number 0." == delivered_cleartexts[0]
-    assert b"Welcome to flippering number 0." == delivered_cleartexts[1]
-    assert b"Welcome to flippering number 0." == delivered_cleartexts[2]
-
-
-def test_federated_bob_retrieves_twice_without_retaining_cfrags(federated_bob,
-                                                                federated_alice,
-                                                                capsule_side_channel,
-                                                                enacted_federated_policy,
-                                                                ):
-    # The side channel delivers all that Bob needs at this point:
-    # - A single MessageKit, containing a Capsule
-    # - A representation of the data source
-    capsule_side_channel.reset()
-    the_message_kit = capsule_side_channel()
-
-    alices_verifying_key = federated_alice.stamp.as_umbral_pubkey()
-
-    delivered_cleartexts = federated_bob.retrieve(the_message_kit,
-                                                  enrico=capsule_side_channel.enrico,
-                                                  alice_verifying_key=alices_verifying_key,
-                                                  label=enacted_federated_policy.label,
-                                                  encrypted_treasure_map=enacted_federated_policy.treasure_map)
-
-    # We show that indeed this is the passage originally encrypted by the Enrico.
-    assert b"Welcome to flippering number 1." == delivered_cleartexts[0]
-
-    delivered_cleartexts = federated_bob.retrieve(the_message_kit,
-                                                  enrico=capsule_side_channel.enrico,
-                                                  alice_verifying_key=alices_verifying_key,
-                                                  label=enacted_federated_policy.label,
-                                                  use_precedent_work_orders=True,
-                                                  encrypted_treasure_map=enacted_federated_policy.treasure_map)
-
-    # We show that indeed this is the passage originally encrypted by the Enrico.
-    assert b"Welcome to flippering number 1." == delivered_cleartexts[0]
-
-
-def test_federated_bob_retrieves_twice_by_retaining_cfrags(federated_bob,
-                                                           federated_alice,
-                                                           capsule_side_channel,
-                                                           enacted_federated_policy,
-                                                           ):
-    capsule_side_channel.reset()
-    the_message_kit = capsule_side_channel()
-    alices_verifying_key = federated_alice.stamp.as_umbral_pubkey()
-
-    delivered_cleartexts = federated_bob.retrieve(the_message_kit,
-                                                  enrico=capsule_side_channel.enrico,
-                                                  alice_verifying_key=alices_verifying_key,
-                                                  label=enacted_federated_policy.label,
-                                                  retain_cfrags=True,
-                                                  encrypted_treasure_map=enacted_federated_policy.treasure_map)
-    assert b"Welcome to flippering number 1." == delivered_cleartexts[0]
-
-    # Can't retrieve this message again.
-    # Bob needs to either instantiate the message_kit again or use use_attached_cfrags=True.
-    with pytest.raises(TypeError):
-        federated_bob.retrieve(the_message_kit,
-                               enrico=capsule_side_channel.enrico,
-                               alice_verifying_key=alices_verifying_key,
-                               label=enacted_federated_policy.label,
-                               )
-
-    delivered_cleartexts = federated_bob.retrieve(the_message_kit,
-                                                  enrico=capsule_side_channel.enrico,
-                                                  alice_verifying_key=alices_verifying_key,
-                                                  label=enacted_federated_policy.label,
-                                                  use_attached_cfrags=True,
-                                                  encrypted_treasure_map=enacted_federated_policy.treasure_map)
-
-    assert b"Welcome to flippering number 1." == delivered_cleartexts[0]
-
-
-def test_federated_bob_cannot_resume_retrieval_without_caching(federated_bob,
-                                                               federated_alice,
-                                                               capsule_side_channel,
-                                                               enacted_federated_policy,
-                                                               federated_ursulas
-                                                               ):
-    capsule_side_channel.reset()
-    the_message_kit = capsule_side_channel()
-
-    alices_verifying_key = federated_alice.stamp.as_umbral_pubkey()
-
-    # Out of 10 Ursulas, eight are down.
-    ursula1 = list(federated_ursulas)[0]
-    ursula2 = list(federated_ursulas)[1]
-    ursula3 = list(federated_ursulas)[2]
-    ursula4 = list(federated_ursulas)[3]
-    ursula5 = list(federated_ursulas)[4]
-    ursula6 = list(federated_ursulas)[5]
-    ursula7 = list(federated_ursulas)[6]
-    ursula8 = list(federated_ursulas)[7]
-
-    federated_bob.remember_node(ursula1)
-
+    # All Ursulas are down except for two
     federated_bob.network_middleware = NodeIsDownMiddleware()
-    federated_bob.network_middleware.node_is_down(ursula1)
-    federated_bob.network_middleware.node_is_down(ursula2)
-    federated_bob.network_middleware.node_is_down(ursula3)
-    federated_bob.network_middleware.node_is_down(ursula4)
-    federated_bob.network_middleware.node_is_down(ursula5)
-    federated_bob.network_middleware.node_is_down(ursula6)
-    federated_bob.network_middleware.node_is_down(ursula7)
-    federated_bob.network_middleware.node_is_down(ursula8)
 
-    # Since 8 Ursulas are down, Bob can only get 2 CFrags; not enough to complete retrieval.
-    with pytest.raises(ursula1.NotEnoughUrsulas):
-        federated_bob.retrieve(the_message_kit,
-                               enrico=capsule_side_channel.enrico,
-                               alice_verifying_key=alices_verifying_key,
-                               label=enacted_federated_policy.label,
-                               encrypted_treasure_map=enacted_federated_policy.treasure_map)
-
-    # Since we weren't caching, there are no attached Cfrags.
-    assert len(the_message_kit) == 0
-
-    # Now the remaining two Ursulas go down.
-    ursula9 = list(federated_ursulas)[8]
-    ursula10 = list(federated_ursulas)[9]
-    federated_bob.network_middleware.node_is_down(ursula9)
-    federated_bob.network_middleware.node_is_down(ursula10)
-
-    # ...but one other comes up.
-    federated_bob.network_middleware.node_is_up(ursula4)
-
-    with pytest.raises(ursula1.NotEnoughUrsulas):
-        federated_bob.retrieve(the_message_kit,
-                               enrico=capsule_side_channel.enrico,
-                               alice_verifying_key=alices_verifying_key,
-                               label=enacted_federated_policy.label,
-                               encrypted_treasure_map=enacted_federated_policy.treasure_map)
-
-
-def test_federated_retrieves_partially_then_finishes(federated_bob,
-                                                     federated_alice,
-                                                     capsule_side_channel,
-                                                     enacted_federated_policy,
-                                                     federated_ursulas):
-    # Same setup as last time.
-    capsule_side_channel.reset()
-    the_message_kit = capsule_side_channel()
-
-    alices_verifying_key = federated_alice.stamp.as_umbral_pubkey()
-    ursula1 = list(federated_ursulas)[0]
-    ursula2 = list(federated_ursulas)[1]
-    ursula3 = list(federated_ursulas)[2]
-    ursula4 = list(federated_ursulas)[3]
-    ursula5 = list(federated_ursulas)[4]
-    ursula6 = list(federated_ursulas)[5]
-    ursula7 = list(federated_ursulas)[6]
-    ursula8 = list(federated_ursulas)[7]
-
-    federated_bob.remember_node(ursula1)
-
-    federated_bob.network_middleware = NodeIsDownMiddleware()
-    federated_bob.network_middleware.node_is_down(ursula1)
-    federated_bob.network_middleware.node_is_down(ursula2)
-    federated_bob.network_middleware.node_is_down(ursula3)
-    federated_bob.network_middleware.node_is_down(ursula4)
-    federated_bob.network_middleware.node_is_down(ursula5)
-    federated_bob.network_middleware.node_is_down(ursula6)
-    federated_bob.network_middleware.node_is_down(ursula7)
-    federated_bob.network_middleware.node_is_down(ursula8)
-
-    # Bob can't retrieve; there aren't enough Ursulas up.
-    with pytest.raises(ursula1.NotEnoughUrsulas):
-        federated_bob.retrieve(the_message_kit,
-                               enrico=capsule_side_channel.enrico,
-                               alice_verifying_key=alices_verifying_key,
-                               label=enacted_federated_policy.label,
-                               retain_cfrags=True,
-                               encrypted_treasure_map=enacted_federated_policy.treasure_map)
-
-    # Since we were caching, there are now 2 attached cfrags.
-    assert len(the_message_kit) == 2
-
-    # Now the remaining two Ursulas go down.
-    ursula9 = list(federated_ursulas)[8]
-    ursula10 = list(federated_ursulas)[9]
-    federated_bob.network_middleware.node_is_down(ursula9)
-    federated_bob.network_middleware.node_is_down(ursula10)
-
-    # ...but one other comes up.
-    federated_bob.network_middleware.node_is_up(ursula4)
-
-    # We're not allowed to try again with a Capsule with cached CFrags if we set cache to False.
-    with pytest.raises(TypeError):
-        federated_bob.retrieve(the_message_kit,
-                               enrico=capsule_side_channel.enrico,
-                               alice_verifying_key=alices_verifying_key,
-                               label=enacted_federated_policy.label,
-                               retain_cfrags=False)
-
-    # But now, with just one Ursula up, we can use the cached CFrags to get the message.
-    delivered_cleartexts = federated_bob.retrieve(the_message_kit,
-                                                  enrico=capsule_side_channel.enrico,
-                                                  alice_verifying_key=alices_verifying_key,
-                                                  label=enacted_federated_policy.label,
-                                                  retain_cfrags=True,
-                                                  use_attached_cfrags=True,
-                                                  encrypted_treasure_map=enacted_federated_policy.treasure_map
-                                                  )
-
-    assert b"Welcome to flippering number 1." == delivered_cleartexts[0]
-
-    # In fact, if Bob is totally offline, he can get the message:
-    for ursula in federated_ursulas:
+    for ursula in ursulas[2:]:
         federated_bob.network_middleware.node_is_down(ursula)
 
-    delivered_cleartexts = federated_bob.retrieve(the_message_kit,
-                                                  enrico=capsule_side_channel.enrico,
-                                                  alice_verifying_key=alices_verifying_key,
-                                                  label=enacted_federated_policy.label,
-                                                  retain_cfrags=True,
-                                                  use_attached_cfrags=True,
-                                                  encrypted_treasure_map=enacted_federated_policy.treasure_map)
+    # We can't decrypt, but we still have cfrags from two Ursulas,
+    # and we cache them in `federated_bob`
+    with pytest.raises(RuntimeError):
+        cleartexts = federated_bob.retrieve(
+            message_kits=message_kits,
+            cache_cfrags=True,
+            **_policy_info_kwargs(enacted_federated_policy),
+            )
 
-    assert b"Welcome to flippering number 1." == delivered_cleartexts[0]
+    # Now the remaining two Ursulas go down.
+    for ursula in ursulas[:2]:
+        federated_bob.network_middleware.node_is_down(ursula)
 
-    # Heck, even if we delete the attached CFrags, as might happen if we were loading the Capsule again from disk...
-    the_message_kit.clear_cfrags()
+    # ...but one other comes up.
+    federated_bob.network_middleware.node_is_up(ursulas[2])
 
-    # ...we can still get the message with the network being down because Bob has the properly completed WorkOrders cached in state.
-    delivered_cleartexts = federated_bob.retrieve(the_message_kit,
-                                                  enrico=capsule_side_channel.enrico,
-                                                  alice_verifying_key=alices_verifying_key,
-                                                  label=enacted_federated_policy.label,
-                                                  use_precedent_work_orders=True,
-                                                  encrypted_treasure_map=enacted_federated_policy.treasure_map)
+    # If we don't use the cache, we still can't decrypt - only one cfrag is available.
+    with pytest.raises(RuntimeError):
+        cleartexts = federated_bob.retrieve(
+            message_kits=message_kits,
+            **_policy_info_kwargs(enacted_federated_policy),
+            )
 
-    assert b"Welcome to flippering number 1." == delivered_cleartexts[0]
-    federated_bob.network_middleware.all_nodes_up()
+    # With the cache enabled, we have two cfrags in the cache + one cfrag from the available Ursula
+    cleartexts = federated_bob.retrieve(
+        message_kits=message_kits,
+        use_cached_cfrags=True,
+        **_policy_info_kwargs(enacted_federated_policy),
+        )
+
+    assert cleartexts == messages
 
 
-def test_bob_retrieves_multiple_messages_in_a_single_adventure(federated_bob,
-                                                               federated_alice,
-                                                               capsule_side_channel,
-                                                               enacted_federated_policy):
-    # The side channel delivers all that Bob needs at this point:
-    # - A single MessageKit, containing a Capsule
-    # - A representation of the data source
-    message1, enrico1 = capsule_side_channel.reset()  # First message
-    message2, enrico2 = capsule_side_channel.reset()  # Second message
-    message3, enrico3 = capsule_side_channel.reset()  # Third message
+def test_use_external_cache(enacted_federated_policy, federated_bob, federated_ursulas):
 
-    # We'll cast the kits to bytes as if to pretend that Bob has stored them to disk or is accessing them via the web extension.
-    # This is meaningful as a regression test (as distinct from the single-Capsule tests) because it shows that we are
-    # properly adhering the three different sender_verifying_keys.
-    message1_bytes = bytes(message1)
-    message2_bytes = bytes(message2)
-    message3_bytes = bytes(message3)
+    federated_bob.start_learning_loop()
+    messages, message_kits = _make_message_kits(enacted_federated_policy.public_key)
 
-    alices_verifying_key = federated_alice.stamp.as_umbral_pubkey()
+    ursulas = list(federated_ursulas)
 
-    delivered_cleartexts = federated_bob.retrieve(MessageKit.from_bytes(message1_bytes),
-                                                  MessageKit.from_bytes(message2_bytes),
-                                                  MessageKit.from_bytes(message3_bytes),
-                                                  alice_verifying_key=alices_verifying_key,
-                                                  label=enacted_federated_policy.label,
-                                                  use_precedent_work_orders=True,
-                                                  policy_encrypting_key=enacted_federated_policy.public_key,
-                                                  encrypted_treasure_map=enacted_federated_policy.treasure_map)
+    # All Ursulas are down except for two
+    federated_bob.network_middleware = NodeIsDownMiddleware()
+    for ursula in ursulas[2:]:
+        federated_bob.network_middleware.node_is_down(ursula)
 
-    assert b"Welcome to flippering number 0." == delivered_cleartexts[0]
-    assert b"Welcome to flippering number 0." == delivered_cleartexts[1]
-    assert b"Welcome to flippering number 0." == delivered_cleartexts[2]
+    # Fetch what we can without decrypting
+    loaded_message_kits = federated_bob.retrieve_cfrags(
+        message_kits=message_kits,
+        **_policy_info_kwargs(enacted_federated_policy),
+        )
+
+    # Not enough cfrags yet
+    assert not any(mk.is_decryptable_by_receiver() for mk in loaded_message_kits)
+
+    # Now the remaining two Ursulas go down.
+    for ursula in ursulas[:2]:
+        federated_bob.network_middleware.node_is_down(ursula)
+
+    # ...but one other comes up.
+    federated_bob.network_middleware.node_is_up(ursulas[2])
+
+    # Try again, building on top of the existing cache
+    loaded_message_kits = federated_bob.retrieve_cfrags(
+        message_kits=loaded_message_kits,
+        **_policy_info_kwargs(enacted_federated_policy),
+        )
+
+    assert all(mk.is_decryptable_by_receiver() for mk in loaded_message_kits)
+
+    # Should be enough cfrags now. Disconnect all Ursulas
+    # to be sure Bob doesn't cheat and contact them again.
+    for ursula in ursulas:
+        federated_bob.network_middleware.node_is_down(ursula)
+
+    cleartexts = federated_bob.retrieve(
+        message_kits=loaded_message_kits,
+        **_policy_info_kwargs(enacted_federated_policy),
+        )
+
+    assert cleartexts == messages

@@ -23,10 +23,8 @@ from nucypher.control.specifications.fields import StringList
 from nucypher.utilities.porter.control.specifications.fields import (
     HRAC,
     UrsulaChecksumAddress,
-    WorkOrder,
-    WorkOrderResult
 )
-from tests.utils.policy import work_order_setup
+from tests.utils.policy import retrieval_request_setup
 
 
 def test_hrac_field(enacted_federated_policy):
@@ -70,6 +68,7 @@ def test_ursula_checksum_address_field(get_random_checksum_address):
         field._deserialize(value="0xdeadbeef", attr=None, data=None)
 
 
+@pytest.mark.skip("To be fixed in #2768")
 def test_work_order_field(enacted_federated_policy,
                           federated_ursulas,
                           federated_bob,

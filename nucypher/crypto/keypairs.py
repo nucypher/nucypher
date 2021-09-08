@@ -91,16 +91,20 @@ class DecryptingKeypair(Keypair):
     def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
 
-    def decrypt(self, message_kit: MessageKit) -> bytes:
+    def decrypt(self, message_kit: 'MessageKit') -> bytes:
         """
         Decrypt data encrypted with Umbral.
 
         :return: bytes
         """
+
+        # TODO: remove circular dependency
+        from nucypher.policy.kits import PolicyMessageKit
+
         try:
-            if len(message_kit) > 0:
+            if isinstance(message_kit, PolicyMessageKit) and message_kit.is_decryptable_by_receiver():
                 cleartext = decrypt_reencrypted(self._privkey,
-                                                message_kit._delegating_key,
+                                                message_kit.policy_key,
                                                 message_kit.capsule,
                                                 list(message_kit._cfrags),
                                                 message_kit.ciphertext)

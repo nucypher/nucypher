@@ -59,7 +59,7 @@ from nucypher.crypto.splitters import signature_splitter
 from nucypher.crypto.umbral_adapter import PublicKey, Signature
 from nucypher.network.middleware import RestMiddleware
 from nucypher.network.nodes import Learner
-from nucypher.policy.kits import MessageKit
+from nucypher.policy.kits import MessageKit, PolicyMessageKit
 
 
 class Character(Learner):
@@ -383,7 +383,7 @@ class Character(Learner):
 
     def verify_from(self,
                     stranger: 'Character',
-                    message_kit: Union[MessageKit, bytes],
+                    message_kit: Union[MessageKit, PolicyMessageKit, bytes],
                     signature: Signature = None,
                     decrypt=False,
                     label=None,
@@ -469,7 +469,7 @@ class Character(Learner):
         return cleartext
 
     def decrypt(self,
-                message_kit: MessageKit,
+                message_kit: Union[MessageKit, PolicyMessageKit],
                 label: Optional[bytes] = None) -> bytes:
         if label and DelegatingPower in self._default_crypto_powerups:
             delegating_power = self._crypto_power.power_ups(DelegatingPower)

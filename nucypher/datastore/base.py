@@ -179,7 +179,7 @@ class DatastoreRecord:
     def __eq__(self, other):
         """
         WARNING: Records are only considered unique per their record IDs in this method.
-        In some cases (Workorder vs PolicyArrangement), these records may have
+        In some cases (ReencryptionRequest vs PolicyArrangement), these records may have
         the same IDs. This comparison is useful when iterating over the 
         datastore _as a subset of record type_ (as we do in queries), but not
         useful when comparing two records of different type.
@@ -193,7 +193,7 @@ class DatastoreRecord:
     def __hash__(self):
         """
         WARNING: Records are only considered unique per their record IDs in this method.
-        In some cases (Workorder vs PolicyArrangement), these records may have
+        In some cases (ReencryptionRequest vs PolicyArrangement), these records may have
         the same IDs. This comparison is useful when iterating over the 
         datastore _as a subset of record type_ (as we do in queries), but not
         useful when comparing two records of different type.

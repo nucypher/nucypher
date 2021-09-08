@@ -153,7 +153,7 @@ for counter, plaintext in enumerate(finnegans_wake):
     ###############
 
     # Now Bob can retrieve the original message by requesting re-encryption from nodes.
-    cleartexts = bob.retrieve(message_kit,
+    cleartexts = bob.retrieve([message_kit],
                               label=label,
                               policy_encrypting_key=policy_public_key,
                               alice_verifying_key=alice_verifying_key,

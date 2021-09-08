@@ -104,7 +104,7 @@ from tests.utils.config import (
 )
 from tests.utils.middleware import MockRestMiddleware, MockRestMiddlewareForLargeFleetTests
 from tests.utils.policy import generate_random_label
-from tests.utils.ursula import (MOCK_KNOWN_URSULAS_CACHE, MOCK_URSULA_STARTING_PORT, _mock_ursula_reencrypts,
+from tests.utils.ursula import (MOCK_KNOWN_URSULAS_CACHE, MOCK_URSULA_STARTING_PORT,
                                 make_decentralized_ursulas, make_federated_ursulas)
 
 test_logger = Logger("test-logger")
@@ -789,16 +789,6 @@ def funded_blockchain(testerchain, agency, token_economics, test_registry):
 
     # HERE YOU GO
     yield testerchain, deployer_address
-
-
-#
-# Re-Encryption
-#
-
-
-@pytest.fixture(scope='session')
-def mock_ursula_reencrypts():
-    return _mock_ursula_reencrypts
 
 
 @pytest.fixture(scope='session')

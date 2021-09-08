@@ -28,7 +28,7 @@ from tests.utils.middleware import MockRestMiddleware
 
 
 # should always be first test due to checks on response id
-from tests.utils.policy import work_order_setup
+from tests.utils.policy import retrieval_request_setup
 
 
 def test_get_ursulas(blockchain_porter_rpc_controller, blockchain_ursulas):
@@ -81,6 +81,7 @@ def test_get_ursulas(blockchain_porter_rpc_controller, blockchain_ursulas):
         blockchain_porter_rpc_controller.send(request_data)
 
 
+@pytest.mark.skip("To be fixed in #2768")
 def test_exec_work_order(blockchain_porter_rpc_controller,
                          random_blockchain_policy,
                          blockchain_ursulas,

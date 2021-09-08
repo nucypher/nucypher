@@ -28,10 +28,9 @@ from eth_utils.address import to_checksum_address, to_canonical_address
 from eth_typing.evm import ChecksumAddress
 
 from nucypher.blockchain.eth.constants import ETH_ADDRESS_BYTE_LENGTH
-from nucypher.characters.base import Character
 from nucypher.crypto.constants import EIP712_MESSAGE_SIGNATURE_SIZE
 from nucypher.crypto.powers import DecryptingPower, SigningPower
-from nucypher.crypto.signing import SignatureStamp
+from nucypher.crypto.signing import SignatureStamp, InvalidSignature
 from nucypher.crypto.splitters import signature_splitter, kfrag_splitter
 from nucypher.crypto.umbral_adapter import KeyFrag, VerifiedKeyFrag, PublicKey, Signature
 from nucypher.crypto.utils import keccak_digest, verify_eip_191
@@ -142,7 +141,7 @@ class AuthorizedKeyFrag:
 
     # The size of a serialized message kit encrypting an AuthorizedKeyFrag.
     # Depends on encryption parameters in Umbral, has to be hardcoded.
-    ENCRYPTED_SIZE = 619
+    ENCRYPTED_SIZE = 621
 
     _splitter = BytestringSplitter(
         hrac_splitter, # HRAC
@@ -208,6 +207,7 @@ class EncryptedTreasureMap:
 
     _EMPTY_BLOCKCHAIN_SIGNATURE = b'\x00' * EIP712_MESSAGE_SIGNATURE_SIZE
 
+    # TODO: do we really need this alias?
     from nucypher.crypto.signing import \
         InvalidSignature  # Raised when the public signature (typically intended for Ursula) is not valid.
 
@@ -268,7 +268,7 @@ class EncryptedTreasureMap:
         """
         try:
             map_in_the_clear = decryptor(self._encrypted_tmap)
-        except Character.InvalidSignature:
+        except InvalidSignature:
             raise self.InvalidSignature("This TreasureMap does not contain the correct signature "
                                         "from the publisher to Bob.")
 

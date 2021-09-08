@@ -20,7 +20,7 @@ import pytest
 import tempfile
 from nucypher.crypto import keypairs
 from nucypher.datastore import datastore
-from nucypher.datastore.models import PolicyArrangement, EncryptedTreasureMap, Workorder
+from nucypher.datastore.models import PolicyArrangement, EncryptedTreasureMap, ReencryptionRequest
 
 
 def test_policy_arrangement_model(mock_or_real_datastore):
@@ -50,27 +50,24 @@ def test_policy_arrangement_model(mock_or_real_datastore):
             should_error = policy_arrangement.arrangement_id
 
 
-def test_workorder_model(mock_or_real_datastore):
+def test_reencryption_request_model(mock_or_real_datastore):
     storage = mock_or_real_datastore
     bob_keypair = keypairs.SigningKeypair(generate_keys_if_needed=True)
 
     arrangement_id_hex = 'beef'
     bob_verifying_key = bob_keypair.pubkey
-    bob_signature = bob_keypair.sign(b'test')
 
     # Test create
-    with storage.describe(Workorder, arrangement_id_hex, writeable=True) as work_order:
+    with storage.describe(ReencryptionRequest, arrangement_id_hex, writeable=True) as work_order:
         work_order.arrangement_id = bytes.fromhex(arrangement_id_hex)
         work_order.bob_verifying_key = bob_verifying_key
-        work_order.bob_signature = bob_signature
 
-    with storage.describe(Workorder, arrangement_id_hex) as work_order:
+    with storage.describe(ReencryptionRequest, arrangement_id_hex) as work_order:
         assert work_order.arrangement_id == bytes.fromhex(arrangement_id_hex)
         assert work_order.bob_verifying_key == bob_verifying_key
-        assert work_order.bob_signature == bob_signature
 
     # Test delete
-    with storage.describe(Workorder, arrangement_id_hex, writeable=True) as work_order:
+    with storage.describe(ReencryptionRequest, arrangement_id_hex, writeable=True) as work_order:
         work_order.delete()
 
         # Should be deleted now.

@@ -57,8 +57,7 @@ def test_encrypt_and_sign_the_ciphertext(federated_alice, federated_bob):
     publicly without disclosing contents.
     """
     message = b"We have a reaaall problem."
-    message_kit = federated_alice.encrypt_for(federated_bob, message,
-                                                         sign_plaintext=False)
+    message_kit = federated_alice.encrypt_for(federated_bob, message, sign_plaintext=False)
     cleartext = federated_bob.verify_from(federated_alice, message_kit, decrypt=True)
     assert cleartext == message
 
@@ -70,10 +69,8 @@ def test_encrypt_and_sign_including_signature_in_both_places(federated_alice, fe
     verify_from() (eg, gleaned over a side-channel).
     """
     message = b"We have a reaaall problem."
-    message_kit = federated_alice.encrypt_for(federated_bob, message,
-                                                         sign_plaintext=True)
-    cleartext = federated_bob.verify_from(federated_alice, message_kit,
-                                          decrypt=True)
+    message_kit = federated_alice.encrypt_for(federated_bob, message, sign_plaintext=True)
+    cleartext = federated_bob.verify_from(federated_alice, message_kit, decrypt=True)
     assert cleartext == message
 
 

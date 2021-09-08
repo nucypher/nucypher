@@ -107,7 +107,7 @@ data_source = Enrico.from_public_keys(
 for message_kit in message_kits:
     start = timer()
     retrieved_plaintexts = doctor.retrieve(
-        message_kit,
+        [message_kit],
         label=label,
         enrico=data_source,
         alice_verifying_key=alices_sig_pubkey,

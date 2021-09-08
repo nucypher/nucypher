@@ -16,8 +16,9 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
 
-from collections import OrderedDict
-from typing import Optional, Dict, Sequence, Union
+from collections import OrderedDict, defaultdict
+import random
+from typing import Optional, Dict, Sequence, Union, List, Set
 
 import maya
 from bytestring_splitter import BytestringSplitter, VariableLengthBytestring
@@ -37,311 +38,261 @@ from nucypher.crypto.umbral_adapter import (
     Capsule,
     CapsuleFrag,
     PublicKey,
-    Signature
+    Signature,
+    VerifiedCapsuleFrag,
 )
 from nucypher.policy.hrac import HRAC, hrac_splitter
 from nucypher.policy.kits import MessageKit
 from nucypher.policy.maps import AuthorizedKeyFrag, TreasureMap
 
 
-class WorkOrder:
+class RetrievalHistory:
+    """
+    A cache of retrieved cfrags.
+    """
 
-    RECEIPT_HEADER = b"wo:"
+    def __init__(self):
+        self._cache_by_capsule: Dict[Capsule, RetrievalResult] = {}
 
-    # receipt signature
-    # alice verifying key
-    # relayer verifying key
-    # bob stamp
-    # HRAC
-    # encrypted kfrag
-    # tasks
-    payload_splitter = signature_splitter \
-        + key_splitter                    \
-        + key_splitter                    \
-        + key_splitter                    \
-        + hrac_splitter \
-        + BytestringSplitter((bytes, VariableLengthBytestring))
+    def update(self, capsule: Capsule, result: 'RetrievalResult'):
+        """
+        Saves the results of retrieval into the cache.
+        """
+        self._cache_by_capsule[capsule] = self.by_capsule(capsule).with_result(result)
 
-    class PRETask:
+    def by_capsule(self, capsule: Capsule) -> 'RetrievalResult':
+        """
+        Returns all the cached retrieval resutls for a given capsule.
+        """
+        return self._cache_by_capsule.get(capsule, RetrievalResult.empty())
 
-        input_splitter = capsule_splitter + signature_splitter  # splitter for task without cfrag and signature
-        output_splitter = cfrag_splitter + signature_splitter
 
-        def __init__(self,
-                     capsule: Capsule,
-                     signature: Signature,
-                     cfrag: Optional[CapsuleFrag] = None,
-                     cfrag_signature: Optional[Signature] = None):
+class RetrievalPlan:
+    """
+    An emphemeral object providing a service of selecting Ursulas for reencryption requests
+    during retrieval.
+    """
 
-            self.capsule = capsule
-            self.signature = signature
-            self.cfrag = cfrag  # TODO: Store cfrags in case of Ursula misbehavior?
-            self.cfrag_signature = cfrag_signature
+    def __init__(self, treasure_map: TreasureMap, retrieval_kits: Sequence['RetrievalKit']):
 
-        def get_specification(self,
-                              ursula_stamp: SignatureStamp,
-                              encrypted_kfrag: Union[MessageKit, bytes],
-                              identity_evidence: Optional[bytes] = b''
-                              ) -> bytes:
+        # Record the retrieval kits order
+        self._capsules = [retrieval_kit.capsule for retrieval_kit in retrieval_kits]
 
-            stamp = bytes(ursula_stamp)
-            encrypted_kfrag = bytes(encrypted_kfrag)
-            identity_evidence = bytes(identity_evidence)
+        self._threshold = treasure_map.threshold
 
-            expected_lengths = (
-                (stamp, 'ursula_stamp', PublicKey.serialized_size()),
-                (encrypted_kfrag, 'encrypted_kfrag', AuthorizedKeyFrag.ENCRYPTED_SIZE)
-                # NOTE: ursula_identity_evidence has a default value of b'' for federated mode.
+        # Records the retrieval results, indexed by capsule
+        self._results = {retrieval_kit.capsule: {}
+                         for retrieval_kit in retrieval_kits} # {capsule: {ursula_address: cfrag}}
+
+        # Records the addresses of Ursulas that were already queried, indexed by capsule.
+        self._queried_addresses = {retrieval_kit.capsule: set(retrieval_kit.queried_addresses)
+                                   for retrieval_kit in retrieval_kits}
+
+        # Records the capsules already processed by a corresponding Ursula.
+        # An inverse of `_queried_addresses`.
+        self._processed_capsules = defaultdict(set) # {ursula_address: {capsule}}
+        for retrieval_kit in retrieval_kits:
+            for address in retrieval_kit.queried_addresses:
+                self._processed_capsules[address].add(retrieval_kit.capsule)
+
+        # If we've already retrieved from some addresses before, query them last.
+        # In other words, we try to get the maximum amount of cfrags in our first queries,
+        # to use the time more efficiently.
+        ursulas_to_contact_last = set()
+        for queried_addresses in self._queried_addresses.values():
+            ursulas_to_contact_last |= queried_addresses
+
+        # Randomize Ursulas' priorities
+        ursulas_pick_order = list(treasure_map.destinations) # checksum addresses
+        random.shuffle(ursulas_pick_order) # mutates list in-place
+
+        ursulas_pick_order = [ursula for ursula in ursulas_pick_order
+                              if ursula not in ursulas_to_contact_last]
+        self._ursulas_pick_order = ursulas_pick_order + list(ursulas_to_contact_last)
+
+    def get_work_order(self) -> 'RetrievalWorkOrder':
+        """
+        Returns a new retrieval work order based on the current plan state.
+        """
+        while self._ursulas_pick_order:
+            ursula_address = self._ursulas_pick_order.pop(0)
+            # Only request reencryption for capsules that:
+            # - haven't been processed by this Ursula
+            # - don't already have cfrags from `threshold` Ursulas
+            capsules = [capsule for capsule in self._capsules
+                        if (capsule not in self._processed_capsules.get(ursula_address, set())
+                            and len(self._queried_addresses[capsule]) < self._threshold)]
+            if len(capsules) > 0:
+                return RetrievalWorkOrder(ursula_address=ursula_address,
+                                          capsules=capsules)
+
+        # Execution will not reach this point if `is_complete()` returned `False` before this call.
+        raise RuntimeError("No Ursulas left")
+
+    def update(self, work_order: 'RetrievalWorkOrder', cfrags: Dict[Capsule, VerifiedCapsuleFrag]):
+        """
+        Updates the plan state, recording the cfrags obtained for capsules during a query.
+        """
+        for capsule, cfrag in cfrags.items():
+            self._queried_addresses[capsule].add(work_order.ursula_address)
+            self._processed_capsules[work_order.ursula_address].add(capsule)
+            self._results[capsule][work_order.ursula_address] = cfrag
+
+    def is_complete(self) -> bool:
+        return (
+            # there are no more Ursulas to query
+            not bool(self._ursulas_pick_order) or
+            # all the capsules have enough cfrags for decryption
+            all(len(addresses) >= self._threshold for addresses in self._queried_addresses.values())
             )
 
-            for parameter, name, expected_length in expected_lengths:
-                if len(parameter) != expected_length:
-                    raise ValueError(f"{name} must be of length {expected_length}, but it's {len(parameter)}")
+    def results(self) -> List['RetrievalResult']:
+        return [RetrievalResult(self._results[capsule]) for capsule in self._capsules]
 
-            task_specification = (
-                bytes(self.capsule),
-                stamp,
-                identity_evidence
-            )
-            return b''.join(task_specification)
 
-        def __bytes__(self):
-            data = bytes(self.capsule) + bytes(self.signature)
-            if self.cfrag and self.cfrag_signature:
-                data += bytes(self.cfrag) + bytes(self.cfrag_signature)
-            return data
+class RetrievalResult:
+    """
+    An object representing retrieval results for a single capsule.
+    """
 
-        @classmethod
-        def from_bytes(cls, data: bytes):
-            capsule, signature, remainder = cls.input_splitter(data, return_remainder=True)
-            if remainder:
-                cfrag, reencryption_signature = cls.output_splitter(remainder)
-                return cls(capsule=capsule, signature=signature, cfrag=cfrag, cfrag_signature=reencryption_signature)
-            else:
-                return cls(capsule=capsule, signature=signature)
+    @classmethod
+    def empty(cls):
+        return cls({})
 
-        def attach_work_result(self, cfrag, cfrag_signature) -> None:
-            self.cfrag = cfrag
-            self.cfrag_signature = cfrag_signature
+    def __init__(self, cfrags: Dict[ChecksumAddress, VerifiedCapsuleFrag]):
+        self.cfrags = cfrags
+
+    def addresses(self) -> Set[ChecksumAddress]:
+        return set(self.cfrags)
+
+    def with_result(self, result: 'RetrievalResult') -> 'RetrievalResult':
+        """
+        Joins two RetrievalResult objects.
+
+        If both objects contain cfrags from the same Ursula,
+        the one from `result` will be kept.
+        """
+        # TODO: would `+` or `|` operator be more suitable here?
+
+        # TODO: check for overlap?
+        new_cfrags = dict(self.cfrags)
+        new_cfrags.update(result.cfrags)
+        return RetrievalResult(cfrags=new_cfrags)
+
+
+class RetrievalWorkOrder:
+    """
+    A work order issued by a retrieval plan to request reencryption from an Ursula
+    """
+
+    def __init__(self, ursula_address: ChecksumAddress, capsules: List[Capsule]):
+        self.ursula_address = ursula_address
+        self.capsules = capsules
+
+
+class ReencryptionRequest:
+    """
+    A request for an Ursula to reencrypt for several capsules.
+    """
+
+    _splitter = (hrac_splitter +
+                 key_splitter +
+                 key_splitter +
+                 key_splitter +
+                 BytestringSplitter((bytes, VariableLengthBytestring)))
+
+    @classmethod
+    def from_work_order(cls,
+                        work_order: RetrievalWorkOrder,
+                        treasure_map: TreasureMap,
+                        alice_verifying_key: PublicKey,
+                        bob_verifying_key: PublicKey,
+                        publisher_verifying_key: PublicKey,
+                        ) -> 'ReencryptionRequest':
+        return cls(hrac=treasure_map.hrac,
+                   alice_verifying_key=alice_verifying_key,
+                   bob_verifying_key=bob_verifying_key,
+                   publisher_verifying_key=publisher_verifying_key,
+                   encrypted_kfrag=treasure_map.destinations[work_order.ursula_address],
+                   capsules=work_order.capsules,
+                   )
 
     def __init__(self,
-                 bob: 'Bob',
                  hrac: HRAC,
+                 alice_verifying_key: PublicKey,
+                 bob_verifying_key: PublicKey,
+                 publisher_verifying_key: PublicKey,
                  encrypted_kfrag: bytes,
-                 alice_verifying_key: bytes,
-                 publisher_verifying_key: bytes,
-                 tasks: dict,
-                 receipt_signature: Signature,
-                 ursula: Optional['Ursula'] = None):
+                 capsules: List[Capsule]):
 
-        self.bob = bob
         self.hrac = hrac
-        self.ursula = ursula
+        self._alice_verifying_key = alice_verifying_key
+        self._bob_verifying_key = bob_verifying_key
+        self._publisher_verifying_key = publisher_verifying_key
         self.encrypted_kfrag = encrypted_kfrag
-        self.publisher_verifying_key = publisher_verifying_key
-        self.alice_verifying_key = alice_verifying_key
-        self.tasks = tasks
-        self.receipt_signature = receipt_signature  # not a blockchain receipt
-        self.completed = False
+        self.capsules = capsules
 
-    def __repr__(self):
-        return "WorkOrder for hrac {hrac}: (capsules: {capsule_reprs}) for {node}".format(
-            hrac=self.hrac,
-            capsule_reprs=self.tasks.keys(),
-            node=self.ursula)
-
-    def __eq__(self, other):
-        return self.receipt_signature == other.receipt_signature
-
-    def __len__(self):
-        return len(self.tasks)
-
-    @staticmethod
-    def make_receipt(tasks: Dict,
-                     ursula: 'Ursula',
-                     encrypted_kfrag: Union[MessageKit, bytes]
-                     ) -> bytes:
-        # TODO: What is the goal of the receipt and where can it be used?
-        capsules = b''.join(map(bytes, tasks.keys()))
-        receipt_bytes = WorkOrder.RECEIPT_HEADER + bytes(ursula.stamp) + bytes(encrypted_kfrag) + capsules
-        return receipt_bytes
+    def __bytes__(self):
+        return (bytes(self.hrac) +
+                bytes(self._alice_verifying_key) +
+                bytes(self._bob_verifying_key) +
+                bytes(self._publisher_verifying_key) +
+                VariableLengthBytestring(self.encrypted_kfrag) +
+                b''.join(bytes(capsule) for capsule in self.capsules)
+                )
 
     @classmethod
-    def construct_by_bob(cls,
-                         label: bytes,
-                         alice_verifying_key: PublicKey,
-                         publisher_verifying_key: PublicKey,
-                         capsules: Sequence,
-                         ursula: 'Ursula',
-                         bob: 'Bob',
-                         encrypted_kfrag: bytes):
+    def from_bytes(cls, data: bytes):
+        hrac, alice_vk, bob_vk, publisher_vk, ekfrag, remainder = cls._splitter(data, return_remainder=True)
+        capsules = capsule_splitter.repeat(remainder)
+        return cls(hrac, alice_vk, bob_vk, publisher_vk, ekfrag, capsules)
 
-        # In the event of a challenge, decentralized_identity_evidence
-        # can be used to prove that ursula was/is a valid worker at the
-        # time of the re-encryption request.
-        ursula.mature()
-        ursula_identity_evidence = b''
-        if ursula._stamp_has_valid_signature_by_worker():
-            ursula_identity_evidence = ursula.decentralized_identity_evidence
+    def alice(self) -> 'Alice':
+        from nucypher.characters.lawful import Alice
+        return Alice.from_public_keys(verifying_key=self._alice_verifying_key)
 
-        tasks = OrderedDict()
-        for capsule in capsules:
-            task = cls.PRETask(capsule, signature=None)
-            specification = task.get_specification(ursula_stamp=ursula.stamp,
-                                                   encrypted_kfrag=encrypted_kfrag,
-                                                   identity_evidence=ursula_identity_evidence)
-            task.signature = bob.stamp(specification)
-            tasks[capsule] = task
-
-        receipt = cls.make_receipt(tasks=tasks, ursula=ursula, encrypted_kfrag=encrypted_kfrag)
-        receipt_signature = bob.stamp(receipt)
-
-        hrac = bob.construct_policy_hrac(publisher_verifying_key=publisher_verifying_key, label=label)
-        return cls(bob=bob,
-                   ursula=ursula,
-                   hrac=hrac,
-                   tasks=tasks,
-                   receipt_signature=receipt_signature,
-                   encrypted_kfrag=encrypted_kfrag,
-                   publisher_verifying_key=publisher_verifying_key,
-                   alice_verifying_key=alice_verifying_key)
-
-    def payload(self) -> bytes:
-        """
-        Creates a serialized WorkOrder. Called by Bob requesting reencryption tasks
-
-        # receipt signature
-        # alice verifying key
-        # relayer verifying key
-        # bob stamp
-        # HRAC
-        # encrypted kfrag
-        # tasks
-
-        """
-        tasks_bytes = b''.join(bytes(item) for item in self.tasks.values())
-        result = bytes(self.receipt_signature)                           \
-                 + bytes(self.alice_verifying_key)                       \
-                 + bytes(self.publisher_verifying_key)                   \
-                 + bytes(self.bob.stamp)                                 \
-                 + bytes(self.hrac)                                      \
-                 + bytes(VariableLengthBytestring(self.encrypted_kfrag)) \
-                 + tasks_bytes
-        return result
-
-    @classmethod
-    def from_rest_payload(cls, rest_payload: bytes, ursula: 'Ursula'):
-
-        # Deserialize
-        result = cls.payload_splitter(rest_payload, return_remainder=True)
-        signature, publisher_verifying, authorizer_verifying, bob_verifying, hrac, ekfrag, remainder = result
-        tasks = {capsule: cls.PRETask(capsule, sig) for capsule, sig in cls.PRETask.input_splitter.repeat(remainder)}
-
-        ursula_identity_evidence = b''
-        if ursula._stamp_has_valid_signature_by_worker():
-            ursula_identity_evidence = ursula.decentralized_identity_evidence
-
-        # Check Specification
-        for task in tasks.values():
-            # Each task signature has to match the original specification
-            specification = task.get_specification(ursula_stamp=ursula.stamp,
-                                                   encrypted_kfrag=ekfrag,
-                                                   identity_evidence=ursula_identity_evidence)
-
-            if not task.signature.verify(bob_verifying, specification):
-                raise InvalidSignature()
-
-        # Check receipt
-        capsules = b''.join(map(bytes, tasks.keys()))
-        receipt_bytes = cls.RECEIPT_HEADER + bytes(ursula.stamp) + bytes(ekfrag) + capsules
-        if not signature.verify(message=receipt_bytes, verifying_key=bob_verifying):
-            raise InvalidSignature()
-
+    def bob(self) -> 'Bob':
         from nucypher.characters.lawful import Bob
-        bob = Bob.from_public_keys(verifying_key=bob_verifying)
-        return cls(bob=bob,
-                   hrac=hrac,
-                   ursula=ursula,
-                   tasks=tasks,
-                   encrypted_kfrag=ekfrag,
-                   publisher_verifying_key=publisher_verifying,
-                   alice_verifying_key=authorizer_verifying,
-                   receipt_signature=signature)
+        return Bob.from_public_keys(verifying_key=self._bob_verifying_key)
 
-    def complete(self, cfrags_and_signatures):
-        good_cfrags = []
-        if not len(self) == len(cfrags_and_signatures):
-            raise ValueError("Ursula gave back the wrong number of cfrags. She's up to something.")
-
-        ursula_verifying_key = self.ursula.stamp.as_umbral_pubkey()
-
-        for task, (cfrag, cfrag_signature) in zip(self.tasks.values(), cfrags_and_signatures):
-
-            # Validate re-encryption signatures
-            if cfrag_signature.verify(ursula_verifying_key, bytes(cfrag)):
-                good_cfrags.append(cfrag)
-            else:
-                raise InvalidSignature(f"{cfrag} is not properly signed by Ursula.")
-                # TODO: Instead of raising, we should do something (#957)
-
-        for task, (cfrag, cfrag_signature) in zip(self.tasks.values(), cfrags_and_signatures):
-            task.attach_work_result(cfrag, cfrag_signature)
-
-        self.completed = maya.now()
-        return good_cfrags
-
-    def sanitize(self):
-        for task in self.tasks.values():
-            task.cfrag = CFRAG_NOT_RETAINED
+    def publisher(self) -> 'Alice':
+        from nucypher.characters.lawful import Alice
+        return Alice.from_public_keys(verifying_key=self._publisher_verifying_key)
 
 
-class WorkOrderHistory:
+class ReencryptionResponse:
+    """
+    A response from Ursula with reencrypted capsule frags.
+    """
 
-    def __init__(self) -> None:
-        self.by_ursula = {}  # type: dict
-        self._latest_replete = {}
+    @classmethod
+    def construct_by_ursula(cls,
+                            capsules: List[Capsule],
+                            cfrags: List[VerifiedCapsuleFrag],
+                            stamp: SignatureStamp,
+                            ) -> 'ReencryptionResponse':
 
-    def __contains__(self, item):
-        assert False
+        # un-verify
+        cfrags = [CapsuleFrag.from_bytes(bytes(cfrag)) for cfrag in cfrags]
 
-    def __getitem__(self, item):
-        return self.by_ursula[item]
+        capsules_bytes = b''.join(bytes(capsule) for capsule in capsules)
+        cfrags_bytes = b''.join(bytes(cfrag) for cfrag in cfrags)
+        signature = stamp(capsules_bytes + cfrags_bytes)
+        return cls(cfrags, signature)
 
-    def __setitem__(self, key, value):
-        assert False
+    def __init__(self, cfrags: List[CapsuleFrag], signature: Signature):
+        self.cfrags = cfrags
+        self.signature = signature
 
-    def __len__(self):
-        return sum(len(work_orders) for work_orders in self.by_ursula.values())
+    @classmethod
+    def from_bytes(cls, data: bytes):
+        signature, cfrags_bytes = signature_splitter(data, return_remainder=True)
+        cfrags = cfrag_splitter.repeat(cfrags_bytes)
+        return cls(cfrags, signature)
 
-    @property
-    def ursulas(self):
-        return self.by_ursula.keys()
+    def __bytes__(self):
+        return bytes(self.signature) + b''.join(bytes(cfrag) for cfrag in self.cfrags)
 
-    def most_recent_replete(self, capsule):
-        """
-        Returns most recent WorkOrders for each Ursula which contain a complete task (with CFrag attached) for this Capsule.
-        """
-        return self._latest_replete[capsule]
-
-    def save_work_order(self, work_order, as_replete=False):
-        for task in work_order.tasks.values():
-            if as_replete:
-                work_orders_for_ursula = self._latest_replete.setdefault(task.capsule, {})
-                work_orders_for_ursula[work_order.ursula.checksum_address] = work_order
-
-            work_orders_for_ursula = self.by_ursula.setdefault(work_order.ursula.checksum_address, {})
-            work_orders_for_ursula[task.capsule] = work_order
-
-    def by_checksum_address(self, checksum_address):
-        return self.by_ursula.setdefault(checksum_address, {})
-
-    def by_capsule(self, capsule: Capsule):
-        ursulas_by_capsules = {}  # type: dict
-        for ursula, capsules in self.by_ursula.items():
-            for saved_capsule, work_order in capsules.items():
-                if saved_capsule == capsule:
-                    ursulas_by_capsules[ursula] = work_order
-        return ursulas_by_capsules
 
 
 class Revocation:

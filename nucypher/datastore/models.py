@@ -38,16 +38,12 @@ class PolicyArrangement(DatastoreRecord):
             decode=PublicKey.from_bytes)
 
 
-class Workorder(DatastoreRecord):
+class ReencryptionRequest(DatastoreRecord):
     _arrangement_id = RecordField(bytes)
     _bob_verifying_key = RecordField(
             PublicKey,
             encode=bytes,
             decode=PublicKey.from_bytes)
-    _bob_signature = RecordField(
-            Signature,
-            encode=bytes,
-            decode=Signature.from_bytes)
 
 
 class EncryptedTreasureMap(DatastoreRecord):

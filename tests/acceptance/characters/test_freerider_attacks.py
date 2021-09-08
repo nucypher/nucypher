@@ -54,11 +54,11 @@ def test_policy_simple_sinpa(blockchain_ursulas,
     message_kit = enrico.encrypt_message(plaintext)
 
     with pytest.raises(Ursula.NotEnoughUrsulas):  # Return a more descriptive request error?
-        blockchain_bob.retrieve(message_kit,
+        blockchain_bob.retrieve([message_kit],
                                 enrico=enrico,
                                 alice_verifying_key=amonia.stamp,
                                 label=bupkiss_policy.label,
-                                retain_cfrags=True,
+                                cache_cfrags=True,
                                 encrypted_treasure_map=bupkiss_policy.treasure_map)
 
     for ursula in blockchain_ursulas:
@@ -93,11 +93,11 @@ def test_try_to_post_free_arrangement_by_hacking_enact(blockchain_ursulas,
     message_kit = enrico.encrypt_message(plaintext)
 
     with pytest.raises(Ursula.NotEnoughUrsulas):  # Return a more descriptive request error?
-        blockchain_bob.retrieve(message_kit,
+        blockchain_bob.retrieve([message_kit],
                                 enrico=enrico,
                                 alice_verifying_key=amonia.stamp,
                                 label=bupkiss_policy.label,
-                                retain_cfrags=True,
+                                cache_cfrags=True,
                                 encrypted_treasure_map=bupkiss_policy.treasure_map)
 
 
@@ -129,10 +129,10 @@ def test_pay_a_flunky_instead_of_the_arranged_ursula(blockchain_alice,
     plaintext = b"A crafty campaign"
     message_kit = enrico.encrypt_message(plaintext)
 
-    with pytest.raises(RestMiddleware.PaymentRequired):
-        blockchain_bob.retrieve(message_kit,
+    with pytest.raises(Ursula.NotEnoughUrsulas):
+        blockchain_bob.retrieve([message_kit],
                                 enrico=enrico,
                                 alice_verifying_key=amonia.stamp,
                                 label=bupkiss_policy.label,
-                                retain_cfrags=True,
+                                cache_cfrags=True,
                                 encrypted_treasure_map=bupkiss_policy.treasure_map)

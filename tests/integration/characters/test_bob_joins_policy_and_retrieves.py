@@ -49,7 +49,7 @@ def test_federated_bob_full_retrieve_flow(federated_ursulas,
     the_message_kit = capsule_side_channel()
     alices_verifying_key = federated_alice.stamp.as_umbral_pubkey()
 
-    delivered_cleartexts = federated_bob.retrieve(the_message_kit,
+    delivered_cleartexts = federated_bob.retrieve([the_message_kit],
                                                   enrico=capsule_side_channel.enrico,
                                                   alice_verifying_key=alices_verifying_key,
                                                   label=enacted_federated_policy.label,
@@ -102,28 +102,20 @@ def test_bob_retrieves(federated_alice,
     alices_verifying_key = federated_alice.stamp.as_umbral_pubkey()
 
     # Bob takes the message_kit and retrieves the message within
-    delivered_cleartexts = bob.retrieve(message_kit,
+    delivered_cleartexts = bob.retrieve([message_kit],
                                         enrico=enrico,
                                         alice_verifying_key=alices_verifying_key,
                                         label=policy.label,
-                                        retain_cfrags=True,
+                                        cache_cfrags=True,
                                         encrypted_treasure_map=policy.treasure_map)
 
     assert plaintext == delivered_cleartexts[0]
 
-    # Bob tries to retrieve again, but without using the cached CFrags, it fails.
-    with pytest.raises(TypeError):
-        delivered_cleartexts = bob.retrieve(message_kit,
-                                            enrico=enrico,
-                                            alice_verifying_key=alices_verifying_key,
-                                            label=policy.label,
-                                            encrypted_treasure_map=policy.treasure_map)
-
-    cleartexts_delivered_a_second_time = bob.retrieve(message_kit,
+    cleartexts_delivered_a_second_time = bob.retrieve([message_kit],
                                                       enrico=enrico,
                                                       alice_verifying_key=alices_verifying_key,
                                                       label=policy.label,
-                                                      use_attached_cfrags=True,
+                                                      use_cached_cfrags=True,
                                                       encrypted_treasure_map=policy.treasure_map)
 
     # Indeed, they're the same cleartexts.
@@ -135,23 +127,13 @@ def test_bob_retrieves(federated_alice,
 
     # One thing to note here is that Bob *can* still retrieve with the cached CFrags,
     # even though this Policy has been revoked.  #892
-    _cleartexts = bob.retrieve(message_kit,
+    _cleartexts = bob.retrieve([message_kit],
                                enrico=enrico,
                                alice_verifying_key=alices_verifying_key,
                                label=policy.label,
-                               use_precedent_work_orders=True,
+                               use_cached_cfrags=True,
                                encrypted_treasure_map=policy.treasure_map)
     assert _cleartexts == delivered_cleartexts  # TODO: 892
-
-    # OK, but we imagine that the message_kit is fresh here.
-    message_kit.clear_cfrags()
-
-    # with pytest.raises(Ursula.NotEnoughUrsulas):  # FIXME
-    _cleartexts = bob.retrieve(message_kit,
-                               enrico=enrico,
-                               alice_verifying_key=alices_verifying_key,
-                               label=policy.label,
-                               encrypted_treasure_map=policy.treasure_map)
 
     bob.disenchant()
 
@@ -170,13 +152,11 @@ def test_bob_retrieves_with_treasure_map(
 
     # Deserialized treasure map
     text1 = federated_bob.retrieve(
-        message_kit,
+        [message_kit],
         enrico=enrico,
         alice_verifying_key=alice_verifying_key,
         label=enacted_federated_policy.label,
         encrypted_treasure_map=treasure_map)
-
-    message_kit.clear_cfrags()  # Return back to a non re-encrypted state
 
     assert text1 == [b'Welcome to flippering number 2.']
 
@@ -201,9 +181,9 @@ def test_bob_retrieves_too_late(federated_bob, federated_ursulas,
 
     # with pytest.raises(Ursula.NotEnoughUrsulas):
     federated_bob.retrieve(
-        message_kit,
+        [message_kit],
         enrico=enrico,
         alice_verifying_key=alice_verifying_key,
         label=enacted_federated_policy.label,
         encrypted_treasure_map=treasure_map,
-        use_attached_cfrags=False)
+        use_cached_cfrags=False)

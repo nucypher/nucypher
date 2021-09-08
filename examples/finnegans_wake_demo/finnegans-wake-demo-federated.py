@@ -149,7 +149,7 @@ for counter, plaintext in enumerate(finnegans_wake):
     ###############
 
     # Now Bob can retrieve the original message.
-    delivered_cleartexts = bob.retrieve(single_passage_message_kit,
+    delivered_cleartexts = bob.retrieve([single_passage_message_kit],
                                         policy_encrypting_key=policy_public_key,
                                         alice_verifying_key=alice_verifying_key,
                                         label=label,

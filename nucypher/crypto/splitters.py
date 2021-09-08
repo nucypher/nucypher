@@ -25,3 +25,4 @@ signature_splitter = BytestringSplitter((Signature, Signature.serialized_size())
 capsule_splitter = BytestringSplitter((Capsule, Capsule.serialized_size()))
 cfrag_splitter = BytestringSplitter((CapsuleFrag, CapsuleFrag.serialized_size()))
 kfrag_splitter = BytestringSplitter((KeyFrag, KeyFrag.serialized_size()))
+checksum_address_splitter = BytestringSplitter((bytes, 20)) # TODO: is there a pre-defined constant?

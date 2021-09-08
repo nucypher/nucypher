@@ -45,7 +45,7 @@ def mock_ursula(testerchain, account, mocker):
 def test_investigator_requests_slashing(testerchain,
                                         test_registry,
                                         agency,
-                                        mock_ursula_reencrypts,
+                                        #mock_ursula_reencrypts,
                                         token_economics,
                                         mocker):
 

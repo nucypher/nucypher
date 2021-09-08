@@ -117,25 +117,3 @@ class AliceGetUrsulas(BaseSchema):
 
 class AliceRevoke(BaseSchema):
     pass  # TODO need to understand revoke process better
-
-
-#
-# Bob Endpoints
-#
-
-class BobExecWorkOrder(BaseSchema):
-    ursula = fields.UrsulaChecksumAddress(
-        required=True,
-        load_only=True,
-        click=option_ursula())
-    work_order_payload = fields.WorkOrder(
-        required=True,
-        load_only=True,
-        click=click.option(
-            '--work-order',
-            '-w',
-            help="Re-encryption work order",
-            type=click.STRING, required=True))
-
-    # output
-    work_order_result = fields.WorkOrderResult(dump_only=True)

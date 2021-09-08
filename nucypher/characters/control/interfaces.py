@@ -188,7 +188,7 @@ class BobInterface(CharacterPublicInterface):
             tmap_bytes = treasure_map.encode()
             treasure_map = EncryptedTreasureMap.from_bytes(b64decode(tmap_bytes))
 
-        plaintexts = self.implementer.retrieve(message_kit,
+        plaintexts = self.implementer.retrieve([message_kit],
                                                enrico=enrico,
                                                alice_verifying_key=alice_verifying_key,
                                                label=label,

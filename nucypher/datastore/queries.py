@@ -22,7 +22,7 @@ import maya
 
 from nucypher.datastore.base import DatastoreRecord
 from nucypher.datastore.datastore import Datastore, DatastoreQueryResult, RecordNotFound
-from nucypher.datastore.models import PolicyArrangement, EncryptedTreasureMap, Workorder
+from nucypher.datastore.models import PolicyArrangement, EncryptedTreasureMap, ReencryptionRequest
 
 
 def unwrap_records(func: Callable[..., DatastoreQueryResult]) -> Callable[..., List[Type['DatastoreRecord']]]:
@@ -61,8 +61,8 @@ def find_expired_treasure_maps(ds: Datastore, cutoff: maya.MayaDT) -> DatastoreQ
 
 
 @unwrap_records
-def get_work_orders(ds: Datastore) -> List[Workorder]:
-    return ds.query_by(Workorder)
+def get_reencryption_requests(ds: Datastore) -> List[ReencryptionRequest]:
+    return ds.query_by(ReencryptionRequest)
 
 
 def find_policy_arrangements(ds: Datastore) -> DatastoreQueryResult:
