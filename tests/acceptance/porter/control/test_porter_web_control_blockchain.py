@@ -22,10 +22,9 @@ from urllib.parse import urlencode
 
 from constant_sorrow import default_constant_splitter
 
-from nucypher.characters.lawful import Enrico
 from nucypher.crypto.powers import DecryptingPower
 from nucypher.crypto.splitters import signature_splitter
-from nucypher.policy.orders import RetrievalResult
+from nucypher.policy.kits import RetrievalResult
 from nucypher.utilities.porter.control.specifications.fields import RetrievalResultSchema
 from tests.utils.middleware import MockRestMiddleware
 from tests.utils.policy import retrieval_request_setup, retrieval_params_decode_from_rest

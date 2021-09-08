@@ -490,9 +490,6 @@ Parameters
 | ``policy_encrypting_key``                 | String        | | Encrypting key used for the policy   |
 |                                           |               | | encoded as hex.                      |
 +-------------------------------------------+---------------+----------------------------------------+
-| ``publisher_verifying_key`` *(Optional)*  | String        | Treasure map publisher's verifying key |
-|                                           |               | | encoded as hex.                      |
-+-------------------------------------------+---------------+----------------------------------------+
 
 
 Returns

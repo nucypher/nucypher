@@ -124,8 +124,7 @@ def test_treasure_map_validation(enacted_federated_policy,
     assert "Invalid treasure map contents." in str(e)
 
     # a valid treasuremap
-    decrypted_treasure_map = federated_bob._decrypt_treasure_map(enacted_federated_policy.treasure_map,
-                                                                 enacted_federated_policy.publisher_verifying_key)
+    decrypted_treasure_map = federated_bob._decrypt_treasure_map(enacted_federated_policy.treasure_map)
     tmap_bytes = bytes(decrypted_treasure_map)
     tmap_b64 = b64encode(tmap_bytes).decode()
     result = UnenncryptedTreasureMapsOnly().load({'tmap': tmap_b64})

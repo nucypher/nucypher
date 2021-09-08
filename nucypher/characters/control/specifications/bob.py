@@ -50,6 +50,7 @@ class RetrieveAndDecrypt(BaseSchema):
                                                   load_only=True,
                                                   click=options.option_treasure_map)
 
+    # output
     cleartexts = base_fields.List(character_fields.Cleartext(), dump_only=True)
 
 

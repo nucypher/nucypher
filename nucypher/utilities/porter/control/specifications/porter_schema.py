@@ -175,16 +175,5 @@ class BobRetrieveCFrags(BaseSchema):
             type=click.STRING,
             required=True))
 
-    # optional
-    publisher_verifying_key = character_fields.Key(
-        required=False,
-        load_only=True,
-        click=click.option(
-            '--publisher-verifying-key',
-            '-pvk',
-            help="Alice's verifying key as a hexadecimal string",
-            type=click.STRING,
-            required=False))
-
     # output
     retrieval_results = marshmallow_fields.List(marshmallow_fields.Nested(fields.RetrievalResultSchema), dump_only=True)

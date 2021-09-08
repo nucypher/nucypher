@@ -181,12 +181,6 @@ def test_bob_retrieve_cfrags(federated_porter,
                                                 encode_for_rest=True)
     bob_retrieve_cfrags_schema.load(retrieval_args)
 
-    # optional publisher_verifying_key
-    updated_data = dict(retrieval_args)
-    publisher_verifying_key = SecretKey.random().public_key()
-    updated_data['publisher_verifying_key'] = Key()._serialize(value=publisher_verifying_key, attr=None, obj=None)
-    bob_retrieve_cfrags_schema.load(retrieval_args)
-
     # missing required argument
     updated_data = dict(retrieval_args)
     key_to_remove = random.choice(list(updated_data.keys()))

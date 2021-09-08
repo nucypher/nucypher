@@ -23,14 +23,14 @@ from flask import request, Response
 from nucypher.blockchain.eth.agents import ContractAgency, StakingEscrowAgent
 from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
 from nucypher.blockchain.eth.registry import BaseContractRegistry, InMemoryContractRegistry
-from nucypher.characters.lawful import RetrievalClient, Ursula
+from nucypher.characters.lawful import Ursula
 from nucypher.control.controllers import JSONRPCController, WebController
 from nucypher.crypto.powers import DecryptingPower
 from nucypher.crypto.umbral_adapter import PublicKey
 from nucypher.network.nodes import Learner
-from nucypher.policy.kits import RetrievalKit
+from nucypher.network.retrieval import RetrievalClient
+from nucypher.policy.kits import RetrievalKit, RetrievalResult
 from nucypher.policy.maps import TreasureMap
-from nucypher.policy.orders import RetrievalResult
 from nucypher.policy.reservoir import (
     make_federated_staker_reservoir,
     make_decentralized_staker_reservoir,
@@ -157,12 +157,10 @@ the Pipe for nucypher network operations
                         alice_verifying_key: PublicKey,
                         bob_encrypting_key: PublicKey,
                         bob_verifying_key: PublicKey,
-                        policy_encrypting_key: PublicKey,
-                        publisher_verifying_key: Optional[PublicKey] = None) -> List[RetrievalResult]:
+                        policy_encrypting_key: PublicKey) -> List[RetrievalResult]:
         client = RetrievalClient(self)
         return client.retrieve_cfrags(treasure_map, retrieval_kits,
-            alice_verifying_key, bob_encrypting_key, bob_verifying_key, policy_encrypting_key,
-            publisher_verifying_key)
+            alice_verifying_key, bob_encrypting_key, bob_verifying_key, policy_encrypting_key)
 
     def _make_staker_reservoir(self,
                                quantity: int,

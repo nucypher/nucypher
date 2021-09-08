@@ -46,7 +46,6 @@ def retrieval_request_setup(enacted_policy, bob, alice,  original_message: bytes
     # We pick up our story with Bob already having followed the treasure map above, ie:
     bob.start_learning_loop()
 
-    bob.follow_treasure_map(treasure_map=treasure_map, block=True, timeout=1)
     # We'll test against just a single Ursula - here, we make a WorkOrder for just one.
     # We can pass any number of capsules as args; here we pass just one.
     enrico = Enrico(policy_encrypting_key=enacted_policy.public_key)
