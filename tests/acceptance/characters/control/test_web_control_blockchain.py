@@ -15,10 +15,10 @@
  along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
+import datetime
 import json
 from base64 import b64decode, b64encode
 
-import datetime
 import maya
 import pytest
 from click.testing import CliRunner
@@ -26,7 +26,7 @@ from click.testing import CliRunner
 import nucypher
 from nucypher.crypto.powers import DecryptingPower
 from nucypher.policy.kits import MessageKit
-from nucypher.policy.maps import TreasureMap, EncryptedTreasureMap
+from nucypher.policy.maps import EncryptedTreasureMap
 
 click_runner = CliRunner()
 
@@ -197,6 +197,34 @@ def test_bob_web_character_control_retrieve(bob_web_controller_test_client, retr
     response = bob_web_controller_test_client.put(endpoint, data=json.dumps(params))
 
 
+def test_bob_web_character_control_retrieve_multiple_kits(bob_web_controller_test_client,
+                                                          retrieve_control_request,
+                                                          capsule_side_channel_blockchain):
+    method_name, params = retrieve_control_request
+
+    message_kits = []
+    # resetting produces a message kit...ok(?)
+    reset_message_kit, _ = capsule_side_channel_blockchain.reset(plaintext_passthrough=True)
+    message_kits.append(b64encode(bytes(reset_message_kit)).decode())  # add initial message kit
+    # add some more
+    for index in range(1, 5):
+        message_kit = capsule_side_channel_blockchain()
+        message_kits.append(b64encode(bytes(message_kit)).decode())
+
+    endpoint = f'/{method_name}'
+    params['message_kits'] = message_kits   # replace message kits entry
+    response = bob_web_controller_test_client.post(endpoint, data=json.dumps(params))
+    assert response.status_code == 200
+
+    response_data = json.loads(response.data)
+    assert 'cleartexts' in response_data['result']
+
+    cleartexts = response_data['result']['cleartexts']
+    assert len(cleartexts) == len(message_kits)
+    for index, cleartext in enumerate(cleartexts):
+        assert cleartext.encode() == capsule_side_channel_blockchain.plaintexts[index]
+
+
 def test_bob_web_character_control_retrieve_with_tmap(
         enacted_blockchain_policy, bob_web_controller_test_client, retrieve_control_request):
     tmap_64 = b64encode(bytes(enacted_blockchain_policy.treasure_map)).decode()
@@ -302,7 +330,7 @@ def test_web_character_control_lifecycle(alice_web_controller_test_client,
     bob_request_data = {
         'policy_encrypting_key': policy_pubkey_enc_hex,
         'alice_verifying_key': alice_verifying_key_hex,
-        'message_kit': encoded_message_kit,
+        'message_kits': [encoded_message_kit],
         'encrypted_treasure_map': alice_response_data['result']['treasure_map']
     }
 

@@ -35,6 +35,7 @@ from nucypher.cli.commands.deploy import option_gas_strategy
 from nucypher.cli.config import group_general_config
 from nucypher.cli.options import (
     group_options,
+    option_alice_verifying_key,
     option_checksum_address,
     option_config_file,
     option_config_root,
@@ -343,7 +344,8 @@ def make_card(general_config, character_options, config_file, nickname):
 @option_config_file
 @group_general_config
 @option_force
-@BobInterface.connect_cli('retrieve_and_decrypt')
+@BobInterface.connect_cli('retrieve_and_decrypt', exclude={'alice_verifying_key'})  # indicate that alice_verifying_key should be excluded as an option
+@option_alice_verifying_key(required=False)  # alice verifying key overridden to be not required, to allow Alice card to be possibly specified instead (#2115)
 @click.option('--alice', type=click.STRING, help="The card id or nickname of a stored Alice card.")
 @click.option('--ipfs', help="Download an encrypted message from IPFS at the specified gateway URI")
 @click.option('--decode', help="Decode base64 plaintext messages", is_flag=True)
@@ -359,27 +361,18 @@ def retrieve_and_decrypt(general_config,
                          decode,
                          force):
     """Obtain plaintext from encrypted data, if access was granted."""
+    # 'message_kit' is a required and a "multiple" value click option  - the option name was kept singular so that
+    # it makes sense when specifying many of them i.e. `--message-kit <message_kit_1> --message-kit <message_kit_2> ...`
+    message_kits = list(message_kit)
 
     # Setup
     emitter = setup_emitter(general_config)
     BOB = character_options.create_character(emitter, config_file, json_ipc=general_config.json_ipc)
 
-    if not message_kit:
-        if ipfs:
-            prompt = "Enter IPFS CID for encrypted data"
-        else:
-            prompt = "Enter encrypted data (base64)"
-        message_kit = click.prompt(prompt, type=click.STRING)
-
-    if ipfs:
-        import ipfshttpclient
-        # TODO: #2108
-        emitter.message(f"Connecting to IPFS Gateway {ipfs}")
-        ipfs_client = ipfshttpclient.connect(ipfs)
-        cid = message_kit  # Understand the message kit value as an IPFS hash.
-        raw_message_kit = ipfs_client.cat(cid)  # cat the contents at the hash reference
-        emitter.message(f"Downloaded message kit from IPFS (CID {cid})", color='green')
-        message_kit = raw_message_kit.decode()  # cast to utf-8
+    if not (bool(alice_verifying_key) ^ bool(alice)):
+        message = f"Pass either '--alice_verifying_key' or '--alice'; " \
+                  f"got {'both' if alice_verifying_key else 'neither'}"
+        raise click.BadOptionUsage(option_name='--alice_verifying_key, --alice', message=message)
 
     if not alice_verifying_key:
         if alice:  # from storage
@@ -393,18 +386,30 @@ def retrieve_and_decrypt(general_config,
                             color='green')
             if not force:
                 click.confirm('Is this the correct Granter (Alice)?', abort=True)
-        else:  # interactive
-            alice_verifying_key = click.prompt("Enter Alice's verifying key", click.STRING)
 
-    if not force:
-        if not policy_encrypting_key:
-            policy_encrypting_key = click.prompt("Enter policy public key", type=click.STRING)
+    if ipfs:
+        # '--message_kit' option was repurposed to specify ipfs cids (#2098)
+        cids = []
+        for cid in message_kits:
+            cids.append(cid)
+
+        # populate message_kits list with actual message_kits
+        message_kits = []
+        import ipfshttpclient
+        # TODO: #2108
+        emitter.message(f"Connecting to IPFS Gateway {ipfs}")
+        ipfs_client = ipfshttpclient.connect(ipfs)
+        for cid in cids:
+            raw_message_kit = ipfs_client.cat(cid)  # cat the contents at the hash reference
+            emitter.message(f"Downloaded message kit from IPFS (CID {cid})", color='green')
+            message_kit = raw_message_kit.decode()  # cast to utf-8
+            message_kits.append(message_kit)
 
     # Request
     bob_request_data = {
         'policy_encrypting_key': policy_encrypting_key,
         'alice_verifying_key': alice_verifying_key,
-        'message_kit': message_kit,
+        'message_kits': message_kits,
         'encrypted_treasure_map': treasure_map
     }
 

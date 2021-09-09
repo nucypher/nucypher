@@ -16,10 +16,10 @@
 """
 
 
+import datetime
 import json
 from base64 import b64decode, b64encode
 
-import datetime
 import maya
 import pytest
 from click.testing import CliRunner
@@ -97,13 +97,15 @@ def test_alice_web_character_control_grant(alice_web_controller_test_client, gra
     assert response.status_code == 400
 
     # Malform the request
-    del(params['bob_encrypting_key'])
-    response = alice_web_controller_test_client.put(endpoint, data=json.dumps(params))
+    bad_params = dict(params)
+    del(bad_params['bob_encrypting_key'])
+    response = alice_web_controller_test_client.put(endpoint, data=json.dumps(bad_params))
     assert response.status_code == 400
 
     # test key validation with a bad key
-    params['bob_encrypting_key'] = '12345'
-    response = alice_web_controller_test_client.put(endpoint, data=json.dumps(params))
+    bad_params = dict(params)
+    bad_params['bob_encrypting_key'] = '12345'
+    response = alice_web_controller_test_client.put(endpoint, data=json.dumps(bad_params))
     assert response.status_code == 400
     assert b'non-hexadecimal number found in fromhex' in response.data
 
@@ -200,9 +202,39 @@ def test_bob_web_character_control_retrieve_again(bob_web_controller_test_client
     response_message = response_data['result']['cleartexts'][0]
     assert response_message == 'Welcome to flippering number 2.'  # We have received exactly the same message again.
 
-    del(params['alice_verifying_key'])
-    response = bob_web_controller_test_client.post(endpoint, data=json.dumps(params))
+    bad_params = dict(params)
+    del(bad_params['alice_verifying_key'])
+    response = bob_web_controller_test_client.post(endpoint, data=json.dumps(bad_params))
     assert response.status_code == 400
+
+
+def test_bob_web_character_control_retrieve_multiple_kits(bob_web_controller_test_client,
+                                                          retrieve_control_request,
+                                                          capsule_side_channel):
+    method_name, params = retrieve_control_request
+    multiple_kits_params = dict(params)
+
+    message_kits = []
+    # capsule_side_channel has module scope so resetting - weird: resetting produces a message kit...ok(?)
+    reset_message_kit, _ = capsule_side_channel.reset(plaintext_passthrough=True)
+    message_kits.append(b64encode(bytes(reset_message_kit)).decode())  # add initial message kit
+    # add some more
+    for index in range(1, 5):
+        message_kit = capsule_side_channel()
+        message_kits.append(b64encode(bytes(message_kit)).decode())
+
+    endpoint = f'/{method_name}'
+    multiple_kits_params['message_kits'] = message_kits   # replace message kits entry
+    response = bob_web_controller_test_client.post(endpoint, data=json.dumps(multiple_kits_params))
+    assert response.status_code == 200
+
+    response_data = json.loads(response.data)
+    assert 'cleartexts' in response_data['result']
+
+    cleartexts = response_data['result']['cleartexts']
+    assert len(cleartexts) == len(message_kits)
+    for index, cleartext in enumerate(cleartexts):
+        assert cleartext.encode() == capsule_side_channel.plaintexts[index]
 
 
 def test_enrico_web_character_control_encrypt_message(enrico_web_controller_test_client, encrypt_control_request):
@@ -221,8 +253,9 @@ def test_enrico_web_character_control_encrypt_message(enrico_web_controller_test
     response = enrico_web_controller_test_client.post('/encrypt_message', data=json.dumps({'bad': 'input'}))
     assert response.status_code == 400
 
-    del(params['message'])
-    response = enrico_web_controller_test_client.post('/encrypt_message', data=params)
+    bad_params = dict(params)
+    del(bad_params['message'])
+    response = enrico_web_controller_test_client.post('/encrypt_message', data=bad_params)
     assert response.status_code == 400
 
 
@@ -298,7 +331,7 @@ def test_web_character_control_lifecycle(alice_web_controller_test_client,
     bob_request_data = {
         'policy_encrypting_key': policy_pubkey_enc_hex,
         'alice_verifying_key': alice_verifying_key_hex,
-        'message_kit': encoded_message_kit,
+        'message_kits': [encoded_message_kit],
         'encrypted_treasure_map': alice_response_data['result']['treasure_map']
     }
 

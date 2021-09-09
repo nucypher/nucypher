@@ -15,7 +15,7 @@
  along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
-from typing import Union
+from typing import Union, List
 
 import maya
 
@@ -163,12 +163,12 @@ class BobInterface(CharacterPublicInterface):
     def retrieve_and_decrypt(self,
                              policy_encrypting_key: PublicKey,
                              alice_verifying_key: PublicKey,
-                             message_kit: MessageKit,
+                             message_kits: List[MessageKit],
                              encrypted_treasure_map: EncryptedTreasureMap) -> dict:
         """
         Character control endpoint for re-encrypting and decrypting policy data.
         """
-        plaintexts = self.implementer.retrieve_and_decrypt([message_kit],
+        plaintexts = self.implementer.retrieve_and_decrypt(message_kits,
                                                            policy_encrypting_key=policy_encrypting_key,
                                                            alice_verifying_key=alice_verifying_key,
                                                            encrypted_treasure_map=encrypted_treasure_map)

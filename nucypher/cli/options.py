@@ -75,6 +75,15 @@ option_rate = click.option('--rate', help="Policy rate per period (in wei)", typ
 # Alphabetical
 #
 
+def option_alice_verifying_key(required: bool = False):
+    return click.option(
+        '--alice-verifying-key',
+        '-avk',
+        help="Alice's verifying key as a hexadecimal string",
+        type=click.STRING,
+        required=required)
+
+
 def option_contract_name(required: bool = False):
     return click.option(
         '--contract-name',
@@ -108,11 +117,12 @@ def option_label(required: bool = False):
         required=required)
 
 
-def option_message_kit(required: bool = False):
+def option_message_kit(required: bool = False, multiple: bool = False):
     return click.option(
         '--message-kit',
-        help="The message kit unicode string encoded in base64",
+        help='The message kit unicode string encoded in base64',
         type=click.STRING,
+        multiple=multiple,
         required=required)
 
 
