@@ -4,17 +4,15 @@ pragma solidity ^0.8.0;
 
 import "contracts/lib/ReEncryptionValidator.sol";
 import "contracts/lib/SignatureVerifier.sol";
-import "contracts/PREStakingApp.sol";
-import "contracts/proxy/Upgradeable.sol";
 import "zeppelin/math/Math.sol";
 
 
 /**
 * @title Adjudicator
 * @notice Supervises stakers' behavior and punishes when something's wrong.
-* @dev |v2.1.2|
+* @dev |v3.1.1|
 */
-contract Adjudicator is Upgradeable {
+abstract contract Adjudicator {
 
     using UmbralDeserializer for bytes;
 
@@ -32,7 +30,6 @@ contract Adjudicator is Upgradeable {
     bytes32 constant RESERVED_CAPSULE_AND_CFRAG_BYTES = bytes32(0);
     address constant RESERVED_ADDRESS = address(0);
 
-    PREStakingApp public immutable preStakingApp;
     SignatureVerifier.HashAlgorithm public immutable hashAlgorithm;
     uint256 public immutable basePenalty;
     uint256 public immutable penaltyHistoryCoefficient;
@@ -43,7 +40,6 @@ contract Adjudicator is Upgradeable {
     mapping (bytes32 => bool) public evaluatedCFrags;
 
     /**
-    * @param _preStakingApp PREStakingApp contract
     * @param _hashAlgorithm Hashing algorithm
     * @param _basePenalty Base for the penalty calculation
     * @param _penaltyHistoryCoefficient Coefficient for calculating the penalty depending on the history
@@ -51,7 +47,6 @@ contract Adjudicator is Upgradeable {
     * @param _rewardCoefficient Coefficient for calculating the reward
     */
     constructor(
-        PREStakingApp _preStakingApp,
         SignatureVerifier.HashAlgorithm _hashAlgorithm,
         uint256 _basePenalty,
         uint256 _penaltyHistoryCoefficient,
@@ -59,11 +54,9 @@ contract Adjudicator is Upgradeable {
         uint256 _rewardCoefficient
     ) {
         // Sanity checks.
-        require(address(_preStakingApp.token()) != address(0) &&  // This contract has an app, and it's not the null address.
-            // The reward and penalty coefficients are set.
+        require(// The reward and penalty coefficients are set.
             _percentagePenaltyCoefficient != 0 &&
             _rewardCoefficient != 0);
-        preStakingApp = _preStakingApp;
         hashAlgorithm = _hashAlgorithm;
         basePenalty = _basePenalty;
         percentagePenaltyCoefficient = _percentagePenaltyCoefficient;
@@ -157,13 +150,13 @@ contract Adjudicator is Upgradeable {
             _workerIdentityEvidence);
 
         // 5. Check that worker can be slashed
-        uint256 stakerValue = preStakingApp.getAllTokens(worker);
+        uint256 stakerValue = getAllTokens(worker);
         require(stakerValue > 0, "Staker has no tokens");
 
         // 6. If CFrag was incorrect, slash staker
         if (!cFragIsCorrect) {
             (uint256 penalty, uint256 reward) = calculatePenaltyAndReward(worker, stakerValue);
-            preStakingApp.slash(worker, penalty, msg.sender, reward);
+            slash(worker, penalty, msg.sender, reward);
             emit IncorrectCFragVerdict(evaluationHash, worker);
         }
     }
@@ -183,24 +176,40 @@ contract Adjudicator is Upgradeable {
         penaltyHistory[_staker] = penaltyHistory[_staker] + 1;
     }
 
-    /// @dev the `onlyWhileUpgrading` modifier works through a call to the parent `verifyState`
-    function verifyState(address _testTarget) public override virtual {
-        super.verifyState(_testTarget);
-        bytes32 evaluationCFragHash = SignatureVerifier.hash(
-            abi.encodePacked(RESERVED_CAPSULE_AND_CFRAG_BYTES), SignatureVerifier.HashAlgorithm.SHA256);
-        require(delegateGet(_testTarget, this.evaluatedCFrags.selector, evaluationCFragHash) ==
-            (evaluatedCFrags[evaluationCFragHash] ? 1 : 0));
-        require(delegateGet(_testTarget, this.penaltyHistory.selector, bytes32(bytes20(RESERVED_ADDRESS))) ==
-            penaltyHistory[RESERVED_ADDRESS]);
-    }
+    /**
+    * @notice Get all tokens belonging to the worker
+    */
+    function getAllTokens(address _worker) public virtual view returns (uint256);
 
-    /// @dev the `onlyWhileUpgrading` modifier works through a call to the parent `finishUpgrade`
-    function finishUpgrade(address _target) public override virtual {
-        super.finishUpgrade(_target);
-        // preparation for the verifyState method
-        bytes32 evaluationCFragHash = SignatureVerifier.hash(
-            abi.encodePacked(RESERVED_CAPSULE_AND_CFRAG_BYTES), SignatureVerifier.HashAlgorithm.SHA256);
-        evaluatedCFrags[evaluationCFragHash] = true;
-        penaltyHistory[RESERVED_ADDRESS] = 123;
-    }
+    /**
+    * @notice Slash the worker's stake and reward the investigator
+    * @param _worker Worker's address
+    * @param _penalty Penalty
+    * @param _investigator Investigator
+    * @param _reward Reward for the investigator
+    */
+    function slash(
+        address _worker,
+        uint256 _penalty,
+        address _investigator,
+        uint256 _reward
+    ) internal virtual;
+
+//    function verifyAdjudicatorState(address _testTarget) public virtual {
+//        bytes32 evaluationCFragHash = SignatureVerifier.hash(
+//            abi.encodePacked(RESERVED_CAPSULE_AND_CFRAG_BYTES), SignatureVerifier.HashAlgorithm.SHA256);
+//        require(Getters.delegateGet(_testTarget, this.evaluatedCFrags.selector, evaluationCFragHash) ==
+//            (evaluatedCFrags[evaluationCFragHash] ? 1 : 0));
+//        require(Getters.delegateGet(_testTarget, this.penaltyHistory.selector, bytes32(bytes20(RESERVED_ADDRESS))) ==
+//            penaltyHistory[RESERVED_ADDRESS]);
+//    }
+//
+//    function finishAdjudicatorUpgrade(address _target) public virtual {
+//        // preparation for the verifyState method
+//        bytes32 evaluationCFragHash = SignatureVerifier.hash(
+//            abi.encodePacked(RESERVED_CAPSULE_AND_CFRAG_BYTES), SignatureVerifier.HashAlgorithm.SHA256);
+//        evaluatedCFrags[evaluationCFragHash] = true;
+//        penaltyHistory[RESERVED_ADDRESS] = 123;
+//    }
+
 }

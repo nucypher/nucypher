@@ -421,8 +421,6 @@ contract StakingEscrow is Upgradeable, IERC900History {
     /// @dev the `onlyWhileUpgrading` modifier works through a call to the parent `verifyState`
     function verifyState(address _testTarget) public override virtual {
         super.verifyState(_testTarget);
-//        require(address(uint160(delegateGet(_testTarget, this.stakerFromWorker.selector, bytes32(0)))) ==
-//            stakerFromWorker[address(0)]);
 
         require(delegateGet(_testTarget, this.getStakersLength.selector) == stakers.length);
         if (stakers.length == 0) {
@@ -434,7 +432,6 @@ contract StakingEscrow is Upgradeable, IERC900History {
         bytes32 staker = bytes32(uint256(uint160(stakerAddress)));
         StakerInfo memory infoToCheck = delegateGetStakerInfo(_testTarget, staker);
         require(infoToCheck.value == info.value &&
-//            infoToCheck.workerStartTimestamp == info.workerStartTimestamp &&
             infoToCheck.vestingReleaseTimestamp == info.vestingReleaseTimestamp &&
             infoToCheck.vestingReleaseRate == info.vestingReleaseRate);
 
@@ -445,10 +442,6 @@ contract StakingEscrow is Upgradeable, IERC900History {
         require(delegateGet(_testTarget, this.totalStakedAt.selector, bytes32(block.number)) ==
             totalStakedAt(block.number));
 
-//        if (info.worker != address(0)) {
-//            require(address(uint160(delegateGet(_testTarget, this.stakerFromWorker.selector, bytes32(uint256(uint160(info.worker)))))) ==
-//                stakerFromWorker[info.worker]);
-//        }
     }
 
     /// @dev the `onlyWhileUpgrading` modifier works through a call to the parent `finishUpgrade`

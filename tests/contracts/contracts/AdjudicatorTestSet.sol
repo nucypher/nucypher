@@ -46,49 +46,49 @@ contract PREStakingAppForAdjudicatorMock {
 }
 
 
-/**
-* @notice Upgrade to this contract must lead to fail
-*/
-contract AdjudicatorBad is Upgradeable {
-
-    mapping (bytes32 => bool) public evaluatedCFrags;
-    mapping (address => uint256) public penaltyHistory;
-
-}
-
-
-/**
-* @notice Contract for testing upgrading the Adjudicator contract
-*/
-contract AdjudicatorV2Mock is Adjudicator {
-
-    uint256 public valueToCheck;
-
-    constructor(
-        PREStakingApp _app,
-        SignatureVerifier.HashAlgorithm _hashAlgorithm,
-        uint256 _basePenalty,
-        uint256 _percentagePenalty,
-        uint256 _penaltyHistoryCoefficient,
-        uint256 _rewardCoefficient
-    )
-        Adjudicator(
-            _app,
-            _hashAlgorithm,
-            _basePenalty,
-            _percentagePenalty,
-            _penaltyHistoryCoefficient,
-            _rewardCoefficient
-        )
-    {
-    }
-
-    function setValueToCheck(uint256 _valueToCheck) public {
-        valueToCheck = _valueToCheck;
-    }
-
-    function verifyState(address _testTarget) override public {
-        super.verifyState(_testTarget);
-        require(uint256(delegateGet(_testTarget, this.valueToCheck.selector)) == valueToCheck);
-    }
-}
+///**
+//* @notice Upgrade to this contract must lead to fail
+//*/
+//contract AdjudicatorBad is Upgradeable {
+//
+//    mapping (bytes32 => bool) public evaluatedCFrags;
+//    mapping (address => uint256) public penaltyHistory;
+//
+//}
+//
+//
+///**
+//* @notice Contract for testing upgrading the Adjudicator contract
+//*/
+//contract AdjudicatorV2Mock is Adjudicator {
+//
+//    uint256 public valueToCheck;
+//
+//    constructor(
+//        PREStakingApp _app,
+//        SignatureVerifier.HashAlgorithm _hashAlgorithm,
+//        uint256 _basePenalty,
+//        uint256 _percentagePenalty,
+//        uint256 _penaltyHistoryCoefficient,
+//        uint256 _rewardCoefficient
+//    )
+//        Adjudicator(
+//            _app,
+//            _hashAlgorithm,
+//            _basePenalty,
+//            _percentagePenalty,
+//            _penaltyHistoryCoefficient,
+//            _rewardCoefficient
+//        )
+//    {
+//    }
+//
+//    function setValueToCheck(uint256 _valueToCheck) public {
+//        valueToCheck = _valueToCheck;
+//    }
+//
+//    function verifyState(address _testTarget) override public {
+//        super.verifyState(_testTarget);
+//        require(uint256(delegateGet(_testTarget, this.valueToCheck.selector)) == valueToCheck);
+//    }
+//}

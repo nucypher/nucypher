@@ -8,13 +8,14 @@ import "zeppelin/token/ERC20/SafeERC20.sol";
 import "zeppelin/token/ERC20/IERC20.sol";
 import "contracts/threshold/IApplication.sol";
 import "contracts/threshold/ITokenStaking.sol";
+import "contracts/Adjudicator.sol";
 
 
 /**
 * @title PRE Staking Application
 * @notice Contract distributes rewards for participating in app and slashes for violating rules
 */
-contract PREStakingApp is IApplication {
+contract PREStakingApp is IApplication, Adjudicator {
 
     using SafeERC20 for IERC20;
 
@@ -72,12 +73,25 @@ contract PREStakingApp is IApplication {
     */
     // TODO proper docs
     constructor(
+        SignatureVerifier.HashAlgorithm _hashAlgorithm,
+        uint256 _basePenalty,
+        uint256 _penaltyHistoryCoefficient,
+        uint256 _percentagePenaltyCoefficient,
+        uint256 _rewardCoefficient,
         IERC20 _token,
         ITokenStaking _tokenStaking,
         uint256 _rewardDuration,
         uint256 _deauthorizationDuration,
         uint256 _minAuthorizationSize
-    ) {
+    )
+        Adjudicator(
+            _hashAlgorithm,
+            _basePenalty,
+            _penaltyHistoryCoefficient,
+            _percentagePenaltyCoefficient,
+            _rewardCoefficient
+        )
+    {
         require(_rewardDuration != 0 &&
             _deauthorizationDuration != 0 &&
             _minAuthorizationSize != 0 &&
@@ -208,7 +222,7 @@ contract PREStakingApp is IApplication {
     /**
     * @notice Get all tokens belonging to the worker
     */
-    function getAllTokens(address _worker) external view returns (uint256) { // TODO rename
+    function getAllTokens(address _worker) public override view returns (uint256) { // TODO rename
         return workerInfo[_worker].authorized; //+ workerInfo[_worker].deauthorizing;
     }
 
@@ -262,7 +276,7 @@ contract PREStakingApp is IApplication {
         address _investigator,
         uint256 _reward
     )
-        external updateReward(_worker)
+        internal override updateReward(_worker)
     {
         // TODO
     }
