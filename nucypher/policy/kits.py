@@ -55,13 +55,19 @@ class MessageKit:
             # The caller didn't expressly tell us not to sign; we'll sign.
             if sign_plaintext:
                 # Sign first, encrypt second.
+
+                # TODO (#2743, see also #2556): make a portable constant or remove completely
                 sig_header = SIGNATURE_TO_FOLLOW
+
                 signature = signer(plaintext)
                 capsule, ciphertext = umbral.encrypt(recipient_key, sig_header + bytes(signature) + plaintext)
                 signature_in_kit = None
             else:
                 # Encrypt first, sign second.
+
+                # TODO (#2743, see also #2556): make a portable constant or remove completely
                 sig_header = SIGNATURE_IS_ON_CIPHERTEXT
+
                 capsule, ciphertext = umbral.encrypt(recipient_key, sig_header + plaintext)
                 signature = signer(ciphertext)
                 signature_in_kit = signature
@@ -71,7 +77,10 @@ class MessageKit:
                               signature=signature_in_kit)
         else:
             # Don't sign.
+
+            # TODO (#2743, see also #2556): make a portable constant or remove completely
             sig_header = NOT_SIGNED
+
             capsule, ciphertext = umbral.encrypt(recipient_key, sig_header + plaintext)
             message_kit = cls(ciphertext=ciphertext, capsule=capsule)
 
@@ -98,6 +107,8 @@ class MessageKit:
         return f"{self.__class__.__name__}({self.capsule})"
 
     def __bytes__(self):
+        # TODO (#2743): this logic may not be necessary depending on the resolution.
+        # If it is, it is better moved to BytestringSplitter.
         return (bytes(self.capsule) +
                 (b'\x00' if self.signature is None else (b'\x01' + bytes(self.signature))) +
                 (b'\x00' if self.sender_verifying_key is None else (b'\x01' + bytes(self.sender_verifying_key))) +
