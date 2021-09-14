@@ -49,7 +49,7 @@ def mock_ursula(testerchain, account, mocker):
 @pytest.mark.skip("David, send help!")
 def test_adjudicator_slashes(agency,
                              testerchain,
-                             mock_ursula_reencrypts,
+                             #mock_ursula_reencrypts,
                              token_economics,
                              test_registry,
                              mocker):

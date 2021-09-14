@@ -28,16 +28,15 @@ from eth_utils.address import to_checksum_address, to_canonical_address
 from eth_typing.evm import ChecksumAddress
 
 from nucypher.blockchain.eth.constants import ETH_ADDRESS_BYTE_LENGTH
-from nucypher.characters.base import Character
 from nucypher.crypto.constants import EIP712_MESSAGE_SIGNATURE_SIZE
-from nucypher.crypto.kits import UmbralMessageKit
 from nucypher.crypto.powers import DecryptingPower, SigningPower
-from nucypher.crypto.signing import SignatureStamp
+from nucypher.crypto.signing import SignatureStamp, InvalidSignature
 from nucypher.crypto.splitters import signature_splitter, kfrag_splitter
 from nucypher.crypto.umbral_adapter import KeyFrag, VerifiedKeyFrag, PublicKey, Signature
-from nucypher.crypto.utils import keccak_digest, encrypt_and_sign, verify_eip_191
+from nucypher.crypto.utils import keccak_digest, verify_eip_191
 from nucypher.network.middleware import RestMiddleware
 from nucypher.policy.hrac import HRAC, hrac_splitter
+from nucypher.policy.kits import MessageKit
 
 
 class TreasureMap:
@@ -54,14 +53,13 @@ class TreasureMap:
 
     ursula_and_kfrag_payload_splitter = BytestringSplitter(
         (to_checksum_address, ETH_ADDRESS_BYTE_LENGTH),
-        (UmbralMessageKit, VariableLengthBytestring),
+        (MessageKit, VariableLengthBytestring),
     )
 
     @classmethod
     def construct_by_publisher(cls,
                                hrac: HRAC,
                                publisher: 'Alice',
-                               bob: 'Bob',
                                ursulas: Sequence['Ursula'],
                                verified_kfrags: Sequence[VerifiedKeyFrag],
                                threshold: int,
@@ -82,9 +80,9 @@ class TreasureMap:
             kfrag_payload = bytes(AuthorizedKeyFrag.construct_by_publisher(hrac=hrac,
                                                                            verified_kfrag=verified_kfrag,
                                                                            publisher_stamp=publisher.stamp))
-            encrypted_kfrag, _signature = encrypt_and_sign(recipient_pubkey_enc=ursula.public_keys(DecryptingPower),
-                                                           plaintext=kfrag_payload,
-                                                           signer=publisher.stamp)
+            encrypted_kfrag = MessageKit.author(recipient_key=ursula.public_keys(DecryptingPower),
+                                                plaintext=kfrag_payload,
+                                                signer=publisher.stamp)
 
             destinations[ursula.checksum_address] = encrypted_kfrag
 
@@ -93,11 +91,14 @@ class TreasureMap:
     def __init__(self,
                  threshold: int,
                  hrac: HRAC,
-                 destinations: Dict[ChecksumAddress, bytes],
+                 destinations: Dict[ChecksumAddress, MessageKit],
                  ):
         self.threshold = threshold
         self.destinations = destinations
         self.hrac = hrac
+
+        # A little awkward, but saves us a key length in serialization
+        self.publisher_verifying_key = list(destinations.values())[0].sender_verifying_key
 
     def encrypt(self,
                 publisher: 'Alice',
@@ -113,7 +114,7 @@ class TreasureMap:
         nodes_as_bytes = b""
         for ursula_address, encrypted_kfrag in self.destinations.items():
             node_id = to_canonical_address(ursula_address)
-            kfrag = bytes(VariableLengthBytestring(encrypted_kfrag.to_bytes()))
+            kfrag = bytes(VariableLengthBytestring(bytes(encrypted_kfrag)))
             nodes_as_bytes += (node_id + kfrag)
         return nodes_as_bytes
 
@@ -143,7 +144,7 @@ class AuthorizedKeyFrag:
 
     # The size of a serialized message kit encrypting an AuthorizedKeyFrag.
     # Depends on encryption parameters in Umbral, has to be hardcoded.
-    ENCRYPTED_SIZE = 619
+    ENCRYPTED_SIZE = 621
 
     _splitter = BytestringSplitter(
         hrac_splitter, # HRAC
@@ -204,11 +205,12 @@ class EncryptedTreasureMap:
     _splitter = BytestringSplitter(
         signature_splitter, # public signature
         hrac_splitter, # HRAC
-        (UmbralMessageKit, VariableLengthBytestring), # encrypted TreasureMap
+        (MessageKit, VariableLengthBytestring), # encrypted TreasureMap
         (bytes, EIP712_MESSAGE_SIGNATURE_SIZE)) # blockchain signature
 
     _EMPTY_BLOCKCHAIN_SIGNATURE = b'\x00' * EIP712_MESSAGE_SIGNATURE_SIZE
 
+    # TODO: do we really need this alias?
     from nucypher.crypto.signing import \
         InvalidSignature  # Raised when the public signature (typically intended for Ursula) is not valid.
 
@@ -216,10 +218,10 @@ class EncryptedTreasureMap:
     def _sign(blockchain_signer: Callable[[bytes], bytes],
               public_signature: Signature,
               hrac: HRAC,
-              encrypted_tmap: UmbralMessageKit,
+              encrypted_tmap: MessageKit,
               ) -> bytes:
         # This method exists mainly to link this scheme to the corresponding test
-        payload = bytes(public_signature) + bytes(hrac) + encrypted_tmap.to_bytes()
+        payload = bytes(public_signature) + bytes(hrac) + bytes(encrypted_tmap)
         return blockchain_signer(payload)
 
     @classmethod
@@ -234,9 +236,9 @@ class EncryptedTreasureMap:
 
         bob_encrypting_key = bob.public_keys(DecryptingPower)
 
-        encrypted_tmap, _signature_for_bob = encrypt_and_sign(bob_encrypting_key,
-                                                              plaintext=bytes(treasure_map),
-                                                              signer=publisher.stamp)
+        encrypted_tmap = MessageKit.author(recipient_key=bob_encrypting_key,
+                                           plaintext=bytes(treasure_map),
+                                           signer=publisher.stamp)
         public_signature = publisher.stamp(bytes(publisher.stamp) + bytes(treasure_map.hrac))
 
         if blockchain_signer is not None:
@@ -252,13 +254,13 @@ class EncryptedTreasureMap:
     def __init__(self,
                  hrac: HRAC,
                  public_signature: Signature,
-                 encrypted_tmap: UmbralMessageKit,
+                 encrypted_tmap: MessageKit,
                  blockchain_signature: Optional[bytes] = None,
                  ):
 
         self.hrac = hrac
         self._public_signature = public_signature
-        self._verifying_key = encrypted_tmap.sender_verifying_key
+        self.publisher_verifying_key = encrypted_tmap.sender_verifying_key
         self._encrypted_tmap = encrypted_tmap
         self._blockchain_signature = blockchain_signature
 
@@ -269,7 +271,7 @@ class EncryptedTreasureMap:
         """
         try:
             map_in_the_clear = decryptor(self._encrypted_tmap)
-        except Character.InvalidSignature:
+        except InvalidSignature:
             raise self.InvalidSignature("This TreasureMap does not contain the correct signature "
                                         "from the publisher to Bob.")
 
@@ -282,22 +284,22 @@ class EncryptedTreasureMap:
             signature = self._EMPTY_BLOCKCHAIN_SIGNATURE
         return (bytes(self._public_signature) +
                 bytes(self.hrac) +
-                bytes(VariableLengthBytestring(self._encrypted_tmap.to_bytes())) +
+                bytes(VariableLengthBytestring(bytes(self._encrypted_tmap))) +
                 signature
                 )
 
     def verify_blockchain_signature(self, checksum_address: ChecksumAddress) -> bool:
         if self._blockchain_signature is None:
             raise ValueError("This EncryptedTreasureMap is not blockchain-signed")
-        payload = bytes(self._public_signature) + bytes(self.hrac) + self._encrypted_tmap.to_bytes()
+        payload = bytes(self._public_signature) + bytes(self.hrac) + bytes(self._encrypted_tmap)
         return verify_eip_191(message=payload,
                               signature=self._blockchain_signature,
                               address=checksum_address)
 
     def _public_verify(self):
-        message = bytes(self._verifying_key) + bytes(self.hrac)
-        if not self._public_signature.verify(self._verifying_key, message=message):
-            raise self.InvalidSignature("This TreasureMap is not properly publicly signed by Alice.")
+        message = bytes(self.publisher_verifying_key) + bytes(self.hrac)
+        if not self._public_signature.verify(self.publisher_verifying_key, message=message):
+            raise self.InvalidSignature("This TreasureMap is not properly publicly signed by the publisher.")
 
     @classmethod
     def from_bytes(cls, data: bytes):

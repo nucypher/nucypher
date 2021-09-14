@@ -27,11 +27,11 @@ import sys
 from nucypher.characters.lawful import Bob, Enrico, Ursula
 from nucypher.config.constants import TEMPORARY_DOMAIN
 from nucypher.crypto.keypairs import DecryptingKeypair, SigningKeypair
-from nucypher.crypto.kits import UmbralMessageKit
 from nucypher.crypto.powers import DecryptingPower, SigningPower
 from nucypher.crypto.umbral_adapter import PublicKey
 from nucypher.network.middleware import RestMiddleware
 from nucypher.policy.maps import EncryptedTreasureMap
+from nucypher.policy.kits import MessageKit
 from nucypher.utilities.logging import GlobalLoggerSettings
 
 GlobalLoggerSettings.start_console_logging()
@@ -95,21 +95,14 @@ treasure_map = EncryptedTreasureMap.from_bytes(base64.b64decode(policy_data["tre
 # Let's read the file produced by the heart monitor and unpack the MessageKits,
 # which are the individual ciphertexts.
 data = msgpack.load(open("heart_data.msgpack", "rb"), raw=False)
-message_kits = (UmbralMessageKit.from_bytes(k) for k in data['kits'])
-
-# The doctor also needs to create a view of the Data Source from its public keys
-data_source = Enrico.from_public_keys(
-    verifying_key=data['data_source'],
-    policy_encrypting_key=policy_pubkey
-)
+message_kits = (MessageKit.from_bytes(k) for k in data['kits'])
 
 # Now he can ask the NuCypher network to get a re-encrypted version of each MessageKit.
 for message_kit in message_kits:
     start = timer()
-    retrieved_plaintexts = doctor.retrieve(
-        message_kit,
-        label=label,
-        enrico=data_source,
+    retrieved_plaintexts = doctor.retrieve_and_decrypt(
+        [message_kit],
+        policy_encrypting_key=policy_pubkey,
         alice_verifying_key=alices_sig_pubkey,
         encrypted_treasure_map=treasure_map
     )

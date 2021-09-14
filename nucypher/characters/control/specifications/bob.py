@@ -24,36 +24,32 @@ from nucypher.control.specifications.base import BaseSchema
 from nucypher.cli import options
 
 
-class Retrieve(BaseSchema):
-    label = character_fields.Label(
-        required=True,
-        load_only=True,
-        click=options.option_label(required=False)
-    )
+class RetrieveAndDecrypt(BaseSchema):
+
     policy_encrypting_key = character_fields.Key(
         required=True,
         load_only=True,
-        click=options.option_policy_encrypting_key(required=False)
+        click=options.option_policy_encrypting_key(required=True)
     )
     alice_verifying_key = character_fields.Key(
-        required=False,
+        required=True,
         load_only=True,
         click=click.option(
             '--alice-verifying-key',
             '-avk',
             help="Alice's verifying key as a hexadecimal string",
             type=click.STRING,
-            required=False)
+            required=True)
     )
-    message_kit = character_fields.UmbralMessageKit(
+    message_kit = character_fields.MessageKit(
         required=True,
         load_only=True,
-        click=options.option_message_kit(required=False)
+        click=options.option_message_kit(required=True)
     )
 
-    treasure_map = EncryptedTreasureMap(required=False,
-                                        load_only=True,
-                                        click=options.option_treasure_map)
+    encrypted_treasure_map = EncryptedTreasureMap(required=True,
+                                                  load_only=True,
+                                                  click=options.option_treasure_map)
 
     cleartexts = base_fields.List(character_fields.Cleartext(), dump_only=True)
 

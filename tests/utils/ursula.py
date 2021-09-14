@@ -27,7 +27,6 @@ from nucypher.characters.lawful import Bob
 from nucypher.characters.lawful import Ursula
 from nucypher.config.characters import UrsulaConfiguration
 from nucypher.crypto.umbral_adapter import SecretKey, Signer, encrypt, generate_kfrags, reencrypt
-from nucypher.policy.orders import WorkOrder
 from tests.constants import NUMBER_OF_URSULAS_IN_DEVELOPMENT_NETWORK
 from tests.mock.datastore import MOCK_DB
 
@@ -157,37 +156,3 @@ def start_pytest_ursula_services(ursula: Ursula) -> Certificate:
 
 MOCK_KNOWN_URSULAS_CACHE = dict()
 MOCK_URSULA_STARTING_PORT = 51000  # select_test_port()
-
-
-def _mock_ursula_reencrypts(ursula):
-    delegating_privkey = SecretKey.random()
-    capsule, _ciphertext = encrypt(delegating_privkey.public_key(), b'unused')
-    signing_privkey = SecretKey.random()
-    signing_pubkey = signing_privkey.public_key()
-    signer = Signer(signing_privkey)
-    priv_key_bob = SecretKey.random()
-    pub_key_bob = priv_key_bob.public_key()
-    kfrags = generate_kfrags(delegating_sk=delegating_privkey,
-                             signer=signer,
-                             receiving_pk=pub_key_bob,
-                             threshold=2,
-                             num_kfrags=4,
-                             sign_delegating_key=False,
-                             sign_receiving_key=False)
-
-    # TODO: Is this needed?
-    # alice_address = canonical_address_from_umbral_key(signing_pubkey)
-    ursula_pubkey = ursula.stamp.as_umbral_pubkey()
-    specification = b''.join((bytes(capsule),
-                              bytes(ursula_pubkey),
-                              bytes(ursula.decentralized_identity_evidence)
-                              ))
-
-    bobs_signer = Signer(priv_key_bob)
-    task_signature = bytes(bobs_signer.sign(specification))
-
-    cfrag = reencrypt(capsule, kfrags[0])
-    cfrag_signature = ursula.stamp(bytes(cfrag))
-
-    bob = Bob.from_public_keys(verifying_key=pub_key_bob)
-    return WorkOrder.PRETask(capsule, task_signature, cfrag, cfrag_signature)

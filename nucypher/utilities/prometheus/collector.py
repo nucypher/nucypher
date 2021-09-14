@@ -31,7 +31,7 @@ from nucypher.blockchain.eth.actors import NucypherTokenActor
 from nucypher.blockchain.eth.agents import ContractAgency, PolicyManagerAgent, StakingEscrowAgent, WorkLockAgent
 from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
 from nucypher.blockchain.eth.registry import BaseContractRegistry
-from nucypher.datastore.queries import get_policy_arrangements, get_work_orders
+from nucypher.datastore.queries import get_policy_arrangements, get_reencryption_requests
 
 from typing import Dict, Union
 
@@ -128,8 +128,10 @@ class UrsulaInfoMetricsCollector(BaseMetricsCollector):
         else:
             self.metrics["availability_score_gauge"].set(-1)
 
-        work_orders = get_work_orders(self.ursula.datastore)
-        self.metrics["work_orders_gauge"].set(len(work_orders))
+        # TODO (#2797): for now we leave a terminology discrepancy here, for backward compatibility reasons.
+        # Update "work orders" to "reencryption requests" when possible.
+        reencryption_requests = get_reencryption_requests(self.ursula.datastore)
+        self.metrics["work_orders_gauge"].set(len(reencryption_requests))
 
         if not self.ursula.federated_only:
             staking_agent = ContractAgency.get_agent(StakingEscrowAgent, registry=self.ursula.registry)

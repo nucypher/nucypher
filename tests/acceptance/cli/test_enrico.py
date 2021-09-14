@@ -29,7 +29,6 @@ def test_enrico_encrypt(click_runner):
     assert result.exit_code == 0
     assert policy_encrypting_key in result.output
     assert "message_kit" in result.output
-    assert "signature" in result.output
 
 
 def test_enrico_control_starts(click_runner):

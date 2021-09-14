@@ -21,10 +21,10 @@ import datetime
 import maya
 import pytest
 
-from nucypher.crypto.kits import PolicyMessageKit
 from nucypher.characters.lawful import Enrico
 from nucypher.crypto.utils import keccak_digest
-from nucypher.policy.orders import Revocation
+from nucypher.policy.kits import MessageKit
+from nucypher.policy.revocation import Revocation
 
 
 def test_federated_grant(federated_alice, federated_bob, federated_ursulas):
@@ -40,8 +40,7 @@ def test_federated_grant(federated_alice, federated_bob, federated_ursulas):
     assert policy.hrac in federated_alice.active_policies
     assert federated_alice.active_policies[policy.hrac] == policy
 
-    treasure_map = federated_bob._decrypt_treasure_map(policy.treasure_map,
-                                                       policy.publisher_verifying_key)
+    treasure_map = federated_bob._decrypt_treasure_map(policy.treasure_map)
 
     # The number of actually enacted arrangements is exactly equal to shares.
     assert len(treasure_map.destinations) == shares
@@ -53,7 +52,7 @@ def test_federated_grant(federated_alice, federated_bob, federated_ursulas):
 
             # TODO: try to decrypt?
             # TODO: Use a new type for EncryptedKFrags?
-            assert isinstance(kfrag_kit, PolicyMessageKit)
+            assert isinstance(kfrag_kit, MessageKit)
 
 
 def test_federated_alice_can_decrypt(federated_alice, federated_bob):
@@ -82,13 +81,12 @@ def test_federated_alice_can_decrypt(federated_alice, federated_bob):
     plaintext = b"this is the first thing i'm encrypting ever."
 
     # use the enrico to encrypt the message
-    message_kit, signature = enrico.encrypt_message(plaintext)
+    message_kit = enrico.encrypt_message(plaintext)
 
     # decrypt the data
     decrypted_data = federated_alice.verify_from(
         enrico,
         message_kit,
-        signature=signature,
         decrypt=True,
         label=policy.label
     )

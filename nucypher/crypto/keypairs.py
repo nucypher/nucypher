@@ -26,7 +26,6 @@ from hendrix.deploy.tls import HendrixDeployTLS
 from hendrix.facilities.services import ExistingKeyTLSContextFactory
 
 from nucypher.config.constants import MAX_UPLOAD_CONTENT_LENGTH
-from nucypher.crypto.kits import MessageKit
 from nucypher.crypto.signing import SignatureStamp, StrangerStamp
 from nucypher.crypto.tls import _read_tls_certificate, _TLS_CURVE, generate_self_signed_certificate
 from nucypher.crypto.umbral_adapter import (
@@ -38,6 +37,7 @@ from nucypher.crypto.umbral_adapter import (
     decrypt_reencrypted
 )
 from nucypher.network.resources import get_static_resources
+from nucypher.policy.kits import MessageKit
 
 
 class Keypair(object):
@@ -91,16 +91,20 @@ class DecryptingKeypair(Keypair):
     def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
 
-    def decrypt(self, message_kit: MessageKit) -> bytes:
+    def decrypt(self, message_kit: 'MessageKit') -> bytes:
         """
         Decrypt data encrypted with Umbral.
 
         :return: bytes
         """
+
+        # TODO: remove circular dependency
+        from nucypher.policy.kits import PolicyMessageKit
+
         try:
-            if len(message_kit) > 0:
+            if isinstance(message_kit, PolicyMessageKit) and message_kit.is_decryptable_by_receiver():
                 cleartext = decrypt_reencrypted(self._privkey,
-                                                message_kit._delegating_key,
+                                                message_kit.policy_key,
                                                 message_kit.capsule,
                                                 list(message_kit._cfrags),
                                                 message_kit.ciphertext)

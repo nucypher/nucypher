@@ -33,7 +33,7 @@ from nucypher.cli.main import nucypher_cli
 from nucypher.config.characters import AliceConfiguration, BobConfiguration
 from nucypher.config.constants import NUCYPHER_ENVVAR_KEYSTORE_PASSWORD, TEMPORARY_DOMAIN, \
     NUCYPHER_ENVVAR_ALICE_ETH_PASSWORD, NUCYPHER_ENVVAR_BOB_ETH_PASSWORD
-from nucypher.crypto.kits import UmbralMessageKit
+from nucypher.policy.kits import MessageKit
 from nucypher.policy.maps import EncryptedTreasureMap
 from nucypher.utilities.logging import GlobalLoggerSettings
 from tests.constants import INSECURE_DEVELOPMENT_PASSWORD, TEST_PROVIDER_URI
@@ -61,7 +61,7 @@ class MockSideChannel:
     def save_message_kit(self, message_kit: str) -> None:
         self.__message_kits.append(message_kit)
 
-    def fetch_message_kit(self) -> UmbralMessageKit:
+    def fetch_message_kit(self) -> MessageKit:
         if self.__message_kits:
             message_kit = self.__message_kits.pop()
             return message_kit
@@ -356,13 +356,12 @@ def run_entire_cli_lifecycle(click_runner,
 
         alice_signing_key = side_channel.fetch_alice_pubkey()
 
-        retrieve_args = ('bob', 'retrieve',
+        retrieve_args = ('bob', 'retrieve-and-decrypt',
                          '--mock-networking',
                          '--json-ipc',
                          '--teacher', teacher_uri,
                          '--config-file', str(bob_configuration_file_location.absolute()),
                          '--message-kit', ciphertext_message_kit,
-                         '--label', label,
                          '--treasure-map', side_channel.fetch_treasure_map(),
                          '--policy-encrypting-key', policy_encrypting_key,
                          '--alice-verifying-key', alice_signing_key)

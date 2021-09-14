@@ -27,7 +27,6 @@ from nucypher.acumen.perception import FleetSensor
 from nucypher.characters.unlawful import Vladimir
 from nucypher.config.constants import TEMPORARY_DOMAIN
 from nucypher.crypto.powers import SigningPower
-from nucypher.datastore.models import EncryptedTreasureMap
 from tests.utils.middleware import MockRestMiddleware
 
 
@@ -56,35 +55,6 @@ def test_blockchain_alice_finds_ursula_via_rest(blockchain_alice, blockchain_urs
 
     for ursula in blockchain_ursulas:
         assert ursula in blockchain_alice.known_nodes
-
-
-@pytest.mark.skip(reason="Consider removal of this test pursuant to PR #2565")
-def test_treasure_map_cannot_be_duplicated(blockchain_ursulas, blockchain_alice, blockchain_bob, agency):
-    # Setup the policy details
-    shares = 3
-    policy_end_datetime = maya.now() + datetime.timedelta(days=35)
-    label = b"this_is_the_path_to_which_access_is_being_granted"
-
-    # Create the Policy, Granting access to Bob
-    policy = blockchain_alice.grant(bob=blockchain_bob,
-                                    label=label,
-                                    threshold=2,
-                                    shares=shares,
-                                    rate=int(1e18),  # one ether
-                                    expiration=policy_end_datetime)
-
-    u = blockchain_bob.matching_nodes_among(blockchain_alice.known_nodes)[0]
-    saved_map = u.treasure_maps[bytes.fromhex(policy.treasure_map.hrac)]
-    assert saved_map == policy.treasure_map
-    # This Ursula was actually a Vladimir.
-    # Thus, he has access to the (encrypted) TreasureMap and can use its details to
-    # try to store his own fake details.
-    vladimir = Vladimir.from_target_ursula(u)
-    node_on_which_to_store_bad_map = blockchain_ursulas[1]
-    with pytest.raises(vladimir.network_middleware.UnexpectedResponse) as e:
-        vladimir.publish_fraudulent_treasure_map(legit_treasure_map=saved_map,
-                                                 target_node=node_on_which_to_store_bad_map)
-    assert e.value.status == 402
 
 
 def test_vladimir_illegal_interface_key_does_not_propagate(blockchain_ursulas):

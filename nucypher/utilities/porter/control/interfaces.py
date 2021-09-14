@@ -53,16 +53,3 @@ class PorterInterface(ControlInterface):
         # 2. call self.implementer.some_function() i.e. Porter learner has an associated function to call
         # 3. create response
         pass
-
-    #
-    # Bob Endpoints
-    #
-
-    @attach_schema(porter_schema.BobExecWorkOrder)
-    def exec_work_order(self,
-                        ursula: ChecksumAddress,
-                        work_order_payload: bytes) -> dict:
-        work_order_result = self.implementer.exec_work_order(ursula_address=ursula,
-                                                             work_order_payload=work_order_payload)
-        response_data = {'work_order_result': work_order_result}
-        return response_data

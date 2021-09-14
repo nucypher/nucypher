@@ -104,7 +104,7 @@ from tests.utils.config import (
 )
 from tests.utils.middleware import MockRestMiddleware, MockRestMiddlewareForLargeFleetTests
 from tests.utils.policy import generate_random_label
-from tests.utils.ursula import (MOCK_KNOWN_URSULAS_CACHE, MOCK_URSULA_STARTING_PORT, _mock_ursula_reencrypts,
+from tests.utils.ursula import (MOCK_KNOWN_URSULAS_CACHE, MOCK_URSULA_STARTING_PORT,
                                 make_decentralized_ursulas, make_federated_ursulas)
 
 test_logger = Logger("test-logger")
@@ -247,8 +247,7 @@ def federated_treasure_map(enacted_federated_policy, federated_bob):
     """
     The unencrypted treasure map corresponding to the one in `enacted_federated_policy`
     """
-    yield federated_bob._decrypt_treasure_map(enacted_federated_policy.treasure_map,
-                                              enacted_federated_policy.publisher_verifying_key)
+    yield federated_bob._decrypt_treasure_map(enacted_federated_policy.treasure_map)
 
 
 @pytest.fixture(scope="module")
@@ -293,8 +292,7 @@ def blockchain_treasure_map(enacted_blockchain_policy, blockchain_bob):
     """
     The unencrypted treasure map corresponding to the one in `enacted_blockchain_policy`
     """
-    yield blockchain_bob._decrypt_treasure_map(enacted_blockchain_policy.treasure_map,
-                                               enacted_blockchain_policy.publisher_verifying_key)
+    yield blockchain_bob._decrypt_treasure_map(enacted_blockchain_policy.treasure_map)
 
 
 @pytest.fixture(scope="function")
@@ -323,7 +321,7 @@ def capsule_side_channel(enacted_federated_policy):
 
         def __call__(self):
             message = "Welcome to flippering number {}.".format(len(self.messages)).encode()
-            message_kit, _signature = self.enrico.encrypt_message(message)
+            message_kit = self.enrico.encrypt_message(message)
             self.messages.append((message_kit, self.enrico))
             if self.plaintext_passthrough:
                 self.plaintexts.append(message)
@@ -347,7 +345,7 @@ def capsule_side_channel_blockchain(enacted_blockchain_policy):
 
         def __call__(self):
             message = "Welcome to flippering number {}.".format(len(self.messages)).encode()
-            message_kit, _signature = self.enrico.encrypt_message(message)
+            message_kit = self.enrico.encrypt_message(message)
             self.messages.append((message_kit, self.enrico))
             if self.plaintext_passthrough:
                 self.plaintexts.append(message)
@@ -789,16 +787,6 @@ def funded_blockchain(testerchain, agency, token_economics, test_registry):
 
     # HERE YOU GO
     yield testerchain, deployer_address
-
-
-#
-# Re-Encryption
-#
-
-
-@pytest.fixture(scope='session')
-def mock_ursula_reencrypts():
-    return _mock_ursula_reencrypts
 
 
 @pytest.fixture(scope='session')

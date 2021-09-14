@@ -37,7 +37,6 @@ def test_complete_treasure_map_journey(federated_alice, federated_bob, federated
 
     treasure_map = TreasureMap.construct_by_publisher(hrac=hrac,
                                                       publisher=federated_alice,
-                                                      bob=federated_bob,
                                                       ursulas=ursulas,
                                                       verified_kfrags=kfrags,
                                                       threshold=1)
@@ -68,8 +67,7 @@ def test_complete_treasure_map_journey(federated_alice, federated_bob, federated
     # ...
     enc_deserialized_map = EncryptedTreasureMap.from_bytes(enc_serialized_map)
 
-    decrypted_map = federated_bob._decrypt_treasure_map(enc_deserialized_map,
-                                                        federated_alice.stamp.as_umbral_pubkey())
+    decrypted_map = federated_bob._decrypt_treasure_map(enc_deserialized_map)
 
     assert treasure_map.threshold == decrypted_map.threshold == 1
     assert treasure_map.destinations == decrypted_map.destinations
@@ -89,7 +87,6 @@ def test_treasure_map_versioning(mocker, federated_alice, federated_bob, federat
 
     treasure_map = TreasureMap.construct_by_publisher(hrac=hrac,
                                                       publisher=federated_alice,
-                                                      bob=federated_bob,
                                                       label=b'still Bill',
                                                       ursulas=list(federated_ursulas)[:len(kfrags)],
                                                       verified_kfrags=kfrags,

@@ -620,8 +620,7 @@ def test_collect_rewards_integration(click_runner,
                                                handpicked_ursulas={ursula})
 
     # Ensure that the handpicked Ursula was selected for the policy
-    treasure_map = blockchain_bob._decrypt_treasure_map(blockchain_policy.treasure_map,
-                                                        blockchain_policy.publisher_verifying_key)
+    treasure_map = blockchain_bob._decrypt_treasure_map(blockchain_policy.treasure_map)
     assert ursula.checksum_address in treasure_map.destinations
 
     # Bob learns about the new staker and joins the policy
@@ -640,14 +639,13 @@ def test_collect_rewards_integration(click_runner,
 
         # Encrypt
         random_data = os.urandom(random.randrange(20, 100))
-        ciphertext, signature = enrico.encrypt_message(plaintext=random_data)
+        message_kit = enrico.encrypt_message(plaintext=random_data)
 
         # Decrypt
-        cleartexts = blockchain_bob.retrieve(ciphertext,
-                                             enrico=enrico,
-                                             alice_verifying_key=verifying_key,
-                                             label=random_policy_label,
-                                             encrypted_treasure_map=blockchain_policy.treasure_map)
+        cleartexts = blockchain_bob.retrieve_and_decrypt([message_kit],
+                                                         policy_encrypting_key=blockchain_policy.public_key,
+                                                         alice_verifying_key=verifying_key,
+                                                         encrypted_treasure_map=blockchain_policy.treasure_map)
         assert random_data == cleartexts[0]
 
         # Ursula Staying online and the clock advancing

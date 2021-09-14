@@ -302,10 +302,10 @@ Encrypt
    from nucypher.characters.lawful import Enrico
 
    enrico = Enrico(policy_encrypting_key=policy_encrypting_key)
-   ciphertext, signature = enrico.encrypt_message(plaintext=b'Peace at dawn.')
+   message_kit = enrico.encrypt_message(plaintext=b'Peace at dawn.')
 
 
-The ciphertext can then be sent to Bob via the application side channel.
+The message kit can then be sent to Bob via the application side channel.
 
 Note that Alice can get the public key even before creating the policy.
 From this moment on, any Data Source (Enrico) that knows the public key
@@ -317,7 +317,7 @@ any Bob that Alice grants access.
 Bob: Decrypt a Secret
 ---------------------
 
-For Bob to retrieve a secret, the ciphertext, label, policy encrypting key, and Alice's verifying key must all
+For Bob to retrieve a secret, the message kit, label, policy encrypting key, and Alice's verifying key must all
 be fetched from the application side channel.  Then, Bob constructs his perspective of the policy's network actors:
 
 Setup Bob
@@ -331,8 +331,8 @@ Bob's setup is similar to Alice's above.
 
    # Application Side-Channel
    # --------------------------
-   # label = <Side Channel>
-   # ciphertext = <Side Channel>
+   # encrypted_treasure_map = <Side Channel>
+   # message_kit = <Side Channel>
    # policy_encrypting_key = <Side Channel>
    # alice_verifying_key = <Side Channel>
 
@@ -353,36 +353,16 @@ Bob's setup is similar to Alice's above.
    )
 
 
-Join a Policy
-^^^^^^^^^^^^^
-
-Next, Bob needs to join the policy using the policy label and alice's public key.  Bob needs
-to retrieve both of these from the application side channel first.
-
-.. code-block:: python
-
-   # Make alice from known public key (from application side channel)
-   alice = Alice.from_public_keys(verifying_key=alice_verifying_key)
-
-   # Use alice's public key and the label to join the access policy
-   alice_public_key = alice.public_keys(SigningPower)
-   bob.join_policy(
-       label=label,
-       # We are using Alice both as a policy creator and as a publisher
-       publisher_verifying_key=alice_public_key,
-   )
-
-
 Retrieve and Decrypt
 ^^^^^^^^^^^^^^^^^^^^
 
-Then Bob can retrieve and decrypt the ciphertext:
+Then Bob can retrieve and decrypt the message kit:
 
 .. code-block:: python
 
-   cleartexts = bob.retrieve(
-       label=label,
-       message_kit=ciphertext,
-       data_source=enrico,
-       alice_verifying_key=alice_public_key
+   cleartexts = bob.retrieve_and_decrypt(
+       message_kits=[message_kit],
+       policy_encrypting_key=policy.public_key,
+       alice_verifying_key=alice_public_key,
+       encrypted_treasure_map=policy.treasure_map,
    )

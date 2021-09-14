@@ -30,7 +30,6 @@ from nucypher.cli.literature import SUCCESSFUL_DESTRUCTION, COLLECT_NUCYPHER_PAS
 from nucypher.cli.main import nucypher_cli
 from nucypher.config.characters import BobConfiguration
 from nucypher.config.constants import TEMPORARY_DOMAIN
-from nucypher.crypto.kits import UmbralMessageKit
 from nucypher.crypto.powers import SigningPower
 from nucypher.utilities.logging import GlobalLoggerSettings, Logger
 from nucypher.policy.identity import Card
@@ -39,6 +38,7 @@ from tests.constants import (
     INSECURE_DEVELOPMENT_PASSWORD,
     MOCK_CUSTOM_INSTALLATION_PATH
 )
+from nucypher.policy.kits import MessageKit
 
 log = Logger()
 
@@ -151,15 +151,14 @@ def test_bob_retrieves_twice_via_cli(click_runner,
 
     message_kit_bytes = bytes(three_message_kits[0])
     message_kit_b64_bytes = b64encode(message_kit_bytes)
-    UmbralMessageKit.from_bytes(message_kit_bytes)
+    MessageKit.from_bytes(message_kit_bytes)
 
-    retrieve_args = ('bob', 'retrieve',
+    retrieve_args = ('bob', 'retrieve-and-decrypt',
                      '--mock-networking',
                      '--json-ipc',
                      '--teacher', teacher.seed_node_metadata(as_teacher_uri=True),
                      '--config-file', str(bob_configuration_file_location.absolute()),
                      '--message-kit', message_kit_b64_bytes,
-                     '--label', label,
                      '--policy-encrypting-key', bytes(federated_alice.get_policy_encrypting_key_from_label(label)).hex(),
                      '--alice-verifying-key', bytes(federated_alice.public_keys(SigningPower)).hex()
                      )

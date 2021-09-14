@@ -65,5 +65,4 @@ class EncryptMessage(BaseSchema):
         return {"plaintext": data}
 
     # output
-    message_kit = fields.UmbralMessageKit(dump_only=True)
-    signature = fields.UmbralSignature(dump_only=True)
+    message_kit = fields.MessageKit(dump_only=True)

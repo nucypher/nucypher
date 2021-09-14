@@ -23,7 +23,6 @@ import maya
 from bytestring_splitter import BytestringSplitter, VariableLengthBytestring
 from eth_typing.evm import ChecksumAddress
 
-from nucypher.crypto.kits import RevocationKit
 from nucypher.crypto.powers import TransactingPower
 from nucypher.crypto.splitters import key_splitter
 from nucypher.crypto.umbral_adapter import PublicKey, VerifiedKeyFrag, Signature
@@ -36,6 +35,7 @@ from nucypher.policy.reservoir import (
     PrefetchStrategy,
     make_decentralized_staker_reservoir
 )
+from nucypher.policy.revocation import RevocationKit
 from nucypher.utilities.concurrency import WorkerPool
 from nucypher.utilities.logging import Logger
 
@@ -283,7 +283,6 @@ class Policy(ABC):
 
         treasure_map = TreasureMap.construct_by_publisher(hrac=self.hrac,
                                                           publisher=self.publisher,
-                                                          bob=self.bob,
                                                           ursulas=list(arrangements),
                                                           verified_kfrags=self.kfrags,
                                                           threshold=self.threshold)

@@ -21,9 +21,8 @@ import datetime
 import maya
 import pytest
 
-from nucypher.crypto.kits import PolicyMessageKit
 from nucypher.crypto.utils import keccak_digest
-from nucypher.datastore.models import EncryptedTreasureMap as DatastoreTreasureMap
+from nucypher.policy.kits import MessageKit
 from nucypher.policy.maps import EncryptedTreasureMap
 
 
@@ -41,8 +40,7 @@ def test_decentralized_grant(blockchain_alice, blockchain_bob, blockchain_ursula
                                     rate=int(1e18),  # one ether
                                     expiration=policy_end_datetime)
 
-    treasure_map = blockchain_bob._decrypt_treasure_map(policy.treasure_map,
-                                                        policy.publisher_verifying_key)
+    treasure_map = blockchain_bob._decrypt_treasure_map(policy.treasure_map)
 
     # The number of actually enacted arrangements is exactly equal to shares.
     assert len(treasure_map.destinations) == shares
@@ -54,4 +52,4 @@ def test_decentralized_grant(blockchain_alice, blockchain_bob, blockchain_ursula
 
             # TODO: try to decrypt?
             # TODO: Use a new type for EncryptedKFrags?
-            assert isinstance(kfrag_kit, PolicyMessageKit)
+            assert isinstance(kfrag_kit, MessageKit)

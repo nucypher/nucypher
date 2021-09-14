@@ -21,7 +21,7 @@ import pytest
 
 from nucypher.network.nodes import Learner
 # should always be first test due to checks on response id
-from tests.utils.policy import work_order_setup
+from tests.utils.policy import retrieval_request_setup
 
 
 def test_get_ursulas(federated_porter_rpc_controller, federated_ursulas):
@@ -79,6 +79,7 @@ def test_get_ursulas(federated_porter_rpc_controller, federated_ursulas):
         federated_porter_rpc_controller.send(request_data)
 
 
+@pytest.mark.skip("To be fixed in #2768")
 def test_exec_work_order(federated_porter_rpc_controller,
                          enacted_federated_policy,
                          federated_ursulas,

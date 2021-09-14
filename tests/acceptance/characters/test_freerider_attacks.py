@@ -51,15 +51,13 @@ def test_policy_simple_sinpa(blockchain_ursulas,
     # Enrico becomes
     enrico = Enrico(policy_encrypting_key=bupkiss_policy.public_key)
     plaintext = b"A crafty campaign"
-    message_kit, _signature = enrico.encrypt_message(plaintext)
+    message_kit = enrico.encrypt_message(plaintext)
 
     with pytest.raises(Ursula.NotEnoughUrsulas):  # Return a more descriptive request error?
-        blockchain_bob.retrieve(message_kit,
-                                enrico=enrico,
-                                alice_verifying_key=amonia.stamp,
-                                label=bupkiss_policy.label,
-                                retain_cfrags=True,
-                                encrypted_treasure_map=bupkiss_policy.treasure_map)
+        blockchain_bob.retrieve_and_decrypt([message_kit],
+                                            policy_encrypting_key=bupkiss_policy.public_key,
+                                            alice_verifying_key=amonia.stamp,
+                                            encrypted_treasure_map=bupkiss_policy.treasure_map)
 
     for ursula in blockchain_ursulas:
         # Reset the Ursula for the next test.
@@ -90,15 +88,13 @@ def test_try_to_post_free_arrangement_by_hacking_enact(blockchain_ursulas,
     # Enrico becomes
     enrico = Enrico(policy_encrypting_key=bupkiss_policy.public_key)
     plaintext = b"A crafty campaign"
-    message_kit, _signature = enrico.encrypt_message(plaintext)
+    message_kit = enrico.encrypt_message(plaintext)
 
     with pytest.raises(Ursula.NotEnoughUrsulas):  # Return a more descriptive request error?
-        blockchain_bob.retrieve(message_kit,
-                                enrico=enrico,
-                                alice_verifying_key=amonia.stamp,
-                                label=bupkiss_policy.label,
-                                retain_cfrags=True,
-                                encrypted_treasure_map=bupkiss_policy.treasure_map)
+        blockchain_bob.retrieve_and_decrypt([message_kit],
+                                            policy_encrypting_key=bupkiss_policy.public_key,
+                                            alice_verifying_key=amonia.stamp,
+                                            encrypted_treasure_map=bupkiss_policy.treasure_map)
 
 
 def test_pay_a_flunky_instead_of_the_arranged_ursula(blockchain_alice,
@@ -127,12 +123,10 @@ def test_pay_a_flunky_instead_of_the_arranged_ursula(blockchain_alice,
     # Enrico becomes
     enrico = Enrico(policy_encrypting_key=bupkiss_policy.public_key)
     plaintext = b"A crafty campaign"
-    message_kit, _signature = enrico.encrypt_message(plaintext)
+    message_kit = enrico.encrypt_message(plaintext)
 
-    with pytest.raises(RestMiddleware.PaymentRequired):
-        blockchain_bob.retrieve(message_kit,
-                                enrico=enrico,
-                                alice_verifying_key=amonia.stamp,
-                                label=bupkiss_policy.label,
-                                retain_cfrags=True,
-                                encrypted_treasure_map=bupkiss_policy.treasure_map)
+    with pytest.raises(Ursula.NotEnoughUrsulas):
+        blockchain_bob.retrieve_and_decrypt([message_kit],
+                                            policy_encrypting_key=bupkiss_policy.public_key,
+                                            alice_verifying_key=amonia.stamp,
+                                            encrypted_treasure_map=bupkiss_policy.treasure_map)

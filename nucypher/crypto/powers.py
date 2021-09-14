@@ -25,7 +25,7 @@ from hexbytes import HexBytes
 from nucypher.blockchain.eth.decorators import validate_checksum_address
 from nucypher.blockchain.eth.signers.base import Signer
 from nucypher.crypto import keypairs
-from nucypher.crypto.keypairs import DecryptingKeypair, SigningKeypair
+from nucypher.crypto.keypairs import DecryptingKeypair, SigningKeypair, HostingKeypair
 from nucypher.crypto.umbral_adapter import generate_kfrags, SecretKeyFactory, SecretKey, PublicKey
 
 
@@ -290,3 +290,29 @@ class DelegatingPower(DerivedKeyBasedPower):
         label_keypair = keypairs.DecryptingKeypair(private_key=label_privkey)
         decrypting_power = DecryptingPower(keypair=label_keypair)
         return decrypting_power
+
+
+class TLSHostingPower(KeyPairBasedPower):
+    _keypair_class = HostingKeypair
+    provides = ("get_deployer",)
+
+    class NoHostingPower(PowerUpError):
+        pass
+
+    not_found_error = NoHostingPower
+
+    def __init__(self,
+                 host: str,
+                 public_certificate=None,
+                 public_certificate_filepath=None,
+                 *args, **kwargs) -> None:
+
+        if public_certificate and public_certificate_filepath:
+            # TODO: Design decision here: if they do pass both, and they're identical, do we let that slide?  NRN
+            raise ValueError("Pass either a public_certificate or a public_certificate_filepath, not both.")
+
+        if public_certificate:
+            kwargs['keypair'] = HostingKeypair(certificate=public_certificate, host=host)
+        elif public_certificate_filepath:
+            kwargs['keypair'] = HostingKeypair(certificate_filepath=public_certificate_filepath, host=host)
+        super().__init__(*args, **kwargs)

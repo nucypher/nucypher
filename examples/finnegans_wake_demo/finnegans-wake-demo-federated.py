@@ -140,7 +140,7 @@ for counter, plaintext in enumerate(finnegans_wake):
     # single passage from James Joyce's Finnegan's Wake.
     # The matter of whether encryption makes the passage more or less readable
     # is left to the reader to determine.
-    single_passage_ciphertext, _signature = enrico.encrypt_message(plaintext)
+    single_passage_message_kit = enrico.encrypt_message(plaintext)
     data_source_public_key = enrico.stamp.as_umbral_pubkey()
     del enrico
 
@@ -149,11 +149,10 @@ for counter, plaintext in enumerate(finnegans_wake):
     ###############
 
     # Now Bob can retrieve the original message.
-    delivered_cleartexts = bob.retrieve(single_passage_ciphertext,
-                                        policy_encrypting_key=policy_public_key,
-                                        alice_verifying_key=alice_verifying_key,
-                                        label=label,
-                                        encrypted_treasure_map=policy.treasure_map)
+    delivered_cleartexts = bob.retrieve_and_decrypt([single_passage_message_kit],
+                                                    policy_encrypting_key=policy_public_key,
+                                                    alice_verifying_key=alice_verifying_key,
+                                                    encrypted_treasure_map=policy.treasure_map)
 
     # We show that indeed this is the passage originally encrypted by Enrico.
     assert plaintext == delivered_cleartexts[0]

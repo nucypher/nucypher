@@ -218,11 +218,11 @@ class RestMiddleware:
         )
         return response
 
-    def send_work_order_payload_to_ursula(self, ursula: 'Ursula', work_order_payload: bytes):
+    def reencrypt(self, ursula: 'Ursula', reencryption_request_bytes: bytes):
         response = self.client.post(
             node_or_sprout=ursula,
             path=f"reencrypt",
-            data=work_order_payload,
+            data=reencryption_request_bytes,
             timeout=2
         )
         return response

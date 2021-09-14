@@ -43,7 +43,6 @@ from nucypher.blockchain.eth.signers.base import Signer
 from nucypher.characters.control.controllers import CharacterCLIController
 from nucypher.control.controllers import JSONRPCController
 from nucypher.crypto.keystore import Keystore
-from nucypher.crypto.kits import UmbralMessageKit
 from nucypher.crypto.powers import (
     CryptoPower,
     CryptoPowerUp,
@@ -58,9 +57,9 @@ from nucypher.crypto.signing import (
 )
 from nucypher.crypto.splitters import signature_splitter
 from nucypher.crypto.umbral_adapter import PublicKey, Signature
-from nucypher.crypto.utils import encrypt_and_sign
 from nucypher.network.middleware import RestMiddleware
 from nucypher.network.nodes import Learner
+from nucypher.policy.kits import MessageKit, PolicyMessageKit
 
 
 class Character(Learner):
@@ -360,7 +359,7 @@ class Character(Learner):
                     plaintext: bytes,
                     sign: bool = True,
                     sign_plaintext=True,
-                    ) -> tuple:
+                    ) -> MessageKit:
         """
         Encrypts plaintext for recipient actor. Optionally signs the message as well.
 
@@ -376,15 +375,15 @@ class Character(Learner):
         """
         signer = self.stamp if sign else DO_NOT_SIGN
 
-        message_kit, signature = encrypt_and_sign(recipient_pubkey_enc=recipient.public_keys(DecryptingPower),
-                                                  plaintext=plaintext,
-                                                  signer=signer,
-                                                  sign_plaintext=sign_plaintext)
-        return message_kit, signature
+        message_kit = MessageKit.author(recipient_key=recipient.public_keys(DecryptingPower),
+                                        plaintext=plaintext,
+                                        signer=signer,
+                                        sign_plaintext=sign_plaintext)
+        return message_kit
 
     def verify_from(self,
                     stranger: 'Character',
-                    message_kit: Union[UmbralMessageKit, bytes],
+                    message_kit: Union[MessageKit, PolicyMessageKit, bytes],
                     signature: Signature = None,
                     decrypt=False,
                     label=None,
@@ -470,7 +469,7 @@ class Character(Learner):
         return cleartext
 
     def decrypt(self,
-                message_kit: UmbralMessageKit,
+                message_kit: Union[MessageKit, PolicyMessageKit],
                 label: Optional[bytes] = None) -> bytes:
         if label and DelegatingPower in self._default_crypto_powerups:
             delegating_power = self._crypto_power.power_ups(DelegatingPower)

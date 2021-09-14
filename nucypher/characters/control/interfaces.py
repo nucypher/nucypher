@@ -23,11 +23,11 @@ import maya
 from nucypher.characters.base import Character
 from nucypher.characters.control.specifications import alice, bob, enrico
 from nucypher.control.interfaces import attach_schema, ControlInterface
-from nucypher.crypto.kits import UmbralMessageKit
 from nucypher.crypto.powers import DecryptingPower, SigningPower
 from nucypher.crypto.umbral_adapter import PublicKey
 from nucypher.network.middleware import RestMiddleware
 from nucypher.policy.hrac import HRAC
+from nucypher.policy.kits import MessageKit
 from nucypher.policy.maps import EncryptedTreasureMap
 
 
@@ -132,7 +132,7 @@ class AliceInterface(CharacterPublicInterface):
         policy_encrypting_key = self.implementer.get_policy_encrypting_key_from_label(label)
 
         # TODO #846: May raise UnknownOpenSSLError and InvalidTag.
-        message_kit = UmbralMessageKit.from_bytes(message_kit)
+        message_kit = MessageKit.from_bytes(message_kit)
 
         enrico = Enrico.from_public_keys(
             verifying_key=message_kit.sender_verifying_key,
@@ -161,13 +161,12 @@ class AliceInterface(CharacterPublicInterface):
 
 class BobInterface(CharacterPublicInterface):
 
-    @attach_schema(bob.Retrieve)
-    def retrieve(self,
-                 label: bytes,
-                 policy_encrypting_key: bytes,
-                 alice_verifying_key: bytes,
-                 message_kit: bytes,
-                 treasure_map: Union[bytes, str, 'TreasureMap']):
+    @attach_schema(bob.RetrieveAndDecrypt)
+    def retrieve_and_decrypt(self,
+                             policy_encrypting_key: bytes,
+                             alice_verifying_key: bytes,
+                             message_kit: bytes,
+                             encrypted_treasure_map: Union[bytes, str, 'EncryptedTreasureMap']):
         """
         Character control endpoint for re-encrypting and decrypting policy data.
         """
@@ -175,24 +174,19 @@ class BobInterface(CharacterPublicInterface):
 
         policy_encrypting_key = PublicKey.from_bytes(policy_encrypting_key)
         alice_verifying_key = PublicKey.from_bytes(alice_verifying_key)
-        message_kit = UmbralMessageKit.from_bytes(message_kit)  # TODO #846: May raise UnknownOpenSSLError and InvalidTag.
+        message_kit = MessageKit.from_bytes(message_kit)  # TODO #846: May raise UnknownOpenSSLError and InvalidTag.
 
-        enrico = Enrico.from_public_keys(verifying_key=message_kit.sender_verifying_key,
-                                         policy_encrypting_key=policy_encrypting_key,
-                                         label=label)
+        if isinstance(encrypted_treasure_map, bytes):
+            encrypted_treasure_map = EncryptedTreasureMap.from_bytes(encrypted_treasure_map)
 
-        if isinstance(treasure_map, bytes):
-            treasure_map = EncryptedTreasureMap.from_bytes(treasure_map)
+        if isinstance(encrypted_treasure_map, str):
+            tmap_bytes = encrypted_treasure_map.encode()
+            encrypted_treasure_map = EncryptedTreasureMap.from_bytes(b64decode(tmap_bytes))
 
-        if isinstance(treasure_map, str):
-            tmap_bytes = treasure_map.encode()
-            treasure_map = EncryptedTreasureMap.from_bytes(b64decode(tmap_bytes))
-
-        plaintexts = self.implementer.retrieve(message_kit,
-                                               enrico=enrico,
-                                               alice_verifying_key=alice_verifying_key,
-                                               label=label,
-                                               encrypted_treasure_map=treasure_map)
+        plaintexts = self.implementer.retrieve_and_decrypt([message_kit],
+                                                           policy_encrypting_key=policy_encrypting_key,
+                                                           alice_verifying_key=alice_verifying_key,
+                                                           encrypted_treasure_map=encrypted_treasure_map)
 
         response_data = {'cleartexts': plaintexts}
         return response_data
@@ -216,6 +210,6 @@ class EnricoInterface(CharacterPublicInterface):
         Character control endpoint for encrypting data for a policy and
         receiving the messagekit (and signature) to give to Bob.
         """
-        message_kit, signature = self.implementer.encrypt_message(plaintext=plaintext)
-        response_data = {'message_kit': message_kit, 'signature': signature}
+        message_kit = self.implementer.encrypt_message(plaintext=plaintext)
+        response_data = {'message_kit': message_kit}
         return response_data

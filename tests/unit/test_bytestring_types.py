@@ -16,7 +16,7 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
 from nucypher.characters.lawful import Enrico
-from nucypher.crypto.kits import UmbralMessageKit
+from nucypher.policy.kits import MessageKit
 
 
 def test_message_kit_serialization_via_enrico(federated_alice):
@@ -31,13 +31,13 @@ def test_message_kit_serialization_via_enrico(federated_alice):
     plaintext_bytes = bytes(message, encoding='utf-8')
 
     # Create
-    message_kit, signature = enrico.encrypt_message(plaintext=plaintext_bytes)
+    message_kit = enrico.encrypt_message(plaintext=plaintext_bytes)
 
     # Serialize
-    message_kit_bytes = message_kit.to_bytes()
+    message_kit_bytes = bytes(message_kit)
 
     # Deserialize
-    the_same_message_kit = UmbralMessageKit.from_bytes(message_kit_bytes)
+    the_same_message_kit = MessageKit.from_bytes(message_kit_bytes)
 
     # Confirm
-    assert message_kit_bytes == the_same_message_kit.to_bytes()
+    assert message_kit_bytes == bytes(the_same_message_kit)

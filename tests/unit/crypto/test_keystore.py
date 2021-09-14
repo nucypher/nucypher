@@ -40,13 +40,12 @@ from nucypher.crypto.keystore import (
     _write_keystore,
     _read_keystore
 )
-from nucypher.crypto.powers import DecryptingPower, SigningPower, DelegatingPower
+from nucypher.crypto.powers import DecryptingPower, SigningPower, DelegatingPower, TLSHostingPower
 from nucypher.crypto.umbral_adapter import SecretKey
 from nucypher.crypto.umbral_adapter import (
     secret_key_factory_from_seed,
     secret_key_factory_from_secret_key_factory
 )
-from nucypher.network.server import TLSHostingPower
 from nucypher.utilities.networking import LOOPBACK_ADDRESS
 from tests.constants import INSECURE_DEVELOPMENT_PASSWORD
 

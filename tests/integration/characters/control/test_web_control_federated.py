@@ -25,8 +25,8 @@ import pytest
 from click.testing import CliRunner
 
 import nucypher
-from nucypher.crypto.kits import UmbralMessageKit
 from nucypher.crypto.powers import DecryptingPower
+from nucypher.policy.kits import MessageKit
 from nucypher.policy.maps import EncryptedTreasureMap
 
 click_runner = CliRunner()
@@ -144,7 +144,7 @@ def test_alice_character_control_decrypt(alice_web_controller_test_client,
 
     label = enacted_federated_policy.label.decode()
     policy_encrypting_key = bytes(enacted_federated_policy.public_key).hex()
-    message_kit = b64encode(message_kit.to_bytes()).decode()
+    message_kit = b64encode(bytes(message_kit)).decode()
 
     request_data = {
         'label': label,
@@ -213,10 +213,9 @@ def test_enrico_web_character_control_encrypt_message(enrico_web_controller_test
 
     response_data = json.loads(response.data)
     assert 'message_kit' in response_data['result']
-    assert 'signature' in response_data['result']
 
     # Check that it serializes correctly.
-    UmbralMessageKit.from_bytes(b64decode(response_data['result']['message_kit']))
+    MessageKit.from_bytes(b64decode(response_data['result']['message_kit']))
 
     # Send bad data to assert error return
     response = enrico_web_controller_test_client.post('/encrypt_message', data=json.dumps({'bad': 'input'}))
@@ -289,27 +288,25 @@ def test_web_character_control_lifecycle(alice_web_controller_test_client,
 
     enrico_response_data = json.loads(response.data)
     assert 'message_kit' in enrico_response_data['result']
-    assert 'signature' in enrico_response_data['result']
 
     kit_bytes = b64decode(enrico_response_data['result']['message_kit'].encode())
-    bob_message_kit = UmbralMessageKit.from_bytes(kit_bytes)
+    bob_message_kit = MessageKit.from_bytes(kit_bytes)
 
     # Retrieve data via Bob control
-    encoded_message_kit = b64encode(bob_message_kit.to_bytes()).decode()
+    encoded_message_kit = b64encode(bytes(bob_message_kit)).decode()
 
     bob_request_data = {
-        'label': random_label,
         'policy_encrypting_key': policy_pubkey_enc_hex,
         'alice_verifying_key': alice_verifying_key_hex,
         'message_kit': encoded_message_kit,
-        'treasure_map':  alice_response_data['result']['treasure_map']
+        'encrypted_treasure_map': alice_response_data['result']['treasure_map']
     }
 
     # Give bob a node to remember
     teacher = list(federated_ursulas)[1]
     federated_bob.remember_node(teacher)
 
-    response = bob_web_controller_test_client.post('/retrieve', data=json.dumps(bob_request_data))
+    response = bob_web_controller_test_client.post('/retrieve_and_decrypt', data=json.dumps(bob_request_data))
     assert response.status_code == 200
 
     bob_response_data = json.loads(response.data)
