@@ -12,22 +12,22 @@ interface IApplication {
     // TODO: Events
 
     /**
-     * @dev Receive call with allocation changes from staking contract
+     * @dev Receive call with authorization changes from staking contract
      */
-    function receiveAllocation(
+    function receiveAuthorization(
         address staker,
-        uint256 allocated,
-        uint256 deallocated,
+        uint256 authorized,
+        uint256 deauthorizing,
         uint256 allocationPerApp
     ) external;
 
     /**
-     * @dev Get deallocation duration from application
+     * @dev Get deauthorization duration from application
      */
-    function deallocationDuration() external returns (uint256);
+    function deauthorizationDuration() external returns (uint256);
 
     /**
-     * @dev Get min allocation size from application
+     * @dev Get min authorization size from application
      */
-    function minAllocationSize() external returns (uint256);
+    function minAuthorizationSize() external returns (uint256);
 }

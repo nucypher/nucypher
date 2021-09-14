@@ -25,8 +25,7 @@ contract Adjudicator is Upgradeable {
     );
     event IncorrectCFragVerdict(
         bytes32 indexed evaluationHash,
-        address indexed worker,
-        address indexed staker
+        address indexed worker
     );
 
     // used only for upgrading
@@ -156,18 +155,16 @@ contract Adjudicator is Upgradeable {
         address worker = SignatureVerifier.recover(
             SignatureVerifier.hashEIP191(stamp, bytes1(0x45)), // Currently, we use version E (0x45) of EIP191 signatures
             _workerIdentityEvidence);
-        address staker = preStakingApp.stakerFromWorker(worker);
-        require(staker != address(0), "Worker must be related to a staker");
 
-        // 5. Check that staker can be slashed
-        uint256 stakerValue = preStakingApp.getAllTokens(staker);
+        // 5. Check that worker can be slashed
+        uint256 stakerValue = preStakingApp.getAllTokens(worker);
         require(stakerValue > 0, "Staker has no tokens");
 
         // 6. If CFrag was incorrect, slash staker
         if (!cFragIsCorrect) {
-            (uint256 penalty, uint256 reward) = calculatePenaltyAndReward(staker, stakerValue);
-            preStakingApp.slashStaker(staker, penalty, msg.sender, reward);
-            emit IncorrectCFragVerdict(evaluationHash, worker, staker);
+            (uint256 penalty, uint256 reward) = calculatePenaltyAndReward(worker, stakerValue);
+            preStakingApp.slash(worker, penalty, msg.sender, reward);
+            emit IncorrectCFragVerdict(evaluationHash, worker);
         }
     }
 
