@@ -131,7 +131,12 @@ class TreasureMap:
         return cls(threshold, hrac, destinations)
 
     def __eq__(self, other):
-        return bytes(self) == bytes(other)
+        if not isinstance(other, TreasureMap):
+            return False
+
+        return (self.threshold == other.threshold and
+                self.hrac == other.hrac and
+                self.destinations == other.destinations)
 
     def __iter__(self):
         return iter(self.destinations.items())
