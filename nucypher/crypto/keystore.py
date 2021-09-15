@@ -285,7 +285,7 @@ class Keystore:
 
         # Derive verifying key (for use as ID)
         verifying_key = secret_key_factory_from_seed(secret).secret_key_by_label(_SIGNING_INFO)
-        keystore_id = bytes(verifying_key).hex()[:Keystore._ID_SIZE]
+        keystore_id = bytes(verifying_key.public_key()).hex()[:Keystore._ID_SIZE]
 
         # Generate paths
         keystore_dir = keystore_dir or Keystore._DEFAULT_DIR
