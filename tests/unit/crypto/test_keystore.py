@@ -41,11 +41,7 @@ from nucypher.crypto.keystore import (
     _read_keystore
 )
 from nucypher.crypto.powers import DecryptingPower, SigningPower, DelegatingPower, TLSHostingPower
-from nucypher.crypto.umbral_adapter import SecretKey
-from nucypher.crypto.umbral_adapter import (
-    secret_key_factory_from_seed,
-    secret_key_factory_from_secret_key_factory
-)
+from nucypher.crypto.umbral_adapter import SecretKey, SecretKeyFactory
 from nucypher.utilities.networking import LOOPBACK_ADDRESS
 from tests.constants import INSECURE_DEVELOPMENT_PASSWORD
 
@@ -295,9 +291,9 @@ def test_derive_delegating_power(tmpdir):
     keystore = Keystore.generate(INSECURE_DEVELOPMENT_PASSWORD, keystore_dir=tmpdir)
     keystore.unlock(password=INSECURE_DEVELOPMENT_PASSWORD)
     delegating_power = keystore.derive_crypto_power(power_class=DelegatingPower)
-    parent_skf = secret_key_factory_from_seed(keystore._Keystore__secret)
-    child_skf = secret_key_factory_from_secret_key_factory(skf=parent_skf, label=_DELEGATING_INFO)
-    assert bytes(delegating_power._DelegatingPower__secret_key_factory) == bytes(child_skf)
+    parent_skf = SecretKeyFactory.from_secure_randomness(keystore._Keystore__secret)
+    child_skf = parent_skf.make_factory(_DELEGATING_INFO)
+    assert delegating_power._DelegatingPower__secret_key_factory.to_secret_bytes() == child_skf.to_secret_bytes()
     assert delegating_power._get_privkey_from_label(label=b'some-label')
 
 

@@ -203,7 +203,7 @@ def test_verify_eip191(testerchain, signature_verifier):
     # Produce EIP191 signature (version E)
     signable_message = encode_defunct(primitive=message)
     signature = Account.sign_message(signable_message=signable_message,
-                                     private_key=bytes(umbral_privkey))
+                                     private_key=umbral_privkey.to_secret_bytes())
     signature = bytes(signature.signature)
 
     # Off-chain verify, just in case
@@ -244,7 +244,7 @@ def test_verify_eip191(testerchain, signature_verifier):
                                        header=HexBytes(validator),
                                        body=HexBytes(message))
     signature = Account.sign_message(signable_message=signable_message,
-                                     private_key=bytes(umbral_privkey))
+                                     private_key=umbral_privkey.to_secret_bytes())
     signature = bytes(signature.signature)
 
     # Off-chain verify, just in case

@@ -29,8 +29,8 @@ def generate_doctor_keys():
     sig_privkey = SecretKey.random()
 
     doctor_privkeys = {
-        'enc': bytes(enc_privkey).hex(),
-        'sig': bytes(sig_privkey).hex(),
+        'enc': enc_privkey.to_secret_bytes().hex(),
+        'sig': sig_privkey.to_secret_bytes().hex(),
     }
 
     with open(DOCTOR_PRIVATE_JSON, 'w') as f:
