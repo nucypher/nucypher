@@ -140,7 +140,7 @@ def test_ursula_and_local_keystore_signer_integration(click_runner,
     assert ursula_config.signer_uri == mock_signer_uri
 
     # Mock decryption of web3 client keystore
-    mocker.patch.object(Account, 'decrypt', return_value=worker_account.privateKey)
+    mocker.patch.object(Account, 'decrypt', return_value=worker_account.key)
     ursula_config.keystore.unlock(password=password)
 
     # Produce an Ursula with a Keystore signer correctly derived from the signer URI, and don't do anything else!
