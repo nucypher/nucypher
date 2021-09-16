@@ -252,7 +252,7 @@ class DelegatingPower(DerivedKeyBasedPower):
         self.__secret_key_factory = secret_key_factory
 
     def _get_privkey_from_label(self, label):
-        return self.__secret_key_factory.secret_key_by_label(label)
+        return self.__secret_key_factory.make_key(label)
 
     def get_pubkey_from_label(self, label):
         return self._get_privkey_from_label(label).public_key()
@@ -278,7 +278,7 @@ class DelegatingPower(DerivedKeyBasedPower):
         kfrags = generate_kfrags(delegating_sk=__private_key,
                                  receiving_pk=bob_pubkey_enc,
                                  threshold=threshold,
-                                 num_kfrags=shares,
+                                 shares=shares,
                                  signer=signer,
                                  sign_delegating_key=False,
                                  sign_receiving_key=False,

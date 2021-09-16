@@ -50,11 +50,7 @@ from nucypher.crypto.powers import (
     TLSHostingPower,
 )
 from nucypher.crypto.tls import generate_self_signed_certificate
-from nucypher.crypto.umbral_adapter import (
-    SecretKey,
-    secret_key_factory_from_seed,
-    secret_key_factory_from_secret_key_factory
-)
+from nucypher.crypto.umbral_adapter import SecretKey, SecretKeyFactory
 
 # HKDF
 __INFO_BASE = b'NuCypher/'
@@ -284,8 +280,8 @@ class Keystore:
             raise InvalidPassword(''.join(failures))
 
         # Derive verifying key (for use as ID)
-        verifying_key = secret_key_factory_from_seed(secret).secret_key_by_label(_SIGNING_INFO)
-        keystore_id = bytes(verifying_key.public_key()).hex()[:Keystore._ID_SIZE]
+        signing_key = SecretKeyFactory.from_secure_randomness(secret).make_key(_SIGNING_INFO)
+        keystore_id = bytes(signing_key.public_key()).hex()[:Keystore._ID_SIZE]
 
         # Generate paths
         keystore_dir = keystore_dir or Keystore._DEFAULT_DIR
@@ -406,7 +402,7 @@ class Keystore:
             failure_message = f"{power_class.__name__} is an invalid type for deriving a CryptoPower"
             raise TypeError(failure_message)
         else:
-            __private_key = secret_key_factory_from_seed(self.__secret).secret_key_by_label(info)
+            __private_key = SecretKeyFactory.from_secure_randomness(self.__secret).make_key(info)
 
         if power_class is TLSHostingPower:  # TODO: something more elegant?
             power = _derive_hosting_power(private_key=__private_key, *power_args, **power_kwargs)
@@ -416,8 +412,8 @@ class Keystore:
             power = power_class(keypair=keypair, *power_args, **power_kwargs)
 
         elif issubclass(power_class, DerivedKeyBasedPower):
-            parent_skf = secret_key_factory_from_seed(self.__secret)
-            child_skf = secret_key_factory_from_secret_key_factory(parent_skf, label=_DELEGATING_INFO)
+            parent_skf = SecretKeyFactory.from_secure_randomness(self.__secret)
+            child_skf = parent_skf.make_factory(_DELEGATING_INFO)
             power = power_class(secret_key_factory=child_skf, *power_args, **power_kwargs)
 
         else:

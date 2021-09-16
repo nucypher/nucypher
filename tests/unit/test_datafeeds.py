@@ -16,7 +16,7 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
 
-from collections import Callable
+from collections.abc import Callable
 from statistics import median
 from unittest.mock import patch
 

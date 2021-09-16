@@ -67,7 +67,7 @@ def generate_self_signed_certificate(host: str,
                                      ) -> Tuple[Certificate, _EllipticCurvePrivateKey]:
 
     if private_key:
-        private_bn = int.from_bytes(bytes(private_key), 'big')
+        private_bn = int.from_bytes(private_key.to_secret_bytes(), 'big')
         private_key = ec.derive_private_key(private_value=private_bn, curve=curve())
     else:
         private_key = ec.generate_private_key(curve(), default_backend())

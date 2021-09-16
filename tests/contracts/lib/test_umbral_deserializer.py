@@ -40,7 +40,7 @@ def fragments():
                              signer=signer,
                              receiving_pk=pub_key_bob,
                              threshold=2,
-                             num_kfrags=4,
+                             shares=4,
                              sign_delegating_key=False,
                              sign_receiving_key=False)
 

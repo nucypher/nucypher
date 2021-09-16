@@ -37,18 +37,3 @@ from umbral import (
     reencrypt,
     decrypt_reencrypted,
 )
-
-
-def secret_key_factory_from_seed(entropy: bytes) -> SecretKeyFactory:
-    """TODO: Issue #57 in nucypher/rust-umbral"""
-    if len(entropy) < 32:
-        raise ValueError('Entropy must be at least 32 bytes.')
-    material = entropy.zfill(SecretKeyFactory.serialized_size())
-    instance = SecretKeyFactory.from_bytes(material)
-    return instance
-
-
-def secret_key_factory_from_secret_key_factory(skf: SecretKeyFactory, label: bytes) -> SecretKeyFactory:
-    """TODO: Issue #59 in nucypher/rust-umbral"""
-    secret_key = bytes(skf.secret_key_by_label(label)).zfill(SecretKeyFactory.serialized_size())
-    return SecretKeyFactory.from_bytes(secret_key)

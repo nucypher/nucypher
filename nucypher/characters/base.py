@@ -451,7 +451,7 @@ class Character(Learner):
 
         signature_to_use = signature or signature_from_kit
         if signature_to_use:
-            is_valid = signature_to_use.verify(message=message, verifying_key=sender_verifying_key)
+            is_valid = signature_to_use.verify(message=message, verifying_pk=sender_verifying_key)
             if not is_valid:
                 try:
                     node_on_the_other_end = self.known_node_class.from_seednode_metadata(stranger.seed_node_metadata(),
