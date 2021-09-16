@@ -491,12 +491,20 @@ Parameters
 |                                           |               | | encoded as hex.                      |
 +-------------------------------------------+---------------+----------------------------------------+
 
+    * A *retrieval kit* is an encapsulation of the information necessary obtain cfrags from Ursulas.
+      It contains the capsule and the checksum addresses of the Ursulas from which the requester has
+      already received cfrags i.e. Ursulas in the treasure map to skip. The format of the *retrieval kit* parameter
+      is ``base64(<capsule bytes>)``, if no cfrags were previously obtained, or
+      ``base64(<capsule bytes><bytes of ursula_1 checksum address><bytes of ursula_2 checksum address>...)``
+      if some cfrags were already obtained (for example, retrying after a not receiving a threshold of cfrags because
+      some Ursulas may have experienced a blip in connectivity).
 
 Returns
 +++++++
 The result of the re-encryption operations performed:
 
-    * ``retrieval_results`` - The list of retrieval results of the re-encryption operations containing cfrags produced by different ursulas.
+    * ``retrieval_results`` - The list of results from the re-encryption operations performed; contains a mapping of
+      Ursula checksum address/cfrag pairs. The cfrags are base64 encoded.
 
 Example Request
 +++++++++++++++
