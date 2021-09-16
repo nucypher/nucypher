@@ -16,5 +16,5 @@ interface ITokenStaking {
         address staker,
         StakingProvider stakingProvider
     ) external view returns (uint256);
-    function getBeneficiary(address) external view returns (address);
+    function getBeneficiary(address) external view returns (address payable);
 }

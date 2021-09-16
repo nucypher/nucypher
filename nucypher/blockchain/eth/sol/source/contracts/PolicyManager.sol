@@ -3,92 +3,71 @@
 pragma solidity ^0.8.0;
 
 
-import "zeppelin/token/ERC20/SafeERC20.sol";
 import "zeppelin/math/Math.sol";
 import "zeppelin/utils/Address.sol";
 import "contracts/lib/SignatureVerifier.sol";
-import "contracts/PREStakingApp.sol";
-import "contracts/NuCypherToken.sol";
-import "contracts/proxy/Upgradeable.sol";
+import "zeppelin/ownership/Ownable.sol";
 
 
 /**
 * @title PolicyManager
 * @notice Contract holds policy data and locks accrued policy fees
-* @dev |v6.3.1|
+* @dev |v7.1.1|
 */
-contract PolicyManager is Upgradeable {
-    using SafeERC20 for NuCypherToken;
+abstract contract PolicyManager is Ownable {
     using Address for address payable;
 
     event PolicyCreated(
         bytes16 indexed policyId,
         address indexed sponsor,
         address indexed owner,
-        uint256 feeRate,
+        uint256 feePerSecond,
         uint64 startTimestamp,
         uint64 endTimestamp,
-        uint256 numberOfNodes
+        uint256 numberOfWorkers
     );
     event ArrangementRevoked(
         bytes16 indexed policyId,
         address indexed sender,
-        address indexed node,
+        address indexed worker,
         uint256 value
     );
     event RefundForArrangement(
         bytes16 indexed policyId,
         address indexed sender,
-        address indexed node,
+        address indexed worker,
         uint256 value
     );
     event PolicyRevoked(bytes16 indexed policyId, address indexed sender, uint256 value);
     event RefundForPolicy(bytes16 indexed policyId, address indexed sender, uint256 value);
-    event MinFeeRateSet(address indexed node, uint256 value);
+    event MinFeeRateSet(address indexed worker, uint256 value);
     // TODO #1501
     // Range range
     event FeeRateRangeSet(address indexed sender, uint256 min, uint256 defaultValue, uint256 max);
-    event Withdrawn(address indexed node, address indexed recipient, uint256 value);
+    event Withdrawn(address indexed sender, address indexed worker, address indexed beneficiary, uint256 value);
 
     struct ArrangementInfo {
-        address node;
-        uint256 indexOfDowntimePeriods;
-        uint16 lastRefundedPeriod;
+        bool arranged;
+        uint256 paidFee;
+        uint64 endTimestamp;
     }
 
     struct Policy {
-        bool disabled;
         address payable sponsor;
         address owner;
 
-        uint128 feeRate;
+        uint128 feePerSecond;
         uint64 startTimestamp;
         uint64 endTimestamp;
+        uint256 workersLength;
 
-        uint256 reservedSlot1;
-        uint256 reservedSlot2;
-        uint256 reservedSlot3;
-        uint256 reservedSlot4;
-        uint256 reservedSlot5;
+//        uint256 reservedSlot1;
+//        uint256 reservedSlot2;
+//        uint256 reservedSlot3;
+//        uint256 reservedSlot4;
+//        uint256 reservedSlot5;
 
-        ArrangementInfo[] arrangements;
-    }
-
-    struct NodeInfo {
-        uint128 fee;
-        uint16 previousFeePeriod;
-        uint256 feeRate;
-        uint256 minFeeRate;
-        mapping (uint16 => int256) stub; // former slot for feeDelta
-        mapping (uint16 => int256) feeDelta;
-    }
-
-    // TODO used only for `delegateGetNodeInfo`, probably will be removed after #1512
-    struct MemoryNodeInfo {
-        uint128 fee;
-        uint16 previousFeePeriod;
-        uint256 feeRate;
-        uint256 minFeeRate;
+        mapping(address => ArrangementInfo) arrangements;
     }
 
     struct Range {
@@ -97,27 +76,13 @@ contract PolicyManager is Upgradeable {
         uint128 max;
     }
 
-    bytes16 internal constant RESERVED_POLICY_ID = bytes16(0);
-    address internal constant RESERVED_NODE = address(0);
     uint256 internal constant MAX_BALANCE = uint256(uint128(0) - 1);
-    // controlled overflow to get max int256
-    int256 public constant DEFAULT_FEE_DELTA = int256((uint256(0) - 1) >> 1);
-
-    PREStakingApp public immutable stakingApp;
 
     mapping (bytes16 => Policy) public policies;
-    mapping (address => NodeInfo) public nodes;
+    mapping (address => uint256) public workerFeeRate;
     Range public feeRateRange;
-    uint64 public resetTimestamp;
 
-    /**
-    * @notice Constructor sets address of the PREStakingApp contract
-    * @param _stakingApp Address of staking application
-    */
-    constructor(PREStakingApp _stakingApp) {
-        stakingApp = _stakingApp;
-        require(address(_stakingApp.token()) != address(0));
-    }
+    // TODO add slots
 
     /**
     * @notice Set minimum, default & maximum fee rate for all stakers and all policies ('global fee range')
@@ -131,42 +96,34 @@ contract PolicyManager is Upgradeable {
     }
 
     /**
-    * @notice Set the minimum acceptable fee rate (set by staker for their associated worker)
+    * @notice Set the minimum acceptable fee rate
     * @dev Input value must fall within `feeRateRange` (global fee range)
     */
     function setMinFeeRate(uint256 _minFeeRate) external {
         require(_minFeeRate >= feeRateRange.min &&
             _minFeeRate <= feeRateRange.max,
             "The staker's min fee rate must fall within the global fee range");
-        NodeInfo storage nodeInfo = nodes[msg.sender];
-        if (nodeInfo.minFeeRate == _minFeeRate) {
+        if (workerFeeRate[msg.sender] == _minFeeRate) {
             return;
         }
-        nodeInfo.minFeeRate = _minFeeRate;
+        workerFeeRate[msg.sender] = _minFeeRate; // TODO who can set this value?
         emit MinFeeRateSet(msg.sender, _minFeeRate);
     }
 
     /**
-    * @notice Get the minimum acceptable fee rate (set by staker for their associated worker)
+    * @notice Get the minimum acceptable fee rate
     */
-    function getMinFeeRate(NodeInfo storage _nodeInfo) internal view returns (uint256) {
+    function getMinFeeRate(address _worker) public view returns (uint256) {
+        uint256 minFeeRate = workerFeeRate[_worker];
         // if minFeeRate has not been set or chosen value falls outside the global fee range
         // a default value is returned instead
-        if (_nodeInfo.minFeeRate == 0 ||
-            _nodeInfo.minFeeRate < feeRateRange.min ||
-            _nodeInfo.minFeeRate > feeRateRange.max) {
+        if (minFeeRate == 0 ||
+            minFeeRate < feeRateRange.min ||
+            minFeeRate > feeRateRange.max) {
             return feeRateRange.defaultValue;
         } else {
-            return _nodeInfo.minFeeRate;
+            return minFeeRate;
         }
-    }
-
-    /**
-    * @notice Get the minimum acceptable fee rate (set by staker for their associated worker)
-    */
-    function getMinFeeRate(address _node) public view returns (uint256) {
-        NodeInfo storage nodeInfo = nodes[_node];
-        return getMinFeeRate(nodeInfo);
     }
 
     /**
@@ -175,54 +132,54 @@ contract PolicyManager is Upgradeable {
     * @param _policyId Policy id
     * @param _policyOwner Policy owner. Zero address means sender is owner
     * @param _endTimestamp End timestamp of the policy in seconds
-    * @param _nodes Nodes that will handle policy
+    * @param _workers Workers that will handle policy
     */
     function createPolicy(
         bytes16 _policyId,
         address _policyOwner,
         uint64 _endTimestamp,
-        address[] calldata _nodes
+        address[] calldata _workers
     )
         external payable
     {
-//        require(
-//            _endTimestamp > block.timestamp &&
-//            msg.value > 0
-//        );
-//
-//        require(address(this).balance <= MAX_BALANCE);
-//        uint16 currentPeriod = getCurrentPeriod();
-//        uint16 endPeriod = uint16(_endTimestamp / secondsPerPeriod) + 1;
-//        uint256 numberOfPeriods = endPeriod - currentPeriod;
-//
-//        uint128 feeRate = uint128(msg.value.div(_nodes.length) / numberOfPeriods);
-//        require(feeRate > 0 && feeRate * numberOfPeriods * _nodes.length  == msg.value);
-//
-//        Policy storage policy = createPolicy(_policyId, _policyOwner, _endTimestamp, feeRate, _nodes.length);
-//
-//        for (uint256 i = 0; i < _nodes.length; i++) {
-//            address node = _nodes[i];
-//            addFeeToNode(currentPeriod, endPeriod, node, feeRate, int256(feeRate));
-//            policy.arrangements.push(ArrangementInfo(node, 0, 0));
-//        }
+        require(
+            _endTimestamp > block.timestamp &&
+            msg.value > 0
+        );
+
+        require(address(this).balance <= MAX_BALANCE);
+        uint256 duration = _endTimestamp - block.timestamp;
+
+        uint128 feePerSecond = uint128(msg.value / _workers.length / duration);
+        require(feePerSecond > 0 && feePerSecond * duration * _workers.length  == msg.value);
+
+        Policy storage policy = createPolicy(_policyId, _policyOwner, _endTimestamp, feePerSecond, _workers.length);
+
+        for (uint256 i = 0; i < _workers.length; i++) {
+            address worker = _workers[i];
+            require(worker != address(0) && isAuthorized(worker));
+            policy.arrangements[worker].arranged = true;
+        }
     }
 
-    /**
-    * @notice Create multiple policies with the same owner, nodes and length
-    * @dev Generate policy ids before creation
-    * @param _policyIds Policy ids
-    * @param _policyOwner Policy owner. Zero address means sender is owner
-    * @param _endTimestamp End timestamp of all policies in seconds
-    * @param _nodes Nodes that will handle all policies
-    */
-    function createPolicies(
-        bytes16[] calldata _policyIds,
-        address _policyOwner,
-        uint64 _endTimestamp,
-        address[] calldata _nodes
-    )
-        external payable
-    {
+
+    // TODO ?
+//    /**
+//    * @notice Create multiple policies with the same owner, workers and length
+//    * @dev Generate policy ids before creation
+//    * @param _policyIds Policy ids
+//    * @param _policyOwner Policy owner. Zero address means sender is owner
+//    * @param _endTimestamp End timestamp of all policies in seconds
+//    * @param _workers Workers that will handle all policies
+//    */
+//    function createPolicies(
+//        bytes16[] calldata _policyIds,
+//        address _policyOwner,
+//        uint64 _endTimestamp,
+//        address[] calldata _workers
+//    )
+//        external payable
+//    {
 //        require(
 //            _endTimestamp > block.timestamp &&
 //            msg.value > 0 &&
@@ -234,110 +191,64 @@ contract PolicyManager is Upgradeable {
 //        uint16 endPeriod = uint16(_endTimestamp / secondsPerPeriod) + 1;
 //        uint256 numberOfPeriods = endPeriod - currentPeriod;
 //
-//        uint128 feeRate = uint128(msg.value.div(_nodes.length) / numberOfPeriods / _policyIds.length);
-//        require(feeRate > 0 && feeRate * numberOfPeriods * _nodes.length * _policyIds.length == msg.value);
+//        uint128 feeRate = uint128(msg.value.div(_workers.length) / numberOfPeriods / _policyIds.length);
+//        require(feeRate > 0 && feeRate * numberOfPeriods * _workers.length * _policyIds.length == msg.value);
 //
 //        for (uint256 i = 0; i < _policyIds.length; i++) {
-//            Policy storage policy = createPolicy(_policyIds[i], _policyOwner, _endTimestamp, feeRate, _nodes.length);
+//            Policy storage policy = createPolicy(_policyIds[i], _policyOwner, _endTimestamp, feeRate, _workers.length);
 //
-//            for (uint256 j = 0; j < _nodes.length; j++) {
-//                policy.arrangements.push(ArrangementInfo(_nodes[j], 0, 0));
+//            for (uint256 j = 0; j < _workers.length; j++) {
+//                policy.arrangements.push(ArrangementInfo(_workers[j], 0, 0));
 //            }
 //        }
 //
 //        int256 fee = int256(_policyIds.length * feeRate);
 //
-//        for (uint256 i = 0; i < _nodes.length; i++) {
-//            address node = _nodes[i];
-//            addFeeToNode(currentPeriod, endPeriod, node, feeRate, fee);
+//        for (uint256 i = 0; i < _workers.length; i++) {
+//            address worker = _workers[i];
+//            addFeeToWorker(currentPeriod, endPeriod, worker, feeRate, fee);
 //        }
-    }
+//    }
 
     /**
     * @notice Create policy
     * @param _policyId Policy id
     * @param _policyOwner Policy owner. Zero address means sender is owner
     * @param _endTimestamp End timestamp of the policy in seconds
-    * @param _feeRate Fee rate for policy
-    * @param _nodesLength Number of nodes that will handle policy
+    * @param _feePerSecond Fee rate for policy
+    * @param _workersLength Number of workers that will handle policy
     */
     function createPolicy(
         bytes16 _policyId,
         address _policyOwner,
         uint64 _endTimestamp,
-        uint128 _feeRate,
-        uint256 _nodesLength
+        uint128 _feePerSecond,
+        uint256 _workersLength
     )
         internal returns (Policy storage policy)
     {
         policy = policies[_policyId];
-//        require(
-//            _policyId != RESERVED_POLICY_ID &&
-//            policy.feeRate == 0 &&
-//            !policy.disabled
-//        );
-//
-//        policy.sponsor = msg.sender;
-//        policy.startTimestamp = uint64(block.timestamp);
-//        policy.endTimestamp = _endTimestamp;
-//        policy.feeRate = _feeRate;
-//
-//        if (_policyOwner != msg.sender && _policyOwner != address(0)) {
-//            policy.owner = _policyOwner;
-//        }
-//
-//        emit PolicyCreated(
-//            _policyId,
-//            msg.sender,
-//            _policyOwner == address(0) ? msg.sender : _policyOwner,
-//            _feeRate,
-//            policy.startTimestamp,
-//            policy.endTimestamp,
-//            _nodesLength
-//        );
-    }
+        require(policy.feePerSecond == 0);
 
-    /**
-    * @notice Increase fee rate for specified node
-    * @param _currentPeriod Current period
-    * @param _endPeriod End period of policy
-    * @param _node Node that will handle policy
-    * @param _feeRate Fee rate for one policy
-    * @param _overallFeeRate Fee rate for all policies
-    */
-    function addFeeToNode(
-        uint16 _currentPeriod,
-        uint16 _endPeriod,
-        address _node,
-        uint128 _feeRate,
-        int256 _overallFeeRate
-    )
-        internal
-    {
-//        require(_node != RESERVED_NODE);
-//        NodeInfo storage nodeInfo = nodes[_node];
-//        require(nodeInfo.previousFeePeriod != 0 &&
-//            nodeInfo.previousFeePeriod < _currentPeriod &&
-//            _feeRate >= getMinFeeRate(nodeInfo));
-//        // Check default value for feeDelta
-//        if (nodeInfo.feeDelta[_currentPeriod] == DEFAULT_FEE_DELTA) {
-//            nodeInfo.feeDelta[_currentPeriod] = _overallFeeRate;
-//        } else {
-//            // Overflow protection removed, because ETH total supply less than uint255/int256
-//            nodeInfo.feeDelta[_currentPeriod] += _overallFeeRate;
-//        }
-//        if (nodeInfo.feeDelta[_endPeriod] == DEFAULT_FEE_DELTA) {
-//            nodeInfo.feeDelta[_endPeriod] = -_overallFeeRate;
-//        } else {
-//            nodeInfo.feeDelta[_endPeriod] -= _overallFeeRate;
-//        }
-//        // Reset to default value if needed
-//        if (nodeInfo.feeDelta[_currentPeriod] == 0) {
-//            nodeInfo.feeDelta[_currentPeriod] = DEFAULT_FEE_DELTA;
-//        }
-//        if (nodeInfo.feeDelta[_endPeriod] == 0) {
-//            nodeInfo.feeDelta[_endPeriod] = DEFAULT_FEE_DELTA;
-//        }
+        policy.sponsor = payable(msg.sender);
+        policy.startTimestamp = uint64(block.timestamp);
+        policy.endTimestamp = _endTimestamp;
+        policy.feePerSecond = _feePerSecond;
+        policy.workersLength = _workersLength;
+
+        if (_policyOwner != msg.sender && _policyOwner != address(0)) {
+            policy.owner = _policyOwner;
+        }
+
+        emit PolicyCreated(
+            _policyId,
+            msg.sender,
+            _policyOwner == address(0) ? msg.sender : _policyOwner,
+            _feePerSecond,
+            policy.startTimestamp,
+            policy.endTimestamp,
+            policy.workersLength
+        );
     }
 
     /**
@@ -349,190 +260,24 @@ contract PolicyManager is Upgradeable {
     }
 
     /**
-    * @notice Withdraw fee by node
+    * @notice Withdraw fee by worker
     */
-    function withdraw() external returns (uint256) {
-        return withdraw(payable(msg.sender));
-    }
+    function withdraw(bytes16 _policyId, address _worker) public returns (uint256) {
+        Policy storage policy = policies[_policyId];
 
-    /**
-    * @notice Withdraw fee by node
-    * @param _recipient Recipient of the fee
-    */
-    function withdraw(address payable _recipient) public returns (uint256) {
-        NodeInfo storage node = nodes[msg.sender];
-        uint256 fee = node.fee;
+        ArrangementInfo storage arrangement = policy.arrangements[_worker];
+        require(arrangement.arranged);
+        uint64 endTimestamp = arrangement.endTimestamp != 0 ? arrangement.endTimestamp : policy.endTimestamp;
+        uint256 passedTime = Math.min(endTimestamp, block.timestamp) - policy.startTimestamp;
+        uint256 allFee = passedTime * policy.feePerSecond;
+
+        uint256 fee = allFee - arrangement.paidFee;
+
         require(fee != 0);
-        node.fee = 0;
-        _recipient.sendValue(fee);
-        emit Withdrawn(msg.sender, _recipient, fee);
+        address payable beneficiary = getBeneficiary(_worker);
+        emit Withdrawn(msg.sender, _worker, beneficiary, fee);
+        beneficiary.sendValue(fee);
         return fee;
-    }
-
-    /**
-    * @notice Calculate amount of refund
-    * @param _policy Policy
-    * @param _arrangement Arrangement
-    */
-    function calculateRefundValue(Policy storage _policy, ArrangementInfo storage _arrangement)
-        internal view returns (uint256 refundValue, uint256 indexOfDowntimePeriods, uint16 lastRefundedPeriod)
-    {
-//        uint16 policyStartPeriod = uint16(_policy.startTimestamp / secondsPerPeriod);
-//        uint16 maxPeriod = AdditionalMath.min16(getCurrentPeriod(), uint16(_policy.endTimestamp / secondsPerPeriod));
-//        uint16 minPeriod = AdditionalMath.max16(policyStartPeriod, _arrangement.lastRefundedPeriod);
-//        uint16 downtimePeriods = 0;
-//        uint256 length = escrow.getPastDowntimeLength(_arrangement.node);
-//        uint256 initialIndexOfDowntimePeriods;
-//        if (_arrangement.lastRefundedPeriod == 0) {
-//            initialIndexOfDowntimePeriods = escrow.findIndexOfPastDowntime(_arrangement.node, policyStartPeriod);
-//        } else {
-//            initialIndexOfDowntimePeriods = _arrangement.indexOfDowntimePeriods;
-//        }
-//
-//        for (indexOfDowntimePeriods = initialIndexOfDowntimePeriods;
-//             indexOfDowntimePeriods < length;
-//             indexOfDowntimePeriods++)
-//        {
-//            (uint16 startPeriod, uint16 endPeriod) =
-//                escrow.getPastDowntime(_arrangement.node, indexOfDowntimePeriods);
-//            if (startPeriod > maxPeriod) {
-//                break;
-//            } else if (endPeriod < minPeriod) {
-//                continue;
-//            }
-//            downtimePeriods += AdditionalMath.min16(maxPeriod, endPeriod)
-//                .sub16(AdditionalMath.max16(minPeriod, startPeriod)) + 1;
-//            if (maxPeriod <= endPeriod) {
-//                break;
-//            }
-//        }
-//
-//        uint16 lastCommittedPeriod = escrow.getLastCommittedPeriod(_arrangement.node);
-//        if (indexOfDowntimePeriods == length && lastCommittedPeriod < maxPeriod) {
-//            // Overflow protection removed:
-//            // lastCommittedPeriod < maxPeriod and minPeriod <= maxPeriod + 1
-//            downtimePeriods += maxPeriod - AdditionalMath.max16(minPeriod - 1, lastCommittedPeriod);
-//        }
-//
-//        refundValue = _policy.feeRate * downtimePeriods;
-//        lastRefundedPeriod = maxPeriod + 1;
-    }
-
-    /**
-    * @notice Revoke/refund arrangement/policy by the sponsor
-    * @param _policyId Policy id
-    * @param _node Node that will be excluded or RESERVED_NODE if full policy should be used
-    ( @param _forceRevoke Force revoke arrangement/policy
-    */
-    function refundInternal(bytes16 _policyId, address _node, bool _forceRevoke)
-        internal returns (uint256 refundValue)
-    {
-//        refundValue = 0;
-//        Policy storage policy = policies[_policyId];
-//        require(!policy.disabled && policy.startTimestamp >= resetTimestamp);
-//        uint16 endPeriod = uint16(policy.endTimestamp / secondsPerPeriod) + 1;
-//        uint256 numberOfActive = policy.arrangements.length;
-//        uint256 i = 0;
-//        for (; i < policy.arrangements.length; i++) {
-//            ArrangementInfo storage arrangement = policy.arrangements[i];
-//            address node = arrangement.node;
-//            if (node == RESERVED_NODE || _node != RESERVED_NODE && _node != node) {
-//                numberOfActive--;
-//                continue;
-//            }
-//            uint256 nodeRefundValue;
-//            (nodeRefundValue, arrangement.indexOfDowntimePeriods, arrangement.lastRefundedPeriod) =
-//                calculateRefundValue(policy, arrangement);
-//            if (_forceRevoke) {
-//                NodeInfo storage nodeInfo = nodes[node];
-//
-//                // Check default value for feeDelta
-//                uint16 lastRefundedPeriod = arrangement.lastRefundedPeriod;
-//                if (nodeInfo.feeDelta[lastRefundedPeriod] == DEFAULT_FEE_DELTA) {
-//                    nodeInfo.feeDelta[lastRefundedPeriod] = -int256(policy.feeRate);
-//                } else {
-//                    nodeInfo.feeDelta[lastRefundedPeriod] -= int256(policy.feeRate);
-//                }
-//                if (nodeInfo.feeDelta[endPeriod] == DEFAULT_FEE_DELTA) {
-//                    nodeInfo.feeDelta[endPeriod] = int256(policy.feeRate);
-//                } else {
-//                    nodeInfo.feeDelta[endPeriod] += int256(policy.feeRate);
-//                }
-//
-//                // Reset to default value if needed
-//                if (nodeInfo.feeDelta[lastRefundedPeriod] == 0) {
-//                    nodeInfo.feeDelta[lastRefundedPeriod] = DEFAULT_FEE_DELTA;
-//                }
-//                if (nodeInfo.feeDelta[endPeriod] == 0) {
-//                    nodeInfo.feeDelta[endPeriod] = DEFAULT_FEE_DELTA;
-//                }
-//                nodeRefundValue += uint256(endPeriod - lastRefundedPeriod) * policy.feeRate;
-//            }
-//            if (_forceRevoke || arrangement.lastRefundedPeriod >= endPeriod) {
-//                arrangement.node = RESERVED_NODE;
-//                arrangement.indexOfDowntimePeriods = 0;
-//                arrangement.lastRefundedPeriod = 0;
-//                numberOfActive--;
-//                emit ArrangementRevoked(_policyId, msg.sender, node, nodeRefundValue);
-//            } else {
-//                emit RefundForArrangement(_policyId, msg.sender, node, nodeRefundValue);
-//            }
-//
-//            refundValue += nodeRefundValue;
-//            if (_node != RESERVED_NODE) {
-//               break;
-//            }
-//        }
-//        address payable policySponsor = policy.sponsor;
-//        if (_node == RESERVED_NODE) {
-//            if (numberOfActive == 0) {
-//                policy.disabled = true;
-//                // gas refund
-//                policy.sponsor = address(0);
-//                policy.owner = address(0);
-//                policy.feeRate = 0;
-//                policy.startTimestamp = 0;
-//                policy.endTimestamp = 0;
-//                emit PolicyRevoked(_policyId, msg.sender, refundValue);
-//            } else {
-//                emit RefundForPolicy(_policyId, msg.sender, refundValue);
-//            }
-//        } else {
-//            // arrangement not found
-//            require(i < policy.arrangements.length);
-//        }
-//        if (refundValue > 0) {
-//            policySponsor.sendValue(refundValue);
-//        }
-    }
-
-    /**
-    * @notice Calculate amount of refund
-    * @param _policyId Policy id
-    * @param _node Node or RESERVED_NODE if all nodes should be used
-    */
-    function calculateRefundValueInternal(bytes16 _policyId, address _node)
-        internal view returns (uint256 refundValue)
-    {
-//        refundValue = 0;
-//        Policy storage policy = policies[_policyId];
-//        require((policy.owner == msg.sender || policy.sponsor == msg.sender) && !policy.disabled);
-//        uint256 i = 0;
-//        for (; i < policy.arrangements.length; i++) {
-//            ArrangementInfo storage arrangement = policy.arrangements[i];
-//            if (arrangement.node == RESERVED_NODE || _node != RESERVED_NODE && _node != arrangement.node) {
-//                continue;
-//            }
-//            (uint256 nodeRefundValue,,) = calculateRefundValue(policy, arrangement);
-//            refundValue += nodeRefundValue;
-//            if (_node != RESERVED_NODE) {
-//               break;
-//            }
-//        }
-//        if (_node != RESERVED_NODE) {
-//            // arrangement not found
-//            require(i < policy.arrangements.length);
-//        }
     }
 
     /**
@@ -541,40 +286,73 @@ contract PolicyManager is Upgradeable {
     */
     function revokePolicy(bytes16 _policyId) external returns (uint256 refundValue) {
         require(getPolicyOwner(_policyId) == msg.sender);
-        return refundInternal(_policyId, RESERVED_NODE, true);
+        return _revokePolicy(_policyId);
+    }
+
+    /**
+    * @notice Revoke policy by the sponsor
+    * @param _policyId Policy id
+    */
+    function _revokePolicy(bytes16 _policyId) internal returns (uint256 refundValue) {
+        Policy storage policy = policies[_policyId];
+        require(policy.endTimestamp > block.timestamp);
+        refundValue = (policy.endTimestamp - block.timestamp) * policy.feePerSecond * policy.workersLength;
+        policy.endTimestamp = uint64(block.timestamp);
+        policy.workersLength = 0;
+        emit PolicyRevoked(_policyId, msg.sender, refundValue);
+        policy.sponsor.sendValue(refundValue);
     }
 
     /**
     * @notice Revoke arrangement by the sponsor
     * @param _policyId Policy id
-    * @param _node Node that will be excluded
+    * @param _worker Worker that will be excluded
     */
-    function revokeArrangement(bytes16 _policyId, address _node)
+    function revokeArrangement(bytes16 _policyId, address _worker)
         external returns (uint256 refundValue)
     {
-        require(_node != RESERVED_NODE);
+        require(_worker != address(0));
         require(getPolicyOwner(_policyId) == msg.sender);
-        return refundInternal(_policyId, _node, true);
+        return _revokeArrangement(_policyId, _worker);
+    }
+
+    /**
+    * @notice Revoke arrangement by the sponsor
+    * @param _policyId Policy id
+    * @param _worker Worker that will be excluded
+    */
+    function _revokeArrangement(bytes16 _policyId, address _worker)
+        internal returns (uint256 refundValue)
+    {
+        Policy storage policy = policies[_policyId];
+        require(policy.endTimestamp > block.timestamp);
+        ArrangementInfo storage arrangement = policy.arrangements[_worker];
+        require(arrangement.arranged && arrangement.endTimestamp == 0);
+        refundValue = (policy.endTimestamp - block.timestamp) * policy.feePerSecond;
+        arrangement.endTimestamp = uint64(block.timestamp);
+        policy.workersLength -= 1;
+        emit ArrangementRevoked(_policyId, msg.sender, _worker, refundValue);
+        policy.sponsor.sendValue(refundValue);
     }
 
     /**
     * @notice Get unsigned hash for revocation
     * @param _policyId Policy id
-    * @param _node Node that will be excluded
+    * @param _worker Worker that will be excluded
     * @return Revocation hash, EIP191 version 0x45 ('E')
     */
-    function getRevocationHash(bytes16 _policyId, address _node) public view returns (bytes32) {
-        return SignatureVerifier.hashEIP191(abi.encodePacked(_policyId, _node), bytes1(0x45));
+    function getRevocationHash(bytes16 _policyId, address _worker) public view returns (bytes32) {
+        return SignatureVerifier.hashEIP191(abi.encodePacked(_policyId, _worker), bytes1(0x45));
     }
 
     /**
     * @notice Check correctness of signature
     * @param _policyId Policy id
-    * @param _node Node that will be excluded, zero address if whole policy will be revoked
+    * @param _worker Worker that will be excluded, zero address if whole policy will be revoked
     * @param _signature Signature of owner
     */
-    function checkOwnerSignature(bytes16 _policyId, address _node, bytes memory _signature) internal view {
-        bytes32 hash = getRevocationHash(_policyId, _node);
+    function checkOwnerSignature(bytes16 _policyId, address _worker, bytes memory _signature) internal view {
+        bytes32 hash = getRevocationHash(_policyId, _worker);
         address recovered = SignatureVerifier.recover(hash, _signature);
         require(getPolicyOwner(_policyId) == recovered);
     }
@@ -582,211 +360,147 @@ contract PolicyManager is Upgradeable {
     /**
     * @notice Revoke policy or arrangement using owner's signature
     * @param _policyId Policy id
-    * @param _node Node that will be excluded, zero address if whole policy will be revoked
+    * @param _worker Worker that will be excluded, zero address if whole policy will be revoked
     * @param _signature Signature of owner, EIP191 version 0x45 ('E')
     */
-    function revoke(bytes16 _policyId, address _node, bytes calldata _signature)
+    function revoke(bytes16 _policyId, address _worker, bytes calldata _signature)
         external returns (uint256 refundValue)
     {
-        checkOwnerSignature(_policyId, _node, _signature);
-        return refundInternal(_policyId, _node, true);
+        checkOwnerSignature(_policyId, _worker, _signature);
+        refundValue = _worker == address(0) ? _revokePolicy(_policyId) : _revokeArrangement(_policyId, _worker);
     }
 
-    /**
-    * @notice Refund part of fee by the sponsor
-    * @param _policyId Policy id
-    */
-    function refund(bytes16 _policyId) external {
-        Policy storage policy = policies[_policyId];
-        require(policy.owner == msg.sender || policy.sponsor == msg.sender);
-        refundInternal(_policyId, RESERVED_NODE, false);
-    }
+    // TODO docs
+    function getBeneficiary(address) internal virtual view returns (address payable);
 
-    /**
-    * @notice Refund part of one node's fee by the sponsor
-    * @param _policyId Policy id
-    * @param _node Node address
-    */
-    function refund(bytes16 _policyId, address _node)
-        external returns (uint256 refundValue)
-    {
-        require(_node != RESERVED_NODE);
-        Policy storage policy = policies[_policyId];
-        require(policy.owner == msg.sender || policy.sponsor == msg.sender);
-        return refundInternal(_policyId, _node, false);
-    }
-
-    /**
-    * @notice Calculate amount of refund
-    * @param _policyId Policy id
-    */
-    function calculateRefundValue(bytes16 _policyId)
-        external view returns (uint256 refundValue)
-    {
-        return calculateRefundValueInternal(_policyId, RESERVED_NODE);
-    }
-
-    /**
-    * @notice Calculate amount of refund
-    * @param _policyId Policy id
-    * @param _node Node
-    */
-    function calculateRefundValue(bytes16 _policyId, address _node)
-        external view returns (uint256 refundValue)
-    {
-        require(_node != RESERVED_NODE);
-        return calculateRefundValueInternal(_policyId, _node);
-    }
-
-    /**
-    * @notice Get number of arrangements in the policy
-    * @param _policyId Policy id
-    */
-    function getArrangementsLength(bytes16 _policyId) external view returns (uint256) {
-        return policies[_policyId].arrangements.length;
-    }
-
-    /**
-    * @notice Get information about staker's fee rate
-    * @param _node Address of staker
-    * @param _period Period to get fee delta
-    */
-    function getNodeFeeDelta(address _node, uint16 _period)
-        // TODO "virtual" only for tests, probably will be removed after #1512
-        public view virtual returns (int256)
-    {
-        // TODO remove after upgrade #2579
-        if (_node == RESERVED_NODE && _period == 11) {
-            return 55;
-        }
-        return nodes[_node].feeDelta[_period];
-    }
+    // TODO docs
+    function isAuthorized(address) internal virtual view returns (bool);
 
     /**
     * @notice Return the information about arrangement
     */
-    function getArrangementInfo(bytes16 _policyId, uint256 _index)
+    function getArrangementInfo(bytes16 _policyId, address _worker)
     // TODO change to structure when ABIEncoderV2 is released (#1501)
 //        public view returns (ArrangementInfo)
-        external view returns (address node, uint256 indexOfDowntimePeriods, uint16 lastRefundedPeriod)
+        external view returns (bool arranged, uint256 paidFee, uint64 endTimestamp)
     {
-        ArrangementInfo storage info = policies[_policyId].arrangements[_index];
-        node = info.node;
-        indexOfDowntimePeriods = info.indexOfDowntimePeriods;
-        lastRefundedPeriod = info.lastRefundedPeriod;
+        ArrangementInfo storage arrangement = policies[_policyId].arrangements[_worker];
+        arranged = arrangement.arranged;
+        paidFee = arrangement.paidFee;
+        endTimestamp = arrangement.endTimestamp;
     }
 
-
-    /**
-    * @dev Get Policy structure by delegatecall
-    */
-    function delegateGetPolicy(address _target, bytes16 _policyId)
-        internal returns (Policy memory result)
-    {
-        bytes32 memoryAddress = delegateGetData(_target, this.policies.selector, 1, bytes32(_policyId), 0);
-        assembly {
-            result := memoryAddress
-        }
-    }
-
-    /**
-    * @dev Get ArrangementInfo structure by delegatecall
-    */
-    function delegateGetArrangementInfo(address _target, bytes16 _policyId, uint256 _index)
-        internal returns (ArrangementInfo memory result)
-    {
-        bytes32 memoryAddress = delegateGetData(
-            _target, this.getArrangementInfo.selector, 2, bytes32(_policyId), bytes32(_index));
-        assembly {
-            result := memoryAddress
-        }
-    }
-
-    /**
-    * @dev Get NodeInfo structure by delegatecall
-    */
-    function delegateGetNodeInfo(address _target, address _node)
-        internal returns (MemoryNodeInfo memory result)
-    {
-        bytes32 memoryAddress = delegateGetData(_target, this.nodes.selector, 1, bytes32(uint256(uint160(_node))), 0);
-        assembly {
-            result := memoryAddress
-        }
-    }
-
-    /**
-    * @dev Get feeRateRange structure by delegatecall
-    */
-    function delegateGetFeeRateRange(address _target) internal returns (Range memory result) {
-        bytes32 memoryAddress = delegateGetData(_target, this.feeRateRange.selector, 0, 0, 0);
-        assembly {
-            result := memoryAddress
-        }
-    }
-
-    /// @dev the `onlyWhileUpgrading` modifier works through a call to the parent `verifyState`
-    function verifyState(address _testTarget) public override virtual {
-        super.verifyState(_testTarget);
-//        require(uint64(delegateGet(_testTarget, this.resetTimestamp.selector)) == resetTimestamp);
 //
-//        Range memory rangeToCheck = delegateGetFeeRateRange(_testTarget);
-//        require(feeRateRange.min == rangeToCheck.min &&
-//            feeRateRange.defaultValue == rangeToCheck.defaultValue &&
-//            feeRateRange.max == rangeToCheck.max);
-//
-//        Policy storage policy = policies[RESERVED_POLICY_ID];
-//        Policy memory policyToCheck = delegateGetPolicy(_testTarget, RESERVED_POLICY_ID);
-//        require(policyToCheck.sponsor == policy.sponsor &&
-//            policyToCheck.owner == policy.owner &&
-//            policyToCheck.feeRate == policy.feeRate &&
-//            policyToCheck.startTimestamp == policy.startTimestamp &&
-//            policyToCheck.endTimestamp == policy.endTimestamp &&
-//            policyToCheck.disabled == policy.disabled);
-//
-//        require(delegateGet(_testTarget, this.getArrangementsLength.selector, RESERVED_POLICY_ID) ==
-//            policy.arrangements.length);
-//        if (policy.arrangements.length > 0) {
-//            ArrangementInfo storage arrangement = policy.arrangements[0];
-//            ArrangementInfo memory arrangementToCheck = delegateGetArrangementInfo(
-//                _testTarget, RESERVED_POLICY_ID, 0);
-//            require(arrangementToCheck.node == arrangement.node &&
-//                arrangementToCheck.indexOfDowntimePeriods == arrangement.indexOfDowntimePeriods &&
-//                arrangementToCheck.lastRefundedPeriod == arrangement.lastRefundedPeriod);
+//    /**
+//    * @dev Get Policy structure by delegatecall
+//    */
+//    function delegateGetPolicy(address _target, bytes16 _policyId)
+//        internal returns (Policy memory result)
+//    {
+//        bytes32 memoryAddress = delegateGetData(_target, this.policies.selector, 1, bytes32(_policyId), 0);
+//        assembly {
+//            result := memoryAddress
 //        }
+//    }
 //
-//        NodeInfo storage nodeInfo = nodes[RESERVED_NODE];
-//        MemoryNodeInfo memory nodeInfoToCheck = delegateGetNodeInfo(_testTarget, RESERVED_NODE);
-//        require(nodeInfoToCheck.fee == nodeInfo.fee &&
-//            nodeInfoToCheck.feeRate == nodeInfo.feeRate &&
-//            nodeInfoToCheck.previousFeePeriod == nodeInfo.previousFeePeriod &&
-//            nodeInfoToCheck.minFeeRate == nodeInfo.minFeeRate);
-//
-//        require(int256(delegateGet(_testTarget, this.getNodeFeeDelta.selector,
-//            bytes32(bytes20(RESERVED_NODE)), bytes32(uint256(11)))) == getNodeFeeDelta(RESERVED_NODE, 11));
-    }
-
-    /// @dev the `onlyWhileUpgrading` modifier works through a call to the parent `finishUpgrade`
-    function finishUpgrade(address _target) public override virtual {
-        super.finishUpgrade(_target);
-
-//        if (resetTimestamp == 0) {
-//            resetTimestamp = uint64(block.timestamp);
+//    /**
+//    * @dev Get ArrangementInfo structure by delegatecall
+//    */
+//    function delegateGetArrangementInfo(address _target, bytes16 _policyId, uint256 _index)
+//        internal returns (ArrangementInfo memory result)
+//    {
+//        bytes32 memoryAddress = delegateGetData(
+//            _target, this.getArrangementInfo.selector, 2, bytes32(_policyId), bytes32(_index));
+//        assembly {
+//            result := memoryAddress
 //        }
+//    }
 //
-//        // Create fake Policy and NodeInfo to use them in verifyState(address)
-//        Policy storage policy = policies[RESERVED_POLICY_ID];
-//        policy.sponsor = msg.sender;
-//        policy.owner = address(this);
-//        policy.startTimestamp = 1;
-//        policy.endTimestamp = 2;
-//        policy.feeRate = 3;
-//        policy.disabled = true;
-//        policy.arrangements.push(ArrangementInfo(RESERVED_NODE, 11, 22));
-//        NodeInfo storage nodeInfo = nodes[RESERVED_NODE];
-//        nodeInfo.fee = 100;
-//        nodeInfo.feeRate = 33;
-//        nodeInfo.previousFeePeriod = 44;
-//        nodeInfo.feeDelta[11] = 55;
-//        nodeInfo.minFeeRate = 777;
-    }
+//    /**
+//    * @dev Get WorkerInfo structure by delegatecall
+//    */
+//    function delegateGetWorkerInfo(address _target, address _worker)
+//        internal returns (MemoryWorkerInfo memory result)
+//    {
+//        bytes32 memoryAddress = delegateGetData(_target, this.workers.selector, 1, bytes32(uint256(uint160(_worker))), 0);
+//        assembly {
+//            result := memoryAddress
+//        }
+//    }
+//
+//    /**
+//    * @dev Get feeRateRange structure by delegatecall
+//    */
+//    function delegateGetFeeRateRange(address _target) internal returns (Range memory result) {
+//        bytes32 memoryAddress = delegateGetData(_target, this.feeRateRange.selector, 0, 0, 0);
+//        assembly {
+//            result := memoryAddress
+//        }
+//    }
+
+//    /// @dev the `onlyWhileUpgrading` modifier works through a call to the parent `verifyState`
+//    function verifyState(address _testTarget) public override virtual {
+//        super.verifyState(_testTarget);
+////        require(uint64(delegateGet(_testTarget, this.resetTimestamp.selector)) == resetTimestamp);
+////
+////        Range memory rangeToCheck = delegateGetFeeRateRange(_testTarget);
+////        require(feeRateRange.min == rangeToCheck.min &&
+////            feeRateRange.defaultValue == rangeToCheck.defaultValue &&
+////            feeRateRange.max == rangeToCheck.max);
+////
+////        Policy storage policy = policies[RESERVED_POLICY_ID];
+////        Policy memory policyToCheck = delegateGetPolicy(_testTarget, RESERVED_POLICY_ID);
+////        require(policyToCheck.sponsor == policy.sponsor &&
+////            policyToCheck.owner == policy.owner &&
+////            policyToCheck.feeRate == policy.feeRate &&
+////            policyToCheck.startTimestamp == policy.startTimestamp &&
+////            policyToCheck.endTimestamp == policy.endTimestamp &&
+////            policyToCheck.disabled == policy.disabled);
+////
+////        require(delegateGet(_testTarget, this.getArrangementsLength.selector, RESERVED_POLICY_ID) ==
+////            policy.arrangements.length);
+////        if (policy.arrangements.length > 0) {
+////            ArrangementInfo storage arrangement = policy.arrangements[0];
+////            ArrangementInfo memory arrangementToCheck = delegateGetArrangementInfo(
+////                _testTarget, RESERVED_POLICY_ID, 0);
+////            require(arrangementToCheck.worker == arrangement.worker &&
+////                arrangementToCheck.indexOfDowntimePeriods == arrangement.indexOfDowntimePeriods &&
+////                arrangementToCheck.lastRefundedPeriod == arrangement.lastRefundedPeriod);
+////        }
+////
+////        WorkerInfo storage workerInfo = workers[RESERVED_WORKER];
+////        MemoryWorkerInfo memory workerInfoToCheck = delegateGetWorkerInfo(_testTarget, RESERVED_WORKER);
+////        require(workerInfoToCheck.fee == workerInfo.fee &&
+////            workerInfoToCheck.feeRate == workerInfo.feeRate &&
+////            workerInfoToCheck.previousFeePeriod == workerInfo.previousFeePeriod &&
+////            workerInfoToCheck.minFeeRate == workerInfo.minFeeRate);
+////
+////        require(int256(delegateGet(_testTarget, this.getWorkerFeeDelta.selector,
+////            bytes32(bytes20(RESERVED_WORKER)), bytes32(uint256(11)))) == getWorkerFeeDelta(RESERVED_WORKER, 11));
+//    }
+//
+//    /// @dev the `onlyWhileUpgrading` modifier works through a call to the parent `finishUpgrade`
+//    function finishUpgrade(address _target) public override virtual {
+//        super.finishUpgrade(_target);
+//
+////        if (resetTimestamp == 0) {
+////            resetTimestamp = uint64(block.timestamp);
+////        }
+////
+////        // Create fake Policy and WorkerInfo to use them in verifyState(address)
+////        Policy storage policy = policies[RESERVED_POLICY_ID];
+////        policy.sponsor = msg.sender;
+////        policy.owner = address(this);
+////        policy.startTimestamp = 1;
+////        policy.endTimestamp = 2;
+////        policy.feeRate = 3;
+////        policy.disabled = true;
+////        policy.arrangements.push(ArrangementInfo(RESERVED_WORKER, 11, 22));
+////        WorkerInfo storage workerInfo = workers[RESERVED_WORKER];
+////        workerInfo.fee = 100;
+////        workerInfo.feeRate = 33;
+////        workerInfo.previousFeePeriod = 44;
+////        workerInfo.feeDelta[11] = 55;
+////        workerInfo.minFeeRate = 777;
+//    }
 }

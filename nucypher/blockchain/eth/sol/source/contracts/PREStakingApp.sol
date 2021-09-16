@@ -9,13 +9,14 @@ import "zeppelin/token/ERC20/IERC20.sol";
 import "contracts/threshold/IApplication.sol";
 import "contracts/threshold/ITokenStaking.sol";
 import "contracts/Adjudicator.sol";
+import "contracts/PolicyManager.sol";
 
 
 /**
 * @title PRE Staking Application
 * @notice Contract distributes rewards for participating in app and slashes for violating rules
 */
-contract PREStakingApp is IApplication, Adjudicator {
+contract PREStakingApp is IApplication, Adjudicator, PolicyManager {
 
     using SafeERC20 for IERC20;
 
@@ -260,6 +261,16 @@ contract PREStakingApp is IApplication, Adjudicator {
         assembly {
             mstore(activeWorkers, resultIndex)
         }
+    }
+
+    // TODO docs
+    function getBeneficiary(address _worker) internal override view returns (address payable) {
+        return tokenStaking.getBeneficiary(_worker);
+    }
+
+    // TODO docs
+    function isAuthorized(address _worker) internal override view returns (bool) {
+        return workerInfo[_worker].authorized > 0;
     }
 
     //-------------------------Slashing-------------------------

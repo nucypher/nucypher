@@ -37,7 +37,7 @@ contract BaseStakingInterface {
     ) {
         require(_token.totalSupply() > 0 &&
             _escrow.token() == _token &&
-            address(_policyManager.stakingApp()) != address(0) &&
+//            address(_policyManager.stakingApp()) != address(0) &&
             // in case there is no worklock contract
             (address(_workLock) == address(0) || _workLock.boostingRefund() > 0));
         token = _token;
@@ -119,14 +119,6 @@ contract StakingInterface is BaseStakingInterface {
     function withdrawAsStaker(uint256 _value) public onlyDelegateCall {
         escrow.withdraw(_value);
         emit WithdrawnAsStaker(msg.sender, _value);
-    }
-
-    /**
-    * @notice Withdraw available policy fees from the policy manager to the staking contract
-    */
-    function withdrawPolicyFee() public onlyDelegateCall {
-        uint256 value = policyManager.withdraw();
-        emit PolicyFeeWithdrawn(msg.sender, value);
     }
 
     /**

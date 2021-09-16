@@ -39,6 +39,8 @@ abstract contract Adjudicator {
     mapping (address => uint256) public penaltyHistory;
     mapping (bytes32 => bool) public evaluatedCFrags;
 
+    // TODO add slots
+
     /**
     * @param _hashAlgorithm Hashing algorithm
     * @param _basePenalty Base for the penalty calculation
