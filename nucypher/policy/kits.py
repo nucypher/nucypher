@@ -20,26 +20,26 @@ from typing import Dict, Optional, Iterable, Set
 
 from bytestring_splitter import BytestringSplitter, VariableLengthBytestring
 from constant_sorrow.constants import (
-    NOT_SIGNED,
     DO_NOT_SIGN,
     SIGNATURE_TO_FOLLOW,
     SIGNATURE_IS_ON_CIPHERTEXT,
     NOT_SIGNED,
-    )
+)
 from eth_typing import ChecksumAddress
 from eth_utils import to_checksum_address, to_canonical_address
 
+import nucypher.crypto.umbral_adapter as umbral  # need it to mock `umbral.encrypt`
 from nucypher.crypto.splitters import (
     capsule_splitter,
     key_splitter,
     signature_splitter,
     checksum_address_splitter,
-    )
-import nucypher.crypto.umbral_adapter as umbral # need it to mock `umbral.encrypt`
+)
 from nucypher.crypto.umbral_adapter import PublicKey, VerifiedCapsuleFrag, Capsule, Signature
+from nucypher.utilities.versioning import Versioned
 
 
-class MessageKit:
+class MessageKit(Versioned):
     """
     All the components needed to transmit and verify an encrypted message.
     """
@@ -106,7 +106,13 @@ class MessageKit:
     def __str__(self):
         return f"{self.__class__.__name__}({self.capsule})"
 
-    def __bytes__(self):
+    def as_policy_kit(self, policy_key: PublicKey, threshold: int) -> 'PolicyMessageKit':
+        return PolicyMessageKit.from_message_kit(self, policy_key, threshold)
+
+    def as_retrieval_kit(self) -> 'RetrievalKit':
+        return RetrievalKit(self.capsule, set())
+
+    def _payload(self) -> bytes:
         # TODO (#2743): this logic may not be necessary depending on the resolution.
         # If it is, it is better moved to BytestringSplitter.
         return (bytes(self.capsule) +
@@ -115,7 +121,19 @@ class MessageKit:
                 VariableLengthBytestring(self.ciphertext))
 
     @classmethod
-    def from_bytes(cls, data: bytes):
+    def _brand(cls) -> bytes:
+        return b'MK'
+
+    @classmethod
+    def _version(cls) -> int:
+        return 1
+
+    @classmethod
+    def _old_version_handlers(cls) -> Dict:
+        return {}
+
+    @classmethod
+    def _from_bytes_current(cls, data):
         splitter = BytestringSplitter(
             capsule_splitter,
             (bytes, 1))
@@ -129,8 +147,7 @@ class MessageKit:
         else:
             raise ValueError("Incorrect format for the signature flag")
 
-        splitter = BytestringSplitter(
-            (bytes, 1))
+        splitter = BytestringSplitter((bytes, 1))
 
         key_flag, remainder = splitter(remainder, return_remainder=True)
 
@@ -145,14 +162,8 @@ class MessageKit:
 
         return cls(capsule, ciphertext, signature=signature, sender_verifying_key=sender_verifying_key)
 
-    def as_policy_kit(self, policy_key: PublicKey, threshold: int) -> 'PolicyMessageKit':
-        return PolicyMessageKit.from_message_kit(self, policy_key, threshold)
 
-    def as_retrieval_kit(self) -> 'RetrievalKit':
-        return RetrievalKit(self.capsule, set())
-
-
-class RetrievalKit:
+class RetrievalKit(Versioned):
     """
     An object encapsulating the information necessary for retrieval of cfrags from Ursulas.
     Contains the capsule and the checksum addresses of Ursulas from which the requester
@@ -164,12 +175,24 @@ class RetrievalKit:
         # Can store cfrags too, if we're worried about Ursulas supplying duplicate ones.
         self.queried_addresses = set(queried_addresses)
 
-    def __bytes__(self):
+    def _payload(self) -> bytes:
         return (bytes(self.capsule) +
                 b''.join(to_canonical_address(address) for address in self.queried_addresses))
 
     @classmethod
-    def from_bytes(cls, data: bytes):
+    def _brand(cls) -> bytes:
+        return b'RK'
+
+    @classmethod
+    def _version(cls) -> int:
+        return 1
+
+    @classmethod
+    def _old_version_handlers(cls) -> Dict:
+        return {}
+
+    @classmethod
+    def _from_bytes_current(cls, data):
         capsule, remainder = capsule_splitter(data, return_remainder=True)
         if remainder:
             addresses_as_bytes = checksum_address_splitter.repeat(remainder)

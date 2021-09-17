@@ -95,7 +95,7 @@ class Revocation(Versioned):
 
         splitter = BytestringSplitter(
             checksum_address_splitter,  # ursula canonical address
-            (bytes, AuthorizedKeyFrag.SERIALIZED_SIZE),  # encrypted kfrag payload (includes writ)
+            (bytes, Versioned._HEADER_SIZE+AuthorizedKeyFrag.SERIALIZED_SIZE),  # MessageKit version header + versioned ekfrag
             signature_splitter
         )
         ursula_canonical_address, ekfrag, signature = splitter(data)

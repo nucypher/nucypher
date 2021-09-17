@@ -29,6 +29,7 @@ from nucypher.control.specifications.base import BaseSchema
 from nucypher.control.specifications.exceptions import SpecificationError, InvalidInputData, InvalidArgumentCombo
 from nucypher.crypto.powers import DecryptingPower
 from nucypher.crypto.umbral_adapter import PublicKey
+from nucypher.policy.kits import MessageKit
 from nucypher.policy.kits import MessageKit as MessageKitClass
 from nucypher.policy.maps import EncryptedTreasureMap as EncryptedTreasureMapClass, TreasureMap as TreasureMapClass
 
@@ -152,8 +153,9 @@ def test_messagekit_validation(capsule_side_channel):
     assert "Incorrect padding" in str(e)
 
     # valid base64 but invalid treasuremap
+    b64header = base64.b64encode(MessageKit._header())[:-2].decode()
     with pytest.raises(SpecificationError) as e:
-        MessageKitsOnly().load({'mkit': "V3da"})
+        MessageKitsOnly().load({'mkit': b64header + "V3da=="})
 
     assert "Could not parse mkit" in str(e)
     assert "Not enough bytes to constitute message types" in str(e)
