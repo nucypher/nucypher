@@ -46,12 +46,10 @@ def retrieval_request_setup(enacted_policy, bob, alice,  original_message: bytes
     # We pick up our story with Bob already having followed the treasure map above, ie:
     bob.start_learning_loop()
 
-    # We'll test against just a single Ursula - here, we make a WorkOrder for just one.
     # We can pass any number of capsules as args; here we pass just one.
     enrico = Enrico(policy_encrypting_key=enacted_policy.public_key)
     if not original_message:
         original_message = ''.join(random.choice(string.ascii_lowercase) for i in range(20)).encode()  # random message
-
     message_kit = enrico.encrypt_message(original_message)
 
     encode_bytes = (lambda field, obj: field()._serialize(value=obj, attr=None, obj=None)) if encode_for_rest else (lambda field, obj: obj)

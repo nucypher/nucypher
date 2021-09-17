@@ -22,10 +22,11 @@ from urllib.parse import urlencode
 
 from constant_sorrow import default_constant_splitter
 
+from nucypher.characters.lawful import Enrico
 from nucypher.crypto.powers import DecryptingPower
 from nucypher.crypto.splitters import signature_splitter
 from nucypher.policy.kits import RetrievalResult
-from nucypher.utilities.porter.control.specifications.fields import RetrievalResultSchema
+from nucypher.utilities.porter.control.specifications.fields import RetrievalResultSchema, RetrievalKit
 from tests.utils.middleware import MockRestMiddleware
 from tests.utils.policy import retrieval_request_setup, retrieval_params_decode_from_rest
 
@@ -152,13 +153,39 @@ def test_retrieve_cfrags(blockchain_porter,
     assert cleartext == original_message
 
     #
-    # Try same retrieval using query parameters
+    # Try using multiple retrieval kits
     #
-    url_retrieve_params = dict(retrieve_cfrags_params)
-    url_retrieve_params['retrieval_kits'] = ",".join(retrieve_cfrags_params['retrieval_kits'])   # adjust for list
+    multiple_retrieval_kits_params = dict(retrieve_cfrags_params)
+    enrico = Enrico(policy_encrypting_key=enacted_policy.public_key)
+    retrieval_kit_1 = enrico.encrypt_message(b"Those who say it can't be done").as_retrieval_kit()
+    retrieval_kit_2 = enrico.encrypt_message(b"are usually interrupted by others doing it.").as_retrieval_kit()
+    retrieval_kit_field = RetrievalKit()
+    # use multiple retrieval kits and serialize for json
+    multiple_retrieval_kits_params['retrieval_kits'] = [
+        retrieval_kit_field._serialize(value=retrieval_kit_1, attr=None, obj=None),
+        retrieval_kit_field._serialize(value=retrieval_kit_2, attr=None, obj=None)
+    ]
+    response = blockchain_porter_web_controller.post('/retrieve_cfrags', data=json.dumps(multiple_retrieval_kits_params))
+    assert response.status_code == 200
+
+    response_data = json.loads(response.data)
+    retrieval_results = response_data['result']['retrieval_results']
+    assert retrieval_results
+    assert len(retrieval_results) == 2
+
+    #
+    # Try same retrieval (with multiple retrieval kits) using query parameters
+    #
+    url_retrieve_params = dict(multiple_retrieval_kits_params)  # use multiple kit params from above
+    # adjust parameter for url query parameter list format
+    url_retrieve_params['retrieval_kits'] = ",".join(url_retrieve_params['retrieval_kits'])   # adjust for list
     response = blockchain_porter_web_controller.post(f'/retrieve_cfrags'
                                                      f'?{urlencode(url_retrieve_params)}')
     assert response.status_code == 200
+    response_data = json.loads(response.data)
+    retrieval_results = response_data['result']['retrieval_results']
+    assert retrieval_results
+    assert len(retrieval_results) == 2
 
     #
     # Failure
