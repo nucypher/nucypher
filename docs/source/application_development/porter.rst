@@ -509,9 +509,10 @@ Parameters
 
             base64(<capsule bytes><bytes of ursula_1 checksum address><bytes of ursula_2 checksum address>...)
 
-        if some cfrags were already obtained from a subset of Ursulas; for example, retrying after not receiving a
-        threshold of cfrags because some Ursulas may have experienced a blip in connectivity. This is an optional
-        optimization that prevents repeated reencryptions from subsequent calls.
+        if some cfrags were already obtained from a subset of Ursulas for a *retrieval kit* in a
+        previous ``/retrieve_cfrags`` call; for example, retrying after receiving less than a threshold of cfrags
+        because some Ursulas may have experienced a blip in connectivity. This is an optional optimization that provides
+        retry functionality that skips previously successful reencryption operations.
 
 Returns
 +++++++
