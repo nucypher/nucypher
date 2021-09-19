@@ -47,11 +47,12 @@ contract PREStakingApp is IApplication, Adjudicator, PolicyManager {
         uint256 tReward;
         uint256 rewardPerTokenPaid;
 
-        // TODO do we need worker?s
+        uint256 endDeauthorization;
+        uint256 deauthorizing;
     }
 
     uint256 public immutable rewardDuration;
-    uint256 public immutable override deauthorizationDuration;
+    uint256 public immutable deauthorizationDuration;
     uint256 public immutable override minAuthorizationSize;
 
     IERC20 public immutable token;
@@ -109,12 +110,18 @@ contract PREStakingApp is IApplication, Adjudicator, PolicyManager {
     */
     modifier onlyWorker()
     {
-        require(workerInfo[msg.sender].authorized > 0); //|| workerInfo[msg.sender].deauthorizing); // TODO
+        require(workerInfo[msg.sender].authorized > 0);
         _;
     }
 
     modifier updateReward(address _worker) {
         updateRewardInternal(_worker);
+        _;
+    }
+
+    modifier onlyStakingContract()
+    {
+        require(msg.sender == address(tokenStaking));
         _;
     }
 
@@ -192,19 +199,9 @@ contract PREStakingApp is IApplication, Adjudicator, PolicyManager {
     /**
     * @notice Recalculate reward and store authorization
     * @param _worker Address of worker
-    * @param _authorized Amount of authorized tokens to PRE application by worker
-    * @param _deauthorizing Amount of tokens in deauthorization process
-    * @param _authorizationPerApp Amount of authorized tokens to PRE application by all workers
+    * @param _amount Amount of authorized tokens to PRE application by worker
     */
-    function receiveAuthorization(
-        address _worker,
-        uint256 _authorized,
-        uint256 _deauthorizing,
-        uint256 _authorizationPerApp
-    )
-        external override
-    {
-        require(msg.sender == address(tokenStaking));
+    function authorizationIncreased(address _worker, uint256 _amount) external override onlyStakingContract {
         require(_worker != address(0));
 
         WorkerInfo storage info = workerInfo[_worker];
@@ -214,9 +211,45 @@ contract PREStakingApp is IApplication, Adjudicator, PolicyManager {
 
         updateRewardInternal(_worker);
 
-        info.authorized = _authorized;
-        authorizedOverall = _authorizationPerApp;
+        info.authorized += _amount;
+        authorizedOverall += _amount;
         // TODO emit event
+    }
+
+    // TODO docs
+    function involuntaryAllocationDecrease(address _worker, uint256 _amount)
+        external override onlyStakingContract updateReward(_worker)
+    {
+        WorkerInfo storage info = workerInfo[_worker];
+        info.authorized -= _amount;
+        authorizedOverall -= _amount;
+        // TODO emit event
+    }
+
+    // TODO docs
+    function authorizationDecreaseRequested(address _worker, uint256 _amount)
+        external override onlyStakingContract
+    {
+        WorkerInfo storage info = workerInfo[_worker];
+        require(_amount <= info.authorized);
+        info.deauthorizing = _amount;
+        info.endDeauthorization = block.timestamp + deauthorizationDuration;
+        // TODO emit event
+    }
+
+    // TODO docs
+    // TODO who can call this? same as in request?
+    function finishDeauthorization() external updateReward(msg.sender) {
+        WorkerInfo storage info = workerInfo[msg.sender];
+        require(info.endDeauthorization >= block.timestamp);
+
+        info.authorized -= info.deauthorizing;
+        authorizedOverall -= info.deauthorizing;
+        info.deauthorizing = 0;
+        info.endDeauthorization = 0;
+
+        // TODO emit event
+        tokenStaking.approveAuthorizationDecrease(msg.sender);
     }
 
     //-------------------------Main-------------------------
@@ -224,19 +257,19 @@ contract PREStakingApp is IApplication, Adjudicator, PolicyManager {
     * @notice Get all tokens belonging to the worker
     */
     function getAllTokens(address _worker) public override view returns (uint256) { // TODO rename
-        return workerInfo[_worker].authorized; //+ workerInfo[_worker].deauthorizing;
+        return workerInfo[_worker].authorized;
     }
 
     /**
     * @notice Get the value of authorized tokens for active workers as well as workers and their authorized tokens
     * @param _startIndex Start index for looking in workers array
     * @param _maxWorkers Max workers for looking, if set 0 then all will be used
-    * @return allauthorizedTokens Sum of authorized tokens for active workers
+    * @return allAuthorizedTokens Sum of authorized tokens for active workers
     * @return activeWorkers Array of workers and their authorized tokens. Workers addresses stored as uint256
     * @dev Note that activeWorkers[0] in an array of uint256, but you want addresses. Careful when used directly!
     */
     function getActiveWorkers(uint256 _startIndex, uint256 _maxWorkers)
-        external view returns (uint256 allauthorizedTokens, uint256[2][] memory activeWorkers)
+        external view returns (uint256 allAuthorizedTokens, uint256[2][] memory activeWorkers)
     {
         uint256 endIndex = workers.length;
         require(_startIndex < endIndex);
@@ -244,19 +277,19 @@ contract PREStakingApp is IApplication, Adjudicator, PolicyManager {
             endIndex = _startIndex + _maxWorkers;
         }
         activeWorkers = new uint256[2][](endIndex - _startIndex);
-        allauthorizedTokens = 0;
+        allAuthorizedTokens = 0;
 
         uint256 resultIndex = 0;
         for (uint256 i = _startIndex; i < endIndex; i++) {
             address worker = workers[i];
             WorkerInfo storage info = workerInfo[worker];
-            if (info.authorized == 0) {
+            uint256 eligibleAmount = info.authorized - info.deauthorizing;
+            if (eligibleAmount == 0) {
                 continue;
             }
-            uint256 authorized = info.authorized;
             activeWorkers[resultIndex][0] = uint256(uint160(worker));
-            activeWorkers[resultIndex++][1] = authorized;
-            allauthorizedTokens += authorized;
+            activeWorkers[resultIndex++][1] = eligibleAmount;
+            allAuthorizedTokens += eligibleAmount;
         }
         assembly {
             mstore(activeWorkers, resultIndex)

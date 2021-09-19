@@ -11,20 +11,11 @@ interface IApplication {
 
     // TODO: Events
 
-    /**
-     * @dev Receive call with authorization changes from staking contract
-     */
-    function receiveAuthorization(
-        address staker,
-        uint256 authorized,
-        uint256 deauthorizing,
-        uint256 allocationPerApp
-    ) external;
+    function authorizationIncreased(address worker, uint256 amount) external;
 
-    /**
-     * @dev Get deauthorization duration from application
-     */
-    function deauthorizationDuration() external returns (uint256);
+    function authorizationDecreaseRequested(address worker, uint256 amount) external;
+
+    function involuntaryAllocationDecrease(address worker, uint256 amount) external;
 
     /**
      * @dev Get min authorization size from application
