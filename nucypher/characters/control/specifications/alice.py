@@ -42,10 +42,10 @@ class PolicyBaseSchema(BaseSchema):
             '-bvk',
             help="Bob's verifying key as a hexadecimal string",
             type=click.STRING, required=False))
-    threshold = character_fields.Threshold(
+    threshold = base_fields.PositiveInteger(
         required=True, load_only=True,
         click=options.option_threshold)
-    shares = character_fields.Shares(
+    shares = base_fields.PositiveInteger(
         required=True, load_only=True,
         click=options.option_shares)
     expiration = character_fields.DateTime(

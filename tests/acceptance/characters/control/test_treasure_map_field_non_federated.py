@@ -30,9 +30,7 @@ def test_treasure_map(enacted_blockchain_policy):
     assert serialized == b64encode(bytes(treasure_map)).decode()
 
     deserialized = field._deserialize(value=serialized, attr=None, data=None)
-    assert deserialized == bytes(treasure_map)
-
-    field._validate(value=bytes(treasure_map))
+    assert deserialized == treasure_map
 
     with pytest.raises(InvalidInputData):
-        field._validate(value=b"TreasureMap")
+        field._deserialize(value=b64encode(b"TreasureMap").decode(), attr=None, data=None)

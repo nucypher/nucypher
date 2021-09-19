@@ -15,31 +15,30 @@
  along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
-from base64 import b64decode, b64encode
-
-from marshmallow import fields
-
-from nucypher.characters.control.specifications.exceptions import InvalidNativeDataTypes
 from nucypher.control.specifications.exceptions import InvalidInputData
-from nucypher.control.specifications.fields.base import BaseField
-from nucypher.policy.maps import EncryptedTreasureMap as EncryptedTreasureMapClass
+from nucypher.control.specifications.fields.base import Base64BytesRepresentation
+from nucypher.policy.maps import EncryptedTreasureMap as EncryptedTreasureMapClass, TreasureMap as TreasureMapClass
 
 
-class EncryptedTreasureMap(BaseField, fields.Field):
+class EncryptedTreasureMap(Base64BytesRepresentation):
     """
-    JSON Parameter representation of TreasureMap.
+    JSON Parameter representation of EncryptedTreasureMap.
     """
-    def _serialize(self, value, attr, obj, **kwargs):
-        return b64encode(bytes(value)).decode()
-
     def _deserialize(self, value, attr, data, **kwargs):
         try:
-            return b64decode(value)
-        except InvalidNativeDataTypes as e:
-            raise InvalidInputData(f"Could not parse {self.name}: {e}")
-
-    def _validate(self, value):
-        try:
-            EncryptedTreasureMapClass.from_bytes(value)
+            encrypted_treasure_map_bytes = super()._deserialize(value, attr, data, **kwargs)
+            return EncryptedTreasureMapClass.from_bytes(encrypted_treasure_map_bytes)
         except Exception as e:
             raise InvalidInputData(f"Could not convert input for {self.name} to an EncryptedTreasureMap: {e}") from e
+
+
+class TreasureMap(Base64BytesRepresentation):
+    """
+    JSON Parameter representation of (unencrypted) TreasureMap.
+    """
+    def _deserialize(self, value, attr, data, **kwargs):
+        try:
+            treasure_map_bytes = super()._deserialize(value, attr, data, **kwargs)
+            return TreasureMapClass.from_bytes(treasure_map_bytes)
+        except Exception as e:
+            raise InvalidInputData(f"Could not convert input for {self.name} to a TreasureMap: {e}") from e

@@ -139,10 +139,10 @@ For more details on these arguments, see the nucypher documentation on the ``Ali
 Bob
 ~~~
 
-retrieve
-********
+retrieve_and_decrypt
+********************
 
-This endpoint controls the ``Bob.retrieve`` method.
+This endpoint controls the ``Bob.retrieve_and_decrypt`` method.
 
 - URL: ``/retrieve_and_decrypt``
 - HTTP Method: ``POST``
@@ -150,10 +150,10 @@ This endpoint controls the ``Bob.retrieve`` method.
     - ``policy_encrypting_key`` -- encoded as hex
     - ``alice_verifying_key`` -- encoded as hex
     - ``encrypted_treasure_map`` -- encoded as base64
-    - ``message_kit`` -- encoded as base64
+    - ``message_kits`` -- list of message kits each encoded as base64
 - Returns: a JSON-array of base64-encoded decrypted plaintexts as ``cleartexts``
 
-For more details on these arguments, see the nucypher documentation on the ``Bob.retrieve`` Python API method.
+For more details on these arguments, see the nucypher documentation on the ``Bob.retrieve_and_decrypt`` Python API method.
 
 Enrico (DataSource)
 ~~~~~~~~~~~~~~~~~~~

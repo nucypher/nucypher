@@ -1,0 +1,2 @@
+Modify Porter REST endpoint from ``/exec_work_order`` to ``/retrieve_cfrags`` and modify request parameters for retrieval of re-encrypted data.
+Update Bob ``/retrieve_and_decrypt`` REST endpoint to accept a list of message kits instead of only one - to match updated ``Bob.retrieve_and_decrypt`` Python API.

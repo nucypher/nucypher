@@ -16,23 +16,22 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
 
-from typing import Optional, Callable, Union, Sequence, Dict
+from typing import Optional, Callable, Sequence, Dict
 
 from bytestring_splitter import (
     BytestringSplitter,
     VariableLengthBytestring,
     BytestringSplittingError,
 )
-from constant_sorrow.constants import NO_DECRYPTION_PERFORMED, NOT_SIGNED
-from eth_utils.address import to_checksum_address, to_canonical_address
 from eth_typing.evm import ChecksumAddress
+from eth_utils.address import to_checksum_address, to_canonical_address
 
 from nucypher.blockchain.eth.constants import ETH_ADDRESS_BYTE_LENGTH
 from nucypher.crypto.constants import EIP712_MESSAGE_SIGNATURE_SIZE
-from nucypher.crypto.powers import DecryptingPower, SigningPower
+from nucypher.crypto.powers import DecryptingPower
 from nucypher.crypto.signing import SignatureStamp, InvalidSignature
 from nucypher.crypto.splitters import signature_splitter, kfrag_splitter
-from nucypher.crypto.umbral_adapter import KeyFrag, VerifiedKeyFrag, PublicKey, Signature
+from nucypher.crypto.umbral_adapter import KeyFrag, VerifiedKeyFrag, Signature
 from nucypher.crypto.utils import keccak_digest, verify_eip_191
 from nucypher.network.middleware import RestMiddleware
 from nucypher.policy.hrac import HRAC, hrac_splitter
@@ -130,6 +129,14 @@ class TreasureMap:
             raise ValueError('Invalid treasure map contents.') from e
         destinations = {u: k for u, k in ursula_and_kfrags}
         return cls(threshold, hrac, destinations)
+
+    def __eq__(self, other):
+        if not isinstance(other, TreasureMap):
+            return False
+
+        return (self.threshold == other.threshold and
+                self.hrac == other.hrac and
+                self.destinations == other.destinations)
 
     def __iter__(self):
         return iter(self.destinations.items())
@@ -313,3 +320,6 @@ class EncryptedTreasureMap:
         result = cls(hrac, public_signature, message_kit, blockchain_signature=blockchain_signature)
         result._public_verify()
         return result
+
+    def __eq__(self, other):
+        return bytes(self) == bytes(other)

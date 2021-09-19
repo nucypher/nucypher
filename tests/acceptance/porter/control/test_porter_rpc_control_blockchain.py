@@ -14,21 +14,15 @@
  You should have received a copy of the GNU Affero General Public License
  along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
-
-from base64 import b64encode, b64decode
+import os
+from base64 import b64encode
 
 import pytest
-from nucypher.crypto.umbral_adapter import PublicKey
 
-from nucypher.crypto.powers import DecryptingPower
+from nucypher.control.specifications.exceptions import InvalidInputData
 from nucypher.network.nodes import Learner
-from nucypher.policy.hrac import HRAC
-from nucypher.policy.maps import TreasureMap
 from tests.utils.middleware import MockRestMiddleware
-
-
-# should always be first test due to checks on response id
-from tests.utils.policy import retrieval_request_setup
+from tests.utils.policy import retrieval_request_setup, retrieval_params_decode_from_rest
 
 
 def test_get_ursulas(blockchain_porter_rpc_controller, blockchain_ursulas):
@@ -81,39 +75,38 @@ def test_get_ursulas(blockchain_porter_rpc_controller, blockchain_ursulas):
         blockchain_porter_rpc_controller.send(request_data)
 
 
-@pytest.mark.skip("To be fixed in #2768")
-def test_exec_work_order(blockchain_porter_rpc_controller,
+def test_retrieve_cfrags(blockchain_porter,
+                         blockchain_porter_rpc_controller,
                          random_blockchain_policy,
-                         blockchain_ursulas,
                          blockchain_bob,
-                         blockchain_alice,
-                         get_random_checksum_address):
-    method = 'exec_work_order'
+                         blockchain_alice):
+    method = 'retrieve_cfrags'
+
     # Setup
     network_middleware = MockRestMiddleware()
     # enact new random policy since idle_blockchain_policy/enacted_blockchain_policy already modified in previous tests
     enacted_policy = random_blockchain_policy.enact(network_middleware=network_middleware)
-    ursula_address, work_order = work_order_setup(enacted_policy,
-                                                  blockchain_ursulas,
-                                                  blockchain_bob,
-                                                  blockchain_alice)
-    work_order_payload_b64 = b64encode(work_order.payload()).decode()
+    retrieve_cfrags_params, _ = retrieval_request_setup(enacted_policy,
+                                                        blockchain_bob,
+                                                        blockchain_alice,
+                                                        encode_for_rest=True)
 
-    exec_work_order_params = {
-        'ursula': ursula_address,
-        'work_order_payload': work_order_payload_b64
-    }
-    request_data = {'method': method, 'params': exec_work_order_params}
+    # Success
+    request_data = {'method': method, 'params': retrieve_cfrags_params}
     response = blockchain_porter_rpc_controller.send(request_data)
     assert response.success
-    work_order_result = response.content['work_order_result']
-    assert work_order_result
 
-    # Failure
-    exec_work_order_params = {
-        'ursula': get_random_checksum_address(),  # unknown ursula
-        'work_order_payload': work_order_payload_b64
-    }
-    with pytest.raises(Learner.NotEnoughNodes):
-        request_data = {'method': method, 'params': exec_work_order_params}
+    retrieval_results = response.data['result']['retrieval_results']
+    assert retrieval_results
+
+    # expected results - can only compare length of results, ursulas are randomized to obtain cfrags
+    retrieve_args = retrieval_params_decode_from_rest(retrieve_cfrags_params)
+    expected_results = blockchain_porter.retrieve_cfrags(**retrieve_args)
+    assert len(retrieval_results) == len(expected_results)
+
+    # Failure - use encrypted treasure map
+    failure_retrieve_cfrags_params = dict(retrieve_cfrags_params)
+    failure_retrieve_cfrags_params['treasure_map'] = b64encode(os.urandom(32)).decode()
+    request_data = {'method': method, 'params': failure_retrieve_cfrags_params}
+    with pytest.raises(InvalidInputData):
         blockchain_porter_rpc_controller.send(request_data)

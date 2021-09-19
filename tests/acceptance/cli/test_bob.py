@@ -20,25 +20,20 @@ from base64 import b64encode
 from pathlib import Path
 from unittest import mock
 
-import os
-import pytest
-
-from nucypher.control.emitters import JSONRPCStdoutEmitter
-from nucypher.characters.lawful import Ursula
-from nucypher.cli import utils
+from nucypher.cli.commands.bob import BobCharacterOptions
 from nucypher.cli.literature import SUCCESSFUL_DESTRUCTION, COLLECT_NUCYPHER_PASSWORD
 from nucypher.cli.main import nucypher_cli
 from nucypher.config.characters import BobConfiguration
 from nucypher.config.constants import TEMPORARY_DOMAIN
+from nucypher.control.emitters import JSONRPCStdoutEmitter
 from nucypher.crypto.powers import SigningPower
-from nucypher.utilities.logging import GlobalLoggerSettings, Logger
 from nucypher.policy.identity import Card
+from nucypher.utilities.logging import GlobalLoggerSettings, Logger
 from tests.constants import (
     FAKE_PASSWORD_CONFIRMED,
     INSECURE_DEVELOPMENT_PASSWORD,
     MOCK_CUSTOM_INSTALLATION_PATH
 )
-from nucypher.policy.kits import MessageKit
 
 log = Logger()
 
@@ -117,24 +112,24 @@ def test_bob_public_keys(click_runner):
     assert "bob_verifying_key" in result.output
 
 
-@pytest.mark.skip("Needs mock middleware handling")  # TODO
-def test_bob_retrieves_twice_via_cli(click_runner,
-                                     capsule_side_channel,
-                                     enacted_federated_policy,
-                                     federated_ursulas,
-                                     custom_filepath_2: Path,
-                                     federated_alice,
-                                     federated_bob,
-                                     mocker):
+def test_bob_retrieve_and_decrypt(click_runner,
+                                  capsule_side_channel,
+                                  enacted_federated_policy,
+                                  federated_ursulas,
+                                  custom_filepath_2: Path,
+                                  federated_alice,
+                                  federated_bob,
+                                  mocker):
 
     teacher = list(federated_ursulas)[0]
 
-    first_message = capsule_side_channel.reset(plaintext_passthrough=True)
-    three_message_kits = [capsule_side_channel(), capsule_side_channel(), capsule_side_channel()]
+    first_message, _ = capsule_side_channel.reset(plaintext_passthrough=True)
+    message_kits_b64 = [b64encode(bytes(message_kit)).decode() for message_kit in
+                            [first_message, capsule_side_channel(), capsule_side_channel(), capsule_side_channel()]
+                       ]
 
     bob_config_root = custom_filepath_2
     bob_configuration_file_location = bob_config_root / BobConfiguration.generate_filename()
-    label = enacted_federated_policy.label
 
     # I already have a Bob.
 
@@ -148,55 +143,115 @@ def test_bob_retrieves_twice_via_cli(click_runner,
 
     log.info("Init'ing a normal Bob; we'll substitute the Policy Bob in shortly.")
     bob_init_response = click_runner.invoke(nucypher_cli, bob_init_args, catch_exceptions=False, env=envvars)
+    assert bob_init_response.exit_code == 0, bob_init_response.output
 
-    message_kit_bytes = bytes(three_message_kits[0])
-    message_kit_b64_bytes = b64encode(message_kit_bytes)
-    MessageKit.from_bytes(message_kit_bytes)
+    teacher_uri = teacher.seed_node_metadata(as_teacher_uri=True)
+    bob_config_file = str(bob_configuration_file_location.absolute())
+    policy_encrypting_key_hex = bytes(enacted_federated_policy.public_key).hex()
+    alice_verifying_key_hex = bytes(federated_alice.public_keys(SigningPower)).hex()
+    encrypted_treasure_map_b64 = b64encode(bytes(enacted_federated_policy.treasure_map)).decode()
 
+    # Retrieve without --alice_verifying_key or --alice specified - tests override of schema definition for CLI
     retrieve_args = ('bob', 'retrieve-and-decrypt',
                      '--mock-networking',
                      '--json-ipc',
-                     '--teacher', teacher.seed_node_metadata(as_teacher_uri=True),
-                     '--config-file', str(bob_configuration_file_location.absolute()),
-                     '--message-kit', message_kit_b64_bytes,
-                     '--policy-encrypting-key', bytes(federated_alice.get_policy_encrypting_key_from_label(label)).hex(),
-                     '--alice-verifying-key', bytes(federated_alice.public_keys(SigningPower)).hex()
+                     '--teacher', teacher_uri,
+                     '--config-file', bob_config_file,
+                     '--message-kit', message_kits_b64[0],
+                     '--policy-encrypting-key', policy_encrypting_key_hex,
+                     '--treasure-map', encrypted_treasure_map_b64,
                      )
+    retrieve_response = click_runner.invoke(nucypher_cli,
+                                            retrieve_args,
+                                            catch_exceptions=False,
+                                            env=envvars)
+    assert retrieve_response.exit_code != 0, "no alice_verifying_key specified"
+    assert "Pass either '--alice_verifying_key' or '--alice'; got neither" in retrieve_response.output, retrieve_response.output
 
+    # Retrieve with both --alice_verifying_key and --alice specified - should not be allowed
+    retrieve_args = ('bob', 'retrieve-and-decrypt',
+                     '--mock-networking',
+                     '--json-ipc',
+                     '--teacher', teacher_uri,
+                     '--config-file', bob_config_file,
+                     '--message-kit', message_kits_b64[0],
+                     '--policy-encrypting-key', policy_encrypting_key_hex,
+                     '--alice-verifying-key', alice_verifying_key_hex,
+                     '--alice', 'rando-card-nickname',
+                     '--treasure-map', encrypted_treasure_map_b64,
+                     )
+    retrieve_response = click_runner.invoke(nucypher_cli,
+                                            retrieve_args,
+                                            catch_exceptions=False,
+                                            env=envvars)
+    assert retrieve_response.exit_code != 0, "both alice_verifying_key and alice can't be specified"
+    assert "Pass either '--alice_verifying_key' or '--alice'; got both" in retrieve_response.output, retrieve_response.output
+
+    #
+    # Perform actual retrieve and decrypts
+    #
     def substitute_bob(*args, **kwargs):
-        log.info("Substituting the Policy's Bob in CLI runtime.")
+        log.info("Substituting the Bob used in the CLI runtime.")
         this_fuckin_guy = federated_bob
-        somebody_else = Ursula.from_teacher_uri(teacher_uri=kwargs['teacher_uri'],
-                                                min_stake=0,
-                                                federated_only=True,
-                                                network_middleware=this_fuckin_guy.network_middleware)
-        this_fuckin_guy.remember_node(somebody_else)
         this_fuckin_guy.controller.emitter = JSONRPCStdoutEmitter()
         return this_fuckin_guy
 
-    mocker.patch.object(utils, 'make_cli_character', return_value=substitute_bob)
+    with mocker.patch.object(BobCharacterOptions, 'create_character', side_effect=substitute_bob):
+        #
+        # Retrieve one message kit
+        #
+        retrieve_args = ('bob', 'retrieve-and-decrypt',
+                         '--mock-networking',
+                         '--json-ipc',
+                         '--teacher', teacher_uri,
+                         '--config-file', bob_config_file,
+                         '--message-kit', message_kits_b64[0],
+                         '--policy-encrypting-key', policy_encrypting_key_hex,
+                         '--alice-verifying-key', alice_verifying_key_hex,
+                         '--treasure-map', encrypted_treasure_map_b64,
+                         )
+        with GlobalLoggerSettings.pause_all_logging_while():
+            retrieve_response = click_runner.invoke(nucypher_cli,
+                                                    retrieve_args,
+                                                    catch_exceptions=False,
+                                                    env=envvars)
 
-    # Once...
-    with GlobalLoggerSettings.pause_all_logging_while():
-        retrieve_response = click_runner.invoke(nucypher_cli, retrieve_args, catch_exceptions=False, env=envvars)
+        log.info(f"Retrieval response: {retrieve_response.output}")
+        assert retrieve_response.exit_code == 0, retrieve_response.output
 
-    log.info(f"First retrieval response: {retrieve_response.output}")
-    assert retrieve_response.exit_code == 0
+        retrieve_response = json.loads(retrieve_response.output)
+        cleartexts = retrieve_response['result']['cleartexts']
+        assert len(cleartexts) == 1
+        assert cleartexts[0].encode() == capsule_side_channel.plaintexts[0]
 
-    retrieve_response = json.loads(retrieve_response.output)
-    for cleartext in retrieve_response['result']['cleartexts']:
-        assert cleartext.encode() == capsule_side_channel.plaintexts[1]
+        #
+        # Retrieve and decrypt multiple message kits
+        #
+        retrieve_args = ('bob', 'retrieve-and-decrypt',
+                         '--mock-networking',
+                         '--json-ipc',
+                         '--teacher', teacher_uri,
+                         '--config-file', bob_config_file,
+                         # use multiple message kits
+                         '--message-kit', message_kits_b64[0],
+                         '--message-kit', message_kits_b64[1],
+                         '--message-kit', message_kits_b64[2],
+                         '--message-kit', message_kits_b64[3],
+                         '--policy-encrypting-key', policy_encrypting_key_hex,
+                         '--alice-verifying-key', alice_verifying_key_hex,
+                         '--treasure-map', encrypted_treasure_map_b64
+                         )
+        with GlobalLoggerSettings.pause_all_logging_while():
+            retrieve_response = click_runner.invoke(nucypher_cli, retrieve_args, catch_exceptions=False, env=envvars)
 
-    # and again!
-    with GlobalLoggerSettings.pause_all_logging_while():
-        retrieve_response = click_runner.invoke(nucypher_cli, retrieve_args, catch_exceptions=False, env=envvars)
+        log.info(f"Retrieval response: {retrieve_response.output}")
+        assert retrieve_response.exit_code == 0, retrieve_response.output
 
-    log.info(f"Second retrieval response: {retrieve_response.output}")
-    assert retrieve_response.exit_code == 0
-
-    retrieve_response = json.loads(retrieve_response.output)
-    for cleartext in retrieve_response['result']['cleartexts']:
-        assert cleartext.encode() == capsule_side_channel.plaintexts[1]
+        retrieve_response = json.loads(retrieve_response.output)
+        cleartexts = retrieve_response['result']['cleartexts']
+        assert len(cleartexts) == len(message_kits_b64)
+        for index, cleartext in enumerate(cleartexts):
+            assert cleartext.encode() == capsule_side_channel.plaintexts[index]
 
 
 # NOTE: Should be the last test in this module since it deletes the configuration file

@@ -17,6 +17,7 @@
 
 
 import functools
+from typing import Optional, Set
 
 
 def attach_schema(schema):
@@ -39,12 +40,19 @@ class ControlInterface:
         super().__init__(*args, **kwargs)
 
     @classmethod
-    def connect_cli(cls, action):
+    def connect_cli(cls, action, exclude: Optional[Set[str]] = None):
+        """
+        Provides click CLI options based on the defined schema for the action.
+
+        "exclude" can be used to allow CLI to exclude a subset of click options from the schema from being defined,
+        and allow the CLI to define them differently. For example, it can be used to exclude a required schema click
+        option and allow the CLI to make it not required.
+        """
         schema = getattr(cls, action)._schema
 
         def callable(func):
             c = func
-            for f in [f for f in schema.load_fields.values() if f.click]:
+            for f in [f for f in schema.load_fields.values() if f.click and (not exclude or f.name not in exclude)]:
                 c = f.click(c)
 
             @functools.wraps(func)

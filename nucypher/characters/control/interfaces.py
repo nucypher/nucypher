@@ -15,8 +15,7 @@
  along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
-from base64 import b64decode
-from typing import Union
+from typing import Union, List
 
 import maya
 
@@ -41,8 +40,8 @@ class AliceInterface(CharacterPublicInterface):
 
     @attach_schema(alice.CreatePolicy)
     def create_policy(self,
-                      bob_encrypting_key: bytes,
-                      bob_verifying_key: bytes,
+                      bob_encrypting_key: PublicKey,
+                      bob_verifying_key: PublicKey,
                       label: bytes,
                       threshold: int,
                       shares: int,
@@ -73,8 +72,8 @@ class AliceInterface(CharacterPublicInterface):
 
     @attach_schema(alice.GrantPolicy)
     def grant(self,
-              bob_encrypting_key: bytes,
-              bob_verifying_key: bytes,
+              bob_encrypting_key: PublicKey,
+              bob_verifying_key: PublicKey,
               label: bytes,
               threshold: int,
               shares: int,
@@ -104,7 +103,7 @@ class AliceInterface(CharacterPublicInterface):
         return response_data
 
     @attach_schema(alice.Revoke)
-    def revoke(self, label: bytes, bob_verifying_key: bytes) -> dict:
+    def revoke(self, label: bytes, bob_verifying_key: PublicKey) -> dict:
 
         # TODO: Move deeper into characters
         policy_hrac = HRAC.derive(self.implementer.stamp.as_umbral_pubkey(), bob_verifying_key, label)
@@ -123,7 +122,7 @@ class AliceInterface(CharacterPublicInterface):
         return response_data
 
     @attach_schema(alice.Decrypt)
-    def decrypt(self, label: bytes, message_kit: bytes) -> dict:
+    def decrypt(self, label: bytes, message_kit: MessageKit) -> dict:
         """
         Character control endpoint to allow Alice to decrypt her own data.
         """
@@ -132,7 +131,6 @@ class AliceInterface(CharacterPublicInterface):
         policy_encrypting_key = self.implementer.get_policy_encrypting_key_from_label(label)
 
         # TODO #846: May raise UnknownOpenSSLError and InvalidTag.
-        message_kit = MessageKit.from_bytes(message_kit)
 
         enrico = Enrico.from_public_keys(
             verifying_key=message_kit.sender_verifying_key,
@@ -163,27 +161,14 @@ class BobInterface(CharacterPublicInterface):
 
     @attach_schema(bob.RetrieveAndDecrypt)
     def retrieve_and_decrypt(self,
-                             policy_encrypting_key: bytes,
-                             alice_verifying_key: bytes,
-                             message_kit: bytes,
-                             encrypted_treasure_map: Union[bytes, str, 'EncryptedTreasureMap']):
+                             policy_encrypting_key: PublicKey,
+                             alice_verifying_key: PublicKey,
+                             message_kits: List[MessageKit],
+                             encrypted_treasure_map: EncryptedTreasureMap) -> dict:
         """
         Character control endpoint for re-encrypting and decrypting policy data.
         """
-        from nucypher.characters.lawful import Enrico
-
-        policy_encrypting_key = PublicKey.from_bytes(policy_encrypting_key)
-        alice_verifying_key = PublicKey.from_bytes(alice_verifying_key)
-        message_kit = MessageKit.from_bytes(message_kit)  # TODO #846: May raise UnknownOpenSSLError and InvalidTag.
-
-        if isinstance(encrypted_treasure_map, bytes):
-            encrypted_treasure_map = EncryptedTreasureMap.from_bytes(encrypted_treasure_map)
-
-        if isinstance(encrypted_treasure_map, str):
-            tmap_bytes = encrypted_treasure_map.encode()
-            encrypted_treasure_map = EncryptedTreasureMap.from_bytes(b64decode(tmap_bytes))
-
-        plaintexts = self.implementer.retrieve_and_decrypt([message_kit],
+        plaintexts = self.implementer.retrieve_and_decrypt(message_kits,
                                                            policy_encrypting_key=policy_encrypting_key,
                                                            alice_verifying_key=alice_verifying_key,
                                                            encrypted_treasure_map=encrypted_treasure_map)
@@ -192,7 +177,7 @@ class BobInterface(CharacterPublicInterface):
         return response_data
 
     @attach_schema(bob.PublicKeys)
-    def public_keys(self):
+    def public_keys(self) -> dict:
         """
         Character control endpoint for getting Bob's encrypting and signing public keys
         """
@@ -205,7 +190,7 @@ class BobInterface(CharacterPublicInterface):
 class EnricoInterface(CharacterPublicInterface):
 
     @attach_schema(enrico.EncryptMessage)
-    def encrypt_message(self, plaintext: Union[str, bytes]):
+    def encrypt_message(self, plaintext: Union[str, bytes]) -> dict:
         """
         Character control endpoint for encrypting data for a policy and
         receiving the messagekit (and signature) to give to Bob.

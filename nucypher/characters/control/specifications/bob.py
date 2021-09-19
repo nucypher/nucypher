@@ -15,13 +15,11 @@
  along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
-import click
-
 import nucypher.control.specifications.fields as base_fields
 from nucypher.characters.control.specifications import fields as character_fields
 from nucypher.characters.control.specifications.fields.treasuremap import EncryptedTreasureMap
-from nucypher.control.specifications.base import BaseSchema
 from nucypher.cli import options
+from nucypher.control.specifications.base import BaseSchema
 
 
 class RetrieveAndDecrypt(BaseSchema):
@@ -34,23 +32,19 @@ class RetrieveAndDecrypt(BaseSchema):
     alice_verifying_key = character_fields.Key(
         required=True,
         load_only=True,
-        click=click.option(
-            '--alice-verifying-key',
-            '-avk',
-            help="Alice's verifying key as a hexadecimal string",
-            type=click.STRING,
-            required=True)
+        click=options.option_alice_verifying_key(required=True)
     )
-    message_kit = character_fields.MessageKit(
+    message_kits = base_fields.StringList(
+        character_fields.MessageKit(),
         required=True,
         load_only=True,
-        click=options.option_message_kit(required=True)
+        click=options.option_message_kit(required=True, multiple=True)
     )
-
     encrypted_treasure_map = EncryptedTreasureMap(required=True,
                                                   load_only=True,
                                                   click=options.option_treasure_map)
 
+    # output
     cleartexts = base_fields.List(character_fields.Cleartext(), dump_only=True)
 
 

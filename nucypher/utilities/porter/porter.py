@@ -28,6 +28,9 @@ from nucypher.control.controllers import JSONRPCController, WebController
 from nucypher.crypto.powers import DecryptingPower
 from nucypher.crypto.umbral_adapter import PublicKey
 from nucypher.network.nodes import Learner
+from nucypher.network.retrieval import RetrievalClient
+from nucypher.policy.kits import RetrievalKit, RetrievalResult
+from nucypher.policy.maps import TreasureMap
 from nucypher.policy.reservoir import (
     make_federated_staker_reservoir,
     make_decentralized_staker_reservoir,
@@ -148,14 +151,16 @@ the Pipe for nucypher network operations
         ursulas_info = successes.values()
         return list(ursulas_info)
 
-    def exec_work_order(self, ursula_address: ChecksumAddress, work_order_payload: bytes) -> bytes:
-        self.block_until_specific_nodes_are_known(addresses={ursula_address}, learn_on_this_thread=True)
-        ursula = self.known_nodes[ursula_address]
-        ursula_rest_response = self.network_middleware.send_work_order_payload_to_ursula(
-            ursula=ursula,
-            work_order_payload=work_order_payload)
-        result = ursula_rest_response.content
-        return result
+    def retrieve_cfrags(self,
+                        treasure_map: TreasureMap,
+                        retrieval_kits: Sequence[RetrievalKit],
+                        alice_verifying_key: PublicKey,
+                        bob_encrypting_key: PublicKey,
+                        bob_verifying_key: PublicKey,
+                        policy_encrypting_key: PublicKey) -> List[RetrievalResult]:
+        client = RetrievalClient(self)
+        return client.retrieve_cfrags(treasure_map, retrieval_kits,
+            alice_verifying_key, bob_encrypting_key, bob_verifying_key, policy_encrypting_key)
 
     def _make_staker_reservoir(self,
                                quantity: int,
@@ -229,10 +234,10 @@ the Pipe for nucypher network operations
             response = controller(method_name='revoke', control_request=request)
             return response
 
-        @porter_flask_control.route("/exec_work_order", methods=['POST'])
-        def exec_work_order() -> Response:
+        @porter_flask_control.route("/retrieve_cfrags", methods=['POST'])
+        def retrieve_cfrags() -> Response:
             """Porter control endpoint for executing a PRE work order on behalf of Bob."""
-            response = controller(method_name='exec_work_order', control_request=request)
+            response = controller(method_name='retrieve_cfrags', control_request=request)
             return response
 
         return controller

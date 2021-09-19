@@ -17,15 +17,15 @@
 
 
 import click
-from marshmallow import validates_schema
 from marshmallow import fields as marshmallow_fields
+from marshmallow import validates_schema
 
-from nucypher.control.specifications.base import BaseSchema
-from nucypher.control.specifications import fields as base_fields
-from nucypher.control.specifications.exceptions import InvalidArgumentCombo
-from nucypher.utilities.porter.control.specifications import fields
 from nucypher.characters.control.specifications import fields as character_fields
 from nucypher.cli import types
+from nucypher.control.specifications import fields as base_fields
+from nucypher.control.specifications.base import BaseSchema
+from nucypher.control.specifications.exceptions import InvalidArgumentCombo
+from nucypher.utilities.porter.control.specifications import fields
 
 
 def option_ursula():
@@ -117,3 +117,63 @@ class AliceGetUrsulas(BaseSchema):
 
 class AliceRevoke(BaseSchema):
     pass  # TODO need to understand revoke process better
+
+
+#
+# Bob Endpoints
+#
+class BobRetrieveCFrags(BaseSchema):
+    treasure_map = character_fields.TreasureMap(
+        required=True,
+        load_only=True,
+        click=click.option(
+            '--treasure-map',
+            '-t',
+            help="Unencrypted Treasure Map for retrieval",
+            type=click.STRING,
+            required=True))
+    retrieval_kits = base_fields.StringList(
+        fields.RetrievalKit(),
+        click=click.option(
+            '--retrieval-kits',
+            '-r',
+            help="Retrieval kits for reencryption",
+            multiple=True,
+            type=click.STRING,
+            required=True,
+            default=[]),
+        required=True,
+        load_only=True)
+    alice_verifying_key = character_fields.Key(
+        required=True,
+        load_only=True,
+        click=click.option(
+            '--alice-verifying-key',
+            '-avk',
+            help="Alice's verifying key as a hexadecimal string",
+            type=click.STRING,
+            required=True))
+    bob_encrypting_key = character_fields.Key(
+        required=True,
+        load_only=True,
+        click=option_bob_encrypting_key())
+    bob_verifying_key = character_fields.Key(
+        required=True,
+        load_only=True,
+        click=click.option(
+            '--bob-verifying-key',
+            '-bvk',
+            help="Bob's verifying key as a hexadecimal string",
+            type=click.STRING,
+            required=True))
+    policy_encrypting_key = character_fields.Key(
+        required=True,
+        load_only=True,
+        click=click.option(
+            '--policy-encrypting-key',
+            help="Encrypting Public Key for Policy as hexadecimal string",
+            type=click.STRING,
+            required=True))
+
+    # output
+    retrieval_results = marshmallow_fields.List(marshmallow_fields.Nested(fields.RetrievalResultSchema), dump_only=True)

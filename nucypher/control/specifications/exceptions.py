@@ -14,6 +14,8 @@
  You should have received a copy of the GNU Affero General Public License
  along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
+from bytestring_splitter import BytestringSplittingError
+from cryptography.exceptions import InternalError
 
 
 class SpecificationError(ValueError):
@@ -34,3 +36,6 @@ class InvalidOutputData(SpecificationError):
 
 class InvalidArgumentCombo(SpecificationError):
     """Arguments specified are incompatible"""
+
+
+InvalidNativeDataTypes = (ValueError, TypeError, BytestringSplittingError, InternalError)

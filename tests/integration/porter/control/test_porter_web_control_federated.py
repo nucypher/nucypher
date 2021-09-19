@@ -18,11 +18,16 @@
 
 import json
 from base64 import b64encode
+from urllib.parse import urlencode
 
-import pytest
+from constant_sorrow import default_constant_splitter
 
-from nucypher.network.nodes import Learner
-from tests.utils.policy import retrieval_request_setup
+from nucypher.characters.lawful import Enrico
+from nucypher.crypto.powers import DecryptingPower
+from nucypher.crypto.splitters import signature_splitter
+from nucypher.policy.kits import RetrievalResult
+from nucypher.utilities.porter.control.specifications.fields import RetrievalResultSchema, RetrievalKit
+from tests.utils.policy import retrieval_request_setup, retrieval_params_decode_from_rest
 
 
 def test_get_ursulas(federated_porter_web_controller, federated_ursulas):
@@ -80,52 +85,126 @@ def test_get_ursulas(federated_porter_web_controller, federated_ursulas):
     #
     failed_ursula_params = dict(get_ursulas_params)
     failed_ursula_params['quantity'] = len(federated_ursulas_list) + 1  # too many to get
-    with pytest.raises(Learner.NotEnoughNodes):
-        federated_porter_web_controller.get('/get_ursulas', data=json.dumps(failed_ursula_params))
+    response = federated_porter_web_controller.get('/get_ursulas', data=json.dumps(failed_ursula_params))
+    assert response.status_code == 500
 
 
-@pytest.mark.skip("To be fixed in #2768")
-def test_exec_work_order(federated_porter_web_controller,
+def test_retrieve_cfrags(federated_porter,
+                         federated_porter_web_controller,
                          enacted_federated_policy,
-                         federated_ursulas,
                          federated_bob,
                          federated_alice,
-                         get_random_checksum_address):
+                         random_federated_treasure_map_data):
     # Send bad data to assert error return
-    response = federated_porter_web_controller.post('/exec_work_order', data=json.dumps({'bad': 'input'}))
+    response = federated_porter_web_controller.post('/retrieve_cfrags', data=json.dumps({'bad': 'input'}))
     assert response.status_code == 400
 
     # Setup
-    ursula_address, work_order = work_order_setup(enacted_federated_policy,
-                                                  federated_ursulas,
-                                                  federated_bob,
-                                                  federated_alice)
-    work_order_payload_b64 = b64encode(work_order.payload()).decode()
+    original_message = b'The paradox of education is precisely this - that as one begins to become ' \
+                       b'conscious one begins to examine the society in which ' \
+                       b'he is (they are) being educated.'  # - James Baldwin
+    retrieve_cfrags_params, message_kit = retrieval_request_setup(enacted_federated_policy,
+                                                                  federated_bob,
+                                                                  federated_alice,
+                                                                  original_message=original_message,
+                                                                  encode_for_rest=True)
 
+    #
     # Success
-    exec_work_order_params = {
-        'ursula': ursula_address,
-        'work_order_payload': work_order_payload_b64
-    }
-    response = federated_porter_web_controller.post('/exec_work_order', data=json.dumps(exec_work_order_params))
+    #
+    response = federated_porter_web_controller.post('/retrieve_cfrags', data=json.dumps(retrieve_cfrags_params))
     assert response.status_code == 200
 
     response_data = json.loads(response.data)
-    work_order_result = response_data['result']['work_order_result']
-    assert work_order_result
+    retrieval_results = response_data['result']['retrieval_results']
+    assert retrieval_results
 
+    # expected results - can only compare length of results, ursulas are randomized to obtain cfrags
+    retrieve_args = retrieval_params_decode_from_rest(retrieve_cfrags_params)
+    expected_results = federated_porter.retrieve_cfrags(**retrieve_args)
+    assert len(retrieval_results) == len(expected_results)
+
+    # check that the re-encryption performed was valid
+    treasure_map = retrieve_args['treasure_map']
+    policy_message_kit = message_kit.as_policy_kit(policy_key=enacted_federated_policy.public_key,
+                                                   threshold=treasure_map.threshold)
+    assert len(retrieval_results) == 1
+    field = RetrievalResultSchema()
+    cfrags = field.load(retrieval_results[0])['cfrags']
+    verified_cfrags = {}
+    for ursula, cfrag in cfrags.items():
+        # need to obtain verified cfrags (verified cfrags are not deserializable, only non-verified cfrags)
+        verified_cfrag = cfrag.verify(capsule=policy_message_kit.message_kit.capsule,
+                                      verifying_pk=federated_alice.stamp.as_umbral_pubkey(),
+                                      delegating_pk=enacted_federated_policy.public_key,
+                                      receiving_pk=federated_bob.public_keys(DecryptingPower))
+        verified_cfrags[ursula] = verified_cfrag
+    retrieval_result_object = RetrievalResult(cfrags=verified_cfrags)
+    policy_message_kit = policy_message_kit.with_result(retrieval_result_object)
+
+    assert policy_message_kit.is_decryptable_by_receiver()
+
+    cleartext_with_sig_header = federated_bob._crypto_power.power_ups(DecryptingPower).keypair.decrypt(policy_message_kit)
+    sig_header, remainder = default_constant_splitter(cleartext_with_sig_header, return_remainder=True)
+    signature_from_kit, cleartext = signature_splitter(remainder, return_remainder=True)
+    assert signature_from_kit.verify(message=cleartext, verifying_key=policy_message_kit.sender_verifying_key)
+    assert cleartext == original_message
+
+    #
+    # Try using multiple retrieval kits
+    #
+    multiple_retrieval_kits_params = dict(retrieve_cfrags_params)
+    enrico = Enrico(policy_encrypting_key=enacted_federated_policy.public_key)
+    retrieval_kit_1 = enrico.encrypt_message(b'The paradox of education is precisely this').as_retrieval_kit()
+    retrieval_kit_2 = enrico.encrypt_message(b'that as one begins to become conscious').as_retrieval_kit()
+    retrieval_kit_3 = enrico.encrypt_message(b'begins to examine the society in which').as_retrieval_kit()
+    retrieval_kit_4 = enrico.encrypt_message(b'he is (they are) being educated.').as_retrieval_kit()
+    retrieval_kit_field = RetrievalKit()
+    # use multiple retrieval kits and serialize for json
+    multiple_retrieval_kits_params['retrieval_kits'] = [
+        retrieval_kit_field._serialize(value=retrieval_kit_1, attr=None, obj=None),
+        retrieval_kit_field._serialize(value=retrieval_kit_2, attr=None, obj=None),
+        retrieval_kit_field._serialize(value=retrieval_kit_3, attr=None, obj=None),
+        retrieval_kit_field._serialize(value=retrieval_kit_4, attr=None, obj=None)
+    ]
+    response = federated_porter_web_controller.post('/retrieve_cfrags', data=json.dumps(multiple_retrieval_kits_params))
+    assert response.status_code == 200
+
+    response_data = json.loads(response.data)
+    retrieval_results = response_data['result']['retrieval_results']
+    assert retrieval_results
+    assert len(retrieval_results) == 4
+
+    #
+    # Try same retrieval (with multiple retrieval kits) using query parameters
+    #
+    url_retrieve_params = dict(multiple_retrieval_kits_params)  # use multiple kit params from above
+    # adjust parameter for url query parameter list format
+    url_retrieve_params['retrieval_kits'] = ",".join(url_retrieve_params['retrieval_kits'])
+    response = federated_porter_web_controller.post(f'/retrieve_cfrags'
+                                                    f'?{urlencode(url_retrieve_params)}')
+    assert response.status_code == 200
+    response_data = json.loads(response.data)
+    retrieval_results = response_data['result']['retrieval_results']
+    assert retrieval_results
+    assert len(retrieval_results) == 4
+
+    #
     # Failure
-    exec_work_order_params = {
-        'ursula': get_random_checksum_address(),  # unknown ursula
-        'work_order_payload': work_order_payload_b64
-    }
-    with pytest.raises(Learner.NotEnoughNodes):
-        federated_porter_web_controller.post('/exec_work_order', data=json.dumps(exec_work_order_params))
+    #
+    failure_retrieve_cfrags_params = dict(retrieve_cfrags_params)
+    # use encrypted treasure map
+    _, random_treasure_map = random_federated_treasure_map_data
+    failure_retrieve_cfrags_params['treasure_map'] = b64encode(bytes(random_treasure_map)).decode()
+    response = federated_porter_web_controller.post('/retrieve_cfrags', data=json.dumps(failure_retrieve_cfrags_params))
+    assert response.status_code == 400  # invalid treasure map provided
 
 
 def test_endpoints_basic_auth(federated_porter_basic_auth_web_controller,
                               random_federated_treasure_map_data,
-                              get_random_checksum_address):
+                              enacted_federated_policy,
+                              federated_bob,
+                              federated_alice):
     # /get_ursulas
     quantity = 4
     duration = 2  # irrelevant for federated (but required)
@@ -136,13 +215,13 @@ def test_endpoints_basic_auth(federated_porter_basic_auth_web_controller,
     response = federated_porter_basic_auth_web_controller.get('/get_ursulas', data=json.dumps(get_ursulas_params))
     assert response.status_code == 401  # user unauthorized
 
-    # /exec_work_order
-    exec_work_order_params = {
-        'ursula': get_random_checksum_address(),
-        'work_order_payload': b64encode(b"some data").decode()
-    }
-    response = federated_porter_basic_auth_web_controller.post('/exec_work_order',
-                                                               data=json.dumps(exec_work_order_params))
+    # /retrieve_cfrags
+    retrieve_cfrags_params, _ = retrieval_request_setup(enacted_federated_policy,
+                                                        federated_bob,
+                                                        federated_alice,
+                                                        encode_for_rest=True)
+    response = federated_porter_basic_auth_web_controller.post('/retrieve_cfrags',
+                                                               data=json.dumps(retrieve_cfrags_params))
     assert response.status_code == 401  # user not authenticated
 
     # try get_ursulas with authentication
