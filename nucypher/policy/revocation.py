@@ -30,7 +30,7 @@ from nucypher.policy.maps import AuthorizedKeyFrag
 from nucypher.utilities.versioning import Versioned
 
 
-class Revocation(Versioned):
+class RevocationOrder(Versioned):
     """
     Represents a string used by characters to perform a revocation on a specific
     Ursula. It's a bytestring made of the following format:
@@ -110,9 +110,9 @@ class RevocationKit:
     def __init__(self, treasure_map, signer: SignatureStamp):
         self.revocations = dict()
         for node_id, encrypted_kfrag in treasure_map:
-            self.revocations[node_id] = Revocation(ursula_checksum_address=node_id,
-                                                   encrypted_kfrag=encrypted_kfrag,
-                                                   signer=signer)
+            self.revocations[node_id] = RevocationOrder(ursula_checksum_address=node_id,
+                                                        encrypted_kfrag=encrypted_kfrag,
+                                                        signer=signer)
 
     def __iter__(self):
         return iter(self.revocations.values())

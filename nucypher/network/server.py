@@ -40,7 +40,7 @@ from nucypher.network.protocols import InterfaceInfo
 from nucypher.network.retrieval import ReencryptionRequest, ReencryptionResponse
 from nucypher.policy.hrac import HRAC
 from nucypher.policy.kits import MessageKit
-from nucypher.policy.revocation import Revocation
+from nucypher.policy.revocation import RevocationOrder
 from nucypher.utilities.logging import Logger
 
 HERE = BASE_DIR = Path(__file__).parent
@@ -272,7 +272,7 @@ def _make_rest_app(datastore: Datastore, this_node, domain: str, log: Logger) ->
 
     @rest_app.route('/revoke', methods=['POST'])
     def revoke():
-        revocation = Revocation.from_bytes(request.data)
+        revocation = RevocationOrder.from_bytes(request.data)
         # TODO: Implement offchain revocation.
         return Response(status=200)
 

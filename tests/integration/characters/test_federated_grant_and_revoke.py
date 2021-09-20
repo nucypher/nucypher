@@ -24,7 +24,7 @@ import pytest
 from nucypher.characters.lawful import Enrico
 from nucypher.crypto.utils import keccak_digest
 from nucypher.policy.kits import MessageKit
-from nucypher.policy.revocation import Revocation
+from nucypher.policy.revocation import RevocationOrder
 
 
 def test_federated_grant(federated_alice, federated_bob, federated_ursulas):
@@ -113,7 +113,7 @@ def test_revocation(federated_alice, federated_bob):
     # Test Revocation deserialization
     revocation = policy.revocation_kit[node_id]
     revocation_bytes = bytes(revocation)
-    deserialized_revocation = Revocation.from_bytes(revocation_bytes)
+    deserialized_revocation = RevocationOrder.from_bytes(revocation_bytes)
     assert deserialized_revocation == revocation
 
     # Attempt to revoke the new policy
