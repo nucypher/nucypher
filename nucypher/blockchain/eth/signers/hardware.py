@@ -22,11 +22,10 @@ from urllib.parse import urlparse
 
 import rlp
 from eth_account._utils.legacy_transactions import assert_valid_fields, Transaction
-from eth_utils.address import to_canonical_address
+from eth_utils.address import to_canonical_address, is_checksum_address
 from eth_utils.applicators import apply_key_map, apply_formatters_to_dict
 from eth_utils.conversions import to_int
 from hexbytes import HexBytes
-from nucypher.characters.control.emitters import StdoutEmitter
 from toolz.dicttoolz import dissoc
 from trezorlib import ethereum
 from trezorlib.client import get_default_client, TrezorClient
@@ -183,42 +182,66 @@ class TrezorSigner(Signer):
     #
 
     @classmethod
-    def __parse_hd_path(cls, uri_breakdown) -> List[H_]:
-        path = uri_breakdown.path.lstrip('/')
-        path_breakdown = path.split('/')
-        if len(path_breakdown) < 5:
-            raise cls.SignerError(f'{uri_breakdown.path} is not a complete HD path.')
+    def _normalize_path(cls, path: str) -> str:
+        normalized_path = path.lstrip('/')
+        prefix, bip44, coin_type, *node = normalized_path.split('/')
+        if prefix != 'm':
+            raise ValueError(f'{normalized_path} does not start with "m" and is not a valid HD path.')
+        if len(path) < 3:
+            raise cls.SignerError(f'{normalized_path} is not a complete HD path.')
         try:
-            if int(path_breakdown[0]) != cls.__BIP_44:
-                raise cls.SignerError(f'{uri_breakdown.path} is not a BIP44 HD path.')
-            if int(path_breakdown[1]) not in (cls.__ETH_COIN_TYPE, cls.__TESTNET_COIN_TYPE):
-                raise cls.SignerError(f'{uri_breakdown.path} is not a valid ethereum HD path.')
+            if int(bip44.rstrip("'")) != cls.__BIP_44:
+                raise cls.SignerError(f'{normalized_path} is not a BIP44 HD path.')
+            if int(coin_type.rstrip("'")) not in (cls.__ETH_COIN_TYPE, cls.__TESTNET_COIN_TYPE):
+                raise cls.SignerError(f'{normalized_path} is not a valid ethereum HD path.')
         except TypeError:
-            raise cls.SignerError(f'{uri_breakdown.path} is not a valid HD path.')
-        p = path_breakdown
-        branch = '/'.join(path_breakdown[3:])
-        bip32_path = f"{p[0]}'/{p[1]}'/{p[2]}'/{branch}"
+            raise cls.SignerError(f'{normalized_path} is not a valid HD path.')
+        return normalized_path
+
+    @classmethod
+    def __parse_hd_path(cls, path: str) -> List[H_]:
+        normalized_path = cls._normalize_path(path=path)
         try:
-            hd_path = parse_path(nstr=bip32_path)
+            hd_path = parse_path(nstr=normalized_path)
         except ValueError as e:
             raise cls.SignerError(e) from e
         return hd_path
 
     @classmethod
+    def is_valid_uri(cls, uri: str) -> bool:
+        """Returns True is the given Trezor Signer URI string is valid."""
+        uri_breakdown = urlparse(uri)
+        valid_uri = all((
+            # positive
+            uri_breakdown.scheme == cls.uri_scheme(),
+            uri_breakdown.path or uri_breakdown.netloc,
+
+            # negative
+            not uri_breakdown.params,
+            not uri_breakdown.query,
+            not uri_breakdown.fragment,
+        ))
+        return valid_uri
+
+    @classmethod
     def from_signer_uri(cls, uri: str, testnet: bool = False) -> 'TrezorSigner':
         """Return a trezor signer from URI string i.e. trezor:///my/trezor/path """
-        if uri == cls.uri_scheme():
+        if uri == cls.uri_scheme():  # "trezor" shorthand, no path specified
             return cls(testnet=testnet)
-        uri_breakdown = urlparse(uri)
-        valid_uri = any((uri_breakdown.scheme == cls.uri_scheme(),
-                         not uri_breakdown.netloc,
-                         not uri_breakdown.params,
-                         not uri_breakdown.query,
-                         not uri_breakdown.fragment,
-                         uri_breakdown.path))
-        if not valid_uri:
+        if not cls.is_valid_uri(uri=uri):
             raise cls.InvalidSignerURI(f'{uri} is not a valid trezor URI')
-        hd_path = cls.__parse_hd_path(uri_breakdown=uri_breakdown)
+        uri_breakdown = urlparse(uri)
+
+        hd_path = []
+        if uri_breakdown.path:
+            hd_path = cls.__parse_hd_path(path=uri_breakdown.path)
+        elif uri_breakdown.netloc:
+            if not is_checksum_address(uri_breakdown.netloc):
+                raise ValueError(f"{uri_breakdown.netloc} is not a valid ethereum checksum address.")
+            else:
+                client = get_default_client()
+
+
         return cls(testnet=testnet, paths=[hd_path])
 
     def is_device(self, account: str) -> bool:
