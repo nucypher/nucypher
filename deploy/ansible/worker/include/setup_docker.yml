@@ -39,6 +39,25 @@
         name: nucypher
         group: docker
 
+    - name: Download docker-compose
+      get_url:
+        url : https://github.com/docker/compose/releases/download/1.29.2/docker-compose-Linux-x86_64
+        dest: ~/docker-compose
+        mode: 'u+x,g+x'
+
+    - name: Check docker-compose exists
+      stat: path=~/docker-compose
+      register: docker_compose
+
+    - name: Move docker-compose to /usr/local/bin/docker-compose
+      command: mv ~/docker-compose /usr/local/bin/docker-compose
+      when: docker_compose.stat.exists
+
+    - name: chown docker-compose so nucypher user can use it
+      file:
+        path: /usr/local/bin/docker-compose
+        group: docker
+
     - name: Ensure Docker has started
       service:
         name: docker
