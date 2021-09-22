@@ -25,27 +25,38 @@ class Versioned(ABC):
     _VERSION_LENGTH = 2
     _HEADER_SIZE = _BRAND_LENGTH + _VERSION_LENGTH
 
+    class InvalidHeader(ValueError):
+        """Raised when an unexpected or invalid bytes header is encountered during deserialization"""
+
     @classmethod
     def from_bytes(cls, data):
 
-        # Metadata
+        # Parse brand
         brand = data[:cls._BRAND_LENGTH]
+        if brand != cls._brand():
+            error = f"Incorrect brand. Expected {cls._brand()}, Got {brand}."
+            if not brand.isalpha():
+                error = f"Incompatible bytes for {cls.__name__}."
+            raise cls.InvalidHeader(error)
+
+        # Parse version
         version_index = cls._BRAND_LENGTH + cls._VERSION_LENGTH
         version_data = data[cls._BRAND_LENGTH:version_index]
         version_number = int.from_bytes(version_data, 'big')
+        if version_number != cls._version() and version_number not in cls._old_version_handlers():
+            available_versions = ",".join((cls._version(), *cls._old_version_handlers()))
+            error = f'Incorrect or unknown version. Available versions for {cls.__name__} are {available_versions}'
+            raise cls.InvalidHeader(error)
 
-        # Data passed to deserializer
+        # Parse body
         remainder = data[version_index:]
 
-        # Validate and Deserialize
-        if brand != cls._brand():
-            raise ValueError(f"Incorrect brand.  Expected {cls._brand()}, Got {brand}")
+        # Select deserializer and process
         if version_number == cls._version():
             return cls._from_bytes_current(remainder)
-
         handlers = cls._old_version_handlers()
         try:
-            return handlers[version_number](remainder)
+            return handlers[version_number](remainder)  # process
         except KeyError:
             raise ValueError(f"Incorrect or unknown version number ({version_number}).")
 
