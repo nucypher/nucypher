@@ -24,7 +24,6 @@ import pytest
 from nucypher.core import MessageKit
 
 from nucypher.crypto.utils import keccak_digest
-from nucypher.policy.maps import EncryptedTreasureMap
 
 
 def test_decentralized_grant(blockchain_alice, blockchain_bob, blockchain_ursulas):

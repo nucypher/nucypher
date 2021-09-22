@@ -23,13 +23,12 @@ import maya
 from bytestring_splitter import BytestringSplitter, VariableLengthBytestring
 from eth_typing.evm import ChecksumAddress
 
-from nucypher.core import HRAC
+from nucypher.core import HRAC, TreasureMap
 
-from nucypher.crypto.powers import TransactingPower
+from nucypher.crypto.powers import DecryptingPower
 from nucypher.crypto.splitters import key_splitter
 from nucypher.crypto.umbral_adapter import PublicKey, VerifiedKeyFrag, Signature
 from nucypher.network.middleware import RestMiddleware
-from nucypher.policy.maps import TreasureMap
 from nucypher.policy.reservoir import (
     make_federated_staker_reservoir,
     MergedReservoir,
@@ -271,9 +270,6 @@ class Policy(ABC):
 
         return accepted_arrangements
 
-    def _encrypt_treasure_map(self, treasure_map):
-        return treasure_map.encrypt(self.publisher, self.bob)
-
     def enact(self,
               network_middleware: RestMiddleware,
               handpicked_ursulas: Optional[Iterable['Ursula']] = None,
@@ -292,13 +288,17 @@ class Policy(ABC):
 
         self._enact_arrangements(arrangements)
 
+        assigned_kfrags = [
+            (ursula.checksum_address, ursula.public_keys(DecryptingPower), vkfrag)
+            for ursula, vkfrag in zip(arrangements, self.kfrags)]
+
         treasure_map = TreasureMap.construct_by_publisher(hrac=self.hrac,
-                                                          publisher=self.publisher,
-                                                          ursulas=list(arrangements),
-                                                          verified_kfrags=self.kfrags,
+                                                          signer=self.publisher.stamp.as_umbral_signer(),
+                                                          assigned_kfrags=assigned_kfrags,
                                                           threshold=self.threshold)
 
-        enc_treasure_map = self._encrypt_treasure_map(treasure_map)
+        enc_treasure_map = treasure_map.encrypt(signer=self.publisher.stamp.as_umbral_signer(),
+                                                recipient_key=self.bob.public_keys(DecryptingPower))
 
         # TODO: Signal revocation without using encrypted kfrag
         revocation_kit = RevocationKit(treasure_map=treasure_map, signer=self.publisher.stamp)
@@ -440,12 +440,6 @@ class BlockchainPolicy(Policy):
 
     def _enact_arrangements(self, arrangements: Dict['Ursula', Arrangement]) -> None:
         self._publish_to_blockchain(ursulas=list(arrangements))
-
-    def _encrypt_treasure_map(self, treasure_map):
-        transacting_power = self.publisher._crypto_power.power_ups(TransactingPower)
-        return treasure_map.encrypt(publisher=self.publisher,
-                                    bob=self.bob,
-                                    blockchain_signer=transacting_power.sign_message)
 
 
 class EnactedPolicy:

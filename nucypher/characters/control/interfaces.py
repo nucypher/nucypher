@@ -19,7 +19,7 @@ from typing import Union, List
 
 import maya
 
-from nucypher.core import MessageKit, HRAC
+from nucypher.core import MessageKit, HRAC, EncryptedTreasureMap
 
 from nucypher.characters.base import Character
 from nucypher.characters.control.specifications import alice, bob, enrico
@@ -27,7 +27,6 @@ from nucypher.control.interfaces import attach_schema, ControlInterface
 from nucypher.crypto.powers import DecryptingPower, SigningPower
 from nucypher.crypto.umbral_adapter import PublicKey
 from nucypher.network.middleware import RestMiddleware
-from nucypher.policy.maps import EncryptedTreasureMap
 
 
 class CharacterPublicInterface(ControlInterface):

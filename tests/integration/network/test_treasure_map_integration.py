@@ -22,7 +22,6 @@ from nucypher.core import HRAC
 
 from nucypher.characters.lawful import Ursula
 from nucypher.crypto.utils import keccak_digest
-from nucypher.policy.maps import EncryptedTreasureMap
 
 
 def test_alice_creates_policy_with_correct_hrac(federated_alice, federated_bob, idle_federated_policy):

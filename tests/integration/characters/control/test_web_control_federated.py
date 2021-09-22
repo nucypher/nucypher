@@ -24,11 +24,10 @@ import maya
 import pytest
 from click.testing import CliRunner
 
-from nucypher.core import MessageKit
+from nucypher.core import MessageKit, EncryptedTreasureMap
 
 import nucypher
 from nucypher.crypto.powers import DecryptingPower
-from nucypher.policy.maps import EncryptedTreasureMap
 
 click_runner = CliRunner()
 

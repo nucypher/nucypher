@@ -22,7 +22,11 @@ import datetime
 import maya
 import pytest
 
-from nucypher.core import MessageKit
+from nucypher.core import (
+    MessageKit,
+    EncryptedTreasureMap as EncryptedTreasureMapClass,
+    TreasureMap as TreasureMapClass,
+    )
 
 from nucypher.characters.control.specifications import fields
 from nucypher.characters.control.specifications.alice import GrantPolicy
@@ -31,7 +35,6 @@ from nucypher.control.specifications.base import BaseSchema
 from nucypher.control.specifications.exceptions import SpecificationError, InvalidInputData, InvalidArgumentCombo
 from nucypher.crypto.powers import DecryptingPower
 from nucypher.crypto.umbral_adapter import PublicKey
-from nucypher.policy.maps import EncryptedTreasureMap as EncryptedTreasureMapClass, TreasureMap as TreasureMapClass
 
 
 def test_various_field_validations_by_way_of_alice_grant(federated_bob):

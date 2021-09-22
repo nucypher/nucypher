@@ -26,7 +26,6 @@ from twisted.internet.task import Clock
 
 from nucypher.characters.lawful import Bob, Enrico, Ursula
 from nucypher.config.constants import TEMPORARY_DOMAIN
-from nucypher.policy.maps import TreasureMap
 from tests.constants import NUMBER_OF_URSULAS_IN_DEVELOPMENT_NETWORK
 from tests.utils.middleware import MockRestMiddleware
 

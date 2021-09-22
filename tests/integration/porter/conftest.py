@@ -18,10 +18,9 @@ from base64 import b64decode
 
 import pytest
 
-from nucypher.core import HRAC
+from nucypher.core import HRAC, TreasureMap
 
 from nucypher.crypto.powers import DecryptingPower
-from nucypher.policy.maps import TreasureMap
 
 
 @pytest.fixture(scope='module')
@@ -34,13 +33,18 @@ def random_federated_treasure_map_data(federated_alice, federated_bob, federated
     hrac = HRAC.derive(publisher_verifying_key=federated_alice.stamp.as_umbral_pubkey(),
                        bob_verifying_key=federated_bob.stamp.as_umbral_pubkey(),
                        label=label)
+
+    assigned_kfrags = [
+        (ursula.checksum_address, ursula.public_keys(DecryptingPower), vkfrag)
+        for ursula, vkfrag in zip(list(federated_ursulas)[:shares], kfrags)]
+
     random_treasure_map = TreasureMap.construct_by_publisher(hrac=hrac,
-                                                             publisher=federated_alice,
-                                                             ursulas=list(federated_ursulas)[:shares],
-                                                             verified_kfrags=kfrags,
+                                                             signer=federated_alice.stamp.as_umbral_signer(),
+                                                             assigned_kfrags=assigned_kfrags,
                                                              threshold=threshold)
 
-    enc_treasure_map = random_treasure_map.encrypt(publisher=federated_alice,
-                                                   bob=federated_bob)
+    bob_key = federated_bob.public_keys(DecryptingPower)
+    enc_treasure_map = random_treasure_map.encrypt(signer=federated_alice.stamp.as_umbral_signer(),
+                                                   recipient_key=bob_key)
 
-    yield federated_bob.public_keys(DecryptingPower), enc_treasure_map
+    yield bob_key, enc_treasure_map
