@@ -18,9 +18,10 @@
 
 import pytest
 
+from nucypher.core import HRAC
+
 from nucypher.characters.lawful import Ursula
 from nucypher.crypto.utils import keccak_digest
-from nucypher.policy.hrac import HRAC
 from nucypher.policy.maps import EncryptedTreasureMap
 
 

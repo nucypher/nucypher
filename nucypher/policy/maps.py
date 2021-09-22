@@ -26,7 +26,7 @@ from bytestring_splitter import (
 from eth_typing.evm import ChecksumAddress
 from eth_utils.address import to_checksum_address, to_canonical_address
 
-from nucypher.core import MessageKit
+from nucypher.core import MessageKit, HRAC, hrac_splitter
 
 from nucypher.blockchain.eth.constants import ETH_ADDRESS_BYTE_LENGTH
 from nucypher.crypto.constants import EIP712_MESSAGE_SIGNATURE_SIZE
@@ -36,7 +36,6 @@ from nucypher.crypto.splitters import signature_splitter, kfrag_splitter
 from nucypher.crypto.umbral_adapter import KeyFrag, VerifiedKeyFrag, Signature
 from nucypher.crypto.utils import keccak_digest, verify_eip_191
 from nucypher.network.middleware import RestMiddleware
-from nucypher.policy.hrac import HRAC, hrac_splitter
 from nucypher.utilities.versioning import Versioned
 
 

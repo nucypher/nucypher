@@ -27,7 +27,6 @@ from nucypher.characters.lawful import Alice, Ursula
 from nucypher.config.constants import TEMPORARY_DOMAIN
 from nucypher.crypto.powers import CryptoPower, SigningPower, DecryptingPower, TransactingPower
 from nucypher.exceptions import DevelopmentInstallationRequired
-from nucypher.policy.hrac import HRAC
 from nucypher.policy.maps import EncryptedTreasureMap
 
 

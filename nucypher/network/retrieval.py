@@ -23,7 +23,7 @@ from bytestring_splitter import BytestringSplitter, VariableLengthBytestring
 from eth_typing.evm import ChecksumAddress
 from twisted.logger import Logger
 
-from nucypher.core import MessageKit
+from nucypher.core import MessageKit, HRAC, hrac_splitter
 
 from nucypher.crypto.signing import SignatureStamp, InvalidSignature
 from nucypher.crypto.splitters import (
@@ -42,7 +42,6 @@ from nucypher.crypto.umbral_adapter import (
 )
 from nucypher.network.exceptions import NodeSeemsToBeDown
 from nucypher.network.nodes import Learner
-from nucypher.policy.hrac import HRAC, hrac_splitter
 from nucypher.policy.kits import RetrievalKit, RetrievalResult
 from nucypher.policy.maps import TreasureMap
 from nucypher.utilities.versioning import Versioned

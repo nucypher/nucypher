@@ -20,8 +20,9 @@ import os
 
 import pytest
 
+from nucypher.core import HRAC
+
 from nucypher.crypto.umbral_adapter import KeyFrag
-from nucypher.policy.hrac import HRAC
 from nucypher.policy.maps import TreasureMap, EncryptedTreasureMap, AuthorizedKeyFrag
 
 

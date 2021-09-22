@@ -38,7 +38,6 @@ from nucypher.network import LEARNING_LOOP_VERSION
 from nucypher.network.exceptions import NodeSeemsToBeDown
 from nucypher.network.protocols import InterfaceInfo
 from nucypher.network.retrieval import ReencryptionRequest, ReencryptionResponse
-from nucypher.policy.hrac import HRAC
 from nucypher.policy.revocation import RevocationOrder
 from nucypher.utilities.logging import Logger
 

@@ -17,9 +17,10 @@
 
 from marshmallow import fields
 
+from nucypher.core import HRAC as HRACClass
+
 from nucypher.control.specifications.exceptions import InvalidInputData, InvalidNativeDataTypes
 from nucypher.control.specifications.fields.base import BaseField
-from nucypher.policy.hrac import HRAC as HRACClass
 
 
 class HRAC(BaseField, fields.String):

@@ -20,6 +20,8 @@ from typing import Optional, Sequence, Tuple, Dict
 from bytestring_splitter import BytestringSplitter, VariableLengthBytestring
 
 from nucypher.utilities.versioning import Versioned
+
+from nucypher.crypto.utils import keccak_digest
 from nucypher.crypto.splitters import signature_splitter, capsule_splitter, key_splitter
 from nucypher.crypto.signing import InvalidSignature
 import nucypher.crypto.umbral_adapter as umbral # need it to mock `umbral.encrypt`
@@ -171,3 +173,51 @@ class MessageKit(Versioned):
         sender_verifying_key, ciphertext = splitter(remainder)
 
         return cls(capsule, ciphertext, signature=signature, sender_verifying_key=sender_verifying_key)
+
+
+class HRAC:
+    """
+    "hashed resource access code".
+
+    A hash of:
+    * Publisher's verifying key
+    * Bob's verifying key
+    * the label
+
+    Publisher and Bob have all the information they need to construct this.
+    Ursula does not, so we share it with her.
+
+    This way, Bob can generate it and use it to find the TreasureMap.
+    """
+
+    # Note: this corresponds to the hardcoded size in the contracts
+    # (which use `byte16` for this variable).
+    SIZE = 16
+
+    @classmethod
+    def derive(cls, publisher_verifying_key: PublicKey, bob_verifying_key: PublicKey, label: bytes) -> 'HRAC':
+        return cls(keccak_digest(bytes(publisher_verifying_key) + bytes(bob_verifying_key) + label)[:cls.SIZE])
+
+    def __init__(self, hrac_bytes: bytes):
+        self._hrac_bytes = hrac_bytes
+
+    def __bytes__(self):
+        return self._hrac_bytes
+
+    @classmethod
+    def from_bytes(cls, data: bytes) -> 'HRAC':
+        if len(data) != cls.SIZE:
+            raise ValueError(f"Incorrect HRAC size: expected {cls.SIZE}, got {len(data)}")
+        return cls(data)
+
+    def __eq__(self, other):
+        return self._hrac_bytes == other._hrac_bytes
+
+    def __hash__(self):
+        return hash(self._hrac_bytes)
+
+    def __str__(self):
+        return f"HRAC({self._hrac_bytes.hex()})"
+
+
+hrac_splitter = BytestringSplitter((HRAC, HRAC.SIZE))
