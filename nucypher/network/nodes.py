@@ -723,15 +723,20 @@ class Learner:
     def verify_from(self,
                     stranger: 'Character',
                     message: bytes,
-                    signature: Signature):
-        #
-        # Optional Sanity Check
-        #
+                    signature: Signature
+                    ):
 
-        sender_verifying_key = stranger.stamp.as_umbral_pubkey()
-        is_valid = signature.verify(sender_verifying_key, message)
-        if not is_valid:
-            raise InvalidSignature("Signature for message isn't valid: {}".format(signature))
+        if not signature.verify(verifying_pk=stranger.stamp.as_umbral_pubkey(), message=message):
+            try:
+                node_on_the_other_end = self.node_class.from_seednode_metadata(stranger.seed_node_metadata(),
+                                                                               network_middleware=self.network_middleware)
+                if node_on_the_other_end != stranger:
+                    raise self.node_class.InvalidNode(
+                        f"Expected to connect to {stranger}, got {node_on_the_other_end} instead.")
+                else:
+                    raise InvalidSignature("Signature for message isn't valid: {}".format(signature))
+            except (TypeError, AttributeError):
+                raise InvalidSignature(f"Unable to verify message from stranger: {stranger}")
 
     def learn_from_teacher_node(self, eager=False, canceller=None):
         """

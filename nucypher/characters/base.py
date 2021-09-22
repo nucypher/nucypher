@@ -386,28 +386,6 @@ class Character(Learner):
         decrypting_power = self._crypto_power.power_ups(DecryptingPower)
         return decrypting_power.decrypt(message_kit)
 
-    def verify_from(self,
-                    stranger: 'Character',
-                    message: bytes,
-                    signature: Signature
-                    ):
-
-        try:
-            super().verify_from(stranger=stranger, message=message, signature=signature)
-        except InvalidSignature as e:
-            try:
-                node_on_the_other_end = self.known_node_class.from_seednode_metadata(stranger.seed_node_metadata(),
-                                                                                     network_middleware=self.network_middleware)
-                if node_on_the_other_end != stranger:
-                    raise self.known_node_class.InvalidNode(
-                        f"Expected to connect to {stranger}, got {node_on_the_other_end} instead.")
-                else:
-                    # TODO: or just re-raise `e`?
-                    raise InvalidSignature("Signature for message isn't valid: {}".format(signature))
-            except (TypeError, AttributeError):
-                # TODO: or just re-raise `e`?
-                raise InvalidSignature(f"Unable to verify message from stranger: {stranger}")
-
     def sign(self, message):
         return self._crypto_power.power_ups(SigningPower).sign(message)
 
