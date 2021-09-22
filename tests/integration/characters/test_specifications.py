@@ -152,7 +152,7 @@ def test_messagekit_validation(capsule_side_channel):
     assert "Could not parse mkit" in str(e)
     assert "Incorrect padding" in str(e)
 
-    # valid base64 but invalid treasuremap
+    # valid base64 but invalid messagekit
     b64header = base64.b64encode(MessageKit._header())[:-2].decode()
     with pytest.raises(SpecificationError) as e:
         MessageKitsOnly().load({'mkit': b64header + "V3da=="})
