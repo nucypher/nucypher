@@ -34,6 +34,7 @@ from nucypher.crypto.umbral_adapter import (
     VerifiedCapsuleFrag,
     KeyFrag,
     VerifiedKeyFrag,
+    VerificationError,
     decrypt_original,
     decrypt_reencrypted,
     )
@@ -225,6 +226,10 @@ class HRAC:
 hrac_splitter = BytestringSplitter((HRAC, HRAC.SIZE))
 
 
+class UnauthorizedKeyFragError(Exception):
+    pass
+
+
 class AuthorizedKeyFrag(Versioned):
 
     _WRIT_CHECKSUM_SIZE = 32
@@ -300,3 +305,23 @@ class AuthorizedKeyFrag(Versioned):
             raise ValueError("Incorrect KeyFrag checksum in the serialized data")
 
         return cls(hrac, kfrag_checksum, writ_signature, kfrag)
+
+    def verify(self,
+               hrac: HRAC,
+               author_verifying_key: PublicKey,
+               publisher_verifying_key: PublicKey,
+               ) -> VerifiedKeyFrag:
+
+        if not self.writ_signature.verify(message=self.writ, verifying_pk=publisher_verifying_key):
+            raise UnauthorizedKeyFragError("Writ is not signed by the provided publisher")
+
+        # TODO: should we keep HRAC in this object at all?
+        if self.hrac != hrac:  # Funky request
+            raise UnauthorizedKeyFragError("Incorrect HRAC")
+
+        try:
+            verified_kfrag = self.kfrag.verify(verifying_pk=author_verifying_key)
+        except VerificationError:
+            raise UnauthorizedKeyFragError("KeyFrag is not signed by the provided author")
+
+        return verified_kfrag

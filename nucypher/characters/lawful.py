@@ -55,7 +55,7 @@ from twisted.internet.task import LoopingCall
 from twisted.logger import Logger
 from web3.types import TxReceipt
 
-from nucypher.core import MessageKit, HRAC, AuthorizedKeyFrag
+from nucypher.core import MessageKit, HRAC, AuthorizedKeyFrag, UnauthorizedKeyFragError
 
 import nucypher
 from nucypher.acumen.nicknames import Nickname
@@ -1328,23 +1328,14 @@ class Ursula(Teacher, Character, Worker):
                                    authorized_kfrag: AuthorizedKeyFrag,
                                    ) -> VerifiedKeyFrag:
 
-        # TODO: should it be a method of AuthorizedKeyFrag?
-
         try:
-            self.verify_from(publisher, authorized_kfrag.writ, signature=authorized_kfrag.writ_signature)
-        except InvalidSignature:
-            # TODO (#2740): differentiate cases for Policy.Unauthorized
-            raise Policy.Unauthorized  # This isn't from Alice (publisher).
+            verified_kfrag = authorized_kfrag.verify(hrac=hrac,
+                                                     author_verifying_key=author.stamp.as_umbral_pubkey(),
+                                                     publisher_verifying_key=publisher.stamp.as_umbral_pubkey())
+        except UnauthorizedKeyFragError as e:
+            raise Policy.Unauthorized from e
 
-        if authorized_kfrag.hrac != hrac:  # Funky request
-            raise Policy.Unauthorized  # Bob, what the *hell* are you doing?
-
-        try:
-            verified_kfrag = authorized_kfrag.kfrag.verify(verifying_pk=author.stamp.as_umbral_pubkey())
-        except VerificationError:
-            raise Policy.Unauthorized  # WTF, Alice did not generate these KFrags.
-
-        if authorized_kfrag.hrac in self.revoked_policies:
+        if hrac in self.revoked_policies:
             # Note: This is only an off-chain and in-memory check.
             raise Policy.Unauthorized  # Denied
 
