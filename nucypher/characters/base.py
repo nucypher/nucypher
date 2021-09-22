@@ -48,9 +48,8 @@ from nucypher.crypto.powers import (
 from nucypher.crypto.signing import (
     SignatureStamp,
     StrangerStamp,
-    InvalidSignature,
 )
-from nucypher.crypto.umbral_adapter import PublicKey, Signature
+from nucypher.crypto.umbral_adapter import PublicKey
 from nucypher.network.middleware import RestMiddleware
 from nucypher.network.nodes import Learner
 

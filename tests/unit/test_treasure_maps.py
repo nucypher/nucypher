@@ -20,10 +20,10 @@ import os
 
 import pytest
 
-from nucypher.core import HRAC
+from nucypher.core import HRAC, AuthorizedKeyFrag
 
 from nucypher.crypto.umbral_adapter import KeyFrag
-from nucypher.policy.maps import TreasureMap, EncryptedTreasureMap, AuthorizedKeyFrag
+from nucypher.policy.maps import TreasureMap, EncryptedTreasureMap
 
 
 def test_complete_treasure_map_journey(federated_alice, federated_bob, federated_ursulas, idle_federated_policy, mocker):

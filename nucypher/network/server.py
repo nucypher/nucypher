@@ -27,6 +27,8 @@ from flask import Flask, Response, jsonify, request
 from mako import exceptions as mako_exceptions
 from mako.template import Template
 
+from nucypher.core import AuthorizedKeyFrag
+
 from nucypher.blockchain.eth.utils import period_to_epoch
 from nucypher.config.constants import MAX_UPLOAD_CONTENT_LENGTH
 from nucypher.crypto.keypairs import DecryptingKeypair
@@ -209,7 +211,6 @@ def _make_rest_app(datastore: Datastore, this_node, domain: str, log: Logger) ->
             return Response(response="KFrag decryption failed.", status=403)   # 403 - Forbidden
 
         # Verify KFrag Authorization (offchain)
-        from nucypher.policy.maps import AuthorizedKeyFrag
         try:
             authorized_kfrag = AuthorizedKeyFrag.from_bytes(plaintext_kfrag_payload)
         except ValueError:

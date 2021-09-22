@@ -55,7 +55,7 @@ from twisted.internet.task import LoopingCall
 from twisted.logger import Logger
 from web3.types import TxReceipt
 
-from nucypher.core import MessageKit, HRAC
+from nucypher.core import MessageKit, HRAC, AuthorizedKeyFrag
 
 import nucypher
 from nucypher.acumen.nicknames import Nickname
@@ -101,7 +101,7 @@ from nucypher.network.retrieval import RetrievalClient, ReencryptionResponse
 from nucypher.network.server import ProxyRESTServer, make_rest_app
 from nucypher.network.trackers import AvailabilityTracker
 from nucypher.policy.kits import PolicyMessageKit
-from nucypher.policy.maps import TreasureMap, EncryptedTreasureMap, AuthorizedKeyFrag
+from nucypher.policy.maps import TreasureMap, EncryptedTreasureMap
 from nucypher.policy.policies import Policy
 from nucypher.utilities.logging import Logger
 from nucypher.utilities.networking import validate_worker_ip

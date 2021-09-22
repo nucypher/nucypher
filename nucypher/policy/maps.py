@@ -26,7 +26,7 @@ from bytestring_splitter import (
 from eth_typing.evm import ChecksumAddress
 from eth_utils.address import to_checksum_address, to_canonical_address
 
-from nucypher.core import MessageKit, HRAC, hrac_splitter
+from nucypher.core import MessageKit, HRAC, hrac_splitter, AuthorizedKeyFrag
 
 from nucypher.blockchain.eth.constants import ETH_ADDRESS_BYTE_LENGTH
 from nucypher.crypto.constants import EIP712_MESSAGE_SIGNATURE_SIZE
@@ -92,12 +92,13 @@ class TreasureMap(Versioned):
         # Encrypt each kfrag for an Ursula.
         destinations = {}
         for ursula, verified_kfrag in zip(ursulas, verified_kfrags):
+            publisher_signer = publisher.stamp.as_umbral_signer()
             kfrag_payload = bytes(AuthorizedKeyFrag.construct_by_publisher(hrac=hrac,
                                                                            verified_kfrag=verified_kfrag,
-                                                                           publisher_stamp=publisher.stamp))
+                                                                           signer=publisher_signer))
             encrypted_kfrag = MessageKit.author(recipient_key=ursula.public_keys(DecryptingPower),
                                                 plaintext=kfrag_payload,
-                                                signer=publisher.stamp.as_umbral_signer())
+                                                signer=publisher_signer)
 
             destinations[ursula.checksum_address] = encrypted_kfrag
 
@@ -157,83 +158,6 @@ class TreasureMap(Versioned):
             kfrag = bytes(VariableLengthBytestring(bytes(encrypted_kfrag)))
             nodes_as_bytes += (node_id + kfrag)
         return nodes_as_bytes
-
-
-class AuthorizedKeyFrag(Versioned):
-
-    _WRIT_CHECKSUM_SIZE = 32
-
-    # The size of a serialized message kit encrypting an AuthorizedKeyFrag.
-    # Depends on encryption parameters in Umbral, has to be hardcoded.
-    ENCRYPTED_SIZE = 613
-    SERIALIZED_SIZE = Versioned._HEADER_SIZE + ENCRYPTED_SIZE
-
-    def __init__(self, hrac: HRAC, kfrag_checksum: bytes, writ_signature: Signature, kfrag: KeyFrag):
-        self.hrac = hrac
-        self.kfrag_checksum = kfrag_checksum
-        self.writ = bytes(hrac) + kfrag_checksum
-        self.writ_signature = writ_signature
-        self.kfrag = kfrag
-
-    @classmethod
-    def construct_by_publisher(cls,
-                               hrac: HRAC,
-                               verified_kfrag: VerifiedKeyFrag,
-                               publisher_stamp: SignatureStamp,
-                               ) -> 'AuthorizedKeyFrag':
-
-        # "un-verify" kfrag to keep further logic streamlined
-        kfrag = KeyFrag.from_bytes(bytes(verified_kfrag))
-
-        # Alice makes plain to Ursula that, upon decrypting this message,
-        # this particular KFrag is authorized for use in the policy identified by this HRAC.
-        kfrag_checksum = cls._kfrag_checksum(kfrag)
-        writ = bytes(hrac) + kfrag_checksum
-        writ_signature = publisher_stamp(writ)
-
-        # The writ and the KFrag together represent a complete kfrag kit: the entirety of
-        # the material needed for Ursula to assuredly service this policy.
-        return cls(hrac, kfrag_checksum, writ_signature, kfrag)
-
-    @staticmethod
-    def _kfrag_checksum(kfrag: KeyFrag) -> bytes:
-        return keccak_digest(bytes(kfrag))[:AuthorizedKeyFrag._WRIT_CHECKSUM_SIZE]
-
-    def _payload(self) -> bytes:
-        """Returns the unversioned bytes serialized representation of this instance."""
-        return self.writ + bytes(self.writ_signature) + bytes(self.kfrag)
-
-    @classmethod
-    def _brand(cls) -> bytes:
-        return b'AKF_'
-
-    @classmethod
-    def _version(cls) -> Tuple[int, int]:
-        return 1, 0
-
-    @classmethod
-    def _old_version_handlers(cls) -> Dict:
-        return {}
-
-    @classmethod
-    def _from_bytes_current(cls, data):
-        # TODO: should we check the signature right away here?
-
-        splitter = BytestringSplitter(
-            hrac_splitter,  # HRAC
-            (bytes, cls._WRIT_CHECKSUM_SIZE),  # kfrag checksum
-            signature_splitter,  # Publisher's signature
-            kfrag_splitter,
-        )
-
-        hrac, kfrag_checksum, writ_signature, kfrag = splitter(data)
-
-        # Check integrity
-        calculated_checksum = cls._kfrag_checksum(kfrag)
-        if calculated_checksum != kfrag_checksum:
-            raise ValueError("Incorrect KeyFrag checksum in the serialized data")
-
-        return cls(hrac, kfrag_checksum, writ_signature, kfrag)
 
 
 class EncryptedTreasureMap(Versioned):

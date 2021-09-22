@@ -22,7 +22,7 @@ from bytestring_splitter import BytestringSplitter, VariableLengthBytestring
 from nucypher.utilities.versioning import Versioned
 
 from nucypher.crypto.utils import keccak_digest
-from nucypher.crypto.splitters import signature_splitter, capsule_splitter, key_splitter
+from nucypher.crypto.splitters import signature_splitter, capsule_splitter, key_splitter, kfrag_splitter
 from nucypher.crypto.signing import InvalidSignature
 import nucypher.crypto.umbral_adapter as umbral # need it to mock `umbral.encrypt`
 from nucypher.crypto.umbral_adapter import (
@@ -32,6 +32,8 @@ from nucypher.crypto.umbral_adapter import (
     Capsule,
     Signature,
     VerifiedCapsuleFrag,
+    KeyFrag,
+    VerifiedKeyFrag,
     decrypt_original,
     decrypt_reencrypted,
     )
@@ -221,3 +223,80 @@ class HRAC:
 
 
 hrac_splitter = BytestringSplitter((HRAC, HRAC.SIZE))
+
+
+class AuthorizedKeyFrag(Versioned):
+
+    _WRIT_CHECKSUM_SIZE = 32
+
+    # The size of a serialized message kit encrypting an AuthorizedKeyFrag.
+    # Depends on encryption parameters in Umbral, has to be hardcoded.
+    ENCRYPTED_SIZE = 613
+    SERIALIZED_SIZE = Versioned._HEADER_SIZE + ENCRYPTED_SIZE
+
+    def __init__(self, hrac: HRAC, kfrag_checksum: bytes, writ_signature: Signature, kfrag: KeyFrag):
+        self.hrac = hrac
+        self.kfrag_checksum = kfrag_checksum
+        self.writ = bytes(hrac) + kfrag_checksum
+        self.writ_signature = writ_signature
+        self.kfrag = kfrag
+
+    @classmethod
+    def construct_by_publisher(cls,
+                               hrac: HRAC,
+                               verified_kfrag: VerifiedKeyFrag,
+                               signer: Signer,
+                               ) -> 'AuthorizedKeyFrag':
+
+        # "un-verify" kfrag to keep further logic streamlined
+        kfrag = KeyFrag.from_bytes(bytes(verified_kfrag))
+
+        # Alice makes plain to Ursula that, upon decrypting this message,
+        # this particular KFrag is authorized for use in the policy identified by this HRAC.
+        kfrag_checksum = cls._kfrag_checksum(kfrag)
+        writ = bytes(hrac) + kfrag_checksum
+        writ_signature = signer.sign(writ)
+
+        # The writ and the KFrag together represent a complete kfrag kit: the entirety of
+        # the material needed for Ursula to assuredly service this policy.
+        return cls(hrac, kfrag_checksum, writ_signature, kfrag)
+
+    @staticmethod
+    def _kfrag_checksum(kfrag: KeyFrag) -> bytes:
+        return keccak_digest(bytes(kfrag))[:AuthorizedKeyFrag._WRIT_CHECKSUM_SIZE]
+
+    def _payload(self) -> bytes:
+        """Returns the unversioned bytes serialized representation of this instance."""
+        return self.writ + bytes(self.writ_signature) + bytes(self.kfrag)
+
+    @classmethod
+    def _brand(cls) -> bytes:
+        return b'AKF_'
+
+    @classmethod
+    def _version(cls) -> Tuple[int, int]:
+        return 1, 0
+
+    @classmethod
+    def _old_version_handlers(cls) -> Dict:
+        return {}
+
+    @classmethod
+    def _from_bytes_current(cls, data):
+        # TODO: should we check the signature right away here?
+
+        splitter = BytestringSplitter(
+            hrac_splitter,  # HRAC
+            (bytes, cls._WRIT_CHECKSUM_SIZE),  # kfrag checksum
+            signature_splitter,  # Publisher's signature
+            kfrag_splitter,
+        )
+
+        hrac, kfrag_checksum, writ_signature, kfrag = splitter(data)
+
+        # Check integrity
+        calculated_checksum = cls._kfrag_checksum(kfrag)
+        if calculated_checksum != kfrag_checksum:
+            raise ValueError("Incorrect KeyFrag checksum in the serialized data")
+
+        return cls(hrac, kfrag_checksum, writ_signature, kfrag)
