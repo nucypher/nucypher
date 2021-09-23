@@ -55,16 +55,17 @@ class Versioned(ABC):
         if version_number == cls._version():
             return cls._from_bytes_current(remainder)
         handlers = cls._old_version_handlers()
-        try:
-            return handlers[version_number](remainder)  # process
-        except KeyError:
-            raise ValueError(f"Incorrect or unknown version number ({version_number}).")
+        return handlers[version_number](remainder)  # process
 
     def __bytes__(self):
         return self._header() + self._payload()
 
     @classmethod
     def _header(cls) -> bytes:
+        if len(cls._brand()) != cls._BRAND_LENGTH:
+            raise cls.InvalidHeader("Brand must be exactly two bytes.")
+        if not cls._brand().isalpha():
+            raise cls.InvalidHeader("Brand must be alphanumeric.")
         version_bytes = cls._version().to_bytes(cls._VERSION_LENGTH, 'big')
         return cls._brand() + version_bytes
 
