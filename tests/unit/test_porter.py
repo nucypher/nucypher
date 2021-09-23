@@ -20,10 +20,11 @@ from base64 import b64encode
 
 import pytest
 
+from nucypher.core import RetrievalKit as RetrievalKitClass
+
 from nucypher.control.specifications.exceptions import InvalidInputData
 from nucypher.control.specifications.fields import StringList
 from nucypher.crypto.umbral_adapter import SecretKey, encrypt
-from nucypher.policy.kits import RetrievalKit as RetrievalKitClass
 from nucypher.utilities.porter.control.specifications.fields import HRAC, UrsulaChecksumAddress
 from nucypher.utilities.porter.control.specifications.fields.retrieve import RetrievalKit
 

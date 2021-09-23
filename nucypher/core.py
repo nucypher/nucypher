@@ -15,7 +15,7 @@ You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
-from typing import Optional, Sequence, Callable, Dict, Tuple, List
+from typing import Optional, Sequence, Callable, Dict, Tuple, List, Iterable
 
 from bytestring_splitter import (
     BytestringSplitter,
@@ -34,6 +34,7 @@ from nucypher.crypto.splitters import (
     key_splitter,
     kfrag_splitter,
     cfrag_splitter,
+    checksum_address_splitter,
     )
 from nucypher.crypto.signing import InvalidSignature
 import nucypher.crypto.umbral_adapter as umbral # need it to mock `umbral.encrypt`
@@ -663,3 +664,45 @@ class ReencryptionResponse(Versioned):
 
         cfrags = cfrag_splitter.repeat(cfrags_bytes)
         return cls(cfrags, signature)
+
+
+class RetrievalKit(Versioned):
+    """
+    An object encapsulating the information necessary for retrieval of cfrags from Ursulas.
+    Contains the capsule and the checksum addresses of Ursulas from which the requester
+    already received cfrags.
+    """
+
+    @classmethod
+    def from_message_kit(cls, message_kit: MessageKit) -> 'RetrievalKit':
+        return cls(message_kit.capsule, set())
+
+    def __init__(self, capsule: Capsule, queried_addresses: Iterable[ChecksumAddress]):
+        self.capsule = capsule
+        # Can store cfrags too, if we're worried about Ursulas supplying duplicate ones.
+        self.queried_addresses = set(queried_addresses)
+
+    def _payload(self) -> bytes:
+        return (bytes(self.capsule) +
+                b''.join(to_canonical_address(address) for address in self.queried_addresses))
+
+    @classmethod
+    def _brand(cls) -> bytes:
+        return b'RKit'
+
+    @classmethod
+    def _version(cls) -> Tuple[int, int]:
+        return 1, 0
+
+    @classmethod
+    def _old_version_handlers(cls) -> Dict:
+        return {}
+
+    @classmethod
+    def _from_bytes_current(cls, data):
+        capsule, remainder = capsule_splitter(data, return_remainder=True)
+        if remainder:
+            addresses_as_bytes = checksum_address_splitter.repeat(remainder)
+        else:
+            addresses_as_bytes = ()
+        return cls(capsule, set(to_checksum_address(address) for address in addresses_as_bytes))

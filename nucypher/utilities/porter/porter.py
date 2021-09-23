@@ -21,7 +21,7 @@ from constant_sorrow.constants import NO_BLOCKCHAIN_CONNECTION, NO_CONTROL_PROTO
 from eth_typing import ChecksumAddress
 from flask import request, Response
 
-from nucypher.core import TreasureMap
+from nucypher.core import TreasureMap, RetrievalKit
 
 from nucypher.blockchain.eth.agents import ContractAgency, StakingEscrowAgent
 from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
@@ -32,7 +32,7 @@ from nucypher.crypto.powers import DecryptingPower
 from nucypher.crypto.umbral_adapter import PublicKey
 from nucypher.network.nodes import Learner
 from nucypher.network.retrieval import RetrievalClient
-from nucypher.policy.kits import RetrievalKit, RetrievalResult
+from nucypher.policy.kits import RetrievalResult
 from nucypher.policy.reservoir import (
     make_federated_staker_reservoir,
     make_decentralized_staker_reservoir,

@@ -20,9 +20,11 @@ import os
 from base64 import b64encode
 from urllib.parse import urlencode
 
+from nucypher.core import RetrievalKit
+
 from nucypher.characters.lawful import Enrico
 from nucypher.crypto.powers import DecryptingPower
-from nucypher.policy.kits import PolicyMessageKit, RetrievalResult, RetrievalKit
+from nucypher.policy.kits import PolicyMessageKit, RetrievalResult
 from nucypher.utilities.porter.control.specifications.fields import RetrievalResultSchema, RetrievalKit as RetrievalKitField
 from tests.utils.middleware import MockRestMiddleware
 from tests.utils.policy import retrieval_request_setup, retrieval_params_decode_from_rest

@@ -20,12 +20,11 @@ import random
 import string
 from typing import Dict, Tuple
 
-from nucypher.core import MessageKit
+from nucypher.core import MessageKit, RetrievalKit
 
 from nucypher.characters.control.specifications.fields import Key, TreasureMap
 from nucypher.characters.lawful import Enrico
 from nucypher.crypto.powers import DecryptingPower
-from nucypher.policy.kits import RetrievalKit
 from nucypher.utilities.porter.control.specifications.fields import RetrievalKit as RetrievalKitField
 
 

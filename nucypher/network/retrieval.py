@@ -26,6 +26,7 @@ from nucypher.core import (
     TreasureMap,
     ReencryptionResponse,
     ReencryptionRequest,
+    RetrievalKit,
     )
 
 from nucypher.crypto.signing import InvalidSignature
@@ -37,8 +38,7 @@ from nucypher.crypto.umbral_adapter import (
 )
 from nucypher.network.exceptions import NodeSeemsToBeDown
 from nucypher.network.nodes import Learner
-from nucypher.policy.kits import RetrievalKit, RetrievalResult
-from nucypher.utilities.versioning import Versioned
+from nucypher.policy.kits import RetrievalResult
 
 
 class RetrievalPlan:

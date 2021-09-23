@@ -16,61 +16,14 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
 
-from typing import Dict, Iterable, Set, Union, Tuple
+from typing import Dict, Set, Union
 
 from eth_typing import ChecksumAddress
-from eth_utils import to_checksum_address, to_canonical_address
 
-from nucypher.core import MessageKit
+from nucypher.core import MessageKit, RetrievalKit
 
-from nucypher.crypto.splitters import (
-    capsule_splitter,
-    checksum_address_splitter,
-)
 from nucypher.crypto.umbral_adapter import PublicKey, VerifiedCapsuleFrag, Capsule, SecretKey
 from nucypher.utilities.versioning import Versioned
-
-
-class RetrievalKit(Versioned):
-    """
-    An object encapsulating the information necessary for retrieval of cfrags from Ursulas.
-    Contains the capsule and the checksum addresses of Ursulas from which the requester
-    already received cfrags.
-    """
-
-    @classmethod
-    def from_message_kit(cls, message_kit: MessageKit) -> 'RetrievalKit':
-        return cls(message_kit.capsule, set())
-
-    def __init__(self, capsule: Capsule, queried_addresses: Iterable[ChecksumAddress]):
-        self.capsule = capsule
-        # Can store cfrags too, if we're worried about Ursulas supplying duplicate ones.
-        self.queried_addresses = set(queried_addresses)
-
-    def _payload(self) -> bytes:
-        return (bytes(self.capsule) +
-                b''.join(to_canonical_address(address) for address in self.queried_addresses))
-
-    @classmethod
-    def _brand(cls) -> bytes:
-        return b'RKit'
-
-    @classmethod
-    def _version(cls) -> Tuple[int, int]:
-        return 1, 0
-
-    @classmethod
-    def _old_version_handlers(cls) -> Dict:
-        return {}
-
-    @classmethod
-    def _from_bytes_current(cls, data):
-        capsule, remainder = capsule_splitter(data, return_remainder=True)
-        if remainder:
-            addresses_as_bytes = checksum_address_splitter.repeat(remainder)
-        else:
-            addresses_as_bytes = ()
-        return cls(capsule, set(to_checksum_address(address) for address in addresses_as_bytes))
 
 
 class PolicyMessageKit:
