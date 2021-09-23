@@ -49,24 +49,46 @@ class A(Versioned):
         return cls(int(data, 16))  # but now we switched to the hexadecimal
 
 
+def test_unique_branding():
+    with pytest.raises(Versioned.InvalidHeader, match=f"Duplicated_brand {A._brand()}."):
+        class B(Versioned):
+            _brand = lambda *args: A._brand()
+            _version = lambda *args: 1
+            _payload = lambda *args: bytes()
+            _old_version_handlers = lambda *args: {}
+            _from_bytes_current = lambda *args: B()
+
+
 def test_versioning_header_prepend():
     a = A(1)  # stake sauce
     serialized = bytes(a)
+    assert len(serialized) > Versioned._HEADER_SIZE
+
     header = serialized[:Versioned._HEADER_SIZE]
     brand = header[:Versioned._BRAND_LENGTH]
     assert brand == A._brand()
+
     version = header[Versioned._BRAND_LENGTH:]
     version_number = int.from_bytes(version, 'big')
     assert version_number == A._version()
 
 
-def test_versioning_brand():
+def test_versioning_invalid_header():
     invalid = b'\x00\x03\x00\x0112'
     with pytest.raises(Versioned.InvalidHeader, match="Incompatible bytes for A."):
         A.from_bytes(invalid)
+
+
+def test_versioning_incorrect_header():
     incorrect = b'AB\x00\x0112'
     with pytest.raises(Versioned.InvalidHeader, match="Incorrect brand. Expected b'AA', Got b'AB'."):
         A.from_bytes(incorrect)
+
+
+def test_versioning_empty_payload():
+    empty = b'AA\x00\x01'
+    with pytest.raises(Versioned.Empty, match='No content to deserialize.'):
+        A.from_bytes(empty)
 
 
 def test_versioning_handlers():
