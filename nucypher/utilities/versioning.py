@@ -17,49 +17,63 @@
 
 
 from abc import abstractmethod, ABC
-from typing import Dict
+from typing import Dict, Tuple, Callable
 
 
 class Versioned(ABC):
+    """Base class for serializable entities"""
 
     _BRAND_LENGTH = 2  # bytes
     _VERSION_LENGTH = 2
     _HEADER_SIZE = _BRAND_LENGTH + _VERSION_LENGTH
 
     class InvalidHeader(ValueError):
-        """Raised when an unexpected or invalid bytes header is encountered during deserialization"""
+        """
+        Raised when an unexpected or invalid bytes header is
+        encountered during deserialization.
+        """
+
+    def __bytes__(self) -> bytes:
+        return self._header() + self._payload()
 
     @classmethod
-    def from_bytes(cls, data):
+    def from_bytes(cls, data: bytes):
+        brand, version, payload = cls._parse(data)
+        handlers = cls._deserializers()
+        return handlers[version](payload)
 
-        # Parse brand
+    @classmethod
+    def _parse(cls, data: bytes) -> Tuple[bytes, int, bytes]:
+        brand, version = cls._parse_brand(data), cls._parse_version(data)
+        payload = data[cls._HEADER_SIZE:]
+        return brand, version, payload
+
+    @classmethod
+    def _parse_brand(cls, data: bytes) -> bytes:
         brand = data[:cls._BRAND_LENGTH]
         if brand != cls._brand():
             error = f"Incorrect brand. Expected {cls._brand()}, Got {brand}."
             if not brand.isalpha():
+                # unversioned entities for older versions will most likely land here.
                 error = f"Incompatible bytes for {cls.__name__}."
             raise cls.InvalidHeader(error)
+        return brand
 
-        # Parse version
-        version_index = cls._BRAND_LENGTH + cls._VERSION_LENGTH
-        version_data = data[cls._BRAND_LENGTH:version_index]
+    @classmethod
+    def _parse_version(cls, data: bytes) -> int:
+        version_data = data[cls._BRAND_LENGTH:cls._HEADER_SIZE]
         version_number = int.from_bytes(version_data, 'big')
-        if version_number != cls._version() and version_number not in cls._old_version_handlers():
-            available_versions = ",".join((cls._version(), *cls._old_version_handlers()))
-            error = f'Incorrect or unknown version. Available versions for {cls.__name__} are {available_versions}'
+        known_version = version_number in cls._deserializers()
+        if not known_version:
+            available_versions = ",".join(str(v) for v in cls._deserializers())
+            error = f'Incorrect or unknown version "{version_number}". Available versions for {cls.__name__}: ({available_versions})'
             raise cls.InvalidHeader(error)
+        return version_number
 
-        # Parse body
-        remainder = data[version_index:]
-
-        # Select deserializer and process
-        if version_number == cls._version():
-            return cls._from_bytes_current(remainder)
-        handlers = cls._old_version_handlers()
-        return handlers[version_number](remainder)  # process
-
-    def __bytes__(self):
-        return self._header() + self._payload()
+    @classmethod
+    def _deserializers(cls) -> Dict[int, Callable]:
+        """Return a dict of all known deserialization handlers for this class keyed by version"""
+        return {cls._version(): cls._from_bytes_current, **cls._old_version_handlers()}
 
     @classmethod
     def _header(cls) -> bytes:
@@ -70,6 +84,11 @@ class Versioned(ABC):
         version_bytes = cls._version().to_bytes(cls._VERSION_LENGTH, 'big')
         return cls._brand() + version_bytes
 
+    @abstractmethod
+    def _payload(self) -> bytes:
+        """Returns the unversioned bytes serialized representation of this instance."""
+        raise NotImplementedError
+
     @classmethod
     @abstractmethod
     def _brand(cls) -> bytes:
@@ -78,11 +97,6 @@ class Versioned(ABC):
     @classmethod
     @abstractmethod
     def _version(cls) -> int:
-        raise NotImplementedError
-
-    @abstractmethod
-    def _payload(self) -> bytes:
-        """Returns the unversioned bytes serialized representation of this instance."""
         raise NotImplementedError
 
     @classmethod
