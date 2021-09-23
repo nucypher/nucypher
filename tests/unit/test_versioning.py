@@ -15,6 +15,7 @@
  along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
+
 from nucypher.utilities.versioning import Versioned
 import pytest
 
