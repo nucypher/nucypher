@@ -62,8 +62,8 @@ class Arrangement(Versioned):
         return b'AR'
 
     @classmethod
-    def _version(cls) -> int:
-        return 1
+    def _version(cls) -> Tuple[int, int]:
+        return 1, 0
 
     def _payload(self) -> bytes:
         """Returns the unversioned bytes serialized representation of this instance."""

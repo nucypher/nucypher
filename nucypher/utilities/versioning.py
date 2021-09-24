@@ -17,21 +17,27 @@
 
 
 from abc import abstractmethod, ABC
-from typing import Dict, Tuple, Callable
+from typing import Dict, Tuple, Callable, NamedTuple
 
 
 class Versioned(ABC):
     """Base class for serializable entities"""
 
-    _BRAND_LENGTH = 2  # bytes
-    _VERSION_LENGTH = 2
-    _HEADER_SIZE = _BRAND_LENGTH + _VERSION_LENGTH
+    _PARTS = 2  # bytes
+    _PART_SIZE = 2
+    _BRAND_SIZE = 2
+    _VERSION_SIZE = _PART_SIZE * _PARTS
+    _HEADER_SIZE = _BRAND_SIZE + _VERSION_SIZE
+    _MAXIMUM_VERSION = 99  # length
 
     class InvalidHeader(ValueError):
         """
         Raised when an unexpected or invalid bytes header is
         encountered during deserialization.
         """
+
+    class IncompatibleVersion(ValueError):
+        """Raised when attempting to deserialize incompatible bytes"""
 
     class Empty(ValueError):
         """Raised when 0 bytes are remaining after parsing the header."""
@@ -43,17 +49,14 @@ class Versioned(ABC):
 
     @classmethod
     @abstractmethod
-    def _version(cls) -> int:
+    def _version(cls) -> Tuple[int, int]:
+        """tuple(major, minor)"""
         raise NotImplementedError
 
-    def __init_subclass__(cls, **kwargs):
-        if len(cls._brand()) != cls._BRAND_LENGTH:
-            raise cls.InvalidHeader("Brand must be exactly two bytes.")
-        if not cls._brand().isalpha():
-            raise cls.InvalidHeader("Brand must be alphanumeric.")
-        brands = tuple(v._brand() for v in Versioned.__subclasses__())
-        if len(brands) != len(set(brands)):
-            raise cls.InvalidHeader(f"Duplicated_brand {cls._brand()}.")
+    @classmethod
+    def version_string(cls) -> str:
+        major, minor = cls._version()
+        return f'{major}.{minor}'
 
     #
     # Serialize
@@ -65,8 +68,11 @@ class Versioned(ABC):
     @classmethod
     def _header(cls) -> bytes:
         """The entire bytes header to prepend to the instance payload."""
-        version_bytes = cls._version().to_bytes(cls._VERSION_LENGTH, 'big')
-        return cls._brand() + version_bytes
+        major, minor = cls._version()
+        major_bytes = major.to_bytes(cls._PART_SIZE, 'big')
+        minor_bytes = minor.to_bytes(cls._PART_SIZE, 'big')
+        header = cls._brand() + major_bytes + minor_bytes
+        return header
 
     @abstractmethod
     def _payload(self) -> bytes:
@@ -85,29 +91,36 @@ class Versioned(ABC):
 
     @classmethod
     @abstractmethod
-    def _old_version_handlers(cls) -> Dict:
+    def _old_version_handlers(cls) -> Dict[Tuple[int, int], Callable]:
         """Old deserializer callables keyed by version."""
         raise NotImplementedError
 
     @classmethod
     def from_bytes(cls, data: bytes):
         """"Public deserialization API"""
+        if len(data) < cls._HEADER_SIZE:
+            raise ValueError(f'Invalid bytes for {cls.__name__}.')
         brand, version, payload = cls._parse(data)
+        major, minor = version
+        latest_major_version = cls._version()[0]
         handlers = cls._deserializers()
+        compatible = major == latest_major_version
+        if not compatible:
+            message = f'Incompatible versioned bytes for {cls.__name__}. ' \
+                      f'Compatible version is {cls.version_string()}; Got {major}.{minor}.'
+            raise cls.IncompatibleVersion(message)
         return handlers[version](payload)
 
     @classmethod
-    def _parse(cls, data: bytes) -> Tuple[bytes, int, bytes]:
-        """Parse bytes in"""
-        brand, version = cls._parse_brand(data), cls._parse_version(data)
-        payload = data[cls._HEADER_SIZE:]
-        if len(payload) == 0:
-            raise cls.Empty('No content to deserialize.')
+    def _parse(cls, data: bytes) -> Tuple[bytes, Tuple[int, int], bytes]:
+        brand = cls._parse_brand(data)
+        version = cls._parse_version(data)
+        payload = cls._parse_payload(data)
         return brand, version, payload
 
     @classmethod
     def _parse_brand(cls, data: bytes) -> bytes:
-        brand = data[:cls._BRAND_LENGTH]
+        brand = data[:cls._BRAND_SIZE]
         if brand != cls._brand():
             error = f"Incorrect brand. Expected {cls._brand()}, Got {brand}."
             if not brand.isalpha():
@@ -117,18 +130,28 @@ class Versioned(ABC):
         return brand
 
     @classmethod
-    def _parse_version(cls, data: bytes) -> int:
-        version_data = data[cls._BRAND_LENGTH:cls._HEADER_SIZE]
-        version_number = int.from_bytes(version_data, 'big')
-        known_version = version_number in cls._deserializers()
+    def _parse_version(cls, data: bytes) -> Tuple[int, int]:
+        version_data = data[cls._BRAND_SIZE:cls._HEADER_SIZE]
+        major, minor = version_data[:cls._PART_SIZE], version_data[cls._PART_SIZE:]
+        major, minor = int.from_bytes(major, 'big'), int.from_bytes(minor, 'big')
+        version = major, minor
+        known_version = version in cls._deserializers()
         if not known_version:
-            available_versions = ",".join(str(v) for v in cls._deserializers())
-            error = f'Incorrect or unknown version "{version_number}". Available versions for {cls.__name__}: ({available_versions})'
-            raise cls.InvalidHeader(error)
-        return version_number
+            # TODO: Separately handle (potentially) future versions here?
+            available_versions = ", ".join(f'{str(v[0])}.{str(v[1])}' for v in sorted(cls._deserializers()))
+            error = f'Incorrect or unknown version "{major}.{minor}". Available versions for {cls.__name__} {available_versions}'
+            raise cls.IncompatibleVersion(error)
+        return version
 
     @classmethod
-    def _deserializers(cls) -> Dict[int, Callable]:
+    def _parse_payload(cls, data: bytes) -> bytes:
+        payload = data[cls._HEADER_SIZE:]
+        if len(payload) == 0:
+            raise ValueError(f'No content to deserialize {cls.__name__}.')
+        return payload
+
+    @classmethod
+    def _deserializers(cls) -> Dict[Tuple[int, int], Callable]:
         """Return a dict of all known deserialization handlers for this class keyed by version"""
         return {cls._version(): cls._from_bytes_current, **cls._old_version_handlers()}
 

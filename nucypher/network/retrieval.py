@@ -17,7 +17,7 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 
 from collections import defaultdict
 import random
-from typing import Dict, Sequence, List
+from typing import Dict, Sequence, List, Tuple
 
 from bytestring_splitter import BytestringSplitter, VariableLengthBytestring
 from eth_typing.evm import ChecksumAddress
@@ -195,8 +195,8 @@ class ReencryptionRequest(Versioned):
         return b'RQ'
 
     @classmethod
-    def _version(cls) -> int:
-        return 1
+    def _version(cls) -> Tuple[int, int]:
+        return 1, 0
 
     @classmethod
     def _old_version_handlers(cls) -> Dict:
@@ -247,8 +247,8 @@ class ReencryptionResponse(Versioned):
         return b'RR'
 
     @classmethod
-    def _version(cls) -> int:
-        return 1
+    def _version(cls) -> Tuple[int, int]:
+        return 1, 0
 
     @classmethod
     def _old_version_handlers(cls) -> Dict:

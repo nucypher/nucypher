@@ -16,8 +16,20 @@
 """
 
 
-from nucypher.utilities.versioning import Versioned
+from typing import Tuple, Any, Type
+
 import pytest
+
+from nucypher.utilities.versioning import Versioned
+
+
+def _check_valid_version_tuple(version: Any, cls: Type):
+    if not isinstance(version, tuple):
+        pytest.fail(f"Old version handlers keys for {cls.__name__} must be a tuple")
+    if not len(version) == Versioned._PARTS:
+        pytest.fail(f"Old version handlers keys for {cls.__name__} must be a {str(Versioned._BRAND_SIZE)}-tuple")
+    if not all(isinstance(part, int) for part in version):
+        pytest.fail(f"Old version handlers version parts {cls.__name__} must be integers")
 
 
 class A(Versioned):
@@ -30,50 +42,81 @@ class A(Versioned):
         return b"AA"
 
     @classmethod
-    def _version(cls):
-        return 2
+    def _version(cls) -> Tuple[int, int]:
+        return 2, 1
 
     def _payload(self) -> bytes:
         return bytes(self.x)
 
     @classmethod
     def _old_version_handlers(cls):
-        return {1: cls._from_bytes_v1}
+        return {
+            (1, 0): cls._from_bytes_v1_0,
+            (2, 0): cls._from_bytes_v2_0,
+        }
 
     @classmethod
-    def _from_bytes_v1(cls, data):
+    def _from_bytes_v1_0(cls, data):
         return cls(int(data))  # we used to keep it in decimal representation
 
     @classmethod
+    def _from_bytes_v2_0(cls, data):
+        return cls(int(data, 16))  # then we switched to the hexadecimal
+
+    @classmethod
     def _from_bytes_current(cls, data):
-        return cls(int(data, 16))  # but now we switched to the hexadecimal
+        return cls(str(int(data, 16)))  # but now we use a string representation for some reason
 
 
 def test_unique_branding():
-    with pytest.raises(Versioned.InvalidHeader, match=f"Duplicated_brand {A._brand()}."):
-        class B(Versioned):
-            _brand = lambda *args: A._brand()
-            _version = lambda *args: 1
-            _payload = lambda *args: bytes()
-            _old_version_handlers = lambda *args: {}
-            _from_bytes_current = lambda *args: B()
+    brands = tuple(v._brand() for v in Versioned.__subclasses__())
+    if len(brands) != len(set(brands)):
+        pytest.fail(f"Duplicated_brand {Versioned._brand()}.")
+
+
+def test_valid_branding():
+    for cls in Versioned.__subclasses__():
+        if len(cls._brand()) != cls._BRAND_SIZE:
+            pytest.fail(f"Brand must be exactly {str(Versioned._BRAND_SIZE)} bytes.")
+        if not cls._brand().isalpha():
+            pytest.fail(f"Brand must be alphanumeric; Got {cls._brand()}")
+
+
+def test_valid_version_implementation():
+    for cls in Versioned.__subclasses__():
+        _check_valid_version_tuple(version=cls._version(), cls=cls)
+
+
+def test_valid_old_handlers_index():
+    for cls in Versioned.__subclasses__():
+        for version in cls._deserializers():
+            _check_valid_version_tuple(version=version, cls=cls)
+
+
+def test_version_metadata():
+    major, minor = A._version()
+    assert A.version_string() == f'{major}.{minor}'
 
 
 def test_versioning_header_prepend():
     a = A(1)  # stake sauce
+    assert a.x == 1
+
     serialized = bytes(a)
     assert len(serialized) > Versioned._HEADER_SIZE
 
     header = serialized[:Versioned._HEADER_SIZE]
-    brand = header[:Versioned._BRAND_LENGTH]
+    brand = header[:Versioned._BRAND_SIZE]
     assert brand == A._brand()
 
-    version = header[Versioned._BRAND_LENGTH:]
-    version_number = int.from_bytes(version, 'big')
-    assert version_number == A._version()
+    version = header[Versioned._BRAND_SIZE:]
+    major, minor = version[:Versioned._PART_SIZE], version[Versioned._PART_SIZE:]
+    major_number = int.from_bytes(major, 'big')
+    minor_number = int.from_bytes(minor, 'big')
+    assert (major_number, minor_number) == A._version()
 
 
-def test_versioning_invalid_header():
+def test_versioning_invalid_brand():
     invalid = b'\x00\x03\x00\x0112'
     with pytest.raises(Versioned.InvalidHeader, match="Incompatible bytes for A."):
         A.from_bytes(invalid)
@@ -85,16 +128,54 @@ def test_versioning_incorrect_header():
         A.from_bytes(incorrect)
 
 
-def test_versioning_empty_payload():
+def test_versioning_input_too_short():
     empty = b'AA\x00\x01'
-    with pytest.raises(Versioned.Empty, match='No content to deserialize.'):
+    with pytest.raises(ValueError, match='Invalid bytes for A.'):
+        A.from_bytes(empty)
+        
+
+def test_versioning_empty_payload():
+    empty = b'AA\x00\x01\x00\x00'
+    with pytest.raises(ValueError, match='No content to deserialize A.'):
         A.from_bytes(empty)
 
 
-def test_versioning_handlers():
-    s1 = b'AA\x00\x0112'
-    s2 = b'AA\x00\x0212'
-    a1 = A.from_bytes(s1)
-    assert a1.x == 12
-    a2 = A.from_bytes(s2)
-    assert a2.x == 18
+def test_unknown_version():
+    empty = b'AA\x00\x01\x00\x01'
+    message = 'Incorrect or unknown version "1.1". Available versions for A 1.0, 2.0, 2.1'
+    with pytest.raises(ValueError, match=message):
+        A.from_bytes(empty)
+
+
+def test_incompatible_version(mocker):
+    current_spy = mocker.spy(A, "_from_bytes_current")
+    v1_data = b'AA\x00\x01\x00\x0012'
+    with pytest.raises(Versioned.IncompatibleVersion):
+        A.from_bytes(v1_data)
+    assert not current_spy.call_count
+
+    v1_data = b'AA\x00\x03\x00\x0012'
+    with pytest.raises(Versioned.IncompatibleVersion):
+        A.from_bytes(v1_data)
+    assert not current_spy.call_count
+
+
+def test_old_version_handler_routing(mocker):
+    current_spy = mocker.spy(A, "_from_bytes_current")
+    v1_0_spy = mocker.spy(A, "_from_bytes_v1_0")
+    v2_0_spy = mocker.spy(A, "_from_bytes_v2_0")
+
+    v2_0_data = b'AA\x00\x02\x00\x0012'
+    a1 = A.from_bytes(v2_0_data)
+    assert a1.x == 18
+    assert not current_spy.call_count
+    assert not v1_0_spy.call_count
+    assert v2_0_spy.call_count == 1
+    v2_0_spy.call_count = 0
+
+    v2_1_data = b'AA\x00\x02\x00\x0112'
+    a2 = A.from_bytes(v2_1_data)
+    assert a2.x == '18'
+    assert current_spy.call_count == 1
+    assert not v1_0_spy.call_count
+    assert not v2_0_spy.call_count

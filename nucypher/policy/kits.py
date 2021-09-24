@@ -16,7 +16,7 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
 
-from typing import Dict, Optional, Iterable, Set
+from typing import Dict, Optional, Iterable, Set, Tuple
 
 from bytestring_splitter import BytestringSplitter, VariableLengthBytestring
 from constant_sorrow.constants import (
@@ -125,8 +125,8 @@ class MessageKit(Versioned):
         return b'MK'
 
     @classmethod
-    def _version(cls) -> int:
-        return 1
+    def _version(cls) -> Tuple[int, int]:
+        return 1, 0
 
     @classmethod
     def _old_version_handlers(cls) -> Dict:
@@ -184,8 +184,8 @@ class RetrievalKit(Versioned):
         return b'RK'
 
     @classmethod
-    def _version(cls) -> int:
-        return 1
+    def _version(cls) -> Tuple[int, int]:
+        return 1, 0
 
     @classmethod
     def _old_version_handlers(cls) -> Dict:

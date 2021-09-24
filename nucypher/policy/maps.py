@@ -16,7 +16,7 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
 
-from typing import Optional, Callable, Sequence, Dict
+from typing import Optional, Callable, Sequence, Dict, Tuple
 
 from bytestring_splitter import (
     BytestringSplitter,
@@ -108,8 +108,8 @@ class TreasureMap(Versioned):
         return b'TM'
 
     @classmethod
-    def _version(cls) -> int:
-        return 1
+    def _version(cls) -> Tuple[int, int]:
+        return 1, 0
 
     @classmethod
     def _old_version_handlers(cls) -> Dict:
@@ -208,8 +208,8 @@ class AuthorizedKeyFrag(Versioned):
         return b'KF'
 
     @classmethod
-    def _version(cls) -> int:
-        return 1
+    def _version(cls) -> Tuple[int, int]:
+        return 1, 0
 
     @classmethod
     def _old_version_handlers(cls) -> Dict:
@@ -333,8 +333,8 @@ class EncryptedTreasureMap(Versioned):
         return b'EM'
 
     @classmethod
-    def _version(cls) -> int:
-        return 1
+    def _version(cls) -> Tuple[int, int]:
+        return 1, 0
 
     @classmethod
     def _old_version_handlers(cls) -> Dict:

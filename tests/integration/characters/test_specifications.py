@@ -90,7 +90,7 @@ def test_treasure_map_validation(enacted_federated_policy,
     assert "Could not parse tmap" in str(e)
     assert "Invalid base64-encoded string" in str(e)
 
-    base64_header = base64.b64encode(EncryptedTreasureMapClass._header()).decode()[:-2]  # remove "==" delimiter
+    base64_header = base64.b64encode(EncryptedTreasureMapClass._header()).decode()
 
     # valid base64 but invalid treasuremap
     bad_map = base64_header + "VGhpcyBpcWgb3RhbGx5IG5vdCBhIHRyZWFzdXJlbWg=="
@@ -121,7 +121,7 @@ def test_treasure_map_validation(enacted_federated_policy,
     assert "Invalid base64-encoded string" in str(e)
 
     # valid base64 but invalid treasuremap
-    base64_header = base64.b64encode(TreasureMapClass._header()).decode()[:-2]  # remove "==" delimiter
+    base64_header = base64.b64encode(TreasureMapClass._header()).decode()
     bad_map = base64_header + "VGhpcyBpcyB0b3RhbGx5IG5vdCBhIHRyZWFzdXJlbWFwLg=="
     with pytest.raises(InvalidInputData) as e:
         UnenncryptedTreasureMapsOnly().load({'tmap': bad_map})
@@ -153,7 +153,7 @@ def test_messagekit_validation(capsule_side_channel):
     assert "Incorrect padding" in str(e)
 
     # valid base64 but invalid messagekit
-    b64header = base64.b64encode(MessageKit._header())[:-2].decode()
+    b64header = base64.b64encode(MessageKit._header()).decode()
     with pytest.raises(SpecificationError) as e:
         MessageKitsOnly().load({'mkit': b64header + "V3da=="})
 

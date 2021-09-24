@@ -16,7 +16,7 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
 
-from typing import Optional, Dict
+from typing import Optional, Dict, Tuple
 
 from bytestring_splitter import BytestringSplitter
 from eth_typing.evm import ChecksumAddress
@@ -77,8 +77,8 @@ class RevocationOrder(Versioned):
         return b'RV'
 
     @classmethod
-    def _version(cls) -> int:
-        return 1
+    def _version(cls) -> Tuple[int, int]:
+        return 1, 0
 
     @classmethod
     def _old_version_handlers(cls) -> Dict:
