@@ -105,15 +105,6 @@ contract PREStakingApp is IApplication, Adjudicator, PolicyManager {
         tokenStaking = _tokenStaking;
     }
 
-    /**
-    * @dev Checks the existence of a worker in the contract
-    */
-    modifier onlyWorker()
-    {
-        require(workerInfo[msg.sender].authorized > 0);
-        _;
-    }
-
     modifier updateReward(address _worker) {
         updateRewardInternal(_worker);
         _;
@@ -191,7 +182,7 @@ contract PREStakingApp is IApplication, Adjudicator, PolicyManager {
         WorkerInfo storage info = workerInfo[_worker];
         require(_value <= info.tReward);
         info.tReward -= _value;
-        address beneficiary = tokenStaking.getBeneficiary(_worker);
+        address beneficiary = tokenStaking.beneficiaryOf(_worker);
         emit Withdrawn(_worker, beneficiary, _value);
         token.safeTransfer(beneficiary, _value);
     }
@@ -254,7 +245,7 @@ contract PREStakingApp is IApplication, Adjudicator, PolicyManager {
 
     //-------------------------Main-------------------------
     /**
-    * @notice Get all tokens belonging to the worker
+    * @notice Get all tokens authorized to the worker
     */
     function getAllTokens(address _worker) public override view returns (uint256) { // TODO rename
         return workerInfo[_worker].authorized;
@@ -298,7 +289,7 @@ contract PREStakingApp is IApplication, Adjudicator, PolicyManager {
 
     // TODO docs
     function getBeneficiary(address _worker) internal override view returns (address payable) {
-        return tokenStaking.getBeneficiary(_worker);
+        return tokenStaking.beneficiaryOf(_worker);
     }
 
     // TODO docs

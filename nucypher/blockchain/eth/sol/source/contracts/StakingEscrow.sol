@@ -128,12 +128,13 @@ contract StakingEscrow is Upgradeable, IERC900History {
 
     // indices for flags (0, 1, 2, and 4 were in use, skip it in future)
     uint8 internal constant SNAPSHOTS_DISABLED_INDEX = 3;
-    uint8 internal constant MERGED_INDEX = 5;
+    uint8 internal constant REQUESTED_MERGE_INDEX = 5;
+    uint8 internal constant CONFIRMED_MERGE_INDEX = 6;
 
     NuCypherToken public immutable token;
     AdjudicatorInterface public immutable adjudicator;
     WorkLockInterface public immutable workLock;
-    ITokenStaking public immutable tokenStaking;
+    ITokenStaking public immutable tStaking;
 
     uint128 stub1; // former slot for previousPeriodSupply
     uint128 stub2; // former slot for currentPeriodSupply
@@ -172,7 +173,7 @@ contract StakingEscrow is Upgradeable, IERC900History {
         token = _token;
         adjudicator = _adjudicator;
         workLock = _workLock;
-        tokenStaking = _tokenStaking;
+        tStaking = _tokenStaking;
     }
 
     /**
@@ -203,7 +204,7 @@ contract StakingEscrow is Upgradeable, IERC900History {
     {
         StakerInfo storage info = stakerInfo[_staker];
         snapshots = !info.flags.bitSet(SNAPSHOTS_DISABLED_INDEX);
-        merged = info.flags.bitSet(MERGED_INDEX);
+        merged = info.flags.bitSet(CONFIRMED_MERGE_INDEX);
     }
 
     /**
@@ -294,9 +295,9 @@ contract StakingEscrow is Upgradeable, IERC900History {
     */
     function withdraw(uint256 _value) external onlyStaker {
         StakerInfo storage info = stakerInfo[msg.sender];
-        require(info.flags.bitSet(MERGED_INDEX) &&
+        require(info.flags.bitSet(CONFIRMED_MERGE_INDEX) &&
             _value + getVestedTokens(msg.sender) <= info.value &&
-            _value <= tokenStaking.getAvailableToWithdraw(msg.sender, ITokenStaking.StakingProvider.NU));
+            _value + tStaking.stakedNu(msg.sender) <= info.value); // TODO need to get operator address
         info.value -= _value;
 
         addSnapshot(info, - int256(_value)); // TODO
@@ -337,14 +338,27 @@ contract StakingEscrow is Upgradeable, IERC900History {
     }
 
     /**
+    * @notice Request migration to threshold network
+    */
+    function requestMerge(address _staker) external returns (uint256) {
+        require(msg.sender == address(tStaking));
+        StakerInfo storage info = stakerInfo[msg.sender];
+        require(!info.flags.bitSet(REQUESTED_MERGE_INDEX));
+        info.flags = info.flags.toggleBit(REQUESTED_MERGE_INDEX);
+        return info.value;
+        // TODO emit event
+    }
+
+    /**
     * @notice Confirm migration to threshold network
     */
     function confirmMerge() external onlyStaker {
-        uint256 unallocated = tokenStaking.getAvailableToWithdraw(msg.sender, ITokenStaking.StakingProvider.NU);
         StakerInfo storage info = stakerInfo[msg.sender];
-        require(!info.flags.bitSet(MERGED_INDEX) &&
-            unallocated <= 1e5); // TODO ???
-        info.flags = info.flags.toggleBit(MERGED_INDEX);
+        require(info.flags.bitSet(REQUESTED_MERGE_INDEX) &&
+            !info.flags.bitSet(CONFIRMED_MERGE_INDEX));
+        uint256 minStaked = tStaking.getMinStaked(msg.sender, ITokenStaking.StakingProvider.NU);
+        require(minStaked + 1e5 >= info.value); // TODO ???
+        info.flags = info.flags.toggleBit(CONFIRMED_MERGE_INDEX);
         // TODO emit event
     }
 
