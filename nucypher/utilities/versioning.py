@@ -17,7 +17,7 @@
 
 
 from abc import abstractmethod, ABC
-from typing import Dict, Tuple, Callable, NamedTuple
+from typing import Dict, Tuple, Callable
 
 
 class Versioned(ABC):
@@ -95,12 +95,12 @@ class Versioned(ABC):
     def from_bytes(cls, data: bytes):
         """"Public deserialization API"""
         brand, version, payload = cls._parse_header(data)
-        version = cls._get_compatible_handler(data=data, version=version)
+        version = cls._resolve_version(version=version)
         handlers = cls._deserializers()
         return handlers[version](payload)
 
     @classmethod
-    def _get_compatible_handler(cls, data: bytes, version: Tuple[int, int]) -> Tuple[int, int]:
+    def _resolve_version(cls, version: Tuple[int, int]) -> Tuple[int, int]:
 
         # Unpack version metadata
         bytrestring_major, bytrestring_minor = version

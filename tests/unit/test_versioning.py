@@ -159,6 +159,23 @@ def test_incompatible_version(mocker):
     assert not current_spy.call_count
 
 
+def test_resolve_version():
+    # past
+    v2_0 = 2, 0
+    resolved_version = A._resolve_version(version=v2_0)
+    assert resolved_version == v2_0
+
+    # present
+    v2_1 = 2, 1
+    resolved_version = A._resolve_version(version=v2_1)
+    assert resolved_version == v2_1
+
+    # future minor version resolves to the latest minor version.
+    v2_2 = 2, 2
+    resolved_version = A._resolve_version(version=v2_2)
+    assert resolved_version == v2_1
+
+
 def test_old_minor_version_handler_routing(mocker):
     current_spy = mocker.spy(A, "_from_bytes_current")
     v2_0_spy = mocker.spy(A, "_from_bytes_v2_0")
