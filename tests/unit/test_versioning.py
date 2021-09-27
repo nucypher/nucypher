@@ -133,7 +133,7 @@ def test_versioning_invalid_brand():
         A.from_bytes(invalid)
 
 
-def test_versioning_incorrect_header():
+def test_versioning_incorrect_brand():
     incorrect = b'AB\x00\x0112'
     with pytest.raises(Versioned.InvalidHeader, match="Incorrect brand. Expected b'AA', Got b'AB'."):
         A.from_bytes(incorrect)
@@ -146,15 +146,20 @@ def test_unknown_future_major_version():
         A.from_bytes(empty)
 
 
-def test_incompatible_version(mocker):
+def test_incompatible_old_major_version(mocker):
     current_spy = mocker.spy(A, "_from_bytes_current")
     v1_data = b'AA\x00\x01\x00\x0012'
-    with pytest.raises(Versioned.IncompatibleVersion):
+    message = 'Incompatible versioned bytes for A. Compatible version is 2.x, Got 1.0.'
+    with pytest.raises(Versioned.IncompatibleVersion, match=message):
         A.from_bytes(v1_data)
     assert not current_spy.call_count
 
+
+def test_incompatible_future_major_version(mocker):
+    current_spy = mocker.spy(A, "_from_bytes_current")
     v1_data = b'AA\x00\x03\x00\x0012'
-    with pytest.raises(Versioned.IncompatibleVersion):
+    message = 'Incompatible versioned bytes for A. Compatible version is 2.x, Got 3.0.'
+    with pytest.raises(Versioned.IncompatibleVersion, match=message):
         A.from_bytes(v1_data)
     assert not current_spy.call_count
 
@@ -187,6 +192,7 @@ def test_old_minor_version_handler_routing(mocker):
 
     # Old minor version was correctly routed to the v2.0 handler.
     assert v2_0_spy.call_count == 1
+    v2_0_spy.assert_called_with(b'12')
     assert not current_spy.call_count
 
 
@@ -198,8 +204,9 @@ def test_current_minor_version_handler_routing(mocker):
     a = A.from_bytes(v2_1_data)
     assert a.x == '18'
 
-    # Current version was correctly routed to the v2.1\ handler.
+    # Current version was correctly routed to the v2.1 handler.
     assert current_spy.call_count == 1
+    current_spy.assert_called_with(b'12')
     assert not v2_0_spy.call_count
 
 
@@ -214,4 +221,5 @@ def test_future_minor_version_handler_routing(mocker):
     # Future minor version was correctly routed to
     # the current minor version handler.
     assert current_spy.call_count == 1
+    current_spy.assert_called_with(b'12')
     assert not v2_0_spy.call_count

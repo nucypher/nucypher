@@ -44,8 +44,7 @@ from nucypher.utilities.versioning import Versioned
 class Arrangement(Versioned):
     """A contract between Alice and a single Ursula."""
 
-    def __init__(self, publisher_verifying_key: PublicKey, expiration: maya.MayaDT, *args, **kwargs):
-        super().__init__(*args, **kwargs)
+    def __init__(self, publisher_verifying_key: PublicKey, expiration: maya.MayaDT):
         self.expiration = expiration
         self.publisher_verifying_key = publisher_verifying_key
 
