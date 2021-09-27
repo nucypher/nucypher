@@ -27,7 +27,7 @@ def _check_valid_version_tuple(version: Any, cls: Type):
     if not isinstance(version, tuple):
         pytest.fail(f"Old version handlers keys for {cls.__name__} must be a tuple")
     if not len(version) == Versioned._PARTS:
-        pytest.fail(f"Old version handlers keys for {cls.__name__} must be a {str(Versioned._BRAND_SIZE)}-tuple")
+        pytest.fail(f"Old version handlers keys for {cls.__name__} must be a {str(Versioned._PARTS)}-tuple")
     if not all(isinstance(part, int) for part in version):
         pytest.fail(f"Old version handlers version parts {cls.__name__} must be integers")
 
@@ -51,13 +51,8 @@ class A(Versioned):
     @classmethod
     def _old_version_handlers(cls):
         return {
-            (1, 0): cls._from_bytes_v1_0,
             (2, 0): cls._from_bytes_v2_0,
         }
-
-    @classmethod
-    def _from_bytes_v1_0(cls, data):
-        return cls(int(data))  # we used to keep it in decimal representation
 
     @classmethod
     def _from_bytes_v2_0(cls, data):
@@ -70,8 +65,12 @@ class A(Versioned):
 
 def test_unique_branding():
     brands = tuple(v._brand() for v in Versioned.__subclasses__())
-    if len(brands) != len(set(brands)):
-        pytest.fail(f"Duplicated_brand {Versioned._brand()}.")
+    brands_set = set(brands)
+    if len(brands) != len(brands_set):
+        duplicate_brands = list(brands)
+        for brand in brands_set:
+            duplicate_brands.remove(brand)
+        pytest.fail(f"Duplicated brand(s) {duplicate_brands}.")
 
 
 def test_valid_branding():
@@ -116,6 +115,18 @@ def test_versioning_header_prepend():
     assert (major_number, minor_number) == A._version()
 
 
+def test_versioning_input_too_short():
+    empty = b'AA\x00\x01'
+    with pytest.raises(ValueError, match='Invalid bytes for A.'):
+        A.from_bytes(empty)
+        
+
+def test_versioning_empty_payload():
+    empty = b'AA\x00\x02\x00\x01'
+    with pytest.raises(ValueError, match='No content to deserialize A.'):
+        A.from_bytes(empty)
+
+
 def test_versioning_invalid_brand():
     invalid = b'\x00\x03\x00\x0112'
     with pytest.raises(Versioned.InvalidHeader, match="Incompatible bytes for A."):
@@ -128,21 +139,9 @@ def test_versioning_incorrect_header():
         A.from_bytes(incorrect)
 
 
-def test_versioning_input_too_short():
-    empty = b'AA\x00\x01'
-    with pytest.raises(ValueError, match='Invalid bytes for A.'):
-        A.from_bytes(empty)
-        
-
-def test_versioning_empty_payload():
-    empty = b'AA\x00\x01\x00\x00'
-    with pytest.raises(ValueError, match='No content to deserialize A.'):
-        A.from_bytes(empty)
-
-
-def test_unknown_version():
-    empty = b'AA\x00\x01\x00\x01'
-    message = 'Incorrect or unknown version "1.1". Available versions for A 1.0, 2.0, 2.1'
+def test_unknown_future_major_version():
+    empty = b'AA\x00\x03\x00\x0212'
+    message = 'Incompatible versioned bytes for A. Compatible version is 2.x, Got 3.2.'
     with pytest.raises(ValueError, match=message):
         A.from_bytes(empty)
 
@@ -160,22 +159,42 @@ def test_incompatible_version(mocker):
     assert not current_spy.call_count
 
 
-def test_old_version_handler_routing(mocker):
+def test_old_minor_version_handler_routing(mocker):
     current_spy = mocker.spy(A, "_from_bytes_current")
-    v1_0_spy = mocker.spy(A, "_from_bytes_v1_0")
     v2_0_spy = mocker.spy(A, "_from_bytes_v2_0")
 
+    # Old minor version
     v2_0_data = b'AA\x00\x02\x00\x0012'
-    a1 = A.from_bytes(v2_0_data)
-    assert a1.x == 18
-    assert not current_spy.call_count
-    assert not v1_0_spy.call_count
+    a = A.from_bytes(v2_0_data)
+    assert a.x == 18
+
+    # Old minor version was correctly routed to the v2.0 handler.
     assert v2_0_spy.call_count == 1
-    v2_0_spy.call_count = 0
+    assert not current_spy.call_count
+
+
+def test_current_minor_version_handler_routing(mocker):
+    current_spy = mocker.spy(A, "_from_bytes_current")
+    v2_0_spy = mocker.spy(A, "_from_bytes_v2_0")
 
     v2_1_data = b'AA\x00\x02\x00\x0112'
-    a2 = A.from_bytes(v2_1_data)
-    assert a2.x == '18'
+    a = A.from_bytes(v2_1_data)
+    assert a.x == '18'
+
+    # Current version was correctly routed to the v2.1\ handler.
     assert current_spy.call_count == 1
-    assert not v1_0_spy.call_count
+    assert not v2_0_spy.call_count
+
+
+def test_future_minor_version_handler_routing(mocker):
+    current_spy = mocker.spy(A, "_from_bytes_current")
+    v2_0_spy = mocker.spy(A, "_from_bytes_v2_0")
+
+    v2_2_data = b'AA\x00\x02\x02\x0112'
+    a = A.from_bytes(v2_2_data)
+    assert a.x == '18'
+
+    # Future minor version was correctly routed to
+    # the current minor version handler.
+    assert current_spy.call_count == 1
     assert not v2_0_spy.call_count

@@ -28,13 +28,9 @@ class Versioned(ABC):
     _BRAND_SIZE = 2
     _VERSION_SIZE = _PART_SIZE * _PARTS
     _HEADER_SIZE = _BRAND_SIZE + _VERSION_SIZE
-    _MAXIMUM_VERSION = 99  # length
 
     class InvalidHeader(ValueError):
-        """
-        Raised when an unexpected or invalid bytes header is
-        encountered during deserialization.
-        """
+        """Raised when an unexpected or invalid bytes header is encountered."""
 
     class IncompatibleVersion(ValueError):
         """Raised when attempting to deserialize incompatible bytes"""
@@ -98,21 +94,37 @@ class Versioned(ABC):
     @classmethod
     def from_bytes(cls, data: bytes):
         """"Public deserialization API"""
-        if len(data) < cls._HEADER_SIZE:
-            raise ValueError(f'Invalid bytes for {cls.__name__}.')
-        brand, version, payload = cls._parse(data)
-        major, minor = version
-        latest_major_version = cls._version()[0]
+        brand, version, payload = cls._parse_header(data)
+        version = cls._get_compatible_handler(data=data, version=version)
         handlers = cls._deserializers()
-        compatible = major == latest_major_version
-        if not compatible:
-            message = f'Incompatible versioned bytes for {cls.__name__}. ' \
-                      f'Compatible version is {cls.version_string()}; Got {major}.{minor}.'
-            raise cls.IncompatibleVersion(message)
         return handlers[version](payload)
 
     @classmethod
-    def _parse(cls, data: bytes) -> Tuple[bytes, Tuple[int, int], bytes]:
+    def _get_compatible_handler(cls, data: bytes, version: Tuple[int, int]) -> Tuple[int, int]:
+
+        # Unpack version metadata
+        bytrestring_major, bytrestring_minor = version
+        latest_major_version, latest_minor_version = cls._version()
+
+        # Enforce major version compatibility
+        if not bytrestring_major == latest_major_version:
+            message = f'Incompatible versioned bytes for {cls.__name__}. ' \
+                      f'Compatible version is {latest_major_version}.x, ' \
+                      f'Got {bytrestring_major}.{bytrestring_minor}.'
+            raise cls.IncompatibleVersion(message)
+
+        # Enforce minor version compatibility.
+        # Pass future minor versions to the latest minor handler.
+        if bytrestring_minor >= latest_minor_version:
+            version = cls._version()
+
+        return version
+
+    @classmethod
+    def _parse_header(cls, data: bytes) -> Tuple[bytes, Tuple[int, int], bytes]:
+        if len(data) < cls._HEADER_SIZE:
+            # handles edge case when input is too short.
+            raise ValueError(f'Invalid bytes for {cls.__name__}.')
         brand = cls._parse_brand(data)
         version = cls._parse_version(data)
         payload = cls._parse_payload(data)
@@ -135,12 +147,6 @@ class Versioned(ABC):
         major, minor = version_data[:cls._PART_SIZE], version_data[cls._PART_SIZE:]
         major, minor = int.from_bytes(major, 'big'), int.from_bytes(minor, 'big')
         version = major, minor
-        known_version = version in cls._deserializers()
-        if not known_version:
-            # TODO: Separately handle (potentially) future versions here?
-            available_versions = ", ".join(f'{str(v[0])}.{str(v[1])}' for v in sorted(cls._deserializers()))
-            error = f'Incorrect or unknown version "{major}.{minor}". Available versions for {cls.__name__} {available_versions}'
-            raise cls.IncompatibleVersion(error)
         return version
 
     @classmethod
@@ -156,5 +162,5 @@ class Versioned(ABC):
         return {cls._version(): cls._from_bytes_current, **cls._old_version_handlers()}
 
 
-# Collects the brands of every serializable entity
-SERIALIZABLE_ENTITIES = {v.__class__.__name__: v._brand() for v in Versioned.__subclasses__()}
+# Collects the brands of every serializable entity, potentially useful for documentation.
+# SERIALIZABLE_ENTITIES = {v.__class__.__name__: v._brand() for v in Versioned.__subclasses__()}
