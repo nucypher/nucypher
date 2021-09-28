@@ -1,0 +1,52 @@
+- name: "Run Ursula"
+  hosts: "{{ play_hosts }}"
+  remote_user: "{{default_user}}"
+  gather_facts: no
+  tasks:
+    - name: Clone Monitor Repo
+      become: yes
+      become_user: nucypher
+      ansible.builtin.git:
+        repo: https://github.com/nucypher/nucypher-monitor.git
+        dest: /home/nucypher/nucypher-monitor
+        recursive: yes
+        force: yes
+
+    - name: setup certs dir
+      become: yes
+      ansible.builtin.file:
+        path: "{{NUCYPHER_LETSENCRYPT_DIR}}"
+        state: directory
+        owner: nucypher
+        group: nucypher
+        mode: '0700'
+
+    # - name: Clean any existing Influx DB directory
+    #   ansible.builtin.file:
+    #     path: /home/nucypher/influxdb
+    #     state: absent
+
+    - name: Copy SSL Certs
+      become: yes
+      ansible.builtin.copy:
+        src: "{{LOCAL_CERTS_DIR }}/{{item}}"
+        dest: "{{NUCYPHER_LETSENCRYPT_DIR}}/{{item}}"
+        owner: nucypher
+        group: nucypher
+        mode: '0700'
+      loop:
+        - cert.pem
+        - chain.pem
+        - fullchain.pem
+        - privkey.pem
+
+    - name: Run Monitor (docker-compose up)
+      become: yes
+      become_user: nucypher
+      ansible.builtin.command: docker-compose -f /home/nucypher/nucypher-monitor/deploy/docker-compose.yml up -d --build
+      args:
+        chdir: /home/nucypher/
+      environment:
+        - WEB3_PROVIDER_URI: "{{WEB3_PROVIDER_URI}}"
+        - NUCYPHER_NETWORK: "{{NUCYPHER_NETWORK}}"
+        - NUCYPHER_LETSENCRYPT_DIR: "{{NUCYPHER_LETSENCRYPT_DIR}}"
