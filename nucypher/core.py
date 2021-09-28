@@ -29,14 +29,6 @@ from eth_utils.address import to_checksum_address, to_canonical_address
 from nucypher.utilities.versioning import Versioned
 
 from nucypher.crypto.utils import keccak_digest
-from nucypher.crypto.splitters import (
-    signature_splitter,
-    capsule_splitter,
-    key_splitter,
-    kfrag_splitter,
-    cfrag_splitter,
-    checksum_address_splitter,
-    )
 from nucypher.crypto.signing import InvalidSignature
 import nucypher.crypto.umbral_adapter as umbral # need it to mock `umbral.encrypt`
 from nucypher.crypto.umbral_adapter import (
@@ -56,6 +48,13 @@ from nucypher.crypto.umbral_adapter import (
 
 
 ETH_ADDRESS_BYTE_LENGTH = 20
+
+key_splitter = BytestringSplitter((PublicKey, PublicKey.serialized_size()))
+signature_splitter = BytestringSplitter((Signature, Signature.serialized_size()))
+capsule_splitter = BytestringSplitter((Capsule, Capsule.serialized_size()))
+cfrag_splitter = BytestringSplitter((CapsuleFrag, CapsuleFrag.serialized_size()))
+kfrag_splitter = BytestringSplitter((KeyFrag, KeyFrag.serialized_size()))
+checksum_address_splitter = BytestringSplitter((bytes, ETH_ADDRESS_BYTE_LENGTH)) # TODO: is there a pre-defined constant?
 
 
 class MessageKit(Versioned):
