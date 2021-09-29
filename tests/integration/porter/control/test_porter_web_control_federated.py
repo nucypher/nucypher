@@ -147,7 +147,7 @@ def test_retrieve_cfrags(federated_porter,
     cleartext_with_sig_header = federated_bob._crypto_power.power_ups(DecryptingPower).keypair.decrypt(policy_message_kit)
     sig_header, remainder = default_constant_splitter(cleartext_with_sig_header, return_remainder=True)
     signature_from_kit, cleartext = signature_splitter(remainder, return_remainder=True)
-    assert signature_from_kit.verify(message=cleartext, verifying_key=policy_message_kit.sender_verifying_key)
+    assert signature_from_kit.verify(message=cleartext, verifying_pk=policy_message_kit.sender_verifying_key)
     assert cleartext == original_message
 
     #

@@ -15,17 +15,20 @@
  along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
+
 import datetime
-import maya
 import os
+from functools import partial
+
+import maya
 import pytest
 import pytest_twisted
 import requests
 from bytestring_splitter import BytestringSplittingError
-from functools import partial
 from twisted.internet import threads
 
-from nucypher.policy.policies import Policy
+from nucypher.policy.policies import Policy, Arrangement
+from nucypher.utilities.versioning import Versioned
 from tests.utils.middleware import EvilMiddleWare, NodeIsDownMiddleware
 from tests.utils.ursula import make_federated_ursulas
 
@@ -109,8 +112,9 @@ def test_huge_treasure_maps_are_rejected(federated_alice, federated_ursulas):
 
     firstula = list(federated_ursulas)[0]
 
+    header = Arrangement._header()
     ok_amount = 10 * 1024  # 10k
-    ok_data = os.urandom(ok_amount)
+    ok_data = header + os.urandom(ok_amount)
 
     with pytest.raises(BytestringSplittingError):
         federated_alice.network_middleware.upload_arbitrary_data(
@@ -143,8 +147,10 @@ def test_hendrix_handles_content_length_validation(ursula_federated_test_config)
     node_deployer.catalogServers(node_deployer.hendrix)
     node_deployer.start()
 
+    header = Arrangement._header()
+
     def check_node_rejects_large_posts(node):
-        too_much_data = os.urandom(100 * 1024)
+        too_much_data = header + os.urandom(100 * 1024)
         response = requests.post(
             "https://{}/consider_arrangement".format(node.rest_url()),
             data=too_much_data, verify=False)
@@ -153,7 +159,8 @@ def test_hendrix_handles_content_length_validation(ursula_federated_test_config)
         return node
 
     def check_node_accepts_normal_posts(node):
-        a_normal_arrangement = os.urandom(49 * 1024)  # 49K, the limit is 50K
+        under_limit = (49 * 1024)-Versioned._HEADER_SIZE  # 49K, the limit is 50K
+        a_normal_arrangement = header + os.urandom(under_limit)
         response = requests.post(
             "https://{}/consider_arrangement".format(node.rest_url()),
             data=a_normal_arrangement, verify=False)

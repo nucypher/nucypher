@@ -17,7 +17,7 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 
 from collections import defaultdict
 import random
-from typing import Dict, Sequence, List
+from typing import Dict, Sequence, List, Tuple
 
 from bytestring_splitter import BytestringSplitter, VariableLengthBytestring
 from eth_typing.evm import ChecksumAddress
@@ -43,6 +43,7 @@ from nucypher.network.nodes import Learner
 from nucypher.policy.hrac import HRAC, hrac_splitter
 from nucypher.policy.kits import MessageKit, RetrievalKit, RetrievalResult
 from nucypher.policy.maps import TreasureMap
+from nucypher.utilities.versioning import Versioned
 
 
 class RetrievalPlan:
@@ -138,15 +139,10 @@ class RetrievalWorkOrder:
         self.capsules = capsules
 
 
-class ReencryptionRequest:
+class ReencryptionRequest(Versioned):
     """
     A request for an Ursula to reencrypt for several capsules.
     """
-
-    _splitter = (hrac_splitter +
-                 key_splitter +
-                 key_splitter +
-                 BytestringSplitter((MessageKit, VariableLengthBytestring)))
 
     @classmethod
     def from_work_order(cls,
@@ -159,8 +155,7 @@ class ReencryptionRequest:
                    alice_verifying_key=alice_verifying_key,
                    bob_verifying_key=bob_verifying_key,
                    encrypted_kfrag=treasure_map.destinations[work_order.ursula_address],
-                   capsules=work_order.capsules,
-                   )
+                   capsules=work_order.capsules)
 
     def __init__(self,
                  hrac: HRAC,
@@ -175,20 +170,6 @@ class ReencryptionRequest:
         self.encrypted_kfrag = encrypted_kfrag
         self.capsules = capsules
 
-    def __bytes__(self):
-        return (bytes(self.hrac) +
-                bytes(self._alice_verifying_key) +
-                bytes(self._bob_verifying_key) +
-                VariableLengthBytestring(bytes(self.encrypted_kfrag)) +
-                b''.join(bytes(capsule) for capsule in self.capsules)
-                )
-
-    @classmethod
-    def from_bytes(cls, data: bytes):
-        hrac, alice_vk, bob_vk, ekfrag, remainder = cls._splitter(data, return_remainder=True)
-        capsules = capsule_splitter.repeat(remainder)
-        return cls(hrac, alice_vk, bob_vk, ekfrag, capsules)
-
     def alice(self) -> 'Alice':
         from nucypher.characters.lawful import Alice
         return Alice.from_public_keys(verifying_key=self._alice_verifying_key)
@@ -201,8 +182,39 @@ class ReencryptionRequest:
         from nucypher.characters.lawful import Alice
         return Alice.from_public_keys(verifying_key=self.encrypted_kfrag.sender_verifying_key)
 
+    def _payload(self) -> bytes:
+        return (bytes(self.hrac) +
+                bytes(self._alice_verifying_key) +
+                bytes(self._bob_verifying_key) +
+                VariableLengthBytestring(bytes(self.encrypted_kfrag)) +
+                b''.join(bytes(capsule) for capsule in self.capsules)
+                )
 
-class ReencryptionResponse:
+    @classmethod
+    def _brand(cls) -> bytes:
+        return b'RQ'
+
+    @classmethod
+    def _version(cls) -> Tuple[int, int]:
+        return 1, 0
+
+    @classmethod
+    def _old_version_handlers(cls) -> Dict:
+        return {}
+
+    @classmethod
+    def _from_bytes_current(cls, data):
+        splitter = (hrac_splitter +
+                    key_splitter +
+                    key_splitter +
+                    BytestringSplitter((MessageKit, VariableLengthBytestring)))
+
+        hrac, alice_vk, bob_vk, ekfrag, remainder = splitter(data, return_remainder=True)
+        capsules = capsule_splitter.repeat(remainder)
+        return cls(hrac, alice_vk, bob_vk, ekfrag, capsules)
+
+
+class ReencryptionResponse(Versioned):
     """
     A response from Ursula with reencrypted capsule frags.
     """
@@ -226,20 +238,33 @@ class ReencryptionResponse:
         self.cfrags = cfrags
         self.signature = signature
 
+    def _payload(self) -> bytes:
+        """Returns the unversioned bytes serialized representation of this instance."""
+        return bytes(self.signature) + b''.join(bytes(cfrag) for cfrag in self.cfrags)
+
     @classmethod
-    def from_bytes(cls, data: bytes):
+    def _brand(cls) -> bytes:
+        return b'RR'
+
+    @classmethod
+    def _version(cls) -> Tuple[int, int]:
+        return 1, 0
+
+    @classmethod
+    def _old_version_handlers(cls) -> Dict:
+        return {}
+
+    @classmethod
+    def _from_bytes_current(cls, data):
         signature, cfrags_bytes = signature_splitter(data, return_remainder=True)
 
         # We would never send a request with no capsules, so there should be cfrags.
         # The splitter would fail anyway, this just makes the error message more clear.
         if not cfrags_bytes:
-            raise ValueError("ReencryptionResponse contains no cfrags")
+            raise ValueError(f"{cls.__name__} contains no cfrags")
 
         cfrags = cfrag_splitter.repeat(cfrags_bytes)
         return cls(cfrags, signature)
-
-    def __bytes__(self):
-        return bytes(self.signature) + b''.join(bytes(cfrag) for cfrag in self.cfrags)
 
 
 class RetrievalClient:

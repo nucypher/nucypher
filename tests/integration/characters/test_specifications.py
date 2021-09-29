@@ -16,8 +16,8 @@
 """
 
 
+import base64
 import datetime
-from base64 import b64encode
 
 import maya
 import pytest
@@ -29,6 +29,7 @@ from nucypher.control.specifications.base import BaseSchema
 from nucypher.control.specifications.exceptions import SpecificationError, InvalidInputData, InvalidArgumentCombo
 from nucypher.crypto.powers import DecryptingPower
 from nucypher.crypto.umbral_adapter import PublicKey
+from nucypher.policy.kits import MessageKit
 from nucypher.policy.kits import MessageKit as MessageKitClass
 from nucypher.policy.maps import EncryptedTreasureMap as EncryptedTreasureMapClass, TreasureMap as TreasureMapClass
 
@@ -89,16 +90,19 @@ def test_treasure_map_validation(enacted_federated_policy,
     assert "Could not parse tmap" in str(e)
     assert "Invalid base64-encoded string" in str(e)
 
+    base64_header = base64.b64encode(EncryptedTreasureMapClass._header()).decode()
+
     # valid base64 but invalid treasuremap
+    bad_map = base64_header + "VGhpcyBpcWgb3RhbGx5IG5vdCBhIHRyZWFzdXJlbWg=="
     with pytest.raises(InvalidInputData) as e:
-        EncryptedTreasureMapsOnly().load({'tmap': "VGhpcyBpcyB0b3RhbGx5IG5vdCBhIHRyZWFzdXJlbWFwLg=="})
+        EncryptedTreasureMapsOnly().load({'tmap': bad_map})
 
     assert "Could not convert input for tmap to an EncryptedTreasureMap" in str(e)
     assert "Invalid encrypted treasure map contents." in str(e)
 
     # a valid treasuremap for once...
     tmap_bytes = bytes(enacted_federated_policy.treasure_map)
-    tmap_b64 = b64encode(tmap_bytes)
+    tmap_b64 = base64.b64encode(tmap_bytes)
     result = EncryptedTreasureMapsOnly().load({'tmap': tmap_b64.decode()})
     assert isinstance(result['tmap'], EncryptedTreasureMapClass)
 
@@ -117,8 +121,10 @@ def test_treasure_map_validation(enacted_federated_policy,
     assert "Invalid base64-encoded string" in str(e)
 
     # valid base64 but invalid treasuremap
+    base64_header = base64.b64encode(TreasureMapClass._header()).decode()
+    bad_map = base64_header + "VGhpcyBpcyB0b3RhbGx5IG5vdCBhIHRyZWFzdXJlbWFwLg=="
     with pytest.raises(InvalidInputData) as e:
-        UnenncryptedTreasureMapsOnly().load({'tmap': "VGhpcyBpcyB0b3RhbGx5IG5vdCBhIHRyZWFzdXJlbWFwLg=="})
+        UnenncryptedTreasureMapsOnly().load({'tmap': bad_map})
 
     assert "Could not convert input for tmap to a TreasureMap" in str(e)
     assert "Invalid treasure map contents." in str(e)
@@ -126,7 +132,7 @@ def test_treasure_map_validation(enacted_federated_policy,
     # a valid treasuremap
     decrypted_treasure_map = federated_bob._decrypt_treasure_map(enacted_federated_policy.treasure_map)
     tmap_bytes = bytes(decrypted_treasure_map)
-    tmap_b64 = b64encode(tmap_bytes).decode()
+    tmap_b64 = base64.b64encode(tmap_bytes).decode()
     result = UnenncryptedTreasureMapsOnly().load({'tmap': tmap_b64})
     assert isinstance(result['tmap'], TreasureMapClass)
 
@@ -146,9 +152,10 @@ def test_messagekit_validation(capsule_side_channel):
     assert "Could not parse mkit" in str(e)
     assert "Incorrect padding" in str(e)
 
-    # valid base64 but invalid treasuremap
+    # valid base64 but invalid messagekit
+    b64header = base64.b64encode(MessageKit._header()).decode()
     with pytest.raises(SpecificationError) as e:
-        MessageKitsOnly().load({'mkit': "V3da"})
+        MessageKitsOnly().load({'mkit': b64header + "V3da=="})
 
     assert "Could not parse mkit" in str(e)
     assert "Not enough bytes to constitute message types" in str(e)
@@ -156,7 +163,7 @@ def test_messagekit_validation(capsule_side_channel):
     # test a valid messagekit
     valid_kit = capsule_side_channel.messages[0][0]
     kit_bytes = bytes(valid_kit)
-    kit_b64 = b64encode(kit_bytes)
+    kit_b64 = base64.b64encode(kit_bytes)
     result = MessageKitsOnly().load({'mkit': kit_b64.decode()})
     assert isinstance(result['mkit'], MessageKitClass)
 

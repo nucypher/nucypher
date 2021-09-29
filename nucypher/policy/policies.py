@@ -38,24 +38,18 @@ from nucypher.policy.reservoir import (
 from nucypher.policy.revocation import RevocationKit
 from nucypher.utilities.concurrency import WorkerPool
 from nucypher.utilities.logging import Logger
+from nucypher.utilities.versioning import Versioned
 
 
-class Arrangement:
-    """
-    A contract between Alice and a single Ursula.
-    """
-
-    splitter = BytestringSplitter(
-        key_splitter,                      # publisher_verifying_key
-        (bytes, VariableLengthBytestring)  # expiration
-    )
+class Arrangement(Versioned):
+    """A contract between Alice and a single Ursula."""
 
     def __init__(self, publisher_verifying_key: PublicKey, expiration: maya.MayaDT):
         self.expiration = expiration
         self.publisher_verifying_key = publisher_verifying_key
 
-    def __bytes__(self):
-        return bytes(self.publisher_verifying_key) + bytes(VariableLengthBytestring(self.expiration.iso8601().encode()))
+    def __repr__(self):
+        return f"Arrangement(publisher={self.publisher_verifying_key})"
 
     @classmethod
     def from_publisher(cls, publisher: 'Alice', expiration: maya.MayaDT) -> 'Arrangement':
@@ -63,13 +57,30 @@ class Arrangement:
         return cls(publisher_verifying_key=publisher_verifying_key, expiration=expiration)
 
     @classmethod
-    def from_bytes(cls, arrangement_as_bytes: bytes) -> 'Arrangement':
-        publisher_verifying_key, expiration_bytes = cls.splitter(arrangement_as_bytes)
+    def _brand(cls) -> bytes:
+        return b'AR'
+
+    @classmethod
+    def _version(cls) -> Tuple[int, int]:
+        return 1, 0
+
+    def _payload(self) -> bytes:
+        """Returns the unversioned bytes serialized representation of this instance."""
+        return bytes(self.publisher_verifying_key) + bytes(VariableLengthBytestring(self.expiration.iso8601().encode()))
+
+    @classmethod
+    def _old_version_handlers(cls) -> Dict:
+        return {}
+
+    @classmethod
+    def _from_bytes_current(cls, data: bytes):
+        splitter = BytestringSplitter(
+            key_splitter,  # publisher_verifying_key
+            (bytes, VariableLengthBytestring)  # expiration
+        )
+        publisher_verifying_key, expiration_bytes = splitter(data)
         expiration = maya.MayaDT.from_iso8601(iso8601_string=expiration_bytes.decode())
         return cls(publisher_verifying_key=publisher_verifying_key, expiration=expiration)
-
-    def __repr__(self):
-        return f"Arrangement(publisher={self.publisher_verifying_key})"
 
 
 class Policy(ABC):
