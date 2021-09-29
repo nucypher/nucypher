@@ -62,6 +62,7 @@ from nucypher.core import (
     UnauthorizedKeyFragError,
     TreasureMap,
     EncryptedTreasureMap,
+    ReencryptionResponse,
     )
 
 import nucypher
@@ -104,7 +105,7 @@ from nucypher.network.exceptions import NodeSeemsToBeDown
 from nucypher.network.middleware import RestMiddleware
 from nucypher.network.nodes import NodeSprout, TEACHER_NODES, Teacher
 from nucypher.network.protocols import InterfaceInfo, parse_node_uri
-from nucypher.network.retrieval import RetrievalClient, ReencryptionResponse
+from nucypher.network.retrieval import RetrievalClient
 from nucypher.network.server import ProxyRESTServer, make_rest_app
 from nucypher.network.trackers import AvailabilityTracker
 from nucypher.policy.kits import PolicyMessageKit
@@ -1354,7 +1355,7 @@ class Ursula(Teacher, Character, Worker):
             cfrags.append(cfrag)
             self.log.info(f"Re-encrypted capsule {capsule} -> made {cfrag}.")
 
-        return ReencryptionResponse.construct_by_ursula(capsules, cfrags, self.stamp)
+        return ReencryptionResponse.construct_by_ursula(capsules, cfrags, self.stamp.as_umbral_signer())
 
     def status_info(self, omit_known_nodes: bool = False) -> 'LocalUrsulaStatus':
 

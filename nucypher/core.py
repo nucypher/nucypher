@@ -15,7 +15,7 @@ You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
-from typing import Optional, Sequence, Tuple, Dict, Callable
+from typing import Optional, Sequence, Callable, Dict, Tuple, List
 
 from bytestring_splitter import (
     BytestringSplitter,
@@ -28,7 +28,13 @@ from eth_utils.address import to_checksum_address, to_canonical_address
 from nucypher.utilities.versioning import Versioned
 
 from nucypher.crypto.utils import keccak_digest
-from nucypher.crypto.splitters import signature_splitter, capsule_splitter, key_splitter, kfrag_splitter
+from nucypher.crypto.splitters import (
+    signature_splitter,
+    capsule_splitter,
+    key_splitter,
+    kfrag_splitter,
+    cfrag_splitter,
+    )
 from nucypher.crypto.signing import InvalidSignature
 import nucypher.crypto.umbral_adapter as umbral # need it to mock `umbral.encrypt`
 from nucypher.crypto.umbral_adapter import (
@@ -37,6 +43,7 @@ from nucypher.crypto.umbral_adapter import (
     Signer,
     Capsule,
     Signature,
+    CapsuleFrag,
     VerifiedCapsuleFrag,
     KeyFrag,
     VerifiedKeyFrag,
@@ -537,3 +544,122 @@ class EncryptedTreasureMap(Versioned):
 
     def __eq__(self, other):
         return bytes(self) == bytes(other)
+
+
+class ReencryptionRequest(Versioned):
+    """
+    A request for an Ursula to reencrypt for several capsules.
+    """
+
+    @classmethod
+    def from_treasure_map(cls,
+                          ursula_address: ChecksumAddress,
+                          capsules: Sequence[Capsule],
+                          treasure_map: TreasureMap,
+                          alice_verifying_key: PublicKey,
+                          bob_verifying_key: PublicKey,
+                          ) -> 'ReencryptionRequest':
+        return cls(hrac=treasure_map.hrac,
+                   alice_verifying_key=alice_verifying_key,
+                   bob_verifying_key=bob_verifying_key,
+                   encrypted_kfrag=treasure_map.destinations[ursula_address],
+                   capsules=capsules,
+                   )
+
+    def __init__(self,
+                 hrac: HRAC,
+                 alice_verifying_key: PublicKey,
+                 bob_verifying_key: PublicKey,
+                 encrypted_kfrag: MessageKit,
+                 capsules: List[Capsule]):
+
+        self.hrac = hrac
+        self.alice_verifying_key = alice_verifying_key
+        self.publisher_verifying_key = encrypted_kfrag.sender_verifying_key
+        self.bob_verifying_key = bob_verifying_key
+        self.encrypted_kfrag = encrypted_kfrag
+        self.capsules = capsules
+
+    def _payload(self) -> bytes:
+        return (bytes(self.hrac) +
+                bytes(self.alice_verifying_key) +
+                bytes(self.bob_verifying_key) +
+                VariableLengthBytestring(bytes(self.encrypted_kfrag)) +
+                b''.join(bytes(capsule) for capsule in self.capsules)
+                )
+
+    @classmethod
+    def _brand(cls) -> bytes:
+        return b'ReRq'
+
+    @classmethod
+    def _version(cls) -> Tuple[int, int]:
+        return 1, 0
+
+    @classmethod
+    def _old_version_handlers(cls) -> Dict:
+        return {}
+
+    @classmethod
+    def _from_bytes_current(cls, data):
+        splitter = (hrac_splitter +
+                    key_splitter +
+                    key_splitter +
+                    BytestringSplitter((MessageKit, VariableLengthBytestring)))
+
+        hrac, alice_vk, bob_vk, ekfrag, remainder = splitter(data, return_remainder=True)
+        capsules = capsule_splitter.repeat(remainder)
+        return cls(hrac, alice_vk, bob_vk, ekfrag, capsules)
+
+
+class ReencryptionResponse(Versioned):
+    """
+    A response from Ursula with reencrypted capsule frags.
+    """
+
+    @classmethod
+    def construct_by_ursula(cls,
+                            capsules: List[Capsule],
+                            cfrags: List[VerifiedCapsuleFrag],
+                            signer: Signer,
+                            ) -> 'ReencryptionResponse':
+
+        # un-verify
+        cfrags = [CapsuleFrag.from_bytes(bytes(cfrag)) for cfrag in cfrags]
+
+        capsules_bytes = b''.join(bytes(capsule) for capsule in capsules)
+        cfrags_bytes = b''.join(bytes(cfrag) for cfrag in cfrags)
+        signature = signer.sign(capsules_bytes + cfrags_bytes)
+        return cls(cfrags, signature)
+
+    def __init__(self, cfrags: List[CapsuleFrag], signature: Signature):
+        self.cfrags = cfrags
+        self.signature = signature
+
+    def _payload(self) -> bytes:
+        """Returns the unversioned bytes serialized representation of this instance."""
+        return bytes(self.signature) + b''.join(bytes(cfrag) for cfrag in self.cfrags)
+
+    @classmethod
+    def _brand(cls) -> bytes:
+        return b'ReRs'
+
+    @classmethod
+    def _version(cls) -> Tuple[int, int]:
+        return 1, 0
+
+    @classmethod
+    def _old_version_handlers(cls) -> Dict:
+        return {}
+
+    @classmethod
+    def _from_bytes_current(cls, data):
+        signature, cfrags_bytes = signature_splitter(data, return_remainder=True)
+
+        # We would never send a request with no capsules, so there should be cfrags.
+        # The splitter would fail anyway, this just makes the error message more clear.
+        if not cfrags_bytes:
+            raise ValueError(f"{cls.__name__} contains no cfrags")
+
+        cfrags = cfrag_splitter.repeat(cfrags_bytes)
+        return cls(cfrags, signature)

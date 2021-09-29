@@ -27,7 +27,7 @@ from flask import Flask, Response, jsonify, request
 from mako import exceptions as mako_exceptions
 from mako.template import Template
 
-from nucypher.core import AuthorizedKeyFrag
+from nucypher.core import AuthorizedKeyFrag, ReencryptionRequest
 
 from nucypher.blockchain.eth.utils import period_to_epoch
 from nucypher.config.constants import MAX_UPLOAD_CONTENT_LENGTH
@@ -39,7 +39,6 @@ from nucypher.datastore.models import ReencryptionRequest as ReencryptionRequest
 from nucypher.network import LEARNING_LOOP_VERSION
 from nucypher.network.exceptions import NodeSeemsToBeDown
 from nucypher.network.protocols import InterfaceInfo
-from nucypher.network.retrieval import ReencryptionRequest, ReencryptionResponse
 from nucypher.policy.revocation import RevocationOrder
 from nucypher.utilities.logging import Logger
 
@@ -181,11 +180,14 @@ def _make_rest_app(datastore: Datastore, this_node, domain: str, log: Logger) ->
 
     @rest_app.route('/reencrypt', methods=["POST"])
     def reencrypt():
+
+        from nucypher.characters.lawful import Alice, Bob
+
         # TODO: Cache & Optimize
 
         reenc_request = ReencryptionRequest.from_bytes(request.data)
         hrac = reenc_request.hrac
-        bob = reenc_request.bob()
+        bob = Bob.from_public_keys(verifying_key=reenc_request.bob_verifying_key)
         log.info(f"Work Order from {bob} for policy {hrac}")
 
         # Right off the bat, if this HRAC is already known to be revoked, reject the order.
@@ -193,8 +195,8 @@ def _make_rest_app(datastore: Datastore, this_node, domain: str, log: Logger) ->
             return Response(response="Invalid KFrag sender.", status=401)  # 401 - Unauthorized
 
         # Alice & Publisher
-        alice = reenc_request.alice()
-        policy_publisher = reenc_request.publisher()
+        alice = Alice.from_public_keys(verifying_key=reenc_request.alice_verifying_key)
+        policy_publisher = Alice.from_public_keys(verifying_key=reenc_request.publisher_verifying_key)
 
         # Bob
         bob_ip_address = request.remote_addr
