@@ -14,15 +14,13 @@ GNU Affero General Public License for more details.
 You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
-
-
 import uuid
 import weakref
 from pathlib import Path
 from typing import Tuple
 
 from constant_sorrow import constants
-from constant_sorrow.constants import FLEET_STATES_MATCH, RELAX, NOT_STAKING
+from constant_sorrow.constants import FLEET_STATES_MATCH, NOT_STAKING, RELAX
 from flask import Flask, Response, jsonify, request
 from mako import exceptions as mako_exceptions
 from mako.template import Template
@@ -30,16 +28,13 @@ from mako.template import Template
 from nucypher.blockchain.eth.utils import period_to_epoch
 from nucypher.config.constants import MAX_UPLOAD_CONTENT_LENGTH
 from nucypher.crypto.keypairs import DecryptingKeypair
-from nucypher.crypto.powers import KeyPairBasedPower, PowerUpError
 from nucypher.crypto.signing import InvalidSignature
-from nucypher.datastore.datastore import Datastore
 from nucypher.datastore.models import ReencryptionRequest as ReencryptionRequestModel
+from nucypher.datastore.datastore import Datastore
 from nucypher.network import LEARNING_LOOP_VERSION
 from nucypher.network.exceptions import NodeSeemsToBeDown
 from nucypher.network.protocols import InterfaceInfo
-from nucypher.network.retrieval import ReencryptionRequest, ReencryptionResponse
-from nucypher.policy.hrac import HRAC
-from nucypher.policy.kits import MessageKit
+from nucypher.network.retrieval import ReencryptionRequest
 from nucypher.policy.revocation import Revocation
 from nucypher.utilities.logging import Logger
 

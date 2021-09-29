@@ -16,9 +16,10 @@
 """
 from typing import List, NamedTuple, Optional, Sequence
 
+import requests
 from constant_sorrow.constants import NO_BLOCKCHAIN_CONNECTION, NO_CONTROL_PROTOCOL
 from eth_typing import ChecksumAddress
-from flask import request, Response
+from flask import Response, request
 
 from nucypher.blockchain.eth.agents import ContractAgency, StakingEscrowAgent
 from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
@@ -32,9 +33,9 @@ from nucypher.network.retrieval import RetrievalClient
 from nucypher.policy.kits import RetrievalKit, RetrievalResult
 from nucypher.policy.maps import TreasureMap
 from nucypher.policy.reservoir import (
-    make_federated_staker_reservoir,
+    PrefetchStrategy,
     make_decentralized_staker_reservoir,
-    PrefetchStrategy
+    make_federated_staker_reservoir
 )
 from nucypher.utilities.concurrency import WorkerPool
 from nucypher.utilities.logging import Logger
@@ -160,7 +161,14 @@ the Pipe for nucypher network operations
                         policy_encrypting_key: PublicKey) -> List[RetrievalResult]:
         client = RetrievalClient(self)
         return client.retrieve_cfrags(treasure_map, retrieval_kits,
-            alice_verifying_key, bob_encrypting_key, bob_verifying_key, policy_encrypting_key)
+                                      alice_verifying_key, bob_encrypting_key, bob_verifying_key, policy_encrypting_key)
+
+    def proxy_consider_arrangement(self, ursula_uri: str, data: bytes):
+        response = requests.post(f"{ursula_uri}/consider_arrangement", data=data, verify=False,
+                                 headers={'Content-Type': 'application/octet-stream'})
+        if response.status_code >= 400:
+            raise RuntimeError(response.content)
+        return response.content
 
     def _make_staker_reservoir(self,
                                quantity: int,
@@ -238,6 +246,12 @@ the Pipe for nucypher network operations
         def retrieve_cfrags() -> Response:
             """Porter control endpoint for executing a PRE work order on behalf of Bob."""
             response = controller(method_name='retrieve_cfrags', control_request=request)
+            return response
+
+        @porter_flask_control.route("/proxy/consider_arrangement", methods=['POST'])
+        def proxy_consider_arrangement() -> Response:
+            """Porter control endpoint for proxying an arrangement proposal to Ursula."""
+            response = controller(method_name='proxy_consider_arrangement', control_request=request)
             return response
 
         return controller

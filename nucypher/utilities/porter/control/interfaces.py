@@ -19,6 +19,7 @@ from typing import List, Optional
 from eth_typing import ChecksumAddress
 
 from nucypher.control.interfaces import ControlInterface, attach_schema
+from nucypher.control.specifications.base import BaseSchema
 from nucypher.crypto.umbral_adapter import PublicKey
 from nucypher.policy.kits import RetrievalKit
 from nucypher.policy.maps import TreasureMap
@@ -69,6 +70,13 @@ class PorterInterface(ControlInterface):
                                                              bob_encrypting_key=bob_encrypting_key,
                                                              bob_verifying_key=bob_verifying_key,
                                                              policy_encrypting_key=policy_encrypting_key)
-        results = retrieval_results   # list of RetrievalResult objects
+        results = retrieval_results  # list of RetrievalResult objects
         response_data = {'retrieval_results': results}
         return response_data
+
+    #
+    # Ursula Endpoints
+    #
+    @attach_schema(BaseSchema)
+    def proxy_consider_arrangement(self, proxy_destination: str, data: bytes) -> dict:
+        return self.implementer.proxy_consider_arrangement(ursula_uri=proxy_destination, data=data)

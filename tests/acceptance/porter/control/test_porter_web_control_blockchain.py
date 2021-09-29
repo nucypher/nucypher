@@ -20,6 +20,8 @@ import os
 from base64 import b64encode
 from urllib.parse import urlencode
 
+import pytest_twisted
+from twisted.internet import threads
 from constant_sorrow import default_constant_splitter
 
 from nucypher.characters.lawful import Enrico
@@ -195,6 +197,27 @@ def test_retrieve_cfrags(blockchain_porter,
     failure_retrieve_cfrags_params['treasure_map'] = b64encode(os.urandom(32)).decode()
     response = blockchain_porter_web_controller.post('/retrieve_cfrags', data=json.dumps(failure_retrieve_cfrags_params))
     assert response.status_code == 400  # invalid treasure map provided
+
+
+@pytest_twisted.inlineCallbacks
+def test_post_proxy_requests_to_ursula(blockchain_porter_web_controller, blockchain_ursulas):
+    node = blockchain_ursulas[0]
+    node_deployer = node.get_deployer()
+
+    node_deployer.addServices()
+    node_deployer.catalogServers(node_deployer.hendrix)
+    node_deployer.start()
+
+    def check_node_accepts_proxied_arrangement(node):
+        arrangement_as_bytes = bytes('fake-arrangement', 'utf-8')
+        response = blockchain_porter_web_controller.post(
+            '/proxy/consider_arrangement',
+            data=arrangement_as_bytes,
+            headers={'X-PROXY-DESTINATION': f'https://{node.rest_url()}', 'Content-Type': 'application/octet-stream'})
+        assert response.status_code == 200
+        return node
+
+    yield threads.deferToThread(check_node_accepts_proxied_arrangement, node)
 
 
 def test_get_ursulas_basic_auth(blockchain_porter_basic_auth_web_controller):
