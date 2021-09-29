@@ -39,7 +39,6 @@ from nucypher.network.exceptions import NodeSeemsToBeDown
 from nucypher.network.protocols import InterfaceInfo
 from nucypher.network.retrieval import ReencryptionRequest, ReencryptionResponse
 from nucypher.policy.hrac import HRAC
-from nucypher.policy.kits import MessageKit
 from nucypher.policy.revocation import RevocationOrder
 from nucypher.utilities.logging import Logger
 
@@ -203,9 +202,8 @@ def _make_rest_app(datastore: Datastore, this_node, domain: str, log: Logger) ->
 
         # Verify & Decrypt KFrag Payload
         try:
-            plaintext_kfrag_payload = this_node.verify_from(stranger=alice,
-                                                            message_kit=reenc_request.encrypted_kfrag,
-                                                            decrypt=True)
+            plaintext_kfrag_payload = this_node.decrypt_internal(stranger=alice,
+                                                                 message_kit=reenc_request.encrypted_kfrag)
         except InvalidSignature:
             return Response(response="Invalid KFrag sender.", status=401)  # 401 - Unauthorized
         except DecryptingKeypair.DecryptionFailed:

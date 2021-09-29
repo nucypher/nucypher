@@ -19,6 +19,8 @@ from typing import Union, List
 
 import maya
 
+from nucypher.core import MessageKit
+
 from nucypher.characters.base import Character
 from nucypher.characters.control.specifications import alice, bob, enrico
 from nucypher.control.interfaces import attach_schema, ControlInterface
@@ -26,7 +28,6 @@ from nucypher.crypto.powers import DecryptingPower, SigningPower
 from nucypher.crypto.umbral_adapter import PublicKey
 from nucypher.network.middleware import RestMiddleware
 from nucypher.policy.hrac import HRAC
-from nucypher.policy.kits import MessageKit
 from nucypher.policy.maps import EncryptedTreasureMap
 
 
@@ -126,21 +127,8 @@ class AliceInterface(CharacterPublicInterface):
         """
         Character control endpoint to allow Alice to decrypt her own data.
         """
-
-        from nucypher.characters.lawful import Enrico
-        policy_encrypting_key = self.implementer.get_policy_encrypting_key_from_label(label)
-
-        # TODO #846: May raise UnknownOpenSSLError and InvalidTag.
-
-        enrico = Enrico.from_public_keys(
-            verifying_key=message_kit.sender_verifying_key,
-            policy_encrypting_key=policy_encrypting_key,
-            label=label
-        )
-
         plaintexts = self.implementer.decrypt_message_kit(
             message_kit=message_kit,
-            data_source=enrico,
             label=label
         )
 

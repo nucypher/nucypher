@@ -22,6 +22,8 @@ import datetime
 import maya
 import pytest
 
+from nucypher.core import MessageKit
+
 from nucypher.characters.control.specifications import fields
 from nucypher.characters.control.specifications.alice import GrantPolicy
 from nucypher.characters.control.specifications.fields.treasuremap import EncryptedTreasureMap, TreasureMap
@@ -29,8 +31,6 @@ from nucypher.control.specifications.base import BaseSchema
 from nucypher.control.specifications.exceptions import SpecificationError, InvalidInputData, InvalidArgumentCombo
 from nucypher.crypto.powers import DecryptingPower
 from nucypher.crypto.umbral_adapter import PublicKey
-from nucypher.policy.kits import MessageKit
-from nucypher.policy.kits import MessageKit as MessageKitClass
 from nucypher.policy.maps import EncryptedTreasureMap as EncryptedTreasureMapClass, TreasureMap as TreasureMapClass
 
 
@@ -168,7 +168,7 @@ def test_messagekit_validation(capsule_side_channel):
     kit_bytes = bytes(valid_kit)
     kit_b64 = base64.b64encode(kit_bytes)
     result = MessageKitsOnly().load({'mkit': kit_b64.decode()})
-    assert isinstance(result['mkit'], MessageKitClass)
+    assert isinstance(result['mkit'], MessageKit)
 
 
 def test_key_validation(federated_bob):

@@ -55,6 +55,8 @@ from twisted.internet.task import LoopingCall
 from twisted.logger import Logger
 from web3.types import TxReceipt
 
+from nucypher.core import MessageKit
+
 import nucypher
 from nucypher.acumen.nicknames import Nickname
 from nucypher.acumen.perception import FleetSensor, ArchivedFleetState, RemoteUrsulaStatus
@@ -99,7 +101,7 @@ from nucypher.network.retrieval import RetrievalClient, ReencryptionResponse
 from nucypher.network.server import ProxyRESTServer, make_rest_app
 from nucypher.network.trackers import AvailabilityTracker
 from nucypher.policy.hrac import HRAC
-from nucypher.policy.kits import MessageKit, PolicyMessageKit
+from nucypher.policy.kits import PolicyMessageKit
 from nucypher.policy.maps import TreasureMap, EncryptedTreasureMap, AuthorizedKeyFrag
 from nucypher.policy.policies import Policy
 from nucypher.utilities.logging import Logger
@@ -411,26 +413,20 @@ class Alice(Character, BlockchainPolicyAuthor):
 
         return receipt, failed
 
-    def decrypt_message_kit(self,
-                            message_kit: MessageKit,
-                            data_source: Character,
-                            label: bytes
-                            ) -> List[bytes]:
-
+    def decrypt_message_kit(self, label: bytes, message_kit: MessageKit) -> List[bytes]:
         """
         Decrypt this Alice's own encrypted data.
 
         I/O signatures match Bob's retrieve interface.
         """
 
-        cleartexts = [self.verify_from(
-            data_source,
-            message_kit,
-            signature=message_kit.signature,
-            decrypt=True,
-            label=label
-        )]
-        return cleartexts
+        delegating_power = self._crypto_power.power_ups(DelegatingPower)
+        decrypting_power = delegating_power.get_decrypting_power_from_label(label)
+        cleartext = decrypting_power.decrypt(message_kit)
+
+        # TODO: why does it return a list of cleartexts but takes a single message kit?
+        # Shouldn't it be able to take a list of them too?
+        return [cleartext]
 
     def make_web_controller(drone_alice, crash_on_error: bool = False):
         app_name = bytes(drone_alice.stamp).hex()[:6]
@@ -544,8 +540,8 @@ class Bob(Character):
 
         publisher = Alice.from_public_keys(verifying_key=encrypted_treasure_map.publisher_verifying_key)
 
-        def decryptor(ciphertext):
-            return self.verify_from(publisher, ciphertext, decrypt=True)
+        def decryptor(message_kit):
+            return self.decrypt_internal(publisher, message_kit)
 
         return encrypted_treasure_map.decrypt(decryptor)
 
@@ -580,7 +576,7 @@ class Bob(Character):
 
         # Normalize input
         message_kits: List[PolicyMessageKit] = [
-            message_kit.as_policy_kit(policy_encrypting_key, treasure_map.threshold)
+            PolicyMessageKit.from_message_kit(message_kit, policy_encrypting_key, treasure_map.threshold)
                 if isinstance(message_kit, MessageKit) else message_kit
             for message_kit in message_kits
             ]
@@ -620,9 +616,9 @@ class Bob(Character):
                 raise Ursula.NotEnoughUrsulas(f"Not enough cfrags retrieved to open capsule {message_kit.capsule}")
 
         cleartexts = []
+        decrypting_power = self._crypto_power.power_ups(DecryptingPower)
         for message_kit in message_kits:
-            enrico = Enrico.from_public_keys(verifying_key=message_kit.sender_verifying_key)
-            cleartext = self.verify_from(enrico, message_kit, decrypt=True)
+            cleartext = decrypting_power.decrypt(message_kit)
             cleartexts.append(cleartext)
 
         return cleartexts
@@ -1474,7 +1470,7 @@ class Enrico(Character):
         # TODO: #2107 Rename to "encrypt"
         message_kit = MessageKit.author(recipient_key=self.policy_pubkey,
                                         plaintext=plaintext,
-                                        signer=self.stamp)
+                                        signer=self.stamp.as_umbral_signer())
         return message_kit
 
     @classmethod

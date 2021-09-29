@@ -19,6 +19,9 @@ from base64 import b64encode, b64decode
 
 import maya
 import pytest
+
+from nucypher.core import MessageKit as MessageKitClass
+
 from nucypher.crypto.umbral_adapter import SecretKey, Signer
 from nucypher.characters.control.specifications.fields import (
     DateTime,
@@ -30,7 +33,6 @@ from nucypher.characters.control.specifications.fields import (
 )
 from nucypher.characters.lawful import Enrico
 from nucypher.control.specifications.exceptions import InvalidInputData
-from nucypher.policy.kits import MessageKit as MessageKitClass
 
 
 #

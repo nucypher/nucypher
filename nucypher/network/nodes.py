@@ -65,7 +65,6 @@ from nucypher.network import LEARNING_LOOP_VERSION
 from nucypher.network.exceptions import NodeSeemsToBeDown
 from nucypher.network.middleware import RestMiddleware
 from nucypher.network.protocols import SuspiciousActivity
-from nucypher.policy.kits import MessageKit, PolicyMessageKit
 from nucypher.utilities.logging import Logger
 
 TEACHER_NODES = {
@@ -722,34 +721,17 @@ class Learner:
         return self.node_storage.store_node_metadata(node=node)
 
     def verify_from(self,
-                    stranger: 'Teacher',
-                    message_kit: Union[MessageKit, PolicyMessageKit, bytes],
+                    stranger: 'Character',
+                    message: bytes,
                     signature: Signature):
         #
         # Optional Sanity Check
         #
 
-        # In the spirit of duck-typing, we want to accept a message kit object, or bytes
-        # If the higher-order object MessageKit is passed, we can perform an additional
-        # eager sanity check before performing decryption.
-
-        with contextlib.suppress(AttributeError):
-            sender_verifying_key = stranger.stamp.as_umbral_pubkey()
-            if message_kit.sender_verifying_key:
-                if not message_kit.sender_verifying_key == sender_verifying_key:
-                    raise ValueError("This MessageKit doesn't appear to have come from {}".format(stranger))
-        message = bytes(message_kit)
-
-        #
-        # Verify Signature
-        #
-
-        if signature:
-            is_valid = signature.verify(sender_verifying_key, message)
-            if not is_valid:
-                raise InvalidSignature("Signature for message isn't valid: {}".format(signature))
-        else:
-            raise InvalidSignature("No signature provided -- signature presumed invalid.")
+        sender_verifying_key = stranger.stamp.as_umbral_pubkey()
+        is_valid = signature.verify(sender_verifying_key, message)
+        if not is_valid:
+            raise InvalidSignature("Signature for message isn't valid: {}".format(signature))
 
     def learn_from_teacher_node(self, eager=False, canceller=None):
         """
@@ -853,6 +835,7 @@ class Learner:
             return
 
         try:
+            # TODO: does this call the `Character.verify_from()` version? Hopefully it does.
             self.verify_from(current_teacher, node_payload, signature=signature)
         except InvalidSignature:
             self.suspicious_activities_witnessed['vladimirs'].append(

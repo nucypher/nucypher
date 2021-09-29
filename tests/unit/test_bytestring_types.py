@@ -15,8 +15,9 @@ You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
+from nucypher.core import MessageKit
+
 from nucypher.characters.lawful import Enrico
-from nucypher.policy.kits import MessageKit
 
 
 def test_message_kit_serialization_via_enrico(federated_alice):

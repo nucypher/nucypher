@@ -22,10 +22,11 @@ from bytestring_splitter import BytestringSplitter
 from eth_typing.evm import ChecksumAddress
 from eth_utils.address import to_canonical_address, to_checksum_address
 
+from nucypher.core import MessageKit
+
 from nucypher.crypto.signing import SignatureStamp, InvalidSignature
 from nucypher.crypto.splitters import signature_splitter, checksum_address_splitter
 from nucypher.crypto.umbral_adapter import Signature, PublicKey
-from nucypher.policy.kits import MessageKit
 from nucypher.policy.maps import AuthorizedKeyFrag
 from nucypher.utilities.versioning import Versioned
 

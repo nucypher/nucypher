@@ -16,151 +16,19 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
 
-from typing import Dict, Optional, Iterable, Set, Tuple
+from typing import Dict, Iterable, Set, Union, Tuple
 
-from bytestring_splitter import BytestringSplitter, VariableLengthBytestring
-from constant_sorrow.constants import (
-    DO_NOT_SIGN,
-    SIGNATURE_TO_FOLLOW,
-    SIGNATURE_IS_ON_CIPHERTEXT,
-    NOT_SIGNED,
-)
 from eth_typing import ChecksumAddress
 from eth_utils import to_checksum_address, to_canonical_address
 
-import nucypher.crypto.umbral_adapter as umbral  # need it to mock `umbral.encrypt`
+from nucypher.core import MessageKit
+
 from nucypher.crypto.splitters import (
     capsule_splitter,
-    key_splitter,
-    signature_splitter,
     checksum_address_splitter,
 )
-from nucypher.crypto.umbral_adapter import PublicKey, VerifiedCapsuleFrag, Capsule, Signature
+from nucypher.crypto.umbral_adapter import PublicKey, VerifiedCapsuleFrag, Capsule, SecretKey
 from nucypher.utilities.versioning import Versioned
-
-
-class MessageKit(Versioned):
-    """
-    All the components needed to transmit and verify an encrypted message.
-    """
-
-    @classmethod
-    def author(cls,
-               recipient_key: PublicKey,
-               plaintext: bytes,
-               signer: 'SignatureStamp',
-               sign_plaintext: bool = True
-               ) -> 'MessageKit':
-        if signer is not DO_NOT_SIGN:
-            # The caller didn't expressly tell us not to sign; we'll sign.
-            if sign_plaintext:
-                # Sign first, encrypt second.
-
-                # TODO (#2743, see also #2556): make a portable constant or remove completely
-                sig_header = SIGNATURE_TO_FOLLOW
-
-                signature = signer(plaintext)
-                capsule, ciphertext = umbral.encrypt(recipient_key, sig_header + bytes(signature) + plaintext)
-                signature_in_kit = None
-            else:
-                # Encrypt first, sign second.
-
-                # TODO (#2743, see also #2556): make a portable constant or remove completely
-                sig_header = SIGNATURE_IS_ON_CIPHERTEXT
-
-                capsule, ciphertext = umbral.encrypt(recipient_key, sig_header + plaintext)
-                signature = signer(ciphertext)
-                signature_in_kit = signature
-            message_kit = cls(ciphertext=ciphertext,
-                              capsule=capsule,
-                              sender_verifying_key=signer.as_umbral_pubkey(),
-                              signature=signature_in_kit)
-        else:
-            # Don't sign.
-
-            # TODO (#2743, see also #2556): make a portable constant or remove completely
-            sig_header = NOT_SIGNED
-
-            capsule, ciphertext = umbral.encrypt(recipient_key, sig_header + plaintext)
-            message_kit = cls(ciphertext=ciphertext, capsule=capsule)
-
-        return message_kit
-
-    def __init__(self,
-                 capsule: Capsule,
-                 ciphertext: bytes,
-                 sender_verifying_key: Optional[PublicKey] = None,
-                 signature: Optional[Signature] = None,
-                 ):
-        self.ciphertext = ciphertext
-        self.capsule = capsule
-        self.sender_verifying_key = sender_verifying_key
-        self.signature = signature
-
-    def __eq__(self, other):
-        return (self.ciphertext == other.ciphertext and
-                self.capsule == other.capsule and
-                self.sender_verifying_key == other.sender_verifying_key and
-                self.signature == other.signature)
-
-    def __str__(self):
-        return f"{self.__class__.__name__}({self.capsule})"
-
-    def as_policy_kit(self, policy_key: PublicKey, threshold: int) -> 'PolicyMessageKit':
-        return PolicyMessageKit.from_message_kit(self, policy_key, threshold)
-
-    def as_retrieval_kit(self) -> 'RetrievalKit':
-        return RetrievalKit(self.capsule, set())
-
-    def _payload(self) -> bytes:
-        # TODO (#2743): this logic may not be necessary depending on the resolution.
-        # If it is, it is better moved to BytestringSplitter.
-        return (bytes(self.capsule) +
-                (b'\x00' if self.signature is None else (b'\x01' + bytes(self.signature))) +
-                (b'\x00' if self.sender_verifying_key is None else (b'\x01' + bytes(self.sender_verifying_key))) +
-                VariableLengthBytestring(self.ciphertext))
-
-    @classmethod
-    def _brand(cls) -> bytes:
-        return b'MKit'
-
-    @classmethod
-    def _version(cls) -> Tuple[int, int]:
-        return 1, 0
-
-    @classmethod
-    def _old_version_handlers(cls) -> Dict:
-        return {}
-
-    @classmethod
-    def _from_bytes_current(cls, data):
-        splitter = BytestringSplitter(
-            capsule_splitter,
-            (bytes, 1))
-
-        capsule, signature_flag, remainder = splitter(data, return_remainder=True)
-
-        if signature_flag == b'\x00':
-            signature = None
-        elif signature_flag == b'\x01':
-            signature, remainder = signature_splitter(remainder, return_remainder=True)
-        else:
-            raise ValueError("Incorrect format for the signature flag")
-
-        splitter = BytestringSplitter((bytes, 1))
-
-        key_flag, remainder = splitter(remainder, return_remainder=True)
-
-        if key_flag == b'\x00':
-            sender_verifying_key = None
-        elif key_flag == b'\x01':
-            sender_verifying_key, remainder = key_splitter(remainder, return_remainder=True)
-        else:
-            raise ValueError("Incorrect format of the sender's key flag")
-
-        ciphertext, = BytestringSplitter(VariableLengthBytestring)(remainder)
-
-        return cls(capsule, ciphertext, signature=signature, sender_verifying_key=sender_verifying_key)
 
 
 class RetrievalKit(Versioned):
@@ -169,6 +37,10 @@ class RetrievalKit(Versioned):
     Contains the capsule and the checksum addresses of Ursulas from which the requester
     already received cfrags.
     """
+
+    @classmethod
+    def from_message_kit(cls, message_kit: MessageKit) -> 'RetrievalKit':
+        return cls(message_kit.capsule, set())
 
     def __init__(self, capsule: Capsule, queried_addresses: Iterable[ChecksumAddress]):
         self.capsule = capsule
@@ -211,9 +83,6 @@ class PolicyMessageKit:
                          ) -> 'PolicyMessageKit':
         return cls(policy_key, threshold, RetrievalResult.empty(), message_kit)
 
-    def as_retrieval_kit(self) -> RetrievalKit:
-        return RetrievalKit(self.capsule, self._result.addresses())
-
     def __init__(self,
                  policy_key: PublicKey,
                  threshold: int,
@@ -227,6 +96,12 @@ class PolicyMessageKit:
 
         # FIXME: temporarily, for compatibility with decrypt()
         self._cfrags = set(self._result.cfrags.values())
+
+    def as_retrieval_kit(self) -> RetrievalKit:
+        return RetrievalKit(self.capsule, self._result.addresses())
+
+    def decrypt(self, sk: SecretKey) -> bytes:
+        return self.message_kit.decrypt_reencrypted(sk, self.policy_key, self._cfrags)
 
     # FIXME: temporary exposing message kit info to help `verify_from()`
 

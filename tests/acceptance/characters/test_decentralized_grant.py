@@ -21,8 +21,9 @@ import datetime
 import maya
 import pytest
 
+from nucypher.core import MessageKit
+
 from nucypher.crypto.utils import keccak_digest
-from nucypher.policy.kits import MessageKit
 from nucypher.policy.maps import EncryptedTreasureMap
 
 

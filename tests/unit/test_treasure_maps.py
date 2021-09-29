@@ -45,7 +45,7 @@ def test_complete_treasure_map_journey(federated_alice, federated_bob, federated
     for ursula_address, encrypted_kfrag in treasure_map.destinations.items():
         assert ursula_address in ursula_rolodex
         ursula = ursula_rolodex[ursula_address]
-        auth_kfrag_bytes = ursula.verify_from(federated_alice, encrypted_kfrag, decrypt=True)  # FIXME: 2203
+        auth_kfrag_bytes = ursula.decrypt_internal(stranger=federated_alice, message_kit=encrypted_kfrag)
         auth_kfrag = AuthorizedKeyFrag.from_bytes(auth_kfrag_bytes)
         ursula.verify_kfrag_authorization(hrac=treasure_map.hrac,
                                           author=federated_alice,

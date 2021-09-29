@@ -20,13 +20,10 @@ import json
 from base64 import b64encode
 from urllib.parse import urlencode
 
-from constant_sorrow import default_constant_splitter
-
 from nucypher.characters.lawful import Enrico
 from nucypher.crypto.powers import DecryptingPower
-from nucypher.crypto.splitters import signature_splitter
-from nucypher.policy.kits import RetrievalResult
-from nucypher.utilities.porter.control.specifications.fields import RetrievalResultSchema, RetrievalKit
+from nucypher.policy.kits import PolicyMessageKit, RetrievalResult, RetrievalKit
+from nucypher.utilities.porter.control.specifications.fields import RetrievalResultSchema, RetrievalKit as RetrievalKitField
 from tests.utils.policy import retrieval_request_setup, retrieval_params_decode_from_rest
 
 
@@ -126,8 +123,9 @@ def test_retrieve_cfrags(federated_porter,
 
     # check that the re-encryption performed was valid
     treasure_map = retrieve_args['treasure_map']
-    policy_message_kit = message_kit.as_policy_kit(policy_key=enacted_federated_policy.public_key,
-                                                   threshold=treasure_map.threshold)
+    policy_message_kit = PolicyMessageKit.from_message_kit(message_kit=message_kit,
+                                                           policy_key=enacted_federated_policy.public_key,
+                                                           threshold=treasure_map.threshold)
     assert len(retrieval_results) == 1
     field = RetrievalResultSchema()
     cfrags = field.load(retrieval_results[0])['cfrags']
@@ -144,10 +142,7 @@ def test_retrieve_cfrags(federated_porter,
 
     assert policy_message_kit.is_decryptable_by_receiver()
 
-    cleartext_with_sig_header = federated_bob._crypto_power.power_ups(DecryptingPower).keypair.decrypt(policy_message_kit)
-    sig_header, remainder = default_constant_splitter(cleartext_with_sig_header, return_remainder=True)
-    signature_from_kit, cleartext = signature_splitter(remainder, return_remainder=True)
-    assert signature_from_kit.verify(message=cleartext, verifying_pk=policy_message_kit.sender_verifying_key)
+    cleartext = federated_bob._crypto_power.power_ups(DecryptingPower).keypair.decrypt(policy_message_kit)
     assert cleartext == original_message
 
     #
@@ -155,11 +150,11 @@ def test_retrieve_cfrags(federated_porter,
     #
     multiple_retrieval_kits_params = dict(retrieve_cfrags_params)
     enrico = Enrico(policy_encrypting_key=enacted_federated_policy.public_key)
-    retrieval_kit_1 = enrico.encrypt_message(b'The paradox of education is precisely this').as_retrieval_kit()
-    retrieval_kit_2 = enrico.encrypt_message(b'that as one begins to become conscious').as_retrieval_kit()
-    retrieval_kit_3 = enrico.encrypt_message(b'begins to examine the society in which').as_retrieval_kit()
-    retrieval_kit_4 = enrico.encrypt_message(b'he is (they are) being educated.').as_retrieval_kit()
-    retrieval_kit_field = RetrievalKit()
+    retrieval_kit_1 = RetrievalKit.from_message_kit(enrico.encrypt_message(b'The paradox of education is precisely this'))
+    retrieval_kit_2 = RetrievalKit.from_message_kit(enrico.encrypt_message(b'that as one begins to become conscious'))
+    retrieval_kit_3 = RetrievalKit.from_message_kit(enrico.encrypt_message(b'begins to examine the society in which'))
+    retrieval_kit_4 = RetrievalKit.from_message_kit(enrico.encrypt_message(b'he is (they are) being educated.'))
+    retrieval_kit_field = RetrievalKitField()
     # use multiple retrieval kits and serialize for json
     multiple_retrieval_kits_params['retrieval_kits'] = [
         retrieval_kit_field._serialize(value=retrieval_kit_1, attr=None, obj=None),

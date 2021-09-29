@@ -26,6 +26,8 @@ from bytestring_splitter import (
 from eth_typing.evm import ChecksumAddress
 from eth_utils.address import to_checksum_address, to_canonical_address
 
+from nucypher.core import MessageKit
+
 from nucypher.blockchain.eth.constants import ETH_ADDRESS_BYTE_LENGTH
 from nucypher.crypto.constants import EIP712_MESSAGE_SIGNATURE_SIZE
 from nucypher.crypto.powers import DecryptingPower
@@ -35,7 +37,6 @@ from nucypher.crypto.umbral_adapter import KeyFrag, VerifiedKeyFrag, Signature
 from nucypher.crypto.utils import keccak_digest, verify_eip_191
 from nucypher.network.middleware import RestMiddleware
 from nucypher.policy.hrac import HRAC, hrac_splitter
-from nucypher.policy.kits import MessageKit
 from nucypher.utilities.versioning import Versioned
 
 
@@ -97,7 +98,7 @@ class TreasureMap(Versioned):
                                                                            publisher_stamp=publisher.stamp))
             encrypted_kfrag = MessageKit.author(recipient_key=ursula.public_keys(DecryptingPower),
                                                 plaintext=kfrag_payload,
-                                                signer=publisher.stamp)
+                                                signer=publisher.stamp.as_umbral_signer())
 
             destinations[ursula.checksum_address] = encrypted_kfrag
 
@@ -165,7 +166,7 @@ class AuthorizedKeyFrag(Versioned):
 
     # The size of a serialized message kit encrypting an AuthorizedKeyFrag.
     # Depends on encryption parameters in Umbral, has to be hardcoded.
-    ENCRYPTED_SIZE = 621
+    ENCRYPTED_SIZE = 613
     SERIALIZED_SIZE = Versioned._HEADER_SIZE + ENCRYPTED_SIZE
 
     def __init__(self, hrac: HRAC, kfrag_checksum: bytes, writ_signature: Signature, kfrag: KeyFrag):
@@ -276,7 +277,7 @@ class EncryptedTreasureMap(Versioned):
 
         encrypted_tmap = MessageKit.author(recipient_key=bob_encrypting_key,
                                            plaintext=bytes(treasure_map),
-                                           signer=publisher.stamp)
+                                           signer=publisher.stamp.as_umbral_signer())
         public_signature = publisher.stamp(bytes(publisher.stamp) + bytes(treasure_map.hrac))
 
         if blockchain_signer is not None:
@@ -289,7 +290,7 @@ class EncryptedTreasureMap(Versioned):
 
         return cls(treasure_map.hrac, public_signature, encrypted_tmap, blockchain_signature=blockchain_signature)
 
-    def decrypt(self, decryptor: Callable[[bytes], bytes]) -> TreasureMap:
+    def decrypt(self, decryptor: Callable[[MessageKit], bytes]) -> TreasureMap:
         """
         When Bob receives the TreasureMap, he'll pass a decryptor (a callable which can verify and decrypt the
         payload message kit).

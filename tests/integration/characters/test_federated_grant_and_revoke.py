@@ -21,9 +21,10 @@ import datetime
 import maya
 import pytest
 
+from nucypher.core import MessageKit
+
 from nucypher.characters.lawful import Enrico
 from nucypher.crypto.utils import keccak_digest
-from nucypher.policy.kits import MessageKit
 from nucypher.policy.revocation import RevocationOrder
 
 
@@ -84,14 +85,12 @@ def test_federated_alice_can_decrypt(federated_alice, federated_bob):
     message_kit = enrico.encrypt_message(plaintext)
 
     # decrypt the data
-    decrypted_data = federated_alice.verify_from(
-        enrico,
-        message_kit,
-        decrypt=True,
-        label=policy.label
+    decrypted_data = federated_alice.decrypt_message_kit(
+        label=policy.label,
+        message_kit=message_kit,
     )
 
-    assert plaintext == decrypted_data
+    assert [plaintext] == decrypted_data
 
 
 @pytest.mark.skip("Needs rework post-TMcKF")  # TODO

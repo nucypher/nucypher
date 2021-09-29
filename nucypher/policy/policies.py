@@ -197,10 +197,9 @@ class Policy(ABC):
             # TODO: What to do in the case of invalid signature?
             # Verify that the sampled ursula agreed to the arrangement.
             ursula_signature = negotiation_response.content
-            self.publisher.verify_from(ursula,
-                                       bytes(arrangement),
-                                       signature=Signature.from_bytes(ursula_signature),
-                                       decrypt=False)
+            self.publisher.verify_from(stranger=ursula,
+                                       message=bytes(arrangement),
+                                       signature=Signature.from_bytes(ursula_signature))
             self.log.debug(f"Arrangement accepted by {ursula}")
         else:
             message = f"Proposing arrangement to {ursula} failed with {status}"
