@@ -56,7 +56,7 @@ class TreasureMap(Versioned):
 
         # A little awkward, but saves us a key length in serialization
         self.publisher_verifying_key = list(destinations.values())[0].sender_verifying_key
-        
+
     def __iter__(self):
         return iter(self.destinations.items())
 
@@ -114,7 +114,7 @@ class TreasureMap(Versioned):
     @classmethod
     def _old_version_handlers(cls) -> Dict:
         return {}
-    
+
     def _payload(self) -> bytes:
         """Returns the unversioned bytes serialized representation of this instance."""
         return self.threshold.to_bytes(1, "big") + bytes(self.hrac) + self._nodes_as_bytes()
@@ -240,9 +240,6 @@ class EncryptedTreasureMap(Versioned):
 
     _EMPTY_BLOCKCHAIN_SIGNATURE = b'\x00' * EIP712_MESSAGE_SIGNATURE_SIZE
 
-    # Raised when the public signature (typically intended for Ursula) is not valid.
-    from nucypher.crypto.signing import InvalidSignature
-
     def __init__(self,
                  hrac: HRAC,
                  public_signature: Signature,
@@ -299,9 +296,9 @@ class EncryptedTreasureMap(Versioned):
         """
         try:
             map_in_the_clear = decryptor(self._encrypted_tmap)
-        except InvalidSignature:
-            raise self.InvalidSignature("This TreasureMap does not contain the correct signature "
-                                        "from the publisher to Bob.")
+        except InvalidSignature as e:
+            raise InvalidSignature("This TreasureMap does not contain the correct signature "
+                                   "from the publisher to Bob.") from e
 
         return TreasureMap.from_bytes(map_in_the_clear)
 
@@ -316,7 +313,7 @@ class EncryptedTreasureMap(Versioned):
     def _public_verify(self):
         message = bytes(self.publisher_verifying_key) + bytes(self.hrac)
         if not self._public_signature.verify(self.publisher_verifying_key, message=message):
-            raise self.InvalidSignature("This TreasureMap is not properly publicly signed by the publisher.")
+            raise InvalidSignature("This TreasureMap is not properly publicly signed by the publisher.")
 
     def _payload(self) -> bytes:
         if self._blockchain_signature:

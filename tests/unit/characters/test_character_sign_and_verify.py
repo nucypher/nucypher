@@ -18,10 +18,10 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 
 import pytest
 from constant_sorrow import constants
-from cryptography.exceptions import InvalidSignature
 
 from nucypher.characters.lawful import Alice, Bob, Character
 from nucypher.crypto.powers import (CryptoPower, NoSigningPower, SigningPower)
+from nucypher.crypto.signing import InvalidSignature
 
 """
 Chapter 1: SIGNING

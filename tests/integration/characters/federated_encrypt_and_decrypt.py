@@ -18,9 +18,9 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 
 import pytest
 from constant_sorrow import constants
-from cryptography.exceptions import InvalidSignature
 
 from nucypher.characters.lawful import Enrico
+from nucypher.crypto.signing import InvalidSignature
 
 """
 What follows are various combinations of signing and encrypting, to match

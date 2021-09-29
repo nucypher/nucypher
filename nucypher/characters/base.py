@@ -33,7 +33,6 @@ from constant_sorrow.constants import (
     SIGNATURE_TO_FOLLOW,
     STRANGER
 )
-from cryptography.exceptions import InvalidSignature
 from eth_keys import KeyAPI as EthKeyAPI
 from eth_utils import to_canonical_address, to_checksum_address
 
@@ -54,6 +53,7 @@ from nucypher.crypto.powers import (
 from nucypher.crypto.signing import (
     SignatureStamp,
     StrangerStamp,
+    InvalidSignature,
 )
 from nucypher.crypto.splitters import signature_splitter
 from nucypher.crypto.umbral_adapter import PublicKey, Signature

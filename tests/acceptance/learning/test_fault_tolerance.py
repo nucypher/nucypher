@@ -22,6 +22,7 @@ from constant_sorrow.constants import NOT_SIGNED
 from nucypher.acumen.perception import FleetSensor
 from nucypher.config.constants import TEMPORARY_DOMAIN
 from nucypher.crypto.powers import TransactingPower
+from nucypher.crypto.signing import InvalidSignature
 from nucypher.network.nodes import Learner
 from tests.utils.middleware import MockRestMiddleware
 from tests.utils.ursula import make_ursula_for_staker
@@ -68,7 +69,7 @@ def test_blockchain_ursula_stamp_verification_tolerance(blockchain_ursulas, mock
     assert blockchain_teacher in lonely_blockchain_learner.known_nodes
 
     # Learn about a node with a badly signed payload
-    mocker.patch.object(lonely_blockchain_learner, 'verify_from', side_effect=Learner.InvalidSignature)
+    mocker.patch.object(lonely_blockchain_learner, 'verify_from', side_effect=InvalidSignature)
     lonely_blockchain_learner.learn_from_teacher_node(eager=True)
     assert len(lonely_blockchain_learner.suspicious_activities_witnessed['vladimirs']) == 1
 

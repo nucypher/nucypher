@@ -58,7 +58,7 @@ from nucypher.config.constants import SeednodeMetadata
 from nucypher.config.storages import ForgetfulNodeStorage
 from nucypher.crypto.powers import DecryptingPower, NoSigningPower, SigningPower
 from nucypher.crypto.splitters import signature_splitter
-from nucypher.crypto.signing import SignatureStamp
+from nucypher.crypto.signing import SignatureStamp, InvalidSignature
 from nucypher.crypto.umbral_adapter import Signature
 from nucypher.crypto.utils import recover_address_eip_191, verify_eip_191
 from nucypher.network import LEARNING_LOOP_VERSION
@@ -219,9 +219,6 @@ class Learner:
         Raised when a character cannot be properly utilized because
         it does not have the proper attributes for learning or verification.
         """
-
-    class InvalidSignature(Exception):
-        pass
 
     def __init__(self,
                  domain: str,
@@ -750,9 +747,9 @@ class Learner:
         if signature:
             is_valid = signature.verify(sender_verifying_key, message)
             if not is_valid:
-                raise self.InvalidSignature("Signature for message isn't valid: {}".format(signature))
+                raise InvalidSignature("Signature for message isn't valid: {}".format(signature))
         else:
-            raise self.InvalidSignature("No signature provided -- signature presumed invalid.")
+            raise InvalidSignature("No signature provided -- signature presumed invalid.")
 
     def learn_from_teacher_node(self, eager=False, canceller=None):
         """
@@ -857,7 +854,7 @@ class Learner:
 
         try:
             self.verify_from(current_teacher, node_payload, signature=signature)
-        except Learner.InvalidSignature:  # TODO: Ensure wev've got the right InvalidSignature exception here
+        except InvalidSignature:
             self.suspicious_activities_witnessed['vladimirs'].append(
                 ('Node payload improperly signed', node_payload, signature))
             self.log.warn(

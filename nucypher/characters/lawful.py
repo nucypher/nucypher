@@ -545,12 +545,7 @@ class Bob(Character):
         publisher = Alice.from_public_keys(verifying_key=encrypted_treasure_map.publisher_verifying_key)
 
         def decryptor(ciphertext):
-            try:
-                return self.verify_from(publisher, ciphertext, decrypt=True)
-            except self.InvalidSignature as e:
-                # Need to "lower" the exception to the crypto level
-                # so that TreasureMap could handle it
-                raise InvalidSignature("Invalid signature when decrypting a MessageKit") from e
+            return self.verify_from(publisher, ciphertext, decrypt=True)
 
         return encrypted_treasure_map.decrypt(decryptor)
 
