@@ -27,7 +27,7 @@ from flask import Flask, Response, jsonify, request
 from mako import exceptions as mako_exceptions
 from mako.template import Template
 
-from nucypher.core import AuthorizedKeyFrag, ReencryptionRequest, Arrangement, ArrangementResponse
+from nucypher.core import AuthorizedKeyFrag, ReencryptionRequest, Arrangement, ArrangementResponse, RevocationOrder
 
 from nucypher.blockchain.eth.utils import period_to_epoch
 from nucypher.config.constants import MAX_UPLOAD_CONTENT_LENGTH
@@ -39,7 +39,6 @@ from nucypher.datastore.models import ReencryptionRequest as ReencryptionRequest
 from nucypher.network import LEARNING_LOOP_VERSION
 from nucypher.network.exceptions import NodeSeemsToBeDown
 from nucypher.network.protocols import InterfaceInfo
-from nucypher.policy.revocation import RevocationOrder
 from nucypher.utilities.logging import Logger
 
 HERE = BASE_DIR = Path(__file__).parent

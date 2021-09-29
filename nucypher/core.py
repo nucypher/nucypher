@@ -774,3 +774,77 @@ class ArrangementResponse(Versioned):
     def _from_bytes_current(cls, data: bytes):
         signature, = signature_splitter(data)
         return cls(signature=signature)
+
+
+class RevocationOrder(Versioned):
+    """
+    Represents a string used by characters to perform a revocation on a specific Ursula.
+    """
+
+    @classmethod
+    def author(cls,
+               ursula_address: ChecksumAddress,
+               encrypted_kfrag: MessageKit,
+               signer: Signer) -> 'RevocationOrder':
+            return cls(ursula_address=ursula_address,
+                       encrypted_kfrag=encrypted_kfrag,
+                       signature=signer.sign(cls._signed_payload(ursula_address, encrypted_kfrag)))
+
+    def __init__(self, ursula_address: ChecksumAddress, encrypted_kfrag: MessageKit, signature: Signature):
+        self.ursula_address = ursula_address
+        self.encrypted_kfrag = encrypted_kfrag
+        self.signature = signature
+
+    def __repr__(self):
+        return bytes(self)
+
+    def __len__(self):
+        return len(bytes(self))
+
+    def __eq__(self, other):
+        return bytes(self) == bytes(other)
+
+    @staticmethod
+    def _signed_payload(ursula_address, encrypted_kfrag):
+        return to_canonical_address(ursula_address) + bytes(encrypted_kfrag)
+
+    def verify_signature(self, alice_verifying_key: PublicKey) -> bool:
+        """
+        Verifies the revocation was from the provided pubkey.
+        """
+        # TODO: raise an exception instead of returning `bool`?
+        payload = self._signed_payload(self.ursula_address, self.encrypted_kfrag)
+        if not self.signature.verify(payload, alice_verifying_key):
+            raise InvalidSignature(f"Revocation has an invalid signature: {self.signature}")
+        return True
+
+    @classmethod
+    def _brand(cls) -> bytes:
+        return b'Revo'
+
+    @classmethod
+    def _version(cls) -> Tuple[int, int]:
+        return 1, 0
+
+    @classmethod
+    def _old_version_handlers(cls) -> Dict:
+        return {}
+
+    def _body(self) -> bytes:
+        return to_canonical_address(self.ursula_checksum_address) + bytes(self.encrypted_kfrag)
+
+    def _payload(self) -> bytes:
+        return self._signed_payload(self.ursula_address, self.encrypted_kfrag) + bytes(self.signature)
+
+    @classmethod
+    def _from_bytes_current(cls, data):
+        splitter = BytestringSplitter(
+            checksum_address_splitter,  # ursula canonical address
+            (bytes, Versioned._HEADER_SIZE+AuthorizedKeyFrag.SERIALIZED_SIZE),  # MessageKit version header + versioned ekfrag
+            signature_splitter
+        )
+        ursula_canonical_address, ekfrag, signature = splitter(data)
+        ursula_address = to_checksum_address(ursula_canonical_address)
+        return cls(ursula_address=ursula_address,
+                   encrypted_kfrag=ekfrag,
+                   signature=signature)

@@ -21,11 +21,10 @@ import datetime
 import maya
 import pytest
 
-from nucypher.core import MessageKit
+from nucypher.core import MessageKit, RevocationOrder
 
 from nucypher.characters.lawful import Enrico
 from nucypher.crypto.utils import keccak_digest
-from nucypher.policy.revocation import RevocationOrder
 
 
 def test_federated_grant(federated_alice, federated_bob, federated_ursulas):
