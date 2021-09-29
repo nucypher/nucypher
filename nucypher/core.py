@@ -251,11 +251,6 @@ class AuthorizedKeyFrag(Versioned):
 
     _WRIT_CHECKSUM_SIZE = 32
 
-    # The size of a serialized message kit encrypting an AuthorizedKeyFrag.
-    # Depends on encryption parameters in Umbral, has to be hardcoded.
-    ENCRYPTED_SIZE = 613
-    SERIALIZED_SIZE = Versioned._HEADER_SIZE + ENCRYPTED_SIZE
-
     def __init__(self, hrac: HRAC, kfrag_checksum: bytes, writ_signature: Signature, kfrag: KeyFrag):
         self.hrac = hrac
         self.kfrag_checksum = kfrag_checksum
@@ -806,7 +801,7 @@ class RevocationOrder(Versioned):
 
     @staticmethod
     def _signed_payload(ursula_address, encrypted_kfrag):
-        return to_canonical_address(ursula_address) + bytes(encrypted_kfrag)
+        return to_canonical_address(ursula_address) + bytes(VariableLengthBytestring(bytes(encrypted_kfrag)))
 
     def verify_signature(self, alice_verifying_key: PublicKey) -> bool:
         """
@@ -830,9 +825,6 @@ class RevocationOrder(Versioned):
     def _old_version_handlers(cls) -> Dict:
         return {}
 
-    def _body(self) -> bytes:
-        return to_canonical_address(self.ursula_checksum_address) + bytes(self.encrypted_kfrag)
-
     def _payload(self) -> bytes:
         return self._signed_payload(self.ursula_address, self.encrypted_kfrag) + bytes(self.signature)
 
@@ -840,10 +832,11 @@ class RevocationOrder(Versioned):
     def _from_bytes_current(cls, data):
         splitter = BytestringSplitter(
             checksum_address_splitter,  # ursula canonical address
-            (bytes, Versioned._HEADER_SIZE+AuthorizedKeyFrag.SERIALIZED_SIZE),  # MessageKit version header + versioned ekfrag
+            VariableLengthBytestring,  # MessageKit
             signature_splitter
         )
-        ursula_canonical_address, ekfrag, signature = splitter(data)
+        ursula_canonical_address, ekfrag_bytes, signature = splitter(data)
+        ekfrag = MessageKit.from_bytes(ekfrag_bytes)
         ursula_address = to_checksum_address(ursula_canonical_address)
         return cls(ursula_address=ursula_address,
                    encrypted_kfrag=ekfrag,
