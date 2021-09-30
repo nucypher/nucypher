@@ -102,7 +102,6 @@ for message_kit in message_kits:
     start = timer()
     retrieved_plaintexts = doctor.retrieve_and_decrypt(
         [message_kit],
-        policy_encrypting_key=policy_pubkey,
         alice_verifying_key=alices_sig_pubkey,
         encrypted_treasure_map=treasure_map
     )

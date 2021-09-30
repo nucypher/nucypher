@@ -159,10 +159,10 @@ the Pipe for nucypher network operations
                         alice_verifying_key: PublicKey,
                         bob_encrypting_key: PublicKey,
                         bob_verifying_key: PublicKey,
-                        policy_encrypting_key: PublicKey) -> List[RetrievalResult]:
+                        ) -> List[RetrievalResult]:
         client = RetrievalClient(self)
         return client.retrieve_cfrags(treasure_map, retrieval_kits,
-            alice_verifying_key, bob_encrypting_key, bob_verifying_key, policy_encrypting_key)
+            alice_verifying_key, bob_encrypting_key, bob_verifying_key)
 
     def _make_staker_reservoir(self,
                                quantity: int,

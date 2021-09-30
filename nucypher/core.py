@@ -344,10 +344,12 @@ class TreasureMap(Versioned):
     def __init__(self,
                  threshold: int,
                  hrac: HRAC,
+                 policy_encrypting_key: PublicKey,
                  destinations: Dict[ChecksumAddress, MessageKit]):
         self.threshold = threshold
         self.destinations = destinations
         self.hrac = hrac
+        self.policy_encrypting_key = policy_encrypting_key
 
         # A little awkward, but saves us a key length in serialization
         self.publisher_verifying_key = list(destinations.values())[0].sender_verifying_key
@@ -369,6 +371,7 @@ class TreasureMap(Versioned):
     @classmethod
     def construct_by_publisher(cls,
                                hrac: HRAC,
+                               policy_encrypting_key: PublicKey,
                                signer: Signer,
                                # TODO: a better way to do it? A structure/namedtuple perhaps?
                                assigned_kfrags: Sequence[Tuple[ChecksumAddress, PublicKey, VerifiedKeyFrag]],
@@ -397,7 +400,10 @@ class TreasureMap(Versioned):
 
             destinations[ursula_address] = encrypted_kfrag
 
-        return cls(threshold=threshold, hrac=hrac, destinations=destinations)
+        return cls(threshold=threshold,
+                   hrac=hrac,
+                   policy_encrypting_key=policy_encrypting_key,
+                   destinations=destinations)
 
     @classmethod
     def _brand(cls) -> bytes:
@@ -413,7 +419,7 @@ class TreasureMap(Versioned):
 
     def _payload(self) -> bytes:
         """Returns the unversioned bytes serialized representation of this instance."""
-        return self.threshold.to_bytes(1, "big") + bytes(self.hrac) + self._nodes_as_bytes()
+        return self.threshold.to_bytes(1, "big") + bytes(self.hrac) + bytes(self.policy_encrypting_key) + self._nodes_as_bytes()
 
     @classmethod
     def _from_bytes_current(cls, data):
@@ -421,6 +427,7 @@ class TreasureMap(Versioned):
         main_splitter = BytestringSplitter(
             (int, 1, {'byteorder': 'big'}),
             hrac_splitter,
+            key_splitter,
         )
 
         ursula_and_kfrag_payload_splitter = BytestringSplitter(
@@ -429,12 +436,12 @@ class TreasureMap(Versioned):
         )
 
         try:
-            threshold, hrac, remainder = main_splitter(data, return_remainder=True)
+            threshold, hrac, policy_encrypting_key, remainder = main_splitter(data, return_remainder=True)
             ursula_and_kfrags = ursula_and_kfrag_payload_splitter.repeat(remainder)
         except BytestringSplittingError as e:
             raise ValueError('Invalid treasure map contents.') from e
         destinations = {u: k for u, k in ursula_and_kfrags}
-        return cls(threshold, hrac, destinations)
+        return cls(threshold, hrac, policy_encrypting_key, destinations)
 
     def encrypt(self,
                 signer: Signer,

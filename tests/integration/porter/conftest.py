@@ -29,7 +29,7 @@ def random_federated_treasure_map_data(federated_alice, federated_bob, federated
     label = b'policy label'
     threshold = 2
     shares = threshold + 1
-    _policy_key, kfrags = federated_alice.generate_kfrags(bob=federated_bob, label=label, threshold=threshold, shares=shares)
+    policy_key, kfrags = federated_alice.generate_kfrags(bob=federated_bob, label=label, threshold=threshold, shares=shares)
     hrac = HRAC.derive(publisher_verifying_key=federated_alice.stamp.as_umbral_pubkey(),
                        bob_verifying_key=federated_bob.stamp.as_umbral_pubkey(),
                        label=label)
@@ -39,6 +39,7 @@ def random_federated_treasure_map_data(federated_alice, federated_bob, federated
         for ursula, vkfrag in zip(list(federated_ursulas)[:shares], kfrags)]
 
     random_treasure_map = TreasureMap.construct_by_publisher(hrac=hrac,
+                                                             policy_encrypting_key=policy_key,
                                                              signer=federated_alice.stamp.as_umbral_signer(),
                                                              assigned_kfrags=assigned_kfrags,
                                                              threshold=threshold)

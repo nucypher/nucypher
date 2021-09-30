@@ -158,8 +158,7 @@ def test_blockchain_ursulas_reencrypt(blockchain_ursulas, blockchain_alice, bloc
 
     plaintexts = blockchain_bob.retrieve_and_decrypt([message_kit],
                                                      encrypted_treasure_map=_policy.treasure_map,
-                                                     alice_verifying_key=blockchain_alice.stamp.as_umbral_pubkey(),
-                                                     policy_encrypting_key=_policy.public_key)
+                                                     alice_verifying_key=blockchain_alice.stamp.as_umbral_pubkey())
     assert plaintexts == [message]
 
     # Let's consider also that a node may be down when granting

@@ -259,7 +259,6 @@ class RetrievalClient:
             alice_verifying_key: PublicKey, # KeyFrag signer's key
             bob_encrypting_key: PublicKey, # User's public key (reencryption target)
             bob_verifying_key: PublicKey,
-            policy_encrypting_key: PublicKey, # Key used to create the policy
             ) -> List[RetrievalResult]:
 
         self._ensure_ursula_availability(treasure_map)
@@ -286,7 +285,7 @@ class RetrievalClient:
             try:
                 cfrags = self._request_reencryption(ursula=ursula,
                                                     reencryption_request=reencryption_request,
-                                                    delegating_key=policy_encrypting_key,
+                                                    delegating_key=treasure_map.policy_encrypting_key,
                                                     receiving_key=bob_encrypting_key)
             except Exception as e:
                 # TODO (#2789): at this point we can separate the exceptions to "acceptable"

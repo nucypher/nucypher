@@ -147,7 +147,6 @@ This endpoint controls the ``Bob.retrieve_and_decrypt`` method.
 - URL: ``/retrieve_and_decrypt``
 - HTTP Method: ``POST``
 - Required arguments:
-    - ``policy_encrypting_key`` -- encoded as hex
     - ``alice_verifying_key`` -- encoded as hex
     - ``encrypted_treasure_map`` -- encoded as base64
     - ``message_kits`` -- list of message kits each encoded as base64

@@ -31,7 +31,6 @@ from tests.utils.middleware import MockRestMiddleware, NodeIsDownMiddleware
 def _policy_info_kwargs(enacted_policy):
     return dict(
         encrypted_treasure_map=enacted_policy.treasure_map,
-        policy_encrypting_key=enacted_policy.public_key,
         alice_verifying_key=enacted_policy.publisher_verifying_key,
         )
 

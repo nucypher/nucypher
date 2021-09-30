@@ -41,6 +41,7 @@ def test_complete_treasure_map_journey(federated_alice, federated_bob, federated
         for ursula, vkfrag in zip(ursulas, kfrags)]
 
     treasure_map = TreasureMap.construct_by_publisher(hrac=hrac,
+                                                      policy_encrypting_key=idle_federated_policy.public_key,
                                                       signer=federated_alice.stamp.as_umbral_signer(),
                                                       assigned_kfrags=assigned_kfrags,
                                                       threshold=1)
@@ -94,6 +95,7 @@ def test_treasure_map_versioning(mocker, federated_alice, federated_bob, federat
         for ursula, vkfrag in zip(list(federated_ursulas)[:len(kfrags)], kfrags)]
 
     treasure_map = TreasureMap.construct_by_publisher(hrac=hrac,
+                                                      policy_encrypting_key=idle_federated_policy.public_key,
                                                       signer=federated_alice.stamp.as_umbral_signer(),
                                                       assigned_kfrags=assigned_kfrags,
                                                       threshold=2)

@@ -543,7 +543,6 @@ class Bob(Character):
             message_kits: Sequence[Union[MessageKit, PolicyMessageKit]],
             alice_verifying_key: PublicKey, # KeyFrag signer's key
             encrypted_treasure_map: EncryptedTreasureMap,
-            policy_encrypting_key: PublicKey, # TODO: #2792
             ) -> List[PolicyMessageKit]:
         """
         Attempts to retrieve reencrypted capsule fragments
@@ -569,7 +568,7 @@ class Bob(Character):
 
         # Normalize input
         message_kits: List[PolicyMessageKit] = [
-            PolicyMessageKit.from_message_kit(message_kit, policy_encrypting_key, treasure_map.threshold)
+            PolicyMessageKit.from_message_kit(message_kit, treasure_map.policy_encrypting_key, treasure_map.threshold)
                 if isinstance(message_kit, MessageKit) else message_kit
             for message_kit in message_kits
             ]
@@ -584,8 +583,7 @@ class Bob(Character):
             retrieval_kits=retrieval_kits,
             alice_verifying_key=alice_verifying_key,
             bob_encrypting_key=self.public_keys(DecryptingPower),
-            bob_verifying_key=self.stamp.as_umbral_pubkey(),
-            policy_encrypting_key=policy_encrypting_key)
+            bob_verifying_key=self.stamp.as_umbral_pubkey())
 
         # Refill message kits with newly retrieved capsule frags
         results = []
