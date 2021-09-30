@@ -706,3 +706,71 @@ class RetrievalKit(Versioned):
         else:
             addresses_as_bytes = ()
         return cls(capsule, set(to_checksum_address(address) for address in addresses_as_bytes))
+
+
+class Arrangement(Versioned):
+    """A contract between Alice and a single Ursula."""
+
+    def __init__(self, publisher_verifying_key: PublicKey, expiration_epoch: int):
+        self.expiration_epoch = expiration_epoch
+        self.publisher_verifying_key = publisher_verifying_key
+
+    def __repr__(self):
+        return f"Arrangement(publisher={self.publisher_verifying_key})"
+
+    @classmethod
+    def _brand(cls) -> bytes:
+        return b'Arng'
+
+    @classmethod
+    def _version(cls) -> Tuple[int, int]:
+        return 1, 0
+
+    def _payload(self) -> bytes:
+        """Returns the unversioned bytes serialized representation of this instance."""
+        return bytes(self.publisher_verifying_key) + self.expiration_epoch.to_bytes(4, 'big')
+
+    @classmethod
+    def _old_version_handlers(cls) -> Dict:
+        return {}
+
+    @classmethod
+    def _from_bytes_current(cls, data: bytes):
+        splitter = BytestringSplitter(
+            key_splitter,  # publisher_verifying_key
+            (int, 4, {'byteorder': 'big'})  # expiration
+        )
+        publisher_verifying_key, expiration_epoch = splitter(data)
+        return cls(publisher_verifying_key=publisher_verifying_key, expiration_epoch=expiration_epoch)
+
+
+class ArrangementResponse(Versioned):
+    """Ursula's response to an Arrangement."""
+
+    @classmethod
+    def for_arrangement(cls, arrangement: Arrangement, signer: Signer):
+        return cls(signer.sign(bytes(arrangement)))
+
+    def __init__(self, signature: Signature):
+        self.signature = signature
+
+    @classmethod
+    def _brand(cls) -> bytes:
+        return b'ArRs'
+
+    @classmethod
+    def _version(cls) -> Tuple[int, int]:
+        return 1, 0
+
+    def _payload(self) -> bytes:
+        """Returns the unversioned bytes serialized representation of this instance."""
+        return bytes(self.signature)
+
+    @classmethod
+    def _old_version_handlers(cls) -> Dict:
+        return {}
+
+    @classmethod
+    def _from_bytes_current(cls, data: bytes):
+        signature, = signature_splitter(data)
+        return cls(signature=signature)

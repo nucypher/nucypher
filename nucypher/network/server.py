@@ -27,7 +27,7 @@ from flask import Flask, Response, jsonify, request
 from mako import exceptions as mako_exceptions
 from mako.template import Template
 
-from nucypher.core import AuthorizedKeyFrag, ReencryptionRequest
+from nucypher.core import AuthorizedKeyFrag, ReencryptionRequest, Arrangement, ArrangementResponse
 
 from nucypher.blockchain.eth.utils import period_to_epoch
 from nucypher.config.constants import MAX_UPLOAD_CONTENT_LENGTH
@@ -102,7 +102,6 @@ def _make_rest_app(datastore: Datastore, this_node, domain: str, log: Logger) ->
 
     # TODO: Avoid circular imports :-(
     from nucypher.characters.lawful import Alice, Bob, Ursula
-    from nucypher.policy.policies import Arrangement
     from nucypher.policy.policies import Policy
 
     _alice_class = Alice
@@ -169,14 +168,13 @@ def _make_rest_app(datastore: Datastore, this_node, domain: str, log: Logger) ->
             terminal_stake_period = this_node.stakes.terminal_period
             terminal_stake_epoch = period_to_epoch(period=terminal_stake_period,
                                                    seconds_per_period=this_node.economics.seconds_per_period)
-            arrangement_expiration = arrangement.expiration.epoch
-            if arrangement_expiration > terminal_stake_epoch:
+            if arrangement.expiration_epoch > terminal_stake_epoch:
                 # I'm sorry David, I'm afraid I can't do that.
                 return Response(status=403)  # 403 Forbidden
 
-        signature = this_node.sign(bytes(arrangement))
+        response = ArrangementResponse.for_arrangement(arrangement, this_node.stamp.as_umbral_signer())
         headers = {'Content-Type': 'application/octet-stream'}
-        return Response(bytes(signature), status=200, headers=headers)
+        return Response(bytes(response), status=200, headers=headers)
 
     @rest_app.route('/reencrypt', methods=["POST"])
     def reencrypt():

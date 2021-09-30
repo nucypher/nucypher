@@ -20,13 +20,11 @@ from abc import ABC, abstractmethod
 from typing import Tuple, Sequence, Optional, Iterable, Dict, Type
 
 import maya
-from bytestring_splitter import BytestringSplitter, VariableLengthBytestring
 from eth_typing.evm import ChecksumAddress
 
-from nucypher.core import HRAC, TreasureMap
+from nucypher.core import HRAC, TreasureMap, Arrangement, ArrangementResponse
 
 from nucypher.crypto.powers import DecryptingPower
-from nucypher.crypto.splitters import key_splitter
 from nucypher.crypto.umbral_adapter import PublicKey, VerifiedKeyFrag, Signature
 from nucypher.network.middleware import RestMiddleware
 from nucypher.policy.reservoir import (
@@ -38,49 +36,6 @@ from nucypher.policy.reservoir import (
 from nucypher.policy.revocation import RevocationKit
 from nucypher.utilities.concurrency import WorkerPool
 from nucypher.utilities.logging import Logger
-from nucypher.utilities.versioning import Versioned
-
-
-class Arrangement(Versioned):
-    """A contract between Alice and a single Ursula."""
-
-    def __init__(self, publisher_verifying_key: PublicKey, expiration: maya.MayaDT):
-        self.expiration = expiration
-        self.publisher_verifying_key = publisher_verifying_key
-
-    def __repr__(self):
-        return f"Arrangement(publisher={self.publisher_verifying_key})"
-
-    @classmethod
-    def from_publisher(cls, publisher: 'Alice', expiration: maya.MayaDT) -> 'Arrangement':
-        publisher_verifying_key = publisher.stamp.as_umbral_pubkey()
-        return cls(publisher_verifying_key=publisher_verifying_key, expiration=expiration)
-
-    @classmethod
-    def _brand(cls) -> bytes:
-        return b'Arng'
-
-    @classmethod
-    def _version(cls) -> Tuple[int, int]:
-        return 1, 0
-
-    def _payload(self) -> bytes:
-        """Returns the unversioned bytes serialized representation of this instance."""
-        return bytes(self.publisher_verifying_key) + bytes(VariableLengthBytestring(self.expiration.iso8601().encode()))
-
-    @classmethod
-    def _old_version_handlers(cls) -> Dict:
-        return {}
-
-    @classmethod
-    def _from_bytes_current(cls, data: bytes):
-        splitter = BytestringSplitter(
-            key_splitter,  # publisher_verifying_key
-            (bytes, VariableLengthBytestring)  # expiration
-        )
-        publisher_verifying_key, expiration_bytes = splitter(data)
-        expiration = maya.MayaDT.from_iso8601(iso8601_string=expiration_bytes.decode())
-        return cls(publisher_verifying_key=publisher_verifying_key, expiration=expiration)
 
 
 class Policy(ABC):
@@ -187,7 +142,8 @@ class Policy(ABC):
             raise RuntimeError(f"{address} is not known")
 
         ursula = self.publisher.known_nodes[address]
-        arrangement = Arrangement.from_publisher(publisher=self.publisher, expiration=self.expiration)
+        arrangement = Arrangement(publisher_verifying_key=self.publisher.stamp.as_umbral_pubkey(),
+                                  expiration_epoch=self.expiration.epoch)
 
         self.log.debug(f"Proposing arrangement {arrangement} to {ursula}")
         negotiation_response = network_middleware.propose_arrangement(ursula, arrangement)
@@ -196,10 +152,10 @@ class Policy(ABC):
         if status == 200:
             # TODO: What to do in the case of invalid signature?
             # Verify that the sampled ursula agreed to the arrangement.
-            ursula_signature = negotiation_response.content
+            response = ArrangementResponse.from_bytes(negotiation_response.content)
             self.publisher.verify_from(stranger=ursula,
                                        message=bytes(arrangement),
-                                       signature=Signature.from_bytes(ursula_signature))
+                                       signature=response.signature)
             self.log.debug(f"Arrangement accepted by {ursula}")
         else:
             message = f"Proposing arrangement to {ursula} failed with {status}"
