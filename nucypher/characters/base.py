@@ -385,9 +385,6 @@ class Character(Learner):
         decrypting_power = self._crypto_power.power_ups(DecryptingPower)
         return decrypting_power.decrypt(message_kit)
 
-    def sign(self, message):
-        return self._crypto_power.power_ups(SigningPower).sign(message)
-
     def public_keys(self, power_up_class: ClassVar):
         """
         Pass a power_up_class, get the public material for this Character which corresponds to that
