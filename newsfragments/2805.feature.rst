@@ -1,0 +1,1 @@
+Extend brand size in ``Versioned`` to 4 bytes
