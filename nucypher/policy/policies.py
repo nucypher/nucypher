@@ -58,7 +58,7 @@ class Arrangement(Versioned):
 
     @classmethod
     def _brand(cls) -> bytes:
-        return b'AR'
+        return b'Arng'
 
     @classmethod
     def _version(cls) -> Tuple[int, int]:

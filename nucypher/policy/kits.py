@@ -122,7 +122,7 @@ class MessageKit(Versioned):
 
     @classmethod
     def _brand(cls) -> bytes:
-        return b'MK'
+        return b'MKit'
 
     @classmethod
     def _version(cls) -> Tuple[int, int]:
@@ -181,7 +181,7 @@ class RetrievalKit(Versioned):
 
     @classmethod
     def _brand(cls) -> bytes:
-        return b'RK'
+        return b'RKit'
 
     @classmethod
     def _version(cls) -> Tuple[int, int]:

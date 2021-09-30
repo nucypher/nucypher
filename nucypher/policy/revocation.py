@@ -74,7 +74,7 @@ class RevocationOrder(Versioned):
 
     @classmethod
     def _brand(cls) -> bytes:
-        return b'RV'
+        return b'Revo'
 
     @classmethod
     def _version(cls) -> Tuple[int, int]:

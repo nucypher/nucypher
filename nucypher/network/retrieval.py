@@ -192,7 +192,7 @@ class ReencryptionRequest(Versioned):
 
     @classmethod
     def _brand(cls) -> bytes:
-        return b'RQ'
+        return b'ReRq'
 
     @classmethod
     def _version(cls) -> Tuple[int, int]:
@@ -244,7 +244,7 @@ class ReencryptionResponse(Versioned):
 
     @classmethod
     def _brand(cls) -> bytes:
-        return b'RR'
+        return b'ReRs'
 
     @classmethod
     def _version(cls) -> Tuple[int, int]:
