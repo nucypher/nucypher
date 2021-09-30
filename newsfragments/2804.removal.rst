@@ -1,0 +1,1 @@
+Remove an unused method of ``Amonia`` (deprecated since we do not store the treasure map on Ursulas anymore)
