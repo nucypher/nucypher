@@ -1,0 +1,4 @@
+#
+# Allow CORS for any domain - should be editied if specific domains are desired
+#
+add_header 'Access-Control-Allow-Origin' '*';

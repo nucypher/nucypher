@@ -1,0 +1,37 @@
+version: '3'
+
+services:
+
+  nginx-proxy:
+    restart: always
+    image: nginxproxy/nginx-proxy:alpine
+    build:
+      context: ../../../..
+      dockerfile: deploy/docker/porter/nginx/Dockerfile
+    ports:
+      - "443:443"
+    volumes:
+      - /var/run/docker.sock:/tmp/docker.sock:ro
+      # because of the vhost name used below, the cert and key should be named "porter.local.crt" and "porter.local.key" respectively
+      - "${TLS_DIR}:/etc/nginx/certs/"
+
+  nginx-porter:
+    restart: on-failure
+    image: porter:latest
+    build:
+      context: ../../../..
+      dockerfile: deploy/docker/porter/Dockerfile
+    expose:
+      # Default Porter port
+      - "9155"
+    volumes:
+      - .:/code
+      - ~/.local/share/nucypher:/nucypher
+    command: [ "nucypher", "porter", "run",
+               "--provider", "${WEB3_PROVIDER_URI}",
+               "--network", "${NUCYPHER_NETWORK}" ]
+    environment:
+      - VIRTUAL_HOST=porter.local
+      - VIRTUAL_PORT=9155
+    depends_on:
+      - nginx-proxy
