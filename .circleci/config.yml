@@ -462,7 +462,7 @@ commands:
       - run: sudo chown -R circleci:circleci /usr/local/bin
       - run: sudo chown -R circleci:circleci /usr/local/lib/python3.7/site-packages
       - save_cache:
-          key: pip-v8-{{ .Branch }}-{{ checksum "Pipfile.lock" }}
+          key: pip-v9-{{ .Branch }}-{{ checksum "Pipfile.lock" }}
           paths:
             - "~/.local/bin"
             - "~/.local/lib/python3.7/site-packages"
@@ -477,7 +477,7 @@ commands:
       - run: sudo chown -R circleci:circleci /usr/local/bin
       - run: sudo chown -R circleci:circleci /usr/local/lib/python3.7/site-packages
       - restore_cache:  # ensure this step occurs *before* installing dependencies
-          key: pip-v8-{{ .Branch }}-{{ checksum "Pipfile.lock" }}
+          key: pip-v9-{{ .Branch }}-{{ checksum "Pipfile.lock" }}
       - restore_cache:
           key: solc-v2-{{ checksum "nucypher/blockchain/eth/sol/__conf__.py" }}
 
@@ -869,7 +869,7 @@ jobs:
       - setup_remote_docker
       - restore_cache:
           keys:
-            - v2-{{ .Branch }}-{{ arch }}
+            - v3-{{ .Branch }}-{{ arch }}
           paths:
             - ~/docker/nucypher-porter.tar
       - run:
@@ -887,7 +887,7 @@ jobs:
             mkdir -p ~/docker
             docker save -o ~/docker/nucypher-porter.tar nucypher/porter:circle
       - save_cache:
-          key: v2-{{ .Branch }}-{{ arch }}
+          key: v3-{{ .Branch }}-{{ arch }}
           paths:
             - ~/docker/nucypher-porter.tar
 
@@ -977,7 +977,7 @@ jobs:
       - setup_remote_docker
       - restore_cache:
           keys:
-            - v2-{{ .Branch }}-{{ arch }}
+            - v3-{{ .Branch }}-{{ arch }}
           paths:
             - ~/docker/nucypher-porter.tar
       - run:
