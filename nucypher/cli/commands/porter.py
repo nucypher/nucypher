@@ -58,6 +58,7 @@ def porter():
 @click.option('--tls-certificate-filepath', help="Pre-signed TLS certificate filepath", type=click.Path(dir_okay=False, exists=True, path_type=Path))
 @click.option('--tls-key-filepath', help="TLS private key filepath", type=click.Path(dir_okay=False, exists=True, path_type=Path))
 @click.option('--basic-auth-filepath', help="htpasswd filepath for basic authentication", type=click.Path(dir_okay=False, exists=True, resolve_path=True, path_type=Path))
+@click.option('--allow-origins', help="The CORS origin(s) to allow requests from - allows all origins by default", type=click.STRING, required=False, default="*")
 @click.option('--dry-run', '-x', help="Execute normally without actually starting Porter", is_flag=True)
 @click.option('--eager', help="Start learning and scraping the network before starting up other services", is_flag=True, default=True)
 def run(general_config,
@@ -71,6 +72,7 @@ def run(general_config,
         tls_certificate_filepath,
         tls_key_filepath,
         basic_auth_filepath,
+        allow_origins,
         dry_run,
         eager):
     """Start Porter's Web controller."""
@@ -139,7 +141,9 @@ def run(general_config,
     if basic_auth_filepath:
         emitter.message("Basic Authentication enabled", color='green')
 
-    controller = PORTER.make_web_controller(htpasswd_filepath=basic_auth_filepath, crash_on_error=False)
+    controller = PORTER.make_web_controller(crash_on_error=False,
+                                            htpasswd_filepath=basic_auth_filepath,
+                                            cors_origins=allow_origins)
     http_scheme = "https" if is_https else "http"
     message = PORTER_RUN_MESSAGE.format(http_scheme=http_scheme, http_port=http_port)
     emitter.message(message, color='green', bold=True)

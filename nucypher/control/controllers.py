@@ -20,6 +20,7 @@ import inspect
 import json
 from abc import ABC, abstractmethod
 from json import JSONDecodeError
+from pathlib import Path
 from typing import Optional
 
 import maya
@@ -269,8 +270,8 @@ class WebController(InterfaceControlServer):
 
     def start(self,
               port: int,
-              tls_key_filepath: str = None,
-              tls_certificate_filepath: str = None,
+              tls_key_filepath: Path = None,
+              tls_certificate_filepath: Path = None,
               dry_run: bool = False):
         if dry_run:
             return
@@ -279,8 +280,8 @@ class WebController(InterfaceControlServer):
             self.log.info("Starting HTTPS Control...")
             # HTTPS endpoint
             hx_deployer = HendrixDeployTLS(action="start",
-                                           key=tls_key_filepath,
-                                           cert=tls_certificate_filepath,
+                                           key=str(tls_key_filepath.absolute()),
+                                           cert=str(tls_certificate_filepath.absolute()),
                                            options={
                                                "wsgi": self._transport,
                                                "https_port": port,

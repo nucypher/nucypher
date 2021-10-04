@@ -136,7 +136,7 @@ DEPLOY_REQUIRES = [
 URSULA_REQUIRES = ['prometheus_client', 'sentry-sdk']  # TODO: Consider renaming to 'monitor', etc.
 ALICE_REQUIRES = ['qrcode']
 BOB_REQUIRES = ['qrcode']
-PORTER_REQUIRES = ['flask-htpasswd']  # needed for basic authentication
+PORTER_REQUIRES = ['flask-htpasswd', 'flask-cors']  # needed for basic authentication, cors
 
 EXTRAS = {
 
