@@ -200,7 +200,10 @@ the Pipe for nucypher network operations
         self.controller = controller
         return controller
 
-    def make_web_controller(self, crash_on_error: bool = False, htpasswd_filepath: Path = None, cors_origins: str = '*'):
+    def make_web_controller(self,
+                            crash_on_error: bool = False,
+                            htpasswd_filepath: Path = None,
+                            cors_allow_origins: str = None):
         controller = WebController(app_name=self.APP_NAME,
                                    crash_on_error=crash_on_error,
                                    interface=self._interface_class(porter=self))
@@ -209,18 +212,25 @@ the Pipe for nucypher network operations
         # Register Flask Decorator
         porter_flask_control = controller.make_control_transport()
 
-        try:
-            from flask_cors import CORS
-            from flask_htpasswd import HtPasswdAuth
-        except ImportError:
-            raise ImportError('Porter installation is required - run "pip install nucypher[porter]" and try again.')
+        # CORS origins
+        if cors_allow_origins:
+            try:
+                from flask_cors import CORS
+            except ImportError:
+                raise ImportError('Porter installation is required for to specify CORS origins '
+                                  '- run "pip install nucypher[porter]" and try again.')
 
-        # CORS
-        porter_flask_control.config['CORS_ORIGINS'] = cors_origins
-        _ = CORS(app=porter_flask_control)
+            porter_flask_control.config['CORS_ORIGINS'] = cors_allow_origins
+            _ = CORS(app=porter_flask_control)
 
         # Basic Auth
         if htpasswd_filepath:
+            try:
+                from flask_htpasswd import HtPasswdAuth
+            except ImportError:
+                raise ImportError('Porter installation is required for basic authentication '
+                                  '- run "pip install nucypher[porter]" and try again.')
+
             porter_flask_control.config['FLASK_HTPASSWD_PATH'] = str(htpasswd_filepath.absolute())
             # ensure basic auth required for all endpoints
             porter_flask_control.config['FLASK_AUTH_ALL'] = True
