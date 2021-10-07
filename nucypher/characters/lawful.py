@@ -87,7 +87,6 @@ from nucypher.crypto.umbral_adapter import (
     VerifiedKeyFrag,
 )
 from nucypher.datastore.datastore import DatastoreTransactionError, RecordNotFound
-from nucypher.datastore.queries import find_expired_policies
 from nucypher.network.exceptions import NodeSeemsToBeDown
 from nucypher.network.middleware import RestMiddleware
 from nucypher.network.nodes import NodeSprout, TEACHER_NODES, Teacher
@@ -660,8 +659,6 @@ class Ursula(Teacher, Character, Worker):
         # TLSHostingPower  # Still considered a default for Ursula, but needs the host context
     ]
 
-    _pruning_interval = 60  # seconds
-
     class NotEnoughUrsulas(Learner.NotEnoughTeachers, StakingEscrowAgent.NotEnoughStakers):
         """
         All Characters depend on knowing about enough Ursulas to perform their role.
@@ -727,7 +724,6 @@ class Ursula(Teacher, Character, Worker):
 
             # Datastore Pruning
             self.__pruning_task: Union[Deferred, None] = None
-            self._datastore_pruning_task = LoopingCall(f=self.__prune_datastore)
 
             # Decentralized Worker
             if not federated_only:
@@ -829,22 +825,6 @@ class Ursula(Teacher, Character, Worker):
         message = f"Created decentralized identity evidence: {self.__decentralized_identity_evidence[:10].hex()}"
         self.log.debug(message)
 
-    def __prune_datastore(self) -> None:
-        """Deletes all expired arrangements, kfrags, and treasure maps in the datastore."""
-        now = maya.MayaDT.from_datetime(datetime.fromtimestamp(self._datastore_pruning_task.clock.seconds()))
-        try:
-            with find_expired_policies(self.datastore, now) as expired_policies:
-                for policy in expired_policies:
-                    policy.delete()
-                result = len(expired_policies)
-        except RecordNotFound:
-            self.log.debug("No expired policy arrangements found.")
-        except DatastoreTransactionError:
-            self.log.warn(f"Failed to prune policy arrangements; DB session rolled back.")
-        else:
-            if result > 0:
-                self.log.debug(f"Pruned {result} policy arrangements.")
-
     def __preflight(self) -> None:
         """Called immediately before running services
         If an exception is raised, Ursula startup will be interrupted.
@@ -857,7 +837,6 @@ class Ursula(Teacher, Character, Worker):
             discovery: bool = True,  # TODO: see below
             availability: bool = False,
             worker: bool = True,
-            pruning: bool = True,
             interactive: bool = False,
             hendrix: bool = True,
             start_reactor: bool = True,
@@ -883,11 +862,6 @@ class Ursula(Teacher, Character, Worker):
 
         if emitter:
             emitter.message(f"Starting services", color='yellow')
-
-        if pruning:
-            self.__pruning_task = self._datastore_pruning_task.start(interval=self._pruning_interval, now=eager)
-            if emitter:
-                emitter.message(f"✓ Database Pruning", color='green')
 
         if discovery and not self.lonely:
             self.start_learning_loop(now=eager)

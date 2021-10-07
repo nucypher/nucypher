@@ -31,7 +31,7 @@ from nucypher.blockchain.eth.actors import NucypherTokenActor
 from nucypher.blockchain.eth.agents import ContractAgency, PolicyManagerAgent, StakingEscrowAgent, WorkLockAgent
 from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
 from nucypher.blockchain.eth.registry import BaseContractRegistry
-from nucypher.datastore.queries import get_policy_arrangements, get_reencryption_requests
+from nucypher.datastore.queries import get_reencryption_requests
 
 from typing import Dict, Union, Type
 

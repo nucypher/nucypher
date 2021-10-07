@@ -1072,7 +1072,6 @@ class Worker(NucypherTokenActor):
         """Raised when the Worker is not bonded to a Staker in the StakingEscrow contract."""
         crash_right_now = True
 
-
     def __init__(self,
                  is_me: bool,
                  work_tracker: WorkTracker = None,
@@ -1304,9 +1303,6 @@ class BlockchainPolicyAuthor(NucypherTokenActor):
         """
         Hence the name, a BlockchainPolicyAuthor can create
         a BlockchainPolicy with themself as the author.
-
-        :return: Returns a newly authored BlockchainPolicy with n proposed arrangements.
-
         """
         from nucypher.policy.policies import BlockchainPolicy
         blockchain_policy = BlockchainPolicy(publisher=self, *args, **kwargs)

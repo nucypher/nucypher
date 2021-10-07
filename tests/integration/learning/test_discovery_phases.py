@@ -106,16 +106,6 @@ _POLICY_PRESERVER = []
 def test_alice_verifies_ursula_just_in_time(fleet_of_highperf_mocked_ursulas,
                                             highperf_mocked_alice,
                                             highperf_mocked_bob):
-    # Patch the Datastore PolicyArrangement model with the highperf
-    # NotAPublicKey
-    not_public_key_record_field = RecordField(NotAPublicKey, encode=bytes,
-                                              decode=NotAPublicKey.from_bytes)
-
-    def mock_set_policy(id_as_hex):
-        return ""
-
-    def mock_receive_treasure_map():
-        return Response(bytes(), status=201)
 
     def mock_encrypt(public_key, plaintext):
         if not isinstance(public_key, PublicKey):
@@ -123,16 +113,12 @@ def test_alice_verifies_ursula_just_in_time(fleet_of_highperf_mocked_ursulas,
         return encrypt(public_key, plaintext)
 
     mocks = (
-        NotARestApp.replace_route("receive_treasure_map", mock_receive_treasure_map),
-        NotARestApp.replace_route("set_policy", mock_set_policy),
         patch('nucypher.crypto.umbral_adapter.PublicKey.__eq__', lambda *args, **kwargs: True),
         mock_pubkey_from_bytes(),
         mock_secret_source(),
         mock_cert_loading,
         mock_metadata_validation,
         mock_message_verification,
-        patch("nucypher.datastore.models.PolicyArrangement._alice_verifying_key",
-              new=not_public_key_record_field),
         patch('nucypher.crypto.umbral_adapter.encrypt', new=mock_encrypt),
         )
 

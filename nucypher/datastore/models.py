@@ -15,31 +15,11 @@ You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
-
-from maya import MayaDT
-
-from nucypher.crypto.umbral_adapter import PublicKey, VerifiedKeyFrag, Signature
+from nucypher.crypto.umbral_adapter import PublicKey
 from nucypher.datastore.base import DatastoreRecord, RecordField
 
 
-class PolicyArrangement(DatastoreRecord):
-    _arrangement_id = RecordField(bytes)
-    _expiration = RecordField(
-            MayaDT,
-            encode=lambda maya_date: maya_date.iso8601().encode(),
-            decode=lambda maya_bytes: MayaDT.from_iso8601(maya_bytes.decode()))
-    _kfrag = RecordField(
-            VerifiedKeyFrag,
-            encode=bytes,
-            decode=VerifiedKeyFrag.from_verified_bytes)
-    _alice_verifying_key = RecordField(
-            PublicKey,
-            encode=bytes,
-            decode=PublicKey.from_bytes)
-
-
 class ReencryptionRequest(DatastoreRecord):
-    _arrangement_id = RecordField(bytes)
     _bob_verifying_key = RecordField(
             PublicKey,
             encode=bytes,

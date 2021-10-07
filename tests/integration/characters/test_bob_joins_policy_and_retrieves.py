@@ -150,12 +150,6 @@ def test_bob_retrieves_too_late(federated_bob, federated_ursulas,
 
     clock = Clock()
     clock.advance(time.time())
-    for urs in federated_ursulas:
-        if urs._datastore_pruning_task.running:
-            urs._datastore_pruning_task.stop()
-        urs._datastore_pruning_task.clock = clock
-        urs._datastore_pruning_task.start(interval=Ursula._pruning_interval)
-
     clock.advance(86400 * 8)  # 1 week  # TODO: this is supposed to be seven days, not eight
 
     enrico = capsule_side_channel.enrico
