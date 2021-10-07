@@ -203,8 +203,8 @@ class RestMiddleware:
                                                          backend=default_backend())
             return certificate
 
-    def revoke_arrangement(self, ursula, revocation):
-        # TODO: Implement revocation confirmations
+    def revoke_node(self, ursula, revocation):
+        # TODO: Implement offchain revocation
         response = self.client.post(
             node_or_sprout=ursula,
             path=f"revoke",

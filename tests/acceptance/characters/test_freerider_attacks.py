@@ -63,11 +63,11 @@ def test_policy_simple_sinpa(blockchain_ursulas,
         ursula.suspicious_activities_witnessed['freeriders'] = []
 
 
-def test_try_to_post_free_arrangement_by_hacking_enact(blockchain_ursulas,
-                                                       blockchain_alice,
-                                                       blockchain_bob,
-                                                       agency,
-                                                       testerchain):
+def test_try_to_post_free_service_by_hacking_enact(blockchain_ursulas,
+                                                   blockchain_alice,
+                                                   blockchain_bob,
+                                                   agency,
+                                                   testerchain):
     """
     This time we won't rely on the tabulation in Alice's enact() to catch the problem.
     """

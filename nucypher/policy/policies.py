@@ -49,8 +49,8 @@ class Policy(ABC):
 
     class NotEnoughUrsulas(PolicyException):
         """
-        Raised when a Policy has been used to generate Arrangements with Ursulas insufficient number
-        such that we don't have enough KeyFrags to give to each Ursula.
+        Raised when a Policy cannot be generated due an an insufficient
+        number of available qualified network nodes.
         """
 
     class EnactmentError(PolicyException):

@@ -97,9 +97,9 @@ def test_vladimir_illegal_interface_key_does_not_propagate(blockchain_ursulas):
     # assert vladimir not in other_ursula.known_nodes
 
 
-def test_alice_refuses_to_make_arrangement_unless_ursula_is_valid(blockchain_alice,
-                                                                  idle_blockchain_policy,
-                                                                  blockchain_ursulas):
+def test_alice_refuses_to_select_node_unless_ursula_is_valid(blockchain_alice,
+                                                             idle_blockchain_policy,
+                                                             blockchain_ursulas):
 
     target = list(blockchain_ursulas)[2]
     # First, let's imagine that Alice has sampled a Vladimir while making this policy.
@@ -112,9 +112,9 @@ def test_alice_refuses_to_make_arrangement_unless_ursula_is_valid(blockchain_ali
     vladimir._Teacher__interface_signature = signature
     vladimir.node_storage.store_node_certificate(certificate=target.certificate, port=vladimir.rest_interface.port)
 
-    # Ideally, a fishy node shouldn't be present in `known_nodes`,
-    # but I guess we're testing the case when it became fishy somewhere between we learned about it
-    # and the proposal arrangement.
+    # Ideally, a fishy node will be present in `known_nodes`,
+    # This tests the case when it became fishy after discovering it
+    # but before being selected for a policy.
     blockchain_alice.known_nodes.record_node(vladimir)
     blockchain_alice.known_nodes.record_fleet_state()
 

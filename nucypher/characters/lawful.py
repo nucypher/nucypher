@@ -374,8 +374,8 @@ class Alice(Character, BlockchainPolicyAuthor):
 
         if offchain:
             """
-            Parses the treasure map and revokes arrangements in it.
-            If any arrangements can't be revoked, then the node_id is added to a
+            Parses the treasure map and revokes onchain arrangements in it.
+            If any nodes cannot be revoked, then the node_id is added to a
             dict as a key, and the revocation and Ursula's response is added as
             a value.
             """
@@ -392,7 +392,7 @@ class Alice(Character, BlockchainPolicyAuthor):
                 ursula = self.known_nodes[node_id]
                 revocation = policy.revocation_kit[node_id]
                 try:
-                    response = self.network_middleware.revoke_arrangement(ursula, revocation)
+                    response = self.network_middleware.revoke_node(ursula, revocation)
                 except self.network_middleware.NotFound:
                     failed[node_id] = (revocation, self.network_middleware.NotFound)
                 except self.network_middleware.UnexpectedResponse:
@@ -443,8 +443,7 @@ class Alice(Character, BlockchainPolicyAuthor):
         @alice_flask_control.route("/create_policy", methods=['PUT'])
         def create_policy() -> Response:
             """
-            Character control endpoint for creating a policy and making
-            arrangements with Ursulas.
+            Character control endpoint for creating an enacted network policy
             """
             response = controller(method_name='create_policy', control_request=request)
             return response

@@ -81,8 +81,6 @@ def test_alice_can_grant_even_when_the_first_nodes_she_tries_are_down(federated_
     #       The below line will fail with ? probability, if more then 2 of the nodes selected
     #       are among those still down.
     # policy = alice_grant_action()
-
-    # The number of actually enacted arrangements is exactly equal to n.
     assert policy.shares == shares
 
 

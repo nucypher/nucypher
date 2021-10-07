@@ -43,15 +43,15 @@ def test_federated_grant(federated_alice, federated_bob, federated_ursulas):
     treasure_map = federated_bob._decrypt_treasure_map(policy.treasure_map,
                                                        policy.publisher_verifying_key)
 
-    # The number of actually enacted arrangements is exactly equal to shares.
+    # The number of map destinations is exactly equal to shares.
     assert len(treasure_map.destinations) == shares
 
-    # Let's look at the enacted arrangements.
+    # Let's look at the destinations.
     for ursula in federated_ursulas:
         if ursula.checksum_address in treasure_map.destinations:
             kfrag_kit = treasure_map.destinations[ursula.checksum_address]
 
-            # TODO: try to decrypt?
+            # TODO: Deeper testing here: try to decrypt?
             # TODO: Use a new type for EncryptedKFrags?
             assert isinstance(kfrag_kit, MessageKit)
 
@@ -93,7 +93,7 @@ def test_federated_alice_can_decrypt(federated_alice, federated_bob):
     assert [plaintext] == decrypted_data
 
 
-@pytest.mark.skip("Needs rework post-TMcKF")  # TODO
+@pytest.mark.skip("Needs rework post-TMcKF")  # TODO: Implement offchain revocation.
 @pytest.mark.usefixtures('federated_ursulas')
 def test_revocation(federated_alice, federated_bob):
     threshold, shares = 2, 3
