@@ -142,8 +142,9 @@ class UrsulaInfoMetricsCollector(BaseMetricsCollector):
                                      'missing_commitments': str(missing_commitments)}
             base_payload.update(decentralized_payload)
 
-            policy_arrangements = get_policy_arrangements(self.ursula.datastore)
-            self.metrics["policies_held_gauge"].set(len(policy_arrangements))
+            # TODO: Arrangements are deprecated and Policies are no longer trackable by arrangement storage.
+            # policy_arrangements = get_policy_arrangements(self.ursula.datastore)
+            # self.metrics["policies_held_gauge"].set(len(policy_arrangements))
 
         self.metrics["host_info"].info(base_payload)
 
