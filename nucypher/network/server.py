@@ -30,8 +30,6 @@ from mako.template import Template
 from nucypher.core import (
     AuthorizedKeyFrag,
     ReencryptionRequest,
-    Arrangement,
-    ArrangementResponse,
     RevocationOrder,
     NodeMetadata,
     MetadataRequest,
