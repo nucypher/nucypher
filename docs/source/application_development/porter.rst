@@ -21,6 +21,16 @@ web and mobile experience is accessible to application developers.
 Running Porter
 --------------
 
+There are a variety of possible infrastructure setups for running the Porter service, and two scenarios for running
+the Porter service are provided here:
+
+#. Run the Porter service directly via docker, docker-compose, or the CLI (see `Run Porter Directly`_)
+#. Run the Porter service with a reverse proxy via docker-compose (see `Run Porter with Reverse Proxy`_)
+
+
+Run Porter Directly
+*******************
+
 .. note::
 
     If running the Porter service using Docker or Docker Compose, it will run on port 80 (HTTP) or 443 (HTTPS). If
@@ -29,32 +39,16 @@ Running Porter
 Security
 ^^^^^^^^
 
-HTTPS
-+++++
-To run the Porter service over HTTPS, it will require a TLS key (``--tls-key-filepath`` option) and a TLS certificate.
-
-If desired, keys and self-signed certificates can be created for the localhost using the ``openssl`` command:
-
-.. code:: bash
-
-    $ openssl req -x509 -out cert.pem -keyout key.pem \
-      -newkey rsa:2048 -nodes -sha256 \
-      -subj '/CN=localhost' -extensions EXT -config <( \
-        printf "[dn]\nCN=localhost\n[req]\ndistinguished_name = dn\n[EXT]\nsubjectAltName=DNS:localhost\nkeyUsage=digitalSignature\nextendedKeyUsage=serverAuth")
-
-.. important::
-
-    Self-signed certificates are not recommended, other than for testing.
-
-
-Authentication
-++++++++++++++
-Porter will allow the configuration of Basic Authentication out of the box via
-an `htpasswd <https://httpd.apache.org/docs/2.4/programs/htpasswd.html>`_ file. The use of Basic Authentication
-necessitates HTTPS since user credentials will be passed over the network as cleartext.
-
-Alternative authentication mechanisms can be implemented outside of Porter via an intermediary proxy service, for
-example an Nginx HTTPS reverse proxy.
+* **HTTPS:** To run the Porter service over HTTPS, it will require a TLS key and a TLS certificate. These can be
+  specified via the `` --tls-key-filepath`` and ``--tls-certificate-filepath`` CLI options or via the ``TLS_DIR``
+  environment variable for docker-compose.
+* **CORS:** An allowed origin for `Cross-Origin Resource Sharing (CORS) <https://en.wikipedia.org/wiki/Cross-origin_resource_sharing>`_
+  is not enabled by default and can be enabled either via the ``--allow-origins`` option for the CLI,
+  or the ``PORTER_CORS_ALLOW_ORIGINS`` environment variable for docker-compose.
+* **Authentication:** Porter will allow the configuration of Basic Authentication out of the box via
+  an `htpasswd <https://httpd.apache.org/docs/2.4/programs/htpasswd.html>`_ file. This file can be provided via the
+  ``--basic-auth-filepath`` CLI option or ``HTPASSWD_FILE`` environment variable for docker-compose. The use
+  of Basic Authentication necessitates HTTPS since user credentials will be passed over the network as cleartext.
 
 
 via Docker
@@ -101,6 +95,23 @@ Run Porter within Docker without acquiring or installing the ``nucypher`` codeba
             --tls-key-filepath /etc/porter/tls/<KEY FILENAME> \
             --tls-certificate-filepath /etc/porter/tls/<CERT FILENAME>
 
+   * Without Basic Authentication, but with CORS enabled to allow all origins:
+
+     .. code:: bash
+
+         $ docker run -d --rm \
+            --name porter-https-cors \
+            -v ~/.local/share/nucypher/:/root/.local/share/nucypher \
+            -v <TLS DIRECTORY>:/etc/porter/tls \
+            -p 443:9155 \
+            nucypher/porter:latest \
+            nucypher porter run \
+            --provider <YOUR WEB3 PROVIDER URI> \
+            --network <NETWORK NAME> \
+            --tls-key-filepath /etc/porter/tls/<KEY FILENAME> \
+            --tls-certificate-filepath /etc/porter/tls/<CERT FILENAME> \
+            --allow-origins "*"
+
    * With Basic Authentication:
 
      .. code:: bash
@@ -119,16 +130,22 @@ Run Porter within Docker without acquiring or installing the ``nucypher`` codeba
             --tls-certificate-filepath /etc/porter/tls/<CERT FILENAME> \
             --basic-auth-filepath /etc/porter/auth/htpasswd
 
+
    The ``<TLS DIRECTORY>`` is expected to contain the TLS key file (``<KEY FILENAME>``) and the
    certificate (``<CERT FILENAME>``) to run Porter over HTTPS.
 
+   .. note::
+
+       The commands above are for illustrative purposes and can be modified as necessary.
 
 #. Porter will be available on default ports 80 (HTTP) or 443 (HTTPS). The porter service running will be one of
    the following depending on the mode chosen:
 
    * ``porter-http``
    * ``porter-https``
+   * ``porter-https-cors``
    * ``porter-https-auth``
+
 
 #. View Porter logs
 
@@ -148,7 +165,7 @@ via Docker Compose
 
 Docker Compose will start the Porter service within a Docker container.
 
-#. Acquire the ``nucypher`` codebase - see :ref:`acquire_codebase`. There is no need
+#. :ref:`acquire_codebase`. There is no need
    to install ``nucypher`` after acquiring the codebase since Docker will be used.
 
 #. Set the required environment variables:
@@ -170,7 +187,8 @@ Docker Compose will start the Porter service within a Docker container.
 
          $ export NUCYPHER_NETWORK=<NETWORK NAME>
 
-   * *(Optional)* TLS directory variable containing the TLS key and the certificate to run Porter over HTTPS. The directory is expected to contain two files:
+   * *(Optional)* TLS directory containing the TLS key and certificate to run Porter over HTTPS.
+     The directory is expected to contain two files:
 
      * ``key.pem`` - the TLS key
      * ``cert.pem`` - the TLS certificate
@@ -180,6 +198,12 @@ Docker Compose will start the Porter service within a Docker container.
      .. code:: bash
 
          $ export TLS_DIR=<ABSOLUTE PATH TO TLS DIRECTORY>
+
+   * *(Optional)* Enable CORS for ``example.com`` origins
+
+     .. code::bash
+
+         $ export PORTER_CORS_ALLOW_ORIGINS=example.com
 
    * *(Optional)* Filepath to the htpasswd file for Basic Authentication
 
@@ -211,12 +235,14 @@ Docker Compose will start the Porter service within a Docker container.
 
          $ docker-compose -f deploy/docker/porter/docker-compose.yml up -d porter-https-auth
 
-#. Porter will be available on default ports 80 (HTTP) or 443 (HTTPS). The porter service running will be one of
+
+   Porter will be available on default ports 80 (HTTP) or 443 (HTTPS). The porter service running will be one of
    the following depending on the mode chosen:
 
    * ``porter-http``
    * ``porter-https``
    * ``porter-https-auth``
+
 
 #. View Porter logs
 
@@ -289,11 +315,11 @@ For a full list of CLI options, run:
         Provider: ...
         Running Porter Web Controller at https://127.0.0.1:9155
 
-    For HTTPS with Basic Authentication, add the ``--basic-auth-filepath`` option:
+    To enable CORS, use the ``--allow-origins`` option:
 
     .. code:: console
 
-        $ nucypher porter run --provider <YOUR WEB3 PROVIDER URI> --network <NETWORK NAME> --tls-key-filepath <TLS KEY FILEPATH> --tls-certificate-filepath <CERT FILEPATH> --basic-auth-filepath <HTPASSWD FILE>
+        $ nucypher porter run --provider <YOUR WEB3 PROVIDER URI> --network <NETWORK NAME> --tls-key-filepath <TLS KEY FILEPATH> --tls-certificate-filepath <CERT FILEPATH> --allow-origins example.com
 
 
         ______
@@ -308,15 +334,131 @@ For a full list of CLI options, run:
         Reading Latest Chaindata...
         Network: <NETWORK NAME>
         Provider: ...
+        CORS Allow Origins: example.com
+        Running Porter Web Controller at https://127.0.0.1:9155
+
+    To enable Basic Authentication, add the ``--basic-auth-filepath`` option:
+
+    .. code:: console
+
+        $ nucypher porter run --provider <YOUR WEB3 PROVIDER URI> --network <NETWORK NAME> --tls-key-filepath <TLS KEY FILEPATH> --tls-certificate-filepath <CERT FILEPATH> --allow-origins example.com --basic-auth-filepath <HTPASSWD FILE>
+
+
+        ______
+        (_____ \           _
+        _____) )__   ____| |_  ____  ____
+        |  ____/ _ \ / ___)  _)/ _  )/ ___)
+        | |   | |_| | |   | |_( (/ /| |
+        |_|    \___/|_|    \___)____)_|
+
+        the Pipe for nucypher network operations
+
+        Reading Latest Chaindata...
+        Network: <NETWORK NAME>
+        Provider: ...
+        CORS Allow Origins: example.com
         Basic Authentication enabled
         Running Porter Web Controller at https://127.0.0.1:9155
+
+
+Run Porter with Reverse Proxy
+*****************************
+
+This type of Porter execution illustrates the use of a reverse proxy that is a go between or intermediate server that
+handles requests from clients to an internal Porter service. An NGINX reverse proxy instance is
+used in this case. It will handle functionality such as TLS, CORS, and authentication so that the Porter service
+itself does not have to, and allows for more complex configurations than provided by Porter itself. More information
+about the NGINX reverse proxy docker image used and additional configuration options
+is available `here <https://hub.docker.com/r/nginxproxy/nginx-proxy>`_.
+
+
+via Docker Compose
+^^^^^^^^^^^^^^^^^^
+
+Docker Compose will be used to start the NGINX reverse proxy and the Porter service containers.
+
+#. :ref:`acquire_codebase`. There is no need
+   to install ``nucypher`` after acquiring the codebase since Docker will be used.
+
+#. Set the required environment variables:
+
+   * Web3 Provider URI environment variable
+
+     .. code:: bash
+
+         $ export WEB3_PROVIDER_URI=<YOUR WEB3 PROVIDER URI>
+
+     .. note::
+
+         Local ipc is not supported when running via Docker.
+
+
+   * Network Name environment variable
+
+     .. code:: bash
+
+         $ export NUCYPHER_NETWORK=<NETWORK NAME>
+
+   * The reverse proxy is set up to run over HTTPS by default, and therefore requires a TLS directory containing
+     the TLS key and certificate for the reverse proxy. The directory is expected to contain two files:
+
+     * ``porter.local.key`` - the TLS key
+     * ``porter.local.crt`` - the TLS certificate
+
+     Set the TLS directory environment variable
+
+     .. code:: bash
+
+         $ export TLS_DIR=<ABSOLUTE PATH TO TLS DIRECTORY>
+
+   * *(Optional)* By default, CORS for the reverse proxy is configured allow all origins. This configuration is set in
+     the ``nucypher/deploy/docker/porter/nginx/porter.local_location`` file. If you would like to
+     modify the CORS allowed origin setting to be more specific, you can modify the ``Access-Control-Allow-Origin``
+     header value.
+
+     For example, to only allow requests from ``example.com`` origins, the file should be edited to be:
+
+     .. code::
+
+        add_header 'Access-Control-Allow-Origin' 'example.com';
+
+     .. note::
+
+         If you modify the file you should rebuild the docker images using docker-compose.
+
+#. *(Optional)* Build the docker images:
+
+   .. code:: bash
+
+       $ docker-compose -f deploy/docker/porter/nginx/docker-compose.yml build
+
+#. Run the NGINX reverse proxy and Porter service
+
+   .. code:: bash
+
+       $ docker-compose -f deploy/docker/porter/nginx/docker-compose.yml up -d
+
+#. The NGINX reverse proxy will be publicly accessible via the default HTTPS port 443, and will route requests to the
+   internal Porter service.
+
+#. View Porter service logs
+
+   .. code:: bash
+
+       $ docker-compose -f deploy/docker/porter/nginx/docker-compose.yml logs -f nginx-porter
+
+#. Stop Porter service and NGINX reverse proxy
+
+   .. code:: bash
+
+       $ docker-compose -f deploy/docker/porter/nginx/docker-compose.yml down
 
 
 API
 ---
 
 Status Codes
-^^^^^^^^^^^^
+************
 All documented API endpoints use JSON and are REST-like.
 
 Some common returned status codes you may encounter are:
@@ -346,7 +488,7 @@ GitHub issue. For any questions, message us in our `Discord <https://discord.gg/
 
 
 URL Query Parameters
-^^^^^^^^^^^^^^^^^^^^
+********************
 All parameters can be passed as either JSON data within the request or as query parameter strings in the URL.
 Query parameters used within the URL will need to be URL encoded e.g. ``/`` in a base64 string becomes ``%2F`` etc.
 
@@ -374,12 +516,12 @@ More examples shown below.
 
 
 GET /get_ursulas
-^^^^^^^^^^^^^^^^
+****************
 Sample available Ursulas for a policy as part of Alice's ``grant`` workflow. Returns a list of Ursulas
 and their associated information that is used for the policy.
 
 Parameters
-++++++++++
+^^^^^^^^^^
 +----------------------------------+---------------+-----------------------------------------------+
 | **Parameter**                    | **Type**      | **Description**                               |
 +==================================+===============+===============================================+
@@ -398,7 +540,7 @@ Parameters
 
 
 Returns
-+++++++
+^^^^^^^
 List of Ursulas with associated information:
 
     * ``encrypting_key`` - Ursula's encrypting key encoded as hex
@@ -406,7 +548,7 @@ List of Ursulas with associated information:
     * ``uri`` - Ursula's URI
 
 Example Request
-+++++++++++++++
+^^^^^^^^^^^^^^^
 .. code:: bash
 
     curl -X GET <PORTER URI>/get_ursulas \
@@ -424,7 +566,7 @@ OR
 
 
 Example Response
-++++++++++++++++
+^^^^^^^^^^^^^^^^
 .. code::
 
     Status: 200 OK
@@ -467,11 +609,11 @@ Example Response
 
 
 POST /retrieve_cfrags
-^^^^^^^^^^^^^^^^^^^^^
+*********************
 Get data re-encrypted by the network as part of Bob's ``retrieve`` workflow.
 
 Parameters
-++++++++++
+^^^^^^^^^^
 +-------------------------------------------+---------------+----------------------------------------+
 | **Parameter**                             | **Type**      | **Description**                        |
 +===========================================+===============+========================================+
@@ -515,7 +657,7 @@ Parameters
         retry functionality that skips previously successful reencryption operations.
 
 Returns
-+++++++
+^^^^^^^
 The result of the re-encryption operations performed:
 
     * ``retrieval_results`` - The list of results from the re-encryption operations performed; contains a mapping of
@@ -524,7 +666,7 @@ The result of the re-encryption operations performed:
       *retrieval kit*, the corresponding list of cfrags could be empty or less than the expected threshold.
 
 Example Request
-+++++++++++++++
+^^^^^^^^^^^^^^^
 .. code:: bash
 
     curl -X POST <PORTER URI>/retrieve_cfrags \
@@ -544,7 +686,7 @@ OR
 
 
 Example Response
-++++++++++++++++
+^^^^^^^^^^^^^^^^
 .. code::
 
     Status: 200 OK
