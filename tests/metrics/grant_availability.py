@@ -108,13 +108,13 @@ def make_random_bob():
 BOB = make_random_bob()
 
 
-def metric_grant(alice, handpicked_ursulas: Optional[Set[Ursula]] = None) -> Policy:
+def metric_grant(alice, ursulas: Optional[Set[Ursula]] = None) -> Policy:
     """Perform a granting operation for metrics collection."""
     label = f'{LABEL_PREFIX}{LABEL_SUFFIXER()}'.encode()
     policy_end_datetime = maya.now() + DURATION
     policy = alice.grant(threshold=THRESHOLD,
                          shares=SHARES,
-                         handpicked_ursulas=handpicked_ursulas,
+                         ursulas=handpicked_ursulas,
                          expiration=policy_end_datetime,
                          bob=BOB,
                          label=label,
@@ -123,7 +123,7 @@ def metric_grant(alice, handpicked_ursulas: Optional[Set[Ursula]] = None) -> Pol
 
 
 def collect(alice: Alice,
-            handpicked_ursulas: Optional[Set[Ursula]] = None,
+            ursulas: Optional[Set[Ursula]] = None,
             iterations: Optional[int] = DEFAULT_ITERATIONS,
             ) -> None:
     """Collects grant success and failure rates."""
@@ -132,7 +132,7 @@ def collect(alice: Alice,
         print(f"Attempt {i+1} of {iterations if iterations is not None else 'infinite'}")
         start = maya.now()
         try:
-            policy = metric_grant(alice=alice, handpicked_ursulas=handpicked_ursulas)
+            policy = metric_grant(alice=alice, ursulas=ursulas)
         except Exception as e:
             fail += 1
             print(f'GRANT FAIL\n{e}')
@@ -201,17 +201,17 @@ def aggregate_nodes() -> Tuple[Set[Ursula], Set[Ursula]]:
             ursula = Ursula.from_seed_and_stake_info(seed_uri=uri, federated_only=False)
             seednodes.add(ursula)
 
-    handpicked_ursulas = set()
+    ursulas = set()
     if HANDPICKED_URSULA_URIS:
         for uri in HANDPICKED_URSULA_URIS:
             ursula = Ursula.from_seed_and_stake_info(seed_uri=uri, federated_only=False)
-            handpicked_ursulas.add(ursula)
+            ursulas.add(ursula)
 
-    return seednodes, handpicked_ursulas
+    return seednodes, ursulas
 
 
 if __name__ == '__main__':
     setup()
-    seednodes, handpicked_ursulas = aggregate_nodes()
+    seednodes, ursulas = aggregate_nodes()
     alice = make_alice(known_nodes=seednodes)
-    collect(alice=alice, handpicked_ursulas=handpicked_ursulas)
+    collect(alice=alice, ursulas=ursulas)

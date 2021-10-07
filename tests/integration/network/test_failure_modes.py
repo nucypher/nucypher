@@ -75,7 +75,7 @@ def test_alice_can_grant_even_when_the_first_nodes_she_tries_are_down(federated_
     # TODO: This action only succeeds here because we are forcing
     #       grant to accept the ursulas that just came back online (handpicked_ursulas).
     #       Since there are now enough Ursulas online, this action *can* succeed without forcing sample.
-    policy = alice_grant_action(handpicked_ursulas=more_nodes[:3])
+    policy = alice_grant_action(ursulas=more_nodes[:3])
 
     # TODO: This is how it's actually done. How can we measure such random results?
     #       The below line will fail with ? probability, if more then 2 of the nodes selected

@@ -83,7 +83,7 @@ def test_bob_retrieves(federated_alice,
                                    threshold=3,
                                    shares=shares,
                                    expiration=contract_end_datetime,
-                                   handpicked_ursulas=set(rest_of_ursulas),
+                                   ursulas=set(rest_of_ursulas),
                                    )
 
     assert label == policy.label

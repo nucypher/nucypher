@@ -617,7 +617,7 @@ def test_collect_rewards_integration(click_runner,
                                                shares=shares,
                                                value=policy_value,
                                                expiration=expiration,
-                                               handpicked_ursulas={ursula})
+                                               ursulas={ursula})
 
     # Ensure that the handpicked Ursula was selected for the policy
     treasure_map = blockchain_bob._decrypt_treasure_map(blockchain_policy.treasure_map,

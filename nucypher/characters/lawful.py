@@ -309,7 +309,7 @@ class Alice(Character, BlockchainPolicyAuthor):
     def grant(self,
               bob: "Bob",
               label: bytes,
-              handpicked_ursulas: set = None,
+              ursulas: set = None,
               timeout: int = None,
               **policy_params):
 
@@ -319,9 +319,9 @@ class Alice(Character, BlockchainPolicyAuthor):
         # Policy Creation
         #
 
-        if handpicked_ursulas:
+        if ursulas:
             # This might be the first time alice learns about the handpicked Ursulas.
-            for handpicked_ursula in handpicked_ursulas:
+            for handpicked_ursula in ursulas:
                 self.remember_node(node=handpicked_ursula)
 
         policy = self.create_policy(bob=bob, label=label, **policy_params)
@@ -347,8 +347,7 @@ class Alice(Character, BlockchainPolicyAuthor):
                     "or run the learning loop on a network with enough Ursulas.".format(policy.shares))
 
         self.log.debug(f"Enacting {policy} ... ")
-        enacted_policy = policy.enact(network_middleware=self.network_middleware,
-                                      handpicked_ursulas=handpicked_ursulas)
+        enacted_policy = policy.enact(network_middleware=self.network_middleware, ursulas=ursulas)
 
         self.add_active_policy(enacted_policy)
         return enacted_policy
