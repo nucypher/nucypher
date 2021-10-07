@@ -53,7 +53,7 @@ contract PREStakingApp is IApplication, Adjudicator, PolicyManager {
 
     uint256 public immutable rewardDuration;
     uint256 public immutable deauthorizationDuration;
-    uint256 public immutable override minAuthorizationSize;
+    uint256 public immutable minAuthorizationSize;
 
     IERC20 public immutable token;
     ITokenStaking public immutable tokenStaking;
@@ -187,12 +187,13 @@ contract PREStakingApp is IApplication, Adjudicator, PolicyManager {
         token.safeTransfer(beneficiary, _value);
     }
 
+    //------------------------Authorization------------------------------
     /**
     * @notice Recalculate reward and store authorization
     * @param _worker Address of worker
     * @param _amount Amount of authorized tokens to PRE application by worker
     */
-    function authorizationIncreased(address _worker, uint256 _amount) external override onlyStakingContract {
+    function authorizationIncreased(address _worker, uint96 _amount) external override onlyStakingContract {
         require(_worker != address(0));
 
         WorkerInfo storage info = workerInfo[_worker];
@@ -203,26 +204,30 @@ contract PREStakingApp is IApplication, Adjudicator, PolicyManager {
         updateRewardInternal(_worker);
 
         info.authorized += _amount;
+        require(info.authorized >= minAuthorizationSize);
         authorizedOverall += _amount;
         // TODO emit event
     }
 
     // TODO docs
-    function involuntaryAllocationDecrease(address _worker, uint256 _amount)
+    function involuntaryAllocationDecrease(address _worker, uint96 _amount)
         external override onlyStakingContract updateReward(_worker)
     {
         WorkerInfo storage info = workerInfo[_worker];
         info.authorized -= _amount;
+        if (info.authorized < info.deauthorizing) {
+            info.deauthorizing = info.authorized;
+        }
         authorizedOverall -= _amount;
         // TODO emit event
     }
 
     // TODO docs
-    function authorizationDecreaseRequested(address _worker, uint256 _amount)
+    function authorizationDecreaseRequested(address _worker, uint96 _amount)
         external override onlyStakingContract
     {
         WorkerInfo storage info = workerInfo[_worker];
-        require(_amount <= info.authorized);
+        require(_amount <= info.authorized && info.authorized - _amount >= minAuthorizationSize);
         info.deauthorizing = _amount;
         info.endDeauthorization = block.timestamp + deauthorizationDuration;
         // TODO emit event
@@ -241,6 +246,18 @@ contract PREStakingApp is IApplication, Adjudicator, PolicyManager {
 
         // TODO emit event
         tokenStaking.approveAuthorizationDecrease(msg.sender);
+    }
+
+    function synchronizeAuthorization(address _worker) external {
+        WorkerInfo storage info = workerInfo[_worker];
+        uint96 authorized = tokenStaking.authorizedStake(_worker, address(this));
+        require(info.authorized < authorized);
+        authorizedOverall -= authorized - info.authorized;
+        info.authorized = authorized;
+        if (info.authorized < info.deauthorizing) {
+            info.deauthorizing = info.authorized;
+        }
+        // TODO emit event
     }
 
     //-------------------------Main-------------------------

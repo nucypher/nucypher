@@ -7,16 +7,13 @@ pragma solidity 0.8.6;
  * @notice Generic interface for an application
  */
 interface IApplication {
-    // TODO:  Inherit from IERC165
-
-    // TODO: Events
 
     /**
      * @notice Used by T staking contract to inform the application the the authorized amount
      * for the given operator increased. The application may do any necessary housekeeping
      * necessary.
      */
-    function authorizationIncreased(address worker, uint256 amount) external;
+    function authorizationIncreased(address worker, uint96 amount) external;
 
     /**
      * @notice Used by T staking contract to inform the application that the given operator
@@ -25,7 +22,7 @@ interface IApplication {
      * contract with `approveAuthorizationDecrease` at its discretion. Note it may
      * happen right away but it also may happen several months later.
      */
-    function authorizationDecreaseRequested(address worker, uint256 amount) external;
+    function authorizationDecreaseRequested(address worker, uint96 amount) external;
 
     /**
      * @notice Used by T staking contract to inform the application the authorization has
@@ -34,10 +31,6 @@ interface IApplication {
      * Called with 250k gas limit and does not revert the transaction if
      * `involuntaryAllocationDecrease` call failed.
      */
-    function involuntaryAllocationDecrease(address worker, uint256 amount) external;
+    function involuntaryAllocationDecrease(address worker, uint96 amount) external;
 
-    /**
-     * @dev Get min authorization size from application
-     */
-    function minAuthorizationSize() external returns (uint256);
 }

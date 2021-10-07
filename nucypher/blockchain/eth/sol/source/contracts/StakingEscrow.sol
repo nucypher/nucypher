@@ -115,8 +115,8 @@ contract StakingEscrow is Upgradeable, IERC900History {
 
         uint256 vestingReleaseTimestamp;
         uint256 vestingReleaseRate;
+        address operator;
 
-        uint256 reservedSlot3;
         uint256 reservedSlot4;
         uint256 reservedSlot5;
 
@@ -340,24 +340,34 @@ contract StakingEscrow is Upgradeable, IERC900History {
     /**
     * @notice Request migration to threshold network
     */
-    function requestMerge(address _staker) external returns (uint256) {
+    function requestMerge(address _staker, address _operator) external returns (uint256) {
         require(msg.sender == address(tStaking));
         StakerInfo storage info = stakerInfo[msg.sender];
-        require(!info.flags.bitSet(REQUESTED_MERGE_INDEX));
-        info.flags = info.flags.toggleBit(REQUESTED_MERGE_INDEX);
+        bool mergeRequested = info.flags.bitSet(REQUESTED_MERGE_INDEX); // TODO remove flag, store only operator
+        require(!mergeRequested || info.operator == _operator);
+        if (!mergeRequested) {
+            info.flags = info.flags.toggleBit(REQUESTED_MERGE_INDEX);
+            info.operator = _operator;
+            // TODO emit event
+        }
         return info.value;
-        // TODO emit event
     }
 
     /**
     * @notice Confirm migration to threshold network
     */
-    function confirmMerge() external onlyStaker {
-        StakerInfo storage info = stakerInfo[msg.sender];
+    function confirmMerge(address _operator) external {
+        address staker = tStaking.ownerOf(_operator);
+        require(staker != address(0));
+
+        StakerInfo storage info = stakerInfo[staker];
         require(info.flags.bitSet(REQUESTED_MERGE_INDEX) &&
             !info.flags.bitSet(CONFIRMED_MERGE_INDEX));
-        uint256 minStaked = tStaking.getMinStaked(msg.sender, ITokenStaking.StakingProvider.NU);
-        require(minStaked + 1e5 >= info.value); // TODO ???
+        uint256 stakedNu = tStaking.stakedNu(_operator);
+        require(stakedNu + 1e5 >= info.value); // TODO ???
+
+        uint96 minStaked = tStaking.getMinStaked(_operator, ITokenStaking.StakingProvider.NU);
+        require(minStaked == tStaking.operatorInfo(_operator).nuStake); // nuStake
         info.flags = info.flags.toggleBit(CONFIRMED_MERGE_INDEX);
         // TODO emit event
     }
@@ -378,7 +388,7 @@ contract StakingEscrow is Upgradeable, IERC900History {
     )
         external
     {
-        require(msg.sender == address(adjudicator)); // TODO allow KEaNU token staking too
+        require(msg.sender == address(tStaking));
         require(_penalty > 0);
         StakerInfo storage info = stakerInfo[_staker];
         if (info.value <= _penalty) {
@@ -447,7 +457,9 @@ contract StakingEscrow is Upgradeable, IERC900History {
         StakerInfo memory infoToCheck = delegateGetStakerInfo(_testTarget, staker);
         require(infoToCheck.value == info.value &&
             infoToCheck.vestingReleaseTimestamp == info.vestingReleaseTimestamp &&
-            infoToCheck.vestingReleaseRate == info.vestingReleaseRate);
+            infoToCheck.vestingReleaseRate == info.vestingReleaseRate &&
+            infoToCheck.operator == info.operator
+        );
 
         // it's not perfect because checks not only slot value but also decoding
         // at least without additional functions
