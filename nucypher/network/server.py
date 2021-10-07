@@ -161,31 +161,6 @@ def _make_rest_app(datastore: Datastore, this_node, domain: str, log: Logger) ->
         # TODO: What's the right status code here?  202?  Different if we already knew about the node(s)?
         return all_known_nodes()
 
-    @rest_app.route('/consider_arrangement', methods=['POST'])
-    def consider_arrangement():
-        arrangement = Arrangement.from_bytes(request.data)
-
-        # Verify this node is staking for the entirety of the proposed arrangement.
-        if not this_node.federated_only:
-
-            # Get final staking period
-            if this_node.stakes.terminal_period is NOT_STAKING:
-                this_node.stakes.refresh()
-            if this_node.stakes.terminal_period is NOT_STAKING:
-                return Response(status=403)  # 403 Forbidden
-
-            # Verify timeframe
-            terminal_stake_period = this_node.stakes.terminal_period
-            terminal_stake_epoch = period_to_epoch(period=terminal_stake_period,
-                                                   seconds_per_period=this_node.economics.seconds_per_period)
-            if arrangement.expiration_epoch > terminal_stake_epoch:
-                # I'm sorry David, I'm afraid I can't do that.
-                return Response(status=403)  # 403 Forbidden
-
-        response = ArrangementResponse.for_arrangement(arrangement, this_node.stamp.as_umbral_signer())
-        headers = {'Content-Type': 'application/octet-stream'}
-        return Response(bytes(response), status=200, headers=headers)
-
     @rest_app.route('/reencrypt', methods=["POST"])
     def reencrypt():
 

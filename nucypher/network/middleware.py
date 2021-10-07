@@ -203,13 +203,6 @@ class RestMiddleware:
                                                          backend=default_backend())
             return certificate
 
-    def propose_arrangement(self, node, arrangement):
-        response = self.client.post(node_or_sprout=node,
-                                    path="consider_arrangement",
-                                    data=bytes(arrangement),
-                                    timeout=120)  # TODO: What is an appropriate timeout here?
-        return response
-
     def revoke_arrangement(self, ursula, revocation):
         # TODO: Implement revocation confirmations
         response = self.client.post(
