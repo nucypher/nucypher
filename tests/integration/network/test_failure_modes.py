@@ -17,20 +17,13 @@
 
 
 import datetime
-import os
 from functools import partial
 
 import maya
 import pytest
-import pytest_twisted
-import requests
-from bytestring_splitter import BytestringSplittingError
-from twisted.internet import threads
 
-from nucypher.policy.policies import Policy, Arrangement
-from nucypher.utilities.versioning import Versioned
-from tests.utils.middleware import EvilMiddleWare, NodeIsDownMiddleware
-from tests.utils.ursula import make_federated_ursulas
+from nucypher.policy.policies import Policy
+from tests.utils.middleware import NodeIsDownMiddleware
 
 
 def test_alice_can_grant_even_when_the_first_nodes_she_tries_are_down(federated_alice, federated_bob, federated_ursulas):

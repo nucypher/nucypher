@@ -119,5 +119,5 @@ def test_alice_refuses_to_make_arrangement_unless_ursula_is_valid(blockchain_ali
     blockchain_alice.known_nodes.record_fleet_state()
 
     with pytest.raises(vladimir.InvalidNode):
-        idle_blockchain_policy._propose_arrangement(address=vladimir.checksum_address,
-                                                    network_middleware=blockchain_alice.network_middleware)
+        idle_blockchain_policy._ping_node(address=vladimir.checksum_address,
+                                          network_middleware=blockchain_alice.network_middleware)

@@ -17,7 +17,7 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 
 
 from abc import ABC, abstractmethod
-from typing import Sequence, Optional, Iterable
+from typing import Sequence, Optional, Iterable, List
 
 import maya
 from eth_typing.evm import ChecksumAddress
@@ -109,16 +109,9 @@ class Policy(ABC):
         """Builds a `MergedReservoir` to use for drawing addresses to send proposals to."""
         raise NotImplementedError
 
-    def _enact_arrangements(self, arrangements: Dict['Ursula', Arrangement]):
-        pass
-
-    def _propose_arrangement(self,
-                             address: ChecksumAddress,
-                             network_middleware: RestMiddleware,
-                             ) -> Tuple['Ursula', Arrangement]:
-        """
-        Attempt to propose an arrangement to the node with the given address.
-        """
+    @abstractmethod
+    def _publish(self, ursulas: List['Ursula']) -> None:
+        raise NotImplementedError
 
     def _ping_node(self, address: ChecksumAddress, network_middleware: RestMiddleware) -> 'Ursula':
         # Handles edge case when provided address is not a known peer.
@@ -134,10 +127,16 @@ class Policy(ABC):
         else:
             raise RuntimeError(f"{ursula} is not available for selection ({status_code}).")
 
-        if handpicked_ursulas is None:
-            handpicked_ursulas = []
-        handpicked_addresses = [ChecksumAddress(ursula.checksum_address) for ursula in handpicked_ursulas]
+    def _sample(self,
+                network_middleware: RestMiddleware,
+                ursulas: Optional[Iterable['Ursula']] = None,
+                timeout: int = 10,
+                ) -> List['Ursula']:
 
+        ursulas = ursulas or []
+        handpicked_addresses = [ChecksumAddress(ursula.checksum_address) for ursula in ursulas]
+
+        self.publisher.block_until_number_of_known_nodes_is(self.shares, learn_on_this_thread=True, eager=True)
         reservoir = self._make_reservoir(handpicked_addresses)
         value_factory = PrefetchStrategy(reservoir, self.shares)
 
@@ -154,54 +153,36 @@ class Policy(ABC):
         try:
             successes = worker_pool.block_until_target_successes()
         except (WorkerPool.OutOfValues, WorkerPool.TimedOut):
-            # It's possible to raise some other exceptions here,
-            # but we will use the logic below.
+            # It's possible to raise some other exceptions here but we will use the logic below.
             successes = worker_pool.get_successes()
         finally:
             worker_pool.cancel()
             worker_pool.join()
-
-        accepted_arrangements = {ursula: arrangement for ursula, arrangement in successes.values()}
         failures = worker_pool.get_failures()
 
-        accepted_addresses = ", ".join(ursula.checksum_address for ursula in accepted_arrangements)
+        accepted_addresses = ", ".join(ursula.checksum_address for ursula in successes.values())
+        if len(successes) < self.shares:
+            rejections = "\n".join(f"{address}: {value}" for address, (type_, value, traceback) in failures.items())
+            message = "Could not find enough Ursulas to accept proposals.\n"\
+                      f"Selected:\n{accepted_addresses}\n" \
+                      f"Unavailable:\n{rejections}"
+            self.log.debug(message)
+            raise self.NotEnoughUrsulas(message)
 
-        if len(accepted_arrangements) < self.shares:
+        self.log.debug(f"Selected nodes for policy: {accepted_addresses}")
+        ursulas = list(successes.values())
+        return ursulas
 
-            rejected_proposals = "\n".join(f"{address}: {value}" for address, (type_, value, traceback) in failures.items())
+    def enact(self, network_middleware: RestMiddleware, ursulas: Optional[Iterable['Ursula']] = None) -> 'EnactedPolicy':
+        """Attempts to enact the policy, returns an `EnactedPolicy` object on success."""
 
-            self.log.debug(
-                "Could not find enough Ursulas to accept proposals.\n"
-                f"Accepted: {accepted_addresses}\n"
-                f"Rejected:\n{rejected_proposals}")
-
-            raise self._not_enough_ursulas_exception()
-        else:
-            self.log.debug(f"Finished proposing arrangements; accepted: {accepted_addresses}")
-
-        return accepted_arrangements
-
-    def enact(self,
-              network_middleware: RestMiddleware,
-              handpicked_ursulas: Optional[Iterable['Ursula']] = None,
-              ) -> 'EnactedPolicy':
-        """
-        Attempts to enact the policy, returns an `EnactedPolicy` object on success.
-        """
-
-        # TODO: Why/is this needed here?
-        # Workaround for `RuntimeError: Learning loop is not running.  Start it with start_learning().`
-        if not self.publisher._learning_task.running:
-            self.publisher.start_learning_loop()
-
-        arrangements = self._make_arrangements(network_middleware=network_middleware,
-                                               handpicked_ursulas=handpicked_ursulas)
-
-        self._enact_arrangements(arrangements)
+        ursulas = self._sample(network_middleware=network_middleware, ursulas=ursulas)
+        self._publish(ursulas=ursulas)
 
         assigned_kfrags = {
             ursula.checksum_address: (ursula.public_keys(DecryptingPower), vkfrag)
-            for ursula, vkfrag in zip(arrangements, self.kfrags)}
+            for ursula, vkfrag in zip(ursulas, self.kfrags)
+        }
 
         treasure_map = TreasureMap.construct_by_publisher(hrac=self.hrac,
                                                           policy_encrypting_key=self.public_key,
@@ -225,44 +206,20 @@ class Policy(ABC):
 
         return enacted_policy
 
-    @abstractmethod
-    def _not_enough_ursulas_exception(self) -> Type[Exception]:
-        """
-        Returns an exception to raise when there were not enough Ursulas
-        to distribute arrangements to.
-        """
-        raise NotImplementedError
-
-    @abstractmethod
-    def _make_enactment_payload(self, kfrag: VerifiedKeyFrag) -> bytes:
-        """
-        Serializes a given kfrag and policy publication transaction to send to Ursula.
-        """
-        raise NotImplementedError
-
 
 class FederatedPolicy(Policy):
 
-    def _not_enough_ursulas_exception(self):
-        return Policy.NotEnoughUrsulas
+    def _publish(self, ursulas: List['Ursula']) -> None:
+        pass
 
     def _make_reservoir(self, handpicked_addresses):
         return make_federated_staker_reservoir(known_nodes=self.publisher.known_nodes,
                                                include_addresses=handpicked_addresses)
 
-    def _make_enactment_payload(self, kfrag) -> bytes:
-        return bytes(kfrag)
-
 
 class BlockchainPolicy(Policy):
-    """
-    A collection of n Arrangements representing a single Policy
-    """
 
     class InvalidPolicyValue(ValueError):
-        pass
-
-    class NotEnoughBlockchainUrsulas(Policy.NotEnoughUrsulas):
         pass
 
     def __init__(self,
@@ -271,17 +228,31 @@ class BlockchainPolicy(Policy):
                  payment_periods: int,
                  *args,
                  **kwargs):
-
         super().__init__(*args, **kwargs)
-
         self.payment_periods = payment_periods
         self.value = value
         self.rate = rate
-
         self._validate_fee_value()
 
-    def _not_enough_ursulas_exception(self):
-        return BlockchainPolicy.NotEnoughBlockchainUrsulas
+    def _publish(self, ursulas: List['Ursula']) -> None:
+        addresses = [ursula.checksum_address for ursula in ursulas]
+        receipt = self.publisher.policy_agent.create_policy(
+            value=self.value,                     # wei
+            policy_id=bytes(self.hrac),           # bytes16 _policyID
+            end_timestamp=self.expiration.epoch,  # uint16 _numberOfPeriods
+            node_addresses=addresses,             # address[] memory _nodes
+            transacting_power = self.publisher.transacting_power
+        )
+
+        # Capture transaction receipt
+        txid = receipt['transactionHash']
+        self.log.info(f"published policy TXID: {txid}")
+
+    def _make_reservoir(self, handpicked_addresses):
+        staker_reservoir = make_decentralized_staker_reservoir(staking_agent=self.publisher.staking_agent,
+                                                               duration_periods=self.payment_periods,
+                                                               include_addresses=handpicked_addresses)
+        return staker_reservoir
 
     def _validate_fee_value(self) -> None:
         rate_per_period = self.value // self.shares // self.payment_periods  # wei
@@ -324,34 +295,6 @@ class BlockchainPolicy(Policy):
 
         params = dict(rate=rate, value=value)
         return params
-
-    def _make_reservoir(self, handpicked_addresses):
-        staker_reservoir = make_decentralized_staker_reservoir(staking_agent=self.publisher.staking_agent,
-                                                               duration_periods=self.payment_periods,
-                                                               include_addresses=handpicked_addresses)
-        return staker_reservoir
-
-    def _publish_to_blockchain(self, ursulas) -> dict:
-
-        addresses = [ursula.checksum_address for ursula in ursulas]
-
-        # Transact  # TODO: Move this logic to BlockchainPolicyActor
-        receipt = self.publisher.policy_agent.create_policy(
-            policy_id=bytes(self.hrac),  # bytes16 _policyID
-            transacting_power=self.publisher.transacting_power,
-            value=self.value,
-            end_timestamp=self.expiration.epoch,  # uint16 _numberOfPeriods
-            node_addresses=addresses  # address[] memory _nodes
-        )
-
-        # Capture Response
-        return receipt['transactionHash']
-
-    def _make_enactment_payload(self, kfrag) -> bytes:
-        return bytes(self.hrac) + bytes(kfrag)
-
-    def _enact_arrangements(self, arrangements: Dict['Ursula', Arrangement]) -> None:
-        self._publish_to_blockchain(ursulas=list(arrangements))
 
 
 class EnactedPolicy:
