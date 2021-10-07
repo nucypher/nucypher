@@ -17,14 +17,14 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 
 
 from abc import ABC, abstractmethod
-from typing import Tuple, Sequence, Optional, Iterable, Dict, Type
+from typing import Sequence, Optional, Iterable
 
 import maya
 from eth_typing.evm import ChecksumAddress
 
 from nucypher.core import HRAC, TreasureMap
 from nucypher.crypto.powers import DecryptingPower
-from nucypher.crypto.umbral_adapter import PublicKey, VerifiedKeyFrag, Signature
+from nucypher.crypto.umbral_adapter import PublicKey, VerifiedKeyFrag
 from nucypher.network.middleware import RestMiddleware
 from nucypher.policy.reservoir import (
     make_federated_staker_reservoir,
@@ -97,21 +97,6 @@ class Policy(ABC):
         self.kfrags = kfrags
         self.public_key = public_key
         self.expiration = expiration
-
-        """
-        # TODO: #180 - This attribute is hanging on for dear life.
-        After 180 is closed, it can be completely deprecated.
-
-        The "hashed resource authentication code".
-
-        A hash of:
-        * Alice's public key
-        * Bob's public key
-        * the label
-
-        Alice and Bob have all the information they need to construct this.
-        'Ursula' does not, so we share it with her.
-        """
         self.hrac = HRAC.derive(publisher_verifying_key=self.publisher.stamp.as_umbral_pubkey(),
                                 bob_verifying_key=self.bob.stamp.as_umbral_pubkey(),
                                 label=self.label)
@@ -121,9 +106,7 @@ class Policy(ABC):
 
     @abstractmethod
     def _make_reservoir(self, handpicked_addresses: Sequence[ChecksumAddress]) -> MergedReservoir:
-        """
-        Builds a `MergedReservoir` to use for drawing addresses to send proposals to.
-        """
+        """Builds a `MergedReservoir` to use for drawing addresses to send proposals to."""
         raise NotImplementedError
 
     def _enact_arrangements(self, arrangements: Dict['Ursula', Arrangement]):
@@ -137,44 +120,19 @@ class Policy(ABC):
         Attempt to propose an arrangement to the node with the given address.
         """
 
+    def _ping_node(self, address: ChecksumAddress, network_middleware: RestMiddleware) -> 'Ursula':
+        # Handles edge case when provided address is not a known peer.
         if address not in self.publisher.known_nodes:
-            raise RuntimeError(f"{address} is not known")
+            raise RuntimeError(f"{address} is not a known peer")
 
         ursula = self.publisher.known_nodes[address]
-        arrangement = Arrangement(publisher_verifying_key=self.publisher.stamp.as_umbral_pubkey(),
-                                  expiration_epoch=self.expiration.epoch)
+        response = network_middleware.ping(node=ursula)
+        status_code = response.status_code
 
-        self.log.debug(f"Proposing arrangement {arrangement} to {ursula}")
-        negotiation_response = network_middleware.propose_arrangement(ursula, arrangement)
-        status = negotiation_response.status_code
-
-        if status == 200:
-            # TODO: What to do in the case of invalid signature?
-            # Verify that the sampled ursula agreed to the arrangement.
-            response = ArrangementResponse.from_bytes(negotiation_response.content)
-            self.publisher.verify_from(stranger=ursula,
-                                       message=bytes(arrangement),
-                                       signature=response.signature)
-            self.log.debug(f"Arrangement accepted by {ursula}")
+        if status_code == 200:
+            return ursula
         else:
-            message = f"Proposing arrangement to {ursula} failed with {status}"
-            self.log.debug(message)
-            raise RuntimeError(message)
-
-        # We could just return the arrangement and get the Ursula object
-        # from `known_nodes` later, but when we introduce slashing in FleetSensor,
-        # the address can already disappear from `known_nodes` by that time.
-        return ursula, arrangement
-
-    def _make_arrangements(self,
-                           network_middleware: RestMiddleware,
-                           handpicked_ursulas: Optional[Iterable['Ursula']] = None,
-                           timeout: int = 10,
-                           ) -> Dict['Ursula', Arrangement]:
-        """
-        Pick some Ursula addresses and send them arrangement proposals.
-        Returns a dictionary of Ursulas to Arrangements if it managed to get `shares` responses.
-        """
+            raise RuntimeError(f"{ursula} is not available for selection ({status_code}).")
 
         if handpicked_ursulas is None:
             handpicked_ursulas = []
@@ -183,10 +141,8 @@ class Policy(ABC):
         reservoir = self._make_reservoir(handpicked_addresses)
         value_factory = PrefetchStrategy(reservoir, self.shares)
 
-        def worker(address):
-            return self._propose_arrangement(address, network_middleware)
-
-        self.publisher.block_until_number_of_known_nodes_is(self.shares, learn_on_this_thread=True, eager=True)
+        def worker(address) -> 'Ursula':
+            return self._ping_node(address, network_middleware)
 
         worker_pool = WorkerPool(worker=worker,
                                  value_factory=value_factory,
