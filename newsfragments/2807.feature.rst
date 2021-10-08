@@ -1,0 +1,1 @@
+Added opt-in CORS origins support to Porter; no origins allowed by default. Also, provide docker-compose execution for Porter to run behind an Nginx reverse proxy server. Allows for more complex web configurations to be achieved with Nginx.
