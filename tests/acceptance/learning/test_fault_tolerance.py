@@ -17,8 +17,10 @@
 
 import pytest
 from twisted.logger import LogLevel, globalLogPublisher
-
 from constant_sorrow.constants import NOT_SIGNED
+
+from nucypher.core import MetadataResponse
+
 from nucypher.acumen.perception import FleetSensor
 from nucypher.config.constants import TEMPORARY_DOMAIN
 from nucypher.crypto.powers import TransactingPower
@@ -69,7 +71,14 @@ def test_blockchain_ursula_stamp_verification_tolerance(blockchain_ursulas, mock
     assert blockchain_teacher in lonely_blockchain_learner.known_nodes
 
     # Learn about a node with a badly signed payload
-    mocker.patch.object(lonely_blockchain_learner, 'verify_from', side_effect=InvalidSignature)
+
+    def bad_bytestring_of_known_nodes():
+        # Signing with the learner's signer instead of the teacher's signer
+        response = MetadataResponse.author(signer=lonely_blockchain_learner.stamp.as_umbral_signer(),
+                                           timestamp_epoch=blockchain_teacher.known_nodes.timestamp.epoch)
+        return bytes(response)
+
+    mocker.patch.object(blockchain_teacher, 'bytestring_of_known_nodes', bad_bytestring_of_known_nodes)
     lonely_blockchain_learner.learn_from_teacher_node(eager=True)
     assert len(lonely_blockchain_learner.suspicious_activities_witnessed['vladimirs']) == 1
 

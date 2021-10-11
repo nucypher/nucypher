@@ -935,3 +935,121 @@ class NodeMetadata(Versioned):
         nodes_vbytes = node_splitter.repeat(data)
 
         return [cls.from_bytes(node_data) for node_data in nodes_vbytes]
+
+
+class MetadataRequest(Versioned):
+
+    _fleet_state_checksum_splitter = BytestringSplitter((bytes, 32))
+
+    def __init__(self,
+                 fleet_state_checksum: str,
+                 announce_nodes: Optional[Iterable[NodeMetadata]] = None,
+                 ):
+
+        self.fleet_state_checksum = fleet_state_checksum
+        self.announce_nodes = announce_nodes
+
+    @classmethod
+    def _brand(cls) -> bytes:
+        return b'MdRq'
+
+    @classmethod
+    def _version(cls) -> Tuple[int, int]:
+        return 1, 0
+
+    @classmethod
+    def _old_version_handlers(cls) -> Dict:
+        return {}
+
+    def _payload(self):
+        if self.announce_nodes:
+            nodes_bytes = bytes().join(bytes(VariableLengthBytestring(bytes(n))) for n in self.announce_nodes)
+        else:
+            nodes_bytes = b''
+        return bytes.fromhex(self.fleet_state_checksum) + nodes_bytes
+
+    @classmethod
+    def _from_bytes_current(cls, data):
+        fleet_state_checksum_bytes, nodes_bytes = cls._fleet_state_checksum_splitter(data, return_remainder=True)
+        if nodes_bytes:
+            nodes = NodeMetadata.batch_from_bytes(nodes_bytes)
+        else:
+            nodes = None
+        return cls(fleet_state_checksum=fleet_state_checksum_bytes.hex(),
+                   announce_nodes=nodes)
+
+
+class MetadataResponse(Versioned):
+
+    _splitter = BytestringSplitter(
+        (int, 4, {'byteorder': 'big'}),
+        VariableLengthBytestring,
+        VariableLengthBytestring,
+        signature_splitter,
+        )
+
+    @classmethod
+    def author(cls,
+               signer: Signer,
+               timestamp_epoch: int,
+               this_node: Optional[NodeMetadata] = None,
+               other_nodes: Optional[Iterable[NodeMetadata]] = None,
+               ):
+        payload = cls._signed_payload(timestamp_epoch, this_node, other_nodes)
+        signature = signer.sign(payload)
+        return cls(signature=signature,
+                   timestamp_epoch=timestamp_epoch,
+                   this_node=this_node,
+                   other_nodes=other_nodes)
+
+    @staticmethod
+    def _signed_payload(timestamp_epoch, this_node, other_nodes):
+        timestamp = timestamp_epoch.to_bytes(4, byteorder="big")
+        nodes_payload = b''.join(bytes(VariableLengthBytestring(bytes(node))) for node in other_nodes) if other_nodes else b''
+        return (
+            timestamp +
+            bytes(VariableLengthBytestring(bytes(this_node) if this_node else b'')) +
+            bytes(VariableLengthBytestring(nodes_payload))
+            )
+
+    def __init__(self,
+                 signature: Signature,
+                 timestamp_epoch: int,
+                 this_node: Optional[NodeMetadata] = None,
+                 other_nodes: Optional[List[NodeMetadata]] = None,
+                 ):
+        self.signature = signature
+        self.timestamp_epoch = timestamp_epoch
+        self.this_node = this_node
+        self.other_nodes = other_nodes
+
+    def verify(self, verifying_pk: PublicKey):
+        payload = self._signed_payload(self.timestamp_epoch, self.this_node, self.other_nodes)
+        if not self.signature.verify(verifying_pk=verifying_pk, message=payload):
+            raise InvalidSignature("Incorrect payload signature for MetadataResponse")
+
+    @classmethod
+    def _brand(cls) -> bytes:
+        return b'MdRs'
+
+    @classmethod
+    def _version(cls) -> Tuple[int, int]:
+        return 1, 0
+
+    @classmethod
+    def _old_version_handlers(cls) -> Dict:
+        return {}
+
+    def _payload(self):
+        payload = self._signed_payload(self.timestamp_epoch, self.this_node, self.other_nodes)
+        return payload + bytes(self.signature)
+
+    @classmethod
+    def _from_bytes_current(cls, data: bytes):
+        timestamp_epoch, maybe_this_node, maybe_other_nodes, signature = cls._splitter(data)
+        this_node = NodeMetadata.from_bytes(maybe_this_node) if maybe_this_node else None
+        other_nodes = NodeMetadata.batch_from_bytes(maybe_other_nodes) if maybe_other_nodes else None
+        return cls(signature=signature,
+                   timestamp_epoch=timestamp_epoch,
+                   this_node=this_node,
+                   other_nodes=other_nodes)

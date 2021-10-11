@@ -14,7 +14,6 @@ GNU Affero General Public License for more details.
 You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
-from bytestring_splitter import VariableLengthBytestring
 from eth_utils import is_checksum_address
 from urllib.parse import urlparse
 

@@ -159,8 +159,6 @@ class RetrievalClient:
 
         # Push all unknown Ursulas from the map in the queue for learning
         unknown_ursulas = ursulas_in_map - all_known_ursulas
-        if unknown_ursulas:
-            self._learner.learn_about_specific_nodes(unknown_ursulas)
 
         # If we know enough to decrypt, we can proceed.
         known_ursulas = ursulas_in_map & all_known_ursulas

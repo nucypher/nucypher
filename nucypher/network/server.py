@@ -22,12 +22,21 @@ from pathlib import Path
 from typing import Tuple
 
 from constant_sorrow import constants
-from constant_sorrow.constants import FLEET_STATES_MATCH, RELAX, NOT_STAKING
+from constant_sorrow.constants import RELAX, NOT_STAKING
 from flask import Flask, Response, jsonify, request
 from mako import exceptions as mako_exceptions
 from mako.template import Template
 
-from nucypher.core import AuthorizedKeyFrag, ReencryptionRequest, Arrangement, ArrangementResponse, RevocationOrder, NodeMetadata
+from nucypher.core import (
+    AuthorizedKeyFrag,
+    ReencryptionRequest,
+    Arrangement,
+    ArrangementResponse,
+    RevocationOrder,
+    NodeMetadata,
+    MetadataRequest,
+    MetadataResponse,
+    )
 
 from nucypher.blockchain.eth.utils import period_to_epoch
 from nucypher.config.constants import MAX_UPLOAD_CONTENT_LENGTH
@@ -124,29 +133,29 @@ def _make_rest_app(datastore: Datastore, this_node, domain: str, log: Logger) ->
             # Learn when learned about
             this_node.start_learning_loop()
 
-        if not this_node.known_nodes:
-            return Response(b"", headers=headers, status=204)
-
-        known_nodes_bytestring = this_node.bytestring_of_known_nodes()
-        signature = this_node.stamp(known_nodes_bytestring)
-        return Response(bytes(signature) + known_nodes_bytestring, headers=headers)
+        # All known nodes + this node
+        response_bytes = this_node.bytestring_of_known_nodes()
+        return Response(response_bytes, headers=headers)
 
     @rest_app.route('/node_metadata', methods=["POST"])
     def node_metadata_exchange():
 
+        metadata_request = MetadataRequest.from_bytes(request.data)
+
         # If these nodes already have the same fleet state, no exchange is necessary.
+
         learner_fleet_state = request.args.get('fleet')
-        if learner_fleet_state == this_node.known_nodes.checksum:
+        if metadata_request.fleet_state_checksum == this_node.known_nodes.checksum:
             # log.debug("Learner already knew fleet state {}; doing nothing.".format(learner_fleet_state))  # 1712
             headers = {'Content-Type': 'application/octet-stream'}
-            payload = this_node.known_nodes.snapshot() + bytes(FLEET_STATES_MATCH)
-            signature = this_node.stamp(payload)
-            return Response(bytes(signature) + payload, headers=headers)
+            # No nodes in the response: same fleet state
+            response = MetadataResponse.author(signer=this_node.stamp.as_umbral_signer(),
+                                               timestamp_epoch=this_node.known_nodes.timestamp.epoch)
+            return Response(bytes(response), headers=headers)
 
-        sprouts = NodeMetadata.batch_from_bytes(request.data)
-
-        for node in sprouts:
-            this_node.remember_node(NodeSprout(node))
+        if metadata_request.announce_nodes:
+            for node in metadata_request.announce_nodes:
+                this_node.remember_node(NodeSprout(node))
 
         # TODO: generate a new fleet state here?
 

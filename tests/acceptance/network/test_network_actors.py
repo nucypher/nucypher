@@ -76,7 +76,7 @@ def test_vladimir_illegal_interface_key_does_not_propagate(blockchain_ursulas):
     # This Ursula is totally legit...
     ursula_whom_vladimir_will_imitate.verify_node(MockRestMiddleware())
 
-    vladimir.network_middleware.propagate_shitty_interface_id(other_ursula, bytes(vladimir.metadata()))
+    vladimir.network_middleware.propagate_shitty_interface_id(other_ursula, vladimir.metadata())
 
     # So far, Ursula hasn't noticed any Vladimirs.
     assert other_ursula.suspicious_activities_witnessed['vladimirs'] == []

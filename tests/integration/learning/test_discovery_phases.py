@@ -26,7 +26,8 @@ import pytest
 from flask import Response
 
 from nucypher.characters.lawful import Ursula
-from nucypher.crypto.umbral_adapter import PublicKey, encrypt
+from nucypher.crypto.signing import SignatureStamp
+from nucypher.crypto.umbral_adapter import SecretKey, Signer, PublicKey, encrypt
 from nucypher.datastore.base import RecordField
 from nucypher.network.nodes import Teacher
 from tests.markers import skip_on_circleci
@@ -71,6 +72,12 @@ def test_alice_can_learn_about_a_whole_bunch_of_ursulas(highperf_mocked_alice):
     assert VerificationTracker.node_verifications == 1
 
     _teacher = highperf_mocked_alice.current_teacher_node()
+
+    # Ursulas in the fleet have mocked keys,
+    # but we need the teacher to be able to sign the MetadataResponse.
+    signer = Signer(SecretKey.random())
+    _teacher._stamp = SignatureStamp(verifying_key=signer.verifying_key(), signer=signer)
+
     actual_ursula = MOCK_KNOWN_URSULAS_CACHE[_teacher.rest_interface.port]
 
     # A quick setup so that the bytes casting of Ursulas (on what in the real world will be the remote node)

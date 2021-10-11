@@ -25,16 +25,11 @@ from typing import Callable, Iterable, List, Optional, Set, Tuple, Union
 
 import maya
 import requests
-from bytestring_splitter import (
-    BytestringSplittingError,
-    VariableLengthBytestring
-)
 from constant_sorrow import constant_or_bytes
 from constant_sorrow.constants import (
     CERTIFICATE_NOT_SAVED,
     FLEET_STATES_MATCH,
     NOT_SIGNED,
-    NO_KNOWN_NODES,
     NO_STORAGE_AVAILABLE,
     RELAX,
     UNKNOWN_VERSION
@@ -46,7 +41,7 @@ from requests.exceptions import SSLError
 from twisted.internet import reactor, task
 from twisted.internet.defer import Deferred
 
-from nucypher.core import NodeMetadata
+from nucypher.core import NodeMetadata, MetadataResponse
 
 from nucypher.acumen.nicknames import Nickname
 from nucypher.acumen.perception import FleetSensor
@@ -58,7 +53,6 @@ from nucypher.blockchain.eth.registry import BaseContractRegistry
 from nucypher.config.constants import SeednodeMetadata
 from nucypher.config.storages import ForgetfulNodeStorage
 from nucypher.crypto.powers import DecryptingPower, NoSigningPower, SigningPower
-from nucypher.crypto.splitters import signature_splitter
 from nucypher.crypto.signing import SignatureStamp, InvalidSignature
 from nucypher.crypto.umbral_adapter import Signature
 from nucypher.crypto.utils import recover_address_eip_191, verify_eip_191
@@ -287,7 +281,6 @@ class Learner:
         self.learn_on_same_thread = learn_on_same_thread
 
         self._abort_on_learning_error = abort_on_learning_error
-        self._node_ids_to_learn_about_immediately = set()
 
         self.__known_nodes = self.tracker_class(domain=domain, this_node=self if include_self_in_the_state else None)
         self._verify_node_bonding = verify_node_bonding
@@ -494,8 +487,6 @@ class Learner:
 
             # TODO: What about InvalidNode?  (for that matter, any SuspiciousActivity)  1714, 567 too really
 
-        self._node_ids_to_learn_about_immediately.discard(node.checksum_address)
-
         if record_fleet_state:
             self.known_nodes.record_fleet_state()
 
@@ -626,11 +617,6 @@ class Learner:
         # Alternately, it might be nice for learn_from_teacher_node to (some or all of the time) return a Deferred.
         reactor.callInThread(self._learning_deferred.callback, None)
         return self._learning_deferred
-
-    def learn_about_specific_nodes(self, addresses: Iterable):
-        if len(addresses) > 0:
-            self._node_ids_to_learn_about_immediately.update(addresses)  # hmmmm
-            self.learn_about_nodes_now()
 
     # TODO: Dehydrate these next two methods.  NRN
 
@@ -799,7 +785,7 @@ class Learner:
         current_teacher = self.current_teacher_node()  # Will raise if there's no available teacher.
 
         if isinstance(self, Teacher):
-            announce_nodes = [self]
+            announce_nodes = [self.metadata()]
         else:
             announce_nodes = None
 
@@ -813,9 +799,8 @@ class Learner:
 
         try:
             response = self.network_middleware.get_nodes_via_rest(node=current_teacher,
-                                                                  nodes_i_need=self._node_ids_to_learn_about_immediately,
                                                                   announce_nodes=announce_nodes,
-                                                                  fleet_checksum=self.known_nodes.checksum)
+                                                                  fleet_state_checksum=self.known_nodes.checksum)
         # These except clauses apply to the current_teacher itself, not the learned-about nodes.
         except NodeSeemsToBeDown as e:
             unresponsive_nodes.add(current_teacher)
@@ -849,18 +834,12 @@ class Learner:
             # Is cycling happening in the right order?
             self.cycle_teacher_node()
 
-        # Before we parse the response, let's handle some edge cases.
-        if response.status_code == 204:
-            # In this case, this node knows about no other nodes.  Hopefully we've taught it something.
-            if response.content == b"":
-                return NO_KNOWN_NODES
-            # In the other case - where the status code is 204 but the repsonse isn't blank - we'll keep parsing.
-            # It's possible that our fleet states match, and we'll check for that later.
-
-        elif response.status_code != 200:
+        if response.status_code != 200:
             self.log.info("Bad response from teacher {}: {} - {}".format(current_teacher, response, response.content))
             return
 
+        # TODO: we really should be checking this *before* we ask it for a node list,
+        # but currently we may not know this before the REST request (which may mature the node)
         if self.domain != current_teacher.domain:
             self.log.debug(f"{current_teacher} is serving '{current_teacher.domain}', "
                            f"ignore since we are learning about '{self.domain}'")
@@ -870,28 +849,29 @@ class Learner:
         # Deserialize
         #
         try:
-            signature, node_payload = signature_splitter(response.content, return_remainder=True)
-        except BytestringSplittingError:
-            self.log.warn("No signature prepended to Teacher {} payload: {}".format(current_teacher, response.content))
+            metadata = MetadataResponse.from_bytes(response.content)
+        except Exception as e:
+            self.log.warn(f"Failed to deserialize MetadataResponse from Teacher {current_teacher} ({e}): {response.content}")
             return
 
         try:
-            # TODO: does this call the `Character.verify_from()` version? Hopefully it does.
-            self.verify_from(current_teacher, node_payload, signature=signature)
+            metadata.verify(current_teacher.stamp.as_umbral_pubkey())
         except InvalidSignature:
             self.suspicious_activities_witnessed['vladimirs'].append(
-                ('Node payload improperly signed', node_payload, signature))
+                ('Node payload improperly signed', response.content))
             self.log.warn(
-                f"Invalid signature ({signature}) received from teacher {current_teacher} for payload {node_payload}")
+                f"Invalid signature received from teacher {current_teacher} for MetadataResponse {response.content}")
+            return
 
         # End edge case handling.
 
-        fleet_state_checksum, fleet_state_updated, node_payload = FleetSensor.unpack_snapshot(node_payload)
+        fleet_state_updated = maya.MayaDT(metadata.timestamp_epoch)
 
-        if constant_or_bytes(node_payload) is FLEET_STATES_MATCH:
+        if not metadata.this_node and not metadata.other_nodes:
+            # The teacher had the same fleet state
             self.known_nodes.record_remote_fleet_state(
                 current_teacher.checksum_address,
-                fleet_state_checksum,
+                self.known_nodes.checksum,
                 fleet_state_updated,
                 self.known_nodes.population)
 
@@ -901,7 +881,10 @@ class Learner:
         # so it has been removed.  When we create a new Ursula bytestring version, let's put the check
         # somewhere more performant, like mature() or verify_node().
 
-        nodes = NodeMetadata.batch_from_bytes(node_payload)
+        nodes = (
+            ([metadata.this_node] if metadata.this_node else []) +
+            (metadata.other_nodes if metadata.other_nodes else [])
+            )
         sprouts = [NodeSprout(node) for node in nodes]
 
         for sprout in sprouts:
@@ -948,13 +931,6 @@ class Learner:
                           f"Propagated by: {current_teacher}"
                 self.log.warn(message)
 
-        # Is cycling happening in the right order?
-        self.known_nodes.record_remote_fleet_state(
-            current_teacher.checksum_address,
-            fleet_state_checksum,
-            fleet_state_updated,
-            len(sprouts))
-
         ###################
 
         learning_round_log_message = "Learning round {}.  Teacher: {} knew about {} nodes, {} were new."
@@ -964,6 +940,17 @@ class Learner:
                                                         len(remembered)))
         if remembered:
             self.known_nodes.record_fleet_state()
+
+        # Now that we updated all our nodes with the teacher's,
+        # our fleet state checksum should be the same as the teacher's checksum.
+
+        # Is cycling happening in the right order?
+        self.known_nodes.record_remote_fleet_state(
+            current_teacher.checksum_address,
+            self.known_nodes.checksum,
+            fleet_state_updated,
+            len(sprouts))
+
         return sprouts
 
 
@@ -1053,18 +1040,15 @@ class Teacher:
             self.rest_server.rest_interface.port
         )
 
-    def sorted_nodes(self):
-        nodes_to_consider = list(self.known_nodes.values()) + [self]
-        return sorted(nodes_to_consider, key=lambda n: n.checksum_address)
-
     def bytestring_of_known_nodes(self):
-        payload = self.known_nodes.snapshot()
-        ursulas_as_vbytes = (VariableLengthBytestring(bytes(n.metadata())) for n in self.known_nodes)
-        ursulas_as_bytes = bytes().join(bytes(u) for u in ursulas_as_vbytes)
-        ursulas_as_bytes += VariableLengthBytestring(bytes(self.metadata()))
-
-        payload += ursulas_as_bytes
-        return payload
+        # TODO (#1537): FleetSensor does metadata-to-byte conversion as well,
+        # we may be able to cache the results there.
+        response = MetadataResponse.author(signer=self.stamp.as_umbral_signer(),
+                                           timestamp_epoch=self.known_nodes.timestamp.epoch,
+                                           this_node=self.metadata(),
+                                           other_nodes=[node.metadata() for node in self.known_nodes],
+                                           )
+        return bytes(response)
 
     #
     # Stamp
