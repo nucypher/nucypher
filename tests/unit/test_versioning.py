@@ -16,6 +16,7 @@
 """
 
 
+import re
 from typing import Tuple, Any, Type
 
 import pytest
@@ -26,8 +27,8 @@ from nucypher.utilities.versioning import Versioned
 def _check_valid_version_tuple(version: Any, cls: Type):
     if not isinstance(version, tuple):
         pytest.fail(f"Old version handlers keys for {cls.__name__} must be a tuple")
-    if not len(version) == Versioned._PARTS:
-        pytest.fail(f"Old version handlers keys for {cls.__name__} must be a {str(Versioned._PARTS)}-tuple")
+    if not len(version) == Versioned._VERSION_PARTS:
+        pytest.fail(f"Old version handlers keys for {cls.__name__} must be a {str(Versioned._VERSION_PARTS)}-tuple")
     if not all(isinstance(part, int) for part in version):
         pytest.fail(f"Old version handlers version parts {cls.__name__} must be integers")
 
@@ -39,7 +40,7 @@ class A(Versioned):
 
     @classmethod
     def _brand(cls):
-        return b"AA"
+        return b"ABCD"
 
     @classmethod
     def _version(cls) -> Tuple[int, int]:
@@ -77,9 +78,8 @@ def test_valid_branding():
     for cls in Versioned.__subclasses__():
         if len(cls._brand()) != cls._BRAND_SIZE:
             pytest.fail(f"Brand must be exactly {str(Versioned._BRAND_SIZE)} bytes.")
-        if not cls._brand().isalpha():
+        if not re.fullmatch(rb'\w+', cls._brand()):
             pytest.fail(f"Brand must be alphanumeric; Got {cls._brand()}")
-
 
 def test_valid_version_implementation():
     for cls in Versioned.__subclasses__():
@@ -109,38 +109,44 @@ def test_versioning_header_prepend():
     assert brand == A._brand()
 
     version = header[Versioned._BRAND_SIZE:]
-    major, minor = version[:Versioned._PART_SIZE], version[Versioned._PART_SIZE:]
+    major, minor = version[:Versioned._VERSION_PART_SIZE], version[Versioned._VERSION_PART_SIZE:]
     major_number = int.from_bytes(major, 'big')
     minor_number = int.from_bytes(minor, 'big')
     assert (major_number, minor_number) == A._version()
 
 
 def test_versioning_input_too_short():
-    empty = b'AA\x00\x01'
+    empty = b'ABCD\x00\x01'
     with pytest.raises(ValueError, match='Invalid bytes for A.'):
         A.from_bytes(empty)
         
 
 def test_versioning_empty_payload():
-    empty = b'AA\x00\x02\x00\x01'
+    empty = b'ABCD\x00\x02\x00\x01'
     with pytest.raises(ValueError, match='No content to deserialize A.'):
         A.from_bytes(empty)
 
 
 def test_versioning_invalid_brand():
-    invalid = b'\x00\x03\x00\x0112'
+    invalid = b'\x01\x02\x00\x03\x00\x0112'
+    with pytest.raises(Versioned.InvalidHeader, match="Incompatible bytes for A."):
+        A.from_bytes(invalid)
+
+    # A partially invalid brand, to check that the regexp validates
+    # the whole brand and not just the beginning of it.
+    invalid = b'ABC \x00\x02\x00\x0112'
     with pytest.raises(Versioned.InvalidHeader, match="Incompatible bytes for A."):
         A.from_bytes(invalid)
 
 
 def test_versioning_incorrect_brand():
-    incorrect = b'AB\x00\x0112'
-    with pytest.raises(Versioned.InvalidHeader, match="Incorrect brand. Expected b'AA', Got b'AB'."):
+    incorrect = b'ABAB\x00\x0112'
+    with pytest.raises(Versioned.InvalidHeader, match="Incorrect brand. Expected b'ABCD', Got b'ABAB'."):
         A.from_bytes(incorrect)
 
 
 def test_unknown_future_major_version():
-    empty = b'AA\x00\x03\x00\x0212'
+    empty = b'ABCD\x00\x03\x00\x0212'
     message = 'Incompatible versioned bytes for A. Compatible version is 2.x, Got 3.2.'
     with pytest.raises(ValueError, match=message):
         A.from_bytes(empty)
@@ -148,7 +154,7 @@ def test_unknown_future_major_version():
 
 def test_incompatible_old_major_version(mocker):
     current_spy = mocker.spy(A, "_from_bytes_current")
-    v1_data = b'AA\x00\x01\x00\x0012'
+    v1_data = b'ABCD\x00\x01\x00\x0012'
     message = 'Incompatible versioned bytes for A. Compatible version is 2.x, Got 1.0.'
     with pytest.raises(Versioned.IncompatibleVersion, match=message):
         A.from_bytes(v1_data)
@@ -157,7 +163,7 @@ def test_incompatible_old_major_version(mocker):
 
 def test_incompatible_future_major_version(mocker):
     current_spy = mocker.spy(A, "_from_bytes_current")
-    v1_data = b'AA\x00\x03\x00\x0012'
+    v1_data = b'ABCD\x00\x03\x00\x0012'
     message = 'Incompatible versioned bytes for A. Compatible version is 2.x, Got 3.0.'
     with pytest.raises(Versioned.IncompatibleVersion, match=message):
         A.from_bytes(v1_data)
@@ -186,7 +192,7 @@ def test_old_minor_version_handler_routing(mocker):
     v2_0_spy = mocker.spy(A, "_from_bytes_v2_0")
 
     # Old minor version
-    v2_0_data = b'AA\x00\x02\x00\x0012'
+    v2_0_data = b'ABCD\x00\x02\x00\x0012'
     a = A.from_bytes(v2_0_data)
     assert a.x == 18
 
@@ -200,7 +206,7 @@ def test_current_minor_version_handler_routing(mocker):
     current_spy = mocker.spy(A, "_from_bytes_current")
     v2_0_spy = mocker.spy(A, "_from_bytes_v2_0")
 
-    v2_1_data = b'AA\x00\x02\x00\x0112'
+    v2_1_data = b'ABCD\x00\x02\x00\x0112'
     a = A.from_bytes(v2_1_data)
     assert a.x == '18'
 
@@ -214,7 +220,7 @@ def test_future_minor_version_handler_routing(mocker):
     current_spy = mocker.spy(A, "_from_bytes_current")
     v2_0_spy = mocker.spy(A, "_from_bytes_v2_0")
 
-    v2_2_data = b'AA\x00\x02\x02\x0112'
+    v2_2_data = b'ABCD\x00\x02\x02\x0112'
     a = A.from_bytes(v2_2_data)
     assert a.x == '18'
 

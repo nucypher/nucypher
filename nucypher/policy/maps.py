@@ -105,7 +105,7 @@ class TreasureMap(Versioned):
 
     @classmethod
     def _brand(cls) -> bytes:
-        return b'TM'
+        return b'TMap'
 
     @classmethod
     def _version(cls) -> Tuple[int, int]:
@@ -205,7 +205,7 @@ class AuthorizedKeyFrag(Versioned):
 
     @classmethod
     def _brand(cls) -> bytes:
-        return b'KF'
+        return b'AKF_'
 
     @classmethod
     def _version(cls) -> Tuple[int, int]:
@@ -330,7 +330,7 @@ class EncryptedTreasureMap(Versioned):
 
     @classmethod
     def _brand(cls) -> bytes:
-        return b'EM'
+        return b'EMap'
 
     @classmethod
     def _version(cls) -> Tuple[int, int]:

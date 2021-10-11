@@ -17,16 +17,17 @@
 
 
 from abc import abstractmethod, ABC
+import re
 from typing import Dict, Tuple, Callable
 
 
 class Versioned(ABC):
     """Base class for serializable entities"""
 
-    _PARTS = 2  # bytes
-    _PART_SIZE = 2
-    _BRAND_SIZE = 2
-    _VERSION_SIZE = _PART_SIZE * _PARTS
+    _VERSION_PARTS = 2
+    _VERSION_PART_SIZE = 2  # bytes
+    _BRAND_SIZE = 4
+    _VERSION_SIZE = _VERSION_PART_SIZE * _VERSION_PARTS
     _HEADER_SIZE = _BRAND_SIZE + _VERSION_SIZE
 
     class InvalidHeader(ValueError):
@@ -65,8 +66,8 @@ class Versioned(ABC):
     def _header(cls) -> bytes:
         """The entire bytes header to prepend to the instance payload."""
         major, minor = cls._version()
-        major_bytes = major.to_bytes(cls._PART_SIZE, 'big')
-        minor_bytes = minor.to_bytes(cls._PART_SIZE, 'big')
+        major_bytes = major.to_bytes(cls._VERSION_PART_SIZE, 'big')
+        minor_bytes = minor.to_bytes(cls._VERSION_PART_SIZE, 'big')
         header = cls._brand() + major_bytes + minor_bytes
         return header
 
@@ -135,7 +136,7 @@ class Versioned(ABC):
         brand = data[:cls._BRAND_SIZE]
         if brand != cls._brand():
             error = f"Incorrect brand. Expected {cls._brand()}, Got {brand}."
-            if not brand.isalpha():
+            if not re.fullmatch(rb'\w+', brand):
                 # unversioned entities for older versions will most likely land here.
                 error = f"Incompatible bytes for {cls.__name__}."
             raise cls.InvalidHeader(error)
@@ -144,7 +145,7 @@ class Versioned(ABC):
     @classmethod
     def _parse_version(cls, data: bytes) -> Tuple[int, int]:
         version_data = data[cls._BRAND_SIZE:cls._HEADER_SIZE]
-        major, minor = version_data[:cls._PART_SIZE], version_data[cls._PART_SIZE:]
+        major, minor = version_data[:cls._VERSION_PART_SIZE], version_data[cls._VERSION_PART_SIZE:]
         major, minor = int.from_bytes(major, 'big'), int.from_bytes(minor, 'big')
         version = major, minor
         return version

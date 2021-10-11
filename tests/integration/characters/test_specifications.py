@@ -90,12 +90,12 @@ def test_treasure_map_validation(enacted_federated_policy,
     assert "Could not parse tmap" in str(e)
     assert "Invalid base64-encoded string" in str(e)
 
-    base64_header = base64.b64encode(EncryptedTreasureMapClass._header()).decode()
-
     # valid base64 but invalid treasuremap
-    bad_map = base64_header + "VGhpcyBpcWgb3RhbGx5IG5vdCBhIHRyZWFzdXJlbWg=="
+    bad_map = EncryptedTreasureMapClass._header() + b"your face looks like a treasure map"
+    bad_map_b64 = base64.b64encode(bad_map).decode()
+
     with pytest.raises(InvalidInputData) as e:
-        EncryptedTreasureMapsOnly().load({'tmap': bad_map})
+        EncryptedTreasureMapsOnly().load({'tmap': bad_map_b64})
 
     assert "Could not convert input for tmap to an EncryptedTreasureMap" in str(e)
     assert "Invalid encrypted treasure map contents." in str(e)
@@ -121,10 +121,11 @@ def test_treasure_map_validation(enacted_federated_policy,
     assert "Invalid base64-encoded string" in str(e)
 
     # valid base64 but invalid treasuremap
-    base64_header = base64.b64encode(TreasureMapClass._header()).decode()
-    bad_map = base64_header + "VGhpcyBpcyB0b3RhbGx5IG5vdCBhIHRyZWFzdXJlbWFwLg=="
+    bad_map = TreasureMapClass._header() + b"your face looks like a treasure map"
+    bad_map_b64 = base64.b64encode(bad_map).decode()
+
     with pytest.raises(InvalidInputData) as e:
-        UnenncryptedTreasureMapsOnly().load({'tmap': bad_map})
+        UnenncryptedTreasureMapsOnly().load({'tmap': bad_map_b64})
 
     assert "Could not convert input for tmap to a TreasureMap" in str(e)
     assert "Invalid treasure map contents." in str(e)
@@ -153,9 +154,11 @@ def test_messagekit_validation(capsule_side_channel):
     assert "Incorrect padding" in str(e)
 
     # valid base64 but invalid messagekit
-    b64header = base64.b64encode(MessageKit._header()).decode()
+    bad_kit = MessageKit._header() + b"I got a message for you"
+    bad_kit_b64 = base64.b64encode(bad_kit).decode()
+
     with pytest.raises(SpecificationError) as e:
-        MessageKitsOnly().load({'mkit': b64header + "V3da=="})
+        MessageKitsOnly().load({'mkit': bad_kit_b64})
 
     assert "Could not parse mkit" in str(e)
     assert "Not enough bytes to constitute message types" in str(e)
