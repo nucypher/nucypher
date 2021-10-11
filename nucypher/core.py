@@ -20,6 +20,7 @@ from typing import Optional, Sequence, Callable, Dict, Tuple, List, Iterable
 from bytestring_splitter import (
     BytestringSplitter,
     VariableLengthBytestring,
+    BytestringKwargifier,
     BytestringSplittingError,
 )
 from eth_typing.evm import ChecksumAddress
@@ -841,3 +842,96 @@ class RevocationOrder(Versioned):
         return cls(ursula_address=ursula_address,
                    encrypted_kfrag=ekfrag,
                    signature=signature)
+
+
+class NodeMetadata(Versioned):
+
+    def __init__(self,
+                 public_address: bytes,
+                 domain: str,
+                 timestamp_epoch: int,
+                 interface_signature: Signature, # sign(timestamp + canonical_public_address + host + port)
+                 decentralized_identity_evidence: bytes, # TODO: make its own type?
+                 verifying_key: PublicKey,
+                 encrypting_key: PublicKey,
+                 certificate_bytes: bytes, # serialized `cryptography.x509.Certificate`
+                 host: str,
+                 port: int,
+                 ):
+        self.public_address = public_address
+        self.domain = domain
+        self.timestamp_epoch = timestamp_epoch
+        self.interface_signature = interface_signature
+        self.decentralized_identity_evidence = decentralized_identity_evidence
+        self.verifying_key = verifying_key
+        self.encrypting_key = encrypting_key
+        self.certificate_bytes = certificate_bytes
+        self.host = host
+        self.port = port
+
+    @classmethod
+    def _brand(cls) -> bytes:
+        return b'NdMd'
+
+    @classmethod
+    def _version(cls) -> Tuple[int, int]:
+        return 1, 0
+
+    @classmethod
+    def _old_version_handlers(cls) -> Dict:
+        return {}
+
+    def _payload(self):
+        as_bytes = bytes().join((self.public_address,
+                                 bytes(VariableLengthBytestring(self.domain.encode('utf-8'))),
+                                 self.timestamp_epoch.to_bytes(4, 'big'),
+                                 bytes(self.interface_signature),
+                                 bytes(VariableLengthBytestring(self.decentralized_identity_evidence)),  # FIXME: Fixed length doesn't work with federated
+                                 bytes(self.verifying_key),
+                                 bytes(self.encrypting_key),
+                                 bytes(VariableLengthBytestring(self.certificate_bytes)),
+                                 bytes(VariableLengthBytestring(self.host.encode('utf-8'))),
+                                 self.port.to_bytes(2, 'big'),
+                                ))
+        return as_bytes
+
+    @classmethod
+    def _from_bytes_current(cls, data: bytes):
+        splitter = BytestringKwargifier(
+            dict,
+            public_address=ETH_ADDRESS_BYTE_LENGTH,
+            domain_bytes=VariableLengthBytestring,
+            timestamp_epoch=(int, 4, {'byteorder': 'big'}),
+            interface_signature=signature_splitter,
+
+            # FIXME: Fixed length doesn't work with federated. It was LENGTH_ECDSA_SIGNATURE_WITH_RECOVERY,
+            decentralized_identity_evidence=VariableLengthBytestring,
+
+            verifying_key=key_splitter,
+            encrypting_key=key_splitter,
+            certificate_bytes=VariableLengthBytestring,
+            host_bytes=VariableLengthBytestring,
+            port=(int, 2, {'byteorder': 'big'}),
+            )
+
+        result = splitter(data)
+
+        return cls(public_address=result['public_address'],
+                   domain=result['domain_bytes'].decode('utf-8'),
+                   timestamp_epoch=result['timestamp_epoch'],
+                   interface_signature=result['interface_signature'],
+                   decentralized_identity_evidence=result['decentralized_identity_evidence'],
+                   verifying_key=result['verifying_key'],
+                   encrypting_key=result['encrypting_key'],
+                   certificate_bytes=result['certificate_bytes'],
+                   host=result['host_bytes'].decode('utf-8'),
+                   port=result['port'],
+                   )
+
+    @classmethod
+    def batch_from_bytes(cls, data: bytes):
+
+        node_splitter = BytestringSplitter(VariableLengthBytestring)
+        nodes_vbytes = node_splitter.repeat(data)
+
+        return [cls.from_bytes(node_data) for node_data in nodes_vbytes]

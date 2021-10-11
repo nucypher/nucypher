@@ -26,9 +26,7 @@ from typing import Callable, Iterable, List, Optional, Set, Tuple, Union
 import maya
 import requests
 from bytestring_splitter import (
-    BytestringSplitter,
     BytestringSplittingError,
-    PartiallyKwargifiedBytes,
     VariableLengthBytestring
 )
 from constant_sorrow import constant_or_bytes
@@ -41,11 +39,14 @@ from constant_sorrow.constants import (
     RELAX,
     UNKNOWN_VERSION
 )
-from cryptography.x509 import Certificate
+from cryptography.x509 import Certificate, load_pem_x509_certificate
+from cryptography.hazmat.backends import default_backend
 from eth_utils import to_checksum_address
 from requests.exceptions import SSLError
 from twisted.internet import reactor, task
 from twisted.internet.defer import Deferred
+
+from nucypher.core import NodeMetadata
 
 from nucypher.acumen.nicknames import Nickname
 from nucypher.acumen.perception import FleetSensor
@@ -64,7 +65,7 @@ from nucypher.crypto.utils import recover_address_eip_191, verify_eip_191
 from nucypher.network import LEARNING_LOOP_VERSION
 from nucypher.network.exceptions import NodeSeemsToBeDown
 from nucypher.network.middleware import RestMiddleware
-from nucypher.network.protocols import SuspiciousActivity
+from nucypher.network.protocols import SuspiciousActivity, InterfaceInfo
 from nucypher.utilities.logging import Logger
 
 TEACHER_NODES = {
@@ -78,20 +79,22 @@ TEACHER_NODES = {
 }
 
 
-class NodeSprout(PartiallyKwargifiedBytes):
+class NodeSprout:
     """
     An abridged node class designed for optimization of instantiation of > 100 nodes simultaneously.
     """
     verified_node = False
 
     def __init__(self, node_metadata):
-        super().__init__(node_metadata)
+        self._metadata = node_metadata
+
+        # cached properties
         self._checksum_address = None
         self._nickname = None
         self._hash = None
-        self.timestamp = maya.MayaDT(
-            self.timestamp)  # Weird for this to be in init. maybe this belongs in the splitter also.
         self._repr = None
+        self._rest_interface = None
+
         self._is_finishing = False
         self._finishing_mutex = Queue()
 
@@ -103,35 +106,19 @@ class NodeSprout(PartiallyKwargifiedBytes):
         return bytes(self.stamp) == bytes(other_stamp)
 
     def __hash__(self):
-        return int.from_bytes(bytes(self.stamp), byteorder="big")
+        if not self._hash:
+            self._hash = int.from_bytes(bytes(self.stamp), byteorder="big")
+        return self._hash
 
     def __repr__(self):
         if not self._repr:
             self._repr = f"({self.__class__.__name__})⇀{self.nickname}↽ ({self.checksum_address})"
         return self._repr
 
-    def __bytes__(self):
-        b = super().__bytes__()
-
-        # We assume that the TEACHER_VERSION of this codebase is the version for this NodeSprout.
-        # This is probably true, right?  Might need to be re-examined someday if we have
-        # different node types of different versions.
-        version = Teacher.TEACHER_VERSION.to_bytes(2, "big")
-        return version + b
-
-    @property
-    def stamp(self) -> SignatureStamp:
-        return SignatureStamp(self.verifying_key)
-
-    @property
-    def domain(self) -> str:
-        domain_bytes = PartiallyKwargifiedBytes.__getattr__(self, "domain")
-        return domain_bytes.decode("utf-8")
-
     @property
     def checksum_address(self):
         if not self._checksum_address:
-            self._checksum_address = to_checksum_address(self.public_address)
+            self._checksum_address = to_checksum_address(self._metadata.public_address)
         return self._checksum_address
 
     @property
@@ -140,8 +127,59 @@ class NodeSprout(PartiallyKwargifiedBytes):
             self._nickname = Nickname.from_seed(self.checksum_address)
         return self._nickname
 
+    @property
+    def rest_interface(self):
+        if not self._rest_interface:
+            self._rest_interface = InterfaceInfo(self._metadata.host, self._metadata.port)
+        return self._rest_interface
+
     def rest_url(self):
         return self.rest_interface.uri
+
+    def metadata(self):
+        return self._metadata
+
+    @property
+    def verifying_key(self):
+        return self._metadata.verifying_key
+
+    @property
+    def encrypting_key(self):
+        return self._metadata.encrypting_key
+
+    @property
+    def decentralized_identity_evidence(self):
+        return self._metadata.decentralized_identity_evidence
+
+    @property
+    def public_address(self):
+        return self._metadata.public_address
+
+    @property
+    def timestamp(self):
+        return maya.MayaDT(self._metadata.timestamp_epoch)
+
+    @property
+    def stamp(self) -> SignatureStamp:
+        return SignatureStamp(self._metadata.verifying_key)
+
+    @property
+    def domain(self) -> str:
+        return self._metadata.domain
+
+    def finish(self):
+        from nucypher.characters.lawful import Ursula
+        return Ursula.from_public_keys(rest_host=self._metadata.host,
+                                       rest_port=self._metadata.port,
+                                       checksum_address=self.checksum_address,
+                                       domain=self._metadata.domain,
+                                       timestamp=self.timestamp,
+                                       interface_signature=self._metadata.interface_signature,
+                                       decentralized_identity_evidence=self._metadata.decentralized_identity_evidence,
+                                       verifying_key=self._metadata.verifying_key,
+                                       encrypting_key=self._metadata.encrypting_key,
+                                       certificate=load_pem_x509_certificate(self._metadata.certificate_bytes, backend=default_backend())
+                                       )
 
     def mature(self):
         if self._is_finishing:
@@ -196,8 +234,6 @@ class Learner:
     LEARNER_VERSION = LEARNING_LOOP_VERSION
     LOWEST_COMPATIBLE_VERSION = 2  # Disallow versions lower than this
 
-    node_splitter = BytestringSplitter(VariableLengthBytestring)
-    version_splitter = BytestringSplitter((int, 2, {"byteorder": "big"}))
     tracker_class = FleetSensor
 
     invalid_metadata_message = "{} has invalid metadata.  The node's stake may have ended, or it is transitioning to a new interface. Ignoring."
@@ -791,7 +827,7 @@ class Learner:
             # TODO: Bucket separately and report.
             unresponsive_nodes.add(current_teacher)  # This does nothing.
             self.known_nodes.mark_as(current_teacher.InvalidNode, current_teacher)
-            self.log.warn(f"Teacher {str(current_teacher)} is invalid (hex={bytes(current_teacher).hex()}):{e}.")
+            self.log.warn(f"Teacher {str(current_teacher)} is invalid (hex={bytes(current_teacher.metadata()).hex()}):{e}.")
             self.suspicious_activities_witnessed['vladimirs'].append(current_teacher)
             return
         except RuntimeError as e:
@@ -802,12 +838,12 @@ class Learner:
             else:
                 self.log.warn(
                     f"Unhandled error while learning from {str(current_teacher)} "
-                    f"(hex={bytes(current_teacher).hex()}):{e}.")
+                    f"(hex={bytes(current_teacher.metadata()).hex()}):{e}.")
                 raise
         except Exception as e:
             self.log.warn(
                 f"Unhandled error while learning from {str(current_teacher)} "
-                f"(hex={bytes(current_teacher).hex()}):{e}.")  # To track down 2345 / 1698
+                f"(hex={bytes(current_teacher.metadata()).hex()}):{e}.")  # To track down 2345 / 1698
             raise
         finally:
             # Is cycling happening in the right order?
@@ -865,10 +901,10 @@ class Learner:
         # so it has been removed.  When we create a new Ursula bytestring version, let's put the check
         # somewhere more performant, like mature() or verify_node().
 
-        sprouts = self.node_class.batch_from_bytes(node_payload)
+        nodes = NodeMetadata.batch_from_bytes(node_payload)
+        sprouts = [NodeSprout(node) for node in nodes]
 
         for sprout in sprouts:
-            fail_fast = True  # TODO  NRN
             try:
                 node_or_false = self.remember_node(sprout,
                                                    record_fleet_state=False,
@@ -987,15 +1023,6 @@ class Teacher:
     class WrongMode(TypeError):
         """Raised when a Character tries to use another Character as decentralized when the latter is federated_only."""
 
-    class UnexpectedVersion(TypeError):
-        """Raised when deserializing a Character from a unexpected and incompatible version."""
-
-    class IsFromTheFuture(UnexpectedVersion):
-        """Raised when deserializing a Character from a future version."""
-
-    class AreYouFromThePast(UnexpectedVersion):
-        """Raised when deserializing a Character from a previous, now unsupported version."""
-
     unknown_version_message = "{} purported to be of version {}, but we're version {}."
     really_unknown_version_message = "Unable to glean address from node that purported to be version {}. " \
                                      "We're version {}."
@@ -1032,9 +1059,9 @@ class Teacher:
 
     def bytestring_of_known_nodes(self):
         payload = self.known_nodes.snapshot()
-        ursulas_as_vbytes = (VariableLengthBytestring(n) for n in self.known_nodes)
+        ursulas_as_vbytes = (VariableLengthBytestring(bytes(n.metadata())) for n in self.known_nodes)
         ursulas_as_bytes = bytes().join(bytes(u) for u in ursulas_as_vbytes)
-        ursulas_as_bytes += VariableLengthBytestring(bytes(self))
+        ursulas_as_bytes += VariableLengthBytestring(bytes(self.metadata()))
 
         payload += ursulas_as_bytes
         return payload
@@ -1192,9 +1219,7 @@ class Teacher:
                                                                    port=self.rest_interface.port,
                                                                    certificate_filepath=certificate_filepath)
 
-        version, node_bytes = self.version_splitter(response_data, return_remainder=True)
-
-        sprout = self.payload_splitter(node_bytes, partial=True)
+        sprout = NodeSprout(NodeMetadata.from_bytes(response_data))
 
         verifying_keys_match = sprout.verifying_key == self.public_keys(SigningPower)
         encrypting_keys_match = sprout.encrypting_key == self.public_keys(DecryptingPower)
@@ -1236,6 +1261,11 @@ class Teacher:
         """
         Checks that the interface info is valid for this node's canonical address.
         """
+
+        # TODO: move to NodeMetadata
+        # Also: all this info we're verifying came in the same package as the verifying key itself
+        # (in NodeMetadata). So what's the point? Of course it's going to be verified successfully.
+
         interface_info_message = self._signable_interface_info_message()  # Contains canonical address.
         message = self.timestamp_bytes() + interface_info_message
         interface_is_valid = self._interface_signature.verify(self.public_keys(SigningPower), message)
@@ -1246,7 +1276,11 @@ class Teacher:
             raise self.InvalidNode("Interface is not valid")
 
     def _signable_interface_info_message(self):
-        message = self.canonical_public_address + self.rest_interface
+        message = (
+            self.canonical_public_address +
+            self.rest_interface.host.encode('utf-8') +
+            self.rest_interface.port.to_bytes(2, 'big')
+            )
         return message
 
     def _sign_and_date_interface_info(self):

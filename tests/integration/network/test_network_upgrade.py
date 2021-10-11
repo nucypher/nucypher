@@ -40,7 +40,7 @@ def test_federated_nodes_connect_via_tls_and_verify(lonely_ursula_maker):
 
     def check_node_with_cert(node, cert_file):
         response = requests.get("https://{}/public_information".format(node.rest_url()), verify=cert_file)
-        ursula = Ursula.from_bytes(response.content)
+        ursula = Ursula.from_metadata_bytes(response.content)
         assert ursula == node
 
     try:

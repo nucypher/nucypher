@@ -132,7 +132,7 @@ class FleetState:
 
         if self._this_node_ref is not None and not skip_this_node:
             this_node = self._this_node_ref()
-            this_node_metadata = bytes(this_node)
+            this_node_metadata = bytes(this_node.metadata())
             this_node_updated = self._this_node_metadata != this_node_metadata
             this_node_list = [this_node]
         else:
@@ -156,7 +156,7 @@ class FleetState:
 
             all_nodes_sorted = sorted(itertools.chain(this_node_list, nodes.values()),
                                       key=lambda node: node.checksum_address)
-            joined_metadata = b"".join(bytes(node) for node in all_nodes_sorted)
+            joined_metadata = b"".join(bytes(node.metadata()) for node in all_nodes_sorted)
             checksum = keccak_digest(joined_metadata).hex()
         else:
             nodes = self._nodes

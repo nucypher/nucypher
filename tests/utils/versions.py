@@ -29,5 +29,5 @@ def test_print_ursulas_bytes(blockchain_ursulas):
 
     print(f"\nursulas_v{Learner.LEARNER_VERSION} = (")
     for ursula in blockchain_ursulas:
-        print(f"    '{bytes(ursula).hex()}',")
+        print(f"    '{bytes(ursula.metadata()).hex()}',")
     print(")")

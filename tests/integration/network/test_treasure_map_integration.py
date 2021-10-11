@@ -36,7 +36,7 @@ def test_alice_creates_policy_with_correct_hrac(federated_alice, federated_bob, 
 
 def test_alice_does_not_update_with_old_ursula_info(federated_alice, federated_ursulas):
     ursula = list(federated_ursulas)[0]
-    old_metadata = bytes(ursula)
+    old_metadata = bytes(ursula.metadata())
 
     # Alice has remembered Ursula.
     assert federated_alice.known_nodes[ursula.checksum_address] == ursula
@@ -45,9 +45,9 @@ def test_alice_does_not_update_with_old_ursula_info(federated_alice, federated_u
     ursula._sign_and_date_interface_info()
 
     # Indeed, her metadata is not the same now.
-    assert bytes(ursula) != old_metadata
+    assert bytes(ursula.metadata()) != old_metadata
 
-    old_ursula = Ursula.from_bytes(old_metadata)
+    old_ursula = Ursula.from_metadata_bytes(old_metadata)
 
     # Once Alice learns about Ursula's updated info...
     federated_alice.remember_node(ursula)
@@ -55,5 +55,5 @@ def test_alice_does_not_update_with_old_ursula_info(federated_alice, federated_u
     # ...she can't learn about old ursula anymore.
     federated_alice.remember_node(old_ursula)
 
-    new_metadata = bytes(federated_alice.known_nodes[ursula.checksum_address])
+    new_metadata = bytes(federated_alice.known_nodes[ursula.checksum_address].metadata())
     assert new_metadata != old_metadata

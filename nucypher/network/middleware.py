@@ -228,7 +228,7 @@ class RestMiddleware:
 
     def check_rest_availability(self, initiator, responder):
         response = self.client.post(node_or_sprout=responder,
-                                    data=bytes(initiator),
+                                    data=bytes(initiator.metadata()),
                                     path="ping",
                                     timeout=6,  # Two round trips are expected
                                     )
@@ -251,7 +251,7 @@ class RestMiddleware:
             params = {}
 
         if announce_nodes:
-            payload = bytes().join(bytes(VariableLengthBytestring(n)) for n in announce_nodes)
+            payload = bytes().join(bytes(VariableLengthBytestring(bytes(n.metadata()))) for n in announce_nodes)
             response = self.client.post(node_or_sprout=node,
                                         path="node_metadata",
                                         params=params,

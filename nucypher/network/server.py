@@ -27,7 +27,7 @@ from flask import Flask, Response, jsonify, request
 from mako import exceptions as mako_exceptions
 from mako.template import Template
 
-from nucypher.core import AuthorizedKeyFrag, ReencryptionRequest, Arrangement, ArrangementResponse, RevocationOrder
+from nucypher.core import AuthorizedKeyFrag, ReencryptionRequest, Arrangement, ArrangementResponse, RevocationOrder, NodeMetadata
 
 from nucypher.blockchain.eth.utils import period_to_epoch
 from nucypher.config.constants import MAX_UPLOAD_CONTENT_LENGTH
@@ -39,6 +39,7 @@ from nucypher.datastore.models import ReencryptionRequest as ReencryptionRequest
 from nucypher.network import LEARNING_LOOP_VERSION
 from nucypher.network.exceptions import NodeSeemsToBeDown
 from nucypher.network.protocols import InterfaceInfo
+from nucypher.network.nodes import NodeSprout
 from nucypher.utilities.logging import Logger
 
 HERE = BASE_DIR = Path(__file__).parent
@@ -113,7 +114,7 @@ def _make_rest_app(datastore: Datastore, this_node, domain: str, log: Logger) ->
     @rest_app.route("/public_information")
     def public_information():
         """REST endpoint for public keys and address."""
-        response = Response(response=bytes(this_node), mimetype='application/octet-stream')
+        response = Response(response=bytes(this_node.metadata()), mimetype='application/octet-stream')
         return response
 
     @rest_app.route('/node_metadata', methods=["GET"])
@@ -142,10 +143,12 @@ def _make_rest_app(datastore: Datastore, this_node, domain: str, log: Logger) ->
             signature = this_node.stamp(payload)
             return Response(bytes(signature) + payload, headers=headers)
 
-        sprouts = _node_class.batch_from_bytes(request.data)
+        sprouts = NodeMetadata.batch_from_bytes(request.data)
 
         for node in sprouts:
-            this_node.remember_node(node)
+            this_node.remember_node(NodeSprout(node))
+
+        # TODO: generate a new fleet state here?
 
         # TODO: What's the right status code here?  202?  Different if we already knew about the node(s)?
         return all_known_nodes()
@@ -286,7 +289,8 @@ def _make_rest_app(datastore: Datastore, this_node, domain: str, log: Logger) ->
 
         elif request.method == 'POST':
             try:
-                requesting_ursula = Ursula.from_bytes(request.data)
+                requester_metadata = NodeMetadata.from_bytes(request.data)
+                requesting_ursula = NodeSprout(requester_metadata)
                 requesting_ursula.mature()
             except ValueError:
                 return Response({'error': 'Invalid Ursula'}, status=400)
@@ -307,14 +311,14 @@ def _make_rest_app(datastore: Datastore, this_node, domain: str, log: Logger) ->
                 # Fetch and store initiator's teacher certificate.
                 certificate = this_node.network_middleware.get_certificate(host=initiator_address, port=initiator_port)
                 certificate_filepath = this_node.node_storage.store_node_certificate(certificate=certificate)
-                requesting_ursula_bytes = this_node.network_middleware.client.node_information(host=initiator_address,
-                                                                                               port=initiator_port,
-                                                                                               certificate_filepath=certificate_filepath)
+                metadata_bytes = this_node.network_middleware.client.node_information(host=initiator_address,
+                                                                                      port=initiator_port,
+                                                                                      certificate_filepath=certificate_filepath)
+                visible_metadata = NodeMetadata.from_bytes(metadata_bytes)
             except NodeSeemsToBeDown:
                 return Response({'error': 'Unreachable node'}, status=400)  # ... toasted
 
-            # Compare the results of the outer POST with the inner GET... yum
-            if requesting_ursula_bytes == request.data:
+            if requester_metadata == visible_metadata:
                 return Response(status=200)
             else:
                 return Response({'error': 'Suspicious node'}, status=400)

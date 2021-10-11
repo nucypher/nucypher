@@ -18,6 +18,8 @@
 import os
 from collections import namedtuple
 
+import pytest
+
 from eth_utils.address import to_checksum_address
 from twisted.logger import LogLevel, globalLogPublisher
 
@@ -27,6 +29,7 @@ from nucypher.characters.base import Character
 from tests.utils.middleware import MockRestMiddleware
 
 
+@pytest.mark.skip("Unmark when the versioning scheme is stabilized")
 def test_emit_warning_upon_new_version(lonely_ursula_maker, caplog):
     seed_node, teacher, new_node = lonely_ursula_maker(quantity=3,
                                                        domain="no hardcodes",
@@ -108,6 +111,7 @@ def test_emit_warning_upon_new_version(lonely_ursula_maker, caplog):
     globalLogPublisher.removeObserver(warning_trapper)
 
 
+@pytest.mark.skip("Unmark when the versioning scheme is stabilized")
 def test_node_posts_future_version(federated_ursulas):
     ursula = list(federated_ursulas)[0]
     middleware = MockRestMiddleware()
