@@ -352,7 +352,7 @@ def test_blockchain_porter_cli_run_https_with_cors_origin(click_runner,
     result = click_runner.invoke(nucypher_cli, porter_run_command, catch_exceptions=False)
     assert result.exit_code == 0
     assert PORTER_RUN_MESSAGE.format(http_scheme="https", http_port=Porter.DEFAULT_PORT) in result.output
-    assert PORTER_CORS_ALLOWED_ORIGINS.format(allow_origins=allow_origins) in result.output
+    assert PORTER_CORS_ALLOWED_ORIGINS.format(allow_origins=[allow_origins]) in result.output
 
 
 def test_blockchain_porter_cli_run_https_basic_auth(click_runner,
