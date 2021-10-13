@@ -166,7 +166,7 @@ def test_federated_cli_run_https_with_cors_origin(click_runner,
     certificate_file_path = Path(temp_dir_path) / 'fullchain.pem'
     _write_random_data(certificate_file_path)
 
-    allow_origins = "nucypher.com"
+    allow_origins = ".*\.example\.com,.*\.otherexample\.org"
 
     porter_run_command = ('porter', 'run',
                           '--dry-run',
@@ -178,7 +178,7 @@ def test_federated_cli_run_https_with_cors_origin(click_runner,
     result = click_runner.invoke(nucypher_cli, porter_run_command, catch_exceptions=False)
     assert result.exit_code == 0
     assert PORTER_RUN_MESSAGE.format(http_scheme="https", http_port=Porter.DEFAULT_PORT) in result.output
-    assert PORTER_CORS_ALLOWED_ORIGINS.format(allow_origins=allow_origins) in result.output
+    assert PORTER_CORS_ALLOWED_ORIGINS.format(allow_origins=allow_origins.split(",")) in result.output
 
 
 def test_federated_cli_run_https_with_empty_string_cors_origin(click_runner,

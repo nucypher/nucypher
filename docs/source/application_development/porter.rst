@@ -42,9 +42,26 @@ Security
 * **HTTPS:** To run the Porter service over HTTPS, it will require a TLS key and a TLS certificate. These can be
   specified via the `` --tls-key-filepath`` and ``--tls-certificate-filepath`` CLI options or via the ``TLS_DIR``
   environment variable for docker-compose.
-* **CORS:** An allowed origin for `Cross-Origin Resource Sharing (CORS) <https://en.wikipedia.org/wiki/Cross-origin_resource_sharing>`_
+* **CORS:** Allowed origins for `Cross-Origin Resource Sharing (CORS) <https://en.wikipedia.org/wiki/Cross-origin_resource_sharing>`_
   is not enabled by default and can be enabled either via the ``--allow-origins`` option for the CLI,
   or the ``PORTER_CORS_ALLOW_ORIGINS`` environment variable for docker-compose.
+
+  The value is expected to be a comma-delimited list of strings/regular expressions for origins to allow requests from. To allow all origins,
+  simply use "*".
+
+  .. note::
+
+      Origin values can be a string (for exact matches) or regular expressions (for more complex matches).
+
+      As part of CORS, the scheme (``https`` or ``http``) is also checked, so using only ``example.com`` is incorrect
+      to allow an origin from that specific domain. For exact matches, you can use ``https://example.com`` for HTTPS or
+      ``http://example.com`` for HTTP. For non-default ports (i.e. not 443 or 80), the ports should be specified
+      e.g. ``https://example.com:8000`` or ``http://example.com:8001``.
+
+      For regular expressions, to allow all sub-domains of ``example.com``, you could use ``.*\.example\.com$`` which
+      incorporates wildcards for scheme and sub-domain. To allow multiple top-level domains you could use
+      ``.*\.example\.(com|org)$`` which allows any origins from both ``example.com`` and ``example.org`` domains.
+
 * **Authentication:** Porter will allow the configuration of Basic Authentication out of the box via
   an `htpasswd <https://httpd.apache.org/docs/2.4/programs/htpasswd.html>`_ file. This file can be provided via the
   ``--basic-auth-filepath`` CLI option or ``HTPASSWD_FILE`` environment variable for docker-compose. The use
@@ -199,11 +216,11 @@ Docker Compose will start the Porter service within a Docker container.
 
          $ export TLS_DIR=<ABSOLUTE PATH TO TLS DIRECTORY>
 
-   * *(Optional)* Enable CORS for ``example.com`` origins
+   * *(Optional)* Enable CORS. For example, to only allow access from your sub-domains for ``example.com``:
 
-     .. code::bash
+     .. code:: bash
 
-         $ export PORTER_CORS_ALLOW_ORIGINS=example.com
+         $ export PORTER_CORS_ALLOW_ORIGINS=".*\.example\.com$"
 
    * *(Optional)* Filepath to the htpasswd file for Basic Authentication
 
@@ -287,7 +304,6 @@ For a full list of CLI options, run:
 
         the Pipe for nucypher network operations
 
-        Reading Latest Chaindata...
         Network: <NETWORK NAME>
         Provider: ...
         Running Porter Web Controller at http://127.0.0.1:9155
@@ -310,7 +326,6 @@ For a full list of CLI options, run:
 
         the Pipe for nucypher network operations
 
-        Reading Latest Chaindata...
         Network: <NETWORK NAME>
         Provider: ...
         Running Porter Web Controller at https://127.0.0.1:9155
@@ -319,7 +334,7 @@ For a full list of CLI options, run:
 
     .. code:: console
 
-        $ nucypher porter run --provider <YOUR WEB3 PROVIDER URI> --network <NETWORK NAME> --tls-key-filepath <TLS KEY FILEPATH> --tls-certificate-filepath <CERT FILEPATH> --allow-origins example.com
+        $ nucypher porter run --provider <YOUR WEB3 PROVIDER URI> --network <NETWORK NAME> --tls-key-filepath <TLS KEY FILEPATH> --tls-certificate-filepath <CERT FILEPATH> --allow-origins ".*\.example\.com$"
 
 
         ______
@@ -331,17 +346,16 @@ For a full list of CLI options, run:
 
         the Pipe for nucypher network operations
 
-        Reading Latest Chaindata...
         Network: <NETWORK NAME>
         Provider: ...
-        CORS Allow Origins: example.com
+        CORS Allow Origins: ['.*\\.example\\.com$']
         Running Porter Web Controller at https://127.0.0.1:9155
 
     To enable Basic Authentication, add the ``--basic-auth-filepath`` option:
 
     .. code:: console
 
-        $ nucypher porter run --provider <YOUR WEB3 PROVIDER URI> --network <NETWORK NAME> --tls-key-filepath <TLS KEY FILEPATH> --tls-certificate-filepath <CERT FILEPATH> --allow-origins example.com --basic-auth-filepath <HTPASSWD FILE>
+        $ nucypher porter run --provider <YOUR WEB3 PROVIDER URI> --network <NETWORK NAME> --tls-key-filepath <TLS KEY FILEPATH> --tls-certificate-filepath <CERT FILEPATH> --allow-origins ".*\.example\.com$" --basic-auth-filepath <HTPASSWD FILE>
 
 
         ______
@@ -353,10 +367,9 @@ For a full list of CLI options, run:
 
         the Pipe for nucypher network operations
 
-        Reading Latest Chaindata...
         Network: <NETWORK NAME>
         Provider: ...
-        CORS Allow Origins: example.com
+        CORS Allow Origins: ['.*\\.example\\.com$']
         Basic Authentication enabled
         Running Porter Web Controller at https://127.0.0.1:9155
 
@@ -411,16 +424,23 @@ Docker Compose will be used to start the NGINX reverse proxy and the Porter serv
 
          $ export TLS_DIR=<ABSOLUTE PATH TO TLS DIRECTORY>
 
-   * *(Optional)* By default, CORS for the reverse proxy is configured allow all origins. This configuration is set in
-     the ``nucypher/deploy/docker/porter/nginx/porter.local_location`` file. If you would like to
-     modify the CORS allowed origin setting to be more specific, you can modify the ``Access-Control-Allow-Origin``
-     header value.
+   * *(Optional)* The CORS configuration is set in the ``nucypher/deploy/docker/porter/nginx/porter.local_location`` file.
 
-     For example, to only allow requests from ``example.com`` origins, the file should be edited to be:
+      .. important::
+
+          By default, CORS for the reverse proxy is configured to allow all origins
+
+     If you would like to modify the CORS allowed origin setting to be more specific, you can modify the file to
+     check for specific domains. There are some examples in the file - see `NGINX if-directive <https://nginx.org/en/docs/http/ngx_http_rewrite_module.html#if>`_
+     for adding ore complex conditional checks.
+
+     For example, to only allow requests from all sub-domains of ``example.com``, the file should be edited to include:
 
      .. code::
 
-        add_header 'Access-Control-Allow-Origin' 'example.com';
+        if ($http_origin ~* (.*\.example\.com$)) {
+            set $allow_origin "true";
+        }
 
      .. note::
 

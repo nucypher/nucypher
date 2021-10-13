@@ -62,7 +62,7 @@ def porter():
 @click.option('--tls-certificate-filepath', help="Pre-signed TLS certificate filepath", type=click.Path(dir_okay=False, exists=True, path_type=Path))
 @click.option('--tls-key-filepath', help="TLS private key filepath", type=click.Path(dir_okay=False, exists=True, path_type=Path))
 @click.option('--basic-auth-filepath', help="htpasswd filepath for basic authentication", type=click.Path(dir_okay=False, exists=True, resolve_path=True, path_type=Path))
-@click.option('--allow-origins', help="The CORS origin(s) string to allow requests from - used as the value for the 'Access-Control-Allow-Origin' response header; not configured by default", type=click.STRING)
+@click.option('--allow-origins', help="The CORS origin(s) comma-delimited list of strings/regexes for origins to allow - no origins allowed by default", type=click.STRING)
 @click.option('--dry-run', '-x', help="Execute normally without actually starting Porter", is_flag=True)
 @click.option('--eager', help="Start learning and scraping the network before starting up other services", is_flag=True, default=True)
 def run(general_config,
@@ -144,15 +144,18 @@ def run(general_config,
 
     # firm up falsy status (i.e. change specified empty string to None)
     allow_origins = allow_origins if allow_origins else None
+    # covert to list of strings/regexes
+    allow_origins_list = None
     if allow_origins:
-        emitter.message(PORTER_CORS_ALLOWED_ORIGINS.format(allow_origins=allow_origins), color='green')
+        allow_origins_list = allow_origins.split(",")  # split into list of origins to allow
+        emitter.message(PORTER_CORS_ALLOWED_ORIGINS.format(allow_origins=allow_origins_list), color='green')
 
     if basic_auth_filepath:
         emitter.message(PORTER_BASIC_AUTH_ENABLED, color='green')
 
     controller = PORTER.make_web_controller(crash_on_error=False,
                                             htpasswd_filepath=basic_auth_filepath,
-                                            cors_allow_origins=allow_origins)
+                                            cors_allow_origins_list=allow_origins_list)
     http_scheme = "https" if is_https else "http"
     message = PORTER_RUN_MESSAGE.format(http_scheme=http_scheme, http_port=http_port)
     emitter.message(message, color='green', bold=True)
