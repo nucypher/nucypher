@@ -21,8 +21,13 @@ import click
 from nucypher.blockchain.eth.networks import NetworksInventory
 from nucypher.characters.lawful import Ursula
 from nucypher.cli.config import group_general_config
-from nucypher.cli.literature import BOTH_TLS_KEY_AND_CERTIFICATION_MUST_BE_PROVIDED, PORTER_RUN_MESSAGE, \
-    BASIC_AUTH_REQUIRES_HTTPS
+from nucypher.cli.literature import (
+    PORTER_BASIC_AUTH_ENABLED,
+    PORTER_BASIC_AUTH_REQUIRES_HTTPS,
+    PORTER_BOTH_TLS_KEY_AND_CERTIFICATION_MUST_BE_PROVIDED,
+    PORTER_CORS_ALLOWED_ORIGINS,
+    PORTER_RUN_MESSAGE,
+)
 from nucypher.cli.options import (
     option_network,
     option_provider_uri,
@@ -34,7 +39,6 @@ from nucypher.cli.options import (
 from nucypher.cli.types import NETWORK_PORT
 from nucypher.cli.utils import setup_emitter, get_registry
 from nucypher.config.constants import TEMPORARY_DOMAIN
-from nucypher.utilities.porter.control.interfaces import PorterInterface
 from nucypher.utilities.porter.porter import Porter
 
 
@@ -58,6 +62,7 @@ def porter():
 @click.option('--tls-certificate-filepath', help="Pre-signed TLS certificate filepath", type=click.Path(dir_okay=False, exists=True, path_type=Path))
 @click.option('--tls-key-filepath', help="TLS private key filepath", type=click.Path(dir_okay=False, exists=True, path_type=Path))
 @click.option('--basic-auth-filepath', help="htpasswd filepath for basic authentication", type=click.Path(dir_okay=False, exists=True, resolve_path=True, path_type=Path))
+@click.option('--allow-origins', help="The CORS origin(s) comma-delimited list of strings/regexes for origins to allow - no origins allowed by default", type=click.STRING)
 @click.option('--dry-run', '-x', help="Execute normally without actually starting Porter", is_flag=True)
 @click.option('--eager', help="Start learning and scraping the network before starting up other services", is_flag=True, default=True)
 def run(general_config,
@@ -71,6 +76,7 @@ def run(general_config,
         tls_certificate_filepath,
         tls_key_filepath,
         basic_auth_filepath,
+        allow_origins,
         dry_run,
         eager):
     """Start Porter's Web controller."""
@@ -79,14 +85,14 @@ def run(general_config,
     # HTTP/HTTPS
     if bool(tls_key_filepath) ^ bool(tls_certificate_filepath):
         raise click.BadOptionUsage(option_name='--tls-key-filepath, --tls-certificate-filepath',
-                                   message=BOTH_TLS_KEY_AND_CERTIFICATION_MUST_BE_PROVIDED)
+                                   message=PORTER_BOTH_TLS_KEY_AND_CERTIFICATION_MUST_BE_PROVIDED)
 
     is_https = (tls_key_filepath and tls_certificate_filepath)
 
     # check authentication
     if basic_auth_filepath and not is_https:
         raise click.BadOptionUsage(option_name='--basic-auth-filepath',
-                                   message=BASIC_AUTH_REQUIRES_HTTPS)
+                                   message=PORTER_BASIC_AUTH_REQUIRES_HTTPS)
 
     if federated_only:
         if not teacher_uri:
@@ -136,10 +142,20 @@ def run(general_config,
     if not federated_only:
         emitter.message(f"Provider: {provider_uri}", color='green')
 
-    if basic_auth_filepath:
-        emitter.message("Basic Authentication enabled", color='green')
+    # firm up falsy status (i.e. change specified empty string to None)
+    allow_origins = allow_origins if allow_origins else None
+    # covert to list of strings/regexes
+    allow_origins_list = None
+    if allow_origins:
+        allow_origins_list = allow_origins.split(",")  # split into list of origins to allow
+        emitter.message(PORTER_CORS_ALLOWED_ORIGINS.format(allow_origins=allow_origins_list), color='green')
 
-    controller = PORTER.make_web_controller(htpasswd_filepath=basic_auth_filepath, crash_on_error=False)
+    if basic_auth_filepath:
+        emitter.message(PORTER_BASIC_AUTH_ENABLED, color='green')
+
+    controller = PORTER.make_web_controller(crash_on_error=False,
+                                            htpasswd_filepath=basic_auth_filepath,
+                                            cors_allow_origins_list=allow_origins_list)
     http_scheme = "https" if is_https else "http"
     message = PORTER_RUN_MESSAGE.format(http_scheme=http_scheme, http_port=http_port)
     emitter.message(message, color='green', bold=True)

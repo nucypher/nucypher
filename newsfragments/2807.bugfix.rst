@@ -1,0 +1,1 @@
+Fixed WebController bug caused by Path object for TLS/certificate path provided to Hendrix instead of a string.

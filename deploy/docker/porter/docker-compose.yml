@@ -16,7 +16,8 @@ services:
       - ~/.local/share/nucypher:/nucypher
     command: ["nucypher", "porter", "run",
               "--provider", "${WEB3_PROVIDER_URI}",
-              "--network", "${NUCYPHER_NETWORK}"]
+              "--network", "${NUCYPHER_NETWORK}",
+              "--allow-origins", "${PORTER_CORS_ALLOW_ORIGINS}"]  # empty string if env var not defined which translates to CORS not enabled by default
 
   porter-https:
     restart: on-failure
@@ -33,7 +34,8 @@ services:
                "--provider", "${WEB3_PROVIDER_URI}",
                "--network", "${NUCYPHER_NETWORK}",
                "--tls-key-filepath", "/etc/porter/tls/key.pem",
-               "--tls-certificate-filepath", "/etc/porter/tls/cert.pem"]
+               "--tls-certificate-filepath", "/etc/porter/tls/cert.pem",
+               "--allow-origins", "${PORTER_CORS_ALLOW_ORIGINS}"]  # empty string if env var not defined which translates to CORS not enabled by default
 
   porter-https-auth:
     restart: on-failure
@@ -52,4 +54,5 @@ services:
                "--network", "${NUCYPHER_NETWORK}",
                "--tls-key-filepath", "/etc/porter/tls/key.pem",
                "--tls-certificate-filepath", "/etc/porter/tls/cert.pem",
-               "--basic-auth-filepath", "/etc/porter/auth/htpasswd"]
+               "--basic-auth-filepath", "/etc/porter/auth/htpasswd",
+               "--allow-origins", "${PORTER_CORS_ALLOW_ORIGINS}"]  # empty string if env var not defined which translates to CORS not enabled by default

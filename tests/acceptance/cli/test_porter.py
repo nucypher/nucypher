@@ -22,9 +22,10 @@ import pytest
 
 from nucypher.characters.lawful import Ursula
 from nucypher.cli.literature import (
-    PORTER_RUN_MESSAGE,
-    BOTH_TLS_KEY_AND_CERTIFICATION_MUST_BE_PROVIDED,
-    BASIC_AUTH_REQUIRES_HTTPS
+    PORTER_BASIC_AUTH_ENABLED,
+    PORTER_BASIC_AUTH_REQUIRES_HTTPS,
+    PORTER_BOTH_TLS_KEY_AND_CERTIFICATION_MUST_BE_PROVIDED,
+    PORTER_RUN_MESSAGE, PORTER_CORS_ALLOWED_ORIGINS
 )
 from nucypher.cli.main import nucypher_cli
 from nucypher.config.constants import TEMPORARY_DOMAIN
@@ -96,7 +97,7 @@ def test_federated_porter_cli_run_tls_filepath_and_certificate(click_runner,
                           '--tls-key-filepath', tempfile_path)  # only tls-key provided
     result = click_runner.invoke(nucypher_cli, porter_run_command, catch_exceptions=False)
     assert result.exit_code != 0  # both --tls-key-filepath and --tls-certificate-filepath must be provided for TLS
-    assert BOTH_TLS_KEY_AND_CERTIFICATION_MUST_BE_PROVIDED in result.output
+    assert PORTER_BOTH_TLS_KEY_AND_CERTIFICATION_MUST_BE_PROVIDED in result.output
 
     porter_run_command = ('porter', 'run',
                           '--dry-run',
@@ -105,7 +106,7 @@ def test_federated_porter_cli_run_tls_filepath_and_certificate(click_runner,
                           '--tls-certificate-filepath', tempfile_path)  # only certificate provided
     result = click_runner.invoke(nucypher_cli, porter_run_command, catch_exceptions=False)
     assert result.exit_code != 0  # both --tls-key-filepath and --tls-certificate-filepath must be provided for TLS
-    assert BOTH_TLS_KEY_AND_CERTIFICATION_MUST_BE_PROVIDED in result.output
+    assert PORTER_BOTH_TLS_KEY_AND_CERTIFICATION_MUST_BE_PROVIDED in result.output
 
     #
     # tls-key and certificate filepaths must exist
@@ -156,6 +157,56 @@ def test_federated_cli_run_https(click_runner, federated_ursulas, temp_dir_path,
     assert PORTER_RUN_MESSAGE.format(http_scheme="https", http_port=Porter.DEFAULT_PORT) in result.output
 
 
+def test_federated_cli_run_https_with_cors_origin(click_runner,
+                                                  federated_ursulas,
+                                                  temp_dir_path,
+                                                  federated_teacher_uri):
+    tls_key_path = Path(temp_dir_path) / 'key.pem'
+    _write_random_data(tls_key_path)
+    certificate_file_path = Path(temp_dir_path) / 'fullchain.pem'
+    _write_random_data(certificate_file_path)
+
+    allow_origins = ".*\.example\.com,.*\.otherexample\.org"
+
+    porter_run_command = ('porter', 'run',
+                          '--dry-run',
+                          '--federated-only',
+                          '--teacher', federated_teacher_uri,
+                          '--tls-key-filepath', tls_key_path,
+                          '--tls-certificate-filepath', certificate_file_path,
+                          '--allow-origins', allow_origins)
+    result = click_runner.invoke(nucypher_cli, porter_run_command, catch_exceptions=False)
+    assert result.exit_code == 0
+    assert PORTER_RUN_MESSAGE.format(http_scheme="https", http_port=Porter.DEFAULT_PORT) in result.output
+    assert PORTER_CORS_ALLOWED_ORIGINS.format(allow_origins=allow_origins.split(",")) in result.output
+
+
+def test_federated_cli_run_https_with_empty_string_cors_origin(click_runner,
+                                                               federated_ursulas,
+                                                               temp_dir_path,
+                                                               federated_teacher_uri):
+    tls_key_path = Path(temp_dir_path) / 'key.pem'
+    _write_random_data(tls_key_path)
+    certificate_file_path = Path(temp_dir_path) / 'fullchain.pem'
+    _write_random_data(certificate_file_path)
+
+    empty_string_allow_origins = ""
+
+    porter_run_command = ('porter', 'run',
+                          '--dry-run',
+                          '--federated-only',
+                          '--teacher', federated_teacher_uri,
+                          '--tls-key-filepath', tls_key_path,
+                          '--tls-certificate-filepath', certificate_file_path,
+                          '--allow-origins', empty_string_allow_origins)
+    result = click_runner.invoke(nucypher_cli, porter_run_command, catch_exceptions=False)
+    assert result.exit_code == 0
+    assert PORTER_RUN_MESSAGE.format(http_scheme="https", http_port=Porter.DEFAULT_PORT) in result.output
+    # empty string translates to CORS not being enabled - empty origin string provides wild card comparison
+    # with just header
+    assert PORTER_CORS_ALLOWED_ORIGINS.format(allow_origins='') not in result.output
+
+
 def test_federated_cli_run_https_basic_auth(click_runner,
                                             federated_ursulas,
                                             federated_teacher_uri,
@@ -175,7 +226,7 @@ def test_federated_cli_run_https_basic_auth(click_runner,
                           '--basic-auth-filepath', basic_auth_file)
     result = click_runner.invoke(nucypher_cli, porter_run_command, catch_exceptions=False)
     assert result.exit_code == 0
-    assert "Basic Authentication enabled" in result.output
+    assert PORTER_BASIC_AUTH_ENABLED in result.output
 
 
 def test_blockchain_porter_cli_run_simple(click_runner,
@@ -271,6 +322,37 @@ def test_blockchain_porter_cli_run_https(click_runner,
     result = click_runner.invoke(nucypher_cli, porter_run_command, catch_exceptions=False)
     assert result.exit_code == 0
     assert PORTER_RUN_MESSAGE.format(http_scheme="https", http_port=Porter.DEFAULT_PORT) in result.output
+    # no CORS configured by default; empty origin string provides wild card comparison with just header
+    assert PORTER_CORS_ALLOWED_ORIGINS.format(allow_origins='') not in result.output
+
+
+def test_blockchain_porter_cli_run_https_with_cors_origin(click_runner,
+                                                          blockchain_ursulas,
+                                                          testerchain,
+                                                          agency_local_registry,
+                                                          temp_dir_path,
+                                                          blockchain_teacher_uri):
+    tls_key_path = Path(temp_dir_path) / 'key.pem'
+    _write_random_data(tls_key_path)
+    certificate_file_path = Path(temp_dir_path) / 'fullchain.pem'
+    _write_random_data(certificate_file_path)
+
+    allow_origins = "*"
+
+    porter_run_command = ('porter', 'run',
+                          '--dry-run',
+                          '--network', TEMPORARY_DOMAIN,
+                          '--provider', TEST_PROVIDER_URI,
+                          '--registry-filepath', agency_local_registry.filepath,
+                          '--teacher', blockchain_teacher_uri,
+                          '--tls-key-filepath', tls_key_path,
+                          '--tls-certificate-filepath', certificate_file_path,
+                          '--allow-origins', allow_origins)
+
+    result = click_runner.invoke(nucypher_cli, porter_run_command, catch_exceptions=False)
+    assert result.exit_code == 0
+    assert PORTER_RUN_MESSAGE.format(http_scheme="https", http_port=Porter.DEFAULT_PORT) in result.output
+    assert PORTER_CORS_ALLOWED_ORIGINS.format(allow_origins=[allow_origins]) in result.output
 
 
 def test_blockchain_porter_cli_run_https_basic_auth(click_runner,
@@ -297,7 +379,7 @@ def test_blockchain_porter_cli_run_https_basic_auth(click_runner,
 
     result = click_runner.invoke(nucypher_cli, porter_run_command, catch_exceptions=False)
     assert result.exit_code != 0
-    assert BASIC_AUTH_REQUIRES_HTTPS in result.output
+    assert PORTER_BASIC_AUTH_REQUIRES_HTTPS in result.output
 
     # Basic Auth
     porter_run_command = ('porter', 'run',
@@ -312,7 +394,7 @@ def test_blockchain_porter_cli_run_https_basic_auth(click_runner,
 
     result = click_runner.invoke(nucypher_cli, porter_run_command, catch_exceptions=False)
     assert result.exit_code == 0
-    assert "Basic Authentication enabled" in result.output
+    assert PORTER_BASIC_AUTH_ENABLED in result.output
 
 
 def _write_random_data(filepath: Path):

@@ -14,6 +14,7 @@
  You should have received a copy of the GNU Affero General Public License
  along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
+from pathlib import Path
 from typing import List, NamedTuple, Optional, Sequence
 
 from constant_sorrow.constants import NO_BLOCKCHAIN_CONNECTION, NO_CONTROL_PROTOCOL
@@ -199,7 +200,10 @@ the Pipe for nucypher network operations
         self.controller = controller
         return controller
 
-    def make_web_controller(self, crash_on_error: bool = False, htpasswd_filepath: str = None):
+    def make_web_controller(self,
+                            crash_on_error: bool = False,
+                            htpasswd_filepath: Path = None,
+                            cors_allow_origins_list: List[str] = None):
         controller = WebController(app_name=self.APP_NAME,
                                    crash_on_error=crash_on_error,
                                    interface=self._interface_class(porter=self))
@@ -207,6 +211,17 @@ the Pipe for nucypher network operations
 
         # Register Flask Decorator
         porter_flask_control = controller.make_control_transport()
+
+        # CORS origins
+        if cors_allow_origins_list:
+            try:
+                from flask_cors import CORS
+            except ImportError:
+                raise ImportError('Porter installation is required for to specify CORS origins '
+                                  '- run "pip install nucypher[porter]" and try again.')
+            _ = CORS(app=porter_flask_control, origins=cors_allow_origins_list)
+
+        # Basic Auth
         if htpasswd_filepath:
             try:
                 from flask_htpasswd import HtPasswdAuth
@@ -214,7 +229,7 @@ the Pipe for nucypher network operations
                 raise ImportError('Porter installation is required for basic authentication '
                                   '- run "pip install nucypher[porter]" and try again.')
 
-            porter_flask_control.config['FLASK_HTPASSWD_PATH'] = htpasswd_filepath
+            porter_flask_control.config['FLASK_HTPASSWD_PATH'] = str(htpasswd_filepath.absolute())
             # ensure basic auth required for all endpoints
             porter_flask_control.config['FLASK_AUTH_ALL'] = True
             _ = HtPasswdAuth(app=porter_flask_control)

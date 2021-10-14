@@ -1,0 +1,27 @@
+set $allow_origin "";
+
+#
+# Allow CORS for any domain by default - comment out if not desired
+#
+if ($http_origin ~* (.*)) {
+    set $allow_origin "true";
+}
+
+#
+# Allow CORS for specific domain. For specifying conditions, see https://nginx.org/en/docs/http/ngx_http_rewrite_module.html#if.
+# Uncomment and edit if desired. There can be one or more of these 'if' directives for various origin checks.
+#
+#if ($http_origin ~* (.*\.yourdomain\.com$)) {
+#    set $allow_origin "true";
+#}
+
+#
+# For multiple top-level domains:
+#
+#if ($http_origin ~* (.*\.yourdomain\.(com|org)$)) {
+#    set $allow_origin "true";
+#}
+
+if ($allow_origin = "true") {
+    add_header 'Access-Control-Allow-Origin' '$http_origin';
+}
