@@ -112,7 +112,6 @@ class UrsulaInfoMetricsCollector(BaseMetricsCollector):
     def _collect_internal(self) -> None:
         # info
         base_payload = {'app_version': nucypher.__version__,
-                        'teacher_version': str(self.ursula.TEACHER_VERSION),
                         'host': str(self.ursula.rest_interface),
                         'domain': self.ursula.domain,
                         'nickname': str(self.ursula.nickname),

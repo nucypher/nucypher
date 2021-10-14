@@ -19,6 +19,8 @@ import tempfile
 
 import pytest
 
+from nucypher.core import NodeMetadata
+
 from nucypher.characters.lawful import Ursula
 from nucypher.config.constants import TEMPORARY_DOMAIN
 from nucypher.config.storages import ForgetfulNodeStorage, TemporaryFileBasedNodeStorage
@@ -110,7 +112,7 @@ class TestTemporaryFileBasedNodeStorage(BaseTestNodeStorageBackends):
         # Let's break the metadata (but not the version)
         metadata_path = self.storage_backend.metadata_dir / some_node
         with open(metadata_path, 'wb') as file:
-            file.write(Learner.LEARNER_VERSION.to_bytes(4, 'big') + b'invalid')
+            file.write(NodeMetadata._header() + b'invalid')
 
         with pytest.raises(TemporaryFileBasedNodeStorage.InvalidNodeMetadata):
             self.storage_backend.get(stamp=some_node.name[:-5],
@@ -120,7 +122,8 @@ class TestTemporaryFileBasedNodeStorage(BaseTestNodeStorageBackends):
         # Let's break the metadata, by putting a completely wrong version
         metadata_path = self.storage_backend.metadata_dir / another_node
         with open(metadata_path, 'wb') as file:
-            file.write(b'meh')  # Versions are expected to be 4 bytes, but this is 3 bytes
+            full_header = NodeMetadata._header()
+            file.write(full_header[:-1])  # Not even a valid header
 
         with pytest.raises(TemporaryFileBasedNodeStorage.InvalidNodeMetadata):
             self.storage_backend.get(stamp=another_node.name[:-5],

@@ -45,7 +45,6 @@ from nucypher.crypto.powers import KeyPairBasedPower, PowerUpError
 from nucypher.crypto.signing import InvalidSignature
 from nucypher.datastore.datastore import Datastore
 from nucypher.datastore.models import ReencryptionRequest as ReencryptionRequestModel
-from nucypher.network import LEARNING_LOOP_VERSION
 from nucypher.network.exceptions import NodeSeemsToBeDown
 from nucypher.network.protocols import InterfaceInfo
 from nucypher.network.nodes import NodeSprout
@@ -58,7 +57,7 @@ status_template = Template(filename=str(TEMPLATES_DIR / "basic_status.mako")).ge
 
 
 class ProxyRESTServer:
-    SERVER_VERSION = LEARNING_LOOP_VERSION
+
     log = Logger("network-server")
 
     def __init__(self,

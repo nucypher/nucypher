@@ -56,7 +56,6 @@ from nucypher.crypto.powers import DecryptingPower, NoSigningPower, SigningPower
 from nucypher.crypto.signing import SignatureStamp, InvalidSignature
 from nucypher.crypto.umbral_adapter import Signature
 from nucypher.crypto.utils import recover_address_eip_191, verify_eip_191
-from nucypher.network import LEARNING_LOOP_VERSION
 from nucypher.network.exceptions import NodeSeemsToBeDown
 from nucypher.network.middleware import RestMiddleware
 from nucypher.network.protocols import SuspiciousActivity, InterfaceInfo
@@ -224,9 +223,6 @@ class Learner:
     __DEFAULT_MIDDLEWARE_CLASS = RestMiddleware
 
     _crashed = False  # moved from Character - why was this in Character and not Learner before
-
-    LEARNER_VERSION = LEARNING_LOOP_VERSION
-    LOWEST_COMPATIBLE_VERSION = 2  # Disallow versions lower than this
 
     tracker_class = FleetSensor
 
@@ -955,8 +951,6 @@ class Learner:
 
 
 class Teacher:
-    TEACHER_VERSION = LEARNING_LOOP_VERSION
-    _interface_info_splitter = (int, 4, {'byteorder': 'big'})
     log = Logger("teacher")
     synchronous_query_timeout = 20  # How long to wait during REST endpoints for blockchain queries to resolve
     __DEFAULT_MIN_SEED_STAKE = 0
