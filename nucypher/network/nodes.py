@@ -1113,8 +1113,6 @@ class Teacher:
 
         # Decentralized
         else:
-            if self.__decentralized_identity_evidence is NOT_SIGNED:
-                raise self.StampNotSigned
 
             # Off-chain signature verification
             if not self._stamp_has_valid_signature_by_worker():
@@ -1198,11 +1196,7 @@ class Teacher:
                            "on-chain Staking verification will not be performed.")
 
         # This is both the stamp's client signature and interface metadata check; May raise InvalidNode
-        try:
-            self.validate_metadata(registry=registry)
-        except self.UnbondedWorker:  # TODO: Why are we specifically catching this and not other reasons for invalidity, eg StampNotSigned?
-            self.verified_node = False
-            return False
+        self.validate_metadata(registry=registry)
 
         # The node's metadata is valid; let's be sure the interface is in order.
         if not certificate_filepath:
