@@ -189,7 +189,7 @@ def _make_rest_app(datastore: Datastore, this_node, domain: str, log: Logger) ->
     @rest_app.route('/reencrypt', methods=["POST"])
     def reencrypt():
 
-        from nucypher.characters.lawful import Alice, Bob
+        from nucypher.characters.lawful import Bob
 
         # TODO: Cache & Optimize
 
@@ -203,8 +203,8 @@ def _make_rest_app(datastore: Datastore, this_node, domain: str, log: Logger) ->
             return Response(response="Invalid KFrag sender.", status=401)  # 401 - Unauthorized
 
         # Alice & Publisher
-        alice = Alice.from_public_keys(verifying_key=reenc_request.alice_verifying_key)
-        policy_publisher = Alice.from_public_keys(verifying_key=reenc_request.publisher_verifying_key)
+        author_verifying_key = reenc_request.alice_verifying_key
+        publisher_verifying_key = reenc_request.publisher_verifying_key
 
         # Bob
         bob_ip_address = request.remote_addr
@@ -213,26 +213,24 @@ def _make_rest_app(datastore: Datastore, this_node, domain: str, log: Logger) ->
 
         # Verify & Decrypt KFrag Payload
         try:
-            plaintext_kfrag_payload = this_node.decrypt_internal(stranger=alice,
-                                                                 message_kit=reenc_request.encrypted_kfrag)
+            authorized_kfrag = this_node._decrypt_kfrag(encrypted_kfrag=reenc_request.encrypted_kfrag,
+                                                        author_verifying_key=author_verifying_key)
+        except ValueError as e:
+            message = f'{bob_identity_message} Invalid AuthorizedKeyFrag: {e}.'
+            log.info(message)
+            this_node.suspicious_activities_witnessed['unauthorized'].append(message)
+            return Response(message, status=400)  # 400 - General error
         except InvalidSignature:
+            # TODO: don't we want to record suspicious activities here too?
             return Response(response="Invalid KFrag sender.", status=401)  # 401 - Unauthorized
         except DecryptingKeypair.DecryptionFailed:
             return Response(response="KFrag decryption failed.", status=403)   # 403 - Forbidden
 
         # Verify KFrag Authorization (offchain)
         try:
-            authorized_kfrag = AuthorizedKeyFrag.from_bytes(plaintext_kfrag_payload)
-        except ValueError:
-            message = f'{bob_identity_message} Invalid AuthorizedKeyFrag.'
-            log.info(message)
-            this_node.suspicious_activities_witnessed['unauthorized'].append(message)
-            return Response(message, status=400)  # 400 - General error
-
-        try:
             verified_kfrag = this_node.verify_kfrag_authorization(hrac=reenc_request.hrac,
-                                                                  author=alice,
-                                                                  publisher=policy_publisher,
+                                                                  author_verifying_key=author_verifying_key,
+                                                                  publisher_verifying_key=publisher_verifying_key,
                                                                   authorized_kfrag=authorized_kfrag)
 
         except Policy.Unauthorized:

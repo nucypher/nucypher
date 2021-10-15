@@ -33,8 +33,8 @@ def test_sign_cleartext_and_encrypt(federated_alice, federated_bob):
     the ciphertext.
     """
     message = b"Have you accepted my answer on StackOverflow yet?"
-    message_kit = federated_alice.encrypt_for(federated_bob, message, sign_plaintext=True)
-    cleartext = federated_bob.decrypt_internal(federated_alice, message_kit)
+    message_kit = federated_alice.encrypt_for(federated_alice, message, sign_plaintext=True)
+    cleartext = federated_alice.decrypt_message_kit(federated_alice, message_kit)
     assert cleartext == message
 
 
@@ -46,8 +46,8 @@ def test_encrypt_and_sign_the_ciphertext(federated_alice, federated_bob):
     publicly without disclosing contents.
     """
     message = b"We have a reaaall problem."
-    message_kit = federated_alice.encrypt_for(federated_bob, message, sign_plaintext=False)
-    cleartext = federated_bob.decrypt_internal(federated_alice, message_kit)
+    message_kit = federated_alice.encrypt_for(federated_alice, message, sign_plaintext=False)
+    cleartext = federated_alice.decrypt_message_kit(federated_alice, message_kit)
     assert cleartext == message
 
 

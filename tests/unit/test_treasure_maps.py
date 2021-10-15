@@ -20,7 +20,7 @@ import os
 
 import pytest
 
-from nucypher.core import HRAC, AuthorizedKeyFrag, TreasureMap, EncryptedTreasureMap
+from nucypher.core import HRAC, TreasureMap, EncryptedTreasureMap
 
 from nucypher.crypto.powers import DecryptingPower
 from nucypher.crypto.umbral_adapter import KeyFrag
@@ -50,11 +50,11 @@ def test_complete_treasure_map_journey(federated_alice, federated_bob, federated
     for ursula_address, encrypted_kfrag in treasure_map.destinations.items():
         assert ursula_address in ursula_rolodex
         ursula = ursula_rolodex[ursula_address]
-        auth_kfrag_bytes = ursula.decrypt_internal(stranger=federated_alice, message_kit=encrypted_kfrag)
-        auth_kfrag = AuthorizedKeyFrag.from_bytes(auth_kfrag_bytes)
+        auth_kfrag = ursula._decrypt_kfrag(encrypted_kfrag=encrypted_kfrag,
+                                           author_verifying_key=federated_alice.stamp.as_umbral_pubkey())
         ursula.verify_kfrag_authorization(hrac=treasure_map.hrac,
-                                          author=federated_alice,
-                                          publisher=federated_alice,
+                                          author_verifying_key=federated_alice.stamp.as_umbral_pubkey(),
+                                          publisher_verifying_key=federated_alice.stamp.as_umbral_pubkey(),
                                           authorized_kfrag=auth_kfrag)
 
     serialized_map = bytes(treasure_map)

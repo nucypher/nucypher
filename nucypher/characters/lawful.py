@@ -1195,17 +1195,30 @@ class Ursula(Teacher, Character, Worker):
     # Re-Encryption
     #
 
+    def _decrypt_kfrag(self,
+                       encrypted_kfrag: MessageKit, # TODO: make its own type? See #2743
+                       author_verifying_key: PublicKey
+                       ) -> AuthorizedKeyFrag:
+
+        if author_verifying_key != encrypted_kfrag.sender_verifying_key:
+            raise ValueError("This encrypted AuthorizedKeyFrag was not created "
+                            f"by the expected author {author_verifying_key}")
+
+        decrypting_power = self._crypto_power.power_ups(DecryptingPower)
+        kfrag_payload = decrypting_power.decrypt(encrypted_kfrag)
+        return AuthorizedKeyFrag.from_bytes(kfrag_payload)
+
     def verify_kfrag_authorization(self,
                                    hrac: HRAC,
-                                   author: Alice,
-                                   publisher: Alice,
+                                   author_verifying_key: PublicKey,
+                                   publisher_verifying_key: PublicKey,
                                    authorized_kfrag: AuthorizedKeyFrag,
                                    ) -> VerifiedKeyFrag:
 
         try:
             verified_kfrag = authorized_kfrag.verify(hrac=hrac,
-                                                     author_verifying_key=author.stamp.as_umbral_pubkey(),
-                                                     publisher_verifying_key=publisher.stamp.as_umbral_pubkey())
+                                                     author_verifying_key=author_verifying_key,
+                                                     publisher_verifying_key=publisher_verifying_key)
         except UnauthorizedKeyFragError as e:
             raise Policy.Unauthorized from e
 

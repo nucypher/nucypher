@@ -371,20 +371,6 @@ class Character(Learner):
                                         sign_plaintext=sign_plaintext)
         return message_kit
 
-    def decrypt_internal(self,
-                         stranger: 'Character',
-                         message_kit: MessageKit,
-                         ) -> bytes:
-
-        # TODO: this is a function that decrypts internally used MessageKits
-        # (encrypted TreasureMap, AuthorizedKeyFrag etc).
-        # This will go inside `nucypher-core` when the corresponding structures are moved there.
-        if stranger.stamp.as_umbral_pubkey() != message_kit.sender_verifying_key:
-            raise ValueError("This MessageKit doesn't appear to have come from {}".format(stranger))
-
-        decrypting_power = self._crypto_power.power_ups(DecryptingPower)
-        return decrypting_power.decrypt(message_kit)
-
     def public_keys(self, power_up_class: ClassVar):
         """
         Pass a power_up_class, get the public material for this Character which corresponds to that
