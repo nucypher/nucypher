@@ -15,7 +15,7 @@ You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
-from typing import Optional, Sequence, Callable, Dict, Tuple, List, Iterable
+from typing import Optional, Sequence, Dict, Tuple, List, Iterable
 
 from bytestring_splitter import (
     BytestringSplitter,
@@ -491,16 +491,19 @@ class EncryptedTreasureMap(Versioned):
 
         return cls(treasure_map.hrac, public_signature, encrypted_tmap)
 
-    def decrypt(self, decryptor: Callable[[MessageKit], bytes]) -> TreasureMap:
+    def decrypt(self, sk: SecretKey, publisher_verifying_key: PublicKey) -> TreasureMap:
         """
-        When Bob receives the TreasureMap, he'll pass a decryptor (a callable which can verify and decrypt the
-        payload message kit).
+        Decrypt the treasure map and ensure it is signed by the publisher.
         """
+        if publisher_verifying_key != self.publisher_verifying_key:
+            raise ValueError("This TreasureMap was not created "
+                            f"by the expected publisher {publisher_verifying_key}")
+
         try:
-            map_in_the_clear = decryptor(self._encrypted_tmap)
+            map_in_the_clear = self._encrypted_tmap.decrypt(sk)
         except InvalidSignature as e:
             raise InvalidSignature("This TreasureMap does not contain the correct signature "
-                                   "from the publisher to Bob.") from e
+                                   "from the publisher.") from e
 
         return TreasureMap.from_bytes(map_in_the_clear)
 

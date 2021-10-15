@@ -247,7 +247,8 @@ def federated_treasure_map(enacted_federated_policy, federated_bob):
     """
     The unencrypted treasure map corresponding to the one in `enacted_federated_policy`
     """
-    yield federated_bob._decrypt_treasure_map(enacted_federated_policy.treasure_map)
+    yield federated_bob._decrypt_treasure_map(enacted_federated_policy.treasure_map,
+                                              enacted_federated_policy.publisher_verifying_key)
 
 
 @pytest.fixture(scope="module")
@@ -292,7 +293,8 @@ def blockchain_treasure_map(enacted_blockchain_policy, blockchain_bob):
     """
     The unencrypted treasure map corresponding to the one in `enacted_blockchain_policy`
     """
-    yield blockchain_bob._decrypt_treasure_map(enacted_blockchain_policy.treasure_map)
+    yield blockchain_bob._decrypt_treasure_map(enacted_blockchain_policy.treasure_map,
+                                               enacted_blockchain_policy.publisher_verifying_key)
 
 
 @pytest.fixture(scope="function")

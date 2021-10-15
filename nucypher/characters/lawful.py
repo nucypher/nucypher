@@ -529,20 +529,19 @@ class Bob(Character):
         card = Card.from_character(self)
         return card
 
-    def _decrypt_treasure_map(self, encrypted_treasure_map: EncryptedTreasureMap) -> TreasureMap:
-
-        publisher = Alice.from_public_keys(verifying_key=encrypted_treasure_map.publisher_verifying_key)
-
-        def decryptor(message_kit):
-            return self.decrypt_internal(publisher, message_kit)
-
-        return encrypted_treasure_map.decrypt(decryptor)
+    def _decrypt_treasure_map(self,
+                              encrypted_treasure_map: EncryptedTreasureMap,
+                              publisher_verifying_key: PublicKey
+                              ) -> TreasureMap:
+        decrypting_power = self._crypto_power.power_ups(DecryptingPower)
+        return decrypting_power.decrypt_treasure_map(encrypted_treasure_map, publisher_verifying_key)
 
     def retrieve(
             self,
             message_kits: Sequence[Union[MessageKit, PolicyMessageKit]],
             alice_verifying_key: PublicKey, # KeyFrag signer's key
             encrypted_treasure_map: EncryptedTreasureMap,
+            publisher_verifying_key: Optional[PublicKey] = None,
             ) -> List[PolicyMessageKit]:
         """
         Attempts to retrieve reencrypted capsule fragments
@@ -558,13 +557,16 @@ class Bob(Character):
         several retrieval attempts.
         """
 
+        if not publisher_verifying_key:
+            publisher_verifying_key = alice_verifying_key
+
         if encrypted_treasure_map.hrac in self._treasure_maps:
             # A small optimization to avoid multiple treasure map decryptions.
             treasure_map = self._treasure_maps[encrypted_treasure_map.hrac]
         else:
             # Have to decrypt the treasure map first to find out what the threshold is.
             # Otherwise we could check the message kits for completeness right away.
-            treasure_map = self._decrypt_treasure_map(encrypted_treasure_map)
+            treasure_map = self._decrypt_treasure_map(encrypted_treasure_map, publisher_verifying_key)
 
         # Normalize input
         message_kits: List[PolicyMessageKit] = [
