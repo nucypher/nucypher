@@ -24,6 +24,7 @@ import pytest
 from constant_sorrow.constants import FEDERATED_ADDRESS
 from cryptography.hazmat.primitives.serialization.base import Encoding
 
+from nucypher.blockchain.eth.constants import NULL_ADDRESS
 from nucypher.config.keyring import (
     _assemble_key_data,
     _generate_tls_keys,
@@ -32,9 +33,10 @@ from nucypher.config.keyring import (
     _serialize_private_key_to_pem,
     _deserialize_private_key_from_pem,
     _write_private_keyfile,
-    _read_keyfile, NucypherKeyring, _read_tls_public_certificate, _validate_tls_certificate, InvalidCertError
+    _read_keyfile, NucypherKeyring, _read_tls_public_certificate, _validate_tls_certificate, InvalidCertError,
+    _regenerate_tls_cert
 )
-from nucypher.crypto.api import _TLS_CURVE, generate_teacher_certificate
+from nucypher.crypto.api import _TLS_CURVE, generate_teacher_certificate, read_certificate_common_name
 from nucypher.crypto.powers import DecryptingPower, SigningPower
 from nucypher.network.server import TLSHostingPower
 from nucypher.utilities.networking import LOOPBACK_ADDRESS
@@ -207,17 +209,35 @@ def test_validate_tls_certificate(tmpdir):
     certificate = _read_tls_public_certificate(filepath=certificate_filepath)
 
     # valid so no exception raised
-    _validate_tls_certificate(certificate, LOOPBACK_ADDRESS, keyring.checksum_address)
+    _validate_tls_certificate(certificate, LOOPBACK_ADDRESS)
 
-    # mismatched checksum
+    # mismatched host
     with pytest.raises(InvalidCertError):
-        _validate_tls_certificate(certificate, LOOPBACK_ADDRESS, keyring.checksum_address[:8])
+        _validate_tls_certificate(certificate, "example.com")
 
-    # mismatched address
-    with pytest.raises(InvalidCertError):
-        _validate_tls_certificate(certificate, "example.com", keyring.checksum_address[:8])
+    # expired certificate
+    # set 'now' to be two years in the past - default expire is 365 days from 'now'
+    now = (maya.now() - datetime.timedelta(days=(365 * 2))).datetime()
+    with patch('nucypher.crypto.api.datetime') as mock_datetime:
+        mock_datetime.utcnow.return_value = now
+        certificate, _ = generate_teacher_certificate(checksum_address=NULL_ADDRESS, host=LOOPBACK_ADDRESS)
+        with pytest.raises(InvalidCertError):
+            _validate_tls_certificate(certificate, LOOPBACK_ADDRESS)
 
-    # already expired cert
+
+def test_regenerate_tls_cert(tmpdir):
+    keyring = _generate_keyring(tmpdir)
+    certificate_filepath = keyring.certificate_filepath
+    certificate = _read_tls_public_certificate(filepath=certificate_filepath)
+    cert_host = read_certificate_common_name(certificate=certificate)
+    assert cert_host == LOOPBACK_ADDRESS
+
+    regen_host = "1.2.3.4"
+    _regenerate_tls_cert(private_key=None, host=regen_host, full_filepath=certificate_filepath)
+    regen_certificate = _read_tls_public_certificate(filepath=certificate_filepath)
+    regen_cert_host = read_certificate_common_name(certificate=regen_certificate)
+    assert regen_cert_host == regen_host
+    assert regen_cert_host != cert_host  # original certificate overwritten with different host value
 
 
 def _generate_keyring(root,

@@ -1258,12 +1258,6 @@ class Ursula(Teacher, Character, Worker):
         If an exception is raised, Ursula startup will be interrupted.
         """
         validate_worker_ip(worker_ip=self.rest_interface.host)
-        try:
-            _validate_tls_certificate(certificate=self.certificate,
-                                      checksum_address=self.checksum_address,
-                                      host=self.rest_interface.host)
-        except InvalidCertError:
-            _regenerate_tls_cert()
 
     def run(self,
             emitter: StdoutEmitter = None,
