@@ -16,7 +16,6 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
 
-import datetime
 import sha3
 from constant_sorrow import constants
 from cryptography import x509
@@ -29,6 +28,7 @@ from cryptography.hazmat.primitives.asymmetric import ec
 from cryptography.hazmat.primitives.asymmetric.ec import EllipticCurve
 from cryptography.x509 import Certificate
 from cryptography.x509.oid import NameOID
+from datetime import datetime, timedelta
 from eth_account import Account
 from eth_account.messages import encode_defunct
 from eth_utils import is_checksum_address, to_checksum_address
@@ -188,7 +188,7 @@ def __generate_self_signed_certificate(host: str,
         private_key = ec.generate_private_key(curve, default_backend())
     public_key = private_key.public_key()
 
-    now = datetime.datetime.utcnow()
+    now = datetime.utcnow()
     fields = [
         x509.NameAttribute(NameOID.COMMON_NAME, host),
     ]
@@ -203,7 +203,7 @@ def __generate_self_signed_certificate(host: str,
     cert = cert.public_key(public_key)
     cert = cert.serial_number(x509.random_serial_number())
     cert = cert.not_valid_before(now)
-    cert = cert.not_valid_after(now + datetime.timedelta(days=days_valid))
+    cert = cert.not_valid_after(now + timedelta(days=days_valid))
     cert = cert.add_extension(x509.SubjectAlternativeName([x509.IPAddress(IPv4Address(host))]), critical=False)
     cert = cert.sign(private_key, hashes.SHA512(), default_backend())
 
@@ -211,8 +211,8 @@ def __generate_self_signed_certificate(host: str,
 
 
 def generate_teacher_certificate(checksum_address: str, *args, **kwargs):
-    cert = __generate_self_signed_certificate(checksum_address=checksum_address, *args, **kwargs)
-    return cert
+    cert, private_key = __generate_self_signed_certificate(checksum_address=checksum_address, *args, **kwargs)
+    return cert, private_key
 
 
 def generate_self_signed_certificate(*args, **kwargs):
@@ -232,6 +232,14 @@ def read_certificate_pseudonym(certificate: Certificate):
     if not is_checksum_address(checksum_address):
         raise InvalidNodeCertificate("Invalid certificate checksum address encountered")
     return checksum_address
+
+
+def read_certificate_common_name(certificate: Certificate):
+    try:
+        host = certificate.subject.get_attributes_for_oid(NameOID.COMMON_NAME)[0]
+        return host.value
+    except IndexError:
+        raise InvalidNodeCertificate("Invalid teacher certificate encountered: No host name preset as common name.")
 
 
 def encrypt_and_sign(recipient_pubkey_enc: UmbralPublicKey,

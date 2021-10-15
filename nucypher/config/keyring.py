@@ -24,8 +24,10 @@ import stat
 from functools import partial
 from json import JSONDecodeError
 from os.path import abspath
+from pathlib import Path
 from typing import Callable, ClassVar, Dict, List, Tuple, Union, Optional
 
+import OpenSSL
 from constant_sorrow.constants import FEDERATED_ADDRESS, KEYRING_LOCKED
 from cryptography import x509
 from cryptography.hazmat.backends import default_backend
@@ -43,8 +45,9 @@ from nacl.exceptions import CryptoError
 from nacl.secret import SecretBox
 from umbral.keys import UmbralKeyingMaterial, UmbralPrivateKey, UmbralPublicKey, derive_key_from_password
 
+from nucypher.blockchain.eth.constants import NULL_ADDRESS
 from nucypher.config.constants import DEFAULT_CONFIG_ROOT
-from nucypher.crypto.api import generate_teacher_certificate, _TLS_CURVE
+from nucypher.crypto.api import generate_teacher_certificate, _TLS_CURVE, read_certificate_common_name, read_certificate_pseudonym
 from nucypher.crypto.constants import BLAKE2B
 from nucypher.crypto.keypairs import HostingKeypair
 from nucypher.crypto.powers import (DecryptingPower, DerivedKeyBasedPower, KeyPairBasedPower, SigningPower)
@@ -81,6 +84,10 @@ class PrivateKeyExistsError(RuntimeError):
 
 
 class ExistingKeyringError(RuntimeError):
+    pass
+
+
+class InvalidCertError(RuntimeError):
     pass
 
 
@@ -303,6 +310,36 @@ def _deserialize_private_key(key_data: bytes) -> PrivateKeyData:
     return key_metadata
 
 
+def _validate_tls_certificate(certificate, host):
+    # check host name hasn't changed
+    cert_host = read_certificate_common_name(certificate=certificate)
+    if cert_host != host:
+        raise InvalidCertError(f"TLS certificate invalid - certificate does not match host {host}")
+
+    # check expiry
+    x509 = OpenSSL.crypto.X509.from_cryptography(certificate)
+    if x509.get_notAfter() and x509.has_expired():
+        raise InvalidCertError("TLS certificate invalid - certificate expired")
+
+
+def _regenerate_tls_cert(private_key, host, full_filepath) -> str:
+    # TODO: Remove NULL ADDRESS after 6.x release
+    cert, _ = generate_teacher_certificate(host=host, checksum_address=NULL_ADDRESS, private_key=private_key)
+    certificate_filepath = _write_tls_certificate(full_filepath=full_filepath,
+                                                  certificate=cert,
+                                                  force=True)
+    NucypherKeyring.log.info(f'Regenerated TLS certificate for {host}')
+    return certificate_filepath
+
+
+def _ensure_valid_tls_certificate(host: str, private_key, certificate_path: str) -> None:
+    certificate = _read_tls_public_certificate(filepath=certificate_path)
+    try:
+        _validate_tls_certificate(certificate, host)
+    except InvalidCertError as e:
+        _regenerate_tls_cert(private_key, host, certificate_path)
+
+
 class NucypherKeyring:
     """
     Handles keys for a single identity, recognized by account.
@@ -500,11 +537,15 @@ class NucypherKeyring:
                     raise ValueError('Host is required to derive a TLSHostingPower')
                 tls_key_deserializer = partial(_deserialize_private_key_from_pem, password=self.__derived_key_material)
                 private_key = _read_keyfile(keypath=path, deserializer=tls_key_deserializer)
+                _ensure_valid_tls_certificate(host=host,
+                                              certificate_path=self.__tls_certificate_path,
+                                              private_key=private_key)
                 keypair = HostingKeypair(host=host,
                                          private_key=private_key,
                                          checksum_address=self.checksum_address,
                                          generate_certificate=False,
                                          certificate_filepath=self.__tls_certificate_path)
+
                 new_cryptopower = TLSHostingPower(keypair=keypair, host=host)
 
             else:
