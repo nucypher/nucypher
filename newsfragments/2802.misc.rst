@@ -1,0 +1,1 @@
+Extracting protocol logic into an underlying layer and preparing to move it to Rust. Involves multiple ABI changes (in ``Arrangement``, ``MessageKit``, ``RevocationOrder``, ``EncryptedTreasureMap``, node metadata). In particular, old node metadata will be backward incompatible with the current version, since it now shares the versoning logic with other protocol objects.
