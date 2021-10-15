@@ -244,9 +244,9 @@ class Policy(ABC):
 
         self._enact_arrangements(arrangements)
 
-        assigned_kfrags = [
-            (ursula.checksum_address, ursula.public_keys(DecryptingPower), vkfrag)
-            for ursula, vkfrag in zip(arrangements, self.kfrags)]
+        assigned_kfrags = {
+            ursula.checksum_address: (ursula.public_keys(DecryptingPower), vkfrag)
+            for ursula, vkfrag in zip(arrangements, self.kfrags)}
 
         treasure_map = TreasureMap.construct_by_publisher(hrac=self.hrac,
                                                           policy_encrypting_key=self.public_key,

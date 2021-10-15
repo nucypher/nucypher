@@ -15,7 +15,7 @@ You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
-from typing import Optional, Sequence, Dict, Tuple, List, Iterable
+from typing import Optional, Sequence, Dict, Tuple, List, Iterable, Mapping
 
 from bytestring_splitter import (
     BytestringSplitter,
@@ -373,8 +373,7 @@ class TreasureMap(Versioned):
                                hrac: HRAC,
                                policy_encrypting_key: PublicKey,
                                signer: Signer,
-                               # TODO: a better way to do it? A structure/namedtuple perhaps?
-                               assigned_kfrags: Sequence[Tuple[ChecksumAddress, PublicKey, VerifiedKeyFrag]],
+                               assigned_kfrags: Mapping[ChecksumAddress, Tuple[PublicKey, VerifiedKeyFrag]],
                                threshold: int,
                                ) -> 'TreasureMap':
         """Create a new treasure map for a collection of ursulas and kfrags."""
@@ -389,7 +388,8 @@ class TreasureMap(Versioned):
 
         # Encrypt each kfrag for an Ursula.
         destinations = {}
-        for ursula_address, ursula_key, verified_kfrag in assigned_kfrags:
+        for ursula_address, key_and_kfrag in assigned_kfrags.items():
+            ursula_key, verified_kfrag = key_and_kfrag
             # TODO: do we really need to sign the AuthorizedKeyFrag *and* the plaintext afterwards?
             kfrag_payload = bytes(AuthorizedKeyFrag.construct_by_publisher(hrac=hrac,
                                                                            verified_kfrag=verified_kfrag,

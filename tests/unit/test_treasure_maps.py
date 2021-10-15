@@ -36,9 +36,9 @@ def test_complete_treasure_map_journey(federated_alice, federated_bob, federated
                        bob_verifying_key=federated_bob.stamp.as_umbral_pubkey(),
                        label=label)
 
-    assigned_kfrags = [
-        (ursula.checksum_address, ursula.public_keys(DecryptingPower), vkfrag)
-        for ursula, vkfrag in zip(ursulas, kfrags)]
+    assigned_kfrags = {
+        ursula.checksum_address: (ursula.public_keys(DecryptingPower), vkfrag)
+        for ursula, vkfrag in zip(ursulas, kfrags)}
 
     treasure_map = TreasureMap.construct_by_publisher(hrac=hrac,
                                                       policy_encrypting_key=idle_federated_policy.public_key,
@@ -91,9 +91,9 @@ def test_treasure_map_versioning(mocker, federated_alice, federated_bob, federat
                        bob_verifying_key=federated_bob.stamp.as_umbral_pubkey(),
                        label=label)
 
-    assigned_kfrags = [
-        (ursula.checksum_address, ursula.public_keys(DecryptingPower), vkfrag)
-        for ursula, vkfrag in zip(list(federated_ursulas)[:len(kfrags)], kfrags)]
+    assigned_kfrags = {
+        ursula.checksum_address: (ursula.public_keys(DecryptingPower), vkfrag)
+        for ursula, vkfrag in zip(list(federated_ursulas)[:len(kfrags)], kfrags)}
 
     treasure_map = TreasureMap.construct_by_publisher(hrac=hrac,
                                                       policy_encrypting_key=idle_federated_policy.public_key,

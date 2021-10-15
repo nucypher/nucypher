@@ -34,9 +34,9 @@ def random_federated_treasure_map_data(federated_alice, federated_bob, federated
                        bob_verifying_key=federated_bob.stamp.as_umbral_pubkey(),
                        label=label)
 
-    assigned_kfrags = [
-        (ursula.checksum_address, ursula.public_keys(DecryptingPower), vkfrag)
-        for ursula, vkfrag in zip(list(federated_ursulas)[:shares], kfrags)]
+    assigned_kfrags = {
+        ursula.checksum_address: (ursula.public_keys(DecryptingPower), vkfrag)
+        for ursula, vkfrag in zip(list(federated_ursulas)[:shares], kfrags)}
 
     random_treasure_map = TreasureMap.construct_by_publisher(hrac=hrac,
                                                              policy_encrypting_key=policy_key,
