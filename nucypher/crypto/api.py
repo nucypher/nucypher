@@ -211,8 +211,8 @@ def __generate_self_signed_certificate(host: str,
 
 
 def generate_teacher_certificate(checksum_address: str, *args, **kwargs):
-    cert = __generate_self_signed_certificate(checksum_address=checksum_address, *args, **kwargs)
-    return cert
+    cert, private_key = __generate_self_signed_certificate(checksum_address=checksum_address, *args, **kwargs)
+    return cert, private_key
 
 
 def generate_self_signed_certificate(*args, **kwargs):

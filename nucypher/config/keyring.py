@@ -85,6 +85,10 @@ class ExistingKeyringError(RuntimeError):
     pass
 
 
+class InvalidCertError(RuntimeError):
+    pass
+
+
 def unlock_required(func):
     """Method decorator"""
 
@@ -304,6 +308,31 @@ def _deserialize_private_key(key_data: bytes) -> PrivateKeyData:
     return key_metadata
 
 
+def _validate_tls_certificate(certificate, host, checksum_address) -> bool:
+    # check host name hasn't changed
+    cert_host = read_certificate_common_name(certificate=certificate)
+    if cert_host != host:
+        raise InvalidCertError("TLS certificate invalid - invalid host name")
+
+    # check checksum
+    cert_checksum = read_certificate_pseudonym(certificate=certificate)
+    if cert_checksum != checksum_address:
+        raise InvalidCertError("TLS certificate invalid - invalid checksum address")
+
+    # check expiry
+    x509 = OpenSSL.crypto.X509.from_cryptography(certificate)
+    if x509.get_notAfter() and x509.has_expired():
+        raise InvalidCertError("TLS certificate invalid - certificate expired")
+
+
+def _regenerate_tls_cert(private_key, host, checksum_address, full_filepath) -> str:
+    cert, _ = generate_teacher_certificate(host=host, checksum_address=checksum_address, private_key=private_key)
+    certificate_filepath = _write_tls_certificate(full_filepath=full_filepath,
+                                                  certificate=cert,
+                                                  force=True)
+    return certificate_filepath
+
+
 class NucypherKeyring:
     """
     Handles keys for a single identity, recognized by account.
@@ -507,10 +536,11 @@ class NucypherKeyring:
                                          generate_certificate=False,
                                          certificate_filepath=self.__tls_certificate_path)
                 certificate = keypair.certificate
-                if not self.is_valid_tls_certificate(certificate, host, self.checksum_address):
-                    self.log.warn("TLS certificate invalid - regenerating it")
-                    # don't need curve since providing the private key
-                    certificate_filepath = self.regenerate_tls_cert(private_key, host, self.checksum_address, self.__tls_certificate_path)
+                try:
+                    _validate_tls_certificate(certificate, host, self.checksum_address)
+                except InvalidCertError as e:
+                    self.log.warn("TLS certificate invalid - {e}}")
+                    certificate_filepath = _regenerate_tls_cert(private_key, host, self.checksum_address, self.__tls_certificate_path)
                     keypair = HostingKeypair(host=host,
                                              private_key=private_key,
                                              checksum_address=self.checksum_address,
@@ -689,34 +719,6 @@ class NucypherKeyring:
 
         keyring_instance = cls(account=checksum_address, **keyring_args)
         return keyring_instance
-
-    def is_valid_tls_certificate(self, certificate, host, checksum_address) -> bool:
-        # check host name hasn't changed
-        cert_host = read_certificate_common_name(certificate=certificate)
-        if cert_host != host:
-            self.log.warn("TLS certificate invalid - invalid host name")
-            return False
-
-        # check checksum
-        cert_checksum = read_certificate_pseudonym(certificate=certificate)
-        if cert_checksum != checksum_address:
-            self.log.warn("TLS certificate invalid - invalid checksum address")
-            return False
-
-        # check expiry
-        x509 = OpenSSL.crypto.X509.from_cryptography(certificate)
-        if x509.get_notAfter() and x509.has_expired():
-            self.log.warn("TLS certificate invalid - certificate expired")
-            return False
-
-        return True
-
-    def regenerate_tls_cert(self, private_key, host, checksum_address, full_filepath) -> str:
-        cert, _ = generate_teacher_certificate(host=host, checksum_address=checksum_address, private_key=private_key)
-        certificate_filepath = _write_tls_certificate(full_filepath=full_filepath,
-                                                      certificate=cert,
-                                                      force=True)
-        return certificate_filepath
 
     @classmethod
     def validate_password(cls, password: str) -> List:

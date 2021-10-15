@@ -14,9 +14,12 @@ GNU Affero General Public License for more details.
 You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
+import datetime
 from functools import partial
 from pathlib import Path
+from unittest.mock import patch, PropertyMock
 
+import maya
 import pytest
 from constant_sorrow.constants import FEDERATED_ADDRESS
 from cryptography.hazmat.primitives.serialization.base import Encoding
@@ -29,9 +32,9 @@ from nucypher.config.keyring import (
     _serialize_private_key_to_pem,
     _deserialize_private_key_from_pem,
     _write_private_keyfile,
-    _read_keyfile, NucypherKeyring
+    _read_keyfile, NucypherKeyring, _read_tls_public_certificate, _validate_tls_certificate, InvalidCertError
 )
-from nucypher.crypto.api import _TLS_CURVE
+from nucypher.crypto.api import _TLS_CURVE, generate_teacher_certificate
 from nucypher.crypto.powers import DecryptingPower, SigningPower
 from nucypher.network.server import TLSHostingPower
 from nucypher.utilities.networking import LOOPBACK_ADDRESS
@@ -195,6 +198,26 @@ def test_tls_write_read_private_keyfile(temp_dir_path):
                                                        deserializer=tls_deserializer)
 
     assert private_key.private_numbers() == deserialized_private_key_from_file.private_numbers()
+
+
+def test_validate_tls_certificate(tmpdir):
+    keyring = _generate_keyring(tmpdir)
+
+    certificate_filepath = keyring.certificate_filepath
+    certificate = _read_tls_public_certificate(filepath=certificate_filepath)
+
+    # valid so no exception raised
+    _validate_tls_certificate(certificate, LOOPBACK_ADDRESS, keyring.checksum_address)
+
+    # mismatched checksum
+    with pytest.raises(InvalidCertError):
+        _validate_tls_certificate(certificate, LOOPBACK_ADDRESS, keyring.checksum_address[:8])
+
+    # mismatched address
+    with pytest.raises(InvalidCertError):
+        _validate_tls_certificate(certificate, "example.com", keyring.checksum_address[:8])
+
+    # already expired cert
 
 
 def _generate_keyring(root,
