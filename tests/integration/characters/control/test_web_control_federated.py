@@ -24,10 +24,10 @@ import maya
 import pytest
 from click.testing import CliRunner
 
+from nucypher.core import MessageKit, EncryptedTreasureMap
+
 import nucypher
 from nucypher.crypto.powers import DecryptingPower
-from nucypher.policy.kits import MessageKit
-from nucypher.policy.maps import EncryptedTreasureMap
 
 click_runner = CliRunner()
 
@@ -304,7 +304,6 @@ def test_web_character_control_lifecycle(alice_web_controller_test_client,
 
     # This is sidechannel policy metadata. It should be given to Bob by the
     # application developer at some point.
-    policy_pubkey_enc_hex = alice_response_data['result']['policy_encrypting_key']
     alice_verifying_key_hex = alice_response_data['result']['alice_verifying_key']
 
     # Encrypt some data via Enrico control
@@ -329,7 +328,6 @@ def test_web_character_control_lifecycle(alice_web_controller_test_client,
     encoded_message_kit = b64encode(bytes(bob_message_kit)).decode()
 
     bob_request_data = {
-        'policy_encrypting_key': policy_pubkey_enc_hex,
         'alice_verifying_key': alice_verifying_key_hex,
         'message_kits': [encoded_message_kit],
         'encrypted_treasure_map': alice_response_data['result']['treasure_map']

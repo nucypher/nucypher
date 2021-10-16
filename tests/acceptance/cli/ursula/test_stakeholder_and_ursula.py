@@ -620,7 +620,8 @@ def test_collect_rewards_integration(click_runner,
                                                handpicked_ursulas={ursula})
 
     # Ensure that the handpicked Ursula was selected for the policy
-    treasure_map = blockchain_bob._decrypt_treasure_map(blockchain_policy.treasure_map)
+    treasure_map = blockchain_bob._decrypt_treasure_map(blockchain_policy.treasure_map,
+                                                        blockchain_policy.publisher_verifying_key)
     assert ursula.checksum_address in treasure_map.destinations
 
     # Bob learns about the new staker and joins the policy
@@ -643,7 +644,6 @@ def test_collect_rewards_integration(click_runner,
 
         # Decrypt
         cleartexts = blockchain_bob.retrieve_and_decrypt([message_kit],
-                                                         policy_encrypting_key=blockchain_policy.public_key,
                                                          alice_verifying_key=verifying_key,
                                                          encrypted_treasure_map=blockchain_policy.treasure_map)
         assert random_data == cleartexts[0]

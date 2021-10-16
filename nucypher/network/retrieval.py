@@ -19,31 +19,26 @@ from collections import defaultdict
 import random
 from typing import Dict, Sequence, List, Tuple
 
-from bytestring_splitter import BytestringSplitter, VariableLengthBytestring
 from eth_typing.evm import ChecksumAddress
 from twisted.logger import Logger
 
-from nucypher.crypto.signing import SignatureStamp, InvalidSignature
-from nucypher.crypto.splitters import (
-    capsule_splitter,
-    cfrag_splitter,
-    key_splitter,
-    signature_splitter,
-)
+from nucypher.core import (
+    TreasureMap,
+    ReencryptionResponse,
+    ReencryptionRequest,
+    RetrievalKit,
+    )
+
+from nucypher.crypto.signing import InvalidSignature
 from nucypher.crypto.umbral_adapter import (
     Capsule,
-    CapsuleFrag,
     PublicKey,
-    Signature,
     VerifiedCapsuleFrag,
     VerificationError,
 )
 from nucypher.network.exceptions import NodeSeemsToBeDown
 from nucypher.network.nodes import Learner
-from nucypher.policy.hrac import HRAC, hrac_splitter
-from nucypher.policy.kits import MessageKit, RetrievalKit, RetrievalResult
-from nucypher.policy.maps import TreasureMap
-from nucypher.utilities.versioning import Versioned
+from nucypher.policy.kits import RetrievalResult
 
 
 class RetrievalPlan:
@@ -139,134 +134,6 @@ class RetrievalWorkOrder:
         self.capsules = capsules
 
 
-class ReencryptionRequest(Versioned):
-    """
-    A request for an Ursula to reencrypt for several capsules.
-    """
-
-    @classmethod
-    def from_work_order(cls,
-                        work_order: RetrievalWorkOrder,
-                        treasure_map: TreasureMap,
-                        alice_verifying_key: PublicKey,
-                        bob_verifying_key: PublicKey,
-                        ) -> 'ReencryptionRequest':
-        return cls(hrac=treasure_map.hrac,
-                   alice_verifying_key=alice_verifying_key,
-                   bob_verifying_key=bob_verifying_key,
-                   encrypted_kfrag=treasure_map.destinations[work_order.ursula_address],
-                   capsules=work_order.capsules)
-
-    def __init__(self,
-                 hrac: HRAC,
-                 alice_verifying_key: PublicKey,
-                 bob_verifying_key: PublicKey,
-                 encrypted_kfrag: MessageKit,
-                 capsules: List[Capsule]):
-
-        self.hrac = hrac
-        self._alice_verifying_key = alice_verifying_key
-        self._bob_verifying_key = bob_verifying_key
-        self.encrypted_kfrag = encrypted_kfrag
-        self.capsules = capsules
-
-    def alice(self) -> 'Alice':
-        from nucypher.characters.lawful import Alice
-        return Alice.from_public_keys(verifying_key=self._alice_verifying_key)
-
-    def bob(self) -> 'Bob':
-        from nucypher.characters.lawful import Bob
-        return Bob.from_public_keys(verifying_key=self._bob_verifying_key)
-
-    def publisher(self) -> 'Alice':
-        from nucypher.characters.lawful import Alice
-        return Alice.from_public_keys(verifying_key=self.encrypted_kfrag.sender_verifying_key)
-
-    def _payload(self) -> bytes:
-        return (bytes(self.hrac) +
-                bytes(self._alice_verifying_key) +
-                bytes(self._bob_verifying_key) +
-                VariableLengthBytestring(bytes(self.encrypted_kfrag)) +
-                b''.join(bytes(capsule) for capsule in self.capsules)
-                )
-
-    @classmethod
-    def _brand(cls) -> bytes:
-        return b'ReRq'
-
-    @classmethod
-    def _version(cls) -> Tuple[int, int]:
-        return 1, 0
-
-    @classmethod
-    def _old_version_handlers(cls) -> Dict:
-        return {}
-
-    @classmethod
-    def _from_bytes_current(cls, data):
-        splitter = (hrac_splitter +
-                    key_splitter +
-                    key_splitter +
-                    BytestringSplitter((MessageKit, VariableLengthBytestring)))
-
-        hrac, alice_vk, bob_vk, ekfrag, remainder = splitter(data, return_remainder=True)
-        capsules = capsule_splitter.repeat(remainder)
-        return cls(hrac, alice_vk, bob_vk, ekfrag, capsules)
-
-
-class ReencryptionResponse(Versioned):
-    """
-    A response from Ursula with reencrypted capsule frags.
-    """
-
-    @classmethod
-    def construct_by_ursula(cls,
-                            capsules: List[Capsule],
-                            cfrags: List[VerifiedCapsuleFrag],
-                            stamp: SignatureStamp,
-                            ) -> 'ReencryptionResponse':
-
-        # un-verify
-        cfrags = [CapsuleFrag.from_bytes(bytes(cfrag)) for cfrag in cfrags]
-
-        capsules_bytes = b''.join(bytes(capsule) for capsule in capsules)
-        cfrags_bytes = b''.join(bytes(cfrag) for cfrag in cfrags)
-        signature = stamp(capsules_bytes + cfrags_bytes)
-        return cls(cfrags, signature)
-
-    def __init__(self, cfrags: List[CapsuleFrag], signature: Signature):
-        self.cfrags = cfrags
-        self.signature = signature
-
-    def _payload(self) -> bytes:
-        """Returns the unversioned bytes serialized representation of this instance."""
-        return bytes(self.signature) + b''.join(bytes(cfrag) for cfrag in self.cfrags)
-
-    @classmethod
-    def _brand(cls) -> bytes:
-        return b'ReRs'
-
-    @classmethod
-    def _version(cls) -> Tuple[int, int]:
-        return 1, 0
-
-    @classmethod
-    def _old_version_handlers(cls) -> Dict:
-        return {}
-
-    @classmethod
-    def _from_bytes_current(cls, data):
-        signature, cfrags_bytes = signature_splitter(data, return_remainder=True)
-
-        # We would never send a request with no capsules, so there should be cfrags.
-        # The splitter would fail anyway, this just makes the error message more clear.
-        if not cfrags_bytes:
-            raise ValueError(f"{cls.__name__} contains no cfrags")
-
-        cfrags = cfrag_splitter.repeat(cfrags_bytes)
-        return cls(cfrags, signature)
-
-
 class RetrievalClient:
     """
     Capsule frag retrieval machinery shared between Bob and Porter.
@@ -292,8 +159,6 @@ class RetrievalClient:
 
         # Push all unknown Ursulas from the map in the queue for learning
         unknown_ursulas = ursulas_in_map - all_known_ursulas
-        if unknown_ursulas:
-            self._learner.learn_about_specific_nodes(unknown_ursulas)
 
         # If we know enough to decrypt, we can proceed.
         known_ursulas = ursulas_in_map & all_known_ursulas
@@ -311,7 +176,7 @@ class RetrievalClient:
 
     def _request_reencryption(self,
                               ursula: 'Ursula',
-                              reencryption_request: 'ReencryptionRequest',
+                              reencryption_request: ReencryptionRequest,
                               delegating_key: PublicKey,
                               receiving_key: PublicKey,
                               ) -> Dict['Capsule', 'VerifiedCapsuleFrag']:
@@ -376,7 +241,7 @@ class RetrievalClient:
             # Verify cfrags
             try:
                 verified_cfrag = cfrag.verify(capsule,
-                                              verifying_pk=reencryption_request._alice_verifying_key,
+                                              verifying_pk=reencryption_request.alice_verifying_key,
                                               delegating_pk=delegating_key,
                                               receiving_pk=receiving_key)
             except VerificationError:
@@ -394,7 +259,6 @@ class RetrievalClient:
             alice_verifying_key: PublicKey, # KeyFrag signer's key
             bob_encrypting_key: PublicKey, # User's public key (reencryption target)
             bob_verifying_key: PublicKey,
-            policy_encrypting_key: PublicKey, # Key used to create the policy
             ) -> List[RetrievalResult]:
 
         self._ensure_ursula_availability(treasure_map)
@@ -411,8 +275,9 @@ class RetrievalClient:
                 continue
 
             ursula = self._learner.known_nodes[work_order.ursula_address]
-            reencryption_request = ReencryptionRequest.from_work_order(
-                work_order=work_order,
+            reencryption_request = ReencryptionRequest.from_treasure_map(
+                ursula_address=work_order.ursula_address,
+                capsules=work_order.capsules,
                 treasure_map=treasure_map,
                 alice_verifying_key=alice_verifying_key,
                 bob_verifying_key=bob_verifying_key)
@@ -420,7 +285,7 @@ class RetrievalClient:
             try:
                 cfrags = self._request_reencryption(ursula=ursula,
                                                     reencryption_request=reencryption_request,
-                                                    delegating_key=policy_encrypting_key,
+                                                    delegating_key=treasure_map.policy_encrypting_key,
                                                     receiving_key=bob_encrypting_key)
             except Exception as e:
                 # TODO (#2789): at this point we can separate the exceptions to "acceptable"

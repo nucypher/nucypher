@@ -649,9 +649,6 @@ Parameters
 +-------------------------------------------+---------------+----------------------------------------+
 | ``bob_verifying_key``                     | String        | Bob's verifying key encoded as hex.    |
 +-------------------------------------------+---------------+----------------------------------------+
-| ``policy_encrypting_key``                 | String        | | Encrypting key used for the policy   |
-|                                           |               | | encoded as hex.                      |
-+-------------------------------------------+---------------+----------------------------------------+
 
     * A single *retrieval kit* is an encapsulation of the information necessary to obtain cfrags from Ursulas.
       It contains a capsule and the checksum addresses of the Ursulas from which the requester has

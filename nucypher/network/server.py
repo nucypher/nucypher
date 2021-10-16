@@ -22,10 +22,21 @@ from pathlib import Path
 from typing import Tuple
 
 from constant_sorrow import constants
-from constant_sorrow.constants import FLEET_STATES_MATCH, RELAX, NOT_STAKING
+from constant_sorrow.constants import RELAX, NOT_STAKING
 from flask import Flask, Response, jsonify, request
 from mako import exceptions as mako_exceptions
 from mako.template import Template
+
+from nucypher.core import (
+    AuthorizedKeyFrag,
+    ReencryptionRequest,
+    Arrangement,
+    ArrangementResponse,
+    RevocationOrder,
+    NodeMetadata,
+    MetadataRequest,
+    MetadataResponse,
+    )
 
 from nucypher.blockchain.eth.utils import period_to_epoch
 from nucypher.config.constants import MAX_UPLOAD_CONTENT_LENGTH
@@ -34,13 +45,9 @@ from nucypher.crypto.powers import KeyPairBasedPower, PowerUpError
 from nucypher.crypto.signing import InvalidSignature
 from nucypher.datastore.datastore import Datastore
 from nucypher.datastore.models import ReencryptionRequest as ReencryptionRequestModel
-from nucypher.network import LEARNING_LOOP_VERSION
 from nucypher.network.exceptions import NodeSeemsToBeDown
 from nucypher.network.protocols import InterfaceInfo
-from nucypher.network.retrieval import ReencryptionRequest, ReencryptionResponse
-from nucypher.policy.hrac import HRAC
-from nucypher.policy.kits import MessageKit
-from nucypher.policy.revocation import RevocationOrder
+from nucypher.network.nodes import NodeSprout
 from nucypher.utilities.logging import Logger
 
 HERE = BASE_DIR = Path(__file__).parent
@@ -50,7 +57,7 @@ status_template = Template(filename=str(TEMPLATES_DIR / "basic_status.mako")).ge
 
 
 class ProxyRESTServer:
-    SERVER_VERSION = LEARNING_LOOP_VERSION
+
     log = Logger("network-server")
 
     def __init__(self,
@@ -103,7 +110,6 @@ def _make_rest_app(datastore: Datastore, this_node, domain: str, log: Logger) ->
 
     # TODO: Avoid circular imports :-(
     from nucypher.characters.lawful import Alice, Bob, Ursula
-    from nucypher.policy.policies import Arrangement
     from nucypher.policy.policies import Policy
 
     _alice_class = Alice
@@ -116,7 +122,7 @@ def _make_rest_app(datastore: Datastore, this_node, domain: str, log: Logger) ->
     @rest_app.route("/public_information")
     def public_information():
         """REST endpoint for public keys and address."""
-        response = Response(response=bytes(this_node), mimetype='application/octet-stream')
+        response = Response(response=bytes(this_node.metadata()), mimetype='application/octet-stream')
         return response
 
     @rest_app.route('/node_metadata', methods=["GET"])
@@ -126,29 +132,31 @@ def _make_rest_app(datastore: Datastore, this_node, domain: str, log: Logger) ->
             # Learn when learned about
             this_node.start_learning_loop()
 
-        if not this_node.known_nodes:
-            return Response(b"", headers=headers, status=204)
-
-        known_nodes_bytestring = this_node.bytestring_of_known_nodes()
-        signature = this_node.stamp(known_nodes_bytestring)
-        return Response(bytes(signature) + known_nodes_bytestring, headers=headers)
+        # All known nodes + this node
+        response_bytes = this_node.bytestring_of_known_nodes()
+        return Response(response_bytes, headers=headers)
 
     @rest_app.route('/node_metadata', methods=["POST"])
     def node_metadata_exchange():
 
+        metadata_request = MetadataRequest.from_bytes(request.data)
+
         # If these nodes already have the same fleet state, no exchange is necessary.
+
         learner_fleet_state = request.args.get('fleet')
-        if learner_fleet_state == this_node.known_nodes.checksum:
+        if metadata_request.fleet_state_checksum == this_node.known_nodes.checksum:
             # log.debug("Learner already knew fleet state {}; doing nothing.".format(learner_fleet_state))  # 1712
             headers = {'Content-Type': 'application/octet-stream'}
-            payload = this_node.known_nodes.snapshot() + bytes(FLEET_STATES_MATCH)
-            signature = this_node.stamp(payload)
-            return Response(bytes(signature) + payload, headers=headers)
+            # No nodes in the response: same fleet state
+            response = MetadataResponse.author(signer=this_node.stamp.as_umbral_signer(),
+                                               timestamp_epoch=this_node.known_nodes.timestamp.epoch)
+            return Response(bytes(response), headers=headers)
 
-        sprouts = _node_class.batch_from_bytes(request.data)
+        if metadata_request.announce_nodes:
+            for node in metadata_request.announce_nodes:
+                this_node.remember_node(NodeSprout(node))
 
-        for node in sprouts:
-            this_node.remember_node(node)
+        # TODO: generate a new fleet state here?
 
         # TODO: What's the right status code here?  202?  Different if we already knew about the node(s)?
         return all_known_nodes()
@@ -170,22 +178,24 @@ def _make_rest_app(datastore: Datastore, this_node, domain: str, log: Logger) ->
             terminal_stake_period = this_node.stakes.terminal_period
             terminal_stake_epoch = period_to_epoch(period=terminal_stake_period,
                                                    seconds_per_period=this_node.economics.seconds_per_period)
-            arrangement_expiration = arrangement.expiration.epoch
-            if arrangement_expiration > terminal_stake_epoch:
+            if arrangement.expiration_epoch > terminal_stake_epoch:
                 # I'm sorry David, I'm afraid I can't do that.
                 return Response(status=403)  # 403 Forbidden
 
-        signature = this_node.sign(bytes(arrangement))
+        response = ArrangementResponse.for_arrangement(arrangement, this_node.stamp.as_umbral_signer())
         headers = {'Content-Type': 'application/octet-stream'}
-        return Response(bytes(signature), status=200, headers=headers)
+        return Response(bytes(response), status=200, headers=headers)
 
     @rest_app.route('/reencrypt', methods=["POST"])
     def reencrypt():
+
+        from nucypher.characters.lawful import Bob
+
         # TODO: Cache & Optimize
 
         reenc_request = ReencryptionRequest.from_bytes(request.data)
         hrac = reenc_request.hrac
-        bob = reenc_request.bob()
+        bob = Bob.from_public_keys(verifying_key=reenc_request.bob_verifying_key)
         log.info(f"Work Order from {bob} for policy {hrac}")
 
         # Right off the bat, if this HRAC is already known to be revoked, reject the order.
@@ -193,8 +203,8 @@ def _make_rest_app(datastore: Datastore, this_node, domain: str, log: Logger) ->
             return Response(response="Invalid KFrag sender.", status=401)  # 401 - Unauthorized
 
         # Alice & Publisher
-        alice = reenc_request.alice()
-        policy_publisher = reenc_request.publisher()
+        author_verifying_key = reenc_request.alice_verifying_key
+        publisher_verifying_key = reenc_request.publisher_verifying_key
 
         # Bob
         bob_ip_address = request.remote_addr
@@ -203,28 +213,24 @@ def _make_rest_app(datastore: Datastore, this_node, domain: str, log: Logger) ->
 
         # Verify & Decrypt KFrag Payload
         try:
-            plaintext_kfrag_payload = this_node.verify_from(stranger=alice,
-                                                            message_kit=reenc_request.encrypted_kfrag,
-                                                            decrypt=True)
+            authorized_kfrag = this_node._decrypt_kfrag(encrypted_kfrag=reenc_request.encrypted_kfrag,
+                                                        author_verifying_key=author_verifying_key)
+        except ValueError as e:
+            message = f'{bob_identity_message} Invalid AuthorizedKeyFrag: {e}.'
+            log.info(message)
+            this_node.suspicious_activities_witnessed['unauthorized'].append(message)
+            return Response(message, status=400)  # 400 - General error
         except InvalidSignature:
+            # TODO: don't we want to record suspicious activities here too?
             return Response(response="Invalid KFrag sender.", status=401)  # 401 - Unauthorized
         except DecryptingKeypair.DecryptionFailed:
             return Response(response="KFrag decryption failed.", status=403)   # 403 - Forbidden
 
         # Verify KFrag Authorization (offchain)
-        from nucypher.policy.maps import AuthorizedKeyFrag
-        try:
-            authorized_kfrag = AuthorizedKeyFrag.from_bytes(plaintext_kfrag_payload)
-        except ValueError:
-            message = f'{bob_identity_message} Invalid AuthorizedKeyFrag.'
-            log.info(message)
-            this_node.suspicious_activities_witnessed['unauthorized'].append(message)
-            return Response(message, status=400)  # 400 - General error
-
         try:
             verified_kfrag = this_node.verify_kfrag_authorization(hrac=reenc_request.hrac,
-                                                                  author=alice,
-                                                                  publisher=policy_publisher,
+                                                                  author_verifying_key=author_verifying_key,
+                                                                  publisher_verifying_key=publisher_verifying_key,
                                                                   authorized_kfrag=authorized_kfrag)
 
         except Policy.Unauthorized:
@@ -289,7 +295,8 @@ def _make_rest_app(datastore: Datastore, this_node, domain: str, log: Logger) ->
 
         elif request.method == 'POST':
             try:
-                requesting_ursula = Ursula.from_bytes(request.data)
+                requester_metadata = NodeMetadata.from_bytes(request.data)
+                requesting_ursula = NodeSprout(requester_metadata)
                 requesting_ursula.mature()
             except ValueError:
                 return Response({'error': 'Invalid Ursula'}, status=400)
@@ -310,14 +317,14 @@ def _make_rest_app(datastore: Datastore, this_node, domain: str, log: Logger) ->
                 # Fetch and store initiator's teacher certificate.
                 certificate = this_node.network_middleware.get_certificate(host=initiator_address, port=initiator_port)
                 certificate_filepath = this_node.node_storage.store_node_certificate(certificate=certificate)
-                requesting_ursula_bytes = this_node.network_middleware.client.node_information(host=initiator_address,
-                                                                                               port=initiator_port,
-                                                                                               certificate_filepath=certificate_filepath)
+                metadata_bytes = this_node.network_middleware.client.node_information(host=initiator_address,
+                                                                                      port=initiator_port,
+                                                                                      certificate_filepath=certificate_filepath)
+                visible_metadata = NodeMetadata.from_bytes(metadata_bytes)
             except NodeSeemsToBeDown:
                 return Response({'error': 'Unreachable node'}, status=400)  # ... toasted
 
-            # Compare the results of the outer POST with the inner GET... yum
-            if requesting_ursula_bytes == request.data:
+            if requester_metadata == visible_metadata:
                 return Response(status=200)
             else:
                 return Response({'error': 'Suspicious node'}, status=400)

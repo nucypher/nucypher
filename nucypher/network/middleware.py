@@ -19,14 +19,15 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 import socket
 import ssl
 import time
-
 import requests
-from bytestring_splitter import VariableLengthBytestring
+from eth_typing.evm import ChecksumAddress
+
+from nucypher.core import MetadataRequest
+
 from constant_sorrow.constants import CERTIFICATE_NOT_SAVED, EXEMPT_FROM_VERIFICATION
 from cryptography import x509
 from cryptography.hazmat.backends import default_backend
 
-from nucypher.crypto.splitters import cfrag_splitter, signature_splitter
 from nucypher.utilities.logging import Logger
 
 EXEMPT_FROM_VERIFICATION.bool_value(False)
@@ -229,7 +230,7 @@ class RestMiddleware:
 
     def check_rest_availability(self, initiator, responder):
         response = self.client.post(node_or_sprout=responder,
-                                    data=bytes(initiator),
+                                    data=bytes(initiator.metadata()),
                                     path="ping",
                                     timeout=6,  # Two round trips are expected
                                     )
@@ -237,30 +238,13 @@ class RestMiddleware:
 
     def get_nodes_via_rest(self,
                            node,
-                           announce_nodes=None,
-                           nodes_i_need=None,
-                           fleet_checksum=None):
-        if nodes_i_need:
-            # TODO: This needs to actually do something.  NRN
-            # Include node_ids in the request; if the teacher node doesn't know about the
-            # nodes matching these ids, then it will ask other nodes.
-            pass
+                           fleet_state_checksum: str,
+                           announce_nodes=None):
 
-        if fleet_checksum:
-            params = {'fleet': fleet_checksum}
-        else:
-            params = {}
-
-        if announce_nodes:
-            payload = bytes().join(bytes(VariableLengthBytestring(n)) for n in announce_nodes)
-            response = self.client.post(node_or_sprout=node,
-                                        path="node_metadata",
-                                        params=params,
-                                        data=payload,
-                                        )
-        else:
-            response = self.client.get(node_or_sprout=node,
-                                       path="node_metadata",
-                                       params=params)
-
+        request = MetadataRequest(fleet_state_checksum=fleet_state_checksum,
+                                  announce_nodes=announce_nodes)
+        response = self.client.post(node_or_sprout=node,
+                                    path="node_metadata",
+                                    data=bytes(request),
+                                    )
         return response

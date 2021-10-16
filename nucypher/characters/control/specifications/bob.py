@@ -24,11 +24,6 @@ from nucypher.control.specifications.base import BaseSchema
 
 class RetrieveAndDecrypt(BaseSchema):
 
-    policy_encrypting_key = character_fields.Key(
-        required=True,
-        load_only=True,
-        click=options.option_policy_encrypting_key(required=True)
-    )
     alice_verifying_key = character_fields.Key(
         required=True,
         load_only=True,

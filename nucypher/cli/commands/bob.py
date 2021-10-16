@@ -352,7 +352,6 @@ def make_card(general_config, character_options, config_file, nickname):
 def retrieve_and_decrypt(general_config,
                          character_options,
                          config_file,
-                         policy_encrypting_key,
                          alice_verifying_key,
                          treasure_map,
                          message_kit,
@@ -407,7 +406,6 @@ def retrieve_and_decrypt(general_config,
 
     # Request
     bob_request_data = {
-        'policy_encrypting_key': policy_encrypting_key,
         'alice_verifying_key': alice_verifying_key,
         'message_kits': message_kits,
         'encrypted_treasure_map': treasure_map

@@ -20,11 +20,12 @@ import random
 import string
 from typing import Dict, Tuple
 
+from nucypher.core import MessageKit, RetrievalKit
+
 from nucypher.characters.control.specifications.fields import Key, TreasureMap
 from nucypher.characters.lawful import Enrico
 from nucypher.crypto.powers import DecryptingPower
-from nucypher.policy.kits import MessageKit
-from nucypher.utilities.porter.control.specifications.fields import RetrievalKit
+from nucypher.utilities.porter.control.specifications.fields import RetrievalKit as RetrievalKitField
 
 
 def generate_random_label() -> bytes:
@@ -41,7 +42,8 @@ def generate_random_label() -> bytes:
 
 
 def retrieval_request_setup(enacted_policy, bob, alice,  original_message: bytes = None, encode_for_rest: bool = False) -> Tuple[Dict, MessageKit]:
-    treasure_map = bob._decrypt_treasure_map(enacted_policy.treasure_map)
+    treasure_map = bob._decrypt_treasure_map(enacted_policy.treasure_map,
+                                             enacted_policy.publisher_verifying_key)
 
     # We pick up our story with Bob already having followed the treasure map above, ie:
     bob.start_learning_loop()
@@ -55,19 +57,17 @@ def retrieval_request_setup(enacted_policy, bob, alice,  original_message: bytes
     encode_bytes = (lambda field, obj: field()._serialize(value=obj, attr=None, obj=None)) if encode_for_rest else (lambda field, obj: obj)
 
     return (dict(treasure_map=encode_bytes(TreasureMap, treasure_map),
-                 retrieval_kits=[encode_bytes(RetrievalKit, message_kit.as_retrieval_kit())],
+                 retrieval_kits=[encode_bytes(RetrievalKitField, RetrievalKit.from_message_kit(message_kit))],
                  alice_verifying_key=encode_bytes(Key, alice.stamp.as_umbral_pubkey()),
                  bob_encrypting_key=encode_bytes(Key, bob.public_keys(DecryptingPower)),
-                 bob_verifying_key=encode_bytes(Key, bob.stamp.as_umbral_pubkey()),
-                 policy_encrypting_key=encode_bytes(Key, enacted_policy.public_key)),
+                 bob_verifying_key=encode_bytes(Key, bob.stamp.as_umbral_pubkey())),
             message_kit)
 
 
 def retrieval_params_decode_from_rest(retrieval_params: Dict) -> Dict:
     decode_bytes = (lambda field, data: field()._deserialize(value=data, attr=None, data=None))
     return dict(treasure_map=decode_bytes(TreasureMap, retrieval_params['treasure_map']),
-                retrieval_kits=[decode_bytes(RetrievalKit, kit) for kit in retrieval_params['retrieval_kits']],
+                retrieval_kits=[decode_bytes(RetrievalKitField, kit) for kit in retrieval_params['retrieval_kits']],
                 alice_verifying_key=decode_bytes(Key, retrieval_params['alice_verifying_key']),
                 bob_encrypting_key=decode_bytes(Key, retrieval_params['bob_encrypting_key']),
-                bob_verifying_key=decode_bytes(Key, retrieval_params['bob_verifying_key']),
-                policy_encrypting_key=decode_bytes(Key, retrieval_params['policy_encrypting_key']))
+                bob_verifying_key=decode_bytes(Key, retrieval_params['bob_verifying_key']))

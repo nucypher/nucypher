@@ -60,7 +60,7 @@ class Dummy:  # Teacher
     def rest_url(self):
         return MOCK_IP_ADDRESS
 
-    def __bytes__(self):
+    def metadata(self):
         return self.checksum_address.encode()
 
 

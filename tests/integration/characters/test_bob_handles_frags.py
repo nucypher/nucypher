@@ -19,10 +19,11 @@ import pytest
 import pytest_twisted
 from twisted.internet import threads
 
+from nucypher.core import RetrievalKit
+
 from nucypher.characters.lawful import Enrico, Bob
 from nucypher.config.constants import TEMPORARY_DOMAIN
 from nucypher.network.retrieval import RetrievalClient
-from nucypher.policy.kits import RetrievalKit
 
 from tests.utils.middleware import MockRestMiddleware, NodeIsDownMiddleware
 
@@ -30,7 +31,6 @@ from tests.utils.middleware import MockRestMiddleware, NodeIsDownMiddleware
 def _policy_info_kwargs(enacted_policy):
     return dict(
         encrypted_treasure_map=enacted_policy.treasure_map,
-        policy_encrypting_key=enacted_policy.public_key,
         alice_verifying_key=enacted_policy.publisher_verifying_key,
         )
 

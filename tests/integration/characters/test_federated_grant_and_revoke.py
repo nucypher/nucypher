@@ -21,10 +21,10 @@ import datetime
 import maya
 import pytest
 
+from nucypher.core import MessageKit, RevocationOrder
+
 from nucypher.characters.lawful import Enrico
 from nucypher.crypto.utils import keccak_digest
-from nucypher.policy.kits import MessageKit
-from nucypher.policy.revocation import RevocationOrder
 
 
 def test_federated_grant(federated_alice, federated_bob, federated_ursulas):
@@ -40,7 +40,8 @@ def test_federated_grant(federated_alice, federated_bob, federated_ursulas):
     assert policy.hrac in federated_alice.active_policies
     assert federated_alice.active_policies[policy.hrac] == policy
 
-    treasure_map = federated_bob._decrypt_treasure_map(policy.treasure_map)
+    treasure_map = federated_bob._decrypt_treasure_map(policy.treasure_map,
+                                                       policy.publisher_verifying_key)
 
     # The number of actually enacted arrangements is exactly equal to shares.
     assert len(treasure_map.destinations) == shares
@@ -84,14 +85,12 @@ def test_federated_alice_can_decrypt(federated_alice, federated_bob):
     message_kit = enrico.encrypt_message(plaintext)
 
     # decrypt the data
-    decrypted_data = federated_alice.verify_from(
-        enrico,
-        message_kit,
-        decrypt=True,
-        label=policy.label
+    decrypted_data = federated_alice.decrypt_message_kit(
+        label=policy.label,
+        message_kit=message_kit,
     )
 
-    assert plaintext == decrypted_data
+    assert [plaintext] == decrypted_data
 
 
 @pytest.mark.skip("Needs rework post-TMcKF")  # TODO

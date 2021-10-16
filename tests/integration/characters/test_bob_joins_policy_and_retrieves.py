@@ -26,7 +26,6 @@ from twisted.internet.task import Clock
 
 from nucypher.characters.lawful import Bob, Enrico, Ursula
 from nucypher.config.constants import TEMPORARY_DOMAIN
-from nucypher.policy.maps import TreasureMap
 from tests.constants import NUMBER_OF_URSULAS_IN_DEVELOPMENT_NETWORK
 from tests.utils.middleware import MockRestMiddleware
 
@@ -48,7 +47,6 @@ def test_federated_bob_full_retrieve_flow(federated_ursulas,
     alices_verifying_key = federated_alice.stamp.as_umbral_pubkey()
 
     delivered_cleartexts = federated_bob.retrieve_and_decrypt([the_message_kit],
-                                                              policy_encrypting_key=enacted_federated_policy.public_key,
                                                               alice_verifying_key=alices_verifying_key,
                                                               encrypted_treasure_map=enacted_federated_policy.treasure_map)
 
@@ -100,14 +98,12 @@ def test_bob_retrieves(federated_alice,
 
     # Bob takes the message_kit and retrieves the message within
     delivered_cleartexts = bob.retrieve_and_decrypt([message_kit],
-                                                    policy_encrypting_key=policy.public_key,
                                                     alice_verifying_key=alices_verifying_key,
                                                     encrypted_treasure_map=policy.treasure_map)
 
     assert plaintext == delivered_cleartexts[0]
 
     cleartexts_delivered_a_second_time = bob.retrieve_and_decrypt([message_kit],
-                                                                  policy_encrypting_key=policy.public_key,
                                                                   alice_verifying_key=alices_verifying_key,
                                                                   encrypted_treasure_map=policy.treasure_map)
 
@@ -121,7 +117,6 @@ def test_bob_retrieves(federated_alice,
     # One thing to note here is that Bob *can* still retrieve with the cached CFrags,
     # even though this Policy has been revoked.  #892
     _cleartexts = bob.retrieve_and_decrypt([message_kit],
-                                           policy_encrypting_key=policy.public_key,
                                            alice_verifying_key=alices_verifying_key,
                                            encrypted_treasure_map=policy.treasure_map)
     assert _cleartexts == delivered_cleartexts  # TODO: 892
@@ -144,7 +139,6 @@ def test_bob_retrieves_with_treasure_map(
     # Deserialized treasure map
     text1 = federated_bob.retrieve_and_decrypt(
         [message_kit],
-        policy_encrypting_key=enacted_federated_policy.public_key,
         alice_verifying_key=alice_verifying_key,
         encrypted_treasure_map=treasure_map)
 
@@ -172,6 +166,5 @@ def test_bob_retrieves_too_late(federated_bob, federated_ursulas,
     # with pytest.raises(Ursula.NotEnoughUrsulas):
     federated_bob.retrieve_and_decrypt(
         [message_kit],
-        policy_encrypting_key=enacted_federated_policy.public_key,
         alice_verifying_key=alice_verifying_key,
         encrypted_treasure_map=treasure_map)

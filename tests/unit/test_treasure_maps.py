@@ -20,9 +20,10 @@ import os
 
 import pytest
 
+from nucypher.core import HRAC, TreasureMap, EncryptedTreasureMap
+
+from nucypher.crypto.powers import DecryptingPower
 from nucypher.crypto.umbral_adapter import KeyFrag
-from nucypher.policy.hrac import HRAC
-from nucypher.policy.maps import TreasureMap, EncryptedTreasureMap, AuthorizedKeyFrag
 
 
 def test_complete_treasure_map_journey(federated_alice, federated_bob, federated_ursulas, idle_federated_policy, mocker):
@@ -35,21 +36,25 @@ def test_complete_treasure_map_journey(federated_alice, federated_bob, federated
                        bob_verifying_key=federated_bob.stamp.as_umbral_pubkey(),
                        label=label)
 
+    assigned_kfrags = {
+        ursula.checksum_address: (ursula.public_keys(DecryptingPower), vkfrag)
+        for ursula, vkfrag in zip(ursulas, kfrags)}
+
     treasure_map = TreasureMap.construct_by_publisher(hrac=hrac,
-                                                      publisher=federated_alice,
-                                                      ursulas=ursulas,
-                                                      verified_kfrags=kfrags,
+                                                      policy_encrypting_key=idle_federated_policy.public_key,
+                                                      signer=federated_alice.stamp.as_umbral_signer(),
+                                                      assigned_kfrags=assigned_kfrags,
                                                       threshold=1)
 
     ursula_rolodex = {u.checksum_address: u for u in ursulas}
     for ursula_address, encrypted_kfrag in treasure_map.destinations.items():
         assert ursula_address in ursula_rolodex
         ursula = ursula_rolodex[ursula_address]
-        auth_kfrag_bytes = ursula.verify_from(federated_alice, encrypted_kfrag, decrypt=True)  # FIXME: 2203
-        auth_kfrag = AuthorizedKeyFrag.from_bytes(auth_kfrag_bytes)
+        auth_kfrag = ursula._decrypt_kfrag(encrypted_kfrag=encrypted_kfrag,
+                                           author_verifying_key=federated_alice.stamp.as_umbral_pubkey())
         ursula.verify_kfrag_authorization(hrac=treasure_map.hrac,
-                                          author=federated_alice,
-                                          publisher=federated_alice,
+                                          author_verifying_key=federated_alice.stamp.as_umbral_pubkey(),
+                                          publisher_verifying_key=federated_alice.stamp.as_umbral_pubkey(),
                                           authorized_kfrag=auth_kfrag)
 
     serialized_map = bytes(treasure_map)
@@ -60,14 +65,15 @@ def test_complete_treasure_map_journey(federated_alice, federated_bob, federated
     assert treasure_map.hrac == deserialized_map.hrac
 
 
-    enc_treasure_map = treasure_map.encrypt(publisher=federated_alice,
-                                            bob=federated_bob)
+    enc_treasure_map = treasure_map.encrypt(signer=federated_alice.stamp.as_umbral_signer(),
+                                            recipient_key=federated_bob.public_keys(DecryptingPower))
 
     enc_serialized_map = bytes(enc_treasure_map)
     # ...
     enc_deserialized_map = EncryptedTreasureMap.from_bytes(enc_serialized_map)
 
-    decrypted_map = federated_bob._decrypt_treasure_map(enc_deserialized_map)
+    decrypted_map = federated_bob._decrypt_treasure_map(enc_deserialized_map,
+                                                        federated_alice.stamp.as_umbral_pubkey())
 
     assert treasure_map.threshold == decrypted_map.threshold == 1
     assert treasure_map.destinations == decrypted_map.destinations
@@ -85,11 +91,14 @@ def test_treasure_map_versioning(mocker, federated_alice, federated_bob, federat
                        bob_verifying_key=federated_bob.stamp.as_umbral_pubkey(),
                        label=label)
 
+    assigned_kfrags = {
+        ursula.checksum_address: (ursula.public_keys(DecryptingPower), vkfrag)
+        for ursula, vkfrag in zip(list(federated_ursulas)[:len(kfrags)], kfrags)}
+
     treasure_map = TreasureMap.construct_by_publisher(hrac=hrac,
-                                                      publisher=federated_alice,
-                                                      label=b'still Bill',
-                                                      ursulas=list(federated_ursulas)[:len(kfrags)],
-                                                      verified_kfrags=kfrags,
+                                                      policy_encrypting_key=idle_federated_policy.public_key,
+                                                      signer=federated_alice.stamp.as_umbral_signer(),
+                                                      assigned_kfrags=assigned_kfrags,
                                                       threshold=2)
 
     # Good version (baseline)

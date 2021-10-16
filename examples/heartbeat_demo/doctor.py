@@ -24,14 +24,14 @@ import msgpack
 import shutil
 import sys
 
+from nucypher.core import MessageKit, EncryptedTreasureMap
+
 from nucypher.characters.lawful import Bob, Enrico, Ursula
 from nucypher.config.constants import TEMPORARY_DOMAIN
 from nucypher.crypto.keypairs import DecryptingKeypair, SigningKeypair
 from nucypher.crypto.powers import DecryptingPower, SigningPower
 from nucypher.crypto.umbral_adapter import PublicKey
 from nucypher.network.middleware import RestMiddleware
-from nucypher.policy.maps import EncryptedTreasureMap
-from nucypher.policy.kits import MessageKit
 from nucypher.utilities.logging import GlobalLoggerSettings
 
 GlobalLoggerSettings.start_console_logging()
@@ -102,7 +102,6 @@ for message_kit in message_kits:
     start = timer()
     retrieved_plaintexts = doctor.retrieve_and_decrypt(
         [message_kit],
-        policy_encrypting_key=policy_pubkey,
         alice_verifying_key=alices_sig_pubkey,
         encrypted_treasure_map=treasure_map
     )

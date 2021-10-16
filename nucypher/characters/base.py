@@ -16,26 +16,21 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
 
-import contextlib
 from contextlib import suppress
 from pathlib import Path
 from typing import ClassVar, Dict, List, Optional, Union
 
-from constant_sorrow import default_constant_splitter
 from constant_sorrow.constants import (
-    DO_NOT_SIGN,
     NO_BLOCKCHAIN_CONNECTION,
     NO_CONTROL_PROTOCOL,
-    NO_DECRYPTION_PERFORMED,
     NO_NICKNAME,
     NO_SIGNING_POWER,
-    SIGNATURE_IS_ON_CIPHERTEXT,
-    SIGNATURE_TO_FOLLOW,
     STRANGER
 )
-from cryptography.exceptions import InvalidSignature
 from eth_keys import KeyAPI as EthKeyAPI
 from eth_utils import to_canonical_address, to_checksum_address
+
+from nucypher.core import MessageKit
 
 from nucypher.acumen.nicknames import Nickname
 from nucypher.blockchain.eth.registry import BaseContractRegistry, InMemoryContractRegistry
@@ -47,7 +42,6 @@ from nucypher.crypto.powers import (
     CryptoPower,
     CryptoPowerUp,
     DecryptingPower,
-    DelegatingPower,
     NoSigningPower,
     SigningPower
 )
@@ -55,11 +49,9 @@ from nucypher.crypto.signing import (
     SignatureStamp,
     StrangerStamp,
 )
-from nucypher.crypto.splitters import signature_splitter
-from nucypher.crypto.umbral_adapter import PublicKey, Signature
+from nucypher.crypto.umbral_adapter import PublicKey
 from nucypher.network.middleware import RestMiddleware
 from nucypher.network.nodes import Learner
-from nucypher.policy.kits import MessageKit, PolicyMessageKit
 
 
 class Character(Learner):
@@ -357,7 +349,6 @@ class Character(Learner):
     def encrypt_for(self,
                     recipient: 'Character',
                     plaintext: bytes,
-                    sign: bool = True,
                     sign_plaintext=True,
                     ) -> MessageKit:
         """
@@ -366,120 +357,19 @@ class Character(Learner):
         :param recipient: The character whose public key will be used to encrypt
             cleartext.
         :param plaintext: The secret to be encrypted.
-        :param sign: Whether or not to sign the message.
-        :param sign_plaintext: When signing, the cleartext is signed if this is
+        :param sign_plaintext: the cleartext is signed if this is
             True,  Otherwise, the resulting ciphertext is signed.
 
-        :return: A tuple, (ciphertext, signature).  If sign==False,
-            then signature will be NOT_SIGNED.
+        :return: the message kit.
         """
-        signer = self.stamp if sign else DO_NOT_SIGN
+
+        # TODO: who even uses this method except for tests?
 
         message_kit = MessageKit.author(recipient_key=recipient.public_keys(DecryptingPower),
                                         plaintext=plaintext,
-                                        signer=signer,
+                                        signer=self.stamp.as_umbral_signer(),
                                         sign_plaintext=sign_plaintext)
         return message_kit
-
-    def verify_from(self,
-                    stranger: 'Character',
-                    message_kit: Union[MessageKit, PolicyMessageKit, bytes],
-                    signature: Signature = None,
-                    decrypt=False,
-                    label=None,
-                    ) -> bytes:
-        """
-        Inverse of encrypt_for.
-
-        :param stranger: A Character instance representing
-            the actor whom the sender claims to be.  We check the public key
-            owned by this Character instance to verify.
-        :param message_kit: the message to be (perhaps decrypted and) verified.
-        :param signature: The signature to check.
-        :param decrypt: Whether or not to decrypt the messages.
-        :param label: A label used for decrypting messages encrypted under its associated policy encrypting key
-
-        :return: Whether or not the signature is valid, the decrypted plaintext or NO_DECRYPTION_PERFORMED
-        """
-
-        sender_verifying_key = stranger.stamp.as_umbral_pubkey()
-
-        # We're duck-typed here - we want to accept a message kit object or bytes.
-        # This gives us a fail fast opportunity:
-        # If the higher-order object MessageKit is passed, we can perform an additional
-        # eager sanity check before performing decryption.
-
-        with contextlib.suppress(AttributeError):
-            if message_kit.sender_verifying_key:
-                if not message_kit.sender_verifying_key == sender_verifying_key:
-                    raise ValueError("This MessageKit doesn't appear to have come from {}".format(stranger))
-
-        #
-        # Decrypt
-        #
-
-        signature_from_kit = None
-        if decrypt:
-
-            # We are decrypting the message; let's do that first and see what the sig header says.
-            cleartext_with_sig_header = self.decrypt(message_kit=message_kit, label=label)
-            sig_header, cleartext = default_constant_splitter(cleartext_with_sig_header, return_remainder=True)
-
-            if sig_header == SIGNATURE_IS_ON_CIPHERTEXT:
-                # The ciphertext is what is signed - note that for later.
-                message = message_kit.ciphertext
-                if not signature:
-                    raise ValueError("Can't check a signature on the ciphertext if don't provide one.")
-
-            elif sig_header == SIGNATURE_TO_FOLLOW:
-                # The signature follows in this cleartext - split it off.
-                signature_from_kit, cleartext = signature_splitter(cleartext, return_remainder=True)
-                message = cleartext
-
-        else:
-            # Not decrypting - the message is the object passed in as a message kit.  Cast it.
-            message = bytes(message_kit)
-            cleartext = NO_DECRYPTION_PERFORMED
-
-        #
-        # Verify Signature
-        #
-
-        if signature and signature_from_kit:
-            if signature != signature_from_kit:
-                raise ValueError("The MessageKit has a Signature, but it's not the same one you provided.")
-
-        signature_to_use = signature or signature_from_kit
-        if signature_to_use:
-            is_valid = signature_to_use.verify(message=message, verifying_pk=sender_verifying_key)
-            if not is_valid:
-                try:
-                    node_on_the_other_end = self.known_node_class.from_seednode_metadata(stranger.seed_node_metadata(),
-                                                                                         network_middleware=self.network_middleware)
-                    if node_on_the_other_end != stranger:
-                        raise self.known_node_class.InvalidNode(
-                            f"Expected to connect to {stranger}, got {node_on_the_other_end} instead.")
-                    else:
-                        raise InvalidSignature("Signature for message isn't valid: {}".format(signature_to_use))
-                except (TypeError, AttributeError) as e:
-                    raise InvalidSignature(f"Unable to verify message from stranger: {stranger}")
-        else:
-            raise InvalidSignature("No signature provided -- signature presumed invalid.")
-
-        return cleartext
-
-    def decrypt(self,
-                message_kit: Union[MessageKit, PolicyMessageKit],
-                label: Optional[bytes] = None) -> bytes:
-        if label and DelegatingPower in self._default_crypto_powerups:
-            delegating_power = self._crypto_power.power_ups(DelegatingPower)
-            decrypting_power = delegating_power.get_decrypting_power_from_label(label)
-        else:
-            decrypting_power = self._crypto_power.power_ups(DecryptingPower)
-        return decrypting_power.decrypt(message_kit)
-
-    def sign(self, message):
-        return self._crypto_power.power_ups(SigningPower).sign(message)
 
     def public_keys(self, power_up_class: ClassVar):
         """

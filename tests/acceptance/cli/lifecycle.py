@@ -29,12 +29,12 @@ import pytest
 from twisted.internet import threads
 from web3 import Web3
 
+from nucypher.core import MessageKit, EncryptedTreasureMap
+
 from nucypher.cli.main import nucypher_cli
 from nucypher.config.characters import AliceConfiguration, BobConfiguration
 from nucypher.config.constants import NUCYPHER_ENVVAR_KEYSTORE_PASSWORD, TEMPORARY_DOMAIN, \
     NUCYPHER_ENVVAR_ALICE_ETH_PASSWORD, NUCYPHER_ENVVAR_BOB_ETH_PASSWORD
-from nucypher.policy.kits import MessageKit
-from nucypher.policy.maps import EncryptedTreasureMap
 from nucypher.utilities.logging import GlobalLoggerSettings
 from tests.constants import INSECURE_DEVELOPMENT_PASSWORD, TEST_PROVIDER_URI
 
@@ -363,7 +363,6 @@ def run_entire_cli_lifecycle(click_runner,
                          '--config-file', str(bob_configuration_file_location.absolute()),
                          '--message-kit', ciphertext_message_kit,
                          '--treasure-map', side_channel.fetch_treasure_map(),
-                         '--policy-encrypting-key', policy_encrypting_key,
                          '--alice-verifying-key', alice_signing_key)
 
         retrieve_response = click_runner.invoke(nucypher_cli, retrieve_args, catch_exceptions=False, env=envvars)

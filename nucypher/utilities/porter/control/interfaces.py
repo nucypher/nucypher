@@ -18,10 +18,10 @@ from typing import List, Optional
 
 from eth_typing import ChecksumAddress
 
+from nucypher.core import TreasureMap, RetrievalKit
+
 from nucypher.control.interfaces import ControlInterface, attach_schema
 from nucypher.crypto.umbral_adapter import PublicKey
-from nucypher.policy.kits import RetrievalKit
-from nucypher.policy.maps import TreasureMap
 from nucypher.utilities.porter.control.specifications import porter_schema
 
 
@@ -61,14 +61,12 @@ class PorterInterface(ControlInterface):
                         alice_verifying_key: PublicKey,
                         bob_encrypting_key: PublicKey,
                         bob_verifying_key: PublicKey,
-                        policy_encrypting_key: PublicKey,
                         ) -> dict:
         retrieval_results = self.implementer.retrieve_cfrags(treasure_map=treasure_map,
                                                              retrieval_kits=retrieval_kits,
                                                              alice_verifying_key=alice_verifying_key,
                                                              bob_encrypting_key=bob_encrypting_key,
-                                                             bob_verifying_key=bob_verifying_key,
-                                                             policy_encrypting_key=policy_encrypting_key)
+                                                             bob_verifying_key=bob_verifying_key)
         results = retrieval_results   # list of RetrievalResult objects
         response_data = {'retrieval_results': results}
         return response_data

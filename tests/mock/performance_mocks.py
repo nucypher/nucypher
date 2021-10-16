@@ -127,7 +127,7 @@ class NotACert:
         return NotAPublicKey()
 
 
-mock_cert_loading = patch("nucypher.characters.lawful.load_pem_x509_certificate",
+mock_cert_loading = patch("nucypher.network.nodes.load_pem_x509_certificate",
                           new=lambda *args, **kwargs: NotACert())
 
 

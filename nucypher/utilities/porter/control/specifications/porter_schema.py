@@ -166,14 +166,6 @@ class BobRetrieveCFrags(BaseSchema):
             help="Bob's verifying key as a hexadecimal string",
             type=click.STRING,
             required=True))
-    policy_encrypting_key = character_fields.Key(
-        required=True,
-        load_only=True,
-        click=click.option(
-            '--policy-encrypting-key',
-            help="Encrypting Public Key for Policy as hexadecimal string",
-            type=click.STRING,
-            required=True))
 
     # output
     retrieval_results = marshmallow_fields.List(marshmallow_fields.Nested(fields.RetrievalResultSchema), dump_only=True)

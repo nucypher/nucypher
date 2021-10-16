@@ -34,6 +34,8 @@ from web3 import Web3
 from web3.exceptions import ValidationError
 from web3.types import TxReceipt
 
+from nucypher.core import HRAC
+
 from nucypher.acumen.nicknames import Nickname
 from nucypher.blockchain.economics import (
     BaseEconomics,
@@ -104,7 +106,6 @@ from nucypher.characters.banners import STAKEHOLDER_BANNER
 from nucypher.control.emitters import StdoutEmitter
 from nucypher.config.constants import DEFAULT_CONFIG_ROOT
 from nucypher.crypto.powers import TransactingPower
-from nucypher.policy.hrac import HRAC
 from nucypher.policy.policies import Policy
 from nucypher.types import NuNits, Period
 from nucypher.utilities.logging import Logger

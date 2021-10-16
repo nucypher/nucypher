@@ -16,11 +16,12 @@
 """
 from marshmallow import fields
 
+from nucypher.core import RetrievalKit as RetrievalKitClass
+
 from nucypher.control.specifications.base import BaseSchema
 from nucypher.control.specifications.exceptions import InvalidInputData
 from nucypher.control.specifications.fields import Base64BytesRepresentation
 from nucypher.crypto.umbral_adapter import CapsuleFrag as CapsuleFragClass
-from nucypher.policy.kits import RetrievalKit as RetrievalKitClass
 from nucypher.utilities.porter.control.specifications.fields import UrsulaChecksumAddress
 
 

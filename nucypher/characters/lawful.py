@@ -27,27 +27,17 @@ from queue import Queue
 from typing import Dict, Iterable, List, NamedTuple, Tuple, Union, Optional, Sequence, Set, Any
 
 import maya
-from bytestring_splitter import (
-    BytestringKwargifier,
-    BytestringSplitter,
-    BytestringSplittingError,
-    VariableLengthBytestring
-)
 from constant_sorrow import constants
 from constant_sorrow.constants import (
-    INCLUDED_IN_BYTESTRING,
     PUBLIC_ONLY,
     STRANGER_ALICE,
-    UNKNOWN_VERSION,
     READY,
     INVALIDATED,
     NOT_SIGNED
 )
-from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives.serialization import Encoding
-from cryptography.x509 import Certificate, NameOID, load_pem_x509_certificate
+from cryptography.x509 import Certificate, NameOID
 from eth_typing.evm import ChecksumAddress
-from eth_utils import to_checksum_address
 from flask import Response, request
 from twisted.internet import reactor, stdio, threads
 from twisted.internet.defer import Deferred
@@ -55,12 +45,22 @@ from twisted.internet.task import LoopingCall
 from twisted.logger import Logger
 from web3.types import TxReceipt
 
+from nucypher.core import (
+    MessageKit,
+    HRAC,
+    AuthorizedKeyFrag,
+    UnauthorizedKeyFragError,
+    TreasureMap,
+    EncryptedTreasureMap,
+    ReencryptionResponse,
+    NodeMetadata
+    )
+
 import nucypher
 from nucypher.acumen.nicknames import Nickname
 from nucypher.acumen.perception import FleetSensor, ArchivedFleetState, RemoteUrsulaStatus
 from nucypher.blockchain.eth.actors import BlockchainPolicyAuthor, Worker
 from nucypher.blockchain.eth.agents import ContractAgency, StakingEscrowAgent
-from nucypher.blockchain.eth.constants import ETH_ADDRESS_BYTE_LENGTH
 from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
 from nucypher.blockchain.eth.registry import BaseContractRegistry
 from nucypher.blockchain.eth.signers.software import Web3Signer
@@ -81,11 +81,8 @@ from nucypher.crypto.powers import (
     TransactingPower,
     TLSHostingPower,
 )
-from nucypher.crypto.signing import InvalidSignature
-from nucypher.crypto.splitters import key_splitter, signature_splitter
 from nucypher.crypto.umbral_adapter import (
     PublicKey,
-    VerificationError,
     reencrypt,
     VerifiedKeyFrag,
 )
@@ -94,13 +91,11 @@ from nucypher.datastore.queries import find_expired_policies
 from nucypher.network.exceptions import NodeSeemsToBeDown
 from nucypher.network.middleware import RestMiddleware
 from nucypher.network.nodes import NodeSprout, TEACHER_NODES, Teacher
-from nucypher.network.protocols import InterfaceInfo, parse_node_uri
-from nucypher.network.retrieval import RetrievalClient, ReencryptionResponse
+from nucypher.network.protocols import parse_node_uri
+from nucypher.network.retrieval import RetrievalClient
 from nucypher.network.server import ProxyRESTServer, make_rest_app
 from nucypher.network.trackers import AvailabilityTracker
-from nucypher.policy.hrac import HRAC
-from nucypher.policy.kits import MessageKit, PolicyMessageKit
-from nucypher.policy.maps import TreasureMap, EncryptedTreasureMap, AuthorizedKeyFrag
+from nucypher.policy.kits import PolicyMessageKit
 from nucypher.policy.policies import Policy
 from nucypher.utilities.logging import Logger
 from nucypher.utilities.networking import validate_worker_ip
@@ -411,26 +406,20 @@ class Alice(Character, BlockchainPolicyAuthor):
 
         return receipt, failed
 
-    def decrypt_message_kit(self,
-                            message_kit: MessageKit,
-                            data_source: Character,
-                            label: bytes
-                            ) -> List[bytes]:
-
+    def decrypt_message_kit(self, label: bytes, message_kit: MessageKit) -> List[bytes]:
         """
         Decrypt this Alice's own encrypted data.
 
         I/O signatures match Bob's retrieve interface.
         """
 
-        cleartexts = [self.verify_from(
-            data_source,
-            message_kit,
-            signature=message_kit.signature,
-            decrypt=True,
-            label=label
-        )]
-        return cleartexts
+        delegating_power = self._crypto_power.power_ups(DelegatingPower)
+        decrypting_power = delegating_power.get_decrypting_power_from_label(label)
+        cleartext = decrypting_power.decrypt(message_kit)
+
+        # TODO: why does it return a list of cleartexts but takes a single message kit?
+        # Shouldn't it be able to take a list of them too?
+        return [cleartext]
 
     def make_web_controller(drone_alice, crash_on_error: bool = False):
         app_name = bytes(drone_alice.stamp).hex()[:6]
@@ -540,26 +529,19 @@ class Bob(Character):
         card = Card.from_character(self)
         return card
 
-    def _decrypt_treasure_map(self, encrypted_treasure_map: EncryptedTreasureMap) -> TreasureMap:
-
-        publisher = Alice.from_public_keys(verifying_key=encrypted_treasure_map.publisher_verifying_key)
-
-        def decryptor(ciphertext):
-            try:
-                return self.verify_from(publisher, ciphertext, decrypt=True)
-            except self.InvalidSignature as e:
-                # Need to "lower" the exception to the crypto level
-                # so that TreasureMap could handle it
-                raise InvalidSignature("Invalid signature when decrypting a MessageKit") from e
-
-        return encrypted_treasure_map.decrypt(decryptor)
+    def _decrypt_treasure_map(self,
+                              encrypted_treasure_map: EncryptedTreasureMap,
+                              publisher_verifying_key: PublicKey
+                              ) -> TreasureMap:
+        decrypting_power = self._crypto_power.power_ups(DecryptingPower)
+        return decrypting_power.decrypt_treasure_map(encrypted_treasure_map, publisher_verifying_key)
 
     def retrieve(
             self,
             message_kits: Sequence[Union[MessageKit, PolicyMessageKit]],
             alice_verifying_key: PublicKey, # KeyFrag signer's key
             encrypted_treasure_map: EncryptedTreasureMap,
-            policy_encrypting_key: PublicKey, # TODO: #2792
+            publisher_verifying_key: Optional[PublicKey] = None,
             ) -> List[PolicyMessageKit]:
         """
         Attempts to retrieve reencrypted capsule fragments
@@ -575,17 +557,20 @@ class Bob(Character):
         several retrieval attempts.
         """
 
+        if not publisher_verifying_key:
+            publisher_verifying_key = alice_verifying_key
+
         if encrypted_treasure_map.hrac in self._treasure_maps:
             # A small optimization to avoid multiple treasure map decryptions.
             treasure_map = self._treasure_maps[encrypted_treasure_map.hrac]
         else:
             # Have to decrypt the treasure map first to find out what the threshold is.
             # Otherwise we could check the message kits for completeness right away.
-            treasure_map = self._decrypt_treasure_map(encrypted_treasure_map)
+            treasure_map = self._decrypt_treasure_map(encrypted_treasure_map, publisher_verifying_key)
 
         # Normalize input
         message_kits: List[PolicyMessageKit] = [
-            message_kit.as_policy_kit(policy_encrypting_key, treasure_map.threshold)
+            PolicyMessageKit.from_message_kit(message_kit, treasure_map.policy_encrypting_key, treasure_map.threshold)
                 if isinstance(message_kit, MessageKit) else message_kit
             for message_kit in message_kits
             ]
@@ -600,8 +585,7 @@ class Bob(Character):
             retrieval_kits=retrieval_kits,
             alice_verifying_key=alice_verifying_key,
             bob_encrypting_key=self.public_keys(DecryptingPower),
-            bob_verifying_key=self.stamp.as_umbral_pubkey(),
-            policy_encrypting_key=policy_encrypting_key)
+            bob_verifying_key=self.stamp.as_umbral_pubkey())
 
         # Refill message kits with newly retrieved capsule frags
         results = []
@@ -625,9 +609,9 @@ class Bob(Character):
                 raise Ursula.NotEnoughUrsulas(f"Not enough cfrags retrieved to open capsule {message_kit.capsule}")
 
         cleartexts = []
+        decrypting_power = self._crypto_power.power_ups(DecryptingPower)
         for message_kit in message_kits:
-            enrico = Enrico.from_public_keys(verifying_key=message_kit.sender_verifying_key)
-            cleartext = self.verify_from(enrico, message_kit, decrypt=True)
+            cleartext = decrypting_power.decrypt(message_kit)
             cleartexts.append(cleartext)
 
         return cleartexts
@@ -1019,27 +1003,32 @@ class Ursula(Teacher, Character, Worker):
         deployer = self._crypto_power.power_ups(TLSHostingPower).get_deployer(rest_app=self.rest_app, port=port)
         return deployer
 
-    def __bytes__(self):
-
-        version = self.TEACHER_VERSION.to_bytes(2, "big")
-        interface_info = VariableLengthBytestring(bytes(self.rest_interface))
-        certificate_vbytes = VariableLengthBytestring(self.certificate.public_bytes(Encoding.PEM))
-        as_bytes = bytes().join((version,
-                                 self.canonical_public_address,
-                                 bytes(VariableLengthBytestring(self.domain.encode('utf-8'))),
-                                 self.timestamp_bytes(),
-                                 bytes(self._interface_signature),
-                                 bytes(VariableLengthBytestring(self.decentralized_identity_evidence)),  # FIXME: Fixed length doesn't work with federated
-                                 bytes(self.public_keys(SigningPower)),
-                                 bytes(self.public_keys(DecryptingPower)),
-                                 bytes(certificate_vbytes),  # TLSHostingPower
-                                 bytes(interface_info))
-                                )
-        return as_bytes
+    def metadata(self) -> NodeMetadata:
+        # TODO: sometimes during cleanup in tests the learner is still running and can call this method,
+        # but `._finalize()` is already called, so `rest_interface` is unavailable.
+        # That doesn't lead to test fails, but produces some tracebacks in stderr.
+        # The whole cleanup situation in tests is messed up and needs to be fixed.
+        return NodeMetadata(public_address=self.canonical_public_address,
+                            domain=self.domain,
+                            timestamp_epoch=self.timestamp.epoch,
+                            interface_signature=self._interface_signature,
+                            decentralized_identity_evidence=self.decentralized_identity_evidence,
+                            verifying_key=self.public_keys(SigningPower),
+                            encrypting_key=self.public_keys(DecryptingPower),
+                            certificate_bytes=self.certificate.public_bytes(Encoding.PEM),
+                            host=self.rest_interface.host,
+                            port=self.rest_interface.port,
+                            )
 
     #
     # Alternate Constructors
     #
+
+    @classmethod
+    def from_metadata_bytes(cls, metadata_bytes):
+        # TODO: should be a method of `NodeSprout`, or maybe `NodeMetadata` *is* `NodeSprout`.
+        # Fix when we get rid of inplace maturation.
+        return NodeSprout(NodeMetadata.from_bytes(metadata_bytes))
 
     @classmethod
     def from_rest_url(cls,
@@ -1052,8 +1041,7 @@ class Ursula(Teacher, Character, Worker):
         response_data = network_middleware.client.node_information(host, port,
                                                                    certificate_filepath=certificate_filepath)
 
-        stranger_ursula_from_public_keys = cls.from_bytes(response_data,
-                                                          *args, **kwargs)
+        stranger_ursula_from_public_keys = cls.from_metadata_bytes(response_data)
 
         return stranger_ursula_from_public_keys
 
@@ -1165,130 +1153,6 @@ class Ursula(Teacher, Character, Worker):
         return potential_seed_node
 
     @classmethod
-    def payload_splitter(cls, splittable, partial: bool = False):
-        splitter = BytestringKwargifier(
-            _receiver=cls.from_processed_bytes,
-            _partial_receiver=NodeSprout,
-            public_address=ETH_ADDRESS_BYTE_LENGTH,
-            domain=VariableLengthBytestring,
-            timestamp=(int, 4, {'byteorder': 'big'}),
-            interface_signature=signature_splitter,
-
-            # FIXME: Fixed length doesn't work with federated. It was LENGTH_ECDSA_SIGNATURE_WITH_RECOVERY,
-            decentralized_identity_evidence=VariableLengthBytestring,
-
-            verifying_key=key_splitter,
-            encrypting_key=key_splitter,
-            certificate=(load_pem_x509_certificate, VariableLengthBytestring, {"backend": default_backend()}),
-            rest_interface=InterfaceInfo,
-        )
-        result = splitter(splittable, partial=partial)
-        return result
-
-    @classmethod
-    def is_compatible_version(cls, version: int) -> bool:
-        return cls.LOWEST_COMPATIBLE_VERSION <= version <= cls.LEARNER_VERSION
-
-    @classmethod
-    def from_bytes(cls,
-                   ursula_as_bytes: bytes,
-                   version: int = INCLUDED_IN_BYTESTRING,
-                   fail_fast=False,
-                   ) -> 'Ursula':
-
-        if version is INCLUDED_IN_BYTESTRING:
-            version, payload = cls.version_splitter(ursula_as_bytes, return_remainder=True)
-        else:
-            payload = ursula_as_bytes
-
-        # Check version is compatible and prepare to handle potential failures otherwise
-        if not cls.is_compatible_version(version):
-            version_exception_class = cls.IsFromTheFuture if version > cls.LEARNER_VERSION else cls.AreYouFromThePast
-
-            # Try to handle failure, even during failure, graceful degradation
-            # TODO: #154 - Some auto-updater logic?
-
-            try:
-                canonical_address, _ = BytestringSplitter(ETH_ADDRESS_BYTE_LENGTH)(payload, return_remainder=True)
-                checksum_address = to_checksum_address(canonical_address)
-                nickname = Nickname.from_seed(checksum_address)
-                display_name = cls._display_name_template.format(cls.__name__, nickname, checksum_address)
-                message = cls.unknown_version_message.format(display_name, version, cls.LEARNER_VERSION)
-                if version > cls.LEARNER_VERSION:
-                    message += " Is there a newer version of NuCypher?"
-            except BytestringSplittingError:
-                message = cls.really_unknown_version_message.format(version, cls.LEARNER_VERSION)
-
-            if fail_fast:
-                raise version_exception_class(message)
-            else:
-                cls.log.warn(message)
-                return UNKNOWN_VERSION
-        else:
-            # Version stuff checked out.  Moving on.
-            node_sprout = cls.payload_splitter(payload, partial=True)
-            return node_sprout
-
-    @classmethod
-    def from_processed_bytes(cls, **processed_objects):
-        """
-        A convenience method for completing the maturation of a NodeSprout.
-        TODO: Either deprecate or consolidate this logic; it's mostly just workarounds.  NRN
-        """
-        #### This is kind of a ridiculous workaround and repeated logic from Ursula.from_bytes
-        interface_info = processed_objects.pop("rest_interface")
-        rest_host = interface_info.host
-        rest_port = interface_info.port
-        checksum_address = to_checksum_address(processed_objects.pop('public_address'))
-
-        domain = processed_objects.pop('domain').decode('utf-8')
-
-        timestamp = maya.MayaDT(processed_objects.pop('timestamp'))
-
-        ursula = cls.from_public_keys(rest_host=rest_host,
-                                      rest_port=rest_port,
-                                      checksum_address=checksum_address,
-                                      domain=domain,
-                                      timestamp=timestamp,
-                                      **processed_objects)
-        return ursula
-
-    @classmethod
-    def batch_from_bytes(cls,
-                         ursulas_as_bytes: Iterable[bytes],
-                         fail_fast: bool = False,
-                         ) -> List['Ursula']:
-
-        node_splitter = BytestringSplitter(VariableLengthBytestring)
-        nodes_vbytes = node_splitter.repeat(ursulas_as_bytes)
-        version_splitter = BytestringSplitter((int, 2, {"byteorder": "big"}))
-        versions_and_node_bytes = [version_splitter(n, return_remainder=True) for n in nodes_vbytes]
-
-        sprouts = []
-        for version, node_bytes in versions_and_node_bytes:
-            try:
-                sprout = cls.from_bytes(node_bytes,
-                                        version=version)
-                if sprout is UNKNOWN_VERSION:
-                    continue
-            except BytestringSplittingError:
-                message = cls.really_unknown_version_message.format(version, cls.LEARNER_VERSION)
-                if fail_fast:
-                    raise cls.IsFromTheFuture(message)
-                else:
-                    cls.log.warn(message)
-                    continue
-            except Ursula.IsFromTheFuture as e:
-                if fail_fast:
-                    raise
-                else:
-                    cls.log.warn(e.args[0])
-                    continue
-            else:
-                sprouts.append(sprout)
-        return sprouts
-
-    @classmethod
     def from_storage(cls,
                      node_storage: NodeStorage,
                      checksum_adress: str,
@@ -1331,30 +1195,34 @@ class Ursula(Teacher, Character, Worker):
     # Re-Encryption
     #
 
+    def _decrypt_kfrag(self,
+                       encrypted_kfrag: MessageKit, # TODO: make its own type? See #2743
+                       author_verifying_key: PublicKey
+                       ) -> AuthorizedKeyFrag:
+
+        if author_verifying_key != encrypted_kfrag.sender_verifying_key:
+            raise ValueError("This encrypted AuthorizedKeyFrag was not created "
+                            f"by the expected author {author_verifying_key}")
+
+        decrypting_power = self._crypto_power.power_ups(DecryptingPower)
+        kfrag_payload = decrypting_power.decrypt(encrypted_kfrag)
+        return AuthorizedKeyFrag.from_bytes(kfrag_payload)
+
     def verify_kfrag_authorization(self,
                                    hrac: HRAC,
-                                   author: Alice,
-                                   publisher: Alice,
+                                   author_verifying_key: PublicKey,
+                                   publisher_verifying_key: PublicKey,
                                    authorized_kfrag: AuthorizedKeyFrag,
                                    ) -> VerifiedKeyFrag:
 
-        # TODO: should it be a method of AuthorizedKeyFrag?
-
         try:
-            self.verify_from(publisher, authorized_kfrag.writ, signature=authorized_kfrag.writ_signature)
-        except InvalidSignature:
-            # TODO (#2740): differentiate cases for Policy.Unauthorized
-            raise Policy.Unauthorized  # This isn't from Alice (publisher).
+            verified_kfrag = authorized_kfrag.verify(hrac=hrac,
+                                                     author_verifying_key=author_verifying_key,
+                                                     publisher_verifying_key=publisher_verifying_key)
+        except UnauthorizedKeyFragError as e:
+            raise Policy.Unauthorized from e
 
-        if authorized_kfrag.hrac != hrac:  # Funky request
-            raise Policy.Unauthorized  # Bob, what the *hell* are you doing?
-
-        try:
-            verified_kfrag = authorized_kfrag.kfrag.verify(verifying_pk=author.stamp.as_umbral_pubkey())
-        except VerificationError:
-            raise Policy.Unauthorized  # WTF, Alice did not generate these KFrags.
-
-        if authorized_kfrag.hrac in self.revoked_policies:
+        if hrac in self.revoked_policies:
             # Note: This is only an off-chain and in-memory check.
             raise Policy.Unauthorized  # Denied
 
@@ -1367,7 +1235,7 @@ class Ursula(Teacher, Character, Worker):
             cfrags.append(cfrag)
             self.log.info(f"Re-encrypted capsule {capsule} -> made {cfrag}.")
 
-        return ReencryptionResponse.construct_by_ursula(capsules, cfrags, self.stamp)
+        return ReencryptionResponse.construct_by_ursula(capsules, cfrags, self.stamp.as_umbral_signer())
 
     def status_info(self, omit_known_nodes: bool = False) -> 'LocalUrsulaStatus':
 
@@ -1479,7 +1347,7 @@ class Enrico(Character):
         # TODO: #2107 Rename to "encrypt"
         message_kit = MessageKit.author(recipient_key=self.policy_pubkey,
                                         plaintext=plaintext,
-                                        signer=self.stamp)
+                                        signer=self.stamp.as_umbral_signer())
         return message_kit
 
     @classmethod

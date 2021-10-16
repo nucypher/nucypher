@@ -55,8 +55,7 @@ def test_policy_simple_sinpa(blockchain_ursulas,
 
     with pytest.raises(Ursula.NotEnoughUrsulas):  # Return a more descriptive request error?
         blockchain_bob.retrieve_and_decrypt([message_kit],
-                                            policy_encrypting_key=bupkiss_policy.public_key,
-                                            alice_verifying_key=amonia.stamp,
+                                            alice_verifying_key=amonia.stamp.as_umbral_pubkey(),
                                             encrypted_treasure_map=bupkiss_policy.treasure_map)
 
     for ursula in blockchain_ursulas:
@@ -92,8 +91,7 @@ def test_try_to_post_free_arrangement_by_hacking_enact(blockchain_ursulas,
 
     with pytest.raises(Ursula.NotEnoughUrsulas):  # Return a more descriptive request error?
         blockchain_bob.retrieve_and_decrypt([message_kit],
-                                            policy_encrypting_key=bupkiss_policy.public_key,
-                                            alice_verifying_key=amonia.stamp,
+                                            alice_verifying_key=amonia.stamp.as_umbral_pubkey(),
                                             encrypted_treasure_map=bupkiss_policy.treasure_map)
 
 
@@ -127,6 +125,5 @@ def test_pay_a_flunky_instead_of_the_arranged_ursula(blockchain_alice,
 
     with pytest.raises(Ursula.NotEnoughUrsulas):
         blockchain_bob.retrieve_and_decrypt([message_kit],
-                                            policy_encrypting_key=bupkiss_policy.public_key,
-                                            alice_verifying_key=amonia.stamp,
+                                            alice_verifying_key=amonia.stamp.as_umbral_pubkey(),
                                             encrypted_treasure_map=bupkiss_policy.treasure_map)

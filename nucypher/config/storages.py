@@ -22,7 +22,6 @@ from pathlib import Path
 from typing import Any, Optional, Set, Union
 
 import OpenSSL
-from bytestring_splitter import BytestringSplittingError
 from cryptography import x509
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives.serialization import Encoding
@@ -353,18 +352,18 @@ class LocalFileBasedNodeStorage(NodeStorage):
             with open(filepath, "rb") as seed_file:
                 seed_file.seek(0)
                 node_bytes = self.decode_node_bytes(seed_file.read())
-                node = Ursula.from_bytes(node_bytes, fail_fast=True)
+                node = Ursula.from_metadata_bytes(node_bytes)
         except FileNotFoundError:
             raise self.NoNodeMetadataFileFound
-        except (BytestringSplittingError, Ursula.UnexpectedVersion):
-            raise self.InvalidNodeMetadata
+        except Exception as e:
+            raise self.InvalidNodeMetadata from e
 
         return node
 
     def __write_metadata(self, filepath: Path, node):
         filepath.parent.mkdir(parents=True, exist_ok=True)
         with open(filepath, "wb") as f:
-            f.write(self.encode_node_bytes(bytes(node)))
+            f.write(self.encode_node_bytes(bytes(node.metadata())))
         self.log.info("Wrote new node metadata to filesystem {}".format(filepath))
         return filepath
 

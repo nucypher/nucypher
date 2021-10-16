@@ -20,15 +20,13 @@ from abc import ABC, abstractmethod
 from typing import Tuple, Sequence, Optional, Iterable, Dict, Type
 
 import maya
-from bytestring_splitter import BytestringSplitter, VariableLengthBytestring
 from eth_typing.evm import ChecksumAddress
 
-from nucypher.crypto.powers import TransactingPower
-from nucypher.crypto.splitters import key_splitter
+from nucypher.core import HRAC, TreasureMap, Arrangement, ArrangementResponse
+
+from nucypher.crypto.powers import DecryptingPower
 from nucypher.crypto.umbral_adapter import PublicKey, VerifiedKeyFrag, Signature
 from nucypher.network.middleware import RestMiddleware
-from nucypher.policy.hrac import HRAC
-from nucypher.policy.maps import TreasureMap
 from nucypher.policy.reservoir import (
     make_federated_staker_reservoir,
     MergedReservoir,
@@ -38,49 +36,6 @@ from nucypher.policy.reservoir import (
 from nucypher.policy.revocation import RevocationKit
 from nucypher.utilities.concurrency import WorkerPool
 from nucypher.utilities.logging import Logger
-from nucypher.utilities.versioning import Versioned
-
-
-class Arrangement(Versioned):
-    """A contract between Alice and a single Ursula."""
-
-    def __init__(self, publisher_verifying_key: PublicKey, expiration: maya.MayaDT):
-        self.expiration = expiration
-        self.publisher_verifying_key = publisher_verifying_key
-
-    def __repr__(self):
-        return f"Arrangement(publisher={self.publisher_verifying_key})"
-
-    @classmethod
-    def from_publisher(cls, publisher: 'Alice', expiration: maya.MayaDT) -> 'Arrangement':
-        publisher_verifying_key = publisher.stamp.as_umbral_pubkey()
-        return cls(publisher_verifying_key=publisher_verifying_key, expiration=expiration)
-
-    @classmethod
-    def _brand(cls) -> bytes:
-        return b'Arng'
-
-    @classmethod
-    def _version(cls) -> Tuple[int, int]:
-        return 1, 0
-
-    def _payload(self) -> bytes:
-        """Returns the unversioned bytes serialized representation of this instance."""
-        return bytes(self.publisher_verifying_key) + bytes(VariableLengthBytestring(self.expiration.iso8601().encode()))
-
-    @classmethod
-    def _old_version_handlers(cls) -> Dict:
-        return {}
-
-    @classmethod
-    def _from_bytes_current(cls, data: bytes):
-        splitter = BytestringSplitter(
-            key_splitter,  # publisher_verifying_key
-            (bytes, VariableLengthBytestring)  # expiration
-        )
-        publisher_verifying_key, expiration_bytes = splitter(data)
-        expiration = maya.MayaDT.from_iso8601(iso8601_string=expiration_bytes.decode())
-        return cls(publisher_verifying_key=publisher_verifying_key, expiration=expiration)
 
 
 class Policy(ABC):
@@ -187,7 +142,8 @@ class Policy(ABC):
             raise RuntimeError(f"{address} is not known")
 
         ursula = self.publisher.known_nodes[address]
-        arrangement = Arrangement.from_publisher(publisher=self.publisher, expiration=self.expiration)
+        arrangement = Arrangement(publisher_verifying_key=self.publisher.stamp.as_umbral_pubkey(),
+                                  expiration_epoch=self.expiration.epoch)
 
         self.log.debug(f"Proposing arrangement {arrangement} to {ursula}")
         negotiation_response = network_middleware.propose_arrangement(ursula, arrangement)
@@ -196,11 +152,10 @@ class Policy(ABC):
         if status == 200:
             # TODO: What to do in the case of invalid signature?
             # Verify that the sampled ursula agreed to the arrangement.
-            ursula_signature = negotiation_response.content
-            self.publisher.verify_from(ursula,
-                                       bytes(arrangement),
-                                       signature=Signature.from_bytes(ursula_signature),
-                                       decrypt=False)
+            response = ArrangementResponse.from_bytes(negotiation_response.content)
+            self.publisher.verify_from(stranger=ursula,
+                                       message=bytes(arrangement),
+                                       signature=response.signature)
             self.log.debug(f"Arrangement accepted by {ursula}")
         else:
             message = f"Proposing arrangement to {ursula} failed with {status}"
@@ -271,9 +226,6 @@ class Policy(ABC):
 
         return accepted_arrangements
 
-    def _encrypt_treasure_map(self, treasure_map):
-        return treasure_map.encrypt(self.publisher, self.bob)
-
     def enact(self,
               network_middleware: RestMiddleware,
               handpicked_ursulas: Optional[Iterable['Ursula']] = None,
@@ -292,13 +244,18 @@ class Policy(ABC):
 
         self._enact_arrangements(arrangements)
 
+        assigned_kfrags = {
+            ursula.checksum_address: (ursula.public_keys(DecryptingPower), vkfrag)
+            for ursula, vkfrag in zip(arrangements, self.kfrags)}
+
         treasure_map = TreasureMap.construct_by_publisher(hrac=self.hrac,
-                                                          publisher=self.publisher,
-                                                          ursulas=list(arrangements),
-                                                          verified_kfrags=self.kfrags,
+                                                          policy_encrypting_key=self.public_key,
+                                                          signer=self.publisher.stamp.as_umbral_signer(),
+                                                          assigned_kfrags=assigned_kfrags,
                                                           threshold=self.threshold)
 
-        enc_treasure_map = self._encrypt_treasure_map(treasure_map)
+        enc_treasure_map = treasure_map.encrypt(signer=self.publisher.stamp.as_umbral_signer(),
+                                                recipient_key=self.bob.public_keys(DecryptingPower))
 
         # TODO: Signal revocation without using encrypted kfrag
         revocation_kit = RevocationKit(treasure_map=treasure_map, signer=self.publisher.stamp)
@@ -440,12 +397,6 @@ class BlockchainPolicy(Policy):
 
     def _enact_arrangements(self, arrangements: Dict['Ursula', Arrangement]) -> None:
         self._publish_to_blockchain(ursulas=list(arrangements))
-
-    def _encrypt_treasure_map(self, treasure_map):
-        transacting_power = self.publisher._crypto_power.power_ups(TransactingPower)
-        return treasure_map.encrypt(publisher=self.publisher,
-                                    bob=self.bob,
-                                    blockchain_signer=transacting_power.sign_message)
 
 
 class EnactedPolicy:

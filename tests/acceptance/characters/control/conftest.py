@@ -124,7 +124,6 @@ def retrieve_control_request(blockchain_alice, blockchain_bob, enacted_blockchai
     message_kit = capsule_side_channel_blockchain()
 
     params = {
-        'policy_encrypting_key': bytes(enacted_blockchain_policy.public_key).hex(),
         'alice_verifying_key': bytes(enacted_blockchain_policy.publisher_verifying_key).hex(),
         'message_kits': [b64encode(bytes(message_kit)).decode()],
         'encrypted_treasure_map': b64encode(bytes(enacted_blockchain_policy.treasure_map)).decode()

@@ -24,7 +24,6 @@ from typing import Optional, Dict, Iterable, List, Tuple, NamedTuple, Union, Any
 import binascii
 import itertools
 import maya
-from bytestring_splitter import BytestringSplitter
 from eth_typing import ChecksumAddress
 
 from ..crypto.utils import keccak_digest
@@ -34,7 +33,7 @@ from .nicknames import Nickname
 
 class ArchivedFleetState(NamedTuple):
 
-    checksum: ChecksumAddress
+    checksum: str
     nickname: Nickname
     timestamp: maya.MayaDT
     population: int
@@ -132,7 +131,7 @@ class FleetState:
 
         if self._this_node_ref is not None and not skip_this_node:
             this_node = self._this_node_ref()
-            this_node_metadata = bytes(this_node)
+            this_node_metadata = bytes(this_node.metadata())
             this_node_updated = self._this_node_metadata != this_node_metadata
             this_node_list = [this_node]
         else:
@@ -156,7 +155,7 @@ class FleetState:
 
             all_nodes_sorted = sorted(itertools.chain(this_node_list, nodes.values()),
                                       key=lambda node: node.checksum_address)
-            joined_metadata = b"".join(bytes(node) for node in all_nodes_sorted)
+            joined_metadata = b"".join(bytes(node.metadata()) for node in all_nodes_sorted)
             checksum = keccak_digest(joined_metadata).hex()
         else:
             nodes = self._nodes
@@ -194,22 +193,6 @@ class FleetState:
 
     def __len__(self):
         return len(self._nodes)
-
-    # TODO: we only send it along with `FLEET_STATES_MATCH`, so it is essentially useless.
-    # But it's hard to change now because older nodes will be looking for it.
-    def snapshot(self) -> bytes:
-        checksum_bytes = binascii.unhexlify(self.checksum)
-        timestamp_bytes = self.timestamp.epoch.to_bytes(4, byteorder="big")
-        return checksum_bytes + timestamp_bytes
-
-    snapshot_splitter = BytestringSplitter(32, 4)
-
-    @staticmethod
-    def unpack_snapshot(data) -> Tuple[str, maya.MayaDT, bytes]:
-        checksum_bytes, timestamp_bytes, remainder = FleetState.snapshot_splitter(data, return_remainder=True)
-        checksum = checksum_bytes.hex()
-        timestamp = maya.MayaDT(int.from_bytes(timestamp_bytes, byteorder="big"))
-        return checksum, timestamp, remainder
 
     def shuffled(self) -> List['Ursula']:
         nodes_we_know_about = list(self._nodes.values())
@@ -348,13 +331,6 @@ class FleetSensor:
 
     def addresses(self):
         return self._current_state.addresses()
-
-    def snapshot(self):
-        return self._current_state.snapshot()
-
-    @staticmethod
-    def unpack_snapshot(data):
-        return FleetState.unpack_snapshot(data)
 
     def record_fleet_state(self, skip_this_node: bool = False) -> StateDiff:
         new_state, diff = self._current_state.with_updated_nodes(nodes_to_add=self._nodes_to_add,

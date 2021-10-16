@@ -27,7 +27,7 @@ from eth_keys import KeyAPI as EthKeyAPI
 from eth_utils.address import to_checksum_address
 
 from nucypher.crypto.signing import SignatureStamp
-from nucypher.crypto.umbral_adapter import Signature, PublicKey
+from nucypher.crypto.umbral_adapter import PublicKey
 
 SYSTEM_RAND = SystemRandom()
 

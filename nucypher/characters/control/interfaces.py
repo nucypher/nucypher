@@ -19,15 +19,14 @@ from typing import Union, List
 
 import maya
 
+from nucypher.core import MessageKit, HRAC, EncryptedTreasureMap
+
 from nucypher.characters.base import Character
 from nucypher.characters.control.specifications import alice, bob, enrico
 from nucypher.control.interfaces import attach_schema, ControlInterface
 from nucypher.crypto.powers import DecryptingPower, SigningPower
 from nucypher.crypto.umbral_adapter import PublicKey
 from nucypher.network.middleware import RestMiddleware
-from nucypher.policy.hrac import HRAC
-from nucypher.policy.kits import MessageKit
-from nucypher.policy.maps import EncryptedTreasureMap
 
 
 class CharacterPublicInterface(ControlInterface):
@@ -126,21 +125,8 @@ class AliceInterface(CharacterPublicInterface):
         """
         Character control endpoint to allow Alice to decrypt her own data.
         """
-
-        from nucypher.characters.lawful import Enrico
-        policy_encrypting_key = self.implementer.get_policy_encrypting_key_from_label(label)
-
-        # TODO #846: May raise UnknownOpenSSLError and InvalidTag.
-
-        enrico = Enrico.from_public_keys(
-            verifying_key=message_kit.sender_verifying_key,
-            policy_encrypting_key=policy_encrypting_key,
-            label=label
-        )
-
         plaintexts = self.implementer.decrypt_message_kit(
             message_kit=message_kit,
-            data_source=enrico,
             label=label
         )
 
@@ -161,7 +147,6 @@ class BobInterface(CharacterPublicInterface):
 
     @attach_schema(bob.RetrieveAndDecrypt)
     def retrieve_and_decrypt(self,
-                             policy_encrypting_key: PublicKey,
                              alice_verifying_key: PublicKey,
                              message_kits: List[MessageKit],
                              encrypted_treasure_map: EncryptedTreasureMap) -> dict:
@@ -169,7 +154,6 @@ class BobInterface(CharacterPublicInterface):
         Character control endpoint for re-encrypting and decrypting policy data.
         """
         plaintexts = self.implementer.retrieve_and_decrypt(message_kits,
-                                                           policy_encrypting_key=policy_encrypting_key,
                                                            alice_verifying_key=alice_verifying_key,
                                                            encrypted_treasure_map=encrypted_treasure_map)
 
