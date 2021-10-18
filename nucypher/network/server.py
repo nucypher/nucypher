@@ -185,7 +185,7 @@ def _make_rest_app(datastore: Datastore, this_node, domain: str, log: Logger) ->
         # Verify & Decrypt KFrag Payload
         try:
             authorized_kfrag = this_node._decrypt_kfrag(encrypted_kfrag=reenc_request.encrypted_kfrag,
-                                                        author_verifying_key=author_verifying_key)
+                                                        publisher_verifying_key=publisher_verifying_key)
         except ValueError as e:
             message = f'{bob_identity_message} Invalid AuthorizedKeyFrag: {e}.'
             log.info(message)

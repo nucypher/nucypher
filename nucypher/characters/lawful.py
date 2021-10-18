@@ -1181,10 +1181,10 @@ class Ursula(Teacher, Character, Worker):
 
     def _decrypt_kfrag(self,
                        encrypted_kfrag: MessageKit, # TODO: make its own type? See #2743
-                       author_verifying_key: PublicKey
+                       publisher_verifying_key: PublicKey
                        ) -> AuthorizedKeyFrag:
 
-        if author_verifying_key != encrypted_kfrag.sender_verifying_key:
+        if publisher_verifying_key != encrypted_kfrag.sender_verifying_key:
             raise ValueError("This encrypted AuthorizedKeyFrag was not created "
                             f"by the expected author {author_verifying_key}")
 
