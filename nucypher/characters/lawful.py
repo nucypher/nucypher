@@ -1342,7 +1342,7 @@ class Enrico(Character):
         :return:
         """
         policy_pubkey_enc = alice.get_policy_encrypting_key_from_label(label)
-        return cls(crypto_power_ups={SigningPower: alice.stamp.as_umbral_pubkey()},
+        return cls(crypto_power_ups=[alice._crypto_power.power_ups(SigningPower)],
                    policy_encrypting_key=policy_pubkey_enc)
 
     @property
