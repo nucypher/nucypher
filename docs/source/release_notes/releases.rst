@@ -4,6 +4,21 @@ Releases
 
 .. towncrier release notes start
 
+v5.3.2 (2021-10-15)
+-------------------
+
+Bugfixes
+~~~~~~~~
+
+- Regenerate Ursula TLS certificates if the become invalid, e.g. become expired. (`#2810 <https://github.com/nucypher/nucypher/issues/2810>`__)
+
+
+Misc
+~~~~
+
+- Extend policy probationary period until December 31st, 2021. No policies may be created on the network that extend beyond this date. (`#2810 <https://github.com/nucypher/nucypher/issues/2810>`__)
+
+
 v5.3.1 (2021-08-12)
 -------------------
 
