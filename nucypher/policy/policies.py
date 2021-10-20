@@ -69,7 +69,7 @@ class Policy(ABC):
         """Raised when a worker is requested to perform re-encryption for an expired policy"""
 
     class Unauthorized(PolicyException):
-        """Raised when Bob is not authorized to request re-encryptions from Ursula.."""
+        """Raised when Bob is not authorized to request re-encryption from Ursula.."""
 
     class Revoked(Unauthorized):
         """Raised when a policy is revoked has been revoked access"""
@@ -132,6 +132,7 @@ class Policy(ABC):
                 ursulas: Optional[Iterable['Ursula']] = None,
                 timeout: int = 10,
                 ) -> List['Ursula']:
+        """Send concurrent requests to the /ping HTTP endpoint of nodes drawn from the reservoir."""
 
         ursulas = ursulas or []
         handpicked_addresses = [ChecksumAddress(ursula.checksum_address) for ursula in ursulas]
@@ -163,7 +164,7 @@ class Policy(ABC):
         accepted_addresses = ", ".join(ursula.checksum_address for ursula in successes.values())
         if len(successes) < self.shares:
             rejections = "\n".join(f"{address}: {value}" for address, (type_, value, traceback) in failures.items())
-            message = "Could not find enough Ursulas to accept proposals.\n"\
+            message = "Failed to contact enough sampled nodes.\n"\
                       f"Selected:\n{accepted_addresses}\n" \
                       f"Unavailable:\n{rejections}"
             self.log.debug(message)
@@ -210,9 +211,11 @@ class Policy(ABC):
 class FederatedPolicy(Policy):
 
     def _publish(self, ursulas: List['Ursula']) -> None:
+        """Hook to perform publication operations for federated policies."""
         pass
 
     def _make_reservoir(self, handpicked_addresses):
+        """Returns a federated node reservoir for creating a federated policy."""
         return make_federated_staker_reservoir(known_nodes=self.publisher.known_nodes,
                                                include_addresses=handpicked_addresses)
 
@@ -235,6 +238,7 @@ class BlockchainPolicy(Policy):
         self._validate_fee_value()
 
     def _publish(self, ursulas: List['Ursula']) -> None:
+        """Writes a new policy to the PolicyManager contract.."""
         addresses = [ursula.checksum_address for ursula in ursulas]
         receipt = self.publisher.policy_agent.create_policy(
             value=self.value,                     # wei
@@ -249,6 +253,7 @@ class BlockchainPolicy(Policy):
         self.log.info(f"published policy TXID: {txid}")
 
     def _make_reservoir(self, handpicked_addresses):
+        """Returns a reservoir of staking nodes to created a decentralized policy."""
         staker_reservoir = make_decentralized_staker_reservoir(staking_agent=self.publisher.staking_agent,
                                                                duration_periods=self.payment_periods,
                                                                include_addresses=handpicked_addresses)
