@@ -264,7 +264,7 @@ def _make_rest_app(datastore: Datastore, this_node, domain: str, log: Logger) ->
     def check_availability():
         """Asks this node: Can you access my public information endpoint?"""
         try:
-            requesting_ursula = Ursula.from_bytes(request.data)
+            requesting_ursula = Ursula.from_metadata_bytes(request.data)
             requesting_ursula.mature()
         except ValueError:
             return Response({'error': 'Invalid Ursula'}, status=400)
@@ -282,14 +282,16 @@ def _make_rest_app(datastore: Datastore, this_node, domain: str, log: Logger) ->
             # Fetch and store initiator's teacher certificate.
             certificate = this_node.network_middleware.get_certificate(host=initiator_address, port=initiator_port)
             certificate_filepath = this_node.node_storage.store_node_certificate(certificate=certificate)
-            requesting_ursula_bytes = this_node.network_middleware.client.node_information(host=initiator_address,
-                                                                                           port=initiator_port,
-                                                                                           certificate_filepath=certificate_filepath)
+            requesting_ursula_metadata = this_node.network_middleware.client.node_information(
+                host=initiator_address,
+                port=initiator_port,
+                certificate_filepath=certificate_filepath
+            )
         except NodeSeemsToBeDown:
             return Response({'error': 'Unreachable node'}, status=400)  # ... toasted
 
         # Compare the results of the outer POST with the inner GET... yum
-        if requesting_ursula_bytes == request.data:
+        if requesting_ursula_metadata == request.data:
             return Response(status=200)
         else:
             return Response({'error': 'Suspicious node'}, status=400)

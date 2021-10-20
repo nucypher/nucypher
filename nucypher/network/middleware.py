@@ -221,9 +221,9 @@ class RestMiddleware:
         )
         return response
 
-    def check_rest_availability(self, initiator, responder):
+    def check_availability(self, initiator, responder):
         response = self.client.post(node_or_sprout=responder,
-                                    data=bytes(initiator),
+                                    data=bytes(initiator.metatada()),
                                     path="check_availability",
                                     timeout=6,  # Two round trips are expected
                                     )
