@@ -1305,8 +1305,7 @@ class Enrico(Character):
     def encrypt_message(self, plaintext: bytes) -> MessageKit:
         # TODO: #2107 Rename to "encrypt"
         message_kit = MessageKit.author(recipient_key=self.policy_pubkey,
-                                        plaintext=plaintext,
-                                        signer=self.stamp.as_umbral_signer())
+                                        plaintext=plaintext)
         return message_kit
 
     @classmethod

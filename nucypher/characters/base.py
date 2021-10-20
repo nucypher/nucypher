@@ -349,7 +349,6 @@ class Character(Learner):
     def encrypt_for(self,
                     recipient: 'Character',
                     plaintext: bytes,
-                    sign_plaintext=True,
                     ) -> MessageKit:
         """
         Encrypts plaintext for recipient actor. Optionally signs the message as well.
@@ -366,9 +365,7 @@ class Character(Learner):
         # TODO: who even uses this method except for tests?
 
         message_kit = MessageKit.author(recipient_key=recipient.public_keys(DecryptingPower),
-                                        plaintext=plaintext,
-                                        signer=self.stamp.as_umbral_signer(),
-                                        sign_plaintext=sign_plaintext)
+                                        plaintext=plaintext)
         return message_kit
 
     def public_keys(self, power_up_class: ClassVar):

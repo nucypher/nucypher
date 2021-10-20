@@ -59,105 +59,33 @@ checksum_address_splitter = BytestringSplitter((bytes, ETH_ADDRESS_BYTE_LENGTH))
 
 class MessageKit(Versioned):
     """
-    All the components needed to transmit and verify an encrypted message.
+    A message encrypted for re-encryption
     """
 
-    _SIGNATURE_TO_FOLLOW = b'\x00'
-    _SIGNATURE_IS_ON_CIPHERTEXT = b'\x01'
-
     @classmethod
-    def author(cls,
-               recipient_key: PublicKey,
-               plaintext: bytes,
-               signer: Signer,
-               sign_plaintext: bool = True
-               ) -> 'MessageKit':
+    def author(cls, recipient_key: PublicKey, plaintext: bytes) -> 'MessageKit':
+        capsule, ciphertext = umbral.encrypt(recipient_key, plaintext)
+        return cls(capsule=capsule, ciphertext=ciphertext)
 
-        # The caller didn't expressly tell us not to sign; we'll sign.
-        if sign_plaintext:
-            # Sign first, encrypt second.
-
-            # TODO (#2743): may rethink it or remove completely
-            sig_header = cls._SIGNATURE_TO_FOLLOW
-
-            signature = signer.sign(plaintext)
-            capsule, ciphertext = umbral.encrypt(recipient_key, sig_header + bytes(signature) + plaintext)
-            signature_in_kit = None
-        else:
-            # Encrypt first, sign second.
-
-            # TODO (#2743): may rethink it or remove completely
-            sig_header = cls._SIGNATURE_IS_ON_CIPHERTEXT
-
-            capsule, ciphertext = umbral.encrypt(recipient_key, sig_header + plaintext)
-            signature = signer.sign(ciphertext)
-            signature_in_kit = signature
-
-        return cls(ciphertext=ciphertext,
-                   capsule=capsule,
-                   sender_verifying_key=signer.verifying_key(),
-                   signature=signature_in_kit)
-
-    def __init__(self,
-                 capsule: Capsule,
-                 ciphertext: bytes,
-                 sender_verifying_key: PublicKey,
-                 signature: Optional[Signature] = None,
-                 ):
+    def __init__(self, capsule: Capsule, ciphertext: bytes):
         self.ciphertext = ciphertext
         self.capsule = capsule
-        self.sender_verifying_key = sender_verifying_key
-        self.signature = signature
 
     def __eq__(self, other):
         return (self.ciphertext == other.ciphertext and
-                self.capsule == other.capsule and
-                self.sender_verifying_key == other.sender_verifying_key and
-                self.signature == other.signature)
+                self.capsule == other.capsule)
 
     def decrypt(self, sk: SecretKey) -> bytes:
-        cleartext = decrypt_original(sk, self.capsule, self.ciphertext)
-        return self._verify_cleartext(cleartext)
+        return decrypt_original(sk, self.capsule, self.ciphertext)
 
     def decrypt_reencrypted(self, sk: SecretKey, policy_key: PublicKey, cfrags: Sequence[VerifiedCapsuleFrag]) -> bytes:
-        cleartext = decrypt_reencrypted(sk, policy_key, self.capsule, cfrags, self.ciphertext)
-        return self._verify_cleartext(cleartext)
-
-    def _verify_cleartext(self, cleartext_with_sig_header: bytes) -> bytes:
-
-        sig_header = cleartext_with_sig_header[0:1]
-        cleartext = cleartext_with_sig_header[1:]
-
-        if sig_header == self._SIGNATURE_IS_ON_CIPHERTEXT:
-            # The ciphertext is what is signed - note that for later.
-            if not self.signature:
-                raise ValueError("Cipherext is supposed to be signed, but the signature is missing.")
-            message = self.ciphertext
-            signature = self.signature
-
-        elif sig_header == self._SIGNATURE_TO_FOLLOW:
-            # The signature follows in this cleartext - split it off.
-            signature, cleartext = signature_splitter(cleartext, return_remainder=True)
-            message = cleartext
-
-        else:
-            raise ValueError("Incorrect signature header:", sig_header)
-
-        if not signature.verify(message=message, verifying_pk=self.sender_verifying_key):
-            raise InvalidSignature(f"Unable to verify message from: {self.sender_verifying_key}")
-
-        return cleartext
+        return decrypt_reencrypted(sk, policy_key, self.capsule, cfrags, self.ciphertext)
 
     def __str__(self):
         return f"{self.__class__.__name__}({self.capsule})"
 
     def _payload(self) -> bytes:
-        # TODO (#2743): this logic may not be necessary depending on the resolution.
-        # If it is, it is better moved to BytestringSplitter.
-        return (bytes(self.capsule) +
-                (b'\x00' if self.signature is None else (b'\x01' + bytes(self.signature))) +
-                bytes(self.sender_verifying_key) +
-                VariableLengthBytestring(self.ciphertext))
+        return bytes(self.capsule) + VariableLengthBytestring(self.ciphertext)
 
     @classmethod
     def _brand(cls) -> bytes:
@@ -173,26 +101,9 @@ class MessageKit(Versioned):
 
     @classmethod
     def _from_bytes_current(cls, data):
-        splitter = BytestringSplitter(
-            capsule_splitter,
-            (bytes, 1))
-
-        capsule, signature_flag, remainder = splitter(data, return_remainder=True)
-
-        if signature_flag == b'\x00':
-            signature = None
-        elif signature_flag == b'\x01':
-            signature, remainder = signature_splitter(remainder, return_remainder=True)
-        else:
-            raise ValueError("Incorrect format for the signature flag")
-
-        splitter = BytestringSplitter(
-            key_splitter,
-            VariableLengthBytestring)
-
-        sender_verifying_key, ciphertext = splitter(remainder)
-
-        return cls(capsule, ciphertext, signature=signature, sender_verifying_key=sender_verifying_key)
+        splitter = BytestringSplitter(capsule_splitter, VariableLengthBytestring)
+        capsule, ciphertext = splitter(data)
+        return cls(capsule, ciphertext)
 
 
 class HRAC:

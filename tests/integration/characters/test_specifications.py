@@ -165,7 +165,7 @@ def test_messagekit_validation(capsule_side_channel):
         MessageKitsOnly().load({'mkit': bad_kit_b64})
 
     assert "Could not parse mkit" in str(e)
-    assert "Not enough bytes to constitute message types" in str(e)
+    assert "Can't split a message with more bytes than the original splittable." in str(e)
 
     # test a valid messagekit
     valid_kit = capsule_side_channel.messages[0][0]
