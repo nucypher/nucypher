@@ -15,7 +15,7 @@ You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
-from typing import Optional, Sequence, Dict, Tuple, List, Iterable, Mapping
+from typing import Optional, Sequence, Dict, Tuple, List, Iterable, Mapping, NamedTuple
 
 from bytestring_splitter import (
     BytestringSplitter,
@@ -785,30 +785,82 @@ class RevocationOrder(Versioned):
                    signature=signature)
 
 
+class NodeMetadataPayload(NamedTuple):
+
+    public_address: bytes
+    domain: str
+    timestamp_epoch: int
+    decentralized_identity_evidence: bytes # TODO: make its own type?
+    verifying_key: PublicKey
+    encrypting_key: PublicKey
+    certificate_bytes: bytes # serialized `cryptography.x509.Certificate`
+    host: str
+    port: int
+
+    _splitter = BytestringKwargifier(
+        dict,
+        public_address=ETH_ADDRESS_BYTE_LENGTH,
+        domain_bytes=VariableLengthBytestring,
+        timestamp_epoch=(int, 4, {'byteorder': 'big'}),
+
+        # FIXME: Fixed length doesn't work with federated. It was LENGTH_ECDSA_SIGNATURE_WITH_RECOVERY,
+        decentralized_identity_evidence=VariableLengthBytestring,
+
+        verifying_key=key_splitter,
+        encrypting_key=key_splitter,
+        certificate_bytes=VariableLengthBytestring,
+        host_bytes=VariableLengthBytestring,
+        port=(int, 2, {'byteorder': 'big'}),
+        )
+
+    def __bytes__(self):
+        as_bytes = bytes().join((self.public_address,
+                                 bytes(VariableLengthBytestring(self.domain.encode('utf-8'))),
+                                 self.timestamp_epoch.to_bytes(4, 'big'),
+                                 bytes(VariableLengthBytestring(self.decentralized_identity_evidence)),  # FIXME: Fixed length doesn't work with federated
+                                 bytes(self.verifying_key),
+                                 bytes(self.encrypting_key),
+                                 bytes(VariableLengthBytestring(self.certificate_bytes)),
+                                 bytes(VariableLengthBytestring(self.host.encode('utf-8'))),
+                                 self.port.to_bytes(2, 'big'),
+                                ))
+        return as_bytes
+
+    @classmethod
+    def from_bytes(cls, data):
+        result = cls._splitter(data)
+        return cls(public_address=result['public_address'],
+                   domain=result['domain_bytes'].decode('utf-8'),
+                   timestamp_epoch=result['timestamp_epoch'],
+                   decentralized_identity_evidence=result['decentralized_identity_evidence'],
+                   verifying_key=result['verifying_key'],
+                   encrypting_key=result['encrypting_key'],
+                   certificate_bytes=result['certificate_bytes'],
+                   host=result['host_bytes'].decode('utf-8'),
+                   port=result['port'],
+                   )
+
+
 class NodeMetadata(Versioned):
 
-    def __init__(self,
-                 public_address: bytes,
-                 domain: str,
-                 timestamp_epoch: int,
-                 interface_signature: Signature, # sign(timestamp + canonical_public_address + host + port)
-                 decentralized_identity_evidence: bytes, # TODO: make its own type?
-                 verifying_key: PublicKey,
-                 encrypting_key: PublicKey,
-                 certificate_bytes: bytes, # serialized `cryptography.x509.Certificate`
-                 host: str,
-                 port: int,
-                 ):
-        self.public_address = public_address
-        self.domain = domain
-        self.timestamp_epoch = timestamp_epoch
-        self.interface_signature = interface_signature
-        self.decentralized_identity_evidence = decentralized_identity_evidence
-        self.verifying_key = verifying_key
-        self.encrypting_key = encrypting_key
-        self.certificate_bytes = certificate_bytes
-        self.host = host
-        self.port = port
+    @classmethod
+    def author(cls, signer: Signer, **kwds):
+        payload = NodeMetadataPayload(**kwds)
+        signature = signer.sign(bytes(payload))
+        # TODO: we can cache payload bytes here, for later use in serialization/verification
+        return cls(signature=signature, payload=payload)
+
+    def __init__(self, signature: Signature, payload: NodeMetadataPayload):
+        self.signature = signature
+        self._metadata_payload = payload
+        for name, value in payload._asdict().items():
+            setattr(self, name, value)
+
+    def verify(self) -> bool:
+        # Note: in order for this to make sense, `verifying_key` must be checked independently.
+        # Currently it is done in `validate_worker()` (using `decentralized_identity_evidence`)
+        # TODO: do this on deserialization?
+        return self.signature.verify(message=bytes(self._metadata_payload), verifying_pk=self.verifying_key)
 
     @classmethod
     def _brand(cls) -> bytes:
@@ -823,51 +875,13 @@ class NodeMetadata(Versioned):
         return {}
 
     def _payload(self):
-        as_bytes = bytes().join((self.public_address,
-                                 bytes(VariableLengthBytestring(self.domain.encode('utf-8'))),
-                                 self.timestamp_epoch.to_bytes(4, 'big'),
-                                 bytes(self.interface_signature),
-                                 bytes(VariableLengthBytestring(self.decentralized_identity_evidence)),  # FIXME: Fixed length doesn't work with federated
-                                 bytes(self.verifying_key),
-                                 bytes(self.encrypting_key),
-                                 bytes(VariableLengthBytestring(self.certificate_bytes)),
-                                 bytes(VariableLengthBytestring(self.host.encode('utf-8'))),
-                                 self.port.to_bytes(2, 'big'),
-                                ))
-        return as_bytes
+        return bytes(self.signature) + bytes(self._metadata_payload)
 
     @classmethod
     def _from_bytes_current(cls, data: bytes):
-        splitter = BytestringKwargifier(
-            dict,
-            public_address=ETH_ADDRESS_BYTE_LENGTH,
-            domain_bytes=VariableLengthBytestring,
-            timestamp_epoch=(int, 4, {'byteorder': 'big'}),
-            interface_signature=signature_splitter,
-
-            # FIXME: Fixed length doesn't work with federated. It was LENGTH_ECDSA_SIGNATURE_WITH_RECOVERY,
-            decentralized_identity_evidence=VariableLengthBytestring,
-
-            verifying_key=key_splitter,
-            encrypting_key=key_splitter,
-            certificate_bytes=VariableLengthBytestring,
-            host_bytes=VariableLengthBytestring,
-            port=(int, 2, {'byteorder': 'big'}),
-            )
-
-        result = splitter(data)
-
-        return cls(public_address=result['public_address'],
-                   domain=result['domain_bytes'].decode('utf-8'),
-                   timestamp_epoch=result['timestamp_epoch'],
-                   interface_signature=result['interface_signature'],
-                   decentralized_identity_evidence=result['decentralized_identity_evidence'],
-                   verifying_key=result['verifying_key'],
-                   encrypting_key=result['encrypting_key'],
-                   certificate_bytes=result['certificate_bytes'],
-                   host=result['host_bytes'].decode('utf-8'),
-                   port=result['port'],
-                   )
+        signature, remainder = signature_splitter(data, return_remainder=True)
+        payload = NodeMetadataPayload.from_bytes(remainder)
+        return cls(signature=signature, payload=payload)
 
     @classmethod
     def batch_from_bytes(cls, data: bytes):

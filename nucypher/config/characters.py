@@ -118,8 +118,6 @@ class UrsulaConfiguration(CharacterConfiguration):
         payload = dict(
             network_middleware=self.network_middleware,
             certificate=self.certificate,
-            interface_signature=self.interface_signature,
-            timestamp=None
         )
         return {**super().dynamic_payload, **payload}
 

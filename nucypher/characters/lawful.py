@@ -39,7 +39,7 @@ from cryptography.hazmat.primitives.serialization import Encoding
 from cryptography.x509 import Certificate, NameOID
 from eth_typing.evm import ChecksumAddress
 from flask import Response, request
-from twisted.internet import reactor, stdio, threads
+from twisted.internet import reactor, stdio
 from twisted.internet.defer import Deferred
 from twisted.internet.task import LoopingCall
 from twisted.logger import Logger
@@ -678,9 +678,8 @@ class Ursula(Teacher, Character, Worker):
                  certificate_filepath: Optional[Path] = None,
 
                  db_filepath: Optional[Path] = None,
-                 interface_signature=None,
-                 timestamp=None,
                  availability_check: bool = False,  # TODO: Remove from init
+                 metadata: Optional[NodeMetadata] = None,
 
                  # Blockchain
                  checksum_address: ChecksumAddress = None,
@@ -712,6 +711,10 @@ class Ursula(Teacher, Character, Worker):
                            **character_kwargs)
 
         if is_me:
+
+            if metadata:
+                raise ValueError("A local node must generate its own metadata.")
+            self._metadata = None
 
             # Operating Mode
             self.known_node_class.set_federated_mode(federated_only)
@@ -777,14 +780,13 @@ class Ursula(Teacher, Character, Worker):
             # Stranger HTTP Server
             # TODO: Use InterfaceInfo only
             self.rest_server = ProxyRESTServer(rest_host=rest_host, rest_port=rest_port)
+            self._metadata = metadata
 
         # Teacher (All Modes)
         Teacher.__init__(self,
                          domain=domain,
                          certificate=certificate,
                          certificate_filepath=certificate_filepath,
-                         interface_signature=interface_signature,
-                         timestamp=timestamp,
                          decentralized_identity_evidence=decentralized_identity_evidence)
 
     def __get_hosting_power(self, host: str) -> TLSHostingPower:
@@ -975,22 +977,32 @@ class Ursula(Teacher, Character, Worker):
         deployer = self._crypto_power.power_ups(TLSHostingPower).get_deployer(rest_app=self.rest_app, port=port)
         return deployer
 
-    def metadata(self) -> NodeMetadata:
-        # TODO: sometimes during cleanup in tests the learner is still running and can call this method,
-        # but `._finalize()` is already called, so `rest_interface` is unavailable.
-        # That doesn't lead to test fails, but produces some tracebacks in stderr.
-        # The whole cleanup situation in tests is messed up and needs to be fixed.
-        return NodeMetadata(public_address=self.canonical_public_address,
-                            domain=self.domain,
-                            timestamp_epoch=self.timestamp.epoch,
-                            interface_signature=self._interface_signature,
-                            decentralized_identity_evidence=self.decentralized_identity_evidence,
-                            verifying_key=self.public_keys(SigningPower),
-                            encrypting_key=self.public_keys(DecryptingPower),
-                            certificate_bytes=self.certificate.public_bytes(Encoding.PEM),
-                            host=self.rest_interface.host,
-                            port=self.rest_interface.port,
-                            )
+    def _generate_metadata(self) -> NodeMetadata:
+        # Assuming that the attributes collected there do not change,
+        # so we can cache the result of this method.
+        # TODO: should this be a method of Teacher?
+        timestamp = maya.now()
+        return NodeMetadata.author(signer=self.stamp.as_umbral_signer(),
+                                   public_address=self.canonical_public_address,
+                                   domain=self.domain,
+                                   timestamp_epoch=timestamp.epoch,
+                                   decentralized_identity_evidence=self.decentralized_identity_evidence,
+                                   verifying_key=self.public_keys(SigningPower),
+                                   encrypting_key=self.public_keys(DecryptingPower),
+                                   certificate_bytes=self.certificate.public_bytes(Encoding.PEM),
+                                   host=self.rest_interface.host,
+                                   port=self.rest_interface.port,
+                                   )
+
+    def metadata(self):
+        if not self._metadata:
+            self._metadata = self._generate_metadata()
+            self._timestamp = maya.MayaDT(self._metadata.timestamp_epoch)
+        return self._metadata
+
+    @property
+    def timestamp(self):
+        return maya.MayaDT(self._metadata.timestamp_epoch)
 
     #
     # Alternate Constructors

@@ -51,7 +51,12 @@ from nucypher.blockchain.eth.networks import NetworksInventory
 from nucypher.blockchain.eth.registry import BaseContractRegistry
 from nucypher.config.constants import SeednodeMetadata
 from nucypher.config.storages import ForgetfulNodeStorage
-from nucypher.crypto.powers import DecryptingPower, NoSigningPower, SigningPower
+from nucypher.crypto.powers import (
+    CryptoPower,
+    DecryptingPower,
+    NoSigningPower,
+    SigningPower,
+)
 from nucypher.crypto.signing import SignatureStamp, InvalidSignature
 from nucypher.crypto.umbral_adapter import Signature
 from nucypher.crypto.utils import recover_address_eip_191, verify_eip_191
@@ -161,17 +166,22 @@ class NodeSprout:
 
     def finish(self):
         from nucypher.characters.lawful import Ursula
-        return Ursula.from_public_keys(rest_host=self._metadata.host,
-                                       rest_port=self._metadata.port,
-                                       checksum_address=self.checksum_address,
-                                       domain=self._metadata.domain,
-                                       timestamp=self.timestamp,
-                                       interface_signature=self._metadata.interface_signature,
-                                       decentralized_identity_evidence=self._metadata.decentralized_identity_evidence,
-                                       verifying_key=self._metadata.verifying_key,
-                                       encrypting_key=self._metadata.encrypting_key,
-                                       certificate=load_pem_x509_certificate(self._metadata.certificate_bytes, backend=default_backend())
-                                       )
+
+        crypto_power = CryptoPower()
+        crypto_power.consume_power_up(SigningPower(public_key=self._metadata.verifying_key))
+        crypto_power.consume_power_up(DecryptingPower(public_key=self._metadata.encrypting_key))
+
+        return Ursula(is_me=False,
+                      crypto_power=crypto_power,
+                      rest_host=self._metadata.host,
+                      rest_port=self._metadata.port,
+                      checksum_address=self.checksum_address,
+                      domain=self._metadata.domain,
+                      timestamp=self.timestamp,
+                      decentralized_identity_evidence=self._metadata.decentralized_identity_evidence,
+                      certificate=load_pem_x509_certificate(self._metadata.certificate_bytes, backend=default_backend()),
+                      metadata=self._metadata
+                      )
 
     def mature(self):
         if self._is_finishing:
@@ -950,6 +960,7 @@ class Learner:
 
 
 class Teacher:
+
     log = Logger("teacher")
     synchronous_query_timeout = 20  # How long to wait during REST endpoints for blockchain queries to resolve
     __DEFAULT_MIN_SEED_STAKE = 0
@@ -958,8 +969,6 @@ class Teacher:
                  domain: str,  # TODO: Consider using a Domain type
                  certificate: Certificate,
                  certificate_filepath: Path,
-                 interface_signature=NOT_SIGNED.bool_value(False),
-                 timestamp=NOT_SIGNED,
                  decentralized_identity_evidence=NOT_SIGNED,
                  ) -> None:
 
@@ -969,16 +978,14 @@ class Teacher:
         # Identity
         #
 
-        self._timestamp = timestamp
         self.certificate = certificate
         self.certificate_filepath = certificate_filepath
-        self.__interface_signature = interface_signature
         self.__decentralized_identity_evidence = constant_or_bytes(decentralized_identity_evidence)
 
         # Assume unverified
         self.verified_stamp = False
         self.verified_worker = False
-        self.verified_interface = False
+        self.verified_metadata = False
         self.verified_node = False
         self.__worker_address = None
 
@@ -1129,11 +1136,22 @@ class Teacher:
 
             self.verified_stamp = True
 
+    def validate_metadata_signature(self) -> bool:
+        """
+        Checks that the interface info is valid for this node's canonical address.
+        """
+        metadata_is_valid = self._metadata.verify()
+        self.verified_metadata = metadata_is_valid
+        if metadata_is_valid:
+            return True
+        else:
+            raise self.InvalidNode("Metadata signature is invalid")
+
     def validate_metadata(self, registry: BaseContractRegistry = None):
 
-        # Verify the interface signature
-        if not self.verified_interface:
-            self.validate_interface()
+        # Verify the metadata signature
+        if not self.verified_metadata:
+            self.validate_metadata_signature()
 
         # Verify the identity evidence
         if self.verified_stamp:
@@ -1167,7 +1185,7 @@ class Teacher:
         """
 
         if force:
-            self.verified_interface = False
+            self.verified_metadata = False
             self.verified_node = False
             self.verified_stamp = False
             self.verified_worker = False
@@ -1229,59 +1247,3 @@ class Teacher:
             self.__worker_address = recover_address_eip_191(message=bytes(self.stamp),
                                                             signature=self.decentralized_identity_evidence)
         return self.__worker_address
-
-    #
-    # Interface
-    #
-
-    def validate_interface(self) -> bool:
-        """
-        Checks that the interface info is valid for this node's canonical address.
-        """
-
-        # TODO: move to NodeMetadata
-        # Also: all this info we're verifying came in the same package as the verifying key itself
-        # (in NodeMetadata). So what's the point? Of course it's going to be verified successfully.
-
-        interface_info_message = self._signable_interface_info_message()  # Contains canonical address.
-        message = self.timestamp_bytes() + interface_info_message
-        interface_is_valid = self._interface_signature.verify(self.public_keys(SigningPower), message)
-        self.verified_interface = interface_is_valid
-        if interface_is_valid:
-            return True
-        else:
-            raise self.InvalidNode("Interface is not valid")
-
-    def _signable_interface_info_message(self):
-        message = (
-            self.canonical_public_address +
-            self.rest_interface.host.encode('utf-8') +
-            self.rest_interface.port.to_bytes(2, 'big')
-            )
-        return message
-
-    def _sign_and_date_interface_info(self):
-        message = self._signable_interface_info_message()
-        self._timestamp = maya.now()
-        self.__interface_signature = self.stamp(self.timestamp_bytes() + message)
-
-    @property
-    def _interface_signature(self):
-        if not self.__interface_signature:
-            try:
-                self._sign_and_date_interface_info()
-            except NoSigningPower:
-                raise NoSigningPower("This Ursula is a stranger and cannot be used to verify.")
-        return self.__interface_signature
-
-    @property
-    def timestamp(self):
-        if not self._timestamp:
-            try:
-                self._sign_and_date_interface_info()
-            except NoSigningPower:
-                raise NoSigningPower("This Node is a Stranger; you didn't init with a timestamp, so you can't verify.")
-        return self._timestamp
-
-    def timestamp_bytes(self):
-        return self.timestamp.epoch.to_bytes(4, 'big')
