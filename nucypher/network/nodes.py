@@ -15,13 +15,12 @@ You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
-import contextlib
 import time
 from collections import defaultdict, deque
 from contextlib import suppress
 from pathlib import Path
 from queue import Queue
-from typing import Callable, Iterable, List, Optional, Set, Tuple, Union
+from typing import Callable, List, Optional, Set, Tuple, Union
 
 import maya
 import requests

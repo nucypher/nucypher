@@ -20,7 +20,6 @@ import socket
 import ssl
 import time
 import requests
-from eth_typing.evm import ChecksumAddress
 
 from nucypher.core import MetadataRequest
 

@@ -58,7 +58,7 @@ from nucypher.core import (
 
 import nucypher
 from nucypher.acumen.nicknames import Nickname
-from nucypher.acumen.perception import FleetSensor, ArchivedFleetState, RemoteUrsulaStatus
+from nucypher.acumen.perception import ArchivedFleetState, RemoteUrsulaStatus
 from nucypher.blockchain.eth.actors import BlockchainPolicyAuthor, Worker
 from nucypher.blockchain.eth.agents import ContractAgency, StakingEscrowAgent
 from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory

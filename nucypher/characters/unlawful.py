@@ -25,7 +25,7 @@ from eth_tester.exceptions import ValidationError
 from nucypher.blockchain.eth.signers.software import Web3Signer
 from nucypher.characters.lawful import Alice, Ursula
 from nucypher.config.constants import TEMPORARY_DOMAIN
-from nucypher.crypto.powers import CryptoPower, SigningPower, DecryptingPower, TransactingPower
+from nucypher.crypto.powers import CryptoPower, SigningPower
 from nucypher.exceptions import DevelopmentInstallationRequired
 
 

@@ -23,7 +23,6 @@ from eth_typing import ChecksumAddress
 from nucypher.core import MessageKit, RetrievalKit
 
 from nucypher.crypto.umbral_adapter import PublicKey, VerifiedCapsuleFrag, Capsule, SecretKey
-from nucypher.utilities.versioning import Versioned
 
 
 class PolicyMessageKit:

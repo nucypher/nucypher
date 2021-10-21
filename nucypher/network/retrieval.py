@@ -17,7 +17,7 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 
 from collections import defaultdict
 import random
-from typing import Dict, Sequence, List, Tuple
+from typing import Dict, Sequence, List
 
 from eth_typing.evm import ChecksumAddress
 from twisted.logger import Logger

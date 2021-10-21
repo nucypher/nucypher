@@ -28,7 +28,6 @@ from mako import exceptions as mako_exceptions
 from mako.template import Template
 
 from nucypher.core import (
-    AuthorizedKeyFrag,
     ReencryptionRequest,
     RevocationOrder,
     NodeMetadata,
@@ -39,7 +38,6 @@ from nucypher.core import (
 from nucypher.blockchain.eth.utils import period_to_epoch
 from nucypher.config.constants import MAX_UPLOAD_CONTENT_LENGTH
 from nucypher.crypto.keypairs import DecryptingKeypair
-from nucypher.crypto.powers import KeyPairBasedPower, PowerUpError
 from nucypher.crypto.signing import InvalidSignature
 from nucypher.datastore.datastore import Datastore
 from nucypher.datastore.models import ReencryptionRequest as ReencryptionRequestModel
