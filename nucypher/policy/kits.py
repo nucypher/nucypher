@@ -22,7 +22,7 @@ from eth_typing import ChecksumAddress
 
 from nucypher.core import MessageKit, RetrievalKit
 
-from nucypher.crypto.umbral_adapter import PublicKey, VerifiedCapsuleFrag, Capsule, SecretKey
+from nucypher.crypto.umbral_adapter import PublicKey, VerifiedCapsuleFrag, SecretKey
 
 
 class PolicyMessageKit:
@@ -46,28 +46,11 @@ class PolicyMessageKit:
         self.threshold = threshold
         self._result = result
 
-        # FIXME: temporarily, for compatibility with decrypt()
-        self._cfrags = set(self._result.cfrags.values())
-
     def as_retrieval_kit(self) -> RetrievalKit:
-        return RetrievalKit(self.capsule, self._result.addresses())
+        return RetrievalKit(self.message_kit.capsule, self._result.addresses())
 
     def decrypt(self, sk: SecretKey) -> bytes:
-        return self.message_kit.decrypt_reencrypted(sk, self.policy_key, self._cfrags)
-
-    # FIXME: temporary exposing message kit info to help `verify_from()`
-
-    @property
-    def capsule(self) -> Capsule:
-        return self.message_kit.capsule
-
-    @property
-    def ciphertext(self) -> bytes:
-        return self.message_kit.ciphertext
-
-    @property
-    def sender_verifying_key(self) -> PublicKey:
-        return self.message_kit.sender_verifying_key
+        return self.message_kit.decrypt_reencrypted(sk, self.policy_key, self._result.cfrags.values())
 
     def is_decryptable_by_receiver(self) -> bool:
         return len(self._result.cfrags) >= self.threshold

@@ -605,7 +605,7 @@ class Bob(Character):
 
         for message_kit in message_kits:
             if not message_kit.is_decryptable_by_receiver():
-                raise Ursula.NotEnoughUrsulas(f"Not enough cfrags retrieved to open capsule {message_kit.capsule}")
+                raise Ursula.NotEnoughUrsulas(f"Not enough cfrags retrieved to open capsule {message_kit.message_kit.capsule}")
 
         cleartexts = []
         decrypting_power = self._crypto_power.power_ups(DecryptingPower)
