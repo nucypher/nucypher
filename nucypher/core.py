@@ -166,9 +166,9 @@ class AuthorizedKeyFrag(Versioned):
 
     @classmethod
     def construct_by_publisher(cls,
+                               signer: Signer,
                                hrac: HRAC,
                                verified_kfrag: VerifiedKeyFrag,
-                               signer: Signer,
                                ) -> 'AuthorizedKeyFrag':
 
         # "un-verify" kfrag to keep further logic streamlined
@@ -282,9 +282,9 @@ class TreasureMap(Versioned):
 
     @classmethod
     def construct_by_publisher(cls,
+                               signer: Signer,
                                hrac: HRAC,
                                policy_encrypting_key: PublicKey,
-                               signer: Signer,
                                assigned_kfrags: Mapping[ChecksumAddress, Tuple[PublicKey, VerifiedKeyFrag]],
                                threshold: int,
                                ) -> 'TreasureMap':
@@ -302,9 +302,10 @@ class TreasureMap(Versioned):
         destinations = {}
         for ursula_address, key_and_kfrag in assigned_kfrags.items():
             ursula_key, verified_kfrag = key_and_kfrag
-            authorized_kfrag = AuthorizedKeyFrag.construct_by_publisher(hrac=hrac,
+            authorized_kfrag = AuthorizedKeyFrag.construct_by_publisher(signer=signer,
+                                                                        hrac=hrac,
                                                                         verified_kfrag=verified_kfrag,
-                                                                        signer=signer)
+                                                                        )
             encrypted_kfrag = EncryptedKeyFrag.author(recipient_key=ursula_key,
                                                       authorized_kfrag=authorized_kfrag)
 
@@ -363,9 +364,9 @@ class TreasureMap(Versioned):
                 signer: Signer,
                 recipient_key: PublicKey,
                 ) -> 'EncryptedTreasureMap':
-        return EncryptedTreasureMap.construct_by_publisher(treasure_map=self,
-                                                           signer=signer,
-                                                           recipient_key=recipient_key)
+        return EncryptedTreasureMap.construct_by_publisher(signer=signer,
+                                                           recipient_key=recipient_key,
+                                                           treasure_map=self)
 
     def _nodes_as_bytes(self) -> bytes:
         nodes_as_bytes = b""
@@ -431,9 +432,9 @@ class EncryptedTreasureMap(Versioned):
 
     @classmethod
     def construct_by_publisher(cls,
+                               signer: Signer,
                                recipient_key: PublicKey,
                                treasure_map: TreasureMap,
-                               signer: Signer,
                                ) -> 'EncryptedTreasureMap':
 
         # TODO: using Umbral for encryption to avoid introducing more crypto primitives.
@@ -442,7 +443,9 @@ class EncryptedTreasureMap(Versioned):
 
         # TODO: `signer` here can be different from the one in TreasureMap, it seems.
         # Do we ever cross-check them? Do we want to enforce them to be the same?
-        payload = AuthorizedTreasureMap.construct_by_publisher(signer, recipient_key, treasure_map)
+        payload = AuthorizedTreasureMap.construct_by_publisher(signer=signer,
+                                                               recipient_key=recipient_key,
+                                                               treasure_map=treasure_map)
 
         capsule, ciphertext = umbral.encrypt(recipient_key, bytes(payload))
         return cls(capsule, ciphertext)
@@ -550,9 +553,9 @@ class ReencryptionResponse(Versioned):
 
     @classmethod
     def construct_by_ursula(cls,
+                            signer: Signer,
                             capsules: List[Capsule],
                             cfrags: List[VerifiedCapsuleFrag],
-                            signer: Signer,
                             ) -> 'ReencryptionResponse':
 
         # un-verify
@@ -674,9 +677,10 @@ class RevocationOrder(Versioned):
 
     @classmethod
     def author(cls,
+               signer: Signer,
                ursula_address: ChecksumAddress,
                encrypted_kfrag: EncryptedKeyFrag,
-               signer: Signer) -> 'RevocationOrder':
+               ) -> 'RevocationOrder':
             return cls(ursula_address=ursula_address,
                        encrypted_kfrag=encrypted_kfrag,
                        signature=signer.sign(cls._signed_payload(ursula_address, encrypted_kfrag)))

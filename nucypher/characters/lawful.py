@@ -1194,7 +1194,9 @@ class Ursula(Teacher, Character, Worker):
             cfrags.append(cfrag)
             self.log.info(f"Re-encrypted capsule {capsule} -> made {cfrag}.")
 
-        return ReencryptionResponse.construct_by_ursula(capsules, cfrags, self.stamp.as_umbral_signer())
+        return ReencryptionResponse.construct_by_ursula(signer=self.stamp.as_umbral_signer(),
+                                                        capsules=capsules,
+                                                        cfrags=cfrags)
 
     def status_info(self, omit_known_nodes: bool = False) -> 'LocalUrsulaStatus':
 

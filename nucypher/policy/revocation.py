@@ -26,9 +26,9 @@ class RevocationKit:
         # TODO: move to core and make a method of TreasureMap?
         self.revocations = dict()
         for node_id, encrypted_kfrag in treasure_map:
-            self.revocations[node_id] = RevocationOrder.author(ursula_address=node_id,
-                                                               encrypted_kfrag=encrypted_kfrag,
-                                                               signer=signer.as_umbral_signer())
+            self.revocations[node_id] = RevocationOrder.author(signer=signer.as_umbral_signer(),
+                                                               ursula_address=node_id,
+                                                               encrypted_kfrag=encrypted_kfrag)
 
     def __iter__(self):
         return iter(self.revocations.values())
