@@ -464,13 +464,10 @@ class EncryptedTreasureMap(Versioned):
 
     def __init__(self,
                  hrac: HRAC,
-                 public_signature: Signature,
                  encrypted_tmap: MessageKit,
                  ):
 
         self.hrac = hrac
-        self._public_signature = public_signature
-        self.publisher_verifying_key = encrypted_tmap.sender_verifying_key
         self._encrypted_tmap = encrypted_tmap
 
     @classmethod
@@ -485,36 +482,28 @@ class EncryptedTreasureMap(Versioned):
                                            plaintext=bytes(treasure_map),
                                            signer=signer)
 
-        # TODO: what does `public_signature` achieve if we already have the map signed in
-        # `encrypted_tmap`?
-        public_signature = signer.sign(bytes(signer.verifying_key()) + bytes(treasure_map.hrac))
-
-        return cls(treasure_map.hrac, public_signature, encrypted_tmap)
+        return cls(treasure_map.hrac, encrypted_tmap)
 
     def decrypt(self, sk: SecretKey, publisher_verifying_key: PublicKey) -> TreasureMap:
         """
         Decrypt the treasure map and ensure it is signed by the publisher.
         """
-        if publisher_verifying_key != self.publisher_verifying_key:
-            raise ValueError("This TreasureMap was not created "
-                            f"by the expected publisher {publisher_verifying_key}")
-
         try:
             map_in_the_clear = self._encrypted_tmap.decrypt(sk)
         except InvalidSignature as e:
             raise InvalidSignature("This TreasureMap does not contain the correct signature "
                                    "from the publisher.") from e
 
-        return TreasureMap.from_bytes(map_in_the_clear)
+        treasure_map = TreasureMap.from_bytes(map_in_the_clear)
 
-    def _public_verify(self):
-        message = bytes(self.publisher_verifying_key) + bytes(self.hrac)
-        if not self._public_signature.verify(self.publisher_verifying_key, message=message):
-            raise InvalidSignature("This TreasureMap is not properly publicly signed by the publisher.")
+        if publisher_verifying_key != treasure_map.publisher_verifying_key:
+            raise ValueError("This TreasureMap was not created "
+                            f"by the expected publisher {publisher_verifying_key}")
+
+        return treasure_map
 
     def _payload(self) -> bytes:
-        return (bytes(self._public_signature) +
-                bytes(self.hrac) +
+        return (bytes(self.hrac) +
                 bytes(VariableLengthBytestring(bytes(self._encrypted_tmap)))
                 )
 
@@ -534,19 +523,12 @@ class EncryptedTreasureMap(Versioned):
     def _from_bytes_current(cls, data):
 
         splitter = BytestringSplitter(
-            signature_splitter,  # public signature
             hrac_splitter,  # HRAC
             (MessageKit, VariableLengthBytestring),  # encrypted TreasureMap
             )
 
-        try:
-            public_signature, hrac, message_kit = splitter(data)
-        except BytestringSplittingError as e:
-            raise ValueError('Invalid encrypted treasure map contents.') from e
-
-        result = cls(hrac, public_signature, message_kit)
-        result._public_verify()
-        return result
+        hrac, message_kit = splitter(data)
+        return cls(hrac, message_kit)
 
     def __eq__(self, other):
         return bytes(self) == bytes(other)
@@ -567,6 +549,7 @@ class ReencryptionRequest(Versioned):
                           ) -> 'ReencryptionRequest':
         return cls(hrac=treasure_map.hrac,
                    alice_verifying_key=alice_verifying_key,
+                   publisher_verifying_key=treasure_map.publisher_verifying_key,
                    bob_verifying_key=bob_verifying_key,
                    encrypted_kfrag=treasure_map.destinations[ursula_address],
                    capsules=capsules,
@@ -575,13 +558,14 @@ class ReencryptionRequest(Versioned):
     def __init__(self,
                  hrac: HRAC,
                  alice_verifying_key: PublicKey,
+                 publisher_verifying_key: PublicKey,
                  bob_verifying_key: PublicKey,
                  encrypted_kfrag: MessageKit,
                  capsules: List[Capsule]):
 
         self.hrac = hrac
         self.alice_verifying_key = alice_verifying_key
-        self.publisher_verifying_key = encrypted_kfrag.sender_verifying_key
+        self.publisher_verifying_key = publisher_verifying_key
         self.bob_verifying_key = bob_verifying_key
         self.encrypted_kfrag = encrypted_kfrag
         self.capsules = capsules
@@ -589,6 +573,7 @@ class ReencryptionRequest(Versioned):
     def _payload(self) -> bytes:
         return (bytes(self.hrac) +
                 bytes(self.alice_verifying_key) +
+                bytes(self.publisher_verifying_key) +
                 bytes(self.bob_verifying_key) +
                 VariableLengthBytestring(bytes(self.encrypted_kfrag)) +
                 b''.join(bytes(capsule) for capsule in self.capsules)
@@ -611,11 +596,12 @@ class ReencryptionRequest(Versioned):
         splitter = (hrac_splitter +
                     key_splitter +
                     key_splitter +
+                    key_splitter +
                     BytestringSplitter((MessageKit, VariableLengthBytestring)))
 
-        hrac, alice_vk, bob_vk, ekfrag, remainder = splitter(data, return_remainder=True)
+        hrac, alice_vk, publisher_vk, bob_vk, ekfrag, remainder = splitter(data, return_remainder=True)
         capsules = capsule_splitter.repeat(remainder)
-        return cls(hrac, alice_vk, bob_vk, ekfrag, capsules)
+        return cls(hrac, alice_vk, publisher_vk, bob_vk, ekfrag, capsules)
 
 
 class ReencryptionResponse(Versioned):
