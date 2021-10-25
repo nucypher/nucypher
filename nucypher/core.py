@@ -597,6 +597,35 @@ class ReencryptionResponse(Versioned):
         cfrags = cfrag_splitter.repeat(cfrags_bytes)
         return cls(cfrags, signature)
 
+    def verify(self,
+               capsules: Sequence[Capsule],
+               alice_verifying_key: PublicKey,
+               ursula_verifying_key: PublicKey,
+               policy_key: PublicKey,
+               bob_encrypting_key: PublicKey,
+               ) -> List[VerifiedCapsuleFrag]:
+
+        if len(capsules) != len(self.cfrags):
+            raise ValueError("Mismatched number of capsules and cfrags")
+
+        capsules_bytes = b''.join(bytes(capsule) for capsule in capsules)
+        cfrags_bytes = b''.join(bytes(cfrag) for cfrag in self.cfrags)
+
+        # Validate re-encryption signature
+        if not self.signature.verify(ursula_verifying_key, capsules_bytes + cfrags_bytes):
+            message = (f"{capsules} and {self.cfrags} "
+                        "are not properly signed by Ursula.")
+            raise InvalidSignature(message)
+
+        verified_cfrags = {}
+        for capsule, cfrag in zip(capsules, self.cfrags):
+            verified_cfrags[capsule] = cfrag.verify(capsule,
+                                                    verifying_pk=alice_verifying_key,
+                                                    delegating_pk=policy_key,
+                                                    receiving_pk=bob_encrypting_key)
+
+        return verified_cfrags
+
 
 class RetrievalKit(Versioned):
     """
