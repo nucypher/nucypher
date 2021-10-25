@@ -25,22 +25,8 @@ from nucypher.core import RetrievalKit as RetrievalKitClass
 from nucypher.control.specifications.exceptions import InvalidInputData
 from nucypher.control.specifications.fields import StringList
 from nucypher.crypto.umbral_adapter import SecretKey, encrypt
-from nucypher.utilities.porter.control.specifications.fields import HRAC, UrsulaChecksumAddress
+from nucypher.utilities.porter.control.specifications.fields import UrsulaChecksumAddress
 from nucypher.utilities.porter.control.specifications.fields.retrieve import RetrievalKit
-
-
-def test_hrac_field(enacted_federated_policy):
-    hrac = enacted_federated_policy.treasure_map.hrac
-
-    field = HRAC()
-    serialized = field._serialize(value=hrac, attr=None, obj=None)
-    assert serialized == bytes(hrac).hex()
-
-    deserialized = field._deserialize(value=serialized, attr=None, data=None)
-    assert deserialized == hrac
-
-    with pytest.raises(InvalidInputData):
-        field._deserialize(value=b'not hrac', attr=None, data=None)
 
 
 def test_ursula_checksum_address_field(get_random_checksum_address):

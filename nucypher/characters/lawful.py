@@ -515,7 +515,7 @@ class Bob(Character):
             self.make_cli_controller()
 
         # Cache of decrypted treasure maps
-        self._treasure_maps: Dict[HRAC, TreasureMap] = {}
+        self._treasure_maps: Dict[int, TreasureMap] = {}
 
         self.log = Logger(self.__class__.__name__)
         if is_me:
@@ -557,13 +557,15 @@ class Bob(Character):
         if not publisher_verifying_key:
             publisher_verifying_key = alice_verifying_key
 
-        if encrypted_treasure_map.hrac in self._treasure_maps:
-            # A small optimization to avoid multiple treasure map decryptions.
-            treasure_map = self._treasure_maps[encrypted_treasure_map.hrac]
+        # A small optimization to avoid multiple treasure map decryptions.
+        map_hash = hash(encrypted_treasure_map)
+        if map_hash in self._treasure_maps:
+            treasure_map = self._treasure_maps[map_hash]
         else:
             # Have to decrypt the treasure map first to find out what the threshold is.
             # Otherwise we could check the message kits for completeness right away.
             treasure_map = self._decrypt_treasure_map(encrypted_treasure_map, publisher_verifying_key)
+            self._treasure_maps[map_hash] = treasure_map
 
         # Normalize input
         message_kits: List[PolicyMessageKit] = [

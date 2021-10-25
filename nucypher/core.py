@@ -462,12 +462,7 @@ class TreasureMap(Versioned):
 
 class EncryptedTreasureMap(Versioned):
 
-    def __init__(self,
-                 hrac: HRAC,
-                 encrypted_tmap: MessageKit,
-                 ):
-
-        self.hrac = hrac
+    def __init__(self, encrypted_tmap: MessageKit):
         self._encrypted_tmap = encrypted_tmap
 
     @classmethod
@@ -482,7 +477,7 @@ class EncryptedTreasureMap(Versioned):
                                            plaintext=bytes(treasure_map),
                                            signer=signer)
 
-        return cls(treasure_map.hrac, encrypted_tmap)
+        return cls(encrypted_tmap)
 
     def decrypt(self, sk: SecretKey, publisher_verifying_key: PublicKey) -> TreasureMap:
         """
@@ -503,9 +498,7 @@ class EncryptedTreasureMap(Versioned):
         return treasure_map
 
     def _payload(self) -> bytes:
-        return (bytes(self.hrac) +
-                bytes(VariableLengthBytestring(bytes(self._encrypted_tmap)))
-                )
+        return bytes(VariableLengthBytestring(bytes(self._encrypted_tmap)))
 
     @classmethod
     def _brand(cls) -> bytes:
@@ -523,15 +516,17 @@ class EncryptedTreasureMap(Versioned):
     def _from_bytes_current(cls, data):
 
         splitter = BytestringSplitter(
-            hrac_splitter,  # HRAC
             (MessageKit, VariableLengthBytestring),  # encrypted TreasureMap
             )
 
-        hrac, message_kit = splitter(data)
-        return cls(hrac, message_kit)
+        message_kit, = splitter(data)
+        return cls(message_kit)
 
     def __eq__(self, other):
         return bytes(self) == bytes(other)
+
+    def __hash__(self):
+        return hash((self.__class__, bytes(self)))
 
 
 class ReencryptionRequest(Versioned):
