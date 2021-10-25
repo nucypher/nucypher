@@ -461,10 +461,58 @@ class TreasureMap(Versioned):
         return nodes_as_bytes
 
 
+class AuthorizedTreasureMap(Versioned):
+
+    @classmethod
+    def construct_by_publisher(cls,
+                               signer: Signer,
+                               recipient_key: PublicKey,
+                               treasure_map: TreasureMap
+                               ) -> 'AuthorizedTreasureMap':
+        payload = bytes(recipient_key) + bytes(treasure_map)
+        signature = signer.sign(payload)
+        return cls(signature, treasure_map)
+
+    def __init__(self, signature: Signature, treasure_map: TreasureMap):
+        self.signature = signature
+        self.treasure_map = treasure_map
+
+    @classmethod
+    def _brand(cls) -> bytes:
+        return b'AMap'
+
+    @classmethod
+    def _version(cls) -> Tuple[int, int]:
+        return 1, 0
+
+    @classmethod
+    def _old_version_handlers(cls) -> Dict:
+        return {}
+
+    def _payload(self) -> bytes:
+        """Returns the unversioned bytes serialized representation of this instance."""
+        return (bytes(self.signature) +
+                VariableLengthBytestring(bytes(self.treasure_map)))
+
+    @classmethod
+    def _from_bytes_current(cls, data):
+        splitter = BytestringSplitter(signature_splitter, (TreasureMap, VariableLengthBytestring))
+        signature, treasure_map = splitter(data)
+        return cls(signature, treasure_map)
+
+    def verify(self, recipient_key: PublicKey, publisher_verifying_key: PublicKey) -> TreasureMap:
+        payload = bytes(recipient_key) + bytes(self.treasure_map)
+        if not self.signature.verify(message=payload, verifying_pk=publisher_verifying_key):
+            raise InvalidSignature("This TreasureMap does not contain the correct signature "
+                                   "from the publisher.")
+        return self.treasure_map
+
+
 class EncryptedTreasureMap(Versioned):
 
-    def __init__(self, encrypted_tmap: MessageKit):
-        self._encrypted_tmap = encrypted_tmap
+    def __init__(self, capsule: Capsule, ciphertext: bytes):
+        self.capsule = capsule
+        self.ciphertext = ciphertext
 
     @classmethod
     def construct_by_publisher(cls,
@@ -472,34 +520,24 @@ class EncryptedTreasureMap(Versioned):
                                treasure_map: TreasureMap,
                                signer: Signer,
                                ) -> 'EncryptedTreasureMap':
+
+        # TODO: using Umbral for encryption to avoid introducing more crypto primitives.
+        # Most probably it is an overkill, unless it can be used somehow
+        # for Ursula-to-Ursula "baton passing".
+
         # TODO: `signer` here can be different from the one in TreasureMap, it seems.
         # Do we ever cross-check them? Do we want to enforce them to be the same?
-        encrypted_tmap = MessageKit.author(recipient_key=recipient_key,
-                                           plaintext=bytes(treasure_map),
-                                           signer=signer)
+        payload = AuthorizedTreasureMap.construct_by_publisher(signer, recipient_key, treasure_map)
 
-        return cls(encrypted_tmap)
+        capsule, ciphertext = umbral.encrypt(recipient_key, bytes(payload))
+        return cls(capsule, ciphertext)
 
-    def decrypt(self, sk: SecretKey, publisher_verifying_key: PublicKey) -> TreasureMap:
-        """
-        Decrypt the treasure map and ensure it is signed by the publisher.
-        """
-        try:
-            map_in_the_clear = self._encrypted_tmap.decrypt(sk)
-        except InvalidSignature as e:
-            raise InvalidSignature("This TreasureMap does not contain the correct signature "
-                                   "from the publisher.") from e
-
-        treasure_map = TreasureMap.from_bytes(map_in_the_clear)
-
-        if publisher_verifying_key != treasure_map.publisher_verifying_key:
-            raise ValueError("This TreasureMap was not created "
-                            f"by the expected publisher {publisher_verifying_key}")
-
-        return treasure_map
+    def decrypt(self, sk: SecretKey) -> AuthorizedTreasureMap:
+        payload_bytes = decrypt_original(sk, self.capsule, self.ciphertext)
+        return AuthorizedTreasureMap.from_bytes(payload_bytes)
 
     def _payload(self) -> bytes:
-        return bytes(VariableLengthBytestring(bytes(self._encrypted_tmap)))
+        return bytes(self.capsule) + bytes(VariableLengthBytestring(self.ciphertext))
 
     @classmethod
     def _brand(cls) -> bytes:
@@ -515,13 +553,9 @@ class EncryptedTreasureMap(Versioned):
 
     @classmethod
     def _from_bytes_current(cls, data):
-
-        splitter = BytestringSplitter(
-            (MessageKit, VariableLengthBytestring),  # encrypted TreasureMap
-            )
-
-        message_kit, = splitter(data)
-        return cls(message_kit)
+        splitter = BytestringSplitter(capsule_splitter, VariableLengthBytestring)
+        capsule, ciphertext = splitter(data)
+        return cls(capsule, ciphertext)
 
     def __eq__(self, other):
         return bytes(self) == bytes(other)

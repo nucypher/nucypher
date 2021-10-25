@@ -47,7 +47,6 @@ from web3.types import TxReceipt
 
 from nucypher.core import (
     MessageKit,
-    HRAC,
     AuthorizedKeyFrag,
     EncryptedKeyFrag,
     TreasureMap,
@@ -531,7 +530,10 @@ class Bob(Character):
                               publisher_verifying_key: PublicKey
                               ) -> TreasureMap:
         decrypting_power = self._crypto_power.power_ups(DecryptingPower)
-        return decrypting_power.decrypt_treasure_map(encrypted_treasure_map, publisher_verifying_key)
+        auth_tmap = decrypting_power.decrypt(encrypted_treasure_map)
+        treasure_map = auth_tmap.verify(recipient_key=decrypting_power.keypair.pubkey,
+                                        publisher_verifying_key=publisher_verifying_key)
+        return treasure_map
 
     def retrieve(
             self,
