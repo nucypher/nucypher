@@ -364,7 +364,7 @@ class Character(Learner):
 
         # TODO: who even uses this method except for tests?
 
-        message_kit = MessageKit.author(recipient_key=recipient.public_keys(DecryptingPower),
+        message_kit = MessageKit.author(policy_encrypting_key=recipient.public_keys(DecryptingPower),
                                         plaintext=plaintext)
         return message_kit
 

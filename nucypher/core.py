@@ -63,8 +63,8 @@ class MessageKit(Versioned):
     """
 
     @classmethod
-    def author(cls, recipient_key: PublicKey, plaintext: bytes) -> 'MessageKit':
-        capsule, ciphertext = umbral.encrypt(recipient_key, plaintext)
+    def author(cls, policy_encrypting_key: PublicKey, plaintext: bytes) -> 'MessageKit':
+        capsule, ciphertext = umbral.encrypt(policy_encrypting_key, plaintext)
         return cls(capsule=capsule, ciphertext=ciphertext)
 
     def __init__(self, capsule: Capsule, ciphertext: bytes):
@@ -78,8 +78,12 @@ class MessageKit(Versioned):
     def decrypt(self, sk: SecretKey) -> bytes:
         return decrypt_original(sk, self.capsule, self.ciphertext)
 
-    def decrypt_reencrypted(self, sk: SecretKey, policy_key: PublicKey, cfrags: Sequence[VerifiedCapsuleFrag]) -> bytes:
-        return decrypt_reencrypted(sk, policy_key, self.capsule, cfrags, self.ciphertext)
+    def decrypt_reencrypted(self,
+                            sk: SecretKey,
+                            policy_encrypting_key: PublicKey,
+                            cfrags: Sequence[VerifiedCapsuleFrag],
+                            ) -> bytes:
+        return decrypt_reencrypted(sk, policy_encrypting_key, self.capsule, cfrags, self.ciphertext)
 
     def __str__(self):
         return f"{self.__class__.__name__}({self.capsule})"
@@ -595,7 +599,7 @@ class ReencryptionResponse(Versioned):
                capsules: Sequence[Capsule],
                alice_verifying_key: PublicKey,
                ursula_verifying_key: PublicKey,
-               policy_key: PublicKey,
+               policy_encrypting_key: PublicKey,
                bob_encrypting_key: PublicKey,
                ) -> List[VerifiedCapsuleFrag]:
 
@@ -615,7 +619,7 @@ class ReencryptionResponse(Versioned):
         for capsule, cfrag in zip(capsules, self.cfrags):
             verified_cfrags[capsule] = cfrag.verify(capsule,
                                                     verifying_pk=alice_verifying_key,
-                                                    delegating_pk=policy_key,
+                                                    delegating_pk=policy_encrypting_key,
                                                     receiving_pk=bob_encrypting_key)
 
         return verified_cfrags

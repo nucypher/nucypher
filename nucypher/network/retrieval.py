@@ -178,7 +178,7 @@ class RetrievalClient:
                               ursula: 'Ursula',
                               reencryption_request: ReencryptionRequest,
                               alice_verifying_key: PublicKey,
-                              policy_key: PublicKey,
+                              policy_encrypting_key: PublicKey,
                               bob_encrypting_key: PublicKey,
                               ) -> Dict['Capsule', 'VerifiedCapsuleFrag']:
         """
@@ -221,7 +221,7 @@ class RetrievalClient:
             verified_cfrags = reencryption_response.verify(capsules=reencryption_request.capsules,
                                                            alice_verifying_key=alice_verifying_key,
                                                            ursula_verifying_key=ursula_verifying_key,
-                                                           policy_key=policy_key,
+                                                           policy_encrypting_key=policy_encrypting_key,
                                                            bob_encrypting_key=bob_encrypting_key,
                                                            )
         except InvalidSignature as e:
@@ -271,7 +271,7 @@ class RetrievalClient:
                 cfrags = self._request_reencryption(ursula=ursula,
                                                     reencryption_request=reencryption_request,
                                                     alice_verifying_key=alice_verifying_key,
-                                                    policy_key=treasure_map.policy_encrypting_key,
+                                                    policy_encrypting_key=treasure_map.policy_encrypting_key,
                                                     bob_encrypting_key=bob_encrypting_key)
             except Exception as e:
                 # TODO (#2789): at this point we can separate the exceptions to "acceptable"

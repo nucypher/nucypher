@@ -30,19 +30,19 @@ class PolicyMessageKit:
     @classmethod
     def from_message_kit(cls,
                          message_kit: MessageKit,
-                         policy_key: PublicKey,
+                         policy_encrypting_key: PublicKey,
                          threshold: int
                          ) -> 'PolicyMessageKit':
-        return cls(policy_key, threshold, RetrievalResult.empty(), message_kit)
+        return cls(policy_encrypting_key, threshold, RetrievalResult.empty(), message_kit)
 
     def __init__(self,
-                 policy_key: PublicKey,
+                 policy_encrypting_key: PublicKey,
                  threshold: int,
                  result: 'RetrievalResult',
                  message_kit: MessageKit,
                  ):
         self.message_kit = message_kit
-        self.policy_key = policy_key
+        self.policy_encrypting_key = policy_encrypting_key
         self.threshold = threshold
         self._result = result
 
@@ -50,13 +50,13 @@ class PolicyMessageKit:
         return RetrievalKit(self.message_kit.capsule, self._result.addresses())
 
     def decrypt(self, sk: SecretKey) -> bytes:
-        return self.message_kit.decrypt_reencrypted(sk, self.policy_key, self._result.cfrags.values())
+        return self.message_kit.decrypt_reencrypted(sk, self.policy_encrypting_key, self._result.cfrags.values())
 
     def is_decryptable_by_receiver(self) -> bool:
         return len(self._result.cfrags) >= self.threshold
 
     def with_result(self, result: 'RetrievalResult') -> 'PolicyMessageKit':
-        return PolicyMessageKit(policy_key=self.policy_key,
+        return PolicyMessageKit(policy_encrypting_key=self.policy_encrypting_key,
                                 threshold=self.threshold,
                                 result=self._result.with_result(result),
                                 message_kit=self.message_kit)
