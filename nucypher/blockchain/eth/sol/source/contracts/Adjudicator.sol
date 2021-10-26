@@ -5,16 +5,18 @@ pragma solidity ^0.8.0;
 import "contracts/lib/ReEncryptionValidator.sol";
 import "contracts/lib/SignatureVerifier.sol";
 import "zeppelin/math/Math.sol";
+import "zeppelin/math/SafeCast.sol";
 
 
 /**
 * @title Adjudicator
-* @notice Supervises stakers' behavior and punishes when something's wrong.
+* @notice Supervises operators' behavior and punishes when something's wrong.
 * @dev |v3.1.1|
 */
 abstract contract Adjudicator {
 
     using UmbralDeserializer for bytes;
+    using SafeCast for uint256;
 
     event CFragEvaluated(
         bytes32 indexed evaluationHash,
@@ -23,7 +25,7 @@ abstract contract Adjudicator {
     );
     event IncorrectCFragVerdict(
         bytes32 indexed evaluationHash,
-        address indexed worker
+        address indexed operator
     );
 
     // used only for upgrading
@@ -34,7 +36,6 @@ abstract contract Adjudicator {
     uint256 public immutable basePenalty;
     uint256 public immutable penaltyHistoryCoefficient;
     uint256 public immutable percentagePenaltyCoefficient;
-    uint256 public immutable rewardCoefficient;
 
     mapping (address => uint256) public penaltyHistory;
     mapping (bytes32 => bool) public evaluatedCFrags;
@@ -46,35 +47,31 @@ abstract contract Adjudicator {
     * @param _basePenalty Base for the penalty calculation
     * @param _penaltyHistoryCoefficient Coefficient for calculating the penalty depending on the history
     * @param _percentagePenaltyCoefficient Coefficient for calculating the percentage penalty
-    * @param _rewardCoefficient Coefficient for calculating the reward
     */
     constructor(
         SignatureVerifier.HashAlgorithm _hashAlgorithm,
         uint256 _basePenalty,
         uint256 _penaltyHistoryCoefficient,
-        uint256 _percentagePenaltyCoefficient,
-        uint256 _rewardCoefficient
+        uint256 _percentagePenaltyCoefficient
     ) {
         // Sanity checks.
         require(// The reward and penalty coefficients are set.
-            _percentagePenaltyCoefficient != 0 &&
-            _rewardCoefficient != 0);
+            _percentagePenaltyCoefficient != 0);
         hashAlgorithm = _hashAlgorithm;
         basePenalty = _basePenalty;
         percentagePenaltyCoefficient = _percentagePenaltyCoefficient;
         penaltyHistoryCoefficient = _penaltyHistoryCoefficient;
-        rewardCoefficient = _rewardCoefficient;
     }
 
     /**
-    * @notice Submit proof that a worker created wrong CFrag
+    * @notice Submit proof that a operator created wrong CFrag
     * @param _capsuleBytes Serialized capsule
     * @param _cFragBytes Serialized CFrag
-    * @param _cFragSignature Signature of CFrag by worker
+    * @param _cFragSignature Signature of CFrag by operator
     * @param _taskSignature Signature of task specification by Bob
     * @param _requesterPublicKey Bob's signing public key, also known as "stamp"
-    * @param _workerPublicKey Worker's signing public key, also known as "stamp"
-    * @param _workerIdentityEvidence Signature of worker's public key by worker's eth-key
+    * @param _operatorPublicKey Operator's signing public key, also known as "stamp"
+    * @param _operatorIdentityEvidence Signature of operator's public key by operator's eth-key
     * @param _preComputedData Additional pre-computed data for CFrag correctness verification
     */
     function evaluateCFrag(
@@ -83,8 +80,8 @@ abstract contract Adjudicator {
         bytes memory _cFragSignature,
         bytes memory _taskSignature,
         bytes memory _requesterPublicKey,
-        bytes memory _workerPublicKey,
-        bytes memory _workerIdentityEvidence,
+        bytes memory _operatorPublicKey,
+        bytes memory _operatorIdentityEvidence,
         bytes memory _preComputedData
     )
         public
@@ -100,28 +97,28 @@ abstract contract Adjudicator {
         emit CFragEvaluated(evaluationHash, msg.sender, cFragIsCorrect);
 
         // 3. Verify associated public keys and signatures
-        require(ReEncryptionValidator.checkSerializedCoordinates(_workerPublicKey),
-                "Staker's public key is invalid");
+        require(ReEncryptionValidator.checkSerializedCoordinates(_operatorPublicKey),
+                "Operator's public key is invalid");
         require(ReEncryptionValidator.checkSerializedCoordinates(_requesterPublicKey),
                 "Requester's public key is invalid");
 
         UmbralDeserializer.PreComputedData memory precomp = _preComputedData.toPreComputedData();
 
-        // Verify worker's signature of CFrag
+        // Verify operator's signature of CFrag
         require(SignatureVerifier.verify(
                 _cFragBytes,
                 abi.encodePacked(_cFragSignature, precomp.lostBytes[1]),
-                _workerPublicKey,
+                _operatorPublicKey,
                 hashAlgorithm),
                 "CFrag signature is invalid"
         );
 
-        // Verify worker's signature of taskSignature and that it corresponds to cfrag.proof.metadata
+        // Verify operator's signature of taskSignature and that it corresponds to cfrag.proof.metadata
         UmbralDeserializer.CapsuleFrag memory cFrag = _cFragBytes.toCapsuleFrag();
         require(SignatureVerifier.verify(
                 _taskSignature,
                 abi.encodePacked(cFrag.proof.metadata, precomp.lostBytes[2]),
-                _workerPublicKey,
+                _operatorPublicKey,
                 hashAlgorithm),
                 "Task signature is invalid"
         );
@@ -130,14 +127,14 @@ abstract contract Adjudicator {
         // A task specification is: capsule + ursula pubkey + alice address + blockhash
         bytes32 stampXCoord;
         assembly {
-            stampXCoord := mload(add(_workerPublicKey, 32))
+            stampXCoord := mload(add(_operatorPublicKey, 32))
         }
         bytes memory stamp = abi.encodePacked(precomp.lostBytes[4], stampXCoord);
 
         require(SignatureVerifier.verify(
                 abi.encodePacked(_capsuleBytes,
                                  stamp,
-                                 _workerIdentityEvidence,
+                                 _operatorIdentityEvidence,
                                  precomp.alicesKeyAsAddress,
                                  bytes32(0)),
                 abi.encodePacked(_taskSignature, precomp.lostBytes[3]),
@@ -146,55 +143,53 @@ abstract contract Adjudicator {
                 "Specification signature is invalid"
         );
 
-        // 4. Extract worker address from stamp signature.
-        address worker = SignatureVerifier.recover(
+        // 4. Extract operator address from stamp signature.
+        address operator = SignatureVerifier.recover(
             SignatureVerifier.hashEIP191(stamp, bytes1(0x45)), // Currently, we use version E (0x45) of EIP191 signatures
-            _workerIdentityEvidence);
+            _operatorIdentityEvidence);
 
-        // 5. Check that worker can be slashed
-        uint256 stakerValue = getAllTokens(worker);
-        require(stakerValue > 0, "Staker has no tokens");
+        // 5. Check that operator can be slashed
+        uint96 operatorValue = authorizedStake(operator);
+        require(operatorValue > 0, "Operator has no tokens");
 
-        // 6. If CFrag was incorrect, slash staker
+        // 6. If CFrag was incorrect, slash operator
         if (!cFragIsCorrect) {
-            (uint256 penalty, uint256 reward) = calculatePenaltyAndReward(worker, stakerValue);
-            slash(worker, penalty, msg.sender, reward);
-            emit IncorrectCFragVerdict(evaluationHash, worker);
+            uint96 penalty = calculatePenalty(operator, operatorValue);
+            slash(operator, penalty, msg.sender);
+            emit IncorrectCFragVerdict(evaluationHash, operator);
         }
     }
 
     /**
-    * @notice Calculate penalty to the staker and reward to the investigator
-    * @param _staker Staker's address
-    * @param _stakerValue Amount of tokens that belong to the staker
+    * @notice Calculate penalty to the operator
+    * @param _operator Operator's address
+    * @param _operatorValue Amount of tokens that belong to the operator
     */
-    function calculatePenaltyAndReward(address _staker, uint256 _stakerValue)
-        internal returns (uint256 penalty, uint256 reward)
+    function calculatePenalty(address _operator, uint96 _operatorValue)
+        internal returns (uint96)
     {
-        penalty = basePenalty + penaltyHistoryCoefficient * penaltyHistory[_staker];
-        penalty = Math.min(penalty, _stakerValue / percentagePenaltyCoefficient);
-        reward = penalty / rewardCoefficient;
+        uint256 penalty = basePenalty + penaltyHistoryCoefficient * penaltyHistory[_operator];
+        penalty = Math.min(penalty, _operatorValue / percentagePenaltyCoefficient);
         // TODO add maximum condition or other overflow protection or other penalty condition (#305?)
-        penaltyHistory[_staker] = penaltyHistory[_staker] + 1;
+        penaltyHistory[_operator] = penaltyHistory[_operator] + 1;
+        return penalty.toUint96();
     }
 
     /**
-    * @notice Get all tokens belonging to the worker
+    * @notice Get all tokens delegated to the operator
     */
-    function getAllTokens(address _worker) public virtual view returns (uint256);
+    function authorizedStake(address _operator) public virtual view returns (uint96);
 
     /**
-    * @notice Slash the worker's stake and reward the investigator
-    * @param _worker Worker's address
+    * @notice Slash the operator's stake and reward the investigator
+    * @param _operator Operator's address
     * @param _penalty Penalty
     * @param _investigator Investigator
-    * @param _reward Reward for the investigator
     */
     function slash(
-        address _worker,
-        uint256 _penalty,
-        address _investigator,
-        uint256 _reward
+        address _operator,
+        uint96 _penalty,
+        address _investigator
     ) internal virtual;
 
 //    function verifyAdjudicatorState(address _testTarget) public virtual {
