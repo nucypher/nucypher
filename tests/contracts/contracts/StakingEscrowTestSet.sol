@@ -14,13 +14,11 @@ contract StakingEscrowBad is StakingEscrow {
 
     constructor(
         NuCypherToken _nuToken,
-        AdjudicatorInterface _adjudicator,
         WorkLockInterface _workLock,
         ITokenStaking _tokenStaking
     )
         StakingEscrow(
             _nuToken,
-            _adjudicator,
             _workLock,
             _tokenStaking
         )
@@ -41,13 +39,11 @@ contract StakingEscrowV2Mock is StakingEscrow {
 
     constructor(
         NuCypherToken _nuToken,
-        AdjudicatorInterface _adjudicator,
         WorkLockInterface _workLock,
         ITokenStaking _tokenStaking
     )
         StakingEscrow(
             _nuToken,
-            _adjudicator,
             _workLock,
             _tokenStaking
         )
@@ -71,34 +67,6 @@ contract StakingEscrowV2Mock is StakingEscrow {
     }
 }
 
-
-/**
-* @notice Contract for testing staking escrow contract
-*/
-contract AdjudicatorForStakingEscrowMock {
-
-    StakingEscrow public escrow;
-    uint256 public rewardCoefficient;
-
-    constructor(uint256 _rewardCoefficient) {
-        rewardCoefficient = _rewardCoefficient;
-    }
-
-    function setStakingEscrow(StakingEscrow _escrow) external {
-        escrow = _escrow;
-    }
-
-    function slashStaker(
-        address _staker,
-        uint256 _penalty,
-        address _investigator,
-        uint256 _reward
-    )
-        public
-    {
-        escrow.slashStaker(_staker, _penalty, _investigator, _reward);
-    }
-}
 
 ///**
 //* @notice Intermediary contract for testing worker

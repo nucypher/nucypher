@@ -8,6 +8,7 @@ pragma solidity 0.8.6;
 interface ITokenStaking {
     enum StakingProvider {NU, KEEP, T}
 
+    function token() external view returns (address);
     function stakedNu(address) external view returns (uint256);
     function ownerOf(address) external view returns (address);
     function beneficiaryOf(address) external view returns (address payable);
@@ -21,4 +22,5 @@ interface ITokenStaking {
         address _notifier,
         address[] memory _operators
     ) external;
+
 }
