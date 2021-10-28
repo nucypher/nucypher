@@ -14,26 +14,61 @@ import "contracts/PolicyManager.sol";
 
 
 /**
-* @title PRE Staking Application
+* @title PRE Application
 * @notice Contract distributes rewards for participating in app and slashes for violating rules
 */
-contract PREStakingApp is IApplication, Adjudicator, PolicyManager {
+contract PREApplication is IApplication, Adjudicator, PolicyManager {
 
     using SafeERC20 for IERC20;
     using SafeCast for uint256;
 
-    // TODO docs
+    /**
+    * @notice Signals that reward was added
+    * @param reward Amount of reward
+    */
     event RewardAdded(uint256 reward);
-    event RewardPaid(address indexed operator, uint256 reward);
+
+    /**
+    * @notice Signals that the beneficiary related to the operator received reward
+    * @param operator Operator address
+    * @param beneficiary Beneficiary address
+    * @param reward Amount of reward
+    */
+    event RewardPaid(address indexed operator, address indexed beneficiary, uint256 reward);
+
+    /**
+    * @notice Signals that authorization was increased for the operator
+    * @param operator Operator address
+    * @param amount Amount of increased authorization
+    */
     event AuthorizationIncreased(address indexed operator, uint96 amount);
 
     /**
-    * @notice Signals that T tokens were withdrawn to the beneficiary
+    * @notice Signals that authorization was decreased involuntary
     * @param operator Operator address
-    * @param beneficiary Beneficiary address
-    * @param value Amount withdraws
+    * @param amount Amount of decreased authorization
     */
-    event Withdrawn(address indexed operator, address indexed beneficiary, uint256 value);
+    event AuthorizationInvoluntaryDecreased(address indexed operator, uint96 amount);
+
+    /**
+    * @notice Signals that authorization decrease was requested for the operator
+    * @param operator Operator address
+    * @param amount Amount of authorization to decrease
+    */
+    event AuthorizationDecreaseRequested(address indexed operator, uint96 amount);
+
+    /**
+    * @notice Signals that authorization decrease was approved for the operator
+    * @param operator Operator address
+    * @param amount Amount of decreased authorization
+    */
+    event AuthorizationDecreaseApproved(address indexed operator, uint96 amount);
+
+    /**
+    * @notice Signals that authorization was resynchronized
+    * @param operator Operator address
+    */
+    event AuthorizationReSynchronized(address indexed operator);
 
     /**
     * @notice Signals that the operator was slashed
@@ -43,7 +78,6 @@ contract PREStakingApp is IApplication, Adjudicator, PolicyManager {
     * @param reward Value of reward provided to investigator (in NuNits)
     */
     event Slashed(address indexed operator, uint256 penalty, address indexed investigator, uint256 reward);
-
 
     struct OperatorInfo {
         uint96 authorized;
@@ -56,7 +90,7 @@ contract PREStakingApp is IApplication, Adjudicator, PolicyManager {
 
     uint256 public immutable rewardDuration;
     uint256 public immutable deauthorizationDuration;
-    uint256 public immutable minAuthorizationSize;
+    uint256 public immutable minAuthorization;
 
     IERC20 public immutable token;
     ITokenStaking public immutable tokenStaking;
@@ -64,6 +98,7 @@ contract PREStakingApp is IApplication, Adjudicator, PolicyManager {
     mapping (address => OperatorInfo) public operatorInfo;
     address[] public operators;
 
+    address public rewardDistributor;
     uint256 public periodFinish = 0;
     uint96 public rewardRate = 0;
     uint256 public lastUpdateTime;
@@ -72,11 +107,17 @@ contract PREStakingApp is IApplication, Adjudicator, PolicyManager {
 
     /**
     * @notice Constructor sets address of token contract and parameters for staking
+    * @param _hashAlgorithm Hashing algorithm
+    * @param _basePenalty Base for the penalty calculation
+    * @param _penaltyHistoryCoefficient Coefficient for calculating the penalty depending on the history
+    * @param _percentagePenaltyCoefficient Coefficient for calculating the percentage penalty
     * @param _token T token contract
     * @param _tokenStaking T token staking contract
     * @param _rewardDuration Duration of one reward cycle
+    * @param _deauthorizationDuration Duration of decreasing authorization
+    * @param _minAuthorization Amount of minimum allowable authorization
+    *
     */
-    // TODO proper docs
     constructor(
         SignatureVerifier.HashAlgorithm _hashAlgorithm,
         uint256 _basePenalty,
@@ -86,7 +127,7 @@ contract PREStakingApp is IApplication, Adjudicator, PolicyManager {
         ITokenStaking _tokenStaking,
         uint256 _rewardDuration,
         uint256 _deauthorizationDuration,
-        uint256 _minAuthorizationSize
+        uint256 _minAuthorization
     )
         Adjudicator(
             _hashAlgorithm,
@@ -95,31 +136,51 @@ contract PREStakingApp is IApplication, Adjudicator, PolicyManager {
             _percentagePenaltyCoefficient
         )
     {
-        require(_rewardDuration != 0 &&
-            _deauthorizationDuration != 0 &&
-            _minAuthorizationSize != 0 &&
-            _token.totalSupply() > 0);
+        require(
+            _rewardDuration != 0 &&
+            _token.totalSupply() > 0,
+            "Wrong input parameters"
+        );
         rewardDuration = _rewardDuration;
         deauthorizationDuration = _deauthorizationDuration;
-        minAuthorizationSize = _minAuthorizationSize;
+        minAuthorization = _minAuthorization;
         token = _token;
         tokenStaking = _tokenStaking;
     }
 
+    /**
+    * @dev Update reward for the specified operator
+    */
     modifier updateReward(address _operator) {
         updateRewardInternal(_operator);
         _;
     }
 
+    /**
+    * @dev Checks caller is T staking contract
+    */
     modifier onlyStakingContract()
     {
-        require(msg.sender == address(tokenStaking));
+        require(msg.sender == address(tokenStaking), "Caller must be the T staking contract");
         _;
     }
 
     //------------------------Reward------------------------------
 
-    // TODO docs
+    /**
+    * @notice Set reward distributor address
+    */
+    function setRewardDistributor(address _rewardDistributor)
+        external
+        onlyOwner
+    {
+        rewardDistributor = _rewardDistributor;
+    }
+
+    /**
+    * @notice Update reward for the specified operator
+    * @param _operator Operator address
+    */
     function updateRewardInternal(address _operator) internal {
         rewardPerTokenStored = rewardPerToken();
         lastUpdateTime = lastTimeRewardApplicable();
@@ -128,13 +189,18 @@ contract PREStakingApp is IApplication, Adjudicator, PolicyManager {
             info.tReward = earned(_operator);
             info.rewardPerTokenPaid = rewardPerTokenStored;
         }
-
     }
 
+    /**
+    * @notice Returns last time when reward was applicable
+    */
     function lastTimeRewardApplicable() public view returns (uint256) {
         return Math.min(block.timestamp, periodFinish);
     }
 
+    /**
+    * @notice Returns current value of reward per token
+    */
     function rewardPerToken() public view returns (uint96) {
         if (authorizedOverall == 0) {
             return rewardPerTokenStored;
@@ -147,23 +213,22 @@ contract PREStakingApp is IApplication, Adjudicator, PolicyManager {
         return result.toUint96();
     }
 
+    /**
+    * @notice Returns amount of reward for the operator
+    * @param _operator Operator address
+    */
     function earned(address _operator) public view returns (uint96) {
         OperatorInfo storage info = operatorInfo[_operator];
         return info.authorized * (rewardPerToken() - info.rewardPerTokenPaid) / 1e18 + info.tReward;
     }
 
-    function withdrawReward() public updateReward(msg.sender) {
-        uint256 reward = earned(msg.sender);
-        if (reward > 0) {
-            operatorInfo[msg.sender].tReward = 0;
-            token.safeTransfer(msg.sender, reward);
-            emit RewardPaid(msg.sender, reward);
-        }
-    }
-
+    /**
+    * @notice Transfer reward for the next period. Can be called only by distributor
+    * @param _reward Amount of reward
+    */
     function pushReward(uint96 _reward) external updateReward(address(0)) {
-        require(_reward > 0);
-        token.safeTransfer(msg.sender, _reward);
+        require(msg.sender == rewardDistributor, "Only distributor can transfer reward");
+        require(_reward > 0, "Reward must be specified");
         if (block.timestamp >= periodFinish) {
             rewardRate = (_reward / rewardDuration).toUint96();
         } else {
@@ -174,29 +239,34 @@ contract PREStakingApp is IApplication, Adjudicator, PolicyManager {
         lastUpdateTime = block.timestamp;
         periodFinish = block.timestamp + rewardDuration;
         emit RewardAdded(_reward);
+        token.safeTransfer(msg.sender, _reward);
     }
 
     /**
-    * @notice Withdraw available amount of T reward to operator
-    * @param _value Amount of tokens to withdraw
+    * @notice Withdraw available amount of T reward to beneficiary. Can be called only by beneficiary
+    * @param _operator Operator address
     */
-    function withdraw(address _operator, uint96 _value) external updateReward(_operator) {
-        OperatorInfo storage info = operatorInfo[_operator];
-        require(_value <= info.tReward);
-        info.tReward -= _value;
+    function withdraw(address _operator) external updateReward(_operator) {
         address beneficiary = tokenStaking.beneficiaryOf(_operator);
-        emit Withdrawn(_operator, beneficiary, _value);
-        token.safeTransfer(beneficiary, _value);
+        require(msg.sender == beneficiary, "Caller must be beneficiary");
+
+        OperatorInfo storage info = operatorInfo[_operator];
+        require(info.tReward > 0, "No reward to withdraw");
+        uint96 value = info.tReward;
+        info.tReward = 0;
+        emit RewardPaid(_operator, beneficiary, value);
+        token.safeTransfer(beneficiary, value);
     }
 
     //------------------------Authorization------------------------------
+
     /**
-    * @notice Recalculate reward and store authorization
+    * @notice Recalculate reward and save increased authorization. Can be called only by staking contract
     * @param _operator Address of operator
     * @param _amount Amount of authorized tokens to PRE application by operator
     */
     function authorizationIncreased(address _operator, uint96 _amount) external override onlyStakingContract {
-        require(_operator != address(0));
+        require(_operator != address(0) && _amount > 0, "Input parameters must be specified");
 
         OperatorInfo storage info = operatorInfo[_operator];
         if (info.rewardPerTokenPaid == 0) {
@@ -206,13 +276,17 @@ contract PREStakingApp is IApplication, Adjudicator, PolicyManager {
         updateRewardInternal(_operator);
 
         info.authorized += _amount;
-        require(info.authorized >= minAuthorizationSize); // TODO docs
+        require(info.authorized >= minAuthorization, "Authorization must be greater than minimum");
         authorizedOverall += _amount;
         emit AuthorizationIncreased(_operator, _amount);
     }
 
-    // TODO docs
-    function involuntaryAllocationDecrease(address _operator, uint96 _amount)
+    /**
+    * @notice Immediately decrease authorization. Can be called only by staking contract
+    * @param _operator Address of operator
+    * @param _amount Amount of authorized tokens to decrease
+    */
+    function involuntaryAuthorizationDecrease(address _operator, uint96 _amount)
         external override onlyStakingContract updateReward(_operator)
     {
         OperatorInfo storage info = operatorInfo[_operator];
@@ -221,44 +295,60 @@ contract PREStakingApp is IApplication, Adjudicator, PolicyManager {
             info.deauthorizing = info.authorized;
         }
         authorizedOverall -= _amount;
-        // TODO emit event
+        emit AuthorizationInvoluntaryDecreased(_operator, _amount);
     }
 
-    // TODO docs
+    /**
+    * @notice Register request of decreasing authorization. Can be called only by staking contract
+    * @param _operator Address of operator
+    * @param _amount Amount of authorized tokens to decrease
+    */
     function authorizationDecreaseRequested(address _operator, uint96 _amount)
         external override onlyStakingContract
     {
         OperatorInfo storage info = operatorInfo[_operator];
-        require(_amount <= info.authorized && info.authorized - _amount >= minAuthorizationSize);
+        require(_amount <= info.authorized, "Amount to decrease greater than authorized");
+        require(
+            info.authorized - _amount >= minAuthorization,
+            "Resulting authorization will be less than minimum"
+        );
         info.deauthorizing = _amount;
         info.endDeauthorization = block.timestamp + deauthorizationDuration;
-        // TODO emit event
+        emit AuthorizationDecreaseRequested(_operator, _amount);
     }
 
-    // TODO docs
+    /**
+    * @notice Approve request of decreasing authorization. Can be called only by anyone
+    * @param _operator Address of operator
+    */
     function finishAuthorizationDecrease(address _operator) external updateReward(_operator) {
         OperatorInfo storage info = operatorInfo[_operator];
-        require(info.endDeauthorization >= block.timestamp);
+        require(info.deauthorizing > 0, "There is no deauthorizing in process");
+        require(info.endDeauthorization >= block.timestamp, "Authorization decrease has not finished yet");
 
+        emit AuthorizationDecreaseApproved(_operator, info.deauthorizing);
         info.authorized -= info.deauthorizing;
         authorizedOverall -= info.deauthorizing;
         info.deauthorizing = 0;
         info.endDeauthorization = 0;
 
-        // TODO emit event
         tokenStaking.approveAuthorizationDecrease(_operator);
     }
 
+    /**
+    * @notice Read authorization from staking contract and store it. Can be called only by anyone
+    * @param _operator Address of operator
+    */
     function resynchronizeAuthorization(address _operator) external {
         OperatorInfo storage info = operatorInfo[_operator];
         uint96 authorized = tokenStaking.authorizedStake(_operator, address(this));
-        require(info.authorized != authorized);
+        require(info.authorized != authorized, "Nothing to synchronize");
         authorizedOverall -= authorized - info.authorized;
         info.authorized = authorized;
         if (info.authorized < info.deauthorizing) {
             info.deauthorizing = info.authorized; // TODO ideally resync this too
         }
-        // TODO emit event
+        emit AuthorizationReSynchronized(_operator);
     }
 
     //-------------------------Main-------------------------
@@ -281,7 +371,7 @@ contract PREStakingApp is IApplication, Adjudicator, PolicyManager {
         external view returns (uint256 allAuthorizedTokens, uint256[2][] memory activeOperators)
     {
         uint256 endIndex = operators.length;
-        require(_startIndex < endIndex);
+        require(_startIndex < endIndex, "Wrong start index");
         if (_maxOperators != 0 && _startIndex + _maxOperators < endIndex) {
             endIndex = _startIndex + _maxOperators;
         }
@@ -305,12 +395,16 @@ contract PREStakingApp is IApplication, Adjudicator, PolicyManager {
         }
     }
 
-    // TODO docs
+    /**
+    * @notice Returns beneficiary related to the operator
+    */
     function getBeneficiary(address _operator) internal override view returns (address payable) {
         return tokenStaking.beneficiaryOf(_operator);
     }
 
-    // TODO docs
+    /**
+    * @notice Returns true if operator has authorized stake to this application
+    */
     function isAuthorized(address _operator) internal override view returns (bool) {
         return operatorInfo[_operator].authorized > 0;
     }

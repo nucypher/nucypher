@@ -54,9 +54,7 @@ abstract contract Adjudicator {
         uint256 _penaltyHistoryCoefficient,
         uint256 _percentagePenaltyCoefficient
     ) {
-        // Sanity checks.
-        require(// The reward and penalty coefficients are set.
-            _percentagePenaltyCoefficient != 0);
+        require(_percentagePenaltyCoefficient != 0, "Wrong input parameters");
         hashAlgorithm = _hashAlgorithm;
         basePenalty = _basePenalty;
         percentagePenaltyCoefficient = _percentagePenaltyCoefficient;

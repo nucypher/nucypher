@@ -4,7 +4,7 @@ pragma solidity ^0.8.0;
 
 
 import "contracts/Adjudicator.sol";
-import "contracts/PREStakingApp.sol";
+import "contracts/PREApplication.sol";
 import "contracts/lib/SignatureVerifier.sol";
 import "contracts/proxy/Upgradeable.sol";
 
