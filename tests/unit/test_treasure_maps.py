@@ -52,7 +52,6 @@ def test_complete_treasure_map_journey(federated_alice, federated_bob, federated
         ursula = ursula_rolodex[ursula_address]
         auth_kfrag = ursula._decrypt_kfrag(encrypted_kfrag)
         auth_kfrag.verify(hrac=treasure_map.hrac,
-                          author_verifying_key=federated_alice.stamp.as_umbral_pubkey(),
                           publisher_verifying_key=federated_alice.stamp.as_umbral_pubkey())
 
     serialized_map = bytes(treasure_map)

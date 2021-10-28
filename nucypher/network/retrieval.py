@@ -177,6 +177,7 @@ class RetrievalClient:
     def _request_reencryption(self,
                               ursula: 'Ursula',
                               reencryption_request: ReencryptionRequest,
+                              alice_verifying_key: PublicKey,
                               policy_key: PublicKey,
                               bob_encrypting_key: PublicKey,
                               ) -> Dict['Capsule', 'VerifiedCapsuleFrag']:
@@ -218,7 +219,7 @@ class RetrievalClient:
 
         try:
             verified_cfrags = reencryption_response.verify(capsules=reencryption_request.capsules,
-                                                           alice_verifying_key=reencryption_request.alice_verifying_key,
+                                                           alice_verifying_key=alice_verifying_key,
                                                            ursula_verifying_key=ursula_verifying_key,
                                                            policy_key=policy_key,
                                                            bob_encrypting_key=bob_encrypting_key,
@@ -264,12 +265,12 @@ class RetrievalClient:
                 ursula_address=work_order.ursula_address,
                 capsules=work_order.capsules,
                 treasure_map=treasure_map,
-                alice_verifying_key=alice_verifying_key,
                 bob_verifying_key=bob_verifying_key)
 
             try:
                 cfrags = self._request_reencryption(ursula=ursula,
                                                     reencryption_request=reencryption_request,
+                                                    alice_verifying_key=alice_verifying_key,
                                                     policy_key=treasure_map.policy_encrypting_key,
                                                     bob_encrypting_key=bob_encrypting_key)
             except Exception as e:

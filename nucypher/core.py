@@ -200,7 +200,6 @@ class AuthorizedKeyFrag(Versioned):
 
     def verify(self,
                hrac: HRAC,
-               author_verifying_key: PublicKey,
                publisher_verifying_key: PublicKey,
                ) -> VerifiedKeyFrag:
 
@@ -209,10 +208,11 @@ class AuthorizedKeyFrag(Versioned):
         if not self.signature.verify(message=signed_message, verifying_pk=publisher_verifying_key):
             raise InvalidSignature("HRAC + KeyFrag are not signed by the provided publisher")
 
-        try:
-            verified_kfrag = self.kfrag.verify(verifying_pk=author_verifying_key)
-        except VerificationError:
-            raise InvalidSignature("KeyFrag is not signed by the provided author")
+        # Ursula has no side channel to get the KeyFrag author's key,
+        # so verifying the keyfrag is useless.
+        # TODO: assuming here that VerifiedKeyFrag and KeyFrag have the same byte representation;
+        # would it be more clear if `kfrag` had some method like `force_verify()`?
+        verified_kfrag = VerifiedKeyFrag.from_verified_bytes(bytes(self.kfrag))
 
         return verified_kfrag
 
@@ -485,11 +485,9 @@ class ReencryptionRequest(Versioned):
                           ursula_address: ChecksumAddress,
                           capsules: Sequence[Capsule],
                           treasure_map: TreasureMap,
-                          alice_verifying_key: PublicKey,
                           bob_verifying_key: PublicKey,
                           ) -> 'ReencryptionRequest':
         return cls(hrac=treasure_map.hrac,
-                   alice_verifying_key=alice_verifying_key,
                    publisher_verifying_key=treasure_map.publisher_verifying_key,
                    bob_verifying_key=bob_verifying_key,
                    encrypted_kfrag=treasure_map.destinations[ursula_address],
@@ -498,14 +496,12 @@ class ReencryptionRequest(Versioned):
 
     def __init__(self,
                  hrac: HRAC,
-                 alice_verifying_key: PublicKey,
                  publisher_verifying_key: PublicKey,
                  bob_verifying_key: PublicKey,
                  encrypted_kfrag: EncryptedKeyFrag,
                  capsules: List[Capsule]):
 
         self.hrac = hrac
-        self.alice_verifying_key = alice_verifying_key
         self.publisher_verifying_key = publisher_verifying_key
         self.bob_verifying_key = bob_verifying_key
         self.encrypted_kfrag = encrypted_kfrag
@@ -513,7 +509,6 @@ class ReencryptionRequest(Versioned):
 
     def _payload(self) -> bytes:
         return (bytes(self.hrac) +
-                bytes(self.alice_verifying_key) +
                 bytes(self.publisher_verifying_key) +
                 bytes(self.bob_verifying_key) +
                 VariableLengthBytestring(bytes(self.encrypted_kfrag)) +
@@ -537,12 +532,11 @@ class ReencryptionRequest(Versioned):
         splitter = (hrac_splitter +
                     key_splitter +
                     key_splitter +
-                    key_splitter +
                     BytestringSplitter((EncryptedKeyFrag, VariableLengthBytestring)))
 
-        hrac, alice_vk, publisher_vk, bob_vk, ekfrag, remainder = splitter(data, return_remainder=True)
+        hrac, publisher_vk, bob_vk, ekfrag, remainder = splitter(data, return_remainder=True)
         capsules = capsule_splitter.repeat(remainder)
-        return cls(hrac, alice_vk, publisher_vk, bob_vk, ekfrag, capsules)
+        return cls(hrac, publisher_vk, bob_vk, ekfrag, capsules)
 
 
 class ReencryptionResponse(Versioned):

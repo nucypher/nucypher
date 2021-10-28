@@ -173,8 +173,6 @@ def _make_rest_app(datastore: Datastore, this_node, domain: str, log: Logger) ->
         if hrac in this_node.revoked_policies:
             return Response(response=f"Policy with {hrac} has been revoked.", status=401)  # 401 - Unauthorized
 
-        # Alice & Publisher
-        author_verifying_key = reenc_request.alice_verifying_key
         publisher_verifying_key = reenc_request.publisher_verifying_key
 
         # Bob
@@ -197,13 +195,16 @@ def _make_rest_app(datastore: Datastore, this_node, domain: str, log: Logger) ->
         # Verify KFrag Authorization (offchain)
         try:
             verified_kfrag = authorized_kfrag.verify(hrac=hrac,
-                                                     author_verifying_key=author_verifying_key,
                                                      publisher_verifying_key=publisher_verifying_key)
         except InvalidSignature as e:
             message = f'{bob_identity_message} Invalid signature for KeyFrag: {e}.'
             log.info(message)
             this_node.suspicious_activities_witnessed['unauthorized'].append(message)
             return Response(message, status=401)  # 401 - Unauthorized
+        except Exception as e:
+            message = f'{bob_identity_message} Invalid KeyFrag: {e}.'
+            log.info(message)
+            return Response(message, status=400)  # 400 - General error
 
         if not this_node.federated_only:
 
