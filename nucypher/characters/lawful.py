@@ -392,7 +392,7 @@ class Alice(Character, BlockchainPolicyAuthor):
                 ursula = self.known_nodes[node_id]
                 revocation = policy.revocation_kit[node_id]
                 try:
-                    response = self.network_middleware.revoke_node(ursula, revocation)
+                    response = self.network_middleware.request_revocation(ursula, revocation)
                 except self.network_middleware.NotFound:
                     failed[node_id] = (revocation, self.network_middleware.NotFound)
                 except self.network_middleware.UnexpectedResponse:
