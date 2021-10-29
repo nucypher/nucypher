@@ -145,14 +145,18 @@ def test_bob_retrieves_with_treasure_map(
     assert text1 == [b'Welcome to flippering number 2.']
 
 
-def test_bob_retrieves_too_late(federated_bob, federated_ursulas,
-                                enacted_federated_policy, capsule_side_channel):
+# TODO: Without kfrag and arrangement storage by nodes,
+#  Federated policies are no longer time-based, and expiration cannot be enforced on them
+@pytest.mark.skip()
+def test_bob_retrieves_too_late(federated_bob,
+                                federated_ursulas,
+                                enacted_federated_policy,
+                                capsule_side_channel):
 
     clock = Clock()
     clock.advance(time.time())
     clock.advance(86400 * 8)  # 1 week  # TODO: this is supposed to be seven days, not eight
 
-    enrico = capsule_side_channel.enrico
     message_kit = capsule_side_channel()
     treasure_map = enacted_federated_policy.treasure_map
     alice_verifying_key = enacted_federated_policy.publisher_verifying_key
@@ -161,4 +165,5 @@ def test_bob_retrieves_too_late(federated_bob, federated_ursulas,
     federated_bob.retrieve_and_decrypt(
         [message_kit],
         alice_verifying_key=alice_verifying_key,
-        encrypted_treasure_map=treasure_map)
+        encrypted_treasure_map=treasure_map
+    )
