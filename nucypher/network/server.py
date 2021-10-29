@@ -214,7 +214,7 @@ def _make_rest_app(datastore: Datastore, this_node, domain: str, log: Logger) ->
                 this_node.verify_policy_payment(hrac=hrac)
             except Policy.Unpaid:
                 message = f"{bob_identity_message} Policy {hrac} is unpaid."
-                record = (policy_publisher, message)
+                record = (publisher_verifying_key, message)
                 this_node.suspicious_activities_witnessed['freeriders'].append(record)
                 return Response(message, status=HTTPStatus.PAYMENT_REQUIRED)
             except Policy.Unknown:
