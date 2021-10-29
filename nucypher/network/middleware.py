@@ -203,15 +203,8 @@ class RestMiddleware:
                                                          backend=default_backend())
             return certificate
 
-    def propose_arrangement(self, node, arrangement):
-        response = self.client.post(node_or_sprout=node,
-                                    path="consider_arrangement",
-                                    data=bytes(arrangement),
-                                    timeout=120)  # TODO: What is an appropriate timeout here?
-        return response
-
-    def revoke_arrangement(self, ursula, revocation):
-        # TODO: Implement revocation confirmations
+    def request_revocation(self, ursula, revocation):
+        # TODO: Implement offchain revocation #2787
         response = self.client.post(
             node_or_sprout=ursula,
             path=f"revoke",
@@ -228,12 +221,16 @@ class RestMiddleware:
         )
         return response
 
-    def check_rest_availability(self, initiator, responder):
+    def check_availability(self, initiator, responder):
         response = self.client.post(node_or_sprout=responder,
-                                    data=bytes(initiator.metadata()),
-                                    path="ping",
+                                    data=bytes(initiator.metatada()),
+                                    path="check_availability",
                                     timeout=6,  # Two round trips are expected
                                     )
+        return response
+
+    def ping(self, node):
+        response = self.client.get(node_or_sprout=node, path="ping", timeout=2)
         return response
 
     def get_nodes_via_rest(self,

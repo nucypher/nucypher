@@ -1,0 +1,1 @@
+Removes the Arrangement API for Alice/Ursula negotiations.  Use a simple livliness check during grant-time.

@@ -87,7 +87,6 @@ from nucypher.crypto.umbral_adapter import (
     VerifiedKeyFrag,
 )
 from nucypher.datastore.datastore import DatastoreTransactionError, RecordNotFound
-from nucypher.datastore.queries import find_expired_policies
 from nucypher.network.exceptions import NodeSeemsToBeDown
 from nucypher.network.middleware import RestMiddleware
 from nucypher.network.nodes import NodeSprout, TEACHER_NODES, Teacher
@@ -310,7 +309,7 @@ class Alice(Character, BlockchainPolicyAuthor):
     def grant(self,
               bob: "Bob",
               label: bytes,
-              handpicked_ursulas: set = None,
+              ursulas: set = None,
               timeout: int = None,
               **policy_params):
 
@@ -320,9 +319,9 @@ class Alice(Character, BlockchainPolicyAuthor):
         # Policy Creation
         #
 
-        if handpicked_ursulas:
+        if ursulas:
             # This might be the first time alice learns about the handpicked Ursulas.
-            for handpicked_ursula in handpicked_ursulas:
+            for handpicked_ursula in ursulas:
                 self.remember_node(node=handpicked_ursula)
 
         policy = self.create_policy(bob=bob, label=label, **policy_params)
@@ -348,8 +347,7 @@ class Alice(Character, BlockchainPolicyAuthor):
                     "or run the learning loop on a network with enough Ursulas.".format(policy.shares))
 
         self.log.debug(f"Enacting {policy} ... ")
-        enacted_policy = policy.enact(network_middleware=self.network_middleware,
-                                      handpicked_ursulas=handpicked_ursulas)
+        enacted_policy = policy.enact(network_middleware=self.network_middleware, ursulas=ursulas)
 
         self.add_active_policy(enacted_policy)
         return enacted_policy
@@ -376,8 +374,8 @@ class Alice(Character, BlockchainPolicyAuthor):
 
         if offchain:
             """
-            Parses the treasure map and revokes arrangements in it.
-            If any arrangements can't be revoked, then the node_id is added to a
+            Parses the treasure map and revokes onchain arrangements in it.
+            If any nodes cannot be revoked, then the node_id is added to a
             dict as a key, and the revocation and Ursula's response is added as
             a value.
             """
@@ -394,7 +392,7 @@ class Alice(Character, BlockchainPolicyAuthor):
                 ursula = self.known_nodes[node_id]
                 revocation = policy.revocation_kit[node_id]
                 try:
-                    response = self.network_middleware.revoke_arrangement(ursula, revocation)
+                    response = self.network_middleware.request_revocation(ursula, revocation)
                 except self.network_middleware.NotFound:
                     failed[node_id] = (revocation, self.network_middleware.NotFound)
                 except self.network_middleware.UnexpectedResponse:
@@ -445,8 +443,7 @@ class Alice(Character, BlockchainPolicyAuthor):
         @alice_flask_control.route("/create_policy", methods=['PUT'])
         def create_policy() -> Response:
             """
-            Character control endpoint for creating a policy and making
-            arrangements with Ursulas.
+            Character control endpoint for creating an enacted network policy
             """
             response = controller(method_name='create_policy', control_request=request)
             return response
@@ -660,8 +657,6 @@ class Ursula(Teacher, Character, Worker):
         # TLSHostingPower  # Still considered a default for Ursula, but needs the host context
     ]
 
-    _pruning_interval = 60  # seconds
-
     class NotEnoughUrsulas(Learner.NotEnoughTeachers, StakingEscrowAgent.NotEnoughStakers):
         """
         All Characters depend on knowing about enough Ursulas to perform their role.
@@ -727,7 +722,6 @@ class Ursula(Teacher, Character, Worker):
 
             # Datastore Pruning
             self.__pruning_task: Union[Deferred, None] = None
-            self._datastore_pruning_task = LoopingCall(f=self.__prune_datastore)
 
             # Decentralized Worker
             if not federated_only:
@@ -829,22 +823,6 @@ class Ursula(Teacher, Character, Worker):
         message = f"Created decentralized identity evidence: {self.__decentralized_identity_evidence[:10].hex()}"
         self.log.debug(message)
 
-    def __prune_datastore(self) -> None:
-        """Deletes all expired arrangements, kfrags, and treasure maps in the datastore."""
-        now = maya.MayaDT.from_datetime(datetime.fromtimestamp(self._datastore_pruning_task.clock.seconds()))
-        try:
-            with find_expired_policies(self.datastore, now) as expired_policies:
-                for policy in expired_policies:
-                    policy.delete()
-                result = len(expired_policies)
-        except RecordNotFound:
-            self.log.debug("No expired policy arrangements found.")
-        except DatastoreTransactionError:
-            self.log.warn(f"Failed to prune policy arrangements; DB session rolled back.")
-        else:
-            if result > 0:
-                self.log.debug(f"Pruned {result} policy arrangements.")
-
     def __preflight(self) -> None:
         """Called immediately before running services
         If an exception is raised, Ursula startup will be interrupted.
@@ -857,7 +835,6 @@ class Ursula(Teacher, Character, Worker):
             discovery: bool = True,  # TODO: see below
             availability: bool = False,
             worker: bool = True,
-            pruning: bool = True,
             interactive: bool = False,
             hendrix: bool = True,
             start_reactor: bool = True,
@@ -883,11 +860,6 @@ class Ursula(Teacher, Character, Worker):
 
         if emitter:
             emitter.message(f"Starting services", color='yellow')
-
-        if pruning:
-            self.__pruning_task = self._datastore_pruning_task.start(interval=self._pruning_interval, now=eager)
-            if emitter:
-                emitter.message(f"✓ Database Pruning", color='green')
 
         if discovery and not self.lonely:
             self.start_learning_loop(now=eager)

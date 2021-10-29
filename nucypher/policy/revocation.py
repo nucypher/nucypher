@@ -44,15 +44,9 @@ class RevocationKit:
 
     @property
     def revokable_addresses(self):
-        """
-        Returns a Set of revokable addresses in the checksum address formatting
-        """
+        """Returns a Set of revokable addresses in the checksum address formatting"""
         return set(self.revocations.keys())
 
     def add_confirmation(self, node_id, signed_receipt):
-        """
-        Adds a signed confirmation of Ursula's ability to revoke the arrangement.
-        """
-        # TODO: Verify Ursula's signature
-        # TODO: Implement receipts
+        """Adds a signed confirmation of Ursula's ability to revoke the node."""
         raise NotImplementedError

@@ -237,7 +237,7 @@ class AvailabilityTracker:
     def measure(self, ursula_or_sprout: Union['Ursula', NodeSprout]) -> None:
         """Measure self-availability from a single remote node that participates uptime checks."""
         try:
-            response = self._ursula.network_middleware.check_rest_availability(initiator=self._ursula, responder=ursula_or_sprout)
+            response = self._ursula.network_middleware.check_availability(initiator=self._ursula, responder=ursula_or_sprout)
         except RestMiddleware.BadRequest as e:
             self.responders.add(ursula_or_sprout.checksum_address)
             self.record(False, reason=e.reason)

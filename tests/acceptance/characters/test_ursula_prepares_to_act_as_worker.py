@@ -165,7 +165,7 @@ def test_blockchain_ursulas_reencrypt(blockchain_ursulas, blockchain_alice, bloc
     blockchain_alice.network_middleware = NodeIsDownMiddleware()
     blockchain_alice.network_middleware.node_is_down(blockchain_ursulas[0])
 
-    with pytest.raises(BlockchainPolicy.NotEnoughBlockchainUrsulas):
+    with pytest.raises(BlockchainPolicy.NotEnoughUrsulas):
         _policy = blockchain_alice.grant(bob=blockchain_bob,
                                          label=b'another-label',
                                          threshold=threshold,

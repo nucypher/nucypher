@@ -18,11 +18,9 @@
 import functools
 from typing import Callable, List, Type
 
-import maya
-
 from nucypher.datastore.base import DatastoreRecord
 from nucypher.datastore.datastore import Datastore, DatastoreQueryResult, RecordNotFound
-from nucypher.datastore.models import PolicyArrangement, ReencryptionRequest
+from nucypher.datastore.models import ReencryptionRequest
 
 
 def unwrap_records(func: Callable[..., DatastoreQueryResult]) -> Callable[..., List[Type['DatastoreRecord']]]:
@@ -46,22 +44,6 @@ def unwrap_records(func: Callable[..., DatastoreQueryResult]) -> Callable[..., L
     return wrapper
 
 
-def find_expired_policies(ds: Datastore, cutoff: maya.MayaDT) -> DatastoreQueryResult:
-    return ds.query_by(PolicyArrangement,
-                       filter_field='expiration',
-                       filter_func=lambda expiration: expiration <= cutoff,
-                       writeable=True)
-
-
 @unwrap_records
 def get_reencryption_requests(ds: Datastore) -> List[ReencryptionRequest]:
     return ds.query_by(ReencryptionRequest)
-
-
-def find_policy_arrangements(ds: Datastore) -> DatastoreQueryResult:
-    return ds.query_by(PolicyArrangement, writeable=True)
-
-
-@unwrap_records
-def get_policy_arrangements(ds: Datastore) -> List[PolicyArrangement]:
-    return ds.query_by(PolicyArrangement)

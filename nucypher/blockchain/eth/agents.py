@@ -74,7 +74,8 @@ from nucypher.types import (
     StakerInfo,
     PeriodDelta,
     StakingEscrowParameters,
-    PolicyInfo, ArrangementInfo
+    PolicyInfo,
+    ArrangementInfo
 )
 from nucypher.utilities.logging import Logger  # type: ignore
 

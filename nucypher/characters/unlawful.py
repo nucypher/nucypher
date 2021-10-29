@@ -118,28 +118,13 @@ class Amonia(Alice):
         alice_clone.__class__ = cls
         return alice_clone
 
-    @staticmethod
-    def enact_without_tabulating_responses(policy, network_middleware, arrangements, **_kwargs):
-        for ursula, kfrag in zip(arrangements, policy.kfrags):
-            arrangement = arrangements[ursula]
-            payload = policy._make_enactment_payload(kfrag)
-            message_kit = policy.publisher.encrypt_for(ursula, payload)
-
-            try:
-                network_middleware.enact_policy(ursula, bytes(message_kit))
-            except Exception as e:
-                # I don't care what went wrong - I will keep trying to ram arrangements through.
-                continue
-
     def grant_without_paying(self, *args, **kwargs):
-        """
-        I take what I want for free.
-        """
+        """I take what I want for free."""
 
         def what_do_you_mean_you_dont_tip(policy, *args, **kwargs):
             return b"He convinced me, gimme back my $"
 
-        with patch("nucypher.policy.policies.BlockchainPolicy._publish_to_blockchain", what_do_you_mean_you_dont_tip):
+        with patch("nucypher.policy.policies.BlockchainPolicy._publish", what_do_you_mean_you_dont_tip):
             return super().grant(*args, **kwargs)
 
     def circumvent_safegaurds_and_grant_without_paying(self, *args, **kwargs):
@@ -148,7 +133,7 @@ class Amonia(Alice):
 
         Can I grant for free if I change the client code to my liking?
         """
-        with patch("nucypher.policy.policies.Policy._enact_arrangements", self.enact_without_tabulating_responses):
+        with patch("nucypher.policy.policies.Policy._publish", self.grant_without_paying):
             return self.grant_without_paying(*args, **kwargs)
 
     def grant_while_paying_the_wrong_nodes(self,
@@ -172,6 +157,6 @@ class Amonia(Alice):
 
             return receipt['transactionHash']
 
-        with patch("nucypher.policy.policies.BlockchainPolicy._publish_to_blockchain",
+        with patch("nucypher.policy.policies.BlockchainPolicy._publish",
                    publish_wrong_payee_address_to_blockchain):
-            return super().grant(handpicked_ursulas=ursulas_to_trick_into_working_for_free, *args, **kwargs)
+            return super().grant(ursulas=ursulas_to_trick_into_working_for_free, *args, **kwargs)

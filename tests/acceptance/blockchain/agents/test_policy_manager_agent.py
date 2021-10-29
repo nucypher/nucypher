@@ -89,7 +89,6 @@ def test_revoke_arrangement(agency, policy_meta, test_registry):
     assert receipt['logs'][0]['address'] == policy_agent.contract_address
 
 
-
 @pytest.mark.usefixtures('blockchain_ursulas')
 def test_revoke_policy(agency, policy_meta, test_registry):
     policy_agent = ContractAgency.get_agent(PolicyManagerAgent, registry=test_registry)

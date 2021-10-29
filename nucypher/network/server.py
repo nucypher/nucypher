@@ -30,8 +30,6 @@ from mako.template import Template
 from nucypher.core import (
     AuthorizedKeyFrag,
     ReencryptionRequest,
-    Arrangement,
-    ArrangementResponse,
     RevocationOrder,
     NodeMetadata,
     MetadataRequest,
@@ -161,31 +159,6 @@ def _make_rest_app(datastore: Datastore, this_node, domain: str, log: Logger) ->
         # TODO: What's the right status code here?  202?  Different if we already knew about the node(s)?
         return all_known_nodes()
 
-    @rest_app.route('/consider_arrangement', methods=['POST'])
-    def consider_arrangement():
-        arrangement = Arrangement.from_bytes(request.data)
-
-        # Verify this node is staking for the entirety of the proposed arrangement.
-        if not this_node.federated_only:
-
-            # Get final staking period
-            if this_node.stakes.terminal_period is NOT_STAKING:
-                this_node.stakes.refresh()
-            if this_node.stakes.terminal_period is NOT_STAKING:
-                return Response(status=403)  # 403 Forbidden
-
-            # Verify timeframe
-            terminal_stake_period = this_node.stakes.terminal_period
-            terminal_stake_epoch = period_to_epoch(period=terminal_stake_period,
-                                                   seconds_per_period=this_node.economics.seconds_per_period)
-            if arrangement.expiration_epoch > terminal_stake_epoch:
-                # I'm sorry David, I'm afraid I can't do that.
-                return Response(status=403)  # 403 Forbidden
-
-        response = ArrangementResponse.for_arrangement(arrangement, this_node.stamp.as_umbral_signer())
-        headers = {'Content-Type': 'application/octet-stream'}
-        return Response(bytes(response), status=200, headers=headers)
-
     @rest_app.route('/reencrypt', methods=["POST"])
     def reencrypt():
 
@@ -265,8 +238,7 @@ def _make_rest_app(datastore: Datastore, this_node, domain: str, log: Logger) ->
 
         # Re-encrypt
         # TODO: return a sensible response if it fails
-        response = this_node._reencrypt(kfrag=verified_kfrag,
-                                        capsules=reenc_request.capsules)
+        response = this_node._reencrypt(kfrag=verified_kfrag, capsules=reenc_request.capsules)
 
         # Now, Ursula saves evidence of this workorder to her database...
         # Note: we give the work order a random ID to store it under.
@@ -282,52 +254,47 @@ def _make_rest_app(datastore: Datastore, this_node, domain: str, log: Logger) ->
         # TODO: Implement offchain revocation.
         return Response(status=200)
 
-    @rest_app.route("/ping", methods=['GET', 'POST'])
+    @rest_app.route("/ping", methods=['GET'])
     def ping():
-        """
-        GET: Asks this node: "What is my IP address?"
-        POST: Asks this node: "Can you access my public information endpoint?"
-        """
+        """Asks this node: What is my IP address?"""
+        requester_ip_address = request.remote_addr
+        return Response(requester_ip_address, status=200)
 
-        if request.method == 'GET':
-            requester_ip_address = request.remote_addr
-            return Response(requester_ip_address, status=200)
+    @rest_app.route("/check_availability", methods=['POST'])
+    def check_availability():
+        """Asks this node: Can you access my public information endpoint?"""
+        try:
+            requesting_ursula = Ursula.from_metadata_bytes(request.data)
+            requesting_ursula.mature()
+        except ValueError:
+            return Response({'error': 'Invalid Ursula'}, status=400)
+        else:
+            initiator_address, initiator_port = tuple(requesting_ursula.rest_interface)
 
-        elif request.method == 'POST':
-            try:
-                requester_metadata = NodeMetadata.from_bytes(request.data)
-                requesting_ursula = NodeSprout(requester_metadata)
-                requesting_ursula.mature()
-            except ValueError:
-                return Response({'error': 'Invalid Ursula'}, status=400)
-            else:
-                initiator_address, initiator_port = tuple(requesting_ursula.rest_interface)
+        # Compare requester and posted Ursula information
+        request_address = request.remote_addr
+        if request_address != initiator_address:
+            message = f'Origin address mismatch: Request origin is {request_address} but metadata claims {initiator_address}.'
+            return Response({'error': message}, status=400)
 
-            # Compare requester and posted Ursula information
-            request_address = request.remote_addr
-            if request_address != initiator_address:
-                message = f'Origin address mismatch: Request origin is {request_address} but metadata claims {initiator_address}.'
-                return Response({'error': message}, status=400)
+        # Make a Sandwich
+        try:
+            # Fetch and store initiator's teacher certificate.
+            certificate = this_node.network_middleware.get_certificate(host=initiator_address, port=initiator_port)
+            certificate_filepath = this_node.node_storage.store_node_certificate(certificate=certificate)
+            requesting_ursula_metadata = this_node.network_middleware.client.node_information(
+                host=initiator_address,
+                port=initiator_port,
+                certificate_filepath=certificate_filepath
+            )
+        except NodeSeemsToBeDown:
+            return Response({'error': 'Unreachable node'}, status=400)  # ... toasted
 
-            #
-            # Make a Sandwich
-            #
-
-            try:
-                # Fetch and store initiator's teacher certificate.
-                certificate = this_node.network_middleware.get_certificate(host=initiator_address, port=initiator_port)
-                certificate_filepath = this_node.node_storage.store_node_certificate(certificate=certificate)
-                metadata_bytes = this_node.network_middleware.client.node_information(host=initiator_address,
-                                                                                      port=initiator_port,
-                                                                                      certificate_filepath=certificate_filepath)
-                visible_metadata = NodeMetadata.from_bytes(metadata_bytes)
-            except NodeSeemsToBeDown:
-                return Response({'error': 'Unreachable node'}, status=400)  # ... toasted
-
-            if requester_metadata == visible_metadata:
-                return Response(status=200)
-            else:
-                return Response({'error': 'Suspicious node'}, status=400)
+        # Compare the results of the outer POST with the inner GET... yum
+        if requesting_ursula_metadata == request.data:
+            return Response(status=200)
+        else:
+            return Response({'error': 'Suspicious node'}, status=400)
 
     @rest_app.route('/status/', methods=['GET'])
     def status():
