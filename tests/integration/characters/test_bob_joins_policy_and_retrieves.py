@@ -145,7 +145,7 @@ def test_bob_retrieves_with_treasure_map(
     assert text1 == [b'Welcome to flippering number 2.']
 
 
-# TODO: Without kfrag and arrangement storage by nodes,
+# TODO: #2813 Without kfrag and arrangement storage by nodes,
 #  Federated policies are no longer time-based, and expiration cannot be enforced on them
 @pytest.mark.skip()
 def test_bob_retrieves_too_late(federated_bob,
