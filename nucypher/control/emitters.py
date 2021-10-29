@@ -16,6 +16,7 @@
 """
 
 
+from http import HTTPStatus
 import json
 import os
 from functools import partial
@@ -271,7 +272,7 @@ class WebEmitter:
         serialized_response = WebEmitter.transport_serializer(assembled_response)
 
         # ---------- HTTP OUTPUT
-        response = self.sink(response=serialized_response, status=200, content_type="application/javascript")
+        response = self.sink(response=serialized_response, status=HTTPStatus.OK, content_type="application/javascript")
         return response
 
     def get_stream(self, *args, **kwargs):

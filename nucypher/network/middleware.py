@@ -16,6 +16,7 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
 
+from http import HTTPStatus
 import socket
 import ssl
 import time
@@ -120,16 +121,16 @@ class NucypherMiddlewareClient:
             response = self.invoke_method(method, url, verify=certificate_filepath, *args, **kwargs)
             cleaned_response = self.response_cleaner(response)
             if cleaned_response.status_code >= 300:
-                if cleaned_response.status_code == 400:
+                if cleaned_response.status_code == HTTPStatus.BAD_REQUEST:
                     raise RestMiddleware.BadRequest(reason=cleaned_response.json)
-                elif cleaned_response.status_code == 404:
+                elif cleaned_response.status_code == HTTPStatus.NOT_FOUND:
                     m = f"While trying to {method_name} {args} ({kwargs}), server 404'd.  Response: {cleaned_response.content}"
                     raise RestMiddleware.NotFound(m)
-                elif cleaned_response.status_code == 402:
+                elif cleaned_response.status_code == HTTPStatus.PAYMENT_REQUIRED:
                     # TODO: Use this as a hook to prompt Bob's payment for policy sponsorship
                     # https://getyarn.io/yarn-clip/ce0d37ba-4984-4210-9a40-c9c9859a3164
                     raise RestMiddleware.PaymentRequired(cleaned_response.content)
-                elif cleaned_response.status_code == 403:
+                elif cleaned_response.status_code == HTTPStatus.FORBIDDEN:
                     raise RestMiddleware.Unauthorized(cleaned_response.content)
                 else:
                     raise RestMiddleware.UnexpectedResponse(cleaned_response.content, status=cleaned_response.status_code)
@@ -156,22 +157,22 @@ class RestMiddleware:
 
     class NotFound(UnexpectedResponse):
         def __init__(self, *args, **kwargs):
-            super().__init__(status=404, *args, **kwargs)
+            super().__init__(status=HTTPStatus.NOT_FOUND, *args, **kwargs)
 
     class BadRequest(UnexpectedResponse):
         def __init__(self, reason, *args, **kwargs):
             self.reason = reason
-            super().__init__(message=reason, status=400, *args, **kwargs)
+            super().__init__(message=reason, status=HTTPStatus.BAD_REQUEST, *args, **kwargs)
 
     class PaymentRequired(UnexpectedResponse):
         """Raised for HTTP 402"""
         def __init__(self, *args, **kwargs):
-            super().__init__(status=402, *args, **kwargs)
+            super().__init__(status=HTTPStatus.PAYMENT_REQUIRED, *args, **kwargs)
 
     class Unauthorized(UnexpectedResponse):
         """Raised for HTTP 403"""
         def __init__(self, *args, **kwargs):
-            super().__init__(status=403, *args, **kwargs)
+            super().__init__(status=HTTPStatus.FORBIDDEN, *args, **kwargs)
 
     def __init__(self, registry=None):
         self.client = self._client_class(registry)

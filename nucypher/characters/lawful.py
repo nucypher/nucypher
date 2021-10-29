@@ -17,6 +17,7 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 
 
 import contextlib
+from http import HTTPStatus
 import json
 import time
 from base64 import b64encode
@@ -1358,7 +1359,7 @@ class Enrico(Character):
                 request_data = json.loads(request.data)
                 message = request_data['message']
             except (KeyError, JSONDecodeError) as e:
-                return Response(str(e), status=400)
+                return Response(str(e), status=HTTPStatus.BAD_REQUEST)
 
             # Encrypt
             message_kit = drone_enrico.encrypt_message(bytes(message, encoding='utf-8'))
@@ -1370,6 +1371,6 @@ class Enrico(Character):
                 'version': str(nucypher.__version__)
             }
 
-            return Response(json.dumps(response_data), status=200)
+            return Response(json.dumps(response_data), status=HTTPStatus.OK)
 
         return controller

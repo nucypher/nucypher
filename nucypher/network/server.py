@@ -16,6 +16,7 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
 
+from http import HTTPStatus
 import uuid
 import weakref
 from pathlib import Path
@@ -171,7 +172,7 @@ def _make_rest_app(datastore: Datastore, this_node, domain: str, log: Logger) ->
 
         # Right off the bat, if this HRAC is already known to be revoked, reject the order.
         if hrac in this_node.revoked_policies:
-            return Response(response=f"Policy with {hrac} has been revoked.", status=401)  # 401 - Unauthorized
+            return Response(response=f"Policy with {hrac} has been revoked.", status=HTTPStatus.UNAUTHORIZED)
 
         publisher_verifying_key = reenc_request.publisher_verifying_key
 
@@ -185,12 +186,12 @@ def _make_rest_app(datastore: Datastore, this_node, domain: str, log: Logger) ->
             authorized_kfrag = this_node._decrypt_kfrag(reenc_request.encrypted_kfrag)
         except DecryptingKeypair.DecryptionFailed:
             # TODO: don't we want to record suspicious activities here too?
-            return Response(response="EncryptedKeyFrag decryption failed.", status=403)   # 403 - Forbidden
+            return Response(response="EncryptedKeyFrag decryption failed.", status=HTTPStatus.FORBIDDEN)
         except Exception as e:
             message = f'{bob_identity_message} Invalid EncryptedKeyFrag: {e}.'
             log.info(message)
             this_node.suspicious_activities_witnessed['unauthorized'].append(message)
-            return Response(message, status=400)  # 400 - General error
+            return Response(message, status=HTTPStatus.BAD_REQUEST)
 
         # Verify KFrag Authorization (offchain)
         try:
@@ -200,11 +201,11 @@ def _make_rest_app(datastore: Datastore, this_node, domain: str, log: Logger) ->
             message = f'{bob_identity_message} Invalid signature for KeyFrag: {e}.'
             log.info(message)
             this_node.suspicious_activities_witnessed['unauthorized'].append(message)
-            return Response(message, status=401)  # 401 - Unauthorized
+            return Response(message, status=HTTPStatus.UNAUTHORIZED)  # 401 - Unauthorized
         except Exception as e:
             message = f'{bob_identity_message} Invalid KeyFrag: {e}.'
             log.info(message)
-            return Response(message, status=400)  # 400 - General error
+            return Response(message, status=HTTPStatus.BAD_REQUEST)
 
         if not this_node.federated_only:
 
@@ -215,20 +216,20 @@ def _make_rest_app(datastore: Datastore, this_node, domain: str, log: Logger) ->
                 message = f"{bob_identity_message} Policy {hrac} is unpaid."
                 record = (policy_publisher, message)
                 this_node.suspicious_activities_witnessed['freeriders'].append(record)
-                return Response(message, status=402)  # 402 - Payment Required
+                return Response(message, status=HTTPStatus.PAYMENT_REQUIRED)
             except Policy.Unknown:
                 message = f"{bob_identity_message} Policy {hrac} is not a published policy."
-                return Response(message, status=404)  # 404 - Not Found
+                return Response(message, status=HTTPStatus.NOT_FOUND)
 
             # Verify Active Policy (onchain)
             try:
                 this_node.verify_active_policy(hrac=hrac)
             except Policy.Inactive:
                 message = f"{bob_identity_message} Policy {hrac} is not active."
-                return Response(message, status=403)  # 403 - Forbidden
+                return Response(message, status=HTTPStatus.FORBIDDEN)
             except this_node.PolicyInfo.Expired:
                 message = f"{bob_identity_message} Policy {hrac} is expired."
-                return Response(message, status=403)  # 403 - Forbidden
+                return Response(message, status=HTTPStatus.FORBIDDEN)
 
         # Re-encrypt
         # TODO: return a sensible response if it fails
@@ -246,13 +247,13 @@ def _make_rest_app(datastore: Datastore, this_node, domain: str, log: Logger) ->
     def revoke():
         revocation = RevocationOrder.from_bytes(request.data)
         # TODO: Implement offchain revocation.
-        return Response(status=200)
+        return Response(status=HTTPStatus.OK)
 
     @rest_app.route("/ping", methods=['GET'])
     def ping():
         """Asks this node: What is my IP address?"""
         requester_ip_address = request.remote_addr
-        return Response(requester_ip_address, status=200)
+        return Response(requester_ip_address, status=HTTPStatus.OK)
 
     @rest_app.route("/check_availability", methods=['POST'])
     def check_availability():
@@ -261,7 +262,7 @@ def _make_rest_app(datastore: Datastore, this_node, domain: str, log: Logger) ->
             requesting_ursula = Ursula.from_metadata_bytes(request.data)
             requesting_ursula.mature()
         except ValueError:
-            return Response({'error': 'Invalid Ursula'}, status=400)
+            return Response({'error': 'Invalid Ursula'}, status=HTTPStatus.BAD_REQUEST)
         else:
             initiator_address, initiator_port = tuple(requesting_ursula.rest_interface)
 
@@ -269,7 +270,7 @@ def _make_rest_app(datastore: Datastore, this_node, domain: str, log: Logger) ->
         request_address = request.remote_addr
         if request_address != initiator_address:
             message = f'Origin address mismatch: Request origin is {request_address} but metadata claims {initiator_address}.'
-            return Response({'error': message}, status=400)
+            return Response({'error': message}, status=HTTPStatus.BAD_REQUEST)
 
         # Make a Sandwich
         try:
@@ -282,13 +283,13 @@ def _make_rest_app(datastore: Datastore, this_node, domain: str, log: Logger) ->
                 certificate_filepath=certificate_filepath
             )
         except NodeSeemsToBeDown:
-            return Response({'error': 'Unreachable node'}, status=400)  # ... toasted
+            return Response({'error': 'Unreachable node'}, status=HTTPStatus.BAD_REQUEST)  # ... toasted
 
         # Compare the results of the outer POST with the inner GET... yum
         if requesting_ursula_metadata == request.data:
-            return Response(status=200)
+            return Response(status=HTTPStatus.OK)
         else:
-            return Response({'error': 'Suspicious node'}, status=400)
+            return Response({'error': 'Suspicious node'}, status=HTTPStatus.BAD_REQUEST)
 
     @rest_app.route('/status/', methods=['GET'])
     def status():
@@ -304,7 +305,7 @@ def _make_rest_app(datastore: Datastore, this_node, domain: str, log: Logger) ->
             text_error = mako_exceptions.text_error_template().render()
             html_error = mako_exceptions.html_error_template().render()
             log.debug("Template Rendering Exception:\n" + text_error)
-            return Response(response=html_error, headers=headers, status=500)
+            return Response(response=html_error, headers=headers, status=HTTPStatus.INTERNAL_SERVER_ERROR)
         return Response(response=content, headers=headers)
 
     return rest_app

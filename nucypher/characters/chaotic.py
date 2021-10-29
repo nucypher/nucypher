@@ -15,6 +15,7 @@
  along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
+from http import HTTPStatus
 import json
 from pathlib import Path
 
@@ -241,15 +242,15 @@ class Felix(Character, NucypherTokenActor):
             )
 
             if not new_address:
-                return Response(response="no address was supplied", status=411)
+                return Response(response="no address was supplied", status=HTTPStatus.LENGTH_REQUIRED)
 
             if not eth_utils.is_address(new_address):
-                return Response(response="an invalid ethereum address was supplied.  please ensure the address is a proper checksum.", status=400)
+                return Response(response="an invalid ethereum address was supplied.  please ensure the address is a proper checksum.", status=HTTPStatus.BAD_REQUEST)
             else:
                 new_address = eth_utils.to_checksum_address(new_address)
 
             if new_address in self.reserved_addresses:
-                return Response(response="sorry, that address is reserved and cannot receive funds.", status=403)
+                return Response(response="sorry, that address is reserved and cannot receive funds.", status=HTTPStatus.FORBIDDEN)
 
             try:
                 with ThreadedSession(self.db_engine) as session:
@@ -258,7 +259,7 @@ class Felix(Character, NucypherTokenActor):
                     if len(existing) > self.MAX_INDIVIDUAL_REGISTRATIONS:
                         # Address already exists; Abort
                         self.log.debug(f"{new_address} is already enrolled {self.MAX_INDIVIDUAL_REGISTRATIONS} times.")
-                        return Response(response=f"{new_address} requested too many times  -  Please use another address.", status=409)
+                        return Response(response=f"{new_address} requested too many times  -  Please use another address.", status=HTTPStatus.CONFLICT)
 
                     # Create the record
                     recipient = Recipient(address=new_address, joined=datetime.now())
@@ -271,7 +272,7 @@ class Felix(Character, NucypherTokenActor):
                 raise
 
             else:
-                return Response(status=200)  # TODO
+                return Response(status=HTTPStatus.OK)  # TODO
 
         return rest_app
 
