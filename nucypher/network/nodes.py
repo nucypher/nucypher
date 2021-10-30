@@ -146,7 +146,7 @@ class NodeSprout:
 
     @property
     def decentralized_identity_evidence(self):
-        return self._metadata.decentralized_identity_evidence
+        return self._metadata.decentralized_identity_evidence or NOT_SIGNED
 
     @property
     def public_address(self):
@@ -178,7 +178,7 @@ class NodeSprout:
                       checksum_address=self.checksum_address,
                       domain=self._metadata.domain,
                       timestamp=self.timestamp,
-                      decentralized_identity_evidence=self._metadata.decentralized_identity_evidence,
+                      decentralized_identity_evidence=self.decentralized_identity_evidence,
                       certificate=load_pem_x509_certificate(self._metadata.certificate_bytes, backend=default_backend()),
                       metadata=self._metadata
                       )

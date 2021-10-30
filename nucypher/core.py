@@ -15,7 +15,7 @@ You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
-from typing import Optional, Sequence, Dict, Tuple, List, Iterable, Mapping, NamedTuple
+from typing import Optional, Sequence, Dict, Tuple, List, Iterable, Mapping, NamedTuple, Callable
 
 from bytestring_splitter import (
     BytestringSplitter,
@@ -28,6 +28,7 @@ from eth_utils.address import to_checksum_address, to_canonical_address
 
 from nucypher.utilities.versioning import Versioned
 
+from nucypher.blockchain.eth.constants import LENGTH_ECDSA_SIGNATURE_WITH_RECOVERY
 from nucypher.crypto.utils import keccak_digest
 from nucypher.crypto.signing import InvalidSignature
 import nucypher.crypto.umbral_adapter as umbral # need it to mock `umbral.encrypt`
@@ -55,6 +56,38 @@ capsule_splitter = BytestringSplitter((Capsule, Capsule.serialized_size()))
 cfrag_splitter = BytestringSplitter((CapsuleFrag, CapsuleFrag.serialized_size()))
 kfrag_splitter = BytestringSplitter((KeyFrag, KeyFrag.serialized_size()))
 checksum_address_splitter = BytestringSplitter((to_checksum_address, ETH_ADDRESS_BYTE_LENGTH)) # TODO: is there a pre-defined constant?
+variable_length_splitter = BytestringSplitter(VariableLengthBytestring)
+
+
+_OPTIONAL_NONE = b'\x00'
+_OPTIONAL_SOME = b'\x01'
+
+
+def serialize_optional(value: Optional) -> bytes:
+    if value is None:
+        return _OPTIONAL_NONE
+    else:
+        return _OPTIONAL_SOME + bytes(value)
+
+
+def take_optional(take_obj: Callable[[bytes], Tuple[object, bytes]], data: bytes):
+    optional_flag = data[0:1]
+    remainder = data[1:]
+
+    if optional_flag == _OPTIONAL_NONE:
+        return None, remainder
+    elif optional_flag == _OPTIONAL_SOME:
+        obj, remainder = take_obj(remainder)
+        return obj, remainder
+    else:
+        raise ValueError(f"Incorrect optional flag: {optional_flag}")
+
+
+def take_decentralized_identity_evidence(data):
+    expected_length = LENGTH_ECDSA_SIGNATURE_WITH_RECOVERY
+    if len(data) < LENGTH_ECDSA_SIGNATURE_WITH_RECOVERY:
+        raise ValueError(f"Not enough bytes to fit a decentralized_identity_evidence ({len(data)})")
+    return data[:expected_length], data[expected_length:]
 
 
 class MessageKit(Versioned):
@@ -541,7 +574,7 @@ class ReencryptionRequest(Versioned):
 
         hrac, publisher_vk, bob_vk, remainder = splitter(data, return_remainder=True)
         ekfrag, remainder = EncryptedKeyFrag.take(remainder)
-        capsule_bytes, remainder = BytestringSplitter(VariableLengthBytestring)(remainder, return_remainder=True)
+        capsule_bytes, remainder = variable_length_splitter(remainder, return_remainder=True)
         capsules = capsule_splitter.repeat(capsule_bytes)
         return cls(hrac, publisher_vk, bob_vk, ekfrag, capsules), remainder
 
@@ -749,21 +782,17 @@ class NodeMetadataPayload(NamedTuple):
     public_address: bytes
     domain: str
     timestamp_epoch: int
-    decentralized_identity_evidence: bytes # TODO: make its own type?
     verifying_key: PublicKey
     encrypting_key: PublicKey
     certificate_bytes: bytes # serialized `cryptography.x509.Certificate`
     host: str
     port: int
+    decentralized_identity_evidence: Optional[bytes] # TODO: make its own type?
 
     _splitter = BytestringSplitter(
         (bytes, ETH_ADDRESS_BYTE_LENGTH), # public_address
         VariableLengthBytestring, # domain_bytes
         (int, 4, {'byteorder': 'big'}), # timestamp_epoch
-
-        # FIXME: Fixed length doesn't work with federated. It was LENGTH_ECDSA_SIGNATURE_WITH_RECOVERY,
-        VariableLengthBytestring, # decentralized_identity_evidence
-
         key_splitter, # verifying_key
         key_splitter, # encrypting_key
         VariableLengthBytestring, # certificate_bytes
@@ -775,12 +804,12 @@ class NodeMetadataPayload(NamedTuple):
         as_bytes = bytes().join((self.public_address,
                                  bytes(VariableLengthBytestring(self.domain.encode('utf-8'))),
                                  self.timestamp_epoch.to_bytes(4, 'big'),
-                                 bytes(VariableLengthBytestring(self.decentralized_identity_evidence)),  # FIXME: Fixed length doesn't work with federated
                                  bytes(self.verifying_key),
                                  bytes(self.encrypting_key),
                                  bytes(VariableLengthBytestring(self.certificate_bytes)),
                                  bytes(VariableLengthBytestring(self.host.encode('utf-8'))),
                                  self.port.to_bytes(2, 'big'),
+                                 serialize_optional(self.decentralized_identity_evidence),
                                 ))
         return as_bytes
 
@@ -791,7 +820,6 @@ class NodeMetadataPayload(NamedTuple):
         (public_address,
          domain,
          timestamp_epoch,
-         decentralized_identity_evidence,
          verifying_key,
          encrypting_key,
          certificate_bytes,
@@ -799,15 +827,17 @@ class NodeMetadataPayload(NamedTuple):
          port,
          ) = fields
 
+        decentralized_identity_evidence, remainder = take_optional(take_decentralized_identity_evidence, remainder)
+
         obj = cls(public_address=public_address,
                   domain=domain.decode('utf-8'),
                   timestamp_epoch=timestamp_epoch,
-                  decentralized_identity_evidence=decentralized_identity_evidence,
                   verifying_key=verifying_key,
                   encrypting_key=encrypting_key,
                   certificate_bytes=certificate_bytes,
                   host=host.decode('utf-8'),
                   port=port,
+                  decentralized_identity_evidence=decentralized_identity_evidence,
                   )
 
         return obj, remainder
@@ -920,13 +950,6 @@ class MetadataRequest(Versioned):
 
 class MetadataResponse(Versioned):
 
-    _splitter = BytestringSplitter(
-        signature_splitter,
-        (int, 4, {'byteorder': 'big'}),
-        VariableLengthBytestring,
-        VariableLengthBytestring,
-        )
-
     @classmethod
     def author(cls,
                signer: Signer,
@@ -947,7 +970,7 @@ class MetadataResponse(Versioned):
         nodes_payload = b''.join(bytes(node) for node in other_nodes) if other_nodes else b''
         return (
             timestamp +
-            bytes(VariableLengthBytestring(bytes(this_node) if this_node else b'')) +
+            serialize_optional(this_node) +
             bytes(VariableLengthBytestring(nodes_payload))
             )
 
@@ -985,8 +1008,15 @@ class MetadataResponse(Versioned):
 
     @classmethod
     def _from_bytes_current(cls, data: bytes):
-        signature, timestamp_epoch, maybe_this_node, maybe_other_nodes, remainder = cls._splitter(data, return_remainder=True)
-        this_node = NodeMetadata.from_bytes(maybe_this_node) if maybe_this_node else None
+
+        splitter = BytestringSplitter(
+                signature_splitter,
+                (int, 4, {'byteorder': 'big'}),
+                )
+
+        signature, timestamp_epoch, remainder = splitter(data, return_remainder=True)
+        this_node, remainder = take_optional(NodeMetadata.take, remainder)
+        maybe_other_nodes, remainder = variable_length_splitter(remainder, return_remainder=True)
         other_nodes = NodeMetadata._batch_from_bytes(maybe_other_nodes) if maybe_other_nodes else None
         obj = cls(signature=signature,
                   timestamp_epoch=timestamp_epoch,

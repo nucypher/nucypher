@@ -987,11 +987,15 @@ class Ursula(Teacher, Character, Worker):
         # so we can cache the result of this method.
         # TODO: should this be a method of Teacher?
         timestamp = maya.now()
+        if self.decentralized_identity_evidence is NOT_SIGNED:
+            decentralized_identity_evidence = None
+        else:
+            decentralized_identity_evidence = self.decentralized_identity_evidence
         return NodeMetadata.author(signer=self.stamp.as_umbral_signer(),
                                    public_address=self.canonical_public_address,
                                    domain=self.domain,
                                    timestamp_epoch=timestamp.epoch,
-                                   decentralized_identity_evidence=self.decentralized_identity_evidence,
+                                   decentralized_identity_evidence=decentralized_identity_evidence,
                                    verifying_key=self.public_keys(SigningPower),
                                    encrypting_key=self.public_keys(DecryptingPower),
                                    certificate_bytes=self.certificate.public_bytes(Encoding.PEM),
