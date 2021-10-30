@@ -131,7 +131,7 @@ def test_treasure_map_validation(enacted_federated_policy,
         UnenncryptedTreasureMapsOnly().load({'tmap': bad_map_b64})
 
     assert "Could not convert input for tmap to a TreasureMap" in str(e)
-    assert "Invalid treasure map contents." in str(e)
+    assert "Can't split a message with more bytes than the original splittable." in str(e)
 
     # a valid treasuremap
     decrypted_treasure_map = federated_bob._decrypt_treasure_map(enacted_federated_policy.treasure_map,
