@@ -4,7 +4,7 @@ pragma solidity ^0.7.0;
 
 import "contracts/lib/ReEncryptionValidator.sol";
 import "contracts/lib/SignatureVerifier.sol";
-import "contracts/StakingEscrow.sol";
+import "contracts/IStakingEscrow.sol";
 import "contracts/proxy/Upgradeable.sol";
 import "zeppelin/math/SafeMath.sol";
 import "zeppelin/math/Math.sol";
@@ -35,7 +35,7 @@ contract Adjudicator is Upgradeable {
     bytes32 constant RESERVED_CAPSULE_AND_CFRAG_BYTES = bytes32(0);
     address constant RESERVED_ADDRESS = address(0);
 
-    StakingEscrow public immutable escrow;
+    IStakingEscrow public immutable escrow;
     SignatureVerifier.HashAlgorithm public immutable hashAlgorithm;
     uint256 public immutable basePenalty;
     uint256 public immutable penaltyHistoryCoefficient;
@@ -54,7 +54,7 @@ contract Adjudicator is Upgradeable {
     * @param _rewardCoefficient Coefficient for calculating the reward
     */
     constructor(
-        StakingEscrow _escrow,
+        IStakingEscrow _escrow,
         SignatureVerifier.HashAlgorithm _hashAlgorithm,
         uint256 _basePenalty,
         uint256 _penaltyHistoryCoefficient,

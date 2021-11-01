@@ -39,7 +39,7 @@ contract PoolingStakingContractV2 is InitializableStakingContract, Ownable {
      */
     uint256 public constant BASIS_FRACTION = 10000;
 
-    StakingEscrow public escrow;
+    IStakingEscrow public escrow;
     address public workerOwner;
 
     uint256 public totalDepositedTokens;

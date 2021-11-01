@@ -43,7 +43,7 @@ contract WorkLockPoolingContract is InitializableStakingContract, Ownable {
 
     uint256 public constant BASIS_FRACTION = 100;
 
-    StakingEscrow public escrow;
+    IStakingEscrow public escrow;
     WorkLock public workLock;
     address public workerOwner;
 
