@@ -8,7 +8,7 @@ import "zeppelin/token/ERC20/SafeERC20.sol";
 import "zeppelin/utils/Address.sol";
 import "zeppelin/ownership/Ownable.sol";
 import "contracts/NuCypherToken.sol";
-import "contracts/StakingEscrow.sol";
+import "contracts/IStakingEscrow.sol";
 import "contracts/lib/AdditionalMath.sol";
 
 
@@ -43,7 +43,7 @@ contract WorkLock is Ownable {
     uint256 private constant MAX_ETH_SUPPLY = 2e10 ether;
 
     NuCypherToken public immutable token;
-    StakingEscrow public immutable escrow;
+    IStakingEscrow public immutable escrow;
 
     /*
     * @dev WorkLock calculations:
@@ -96,7 +96,7 @@ contract WorkLock is Ownable {
     */
     constructor(
         NuCypherToken _token,
-        StakingEscrow _escrow,
+        IStakingEscrow _escrow,
         uint256 _startBidDate,
         uint256 _endBidDate,
         uint256 _endCancellationDate,

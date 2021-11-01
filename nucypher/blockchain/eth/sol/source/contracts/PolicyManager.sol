@@ -9,9 +9,9 @@ import "zeppelin/math/Math.sol";
 import "zeppelin/utils/Address.sol";
 import "contracts/lib/AdditionalMath.sol";
 import "contracts/lib/SignatureVerifier.sol";
-import "contracts/StakingEscrow.sol";
 import "contracts/NuCypherToken.sol";
 import "contracts/proxy/Upgradeable.sol";
+import "contracts/IStakingEscrow.sol";
 
 
 /**
@@ -109,7 +109,7 @@ contract PolicyManager is Upgradeable {
     // controlled overflow to get max int256
     int256 public constant DEFAULT_FEE_DELTA = int256((uint256(0) - 1) >> 1);
 
-    StakingEscrow public immutable escrow;
+    IStakingEscrow public immutable escrow;
     uint32 public immutable genesisSecondsPerPeriod;
     uint32 public immutable secondsPerPeriod;
 
@@ -124,7 +124,7 @@ contract PolicyManager is Upgradeable {
     * @param _escrowDispatcher Address of escrow dispatcher
     * @param _escrowImplementation Address of escrow implementation
     */
-    constructor(StakingEscrow _escrowDispatcher, StakingEscrow _escrowImplementation) {
+    constructor(IStakingEscrow _escrowDispatcher, IStakingEscrow _escrowImplementation) {
         escrow = _escrowDispatcher;
         // if the input address is not the StakingEscrow then calling `secondsPerPeriod` will throw error
         uint32 localSecondsPerPeriod = _escrowImplementation.secondsPerPeriod();
