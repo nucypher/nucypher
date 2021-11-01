@@ -50,12 +50,10 @@ def test_complete_treasure_map_journey(federated_alice, federated_bob, federated
     for ursula_address, encrypted_kfrag in treasure_map.destinations.items():
         assert ursula_address in ursula_rolodex
         ursula = ursula_rolodex[ursula_address]
-        auth_kfrag = ursula._decrypt_kfrag(encrypted_kfrag=encrypted_kfrag,
-                                           publisher_verifying_key=federated_alice.stamp.as_umbral_pubkey())
-        ursula.verify_kfrag_authorization(hrac=treasure_map.hrac,
-                                          author_verifying_key=federated_alice.stamp.as_umbral_pubkey(),
-                                          publisher_verifying_key=federated_alice.stamp.as_umbral_pubkey(),
-                                          authorized_kfrag=auth_kfrag)
+        auth_kfrag = ursula._decrypt_kfrag(encrypted_kfrag)
+        auth_kfrag.verify(hrac=treasure_map.hrac,
+                          author_verifying_key=federated_alice.stamp.as_umbral_pubkey(),
+                          publisher_verifying_key=federated_alice.stamp.as_umbral_pubkey())
 
     serialized_map = bytes(treasure_map)
     # ...

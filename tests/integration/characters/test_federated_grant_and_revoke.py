@@ -21,7 +21,7 @@ import datetime
 import maya
 import pytest
 
-from nucypher.core import MessageKit, RevocationOrder
+from nucypher.core import EncryptedKeyFrag, RevocationOrder
 
 from nucypher.characters.lawful import Enrico
 from nucypher.crypto.utils import keccak_digest
@@ -53,7 +53,7 @@ def test_federated_grant(federated_alice, federated_bob, federated_ursulas):
 
             # TODO: Deeper testing here: try to decrypt?
             # TODO: Use a new type for EncryptedKFrags?
-            assert isinstance(kfrag_kit, MessageKit)
+            assert isinstance(kfrag_kit, EncryptedKeyFrag)
 
 
 def test_federated_alice_can_decrypt(federated_alice, federated_bob):

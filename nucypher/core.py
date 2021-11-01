@@ -243,19 +243,10 @@ class HRAC:
 hrac_splitter = BytestringSplitter((HRAC, HRAC.SIZE))
 
 
-class UnauthorizedKeyFragError(Exception):
-    pass
-
-
 class AuthorizedKeyFrag(Versioned):
 
-    _WRIT_CHECKSUM_SIZE = 32
-
-    def __init__(self, hrac: HRAC, kfrag_checksum: bytes, writ_signature: Signature, kfrag: KeyFrag):
-        self.hrac = hrac
-        self.kfrag_checksum = kfrag_checksum
-        self.writ = bytes(hrac) + kfrag_checksum
-        self.writ_signature = writ_signature
+    def __init__(self, signature: Signature, kfrag: KeyFrag):
+        self.signature = signature
         self.kfrag = kfrag
 
     @classmethod
@@ -268,27 +259,19 @@ class AuthorizedKeyFrag(Versioned):
         # "un-verify" kfrag to keep further logic streamlined
         kfrag = KeyFrag.from_bytes(bytes(verified_kfrag))
 
-        # Alice makes plain to Ursula that, upon decrypting this message,
+        # Publisher makes plain to Ursula that, upon decrypting this message,
         # this particular KFrag is authorized for use in the policy identified by this HRAC.
-        kfrag_checksum = cls._kfrag_checksum(kfrag)
-        writ = bytes(hrac) + kfrag_checksum
-        writ_signature = signer.sign(writ)
+        signature = signer.sign(bytes(hrac) + bytes(kfrag))
 
-        # The writ and the KFrag together represent a complete kfrag kit: the entirety of
-        # the material needed for Ursula to assuredly service this policy.
-        return cls(hrac, kfrag_checksum, writ_signature, kfrag)
-
-    @staticmethod
-    def _kfrag_checksum(kfrag: KeyFrag) -> bytes:
-        return keccak_digest(bytes(kfrag))[:AuthorizedKeyFrag._WRIT_CHECKSUM_SIZE]
+        return cls(signature, kfrag)
 
     def _payload(self) -> bytes:
         """Returns the unversioned bytes serialized representation of this instance."""
-        return self.writ + bytes(self.writ_signature) + bytes(self.kfrag)
+        return bytes(self.signature) + bytes(self.kfrag)
 
     @classmethod
     def _brand(cls) -> bytes:
-        return b'AKF_'
+        return b'AKFr'
 
     @classmethod
     def _version(cls) -> Tuple[int, int]:
@@ -300,23 +283,9 @@ class AuthorizedKeyFrag(Versioned):
 
     @classmethod
     def _from_bytes_current(cls, data):
-        # TODO: should we check the signature right away here?
-
-        splitter = BytestringSplitter(
-            hrac_splitter,  # HRAC
-            (bytes, cls._WRIT_CHECKSUM_SIZE),  # kfrag checksum
-            signature_splitter,  # Publisher's signature
-            kfrag_splitter,
-        )
-
-        hrac, kfrag_checksum, writ_signature, kfrag = splitter(data)
-
-        # Check integrity
-        calculated_checksum = cls._kfrag_checksum(kfrag)
-        if calculated_checksum != kfrag_checksum:
-            raise ValueError("Incorrect KeyFrag checksum in the serialized data")
-
-        return cls(hrac, kfrag_checksum, writ_signature, kfrag)
+        splitter = BytestringSplitter(signature_splitter, kfrag_splitter)
+        signature, kfrag = splitter(data)
+        return cls(signature, kfrag)
 
     def verify(self,
                hrac: HRAC,
@@ -324,19 +293,48 @@ class AuthorizedKeyFrag(Versioned):
                publisher_verifying_key: PublicKey,
                ) -> VerifiedKeyFrag:
 
-        if not self.writ_signature.verify(message=self.writ, verifying_pk=publisher_verifying_key):
-            raise UnauthorizedKeyFragError("Writ is not signed by the provided publisher")
+        signed_message = bytes(hrac) + bytes(self.kfrag)
 
-        # TODO: should we keep HRAC in this object at all?
-        if self.hrac != hrac:  # Funky request
-            raise UnauthorizedKeyFragError("Incorrect HRAC")
+        if not self.signature.verify(message=signed_message, verifying_pk=publisher_verifying_key):
+            raise InvalidSignature("HRAC + KeyFrag are not signed by the provided publisher")
 
         try:
             verified_kfrag = self.kfrag.verify(verifying_pk=author_verifying_key)
         except VerificationError:
-            raise UnauthorizedKeyFragError("KeyFrag is not signed by the provided author")
+            raise InvalidSignature("KeyFrag is not signed by the provided author")
 
         return verified_kfrag
+
+
+class EncryptedKeyFrag:
+
+    @classmethod
+    def author(cls, recipient_key: PublicKey, authorized_kfrag: AuthorizedKeyFrag):
+        # TODO: using Umbral for encryption to avoid introducing more crypto primitives.
+        # Most probably it is an overkill, unless it can be used somehow
+        # for Ursula-to-Ursula "baton passing".
+        capsule, ciphertext = umbral.encrypt(recipient_key, bytes(authorized_kfrag))
+        return cls(capsule, ciphertext)
+
+    def __init__(self, capsule: Capsule, ciphertext: bytes):
+        self.capsule = capsule
+        self.ciphertext = ciphertext
+
+    def decrypt(self, sk: SecretKey) -> AuthorizedKeyFrag:
+        cleartext = decrypt_original(sk, self.capsule, self.ciphertext)
+        return AuthorizedKeyFrag.from_bytes(cleartext)
+
+    def __bytes__(self):
+        return bytes(self.capsule) + bytes(VariableLengthBytestring(self.ciphertext))
+
+    @classmethod
+    def from_bytes(cls, data):
+        splitter = BytestringSplitter(capsule_splitter, VariableLengthBytestring)
+        capsule, ciphertext = splitter(data)
+        return cls(capsule, ciphertext)
+
+    def __eq__(self, other):
+        return self.capsule == other.capsule and self.ciphertext == other.ciphertext
 
 
 class TreasureMap(Versioned):
@@ -345,14 +343,13 @@ class TreasureMap(Versioned):
                  threshold: int,
                  hrac: HRAC,
                  policy_encrypting_key: PublicKey,
-                 destinations: Dict[ChecksumAddress, MessageKit]):
+                 publisher_verifying_key: PublicKey,
+                 destinations: Dict[ChecksumAddress, EncryptedKeyFrag]):
         self.threshold = threshold
         self.destinations = destinations
         self.hrac = hrac
         self.policy_encrypting_key = policy_encrypting_key
-
-        # A little awkward, but saves us a key length in serialization
-        self.publisher_verifying_key = list(destinations.values())[0].sender_verifying_key
+        self.publisher_verifying_key = publisher_verifying_key
 
     def __iter__(self):
         return iter(self.destinations.items())
@@ -390,19 +387,18 @@ class TreasureMap(Versioned):
         destinations = {}
         for ursula_address, key_and_kfrag in assigned_kfrags.items():
             ursula_key, verified_kfrag = key_and_kfrag
-            # TODO: do we really need to sign the AuthorizedKeyFrag *and* the plaintext afterwards?
-            kfrag_payload = bytes(AuthorizedKeyFrag.construct_by_publisher(hrac=hrac,
-                                                                           verified_kfrag=verified_kfrag,
-                                                                           signer=signer))
-            encrypted_kfrag = MessageKit.author(recipient_key=ursula_key,
-                                                plaintext=kfrag_payload,
-                                                signer=signer)
+            authorized_kfrag = AuthorizedKeyFrag.construct_by_publisher(hrac=hrac,
+                                                                        verified_kfrag=verified_kfrag,
+                                                                        signer=signer)
+            encrypted_kfrag = EncryptedKeyFrag.author(recipient_key=ursula_key,
+                                                      authorized_kfrag=authorized_kfrag)
 
             destinations[ursula_address] = encrypted_kfrag
 
         return cls(threshold=threshold,
                    hrac=hrac,
                    policy_encrypting_key=policy_encrypting_key,
+                   publisher_verifying_key=signer.verifying_key(),
                    destinations=destinations)
 
     @classmethod
@@ -419,7 +415,11 @@ class TreasureMap(Versioned):
 
     def _payload(self) -> bytes:
         """Returns the unversioned bytes serialized representation of this instance."""
-        return self.threshold.to_bytes(1, "big") + bytes(self.hrac) + bytes(self.policy_encrypting_key) + self._nodes_as_bytes()
+        return (self.threshold.to_bytes(1, "big") +
+                bytes(self.hrac) +
+                bytes(self.policy_encrypting_key) +
+                bytes(self.publisher_verifying_key) +
+                self._nodes_as_bytes())
 
     @classmethod
     def _from_bytes_current(cls, data):
@@ -428,20 +428,21 @@ class TreasureMap(Versioned):
             (int, 1, {'byteorder': 'big'}),
             hrac_splitter,
             key_splitter,
+            key_splitter,
         )
 
         ursula_and_kfrag_payload_splitter = BytestringSplitter(
             (to_checksum_address, ETH_ADDRESS_BYTE_LENGTH),
-            (MessageKit, VariableLengthBytestring),
+            (EncryptedKeyFrag, VariableLengthBytestring),
         )
 
         try:
-            threshold, hrac, policy_encrypting_key, remainder = main_splitter(data, return_remainder=True)
+            threshold, hrac, policy_encrypting_key, publisher_verifying_key, remainder = main_splitter(data, return_remainder=True)
             ursula_and_kfrags = ursula_and_kfrag_payload_splitter.repeat(remainder)
         except BytestringSplittingError as e:
             raise ValueError('Invalid treasure map contents.') from e
         destinations = {u: k for u, k in ursula_and_kfrags}
-        return cls(threshold, hrac, policy_encrypting_key, destinations)
+        return cls(threshold, hrac, policy_encrypting_key, publisher_verifying_key, destinations)
 
     def encrypt(self,
                 signer: Signer,
@@ -555,7 +556,7 @@ class ReencryptionRequest(Versioned):
                  alice_verifying_key: PublicKey,
                  publisher_verifying_key: PublicKey,
                  bob_verifying_key: PublicKey,
-                 encrypted_kfrag: MessageKit,
+                 encrypted_kfrag: EncryptedKeyFrag,
                  capsules: List[Capsule]):
 
         self.hrac = hrac
@@ -592,7 +593,7 @@ class ReencryptionRequest(Versioned):
                     key_splitter +
                     key_splitter +
                     key_splitter +
-                    BytestringSplitter((MessageKit, VariableLengthBytestring)))
+                    BytestringSplitter((EncryptedKeyFrag, VariableLengthBytestring)))
 
         hrac, alice_vk, publisher_vk, bob_vk, ekfrag, remainder = splitter(data, return_remainder=True)
         capsules = capsule_splitter.repeat(remainder)
@@ -702,13 +703,13 @@ class RevocationOrder(Versioned):
     @classmethod
     def author(cls,
                ursula_address: ChecksumAddress,
-               encrypted_kfrag: MessageKit,
+               encrypted_kfrag: EncryptedKeyFrag,
                signer: Signer) -> 'RevocationOrder':
             return cls(ursula_address=ursula_address,
                        encrypted_kfrag=encrypted_kfrag,
                        signature=signer.sign(cls._signed_payload(ursula_address, encrypted_kfrag)))
 
-    def __init__(self, ursula_address: ChecksumAddress, encrypted_kfrag: MessageKit, signature: Signature):
+    def __init__(self, ursula_address: ChecksumAddress, encrypted_kfrag: EncryptedKeyFrag, signature: Signature):
         self.ursula_address = ursula_address
         self.encrypted_kfrag = encrypted_kfrag
         self.signature = signature
@@ -755,11 +756,11 @@ class RevocationOrder(Versioned):
     def _from_bytes_current(cls, data):
         splitter = BytestringSplitter(
             checksum_address_splitter,  # ursula canonical address
-            VariableLengthBytestring,  # MessageKit
+            VariableLengthBytestring,  # EncryptedKeyFrag
             signature_splitter
         )
         ursula_canonical_address, ekfrag_bytes, signature = splitter(data)
-        ekfrag = MessageKit.from_bytes(ekfrag_bytes)
+        ekfrag = EncryptedKeyFrag.from_bytes(ekfrag_bytes)
         ursula_address = to_checksum_address(ursula_canonical_address)
         return cls(ursula_address=ursula_address,
                    encrypted_kfrag=ekfrag,
