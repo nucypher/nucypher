@@ -4,7 +4,6 @@ pragma solidity ^0.7.0;
 
 
 import "contracts/Adjudicator.sol";
-import "contracts/StakingEscrow.sol";
 import "contracts/lib/SignatureVerifier.sol";
 import "contracts/proxy/Upgradeable.sol";
 
@@ -65,7 +64,7 @@ contract AdjudicatorV2Mock is Adjudicator {
     uint256 public valueToCheck;
 
     constructor(
-        StakingEscrow _escrow,
+        IStakingEscrow _escrow,
         SignatureVerifier.HashAlgorithm _hashAlgorithm,
         uint256 _basePenalty,
         uint256 _percentagePenalty,

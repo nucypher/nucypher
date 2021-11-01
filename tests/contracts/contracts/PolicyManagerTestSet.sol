@@ -4,7 +4,6 @@ pragma solidity ^0.7.0;
 
 
 import "contracts/PolicyManager.sol";
-import "contracts/StakingEscrow.sol";
 
 
 /**
@@ -12,7 +11,7 @@ import "contracts/StakingEscrow.sol";
 */
 contract PolicyManagerBad is PolicyManager {
 
-    constructor(StakingEscrow _escrow) PolicyManager(_escrow, _escrow) {
+    constructor(IStakingEscrow _escrow) PolicyManager(_escrow, _escrow) {
     }
 
     function getNodeFeeDelta(address, uint16) public view override returns (int256) {}
@@ -27,7 +26,7 @@ contract PolicyManagerV2Mock is PolicyManager {
 
     uint256 public valueToCheck;
 
-    constructor(StakingEscrow _escrow) PolicyManager(_escrow, _escrow) {
+    constructor(IStakingEscrow _escrow) PolicyManager(_escrow, _escrow) {
     }
 
     function setValueToCheck(uint256 _valueToCheck) public {
@@ -154,7 +153,7 @@ contract StakingEscrowForPolicyMock {
 */
 contract ExtendedPolicyManager is PolicyManager {
 
-    constructor(StakingEscrow _escrow) PolicyManager(_escrow, _escrow) {
+    constructor(IStakingEscrow _escrow) PolicyManager(_escrow, _escrow) {
     }
 
     function setNodeFeeDelta(address _node, uint16 _period, int256 _value) external {
