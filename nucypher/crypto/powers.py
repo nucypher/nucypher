@@ -234,7 +234,7 @@ class SigningPower(KeyPairBasedPower):
 class DecryptingPower(KeyPairBasedPower):
     _keypair_class = DecryptingKeypair
     not_found_error = NoDecryptingPower
-    provides = ("decrypt", "decrypt_treasure_map")
+    provides = ("decrypt",)
 
 
 class DerivedKeyBasedPower(CryptoPowerUp):

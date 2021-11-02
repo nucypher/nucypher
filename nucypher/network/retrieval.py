@@ -17,7 +17,7 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 
 from collections import defaultdict
 import random
-from typing import Dict, Sequence, List, Tuple
+from typing import Dict, Sequence, List
 
 from eth_typing.evm import ChecksumAddress
 from twisted.logger import Logger
@@ -177,8 +177,9 @@ class RetrievalClient:
     def _request_reencryption(self,
                               ursula: 'Ursula',
                               reencryption_request: ReencryptionRequest,
-                              delegating_key: PublicKey,
-                              receiving_key: PublicKey,
+                              alice_verifying_key: PublicKey,
+                              policy_encrypting_key: PublicKey,
+                              bob_encrypting_key: PublicKey,
                               ) -> Dict['Capsule', 'VerifiedCapsuleFrag']:
         """
         Sends a reencryption request to a single Ursula and processes the results.
@@ -214,41 +215,26 @@ class RetrievalClient:
             self.log.warn(message)
             raise RuntimeError(message)
 
-        if len(reencryption_request.capsules) != len(reencryption_response.cfrags):
-            message = (f"Ursula ({ursula}) gave back the wrong number of cfrags. "
-                       "She's up to something.")
+        ursula_verifying_key = ursula.stamp.as_umbral_pubkey()
+
+        try:
+            verified_cfrags = reencryption_response.verify(capsules=reencryption_request.capsules,
+                                                           alice_verifying_key=alice_verifying_key,
+                                                           ursula_verifying_key=ursula_verifying_key,
+                                                           policy_encrypting_key=policy_encrypting_key,
+                                                           bob_encrypting_key=bob_encrypting_key,
+                                                           )
+        except InvalidSignature as e:
+            self.log.warn(str(e))
+            raise
+        except VerificationError:
+            # In future we may want to remember this Ursula and do something about it
+            self.log.warn("Failed to verify capsule frags in the ReencryptionResponse")
+            raise
+        except Exception as e:
+            message = f"Failed to verify the ReencryptionResponse: {e}"
             self.log.warn(message)
             raise RuntimeError(message)
-
-        ursula_verifying_key = ursula.stamp.as_umbral_pubkey()
-        capsules_bytes = b''.join(bytes(capsule) for capsule in reencryption_request.capsules)
-        cfrags_bytes = b''.join(bytes(cfrag) for cfrag in reencryption_response.cfrags)
-
-        # Validate re-encryption signature
-        if not reencryption_response.signature.verify(ursula_verifying_key, capsules_bytes + cfrags_bytes):
-            message = (f"{reencryption_request.capsules} and {reencryption_response.cfrags} "
-                        "are not properly signed by Ursula.")
-            self.log.warn(message)
-            # TODO: Instead of raising, we should do something (#957)
-            raise InvalidSignature(message)
-
-        verified_cfrags = {}
-
-        for capsule, cfrag in zip(reencryption_request.capsules, reencryption_response.cfrags):
-
-            # TODO: should we allow partially valid responses?
-
-            # Verify cfrags
-            try:
-                verified_cfrag = cfrag.verify(capsule,
-                                              verifying_pk=reencryption_request.alice_verifying_key,
-                                              delegating_pk=delegating_key,
-                                              receiving_pk=receiving_key)
-            except VerificationError:
-                # In future we may want to remember this Ursula and do something about it
-                raise
-
-            verified_cfrags[capsule] = verified_cfrag
 
         return verified_cfrags
 
@@ -279,14 +265,14 @@ class RetrievalClient:
                 ursula_address=work_order.ursula_address,
                 capsules=work_order.capsules,
                 treasure_map=treasure_map,
-                alice_verifying_key=alice_verifying_key,
                 bob_verifying_key=bob_verifying_key)
 
             try:
                 cfrags = self._request_reencryption(ursula=ursula,
                                                     reencryption_request=reencryption_request,
-                                                    delegating_key=treasure_map.policy_encrypting_key,
-                                                    receiving_key=bob_encrypting_key)
+                                                    alice_verifying_key=alice_verifying_key,
+                                                    policy_encrypting_key=treasure_map.policy_encrypting_key,
+                                                    bob_encrypting_key=bob_encrypting_key)
             except Exception as e:
                 # TODO (#2789): at this point we can separate the exceptions to "acceptable"
                 # (Ursula is not reachable) and "unacceptable" (Ursula provided bad results).

@@ -185,9 +185,9 @@ class Policy(ABC):
             for ursula, vkfrag in zip(ursulas, self.kfrags)
         }
 
-        treasure_map = TreasureMap.construct_by_publisher(hrac=self.hrac,
+        treasure_map = TreasureMap.construct_by_publisher(signer=self.publisher.stamp.as_umbral_signer(),
+                                                          hrac=self.hrac,
                                                           policy_encrypting_key=self.public_key,
-                                                          signer=self.publisher.stamp.as_umbral_signer(),
                                                           assigned_kfrags=assigned_kfrags,
                                                           threshold=self.threshold)
 

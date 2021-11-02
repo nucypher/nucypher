@@ -43,10 +43,10 @@ def test_blockchain_ursula_stamp_verification_tolerance(blockchain_ursulas, mock
         if event['log_level'] == LogLevel.warn:
             warnings.append(event)
 
-    #
-    # Attempt to verify unsigned stamp
-    #
-    unsigned._Teacher__decentralized_identity_evidence = NOT_SIGNED
+    # Make a bad identity evidence
+    unsigned._Teacher__decentralized_identity_evidence = unsigned._Teacher__decentralized_identity_evidence[:-5] + (b'\x00' * 5)
+    # Reset the metadata cache
+    unsigned._metadata = None
 
     # Wipe known nodes!
     lonely_blockchain_learner._Learner__known_nodes = FleetSensor(domain=TEMPORARY_DOMAIN)

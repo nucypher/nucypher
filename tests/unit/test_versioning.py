@@ -35,7 +35,7 @@ def _check_valid_version_tuple(version: Any, cls: Type):
 
 class A(Versioned):
 
-    def __init__(self, x):
+    def __init__(self, x: int):
         self.x = x
 
     @classmethod
@@ -47,7 +47,7 @@ class A(Versioned):
         return 2, 1
 
     def _payload(self) -> bytes:
-        return bytes(self.x)
+        return self.x.to_bytes(1, 'big')
 
     @classmethod
     def _old_version_handlers(cls):
@@ -57,11 +57,16 @@ class A(Versioned):
 
     @classmethod
     def _from_bytes_v2_0(cls, data):
-        return cls(int(data, 16))  # then we switched to the hexadecimal
+        # v2.0 saved a 4 byte integer in hex format
+        int_hex, remainder = data[:2], data[2:]
+        int_bytes = bytes.fromhex(int_hex.decode())
+        return cls(int.from_bytes(int_bytes, 'big')), remainder
 
     @classmethod
     def _from_bytes_current(cls, data):
-        return cls(str(int(data, 16)))  # but now we use a string representation for some reason
+        # v2.1 saves a 4 byte integer as 4 bytes
+        int_bytes, remainder = data[:1], data[1:]
+        return cls(int.from_bytes(int_bytes, 'big')), remainder
 
 
 def test_unique_branding():
@@ -206,13 +211,13 @@ def test_current_minor_version_handler_routing(mocker):
     current_spy = mocker.spy(A, "_from_bytes_current")
     v2_0_spy = mocker.spy(A, "_from_bytes_v2_0")
 
-    v2_1_data = b'ABCD\x00\x02\x00\x0112'
+    v2_1_data = b'ABCD\x00\x02\x00\x01\x12'
     a = A.from_bytes(v2_1_data)
-    assert a.x == '18'
+    assert a.x == 18
 
     # Current version was correctly routed to the v2.1 handler.
     assert current_spy.call_count == 1
-    current_spy.assert_called_with(b'12')
+    current_spy.assert_called_with(b'\x12')
     assert not v2_0_spy.call_count
 
 
@@ -220,12 +225,12 @@ def test_future_minor_version_handler_routing(mocker):
     current_spy = mocker.spy(A, "_from_bytes_current")
     v2_0_spy = mocker.spy(A, "_from_bytes_v2_0")
 
-    v2_2_data = b'ABCD\x00\x02\x02\x0112'
+    v2_2_data = b'ABCD\x00\x02\x02\x01\x12'
     a = A.from_bytes(v2_2_data)
-    assert a.x == '18'
+    assert a.x == 18
 
     # Future minor version was correctly routed to
     # the current minor version handler.
     assert current_spy.call_count == 1
-    current_spy.assert_called_with(b'12')
+    current_spy.assert_called_with(b'\x12')
     assert not v2_0_spy.call_count

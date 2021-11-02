@@ -25,7 +25,7 @@ from cryptography.hazmat.primitives.asymmetric import ec
 from hendrix.deploy.tls import HendrixDeployTLS
 from hendrix.facilities.services import ExistingKeyTLSContextFactory
 
-from nucypher.core import MessageKit, TreasureMap, EncryptedTreasureMap
+from nucypher.core import MessageKit, EncryptedTreasureMap, EncryptedKeyFrag
 
 from nucypher.config.constants import MAX_UPLOAD_CONTENT_LENGTH
 from nucypher.crypto.signing import SignatureStamp, StrangerStamp
@@ -90,7 +90,7 @@ class DecryptingKeypair(Keypair):
     def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
 
-    def decrypt(self, message_kit: MessageKit) -> bytes:
+    def decrypt(self, message_kit: Union[MessageKit, EncryptedKeyFrag, EncryptedTreasureMap]) -> bytes:
         """
         Decrypt data encrypted with Umbral.
 
@@ -98,15 +98,6 @@ class DecryptingKeypair(Keypair):
         """
         try:
             return message_kit.decrypt(self._privkey)
-        except ValueError as e:
-            raise self.DecryptionFailed() from e
-
-    def decrypt_treasure_map(self,
-                             encrypted_treasure_map: EncryptedTreasureMap,
-                             publisher_verifyng_key: PublicKey,
-                             ) -> TreasureMap:
-        try:
-            return encrypted_treasure_map.decrypt(self._privkey, publisher_verifyng_key)
         except ValueError as e:
             raise self.DecryptionFailed() from e
 

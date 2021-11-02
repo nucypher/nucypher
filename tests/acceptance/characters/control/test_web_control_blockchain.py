@@ -90,7 +90,6 @@ def test_alice_web_character_control_grant(alice_web_controller_test_client, gra
 
     map_bytes = b64decode(response_data['result']['treasure_map'])
     encrypted_map = EncryptedTreasureMap.from_bytes(map_bytes)
-    assert encrypted_map.hrac is not None
 
     # Send bad data to assert error returns
     response = alice_web_controller_test_client.put(endpoint, data=json.dumps({'bad': 'input'}))

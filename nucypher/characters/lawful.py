@@ -17,6 +17,7 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 
 
 import contextlib
+from http import HTTPStatus
 import json
 import time
 from base64 import b64encode
@@ -39,7 +40,7 @@ from cryptography.hazmat.primitives.serialization import Encoding
 from cryptography.x509 import Certificate, NameOID
 from eth_typing.evm import ChecksumAddress
 from flask import Response, request
-from twisted.internet import reactor, stdio, threads
+from twisted.internet import reactor, stdio
 from twisted.internet.defer import Deferred
 from twisted.internet.task import LoopingCall
 from twisted.logger import Logger
@@ -47,9 +48,8 @@ from web3.types import TxReceipt
 
 from nucypher.core import (
     MessageKit,
-    HRAC,
     AuthorizedKeyFrag,
-    UnauthorizedKeyFragError,
+    EncryptedKeyFrag,
     TreasureMap,
     EncryptedTreasureMap,
     ReencryptionResponse,
@@ -58,7 +58,7 @@ from nucypher.core import (
 
 import nucypher
 from nucypher.acumen.nicknames import Nickname
-from nucypher.acumen.perception import FleetSensor, ArchivedFleetState, RemoteUrsulaStatus
+from nucypher.acumen.perception import ArchivedFleetState, RemoteUrsulaStatus
 from nucypher.blockchain.eth.actors import BlockchainPolicyAuthor, Worker
 from nucypher.blockchain.eth.agents import ContractAgency, StakingEscrowAgent
 from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
@@ -515,7 +515,7 @@ class Bob(Character):
             self.make_cli_controller()
 
         # Cache of decrypted treasure maps
-        self._treasure_maps: Dict[HRAC, TreasureMap] = {}
+        self._treasure_maps: Dict[int, TreasureMap] = {}
 
         self.log = Logger(self.__class__.__name__)
         if is_me:
@@ -531,7 +531,10 @@ class Bob(Character):
                               publisher_verifying_key: PublicKey
                               ) -> TreasureMap:
         decrypting_power = self._crypto_power.power_ups(DecryptingPower)
-        return decrypting_power.decrypt_treasure_map(encrypted_treasure_map, publisher_verifying_key)
+        auth_tmap = decrypting_power.decrypt(encrypted_treasure_map)
+        treasure_map = auth_tmap.verify(recipient_key=decrypting_power.keypair.pubkey,
+                                        publisher_verifying_key=publisher_verifying_key)
+        return treasure_map
 
     def retrieve(
             self,
@@ -557,13 +560,15 @@ class Bob(Character):
         if not publisher_verifying_key:
             publisher_verifying_key = alice_verifying_key
 
-        if encrypted_treasure_map.hrac in self._treasure_maps:
-            # A small optimization to avoid multiple treasure map decryptions.
-            treasure_map = self._treasure_maps[encrypted_treasure_map.hrac]
+        # A small optimization to avoid multiple treasure map decryptions.
+        map_hash = hash(encrypted_treasure_map)
+        if map_hash in self._treasure_maps:
+            treasure_map = self._treasure_maps[map_hash]
         else:
             # Have to decrypt the treasure map first to find out what the threshold is.
             # Otherwise we could check the message kits for completeness right away.
             treasure_map = self._decrypt_treasure_map(encrypted_treasure_map, publisher_verifying_key)
+            self._treasure_maps[map_hash] = treasure_map
 
         # Normalize input
         message_kits: List[PolicyMessageKit] = [
@@ -603,7 +608,7 @@ class Bob(Character):
 
         for message_kit in message_kits:
             if not message_kit.is_decryptable_by_receiver():
-                raise Ursula.NotEnoughUrsulas(f"Not enough cfrags retrieved to open capsule {message_kit.capsule}")
+                raise Ursula.NotEnoughUrsulas(f"Not enough cfrags retrieved to open capsule {message_kit.message_kit.capsule}")
 
         cleartexts = []
         decrypting_power = self._crypto_power.power_ups(DecryptingPower)
@@ -678,9 +683,8 @@ class Ursula(Teacher, Character, Worker):
                  certificate_filepath: Optional[Path] = None,
 
                  db_filepath: Optional[Path] = None,
-                 interface_signature=None,
-                 timestamp=None,
                  availability_check: bool = False,  # TODO: Remove from init
+                 metadata: Optional[NodeMetadata] = None,
 
                  # Blockchain
                  checksum_address: ChecksumAddress = None,
@@ -712,6 +716,10 @@ class Ursula(Teacher, Character, Worker):
                            **character_kwargs)
 
         if is_me:
+
+            if metadata:
+                raise ValueError("A local node must generate its own metadata.")
+            self._metadata = None
 
             # Operating Mode
             self.known_node_class.set_federated_mode(federated_only)
@@ -777,14 +785,13 @@ class Ursula(Teacher, Character, Worker):
             # Stranger HTTP Server
             # TODO: Use InterfaceInfo only
             self.rest_server = ProxyRESTServer(rest_host=rest_host, rest_port=rest_port)
+            self._metadata = metadata
 
         # Teacher (All Modes)
         Teacher.__init__(self,
                          domain=domain,
                          certificate=certificate,
                          certificate_filepath=certificate_filepath,
-                         interface_signature=interface_signature,
-                         timestamp=timestamp,
                          decentralized_identity_evidence=decentralized_identity_evidence)
 
     def __get_hosting_power(self, host: str) -> TLSHostingPower:
@@ -975,22 +982,36 @@ class Ursula(Teacher, Character, Worker):
         deployer = self._crypto_power.power_ups(TLSHostingPower).get_deployer(rest_app=self.rest_app, port=port)
         return deployer
 
-    def metadata(self) -> NodeMetadata:
-        # TODO: sometimes during cleanup in tests the learner is still running and can call this method,
-        # but `._finalize()` is already called, so `rest_interface` is unavailable.
-        # That doesn't lead to test fails, but produces some tracebacks in stderr.
-        # The whole cleanup situation in tests is messed up and needs to be fixed.
-        return NodeMetadata(public_address=self.canonical_public_address,
-                            domain=self.domain,
-                            timestamp_epoch=self.timestamp.epoch,
-                            interface_signature=self._interface_signature,
-                            decentralized_identity_evidence=self.decentralized_identity_evidence,
-                            verifying_key=self.public_keys(SigningPower),
-                            encrypting_key=self.public_keys(DecryptingPower),
-                            certificate_bytes=self.certificate.public_bytes(Encoding.PEM),
-                            host=self.rest_interface.host,
-                            port=self.rest_interface.port,
-                            )
+    def _generate_metadata(self) -> NodeMetadata:
+        # Assuming that the attributes collected there do not change,
+        # so we can cache the result of this method.
+        # TODO: should this be a method of Teacher?
+        timestamp = maya.now()
+        if self.decentralized_identity_evidence is NOT_SIGNED:
+            decentralized_identity_evidence = None
+        else:
+            decentralized_identity_evidence = self.decentralized_identity_evidence
+        return NodeMetadata.author(signer=self.stamp.as_umbral_signer(),
+                                   public_address=self.canonical_public_address,
+                                   domain=self.domain,
+                                   timestamp_epoch=timestamp.epoch,
+                                   decentralized_identity_evidence=decentralized_identity_evidence,
+                                   verifying_key=self.public_keys(SigningPower),
+                                   encrypting_key=self.public_keys(DecryptingPower),
+                                   certificate_bytes=self.certificate.public_bytes(Encoding.PEM),
+                                   host=self.rest_interface.host,
+                                   port=self.rest_interface.port,
+                                   )
+
+    def metadata(self):
+        if not self._metadata:
+            self._metadata = self._generate_metadata()
+            self._timestamp = maya.MayaDT(self._metadata.timestamp_epoch)
+        return self._metadata
+
+    @property
+    def timestamp(self):
+        return maya.MayaDT(self._metadata.timestamp_epoch)
 
     #
     # Alternate Constructors
@@ -1167,38 +1188,9 @@ class Ursula(Teacher, Character, Worker):
     # Re-Encryption
     #
 
-    def _decrypt_kfrag(self,
-                       encrypted_kfrag: MessageKit, # TODO: make its own type? See #2743
-                       author_verifying_key: PublicKey
-                       ) -> AuthorizedKeyFrag:
-
-        if author_verifying_key != encrypted_kfrag.sender_verifying_key:
-            raise ValueError("This encrypted AuthorizedKeyFrag was not created "
-                            f"by the expected author {author_verifying_key}")
-
+    def _decrypt_kfrag(self, encrypted_kfrag: EncryptedKeyFrag) -> AuthorizedKeyFrag:
         decrypting_power = self._crypto_power.power_ups(DecryptingPower)
-        kfrag_payload = decrypting_power.decrypt(encrypted_kfrag)
-        return AuthorizedKeyFrag.from_bytes(kfrag_payload)
-
-    def verify_kfrag_authorization(self,
-                                   hrac: HRAC,
-                                   author_verifying_key: PublicKey,
-                                   publisher_verifying_key: PublicKey,
-                                   authorized_kfrag: AuthorizedKeyFrag,
-                                   ) -> VerifiedKeyFrag:
-
-        try:
-            verified_kfrag = authorized_kfrag.verify(hrac=hrac,
-                                                     author_verifying_key=author_verifying_key,
-                                                     publisher_verifying_key=publisher_verifying_key)
-        except UnauthorizedKeyFragError as e:
-            raise Policy.Unauthorized from e
-
-        if hrac in self.revoked_policies:
-            # Note: This is only an off-chain and in-memory check.
-            raise Policy.Unauthorized  # Denied
-
-        return verified_kfrag
+        return decrypting_power.decrypt(encrypted_kfrag)
 
     def _reencrypt(self, kfrag: VerifiedKeyFrag, capsules) -> ReencryptionResponse:
         cfrags = []
@@ -1207,7 +1199,9 @@ class Ursula(Teacher, Character, Worker):
             cfrags.append(cfrag)
             self.log.info(f"Re-encrypted capsule {capsule} -> made {cfrag}.")
 
-        return ReencryptionResponse.construct_by_ursula(capsules, cfrags, self.stamp.as_umbral_signer())
+        return ReencryptionResponse.construct_by_ursula(signer=self.stamp.as_umbral_signer(),
+                                                        capsules=capsules,
+                                                        cfrags=cfrags)
 
     def status_info(self, omit_known_nodes: bool = False) -> 'LocalUrsulaStatus':
 
@@ -1317,9 +1311,8 @@ class Enrico(Character):
 
     def encrypt_message(self, plaintext: bytes) -> MessageKit:
         # TODO: #2107 Rename to "encrypt"
-        message_kit = MessageKit.author(recipient_key=self.policy_pubkey,
-                                        plaintext=plaintext,
-                                        signer=self.stamp.as_umbral_signer())
+        message_kit = MessageKit.author(policy_encrypting_key=self.policy_pubkey,
+                                        plaintext=plaintext)
         return message_kit
 
     @classmethod
@@ -1330,8 +1323,7 @@ class Enrico(Character):
         :return:
         """
         policy_pubkey_enc = alice.get_policy_encrypting_key_from_label(label)
-        return cls(crypto_power_ups={SigningPower: alice.stamp.as_umbral_pubkey()},
-                   policy_encrypting_key=policy_pubkey_enc)
+        return cls(policy_encrypting_key=policy_pubkey_enc)
 
     @property
     def policy_pubkey(self):
@@ -1370,7 +1362,7 @@ class Enrico(Character):
                 request_data = json.loads(request.data)
                 message = request_data['message']
             except (KeyError, JSONDecodeError) as e:
-                return Response(str(e), status=400)
+                return Response(str(e), status=HTTPStatus.BAD_REQUEST)
 
             # Encrypt
             message_kit = drone_enrico.encrypt_message(bytes(message, encoding='utf-8'))
@@ -1382,6 +1374,6 @@ class Enrico(Character):
                 'version': str(nucypher.__version__)
             }
 
-            return Response(json.dumps(response_data), status=200)
+            return Response(json.dumps(response_data), status=HTTPStatus.OK)
 
         return controller

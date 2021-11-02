@@ -101,7 +101,7 @@ def test_treasure_map_validation(enacted_federated_policy,
         EncryptedTreasureMapsOnly().load({'tmap': bad_map_b64})
 
     assert "Could not convert input for tmap to an EncryptedTreasureMap" in str(e)
-    assert "Invalid encrypted treasure map contents." in str(e)
+    assert "Can't split a message with more bytes than the original splittable." in str(e)
 
     # a valid treasuremap for once...
     tmap_bytes = bytes(enacted_federated_policy.treasure_map)
@@ -131,7 +131,7 @@ def test_treasure_map_validation(enacted_federated_policy,
         UnenncryptedTreasureMapsOnly().load({'tmap': bad_map_b64})
 
     assert "Could not convert input for tmap to a TreasureMap" in str(e)
-    assert "Invalid treasure map contents." in str(e)
+    assert "Can't split a message with more bytes than the original splittable." in str(e)
 
     # a valid treasuremap
     decrypted_treasure_map = federated_bob._decrypt_treasure_map(enacted_federated_policy.treasure_map,
@@ -165,7 +165,7 @@ def test_messagekit_validation(capsule_side_channel):
         MessageKitsOnly().load({'mkit': bad_kit_b64})
 
     assert "Could not parse mkit" in str(e)
-    assert "Not enough bytes to constitute message types" in str(e)
+    assert "Can't split a message with more bytes than the original splittable." in str(e)
 
     # test a valid messagekit
     valid_kit = capsule_side_channel.messages[0][0]

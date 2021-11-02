@@ -15,7 +15,7 @@ You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
-from typing import Optional, Sequence, Dict, Tuple, List, Iterable, Mapping
+from typing import Optional, Sequence, Dict, Tuple, List, Iterable, Mapping, NamedTuple, Callable
 
 from bytestring_splitter import (
     BytestringSplitter,
@@ -28,6 +28,7 @@ from eth_utils.address import to_checksum_address, to_canonical_address
 
 from nucypher.utilities.versioning import Versioned
 
+from nucypher.blockchain.eth.constants import LENGTH_ECDSA_SIGNATURE_WITH_RECOVERY
 from nucypher.crypto.utils import keccak_digest
 from nucypher.crypto.signing import InvalidSignature
 import nucypher.crypto.umbral_adapter as umbral # need it to mock `umbral.encrypt`
@@ -54,110 +55,74 @@ signature_splitter = BytestringSplitter((Signature, Signature.serialized_size())
 capsule_splitter = BytestringSplitter((Capsule, Capsule.serialized_size()))
 cfrag_splitter = BytestringSplitter((CapsuleFrag, CapsuleFrag.serialized_size()))
 kfrag_splitter = BytestringSplitter((KeyFrag, KeyFrag.serialized_size()))
-checksum_address_splitter = BytestringSplitter((bytes, ETH_ADDRESS_BYTE_LENGTH)) # TODO: is there a pre-defined constant?
+checksum_address_splitter = BytestringSplitter((to_checksum_address, ETH_ADDRESS_BYTE_LENGTH)) # TODO: is there a pre-defined constant?
+variable_length_splitter = BytestringSplitter(VariableLengthBytestring)
+
+
+_OPTIONAL_NONE = b'\x00'
+_OPTIONAL_SOME = b'\x01'
+
+
+def serialize_optional(value: Optional) -> bytes:
+    if value is None:
+        return _OPTIONAL_NONE
+    else:
+        return _OPTIONAL_SOME + bytes(value)
+
+
+def take_optional(take_obj: Callable[[bytes], Tuple[object, bytes]], data: bytes):
+    optional_flag = data[0:1]
+    remainder = data[1:]
+
+    if optional_flag == _OPTIONAL_NONE:
+        return None, remainder
+    elif optional_flag == _OPTIONAL_SOME:
+        obj, remainder = take_obj(remainder)
+        return obj, remainder
+    else:
+        raise ValueError(f"Incorrect optional flag: {optional_flag}")
+
+
+def take_decentralized_identity_evidence(data):
+    expected_length = LENGTH_ECDSA_SIGNATURE_WITH_RECOVERY
+    if len(data) < LENGTH_ECDSA_SIGNATURE_WITH_RECOVERY:
+        raise ValueError(f"Not enough bytes to fit a decentralized_identity_evidence ({len(data)})")
+    return data[:expected_length], data[expected_length:]
 
 
 class MessageKit(Versioned):
     """
-    All the components needed to transmit and verify an encrypted message.
+    A message encrypted for re-encryption
     """
 
-    _SIGNATURE_TO_FOLLOW = b'\x00'
-    _SIGNATURE_IS_ON_CIPHERTEXT = b'\x01'
-
     @classmethod
-    def author(cls,
-               recipient_key: PublicKey,
-               plaintext: bytes,
-               signer: Signer,
-               sign_plaintext: bool = True
-               ) -> 'MessageKit':
+    def author(cls, policy_encrypting_key: PublicKey, plaintext: bytes) -> 'MessageKit':
+        capsule, ciphertext = umbral.encrypt(policy_encrypting_key, plaintext)
+        return cls(capsule=capsule, ciphertext=ciphertext)
 
-        # The caller didn't expressly tell us not to sign; we'll sign.
-        if sign_plaintext:
-            # Sign first, encrypt second.
-
-            # TODO (#2743): may rethink it or remove completely
-            sig_header = cls._SIGNATURE_TO_FOLLOW
-
-            signature = signer.sign(plaintext)
-            capsule, ciphertext = umbral.encrypt(recipient_key, sig_header + bytes(signature) + plaintext)
-            signature_in_kit = None
-        else:
-            # Encrypt first, sign second.
-
-            # TODO (#2743): may rethink it or remove completely
-            sig_header = cls._SIGNATURE_IS_ON_CIPHERTEXT
-
-            capsule, ciphertext = umbral.encrypt(recipient_key, sig_header + plaintext)
-            signature = signer.sign(ciphertext)
-            signature_in_kit = signature
-
-        return cls(ciphertext=ciphertext,
-                   capsule=capsule,
-                   sender_verifying_key=signer.verifying_key(),
-                   signature=signature_in_kit)
-
-    def __init__(self,
-                 capsule: Capsule,
-                 ciphertext: bytes,
-                 sender_verifying_key: PublicKey,
-                 signature: Optional[Signature] = None,
-                 ):
+    def __init__(self, capsule: Capsule, ciphertext: bytes):
         self.ciphertext = ciphertext
         self.capsule = capsule
-        self.sender_verifying_key = sender_verifying_key
-        self.signature = signature
 
     def __eq__(self, other):
         return (self.ciphertext == other.ciphertext and
-                self.capsule == other.capsule and
-                self.sender_verifying_key == other.sender_verifying_key and
-                self.signature == other.signature)
+                self.capsule == other.capsule)
 
     def decrypt(self, sk: SecretKey) -> bytes:
-        cleartext = decrypt_original(sk, self.capsule, self.ciphertext)
-        return self._verify_cleartext(cleartext)
+        return decrypt_original(sk, self.capsule, self.ciphertext)
 
-    def decrypt_reencrypted(self, sk: SecretKey, policy_key: PublicKey, cfrags: Sequence[VerifiedCapsuleFrag]) -> bytes:
-        cleartext = decrypt_reencrypted(sk, policy_key, self.capsule, cfrags, self.ciphertext)
-        return self._verify_cleartext(cleartext)
-
-    def _verify_cleartext(self, cleartext_with_sig_header: bytes) -> bytes:
-
-        sig_header = cleartext_with_sig_header[0:1]
-        cleartext = cleartext_with_sig_header[1:]
-
-        if sig_header == self._SIGNATURE_IS_ON_CIPHERTEXT:
-            # The ciphertext is what is signed - note that for later.
-            if not self.signature:
-                raise ValueError("Cipherext is supposed to be signed, but the signature is missing.")
-            message = self.ciphertext
-            signature = self.signature
-
-        elif sig_header == self._SIGNATURE_TO_FOLLOW:
-            # The signature follows in this cleartext - split it off.
-            signature, cleartext = signature_splitter(cleartext, return_remainder=True)
-            message = cleartext
-
-        else:
-            raise ValueError("Incorrect signature header:", sig_header)
-
-        if not signature.verify(message=message, verifying_pk=self.sender_verifying_key):
-            raise InvalidSignature(f"Unable to verify message from: {self.sender_verifying_key}")
-
-        return cleartext
+    def decrypt_reencrypted(self,
+                            sk: SecretKey,
+                            policy_encrypting_key: PublicKey,
+                            cfrags: Sequence[VerifiedCapsuleFrag],
+                            ) -> bytes:
+        return decrypt_reencrypted(sk, policy_encrypting_key, self.capsule, cfrags, self.ciphertext)
 
     def __str__(self):
         return f"{self.__class__.__name__}({self.capsule})"
 
     def _payload(self) -> bytes:
-        # TODO (#2743): this logic may not be necessary depending on the resolution.
-        # If it is, it is better moved to BytestringSplitter.
-        return (bytes(self.capsule) +
-                (b'\x00' if self.signature is None else (b'\x01' + bytes(self.signature))) +
-                bytes(self.sender_verifying_key) +
-                VariableLengthBytestring(self.ciphertext))
+        return bytes(self.capsule) + VariableLengthBytestring(self.ciphertext)
 
     @classmethod
     def _brand(cls) -> bytes:
@@ -173,26 +138,9 @@ class MessageKit(Versioned):
 
     @classmethod
     def _from_bytes_current(cls, data):
-        splitter = BytestringSplitter(
-            capsule_splitter,
-            (bytes, 1))
-
-        capsule, signature_flag, remainder = splitter(data, return_remainder=True)
-
-        if signature_flag == b'\x00':
-            signature = None
-        elif signature_flag == b'\x01':
-            signature, remainder = signature_splitter(remainder, return_remainder=True)
-        else:
-            raise ValueError("Incorrect format for the signature flag")
-
-        splitter = BytestringSplitter(
-            key_splitter,
-            VariableLengthBytestring)
-
-        sender_verifying_key, ciphertext = splitter(remainder)
-
-        return cls(capsule, ciphertext, signature=signature, sender_verifying_key=sender_verifying_key)
+        splitter = BytestringSplitter(capsule_splitter, VariableLengthBytestring)
+        capsule, ciphertext, remainder = splitter(data, return_remainder=True)
+        return cls(capsule, ciphertext), remainder
 
 
 class HRAC:
@@ -243,52 +191,35 @@ class HRAC:
 hrac_splitter = BytestringSplitter((HRAC, HRAC.SIZE))
 
 
-class UnauthorizedKeyFragError(Exception):
-    pass
-
-
 class AuthorizedKeyFrag(Versioned):
 
-    _WRIT_CHECKSUM_SIZE = 32
-
-    def __init__(self, hrac: HRAC, kfrag_checksum: bytes, writ_signature: Signature, kfrag: KeyFrag):
-        self.hrac = hrac
-        self.kfrag_checksum = kfrag_checksum
-        self.writ = bytes(hrac) + kfrag_checksum
-        self.writ_signature = writ_signature
+    def __init__(self, signature: Signature, kfrag: KeyFrag):
+        self.signature = signature
         self.kfrag = kfrag
 
     @classmethod
     def construct_by_publisher(cls,
+                               signer: Signer,
                                hrac: HRAC,
                                verified_kfrag: VerifiedKeyFrag,
-                               signer: Signer,
                                ) -> 'AuthorizedKeyFrag':
 
         # "un-verify" kfrag to keep further logic streamlined
         kfrag = KeyFrag.from_bytes(bytes(verified_kfrag))
 
-        # Alice makes plain to Ursula that, upon decrypting this message,
+        # Publisher makes plain to Ursula that, upon decrypting this message,
         # this particular KFrag is authorized for use in the policy identified by this HRAC.
-        kfrag_checksum = cls._kfrag_checksum(kfrag)
-        writ = bytes(hrac) + kfrag_checksum
-        writ_signature = signer.sign(writ)
+        signature = signer.sign(bytes(hrac) + bytes(kfrag))
 
-        # The writ and the KFrag together represent a complete kfrag kit: the entirety of
-        # the material needed for Ursula to assuredly service this policy.
-        return cls(hrac, kfrag_checksum, writ_signature, kfrag)
-
-    @staticmethod
-    def _kfrag_checksum(kfrag: KeyFrag) -> bytes:
-        return keccak_digest(bytes(kfrag))[:AuthorizedKeyFrag._WRIT_CHECKSUM_SIZE]
+        return cls(signature, kfrag)
 
     def _payload(self) -> bytes:
         """Returns the unversioned bytes serialized representation of this instance."""
-        return self.writ + bytes(self.writ_signature) + bytes(self.kfrag)
+        return bytes(self.signature) + bytes(self.kfrag)
 
     @classmethod
     def _brand(cls) -> bytes:
-        return b'AKF_'
+        return b'AKFr'
 
     @classmethod
     def _version(cls) -> Tuple[int, int]:
@@ -300,43 +231,62 @@ class AuthorizedKeyFrag(Versioned):
 
     @classmethod
     def _from_bytes_current(cls, data):
-        # TODO: should we check the signature right away here?
-
-        splitter = BytestringSplitter(
-            hrac_splitter,  # HRAC
-            (bytes, cls._WRIT_CHECKSUM_SIZE),  # kfrag checksum
-            signature_splitter,  # Publisher's signature
-            kfrag_splitter,
-        )
-
-        hrac, kfrag_checksum, writ_signature, kfrag = splitter(data)
-
-        # Check integrity
-        calculated_checksum = cls._kfrag_checksum(kfrag)
-        if calculated_checksum != kfrag_checksum:
-            raise ValueError("Incorrect KeyFrag checksum in the serialized data")
-
-        return cls(hrac, kfrag_checksum, writ_signature, kfrag)
+        splitter = BytestringSplitter(signature_splitter, kfrag_splitter)
+        signature, kfrag, remainder = splitter(data, return_remainder=True)
+        return cls(signature, kfrag), remainder
 
     def verify(self,
                hrac: HRAC,
-               author_verifying_key: PublicKey,
                publisher_verifying_key: PublicKey,
                ) -> VerifiedKeyFrag:
 
-        if not self.writ_signature.verify(message=self.writ, verifying_pk=publisher_verifying_key):
-            raise UnauthorizedKeyFragError("Writ is not signed by the provided publisher")
+        signed_message = bytes(hrac) + bytes(self.kfrag)
 
-        # TODO: should we keep HRAC in this object at all?
-        if self.hrac != hrac:  # Funky request
-            raise UnauthorizedKeyFragError("Incorrect HRAC")
+        if not self.signature.verify(message=signed_message, verifying_pk=publisher_verifying_key):
+            raise InvalidSignature("HRAC + KeyFrag are not signed by the provided publisher")
 
-        try:
-            verified_kfrag = self.kfrag.verify(verifying_pk=author_verifying_key)
-        except VerificationError:
-            raise UnauthorizedKeyFragError("KeyFrag is not signed by the provided author")
+        # Ursula has no side channel to get the KeyFrag author's key,
+        # so verifying the keyfrag is useless.
+        # TODO: assuming here that VerifiedKeyFrag and KeyFrag have the same byte representation;
+        # would it be more clear if `kfrag` had some method like `force_verify()`?
+        verified_kfrag = VerifiedKeyFrag.from_verified_bytes(bytes(self.kfrag))
 
         return verified_kfrag
+
+
+class EncryptedKeyFrag:
+
+    _splitter = BytestringSplitter(capsule_splitter, VariableLengthBytestring)
+
+    @classmethod
+    def author(cls, recipient_key: PublicKey, authorized_kfrag: AuthorizedKeyFrag):
+        # TODO: using Umbral for encryption to avoid introducing more crypto primitives.
+        # Most probably it is an overkill, unless it can be used somehow
+        # for Ursula-to-Ursula "baton passing".
+        capsule, ciphertext = umbral.encrypt(recipient_key, bytes(authorized_kfrag))
+        return cls(capsule, ciphertext)
+
+    def __init__(self, capsule: Capsule, ciphertext: bytes):
+        self.capsule = capsule
+        self.ciphertext = ciphertext
+
+    def decrypt(self, sk: SecretKey) -> AuthorizedKeyFrag:
+        cleartext = decrypt_original(sk, self.capsule, self.ciphertext)
+        return AuthorizedKeyFrag.from_bytes(cleartext)
+
+    def __bytes__(self):
+        return bytes(self.capsule) + bytes(VariableLengthBytestring(self.ciphertext))
+
+    # Ideally we would define a splitter here that would deserialize into an EKF,
+    # but due to BSS limitations it cannot be nested (since it doesn't have a definite size).
+    # So we have to define this helper method and use that instead.
+    @classmethod
+    def take(cls, data):
+        capsule, ciphertext, remainder = cls._splitter(data, return_remainder=True)
+        return cls(capsule, ciphertext), remainder
+
+    def __eq__(self, other):
+        return self.capsule == other.capsule and self.ciphertext == other.ciphertext
 
 
 class TreasureMap(Versioned):
@@ -345,14 +295,13 @@ class TreasureMap(Versioned):
                  threshold: int,
                  hrac: HRAC,
                  policy_encrypting_key: PublicKey,
-                 destinations: Dict[ChecksumAddress, MessageKit]):
+                 publisher_verifying_key: PublicKey,
+                 destinations: Dict[ChecksumAddress, EncryptedKeyFrag]):
         self.threshold = threshold
         self.destinations = destinations
         self.hrac = hrac
         self.policy_encrypting_key = policy_encrypting_key
-
-        # A little awkward, but saves us a key length in serialization
-        self.publisher_verifying_key = list(destinations.values())[0].sender_verifying_key
+        self.publisher_verifying_key = publisher_verifying_key
 
     def __iter__(self):
         return iter(self.destinations.items())
@@ -370,9 +319,9 @@ class TreasureMap(Versioned):
 
     @classmethod
     def construct_by_publisher(cls,
+                               signer: Signer,
                                hrac: HRAC,
                                policy_encrypting_key: PublicKey,
-                               signer: Signer,
                                assigned_kfrags: Mapping[ChecksumAddress, Tuple[PublicKey, VerifiedKeyFrag]],
                                threshold: int,
                                ) -> 'TreasureMap':
@@ -390,19 +339,19 @@ class TreasureMap(Versioned):
         destinations = {}
         for ursula_address, key_and_kfrag in assigned_kfrags.items():
             ursula_key, verified_kfrag = key_and_kfrag
-            # TODO: do we really need to sign the AuthorizedKeyFrag *and* the plaintext afterwards?
-            kfrag_payload = bytes(AuthorizedKeyFrag.construct_by_publisher(hrac=hrac,
-                                                                           verified_kfrag=verified_kfrag,
-                                                                           signer=signer))
-            encrypted_kfrag = MessageKit.author(recipient_key=ursula_key,
-                                                plaintext=kfrag_payload,
-                                                signer=signer)
+            authorized_kfrag = AuthorizedKeyFrag.construct_by_publisher(signer=signer,
+                                                                        hrac=hrac,
+                                                                        verified_kfrag=verified_kfrag,
+                                                                        )
+            encrypted_kfrag = EncryptedKeyFrag.author(recipient_key=ursula_key,
+                                                      authorized_kfrag=authorized_kfrag)
 
             destinations[ursula_address] = encrypted_kfrag
 
         return cls(threshold=threshold,
                    hrac=hrac,
                    policy_encrypting_key=policy_encrypting_key,
+                   publisher_verifying_key=signer.verifying_key(),
                    destinations=destinations)
 
     @classmethod
@@ -419,7 +368,16 @@ class TreasureMap(Versioned):
 
     def _payload(self) -> bytes:
         """Returns the unversioned bytes serialized representation of this instance."""
-        return self.threshold.to_bytes(1, "big") + bytes(self.hrac) + bytes(self.policy_encrypting_key) + self._nodes_as_bytes()
+        assigned_kfrags = b''.join(
+            to_canonical_address(ursula_address) + bytes(encrypted_kfrag)
+            for ursula_address, encrypted_kfrag in self.destinations.items()
+            )
+
+        return (self.threshold.to_bytes(1, "big") +
+                bytes(self.hrac) +
+                bytes(self.policy_encrypting_key) +
+                bytes(self.publisher_verifying_key) +
+                bytes(VariableLengthBytestring(assigned_kfrags)))
 
     @classmethod
     def _from_bytes_current(cls, data):
@@ -428,95 +386,108 @@ class TreasureMap(Versioned):
             (int, 1, {'byteorder': 'big'}),
             hrac_splitter,
             key_splitter,
+            key_splitter,
+            VariableLengthBytestring,
         )
 
-        ursula_and_kfrag_payload_splitter = BytestringSplitter(
-            (to_checksum_address, ETH_ADDRESS_BYTE_LENGTH),
-            (MessageKit, VariableLengthBytestring),
-        )
+        threshold, hrac, policy_encrypting_key, publisher_verifying_key, assigned_kfrags_bytes, remainder = main_splitter(data, return_remainder=True)
 
-        try:
-            threshold, hrac, policy_encrypting_key, remainder = main_splitter(data, return_remainder=True)
-            ursula_and_kfrags = ursula_and_kfrag_payload_splitter.repeat(remainder)
-        except BytestringSplittingError as e:
-            raise ValueError('Invalid treasure map contents.') from e
-        destinations = {u: k for u, k in ursula_and_kfrags}
-        return cls(threshold, hrac, policy_encrypting_key, destinations)
+        destinations = {}
+        while assigned_kfrags_bytes:
+            ursula_address, assigned_kfrags_bytes = checksum_address_splitter(assigned_kfrags_bytes, return_remainder=True)
+            ekf, assigned_kfrags_bytes = EncryptedKeyFrag.take(assigned_kfrags_bytes)
+            destinations[ursula_address] = ekf
+
+        return cls(threshold, hrac, policy_encrypting_key, publisher_verifying_key, destinations), remainder
 
     def encrypt(self,
                 signer: Signer,
                 recipient_key: PublicKey,
                 ) -> 'EncryptedTreasureMap':
-        return EncryptedTreasureMap.construct_by_publisher(treasure_map=self,
-                                                           signer=signer,
-                                                           recipient_key=recipient_key)
+        return EncryptedTreasureMap.construct_by_publisher(signer=signer,
+                                                           recipient_key=recipient_key,
+                                                           treasure_map=self)
 
-    def _nodes_as_bytes(self) -> bytes:
-        nodes_as_bytes = b""
-        for ursula_address, encrypted_kfrag in self.destinations.items():
-            node_id = to_canonical_address(ursula_address)
-            kfrag = bytes(VariableLengthBytestring(bytes(encrypted_kfrag)))
-            nodes_as_bytes += (node_id + kfrag)
-        return nodes_as_bytes
+
+class AuthorizedTreasureMap(Versioned):
+
+    @classmethod
+    def construct_by_publisher(cls,
+                               signer: Signer,
+                               recipient_key: PublicKey,
+                               treasure_map: TreasureMap
+                               ) -> 'AuthorizedTreasureMap':
+        payload = bytes(recipient_key) + bytes(treasure_map)
+        signature = signer.sign(payload)
+        return cls(signature, treasure_map)
+
+    def __init__(self, signature: Signature, treasure_map: TreasureMap):
+        self.signature = signature
+        self.treasure_map = treasure_map
+
+    @classmethod
+    def _brand(cls) -> bytes:
+        return b'AMap'
+
+    @classmethod
+    def _version(cls) -> Tuple[int, int]:
+        return 1, 0
+
+    @classmethod
+    def _old_version_handlers(cls) -> Dict:
+        return {}
+
+    def _payload(self) -> bytes:
+        """Returns the unversioned bytes serialized representation of this instance."""
+        return (bytes(self.signature) +
+                bytes(self.treasure_map))
+
+    @classmethod
+    def _from_bytes_current(cls, data):
+        signature, remainder = signature_splitter(data, return_remainder=True)
+        treasure_map, remainder = TreasureMap.take(remainder)
+        return cls(signature, treasure_map), remainder
+
+    def verify(self, recipient_key: PublicKey, publisher_verifying_key: PublicKey) -> TreasureMap:
+        payload = bytes(recipient_key) + bytes(self.treasure_map)
+        if not self.signature.verify(message=payload, verifying_pk=publisher_verifying_key):
+            raise InvalidSignature("This TreasureMap does not contain the correct signature "
+                                   "from the publisher.")
+        return self.treasure_map
 
 
 class EncryptedTreasureMap(Versioned):
 
-    def __init__(self,
-                 hrac: HRAC,
-                 public_signature: Signature,
-                 encrypted_tmap: MessageKit,
-                 ):
-
-        self.hrac = hrac
-        self._public_signature = public_signature
-        self.publisher_verifying_key = encrypted_tmap.sender_verifying_key
-        self._encrypted_tmap = encrypted_tmap
+    def __init__(self, capsule: Capsule, ciphertext: bytes):
+        self.capsule = capsule
+        self.ciphertext = ciphertext
 
     @classmethod
     def construct_by_publisher(cls,
+                               signer: Signer,
                                recipient_key: PublicKey,
                                treasure_map: TreasureMap,
-                               signer: Signer,
                                ) -> 'EncryptedTreasureMap':
+
+        # TODO: using Umbral for encryption to avoid introducing more crypto primitives.
+        # Most probably it is an overkill, unless it can be used somehow
+        # for Ursula-to-Ursula "baton passing".
+
         # TODO: `signer` here can be different from the one in TreasureMap, it seems.
         # Do we ever cross-check them? Do we want to enforce them to be the same?
-        encrypted_tmap = MessageKit.author(recipient_key=recipient_key,
-                                           plaintext=bytes(treasure_map),
-                                           signer=signer)
+        payload = AuthorizedTreasureMap.construct_by_publisher(signer=signer,
+                                                               recipient_key=recipient_key,
+                                                               treasure_map=treasure_map)
 
-        # TODO: what does `public_signature` achieve if we already have the map signed in
-        # `encrypted_tmap`?
-        public_signature = signer.sign(bytes(signer.verifying_key()) + bytes(treasure_map.hrac))
+        capsule, ciphertext = umbral.encrypt(recipient_key, bytes(payload))
+        return cls(capsule, ciphertext)
 
-        return cls(treasure_map.hrac, public_signature, encrypted_tmap)
-
-    def decrypt(self, sk: SecretKey, publisher_verifying_key: PublicKey) -> TreasureMap:
-        """
-        Decrypt the treasure map and ensure it is signed by the publisher.
-        """
-        if publisher_verifying_key != self.publisher_verifying_key:
-            raise ValueError("This TreasureMap was not created "
-                            f"by the expected publisher {publisher_verifying_key}")
-
-        try:
-            map_in_the_clear = self._encrypted_tmap.decrypt(sk)
-        except InvalidSignature as e:
-            raise InvalidSignature("This TreasureMap does not contain the correct signature "
-                                   "from the publisher.") from e
-
-        return TreasureMap.from_bytes(map_in_the_clear)
-
-    def _public_verify(self):
-        message = bytes(self.publisher_verifying_key) + bytes(self.hrac)
-        if not self._public_signature.verify(self.publisher_verifying_key, message=message):
-            raise InvalidSignature("This TreasureMap is not properly publicly signed by the publisher.")
+    def decrypt(self, sk: SecretKey) -> AuthorizedTreasureMap:
+        payload_bytes = decrypt_original(sk, self.capsule, self.ciphertext)
+        return AuthorizedTreasureMap.from_bytes(payload_bytes)
 
     def _payload(self) -> bytes:
-        return (bytes(self._public_signature) +
-                bytes(self.hrac) +
-                bytes(VariableLengthBytestring(bytes(self._encrypted_tmap)))
-                )
+        return bytes(self.capsule) + bytes(VariableLengthBytestring(self.ciphertext))
 
     @classmethod
     def _brand(cls) -> bytes:
@@ -532,24 +503,15 @@ class EncryptedTreasureMap(Versioned):
 
     @classmethod
     def _from_bytes_current(cls, data):
-
-        splitter = BytestringSplitter(
-            signature_splitter,  # public signature
-            hrac_splitter,  # HRAC
-            (MessageKit, VariableLengthBytestring),  # encrypted TreasureMap
-            )
-
-        try:
-            public_signature, hrac, message_kit = splitter(data)
-        except BytestringSplittingError as e:
-            raise ValueError('Invalid encrypted treasure map contents.') from e
-
-        result = cls(hrac, public_signature, message_kit)
-        result._public_verify()
-        return result
+        splitter = BytestringSplitter(capsule_splitter, VariableLengthBytestring)
+        capsule, ciphertext, remainder = splitter(data, return_remainder=True)
+        return cls(capsule, ciphertext), remainder
 
     def __eq__(self, other):
         return bytes(self) == bytes(other)
+
+    def __hash__(self):
+        return hash((self.__class__, bytes(self)))
 
 
 class ReencryptionRequest(Versioned):
@@ -562,11 +524,10 @@ class ReencryptionRequest(Versioned):
                           ursula_address: ChecksumAddress,
                           capsules: Sequence[Capsule],
                           treasure_map: TreasureMap,
-                          alice_verifying_key: PublicKey,
                           bob_verifying_key: PublicKey,
                           ) -> 'ReencryptionRequest':
         return cls(hrac=treasure_map.hrac,
-                   alice_verifying_key=alice_verifying_key,
+                   publisher_verifying_key=treasure_map.publisher_verifying_key,
                    bob_verifying_key=bob_verifying_key,
                    encrypted_kfrag=treasure_map.destinations[ursula_address],
                    capsules=capsules,
@@ -574,24 +535,23 @@ class ReencryptionRequest(Versioned):
 
     def __init__(self,
                  hrac: HRAC,
-                 alice_verifying_key: PublicKey,
+                 publisher_verifying_key: PublicKey,
                  bob_verifying_key: PublicKey,
-                 encrypted_kfrag: MessageKit,
+                 encrypted_kfrag: EncryptedKeyFrag,
                  capsules: List[Capsule]):
 
         self.hrac = hrac
-        self.alice_verifying_key = alice_verifying_key
-        self.publisher_verifying_key = encrypted_kfrag.sender_verifying_key
+        self.publisher_verifying_key = publisher_verifying_key
         self.bob_verifying_key = bob_verifying_key
         self.encrypted_kfrag = encrypted_kfrag
         self.capsules = capsules
 
     def _payload(self) -> bytes:
         return (bytes(self.hrac) +
-                bytes(self.alice_verifying_key) +
+                bytes(self.publisher_verifying_key) +
                 bytes(self.bob_verifying_key) +
-                VariableLengthBytestring(bytes(self.encrypted_kfrag)) +
-                b''.join(bytes(capsule) for capsule in self.capsules)
+                bytes(self.encrypted_kfrag) +
+                bytes(VariableLengthBytestring(b''.join(bytes(capsule) for capsule in self.capsules)))
                 )
 
     @classmethod
@@ -610,12 +570,13 @@ class ReencryptionRequest(Versioned):
     def _from_bytes_current(cls, data):
         splitter = (hrac_splitter +
                     key_splitter +
-                    key_splitter +
-                    BytestringSplitter((MessageKit, VariableLengthBytestring)))
+                    key_splitter)
 
-        hrac, alice_vk, bob_vk, ekfrag, remainder = splitter(data, return_remainder=True)
-        capsules = capsule_splitter.repeat(remainder)
-        return cls(hrac, alice_vk, bob_vk, ekfrag, capsules)
+        hrac, publisher_vk, bob_vk, remainder = splitter(data, return_remainder=True)
+        ekfrag, remainder = EncryptedKeyFrag.take(remainder)
+        capsule_bytes, remainder = variable_length_splitter(remainder, return_remainder=True)
+        capsules = capsule_splitter.repeat(capsule_bytes)
+        return cls(hrac, publisher_vk, bob_vk, ekfrag, capsules), remainder
 
 
 class ReencryptionResponse(Versioned):
@@ -625,9 +586,9 @@ class ReencryptionResponse(Versioned):
 
     @classmethod
     def construct_by_ursula(cls,
+                            signer: Signer,
                             capsules: List[Capsule],
                             cfrags: List[VerifiedCapsuleFrag],
-                            signer: Signer,
                             ) -> 'ReencryptionResponse':
 
         # un-verify
@@ -644,7 +605,7 @@ class ReencryptionResponse(Versioned):
 
     def _payload(self) -> bytes:
         """Returns the unversioned bytes serialized representation of this instance."""
-        return bytes(self.signature) + b''.join(bytes(cfrag) for cfrag in self.cfrags)
+        return bytes(self.signature) + bytes(VariableLengthBytestring(b''.join(bytes(cfrag) for cfrag in self.cfrags)))
 
     @classmethod
     def _brand(cls) -> bytes:
@@ -660,7 +621,8 @@ class ReencryptionResponse(Versioned):
 
     @classmethod
     def _from_bytes_current(cls, data):
-        signature, cfrags_bytes = signature_splitter(data, return_remainder=True)
+        splitter = BytestringSplitter(signature_splitter, VariableLengthBytestring)
+        signature, cfrags_bytes, remainder = splitter(data, return_remainder=True)
 
         # We would never send a request with no capsules, so there should be cfrags.
         # The splitter would fail anyway, this just makes the error message more clear.
@@ -668,7 +630,36 @@ class ReencryptionResponse(Versioned):
             raise ValueError(f"{cls.__name__} contains no cfrags")
 
         cfrags = cfrag_splitter.repeat(cfrags_bytes)
-        return cls(cfrags, signature)
+        return cls(cfrags, signature), remainder
+
+    def verify(self,
+               capsules: Sequence[Capsule],
+               alice_verifying_key: PublicKey,
+               ursula_verifying_key: PublicKey,
+               policy_encrypting_key: PublicKey,
+               bob_encrypting_key: PublicKey,
+               ) -> List[VerifiedCapsuleFrag]:
+
+        if len(capsules) != len(self.cfrags):
+            raise ValueError("Mismatched number of capsules and cfrags")
+
+        capsules_bytes = b''.join(bytes(capsule) for capsule in capsules)
+        cfrags_bytes = b''.join(bytes(cfrag) for cfrag in self.cfrags)
+
+        # Validate re-encryption signature
+        if not self.signature.verify(ursula_verifying_key, capsules_bytes + cfrags_bytes):
+            message = (f"{capsules} and {self.cfrags} "
+                        "are not properly signed by Ursula.")
+            raise InvalidSignature(message)
+
+        verified_cfrags = {}
+        for capsule, cfrag in zip(capsules, self.cfrags):
+            verified_cfrags[capsule] = cfrag.verify(capsule,
+                                                    verifying_pk=alice_verifying_key,
+                                                    delegating_pk=policy_encrypting_key,
+                                                    receiving_pk=bob_encrypting_key)
+
+        return verified_cfrags
 
 
 class RetrievalKit(Versioned):
@@ -689,7 +680,7 @@ class RetrievalKit(Versioned):
 
     def _payload(self) -> bytes:
         return (bytes(self.capsule) +
-                b''.join(to_canonical_address(address) for address in self.queried_addresses))
+                bytes(VariableLengthBytestring(b''.join(to_canonical_address(address) for address in self.queried_addresses))))
 
     @classmethod
     def _brand(cls) -> bytes:
@@ -705,12 +696,13 @@ class RetrievalKit(Versioned):
 
     @classmethod
     def _from_bytes_current(cls, data):
-        capsule, remainder = capsule_splitter(data, return_remainder=True)
-        if remainder:
-            addresses_as_bytes = checksum_address_splitter.repeat(remainder)
+        splitter = BytestringSplitter(capsule_splitter, VariableLengthBytestring)
+        capsule, addresses_bytes, remainder = splitter(data, return_remainder=True)
+        if addresses_bytes:
+            addresses = checksum_address_splitter.repeat(addresses_bytes)
         else:
-            addresses_as_bytes = ()
-        return cls(capsule, set(to_checksum_address(address) for address in addresses_as_bytes))
+            addresses = ()
+        return cls(capsule, addresses), remainder
 
 
 class RevocationOrder(Versioned):
@@ -720,14 +712,15 @@ class RevocationOrder(Versioned):
 
     @classmethod
     def author(cls,
+               signer: Signer,
                ursula_address: ChecksumAddress,
-               encrypted_kfrag: MessageKit,
-               signer: Signer) -> 'RevocationOrder':
+               encrypted_kfrag: EncryptedKeyFrag,
+               ) -> 'RevocationOrder':
             return cls(ursula_address=ursula_address,
                        encrypted_kfrag=encrypted_kfrag,
                        signature=signer.sign(cls._signed_payload(ursula_address, encrypted_kfrag)))
 
-    def __init__(self, ursula_address: ChecksumAddress, encrypted_kfrag: MessageKit, signature: Signature):
+    def __init__(self, ursula_address: ChecksumAddress, encrypted_kfrag: EncryptedKeyFrag, signature: Signature):
         self.ursula_address = ursula_address
         self.encrypted_kfrag = encrypted_kfrag
         self.signature = signature
@@ -743,7 +736,7 @@ class RevocationOrder(Versioned):
 
     @staticmethod
     def _signed_payload(ursula_address, encrypted_kfrag):
-        return to_canonical_address(ursula_address) + bytes(VariableLengthBytestring(bytes(encrypted_kfrag)))
+        return to_canonical_address(ursula_address) + bytes(encrypted_kfrag)
 
     def verify_signature(self, alice_verifying_key: PublicKey) -> bool:
         """
@@ -768,47 +761,115 @@ class RevocationOrder(Versioned):
         return {}
 
     def _payload(self) -> bytes:
-        return self._signed_payload(self.ursula_address, self.encrypted_kfrag) + bytes(self.signature)
+        return bytes(self.signature) + self._signed_payload(self.ursula_address, self.encrypted_kfrag)
 
     @classmethod
     def _from_bytes_current(cls, data):
         splitter = BytestringSplitter(
+            signature_splitter,
             checksum_address_splitter,  # ursula canonical address
-            VariableLengthBytestring,  # MessageKit
-            signature_splitter
         )
-        ursula_canonical_address, ekfrag_bytes, signature = splitter(data)
-        ekfrag = MessageKit.from_bytes(ekfrag_bytes)
-        ursula_address = to_checksum_address(ursula_canonical_address)
-        return cls(ursula_address=ursula_address,
-                   encrypted_kfrag=ekfrag,
-                   signature=signature)
+        signature, ursula_address, remainder = splitter(data, return_remainder=True)
+        ekfrag, remainder = EncryptedKeyFrag.take(remainder)
+        obj = cls(ursula_address=ursula_address,
+                  encrypted_kfrag=ekfrag,
+                  signature=signature)
+        return obj, remainder
+
+
+class NodeMetadataPayload(NamedTuple):
+
+    public_address: bytes
+    domain: str
+    timestamp_epoch: int
+    verifying_key: PublicKey
+    encrypting_key: PublicKey
+    certificate_bytes: bytes # serialized `cryptography.x509.Certificate`
+    host: str
+    port: int
+    decentralized_identity_evidence: Optional[bytes] # TODO: make its own type?
+
+    _splitter = BytestringSplitter(
+        (bytes, ETH_ADDRESS_BYTE_LENGTH), # public_address
+        VariableLengthBytestring, # domain_bytes
+        (int, 4, {'byteorder': 'big'}), # timestamp_epoch
+        key_splitter, # verifying_key
+        key_splitter, # encrypting_key
+        VariableLengthBytestring, # certificate_bytes
+        VariableLengthBytestring, # host_bytes
+        (int, 2, {'byteorder': 'big'}), # port
+        )
+
+    def __bytes__(self):
+        as_bytes = bytes().join((self.public_address,
+                                 bytes(VariableLengthBytestring(self.domain.encode('utf-8'))),
+                                 self.timestamp_epoch.to_bytes(4, 'big'),
+                                 bytes(self.verifying_key),
+                                 bytes(self.encrypting_key),
+                                 bytes(VariableLengthBytestring(self.certificate_bytes)),
+                                 bytes(VariableLengthBytestring(self.host.encode('utf-8'))),
+                                 self.port.to_bytes(2, 'big'),
+                                 serialize_optional(self.decentralized_identity_evidence),
+                                ))
+        return as_bytes
+
+    @classmethod
+    def take(cls, data):
+        *fields, remainder = cls._splitter(data, return_remainder=True)
+
+        (public_address,
+         domain,
+         timestamp_epoch,
+         verifying_key,
+         encrypting_key,
+         certificate_bytes,
+         host,
+         port,
+         ) = fields
+
+        decentralized_identity_evidence, remainder = take_optional(take_decentralized_identity_evidence, remainder)
+
+        obj = cls(public_address=public_address,
+                  domain=domain.decode('utf-8'),
+                  timestamp_epoch=timestamp_epoch,
+                  verifying_key=verifying_key,
+                  encrypting_key=encrypting_key,
+                  certificate_bytes=certificate_bytes,
+                  host=host.decode('utf-8'),
+                  port=port,
+                  decentralized_identity_evidence=decentralized_identity_evidence,
+                  )
+
+        return obj, remainder
+
+    @classmethod
+    def from_bytes(cls, data):
+        obj, remainder = cls.take(data)
+        if remainder:
+            raise ValueError(f"{len(remainder)} bytes remaining after deserializing {cls}")
+        return obj
 
 
 class NodeMetadata(Versioned):
 
-    def __init__(self,
-                 public_address: bytes,
-                 domain: str,
-                 timestamp_epoch: int,
-                 interface_signature: Signature, # sign(timestamp + canonical_public_address + host + port)
-                 decentralized_identity_evidence: bytes, # TODO: make its own type?
-                 verifying_key: PublicKey,
-                 encrypting_key: PublicKey,
-                 certificate_bytes: bytes, # serialized `cryptography.x509.Certificate`
-                 host: str,
-                 port: int,
-                 ):
-        self.public_address = public_address
-        self.domain = domain
-        self.timestamp_epoch = timestamp_epoch
-        self.interface_signature = interface_signature
-        self.decentralized_identity_evidence = decentralized_identity_evidence
-        self.verifying_key = verifying_key
-        self.encrypting_key = encrypting_key
-        self.certificate_bytes = certificate_bytes
-        self.host = host
-        self.port = port
+    @classmethod
+    def author(cls, signer: Signer, **kwds):
+        payload = NodeMetadataPayload(**kwds)
+        signature = signer.sign(bytes(payload))
+        # TODO: we can cache payload bytes here, for later use in serialization/verification
+        return cls(signature=signature, payload=payload)
+
+    def __init__(self, signature: Signature, payload: NodeMetadataPayload):
+        self.signature = signature
+        self._metadata_payload = payload
+        for name, value in payload._asdict().items():
+            setattr(self, name, value)
+
+    def verify(self) -> bool:
+        # Note: in order for this to make sense, `verifying_key` must be checked independently.
+        # Currently it is done in `validate_worker()` (using `decentralized_identity_evidence`)
+        # TODO: do this on deserialization?
+        return self.signature.verify(message=bytes(self._metadata_payload), verifying_pk=self.verifying_key)
 
     @classmethod
     def _brand(cls) -> bytes:
@@ -823,59 +884,21 @@ class NodeMetadata(Versioned):
         return {}
 
     def _payload(self):
-        as_bytes = bytes().join((self.public_address,
-                                 bytes(VariableLengthBytestring(self.domain.encode('utf-8'))),
-                                 self.timestamp_epoch.to_bytes(4, 'big'),
-                                 bytes(self.interface_signature),
-                                 bytes(VariableLengthBytestring(self.decentralized_identity_evidence)),  # FIXME: Fixed length doesn't work with federated
-                                 bytes(self.verifying_key),
-                                 bytes(self.encrypting_key),
-                                 bytes(VariableLengthBytestring(self.certificate_bytes)),
-                                 bytes(VariableLengthBytestring(self.host.encode('utf-8'))),
-                                 self.port.to_bytes(2, 'big'),
-                                ))
-        return as_bytes
+        return bytes(self.signature) + bytes(self._metadata_payload)
 
     @classmethod
     def _from_bytes_current(cls, data: bytes):
-        splitter = BytestringKwargifier(
-            dict,
-            public_address=ETH_ADDRESS_BYTE_LENGTH,
-            domain_bytes=VariableLengthBytestring,
-            timestamp_epoch=(int, 4, {'byteorder': 'big'}),
-            interface_signature=signature_splitter,
-
-            # FIXME: Fixed length doesn't work with federated. It was LENGTH_ECDSA_SIGNATURE_WITH_RECOVERY,
-            decentralized_identity_evidence=VariableLengthBytestring,
-
-            verifying_key=key_splitter,
-            encrypting_key=key_splitter,
-            certificate_bytes=VariableLengthBytestring,
-            host_bytes=VariableLengthBytestring,
-            port=(int, 2, {'byteorder': 'big'}),
-            )
-
-        result = splitter(data)
-
-        return cls(public_address=result['public_address'],
-                   domain=result['domain_bytes'].decode('utf-8'),
-                   timestamp_epoch=result['timestamp_epoch'],
-                   interface_signature=result['interface_signature'],
-                   decentralized_identity_evidence=result['decentralized_identity_evidence'],
-                   verifying_key=result['verifying_key'],
-                   encrypting_key=result['encrypting_key'],
-                   certificate_bytes=result['certificate_bytes'],
-                   host=result['host_bytes'].decode('utf-8'),
-                   port=result['port'],
-                   )
+        signature, remainder = signature_splitter(data, return_remainder=True)
+        payload, remainder = NodeMetadataPayload.take(remainder)
+        return cls(signature=signature, payload=payload), remainder
 
     @classmethod
-    def batch_from_bytes(cls, data: bytes):
-
-        node_splitter = BytestringSplitter(VariableLengthBytestring)
-        nodes_vbytes = node_splitter.repeat(data)
-
-        return [cls.from_bytes(node_data) for node_data in nodes_vbytes]
+    def _batch_from_bytes(cls, data: bytes):
+        nodes = []
+        while data:
+            node, data = cls.take(data)
+            nodes.append(node)
+        return nodes
 
 
 class MetadataRequest(Versioned):
@@ -904,30 +927,28 @@ class MetadataRequest(Versioned):
 
     def _payload(self):
         if self.announce_nodes:
-            nodes_bytes = bytes().join(bytes(VariableLengthBytestring(bytes(n))) for n in self.announce_nodes)
+            nodes_bytes = b''.join(bytes(n) for n in self.announce_nodes)
         else:
             nodes_bytes = b''
-        return bytes.fromhex(self.fleet_state_checksum) + nodes_bytes
+        return bytes.fromhex(self.fleet_state_checksum) + bytes(VariableLengthBytestring(nodes_bytes))
 
     @classmethod
     def _from_bytes_current(cls, data):
-        fleet_state_checksum_bytes, nodes_bytes = cls._fleet_state_checksum_splitter(data, return_remainder=True)
+        splitter = BytestringSplitter(
+            (bytes, 32), # fleet state checksum
+            VariableLengthBytestring,
+            )
+        fleet_state_checksum_bytes, nodes_bytes, remainder = splitter(data, return_remainder=True)
         if nodes_bytes:
-            nodes = NodeMetadata.batch_from_bytes(nodes_bytes)
+            nodes = NodeMetadata._batch_from_bytes(nodes_bytes)
         else:
             nodes = None
-        return cls(fleet_state_checksum=fleet_state_checksum_bytes.hex(),
-                   announce_nodes=nodes)
+        obj = cls(fleet_state_checksum=fleet_state_checksum_bytes.hex(),
+                  announce_nodes=nodes)
+        return obj, remainder
 
 
 class MetadataResponse(Versioned):
-
-    _splitter = BytestringSplitter(
-        (int, 4, {'byteorder': 'big'}),
-        VariableLengthBytestring,
-        VariableLengthBytestring,
-        signature_splitter,
-        )
 
     @classmethod
     def author(cls,
@@ -946,10 +967,10 @@ class MetadataResponse(Versioned):
     @staticmethod
     def _signed_payload(timestamp_epoch, this_node, other_nodes):
         timestamp = timestamp_epoch.to_bytes(4, byteorder="big")
-        nodes_payload = b''.join(bytes(VariableLengthBytestring(bytes(node))) for node in other_nodes) if other_nodes else b''
+        nodes_payload = b''.join(bytes(node) for node in other_nodes) if other_nodes else b''
         return (
             timestamp +
-            bytes(VariableLengthBytestring(bytes(this_node) if this_node else b'')) +
+            serialize_optional(this_node) +
             bytes(VariableLengthBytestring(nodes_payload))
             )
 
@@ -983,14 +1004,22 @@ class MetadataResponse(Versioned):
 
     def _payload(self):
         payload = self._signed_payload(self.timestamp_epoch, self.this_node, self.other_nodes)
-        return payload + bytes(self.signature)
+        return bytes(self.signature) + payload
 
     @classmethod
     def _from_bytes_current(cls, data: bytes):
-        timestamp_epoch, maybe_this_node, maybe_other_nodes, signature = cls._splitter(data)
-        this_node = NodeMetadata.from_bytes(maybe_this_node) if maybe_this_node else None
-        other_nodes = NodeMetadata.batch_from_bytes(maybe_other_nodes) if maybe_other_nodes else None
-        return cls(signature=signature,
-                   timestamp_epoch=timestamp_epoch,
-                   this_node=this_node,
-                   other_nodes=other_nodes)
+
+        splitter = BytestringSplitter(
+                signature_splitter,
+                (int, 4, {'byteorder': 'big'}),
+                )
+
+        signature, timestamp_epoch, remainder = splitter(data, return_remainder=True)
+        this_node, remainder = take_optional(NodeMetadata.take, remainder)
+        maybe_other_nodes, remainder = variable_length_splitter(remainder, return_remainder=True)
+        other_nodes = NodeMetadata._batch_from_bytes(maybe_other_nodes) if maybe_other_nodes else None
+        obj = cls(signature=signature,
+                  timestamp_epoch=timestamp_epoch,
+                  this_node=this_node,
+                  other_nodes=other_nodes)
+        return obj, remainder

@@ -129,7 +129,7 @@ def test_retrieve_cfrags(blockchain_porter,
     # check that the re-encryption performed was valid
     treasure_map = retrieve_args['treasure_map']
     policy_message_kit = PolicyMessageKit.from_message_kit(message_kit=message_kit,
-                                                           policy_key=enacted_policy.public_key,
+                                                           policy_encrypting_key=enacted_policy.public_key,
                                                            threshold=treasure_map.threshold)
     assert len(retrieval_results) == 1
     field = RetrievalResultSchema()

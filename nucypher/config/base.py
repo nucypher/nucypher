@@ -52,7 +52,6 @@ from nucypher.config.storages import (
 from nucypher.config.util import cast_paths_from
 from nucypher.crypto.keystore import Keystore
 from nucypher.crypto.powers import CryptoPower, CryptoPowerUp
-from nucypher.crypto.umbral_adapter import Signature
 from nucypher.network.middleware import RestMiddleware
 from nucypher.utilities.logging import Logger
 
@@ -378,7 +377,6 @@ class CharacterConfiguration(BaseConfiguration):
                  # Network
                  controller_port: int = None,
                  domain: str = DEFAULT_DOMAIN,
-                 interface_signature: Signature = None,
                  network_middleware: RestMiddleware = None,
                  lonely: bool = False,
 
@@ -529,7 +527,6 @@ class CharacterConfiguration(BaseConfiguration):
         # Network
         self.controller_port = controller_port or self.DEFAULT_CONTROLLER_PORT
         self.network_middleware = network_middleware or self.DEFAULT_NETWORK_MIDDLEWARE(registry=self.registry)
-        self.interface_signature = interface_signature
 
         super().__init__(filepath=self.config_file_location, config_root=self.config_root)
 

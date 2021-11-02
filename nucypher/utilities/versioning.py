@@ -93,12 +93,24 @@ class Versioned(ABC):
         raise NotImplementedError
 
     @classmethod
-    def from_bytes(cls, data: bytes):
-        """"Public deserialization API"""
+    def take(cls, data: bytes):
+        """
+        Deserializes the object from the given bytestring
+        and returns the object and the remainder of the bytestring.
+        """
         brand, version, payload = cls._parse_header(data)
         version = cls._resolve_version(version=version)
         handlers = cls._deserializers()
-        return handlers[version](payload)
+        obj, remainder = handlers[version](payload)
+        return obj, remainder
+
+    @classmethod
+    def from_bytes(cls, data: bytes):
+        """"Public deserialization API"""
+        obj, remainder = cls.take(data)
+        if remainder:
+            raise ValueError(f"{len(remainder)} bytes remaining after deserializing {cls}")
+        return obj
 
     @classmethod
     def _resolve_version(cls, version: Tuple[int, int]) -> Tuple[int, int]:

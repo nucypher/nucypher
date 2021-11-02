@@ -103,13 +103,10 @@ def test_alice_refuses_to_select_node_unless_ursula_is_valid(blockchain_alice,
 
     target = list(blockchain_ursulas)[2]
     # First, let's imagine that Alice has sampled a Vladimir while making this policy.
-    vladimir = Vladimir.from_target_ursula(target)
+    vladimir = Vladimir.from_target_ursula(target,
+                                           substitute_verifying_key=True,
+                                           sign_metadata=True)
 
-    message = vladimir._signable_interface_info_message()
-    signature = vladimir._crypto_power.power_ups(SigningPower).sign(message)
-
-    vladimir._Ursula__substantiate_stamp()
-    vladimir._Teacher__interface_signature = signature
     vladimir.node_storage.store_node_certificate(certificate=target.certificate, port=vladimir.rest_interface.port)
 
     # Ideally, a fishy node will be present in `known_nodes`,
