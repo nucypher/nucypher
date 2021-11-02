@@ -31,7 +31,6 @@ from constant_sorrow.constants import (
     NOT_SIGNED,
     NO_STORAGE_AVAILABLE,
     RELAX,
-    UNKNOWN_VERSION
 )
 from cryptography.x509 import Certificate, load_pem_x509_certificate
 from cryptography.hazmat.backends import default_backend
@@ -338,7 +337,6 @@ class Learner:
         self._learning_round = 0  # type: int
         self._rounds_without_new_nodes = 0  # type: int
         self._seed_nodes = seed_nodes or []
-        self.unresponsive_seed_nodes = set()
 
         if self.start_learning_now and not self.lonely:
             self.start_learning_loop(now=self.learn_on_same_thread)
@@ -368,36 +366,35 @@ class Learner:
                                                                        federated_only=self.federated_only,
                                                                        network_middleware=self.network_middleware,
                                                                        registry=self.registry)
-                except NodeSeemsToBeDown:
-                    self.unresponsive_seed_nodes.add(uri)
+                except Exception as e:
+                    # TODO: log traceback here?
+                    # TODO: distinguish between versioning errors and other errors?
+                    self.log.warn(f"Failed to instantiate a node at {uri}: {e}")
                 else:
-                    if maybe_sage_node is UNKNOWN_VERSION:
-                        continue
-                    else:
-                        new_node = self.remember_node(maybe_sage_node, record_fleet_state=False)
-                        discovered.append(new_node)
+                    new_node = self.remember_node(maybe_sage_node, record_fleet_state=False)
+                    discovered.append(new_node)
 
         for seednode_metadata in self._seed_nodes:
 
-            self.log.debug(
-                "Seeding from: {}|{}:{}".format(seednode_metadata.checksum_address,
-                                                seednode_metadata.rest_host,
-                                                seednode_metadata.rest_port))
+            node_tag = "{}|{}:{}".format(seednode_metadata.checksum_address,
+                                         seednode_metadata.rest_host,
+                                         seednode_metadata.rest_port)
 
-            seed_node = self.node_class.from_seednode_metadata(seednode_metadata=seednode_metadata,
-                                                               network_middleware=self.network_middleware,
-                                                               )
-            if seed_node is False:
-                self.unresponsive_seed_nodes.add(seednode_metadata)
-            elif seed_node is UNKNOWN_VERSION:
-                continue  # TODO: Bucket this?  We already emitted a warning.
+            self.log.debug(f"Seeding from: {node_tag}")
+
+            try:
+                seed_node = self.node_class.from_seednode_metadata(seednode_metadata=seednode_metadata,
+                                                                   network_middleware=self.network_middleware,
+                                                                   )
+            except Exception as e:
+                # TODO: log traceback here?
+                # TODO: distinguish between versioning errors and other errors?
+                self.log.warn(f"Failed to instantiate a node {node_tag}: {e}")
             else:
-                self.unresponsive_seed_nodes.discard(seednode_metadata)
                 new_node = self.remember_node(seed_node, record_fleet_state=False)
                 discovered.append(new_node)
 
-        if not self.unresponsive_seed_nodes:
-            self.log.info("Finished learning about all seednodes.")
+        self.log.info("Finished learning about all seednodes.")
 
         self.done_seeding = True
 
@@ -1009,10 +1006,6 @@ class Teacher:
 
     class WrongMode(TypeError):
         """Raised when a Character tries to use another Character as decentralized when the latter is federated_only."""
-
-    unknown_version_message = "{} purported to be of version {}, but we're version {}."
-    really_unknown_version_message = "Unable to glean address from node that purported to be version {}. " \
-                                     "We're version {}."
 
     @classmethod
     def set_cert_storage_function(cls, node_storage_function: Callable):
