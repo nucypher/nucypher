@@ -1006,12 +1006,11 @@ class Ursula(Teacher, Character, Worker):
     def metadata(self):
         if not self._metadata:
             self._metadata = self._generate_metadata()
-            self._timestamp = maya.MayaDT(self._metadata.timestamp_epoch)
         return self._metadata
 
     @property
     def timestamp(self):
-        return maya.MayaDT(self._metadata.timestamp_epoch)
+        return maya.MayaDT(self.metadata().timestamp_epoch)
 
     #
     # Alternate Constructors
