@@ -1,0 +1,1 @@
+Fixed a missing timestamp error when a node's status is requested before it participated in metadata exchange.
