@@ -79,8 +79,15 @@ def test_blockchain_ursula_stamp_verification_tolerance(blockchain_ursulas, mock
         return bytes(response)
 
     mocker.patch.object(blockchain_teacher, 'bytestring_of_known_nodes', bad_bytestring_of_known_nodes)
+
+    globalLogPublisher.addObserver(warning_trapper)
     lonely_blockchain_learner.learn_from_teacher_node(eager=True)
-    assert len(lonely_blockchain_learner.suspicious_activities_witnessed['vladimirs']) == 1
+    globalLogPublisher.removeObserver(warning_trapper)
+
+    assert len(warnings) == 2
+    warning = warnings[1]['log_format']
+    assert str(blockchain_teacher) in warning
+    assert "Invalid signature received from teacher" in warning  # TODO: Cleanup logging templates
 
 
 @pytest.mark.skip("See Issue #1075")  # TODO: Issue #1075

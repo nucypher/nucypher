@@ -20,6 +20,7 @@ import datetime
 
 import maya
 import pytest
+from twisted.logger import LogLevel, globalLogPublisher
 
 from nucypher.blockchain.eth.agents import ContractAgency, StakingEscrowAgent
 from nucypher.acumen.nicknames import Nickname
@@ -67,6 +68,14 @@ def test_vladimir_illegal_interface_key_does_not_propagate(blockchain_ursulas):
     check will catch it and Ursula will refuse to propagate it and also record Vladimir's
     details.
     """
+
+    warnings = []
+
+    def warning_trapper(event):
+        if event['log_level'] == LogLevel.warn:
+            warnings.append(event)
+
+
     ursulas = list(blockchain_ursulas)
     ursula_whom_vladimir_will_imitate, other_ursula = ursulas[0], ursulas[1]
 
@@ -76,10 +85,12 @@ def test_vladimir_illegal_interface_key_does_not_propagate(blockchain_ursulas):
     # This Ursula is totally legit...
     ursula_whom_vladimir_will_imitate.verify_node(MockRestMiddleware())
 
+    globalLogPublisher.addObserver(warning_trapper)
     vladimir.network_middleware.propagate_shitty_interface_id(other_ursula, vladimir.metadata())
+    globalLogPublisher.removeObserver(warning_trapper)
 
     # So far, Ursula hasn't noticed any Vladimirs.
-    assert other_ursula.suspicious_activities_witnessed['vladimirs'] == []
+    assert len(warnings) == 0
 
     # ...but now, Ursula will now try to learn about Vladimir on a different thread.
     other_ursula.block_until_specific_nodes_are_known([vladimir.checksum_address])
@@ -87,12 +98,18 @@ def test_vladimir_illegal_interface_key_does_not_propagate(blockchain_ursulas):
 
     # OK, so cool, let's see what happens when Ursula tries to learn with Vlad as the teacher.
     other_ursula._current_teacher_node = vladimir_as_learned
+
+    globalLogPublisher.addObserver(warning_trapper)
     result = other_ursula.learn_from_teacher_node()
+    globalLogPublisher.removeObserver(warning_trapper)
 
-    # FIXME: These two asserts are missing, restoring them leads to failure
     # Indeed, Ursula noticed that something was up.
-    # assert vladimir in other_ursula.suspicious_activities_witnessed['vladimirs']
+    assert len(warnings) == 1
+    warning = warnings[0]['log_format']
+    assert "Teacher " + str(vladimir_as_learned) + " is invalid" in warning
+    assert "Metadata signature is invalid" in warning  # TODO: Cleanup logging templates
 
+    # TODO (#567)
     # ...and booted him from known_nodes
     # assert vladimir not in other_ursula.known_nodes
 
