@@ -15,18 +15,14 @@ You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
-
-import datetime
-
-import maya
 import pytest
+from constant_sorrow.constants import UNVERIFIED, INVALID
 
-from nucypher.blockchain.eth.agents import ContractAgency, StakingEscrowAgent
 from nucypher.acumen.nicknames import Nickname
 from nucypher.acumen.perception import FleetSensor
+from nucypher.blockchain.eth.agents import ContractAgency, StakingEscrowAgent
 from nucypher.characters.unlawful import Vladimir
 from nucypher.config.constants import TEMPORARY_DOMAIN
-from nucypher.crypto.powers import SigningPower
 from tests.utils.middleware import MockRestMiddleware
 
 
@@ -55,6 +51,8 @@ def test_blockchain_alice_finds_ursula_via_rest(blockchain_alice, blockchain_urs
 
     for ursula in blockchain_ursulas:
         assert ursula in blockchain_alice.known_nodes
+        # ursulas labelled appropriately
+        assert blockchain_alice.known_nodes.get_label(ursula.checksum_address) == UNVERIFIED
 
 
 def test_vladimir_illegal_interface_key_does_not_propagate(blockchain_ursulas):
@@ -84,13 +82,22 @@ def test_vladimir_illegal_interface_key_does_not_propagate(blockchain_ursulas):
     # ...but now, Ursula will now try to learn about Vladimir on a different thread.
     other_ursula.block_until_specific_nodes_are_known([vladimir.checksum_address])
     vladimir_as_learned = other_ursula.known_nodes[vladimir.checksum_address]
+    assert other_ursula.known_nodes.get_label(vladimir.checksum_address) == UNVERIFIED
 
     # OK, so cool, let's see what happens when Ursula tries to learn with Vlad as the teacher.
     other_ursula._current_teacher_node = vladimir_as_learned
     result = other_ursula.learn_from_teacher_node()
 
+    assert other_ursula.known_nodes.get_label(vladimir.checksum_address) == INVALID
+
+    # it does detect invalid but the node is considered to be the original Ursula not vladimir
+    assert len(other_ursula.suspicious_activities_witnessed['vladimirs']) == 1
+
     # FIXME: These two asserts are missing, restoring them leads to failure
     # Indeed, Ursula noticed that something was up.
+    # unsure why the entry is not validimir but rather seems to be the original ursula...
+    # failure: (Vladimir)⇀DarkOrchid Charlie FireBrick Three↽ (0xbad022A87Df21E4c787C7B1effD5077014b8CC45) in [(Ursula)⇀DarkOrchid Charlie FireBrick Three↽ (0xbad022A87Df21E4c787C7B1effD5077014b8CC45)]
+
     # assert vladimir in other_ursula.suspicious_activities_witnessed['vladimirs']
 
     # ...and booted him from known_nodes

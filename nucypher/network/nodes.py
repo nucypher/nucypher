@@ -39,16 +39,13 @@ from constant_sorrow.constants import (
     UNSTAKED,
     UNBONDED,
     VERIFIED,
-    UNVERIFIED
 )
-from cryptography.x509 import Certificate, load_pem_x509_certificate
 from cryptography.hazmat.backends import default_backend
+from cryptography.x509 import Certificate, load_pem_x509_certificate
 from eth_utils import to_checksum_address
 from requests.exceptions import SSLError
 from twisted.internet import reactor, task
 from twisted.internet.defer import Deferred
-
-from nucypher.core import NodeMetadata, MetadataResponse
 
 from nucypher.acumen.nicknames import Nickname
 from nucypher.acumen.perception import FleetSensor
@@ -59,6 +56,7 @@ from nucypher.blockchain.eth.networks import NetworksInventory
 from nucypher.blockchain.eth.registry import BaseContractRegistry
 from nucypher.config.constants import SeednodeMetadata
 from nucypher.config.storages import ForgetfulNodeStorage
+from nucypher.core import NodeMetadata, MetadataResponse
 from nucypher.crypto.powers import (
     CryptoPower,
     DecryptingPower,
@@ -456,11 +454,7 @@ class Learner:
                 # This node is already known.  We can safely return.
                 return False
 
-        self.known_nodes.record_node(node)  # FIXME - dont always remember nodes, bucket them.
-        unlabelled = self.known_nodes.get_label(node.checksum_address) is None
-        if unlabelled:
-            # Only new nodes - don't relabel prior known nodes here
-            self.known_nodes.label(node=node, label=UNVERIFIED)
+        self.known_nodes.record_node(node)  # store new node or update already stored node
 
         if self.save_metadata:
             self.node_storage.store_node_metadata(node=node)
@@ -534,6 +528,7 @@ class Learner:
             self.known_nodes.label(node=node, label=SUSPICIOUS)
             self.log.warn(f"Suspicious Activity: Discovered node with bad signature: {node}.")
             return False
+
         else:
             if node.verified_node:
                 self.known_nodes.label(node=node, label=VERIFIED)
@@ -860,7 +855,6 @@ class Learner:
             self.known_nodes.label(node=current_teacher, label=INVALID)
             unresponsive_nodes.add(current_teacher)  # This does nothing.
             self.log.warn(f"Teacher {str(current_teacher)} is invalid (hex={bytes(current_teacher.metadata()).hex()}):{e}.")
-
             self.suspicious_activities_witnessed['vladimirs'].append(current_teacher)
             return
         except RuntimeError as e:

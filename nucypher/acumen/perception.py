@@ -16,21 +16,21 @@
 """
 
 
+import itertools
 import random
 import weakref
 from collections import defaultdict
 from collections.abc import KeysView
-from typing import Optional, Dict, Iterable, List, Tuple, NamedTuple, Union, Any, Set
+from typing import Optional, Dict, Iterable, List, NamedTuple, Union, Any
 
-import binascii
-import itertools
 import maya
+from constant_sorrow.constants import UNVERIFIED
 from eth_typing import ChecksumAddress
 
-from .comprehension import NODE_BUCKETS
-from ..crypto.utils import keccak_digest
 from nucypher.utilities.logging import Logger
+from .comprehension import NODE_BUCKETS
 from .nicknames import Nickname
+from ..crypto.utils import keccak_digest
 
 
 class ArchivedFleetState(NamedTuple):
@@ -265,11 +265,18 @@ class FleetSensor:
             # (where a newer object with the same `checksum_address` replaces an older one).
             if node in self._nodes_to_add:
                 self._nodes_to_add.remove(node)
+                # TODO should node be relabelled as unverified here
             self._nodes_to_add.add(node)
 
             if self._auto_update_state:
                 self.log.info(f"Updating fleet state after saving node {node}")
                 self.record_fleet_state()
+
+            # ensure node is tracked for labelling
+            unlabelled = self.get_label(node.checksum_address) is None
+            if unlabelled:
+                # Only new nodes - don't relabel prior known nodes here
+                self.label(node=node, label=UNVERIFIED)
         else:
             msg = f"Rejected node {node} because its domain is '{node.domain}' but we're only tracking '{self._domain}'"
             self.log.warn(msg)

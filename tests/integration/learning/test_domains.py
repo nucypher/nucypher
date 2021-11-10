@@ -16,6 +16,8 @@
 """
 from pathlib import Path
 
+from constant_sorrow.constants import UNVERIFIED
+
 from nucypher.acumen.perception import FleetSensor
 from nucypher.characters.lawful import Ursula
 from nucypher.config.storages import LocalFileBasedNodeStorage
@@ -37,6 +39,9 @@ def test_learner_learns_about_domains_separately(lonely_ursula_maker, caplog):
 
     # All domain 1 nodes
     assert len(hero_learner.known_nodes) == 2
+    # Nodes initially labelled
+    assert hero_learner.known_nodes.get_label(other_first_domain_learner.checksum_address) == UNVERIFIED
+    assert hero_learner.known_nodes.get_label(_nobody.checksum_address) == UNVERIFIED
 
     # Learn about the second domain.
     hero_learner._current_teacher_node = second_domain_learners.pop()
@@ -59,6 +64,10 @@ def test_learner_learns_about_domains_separately(lonely_ursula_maker, caplog):
     assert hero_learner in new_first_domain_learner.known_nodes
     assert other_first_domain_learner in new_first_domain_learner.known_nodes
     assert _nobody in new_first_domain_learner.known_nodes
+
+    assert new_first_domain_learner.known_nodes.get_label(hero_learner.checksum_address) == UNVERIFIED
+    assert new_first_domain_learner.known_nodes.get_label(other_first_domain_learner.checksum_address) == UNVERIFIED
+    assert new_first_domain_learner.known_nodes.get_label(_nobody.checksum_address) == UNVERIFIED
 
 
 def test_learner_restores_metadata_from_storage(lonely_ursula_maker, tmpdir):
@@ -114,6 +123,7 @@ def test_learner_ignores_stored_nodes_from_other_domains(lonely_ursula_maker, tm
     # Prior to #2423, learner remembered pest because POSTed node metadata was not domain-checked.
     # This is how ibex nodes initially made their way into mainnet fleet states.
     assert pest not in learner.known_nodes  # But not anymore.
+    assert learner.known_nodes.get_label(pest.checksum_address) is None  # not labelled
 
     # Once pest made its way into learner, learner taught passed it to other mainnet nodes.
 
@@ -121,6 +131,7 @@ def test_learner_ignores_stored_nodes_from_other_domains(lonely_ursula_maker, tm
     other_staker._current_teacher_node = learner
     other_staker.learn_from_teacher_node()  # And once it did, the node from the wrong domain spread.
     assert pest not in other_staker.known_nodes  # But not anymore.
+    assert other_staker.known_nodes.get_label(pest.checksum_address) is None  # not labelled
 
 
 def test_learner_with_empty_storage_uses_fallback_nodes(lonely_ursula_maker, mocker):
