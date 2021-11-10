@@ -31,6 +31,15 @@ from constant_sorrow.constants import (
     NOT_SIGNED,
     NO_STORAGE_AVAILABLE,
     RELAX,
+
+    # Node labels
+    INVALID,
+    UNAVAILABLE,
+    SUSPICIOUS,
+    UNSTAKED,
+    UNBONDED,
+    VERIFIED,
+    UNVERIFIED
 )
 from cryptography.x509 import Certificate, load_pem_x509_certificate
 from cryptography.hazmat.backends import default_backend
@@ -448,6 +457,10 @@ class Learner:
                 return False
 
         self.known_nodes.record_node(node)  # FIXME - dont always remember nodes, bucket them.
+        unlabelled = self.known_nodes.get_label(node.checksum_address) is None
+        if unlabelled:
+            # Only new nodes - don't relabel prior known nodes here
+            self.known_nodes.label(node=node, label=UNVERIFIED)
 
         if self.save_metadata:
             self.node_storage.store_node_metadata(node=node)
@@ -463,36 +476,68 @@ class Learner:
             # this will update the filepath from the temp location to this one.
             node.certificate_filepath = certificate_filepath
 
-            # Use this to control whether or not this node performs
-            # blockchain calls to determine if stranger nodes are bonded.
-            # Note: self.registry is composed on blockchainy character subclasses.
-            registry = self.registry if self._verify_node_bonding else None  # TODO: Federated mode?
-
-            try:
-                node.verify_node(force=force_verification_recheck,
-                                 network_middleware_client=self.network_middleware.client,
-                                 registry=registry)
-            except SSLError:
-                # TODO: Bucket this node as having bad TLS info - maybe it's an update that hasn't fully propagated?  567
+            node_valid = self.verify_and_label(node=node, force_verification=force_verification_recheck)
+            if not node_valid:
                 return False
-
-            except NodeSeemsToBeDown:
-                self.log.info("No Response while trying to verify node {}|{}".format(node.rest_interface, node))
-                # TODO: Bucket this node as "ghost" or something: somebody else knows about it, but we can't get to it.  567
-                return False
-
-            except node.NotStaking:
-                # TODO: Bucket this node as inactive, and potentially safe to forget.  567
-                self.log.info(
-                    f'Staker:Worker {node.checksum_address}:{node.worker_address} is not actively staking, skipping.')
-                return False
-
-            # TODO: What about InvalidNode?  (for that matter, any SuspiciousActivity)  1714, 567 too really
 
         if record_fleet_state:
             self.known_nodes.record_fleet_state()
 
         return node
+
+    def verify_and_label(self, node, force_verification: bool) -> bool:
+        # Use this to control whether or not this node performs
+        # blockchain calls to determine if stranger nodes are bonded.
+        # Note: self.registry is composed on blockchainy character subclasses.
+        registry = self.registry if self._verify_node_bonding else None  # TODO: Federated mode?
+
+        try:
+            node.verify_node(force=force_verification,
+                             network_middleware_client=self.network_middleware.client,
+                             registry=registry)
+        except SSLError:
+            self.known_nodes.label(node=node, label=SUSPICIOUS)
+            return False
+
+        except NodeSeemsToBeDown:
+            self.known_nodes.label(node=node, label=UNAVAILABLE)
+            self.log.info("No Response while trying to verify node {}|{}".format(node.rest_interface, node))
+            return False
+
+        except node.NotStaking:
+            self.known_nodes.label(node=node, label=UNSTAKED)
+            self.log.warn(f'Verification Failed - {node} has no active stakes in the current period '
+                          f'({self.staking_agent.get_current_period()}')
+            return False
+
+        except node.StampNotSigned:
+            self.known_nodes.label(node=node, label=INVALID)
+            self.log.warn(f'Verification Failed - {node} is unsigned.')
+            return False
+
+        except node.UnbondedWorker:
+            self.known_nodes.label(node=node, label=UNBONDED)
+            self.log.warn(f'Verification Failed - {node} is not bonded to a Staker.')
+            return False
+
+        except node.InvalidWorkerSignature:
+            self.known_nodes.label(node=node, label=INVALID)
+            self.log.warn(f'Verification Failed - '
+                          f'{node} has an invalid wallet signature for {node.decentralized_identity_evidence}')
+            return False
+
+        # TODO: Handle invalid sprouts
+        # except sprout.Invalidsprout:
+        #     self.log.warn(sprout.invalid_metadata_message.format(sprout))
+
+        except node.SuspiciousActivity:
+            self.known_nodes.label(node=node, label=SUSPICIOUS)
+            self.log.warn(f"Suspicious Activity: Discovered node with bad signature: {node}.")
+            return False
+        else:
+            if node.verified_node:
+                self.known_nodes.label(node=node, label=VERIFIED)
+            return True
 
     def start_learning_loop(self, now=False):
         if self._learning_task.running:
@@ -805,16 +850,17 @@ class Learner:
                                                                   fleet_state_checksum=self.known_nodes.checksum)
         # These except clauses apply to the current_teacher itself, not the learned-about nodes.
         except NodeSeemsToBeDown as e:
+            self.known_nodes.label(node=current_teacher, label=UNAVAILABLE)
             unresponsive_nodes.add(current_teacher)
             self.log.info(
                 f"Teacher {str(current_teacher)} is perhaps down:{e}.")  # FIXME: This was printing the node bytestring. Is this really necessary?  #1712
             return
         except current_teacher.InvalidNode as e:
             # Ugh.  The teacher is invalid.  Rough.
-            # TODO: Bucket separately and report.
+            self.known_nodes.label(node=current_teacher, label=INVALID)
             unresponsive_nodes.add(current_teacher)  # This does nothing.
-            self.known_nodes.mark_as(current_teacher.InvalidNode, current_teacher)
             self.log.warn(f"Teacher {str(current_teacher)} is invalid (hex={bytes(current_teacher.metadata()).hex()}):{e}.")
+
             self.suspicious_activities_witnessed['vladimirs'].append(current_teacher)
             return
         except RuntimeError as e:
@@ -859,6 +905,7 @@ class Learner:
         try:
             metadata.verify(current_teacher.stamp.as_umbral_pubkey())
         except InvalidSignature:
+            self.known_nodes.label(node=current_teacher, label=SUSPICIOUS)
             self.suspicious_activities_witnessed['vladimirs'].append(
                 ('Node payload improperly signed', response.content))
             self.log.warn(
@@ -890,50 +937,12 @@ class Learner:
         sprouts = [NodeSprout(node) for node in nodes]
 
         for sprout in sprouts:
-            try:
-                node_or_false = self.remember_node(sprout,
-                                                   record_fleet_state=False,
-                                                   # Do we want both of these to be decided by `eager`?
-                                                   eager=eager)
-                if node_or_false is not False:
-                    remembered.append(node_or_false)
-
-                #
-                # Report Failure
-                #
-
-            except NodeSeemsToBeDown:
-                self.log.info(f"Verification Failed - "
-                              f"Cannot establish connection to {sprout}.")
-
-            # TODO: This whole section is weird; sprouts down have any of these things.
-            except sprout.StampNotSigned:
-                self.log.warn(f'Verification Failed - '
-                              f'{sprout} {NOT_SIGNED}.')
-
-            except sprout.NotStaking:
-                self.log.warn(f'Verification Failed - '
-                              f'{sprout} has no active stakes in the current period '
-                              f'({self.staking_agent.get_current_period()}')
-
-            except sprout.InvalidWorkerSignature:
-                self.log.warn(f'Verification Failed - '
-                              f'{sprout} has an invalid wallet signature for {sprout.decentralized_identity_evidence}')
-
-            except sprout.UnbondedWorker:
-                self.log.warn(f'Verification Failed - '
-                              f'{sprout} is not bonded to a Staker.')
-
-            # TODO: Handle invalid sprouts
-            # except sprout.Invalidsprout:
-            #     self.log.warn(sprout.invalid_metadata_message.format(sprout))
-
-            except sprout.SuspiciousActivity:
-                message = f"Suspicious Activity: Discovered sprout with bad signature: {sprout}." \
-                          f"Propagated by: {current_teacher}"
-                self.log.warn(message)
-
-        ###################
+            node_or_false = self.remember_node(sprout,
+                                               record_fleet_state=False,
+                                               # Do we want both of these to be decided by `eager`?
+                                               eager=eager)
+            if node_or_false is not False:
+                remembered.append(node_or_false)
 
         learning_round_log_message = "Learning round {}.  Teacher: {} knew about {} nodes, {} were new."
         self.log.info(learning_round_log_message.format(self._learning_round,

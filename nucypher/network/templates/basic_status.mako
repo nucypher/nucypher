@@ -187,11 +187,13 @@ def character_span(character):
 
     %if status_info.known_nodes is not None:
     <%
-        verified_nodes = [node_status for node_status in status_info.known_nodes if node_status.verified]
-        unverified_nodes = [node_status for node_status in status_info.known_nodes if not node_status.verified]
+        node_categories = {}
+        for label in buckets:
+            nodes_for_label = {node_status for node_status in status_info.known_nodes if node_status.label == str(label)}
+            node_categories[str(label)] = nodes_for_label
     %>
-    %for node_set, qualifier in [(verified_nodes, "verified"), (unverified_nodes, "unverified")]:
-    <h3>${len(node_set)} ${qualifier} ${"node" if len(node_set) == 1 else "nodes"}:</h3>
+    %for label, node_set in node_categories.items():
+    <h3>${len(node_set)} ${str(label)} ${"node" if len(node_set) == 1 else "nodes"}:</h3>
 
     <table class="known-nodes">
         <thead>

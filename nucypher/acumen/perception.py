@@ -18,14 +18,16 @@
 
 import random
 import weakref
+from collections import defaultdict
 from collections.abc import KeysView
-from typing import Optional, Dict, Iterable, List, Tuple, NamedTuple, Union, Any
+from typing import Optional, Dict, Iterable, List, Tuple, NamedTuple, Union, Any, Set
 
 import binascii
 import itertools
 import maya
 from eth_typing import ChecksumAddress
 
+from .comprehension import NODE_BUCKETS
 from ..crypto.utils import keccak_digest
 from nucypher.utilities.logging import Logger
 from .nicknames import Nickname
@@ -231,6 +233,12 @@ class FleetSensor:
     """
     log = Logger("Learning")
 
+    class UnknownLabel(ValueError):
+        pass
+
+    class UnknownNode(ValueError):
+        pass
+
     def __init__(self, domain: str, this_node: Optional['Ursula'] = None):
 
         self._domain = domain
@@ -243,6 +251,8 @@ class FleetSensor:
         # temporary accumulator for new nodes to avoid updating the fleet state every time
         self._nodes_to_add = set()
         self._nodes_to_remove = set()  # Beginning of bucketing.
+
+        self.__marked = defaultdict(set)  # categorization of nodes (bucketting)
 
         self._auto_update_state = False
 
@@ -355,9 +365,33 @@ class FleetSensor:
     def shuffled(self):
         return self._current_state.shuffled()
 
-    def mark_as(self, label: Exception, node: 'Ursula'):
-        # TODO: for now we're not using `label` in any way, so we're just ignoring it
-        self._nodes_to_remove.add(node.checksum_address)
+    def remove_node(self, node: 'Ursula'):
+        # TODO
+        pass
+
+    def label(self, node: 'Ursula', label):
+        if label not in NODE_BUCKETS:
+            raise self.UnknownLabel(f"'{label}' is not a valid node category")
+
+        # node should already be known or is in the nodes_to_add category known
+        if (node.checksum_address not in self._current_state) and (node not in self._nodes_to_add):
+            raise self.UnknownNode(f"Node {node.checksum_address} is not known")
+
+        self.__unlabel(node)
+        self.__marked[label].add(node.checksum_address)
+
+    def get_label(self, checksum_address: ChecksumAddress):
+        for label in NODE_BUCKETS:
+            if checksum_address in self.__marked[label]:
+                return label
+
+        return None
+
+    def __unlabel(self, node: 'Ursula'):
+        for pending_label in NODE_BUCKETS:
+            if node.checksum_address in self.__marked[pending_label]:
+                self.__marked[pending_label].remove(node.checksum_address)
+                # could potentially break here - but ensure that node isn't associated with multiple labels
 
     def record_remote_fleet_state(self,
                                   checksum_address: ChecksumAddress,
@@ -366,7 +400,7 @@ class FleetSensor:
                                   population: int):
 
         if checksum_address not in self._current_state:
-            raise KeyError(f"A node {checksum_address} is not present in the current fleet state")
+            raise self.UnknownNode(f"Node {checksum_address} is not present in the current fleet state")
 
         nickname = Nickname.from_seed(state_checksum, length=1)
         state = ArchivedFleetState(checksum=state_checksum,
@@ -388,7 +422,12 @@ class FleetSensor:
         last_learned_from = self._remote_last_seen.get(node.checksum_address, None)
         worker_address = node.worker_address if node.verified_node else None
 
-        return RemoteUrsulaStatus(verified=node.verified_node,
+        label = self.get_label(node.checksum_address)
+        if label is None:
+            # should not happen
+            raise self.UnknownNode(f"Node {node.checksum_address} is not already known")
+
+        return RemoteUrsulaStatus(label=str(label),
                                   nickname=node.nickname,
                                   staker_address=node.checksum_address,
                                   worker_address=worker_address,
@@ -400,7 +439,7 @@ class FleetSensor:
 
 
 class RemoteUrsulaStatus(NamedTuple):
-    verified: bool
+    label: str
     nickname: Nickname
     staker_address: ChecksumAddress
     worker_address: Optional[ChecksumAddress]
@@ -418,7 +457,7 @@ class RemoteUrsulaStatus(NamedTuple):
             last_learned_from_json = None
         else:
             last_learned_from_json = self.last_learned_from.iso8601()
-        return dict(verified=self.verified,
+        return dict(label=self.label,
                     nickname=self.nickname.to_json(),
                     staker_address=self.staker_address,
                     worker_address=self.worker_address,

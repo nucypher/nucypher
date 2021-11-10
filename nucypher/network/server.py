@@ -28,6 +28,7 @@ from flask import Flask, Response, jsonify, request
 from mako import exceptions as mako_exceptions
 from mako.template import Template
 
+from nucypher.acumen.comprehension import NODE_BUCKETS
 from nucypher.core import (
     ReencryptionRequest,
     RevocationOrder,
@@ -300,7 +301,8 @@ def _make_rest_app(datastore: Datastore, this_node, domain: str, log: Logger) ->
             return jsonify(status_info.to_json())
         headers = {"Content-Type": "text/html", "charset": "utf-8"}
         try:
-            content = status_template.render(status_info)
+            content = status_template.render(status_info=status_info,
+                                             buckets=NODE_BUCKETS)
         except Exception as e:
             text_error = mako_exceptions.text_error_template().render()
             html_error = mako_exceptions.html_error_template().render()
