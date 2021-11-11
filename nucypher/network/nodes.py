@@ -524,7 +524,7 @@ class Learner:
         # except sprout.Invalidsprout:
         #     self.log.warn(sprout.invalid_metadata_message.format(sprout))
 
-        except node.SuspiciousActivity:
+        except SuspiciousActivity:
             self.known_nodes.label(node=node, label=SUSPICIOUS)
             self.log.warn(f"Suspicious Activity: Discovered node with bad signature: {node}.")
             return False
@@ -1180,9 +1180,9 @@ class Teacher:
 
         if force:
             self.verified_metadata = False
-            self.verified_node = False
             self.verified_stamp = False
             self.verified_worker = False
+            self.verified_node = False
 
         if self.verified_node:
             return True

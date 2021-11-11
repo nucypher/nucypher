@@ -252,7 +252,7 @@ class FleetSensor:
         self._nodes_to_add = set()
         self._nodes_to_remove = set()  # Beginning of bucketing.
 
-        self.__marked = defaultdict(set)  # categorization of nodes (bucketting)
+        self.__marked = defaultdict(set)  # categorization of nodes (bucketing)
 
         self._auto_update_state = False
 

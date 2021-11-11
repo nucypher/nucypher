@@ -17,15 +17,10 @@
 
 import pytest
 from twisted.logger import LogLevel, globalLogPublisher
-from constant_sorrow.constants import NOT_SIGNED
-
-from nucypher.core import MetadataResponse
 
 from nucypher.acumen.perception import FleetSensor
 from nucypher.config.constants import TEMPORARY_DOMAIN
-from nucypher.crypto.powers import TransactingPower
-from nucypher.crypto.signing import InvalidSignature
-from nucypher.network.nodes import Learner
+from nucypher.core import MetadataResponse
 from tests.utils.middleware import MockRestMiddleware
 from tests.utils.ursula import make_ursula_for_staker
 
