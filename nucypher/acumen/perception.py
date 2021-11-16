@@ -395,10 +395,16 @@ class FleetSensor:
         return None
 
     def __unlabel(self, node: 'Ursula'):
+        node_labels = []
         for pending_label in NODE_BUCKETS:
             if node.checksum_address in self.__marked[pending_label]:
                 self.__marked[pending_label].remove(node.checksum_address)
+                node_labels.append(pending_label)
                 # could potentially break here - but ensure that node isn't associated with multiple labels
+
+        if len(node_labels) > 1:
+            # not the end of the world, but unexpected...
+            self.log.warn(f"Unlabelled node ({node}) which originally had multiple labels: {node_labels}")
 
     def record_remote_fleet_state(self,
                                   checksum_address: ChecksumAddress,

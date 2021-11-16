@@ -448,11 +448,9 @@ class Learner:
 
         # First, determine if this is an outdated representation of an already known node.
         # TODO: #1032 or, since it's closed and will never re-opened, i am the :=
-        with suppress(KeyError):
-            already_known_node = self.known_nodes[node.checksum_address]
-            if not node.timestamp > already_known_node.timestamp:
-                # This node is already known.  We can safely return.
-                return False
+        if self._is_already_known(node):
+            # nothing to see here
+            return False
 
         self.known_nodes.record_node(node)  # store new node or update already stored node
 
@@ -478,6 +476,15 @@ class Learner:
             self.known_nodes.record_fleet_state()
 
         return node
+
+    def _is_already_known(self, node):
+        try:
+            already_known_node = self.known_nodes[node.checksum_address]
+        except KeyError:
+            result = False
+        else:
+            result = node.timestamp <= already_known_node.timestamp
+        return result
 
     def verify_and_label(self, node, force_verification: bool) -> bool:
         # Use this to control whether or not this node performs
