@@ -33,7 +33,7 @@ def make_federated_staker_reservoir(known_nodes: FleetSensor,
     include_addresses = include_addresses or ()
     exclusion_set = set(include_addresses) | set(exclude_addresses or ())
     addresses = {}
-    for ursula in known_nodes:
+    for ursula in known_nodes.get_nodes():
         if ursula.checksum_address in exclusion_set:
             continue
         addresses[ursula.checksum_address] = 1

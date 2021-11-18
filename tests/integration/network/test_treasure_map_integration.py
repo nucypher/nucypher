@@ -39,7 +39,7 @@ def test_alice_does_not_update_with_old_ursula_info(federated_alice, federated_u
     old_metadata = bytes(ursula.metadata())
 
     # Alice has remembered Ursula.
-    assert federated_alice.known_nodes[ursula.checksum_address] == ursula
+    assert federated_alice.known_nodes.get_node(ursula.checksum_address) == ursula
 
     # But now, Ursula wants to sign and date her metadata again.  This causes a new timestamp.
     ursula._metadata = None
@@ -56,5 +56,5 @@ def test_alice_does_not_update_with_old_ursula_info(federated_alice, federated_u
     # ...she can't learn about old ursula anymore.
     federated_alice.remember_node(old_ursula)
 
-    new_metadata = bytes(federated_alice.known_nodes[ursula.checksum_address].metadata())
+    new_metadata = bytes(federated_alice.known_nodes.get_node(ursula.checksum_address).metadata())
     assert new_metadata != old_metadata

@@ -260,7 +260,7 @@ class RetrievalClient:
             if work_order.ursula_address not in self._learner.known_nodes:
                 continue
 
-            ursula = self._learner.known_nodes[work_order.ursula_address]
+            ursula = self._learner.known_nodes.get_node(work_order.ursula_address)
             reencryption_request = ReencryptionRequest.from_treasure_map(
                 ursula_address=work_order.ursula_address,
                 capsules=work_order.capsules,

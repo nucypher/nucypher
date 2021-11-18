@@ -120,10 +120,7 @@ the Pipe for nucypher network operations
         value_factory = PrefetchStrategy(reservoir, quantity)
 
         def get_ursula_info(ursula_address) -> Porter.UrsulaInfo:
-            if ursula_address not in self.known_nodes:
-                raise ValueError(f"{ursula_address} is not known")
-
-            ursula = self.known_nodes[ursula_address]
+            ursula = self.known_nodes.get_node(ursula_address)
             try:
                 # verify node is valid
                 self.network_middleware.client.verify_and_parse_node_or_host_and_port(node_or_sprout=ursula,

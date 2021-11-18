@@ -109,7 +109,7 @@ def paint_known_nodes(emitter, ursula) -> None:
 
     seednode_addresses = list(bn.checksum_address for bn in SEEDNODES)
 
-    for node in known_nodes:
+    for node in known_nodes.get_nodes():
         row_template = "{} | {}"
         node_type = 'known'
         if node.checksum_address == ursula.checksum_address:

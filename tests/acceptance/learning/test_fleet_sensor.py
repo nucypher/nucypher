@@ -38,6 +38,7 @@ def test_nodes_initially_labelled_unverified(blockchain_alice, blockchain_ursula
         assert ursula in blockchain_alice.known_nodes
         # ursulas labelled appropriately
         assert blockchain_alice.known_nodes.get_label(ursula.checksum_address) == UNVERIFIED
+    assert len(list(blockchain_alice.known_nodes.get_nodes(label=UNVERIFIED))) == len(blockchain_ursulas)
 
 
 def test_verification_of_node_changes_label_to_verified(blockchain_alice, blockchain_ursulas):
@@ -56,6 +57,7 @@ def test_verification_of_node_changes_label_to_verified(blockchain_alice, blockc
         # other ursulas are known and marked as unverified
         assert ursula in blockchain_alice.known_nodes
         assert blockchain_alice.known_nodes.get_label(ursula.checksum_address) == VERIFIED
+    assert len(list(blockchain_alice.known_nodes.get_nodes(label=VERIFIED))) == len(blockchain_ursulas)
 
 
 def test_teacher_with_badly_signed_known_nodes_labelled_suspicious(blockchain_alice, blockchain_ursulas, mocker):
@@ -75,8 +77,8 @@ def test_teacher_with_badly_signed_known_nodes_labelled_suspicious(blockchain_al
     mocker.patch.object(blockchain_teacher, 'bytestring_of_known_nodes', bad_bytestring_of_known_nodes)
     blockchain_alice._current_teacher_node = blockchain_teacher
     blockchain_alice.learn_from_teacher_node(eager=True)
-
     assert blockchain_alice.known_nodes.get_label(blockchain_teacher.checksum_address) == SUSPICIOUS
+    assert blockchain_alice.known_nodes.get_node(blockchain_teacher.checksum_address, SUSPICIOUS) == blockchain_teacher
 
 
 def test_teacher_invalid_node_exception_labelled_invalid(blockchain_alice, blockchain_ursulas, mocker):
@@ -92,6 +94,7 @@ def test_teacher_invalid_node_exception_labelled_invalid(blockchain_alice, block
     blockchain_alice._current_teacher_node = blockchain_teacher
     blockchain_alice.learn_from_teacher_node(eager=True)
     assert blockchain_alice.known_nodes.get_label(blockchain_teacher.checksum_address) == INVALID
+    assert blockchain_alice.known_nodes.get_node(blockchain_teacher.checksum_address, INVALID) == blockchain_teacher
 
 
 def test_teacher_down_labelled_unavailable(blockchain_alice, blockchain_ursulas, mocker):
@@ -107,6 +110,7 @@ def test_teacher_down_labelled_unavailable(blockchain_alice, blockchain_ursulas,
     blockchain_alice._current_teacher_node = blockchain_teacher
     blockchain_alice.learn_from_teacher_node(eager=True)
     assert blockchain_alice.known_nodes.get_label(blockchain_teacher.checksum_address) == UNAVAILABLE
+    assert blockchain_alice.known_nodes.get_node(blockchain_teacher.checksum_address, UNAVAILABLE) == blockchain_teacher
 
 
 def test_node_ssl_error_labelled_suspicious(blockchain_alice, blockchain_ursulas, mocker):

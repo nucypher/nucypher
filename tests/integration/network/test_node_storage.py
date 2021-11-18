@@ -46,7 +46,7 @@ def test_one_node_stores_a_bunch_of_others(federated_ursulas, lonely_ursula_make
 
     yield deferToThread(start_lonely_learning_loop)
 
-    matured_known_nodes = list(node.mature() for node in newcomer.known_nodes)
+    matured_known_nodes = list(node.mature() for node in newcomer.known_nodes.get_nodes())
     assert list(matured_known_nodes)
     assert len(matured_known_nodes) == len(list(newcomer.node_storage.all(True)))
     assert set(matured_known_nodes) == set(list(newcomer.node_storage.all(True)))

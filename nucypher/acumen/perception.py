@@ -21,7 +21,7 @@ import random
 import weakref
 from collections import defaultdict
 from collections.abc import KeysView
-from typing import Optional, Dict, Iterable, List, NamedTuple, Union, Any
+from typing import Optional, Dict, Iterable, List, NamedTuple, Union, Any, Iterator
 
 import maya
 from constant_sorrow.constants import UNVERIFIED
@@ -281,8 +281,33 @@ class FleetSensor:
             msg = f"Rejected node {node} because its domain is '{node.domain}' but we're only tracking '{self._domain}'"
             self.log.warn(msg)
 
-    def __getitem__(self, item):
-        return self._current_state[item]
+    def get_node(self, checksum_address: ChecksumAddress, label: Optional = None) -> 'Ursula':
+        try:
+            node = self._current_state[checksum_address]
+        except KeyError:
+            raise self.UnknownNode(f'Node {checksum_address} is not already known')
+        if label:
+            current_label = self.get_label(checksum_address)
+            if label == current_label:
+                return node
+            else:
+                raise self.UnknownNode(f'Mismatched label for node {checksum_address}: '
+                                       f'expected {label}, actual {current_label}')
+        return node
+
+    def get_nodes(self, label: Optional = None) -> Iterator['Ursula']:
+        """If label is None return all known nodes"""
+        if label is None:
+            return iter(self._current_state)
+
+        if label not in NODE_BUCKETS:
+            raise self.UnknownLabel(f'{label} is not a valid node label')
+
+        try:
+            nodes = [self.get_node(checksum_address) for checksum_address in self.__marked[label]]
+        except self.UnknownNode:
+            return list()  # empty
+        return iter(nodes)
 
     def __bool__(self):
         return bool(self._current_state)
@@ -293,9 +318,6 @@ class FleetSensor:
         Does not compare ``item`` with the owner node of this FleetSensor.
         """
         return item in self._current_state
-
-    def __iter__(self):
-        yield from self._current_state
 
     def __len__(self):
         return len(self._current_state)
@@ -378,12 +400,14 @@ class FleetSensor:
 
     def label(self, node: 'Ursula', label):
         if label not in NODE_BUCKETS:
-            raise self.UnknownLabel(f"'{label}' is not a valid node category")
+            raise self.UnknownLabel(f"'{label}' is not a valid node label")
 
         # node should already be known or is in the nodes_to_add category known
         if (node.checksum_address not in self._current_state) and (node not in self._nodes_to_add):
-            raise self.UnknownNode(f"Node {node.checksum_address} is not known")
+            raise self.UnknownNode(f"Node {node.checksum_address} is not already known")
 
+        # TODO: a bit of inconsistency between a node being labelled but can't be obtained by `get_node` because
+        #  the node is in _nodes_to_add and fleet state not yet recorded
         self.__unlabel(node)
         self.__marked[label].add(node.checksum_address)
 

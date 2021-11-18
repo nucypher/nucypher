@@ -81,7 +81,7 @@ def test_vladimir_illegal_interface_key_does_not_propagate(blockchain_ursulas):
 
     # ...but now, Ursula will now try to learn about Vladimir on a different thread.
     other_ursula.block_until_specific_nodes_are_known([vladimir.checksum_address])
-    vladimir_as_learned = other_ursula.known_nodes[vladimir.checksum_address]
+    vladimir_as_learned = other_ursula.known_nodes.get_node(vladimir.checksum_address)
     assert other_ursula.known_nodes.get_label(vladimir.checksum_address) == UNVERIFIED
 
     # OK, so cool, let's see what happens when Ursula tries to learn with Vlad as the teacher.

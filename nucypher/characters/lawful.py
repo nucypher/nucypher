@@ -389,7 +389,7 @@ class Alice(Character, BlockchainPolicyAuthor):
                 raise  # TODO  NRN
 
             for node_id in policy.revocation_kit.revokable_addresses:
-                ursula = self.known_nodes[node_id]
+                ursula = self.known_nodes.get_node(node_id)
                 revocation = policy.revocation_kit[node_id]
                 try:
                     response = self.network_middleware.request_revocation(ursula, revocation)
@@ -1211,7 +1211,7 @@ class Ursula(Teacher, Character, Worker):
         previous_fleet_states = self.known_nodes.previous_states(4)
 
         if not omit_known_nodes:
-            known_nodes_info = [self.known_nodes.status_info(node) for node in self.known_nodes]
+            known_nodes_info = [self.known_nodes.status_info(node) for node in self.known_nodes.get_nodes()]
         else:
             known_nodes_info = None
 
@@ -1263,7 +1263,7 @@ class LocalUrsulaStatus(NamedTuple):
         if self.known_nodes is None:
             known_nodes_json = None
         else:
-            known_nodes_json = [status.to_json() for status in self.known_nodes]
+            known_nodes_json = [status.to_json() for status in self.known_nodes.get_nodes()]
         return dict(nickname=self.nickname.to_json(),
                     staker_address=self.staker_address,
                     worker_address=self.worker_address,

@@ -58,7 +58,7 @@ def test_learner_learns_about_domains_separately(lonely_ursula_maker, caplog):
     new_first_domain_learner.learn_from_teacher_node()
 
     # This node, in the first domain, didn't learn about the second domain.
-    assert not set(second_domain_learners).intersection(new_first_domain_learner.known_nodes)
+    assert not set(second_domain_learners).intersection(set(new_first_domain_learner.known_nodes.get_nodes()))
 
     # However, it learned about *all* of the nodes in its own domain.
     assert hero_learner in new_first_domain_learner.known_nodes
@@ -98,12 +98,12 @@ def test_learner_restores_metadata_from_storage(lonely_ursula_maker, tmpdir):
 
     # The learner shouldn't learn about any node from the first domain, since it's different.
     learner.learn_from_teacher_node()
-    for restored_node in learner.known_nodes:
+    for restored_node in learner.known_nodes.get_nodes():
         assert restored_node.mature().domain == learner.domain
 
     # In fact, since the storage only contains nodes from a different domain,
     # the learner should only know its buddy from the second domain.
-    assert set(learner.known_nodes) == {buddy}
+    assert set(learner.known_nodes.get_nodes()) == {buddy}
 
 
 def test_learner_ignores_stored_nodes_from_other_domains(lonely_ursula_maker, tmpdir):
@@ -144,7 +144,7 @@ def test_learner_with_empty_storage_uses_fallback_nodes(lonely_ursula_maker, moc
 
     # Since there are no nodes in local node storage, the learner should only learn about the teacher
     learner.learn_from_teacher_node()
-    assert set(learner.known_nodes) == {teacher}
+    assert set(learner.known_nodes.get_nodes()) == {teacher}
 
 
 def test_learner_uses_both_nodes_from_storage_and_fallback_nodes(lonely_ursula_maker, tmpdir, mocker):
@@ -175,4 +175,4 @@ def test_learner_uses_both_nodes_from_storage_and_fallback_nodes(lonely_ursula_m
     learner.learn_from_teacher_node()
     all_nodes = {teacher}
     all_nodes.update(other_nodes)
-    assert set(learner.known_nodes) == all_nodes
+    assert set(learner.known_nodes.get_nodes()) == all_nodes

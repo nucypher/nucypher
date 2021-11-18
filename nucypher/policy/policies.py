@@ -114,11 +114,7 @@ class Policy(ABC):
         raise NotImplementedError
 
     def _ping_node(self, address: ChecksumAddress, network_middleware: RestMiddleware) -> 'Ursula':
-        # Handles edge case when provided address is not a known peer.
-        if address not in self.publisher.known_nodes:
-            raise RuntimeError(f"{address} is not a known peer")
-
-        ursula = self.publisher.known_nodes[address]
+        ursula = self.publisher.known_nodes.get_node(address)
         response = network_middleware.ping(node=ursula)
         status_code = response.status_code
 

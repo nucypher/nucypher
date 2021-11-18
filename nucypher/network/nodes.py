@@ -479,8 +479,8 @@ class Learner:
 
     def _is_already_known(self, node):
         try:
-            already_known_node = self.known_nodes[node.checksum_address]
-        except KeyError:
+            already_known_node = self.known_nodes.get_node(node.checksum_address)
+        except FleetSensor.UnknownNode:
             result = False
         else:
             result = node.timestamp <= already_known_node.timestamp
@@ -780,7 +780,7 @@ class Learner:
         for node_id in node_ids:
             try:
                 # Scenario 1: We already know about this node.
-                return self.__known_nodes[node_id]
+                return self.__known_nodes.get_ndoe(node_id)
             except KeyError:
                 raise NotImplementedError
         # Scenario 2: We don't know about this node, but a nearby node does.
@@ -1049,7 +1049,7 @@ class Teacher:
         response = MetadataResponse.author(signer=self.stamp.as_umbral_signer(),
                                            timestamp_epoch=self.known_nodes.timestamp.epoch,
                                            this_node=self.metadata(),
-                                           other_nodes=[node.metadata() for node in self.known_nodes],
+                                           other_nodes=[node.metadata() for node in self.known_nodes.get_nodes()],
                                            )
         return bytes(response)
 
