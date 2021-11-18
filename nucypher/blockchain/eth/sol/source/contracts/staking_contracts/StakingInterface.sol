@@ -35,7 +35,7 @@ contract BaseStakingInterface {
         WorkLock _workLock
     ) {
         require(_token.totalSupply() > 0 &&
-            _escrow.secondsPerPeriod() > 0 &&
+            _escrow.token() == _token &&
             _policyManager.secondsPerPeriod() > 0 &&
             // in case there is no worklock contract
             (address(_workLock) == address(0) || _workLock.boostingRefund() > 0));

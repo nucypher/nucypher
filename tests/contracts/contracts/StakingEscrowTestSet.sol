@@ -23,6 +23,24 @@ contract EnhancedStakingEscrow is StakingEscrow {
     {
     }
 
+    function testSlashStaker(
+        address _staker,
+        uint256 _penalty,
+        address _investigator,
+        uint256 _reward
+    )
+        external
+    {
+        slashStaker(_staker, _penalty, _investigator, _reward);
+    }
+
+    function setStaker(address _staker, uint256 _value, uint16 _lastCommittedPeriod) external {
+        StakerInfo storage info = stakerInfo[_staker];
+        info.value = _value;
+        info.lastCommittedPeriod = _lastCommittedPeriod;
+        stakers.push(_staker);
+    }
+
 }
 
 
@@ -42,7 +60,7 @@ contract StakingEscrowBad is StakingEscrow {
     {
     }
 
-    // TODO override something
+    function totalStakedAt(uint256) public view override returns (uint256) {}
 
 }
 
@@ -63,7 +81,7 @@ contract StakingEscrowV2Mock is StakingEscrow {
             _workLock
         )
     {
-        valueToCheck = uint256(uint160(address(_token)));
+        valueToCheck = 2;
     }
 
     function setValueToCheck(uint256 _valueToCheck) public {

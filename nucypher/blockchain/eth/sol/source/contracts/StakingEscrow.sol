@@ -28,15 +28,29 @@ interface WorkLockInterface {
 */
 contract StakingEscrowStub is Upgradeable {
     NuCypherToken public immutable token;
+    // only to deploy WorkLock
+    uint32 public immutable secondsPerPeriod = 1;
+    uint16 public immutable minLockedPeriods = 0;
+    uint256 public immutable minAllowableLockedTokens;
+    uint256 public immutable maxAllowableLockedTokens;
 
     /**
     * @notice Predefines some variables for use when deploying other contracts
     * @param _token Token contract
+    * @param _minAllowableLockedTokens Min amount of tokens that can be locked
+    * @param _maxAllowableLockedTokens Max amount of tokens that can be locked
     */
-    constructor(NuCypherToken _token) {
-        require(_token.totalSupply() > 0);
+    constructor(
+        NuCypherToken _token,
+        uint256 _minAllowableLockedTokens,
+        uint256 _maxAllowableLockedTokens
+    ) {
+        require(_token.totalSupply() > 0 &&
+            _maxAllowableLockedTokens != 0);
 
         token = _token;
+        minAllowableLockedTokens = _minAllowableLockedTokens;
+        maxAllowableLockedTokens = _maxAllowableLockedTokens;
     }
 
     /// @dev the `onlyWhileUpgrading` modifier works through a call to the parent `verifyState`
@@ -44,7 +58,7 @@ contract StakingEscrowStub is Upgradeable {
         super.verifyState(_testTarget);
 
         // we have to use real values even though this is a stub
-        require(address(uint160(delegateGet(_testTarget, this.token.selector))) == address(token));
+        require(address(delegateGet(_testTarget, this.token.selector)) == address(token));
     }
 }
 
@@ -245,7 +259,9 @@ contract StakingEscrow is Upgradeable, IERC900History {
         require(_value != 0, "Amount of tokens to deposit must be specified");
         StakerInfo storage info = stakerInfo[_staker];
         // initial stake of the staker
-        stakers.push(_staker);
+        if (info.value == 0 && info.lastCommittedPeriod == 0) {
+            stakers.push(_staker);
+        }
         token.safeTransferFrom(msg.sender, address(this), _value);
         info.value += _value;
 
@@ -288,6 +304,40 @@ contract StakingEscrow is Upgradeable, IERC900History {
             uint256 lastGlobalBalance = uint256(balanceHistory.lastValue());
             balanceHistory.addSnapshot(lastGlobalBalance.addSigned(_addition));
         }
+    }
+
+    //-------------------------Slashing-------------------------
+    /**
+    * @notice Slash the staker's stake and reward the investigator
+    * @param _staker Staker's address
+    * @param _penalty Penalty
+    * @param _investigator Investigator
+    * @param _reward Reward for the investigator
+    */
+    function slashStaker(
+        address _staker,
+        uint256 _penalty,
+        address _investigator,
+        uint256 _reward
+    )
+        internal
+    {
+        require(_penalty > 0, "Penalty must be specified");
+        StakerInfo storage info = stakerInfo[_staker];
+        if (info.value <= _penalty) {
+            _penalty = info.value;
+        }
+        info.value -= _penalty;
+        if (_reward > _penalty) {
+            _reward = _penalty;
+        }
+
+        emit Slashed(_staker, _penalty, _investigator, _reward);
+        if (_reward > 0) {
+            token.safeTransfer(_investigator, _reward);
+        }
+
+        addSnapshot(info, - int256(_penalty));
     }
 
     //-------------Additional getters for stakers info-------------
@@ -348,15 +398,15 @@ contract StakingEscrow is Upgradeable, IERC900History {
 
     //------------------ ERC900 connectors ----------------------
 
-    function totalStakedForAt(address _owner, uint256 _blockNumber) public view override returns (uint256){
+    function totalStakedForAt(address _owner, uint256 _blockNumber) public view override returns (uint256) {
         return stakerInfo[_owner].history.getValueAt(_blockNumber);
     }
 
-    function totalStakedAt(uint256 _blockNumber) public view override returns (uint256){
+    function totalStakedAt(uint256 _blockNumber) public view virtual override returns (uint256) {
         return balanceHistory.getValueAt(_blockNumber);
     }
 
-    function supportsHistory() external pure override returns (bool){
+    function supportsHistory() external pure override returns (bool) {
         return true;
     }
 
