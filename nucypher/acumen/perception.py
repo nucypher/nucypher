@@ -451,7 +451,7 @@ class FleetSensor:
     def status_info(self, checksum_address_or_node: Union[ChecksumAddress, 'Ursula']) -> 'RemoteUrsulaStatus':
 
         if isinstance(checksum_address_or_node, str):
-            node = self[checksum_address_or_node]
+            node = self.get_node(checksum_address_or_node)
         else:
             node = checksum_address_or_node
 

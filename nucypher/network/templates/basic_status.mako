@@ -189,7 +189,7 @@ def character_span(character):
     <%
         node_categories = {}
         for label in buckets:
-            nodes_for_label = {node_status for node_status in status_info.known_nodes.get_nodes() if node_status.label == str(label)}
+            nodes_for_label = {node_status for node_status in status_info.known_nodes if node_status.label == str(label)}
             node_categories[str(label)] = nodes_for_label
     %>
     %for label, node_set in node_categories.items():

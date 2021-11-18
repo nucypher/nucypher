@@ -1263,7 +1263,7 @@ class LocalUrsulaStatus(NamedTuple):
         if self.known_nodes is None:
             known_nodes_json = None
         else:
-            known_nodes_json = [status.to_json() for status in self.known_nodes.get_nodes()]
+            known_nodes_json = [status.to_json() for status in self.known_nodes]
         return dict(nickname=self.nickname.to_json(),
                     staker_address=self.staker_address,
                     worker_address=self.worker_address,
