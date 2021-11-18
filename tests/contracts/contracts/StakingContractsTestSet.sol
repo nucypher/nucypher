@@ -12,16 +12,11 @@ import "contracts/staking_contracts/AbstractStakingContract.sol";
 */
 contract StakingEscrowForStakingContractMock {
 
-    NuCypherToken immutable token;
-    uint32 public secondsPerPeriod = 1;
+    NuCypherToken public immutable token;
     address public node;
     uint256 public value;
     uint256 public lockedValue;
     uint16 public periods;
-    uint256 public index;
-    bool public reStake;
-    address public worker;
-    bool public windDown;
     bool public snapshots;
 
     constructor(NuCypherToken _token) {
@@ -36,29 +31,6 @@ contract StakingEscrowForStakingContractMock {
         token.transferFrom(msg.sender, address(this), _value);
     }
 
-    function depositAndIncrease(uint256 _index, uint256 _value) external {
-        index = _index;
-        value += _value;
-        lockedValue += _value;
-        token.transferFrom(msg.sender, address(this), _value);
-    }
-
-    function lockAndCreate(uint256 _value, uint16 _periods) external {
-        lockedValue += _value;
-        periods += _periods;
-    }
-
-    function lockAndIncrease(uint256 _index, uint256 _value) external {
-        index = _index;
-        lockedValue += _value;
-    }
-
-    function divideStake(uint256 _index, uint256 _newValue, uint16 _periods) external {
-        index = _index;
-        lockedValue += _newValue;
-        periods += _periods;
-    }
-
     function withdraw(uint256 _value) public {
         value -= _value;
         token.transfer(msg.sender, _value);
@@ -68,33 +40,8 @@ contract StakingEscrowForStakingContractMock {
         withdraw(value);
     }
 
-    function mint() external {
-        value += 1000;
-    }
-
-    function setReStake(bool _reStake) external {
-        reStake = _reStake;
-    }
-
-    function bondWorker(address _worker) external {
-        worker = _worker;
-    }
-
-    function prolongStake(uint256 _index, uint16 _periods) external {
-        index = _index;
-        periods += _periods;
-    }
-
-    function mergeStake(uint256 _index1, uint256 _index2) external {
-        index = _index1 + _index2;
-    }
-
     function getAllTokens(address) external view returns (uint256) {
         return value;
-    }
-
-    function setWindDown(bool _windDown) external {
-        windDown = _windDown;
     }
 
     function setSnapshots(bool _snapshotsEnabled) external {
@@ -284,6 +231,44 @@ contract SimpleStakingContract is AbstractStakingContract, Ownable {
     */
     function isFallbackAllowed() public view override returns (bool) {
         return msg.sender == owner();
+    }
+
+}
+
+
+interface IExtendedStakingEscrow is IStakingEscrow {
+    function deposit(address, uint256, uint16) external;
+    function withdraw(uint256) external;
+}
+
+/**
+* @notice Contract for staking contract tests
+*/
+contract ExtendedStakingInterface is StakingInterface {
+
+    event DepositedAsStaker(address indexed sender, uint256 value, uint16 periods);
+    event WithdrawnAsStaker(address indexed sender, uint256 value);
+
+    constructor(
+        NuCypherToken _token,
+        IStakingEscrow _escrow,
+        PolicyManager _policyManager,
+        WorkLock _workLock
+    )
+        StakingInterface(_token, _escrow, _policyManager, _workLock)
+    {
+    }
+
+    function depositAsStaker(uint256 _value, uint16 _periods) public onlyDelegateCall {
+        require(token.balanceOf(address(this)) >= _value);
+        token.approve(address(escrow), _value);
+        IExtendedStakingEscrow(address(escrow)).deposit(address(this), _value, _periods);
+        emit DepositedAsStaker(msg.sender, _value, _periods);
+    }
+
+    function withdrawAsStaker(uint256 _value) public onlyDelegateCall {
+        IExtendedStakingEscrow(address(escrow)).withdraw(_value);
+        emit WithdrawnAsStaker(msg.sender, _value);
     }
 
 }
