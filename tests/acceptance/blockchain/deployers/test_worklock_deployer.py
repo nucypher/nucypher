@@ -18,6 +18,7 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 
 import pytest
 
+from constant_sorrow import constants
 from nucypher.blockchain.economics import EconomicsFactory, BaseEconomics
 from nucypher.blockchain.eth.agents import WorkLockAgent
 from nucypher.blockchain.eth.constants import WORKLOCK_CONTRACT_NAME
@@ -25,8 +26,8 @@ from nucypher.blockchain.eth.deployers import WorklockDeployer
 
 
 @pytest.fixture(scope='module')
-def baseline_deployment(adjudicator_deployer, transacting_power):
-    adjudicator_deployer.deploy(transacting_power=transacting_power)
+def baseline_deployment(staking_escrow_stub_deployer, transacting_power):
+    staking_escrow_stub_deployer.deploy(deployment_mode=constants.INIT, transacting_power=transacting_power)
 
 
 @pytest.fixture(scope="module")
