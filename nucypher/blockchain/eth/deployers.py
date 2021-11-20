@@ -570,9 +570,6 @@ class StakingEscrowDeployer(BaseContractDeployer, UpgradeableContractMixin, Owna
                      confirmations: int = 0,
                      **overrides):
         constructor_kwargs = {
-            "_genesisHoursPerPeriod": self.economics.genesis_hours_per_period,
-            "_hoursPerPeriod": self.economics.hours_per_period,
-            "_minLockedPeriods": self.economics.minimum_locked_periods,
             "_minAllowableLockedTokens": self.economics.minimum_allowed_locked,
             "_maxAllowableLockedTokens": self.economics.maximum_allowed_locked
         }
@@ -597,27 +594,11 @@ class StakingEscrowDeployer(BaseContractDeployer, UpgradeableContractMixin, Owna
                           gas_limit: int = None,
                           confirmations: int = 0,
                           **overrides):
-        args = self.economics.staking_deployment_parameters
-        constructor_kwargs = {
-            "_genesisHoursPerPeriod": args[0],
-            "_hoursPerPeriod": args[1],
-            "_issuanceDecayCoefficient": args[2],
-            "_lockDurationCoefficient1": args[3],
-            "_lockDurationCoefficient2": args[4],
-            "_maximumRewardedPeriods": args[5],
-            "_firstPhaseTotalSupply": args[6],
-            "_firstPhaseMaxIssuance": args[7],
-            "_minLockedPeriods": args[8],
-            "_minAllowableLockedTokens": args[9],
-            "_maxAllowableLockedTokens": args[10],
-            "_minWorkerPeriods": args[11]
-        }
+        constructor_kwargs = {}
         constructor_kwargs.update(overrides)
         constructor_kwargs = {k: v for k, v in constructor_kwargs.items() if v is not None}
         # Force use of the contract addresses from the registry
         constructor_kwargs.update({"_token": self.token_contract.address,
-                                   "_policyManager": self.policy_manager.address,
-                                   "_adjudicator": self.adjudicator.address,
                                    "_workLock": self.worklock.address if self.worklock is not None else NULL_ADDRESS})
         the_escrow_contract, deploy_receipt = self.blockchain.deploy_contract(
             transacting_power,

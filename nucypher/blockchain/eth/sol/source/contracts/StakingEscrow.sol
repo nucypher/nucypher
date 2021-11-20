@@ -149,13 +149,13 @@ contract StakingEscrow is Upgradeable, IERC900History {
     NuCypherToken public immutable token;
     WorkLockInterface public immutable workLock;
 
-    uint128 previousPeriodSupply; // outdated
-    uint128 currentPeriodSupply; // outdated
-    uint16 currentMintingPeriod; // outdated
+    uint128 public previousPeriodSupply; // outdated
+    uint128 public currentPeriodSupply; // outdated
+    uint16 public currentMintingPeriod; // outdated
 
     mapping (address => StakerInfo) public stakerInfo;
     address[] public stakers;
-    mapping (address => address) stakerFromWorker;  // outdated
+    mapping (address => address) public stakerFromWorker;  // outdated
 
     mapping (uint16 => uint256) stub1; // former slot for lockedPerPeriod
     uint128[] public balanceHistory;
