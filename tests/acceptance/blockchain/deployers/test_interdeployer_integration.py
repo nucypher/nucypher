@@ -78,50 +78,6 @@ def test_deploy_ethereum_contracts(testerchain,
     assert not staking_escrow_deployer.is_deployed()
     assert len(staking_escrow_deployer.contract_address) == 42
 
-
-    #
-    # Policy Manager
-    #
-    policy_manager_deployer = PolicyManagerDeployer(registry=test_registry)
-
-    with pytest.raises(BaseContractDeployer.ContractDeploymentError):
-        assert policy_manager_deployer.contract_address is constants.CONTRACT_NOT_DEPLOYED
-    assert not policy_manager_deployer.is_deployed()
-
-    policy_manager_deployer.deploy(progress=deployment_progress, transacting_power=tpower)
-    assert policy_manager_deployer.is_deployed()
-    assert len(policy_manager_deployer.contract_address) == 42
-
-    policy_agent = policy_manager_deployer.make_agent()
-    assert len(policy_agent.contract_address) == 42
-    assert policy_agent.contract_address == policy_manager_deployer.contract_address
-
-    another_policy_agent = policy_manager_deployer.make_agent()
-    assert len(another_policy_agent.contract_address) == 42
-    assert another_policy_agent.contract_address == policy_manager_deployer.contract_address == policy_agent.contract_address
-
-
-    #
-    # Adjudicator
-    #
-    adjudicator_deployer = AdjudicatorDeployer(registry=test_registry)
-
-    with pytest.raises(BaseContractDeployer.ContractDeploymentError):
-        assert adjudicator_deployer.contract_address is constants.CONTRACT_NOT_DEPLOYED
-    assert not adjudicator_deployer.is_deployed()
-
-    adjudicator_deployer.deploy(progress=deployment_progress, transacting_power=tpower)
-    assert adjudicator_deployer.is_deployed()
-    assert len(adjudicator_deployer.contract_address) == 42
-
-    adjudicator_agent = adjudicator_deployer.make_agent()
-    assert len(adjudicator_agent.contract_address) == 42
-    assert adjudicator_agent.contract_address == adjudicator_deployer.contract_address
-
-    another_adjudicator_agent = AdjudicatorAgent(registry=test_registry)
-    assert len(another_adjudicator_agent.contract_address) == 42
-    assert another_adjudicator_agent.contract_address == adjudicator_deployer.contract_address == adjudicator_agent.contract_address
-
     # StakingEscrow
     staking_escrow_deployer = StakingEscrowDeployer(registry=test_registry)
 
@@ -145,6 +101,5 @@ def test_deploy_ethereum_contracts(testerchain,
 
     # overall deployment steps must match aggregated individual expected number of steps
     all_deployment_transactions = token_deployer.deployment_steps + staking_escrow_deployer.init_steps + \
-                                  staking_escrow_deployer.deployment_steps + \
-                                  policy_manager_deployer.deployment_steps + adjudicator_deployer.deployment_steps
+                                  staking_escrow_deployer.deployment_steps
     assert deployment_progress.num_steps == len(all_deployment_transactions)

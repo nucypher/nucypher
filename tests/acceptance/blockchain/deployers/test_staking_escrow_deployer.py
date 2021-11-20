@@ -30,7 +30,7 @@ def test_staking_escrow_deployment(staking_escrow_deployer, deployment_progress,
                                                          transacting_power=transacting_power)
 
     # deployment steps must match expected number of steps
-    assert deployment_progress.num_steps == len(staking_escrow_deployer.deployment_steps) == len(deployment_receipts) == 4
+    assert deployment_progress.num_steps == len(staking_escrow_deployer.deployment_steps) == len(deployment_receipts) == 2
 
     for step in staking_escrow_deployer.deployment_steps:
         assert deployment_receipts[step]['status'] == 1
@@ -46,22 +46,6 @@ def test_make_agent(staking_escrow_deployer, test_registry):
 
     # Compare the contract address for equality
     assert staking_agent.contract_address == same_staking_agent.contract_address
-
-
-def test_deployment_parameters(staking_escrow_deployer,
-                               token_deployer,
-                               token_economics,
-                               test_registry):
-
-    token_address = staking_escrow_deployer.contract.functions.token().call()
-    assert token_deployer.contract_address == token_address
-
-    staking_agent = ContractAgency.get_agent(StakingEscrowAgent, registry=test_registry)
-    params = staking_agent.staking_parameters()
-    assert token_economics.staking_deployment_parameters[3:] == params[3:]
-    assert token_economics.staking_deployment_parameters[2] == params[2] // params[4]
-    assert token_economics.staking_deployment_parameters[0]*60*60 == params[0]  # FIXME: Do we really want this?
-    assert token_economics.staking_deployment_parameters[1]*60*60 == params[1]
 
 
 def test_staking_escrow_has_dispatcher(staking_escrow_deployer, testerchain, test_registry, transacting_power):
