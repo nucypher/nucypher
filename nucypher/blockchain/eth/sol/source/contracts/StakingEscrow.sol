@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-pragma solidity ^0.7.0;
+pragma solidity ^0.8.0;
 
 
 import "aragon/interfaces/IERC900History.sol";
@@ -10,6 +10,7 @@ import "contracts/lib/Snapshot.sol";
 import "contracts/proxy/Upgradeable.sol";
 import "zeppelin/math/Math.sol";
 import "zeppelin/token/ERC20/SafeERC20.sol";
+import "threshold/IStaking.sol";
 
 
 /**
@@ -57,7 +58,7 @@ contract StakingEscrowStub is Upgradeable {
         super.verifyState(_testTarget);
 
         // we have to use real values even though this is a stub
-        require(address(delegateGet(_testTarget, this.token.selector)) == address(token));
+        require(address(uint160(delegateGet(_testTarget, this.token.selector))) == address(token));
     }
 }
 
@@ -66,12 +67,11 @@ contract StakingEscrowStub is Upgradeable {
 * @title StakingEscrow
 * @notice Contract holds and locks stakers tokens.
 * Each staker that locks their tokens will receive some compensation
-* @dev |v6.1.1|
+* @dev |v6.2.1|
 */
 contract StakingEscrow is Upgradeable, IERC900History {
 
     using Bits for uint256;
-    using SafeMath for uint256;
     using Snapshot for uint128[];
     using SafeERC20 for NuCypherToken;
 
@@ -98,80 +98,100 @@ contract StakingEscrow is Upgradeable, IERC900History {
     */
     event Slashed(address indexed staker, uint256 penalty, address indexed investigator, uint256 reward);
 
-    struct SubStakeInfo {
-        uint16 firstPeriod;
-        uint16 lastPeriod;
-        uint16 unlockingDuration;
-        uint128 lockedValue;
-    }
+    /**
+    * @notice Signals that vesting parameters were set for the staker
+    * @param staker Staker address
+    * @param releaseTimestamp Release timestamp
+    * @param releaseRate Release rate
+    */
+    event VestingSet(address indexed staker, uint256 releaseTimestamp, uint256 releaseRate);
 
-    struct Downtime {
-        uint16 startPeriod;
-        uint16 endPeriod;
-    }
+    /**
+    * @notice Signals that the staker requested merge with T staking contract
+    * @param staker Staker address
+    * @param operator Operator address
+    */
+    event MergeRequested(address indexed staker, address indexed operator);
+
+    /**
+    * @notice Signals that the staker confirmed merge with T staking contract
+    * @param staker Staker address
+    */
+    event MergeConfirmed(address indexed staker);
 
     struct StakerInfo {
         uint256 value;
-        uint16 currentCommittedPeriod;
-        uint16 nextCommittedPeriod;
-        uint16 lastCommittedPeriod;
-        uint16 stub1; // former slot for lockReStakeUntilPeriod
-        uint256 completedWork;
-        uint16 workerStartPeriod; // period when worker was bonded
-        address worker;
+
+        uint16 stub1; // former slot for currentCommittedPeriod // TODO combine slots?
+        uint16 stub2; // former slot for nextCommittedPeriod
+        uint16 lastCommittedPeriod; // used only in depositFromWorkLock
+        uint16 stub4; // former slot for lockReStakeUntilPeriod
+        uint256 stub5; // former slot for completedWork
+        uint16 stub6; // former slot for workerStartPeriod
+        address stub7; // former slot for worker
+
         uint256 flags; // uint256 to acquire whole slot and minimize operations on it
 
-        uint256 reservedSlot1;
-        uint256 reservedSlot2;
-        uint256 reservedSlot3;
+        uint256 vestingReleaseTimestamp;
+        uint256 vestingReleaseRate;
+        address operator;
+
         uint256 reservedSlot4;
         uint256 reservedSlot5;
 
-        Downtime[] pastDowntime;
-        SubStakeInfo[] subStakes;
-        uint128[] history;
+        uint256[] stub8; // former slot for pastDowntime
+        uint256[] stub9; // former slot for subStakes
+        uint128[] history; // TODO keep or remove?
 
     }
 
     // indices for flags (0-4 were in use, skip it in future)
 //    uint8 internal constant SNAPSHOTS_DISABLED_INDEX = 3;
+    uint8 internal constant MERGED_INDEX = 5;
+
+    uint256 internal constant ACCEPTABLE_STAKING_ERROR = 10**15;
 
     NuCypherToken public immutable token;
     WorkLockInterface public immutable workLock;
+    IStaking public immutable tStaking;
 
-    uint128 public previousPeriodSupply; // outdated
-    uint128 public currentPeriodSupply; // outdated
-    uint16 public currentMintingPeriod; // outdated
+    uint128 private stub1; // former slot for previousPeriodSupply
+    uint128 public currentPeriodSupply; // resulting token supply
+    uint16 private stub2; // former slot for currentMintingPeriod
 
     mapping (address => StakerInfo) public stakerInfo;
     address[] public stakers;
-    mapping (address => address) public stakerFromWorker;  // outdated
+    mapping (address => address) private stub3; // former slot for stakerFromWorker
 
-    mapping (uint16 => uint256) stub1; // former slot for lockedPerPeriod
+    mapping (uint16 => uint256) private stub4; // former slot for lockedPerPeriod
     uint128[] public balanceHistory;  // outdated
 
-    address stub2; // former slot for PolicyManager
-    address stub3; // former slot for Adjudicator
-    address stub4; // former slot for WorkLock
+    address private stub5; // former slot for PolicyManager
+    address private stub6; // former slot for Adjudicator
+    address private stub7; // former slot for WorkLock
 
-    mapping (uint16 => uint256) public lockedPerPeriod; // outdated
+    mapping (uint16 => uint256) private stub8; // last former slot for lockedPerPeriod
 
     /**
     * @notice Constructor sets address of token contract and parameters for staking
     * @param _token NuCypher token contract
     * @param _workLock WorkLock contract. Zero address if there is no WorkLock
+    * @param _tStaking T token staking contract
     */
     constructor(
         NuCypherToken _token,
-        WorkLockInterface _workLock
+        WorkLockInterface _workLock,
+        IStaking _tStaking
     ) {
         require(_token.totalSupply() > 0 &&
+            _tStaking.stakedNu(address(0)) == 0 &&
             (address(_workLock) == address(0) || _workLock.token() == _token),
             "Input addresses must be deployed contracts"
         );
 
         token = _token;
         workLock = _workLock;
+        tStaking = _tStaking;
     }
 
     /**
@@ -180,6 +200,15 @@ contract StakingEscrow is Upgradeable, IERC900History {
     modifier onlyStaker()
     {
         require(stakerInfo[msg.sender].value > 0, "Caller must be a staker");
+        _;
+    }
+
+    /**
+    * @dev Checks caller is T staking contract
+    */
+    modifier onlyTStakingContract()
+    {
+        require(msg.sender == address(tStaking), "Caller must be the T staking contract");
         _;
     }
 
@@ -200,17 +229,17 @@ contract StakingEscrow is Upgradeable, IERC900History {
         return stakerInfo[_staker].value;
     }
 
-//    /**
-//    * @notice Get all flags for the staker
-//    */
-//    function getFlags(address _staker)
-//        external view returns (
-//            bool snapshots
-//        )
-//    {
-//        StakerInfo storage info = stakerInfo[_staker];
-//        snapshots = !info.flags.bitSet(SNAPSHOTS_DISABLED_INDEX);
-//    }
+    /**
+    * @notice Get all flags for the staker
+    */
+    function getFlags(address _staker)
+        external view returns (
+            bool merged
+        )
+    {
+        StakerInfo storage info = stakerInfo[_staker];
+        merged = info.flags.bitSet(MERGED_INDEX);
+    }
 
     /**
     * @notice Get work that completed by the staker
@@ -258,6 +287,105 @@ contract StakingEscrow is Upgradeable, IERC900History {
         emit Deposited(_staker, _value);
     }
 
+    /**
+    * @notice Withdraw available amount of NU tokens to staker
+    * @param _value Amount of tokens to withdraw
+    */
+    function withdraw(uint256 _value) external onlyStaker {
+        StakerInfo storage info = stakerInfo[msg.sender];
+        require(info.flags.bitSet(MERGED_INDEX), "Merge must be confirmed");
+        require(
+            _value + tStaking.stakedNu(info.operator) <= info.value,
+            "Not enough tokens unstaked in T staking contract"
+        );
+        require(
+            _value + getVestedTokens(msg.sender) <= info.value,
+            "Not enough tokens released during vesting"
+        );
+        info.value -= _value;
+
+        addSnapshot(info, - int256(_value));
+        token.safeTransfer(msg.sender, _value);
+        emit Withdrawn(msg.sender, _value);
+    }
+
+    /**
+    * @notice Returns amount of not released yet tokens for staker
+    */
+    function getVestedTokens(address _staker) public view returns (uint256) {
+        StakerInfo storage info = stakerInfo[_staker];
+        if (info.vestingReleaseTimestamp <= block.timestamp) {
+            return 0;
+        }
+        return (block.timestamp - info.vestingReleaseTimestamp) * info.vestingReleaseRate;
+    }
+
+    /**
+    * @notice Setup vesting parameters
+    * @param _stakers Array of stakers
+    * @param _releaseTimestamp Array of timestamps when stake will be released
+    * @param _releaseRate Array of release rates
+    */
+    function setupVesting(
+        address[] calldata _stakers,
+        uint256[] calldata _releaseTimestamp,
+        uint256[] calldata _releaseRate
+    ) external onlyOwner {
+        require(_stakers.length == _releaseTimestamp.length &&
+            _releaseTimestamp.length == _releaseRate.length,
+            "Input arrays must have same number of elements"
+        );
+        for (uint256 i = 0; i < _stakers.length; i++) {
+            address staker = _stakers[i];
+            StakerInfo storage info = stakerInfo[staker];
+            require(info.vestingReleaseTimestamp == 0, "Vesting parameters can be set only once");
+            info.vestingReleaseTimestamp = _releaseTimestamp[i];
+            info.vestingReleaseRate = _releaseRate[i];
+            require(getVestedTokens(staker) > 0, "Vesting parameters must be set properly");
+            emit VestingSet(staker, info.vestingReleaseTimestamp, info.vestingReleaseRate);
+        }
+    }
+
+    /**
+    * @notice Request migration to threshold network
+    * @param _staker Staker address
+    * @param _operator Operator address
+    * @return Amount of tokens
+    */
+    function requestMerge(address _staker, address _operator)
+        external onlyTStakingContract returns (uint256)
+    {
+        StakerInfo storage info = stakerInfo[_staker];
+        require(
+            info.operator == address(0) || info.operator == _operator,
+            "Operator already set for the staker"
+        );
+        if (info.operator == address(0)) {
+            info.operator = _operator;
+            emit MergeRequested(_staker, _operator);
+        }
+        return info.value;
+    }
+
+    /**
+    * @notice Confirm migration to threshold network
+    * @param _staker Staker address
+    */
+    function confirmMerge(address _staker) external {
+        StakerInfo storage info = stakerInfo[_staker];
+        require(info.operator != address(0), "Staker didn't request merge");
+
+        require(!info.flags.bitSet(MERGED_INDEX), "Merge already confirmed");
+        uint256 stakedNu = tStaking.stakedNu(info.operator);
+        require(stakedNu + ACCEPTABLE_STAKING_ERROR >= info.value, "All tokens must be staked");
+
+        uint96 minStakedNuInT = tStaking.getMinStaked(info.operator, IStaking.StakeType.NU);
+        (,, uint96 stakedNuInT) = tStaking.stakes(info.operator);
+        require(minStakedNuInT == stakedNuInT, "All tokens must be authorized");
+        info.flags = info.flags.toggleBit(MERGED_INDEX);
+        emit MergeConfirmed(_staker);
+    }
+
     //-------------------------Slashing-------------------------
     /**
     * @notice Slash the staker's stake and reward the investigator
@@ -272,7 +400,7 @@ contract StakingEscrow is Upgradeable, IERC900History {
         address _investigator,
         uint256 _reward
     )
-        internal
+        external onlyTStakingContract
     {
         require(_penalty > 0, "Penalty must be specified");
         StakerInfo storage info = stakerInfo[_staker];
@@ -296,54 +424,6 @@ contract StakingEscrow is Upgradeable, IERC900History {
     */
     function getStakersLength() external view virtual returns (uint256) {
         return stakers.length;
-    }
-
-    /**
-    * @notice Return the length of the array of sub stakes
-    */
-    function getSubStakesLength(address _staker) external view returns (uint256) {
-        return stakerInfo[_staker].subStakes.length;
-    }
-
-    /**
-    * @notice Return the information about sub stake
-    */
-    function getSubStakeInfo(address _staker, uint256 _index)
-    // TODO change to structure when ABIEncoderV2 is released (#1501)
-//        public view returns (SubStakeInfo)
-        // TODO "virtual" only for tests, probably will be removed after #1512
-        external view virtual returns (
-            uint16 firstPeriod,
-            uint16 lastPeriod,
-            uint16 unlockingDuration,
-            uint128 lockedValue
-        )
-    {
-        SubStakeInfo storage info = stakerInfo[_staker].subStakes[_index];
-        firstPeriod = info.firstPeriod;
-        lastPeriod = info.lastPeriod;
-        unlockingDuration = info.unlockingDuration;
-        lockedValue = info.lockedValue;
-    }
-
-    /**
-    * @notice Return the length of the array of past downtime
-    */
-    function getPastDowntimeLength(address _staker) external view returns (uint256) {
-        return stakerInfo[_staker].pastDowntime.length;
-    }
-
-    /**
-    * @notice Return the information about past downtime
-    */
-    function  getPastDowntime(address _staker, uint256 _index)
-    // TODO change to structure when ABIEncoderV2 is released (#1501)
-//        public view returns (Downtime)
-        external view returns (uint16 startPeriod, uint16 endPeriod)
-    {
-        Downtime storage downtime = stakerInfo[_staker].pastDowntime[_index];
-        startPeriod = downtime.startPeriod;
-        endPeriod = downtime.endPeriod;
     }
 
     //------------------ ERC900 connectors ----------------------
@@ -390,10 +470,12 @@ contract StakingEscrow is Upgradeable, IERC900History {
         address stakerAddress = stakers[0];
         require(address(uint160(delegateGet(_testTarget, this.stakers.selector, 0))) == stakerAddress);
         StakerInfo storage info = stakerInfo[stakerAddress];
-        bytes32 staker = bytes32(uint256(stakerAddress));
+        bytes32 staker = bytes32(uint256(uint160(stakerAddress)));
         StakerInfo memory infoToCheck = delegateGetStakerInfo(_testTarget, staker);
-        require(
-            infoToCheck.value == info.value &&
+        require(infoToCheck.value == info.value &&
+            infoToCheck.vestingReleaseTimestamp == info.vestingReleaseTimestamp &&
+            infoToCheck.vestingReleaseRate == info.vestingReleaseRate &&
+            infoToCheck.operator == info.operator &&
             infoToCheck.flags == info.flags
         );
     }

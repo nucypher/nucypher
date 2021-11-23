@@ -34,6 +34,7 @@ from nucypher.blockchain.eth import sol
 SOLIDITY_SOURCE_ROOT: Path = Path(sol.__file__).parent / 'source'
 ZEPPELIN = 'zeppelin'
 ARAGON = 'aragon'
+THRESHOLD = 'threshold'
 
 # Do not compile contracts containing...
 IGNORE_CONTRACT_PREFIXES: Tuple[str, ...] = (
