@@ -235,8 +235,6 @@ class Learner:
 
         self.log = Logger("learning-loop")  # type: Logger
 
-        self.suspicious_activities_witnessed = defaultdict(list)  # TODO: Combine with buckets / node labeling
-
         self.learning_deferred = Deferred()
         self.domain = domain
         if not self.federated_only:
@@ -817,7 +815,7 @@ class Learner:
             unresponsive_nodes.add(current_teacher)  # This does nothing.
             self.known_nodes.mark_as(current_teacher.InvalidNode, current_teacher)
             self.log.warn(f"Teacher {str(current_teacher)} is invalid: {bytes(current_teacher)}:{e}.")
-            self.suspicious_activities_witnessed['vladimirs'].append(current_teacher)
+            # TODO (#567): bucket the node as suspicious
             return
         except RuntimeError as e:
             if canceller and canceller.stop_now:
@@ -863,8 +861,7 @@ class Learner:
         try:
             self.verify_from(current_teacher, node_payload, signature=signature)
         except Learner.InvalidSignature:  # TODO: Ensure wev've got the right InvalidSignature exception here
-            self.suspicious_activities_witnessed['vladimirs'].append(
-                ('Node payload improperly signed', node_payload, signature))
+            # TODO (#567): bucket the node as suspicious
             self.log.warn(
                 f"Invalid signature ({signature}) received from teacher {current_teacher} for payload {node_payload}")
 

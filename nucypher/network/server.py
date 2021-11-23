@@ -251,12 +251,12 @@ def _make_rest_app(datastore: Datastore, this_node, domain: str, log: Logger) ->
                 arranged_addresses = this_node.policy_agent.fetch_arrangement_addresses_from_policy_txid(tx, timeout=this_node.synchronous_query_timeout)
             except TimeExhausted:
                 # Alice didn't pay.  Return response with that weird status code.
-                this_node.suspicious_activities_witnessed['freeriders'].append((alice, f"No transaction matching {tx}."))
+                # TODO (#567): bucket the node as suspicious
                 return Response(f"No paid transaction matching {tx} for this node", status=402)
 
             this_node_has_been_arranged = this_node.checksum_address in arranged_addresses
             if not this_node_has_been_arranged:
-                this_node.suspicious_activities_witnessed['freeriders'].append((alice, f"The transaction {tx} does not list me as a Worker - it lists {arranged_addresses}."))
+                # TODO (#567): bucket the node as suspicious
                 return Response(f"This node was not listed as servicing the policy in transaction {tx}", status=402)
         else:
             _tx = NO_BLOCKCHAIN_CONNECTION

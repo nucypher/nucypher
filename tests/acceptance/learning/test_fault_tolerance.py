@@ -14,14 +14,14 @@
  You should have received a copy of the GNU Affero General Public License
  along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
+import re
 
 import pytest
+from constant_sorrow.constants import NOT_SIGNED
 from twisted.logger import LogLevel, globalLogPublisher
 
-from constant_sorrow.constants import NOT_SIGNED
 from nucypher.acumen.perception import FleetSensor
 from nucypher.config.constants import TEMPORARY_DOMAIN
-from nucypher.crypto.powers import TransactingPower
 from nucypher.network.nodes import Learner
 from tests.utils.middleware import MockRestMiddleware
 from tests.utils.ursula import make_ursula_for_staker
@@ -69,8 +69,14 @@ def test_blockchain_ursula_stamp_verification_tolerance(blockchain_ursulas, mock
 
     # Learn about a node with a badly signed payload
     mocker.patch.object(lonely_blockchain_learner, 'verify_from', side_effect=Learner.InvalidSignature)
+    globalLogPublisher.addObserver(warning_trapper)
     lonely_blockchain_learner.learn_from_teacher_node(eager=True)
-    assert len(lonely_blockchain_learner.suspicious_activities_witnessed['vladimirs']) == 1
+    globalLogPublisher.removeObserver(warning_trapper)
+
+    assert len(warnings) == 2
+    warning = warnings[1]['log_format']
+    assert str(blockchain_teacher) in warning
+    assert re.match("Invalid signature .* received from teacher", warning)  # TODO: Cleanup logging templates
 
 
 @pytest.mark.skip("See Issue #1075")  # TODO: Issue #1075
