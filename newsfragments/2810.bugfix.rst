@@ -1,1 +1,0 @@
-Regenerate Ursula TLS certificates if the become invalid, e.g. become expired.
