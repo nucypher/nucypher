@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-pragma solidity ^0.7.0;
+pragma solidity ^0.8.0;
 
 
 import "contracts/NuCypherToken.sol";
@@ -61,7 +61,7 @@ contract PolicyManagerForStakingContractMock {
     function withdraw() public returns (uint256) {
         uint256 value = address(this).balance;
         require(value > 0);
-        msg.sender.transfer(value);
+        payable(msg.sender).transfer(value);
         return value;
     }
 
@@ -96,7 +96,7 @@ contract WorkLockForStakingContractMock {
     function cancelBid() external {
         uint256 value = depositedETH;
         depositedETH = 0;
-        msg.sender.transfer(value);
+        payable(msg.sender).transfer(value);
     }
 
     function sendCompensation() external payable {
@@ -110,7 +110,7 @@ contract WorkLockForStakingContractMock {
     function withdrawCompensation() external {
         uint256 value = compensationValue;
         compensationValue = 0;
-        msg.sender.transfer(value);
+        payable(msg.sender).transfer(value);
     }
 
     function setClaimedTokens(uint256 _claimedTokens) external {
@@ -133,7 +133,7 @@ contract WorkLockForStakingContractMock {
     function refund() external returns (uint256) {
         uint256 value = refundETH;
         refundETH = 0;
-        msg.sender.transfer(value);
+        payable(msg.sender).transfer(value);
         return value;
     }
 
@@ -191,7 +191,7 @@ contract DestroyableStakingInterface {
     }
 
     function destroy() public {
-        selfdestruct(msg.sender);
+        selfdestruct(payable(msg.sender));
     }
 
 }
@@ -223,7 +223,7 @@ contract SimpleStakingContract is AbstractStakingContract, Ownable {
     function withdrawETH() public override onlyOwner {
         uint256 balance = address(this).balance;
         require(balance != 0);
-        msg.sender.sendValue(balance);
+        payable(msg.sender).sendValue(balance);
     }
 
     /**
