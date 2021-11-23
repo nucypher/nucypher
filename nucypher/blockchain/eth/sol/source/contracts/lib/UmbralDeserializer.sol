@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-pragma solidity ^0.7.0;
+pragma solidity ^0.8.0;
 
 
 /**
@@ -259,7 +259,7 @@ library UmbralDeserializer {
     /**
     * @notice Read 1 byte from memory in the pointer position
     */
-    function getByte(uint256 _pointer) internal pure returns (byte result) {
+    function getByte(uint256 _pointer) internal pure returns (bytes1 result) {
         bytes32 word;
         assembly {
             word := mload(_pointer)

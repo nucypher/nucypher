@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-pragma solidity ^0.7.0;
+pragma solidity ^0.8.0;
 
 import "contracts/lib/ReEncryptionValidator.sol";
 import "contracts/lib/SignatureVerifier.sol";
@@ -156,7 +156,7 @@ contract Adjudicator is Upgradeable {
 
         // 4. Extract worker address from stamp signature.
         address worker = SignatureVerifier.recover(
-            SignatureVerifier.hashEIP191(stamp, byte(0x45)), // Currently, we use version E (0x45) of EIP191 signatures
+            SignatureVerifier.hashEIP191(stamp, bytes1(0x45)), // Currently, we use version E (0x45) of EIP191 signatures
             _workerIdentityEvidence);
         address staker = escrow.stakerFromWorker(worker);
         require(staker != address(0), "Worker must be related to a staker");

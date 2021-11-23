@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-pragma solidity ^0.7.0;
+pragma solidity ^0.8.0; // TODO use 0.7.x version and revert changes ?
 
 
 import "zeppelin/math/SafeMath.sol";
@@ -335,7 +335,7 @@ contract WorkLock is Ownable {
         if (refundETH > minAllowedBid) {
             bonusETHSupply = bonusETHSupply.sub(refundETH - minAllowedBid);
         }
-        msg.sender.sendValue(refundETH);
+        payable(msg.sender).sendValue(refundETH);
         emit Canceled(msg.sender, refundETH);
     }
 
@@ -444,7 +444,7 @@ contract WorkLock is Ownable {
         uint256 refund = compensation[msg.sender];
         require(refund > 0, "There is no compensation");
         compensation[msg.sender] = 0;
-        msg.sender.sendValue(refund);
+        payable(msg.sender).sendValue(refund);
         emit CompensationWithdrawn(msg.sender, refund);
     }
 
@@ -550,6 +550,6 @@ contract WorkLock is Ownable {
 
         info.completedWork = info.completedWork.add(completedWork);
         emit Refund(msg.sender, refundETH, completedWork);
-        msg.sender.sendValue(refundETH);
+        payable(msg.sender).sendValue(refundETH);
     }
 }

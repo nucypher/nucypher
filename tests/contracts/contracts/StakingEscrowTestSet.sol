@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-pragma solidity ^0.7.0;
+pragma solidity ^0.8.0;
 
 
 import "contracts/StakingEscrow.sol";
@@ -13,24 +13,15 @@ contract EnhancedStakingEscrow is StakingEscrow {
 
     constructor(
         NuCypherToken _token,
-        WorkLockInterface _workLock
+        WorkLockInterface _workLock,
+        IStaking _tStaking
     )
         StakingEscrow(
             _token,
-            _workLock
+            _workLock,
+            _tStaking
         )
     {
-    }
-
-    function testSlashStaker(
-        address _staker,
-        uint256 _penalty,
-        address _investigator,
-        uint256 _reward
-    )
-        external
-    {
-        slashStaker(_staker, _penalty, _investigator, _reward);
     }
 
     function setStaker(address _staker, uint256 _value, uint16 _lastCommittedPeriod) external {
@@ -50,11 +41,13 @@ contract StakingEscrowBad is StakingEscrow {
 
     constructor(
         NuCypherToken _token,
-        WorkLockInterface _workLock
+        WorkLockInterface _workLock,
+        IStaking _tStaking
     )
         StakingEscrow(
             _token,
-            _workLock
+            _workLock,
+            _tStaking
         )
     {
     }
@@ -73,11 +66,13 @@ contract StakingEscrowV2Mock is StakingEscrow {
 
     constructor(
         NuCypherToken _token,
-        WorkLockInterface _workLock
+        WorkLockInterface _workLock,
+        IStaking _tStaking
     )
         StakingEscrow(
             _token,
-            _workLock
+            _workLock,
+            _tStaking
         )
     {
         valueToCheck = 2;

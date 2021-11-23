@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-pragma solidity ^0.7.0;
+pragma solidity ^0.8.0;
 
 
 import "zeppelin/token/ERC20/SafeERC20.sol";
@@ -270,7 +270,7 @@ contract PolicyManager is Upgradeable {
 
         for (uint256 i = 0; i < _nodes.length; i++) {
             address node = _nodes[i];
-            addFeeToNode(currentPeriod, endPeriod, node, feeRate, int256(feeRate));
+            addFeeToNode(currentPeriod, endPeriod, node, feeRate, int256(uint256(feeRate)));
             policy.arrangements.push(ArrangementInfo(node, 0, 0));
         }
     }
@@ -345,7 +345,7 @@ contract PolicyManager is Upgradeable {
             !policy.disabled
         );
 
-        policy.sponsor = msg.sender;
+        policy.sponsor = payable(msg.sender);
         policy.startTimestamp = uint64(block.timestamp);
         policy.endTimestamp = _endTimestamp;
         policy.feeRate = _feeRate;
@@ -476,7 +476,7 @@ contract PolicyManager is Upgradeable {
     * @notice Withdraw fee by node
     */
     function withdraw() external returns (uint256) {
-        return withdraw(msg.sender);
+        return withdraw(payable(msg.sender));
     }
 
     /**
@@ -573,14 +573,14 @@ contract PolicyManager is Upgradeable {
                 // Check default value for feeDelta
                 uint16 lastRefundedPeriod = arrangement.lastRefundedPeriod;
                 if (nodeInfo.feeDelta[lastRefundedPeriod] == DEFAULT_FEE_DELTA) {
-                    nodeInfo.feeDelta[lastRefundedPeriod] = -int256(policy.feeRate);
+                    nodeInfo.feeDelta[lastRefundedPeriod] = -int256(uint256(policy.feeRate));
                 } else {
-                    nodeInfo.feeDelta[lastRefundedPeriod] -= int256(policy.feeRate);
+                    nodeInfo.feeDelta[lastRefundedPeriod] -= int256(uint256(policy.feeRate));
                 }
                 if (nodeInfo.feeDelta[endPeriod] == DEFAULT_FEE_DELTA) {
-                    nodeInfo.feeDelta[endPeriod] = int256(policy.feeRate);
+                    nodeInfo.feeDelta[endPeriod] = int256(uint256(policy.feeRate));
                 } else {
-                    nodeInfo.feeDelta[endPeriod] += int256(policy.feeRate);
+                    nodeInfo.feeDelta[endPeriod] += int256(uint256(policy.feeRate));
                 }
 
                 // Reset to default value if needed
@@ -612,7 +612,7 @@ contract PolicyManager is Upgradeable {
             if (numberOfActive == 0) {
                 policy.disabled = true;
                 // gas refund
-                policy.sponsor = address(0);
+                policy.sponsor = payable(address(0));
                 policy.owner = address(0);
                 policy.feeRate = 0;
                 policy.startTimestamp = 0;
@@ -688,7 +688,7 @@ contract PolicyManager is Upgradeable {
     * @return Revocation hash, EIP191 version 0x45 ('E')
     */
     function getRevocationHash(bytes16 _policyId, address _node) public view returns (bytes32) {
-        return SignatureVerifier.hashEIP191(abi.encodePacked(_policyId, _node), byte(0x45));
+        return SignatureVerifier.hashEIP191(abi.encodePacked(_policyId, _node), bytes1(0x45));
     }
 
     /**
@@ -832,7 +832,7 @@ contract PolicyManager is Upgradeable {
     function delegateGetNodeInfo(address _target, address _node)
         internal returns (MemoryNodeInfo memory result)
     {
-        bytes32 memoryAddress = delegateGetData(_target, this.nodes.selector, 1, bytes32(uint256(_node)), 0);
+        bytes32 memoryAddress = delegateGetData(_target, this.nodes.selector, 1, bytes32(uint256(uint160(_node))), 0);
         assembly {
             result := memoryAddress
         }
@@ -899,7 +899,7 @@ contract PolicyManager is Upgradeable {
 
         // Create fake Policy and NodeInfo to use them in verifyState(address)
         Policy storage policy = policies[RESERVED_POLICY_ID];
-        policy.sponsor = msg.sender;
+        policy.sponsor = payable(msg.sender);
         policy.owner = address(this);
         policy.startTimestamp = 1;
         policy.endTimestamp = 2;
