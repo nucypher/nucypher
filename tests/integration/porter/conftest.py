@@ -14,12 +14,11 @@
  You should have received a copy of the GNU Affero General Public License
  along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
-from base64 import b64decode
 
+import maya
 import pytest
 
 from nucypher.core import HRAC, TreasureMap
-
 from nucypher.crypto.powers import DecryptingPower
 
 
@@ -42,7 +41,8 @@ def random_federated_treasure_map_data(federated_alice, federated_bob, federated
                                                              hrac=hrac,
                                                              policy_encrypting_key=policy_key,
                                                              assigned_kfrags=assigned_kfrags,
-                                                             threshold=threshold)
+                                                             threshold=threshold,
+                                                             expiration=maya.when('next week').epoch)
 
     bob_key = federated_bob.public_keys(DecryptingPower)
     enc_treasure_map = random_treasure_map.encrypt(signer=federated_alice.stamp.as_umbral_signer(),

@@ -128,7 +128,7 @@ def test_alice_verifies_ursula_just_in_time(fleet_of_highperf_mocked_ursulas,
 
         policy = highperf_mocked_alice.grant(
             highperf_mocked_bob, b"any label", threshold=20, shares=30,
-            expiration=maya.when('next week'))
+            expiration=maya.when('next week').epoch)
 
     # TODO: Make some assertions about policy.
     total_verified = sum(node.verified_node for node in highperf_mocked_alice.known_nodes)

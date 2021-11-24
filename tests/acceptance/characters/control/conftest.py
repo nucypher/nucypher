@@ -95,7 +95,7 @@ def create_policy_control_request(blockchain_bob):
         'label': b64encode(bytes(b'test')).decode(),
         'threshold': 2,
         'shares': 3,
-        'expiration': (maya.now() + datetime.timedelta(days=35)).iso8601(),
+        'expiration': (maya.now() + datetime.timedelta(days=35)).epoch,
         'value': 3 * 3 * 10 ** 16
     }
     return method_name, params
@@ -111,7 +111,7 @@ def grant_control_request(blockchain_bob):
         'label': 'test',
         'threshold': 2,
         'shares': 3,
-        'expiration': (maya.now() + datetime.timedelta(days=35)).iso8601(),
+        'expiration': (maya.now() + datetime.timedelta(days=35)).epoch,
         'value': 3 * 3 * 10 ** 16
     }
     return method_name, params

@@ -45,7 +45,7 @@ def test_alice_can_grant_even_when_the_first_nodes_she_tries_are_down(federated_
                                  label,
                                  threshold=threshold,
                                  shares=shares,
-                                 expiration=policy_end_datetime,
+                                 expiration=policy_end_datetime.epoch,
                                  timeout=.1)
 
     # Go!

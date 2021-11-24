@@ -77,7 +77,7 @@ def test_bob_retrieves(federated_alice,
     # Just for fun, let's assume she distributes KFrags among Ursulas unknown to Bob
     shares = NUMBER_OF_URSULAS_IN_DEVELOPMENT_NETWORK - 2
     label = b'label://' + os.urandom(32)
-    contract_end_datetime = maya.now() + datetime.timedelta(days=5)
+    contract_end_datetime = (maya.now() + datetime.timedelta(days=5)).epoch
     policy = federated_alice.grant(bob=bob,
                                    label=label,
                                    threshold=3,

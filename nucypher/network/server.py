@@ -16,35 +16,32 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
 
-from http import HTTPStatus
 import uuid
 import weakref
+from http import HTTPStatus
 from pathlib import Path
 from typing import Tuple
 
 from constant_sorrow import constants
-from constant_sorrow.constants import RELAX, NOT_STAKING
+from constant_sorrow.constants import RELAX
 from flask import Flask, Response, jsonify, request
 from mako import exceptions as mako_exceptions
 from mako.template import Template
 
+from nucypher.config.constants import MAX_UPLOAD_CONTENT_LENGTH
 from nucypher.core import (
     ReencryptionRequest,
     RevocationOrder,
-    NodeMetadata,
     MetadataRequest,
     MetadataResponse,
-    )
-
-from nucypher.blockchain.eth.utils import period_to_epoch
-from nucypher.config.constants import MAX_UPLOAD_CONTENT_LENGTH
+)
 from nucypher.crypto.keypairs import DecryptingKeypair
 from nucypher.crypto.signing import InvalidSignature
 from nucypher.datastore.datastore import Datastore
 from nucypher.datastore.models import ReencryptionRequest as ReencryptionRequestModel
 from nucypher.network.exceptions import NodeSeemsToBeDown
-from nucypher.network.protocols import InterfaceInfo
 from nucypher.network.nodes import NodeSprout
+from nucypher.network.protocols import InterfaceInfo
 from nucypher.utilities.logging import Logger
 
 HERE = BASE_DIR = Path(__file__).parent
@@ -186,7 +183,7 @@ def _make_rest_app(datastore: Datastore, this_node, domain: str, log: Logger) ->
             authorized_kfrag = this_node._decrypt_kfrag(reenc_request.encrypted_kfrag)
         except DecryptingKeypair.DecryptionFailed:
             # TODO: don't we want to record suspicious activities here too?
-            return Response(response="EncryptedKeyFrag decryption failed.", status=HTTPStatus.FORBIDDEN)
+            return Response(response="EncryptedKeyFrag decryption failed.", status=HTTPStatus.FORBIDDEN)  # 403
         except Exception as e:
             message = f'{bob_identity_message} Invalid EncryptedKeyFrag: {e}.'
             log.info(message)
@@ -202,10 +199,14 @@ def _make_rest_app(datastore: Datastore, this_node, domain: str, log: Logger) ->
             log.info(message)
             # TODO (#567): bucket the node as suspicious
             return Response(message, status=HTTPStatus.UNAUTHORIZED)  # 401 - Unauthorized
+        except authorized_kfrag.Expired as e:
+            message = f'{bob_identity_message} Expired KeyFrag: {e}.'
+            log.info(message)
+            return Response(message, status=HTTPStatus.UNAUTHORIZED)  # 401
         except Exception as e:
             message = f'{bob_identity_message} Invalid KeyFrag: {e}.'
             log.info(message)
-            return Response(message, status=HTTPStatus.BAD_REQUEST)
+            return Response(message, status=HTTPStatus.BAD_REQUEST)  # 400
 
         if not this_node.federated_only:
 

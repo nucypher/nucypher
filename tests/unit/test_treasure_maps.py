@@ -15,15 +15,10 @@
  along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
-
-import os
-
 import pytest
 
 from nucypher.core import HRAC, TreasureMap, EncryptedTreasureMap
-
 from nucypher.crypto.powers import DecryptingPower
-from nucypher.crypto.umbral_adapter import KeyFrag
 
 
 def test_complete_treasure_map_journey(federated_alice, federated_bob, federated_ursulas, idle_federated_policy, mocker):
@@ -44,7 +39,8 @@ def test_complete_treasure_map_journey(federated_alice, federated_bob, federated
                                                       hrac=hrac,
                                                       policy_encrypting_key=idle_federated_policy.public_key,
                                                       assigned_kfrags=assigned_kfrags,
-                                                      threshold=1)
+                                                      threshold=1,
+                                                      expiration=idle_federated_policy.expiration)
 
     ursula_rolodex = {u.checksum_address: u for u in ursulas}
     for ursula_address, encrypted_kfrag in treasure_map.destinations.items():
@@ -60,7 +56,6 @@ def test_complete_treasure_map_journey(federated_alice, federated_bob, federated
 
     assert treasure_map.destinations == deserialized_map.destinations
     assert treasure_map.hrac == deserialized_map.hrac
-
 
     enc_treasure_map = treasure_map.encrypt(signer=federated_alice.stamp.as_umbral_signer(),
                                             recipient_key=federated_bob.public_keys(DecryptingPower))

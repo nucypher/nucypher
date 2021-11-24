@@ -227,7 +227,7 @@ def idle_federated_policy(federated_alice, federated_bob):
                                            label=random_label,
                                            threshold=threshold,
                                            shares=shares,
-                                           expiration=maya.now() + timedelta(days=5))
+                                           expiration=(maya.now() + timedelta(days=5)).epoch)
     return policy
 
 

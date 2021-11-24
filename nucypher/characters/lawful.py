@@ -282,7 +282,7 @@ class Alice(Character, BlockchainPolicyAuthor):
         if self.federated_only:
             if not expiration:
                 raise TypeError("For a federated policy, you must specify expiration (payment_periods don't count).")
-            if expiration <= maya.now():
+            if expiration <= maya.now().epoch:
                 raise ValueError(f'Expiration must be in the future ({expiration}).')
         else:
             blocktime = maya.MayaDT(self.policy_agent.blockchain.get_blocktime())

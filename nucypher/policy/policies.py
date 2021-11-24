@@ -189,7 +189,8 @@ class Policy(ABC):
                                                           hrac=self.hrac,
                                                           policy_encrypting_key=self.public_key,
                                                           assigned_kfrags=assigned_kfrags,
-                                                          threshold=self.threshold)
+                                                          threshold=self.threshold,
+                                                          expiration=self.expiration)
 
         enc_treasure_map = treasure_map.encrypt(signer=self.publisher.stamp.as_umbral_signer(),
                                                 recipient_key=self.bob.public_keys(DecryptingPower))

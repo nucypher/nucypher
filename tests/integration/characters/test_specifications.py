@@ -50,7 +50,7 @@ def test_various_field_validations_by_way_of_alice_grant(federated_bob):
         'bob_verifying_key': bytes(federated_bob.stamp).hex(),
         'threshold': 5,
         'shares': 6,
-        'expiration': (maya.now() + datetime.timedelta(days=3)).iso8601(),
+        'expiration': (maya.now() + datetime.timedelta(days=3)).epoch,
         'label': 'cats the animal',
         'rate': 1000,
         'value': 3000,

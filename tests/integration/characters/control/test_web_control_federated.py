@@ -118,7 +118,7 @@ def test_alice_character_control_revoke(alice_web_controller_test_client, federa
         'label': 'test-revoke',
         'threshold': 2,
         'shares': 3,
-        'expiration': (maya.now() + datetime.timedelta(days=3)).iso8601(),
+        'expiration': (maya.now() + datetime.timedelta(days=3)).epoch,
     }
     response = alice_web_controller_test_client.put('/grant', data=json.dumps(grant_request_data))
     assert response.status_code == 200
@@ -287,7 +287,7 @@ def test_web_character_control_lifecycle(alice_web_controller_test_client,
         'threshold': 1,
         'shares': 1,
         'label': random_label,
-        'expiration': (maya.now() + datetime.timedelta(days=3)).iso8601(),  # TODO
+        'expiration': (maya.now() + datetime.timedelta(days=3)).epoch,
     }
 
     response = alice_web_controller_test_client.put('/grant', data=json.dumps(alice_request_data))

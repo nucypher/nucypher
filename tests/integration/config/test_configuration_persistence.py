@@ -65,7 +65,7 @@ def test_alices_powers_are_persistent(federated_ursulas, temp_dir_path):
 
     # Now, let's create a policy for some Bob.
     threshold, shares = 3, 4
-    policy_end_datetime = maya.now() + datetime.timedelta(days=5)
+    policy_end_datetime = (maya.now() + datetime.timedelta(days=5)).epoch
 
     bob = Bob(federated_only=True,
               start_learning_now=False,
@@ -114,7 +114,7 @@ def test_alices_powers_are_persistent(federated_ursulas, temp_dir_path):
     # except for the label (i.e., recipient, m, n, policy_end) are different
     # from previous policy
     threshold, shares = 2, 5
-    policy_end_datetime = maya.now() + datetime.timedelta(days=3)
+    policy_end_datetime = (maya.now() + datetime.timedelta(days=3)).epoch
     roberto_policy = new_alice.grant(roberto, label, threshold=threshold, shares=shares, expiration=policy_end_datetime)
 
     # Both policies must share the same public key (i.e., the policy public key)

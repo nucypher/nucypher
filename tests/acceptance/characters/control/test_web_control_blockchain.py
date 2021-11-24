@@ -122,7 +122,7 @@ def test_alice_character_control_revoke(alice_web_controller_test_client, blockc
         'label': 'test-revoke',
         'threshold': 2,
         'shares': 3,
-        'expiration': (maya.now() + datetime.timedelta(days=35)).iso8601(),
+        'expiration': (maya.now() + datetime.timedelta(days=35)).epoch,
         'value': 100500 * 3 * 3,
     }
     response = alice_web_controller_test_client.put('/grant', data=json.dumps(grant_request_data))
@@ -285,7 +285,7 @@ def test_web_character_control_lifecycle(alice_web_controller_test_client,
         'threshold': 1,
         'shares': 1,
         'label': random_label,
-        'expiration': (maya.now() + datetime.timedelta(days=35)).iso8601(),
+        'expiration': (maya.now() + datetime.timedelta(days=35)).epoch,
         'value': 3 * 10 ** 10
     }
 

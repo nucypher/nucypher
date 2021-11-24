@@ -15,23 +15,21 @@ You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
+
+import datetime
+from functools import partial
 from typing import Optional, Sequence, Dict, Tuple, List, Iterable, Mapping, NamedTuple, Callable
 
 from bytestring_splitter import (
     BytestringSplitter,
     VariableLengthBytestring,
-    BytestringKwargifier,
-    BytestringSplittingError,
 )
 from eth_typing.evm import ChecksumAddress
 from eth_utils.address import to_checksum_address, to_canonical_address
 
-from nucypher.utilities.versioning import Versioned
-
+import nucypher.crypto.umbral_adapter as umbral  # need it to mock `umbral.encrypt`
 from nucypher.blockchain.eth.constants import LENGTH_ECDSA_SIGNATURE_WITH_RECOVERY
-from nucypher.crypto.utils import keccak_digest
 from nucypher.crypto.signing import InvalidSignature
-import nucypher.crypto.umbral_adapter as umbral # need it to mock `umbral.encrypt`
 from nucypher.crypto.umbral_adapter import (
     SecretKey,
     PublicKey,
@@ -42,11 +40,11 @@ from nucypher.crypto.umbral_adapter import (
     VerifiedCapsuleFrag,
     KeyFrag,
     VerifiedKeyFrag,
-    VerificationError,
     decrypt_original,
     decrypt_reencrypted,
-    )
-
+)
+from nucypher.crypto.utils import keccak_digest
+from nucypher.utilities.versioning import Versioned
 
 ETH_ADDRESS_BYTE_LENGTH = 20
 
@@ -57,7 +55,7 @@ cfrag_splitter = BytestringSplitter((CapsuleFrag, CapsuleFrag.serialized_size())
 kfrag_splitter = BytestringSplitter((KeyFrag, KeyFrag.serialized_size()))
 checksum_address_splitter = BytestringSplitter((to_checksum_address, ETH_ADDRESS_BYTE_LENGTH)) # TODO: is there a pre-defined constant?
 variable_length_splitter = BytestringSplitter(VariableLengthBytestring)
-
+timestamp_splitter = BytestringSplitter((partial(int.from_bytes, byteorder='big'), 4))
 
 _OPTIONAL_NONE = b'\x00'
 _OPTIONAL_SOME = b'\x01'
@@ -193,29 +191,39 @@ hrac_splitter = BytestringSplitter((HRAC, HRAC.SIZE))
 
 class AuthorizedKeyFrag(Versioned):
 
-    def __init__(self, signature: Signature, kfrag: KeyFrag):
+    class Expired(Exception):
+        """Raised when an authorized kfrag's timestamp is in the past during verification."""
+
+    def __init__(self, signature: Signature, kfrag: KeyFrag, expiration: int):
         self.signature = signature
         self.kfrag = kfrag
+        self.expiration = expiration  # epoch seconds
 
     @classmethod
     def construct_by_publisher(cls,
                                signer: Signer,
                                hrac: HRAC,
                                verified_kfrag: VerifiedKeyFrag,
+                               expiration: int
                                ) -> 'AuthorizedKeyFrag':
 
         # "un-verify" kfrag to keep further logic streamlined
         kfrag = KeyFrag.from_bytes(bytes(verified_kfrag))
 
         # Publisher makes plain to Ursula that, upon decrypting this message,
-        # this particular KFrag is authorized for use in the policy identified by this HRAC.
-        signature = signer.sign(bytes(hrac) + bytes(kfrag))
+        # this particular KFrag is authorized for use in the policy identified by this HRAC
+        # up until the specified expiration timestamp.
+        signature = signer.sign(
+            bytes(hrac) +
+            bytes(kfrag) +
+            expiration.to_bytes(4, 'big')
+        )
 
-        return cls(signature, kfrag)
+        return cls(signature, kfrag, expiration)
 
     def _payload(self) -> bytes:
         """Returns the unversioned bytes serialized representation of this instance."""
-        return bytes(self.signature) + bytes(self.kfrag)
+        return bytes(self.signature) + bytes(self.kfrag) + self.expiration.to_bytes(4, 'big')
 
     @classmethod
     def _brand(cls) -> bytes:
@@ -253,13 +261,16 @@ class AuthorizedKeyFrag(Versioned):
 
         return verified_kfrag
 
+    def encrypt(self, recipient_key: PublicKey) -> 'EncryptedKeyFrag':
+        return EncryptedKeyFrag.from_authorized_kfrag(recipient_key, authorized_kfrag=self)
+
 
 class EncryptedKeyFrag:
 
     _splitter = BytestringSplitter(capsule_splitter, VariableLengthBytestring)
 
     @classmethod
-    def author(cls, recipient_key: PublicKey, authorized_kfrag: AuthorizedKeyFrag):
+    def from_authorized_kfrag(cls, recipient_key: PublicKey, authorized_kfrag: AuthorizedKeyFrag):
         # TODO: using Umbral for encryption to avoid introducing more crypto primitives.
         # Most probably it is an overkill, unless it can be used somehow
         # for Ursula-to-Ursula "baton passing".
@@ -296,12 +307,14 @@ class TreasureMap(Versioned):
                  hrac: HRAC,
                  policy_encrypting_key: PublicKey,
                  publisher_verifying_key: PublicKey,
-                 destinations: Dict[ChecksumAddress, EncryptedKeyFrag]):
+                 destinations: Dict[ChecksumAddress, EncryptedKeyFrag],
+                 expiration: int):
         self.threshold = threshold
         self.destinations = destinations
         self.hrac = hrac
         self.policy_encrypting_key = policy_encrypting_key
         self.publisher_verifying_key = publisher_verifying_key
+        self.expiration = expiration
 
     def __iter__(self):
         return iter(self.destinations.items())
@@ -324,6 +337,7 @@ class TreasureMap(Versioned):
                                policy_encrypting_key: PublicKey,
                                assigned_kfrags: Mapping[ChecksumAddress, Tuple[PublicKey, VerifiedKeyFrag]],
                                threshold: int,
+                               expiration: int
                                ) -> 'TreasureMap':
         """Create a new treasure map for a collection of ursulas and kfrags."""
 
@@ -342,17 +356,16 @@ class TreasureMap(Versioned):
             authorized_kfrag = AuthorizedKeyFrag.construct_by_publisher(signer=signer,
                                                                         hrac=hrac,
                                                                         verified_kfrag=verified_kfrag,
-                                                                        )
-            encrypted_kfrag = EncryptedKeyFrag.author(recipient_key=ursula_key,
-                                                      authorized_kfrag=authorized_kfrag)
-
+                                                                        expiration=expiration)
+            encrypted_kfrag = authorized_kfrag.encrypt(recipient_key=ursula_key)
             destinations[ursula_address] = encrypted_kfrag
 
         return cls(threshold=threshold,
                    hrac=hrac,
                    policy_encrypting_key=policy_encrypting_key,
                    publisher_verifying_key=signer.verifying_key(),
-                   destinations=destinations)
+                   destinations=destinations,
+                   expiration=expiration)
 
     @classmethod
     def _brand(cls) -> bytes:
@@ -373,11 +386,14 @@ class TreasureMap(Versioned):
             for ursula_address, encrypted_kfrag in self.destinations.items()
             )
 
-        return (self.threshold.to_bytes(1, "big") +
-                bytes(self.hrac) +
-                bytes(self.policy_encrypting_key) +
-                bytes(self.publisher_verifying_key) +
-                bytes(VariableLengthBytestring(assigned_kfrags)))
+        return (
+            self.threshold.to_bytes(1, "big") +
+            bytes(self.hrac) +
+            bytes(self.policy_encrypting_key) +
+            bytes(self.publisher_verifying_key) +
+            self.expiration.to_bytes(4, 'big') +
+            bytes(VariableLengthBytestring(assigned_kfrags))
+        )
 
     @classmethod
     def _from_bytes_current(cls, data):
@@ -387,10 +403,12 @@ class TreasureMap(Versioned):
             hrac_splitter,
             key_splitter,
             key_splitter,
+            timestamp_splitter,
             VariableLengthBytestring,
         )
 
-        threshold, hrac, policy_encrypting_key, publisher_verifying_key, assigned_kfrags_bytes, remainder = main_splitter(data, return_remainder=True)
+        threshold, hrac, policy_encrypting_key, publisher_verifying_key, expiration,\
+        assigned_kfrags_bytes, remainder = main_splitter(data, return_remainder=True)
 
         destinations = {}
         while assigned_kfrags_bytes:
@@ -398,7 +416,7 @@ class TreasureMap(Versioned):
             ekf, assigned_kfrags_bytes = EncryptedKeyFrag.take(assigned_kfrags_bytes)
             destinations[ursula_address] = ekf
 
-        return cls(threshold, hrac, policy_encrypting_key, publisher_verifying_key, destinations), remainder
+        return cls(threshold, hrac, policy_encrypting_key, publisher_verifying_key, destinations, expiration), remainder
 
     def encrypt(self,
                 signer: Signer,

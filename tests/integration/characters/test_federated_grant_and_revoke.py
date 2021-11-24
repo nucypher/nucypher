@@ -30,7 +30,7 @@ from nucypher.crypto.utils import keccak_digest
 def test_federated_grant(federated_alice, federated_bob, federated_ursulas):
     # Setup the policy details
     threshold, shares = 2, 3
-    policy_end_datetime = maya.now() + datetime.timedelta(days=5)
+    policy_end_datetime = (maya.now() + datetime.timedelta(days=5)).epoch
     label = b"this_is_the_path_to_which_access_is_being_granted"
 
     # Create the Policy, granting access to Bob
@@ -64,7 +64,7 @@ def test_federated_alice_can_decrypt(federated_alice, federated_bob):
 
     # Setup the policy details
     threshold, shares = 2, 3
-    policy_end_datetime = maya.now() + datetime.timedelta(days=5)
+    policy_end_datetime = (maya.now() + datetime.timedelta(days=5)).epoch
     label = b"this_is_the_path_to_which_access_is_being_granted"
 
     policy = federated_alice.create_policy(
