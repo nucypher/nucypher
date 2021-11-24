@@ -45,8 +45,6 @@ def test_policy_simple_sinpa(blockchain_ursulas, blockchain_alice, blockchain_bo
                                                       expiration=policy_end_datetime)
 
     for ursula in blockchain_ursulas:
-        # Reset the Ursula for the next test.
-        ursula.suspicious_activities_witnessed['freeriders'] = []
         try:
             with find_policy_arrangements(ursula.datastore) as arrangements:
                 for arrangement in arrangements:
@@ -83,13 +81,7 @@ def test_try_to_post_free_arrangement_by_hacking_enact(blockchain_ursulas, block
                 with pytest.raises(AttributeError):
                     should_error = arrangement.kfrag # ...Ursula did *not* save a KFrag and will not service this Policy.
 
-                # Additionally, Ursula logged Amonia as a freerider:
-                freeriders = ursula.suspicious_activities_witnessed['freeriders']
-                assert len(freeriders) == 1
-                assert freeriders[0][0] == amonia
-
                 # Reset the Ursula for the next test.
-                ursula.suspicious_activities_witnessed['freeriders'] = []
                 for arrangement in all_arrangements:
                     arrangement.delete()
         except RecordNotFound:
@@ -128,13 +120,7 @@ def test_pay_a_flunky_instead_of_the_arranged_ursula(blockchain_alice, blockchai
                 with pytest.raises(AttributeError):
                     should_error = arrangement.kfrag # ...Ursula did *not* save a KFrag and will not service this Policy.
 
-                # Additionally, Ursula logged Amonia as a freerider:
-                freeriders = ursula.suspicious_activities_witnessed['freeriders']
-                assert len(freeriders) == 1
-                assert freeriders[0][0] == amonia
-
                 # Reset the Ursula for the next test.
-                ursula.suspicious_activities_witnessed['freeriders'] = []
                 for arrangement in all_arrangements:
                     arrangement.delete()
         except RecordNotFound:
