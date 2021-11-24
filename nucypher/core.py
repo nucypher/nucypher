@@ -238,20 +238,29 @@ class AuthorizedKeyFrag(Versioned):
         return {}
 
     @classmethod
-    def _from_bytes_current(cls, data):
-        splitter = BytestringSplitter(signature_splitter, kfrag_splitter)
-        signature, kfrag, remainder = splitter(data, return_remainder=True)
-        return cls(signature, kfrag), remainder
+    def _from_bytes_current(cls, data) -> Tuple['AuthorizedKeyFrag', bytes]:
+        splitter = BytestringSplitter(signature_splitter, kfrag_splitter, timestamp_splitter)
+        signature, kfrag, expiration, remainder = splitter(data, return_remainder=True)
+        return cls(signature, kfrag, expiration), remainder
+
+    def _check_expiration(self) -> None:
+        utcnow = datetime.datetime.utcnow().timestamp()
+        if self.expiration <= utcnow:
+            human_datetime = datetime.datetime.fromtimestamp(self.expiration).strftime('%c')
+            raise self.Expired(f'{self.__class__.__name__} expired at {human_datetime}.')
 
     def verify(self,
                hrac: HRAC,
                publisher_verifying_key: PublicKey,
                ) -> VerifiedKeyFrag:
 
-        signed_message = bytes(hrac) + bytes(self.kfrag)
+        signed_message = bytes(hrac) + bytes(self.kfrag) + self.expiration.to_bytes(4, 'big')
 
         if not self.signature.verify(message=signed_message, verifying_pk=publisher_verifying_key):
             raise InvalidSignature("HRAC + KeyFrag are not signed by the provided publisher")
+
+        # Verify that the kfrag is authorized now.
+        self._check_expiration()
 
         # Ursula has no side channel to get the KeyFrag author's key,
         # so verifying the keyfrag is useless.
