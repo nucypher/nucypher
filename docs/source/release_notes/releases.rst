@@ -4,6 +4,15 @@ Releases
 
 .. towncrier release notes start
 
+v5.3.3 (2021-11-24)
+-------------------
+
+Bugfixes
+~~~~~~~~
+
+- Fixed a memory leak in Ursula; removed some teacher statistics accumulated over time. (`#2826 <https://github.com/nucypher/nucypher/issues/2826>`__)
+
+
 v5.3.2 (2021-10-15)
 -------------------
 
