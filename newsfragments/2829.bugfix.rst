@@ -1,0 +1,1 @@
+Fixed some occurrences of the old term for ``shares`` (``n``)
