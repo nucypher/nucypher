@@ -24,7 +24,6 @@ from nucypher.core import MessageKit as MessageKitClass
 
 from nucypher.crypto.umbral_adapter import SecretKey, Signer
 from nucypher.characters.control.specifications.fields import (
-    DateTime,
     FileField,
     Key,
     MessageKit,
@@ -63,34 +62,6 @@ def test_file(tmpdir):
 
     non_existent_file = tmpdir / "non_existent_file.txt"
     file_field._validate(value=non_existent_file)
-
-
-def test_date_time():
-    field = DateTime()
-
-    # test data
-    now = maya.now()
-
-    serialized = field._serialize(value=now, attr=None, obj=None)
-    assert serialized == now.iso8601()
-
-    deserialized = field._deserialize(value=serialized, attr=None, data=None)
-    assert deserialized == now
-
-    # modified time
-    new_time = now + datetime.timedelta(hours=5)
-
-    serialized_new_time = field._serialize(value=new_time, attr=None, obj=None)
-    assert serialized_new_time != now.iso8601()
-    assert serialized_new_time == new_time.iso8601()
-
-    deserialized_new_time = field._deserialize(value=serialized_new_time, attr=None, data=None)
-    assert deserialized_new_time != now
-    assert deserialized_new_time == new_time
-
-    # invalid date
-    with pytest.raises(InvalidInputData):
-        field._deserialize(value="test", attr=None, data=None)
 
 
 def test_key():

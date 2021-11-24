@@ -48,12 +48,12 @@ class PolicyBaseSchema(BaseSchema):
     shares = base_fields.PositiveInteger(
         required=True, load_only=True,
         click=options.option_shares)
-    expiration = character_fields.DateTime(
+    expiration = base_fields.PositiveInteger(
         required=True, load_only=True,
         click=click.option(
             '--expiration',
-            help="Expiration Datetime of a policy",
-            type=click.DateTime())
+            help="Expiration epoch of a policy",
+            type=click.INT)
     )
 
     # optional input
