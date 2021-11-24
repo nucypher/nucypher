@@ -342,8 +342,16 @@ class Keystore:
         return keystore
 
     @classmethod
-    def generate(cls, password: str, keystore_dir: Optional[Path] = None, interactive: bool = True) -> 'Keystore':
+    def generate(
+            cls, password: str,
+            keystore_dir: Optional[Path] = None,
+            interactive: bool = True,
+            report_mnemonic: bool = False
+            ) -> 'Keystore':
         """Generate a new nucypher keystore for use with characters"""
+        if report_mnemonic and interactive:
+            raise ValueError("The two values: report_mnemonic and interactive,  may not both be `True`")
+
         mnemonic = Mnemonic(_MNEMONIC_LANGUAGE)
         __words = mnemonic.generate(strength=_ENTROPY_BITS)
         if interactive:
@@ -351,6 +359,10 @@ class Keystore:
         __secret = bytes(mnemonic.to_entropy(__words))
         path = Keystore.__save(secret=__secret, password=password, keystore_dir=keystore_dir)
         keystore = cls(keystore_path=path)
+
+        if report_mnemonic:
+            return keystore, __words
+
         return keystore
 
     @staticmethod
