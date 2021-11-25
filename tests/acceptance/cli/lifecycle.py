@@ -313,7 +313,7 @@ def run_entire_cli_lifecycle(click_runner,
         else:
             current_time = maya.MayaDT(epoch=testerchain.client.get_blocktime())
 
-        expiration = (current_time + datetime.timedelta(days=2)).datetime().strftime("%Y-%m-%d %H:%M:%S")
+        expiration = int((current_time + datetime.timedelta(days=2)).datetime().timestamp())
         grant_args = ('alice', 'grant',
                       '--mock-networking',
                       '--json-ipc',

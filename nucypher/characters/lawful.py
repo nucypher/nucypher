@@ -285,7 +285,7 @@ class Alice(Character, BlockchainPolicyAuthor):
             if expiration <= maya.now().epoch:
                 raise ValueError(f'Expiration must be in the future ({expiration}).')
         else:
-            blocktime = maya.MayaDT(self.policy_agent.blockchain.get_blocktime())
+            blocktime = self.policy_agent.blockchain.get_blocktime()
             if expiration and (expiration <= blocktime):
                 raise ValueError(f'Expiration must be in the future ({expiration} is earlier than blocktime {blocktime}).')
 

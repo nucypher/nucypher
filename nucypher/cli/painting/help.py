@@ -148,7 +148,7 @@ as supported by nodes on the network.
 
 def enforce_probationary_period(emitter, expiration):
     """Used during CLI grant to prevent publication of a policy outside the probationary period."""
-    if maya.MayaDT.from_datetime(expiration) > END_OF_POLICIES_PROBATIONARY_PERIOD:
+    if maya.MayaDT(expiration) > END_OF_POLICIES_PROBATIONARY_PERIOD:
         emitter.echo(f"The requested duration for this policy (until {expiration}) exceeds the probationary period"
                      f" ({END_OF_POLICIES_PROBATIONARY_PERIOD}).", color="red")
         raise click.Abort()

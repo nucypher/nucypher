@@ -1284,7 +1284,7 @@ class BlockchainPolicyAuthor(NucypherTokenActor):
         else:
             now = self.staking_agent.blockchain.get_blocktime()
             payment_periods = calculate_period_duration(now=maya.MayaDT(now),
-                                                        future_time=expiration,
+                                                        future_time=maya.MayaDT(expiration),
                                                         seconds_per_period=self.economics.seconds_per_period)
             payment_periods += 1  # Number of all included periods
 

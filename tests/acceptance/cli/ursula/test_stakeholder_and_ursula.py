@@ -610,7 +610,7 @@ def test_collect_rewards_integration(click_runner,
     duration_in_periods = 3
     days = (duration_in_periods - 1) * (token_economics.hours_per_period // 24)
     now = testerchain.w3.eth.getBlock('latest').timestamp
-    expiration = maya.MayaDT(now).add(days=days)
+    expiration = maya.MayaDT(now).add(days=days).epoch
     blockchain_policy = blockchain_alice.grant(bob=blockchain_bob,
                                                label=random_policy_label,
                                                threshold=threshold,

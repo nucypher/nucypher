@@ -260,7 +260,7 @@ def idle_blockchain_policy(testerchain, blockchain_alice, blockchain_bob, token_
     periods = token_economics.minimum_locked_periods // 2
     days = periods * (token_economics.hours_per_period // 24)
     now = testerchain.w3.eth.getBlock('latest').timestamp
-    expiration = maya.MayaDT(now).add(days=days - 1)
+    expiration = maya.MayaDT(now).add(days=days - 1).epoch
     shares = 3
     threshold = 2
     policy = blockchain_alice.create_policy(blockchain_bob,
@@ -303,7 +303,7 @@ def random_blockchain_policy(testerchain, blockchain_alice, blockchain_bob, toke
     periods = token_economics.minimum_locked_periods // 2
     days = periods * (token_economics.hours_per_period // 24)
     now = testerchain.w3.eth.getBlock('latest').timestamp
-    expiration = maya.MayaDT(now).add(days=days - 1)
+    expiration = maya.MayaDT(now).add(days=days - 1).epoch
     shares = 3
     threshold = 2
     policy = blockchain_alice.create_policy(blockchain_bob,

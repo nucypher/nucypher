@@ -38,7 +38,7 @@ def test_policy_simple_sinpa(blockchain_ursulas,
 
     # Setup the policy details
     shares = 3
-    policy_end_datetime = maya.now() + datetime.timedelta(days=35)
+    policy_end_datetime = (maya.now() + datetime.timedelta(days=35)).epoch
     label = b"this_is_the_path_to_which_access_is_being_granted"
 
     bupkiss_policy = amonia.grant_without_paying(bob=blockchain_bob,
@@ -70,7 +70,7 @@ def test_try_to_post_free_service_by_hacking_enact(blockchain_ursulas,
     amonia = Amonia.from_lawful_alice(blockchain_alice)
     # Setup the policy details
     shares = 3
-    policy_end_datetime = maya.now() + datetime.timedelta(days=35)
+    policy_end_datetime = (maya.now() + datetime.timedelta(days=35)).epoch
     label = b"another_path"
 
     bupkiss_policy = amonia.circumvent_safegaurds_and_grant_without_paying(bob=blockchain_bob,
@@ -102,7 +102,7 @@ def test_pay_a_flunky_instead_of_the_arranged_ursula(blockchain_alice,
 
     # Setup the policy details
     shares = 3
-    policy_end_datetime = maya.now() + datetime.timedelta(days=35)
+    policy_end_datetime = (maya.now() + datetime.timedelta(days=35)).epoch
     label = b"back_and_forth_forever"
 
     bupkiss_policy = amonia.grant_while_paying_the_wrong_nodes(ursulas_to_trick_into_working_for_free=target_ursulas,

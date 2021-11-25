@@ -242,10 +242,10 @@ class BlockchainPolicy(Policy):
         """Writes a new policy to the PolicyManager contract.."""
         addresses = [ursula.checksum_address for ursula in ursulas]
         receipt = self.publisher.policy_agent.create_policy(
-            value=self.value,                     # wei
-            policy_id=bytes(self.hrac),           # bytes16 _policyID
-            end_timestamp=self.expiration.epoch,  # uint16 _numberOfPeriods
-            node_addresses=addresses,             # address[] memory _nodes
+            value=self.value,               # wei
+            policy_id=bytes(self.hrac),     # bytes16 _policyID
+            end_timestamp=self.expiration,  # uint16 _numberOfPeriods
+            node_addresses=addresses,       # address[] memory _nodes
             transacting_power = self.publisher.transacting_power
         )
 
