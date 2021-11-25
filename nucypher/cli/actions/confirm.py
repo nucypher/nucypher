@@ -156,7 +156,7 @@ def confirm_staged_grant(emitter, grant_request: Dict, federated: bool, seconds_
         return
 
     period_rate = Web3.fromWei(pretty_request['shares'] * pretty_request['rate'], 'gwei')
-    pretty_request['rate'] = f"{pretty_request['rate']} wei/period * {pretty_request['n']} nodes"
+    pretty_request['rate'] = f"{pretty_request['rate']} wei/period * {pretty_request['shares']} nodes"
 
     expiration = pretty_request['expiration']
     periods = calculate_period_duration(future_time=MayaDT.from_datetime(expiration),
