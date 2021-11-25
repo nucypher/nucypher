@@ -190,7 +190,7 @@ def _make_rest_app(datastore: Datastore, this_node, domain: str, log: Logger) ->
         except Exception as e:
             message = f'{bob_identity_message} Invalid EncryptedKeyFrag: {e}.'
             log.info(message)
-            this_node.suspicious_activities_witnessed['unauthorized'].append(message)
+            # TODO (#567): bucket the node as suspicious
             return Response(message, status=HTTPStatus.BAD_REQUEST)
 
         # Verify KFrag Authorization (offchain)
@@ -200,7 +200,7 @@ def _make_rest_app(datastore: Datastore, this_node, domain: str, log: Logger) ->
         except InvalidSignature as e:
             message = f'{bob_identity_message} Invalid signature for KeyFrag: {e}.'
             log.info(message)
-            this_node.suspicious_activities_witnessed['unauthorized'].append(message)
+            # TODO (#567): bucket the node as suspicious
             return Response(message, status=HTTPStatus.UNAUTHORIZED)  # 401 - Unauthorized
         except Exception as e:
             message = f'{bob_identity_message} Invalid KeyFrag: {e}.'
@@ -215,7 +215,7 @@ def _make_rest_app(datastore: Datastore, this_node, domain: str, log: Logger) ->
             except Policy.Unpaid:
                 message = f"{bob_identity_message} Policy {hrac} is unpaid."
                 record = (publisher_verifying_key, message)
-                this_node.suspicious_activities_witnessed['freeriders'].append(record)
+                # TODO (#567): bucket the node as suspicious
                 return Response(message, status=HTTPStatus.PAYMENT_REQUIRED)
             except Policy.Unknown:
                 message = f"{bob_identity_message} Policy {hrac} is not a published policy."

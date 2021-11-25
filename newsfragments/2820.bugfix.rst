@@ -1,0 +1,1 @@
+Fixed a memory leak in Ursula: removed some teacher statistics accumulated over time, and limited the amount of old fleet states stored.

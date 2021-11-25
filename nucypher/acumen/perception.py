@@ -18,6 +18,7 @@
 
 import random
 import weakref
+from collections import deque
 from collections.abc import KeysView
 from typing import Optional, Dict, Iterable, List, Tuple, NamedTuple, Union, Any
 
@@ -236,7 +237,7 @@ class FleetSensor:
         self._domain = domain
 
         self._current_state = FleetState.new(this_node)
-        self._archived_states = [self._current_state.archived()]
+        self._archived_states = deque([self._current_state.archived()], maxlen=5)
         self._remote_states = {}
         self._remote_last_seen = {}
 
@@ -327,7 +328,7 @@ class FleetSensor:
         """
         # `_archived_states` is never empty, one state is created in the constructor
         previous_states_num = min(len(self._archived_states) - 1, quantity)
-        return self._archived_states[-previous_states_num-1:-1]
+        return list(self._archived_states)[-previous_states_num-1:-1]
 
     def addresses(self):
         return self._current_state.addresses()

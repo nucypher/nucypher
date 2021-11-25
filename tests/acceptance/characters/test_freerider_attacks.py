@@ -58,10 +58,6 @@ def test_policy_simple_sinpa(blockchain_ursulas,
                                             alice_verifying_key=amonia.stamp.as_umbral_pubkey(),
                                             encrypted_treasure_map=bupkiss_policy.treasure_map)
 
-    for ursula in blockchain_ursulas:
-        # Reset the Ursula for the next test.
-        ursula.suspicious_activities_witnessed['freeriders'] = []
-
 
 def test_try_to_post_free_service_by_hacking_enact(blockchain_ursulas,
                                                    blockchain_alice,
