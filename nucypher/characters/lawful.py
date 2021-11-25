@@ -302,7 +302,7 @@ class Alice(Character, BlockchainPolicyAuthor):
         """Called immediately before granting."""
 
         # TODO: Remove when the time is right.
-        if policy.expiration > END_OF_POLICIES_PROBATIONARY_PERIOD:
+        if maya.MayaDT(policy.expiration) > END_OF_POLICIES_PROBATIONARY_PERIOD:
             raise self.ActorError(f"The requested duration for this policy (until {policy.expiration}) exceeds the "
                                   f"probationary period ({END_OF_POLICIES_PROBATIONARY_PERIOD}).")
 

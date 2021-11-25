@@ -109,7 +109,7 @@ remote_bob = Bob.from_public_keys(encrypting_key=encrypting_key, verifying_key=v
 # These are the policy details for bob.
 # In this example bob will be granted access for 1 day,
 # trusting 2 of 3 nodes paying each of them 50 gwei per period.
-expiration = maya.now() + datetime.timedelta(days=1)
+expiration = (maya.now() + datetime.timedelta(days=1)).epoch
 rate = Web3.toWei(50, 'gwei')
 threshold, shares = 2, 3
 

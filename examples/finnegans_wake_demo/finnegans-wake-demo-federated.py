@@ -54,7 +54,7 @@ except IndexError:
 ursula = Ursula.from_seed_and_stake_info(seed_uri=SEEDNODE_URI, federated_only=True)
 
 # Here are our Policy details.
-policy_end_datetime = maya.now() + datetime.timedelta(days=1)
+policy_end_datetime = (maya.now() + datetime.timedelta(days=1)).epoch
 threshold, shares = 2, 3
 label = b"secret/files/and/stuff"
 
