@@ -1,0 +1,1 @@
+Include signed expiration timestamp in kfrag authorization for off-chain verification by ursula.
