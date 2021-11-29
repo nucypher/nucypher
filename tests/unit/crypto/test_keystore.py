@@ -126,7 +126,7 @@ def test_keystore_generate_report_mnemonic_true(tmpdir):
 
 
 def test_keystore_generate_report_mnemonic_blocked_by_interactive(tmpdir):
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError, match="The two values: report_mnemonic and interactive,  may not both be `True`"):
         _keystore = Keystore.generate(INSECURE_DEVELOPMENT_PASSWORD, keystore_dir=tmpdir, report_mnemonic=True)
 
 
