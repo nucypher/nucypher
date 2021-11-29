@@ -347,7 +347,7 @@ class Keystore:
             keystore_dir: Optional[Path] = None,
             interactive: bool = True,
             report_mnemonic: bool = False
-            ) -> 'Keystore':
+            ) -> Union['Keystore', Tuple['Keystore', str]]:
         """Generate a new nucypher keystore for use with characters"""
         if report_mnemonic and interactive:
             raise ValueError("The two values: report_mnemonic and interactive,  may not both be `True`")
