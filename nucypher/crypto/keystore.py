@@ -346,12 +346,8 @@ class Keystore:
             cls, password: str,
             keystore_dir: Optional[Path] = None,
             interactive: bool = True,
-            return_mnemonic: bool = False
             ) -> Union['Keystore', Tuple['Keystore', str]]:
         """Generate a new nucypher keystore for use with characters"""
-        if return_mnemonic and interactive:
-            raise ValueError("The two values: report_mnemonic and interactive,  may not both be `True`")
-
         mnemonic = Mnemonic(_MNEMONIC_LANGUAGE)
         __words = mnemonic.generate(strength=_ENTROPY_BITS)
         if interactive:
@@ -360,10 +356,10 @@ class Keystore:
         path = Keystore.__save(secret=__secret, password=password, keystore_dir=keystore_dir)
         keystore = cls(keystore_path=path)
 
-        if return_mnemonic:
-            return keystore, __words
+        if interactive:
+            return keystore
 
-        return keystore
+        return keystore, __words
 
     @staticmethod
     def _confirm_generate(__words: str) -> None:

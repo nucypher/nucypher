@@ -116,18 +116,12 @@ def test_keystore_invalid_password(tmpdir):
         _keystore = Keystore.generate('short', keystore_dir=tmpdir)
 
 
-def test_keystore_generate_report_mnemonic_true(tmpdir):
+def test_keystore_generate_report_interactive_false(tmpdir):
     _keystore, words = Keystore.generate(
         INSECURE_DEVELOPMENT_PASSWORD,
         keystore_dir=tmpdir,
-        interactive=False,
-        return_mnemonic=True)
+        interactive=False)
     assert len(words.split(" ")) == 24
-
-
-def test_keystore_generate_report_mnemonic_blocked_by_interactive(tmpdir):
-    with pytest.raises(ValueError, match="The two values: report_mnemonic and interactive,  may not both be `True`"):
-        _keystore = Keystore.generate(INSECURE_DEVELOPMENT_PASSWORD, keystore_dir=tmpdir, return_mnemonic=True)
 
 
 def test_keystore_derive_crypto_power_without_unlock(tmpdir):
