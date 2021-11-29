@@ -799,9 +799,9 @@ class CharacterConfiguration(BaseConfiguration):
                                                      password=password,
                                                      keystore_dir=self.keystore_dir)
         else:
-            self.__keystore = Keystore.generate(password=password,
-                                                keystore_dir=self.keystore_dir,
-                                                interactive=interactive)
+            self.__keystore, _ = Keystore.generate(password=password,
+                                                   keystore_dir=self.keystore_dir,
+                                                   interactive=interactive)
         return self.keystore
 
     @classmethod
