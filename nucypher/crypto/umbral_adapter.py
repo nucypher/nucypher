@@ -19,7 +19,7 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 # Do not import Umbral directly, use re-exports from this module.
 
 
-from umbral import (
+from nucypher_core.umbral import (
     SecretKey,
     PublicKey,
     SecretKeyFactory,

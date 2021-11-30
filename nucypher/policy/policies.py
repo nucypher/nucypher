@@ -22,7 +22,7 @@ from typing import Sequence, Optional, Iterable, List
 import maya
 from eth_typing.evm import ChecksumAddress
 
-from nucypher.core import HRAC, TreasureMap
+from nucypher_core import HRAC, TreasureMap
 from nucypher.crypto.powers import DecryptingPower
 from nucypher.crypto.umbral_adapter import PublicKey, VerifiedKeyFrag
 from nucypher.network.middleware import RestMiddleware

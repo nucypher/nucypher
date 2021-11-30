@@ -20,7 +20,7 @@ from base64 import b64encode
 
 import pytest
 
-from nucypher.core import RetrievalKit as RetrievalKitClass
+from nucypher_core import RetrievalKit as RetrievalKitClass
 
 from nucypher.control.specifications.exceptions import InvalidInputData
 from nucypher.control.specifications.fields import StringList

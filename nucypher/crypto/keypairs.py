@@ -25,7 +25,7 @@ from cryptography.hazmat.primitives.asymmetric import ec
 from hendrix.deploy.tls import HendrixDeployTLS
 from hendrix.facilities.services import ExistingKeyTLSContextFactory
 
-from nucypher.core import MessageKit, EncryptedTreasureMap, EncryptedKeyFrag
+from nucypher_core import MessageKit, EncryptedTreasureMap, EncryptedKeyFrag
 
 from nucypher.config.constants import MAX_UPLOAD_CONTENT_LENGTH
 from nucypher.crypto.signing import SignatureStamp, StrangerStamp

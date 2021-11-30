@@ -39,7 +39,7 @@ from requests.exceptions import SSLError
 from twisted.internet import reactor, task
 from twisted.internet.defer import Deferred
 
-from nucypher.core import NodeMetadata, MetadataResponse
+from nucypher_core import NodeMetadata, MetadataResponse
 
 from nucypher.acumen.nicknames import Nickname
 from nucypher.acumen.perception import FleetSensor

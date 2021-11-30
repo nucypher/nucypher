@@ -16,7 +16,7 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
 
-from nucypher.core import RevocationOrder
+from nucypher_core import RevocationOrder
 from nucypher.crypto.signing import SignatureStamp
 
 

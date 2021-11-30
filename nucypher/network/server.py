@@ -28,7 +28,7 @@ from flask import Flask, Response, jsonify, request
 from mako import exceptions as mako_exceptions
 from mako.template import Template
 
-from nucypher.core import (
+from nucypher_core import (
     ReencryptionRequest,
     RevocationOrder,
     NodeMetadata,

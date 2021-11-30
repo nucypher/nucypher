@@ -20,7 +20,7 @@ from typing import Dict, Set, Union
 
 from eth_typing import ChecksumAddress
 
-from nucypher.core import MessageKit, RetrievalKit
+from nucypher_core import MessageKit, RetrievalKit
 
 from nucypher.crypto.umbral_adapter import PublicKey, VerifiedCapsuleFrag, SecretKey
 

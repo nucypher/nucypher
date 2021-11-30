@@ -20,7 +20,7 @@ import os
 
 import pytest
 
-from nucypher.core import HRAC, TreasureMap, EncryptedTreasureMap
+from nucypher_core import HRAC, TreasureMap, EncryptedTreasureMap
 
 from nucypher.crypto.powers import DecryptingPower
 from nucypher.crypto.umbral_adapter import KeyFrag

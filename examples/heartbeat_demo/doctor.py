@@ -24,7 +24,7 @@ import msgpack
 import shutil
 import sys
 
-from nucypher.core import MessageKit, EncryptedTreasureMap
+from nucypher_core import MessageKit, EncryptedTreasureMap
 
 from nucypher.characters.lawful import Bob, Enrico, Ursula
 from nucypher.config.constants import TEMPORARY_DOMAIN

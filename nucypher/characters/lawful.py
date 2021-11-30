@@ -46,7 +46,7 @@ from twisted.internet.task import LoopingCall
 from twisted.logger import Logger
 from web3.types import TxReceipt
 
-from nucypher.core import (
+from nucypher_core import (
     MessageKit,
     AuthorizedKeyFrag,
     EncryptedKeyFrag,

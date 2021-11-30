@@ -22,7 +22,7 @@ import ssl
 import time
 import requests
 
-from nucypher.core import MetadataRequest
+from nucypher_core import MetadataRequest
 
 from constant_sorrow.constants import CERTIFICATE_NOT_SAVED, EXEMPT_FROM_VERIFICATION
 from cryptography import x509

@@ -19,7 +19,7 @@ import tempfile
 
 import pytest
 
-from nucypher.core import NodeMetadata
+from nucypher_core import NodeMetadata
 
 from nucypher.characters.lawful import Ursula
 from nucypher.config.constants import TEMPORARY_DOMAIN

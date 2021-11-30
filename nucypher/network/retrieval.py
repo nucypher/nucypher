@@ -22,7 +22,7 @@ from typing import Dict, Sequence, List
 from eth_typing.evm import ChecksumAddress
 from twisted.logger import Logger
 
-from nucypher.core import (
+from nucypher_core import (
     TreasureMap,
     ReencryptionResponse,
     ReencryptionRequest,

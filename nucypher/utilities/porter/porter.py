@@ -21,7 +21,7 @@ from constant_sorrow.constants import NO_BLOCKCHAIN_CONNECTION, NO_CONTROL_PROTO
 from eth_typing import ChecksumAddress
 from flask import request, Response
 
-from nucypher.core import TreasureMap, RetrievalKit
+from nucypher_core import TreasureMap, RetrievalKit
 
 from nucypher.blockchain.eth.agents import ContractAgency, StakingEscrowAgent
 from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory

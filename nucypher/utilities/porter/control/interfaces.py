@@ -18,7 +18,7 @@ from typing import List, Optional
 
 from eth_typing import ChecksumAddress
 
-from nucypher.core import TreasureMap, RetrievalKit
+from nucypher_core import TreasureMap, RetrievalKit
 
 from nucypher.control.interfaces import ControlInterface, attach_schema
 from nucypher.crypto.umbral_adapter import PublicKey

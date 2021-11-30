@@ -19,7 +19,7 @@ from typing import Union, List
 
 import maya
 
-from nucypher.core import MessageKit, HRAC, EncryptedTreasureMap
+from nucypher_core import MessageKit, HRAC, EncryptedTreasureMap
 
 from nucypher.characters.base import Character
 from nucypher.characters.control.specifications import alice, bob, enrico

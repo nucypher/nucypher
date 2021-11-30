@@ -21,7 +21,7 @@ import datetime
 import maya
 import pytest
 
-from nucypher.core import EncryptedKeyFrag
+from nucypher_core import EncryptedKeyFrag
 
 from nucypher.crypto.utils import keccak_digest
 

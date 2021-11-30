@@ -30,7 +30,7 @@ from constant_sorrow.constants import (
 from eth_keys import KeyAPI as EthKeyAPI
 from eth_utils import to_canonical_address, to_checksum_address
 
-from nucypher.core import MessageKit
+from nucypher_core import MessageKit
 
 from nucypher.acumen.nicknames import Nickname
 from nucypher.blockchain.eth.registry import BaseContractRegistry, InMemoryContractRegistry

@@ -15,7 +15,7 @@ You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
-from nucypher.core import MessageKit
+from nucypher_core import MessageKit
 
 from nucypher.characters.lawful import Enrico
 

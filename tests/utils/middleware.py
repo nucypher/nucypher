@@ -23,7 +23,7 @@ import socket
 from constant_sorrow.constants import CERTIFICATE_NOT_SAVED
 from flask import Response
 
-from nucypher.core import MetadataRequest
+from nucypher_core import MetadataRequest
 
 from nucypher.characters.lawful import Ursula
 from nucypher.config.constants import TEMPORARY_DOMAIN

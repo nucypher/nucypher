@@ -34,7 +34,7 @@ from web3 import Web3
 from web3.exceptions import ValidationError
 from web3.types import TxReceipt
 
-from nucypher.core import HRAC
+from nucypher_core import HRAC
 
 from nucypher.acumen.nicknames import Nickname
 from nucypher.blockchain.economics import (

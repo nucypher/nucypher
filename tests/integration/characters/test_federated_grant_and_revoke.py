@@ -21,7 +21,7 @@ import datetime
 import maya
 import pytest
 
-from nucypher.core import EncryptedKeyFrag, RevocationOrder
+from nucypher_core import EncryptedKeyFrag, RevocationOrder
 
 from nucypher.characters.lawful import Enrico
 from nucypher.crypto.utils import keccak_digest

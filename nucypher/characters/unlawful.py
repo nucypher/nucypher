@@ -22,7 +22,7 @@ from unittest.mock import patch
 
 from eth_tester.exceptions import ValidationError
 
-from nucypher.core import NodeMetadata
+from nucypher_core import NodeMetadata
 
 from nucypher.blockchain.eth.signers.software import Web3Signer
 from nucypher.characters.lawful import Alice, Ursula
