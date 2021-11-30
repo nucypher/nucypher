@@ -122,9 +122,9 @@ library SignatureVerifier {
             }
             bytes memory lengthAsText = new bytes(digits);
             length = _message.length;
-            uint256 index = digits - 1;
+            uint256 index = digits;
             while (length != 0) {
-                lengthAsText[index--] = bytes1(uint8(48 + length % 10));
+                lengthAsText[--index] = bytes1(uint8(48 + length % 10));
                 length /= 10;
             }
 
