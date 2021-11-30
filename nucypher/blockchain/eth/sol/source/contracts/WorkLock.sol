@@ -353,7 +353,7 @@ contract WorkLock is Ownable {
     function internalShutdown() internal {
         startBidDate = 0;
         endBidDate = 0;
-        endCancellationDate = uint256(0) - 1; // "infinite" cancellation window
+        endCancellationDate = type(uint256).max; // "infinite" cancellation window
         token.safeTransfer(owner(), tokenSupply);
         emit Shutdown(msg.sender);
     }
