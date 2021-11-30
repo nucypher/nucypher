@@ -1,1 +1,1 @@
-Halting NU inflation
+Halting NU inflation, now refund in WorkLock is possible without work (claim still needed)
