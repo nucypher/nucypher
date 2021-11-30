@@ -105,9 +105,9 @@ contract PolicyManager is Upgradeable {
 
     bytes16 internal constant RESERVED_POLICY_ID = bytes16(0);
     address internal constant RESERVED_NODE = address(0);
-    uint256 internal constant MAX_BALANCE = uint256(uint128(0) - 1);
+    uint256 internal constant MAX_BALANCE = uint256(type(uint128).max);
     // controlled overflow to get max int256
-    int256 public constant DEFAULT_FEE_DELTA = int256((uint256(0) - 1) >> 1);
+    int256 public constant DEFAULT_FEE_DELTA = int256((type(uint256).max) >> 1);
 
     IStakingEscrow public immutable escrow;
     uint32 public immutable genesisSecondsPerPeriod;
