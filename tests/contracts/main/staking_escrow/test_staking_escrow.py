@@ -97,7 +97,7 @@ def test_staking_from_worklock(testerchain, token, worklock, escrow):
     assert event_args['value'] == value
 
 
-def test_slashing(testerchain, token, worklock, escrow):
+def test_slashing(testerchain, token, worklock, threshold_staking, escrow):
     creator = testerchain.client.accounts[0]
     staker = testerchain.client.accounts[1]
     investigator = testerchain.client.accounts[2]
@@ -115,16 +115,16 @@ def test_slashing(testerchain, token, worklock, escrow):
 
     reward = stake // 100
     # # Can't slash directly using the escrow contract
-    # with pytest.raises((TransactionFailed, ValueError)):
-    #     tx = escrow.functions.slashStaker(staker, stake, investigator, reward).transact()
-    #     testerchain.wait_for_receipt(tx)
+    with pytest.raises((TransactionFailed, ValueError)):
+        tx = escrow.functions.slashStaker(staker, stake, investigator, reward).transact()
+        testerchain.wait_for_receipt(tx)
     # Penalty must be greater than zero
     with pytest.raises((TransactionFailed, ValueError)):
-        tx = escrow.functions.testSlashStaker(staker, 0, investigator, 0).transact()
+        tx = threshold_staking.functions.slashStaker(staker, 0, investigator, 0).transact()
         testerchain.wait_for_receipt(tx)
 
     # Slash the whole stake
-    tx = escrow.functions.testSlashStaker(staker, 2 * stake, investigator, reward).transact()
+    tx = threshold_staking.functions.slashStaker(staker, 2 * stake, investigator, reward).transact()
     testerchain.wait_for_receipt(tx)
     # Staker has no more stake
     assert escrow.functions.getAllTokens(staker).call() == 0
@@ -142,7 +142,7 @@ def test_slashing(testerchain, token, worklock, escrow):
     tx = worklock.functions.depositFromWorkLock(staker, stake, 0).transact()
     testerchain.wait_for_receipt(tx)
     amount_to_slash = stake // 10
-    tx = escrow.functions.testSlashStaker(staker, amount_to_slash, investigator, 2 * amount_to_slash).transact()
+    tx = threshold_staking.functions.slashStaker(staker, amount_to_slash, investigator, 2 * amount_to_slash).transact()
     testerchain.wait_for_receipt(tx)
     # Staker has no more stake
     assert escrow.functions.getAllTokens(staker).call() == stake - amount_to_slash
@@ -157,7 +157,7 @@ def test_slashing(testerchain, token, worklock, escrow):
     assert event_args['reward'] == amount_to_slash
 
     # Slash without reward
-    tx = escrow.functions.testSlashStaker(staker, amount_to_slash, investigator, 0).transact()
+    tx = threshold_staking.functions.slashStaker(staker, amount_to_slash, investigator, 0).transact()
     testerchain.wait_for_receipt(tx)
     # Staker has no more stake
     assert escrow.functions.getAllTokens(staker).call() == stake - 2 * amount_to_slash

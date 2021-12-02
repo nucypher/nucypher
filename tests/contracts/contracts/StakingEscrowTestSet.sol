@@ -5,6 +5,7 @@ pragma solidity ^0.8.0;
 
 import "contracts/StakingEscrow.sol";
 import "contracts/NuCypherToken.sol";
+import "threshold/IStaking.sol";
 
 /**
 * @notice Enhanced version of StakingEscrow to use in tests
@@ -138,5 +139,48 @@ contract WorkLockForStakingEscrowMock {
     function depositFromWorkLock(address _staker, uint256 _value, uint16 _periods) external {
         token.approve(address(escrow), _value);
         escrow.depositFromWorkLock(_staker, _value, _periods);
+    }
+}
+
+
+/**
+* @notice Contract for testing staking escrow contract
+*/
+contract ThresholdStakingForStakingEscrowMock {
+
+    StakingEscrow public escrow;
+
+    function setStakingEscrow(StakingEscrow _escrow) external {
+        escrow = _escrow;
+    }
+
+    function stakedNu(address _operator) external view returns (uint256) {
+        return 0;
+    }
+
+    function getMinStaked(address _operator, IStaking.StakeType _stakeTypes) external view returns (uint96) {
+        return 0;
+    }
+
+    function stakes(address _operator) external view returns
+    (
+        uint96 tStake,
+        uint96 keepInTStake,
+        uint96 nuInTStake
+    ) {
+        tStake = 0;
+        keepInTStake = 0;
+        nuInTStake = 0;
+    }
+
+    function slashStaker(
+        address _staker,
+        uint256 _penalty,
+        address _investigator,
+        uint256 _reward
+    )
+        external
+    {
+        escrow.slashStaker(_staker, _penalty, _investigator, _reward);
     }
 }
