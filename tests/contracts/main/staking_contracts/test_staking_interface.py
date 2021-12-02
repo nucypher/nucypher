@@ -69,9 +69,9 @@ def test_staker(testerchain, token, escrow, staking_contract, staking_contract_i
     owner = testerchain.client.accounts[1]
 
     # Owner can't use the staking interface directly
-    # with pytest.raises((TransactionFailed, ValueError)):
-    #     tx = staking_interface.functions.withdrawAsStaker(100).transact({'from': owner})
-    #     testerchain.wait_for_receipt(tx)
+    with pytest.raises((TransactionFailed, ValueError)):
+        tx = staking_interface.functions.withdrawAsStaker(100).transact({'from': owner})
+        testerchain.wait_for_receipt(tx)
     with pytest.raises((TransactionFailed, ValueError)):
         tx = staking_interface.functions.setSnapshots(False).transact({'from': owner})
         testerchain.wait_for_receipt(tx)
@@ -80,11 +80,17 @@ def test_staker(testerchain, token, escrow, staking_contract, staking_contract_i
     snapshots_logs = staking_contract_interface.events.SnapshotSet.createFilter(fromBlock='latest')
 
     # Use stakers methods through the staking contract
-    # tx = staking_contract_interface.functions.withdrawAsStaker(1600).transact({'from': owner})
-    # testerchain.wait_for_receipt(tx)
-    # assert 1000 == escrow.functions.value().call()
-    # assert 10000 == token.functions.balanceOf(escrow.address).call()
-    # assert 2000 == token.functions.balanceOf(staking_contract.address).call()
+    value = 1600
+    escrow_balance = token.functions.balanceOf(escrow.address).call()
+    tx = token.functions.transfer(staking_contract.address, 10 * value).transact({'from': creator})
+    testerchain.wait_for_receipt(tx)
+    tx = staking_contract_interface.functions.depositAsStaker(2 * value).transact({'from': owner})
+    testerchain.wait_for_receipt(tx)
+    tx = staking_contract_interface.functions.withdrawAsStaker(value).transact({'from': owner})
+    testerchain.wait_for_receipt(tx)
+    assert escrow.functions.value().call() == value
+    assert token.functions.balanceOf(escrow.address).call() == escrow_balance + value
+    assert token.functions.balanceOf(staking_contract.address).call() == 9 * value
 
     # Test snapshots
     tx = staking_contract_interface.functions.setSnapshots(True).transact({'from': owner})

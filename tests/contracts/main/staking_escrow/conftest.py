@@ -37,9 +37,20 @@ def worklock(deploy_contract, token):
     return worklock
 
 
+@pytest.fixture()
+def threshold_staking(deploy_contract):
+    threshold_staking, _ = deploy_contract('ThresholdStakingForStakingEscrowMock')
+    return threshold_staking
+
+
 @pytest.fixture(params=[False, True])
-def escrow(testerchain, token, worklock, request, deploy_contract):
-    contract, _ = deploy_contract('EnhancedStakingEscrow', token.address, worklock.address)
+def escrow(testerchain, token, worklock, threshold_staking, request, deploy_contract):
+    contract, _ = deploy_contract(
+        'EnhancedStakingEscrow',
+        token.address,
+        worklock.address,
+        threshold_staking.address
+    )
 
     if request.param:
         dispatcher, _ = deploy_contract('Dispatcher', contract.address)
@@ -49,6 +60,8 @@ def escrow(testerchain, token, worklock, request, deploy_contract):
             ContractFactoryClass=Contract)
 
     tx = worklock.functions.setStakingEscrow(contract.address).transact()
+    testerchain.wait_for_receipt(tx)
+    tx = threshold_staking.functions.setStakingEscrow(contract.address).transact()
     testerchain.wait_for_receipt(tx)
 
     assert contract.functions.token().call() == token.address
