@@ -148,10 +148,10 @@ def test_staking(testerchain, token_economics, token, escrow, pooling_contract, 
     # Only owner can deposit tokens to the staking escrow
     stake = tokens_supply
     with pytest.raises((TransactionFailed, ValueError)):
-        tx = pooling_contract_interface.functions.depositAsStaker(stake, 5).transact({'from': delegators[0]})
+        tx = pooling_contract_interface.functions.depositAsStaker(stake).transact({'from': delegators[0]})
         testerchain.wait_for_receipt(tx)
 
-    tx = pooling_contract_interface.functions.depositAsStaker(stake, 5).transact({'from': owner})
+    tx = pooling_contract_interface.functions.depositAsStaker(stake).transact({'from': owner})
     testerchain.wait_for_receipt(tx)
     assert pooling_contract.functions.totalDepositedTokens().call() == total_deposited_tokens
     assert token.functions.balanceOf(pooling_contract.address).call() == 0
@@ -173,7 +173,7 @@ def test_staking(testerchain, token_economics, token, escrow, pooling_contract, 
     reward = token_economics.minimum_allowed_locked
     tx = token.functions.approve(escrow.address, reward).transact()
     testerchain.wait_for_receipt(tx)
-    tx = escrow.functions.deposit(pooling_contract.address, reward, 0).transact()
+    tx = escrow.functions.deposit(pooling_contract.address, reward).transact()
     testerchain.wait_for_receipt(tx)
     assert not pooling_contract.functions.isDepositAllowed().call()
     assert not pooling_contract.functions.isWithdrawAllAllowed().call()

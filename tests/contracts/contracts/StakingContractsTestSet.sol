@@ -16,18 +16,16 @@ contract StakingEscrowForStakingContractMock {
     address public node;
     uint256 public value;
     uint256 public lockedValue;
-    uint16 public periods;
     bool public snapshots;
 
     constructor(NuCypherToken _token) {
         token = _token;
     }
 
-    function deposit(address _node, uint256 _value, uint16 _periods) external {
+    function deposit(address _node, uint256 _value) external {
         node = _node;
         value += _value;
         lockedValue += _value;
-        periods += _periods;
         token.transferFrom(msg.sender, address(this), _value);
     }
 
@@ -237,7 +235,7 @@ contract SimpleStakingContract is AbstractStakingContract, Ownable {
 
 
 interface IExtendedStakingEscrow is IStakingEscrow {
-    function deposit(address, uint256, uint16) external;
+    function deposit(address, uint256) external;
     function withdraw(uint256) external;
 }
 
@@ -246,8 +244,7 @@ interface IExtendedStakingEscrow is IStakingEscrow {
 */
 contract ExtendedStakingInterface is StakingInterface {
 
-    event DepositedAsStaker(address indexed sender, uint256 value, uint16 periods);
-    event WithdrawnAsStaker(address indexed sender, uint256 value);
+    event DepositedAsStaker(address indexed sender, uint256 value);
 
     constructor(
         NuCypherToken _token,
@@ -259,16 +256,11 @@ contract ExtendedStakingInterface is StakingInterface {
     {
     }
 
-    function depositAsStaker(uint256 _value, uint16 _periods) public onlyDelegateCall {
+    function depositAsStaker(uint256 _value) public onlyDelegateCall {
         require(token.balanceOf(address(this)) >= _value);
         token.approve(address(escrow), _value);
-        IExtendedStakingEscrow(address(escrow)).deposit(address(this), _value, _periods);
-        emit DepositedAsStaker(msg.sender, _value, _periods);
-    }
-
-    function withdrawAsStaker(uint256 _value) public onlyDelegateCall {
-        IExtendedStakingEscrow(address(escrow)).withdraw(_value);
-        emit WithdrawnAsStaker(msg.sender, _value);
+        IExtendedStakingEscrow(address(escrow)).deposit(address(this), _value);
+        emit DepositedAsStaker(msg.sender, _value);
     }
 
 }

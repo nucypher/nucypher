@@ -22,4 +22,5 @@ interface IStakingEscrow {
     function depositFromWorkLock(address, uint256, uint16) external;
     function setWorkMeasurement(address, bool) external returns (uint256);
     function setSnapshots(bool _enableSnapshots) external;
+    function withdraw(uint256 _value) external;
 }

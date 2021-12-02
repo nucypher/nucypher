@@ -89,16 +89,24 @@ def worklock(testerchain, token, escrow_dispatcher, token_economics, deploy_cont
 
 
 @pytest.fixture(scope='module')
+def threshold_staking(deploy_contract):
+    threshold_staking, _ = deploy_contract('ThresholdStakingForStakingEscrowMock')
+    return threshold_staking
+
+
+@pytest.fixture(scope='module')
 def escrow_bare(testerchain,
                 token,
                 worklock,
+                threshold_staking,
                 escrow_dispatcher,
                 deploy_contract):
     # Creator deploys the escrow
     contract, _ = deploy_contract(
         'EnhancedStakingEscrow',
         token.address,
-        worklock.address
+        worklock.address,
+        threshold_staking.address
     )
 
     tx = escrow_dispatcher.functions.upgrade(contract.address).transact()
@@ -336,16 +344,15 @@ def test_worklock_phases(testerchain,
 
 
 def test_upgrading_and_rollback(testerchain,
-                                token_economics,
                                 token,
                                 escrow,
                                 escrow_dispatcher,
                                 staking_interface_router,
                                 worklock,
+                                threshold_staking,
                                 deploy_contract):
-    creator, staker1, staker2, staker3, staker4, alice1, alice2, *contracts_owners =\
+    creator, staker1, staker2, staker3, staker4, alice1, alice2, *others =\
         testerchain.client.accounts
-    contracts_owners = sorted(contracts_owners)
 
     # Upgrade main contracts
     escrow_v1 = escrow.functions.target().call()
@@ -353,7 +360,8 @@ def test_upgrading_and_rollback(testerchain,
     escrow_v2, _ = deploy_contract(
         'StakingEscrow',
         token.address,
-        worklock.address
+        worklock.address,
+        threshold_staking.address
     )
     # Staker and Alice can't upgrade contracts, only owner can
     with pytest.raises((TransactionFailed, ValueError)):

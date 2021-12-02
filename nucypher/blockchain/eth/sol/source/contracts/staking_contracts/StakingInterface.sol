@@ -70,10 +70,11 @@ contract BaseStakingInterface {
 /**
 * @notice Interface for accessing main contracts from a staking contract
 * @dev All methods must be stateless because this code will be executed by delegatecall call, use immutable fields.
-* @dev |v1.8.1|
+* @dev |v1.9.1|
 */
 contract StakingInterface is BaseStakingInterface {
 
+    event WithdrawnAsStaker(address indexed sender, uint256 value);
     event PolicyFeeWithdrawn(address indexed sender, uint256 value);
     event MinFeeRateSet(address indexed sender, uint256 value);
     event SnapshotSet(address indexed sender, bool snapshotsEnabled);
@@ -95,9 +96,19 @@ contract StakingInterface is BaseStakingInterface {
         IStakingEscrow _escrow,
         PolicyManager _policyManager,
         WorkLock _workLock
+    // TODO add tStaking and methods which can be called only by owner
     )
         BaseStakingInterface(_token, _escrow, _policyManager, _workLock)
     {
+    }
+
+    /**
+    * @notice Withdraw available amount of tokens from the staking escrow to the staking contract
+    * @param _value Amount of token to withdraw
+    */
+    function withdrawAsStaker(uint256 _value) public onlyDelegateCall {
+        escrow.withdraw(_value);
+        emit WithdrawnAsStaker(msg.sender, _value);
     }
 
     /**
