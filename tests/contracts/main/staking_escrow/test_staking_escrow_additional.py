@@ -162,7 +162,7 @@ def test_measure_work(testerchain, token, worklock, escrow, token_economics):
     assert escrow.functions.getCompletedWork(staker).call() == token_economics.total_supply
 
 
-def test_snapshots(testerchain, token, escrow, worklock, token_economics):
+def test_snapshots(testerchain, token, escrow, worklock, threshold_staking, token_economics):
 
     creator = testerchain.client.accounts[0]
     staker1 = testerchain.client.accounts[1]
@@ -196,20 +196,31 @@ def test_snapshots(testerchain, token, escrow, worklock, token_economics):
     assert escrow.functions.totalStakedForAt(staker2, now).call() == 0
     assert escrow.functions.totalStakedAt(now).call() == token_economics.total_supply
 
-    # # Finally, the first staker withdraws some tokens
-    # withdrawal = 42
-    # tx = escrow.functions.withdraw(withdrawal).transact({'from': staker1})
-    # testerchain.wait_for_receipt(tx)
-    # last_balance_staker1 = balance_staker1 - withdrawal
-    # assert last_balance_staker1 == escrow.functions.getAllTokens(staker1).call()
-    #
-    # expected_staker1_balance.add_value(last_balance_staker1)
-    # expected_global_balance.add_value(last_balance_staker1 + deposit_staker2)
-    # assert expected_staker1_balance == get_staker_history_from_storage(staker1)
-    # assert expected_global_balance == get_global_history_from_storage()
-    #
-    # now = testerchain.get_block_number()
-    # assert last_balance_staker1 == escrow.functions.totalStakedForAt(staker1, now).call()
-    # assert last_balance_staker1 + deposit_staker2 == escrow.functions.totalStakedAt(now).call()
-    # assert balance_staker1 == escrow.functions.totalStakedForAt(staker1, now - 1).call()
-    # assert balance_staker1 + deposit_staker2 == escrow.functions.totalStakedAt(now - 1).call()
+    # Finally, the first staker withdraws some tokens
+    tx = threshold_staking.functions.requestMerge(staker1, staker1).transact()
+    testerchain.wait_for_receipt(tx)
+    tx = threshold_staking.functions.setMinStaked(staker1, balance_staker1).transact()
+    testerchain.wait_for_receipt(tx)
+    tx = escrow.functions.confirmMerge(staker1).transact()
+    testerchain.wait_for_receipt(tx)
+    tx = threshold_staking.functions.setMinStaked(staker1, 0).transact()
+    testerchain.wait_for_receipt(tx)
+    tx = threshold_staking.functions.setStakedNu(staker1, 0).transact()
+    testerchain.wait_for_receipt(tx)
+
+    withdrawal = 42
+    tx = escrow.functions.withdraw(withdrawal).transact({'from': staker1})
+    testerchain.wait_for_receipt(tx)
+    last_balance_staker1 = balance_staker1 - withdrawal
+    assert last_balance_staker1 == escrow.functions.getAllTokens(staker1).call()
+
+    expected_staker1_balance.add_value(last_balance_staker1)
+    expected_global_balance.add_value(last_balance_staker1 + deposit_staker2)
+    assert expected_staker1_balance == get_staker_history_from_storage(staker1)
+    assert expected_global_balance == get_global_history_from_storage()
+
+    now = testerchain.get_block_number()
+    assert last_balance_staker1 == escrow.functions.totalStakedForAt(staker1, now).call()
+    assert last_balance_staker1 + deposit_staker2 == escrow.functions.totalStakedAt(now).call()
+    assert balance_staker1 == escrow.functions.totalStakedForAt(staker1, now - 1).call()
+    assert balance_staker1 + deposit_staker2 == escrow.functions.totalStakedAt(now - 1).call()
