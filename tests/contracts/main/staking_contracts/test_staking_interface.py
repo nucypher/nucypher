@@ -266,12 +266,24 @@ def test_worklock(testerchain, worklock, staking_contract, staking_contract_inte
     assert event_args['refundETH'] == refund
 
 
-def test_interface_without_worklock(testerchain, deploy_contract, token, escrow, policy_manager, worklock):
+def test_interface_without_worklock(testerchain,
+                                    deploy_contract,
+                                    token,
+                                    escrow,
+                                    policy_manager,
+                                    worklock,
+                                    threshold_staking):
     creator = testerchain.client.accounts[0]
     owner = testerchain.client.accounts[1]
 
     staking_interface, _ = deploy_contract(
-        'StakingInterface', token.address, escrow.address, policy_manager.address, worklock.address)
+        'StakingInterface',
+        token.address,
+        escrow.address,
+        policy_manager.address,
+        worklock.address,
+        threshold_staking.address
+    )
     router, _ = deploy_contract('StakingInterfaceRouter', staking_interface.address)
 
     staking_contract, _ = deploy_contract('SimpleStakingContract', router.address)
@@ -298,7 +310,13 @@ def test_interface_without_worklock(testerchain, deploy_contract, token, escrow,
 
     # Test interface without worklock
     staking_interface, _ = deploy_contract(
-        'StakingInterface', token.address, escrow.address, policy_manager.address, NULL_ADDRESS)
+        'StakingInterface',
+        token.address,
+        escrow.address,
+        policy_manager.address,
+        NULL_ADDRESS,
+        threshold_staking.address
+    )
     tx = router.functions.upgrade(staking_interface.address).transact({'from': creator})
     testerchain.wait_for_receipt(tx)
 
@@ -318,3 +336,60 @@ def test_interface_without_worklock(testerchain, deploy_contract, token, escrow,
     with pytest.raises((TransactionFailed, ValueError)):
         tx = staking_contract_interface.functions.refund().transact({'from': owner})
         testerchain.wait_for_receipt(tx)
+
+
+def test_threshold_staking(testerchain,
+                           threshold_staking,
+                           staking_contract,
+                           staking_contract_interface,
+                           staking_interface):
+    """
+    Test Threshold staking functions in the staking interface
+    """
+    creator = testerchain.client.accounts[0]
+    owner = testerchain.client.accounts[1]
+    operator = testerchain.client.accounts[2]
+    beneficiary = testerchain.client.accounts[3]
+    authorizer = testerchain.client.accounts[4]
+
+    stakes = staking_contract_interface.events.ThresholdNUStaked.createFilter(fromBlock='latest')
+    unstakes = staking_contract_interface.events.ThresholdNUUnstaked.createFilter(fromBlock='latest')
+
+    # Owner can't use the staking interface directly
+    with pytest.raises((TransactionFailed, ValueError)):
+        tx = staking_interface.functions.stakeNu(operator, beneficiary, authorizer).transact({'from': owner})
+        testerchain.wait_for_receipt(tx)
+    with pytest.raises((TransactionFailed, ValueError)):
+        tx = staking_interface.functions.unstakeNu(operator, 1).transact({'from': owner})
+        testerchain.wait_for_receipt(tx)
+
+    # Stake NU
+    assert threshold_staking.functions.stakedNuInT().call() == 0
+    tx = staking_contract_interface.functions.stakeNu(operator, beneficiary, authorizer).transact({'from': owner})
+    testerchain.wait_for_receipt(tx)
+    assert threshold_staking.functions.operator().call() == operator
+    assert threshold_staking.functions.beneficiary().call() == beneficiary
+    assert threshold_staking.functions.authorizer().call() == authorizer
+    assert threshold_staking.functions.stakedNuInT().call() != 0
+
+    events = stakes.get_all_entries()
+    assert len(events) == 1
+    event_args = events[-1]['args']
+    assert event_args['sender'] == owner
+    assert event_args['operator'] == operator
+    assert event_args['beneficiary'] == beneficiary
+    assert event_args['authorizer'] == authorizer
+
+    # Unstake NU
+    staked = threshold_staking.functions.stakedNuInT().call()
+    unstaked = staked // 3
+    tx = staking_contract_interface.functions.unstakeNu(operator, unstaked).transact({'from': owner})
+    testerchain.wait_for_receipt(tx)
+    assert threshold_staking.functions.stakedNuInT().call() == staked - unstaked
+
+    events = unstakes.get_all_entries()
+    assert len(events) == 1
+    event_args = events[0]['args']
+    assert event_args['sender'] == owner
+    assert event_args['operator'] == operator
+    assert event_args['amount'] == unstaked

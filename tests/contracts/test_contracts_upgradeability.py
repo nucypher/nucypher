@@ -125,7 +125,7 @@ CONSTRUCTOR_OVERRIDES = {
 }
 
 FORCE_SKIP = {
-    StakingEscrowDeployer.contract_name: ["v5.6.1"],
+    StakingEscrowDeployer.contract_name: ["v5.6.1", "v6.2.1"],
     PolicyManagerDeployer.contract_name: ["v6.2.1"]
 }
 

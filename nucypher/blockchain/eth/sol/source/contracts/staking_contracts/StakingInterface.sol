@@ -8,6 +8,7 @@ import "contracts/NuCypherToken.sol";
 import "contracts/IStakingEscrow.sol";
 import "contracts/PolicyManager.sol";
 import "contracts/WorkLock.sol";
+import "threshold/IStaking.sol";
 
 
 /**
@@ -20,6 +21,7 @@ contract BaseStakingInterface {
     IStakingEscrow public immutable escrow;
     PolicyManager public immutable policyManager;
     WorkLock public immutable workLock;
+    IStaking public immutable tStaking;
 
     /**
     * @notice Constructor sets addresses of the contracts
@@ -27,22 +29,26 @@ contract BaseStakingInterface {
     * @param _escrow Escrow contract
     * @param _policyManager PolicyManager contract
     * @param _workLock WorkLock contract
+    * @param _tStaking Threshold TokenStaking contract
     */
     constructor(
         NuCypherToken _token,
         IStakingEscrow _escrow,
         PolicyManager _policyManager,
-        WorkLock _workLock
+        WorkLock _workLock,
+        IStaking _tStaking
     ) {
         require(_token.totalSupply() > 0 &&
             _escrow.token() == _token &&
             _policyManager.secondsPerPeriod() > 0 &&
+            _tStaking.stakedNu(address(0)) == 0 &&
             // in case there is no worklock contract
             (address(_workLock) == address(0) || _workLock.boostingRefund() > 0));
         token = _token;
         escrow = _escrow;
         policyManager = _policyManager;
         workLock = _workLock;
+        tStaking = _tStaking;
         stakingInterfaceAddress = address(this);
     }
 
@@ -83,6 +89,13 @@ contract StakingInterface is BaseStakingInterface {
     event Refund(address indexed sender, uint256 refundETH);
     event BidCanceled(address indexed sender);
     event CompensationWithdrawn(address indexed sender);
+    event ThresholdNUStaked(
+        address indexed sender,
+        address indexed operator,
+        address beneficiary,
+        address authorizer
+    );
+    event ThresholdNUUnstaked(address indexed sender, address indexed operator, uint96 amount);
 
     /**
     * @notice Constructor sets addresses of the contracts
@@ -90,15 +103,16 @@ contract StakingInterface is BaseStakingInterface {
     * @param _escrow Escrow contract
     * @param _policyManager PolicyManager contract
     * @param _workLock WorkLock contract
+    * @param _tStaking Threshold TokenStaking contract
     */
     constructor(
         NuCypherToken _token,
         IStakingEscrow _escrow,
         PolicyManager _policyManager,
-        WorkLock _workLock
-    // TODO add tStaking and methods which can be called only by owner
+        WorkLock _workLock,
+        IStaking _tStaking
     )
-        BaseStakingInterface(_token, _escrow, _policyManager, _workLock)
+        BaseStakingInterface(_token, _escrow, _policyManager, _workLock, _tStaking)
     {
     }
 
@@ -176,4 +190,24 @@ contract StakingInterface is BaseStakingInterface {
         emit Refund(msg.sender, refundETH);
     }
 
+    /**
+    * @notice Copies delegation from the legacy NU staking contract to T staking contract,
+    * additionally appointing beneficiary and authorizer roles.
+    */
+    function stakeNu(
+        address operator,
+        address payable beneficiary,
+        address authorizer
+    ) external onlyDelegateCall {
+        tStaking.stakeNu(operator, beneficiary, authorizer);
+        emit ThresholdNUStaked(msg.sender, operator, beneficiary, authorizer);
+    }
+
+    /**
+    * @notice Reduces cached legacy NU stake amount by the provided amount.
+    */
+    function unstakeNu(address operator, uint96 amount) external onlyDelegateCall {
+        tStaking.unstakeNu(operator, amount);
+        emit ThresholdNUUnstaked(msg.sender, operator, amount);
+    }
 }
