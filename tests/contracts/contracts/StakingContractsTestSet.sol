@@ -141,6 +141,38 @@ contract WorkLockForStakingContractMock {
 /**
 * @notice Contract for staking contract tests
 */
+contract ThresholdStakingForStakingContractMock {
+
+    address public operator;
+    address payable public beneficiary;
+    address public authorizer;
+    uint96 public stakedNuInT;
+
+    function stakedNu(address) external view returns (uint256) {
+        return 0;
+    }
+
+    function stakeNu(
+        address _operator,
+        address payable _beneficiary,
+        address _authorizer
+    ) external {
+        operator = _operator;
+        beneficiary = _beneficiary;
+        authorizer = _authorizer;
+        stakedNuInT = 1000;
+    }
+
+    function unstakeNu(address _operator, uint96 _amount) external {
+        require(operator == _operator);
+        stakedNuInT -= _amount;
+    }
+}
+
+
+/**
+* @notice Contract for staking contract tests
+*/
 contract StakingInterfaceMockV1 {
 
     address public immutable token = address(1);
@@ -250,9 +282,10 @@ contract ExtendedStakingInterface is StakingInterface {
         NuCypherToken _token,
         IStakingEscrow _escrow,
         PolicyManager _policyManager,
-        WorkLock _workLock
+        WorkLock _workLock,
+        IStaking _tStaking
     )
-        StakingInterface(_token, _escrow, _policyManager, _workLock)
+        StakingInterface(_token, _escrow, _policyManager, _workLock, _tStaking)
     {
     }
 

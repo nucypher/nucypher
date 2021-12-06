@@ -138,11 +138,17 @@ def mock_ursula(testerchain, account, mocker):
 
 
 @pytest.fixture(scope='module')
-def staking_interface(testerchain, token, escrow, worklock, deploy_contract):
+def staking_interface(testerchain, token, escrow, worklock, threshold_staking, deploy_contract):
     policy_manager, _ = deploy_contract('PolicyManagerForStakingContractMock')
     # Creator deploys the staking interface
     staking_interface, _ = deploy_contract(
-        'StakingInterface', token.address, escrow.address, policy_manager.address, worklock.address)
+        'StakingInterface',
+        token.address,
+        escrow.address,
+        policy_manager.address,
+        worklock.address,
+        threshold_staking.address
+    )
     return staking_interface
 
 
@@ -393,7 +399,13 @@ def test_upgrading_and_rollback(testerchain,
     # Deploy the same contract as the second version
     policy_manager, _ = deploy_contract('PolicyManagerForStakingContractMock')
     staking_interface_v2, _ = deploy_contract(
-        'StakingInterface', token.address, escrow.address, policy_manager.address, worklock.address)
+        'StakingInterface',
+        token.address,
+        escrow.address,
+        policy_manager.address,
+        worklock.address,
+        threshold_staking.address
+    )
     # Staker and Alice can't upgrade library, only owner can
     with pytest.raises((TransactionFailed, ValueError)):
         tx = staking_interface_router.functions.upgrade(staking_interface_v2.address).transact({'from': alice1})

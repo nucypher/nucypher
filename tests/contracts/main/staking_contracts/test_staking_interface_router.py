@@ -90,7 +90,7 @@ def test_upgrading(testerchain, token, deploy_contract, escrow):
     testerchain.wait_for_receipt(tx)
 
 
-def test_interface_selfdestruct(testerchain, token, deploy_contract, escrow):
+def test_interface_selfdestruct(testerchain, token, deploy_contract):
     creator = testerchain.client.accounts[0]
     account = testerchain.client.accounts[1]
 
@@ -117,7 +117,8 @@ def test_interface_selfdestruct(testerchain, token, deploy_contract, escrow):
 
     # Can't create contracts using wrong addresses
     with pytest.raises((TransactionFailed, ValueError)):
-        deploy_contract('BaseStakingInterface', token.address, token.address, token.address, token.address)
+        deploy_contract(
+            'BaseStakingInterface', token.address, token.address, token.address, token.address, token.address)
     with pytest.raises((TransactionFailed, ValueError)):
         deploy_contract('StakingInterfaceRouter', token.address)
 
