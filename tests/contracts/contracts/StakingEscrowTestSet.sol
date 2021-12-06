@@ -150,16 +150,24 @@ contract ThresholdStakingForStakingEscrowMock {
 
     StakingEscrow public escrow;
 
+    struct OperatorInfo {
+        uint256 staked;
+        uint96 minStaked;
+    }
+
+    mapping(address => OperatorInfo) public operators;
+
     function setStakingEscrow(StakingEscrow _escrow) external {
         escrow = _escrow;
     }
 
     function stakedNu(address _operator) external view returns (uint256) {
-        return 0;
+        return operators[_operator].staked;
     }
 
     function getMinStaked(address _operator, IStaking.StakeType _stakeTypes) external view returns (uint96) {
-        return 0;
+        require(_stakeTypes == IStaking.StakeType.NU);
+        return operators[_operator].minStaked;
     }
 
     function stakes(address _operator) external view returns
@@ -170,7 +178,7 @@ contract ThresholdStakingForStakingEscrowMock {
     ) {
         tStake = 0;
         keepInTStake = 0;
-        nuInTStake = 0;
+        nuInTStake = uint96(operators[_operator].staked);
     }
 
     function slashStaker(
@@ -182,5 +190,19 @@ contract ThresholdStakingForStakingEscrowMock {
         external
     {
         escrow.slashStaker(_staker, _penalty, _investigator, _reward);
+    }
+
+    function requestMerge(address _staker, address _operator) external {
+        operators[_operator].staked = escrow.requestMerge(_staker, _operator);
+    }
+
+    function setStakedNu(address _operator, uint256 _staked) external {
+        require(_staked <= operators[_operator].staked);
+        operators[_operator].staked = _staked;
+    }
+
+    function setMinStaked(address _operator, uint96 _minStaked) external {
+        require(_minStaked <= operators[_operator].staked);
+        operators[_operator].minStaked = _minStaked;
     }
 }

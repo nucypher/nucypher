@@ -292,6 +292,7 @@ contract StakingEscrow is Upgradeable, IERC900History {
     * @param _value Amount of tokens to withdraw
     */
     function withdraw(uint256 _value) external onlyStaker {
+        require(_value > 0, "Value must be specified");
         StakerInfo storage info = stakerInfo[msg.sender];
         require(info.flags.bitSet(MERGED_INDEX), "Merge must be confirmed");
         require(
@@ -317,7 +318,8 @@ contract StakingEscrow is Upgradeable, IERC900History {
         if (info.vestingReleaseTimestamp <= block.timestamp) {
             return 0;
         }
-        return (block.timestamp - info.vestingReleaseTimestamp) * info.vestingReleaseRate;
+        uint256 vestedTokens = (info.vestingReleaseTimestamp - block.timestamp) * info.vestingReleaseRate;
+        return info.value < vestedTokens ? info.value : vestedTokens;
     }
 
     /**
