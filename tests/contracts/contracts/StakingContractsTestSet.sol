@@ -268,7 +268,7 @@ contract SimpleStakingContract is AbstractStakingContract, Ownable {
 
 interface IExtendedStakingEscrow is IStakingEscrow {
     function deposit(address, uint256) external;
-    function withdraw(uint256) external;
+    function withdraw(uint256) external override;
 }
 
 /**
