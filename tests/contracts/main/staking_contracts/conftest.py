@@ -56,7 +56,7 @@ def worklock(testerchain, deploy_contract):
 def staking_interface(testerchain, token, escrow, policy_manager, worklock, deploy_contract):
     # Creator deploys the staking interface
     contract, _ = deploy_contract(
-        'StakingInterface', token.address, escrow.address, policy_manager.address, worklock.address)
+        'ExtendedStakingInterface', token.address, escrow.address, policy_manager.address, worklock.address)
     return contract
 
 

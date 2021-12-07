@@ -536,8 +536,7 @@ class StakingEscrowDeployer(BaseContractDeployer, UpgradeableContractMixin, Owna
     can_be_idle = True
     init_steps = ('stub_deployment', 'dispatcher_deployment')
     preparation_steps = ('contract_deployment', 'dispatcher_retarget')
-    activation_steps = ('approve_reward_transfer', 'initialize')
-    deployment_steps = preparation_steps + activation_steps
+    deployment_steps = preparation_steps
     _proxy_deployer = DispatcherDeployer
 
     def __init__(self, *args, **kwargs):
@@ -570,9 +569,6 @@ class StakingEscrowDeployer(BaseContractDeployer, UpgradeableContractMixin, Owna
                      confirmations: int = 0,
                      **overrides):
         constructor_kwargs = {
-            "_genesisHoursPerPeriod": self.economics.genesis_hours_per_period,
-            "_hoursPerPeriod": self.economics.hours_per_period,
-            "_minLockedPeriods": self.economics.minimum_locked_periods,
             "_minAllowableLockedTokens": self.economics.minimum_allowed_locked,
             "_maxAllowableLockedTokens": self.economics.maximum_allowed_locked
         }
@@ -597,27 +593,11 @@ class StakingEscrowDeployer(BaseContractDeployer, UpgradeableContractMixin, Owna
                           gas_limit: int = None,
                           confirmations: int = 0,
                           **overrides):
-        args = self.economics.staking_deployment_parameters
-        constructor_kwargs = {
-            "_genesisHoursPerPeriod": args[0],
-            "_hoursPerPeriod": args[1],
-            "_issuanceDecayCoefficient": args[2],
-            "_lockDurationCoefficient1": args[3],
-            "_lockDurationCoefficient2": args[4],
-            "_maximumRewardedPeriods": args[5],
-            "_firstPhaseTotalSupply": args[6],
-            "_firstPhaseMaxIssuance": args[7],
-            "_minLockedPeriods": args[8],
-            "_minAllowableLockedTokens": args[9],
-            "_maxAllowableLockedTokens": args[10],
-            "_minWorkerPeriods": args[11]
-        }
+        constructor_kwargs = {}
         constructor_kwargs.update(overrides)
         constructor_kwargs = {k: v for k, v in constructor_kwargs.items() if v is not None}
         # Force use of the contract addresses from the registry
         constructor_kwargs.update({"_token": self.token_contract.address,
-                                   "_policyManager": self.policy_manager.address,
-                                   "_adjudicator": self.adjudicator.address,
                                    "_workLock": self.worklock.address if self.worklock is not None else NULL_ADDRESS})
         the_escrow_contract, deploy_receipt = self.blockchain.deploy_contract(
             transacting_power,
@@ -655,7 +635,7 @@ class StakingEscrowDeployer(BaseContractDeployer, UpgradeableContractMixin, Owna
         Returns transaction receipts in a dict.
         """
 
-        if deployment_mode not in (BARE, IDLE, INIT, FULL):
+        if deployment_mode not in (BARE, INIT, FULL):
             raise ValueError(f"Invalid deployment mode ({deployment_mode})")
 
         # Raise if not all-systems-go
@@ -741,86 +721,7 @@ class StakingEscrowDeployer(BaseContractDeployer, UpgradeableContractMixin, Owna
             preparation_receipts = dict(zip(self.preparation_steps, (deploy_receipt, dispatcher_retarget_receipt)))
         self.deployment_receipts = preparation_receipts
 
-        # 3 & 4 - Activation
-        if deployment_mode in (IDLE, INIT):
-            # This is the end of deployment without activation: the contract is now idle, waiting for activation
-            return preparation_receipts
-        else:  # deployment_mode is FULL
-            activation_receipts = self.activate(transacting_power=transacting_power,
-                                                gas_limit=gas_limit,
-                                                progress=progress,
-                                                confirmations=confirmations,
-                                                emitter=emitter)
-            self.deployment_receipts.update(activation_receipts)
-            return self.deployment_receipts
-
-    def activate(self,
-                 transacting_power: TransactingPower,
-                 gas_limit: int = None,
-                 progress=None,
-                 emitter=None,
-                 confirmations: int = 0):
-
-        self._contract = self._get_deployed_contract()
-        if not self.ready_to_activate:
-            raise self.ContractDeploymentError(f"This StakingEscrow ({self._contract.address}) cannot be activated")
-
-        origin_args = {}
-        if gas_limit:
-            origin_args.update({'gas': gas_limit})  # TODO: #842 - Gas Management
-
-        # 3 - Approve transferring the reward supply tokens to StakingEscrow #
-        if emitter:
-            emitter.message(f"\nNext Transaction: Approve Transfer to {self.contract_name}", color='blue', bold=True)
-        approve_reward_function = self.token_contract.functions.approve(self._contract.address,
-                                                                        self.economics.erc20_reward_supply)
-
-        # TODO: Confirmations / Successful Transaction Indicator / Events ??  - #1193, #1194
-        approve_reward_receipt = self.blockchain.send_transaction(contract_function=approve_reward_function,
-                                                                  transacting_power=transacting_power,
-                                                                  confirmations=confirmations,
-                                                                  payload=origin_args)
-        if progress:
-            progress.update(1)
-
-        # 4 - Initialize the StakingEscrow contract
-        if emitter:
-            emitter.message(f"\nNext Transaction: {self.contract_name} Initialization", color='blue', bold=True)
-        deployer_address = transacting_power.account
-        init_function = self._contract.functions.initialize(self.economics.erc20_reward_supply, deployer_address)
-        init_receipt = self.blockchain.send_transaction(contract_function=init_function,
-                                                        transacting_power=transacting_power,
-                                                        confirmations=confirmations,
-                                                        payload=origin_args)
-        if progress:
-            progress.update(1)
-
-        activation_receipts = dict(zip(self.activation_steps, (approve_reward_receipt, init_receipt)))
-        return activation_receipts
-
-    @property
-    def ready_to_activate(self) -> bool:
-        try:
-            deployed_contract = self._get_deployed_contract()
-        except self.blockchain.UnknownContract:
-            return False
-
-        # TODO: Consider looking for absence of Initialized event - see #1193
-        # This mimics initialization pre-condition in Issuer (StakingEscrow's base contract)
-        current_minting_period = deployed_contract.functions.currentMintingPeriod().call()
-        return current_minting_period == 0
-
-    @property
-    def is_active(self) -> bool:
-        try:
-            deployed_contract = self._get_deployed_contract()
-        except self.blockchain.UnknownContract:
-            return False
-
-        # TODO: Consider looking for Initialized event - see #1193
-        # This mimics isInitialized() modifier in Issuer (StakingEscrow's base contract)
-        current_minting_period = deployed_contract.functions.currentMintingPeriod().call()
-        return current_minting_period != 0
+        return preparation_receipts
 
 
 class PolicyManagerDeployer(BaseContractDeployer, UpgradeableContractMixin, OwnableContractMixin):

@@ -18,11 +18,6 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 MAX_NUNIT_ERROR = 10 * 1e-18  # 2 decimal places
 
 
-def commit_to_next_period(staking_agent, ursulas_tpowers):
-    for ursula_tpower in ursulas_tpowers:
-        staking_agent.commit_to_next_period(transacting_power=ursula_tpower)
-
-
 def prepare_staker(origin_tpower, staking_agent, token_agent, token_economics, ursula, ursula_tpower, amount, lock_periods=None):
     if not lock_periods:
         lock_periods = 100 * token_economics.maximum_rewarded_periods
