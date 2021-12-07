@@ -10,7 +10,6 @@ import "contracts/NuCypherToken.sol";
 * @notice Enhanced version of StakingEscrow to use in tests
 */
 contract EnhancedStakingEscrow is StakingEscrow {
-    using AdditionalMath for uint16;
 
     constructor(
         NuCypherToken _token,
