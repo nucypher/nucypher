@@ -60,7 +60,7 @@ contract StakingEscrowBad is StakingEscrow {
     {
     }
 
-    function totalStakedAt(uint256) public view override returns (uint256) {}
+    function getStakersLength() external override view returns (uint256) {}
 
 }
 
