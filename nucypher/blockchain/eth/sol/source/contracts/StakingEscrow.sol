@@ -158,7 +158,7 @@ contract StakingEscrow is Upgradeable, IERC900History {
     mapping (address => address) public stakerFromWorker;  // outdated
 
     mapping (uint16 => uint256) stub1; // former slot for lockedPerPeriod
-    uint128[] public balanceHistory;
+    uint128[] public balanceHistory;  // outdated
 
     address stub2; // former slot for PolicyManager
     address stub3; // former slot for Adjudicator
@@ -344,7 +344,7 @@ contract StakingEscrow is Upgradeable, IERC900History {
     /**
     * @notice Return the length of the array of stakers
     */
-    function getStakersLength() external view returns (uint256) {
+    function getStakersLength() external view virtual returns (uint256) {
         return stakers.length;
     }
 
@@ -402,7 +402,7 @@ contract StakingEscrow is Upgradeable, IERC900History {
         return stakerInfo[_owner].history.getValueAt(_blockNumber);
     }
 
-    function totalStakedAt(uint256 _blockNumber) public view virtual override returns (uint256) {
+    function totalStakedAt(uint256 _blockNumber) public view override returns (uint256) {
         return balanceHistory.getValueAt(_blockNumber);
     }
 
@@ -440,13 +440,6 @@ contract StakingEscrow is Upgradeable, IERC900History {
             infoToCheck.value == info.value &&
             infoToCheck.flags == info.flags
         );
-
-        // it's not perfect because checks not only slot value but also decoding
-        // at least without additional functions
-        require(delegateGet(_testTarget, this.totalStakedForAt.selector, staker, bytes32(block.number)) ==
-            totalStakedForAt(stakerAddress, block.number));
-        require(delegateGet(_testTarget, this.totalStakedAt.selector, bytes32(block.number)) ==
-            totalStakedAt(block.number));
     }
 
 }
