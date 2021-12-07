@@ -7,7 +7,6 @@ import "aragon/interfaces/IERC900History.sol";
 import "contracts/NuCypherToken.sol";
 import "contracts/lib/Bits.sol";
 import "contracts/lib/Snapshot.sol";
-import "contracts/lib/AdditionalMath.sol";
 import "contracts/proxy/Upgradeable.sol";
 import "zeppelin/math/Math.sol";
 import "zeppelin/token/ERC20/SafeERC20.sol";
@@ -71,8 +70,6 @@ contract StakingEscrowStub is Upgradeable {
 */
 contract StakingEscrow is Upgradeable, IERC900History {
 
-    using AdditionalMath for uint256;
-    using AdditionalMath for uint16;
     using Bits for uint256;
     using SafeMath for uint256;
     using Snapshot for uint128[];
@@ -100,13 +97,6 @@ contract StakingEscrow is Upgradeable, IERC900History {
     * @param reward Value of reward provided to investigator (in NuNits)
     */
     event Slashed(address indexed staker, uint256 penalty, address indexed investigator, uint256 reward);
-
-    /**
-    * @notice Signals that the snapshot parameter was activated/deactivated
-    * @param staker Staker address
-    * @param snapshotsEnabled Updated parameter value
-    */
-    event SnapshotSet(address indexed staker, bool snapshotsEnabled);
 
     struct SubStakeInfo {
         uint16 firstPeriod;
@@ -143,8 +133,8 @@ contract StakingEscrow is Upgradeable, IERC900History {
 
     }
 
-    // indices for flags (0, 1, 2, and 4 were in use, skip it in future)
-    uint8 internal constant SNAPSHOTS_DISABLED_INDEX = 3;
+    // indices for flags (0-4 were in use, skip it in future)
+//    uint8 internal constant SNAPSHOTS_DISABLED_INDEX = 3;
 
     NuCypherToken public immutable token;
     WorkLockInterface public immutable workLock;
@@ -210,17 +200,17 @@ contract StakingEscrow is Upgradeable, IERC900History {
         return stakerInfo[_staker].value;
     }
 
-    /**
-    * @notice Get all flags for the staker
-    */
-    function getFlags(address _staker)
-        external view returns (
-            bool snapshots
-        )
-    {
-        StakerInfo storage info = stakerInfo[_staker];
-        snapshots = !info.flags.bitSet(SNAPSHOTS_DISABLED_INDEX);
-    }
+//    /**
+//    * @notice Get all flags for the staker
+//    */
+//    function getFlags(address _staker)
+//        external view returns (
+//            bool snapshots
+//        )
+//    {
+//        StakerInfo storage info = stakerInfo[_staker];
+//        snapshots = !info.flags.bitSet(SNAPSHOTS_DISABLED_INDEX);
+//    }
 
     /**
     * @notice Get work that completed by the staker
@@ -265,45 +255,7 @@ contract StakingEscrow is Upgradeable, IERC900History {
         token.safeTransferFrom(msg.sender, address(this), _value);
         info.value += _value;
 
-        addSnapshot(info, int256(_value));
         emit Deposited(_staker, _value);
-    }
-
-    /**
-    * @notice Activate/deactivate taking snapshots of balances
-    * @param _enableSnapshots True to activate snapshots, False to deactivate
-    */
-    function setSnapshots(bool _enableSnapshots) external {
-        StakerInfo storage info = stakerInfo[msg.sender];
-        if (info.flags.bitSet(SNAPSHOTS_DISABLED_INDEX) == !_enableSnapshots) {
-            return;
-        }
-
-        uint256 lastGlobalBalance = uint256(balanceHistory.lastValue());
-        if(_enableSnapshots){
-            info.history.addSnapshot(info.value);
-            balanceHistory.addSnapshot(lastGlobalBalance + info.value);
-        } else {
-            info.history.addSnapshot(0);
-            balanceHistory.addSnapshot(lastGlobalBalance - info.value);
-        }
-        info.flags = info.flags.toggleBit(SNAPSHOTS_DISABLED_INDEX);
-
-        emit SnapshotSet(msg.sender, _enableSnapshots);
-    }
-
-    /**
-    * @notice Adds a new snapshot to both the staker and global balance histories,
-    * assuming the staker's balance was already changed
-    * @param _info Reference to affected staker's struct
-    * @param _addition Variance in balance. It can be positive or negative.
-    */
-    function addSnapshot(StakerInfo storage _info, int256 _addition) internal {
-        if(!_info.flags.bitSet(SNAPSHOTS_DISABLED_INDEX)){
-            _info.history.addSnapshot(_info.value);
-            uint256 lastGlobalBalance = uint256(balanceHistory.lastValue());
-            balanceHistory.addSnapshot(lastGlobalBalance.addSigned(_addition));
-        }
     }
 
     //-------------------------Slashing-------------------------
@@ -336,8 +288,6 @@ contract StakingEscrow is Upgradeable, IERC900History {
         if (_reward > 0) {
             token.safeTransfer(_investigator, _reward);
         }
-
-        addSnapshot(info, - int256(_penalty));
     }
 
     //-------------Additional getters for stakers info-------------
@@ -399,11 +349,17 @@ contract StakingEscrow is Upgradeable, IERC900History {
     //------------------ ERC900 connectors ----------------------
 
     function totalStakedForAt(address _owner, uint256 _blockNumber) public view override returns (uint256) {
-        return stakerInfo[_owner].history.getValueAt(_blockNumber);
+        if (isUpgrade == UPGRADE_TRUE) {
+            return stakerInfo[_owner].history.getValueAt(_blockNumber);
+        }
+        return 0;
     }
 
     function totalStakedAt(uint256 _blockNumber) public view override returns (uint256) {
-        return balanceHistory.getValueAt(_blockNumber);
+        if (isUpgrade == UPGRADE_TRUE) {
+            return balanceHistory.getValueAt(_blockNumber);
+        }
+        return 0;
     }
 
     function supportsHistory() external pure override returns (bool) {
