@@ -1,1 +1,1 @@
-Removes snapshots logic from `StakingEscrow`
+Removes snapshots logic from ``StakingEscrow``
