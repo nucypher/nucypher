@@ -156,7 +156,7 @@ def test_measure_work(testerchain, token, worklock, escrow, token_economics):
     assert escrow.functions.getCompletedWork(staker).call() == token_economics.total_supply
 
 
-def test_snapshots(testerchain, token, escrow, worklock):
+def test_snapshots(testerchain, token, escrow, worklock, token_economics):
 
     creator = testerchain.client.accounts[0]
     staker1 = testerchain.client.accounts[1]
@@ -164,7 +164,7 @@ def test_snapshots(testerchain, token, escrow, worklock):
 
     now = testerchain.get_block_number()
     assert escrow.functions.totalStakedForAt(staker1, now).call() == 0
-    assert escrow.functions.totalStakedAt(now).call() == 0
+    assert escrow.functions.totalStakedAt(now).call() == token_economics.total_supply
 
     # Staker deposits some tokens
     value = NU(15_000, 'NU').to_nunits()
@@ -176,7 +176,7 @@ def test_snapshots(testerchain, token, escrow, worklock):
 
     now = testerchain.get_block_number()
     assert escrow.functions.totalStakedForAt(staker1, now).call() == 0
-    assert escrow.functions.totalStakedAt(now).call() == 0
+    assert escrow.functions.totalStakedAt(now).call() == token_economics.total_supply
 
     # A SECOND STAKER APPEARS:
 
@@ -188,7 +188,7 @@ def test_snapshots(testerchain, token, escrow, worklock):
     assert deposit_staker2 == escrow.functions.getAllTokens(staker2).call()
     now = testerchain.get_block_number()
     assert escrow.functions.totalStakedForAt(staker2, now).call() == 0
-    assert escrow.functions.totalStakedAt(now).call() == 0
+    assert escrow.functions.totalStakedAt(now).call() == token_economics.total_supply
 
     # # Finally, the first staker withdraws some tokens
     # withdrawal = 42
