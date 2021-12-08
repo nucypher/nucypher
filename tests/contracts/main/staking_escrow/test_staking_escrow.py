@@ -205,7 +205,7 @@ def test_request_merge(testerchain, threshold_staking, escrow):
     assert escrow.functions.stakerInfo(staker1).call()[OPERATOR_SLOT] == operator1
     assert threshold_staking.functions.operators(operator1).call()[0] == 0
     assert len(merge_requests_log.get_all_entries()) == 1
-    _snapshots_enabled, merged = escrow.functions.getFlags(staker1).call()
+    merged = escrow.functions.getFlags(staker1).call()
     assert not merged
 
     # Request can be done only with the same operator
@@ -245,7 +245,7 @@ def test_request_merge(testerchain, threshold_staking, escrow):
     assert threshold_staking.functions.operators(operator2).call()[0] == 2 * value
 
     assert len(merge_requests_log.get_all_entries()) == 2
-    _snapshots_enabled, merged = escrow.functions.getFlags(staker2).call()
+    merged = escrow.functions.getFlags(staker2).call()
     assert not merged
 
     # Request can be done only with the same operator
@@ -293,7 +293,7 @@ def test_confirm_merge(testerchain, threshold_staking, escrow):
     testerchain.wait_for_receipt(tx)
     tx = escrow.functions.confirmMerge(staker).transact()
     testerchain.wait_for_receipt(tx)
-    _snapshots_enabled, merged = escrow.functions.getFlags(staker).call()
+    merged = escrow.functions.getFlags(staker).call()
     assert merged
 
     events = merge_confirmations_log.get_all_entries()
@@ -312,7 +312,7 @@ def test_withdraw(testerchain, token, worklock, threshold_staking, escrow):
     withdrawal_log = escrow.events.Withdrawn.createFilter(fromBlock='latest')
 
     # Deposit some tokens
-    value = NU(15_000, 'NU').to_nunits()
+    value = NU(ONE_HOUR, 'NU').to_nunits()  # Exclude rounding error
     tx = token.functions.transfer(worklock.address, 10 * value).transact({'from': creator})
     testerchain.wait_for_receipt(tx)
     tx = worklock.functions.depositFromWorkLock(staker, value, 0).transact()
@@ -355,22 +355,13 @@ def test_withdraw(testerchain, token, worklock, threshold_staking, escrow):
     testerchain.time_travel(seconds=40 * 60)
     released = value - escrow.functions.getVestedTokens(staker).call()
 
-    # Can't withdraw 0 tokens
-    with pytest.raises((TransactionFailed, ValueError)):
-        tx = escrow.functions.withdraw(0).transact({'from': staker})
-        testerchain.wait_for_receipt(tx)
-
     # Can't withdraw more than released
     to_withdraw = released + rate  # +rate because in new tx timestamp will be one second more
     with pytest.raises((TransactionFailed, ValueError)):
         tx = escrow.functions.withdraw(to_withdraw + 1).transact({'from': staker})
         testerchain.wait_for_receipt(tx)
 
-    # Only staker can withdraw stake
-    with pytest.raises((TransactionFailed, ValueError)):
-        tx = escrow.functions.withdraw(1).transact({'from': operator})
-        testerchain.wait_for_receipt(tx)
-
+    to_withdraw += rate
     tx = escrow.functions.withdraw(to_withdraw).transact({'from': staker})
     testerchain.wait_for_receipt(tx)
     assert escrow.functions.getAllTokens(staker).call() == value - to_withdraw
@@ -388,6 +379,16 @@ def test_withdraw(testerchain, token, worklock, threshold_staking, escrow):
     unstaked = value // 2 - to_withdraw
     with pytest.raises((TransactionFailed, ValueError)):
         tx = escrow.functions.withdraw(unstaked + 1).transact({'from': staker})
+        testerchain.wait_for_receipt(tx)
+
+    # Can't withdraw 0 tokens
+    with pytest.raises((TransactionFailed, ValueError)):
+        tx = escrow.functions.withdraw(0).transact({'from': staker})
+        testerchain.wait_for_receipt(tx)
+
+    # Only staker can withdraw stake
+    with pytest.raises((TransactionFailed, ValueError)):
+        tx = escrow.functions.withdraw(1).transact({'from': operator})
         testerchain.wait_for_receipt(tx)
 
     tx = escrow.functions.withdraw(unstaked).transact({'from': staker})
