@@ -359,7 +359,7 @@ contract StakingEscrow is Upgradeable, IERC900History {
         if (isUpgrade == UPGRADE_TRUE) {
             return balanceHistory.getValueAt(_blockNumber);
         }
-        return 0;
+        return token.totalSupply();
     }
 
     function supportsHistory() external pure override returns (bool) {
