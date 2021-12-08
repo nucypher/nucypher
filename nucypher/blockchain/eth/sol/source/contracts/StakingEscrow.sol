@@ -6,7 +6,6 @@ pragma solidity ^0.8.0;
 import "aragon/interfaces/IERC900History.sol";
 import "contracts/NuCypherToken.sol";
 import "contracts/lib/Bits.sol";
-import "contracts/lib/Snapshot.sol";
 import "contracts/proxy/Upgradeable.sol";
 import "zeppelin/math/Math.sol";
 import "zeppelin/token/ERC20/SafeERC20.sol";
@@ -72,7 +71,6 @@ contract StakingEscrowStub is Upgradeable {
 contract StakingEscrow is Upgradeable, IERC900History {
 
     using Bits for uint256;
-    using Snapshot for uint128[];
     using SafeERC20 for NuCypherToken;
 
     /**
@@ -141,12 +139,11 @@ contract StakingEscrow is Upgradeable, IERC900History {
 
         uint256[] stub8; // former slot for pastDowntime
         uint256[] stub9; // former slot for subStakes
-        uint128[] history; // TODO keep or remove?
+        uint128[] stub10; // former slot for history
 
     }
 
     // indices for flags (0-4 were in use, skip it in future)
-//    uint8 internal constant SNAPSHOTS_DISABLED_INDEX = 3;
     uint8 internal constant MERGED_INDEX = 5;
 
     uint256 internal constant ACCEPTABLE_STAKING_ERROR = 10**15;
@@ -164,13 +161,13 @@ contract StakingEscrow is Upgradeable, IERC900History {
     mapping (address => address) private stub3; // former slot for stakerFromWorker
 
     mapping (uint16 => uint256) private stub4; // former slot for lockedPerPeriod
-    uint128[] public balanceHistory;  // outdated
+    uint128[] private stub5;  // former slot for balanceHistory
 
-    address private stub5; // former slot for PolicyManager
-    address private stub6; // former slot for Adjudicator
-    address private stub7; // former slot for WorkLock
+    address private stub6; // former slot for PolicyManager
+    address private stub7; // former slot for Adjudicator
+    address private stub8; // former slot for WorkLock
 
-    mapping (uint16 => uint256) private stub8; // last former slot for lockedPerPeriod
+    mapping (uint16 => uint256) private stub9; // last former slot for lockedPerPeriod
 
     /**
     * @notice Constructor sets address of token contract and parameters for staking
@@ -305,7 +302,6 @@ contract StakingEscrow is Upgradeable, IERC900History {
         );
         info.value -= _value;
 
-        addSnapshot(info, - int256(_value));
         token.safeTransfer(msg.sender, _value);
         emit Withdrawn(msg.sender, _value);
     }
@@ -431,16 +427,10 @@ contract StakingEscrow is Upgradeable, IERC900History {
     //------------------ ERC900 connectors ----------------------
 
     function totalStakedForAt(address _owner, uint256 _blockNumber) public view override returns (uint256) {
-        if (isUpgrade == UPGRADE_TRUE) {
-            return stakerInfo[_owner].history.getValueAt(_blockNumber);
-        }
         return 0;
     }
 
     function totalStakedAt(uint256 _blockNumber) public view override returns (uint256) {
-        if (isUpgrade == UPGRADE_TRUE) {
-            return balanceHistory.getValueAt(_blockNumber);
-        }
         return token.totalSupply();
     }
 

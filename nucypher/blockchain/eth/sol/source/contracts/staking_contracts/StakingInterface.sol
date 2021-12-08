@@ -83,7 +83,6 @@ contract StakingInterface is BaseStakingInterface {
     event WithdrawnAsStaker(address indexed sender, uint256 value);
     event PolicyFeeWithdrawn(address indexed sender, uint256 value);
     event MinFeeRateSet(address indexed sender, uint256 value);
-    event SnapshotSet(address indexed sender, bool snapshotsEnabled);
     event Bid(address indexed sender, uint256 depositedETH);
     event Claimed(address indexed sender, uint256 claimedTokens);
     event Refund(address indexed sender, uint256 refundETH);
@@ -139,15 +138,6 @@ contract StakingInterface is BaseStakingInterface {
     function setMinFeeRate(uint256 _minFeeRate) public onlyDelegateCall {
         policyManager.setMinFeeRate(_minFeeRate);
         emit MinFeeRateSet(msg.sender, _minFeeRate);
-    }
-
-    /**
-    * @notice Set `snapshots` parameter in the staking escrow
-    * @param _enableSnapshots Value for parameter
-    */
-    function setSnapshots(bool _enableSnapshots) public onlyDelegateCall {
-        escrow.setSnapshots(_enableSnapshots);
-        emit SnapshotSet(msg.sender, _enableSnapshots);
     }
 
     /**
