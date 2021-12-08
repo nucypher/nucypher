@@ -72,12 +72,8 @@ def test_staker(testerchain, token, escrow, staking_contract, staking_contract_i
     with pytest.raises((TransactionFailed, ValueError)):
         tx = staking_interface.functions.withdrawAsStaker(100).transact({'from': owner})
         testerchain.wait_for_receipt(tx)
-    with pytest.raises((TransactionFailed, ValueError)):
-        tx = staking_interface.functions.setSnapshots(False).transact({'from': owner})
-        testerchain.wait_for_receipt(tx)
 
-    # staker_withdraws = staking_contract_interface.events.WithdrawnAsStaker.createFilter(fromBlock='latest')
-    snapshots_logs = staking_contract_interface.events.SnapshotSet.createFilter(fromBlock='latest')
+    staker_withdraws = staking_contract_interface.events.WithdrawnAsStaker.createFilter(fromBlock='latest')
 
     # Use stakers methods through the staking contract
     value = 1600
@@ -92,16 +88,11 @@ def test_staker(testerchain, token, escrow, staking_contract, staking_contract_i
     assert token.functions.balanceOf(escrow.address).call() == escrow_balance + value
     assert token.functions.balanceOf(staking_contract.address).call() == 9 * value
 
-    # Test snapshots
-    tx = staking_contract_interface.functions.setSnapshots(True).transact({'from': owner})
-    testerchain.wait_for_receipt(tx)
-    assert escrow.functions.snapshots().call()
-
-    events = snapshots_logs.get_all_entries()
-    assert 1 == len(events)
+    events = staker_withdraws.get_all_entries()
+    assert len(events) == 1
     event_args = events[0]['args']
-    assert owner == event_args['sender']
-    assert event_args['snapshotsEnabled']
+    assert event_args['sender'] == owner
+    assert event_args['value'] == value
 
 
 def test_policy(testerchain, policy_manager, staking_contract, staking_contract_interface):
