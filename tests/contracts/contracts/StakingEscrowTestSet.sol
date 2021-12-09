@@ -10,7 +10,6 @@ import "contracts/NuCypherToken.sol";
 * @notice Enhanced version of StakingEscrow to use in tests
 */
 contract EnhancedStakingEscrow is StakingEscrow {
-    using AdditionalMath for uint16;
 
     constructor(
         NuCypherToken _token,
@@ -60,7 +59,7 @@ contract StakingEscrowBad is StakingEscrow {
     {
     }
 
-    function totalStakedAt(uint256) public view override returns (uint256) {}
+    function getStakersLength() external override view returns (uint256) {}
 
 }
 
