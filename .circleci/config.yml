@@ -386,26 +386,26 @@ python_36_base: &python_36_base
   parallelism: 1
   working_directory: ~/nucypher
   docker:
-    - image: circleci/python:3.6
+    - image: kprasch/rust-python:3.6.9
 
 python_37_base: &python_37_base
   parallelism: 1
   working_directory: ~/nucypher
   docker:
-    - image: circleci/python:3.7
+    - image: kprasch/rust-python:3.7.9
 
 
 python_38_base: &python_38_base
   parallelism: 1
   working_directory: ~/nucypher
   docker:
-    - image: circleci/python:3.8
+    - image: kprasch/rust-python:3.8.9
 
 python_39_base: &python_39_base
   parallelism: 1
   working_directory: ~/nucypher
   docker:
-    - image: circleci/python:3.9
+    - image: kprasch/rust-python:3.9.9
 
 commands:
 
@@ -497,7 +497,7 @@ commands:
           name: Running Test Suite
           command: |
             cat test-names.tmp | tr '\n' ' ' > test-names.txt
-            pytest -c .circleci/pytest.ini `cat test-names.txt`
+            python3 -m pytest -c .circleci/pytest.ini `cat test-names.txt`
 
   prepare_dev_docker:
     description: "access pre-build docker image"
