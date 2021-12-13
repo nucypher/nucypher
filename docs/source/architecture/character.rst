@@ -49,8 +49,8 @@ policy in the NuCypher Network to grant access to him. To grant access to Bob, A
 
    .. note::
 
-      Even though Bob can decrypt the encrypted treasure map, since each re-encryption fragment is encrypted
-      for a specific Ursula, Bob never has access to the plaintext re-encryption fragment.
+      Bob can decrypt the encrypted treasure map, but since each re-encryption fragment is encrypted
+      for a specific Ursula, Bob never has access to any re-encryption fragment in plaintext form.
 
 
 Enrico::Encrypt

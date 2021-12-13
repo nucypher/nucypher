@@ -26,8 +26,7 @@ with the policy, which are nodes on the NuCypher network. Each Ursula provides t
 ``n`` re-encryption key shares (:term:`kFrag`), each of which is encrypted with a different Ursula's encrypting key.
 The Ursulas in the group stand ready to re-encrypt data in exchange for payment in fees and token rewards.
 The list of Ursulas and their associated encrypted re-encryption key shares are stored in a treasure map. Alice
-subsequently encrypts the treasure map for Bob. The treasure map gives Bob the requisite information for getting
-the shared data re-encrypted by the NuCypher Network.
+subsequently encrypts the treasure map for Bob. The treasure map provides Bob the requisite information and cryptographic material to successfully request the NuCypher network to re-encrypt the data shared by Alice – such that he can decrypt it with his private key. 
 
 3. Each policy created by Alice has an associated encryption key, which can be used
 by any entity (Enrico) to encrypt data on Alice's behalf.
@@ -43,7 +42,7 @@ storage layer and sends a re-encryption request to the relevant Ursulas on the N
 satisfied, Ursula decrypts the provided re-encryption key share and re-encrypts the data to Bob's public key. Bob
 can subsequently decrypt the data with his private key.
 
-5. Ursulas earn fees and token rewards for performing re-encryption operations.
+5. Ursulas earn fees and token rewards for being available to perform re-encryption operations.
 
 More detailed information:
 
