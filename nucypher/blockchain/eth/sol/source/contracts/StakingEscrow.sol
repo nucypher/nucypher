@@ -297,7 +297,7 @@ contract StakingEscrow is Upgradeable, IERC900History {
             "Not enough tokens unstaked in T staking contract"
         );
         require(
-            _value + getVestedTokens(msg.sender) <= info.value,
+            _value + getUnvestedTokens(msg.sender) <= info.value,
             "Not enough tokens released during vesting"
         );
         info.value -= _value;
@@ -309,13 +309,13 @@ contract StakingEscrow is Upgradeable, IERC900History {
     /**
     * @notice Returns amount of not released yet tokens for staker
     */
-    function getVestedTokens(address _staker) public view returns (uint256) {
+    function getUnvestedTokens(address _staker) public view returns (uint256) {
         StakerInfo storage info = stakerInfo[_staker];
         if (info.vestingReleaseTimestamp <= block.timestamp) {
             return 0;
         }
-        uint256 vestedTokens = (info.vestingReleaseTimestamp - block.timestamp) * info.vestingReleaseRate;
-        return info.value < vestedTokens ? info.value : vestedTokens;
+        uint256 unvestedTokens = (info.vestingReleaseTimestamp - block.timestamp) * info.vestingReleaseRate;
+        return info.value < unvestedTokens ? info.value : unvestedTokens;
     }
 
     /**
@@ -339,7 +339,7 @@ contract StakingEscrow is Upgradeable, IERC900History {
             require(info.vestingReleaseTimestamp == 0, "Vesting parameters can be set only once");
             info.vestingReleaseTimestamp = _releaseTimestamp[i];
             info.vestingReleaseRate = _releaseRate[i];
-            require(getVestedTokens(staker) > 0, "Vesting parameters must be set properly");
+            require(getUnvestedTokens(staker) > 0, "Vesting parameters must be set properly");
             emit VestingSet(staker, info.vestingReleaseTimestamp, info.vestingReleaseRate);
         }
     }

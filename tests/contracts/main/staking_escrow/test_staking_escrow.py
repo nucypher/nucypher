@@ -389,7 +389,7 @@ def test_withdraw(testerchain, token, worklock, threshold_staking, escrow):
 
     # Wait some time
     testerchain.time_travel(seconds=40 * 60)
-    released = value - escrow.functions.getVestedTokens(staker).call()
+    released = value - escrow.functions.getUnvestedTokens(staker).call()
 
     # Can't withdraw more than released
     to_withdraw = released + rate  # +rate because in new tx timestamp will be one second more
@@ -514,7 +514,7 @@ def test_vesting(testerchain, token, worklock, escrow):
 
     tx = escrow.functions.setupVesting([staker1], [release_timestamp], [rate]).transact({'from': creator})
     testerchain.wait_for_receipt(tx)
-    assert escrow.functions.getVestedTokens(staker1).call() == value
+    assert escrow.functions.getUnvestedTokens(staker1).call() == value
     assert escrow.functions.stakerInfo(staker1).call()[VESTING_RELEASE_TIMESTAMP_SLOT] == release_timestamp
     assert escrow.functions.stakerInfo(staker1).call()[VESTING_RELEASE_RATE_SLOT] == rate
 
@@ -528,10 +528,10 @@ def test_vesting(testerchain, token, worklock, escrow):
     testerchain.time_travel(seconds=40 * 60)
     now = testerchain.w3.eth.getBlock('latest').timestamp
     vested = (release_timestamp - now) * rate
-    assert escrow.functions.getVestedTokens(staker1).call() == vested
+    assert escrow.functions.getUnvestedTokens(staker1).call() == vested
 
     testerchain.time_travel(seconds=20 * 60)
-    assert escrow.functions.getVestedTokens(staker1).call() == 0
+    assert escrow.functions.getUnvestedTokens(staker1).call() == 0
 
     # Can't set vesting again even after unlocking
     with pytest.raises((TransactionFailed, ValueError)):
@@ -557,8 +557,8 @@ def test_vesting(testerchain, token, worklock, escrow):
     ).transact({'from': creator})
     testerchain.wait_for_receipt(tx)
 
-    assert escrow.functions.getVestedTokens(staker2).call() == value // 2
-    assert escrow.functions.getVestedTokens(staker3).call() == value // 2
+    assert escrow.functions.getUnvestedTokens(staker2).call() == value // 2
+    assert escrow.functions.getUnvestedTokens(staker3).call() == value // 2
     assert escrow.functions.stakerInfo(staker2).call()[VESTING_RELEASE_TIMESTAMP_SLOT] == release_timestamp_2
     assert escrow.functions.stakerInfo(staker2).call()[VESTING_RELEASE_RATE_SLOT] == rate_2
     assert escrow.functions.stakerInfo(staker3).call()[VESTING_RELEASE_TIMESTAMP_SLOT] == release_timestamp_3
@@ -576,5 +576,5 @@ def test_vesting(testerchain, token, worklock, escrow):
     assert event_args['releaseRate'] == rate_3
 
     testerchain.time_travel(seconds=ONE_HOUR)
-    assert escrow.functions.getVestedTokens(staker2).call() == 0
-    assert escrow.functions.getVestedTokens(staker3).call() == value // 4
+    assert escrow.functions.getUnvestedTokens(staker2).call() == 0
+    assert escrow.functions.getUnvestedTokens(staker3).call() == value // 4
