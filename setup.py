@@ -122,6 +122,7 @@ def read_requirements(path):
 
 INSTALL_REQUIRES = read_requirements('requirements.txt')
 DEV_REQUIRES = read_requirements('dev-requirements.txt')
+DOC_REQUIRES = read_requirements('docs-requirements.txt')
 
 BENCHMARK_REQUIRES = [
     'pytest-benchmark'
@@ -130,7 +131,8 @@ BENCHMARK_REQUIRES = [
 DEPLOY_REQUIRES = [
     'bumpversion',
     'ansible',
-    'twine'
+    'twine',
+    'wheel'
 ]
 
 URSULA_REQUIRES = ['prometheus_client', 'sentry-sdk']  # TODO: Consider renaming to 'monitor', etc.
@@ -144,6 +146,7 @@ EXTRAS = {
     'dev': DEV_REQUIRES + URSULA_REQUIRES + ALICE_REQUIRES + PORTER_REQUIRES,
     'benchmark': DEV_REQUIRES + BENCHMARK_REQUIRES,
     'deploy': DEPLOY_REQUIRES,
+    'docs': DOC_REQUIRES,
 
     # User
     'ursula': URSULA_REQUIRES,

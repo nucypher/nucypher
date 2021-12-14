@@ -32,8 +32,8 @@ build-docs:
 
 validate-docs: build-docs
     # Requires dependencies from docs-requirements.txt
-	python newsfragments/validate_files.py
-	towncrier --draft
+	python3 newsfragments/validate_files.py
+	python3 -m towncrier --draft
 
 docs: build-docs validate-docs
 	readlink -f docs/build/html/index.html
