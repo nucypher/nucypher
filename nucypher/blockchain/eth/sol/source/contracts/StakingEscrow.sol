@@ -355,10 +355,13 @@ contract StakingEscrow is Upgradeable, IERC900History {
     {
         StakerInfo storage info = stakerInfo[_staker];
         require(
-            info.operator == address(0) || info.operator == _operator,
+            info.operator == address(0) ||
+            info.operator == _operator ||
+            (tStaking.stakedNu(info.operator) == 0 &&
+            !info.flags.bitSet(MERGED_INDEX)),
             "Operator already set for the staker"
         );
-        if (info.operator == address(0)) {
+        if (info.operator != _operator) {
             info.operator = _operator;
             emit MergeRequested(_staker, _operator);
         }

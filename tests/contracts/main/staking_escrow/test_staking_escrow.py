@@ -208,10 +208,18 @@ def test_request_merge(testerchain, threshold_staking, escrow):
     merged = escrow.functions.getFlags(staker1).call()
     assert not merged
 
-    # Request can be done only with the same operator
-    with pytest.raises((TransactionFailed, ValueError)):
-        tx = threshold_staking.functions.requestMerge(staker1, operator2).transact()
-        testerchain.wait_for_receipt(tx)
+    # Can change operator if old operator has no delegated stake
+    tx = threshold_staking.functions.requestMerge(staker1, staker1).transact()
+    testerchain.wait_for_receipt(tx)
+    assert escrow.functions.getAllTokens(staker1).call() == 0
+    assert escrow.functions.stakerInfo(staker1).call()[OPERATOR_SLOT] == staker1
+    assert threshold_staking.functions.operators(operator1).call()[0] == 0
+
+    events = merge_requests_log.get_all_entries()
+    assert len(events) == 2
+    event_args = events[-1]['args']
+    assert event_args['staker'] == staker1
+    assert event_args['operator'] == staker1
 
     # Requesting merge for existent staker will return stake
     value = 1000
@@ -224,7 +232,7 @@ def test_request_merge(testerchain, threshold_staking, escrow):
     assert threshold_staking.functions.operators(operator2).call()[0] == value
 
     events = merge_requests_log.get_all_entries()
-    assert len(events) == 2
+    assert len(events) == 3
     event_args = events[-1]['args']
     assert event_args['staker'] == staker2
     assert event_args['operator'] == operator2
@@ -244,13 +252,41 @@ def test_request_merge(testerchain, threshold_staking, escrow):
     assert escrow.functions.stakerInfo(staker2).call()[OPERATOR_SLOT] == operator2
     assert threshold_staking.functions.operators(operator2).call()[0] == 2 * value
 
-    assert len(merge_requests_log.get_all_entries()) == 2
+    assert len(merge_requests_log.get_all_entries()) == 3
     merged = escrow.functions.getFlags(staker2).call()
     assert not merged
 
-    # Request can be done only with the same operator
+    # Request can be done only with the same operator when NU is staked
     with pytest.raises((TransactionFailed, ValueError)):
         tx = threshold_staking.functions.requestMerge(staker2, operator1).transact()
+        testerchain.wait_for_receipt(tx)
+
+    # Unstake NU and try again
+    tx = threshold_staking.functions.setStakedNu(operator2, 0).transact()
+    testerchain.wait_for_receipt(tx)
+    tx = threshold_staking.functions.requestMerge(staker2, operator1).transact()
+    testerchain.wait_for_receipt(tx)
+    assert escrow.functions.getAllTokens(staker2).call() == 2 * value
+    assert escrow.functions.stakerInfo(staker2).call()[OPERATOR_SLOT] == operator1
+    assert threshold_staking.functions.operators(operator1).call()[0] == 2 * value
+
+    events = merge_requests_log.get_all_entries()
+    assert len(events) == 4
+    event_args = events[-1]['args']
+    assert event_args['staker'] == staker2
+    assert event_args['operator'] == operator1
+
+    # Confirm merge, unstake NU and try request again
+    tx = threshold_staking.functions.setMinStaked(operator1, 2 * value).transact()
+    testerchain.wait_for_receipt(tx)
+    tx = escrow.functions.confirmMerge(staker2).transact()
+    testerchain.wait_for_receipt(tx)
+    tx = threshold_staking.functions.setStakedNu(operator1, 0).transact()
+    testerchain.wait_for_receipt(tx)
+
+    # Can't change operator when merge is confirmed
+    with pytest.raises((TransactionFailed, ValueError)):
+        tx = threshold_staking.functions.requestMerge(staker2, staker2).transact()
         testerchain.wait_for_receipt(tx)
 
 
