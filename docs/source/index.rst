@@ -21,11 +21,12 @@ How does NuCypher work?
 anyone she wants by creating a policy and uploading it to
 the NuCypher network.
 
-2. A group of Ursulas, which are nodes on the NuCypher network,
-receive information about the policy, called a ``PolicyArrangement`` that include
-a re-encryption key share. The Ursulas stand ready to re-encrypt data in exchange for payment
-in fees and token rewards. Thanks to the use of proxy re-encryption,
-Ursulas and the storage layer never have access to Alice's plaintext data.
+2. Alice gets information about the group of ``n`` Ursulas associated
+with the policy, which are nodes on the NuCypher network. Each Ursula provides their encrypting key, and Alice creates
+``n`` re-encryption key shares (:term:`kFrag`), each of which is encrypted with a different Ursula's encrypting key.
+The Ursulas in the group stand ready to re-encrypt data in exchange for payment in fees and token rewards.
+The list of Ursulas and their associated encrypted re-encryption key shares are stored in a treasure map. Alice
+subsequently encrypts the treasure map for Bob. The treasure map provides Bob the requisite information and cryptographic material to successfully request the NuCypher network to re-encrypt the data shared by Alice – such that he can decrypt it with his private key. 
 
 3. Each policy created by Alice has an associated encryption key, which can be used
 by any entity (Enrico) to encrypt data on Alice's behalf.
@@ -35,15 +36,17 @@ data that belongs to her – for example, a lab analyzing medical tests.
 The resulting encrypted data can be uploaded to IPFS, Swarm, S3,
 or any other storage layer.
 
-4. Bob, a data recipient, obtains the encrypted data from the storage layer and sends an access request
-to the NuCypher network. If the policy is satisfied, the data is re-encrypted to his public key
-and he can decrypt it with his private key.
+4. Bob, a data recipient, uses the treasure map to determine the list of Ursulas to contact and the associated
+re-encryption key share to send to Ursula for the re-encryption operation. Bob obtains the encrypted data from the
+storage layer and sends a re-encryption request to the relevant Ursulas on the NuCypher network. If the policy is
+satisfied, Ursula decrypts the provided re-encryption key share and re-encrypts the data to Bob's public key. Bob
+can subsequently decrypt the data with his private key.
 
-5. Ursulas earn fees and token rewards for performing
-re-encryption operations.
+5. Ursulas earn fees and token rewards for being available to perform re-encryption operations.
 
 More detailed information:
 
+- :ref:`character-concepts`
 - GitHub https://www.github.com/nucypher/nucypher
 - Website https://www.nucypher.com/
 

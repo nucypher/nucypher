@@ -1,0 +1,1 @@
+Update documentation to reflect new TreasureMap con KFrags design.
