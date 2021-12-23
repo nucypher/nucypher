@@ -1,1 +1,1 @@
-Integrate StakingEscrow with TokenStaking
+Integrate StakingEscrow with Threshold Network's TokenStaking
