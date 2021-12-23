@@ -197,17 +197,6 @@ def test_snapshots(testerchain, token, escrow, worklock, threshold_staking, toke
     assert escrow.functions.totalStakedAt(now).call() == token_economics.total_supply
 
     # Finally, the first staker withdraws some tokens
-    tx = threshold_staking.functions.requestMerge(staker1, staker1).transact()
-    testerchain.wait_for_receipt(tx)
-    tx = threshold_staking.functions.setMinStaked(staker1, initial_deposit).transact()
-    testerchain.wait_for_receipt(tx)
-    tx = escrow.functions.confirmMerge(staker1).transact()
-    testerchain.wait_for_receipt(tx)
-    tx = threshold_staking.functions.setMinStaked(staker1, 0).transact()
-    testerchain.wait_for_receipt(tx)
-    tx = threshold_staking.functions.setStakedNu(staker1, 0).transact()
-    testerchain.wait_for_receipt(tx)
-
     withdrawal = 42
     tx = escrow.functions.withdraw(withdrawal).transact({'from': staker1})
     testerchain.wait_for_receipt(tx)
