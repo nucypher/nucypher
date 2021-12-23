@@ -111,12 +111,6 @@ contract StakingEscrow is Upgradeable, IERC900History {
     */
     event MergeRequested(address indexed staker, address indexed operator);
 
-    /**
-    * @notice Signals that the staker confirmed merge with T staking contract
-    * @param staker Staker address
-    */
-    event MergeConfirmed(address indexed staker);
-
     struct StakerInfo {
         uint256 value;
 
@@ -144,9 +138,7 @@ contract StakingEscrow is Upgradeable, IERC900History {
     }
 
     // indices for flags (0-4 were in use, skip it in future)
-    uint8 internal constant MERGED_INDEX = 5;
-
-    uint256 internal constant ACCEPTABLE_STAKING_ERROR = 10**15;
+//    uint8 internal constant SOME_FLAG_INDEX = 5;
 
     NuCypherToken public immutable token;
     WorkLockInterface public immutable workLock;
@@ -227,18 +219,6 @@ contract StakingEscrow is Upgradeable, IERC900History {
     }
 
     /**
-    * @notice Get all flags for the staker
-    */
-    function getFlags(address _staker)
-        external view returns (
-            bool merged
-        )
-    {
-        StakerInfo storage info = stakerInfo[_staker];
-        merged = info.flags.bitSet(MERGED_INDEX);
-    }
-
-    /**
     * @notice Get work that completed by the staker
     */
     function getCompletedWork(address _staker) external view returns (uint256) {
@@ -291,7 +271,6 @@ contract StakingEscrow is Upgradeable, IERC900History {
     function withdraw(uint256 _value) external onlyStaker {
         require(_value > 0, "Value must be specified");
         StakerInfo storage info = stakerInfo[msg.sender];
-        require(info.flags.bitSet(MERGED_INDEX), "Merge must be confirmed");
         require(
             _value + tStaking.stakedNu(info.operator) <= info.value,
             "Not enough tokens unstaked in T staking contract"
@@ -357,8 +336,7 @@ contract StakingEscrow is Upgradeable, IERC900History {
         require(
             info.operator == address(0) ||
             info.operator == _operator ||
-            (tStaking.stakedNu(info.operator) == 0 &&
-            !info.flags.bitSet(MERGED_INDEX)),
+            tStaking.stakedNu(info.operator) == 0,
             "Operator already set for the staker"
         );
         if (info.operator != _operator) {
@@ -366,25 +344,6 @@ contract StakingEscrow is Upgradeable, IERC900History {
             emit MergeRequested(_staker, _operator);
         }
         return info.value;
-    }
-
-    /**
-    * @notice Confirm migration to threshold network
-    * @param _staker Staker address
-    */
-    function confirmMerge(address _staker) external {
-        StakerInfo storage info = stakerInfo[_staker];
-        require(info.operator != address(0), "Staker didn't request merge");
-
-        require(!info.flags.bitSet(MERGED_INDEX), "Merge already confirmed");
-        uint256 stakedNu = tStaking.stakedNu(info.operator);
-        require(stakedNu + ACCEPTABLE_STAKING_ERROR >= info.value, "All tokens must be staked");
-
-        uint96 minStakedNuInT = tStaking.getMinStaked(info.operator, IStaking.StakeType.NU);
-        (,, uint96 stakedNuInT) = tStaking.stakes(info.operator);
-        require(minStakedNuInT == stakedNuInT, "All tokens must be authorized");
-        info.flags = info.flags.toggleBit(MERGED_INDEX);
-        emit MergeConfirmed(_staker);
     }
 
     //-------------------------Slashing-------------------------

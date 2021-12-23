@@ -205,8 +205,6 @@ def test_request_merge(testerchain, threshold_staking, escrow):
     assert escrow.functions.stakerInfo(staker1).call()[OPERATOR_SLOT] == operator1
     assert threshold_staking.functions.operators(operator1).call()[0] == 0
     assert len(merge_requests_log.get_all_entries()) == 1
-    merged = escrow.functions.getFlags(staker1).call()
-    assert not merged
 
     # Can change operator if old operator has no delegated stake
     tx = threshold_staking.functions.requestMerge(staker1, staker1).transact()
@@ -253,8 +251,6 @@ def test_request_merge(testerchain, threshold_staking, escrow):
     assert threshold_staking.functions.operators(operator2).call()[0] == 2 * value
 
     assert len(merge_requests_log.get_all_entries()) == 3
-    merged = escrow.functions.getFlags(staker2).call()
-    assert not merged
 
     # Request can be done only with the same operator when NU is staked
     with pytest.raises((TransactionFailed, ValueError)):
@@ -276,72 +272,6 @@ def test_request_merge(testerchain, threshold_staking, escrow):
     assert event_args['staker'] == staker2
     assert event_args['operator'] == operator1
 
-    # Confirm merge, unstake NU and try request again
-    tx = threshold_staking.functions.setMinStaked(operator1, 2 * value).transact()
-    testerchain.wait_for_receipt(tx)
-    tx = escrow.functions.confirmMerge(staker2).transact()
-    testerchain.wait_for_receipt(tx)
-    tx = threshold_staking.functions.setStakedNu(operator1, 0).transact()
-    testerchain.wait_for_receipt(tx)
-
-    # Can't change operator when merge is confirmed
-    with pytest.raises((TransactionFailed, ValueError)):
-        tx = threshold_staking.functions.requestMerge(staker2, staker2).transact()
-        testerchain.wait_for_receipt(tx)
-
-
-def test_confirm_merge(testerchain, threshold_staking, escrow):
-    creator, staker, operator = testerchain.client.accounts[0:3]
-    merge_confirmations_log = escrow.events.MergeConfirmed.createFilter(fromBlock='latest')
-    staking_error = NU(10**15, "NuNit").to_nunits()
-
-    # Can't confirm merge without request
-    with pytest.raises((TransactionFailed, ValueError)):
-        tx = escrow.functions.confirmMerge(staker).transact()
-        testerchain.wait_for_receipt(tx)
-
-    # Prepare staker and make a request
-    value = NU(1000, "NU").to_nunits()
-    tx = escrow.functions.setStaker(staker, value, 0).transact()
-    testerchain.wait_for_receipt(tx)
-    tx = threshold_staking.functions.requestMerge(staker, operator).transact()
-    testerchain.wait_for_receipt(tx)
-
-    # Emulate unstake
-    tx = threshold_staking.functions.setStakedNu(operator, value - staking_error - 1).transact()
-    testerchain.wait_for_receipt(tx)
-
-    # Must be staked everything to allow confirm
-    with pytest.raises((TransactionFailed, ValueError)):
-        tx = escrow.functions.confirmMerge(staker).transact()
-        testerchain.wait_for_receipt(tx)
-
-    # And everything must be authorized
-    tx = threshold_staking.functions.requestMerge(staker, operator).transact()
-    testerchain.wait_for_receipt(tx)
-    tx = threshold_staking.functions.setStakedNu(operator, value - staking_error).transact()
-    testerchain.wait_for_receipt(tx)
-    with pytest.raises((TransactionFailed, ValueError)):
-        tx = escrow.functions.confirmMerge(staker).transact()
-        testerchain.wait_for_receipt(tx)
-
-    tx = threshold_staking.functions.setMinStaked(operator, value - staking_error).transact()
-    testerchain.wait_for_receipt(tx)
-    tx = escrow.functions.confirmMerge(staker).transact()
-    testerchain.wait_for_receipt(tx)
-    merged = escrow.functions.getFlags(staker).call()
-    assert merged
-
-    events = merge_confirmations_log.get_all_entries()
-    assert len(events) == 1
-    event_args = events[-1]['args']
-    assert event_args['staker'] == staker
-
-    # Confirm can be made only once
-    with pytest.raises((TransactionFailed, ValueError)):
-        tx = escrow.functions.confirmMerge(staker).transact()
-        testerchain.wait_for_receipt(tx)
-
 
 def test_withdraw(testerchain, token, worklock, threshold_staking, escrow):
     creator, staker, operator = testerchain.client.accounts[0:3]
@@ -351,24 +281,26 @@ def test_withdraw(testerchain, token, worklock, threshold_staking, escrow):
     value = NU(ONE_HOUR, 'NU').to_nunits()  # Exclude rounding error
     tx = token.functions.transfer(worklock.address, 10 * value).transact({'from': creator})
     testerchain.wait_for_receipt(tx)
-    tx = worklock.functions.depositFromWorkLock(staker, value, 0).transact()
+    tx = worklock.functions.depositFromWorkLock(staker, value + 1, 0).transact()
     testerchain.wait_for_receipt(tx)
 
-    # Can't withdraw without confirmed merge
-    with pytest.raises((TransactionFailed, ValueError)):
-        tx = escrow.functions.withdraw(1).transact({'from': staker})
-        testerchain.wait_for_receipt(tx)
+    # Withdraw without requesting merge
+    tx = escrow.functions.withdraw(1).transact({'from': staker})
+    testerchain.wait_for_receipt(tx)
+    assert escrow.functions.getAllTokens(staker).call() == value
+    assert token.functions.balanceOf(staker).call() == 1
+    assert token.functions.balanceOf(escrow.address).call() == value
+
+    events = withdrawal_log.get_all_entries()
+    assert len(events) == 1
+    event_args = events[-1]['args']
+    assert event_args['staker'] == staker
+    assert event_args['value'] == 1
 
     tx = threshold_staking.functions.requestMerge(staker, operator).transact()
     testerchain.wait_for_receipt(tx)
-    tx = threshold_staking.functions.setMinStaked(operator, value).transact()
-    testerchain.wait_for_receipt(tx)
-    tx = escrow.functions.confirmMerge(staker).transact()
-    testerchain.wait_for_receipt(tx)
-    tx = threshold_staking.functions.setMinStaked(operator, 0).transact()
-    testerchain.wait_for_receipt(tx)
 
-    # Still can't withdraw because everything is staked
+    # Can't withdraw because everything is staked
     with pytest.raises((TransactionFailed, ValueError)):
         tx = escrow.functions.withdraw(1).transact({'from': staker})
         testerchain.wait_for_receipt(tx)
@@ -401,11 +333,11 @@ def test_withdraw(testerchain, token, worklock, threshold_staking, escrow):
     tx = escrow.functions.withdraw(to_withdraw).transact({'from': staker})
     testerchain.wait_for_receipt(tx)
     assert escrow.functions.getAllTokens(staker).call() == value - to_withdraw
-    assert token.functions.balanceOf(staker).call() == to_withdraw
+    assert token.functions.balanceOf(staker).call() == to_withdraw + 1
     assert token.functions.balanceOf(escrow.address).call() == value - to_withdraw
 
     events = withdrawal_log.get_all_entries()
-    assert len(events) == 1
+    assert len(events) == 2
     event_args = events[-1]['args']
     assert event_args['staker'] == staker
     assert event_args['value'] == to_withdraw
@@ -430,11 +362,11 @@ def test_withdraw(testerchain, token, worklock, threshold_staking, escrow):
     tx = escrow.functions.withdraw(unstaked).transact({'from': staker})
     testerchain.wait_for_receipt(tx)
     assert escrow.functions.getAllTokens(staker).call() == value // 2
-    assert token.functions.balanceOf(staker).call() == value // 2
+    assert token.functions.balanceOf(staker).call() == value // 2 + 1
     assert token.functions.balanceOf(escrow.address).call() == value // 2
 
     events = withdrawal_log.get_all_entries()
-    assert len(events) == 2
+    assert len(events) == 3
     event_args = events[-1]['args']
     assert event_args['staker'] == staker
     assert event_args['value'] == unstaked
@@ -445,11 +377,11 @@ def test_withdraw(testerchain, token, worklock, threshold_staking, escrow):
     tx = escrow.functions.withdraw(value // 2).transact({'from': staker})
     testerchain.wait_for_receipt(tx)
     assert escrow.functions.getAllTokens(staker).call() == 0
-    assert token.functions.balanceOf(staker).call() == value
+    assert token.functions.balanceOf(staker).call() == value + 1
     assert token.functions.balanceOf(escrow.address).call() == 0
 
     events = withdrawal_log.get_all_entries()
-    assert len(events) == 3
+    assert len(events) == 4
     event_args = events[-1]['args']
     assert event_args['staker'] == staker
     assert event_args['value'] == value // 2
