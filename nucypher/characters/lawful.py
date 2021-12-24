@@ -21,7 +21,6 @@ from http import HTTPStatus
 import json
 import time
 from base64 import b64encode
-from datetime import datetime
 from json.decoder import JSONDecodeError
 from pathlib import Path
 from queue import Queue
@@ -39,11 +38,9 @@ from constant_sorrow.constants import (
 from cryptography.hazmat.primitives.serialization import Encoding
 from cryptography.x509 import Certificate, NameOID
 from eth_typing.evm import ChecksumAddress
-from eth_utils import to_canonical_address, to_checksum_address
 from flask import Response, request
 from twisted.internet import reactor, stdio
 from twisted.internet.defer import Deferred
-from twisted.internet.task import LoopingCall
 from twisted.logger import Logger
 from web3.types import TxReceipt
 
@@ -88,7 +85,6 @@ from nucypher.crypto.umbral_adapter import (
     reencrypt,
     VerifiedKeyFrag,
 )
-from nucypher.datastore.datastore import DatastoreTransactionError, RecordNotFound
 from nucypher.network.exceptions import NodeSeemsToBeDown
 from nucypher.network.middleware import RestMiddleware
 from nucypher.network.nodes import NodeSprout, TEACHER_NODES, Teacher
@@ -360,7 +356,7 @@ class Alice(Character, BlockchainPolicyAuthor):
         return policy_pubkey
 
     def revoke(self,
-               policy: 'Policy',
+               policy: Policy,
                onchain: bool = True,  # forced to False for federated mode
                offchain: bool = True
                ) -> Tuple[TxReceipt, Dict[ChecksumAddress, Tuple['Revocation', Exception]]]:
@@ -766,8 +762,7 @@ class Ursula(Teacher, Character, Worker):
 
             self.rest_server = self._make_local_server(host=rest_host,
                                                        port=rest_port,
-                                                       db_filepath=db_filepath,
-                                                       domain=domain)
+                                                       db_filepath=db_filepath)
 
             # Self-signed TLS certificate of self for Teacher.__init__
             certificate_filepath = self._crypto_power.power_ups(TLSHostingPower).keypair.certificate_filepath
@@ -809,11 +804,10 @@ class Ursula(Teacher, Character, Worker):
             self._crypto_power.consume_power_up(tls_hosting_power)  # Consume!
         return tls_hosting_power
 
-    def _make_local_server(self, host, port, domain, db_filepath) -> ProxyRESTServer:
+    def _make_local_server(self, host, port, db_filepath) -> ProxyRESTServer:
         rest_app, datastore = make_rest_app(
             this_node=self,
             db_filepath=db_filepath,
-            domain=domain,
         )
         rest_server = ProxyRESTServer(rest_host=host,
                                       rest_port=port,

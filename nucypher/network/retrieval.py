@@ -20,7 +20,7 @@ import random
 from typing import Dict, Sequence, List
 
 from eth_typing.evm import ChecksumAddress
-from eth_utils import to_checksum_address, to_canonical_address
+from eth_utils import to_checksum_address
 from twisted.logger import Logger
 
 from nucypher_core import (

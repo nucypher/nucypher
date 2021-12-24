@@ -27,7 +27,7 @@ from flask import Response
 
 from nucypher.characters.lawful import Ursula
 from nucypher.crypto.signing import SignatureStamp
-from nucypher.crypto.umbral_adapter import SecretKey, Signer, PublicKey, encrypt
+from nucypher.crypto.umbral_adapter import SecretKey, Signer, PublicKey
 from nucypher.datastore.base import RecordField
 from nucypher.network.nodes import Teacher
 from tests.markers import skip_on_circleci
@@ -106,11 +106,6 @@ _POLICY_PRESERVER = []
 def test_alice_verifies_ursula_just_in_time(fleet_of_highperf_mocked_ursulas,
                                             highperf_mocked_alice,
                                             highperf_mocked_bob):
-
-    def mock_encrypt(public_key, plaintext):
-        if not isinstance(public_key, PublicKey):
-            public_key = public_key.i_want_to_be_a_real_boy()
-        return encrypt(public_key, plaintext)
 
     mocks = (
         mock_pubkey_from_bytes(),

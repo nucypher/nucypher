@@ -30,7 +30,6 @@ from nucypher.characters.control.specifications.fields import (
     FileField,
     Key,
     MessageKit,
-    UmbralSignature,
     EncryptedTreasureMap
 )
 from nucypher.characters.lawful import Enrico
@@ -133,30 +132,6 @@ def test_message_kit(enacted_federated_policy, federated_alice):
 
     with pytest.raises(InvalidInputData):
         field._deserialize(value=b"MessageKit", attr=None, data=None)
-
-
-def test_umbral_signature():
-    umbral_priv_key = SecretKey.random()
-    signer = Signer(umbral_priv_key)
-
-    message = b'this is a message'
-    signature = signer.sign(message)
-    other_signature = signer.sign(b'this is a different message')
-
-    field = UmbralSignature()
-    serialized = field._serialize(value=signature, attr=None, obj=None)
-    assert serialized == b64encode(bytes(signature)).decode()
-    assert serialized != b64encode(bytes(other_signature)).decode()
-
-    deserialized = field._deserialize(value=serialized, attr=None, data=None)
-    assert deserialized == signature
-    assert deserialized != other_signature
-
-    field._validate(value=bytes(signature))
-    field._validate(value=bytes(other_signature))
-
-    with pytest.raises(InvalidInputData):
-        field._validate(value=b"UmbralSignature")
 
 
 def test_treasure_map(enacted_federated_policy):

@@ -23,7 +23,7 @@ from pathlib import Path
 from typing import Tuple
 
 from constant_sorrow import constants
-from constant_sorrow.constants import RELAX, NOT_STAKING
+from constant_sorrow.constants import RELAX
 from flask import Flask, Response, jsonify, request
 from mako import exceptions as mako_exceptions
 from mako.template import Template
@@ -31,13 +31,11 @@ from mako.template import Template
 from nucypher_core import (
     ReencryptionRequest,
     RevocationOrder,
-    NodeMetadata,
     MetadataRequest,
     MetadataResponse,
     MetadataResponsePayload,
     )
 
-from nucypher.blockchain.eth.utils import period_to_epoch
 from nucypher.config.constants import MAX_UPLOAD_CONTENT_LENGTH
 from nucypher.crypto.keypairs import DecryptingKeypair
 from nucypher.crypto.signing import InvalidSignature
@@ -82,7 +80,6 @@ class ProxyRESTServer:
 def make_rest_app(
         db_filepath: Path,
         this_node,
-        domain,
         log: Logger = Logger("http-application-layer")
         ) -> Tuple[Flask, Datastore]:
     """
@@ -99,12 +96,12 @@ def make_rest_app(
 
     log.info("Starting datastore {}".format(db_filepath))
     datastore = Datastore(db_filepath)
-    rest_app = _make_rest_app(weakref.proxy(datastore), weakref.proxy(this_node), domain, log)
+    rest_app = _make_rest_app(weakref.proxy(datastore), weakref.proxy(this_node), log)
 
     return rest_app, datastore
 
 
-def _make_rest_app(datastore: Datastore, this_node, domain: str, log: Logger) -> Flask:
+def _make_rest_app(datastore: Datastore, this_node, log: Logger) -> Flask:
 
     # TODO: Avoid circular imports :-(
     from nucypher.characters.lawful import Alice, Bob, Ursula

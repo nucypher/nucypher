@@ -173,8 +173,7 @@ class NotARestApp:
     def actual_rest_app(self):
         if self._actual_rest_app is None:
             self._actual_rest_app, self._datastore = make_rest_app(db_filepath=self.db_filepath,
-                                                                   this_node=self.this_node,
-                                                                   domain=None)
+                                                                   this_node=self.this_node)
             _new_view_functions = self._ViewFunctions(self._actual_rest_app.view_functions)
             self._actual_rest_app.view_functions = _new_view_functions
             self._actual_rest_apps.append(
