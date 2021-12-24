@@ -22,8 +22,7 @@ from eth_utils import to_canonical_address
 from eth_typing import ChecksumAddress
 
 from nucypher_core import MessageKit, RetrievalKit
-
-from nucypher.crypto.umbral_adapter import PublicKey, VerifiedCapsuleFrag, SecretKey
+from nucypher_core.umbral import PublicKey, VerifiedCapsuleFrag, SecretKey
 
 
 class PolicyMessageKit:

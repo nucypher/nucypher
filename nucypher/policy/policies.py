@@ -22,9 +22,10 @@ from typing import Sequence, Optional, Iterable, List
 import maya
 from eth_typing.evm import ChecksumAddress
 
+from nucypher_core.umbral import PublicKey, VerifiedKeyFrag
+
 from nucypher_core import HRAC, TreasureMap
 from nucypher.crypto.powers import DecryptingPower
-from nucypher.crypto.umbral_adapter import PublicKey, VerifiedKeyFrag
 from nucypher.network.middleware import RestMiddleware
 from nucypher.policy.reservoir import (
     make_federated_staker_reservoir,

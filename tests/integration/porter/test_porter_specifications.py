@@ -18,9 +18,10 @@ import random
 
 import pytest
 
+from nucypher_core.umbral import SecretKey
+
 from nucypher.characters.control.specifications.fields import Key
 from nucypher.control.specifications.exceptions import InvalidArgumentCombo, InvalidInputData
-from nucypher.crypto.umbral_adapter import SecretKey
 from nucypher.utilities.porter.control.specifications.fields import UrsulaInfoSchema, RetrievalResultSchema
 from nucypher.utilities.porter.control.specifications.porter_schema import (
     AliceGetUrsulas,

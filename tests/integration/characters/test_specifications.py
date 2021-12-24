@@ -27,6 +27,7 @@ from nucypher_core import (
     EncryptedTreasureMap as EncryptedTreasureMapClass,
     TreasureMap as TreasureMapClass,
     )
+from nucypher_core.umbral import PublicKey
 
 from nucypher.characters.control.specifications import fields
 from nucypher.characters.control.specifications.alice import GrantPolicy
@@ -34,7 +35,6 @@ from nucypher.characters.control.specifications.fields.treasuremap import Encryp
 from nucypher.control.specifications.base import BaseSchema
 from nucypher.control.specifications.exceptions import SpecificationError, InvalidInputData, InvalidArgumentCombo
 from nucypher.crypto.powers import DecryptingPower
-from nucypher.crypto.umbral_adapter import PublicKey
 
 
 def make_header(brand: bytes, major: int, minor: int) -> bytes:

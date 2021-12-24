@@ -54,6 +54,11 @@ from nucypher_core import (
     NodeMetadataPayload,
     HRAC,
     )
+from nucypher_core.umbral import (
+    PublicKey,
+    reencrypt,
+    VerifiedKeyFrag,
+)
 
 import nucypher
 from nucypher.acumen.nicknames import Nickname
@@ -79,11 +84,6 @@ from nucypher.crypto.powers import (
     SigningPower,
     TransactingPower,
     TLSHostingPower,
-)
-from nucypher.crypto.umbral_adapter import (
-    PublicKey,
-    reencrypt,
-    VerifiedKeyFrag,
 )
 from nucypher.network.exceptions import NodeSeemsToBeDown
 from nucypher.network.middleware import RestMiddleware

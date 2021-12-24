@@ -32,17 +32,17 @@ from nucypher_core import (
     HRAC,
     TreasureMap,
     )
-
-from nucypher.config.constants import MAX_UPLOAD_CONTENT_LENGTH
-from nucypher.crypto.signing import SignatureStamp, StrangerStamp
-from nucypher.crypto.tls import _read_tls_certificate, _TLS_CURVE, generate_self_signed_certificate
-from nucypher.crypto.umbral_adapter import (
+from nucypher_core.umbral import (
     SecretKey,
     PublicKey,
     Signature,
     Signer,
     VerifiedKeyFrag,
 )
+
+from nucypher.config.constants import MAX_UPLOAD_CONTENT_LENGTH
+from nucypher.crypto.signing import SignatureStamp, StrangerStamp
+from nucypher.crypto.tls import _read_tls_certificate, _TLS_CURVE, generate_self_signed_certificate
 from nucypher.network.resources import get_static_resources
 
 

@@ -29,14 +29,14 @@ from nucypher_core import (
     ReencryptionRequest,
     RetrievalKit,
     )
-
-from nucypher.crypto.signing import InvalidSignature
-from nucypher.crypto.umbral_adapter import (
+from nucypher_core.umbral import (
     Capsule,
     PublicKey,
     VerifiedCapsuleFrag,
     VerificationError,
 )
+
+from nucypher.crypto.signing import InvalidSignature
 from nucypher.network.exceptions import NodeSeemsToBeDown
 from nucypher.network.nodes import Learner
 from nucypher.policy.kits import RetrievalResult

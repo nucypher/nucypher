@@ -31,6 +31,7 @@ from eth_keys import KeyAPI as EthKeyAPI
 from eth_utils import to_canonical_address
 
 from nucypher_core import MessageKit
+from nucypher_core.umbral import PublicKey
 
 from nucypher.acumen.nicknames import Nickname
 from nucypher.blockchain.eth.registry import BaseContractRegistry, InMemoryContractRegistry
@@ -49,7 +50,6 @@ from nucypher.crypto.signing import (
     SignatureStamp,
     StrangerStamp,
 )
-from nucypher.crypto.umbral_adapter import PublicKey
 from nucypher.network.middleware import RestMiddleware
 from nucypher.network.nodes import Learner
 

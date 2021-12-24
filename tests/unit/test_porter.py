@@ -22,10 +22,10 @@ from eth_utils import to_canonical_address
 import pytest
 
 from nucypher_core import RetrievalKit as RetrievalKitClass, MessageKit
+from nucypher_core.umbral import SecretKey
 
 from nucypher.control.specifications.exceptions import InvalidInputData
 from nucypher.control.specifications.fields import StringList
-from nucypher.crypto.umbral_adapter import SecretKey
 from nucypher.utilities.porter.control.specifications.fields import UrsulaChecksumAddress
 from nucypher.utilities.porter.control.specifications.fields.retrieve import RetrievalKit
 

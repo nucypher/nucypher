@@ -22,6 +22,7 @@ import pytest
 import tempfile
 
 from constant_sorrow.constants import CERTIFICATE_NOT_SAVED, NO_KEYSTORE_ATTACHED
+from nucypher_core.umbral import SecretKey
 
 from nucypher.blockchain.eth.actors import StakeHolder
 from nucypher.characters.chaotic import Felix
@@ -39,7 +40,6 @@ from nucypher.config.characters import (
 from nucypher.config.constants import TEMPORARY_DOMAIN
 from nucypher.config.storages import ForgetfulNodeStorage
 from nucypher.crypto.keystore import Keystore
-from nucypher.crypto.umbral_adapter import SecretKey
 from tests.constants import INSECURE_DEVELOPMENT_PASSWORD
 from tests.constants import MOCK_IP_ADDRESS
 

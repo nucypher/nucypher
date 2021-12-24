@@ -18,7 +18,8 @@
 from contextlib import contextmanager
 from unittest.mock import patch
 
-from nucypher.crypto.umbral_adapter import PublicKey, Signature
+from nucypher_core.umbral import PublicKey, Signature
+
 from nucypher.network.server import make_rest_app
 from tests.mock.serials import good_serials
 
@@ -214,13 +215,6 @@ def mock_secret_source(*args, **kwargs):
     with patch("nucypher.crypto.keypairs.Keypair._private_key_source", new=lambda *args, **kwargs: NotAPrivateKey()):
         with patch("nucypher.crypto.keypairs.Signer", new=lambda *args, **kwargs: NotASigner(*args, **kwargs)):
             yield
-    NotAPublicKey.reset()
-
-
-@contextmanager
-def mock_pubkey_from_bytes(*args, **kwargs):
-    with patch('nucypher.crypto.umbral_adapter.PublicKey.from_bytes', NotAPublicKey.from_bytes):
-        yield
     NotAPublicKey.reset()
 
 

@@ -26,6 +26,8 @@ from constant_sorrow.constants import KEYSTORE_LOCKED
 from cryptography.hazmat.primitives._serialization import Encoding
 from mnemonic.mnemonic import Mnemonic
 
+from nucypher_core.umbral import SecretKey, SecretKeyFactory
+
 from nucypher.crypto.keystore import (
     Keystore,
     InvalidPassword,
@@ -41,7 +43,6 @@ from nucypher.crypto.keystore import (
     _read_keystore
 )
 from nucypher.crypto.powers import DecryptingPower, SigningPower, DelegatingPower, TLSHostingPower
-from nucypher.crypto.umbral_adapter import SecretKey, SecretKeyFactory
 from nucypher.utilities.networking import LOOPBACK_ADDRESS
 from tests.constants import INSECURE_DEVELOPMENT_PASSWORD
 

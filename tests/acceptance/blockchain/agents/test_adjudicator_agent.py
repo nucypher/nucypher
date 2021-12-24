@@ -18,6 +18,8 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 
 import pytest
 
+from nucypher_core.umbral import SecretKeyFactory, Signer
+
 from nucypher.blockchain.eth.actors import NucypherTokenActor, Staker
 from nucypher.blockchain.eth.agents import (
     AdjudicatorAgent,
@@ -31,7 +33,6 @@ from nucypher.blockchain.eth.token import NU
 from nucypher.config.constants import TEMPORARY_DOMAIN
 from nucypher.crypto.powers import TransactingPower
 from nucypher.crypto.signing import SignatureStamp
-from nucypher.crypto.umbral_adapter import SecretKeyFactory, Signer
 
 
 def mock_ursula(testerchain, account, mocker):

@@ -22,8 +22,7 @@ from eth_tester.exceptions import TransactionFailed
 import pytest
 
 from nucypher_core import MessageKit
-
-from nucypher.crypto.umbral_adapter import Signer, SecretKey, generate_kfrags, reencrypt
+from nucypher_core.umbral import Signer, SecretKey, generate_kfrags, reencrypt
 
 
 @pytest.fixture()

@@ -23,8 +23,8 @@ import pytest
 from nucypher_core import (
     MessageKit as MessageKitClass,
     EncryptedTreasureMap as EncryptedTreasureMapClass)
+from nucypher_core.umbral import SecretKey, Signer
 
-from nucypher.crypto.umbral_adapter import SecretKey, Signer
 from nucypher.characters.control.specifications.fields import (
     DateTime,
     FileField,

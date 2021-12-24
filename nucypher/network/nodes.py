@@ -40,6 +40,7 @@ from twisted.internet import reactor, task
 from twisted.internet.defer import Deferred
 
 from nucypher_core import NodeMetadata, MetadataResponse, MetadataResponsePayload
+from nucypher_core.umbral import Signature
 
 from nucypher.acumen.nicknames import Nickname
 from nucypher.acumen.perception import FleetSensor
@@ -57,7 +58,6 @@ from nucypher.crypto.powers import (
     SigningPower,
 )
 from nucypher.crypto.signing import SignatureStamp, InvalidSignature
-from nucypher.crypto.umbral_adapter import Signature
 from nucypher.crypto.utils import recover_address_eip_191, verify_eip_191
 from nucypher.network.exceptions import NodeSeemsToBeDown
 from nucypher.network.middleware import RestMiddleware

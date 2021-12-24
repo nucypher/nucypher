@@ -31,6 +31,8 @@ import click
 from constant_sorrow.constants import KEYSTORE_LOCKED
 from mnemonic.mnemonic import Mnemonic
 
+from nucypher_core.umbral import SecretKey, SecretKeyFactory
+
 from nucypher.config.constants import DEFAULT_CONFIG_ROOT
 from nucypher.control.emitters import StdoutEmitter
 from nucypher.crypto.keypairs import HostingKeypair
@@ -50,7 +52,6 @@ from nucypher.crypto.powers import (
     TLSHostingPower,
 )
 from nucypher.crypto.tls import generate_self_signed_certificate
-from nucypher.crypto.umbral_adapter import SecretKey, SecretKeyFactory
 
 # HKDF
 __INFO_BASE = b'NuCypher/'

@@ -30,7 +30,7 @@ from cryptography.hazmat.primitives.serialization import Encoding
 from cryptography.x509 import Certificate
 from cryptography.x509.oid import NameOID
 
-from nucypher.crypto.umbral_adapter import SecretKey
+from nucypher_core.umbral import SecretKey
 
 _TLS_CERTIFICATE_ENCODING = Encoding.PEM
 _TLS_CURVE = ec.SECP384R1

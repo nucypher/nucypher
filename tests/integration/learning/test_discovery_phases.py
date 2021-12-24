@@ -25,9 +25,10 @@ import maya
 import pytest
 from flask import Response
 
+from nucypher_core.umbral import SecretKey, Signer, PublicKey
+
 from nucypher.characters.lawful import Ursula
 from nucypher.crypto.signing import SignatureStamp
-from nucypher.crypto.umbral_adapter import SecretKey, Signer, PublicKey
 from nucypher.datastore.base import RecordField
 from nucypher.network.nodes import Teacher
 from tests.markers import skip_on_circleci
@@ -39,7 +40,6 @@ from tests.mock.performance_mocks import (
     mock_cert_storage,
     mock_message_verification,
     mock_metadata_validation,
-    mock_pubkey_from_bytes,
     mock_secret_source,
     mock_verify_node
 )
@@ -108,7 +108,6 @@ def test_alice_verifies_ursula_just_in_time(fleet_of_highperf_mocked_ursulas,
                                             highperf_mocked_bob):
 
     mocks = (
-        mock_pubkey_from_bytes(),
         mock_secret_source(),
         mock_cert_loading,
         mock_metadata_validation,

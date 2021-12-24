@@ -21,12 +21,13 @@ from typing import Iterable, List, Optional, Set
 
 from cryptography.x509 import Certificate
 
+from nucypher_core.umbral import SecretKey, Signer, generate_kfrags
+
 from nucypher.blockchain.eth.actors import Staker
 from nucypher.blockchain.eth.interfaces import BlockchainInterface
 from nucypher.characters.lawful import Bob
 from nucypher.characters.lawful import Ursula
 from nucypher.config.characters import UrsulaConfiguration
-from nucypher.crypto.umbral_adapter import SecretKey, Signer, generate_kfrags
 from tests.constants import NUMBER_OF_URSULAS_IN_DEVELOPMENT_NETWORK
 from tests.mock.datastore import MOCK_DB
 
