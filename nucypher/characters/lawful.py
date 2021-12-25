@@ -39,6 +39,7 @@ from constant_sorrow.constants import (
 from cryptography.hazmat.primitives.serialization import Encoding
 from cryptography.x509 import Certificate, NameOID
 from eth_typing.evm import ChecksumAddress
+from eth_utils import to_canonical_address, to_checksum_address
 from flask import Response, request
 from twisted.internet import reactor, stdio
 from twisted.internet.defer import Deferred
@@ -48,12 +49,13 @@ from web3.types import TxReceipt
 
 from nucypher_core import (
     MessageKit,
-    AuthorizedKeyFrag,
     EncryptedKeyFrag,
     TreasureMap,
     EncryptedTreasureMap,
     ReencryptionResponse,
-    NodeMetadata
+    NodeMetadata,
+    NodeMetadataPayload,
+    HRAC,
     )
 
 import nucypher
@@ -413,7 +415,7 @@ class Alice(Character, BlockchainPolicyAuthor):
 
         delegating_power = self._crypto_power.power_ups(DelegatingPower)
         decrypting_power = delegating_power.get_decrypting_power_from_label(label)
-        cleartext = decrypting_power.decrypt(message_kit)
+        cleartext = decrypting_power.decrypt_message_kit(message_kit)
 
         # TODO: why does it return a list of cleartexts but takes a single message kit?
         # Shouldn't it be able to take a list of them too?
@@ -531,10 +533,8 @@ class Bob(Character):
                               publisher_verifying_key: PublicKey
                               ) -> TreasureMap:
         decrypting_power = self._crypto_power.power_ups(DecryptingPower)
-        auth_tmap = decrypting_power.decrypt(encrypted_treasure_map)
-        treasure_map = auth_tmap.verify(recipient_key=decrypting_power.keypair.pubkey,
-                                        publisher_verifying_key=publisher_verifying_key)
-        return treasure_map
+        return decrypting_power.decrypt_treasure_map(encrypted_treasure_map,
+                                                     publisher_verifying_key=publisher_verifying_key)
 
     def retrieve(
             self,
@@ -561,7 +561,7 @@ class Bob(Character):
             publisher_verifying_key = alice_verifying_key
 
         # A small optimization to avoid multiple treasure map decryptions.
-        map_hash = hash(encrypted_treasure_map)
+        map_hash = hash(bytes(encrypted_treasure_map))
         if map_hash in self._treasure_maps:
             treasure_map = self._treasure_maps[map_hash]
         else:
@@ -613,7 +613,7 @@ class Bob(Character):
         cleartexts = []
         decrypting_power = self._crypto_power.power_ups(DecryptingPower)
         for message_kit in message_kits:
-            cleartext = decrypting_power.decrypt(message_kit)
+            cleartext = decrypting_power.decrypt_message_kit(message_kit)
             cleartexts.append(cleartext)
 
         return cleartexts
@@ -991,17 +991,18 @@ class Ursula(Teacher, Character, Worker):
             decentralized_identity_evidence = None
         else:
             decentralized_identity_evidence = self.decentralized_identity_evidence
-        return NodeMetadata.author(signer=self.stamp.as_umbral_signer(),
-                                   public_address=self.canonical_public_address,
-                                   domain=self.domain,
-                                   timestamp_epoch=timestamp.epoch,
-                                   decentralized_identity_evidence=decentralized_identity_evidence,
-                                   verifying_key=self.public_keys(SigningPower),
-                                   encrypting_key=self.public_keys(DecryptingPower),
-                                   certificate_bytes=self.certificate.public_bytes(Encoding.PEM),
-                                   host=self.rest_interface.host,
-                                   port=self.rest_interface.port,
-                                   )
+        payload = NodeMetadataPayload(canonical_address=self.canonical_address,
+                                      domain=self.domain,
+                                      timestamp_epoch=timestamp.epoch,
+                                      decentralized_identity_evidence=decentralized_identity_evidence,
+                                      verifying_key=self.public_keys(SigningPower),
+                                      encrypting_key=self.public_keys(DecryptingPower),
+                                      certificate_bytes=self.certificate.public_bytes(Encoding.PEM),
+                                      host=self.rest_interface.host,
+                                      port=self.rest_interface.port,
+                                      )
+        return NodeMetadata(signer=self.stamp.as_umbral_signer(),
+                            payload=payload)
 
     def metadata(self):
         if not self._metadata:
@@ -1010,7 +1011,7 @@ class Ursula(Teacher, Character, Worker):
 
     @property
     def timestamp(self):
-        return maya.MayaDT(self.metadata().timestamp_epoch)
+        return maya.MayaDT(self.metadata().payload.timestamp_epoch)
 
     #
     # Alternate Constructors
@@ -1187,9 +1188,9 @@ class Ursula(Teacher, Character, Worker):
     # Re-Encryption
     #
 
-    def _decrypt_kfrag(self, encrypted_kfrag: EncryptedKeyFrag) -> AuthorizedKeyFrag:
+    def _decrypt_kfrag(self, encrypted_kfrag: EncryptedKeyFrag, hrac: HRAC, publisher_verifying_key: PublicKey) -> VerifiedKeyFrag:
         decrypting_power = self._crypto_power.power_ups(DecryptingPower)
-        return decrypting_power.decrypt(encrypted_kfrag)
+        return decrypting_power.decrypt_kfrag(encrypted_kfrag, hrac, publisher_verifying_key)
 
     def _reencrypt(self, kfrag: VerifiedKeyFrag, capsules) -> ReencryptionResponse:
         cfrags = []
@@ -1198,9 +1199,9 @@ class Ursula(Teacher, Character, Worker):
             cfrags.append(cfrag)
             self.log.info(f"Re-encrypted capsule {capsule} -> made {cfrag}.")
 
-        return ReencryptionResponse.construct_by_ursula(signer=self.stamp.as_umbral_signer(),
-                                                        capsules=capsules,
-                                                        cfrags=cfrags)
+        return ReencryptionResponse(signer=self.stamp.as_umbral_signer(),
+                                    capsules=capsules,
+                                    vcfrags=cfrags)
 
     def status_info(self, omit_known_nodes: bool = False) -> 'LocalUrsulaStatus':
 
@@ -1310,8 +1311,8 @@ class Enrico(Character):
 
     def encrypt_message(self, plaintext: bytes) -> MessageKit:
         # TODO: #2107 Rename to "encrypt"
-        message_kit = MessageKit.author(policy_encrypting_key=self.policy_pubkey,
-                                        plaintext=plaintext)
+        message_kit = MessageKit(policy_encrypting_key=self.policy_pubkey,
+                                 plaintext=plaintext)
         return message_kit
 
     @classmethod

@@ -147,7 +147,7 @@ def test_retrieve_cfrags(blockchain_porter,
 
     assert policy_message_kit.is_decryptable_by_receiver()
 
-    cleartext = blockchain_bob._crypto_power.power_ups(DecryptingPower).keypair.decrypt(policy_message_kit)
+    cleartext = blockchain_bob._crypto_power.power_ups(DecryptingPower).keypair.decrypt_message_kit(policy_message_kit)
     assert cleartext == original_message
 
     #

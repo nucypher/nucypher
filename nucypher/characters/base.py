@@ -28,7 +28,7 @@ from constant_sorrow.constants import (
     STRANGER
 )
 from eth_keys import KeyAPI as EthKeyAPI
-from eth_utils import to_canonical_address, to_checksum_address
+from eth_utils import to_canonical_address
 
 from nucypher_core import MessageKit
 
@@ -276,13 +276,9 @@ class Character(Learner):
             return self._stamp
 
     @property
-    def canonical_public_address(self):
+    def canonical_address(self):
         # TODO: This is wasteful.  #1995
         return to_canonical_address(self.checksum_address)
-
-    @canonical_public_address.setter
-    def canonical_public_address(self, address_bytes):
-        self._checksum_address = to_checksum_address(address_bytes)
 
     @classmethod
     def from_config(cls, config, **overrides) -> 'Character':
@@ -364,8 +360,8 @@ class Character(Learner):
 
         # TODO: who even uses this method except for tests?
 
-        message_kit = MessageKit.author(policy_encrypting_key=recipient.public_keys(DecryptingPower),
-                                        plaintext=plaintext)
+        message_kit = MessageKit(policy_encrypting_key=recipient.public_keys(DecryptingPower),
+                                 plaintext=plaintext)
         return message_kit
 
     def public_keys(self, power_up_class: ClassVar):

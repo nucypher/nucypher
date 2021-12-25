@@ -93,7 +93,6 @@ from tests.mock.performance_mocks import (
     mock_record_fleet_state,
     mock_remember_node,
     mock_rest_app_creation,
-    mock_secret_source,
     mock_verify_node
 )
 from tests.utils.blockchain import TesterBlockchain, token_airdrop
@@ -940,7 +939,6 @@ def get_random_checksum_address():
 def fleet_of_highperf_mocked_ursulas(ursula_federated_test_config, request):
 
     mocks = (
-        mock_secret_source(),
         mock_cert_storage,
         mock_cert_loading,
         mock_rest_app_creation,

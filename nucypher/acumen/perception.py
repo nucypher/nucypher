@@ -27,6 +27,8 @@ import itertools
 import maya
 from eth_typing import ChecksumAddress
 
+from nucypher_core import FleetStateChecksum, NodeMetadata
+
 from ..crypto.utils import keccak_digest
 from nucypher.utilities.logging import Logger
 from .nicknames import Nickname
@@ -40,7 +42,7 @@ class ArchivedFleetState(NamedTuple):
     population: int
 
     def to_json(self):
-        return dict(checksum=self.checksum,
+        return dict(checksum=bytes(self.checksum).hex(),
                     nickname=self.nickname.to_json(),
                     timestamp=self.timestamp.rfc2822(),
                     population=self.population)
@@ -74,22 +76,21 @@ class FleetState:
 
     @classmethod
     def new(cls, this_node: Optional['Ursula'] = None) -> 'FleetState':
-        this_node_ref = weakref.ref(this_node) if this_node is not None else None
-        # Using empty checksum so that JSON library is not confused.
-        # Plus, we do need some checksum anyway. It's a legitimate state after all.
-        return cls(checksum=keccak_digest(b"").hex(),
-                   nodes={},
+        this_node_ref = weakref.ref(this_node) if this_node else None
+        # `this_node` might not have its metadata available yet.
+        this_node_metadata = None
+
+        return cls(nodes={},
                    this_node_ref=this_node_ref,
                    this_node_metadata=None)
 
     def __init__(self,
-                 checksum: str,
                  nodes: Dict[ChecksumAddress, 'Ursula'],
                  this_node_ref: Optional[weakref.ReferenceType],
-                 this_node_metadata: Optional[bytes]):
-
-        self.checksum = checksum
-        self.nickname = Nickname.from_seed(checksum, length=1)
+                 this_node_metadata: Optional[NodeMetadata]):
+        self.checksum = FleetStateChecksum(this_node=this_node_metadata,
+                                           other_nodes=[node.metadata() for node in nodes.values()])
+        self.nickname = Nickname.from_seed(bytes(self.checksum), length=1)
         self._nodes = nodes
         self.timestamp = maya.now()
         self._this_node_ref = this_node_ref
@@ -132,7 +133,7 @@ class FleetState:
 
         if self._this_node_ref is not None and not skip_this_node:
             this_node = self._this_node_ref()
-            this_node_metadata = bytes(this_node.metadata())
+            this_node_metadata = this_node.metadata()
             this_node_updated = self._this_node_metadata != this_node_metadata
             this_node_list = [this_node]
         else:
@@ -153,17 +154,10 @@ class FleetState:
                 nodes[checksum_address] = new_node
             for checksum_address in diff.nodes_removed:
                 del nodes[checksum_address]
-
-            all_nodes_sorted = sorted(itertools.chain(this_node_list, nodes.values()),
-                                      key=lambda node: node.checksum_address)
-            joined_metadata = b"".join(bytes(node.metadata()) for node in all_nodes_sorted)
-            checksum = keccak_digest(joined_metadata).hex()
         else:
             nodes = self._nodes
-            checksum = self.checksum
 
-        new_state = FleetState(checksum=checksum,
-                               nodes=nodes,
+        new_state = FleetState(nodes=nodes,
                                this_node_ref=self._this_node_ref,
                                this_node_metadata=this_node_metadata)
 
@@ -217,7 +211,7 @@ class FleetState:
     def __str__(self):
         return '{checksum} ⇀{nickname}↽ {icon} '.format(icon=self.nickname.icon,
                                                         nickname=self.nickname,
-                                                        checksum=self.checksum[:7])
+                                                        checksum=bytes(self.checksum).hex()[:7])
 
     def __repr__(self):
         return f"FleetState({self.checksum}, {self._nodes}, {self._this_node_ref}, {self._this_node_metadata})"
@@ -362,14 +356,14 @@ class FleetSensor:
 
     def record_remote_fleet_state(self,
                                   checksum_address: ChecksumAddress,
-                                  state_checksum: str,
+                                  state_checksum: FleetStateChecksum,
                                   timestamp: maya.MayaDT,
                                   population: int):
 
         if checksum_address not in self._current_state:
             raise KeyError(f"A node {checksum_address} is not present in the current fleet state")
 
-        nickname = Nickname.from_seed(state_checksum, length=1)
+        nickname = Nickname.from_seed(bytes(state_checksum), length=1)
         state = ArchivedFleetState(checksum=state_checksum,
                                    nickname=nickname,
                                    timestamp=timestamp,

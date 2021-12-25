@@ -48,8 +48,8 @@ def test_federated_grant(federated_alice, federated_bob, federated_ursulas):
 
     # Let's look at the destinations.
     for ursula in federated_ursulas:
-        if ursula.checksum_address in treasure_map.destinations:
-            kfrag_kit = treasure_map.destinations[ursula.checksum_address]
+        if ursula.canonical_address in treasure_map.destinations:
+            kfrag_kit = treasure_map.destinations[ursula.canonical_address]
 
             # TODO: Deeper testing here: try to decrypt?
             # TODO: Use a new type for EncryptedKFrags?

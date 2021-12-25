@@ -20,6 +20,7 @@ import random
 from typing import Dict, Sequence, List
 
 from eth_typing.evm import ChecksumAddress
+from eth_utils import to_checksum_address, to_canonical_address
 from twisted.logger import Logger
 
 from nucypher_core import (
@@ -121,7 +122,10 @@ class RetrievalPlan:
             )
 
     def results(self) -> List['RetrievalResult']:
-        return [RetrievalResult(self._results[capsule]) for capsule in self._capsules]
+        # TODO (#1995): when that issue is fixed, conversion is no longer needed
+        return [RetrievalResult({to_checksum_address(address): cfrag
+                                 for address, cfrag in self._results[capsule].items()})
+                for capsule in self._capsules]
 
 
 class RetrievalWorkOrder:
@@ -155,6 +159,10 @@ class RetrievalClient:
             self._learner.learn_from_teacher_node()
 
         ursulas_in_map = treasure_map.destinations.keys()
+
+        # TODO (#1995): when that issue is fixed, conversion is no longer needed
+        ursulas_in_map = [to_checksum_address(address) for address in ursulas_in_map]
+
         all_known_ursulas = self._learner.known_nodes.addresses()
 
         # Push all unknown Ursulas from the map in the queue for learning
@@ -236,7 +244,8 @@ class RetrievalClient:
             self.log.warn(message)
             raise RuntimeError(message)
 
-        return verified_cfrags
+        return {capsule: vcfrag for capsule, vcfrag
+                in zip(reencryption_request.capsules, verified_cfrags)}
 
     def retrieve_cfrags(
             self,
@@ -257,15 +266,19 @@ class RetrievalClient:
 
             work_order = retrieval_plan.get_work_order()
 
-            if work_order.ursula_address not in self._learner.known_nodes:
+            # TODO (#1995): when that issue is fixed, conversion is no longer needed
+            ursula_checksum_address = to_checksum_address(work_order.ursula_address)
+
+            if ursula_checksum_address not in self._learner.known_nodes:
                 continue
 
-            ursula = self._learner.known_nodes[work_order.ursula_address]
-            reencryption_request = ReencryptionRequest.from_treasure_map(
-                ursula_address=work_order.ursula_address,
+            ursula = self._learner.known_nodes[ursula_checksum_address]
+            reencryption_request = ReencryptionRequest(
+                hrac=treasure_map.hrac,
                 capsules=work_order.capsules,
-                treasure_map=treasure_map,
-                bob_verifying_key=bob_verifying_key)
+                encrypted_kfrag=treasure_map.destinations[work_order.ursula_address],
+                bob_verifying_key=bob_verifying_key,
+                publisher_verifying_key=treasure_map.publisher_verifying_key)
 
             try:
                 cfrags = self._request_reencryption(ursula=ursula,

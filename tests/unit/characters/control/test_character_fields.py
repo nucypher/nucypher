@@ -20,7 +20,9 @@ from base64 import b64encode, b64decode
 import maya
 import pytest
 
-from nucypher_core import MessageKit as MessageKitClass
+from nucypher_core import (
+    MessageKit as MessageKitClass,
+    EncryptedTreasureMap as EncryptedTreasureMapClass)
 
 from nucypher.crypto.umbral_adapter import SecretKey, Signer
 from nucypher.characters.control.specifications.fields import (
@@ -126,7 +128,8 @@ def test_message_kit(enacted_federated_policy, federated_alice):
     assert serialized == b64encode(bytes(message_kit)).decode()
 
     deserialized = field._deserialize(value=serialized, attr=None, data=None)
-    assert deserialized == message_kit
+    deserialized_plaintext = federated_alice.decrypt_message_kit(enacted_federated_policy.label, deserialized)[0]
+    assert deserialized_plaintext == plaintext_bytes
 
     with pytest.raises(InvalidInputData):
         field._deserialize(value=b"MessageKit", attr=None, data=None)
@@ -164,7 +167,8 @@ def test_treasure_map(enacted_federated_policy):
     assert serialized == b64encode(bytes(treasure_map)).decode()
 
     deserialized = field._deserialize(value=serialized, attr=None, data=None)
-    assert deserialized == treasure_map
+    assert isinstance(deserialized, EncryptedTreasureMapClass)
+    assert bytes(deserialized) == bytes(treasure_map)
 
     with pytest.raises(InvalidInputData):
         field._deserialize(value=b64encode(b"TreasureMap").decode(), attr=None, data=None)

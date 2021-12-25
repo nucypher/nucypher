@@ -113,13 +113,11 @@ def test_alice_verifies_ursula_just_in_time(fleet_of_highperf_mocked_ursulas,
         return encrypt(public_key, plaintext)
 
     mocks = (
-        patch('nucypher.crypto.umbral_adapter.PublicKey.__eq__', lambda *args, **kwargs: True),
         mock_pubkey_from_bytes(),
         mock_secret_source(),
         mock_cert_loading,
         mock_metadata_validation,
         mock_message_verification,
-        patch('nucypher.crypto.umbral_adapter.encrypt', new=mock_encrypt),
         )
 
     with contextlib.ExitStack() as stack:

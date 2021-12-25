@@ -17,6 +17,7 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 
 
 from base64 import b64encode
+from eth_utils import to_canonical_address
 
 import pytest
 
@@ -105,12 +106,12 @@ def test_retrieval_kit_field(get_random_checksum_address):
     encrypting_key = SecretKey.random().public_key()
     capsule, _ = encrypt(encrypting_key, b'testing retrieval kit with 2 ursulas')
     ursulas = [get_random_checksum_address(), get_random_checksum_address()]
-    run_tests_on_kit(kit=RetrievalKitClass(capsule, ursulas))
+    run_tests_on_kit(kit=RetrievalKitClass(capsule, {to_canonical_address(ursula) for ursula in ursulas}))
 
     # kit with no ursulas
     encrypting_key = SecretKey.random().public_key()
     capsule, _ = encrypt(encrypting_key, b'testing retrieval kit with no ursulas')
-    run_tests_on_kit(kit=RetrievalKitClass(capsule, []))
+    run_tests_on_kit(kit=RetrievalKitClass(capsule, set()))
 
     with pytest.raises(InvalidInputData):
         field._deserialize(value=b"non_base_64_data", attr=None, data=None)

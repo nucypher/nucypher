@@ -105,7 +105,7 @@ class AliceInterface(CharacterPublicInterface):
     def revoke(self, label: bytes, bob_verifying_key: PublicKey) -> dict:
 
         # TODO: Move deeper into characters
-        policy_hrac = HRAC.derive(self.implementer.stamp.as_umbral_pubkey(), bob_verifying_key, label)
+        policy_hrac = HRAC(self.implementer.stamp.as_umbral_pubkey(), bob_verifying_key, label)
         policy = self.implementer.active_policies[policy_hrac]
 
         receipt, failed_revocations = self.implementer.revoke(policy)

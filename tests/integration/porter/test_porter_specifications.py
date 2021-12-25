@@ -199,6 +199,7 @@ def test_bob_retrieve_cfrags(federated_porter,
     retrieval_results = federated_porter.retrieve_cfrags(**non_encoded_retrieval_args)
     expected_retrieval_results_json = []
     retrieval_result_schema = RetrievalResultSchema()
+
     for result in retrieval_results:
         data = retrieval_result_schema.dump(result)
         expected_retrieval_results_json.append(data)

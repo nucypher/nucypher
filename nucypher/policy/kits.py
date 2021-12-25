@@ -18,6 +18,7 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 
 from typing import Dict, Set, Union
 
+from eth_utils import to_canonical_address
 from eth_typing import ChecksumAddress
 
 from nucypher_core import MessageKit, RetrievalKit
@@ -47,10 +48,12 @@ class PolicyMessageKit:
         self._result = result
 
     def as_retrieval_kit(self) -> RetrievalKit:
-        return RetrievalKit(self.message_kit.capsule, self._result.addresses())
+        return RetrievalKit(self.message_kit.capsule, self._result.canonical_addresses())
 
     def decrypt(self, sk: SecretKey) -> bytes:
-        return self.message_kit.decrypt_reencrypted(sk, self.policy_encrypting_key, self._result.cfrags.values())
+        return self.message_kit.decrypt_reencrypted(sk,
+                                                    self.policy_encrypting_key,
+                                                    list(self._result.cfrags.values()))
 
     def is_decryptable_by_receiver(self) -> bool:
         return len(self._result.cfrags) >= self.threshold
@@ -75,8 +78,9 @@ class RetrievalResult:
     def __init__(self, cfrags: Dict[ChecksumAddress, VerifiedCapsuleFrag]):
         self.cfrags = cfrags
 
-    def addresses(self) -> Set[ChecksumAddress]:
-        return set(self.cfrags)
+    def canonical_addresses(self) -> Set[bytes]:
+        # TODO (#1995): propagate this to use canonical addresses everywhere
+        return set([to_canonical_address(address) for address in self.cfrags])
 
     def with_result(self, result: 'RetrievalResult') -> 'RetrievalResult':
         """

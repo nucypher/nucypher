@@ -30,19 +30,19 @@ def random_federated_treasure_map_data(federated_alice, federated_bob, federated
     threshold = 2
     shares = threshold + 1
     policy_key, kfrags = federated_alice.generate_kfrags(bob=federated_bob, label=label, threshold=threshold, shares=shares)
-    hrac = HRAC.derive(publisher_verifying_key=federated_alice.stamp.as_umbral_pubkey(),
-                       bob_verifying_key=federated_bob.stamp.as_umbral_pubkey(),
-                       label=label)
+    hrac = HRAC(publisher_verifying_key=federated_alice.stamp.as_umbral_pubkey(),
+                bob_verifying_key=federated_bob.stamp.as_umbral_pubkey(),
+                label=label)
 
     assigned_kfrags = {
-        ursula.checksum_address: (ursula.public_keys(DecryptingPower), vkfrag)
+        ursula.canonical_address: (ursula.public_keys(DecryptingPower), vkfrag)
         for ursula, vkfrag in zip(list(federated_ursulas)[:shares], kfrags)}
 
-    random_treasure_map = TreasureMap.construct_by_publisher(signer=federated_alice.stamp.as_umbral_signer(),
-                                                             hrac=hrac,
-                                                             policy_encrypting_key=policy_key,
-                                                             assigned_kfrags=assigned_kfrags,
-                                                             threshold=threshold)
+    random_treasure_map = TreasureMap(signer=federated_alice.stamp.as_umbral_signer(),
+                                      hrac=hrac,
+                                      policy_encrypting_key=policy_key,
+                                      assigned_kfrags=assigned_kfrags,
+                                      threshold=threshold)
 
     bob_key = federated_bob.public_keys(DecryptingPower)
     enc_treasure_map = random_treasure_map.encrypt(signer=federated_alice.stamp.as_umbral_signer(),

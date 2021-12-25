@@ -83,26 +83,32 @@ class Vladimir(Ursula):
                        )
 
         # Let's use the target's public info, and try to make some changes.
-        # We are going to mutate it, so make a copy (it is cached in the Ursula).
-        metadata = NodeMetadata.from_bytes(bytes(target_ursula.metadata()))
-        metadata_payload = metadata._metadata_payload
+
+        metadata = target_ursula.metadata()
+        metadata_bytes = bytes(metadata)
+
+        # Since it is an object from a Rust extension, we cannot directly modify it,
+        # so we have to replace stuff in the byte representation and then deserialize.
+        # We are replacinig objects with constant size,
+        # so it should work regardless of the binary format.
 
         # Our basic replacement. We want to impersonate the target Ursula.
-        metadata_payload = metadata_payload._replace(public_address=vladimir.canonical_public_address)
+        metadata_bytes = metadata_bytes.replace(metadata.payload.canonical_address,
+                                                vladimir.canonical_address)
 
         # Use our own verifying key
         if substitute_verifying_key:
-            metadata_payload = metadata_payload._replace(
-                verifying_key=vladimir.stamp.as_umbral_pubkey())
+            metadata_bytes = metadata_bytes.replace(bytes(metadata.payload.verifying_key),
+                                                    bytes(vladimir.stamp.as_umbral_pubkey()))
+
+        fake_metadata = NodeMetadata.from_bytes(metadata_bytes)
 
         # Re-generate metadata signature using our signing key
         if sign_metadata:
-            signature = vladimir.stamp(bytes(metadata_payload))
-        else:
-            signature = metadata.signature
+            fake_metadata = NodeMetadata(vladimir.stamp.as_umbral_signer(), fake_metadata.payload)
 
         # Put metadata back
-        vladimir._metadata = NodeMetadata(signature, metadata_payload)
+        vladimir._metadata = fake_metadata
 
         return vladimir
 

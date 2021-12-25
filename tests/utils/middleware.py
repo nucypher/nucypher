@@ -23,7 +23,7 @@ import socket
 from constant_sorrow.constants import CERTIFICATE_NOT_SAVED
 from flask import Response
 
-from nucypher_core import MetadataRequest
+from nucypher_core import MetadataRequest, FleetStateChecksum
 
 from nucypher.characters.lawful import Ursula
 from nucypher.config.constants import TEMPORARY_DOMAIN
@@ -186,7 +186,7 @@ class EvilMiddleWare(MockRestMiddleware):
         """
         Try to get Ursula to propagate a malicious (or otherwise shitty) interface ID.
         """
-        fleet_state_checksum = os.urandom(32).hex()
+        fleet_state_checksum = FleetStateChecksum(this_node=None, other_nodes=[])
         request = MetadataRequest(fleet_state_checksum=fleet_state_checksum, announce_nodes=[shitty_metadata])
         response = self.client.post(node_or_sprout=ursula,
                                     path="node_metadata",

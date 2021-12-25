@@ -29,9 +29,9 @@ def test_alice_creates_policy_with_correct_hrac(federated_alice, federated_bob, 
     Alice creates a Policy.  It has the proper HRAC, unique per her, Bob, and the label
     """
     # TODO: what are we actually testing here?
-    assert idle_federated_policy.hrac == HRAC.derive(federated_alice.stamp.as_umbral_pubkey(),
-                                                     federated_bob.stamp.as_umbral_pubkey(),
-                                                     idle_federated_policy.label)
+    assert idle_federated_policy.hrac == HRAC(federated_alice.stamp.as_umbral_pubkey(),
+                                              federated_bob.stamp.as_umbral_pubkey(),
+                                              idle_federated_policy.label)
 
 
 def test_alice_does_not_update_with_old_ursula_info(federated_alice, federated_ursulas):

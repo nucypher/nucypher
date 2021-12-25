@@ -15,6 +15,8 @@ You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
+from eth_typing.evm import ChecksumAddress
+from eth_utils import to_checksum_address, to_canonical_address
 
 from nucypher_core import RevocationOrder
 from nucypher.crypto.signing import SignatureStamp
@@ -25,16 +27,17 @@ class RevocationKit:
     def __init__(self, treasure_map, signer: SignatureStamp):
         # TODO: move to core and make a method of TreasureMap?
         self.revocations = dict()
-        for node_id, encrypted_kfrag in treasure_map:
-            self.revocations[node_id] = RevocationOrder.author(signer=signer.as_umbral_signer(),
-                                                               ursula_address=node_id,
+        for ursula_address, encrypted_kfrag in treasure_map.destinations.items():
+            self.revocations[ursula_address] = RevocationOrder(signer=signer.as_umbral_signer(),
+                                                               ursula_address=ursula_address,
                                                                encrypted_kfrag=encrypted_kfrag)
 
     def __iter__(self):
         return iter(self.revocations.values())
 
-    def __getitem__(self, node_id):
-        return self.revocations[node_id]
+    def __getitem__(self, ursula_address: ChecksumAddress):
+        # TODO (#1995): when that issue is fixed, conversion is no longer needed
+        return self.revocations[to_canonical_address(ursula_address)]
 
     def __len__(self):
         return len(self.revocations)
@@ -45,8 +48,9 @@ class RevocationKit:
     @property
     def revokable_addresses(self):
         """Returns a Set of revokable addresses in the checksum address formatting"""
-        return set(self.revocations.keys())
+        # TODO (#1995): when that issue is fixed, conversion is no longer needed
+        return set([to_checksum_address(address) for address in self.revocations.keys()])
 
-    def add_confirmation(self, node_id, signed_receipt):
+    def add_confirmation(self, ursula_address, signed_receipt):
         """Adds a signed confirmation of Ursula's ability to revoke the node."""
         raise NotImplementedError
