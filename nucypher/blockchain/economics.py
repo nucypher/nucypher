@@ -19,16 +19,15 @@ class Economics:
     _default_min_operator_seconds = 60 * 60 * 24  # one day in seconds
     _default_fee_rate = Wei(Web3.to_wei(1, 'gwei'))
 
-    # TODO: Reintroduce Adjudicator
+
     # Slashing parameters
-    # HASH_ALGORITHM_KECCAK256 = 0
-    # HASH_ALGORITHM_SHA256 = 1
-    # HASH_ALGORITHM_RIPEMD160 = 2
-    # _default_hash_algorithm = HASH_ALGORITHM_SHA256
-    # _default_base_penalty = 2
-    # _default_penalty_history_coefficient = 0
-    # _default_percentage_penalty_coefficient = 100000  # 0.001%
-    # _default_reward_coefficient = 2
+    HASH_ALGORITHM_KECCAK256 = 0
+    HASH_ALGORITHM_SHA256 = 1
+    HASH_ALGORITHM_RIPEMD160 = 2
+    _default_hash_algorithm = HASH_ALGORITHM_SHA256
+    _default_base_penalty = 2
+    _default_penalty_history_coefficient = 0
+    _default_percentage_penalty_coefficient = 100000  # 0.001%
 
     def __init__(self,
                  min_operator_seconds: int = _default_min_operator_seconds,
@@ -36,30 +35,26 @@ class Economics:
                  fee_rate: Wei = _default_fee_rate,
 
                  # Adjudicator
-                 # hash_algorithm: int = _default_hash_algorithm,
-                 # base_penalty: int = _default_base_penalty,
-                 # penalty_history_coefficient: int = _default_penalty_history_coefficient,
-                 # percentage_penalty_coefficient: int = _default_percentage_penalty_coefficient,
-                 # reward_coefficient: int = _default_reward_coefficient
+                 hash_algorithm: int = _default_hash_algorithm,
+                 base_penalty: int = _default_base_penalty,
+                 penalty_history_coefficient: int = _default_penalty_history_coefficient,
+                 percentage_penalty_coefficient: int = _default_percentage_penalty_coefficient,
                  ):
 
         """
         :param min_operator_seconds: Min amount of seconds while an operator can't be changed
         :param min_authorization: Amount of minimum allowable authorization
 
+        :param hash_algorithm: Hashing algorithm
+        :param base_penalty: Base for the penalty calculation
+        :param penalty_history_coefficient: Coefficient for calculating the penalty depending on the history
+        :param percentage_penalty_coefficient: Coefficient for calculating the percentage penalty
         """
-        # TODO: Reintroduce Adjudicator
-        # :param hash_algorithm: Hashing algorithm
-        # :param base_penalty: Base for the penalty calculation
-        # :param penalty_history_coefficient: Coefficient for calculating the penalty depending on the history
-        # :param percentage_penalty_coefficient: Coefficient for calculating the percentage penalty
-        # :param reward_coefficient: Coefficient for calculating the reward
 
-        # self.hash_algorithm = hash_algorithm
-        # self.base_penalty = base_penalty
-        # self.penalty_history_coefficient = penalty_history_coefficient
-        # self.percentage_penalty_coefficient = percentage_penalty_coefficient
-        # self.reward_coefficient = reward_coefficient
+        self.hash_algorithm = hash_algorithm
+        self.base_penalty = base_penalty
+        self.penalty_history_coefficient = penalty_history_coefficient
+        self.percentage_penalty_coefficient = percentage_penalty_coefficient
 
         self.min_operator_seconds = min_operator_seconds
         self.min_authorization = min_authorization
