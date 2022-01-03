@@ -7,10 +7,10 @@ import "threshold/IStaking.sol";
 
 
 /**
-* @title PRE Application Stub
+* @title PRE Application
 * @notice Contract handles PRE configuration
 */
-contract PREApplicationStub {
+contract SimplePREApplication {
 
     /**
     * @notice Signals that a worker was bonded to the operator
@@ -82,6 +82,13 @@ contract PREApplicationStub {
     }
 
     /**
+    * @notice Returns worker for specified operator
+    */
+    function getWorkerFromOperator(address _operator) public view returns (address) {
+        return operatorInfo[_operator].worker;
+    }
+
+    /**
     * @notice Get all tokens delegated to the operator
     */
     function authorizedStake(address _operator) public view returns (uint96) {
@@ -137,6 +144,15 @@ contract PREApplicationStub {
     */
     function isAuthorized(address _operator) public view returns (bool) {
         return authorizedStake(_operator) >= minAuthorization;
+    }
+
+    /**
+    * @notice Returns true if worker has confirmed address
+    */
+    function isWorkerConfirmed(address _worker) public view returns (bool) {
+        address operator = _operatorFromWorker[_worker];
+        OperatorInfo storage info = operatorInfo[operator];
+        return info.workerConfirmed;
     }
 
     /**
