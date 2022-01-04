@@ -149,6 +149,7 @@ contract SimplePREApplication {
     /**
     * @notice Returns true if worker has confirmed address
     */
+    // TODO maybe _operator instead of _worker?
     function isWorkerConfirmed(address _worker) public view returns (bool) {
         address operator = _operatorFromWorker[_worker];
         OperatorInfo storage info = operatorInfo[operator];
