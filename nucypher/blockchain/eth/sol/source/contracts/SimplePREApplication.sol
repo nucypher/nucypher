@@ -209,7 +209,7 @@ contract SimplePREApplication {
         require(isAuthorized(operator), "No stake associated with the worker");
         OperatorInfo storage info = operatorInfo[operator];
         require(!info.workerConfirmed, "Worker address is already confirmed");
-        require(msg.sender == tx.origin, " Only worker with real address can make a confirmation");
+        require(msg.sender == tx.origin, "Only worker with real address can make a confirmation");
         info.workerConfirmed = true;
         emit WorkerConfirmed(operator, msg.sender);
     }
