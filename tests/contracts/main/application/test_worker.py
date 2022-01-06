@@ -19,7 +19,7 @@ import pytest
 from eth_tester.exceptions import TransactionFailed
 
 from nucypher.blockchain.eth.constants import NULL_ADDRESS
-from nucypher.blockchain.eth.token import NU
+from eth_utils import to_checksum_address
 
 
 CONFIRMATION_SLOT = 1
@@ -84,6 +84,14 @@ def test_bond_worker(testerchain, threshold_staking, pre_application, token_econ
     assert pre_application.functions.operatorFromWorker(worker1).call() == operator3
     assert not pre_application.functions.operatorInfo(operator3).call()[CONFIRMATION_SLOT]
     assert not pre_application.functions.isWorkerConfirmed(worker1).call()
+    assert pre_application.functions.getOperatorsLength().call() == 1
+    assert pre_application.functions.operators(0).call() == operator3
+
+    # No active operators before confirmation
+    all_locked, operators = pre_application.functions.getActiveOperators(0, 0).call()
+    assert all_locked == 0
+    assert len(operators) == 0
+
     tx = pre_application.functions.confirmWorkerAddress().transact({'from': worker1})
     testerchain.wait_for_receipt(tx)
     assert pre_application.functions.operatorInfo(operator3).call()[CONFIRMATION_SLOT]
@@ -96,6 +104,13 @@ def test_bond_worker(testerchain, threshold_staking, pre_application, token_econ
     assert event_args['operator'] == operator3
     assert event_args['worker'] == worker1
     assert event_args['startTimestamp'] == timestamp
+
+    # After confirmation worker is becoming active
+    all_locked, operators = pre_application.functions.getActiveOperators(0, 0).call()
+    assert all_locked == min_authorization
+    assert len(operators) == 1
+    assert to_checksum_address(operators[0][0]) == operator3
+    assert operators[0][1] == min_authorization
 
     # Worker is in use so other operators can't bond him
     with pytest.raises((TransactionFailed, ValueError)):
@@ -132,6 +147,13 @@ def test_bond_worker(testerchain, threshold_staking, pre_application, token_econ
     assert pre_application.functions.operatorFromWorker(worker1).call() == NULL_ADDRESS
     assert not pre_application.functions.operatorInfo(operator3).call()[CONFIRMATION_SLOT]
     assert not pre_application.functions.isWorkerConfirmed(worker1).call()
+    assert pre_application.functions.getOperatorsLength().call() == 1
+    assert pre_application.functions.operators(0).call() == operator3
+
+    # Resetting worker removes from active list before next confirmation
+    all_locked, operators = pre_application.functions.getActiveOperators(0, 0).call()
+    assert all_locked == 0
+    assert len(operators) == 0
 
     number_of_events += 1
     events = worker_log.get_all_entries()
@@ -151,6 +173,8 @@ def test_bond_worker(testerchain, threshold_staking, pre_application, token_econ
     assert pre_application.functions.operatorFromWorker(worker2).call() == operator3
     assert not pre_application.functions.operatorInfo(operator3).call()[CONFIRMATION_SLOT]
     assert not pre_application.functions.isWorkerConfirmed(worker2).call()
+    assert pre_application.functions.getOperatorsLength().call() == 1
+    assert pre_application.functions.operators(0).call() == operator3
 
     number_of_events += 1
     events = worker_log.get_all_entries()
@@ -179,6 +203,8 @@ def test_bond_worker(testerchain, threshold_staking, pre_application, token_econ
     assert pre_application.functions.operatorFromWorker(worker1).call() == operator4
     assert not pre_application.functions.isWorkerConfirmed(worker1).call()
     assert not pre_application.functions.operatorInfo(operator4).call()[CONFIRMATION_SLOT]
+    assert pre_application.functions.getOperatorsLength().call() == 2
+    assert pre_application.functions.operators(1).call() == operator4
 
     number_of_events += 1
     events = worker_log.get_all_entries()
@@ -213,6 +239,13 @@ def test_bond_worker(testerchain, threshold_staking, pre_application, token_econ
     assert not pre_application.functions.isWorkerConfirmed(worker3).call()
     assert not pre_application.functions.isWorkerConfirmed(worker1).call()
     assert not pre_application.functions.operatorInfo(operator4).call()[CONFIRMATION_SLOT]
+    assert pre_application.functions.getOperatorsLength().call() == 2
+    assert pre_application.functions.operators(1).call() == operator4
+
+    # Resetting worker removes from active list before next confirmation
+    all_locked, operators = pre_application.functions.getActiveOperators(1, 0).call()
+    assert all_locked == 0
+    assert len(operators) == 0
 
     number_of_events += 1
     events = worker_log.get_all_entries()
@@ -247,6 +280,8 @@ def test_bond_worker(testerchain, threshold_staking, pre_application, token_econ
     timestamp = testerchain.w3.eth.getBlock('latest').timestamp
     assert pre_application.functions.getWorkerFromOperator(operator1).call() == operator1
     assert pre_application.functions.operatorFromWorker(operator1).call() == operator1
+    assert pre_application.functions.getOperatorsLength().call() == 3
+    assert pre_application.functions.operators(2).call() == operator1
 
     number_of_events += 1
     events = worker_log.get_all_entries()
@@ -256,9 +291,33 @@ def test_bond_worker(testerchain, threshold_staking, pre_application, token_econ
     assert event_args['worker'] == operator1
     assert event_args['startTimestamp'] == timestamp
 
+    # If stake will be less than minimum then confirmation is not possible
+    tx = threshold_staking.functions.setStakes(operator1, 0, min_authorization - 1, 0).transact()
+    testerchain.wait_for_receipt(tx)
+
+    with pytest.raises((TransactionFailed, ValueError)):
+        tx = pre_application.functions.confirmWorkerAddress().transact({'from': operator1})
+        testerchain.wait_for_receipt(tx)
+
     # Now operator can make a confirmation
+    tx = threshold_staking.functions.setStakes(operator1, 0, 0, min_authorization).transact()
+    testerchain.wait_for_receipt(tx)
     tx = pre_application.functions.confirmWorkerAddress().transact({'from': operator1})
     testerchain.wait_for_receipt(tx)
+
+    # If stake will be less than minimum then operator is not active
+    all_locked, operators = pre_application.functions.getActiveOperators(0, 0).call()
+    assert all_locked == 2 * min_authorization
+    assert len(operators) == 2
+    assert to_checksum_address(operators[0][0]) == operator3
+    assert operators[0][1] == min_authorization
+    assert to_checksum_address(operators[1][0]) == operator1
+    assert operators[1][1] == min_authorization
+    tx = threshold_staking.functions.setStakes(operator1, 0, min_authorization - 1, 0).transact()
+    testerchain.wait_for_receipt(tx)
+    all_locked, operators = pre_application.functions.getActiveOperators(1, 0).call()
+    assert all_locked == 0
+    assert len(operators) == 0
 
 
 def test_confirm_address(testerchain, threshold_staking, pre_application, token_economics, deploy_contract):

@@ -157,6 +157,13 @@ contract SimplePREApplication {
     }
 
     /**
+    * @notice Return the length of the array of operators
+    */
+    function getOperatorsLength() external view returns (uint256) {
+        return operators.length;
+    }
+
+    /**
     * @notice Bond worker
     * @param _worker Worker address. Must be a real address, not a contract
     */
@@ -181,6 +188,10 @@ contract SimplePREApplication {
             );
             // Set new worker->operator relation
             _operatorFromWorker[_worker] = msg.sender;
+        }
+
+        if (info.workerStartTimestamp == 0) {
+            operators.push(msg.sender);
         }
 
         // Bond new worker (or unbond if _worker == address(0))
