@@ -293,6 +293,10 @@ contract StakingEscrow is Upgradeable, IERC900History {
         if (info.vestingReleaseTimestamp <= block.timestamp) {
             return 0;
         }
+        if (info.vestingReleaseRate == 0) {
+            // this value includes all not withdrawn reward
+            return info.value;
+        }
         uint256 unvestedTokens = (info.vestingReleaseTimestamp - block.timestamp) * info.vestingReleaseRate;
         return info.value < unvestedTokens ? info.value : unvestedTokens;
     }
@@ -302,6 +306,7 @@ contract StakingEscrow is Upgradeable, IERC900History {
     * @param _stakers Array of stakers
     * @param _releaseTimestamp Array of timestamps when stake will be released
     * @param _releaseRate Array of release rates
+    * @dev If release rate is 0 then all value will be locked before release timestamp
     */
     function setupVesting(
         address[] calldata _stakers,
