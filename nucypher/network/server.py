@@ -204,32 +204,17 @@ def _make_rest_app(datastore: Datastore, this_node, log: Logger) -> Flask:
             # TODO (#567): bucket the node as suspicious
             return Response(message, status=HTTPStatus.BAD_REQUEST)
 
-        if not this_node.federated_only:
+        # Enforce Policy Payment
+        # TODO: Accept multiple payment methods
+        paid = this_node.payment_method.verify(node=this_node, request=reenc_request)
+        if not paid:
+            message = f"{bob_identity_message} Policy {hrac} is unpaid."
+            return Response(message, status=HTTPStatus.PAYMENT_REQUIRED)
 
-            # Verify Policy Payment (onchain)
-            try:
-                this_node.verify_policy_payment(hrac=hrac)
-            except Policy.Unpaid:
-                message = f"{bob_identity_message} Policy {hrac} is unpaid."
-                record = (publisher_verifying_key, message)
-                # TODO (#567): bucket the node as suspicious
-                return Response(message, status=HTTPStatus.PAYMENT_REQUIRED)
-            except Policy.Unknown:
-                message = f"{bob_identity_message} Policy {hrac} is not a published policy."
-                return Response(message, status=HTTPStatus.NOT_FOUND)
-
-            # Verify Active Policy (onchain)
-            try:
-                this_node.verify_active_policy(hrac=hrac)
-            except Policy.Inactive:
-                message = f"{bob_identity_message} Policy {hrac} is not active."
-                return Response(message, status=HTTPStatus.FORBIDDEN)
-            except this_node.PolicyInfo.Expired:
-                message = f"{bob_identity_message} Policy {hrac} is expired."
-                return Response(message, status=HTTPStatus.FORBIDDEN)
+        # TODO: Evaluate multiple reencryption prerequisites & enforce policy expiration
 
         # Re-encrypt
-        # TODO: return a sensible response if it fails
+        # TODO: return a sensible response if it fails (currently results in 500)
         response = this_node._reencrypt(kfrag=verified_kfrag, capsules=reenc_request.capsules)
 
         # Now, Ursula saves evidence of this workorder to her database...
@@ -243,7 +228,7 @@ def _make_rest_app(datastore: Datastore, this_node, log: Logger) -> Flask:
     @rest_app.route('/revoke', methods=['POST'])
     def revoke():
         revocation = RevocationOrder.from_bytes(request.data)
-        # TODO: Implement offchain revocation.
+        # TODO: Implement off-chain revocation.
         return Response(status=HTTPStatus.OK)
 
     @rest_app.route("/ping", methods=['GET'])
