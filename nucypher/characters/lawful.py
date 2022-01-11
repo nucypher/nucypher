@@ -17,11 +17,10 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 
 
 import contextlib
-from http import HTTPStatus
 import json
 import time
 from base64 import b64encode
-from datetime import datetime
+from http import HTTPStatus
 from json.decoder import JSONDecodeError
 from pathlib import Path
 from queue import Queue
@@ -42,25 +41,15 @@ from eth_typing.evm import ChecksumAddress
 from flask import Response, request
 from twisted.internet import reactor, stdio
 from twisted.internet.defer import Deferred
-from twisted.internet.task import LoopingCall
 from twisted.logger import Logger
 from web3.types import TxReceipt
-
-from nucypher.core import (
-    MessageKit,
-    AuthorizedKeyFrag,
-    EncryptedKeyFrag,
-    TreasureMap,
-    EncryptedTreasureMap,
-    ReencryptionResponse,
-    NodeMetadata
-    )
 
 import nucypher
 from nucypher.acumen.nicknames import Nickname
 from nucypher.acumen.perception import ArchivedFleetState, RemoteUrsulaStatus
 from nucypher.blockchain.eth.actors import BlockchainPolicyAuthor, Worker
-from nucypher.blockchain.eth.agents import ContractAgency, StakingEscrowAgent
+from nucypher.blockchain.eth.agents import ContractAgency, PolicyManagerAgent
+from nucypher.blockchain.eth.agents import StakingEscrowAgent
 from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
 from nucypher.blockchain.eth.registry import BaseContractRegistry
 from nucypher.blockchain.eth.signers.software import Web3Signer
@@ -72,6 +61,15 @@ from nucypher.config.constants import END_OF_POLICIES_PROBATIONARY_PERIOD
 from nucypher.config.storages import ForgetfulNodeStorage, NodeStorage
 from nucypher.control.controllers import WebController
 from nucypher.control.emitters import StdoutEmitter
+from nucypher.core import (
+    MessageKit,
+    AuthorizedKeyFrag,
+    EncryptedKeyFrag,
+    TreasureMap,
+    EncryptedTreasureMap,
+    ReencryptionResponse,
+    NodeMetadata
+)
 from nucypher.crypto.keypairs import HostingKeypair
 from nucypher.crypto.powers import (
     DecryptingPower,
@@ -86,7 +84,6 @@ from nucypher.crypto.umbral_adapter import (
     reencrypt,
     VerifiedKeyFrag,
 )
-from nucypher.datastore.datastore import DatastoreTransactionError, RecordNotFound
 from nucypher.network.exceptions import NodeSeemsToBeDown
 from nucypher.network.middleware import RestMiddleware
 from nucypher.network.nodes import NodeSprout, TEACHER_NODES, Teacher
@@ -95,6 +92,7 @@ from nucypher.network.retrieval import RetrievalClient
 from nucypher.network.server import ProxyRESTServer, make_rest_app
 from nucypher.network.trackers import AvailabilityTracker
 from nucypher.policy.kits import PolicyMessageKit
+from nucypher.policy.payment import ContractPayment
 from nucypher.policy.policies import Policy
 from nucypher.utilities.logging import Logger
 from nucypher.utilities.networking import validate_worker_ip
@@ -122,7 +120,8 @@ class Alice(Character, BlockchainPolicyAuthor):
 
                  # Policy Value
                  rate: int = None,
-                 payment_periods: int = None,
+                 duration: int = None,
+                 payment_method: ContractPayment = None,  # TODO: Make this required?
 
                  # Policy Storage
                  store_policy_credentials: bool = None,
@@ -168,12 +167,7 @@ class Alice(Character, BlockchainPolicyAuthor):
             signer = signer or Web3Signer(blockchain.client)  # fallback to web3 provider by default for Alice.
             self.transacting_power = TransactingPower(account=self.checksum_address, signer=signer)
             self._crypto_power.consume_power_up(self.transacting_power)
-            BlockchainPolicyAuthor.__init__(self,
-                                            domain=self.domain,
-                                            transacting_power=self.transacting_power,
-                                            registry=self.registry,
-                                            rate=rate,
-                                            payment_periods=payment_periods)
+            # BlockchainPolicyAuthor was here
 
         self.log = Logger(self.__class__.__name__)
         if is_me:
@@ -185,6 +179,9 @@ class Alice(Character, BlockchainPolicyAuthor):
         self.revocation_kits = dict()
         self.store_policy_credentials = store_policy_credentials
         self.store_character_cards = store_character_cards
+        self.payment_method = payment_method
+        self.rate = rate
+        self.duration = duration
 
     def get_card(self) -> 'Card':
         from nucypher.policy.identity import Card
@@ -240,7 +237,6 @@ class Alice(Character, BlockchainPolicyAuthor):
                                                   label=label,
                                                   threshold=policy_params['threshold'],
                                                   shares=shares)
-
         payload = dict(label=label,
                        bob=bob,
                        kfrags=kfrags,
@@ -263,39 +259,36 @@ class Alice(Character, BlockchainPolicyAuthor):
     def generate_policy_parameters(self,
                                    threshold: int = None,
                                    shares: int = None,
-                                   payment_periods: int = None,
+                                   duration: int = None,
                                    expiration: maya.MayaDT = None,
-                                   *args, **kwargs
+                                   value: int = None,
+                                   rate: int = None
                                    ) -> dict:
-        """
-        Construct policy creation from parameters or overrides.
-        """
+        """Construct policy creation from parameters or overrides."""
 
-        if not payment_periods and not expiration:
-            raise ValueError("Policy end time must be specified as 'expiration' or 'payment_periods', got neither.")
+        if not duration and not expiration:
+            raise ValueError("Policy end time must be specified as 'expiration' or 'duration', got neither.")
 
         # Merge injected and default params.
         threshold = threshold or self.threshold
         shares = shares or self.shares
-        base_payload = dict(threshold=threshold, shares=shares, expiration=expiration)
+        duration = duration or self.duration
+        rate = rate if rate is not None else self.rate  # TODO conflict with CLI default value, see #1709
 
-        if self.federated_only:
-            if not expiration:
-                raise TypeError("For a federated policy, you must specify expiration (payment_periods don't count).")
-            if expiration <= maya.now():
-                raise ValueError(f'Expiration must be in the future ({expiration}).')
-        else:
-            blocktime = maya.MayaDT(self.policy_agent.blockchain.get_blocktime())
-            if expiration and (expiration <= blocktime):
-                raise ValueError(f'Expiration must be in the future ({expiration} is earlier than blocktime {blocktime}).')
+        base_payload = dict(threshold=threshold,
+                            shares=shares,
+                            duration=duration,
+                            expiration=expiration)
 
-            # Calculate Policy Rate and Value
-            payload = super().generate_policy_parameters(number_of_ursulas=shares,
-                                                         payment_periods=payment_periods,
-                                                         expiration=expiration,
-                                                         *args, **kwargs)
-            base_payload.update(payload)
-
+        # Calculate Policy Rate, Duration, and Value
+        payload = self.payment_method.calculate_price(
+            shares=shares,
+            duration=duration,
+            expiration=expiration,
+            rate=rate,
+            value=value
+        )
+        base_payload.update(payload)
         return base_payload
 
     def _check_grant_requirements(self, policy):
@@ -369,6 +362,7 @@ class Alice(Character, BlockchainPolicyAuthor):
         receipt, failed = dict(), dict()
 
         if onchain and (not self.federated_only):
+            # TODO: Decouple onchain revocation from PolicyManager or deprecate.
             receipt = self.policy_agent.revoke_policy(policy_id=bytes(policy.hrac),
                                                       transacting_power=self._crypto_power.power_ups(TransactingPower))
 
@@ -691,7 +685,9 @@ class Ursula(Teacher, Character, Worker):
                  worker_address: ChecksumAddress = None,  # TODO: deprecate, and rename to "checksum_address"
                  client_password: str = None,
                  decentralized_identity_evidence=NOT_SIGNED,
+
                  provider_uri: str = None,
+                 payment_method: ContractPayment = None,
 
                  # Character
                  abort_on_learning_error: bool = False,
@@ -764,6 +760,7 @@ class Ursula(Teacher, Character, Worker):
                     self.stop(halt_reactor=False)
                     raise
 
+            # Server
             self.rest_server = self._make_local_server(host=rest_host,
                                                        port=rest_port,
                                                        db_filepath=db_filepath,
@@ -775,6 +772,9 @@ class Ursula(Teacher, Character, Worker):
 
             # Only *YOU* can prevent forest fires
             self.revoked_policies: Set[bytes] = set()
+
+            # Policy Payment
+            self.payment_method = payment_method
 
             # Care to introduce yourself?
             message = "THIS IS YOU: {}: {}".format(self.__class__.__name__, self)

@@ -89,8 +89,8 @@ def collect_expiration(alice: Alice, expiration: maya.MayaDT, force: bool) -> ma
     if not force and not expiration:
         default_expiration = None
         expiration_prompt = 'Enter policy expiration (Y-M-D H:M:S)'
-        if alice.payment_periods:
-            default_expiration = maya.now() + timedelta(hours=alice.payment_periods * alice.economics.hours_per_period)
+        if alice.duration:
+            default_expiration = maya.now() + timedelta(hours=alice.duration * alice.economics.hours_per_period)
         expiration = click.prompt(expiration_prompt, type=click.DateTime(), default=default_expiration)
     return expiration
 
@@ -114,7 +114,7 @@ def collect_policy_rate_and_value(alice: Alice, rate: int, value: int, shares: i
     if not policy_value_provided:
 
         # TODO #1709 - Fine tuning and selection of default rates
-        rate = alice.default_rate  # wei
+        rate = alice.payment_method.default_rate  # wei
 
         if not force:
             default_gwei = Web3.fromWei(rate, 'gwei')  # wei -> gwei
