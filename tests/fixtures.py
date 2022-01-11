@@ -44,7 +44,7 @@ from nucypher.blockchain.eth.deployers import (
     PolicyManagerDeployer,
     StakingEscrowDeployer,
     StakingInterfaceDeployer,
-    WorklockDeployer
+    WorklockDeployer, SubscriptionManagerDeployer
 )
 from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
 from nucypher.blockchain.eth.registry import InMemoryContractRegistry, LocalContractRegistry
@@ -624,6 +624,9 @@ def _make_agency(testerchain, test_registry, token_economics, deployer_transacti
 
     staking_escrow_deployer = StakingEscrowDeployer(economics=token_economics, registry=test_registry)
     staking_escrow_deployer.deploy(deployment_mode=FULL, transacting_power=transacting_power)
+
+    staking_interface_deployer = SubscriptionManagerDeployer(economics=token_economics, registry=test_registry)
+    staking_interface_deployer.deploy(transacting_power=transacting_power)
 
     # Set additional parameters
     minimum, default, maximum = FEE_RATE_RANGE
