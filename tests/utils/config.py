@@ -63,15 +63,30 @@ def assemble(federated: bool,
     return base_test_params
 
 
-def make_ursula_test_configuration(rest_port: int = MOCK_URSULA_STARTING_PORT, **assemble_kwargs) -> UrsulaConfiguration:
+def make_ursula_test_configuration(rest_port: int = MOCK_URSULA_STARTING_PORT,
+                                   payment_provider: str = None,
+                                   **assemble_kwargs
+                                   ) -> UrsulaConfiguration:
     test_params = assemble(**assemble_kwargs)
-    ursula_config = UrsulaConfiguration(**test_params, rest_port=rest_port)
+    federated = test_params['federated_only']
+    payment_provider = payment_provider if not federated else None
+    payment_network = TEMPORARY_DOMAIN if not federated else None
+    ursula_config = UrsulaConfiguration(**test_params,
+                                        rest_port=rest_port,
+                                        payment_provider=payment_provider,
+                                        payment_network=payment_network)
     return ursula_config
 
 
-def make_alice_test_configuration(**assemble_kwargs) -> AliceConfiguration:
+def make_alice_test_configuration(payment_provider: str = None,
+                                  **assemble_kwargs) -> AliceConfiguration:
     test_params = assemble(**assemble_kwargs)
-    config = AliceConfiguration(**test_params)
+    federated = test_params['federated_only']
+    payment_provider = payment_provider if not federated else None
+    payment_network = TEMPORARY_DOMAIN if not federated else None
+    config = AliceConfiguration(**test_params,
+                                payment_provider=payment_provider,
+                                payment_network=payment_network)
     return config
 
 

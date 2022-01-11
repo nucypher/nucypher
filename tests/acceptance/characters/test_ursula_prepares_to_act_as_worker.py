@@ -15,6 +15,7 @@ You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 import datetime
+
 import maya
 import pytest
 from eth_account._utils.signing import to_standard_signature_bytes
@@ -22,9 +23,7 @@ from eth_account._utils.signing import to_standard_signature_bytes
 from nucypher.characters.lawful import Enrico, Ursula
 from nucypher.characters.unlawful import Vladimir
 from nucypher.crypto.utils import verify_eip_191
-from nucypher.crypto.powers import SigningPower
 from nucypher.policy.policies import BlockchainPolicy
-from tests.constants import INSECURE_DEVELOPMENT_PASSWORD
 from tests.utils.middleware import NodeIsDownMiddleware
 from tests.utils.ursula import make_decentralized_ursulas
 

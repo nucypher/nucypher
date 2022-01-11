@@ -45,6 +45,12 @@ def period_to_epoch(period: int, seconds_per_period: int) -> int:
     return epoch
 
 
+def get_current_period(seconds_per_period: int) -> int:
+    now = maya.now().epoch
+    period = epoch_to_period(epoch=now, seconds_per_period=seconds_per_period)
+    return period
+
+
 def datetime_at_period(period: int, seconds_per_period: int, start_of_period: bool = False) -> maya.MayaDT:
     """
     Returns the datetime object at a given period, future, or past.

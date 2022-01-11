@@ -276,7 +276,8 @@ def bob_blockchain_test_config(mock_testerchain, test_registry):
 @pytest.fixture(scope="module")
 def ursula_decentralized_test_config(mock_testerchain, test_registry):
     config = make_ursula_test_configuration(federated=False,
-                                            provider_uri=MOCK_PROVIDER_URI,
+                                            provider_uri=MOCK_PROVIDER_URI,      # L1
+                                            payment_provider=MOCK_PROVIDER_URI,  # L2
                                             test_registry=test_registry,
                                             rest_port=MOCK_URSULA_STARTING_PORT,
                                             checksum_address=mock_testerchain.ursula_account(index=0))

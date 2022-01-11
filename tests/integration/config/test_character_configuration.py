@@ -40,7 +40,7 @@ from nucypher.config.constants import TEMPORARY_DOMAIN
 from nucypher.config.storages import ForgetfulNodeStorage
 from nucypher.crypto.keystore import Keystore
 from nucypher.crypto.umbral_adapter import SecretKey
-from tests.constants import INSECURE_DEVELOPMENT_PASSWORD
+from tests.constants import INSECURE_DEVELOPMENT_PASSWORD, MOCK_PROVIDER_URI
 from tests.constants import MOCK_IP_ADDRESS
 
 # Main Cast
@@ -134,6 +134,7 @@ def test_default_character_configuration_preservation(configuration_class, teste
         character_config = configuration_class(checksum_address=fake_address,
                                                domain=network,
                                                rest_host=MOCK_IP_ADDRESS,
+                                               payment_provider=MOCK_PROVIDER_URI,
                                                keystore=keystore)
 
     else:
