@@ -758,12 +758,12 @@ class StakingEscrowAgent(EthereumContractAgent):
             yield staker_address
 
     def get_stakers_reservoir(self,
-                              duration: int,
+                              periods: int,
                               without: Iterable[ChecksumAddress] = None,
                               pagination_size: Optional[int] = None
                               ) -> 'StakersReservoir':
 
-        n_tokens, stakers_map = self.get_all_active_stakers(periods=duration,
+        n_tokens, stakers_map = self.get_all_active_stakers(periods=periods,
                                                             pagination_size=pagination_size)
 
         filtered_out = 0
@@ -778,7 +778,7 @@ class StakingEscrowAgent(EthereumContractAgent):
                        f"({filtered_out} filtered out)")
 
         if n_tokens == 0:
-            raise self.NotEnoughStakers(f'There are no locked tokens for duration {duration}.')
+            raise self.NotEnoughStakers(f'There are no locked tokens for duration {periods}.')
 
         return StakersReservoir(stakers_map)
 
