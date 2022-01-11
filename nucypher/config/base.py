@@ -53,6 +53,7 @@ from nucypher.config.util import cast_paths_from
 from nucypher.crypto.keystore import Keystore
 from nucypher.crypto.powers import CryptoPower, CryptoPowerUp
 from nucypher.network.middleware import RestMiddleware
+from nucypher.policy.payment import PAYMENT_METHODS
 from nucypher.utilities.logging import Logger
 
 
@@ -338,6 +339,11 @@ class CharacterConfiguration(BaseConfiguration):
     # Gas
     DEFAULT_GAS_STRATEGY = 'fast'
 
+    # Payments
+    DEFAULT_PAYMENT_METHOD = 'SubscriptionManager'
+    DEFAULT_PAYMENT_NETWORK = 'polygon'
+    DEFAULT_FEDERATED_PAYMENT_METHOD = 'Free'
+
     # Fields specified here are *not* passed into the Character's constructor
     # and can be understood as configuration fields only.
     _CONFIG_FIELDS = ('config_root',
@@ -347,7 +353,9 @@ class CharacterConfiguration(BaseConfiguration):
                       'gas_strategy',
                       'max_gas_price',  # gwei
                       'signer_uri',
-                      'keystore_path'
+                      'keystore_path',
+                      'payment_provider',
+                      'payment_network'
                       )
 
     def __init__(self,
@@ -393,6 +401,12 @@ class CharacterConfiguration(BaseConfiguration):
                  gas_strategy: Union[Callable, str] = DEFAULT_GAS_STRATEGY,
                  max_gas_price: Optional[int] = None,
                  signer_uri: str = None,
+                 
+                 # Payments
+                 # TODO: Resolve code prefixing below, possibly with the use of nested configuration fields
+                 payment_method: str = None,
+                 payment_provider: str = None,
+                 payment_network: str = None,
 
                  # Registry
                  registry: BaseContractRegistry = None,
@@ -484,6 +498,11 @@ class CharacterConfiguration(BaseConfiguration):
                 self.gas_strategy = None
                 self.max_gas_price = None
 
+            # Federated Payments
+            self.payment_method = payment_method or self.DEFAULT_FEDERATED_PAYMENT_METHOD
+            self.payment_network = payment_network
+            self.payment_provider = payment_provider
+
         #
         # Decentralized
         #
@@ -514,6 +533,14 @@ class CharacterConfiguration(BaseConfiguration):
             self.testnet = self.domain != NetworksInventory.MAINNET
             self.signer = Signer.from_signer_uri(self.signer_uri, testnet=self.testnet)
 
+            # Onchain Payments
+            # TODO: Enforce this for Ursula/Alice but not Bob?
+            # if not payment_provider:
+            #     raise self.ConfigurationError("payment provider is required.")
+            self.payment_method = payment_method or self.DEFAULT_PAYMENT_METHOD
+            self.payment_network = payment_network or self.DEFAULT_PAYMENT_NETWORK
+            self.payment_provider = payment_provider or (self.provider_uri or None)  # default to L1 payments
+
         if dev_mode:
             self.__temp_dir = UNINITIALIZED_CONFIGURATION
             self._setup_node_storage()
@@ -527,7 +554,7 @@ class CharacterConfiguration(BaseConfiguration):
         # Network
         self.controller_port = controller_port or self.DEFAULT_CONTROLLER_PORT
         self.network_middleware = network_middleware or self.DEFAULT_NETWORK_MIDDLEWARE(registry=self.registry)
-
+        
         super().__init__(filepath=self.config_file_location, config_root=self.config_root)
 
     def __call__(self, **character_kwargs):
@@ -672,7 +699,7 @@ class CharacterConfiguration(BaseConfiguration):
         return True
 
     def static_payload(self) -> dict:
-        """Exported static configuration values for initializing Ursula"""
+        """JSON-Exported static configuration values for initializing Ursula"""
         keystore_path = str(self.keystore.keystore_path) if self.keystore else None
         payload = dict(
 
@@ -717,7 +744,8 @@ class CharacterConfiguration(BaseConfiguration):
     def dynamic_payload(self) -> dict:
         """
         Exported dynamic configuration values for initializing Ursula.
-        These values are used to init a character instance but are not saved to the JSON configuration.
+        These values are used to init a character instance but are *not*
+        saved to the JSON configuration.
         """
         payload = dict()
         if not self.federated_only:
@@ -818,3 +846,34 @@ class CharacterConfiguration(BaseConfiguration):
         storage_class = node_storage_subclasses[storage_type]
         node_storage = storage_class.from_payload(payload=storage_payload, federated_only=federated_only)
         return node_storage
+
+    def configure_payment_method(self):
+        """
+        TODO: finalize config fields
+
+        # Strategy-Based (current implementation, inflexible & hardcoded)
+        'payment_strategy': 'SubscriptionManager'
+        'payment_network': 'matic'
+        'payment_provider': 'https:///matic.infura.io....'
+
+        # Contract-Targeted (alternative implementation, flexible & generic)
+        'payment': {
+            'contract': '0xdeadbeef'
+            'abi': '/home/abi/sm.json'
+            'function': 'isPolicyActive'
+            'provider': 'https:///matic.infura.io....'
+        }
+
+        """
+        try:
+            payment_class = PAYMENT_METHODS[self.payment_method]
+        except KeyError:
+            raise KeyError(f'Unknown payment verifier "{self.payment_method}"')
+
+        if payment_class.ONCHAIN:
+            # on-chain payment strategies require a blockchain connection
+            payment_strategy = payment_class(network=self.payment_network,
+                                             provider=self.payment_provider)
+        else:
+            payment_strategy = payment_class()
+        return payment_strategy
