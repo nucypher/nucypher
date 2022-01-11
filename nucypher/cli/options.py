@@ -31,7 +31,7 @@ from nucypher.cli.types import (
     NuCypherNetworkName,
     WEI,
     STAKED_TOKENS_RANGE,
-    MIN_ALLOWED_LOCKED_TOKENS
+    MIN_ALLOWED_LOCKED_TOKENS, PAYMENT_METHOD_CHOICES
 )
 from nucypher.utilities.logging import Logger
 
@@ -57,6 +57,9 @@ option_lonely = click.option('--lonely', help="Do not connect to seednodes", is_
 option_min_stake = click.option('--min-stake', help="The minimum stake the teacher must have to be locally accepted.", type=STAKED_TOKENS_RANGE, default=MIN_ALLOWED_LOCKED_TOKENS)
 option_parameters = click.option('--parameters', help="Filepath to a JSON file containing additional parameters", type=EXISTING_READABLE_FILE)
 option_participant_address = click.option('--participant-address', help="Participant's checksum address.", type=EIP55_CHECKSUM_ADDRESS)
+option_payment_provider = click.option('--payment-provider', help="Connection URL for payment method", type=click.STRING, required=False)
+option_payment_network = click.option('--payment-network', help="Payment network name", type=click.STRING, required=False)  # TODO: Choices
+option_payment_method = click.option('--payment-method', help="Payment method name", type=PAYMENT_METHOD_CHOICES, required=False)
 option_poa = click.option('--poa/--disable-poa', help="Inject POA middleware", is_flag=True, default=None)
 option_registry_filepath = click.option('--registry-filepath', help="Custom contract registry filepath", type=EXISTING_READABLE_FILE)
 option_shares = click.option('--shares', '-n', help="N-Total shares", type=click.INT)

@@ -112,6 +112,7 @@ def test_ursula_and_local_keystore_signer_integration(click_runner,
 
     init_args = ('ursula', 'init',
                  '--network', TEMPORARY_DOMAIN,
+                 '--payment-network', TEMPORARY_DOMAIN,
                  '--worker-address', worker_account.address,
                  '--config-root', str(config_root_path.absolute()),
                  '--provider', TEST_PROVIDER_URI,

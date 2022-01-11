@@ -139,6 +139,7 @@ def run_entire_cli_lifecycle(click_runner,
     else:
         alice_init_args += ('--provider', TEST_PROVIDER_URI,
                             '--pay-with', testerchain.alice_account,
+                            '--payment-network', TEMPORARY_DOMAIN,
                             '--registry-filepath', str(registry_filepath.absolute()))
 
     alice_init_response = click_runner.invoke(nucypher_cli, alice_init_args, catch_exceptions=False, env=envvars)
@@ -331,7 +332,7 @@ def run_entire_cli_lifecycle(click_runner,
             grant_args += ('--federated-only',)
         else:
             grant_args += ('--provider', TEST_PROVIDER_URI,
-                           '--rate', Web3.toWei(9, 'gwei'))
+                           '--value', Web3.toWei(9, 'gwei'))
 
         grant_result = click_runner.invoke(nucypher_cli, grant_args, catch_exceptions=False, env=envvars)
         assert grant_result.exit_code == 0, (grant_result.output, grant_result.exception)
