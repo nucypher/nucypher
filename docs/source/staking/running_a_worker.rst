@@ -140,19 +140,25 @@ Initialize a new Worker
     -v ~/.local/share/nucypher:/root/.local/share/nucypher \
     -v ~/.ethereum/:/root/.ethereum               \
     -p 9151:9151                                  \
-    -e NUCYPHER_KEYSTORE_PASSWORD                  \
+    -e NUCYPHER_KEYSTORE_PASSWORD                 \
     nucypher/nucypher:latest                      \
     nucypher ursula init                          \
     --signer keystore:///root/.ethereum/keystore  \
-    --provider <PROVIDER URI>                     \
-    --network <NETWORK NAME>                      \
+    --provider <L1 PROVIDER URI>                  \
+    --network <L1 NETWORK NAME>                   \
+    --payment-provider <L2 PROVIDER URI>          \
+    --payment-network <L2 NETWORK NAME>           \
     --max-gas-price <GWEI>
 
 
 Replace the following values with your own:
 
-   * ``<PROVIDER URI>`` - The URI of a local or hosted ethereum node
-   * ``<NETWORK NAME>`` - The name of a nucypher network (mainnet, ibex, or lynx)
+   * ``<L1 PROVIDER URI>`` - The URI of a local or hosted ethereum node (infura/geth)
+   * ``<L1 NETWORK NAME>`` - The name of a nucypher network (mainnet, ibex, or lynx)
+
+   * ``<L2 PROVIDER URI>`` - The URI of a local or hosted level-two node (infura/bor)
+   * ``<L2 NETWORK NAME>`` - The name of a payment network (polygon or mumbai)
+
    * ``<GWEI>`` - The maximum price of gas to spend on commitment transactions
 
 
@@ -215,17 +221,23 @@ Instead of using docker, the nucypher worker can be run as a systemd service.
 
 .. code-block::
 
-    $(nucypher) nucypher ursula init \
-    --provider <PROVIDER URI>        \
-    --network <NETWORK NAME>         \
-    --signer <SIGNER URI>            \
-    --max-gas-price <GWEI>
+    $(nucypher) nucypher ursula init     \
+    --provider <L1 PROVIDER URI>         \
+    --network <L1 NETWORK NAME>          \
+    --payment-provider <L2 PROVIDER URI> \
+    --payment-network <L2 NETWORK NAME>  \
+    --signer <SIGNER URI>                \
+    --max-gas-price <GWEI>               \
 
 
 Replace the following values with your own:
 
-   * ``<PROVIDER URI>`` - The URI of a local or hosted ethereum node
-   * ``<NETWORK NAME>`` - The name of a nucypher network (mainnet, ibex, or lynx)
+   * ``<L1 PROVIDER URI>`` - The URI of a local or hosted ethereum node (infura/geth)
+   * ``<L1 NETWORK NAME>`` - The name of a nucypher network (mainnet, ibex, or lynx)
+
+   * ``<L2 PROVIDER URI>`` - The URI of a local or hosted level-two node (infura/bor)
+   * ``<L2 NETWORK NAME>`` - The name of a payment network (polygon or mumbai)
+
    * ``<SIGNER URI>`` - The URI to an ethereum keystore or signer: `keystore:///root/.ethereum/keystore`
    * ``<GWEI>`` - The maximum price of gas to spend on commitment transactions
 
@@ -317,16 +329,22 @@ First initialize a Worker configuration:
 
 .. code-block::
 
-    $(nucypher) nucypher ursula init \
-    --provider <PROVIDER URI>        \
-    --network <NETWORK NAME>         \
-    --signer <SIGNER URI>            \
-    --max-gas-price <GWEI>
+    $(nucypher) nucypher ursula init      \
+    --provider <L1 PROVIDER URI>          \
+    --network <L1 NETWORK NAME>           \
+    --payment-provider <L2 PROVIDER URI>  \
+    --payment-network <L2 NETWORK NAME>   \
+    --signer <SIGNER URI>                 \
+    --max-gas-price <GWEI>                \
 
 Replace the following values with your own:
 
-   * ``<PROVIDER URI>`` - The URI of a local or hosted ethereum node
-   * ``<NETWORK NAME>`` - The name of a nucypher network (mainnet, ibex, or lynx)
+   * ``<L1 PROVIDER URI>`` - The URI of a local or hosted ethereum node (infura/geth)
+   * ``<L1 NETWORK NAME>`` - The name of a nucypher network (mainnet, ibex, or lynx)
+
+   * ``<L2 PROVIDER URI>`` - The URI of a local or hosted level-two node (infura/bor)
+   * ``<L2 NETWORK NAME>`` - The name of a payment network (polygon or mumbai)
+
    * ``<SIGNER URI>`` - The URI to an ethereum keystore or signer: `keystore:///root/.ethereum/keystore`
    * ``<GWEI>`` - The maximum price of gas to spend on commitment transactions
 
@@ -350,13 +368,6 @@ The configuration settings will be stored in an Ursula configuration file.
     nucypher ursula run
 
 
-Replace the following values with your own:
-
-   * ``<PROVIDER URI>`` - The URI of a local or hosted ethereum node
-   * ``<NETWORK NAME>`` - The name of a nucypher network (mainnet, ibex, or lynx)
-   * ``<SIGNER URI>`` - The URI to an ethereum keystore or signer: `keystore:///root/.ethereum/keystore`
-
-
 Update Worker Configuration
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
@@ -376,6 +387,9 @@ paths, use the ``--config-file <CONFIG PATH>`` parameter.
 
     # Change the Ethereum provider to use
     nucypher ursula config --provider <PROVIDER URI>
+
+    # Accept payments for service using the SubscriptionManager contract on polygon/mumbai
+    nucypher ursula config --payment-method SubscriptionManager --payment-network mumbai
 
     # View the current configuration
     nucypher ursula config
