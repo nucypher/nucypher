@@ -21,10 +21,12 @@ from typing import Sequence, Optional, Iterable, List
 
 import maya
 from eth_typing.evm import ChecksumAddress
-
+from hexbytes import HexBytes
+from nucypher_core import HRAC, TreasureMap
 from nucypher_core.umbral import PublicKey, VerifiedKeyFrag
 
-from nucypher_core import HRAC, TreasureMap
+from nucypher.blockchain.eth.agents import ContractAgency, StakingEscrowAgent
+from nucypher.blockchain.eth.utils import calculate_period_duration
 from nucypher.crypto.powers import DecryptingPower
 from nucypher.network.middleware import RestMiddleware
 from nucypher.policy.reservoir import (
@@ -78,11 +80,12 @@ class Policy(ABC):
     def __init__(self,
                  publisher: 'Alice',
                  label: bytes,
-                 expiration: maya.MayaDT,
                  bob: 'Bob',
                  kfrags: Sequence[VerifiedKeyFrag],
                  public_key: PublicKey,
                  threshold: int,
+                 expiration: maya.MayaDT,
+                 commencement: Optional[maya.MayaDT] = None
                  ):
 
         """
@@ -98,6 +101,7 @@ class Policy(ABC):
         self.kfrags = kfrags
         self.public_key = public_key
         self.expiration = expiration
+        self.commencement = commencement
         self.hrac = HRAC(publisher_verifying_key=self.publisher.stamp.as_umbral_pubkey(),
                          bob_verifying_key=self.bob.stamp.as_umbral_pubkey(),
                          label=self.label)
@@ -229,78 +233,48 @@ class BlockchainPolicy(Policy):
     def __init__(self,
                  value: int,
                  rate: int,
-                 payment_periods: int,
+                 duration: int,
                  *args,
                  **kwargs):
         super().__init__(*args, **kwargs)
-        self.payment_periods = payment_periods
+        self.duration = duration
         self.value = value
         self.rate = rate
-        self._validate_fee_value()
 
-    def _publish(self, ursulas: List['Ursula']) -> None:
-        """Writes a new policy to the PolicyManager contract.."""
-        addresses = [ursula.checksum_address for ursula in ursulas]
-        receipt = self.publisher.policy_agent.create_policy(
-            value=self.value,                     # wei
-            policy_id=bytes(self.hrac),           # bytes16 _policyID
-            end_timestamp=self.expiration.epoch,  # uint16 _numberOfPeriods
-            node_addresses=addresses,             # address[] memory _nodes
-            transacting_power = self.publisher.transacting_power
+        # This part is a bit hacky bit it gets the job done.
+        # This allows payment logic to be decoupled from instances
+        # of this object. A future improvement may remove this class entirely
+        # in favor of a more simple PolicyInfo.
+        self.staking_agent = ContractAgency.get_agent(StakingEscrowAgent, registry=self.publisher.registry)
+        self.publisher.payment_method.validate_rate(
+            shares=self.shares,
+            value=value,
+            duration=duration
         )
+        self.addresses = None
 
-        # Capture transaction receipt
-        txid = receipt['transactionHash']
-        self.log.info(f"published policy TXID: {txid}")
+    def _publish(self, ursulas: List['Ursula']) -> HexBytes:
+        self.addresses = [ursula.checksum_address for ursula in ursulas]
+        txid = self.publisher.payment_method.pay(policy=self)
+        return txid
 
     def _make_reservoir(self, handpicked_addresses):
-        """Returns a reservoir of staking nodes to created a decentralized policy."""
-        staker_reservoir = make_decentralized_staker_reservoir(staking_agent=self.publisher.staking_agent,
-                                                               duration_periods=self.payment_periods,
+        """Returns a reservoir of staking nodes to create a decentralized policy."""
+
+        # TODO: Dissolve this shim to provide compatibility between SubscriptionManager and StakingEscrow sampling
+        # Handles the duration unit difference between PolicyManager (periods) and SubscriptionManager (seconds)
+        # this can be further abstracted away (into payments?) or removed when StakingEscrow periods are fully deprecated.
+        from nucypher.policy.payment import SubscriptionManagerPayment
+        duration = self.duration
+        if isinstance(self.publisher.payment_method, SubscriptionManagerPayment):
+            economics = self.publisher.payment_method.economics
+            duration = calculate_period_duration(future_time=self.expiration,
+                                                 seconds_per_period=economics.seconds_per_period)
+
+        staker_reservoir = make_decentralized_staker_reservoir(staking_agent=self.staking_agent,
+                                                               duration_periods=duration,
                                                                include_addresses=handpicked_addresses)
         return staker_reservoir
-
-    def _validate_fee_value(self) -> None:
-        rate_per_period = self.value // self.shares // self.payment_periods  # wei
-        recalculated_value = self.payment_periods * rate_per_period * self.shares
-        if recalculated_value != self.value:
-            raise ValueError(f"Invalid policy value calculation - "
-                             f"{self.value} can't be divided into {self.shares} staker payments per period "
-                             f"for {self.payment_periods} periods without a remainder")
-
-    @staticmethod
-    def generate_policy_parameters(shares: int,
-                                   payment_periods: int,
-                                   value: int = None,
-                                   rate: int = None) -> dict:
-
-        # Check for negative inputs
-        if sum(True for i in (shares, payment_periods, value, rate) if i is not None and i < 0) > 0:
-            raise BlockchainPolicy.InvalidPolicyValue(f"Negative policy parameters are not allowed. Be positive.")
-
-        # Check for policy params
-        if not (bool(value) ^ bool(rate)):
-            if not (value == 0 or rate == 0):  # Support a min fee rate of 0
-                raise BlockchainPolicy.InvalidPolicyValue(f"Either 'value' or 'rate'  must be provided for policy. "
-                                                          f"Got value: {value} and rate: {rate}")
-
-        if value is None:
-            value = rate * payment_periods * shares
-
-        else:
-            value_per_node = value // shares
-            if value_per_node * shares != value:
-                raise BlockchainPolicy.InvalidPolicyValue(f"Policy value of ({value} wei) cannot be"
-                                                          f" divided by N ({shares}) without a remainder.")
-
-            rate = value_per_node // payment_periods
-            if rate * payment_periods != value_per_node:
-                raise BlockchainPolicy.InvalidPolicyValue(f"Policy value of ({value_per_node} wei) per node "
-                                                          f"cannot be divided by duration ({payment_periods} periods)"
-                                                          f" without a remainder.")
-
-        params = dict(rate=rate, value=value)
-        return params
 
 
 class EnactedPolicy:

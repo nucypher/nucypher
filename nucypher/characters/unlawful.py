@@ -21,13 +21,13 @@ from copy import copy
 from unittest.mock import patch
 
 from eth_tester.exceptions import ValidationError
-
 from nucypher_core import NodeMetadata
 
+from nucypher.blockchain.eth.agents import ContractAgency, PolicyManagerAgent
 from nucypher.blockchain.eth.signers.software import Web3Signer
 from nucypher.characters.lawful import Alice, Ursula
 from nucypher.config.constants import TEMPORARY_DOMAIN
-from nucypher.crypto.powers import CryptoPower, SigningPower
+from nucypher.crypto.powers import CryptoPower
 from nucypher.exceptions import DevelopmentInstallationRequired
 
 
@@ -169,7 +169,8 @@ class Amonia(Alice):
         """
 
         def publish_wrong_payee_address_to_blockchain(policy, ursulas):
-            receipt = policy.publisher.policy_agent.create_policy(
+            policy_agent = ContractAgency.get_agent(PolicyManagerAgent, registry=self.registry)
+            receipt = policy_agent.create_policy(
                 policy_id=bytes(policy.hrac),  # bytes16 _policyID
                 transacting_power=policy.publisher.transacting_power,
                 value=policy.value,
