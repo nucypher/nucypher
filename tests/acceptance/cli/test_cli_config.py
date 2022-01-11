@@ -24,7 +24,7 @@ import pytest
 
 from nucypher.blockchain.eth.registry import InMemoryContractRegistry
 from nucypher.cli.main import nucypher_cli
-from nucypher.config.characters import AliceConfiguration, BobConfiguration, UrsulaConfiguration
+from nucypher.config.characters import AliceConfiguration, BobConfiguration, UrsulaConfiguration, CharacterConfiguration
 from nucypher.config.constants import NUCYPHER_ENVVAR_KEYSTORE_PASSWORD, TEMPORARY_DOMAIN
 from tests.constants import (
     FAKE_PASSWORD_CONFIRMED,
@@ -71,11 +71,12 @@ def test_initialize_via_cli(config_class, custom_filepath: Path, click_runner, m
 
 
 @pytest.mark.parametrize('config_class', CONFIG_CLASSES)
-def test_reconfigure_via_cli(click_runner, custom_filepath: Path, config_class, monkeypatch, test_registry):
+def test_reconfigure_via_cli(click_runner, custom_filepath: Path, config_class, monkeypatch, test_registry, test_registry_source_manager):
 
     def fake_get_latest_registry(*args, **kwargs):
         return test_registry
     monkeypatch.setattr(InMemoryContractRegistry, 'from_latest_publication', fake_get_latest_registry)
+    monkeypatch.setattr(CharacterConfiguration, 'DEFAULT_PAYMENT_NETWORK', TEMPORARY_DOMAIN)
 
     custom_config_filepath = custom_filepath / config_class.generate_filename()
 
