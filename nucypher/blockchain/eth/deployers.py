@@ -38,7 +38,9 @@ from nucypher.blockchain.eth.agents import (
     NucypherTokenAgent,
     PolicyManagerAgent,
     StakingEscrowAgent,
-    WorkLockAgent, PREApplicationAgent
+    WorkLockAgent,
+    PREApplicationAgent,
+    SubscriptionManagerAgent
 )
 from nucypher.blockchain.eth.constants import DISPATCHER_CONTRACT_NAME, NULL_ADDRESS, STAKING_ESCROW_CONTRACT_NAME
 from nucypher.blockchain.eth.interfaces import (
@@ -870,6 +872,35 @@ class PolicyManagerDeployer(BaseContractDeployer, UpgradeableContractMixin, Owna
                                                              confirmations=confirmations)
 
         return set_range_receipt
+
+
+class SubscriptionManagerDeployer(BaseContractDeployer, OwnableContractMixin):
+
+    agency = SubscriptionManagerAgent
+    contract_name = agency.contract_name
+    deployment_steps = ('contract_deployment',)
+    _upgradeable = False
+    _ownable = True
+
+    def deploy(self,
+               transacting_power: TransactingPower,
+               gas_limit: int = None,
+               progress=None,
+               confirmations: int = 0,
+               emitter=None,
+               **overrides) -> dict:
+
+        constructor_kwargs = {}  # placeholder for constructor kwargs
+        constructor_kwargs.update(overrides)
+        constructor_kwargs = {k: v for k, v in constructor_kwargs.items() if v is not None}
+        contract, deployment_receipt = self.blockchain.deploy_contract(transacting_power,
+                                                                       self.registry,
+                                                                       self.contract_name,
+                                                                       gas_limit=gas_limit,
+                                                                       confirmations=confirmations,
+                                                                       **constructor_kwargs)
+        self._contract = contract
+        return {self.deployment_steps[0]: deployment_receipt}
 
 
 class StakingInterfaceRouterDeployer(OwnableContractMixin, ProxyContractDeployer):
