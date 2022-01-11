@@ -14,6 +14,8 @@ GNU Affero General Public License for more details.
 You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
+
+
 import json
 from pathlib import Path
 from tempfile import TemporaryDirectory
@@ -110,6 +112,11 @@ class UrsulaConfiguration(CharacterConfiguration):
             rest_port=self.rest_port,
             db_filepath=self.db_filepath,
             availability_check=self.availability_check,
+
+            # TODO: Resolve variable prefixing below (uses nested configuration fields?)
+            payment_method=self.payment_method,
+            payment_provider=self.payment_provider,
+            payment_network=self.payment_network
         )
         return {**super().static_payload(), **payload}
 
@@ -118,6 +125,7 @@ class UrsulaConfiguration(CharacterConfiguration):
         payload = dict(
             network_middleware=self.network_middleware,
             certificate=self.certificate,
+            payment_method=self.configure_payment_method()
         )
         return {**super().dynamic_payload, **payload}
 
@@ -149,7 +157,7 @@ class UrsulaConfiguration(CharacterConfiguration):
     @classmethod
     def assemble(cls, filepath: Optional[Path] = None, **overrides) -> dict:
         payload = super().assemble(filepath, **overrides)
-        payload['db_filepath'] = Path(payload['db_filepath'])
+        payload['db_filepath'] = Path(payload['db_filepath'])  # TODO: this can be moved to dynamic payload
         return payload
 
 
@@ -173,42 +181,51 @@ class AliceConfiguration(CharacterConfiguration):
     _CONFIG_FIELDS = (
         *CharacterConfiguration._CONFIG_FIELDS,
         'store_policies',
-        'store_cards'
+        'store_cards',
     )
 
     def __init__(self,
                  threshold: int = None,
                  shares: int = None,
                  rate: int = None,
-                 payment_periods: int = None,
+                 duration: int = None,
                  store_policies: bool = DEFAULT_STORE_POLICIES,
                  store_cards: bool = DEFAULT_STORE_CARDS,
                  *args, **kwargs):
 
         super().__init__(*args, **kwargs)
-        self.threshold = threshold or self.DEFAULT_THRESHOLD
-        self.shares = shares or self.DEFAULT_SHARES
 
-        # if not self.federated_only:  # TODO: why not?
-        self.rate = rate
-        self.payment_periods = payment_periods
-
+        # Storage
         self.store_policies = store_policies
         self.store_cards = store_cards
+
+        # Policy Value Defaults
+        self.rate = rate
+        self.duration = duration
+        self.threshold = threshold or self.DEFAULT_THRESHOLD
+        self.shares = shares or self.DEFAULT_SHARES
 
     def static_payload(self) -> dict:
         payload = dict(
             threshold=self.threshold,
             shares=self.shares,
             store_policies=self.store_policies,
-            store_cards=self.store_cards
+            store_cards=self.store_cards,
+            payment_network=self.payment_network,
+            payment_provider=self.payment_provider,
+            payment_method=self.payment_method
         )
         if not self.federated_only:
             if self.rate:
                 payload['rate'] = self.rate
-            if self.payment_periods:
-                payload['payment_periods'] = self.payment_periods
+            if self.duration:
+                payload['duration'] = self.duration
         return {**super().static_payload(), **payload}
+
+    @property
+    def dynamic_payload(self) -> dict:
+        payload = dict(payment_method=self.configure_payment_method())
+        return {**super().dynamic_payload, **payload}
 
 
 class BobConfiguration(CharacterConfiguration):
