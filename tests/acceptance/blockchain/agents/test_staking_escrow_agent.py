@@ -147,19 +147,19 @@ def test_sample_stakers(agency, test_registry):
     stakers_population = staking_agent.get_staker_population()
 
     with pytest.raises(StakingEscrowAgent.NotEnoughStakers):
-        staking_agent.get_stakers_reservoir(duration=1).draw(stakers_population + 1)  # One more than we have deployed
+        staking_agent.get_stakers_reservoir(periods=1).draw(stakers_population + 1)  # One more than we have deployed
 
-    stakers = staking_agent.get_stakers_reservoir(duration=5).draw(3)
+    stakers = staking_agent.get_stakers_reservoir(periods=5).draw(3)
     assert len(stakers) == 3       # Three...
     assert len(set(stakers)) == 3  # ...unique addresses
 
     # Same but with pagination
-    stakers = staking_agent.get_stakers_reservoir(duration=5, pagination_size=1).draw(3)
+    stakers = staking_agent.get_stakers_reservoir(periods=5, pagination_size=1).draw(3)
     assert len(stakers) == 3
     assert len(set(stakers)) == 3
     light = staking_agent.blockchain.is_light
     staking_agent.blockchain.is_light = not light
-    stakers = staking_agent.get_stakers_reservoir(duration=5).draw(3)
+    stakers = staking_agent.get_stakers_reservoir(periods=5).draw(3)
     assert len(stakers) == 3
     assert len(set(stakers)) == 3
     staking_agent.blockchain.is_light = light

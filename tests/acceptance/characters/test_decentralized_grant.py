@@ -17,39 +17,53 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 
 
 import datetime
+import os
 
 import maya
-import pytest
-
 from nucypher_core import EncryptedKeyFrag
 
-from nucypher.crypto.utils import keccak_digest
+from nucypher.config.constants import TEMPORARY_DOMAIN
+from nucypher.policy.payment import PolicyManagerPayment, SubscriptionManagerPayment
+from tests.constants import TEST_PROVIDER_URI
+
+shares = 3
+policy_end_datetime = maya.now() + datetime.timedelta(days=35)
 
 
-def test_decentralized_grant(blockchain_alice, blockchain_bob, blockchain_ursulas):
-    # Setup the policy details
-    shares = 3
-    policy_end_datetime = maya.now() + datetime.timedelta(days=35)
-    label = b"this_is_the_path_to_which_access_is_being_granted"
+def check(policy, bob, ursulas):
 
-    # Create the Policy, Granting access to Bob
-    policy = blockchain_alice.grant(bob=blockchain_bob,
-                                    label=label,
-                                    threshold=2,
-                                    shares=shares,
-                                    rate=int(1e18),  # one ether
-                                    expiration=policy_end_datetime)
-
-    treasure_map = blockchain_bob._decrypt_treasure_map(policy.treasure_map,
-                                                        policy.publisher_verifying_key)
+    # Check the generated treasure map is decryptable by Bob.
+    treasure_map = bob._decrypt_treasure_map(policy.treasure_map, policy.publisher_verifying_key)
 
     # The number of actual destinations is exactly equal to shares.
     assert len(treasure_map.destinations) == shares
 
     # Let's look at the destinations.
-    for ursula in blockchain_ursulas:
+    for ursula in ursulas:
         if ursula.canonical_address in treasure_map.destinations:
             kfrag_kit = treasure_map.destinations[ursula.canonical_address]
-
-            # TODO: try to decrypt?
             assert isinstance(kfrag_kit, EncryptedKeyFrag)
+            # TODO: try to decrypt?
+
+
+def test_decentralized_grant_policy_manager(blockchain_alice, blockchain_bob, blockchain_ursulas):
+    payment_method = PolicyManagerPayment(provider=TEST_PROVIDER_URI, network=TEMPORARY_DOMAIN)
+    blockchain_alice.payment_method = payment_method
+    policy = blockchain_alice.grant(bob=blockchain_bob,
+                                    label=os.urandom(16),
+                                    threshold=2,
+                                    shares=shares,
+                                    rate=int(1e18),
+                                    expiration=policy_end_datetime)
+    check(policy=policy, bob=blockchain_bob, ursulas=blockchain_ursulas)
+
+
+def test_decentralized_grant_subscription_manager(blockchain_alice, blockchain_bob, blockchain_ursulas):
+    payment_method = SubscriptionManagerPayment(provider=TEST_PROVIDER_URI, network=TEMPORARY_DOMAIN)
+    blockchain_alice.payment_method = payment_method
+    policy = blockchain_alice.grant(bob=blockchain_bob,
+                                    label=os.urandom(16),
+                                    threshold=2,
+                                    shares=shares,
+                                    expiration=policy_end_datetime)
+    check(policy=policy, bob=blockchain_bob, ursulas=blockchain_ursulas)
