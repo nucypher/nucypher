@@ -22,13 +22,21 @@ class NetworksInventory:  # TODO: See #1564
     IBEX = 'ibex'
     LYNX = 'lynx'
 
+    # TODO: Use naming scheme to preserve multiple compatibility with multiple deployments to a single network?
+    POLYGON = 'polygon'
+    MUMBAI = 'mumbai'
+
     UNKNOWN = 'unknown'  # TODO: Is there a better way to signal an unknown network?
     DEFAULT = MAINNET
 
     __to_ethereum_chain_id = {
-        MAINNET: 1,  # Ethereum Mainnet
-        IBEX: 4,  # Rinkeby
-        LYNX: 5,  # Goerli
+        MAINNET: 1,      # Ethereum Mainnet
+        IBEX: 4,         # Rinkeby
+        LYNX: 5,         # Goerli
+
+        # TODO: Use naming scheme?
+        POLYGON: 137,    # Polygon Mainnet
+        MUMBAI: 80001,   # Polygon Testnet (Mumbai)
     }
 
     NETWORKS = tuple(__to_ethereum_chain_id.keys())
