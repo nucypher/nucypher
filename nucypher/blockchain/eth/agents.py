@@ -938,6 +938,79 @@ class PolicyManagerAgent(EthereumContractAgent):
         return receipt
 
 
+class SubscriptionManagerAgent(EthereumContractAgent):
+
+    contract_name: str = SUBSCRIPTION_MANAGER_CONTRACT_NAME
+    # TODO: A future deployment of SubscriptionManager may have a proxy.
+    #  _proxy_name: str = DISPATCHER_CONTRACT_NAME
+
+    class PolicyInfo(NamedTuple):
+        sponsor: ChecksumAddress
+        owner: ChecksumAddress
+        start_timestamp: int
+        end_timestamp: int
+
+    #
+    # Calls
+    #
+
+    @contract_api(CONTRACT_CALL)
+    def rate_per_second(self) -> int:
+        result = self.contract.functions.RATE_PER_SECOND().call()
+        return result
+
+    @contract_api(CONTRACT_CALL)
+    def is_policy_active(self, policy_id: bytes) -> bool:
+        result = self.contract.functions.isPolicyActive(policy_id).call()
+        return result
+
+    @contract_api(CONTRACT_CALL)
+    def fetch_policy(self, policy_id: bytes) -> PolicyInfo:
+        record = self.contract.functions.policies(policy_id).call()
+        policy_info = self.PolicyInfo(
+            sponsor=record[0],
+            # If the policyOwner addr is null, we return the sponsor addr instead of the owner.
+            owner=record[0] if record[1] == NULL_ADDRESS else record[1],
+            start_timestamp=record[2],
+            end_timestamp=record[3]
+        )
+        return policy_info
+
+    #
+    # Transactions
+    #
+
+    @contract_api(TRANSACTION)
+    def create_policy(self,
+                      policy_id: bytes,
+                      transacting_power: TransactingPower,
+                      start_timestamp: Timestamp,
+                      end_timestamp: Timestamp,
+                      value: Wei,
+                      owner_address: Optional[ChecksumAddress] = None) -> TxReceipt:
+        owner_address = owner_address or transacting_power.account
+        payload: TxParams = {'value': value}
+        contract_function: ContractFunction = self.contract.functions.createPolicy(
+            policy_id,
+            owner_address,
+            start_timestamp,
+            end_timestamp
+        )
+        receipt = self.blockchain.send_transaction(
+            contract_function=contract_function,
+            payload=payload,
+            transacting_power=transacting_power
+        )
+        return receipt
+
+    @contract_api(TRANSACTION)
+    def sweep(self, recipient: ChecksumAddress, transacting_power: TransactingPower) -> TxReceipt:
+        """Collect fees (ETH) earned since last withdrawal"""
+        contract_function: ContractFunction = self.contract.functions.sweep(recipient)
+        receipt = self.blockchain.send_transaction(contract_function=contract_function, transacting_power=transacting_power)
+        return receipt
+
+
 class AdjudicatorAgent(EthereumContractAgent):
 
     contract_name: str = ADJUDICATOR_CONTRACT_NAME
