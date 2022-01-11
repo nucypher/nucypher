@@ -15,12 +15,10 @@
  along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
-import os
-from pathlib import Path
-from unittest.mock import Mock
-import pytest
 import tempfile
+from pathlib import Path
 
+import pytest
 from constant_sorrow.constants import CERTIFICATE_NOT_SAVED, NO_KEYSTORE_ATTACHED
 from nucypher_core.umbral import SecretKey
 
@@ -40,7 +38,7 @@ from nucypher.config.characters import (
 from nucypher.config.constants import TEMPORARY_DOMAIN
 from nucypher.config.storages import ForgetfulNodeStorage
 from nucypher.crypto.keystore import Keystore
-from tests.constants import INSECURE_DEVELOPMENT_PASSWORD
+from tests.constants import INSECURE_DEVELOPMENT_PASSWORD, MOCK_PROVIDER_URI
 from tests.constants import MOCK_IP_ADDRESS
 
 # Main Cast
@@ -134,6 +132,7 @@ def test_default_character_configuration_preservation(configuration_class, teste
         character_config = configuration_class(checksum_address=fake_address,
                                                domain=network,
                                                rest_host=MOCK_IP_ADDRESS,
+                                               payment_provider=MOCK_PROVIDER_URI,
                                                keystore=keystore)
 
     else:

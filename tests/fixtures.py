@@ -182,6 +182,7 @@ def bob_federated_test_config():
 def ursula_decentralized_test_config(test_registry, temp_dir_path):
     config = make_ursula_test_configuration(federated=False,
                                             provider_uri=TEST_PROVIDER_URI,
+                                            payment_provider=TEST_PROVIDER_URI,
                                             test_registry=test_registry,
                                             rest_port=MOCK_URSULA_STARTING_PORT)
     yield config
@@ -194,6 +195,7 @@ def ursula_decentralized_test_config(test_registry, temp_dir_path):
 def alice_blockchain_test_config(blockchain_ursulas, testerchain, test_registry):
     config = make_alice_test_configuration(federated=False,
                                            provider_uri=TEST_PROVIDER_URI,
+                                           payment_provider=TEST_PROVIDER_URI,
                                            known_nodes=blockchain_ursulas,
                                            checksum_address=testerchain.alice_account,
                                            test_registry=test_registry)

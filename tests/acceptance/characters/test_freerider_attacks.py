@@ -23,7 +23,9 @@ import pytest
 
 from nucypher.characters.lawful import Enrico, Ursula
 from nucypher.characters.unlawful import Amonia
-from nucypher.network.middleware import RestMiddleware
+from nucypher.config.constants import TEMPORARY_DOMAIN
+from nucypher.policy.payment import PolicyManagerPayment
+from tests.constants import TEST_PROVIDER_URI
 
 
 def test_policy_simple_sinpa(blockchain_ursulas,
@@ -96,6 +98,11 @@ def test_pay_a_flunky_instead_of_the_arranged_ursula(blockchain_alice,
                                                      blockchain_ursulas,
                                                      ursula_decentralized_test_config,
                                                      testerchain):
+
+    # This test only applies to the PolicyManager payment method.
+    payment_method = PolicyManagerPayment(provider=TEST_PROVIDER_URI, network=TEMPORARY_DOMAIN)
+    blockchain_alice.payment_method = payment_method
+
     amonia = Amonia.from_lawful_alice(blockchain_alice)
     target_ursulas = blockchain_ursulas[0], blockchain_ursulas[1], blockchain_ursulas[2]
     flunkies = [blockchain_ursulas[5], blockchain_ursulas[6], blockchain_ursulas[7]]

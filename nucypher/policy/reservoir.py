@@ -56,7 +56,7 @@ def make_decentralized_staker_reservoir(staking_agent: StakingEscrowAgent,
     include_addresses = include_addresses or ()
     without_set = set(include_addresses) | set(exclude_addresses or ())
     try:
-        reservoir = staking_agent.get_stakers_reservoir(duration=duration_periods,
+        reservoir = staking_agent.get_stakers_reservoir(periods=duration_periods,
                                                         without=without_set,
                                                         pagination_size=pagination_size)
     except StakingEscrowAgent.NotEnoughStakers:
